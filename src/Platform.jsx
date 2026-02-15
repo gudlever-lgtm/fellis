@@ -49,13 +49,38 @@ export default function Platform({ lang: initialLang, onBackToLanding }) {
   )
 }
 
+// ── Media display component ──
+function PostMedia({ media }) {
+  if (!media?.length) return null
+  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+  const count = media.length
+  return (
+    <div className={`p-post-media p-post-media-${Math.min(count, 4)}`}>
+      {media.map((m, i) => {
+        const src = m.url.startsWith('http') ? m.url : `${API_BASE}${m.url}`
+        if (m.type === 'video') {
+          return (
+            <video key={i} className="p-media-item" controls preload="metadata" playsInline>
+              <source src={src} type={m.mime} />
+            </video>
+          )
+        }
+        return <img key={i} className="p-media-item" src={src} alt="" loading="lazy" />
+      })}
+    </div>
+  )
+}
+
 // ── Feed ──
 function FeedPage({ lang, t }) {
   const [posts, setPosts] = useState(POSTS)
   const [newPostText, setNewPostText] = useState('')
+  const [mediaFiles, setMediaFiles] = useState([])
+  const [mediaPreviews, setMediaPreviews] = useState([])
   const [likedPosts, setLikedPosts] = useState(new Set())
   const [expandedComments, setExpandedComments] = useState(new Set())
   const [commentTexts, setCommentTexts] = useState({})
+  const fileInputRef = useRef(null)
 
   // Try loading feed from API
   useEffect(() => {
@@ -67,25 +92,52 @@ function FeedPage({ lang, t }) {
     })
   }, [])
 
+  const handleFileSelect = useCallback((e) => {
+    const files = Array.from(e.target.files).slice(0, 4)
+    setMediaFiles(files)
+    // Generate previews
+    const previews = files.map(f => ({
+      url: URL.createObjectURL(f),
+      type: f.type.startsWith('video/') ? 'video' : 'image',
+      name: f.name,
+    }))
+    setMediaPreviews(previews)
+  }, [])
+
+  const removeMedia = useCallback((idx) => {
+    setMediaFiles(prev => prev.filter((_, i) => i !== idx))
+    setMediaPreviews(prev => {
+      URL.revokeObjectURL(prev[idx].url)
+      return prev.filter((_, i) => i !== idx)
+    })
+  }, [])
+
   const handlePost = useCallback(() => {
     if (!newPostText.trim()) return
     const text = newPostText.trim()
-    apiCreatePost(text).then(data => {
+    const files = mediaFiles.length > 0 ? mediaFiles : null
+    apiCreatePost(text, files).then(data => {
       if (data) {
         setPosts(prev => [data, ...prev])
       } else {
-        // Fallback: local-only post
+        // Fallback: local-only post with local previews
+        const localMedia = mediaPreviews.length > 0
+          ? mediaPreviews.map(p => ({ url: p.url, type: p.type, mime: '' }))
+          : null
         setPosts(prev => [{
           id: Date.now(),
           author: CURRENT_USER.name,
           time: { da: 'Lige nu', en: 'Just now' },
           text: { da: text, en: text },
-          likes: 0, comments: [],
+          likes: 0, comments: [], media: localMedia,
         }, ...prev])
       }
     })
     setNewPostText('')
-  }, [newPostText])
+    setMediaFiles([])
+    setMediaPreviews([])
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }, [newPostText, mediaFiles, mediaPreviews])
 
   const toggleLike = useCallback((id) => {
     setLikedPosts(prev => {
@@ -132,8 +184,33 @@ function FeedPage({ lang, t }) {
             onChange={e => setNewPostText(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handlePost()}
           />
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
+            multiple
+            style={{ display: 'none' }}
+            onChange={handleFileSelect}
+          />
+          <button className="p-media-btn" onClick={() => fileInputRef.current?.click()} title={lang === 'da' ? 'Tilføj billede/video' : 'Add image/video'}>
+            📷
+          </button>
           <button className="p-post-btn" onClick={handlePost} disabled={!newPostText.trim()}>{t.post}</button>
         </div>
+        {mediaPreviews.length > 0 && (
+          <div className="p-media-previews">
+            {mediaPreviews.map((p, i) => (
+              <div key={i} className="p-media-preview">
+                {p.type === 'video' ? (
+                  <video src={p.url} className="p-media-preview-thumb" />
+                ) : (
+                  <img src={p.url} alt="" className="p-media-preview-thumb" />
+                )}
+                <button className="p-media-preview-remove" onClick={() => removeMedia(i)}>✕</button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Posts */}
@@ -152,6 +229,7 @@ function FeedPage({ lang, t }) {
               </div>
             </div>
             <div className="p-post-body">{post.text[lang]}</div>
+            {post.media && <PostMedia media={post.media} />}
             <div className="p-post-stats">
               <span>{post.likes + (liked ? 1 : 0)} {t.like.toLowerCase()}</span>
               <span onClick={() => toggleComments(post.id)} style={{ cursor: 'pointer' }}>
@@ -260,6 +338,7 @@ function ProfilePage({ lang, t }) {
             </div>
           </div>
           <div className="p-post-body">{post.text[lang]}</div>
+          {post.media && <PostMedia media={post.media} />}
           <div className="p-post-stats">
             <span>{post.likes} {t.like.toLowerCase()}</span>
             <span>{post.comments.length} {t.comment.toLowerCase()}{post.comments.length !== 1 ? (lang === 'da' ? 'er' : 's') : ''}</span>

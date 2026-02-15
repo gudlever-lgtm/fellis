@@ -1,9 +1,91 @@
 import express from 'express'
 import crypto from 'crypto'
+import path from 'path'
+import fs from 'fs'
+import { fileURLToPath } from 'url'
+import multer from 'multer'
 import pool from './db.js'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const UPLOADS_DIR = path.join(__dirname, 'uploads')
+
+// Ensure uploads directory exists
+if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true })
 
 const app = express()
 app.use(express.json())
+
+// ── Upload security ──
+
+// Allowed MIME types (images + videos only)
+const ALLOWED_MIME_TYPES = new Set([
+  'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif',
+  'video/mp4', 'video/webm', 'video/quicktime',
+])
+
+// File signatures (magic bytes) for validation
+const MAGIC_BYTES = [
+  { mime: 'image/jpeg', bytes: [0xFF, 0xD8, 0xFF] },
+  { mime: 'image/png', bytes: [0x89, 0x50, 0x4E, 0x47] },
+  { mime: 'image/gif', bytes: [0x47, 0x49, 0x46] },
+  { mime: 'image/webp', bytes: [0x52, 0x49, 0x46, 0x46] }, // RIFF
+  { mime: 'video/mp4', offset: 4, bytes: [0x66, 0x74, 0x79, 0x70] }, // ftyp
+  { mime: 'video/webm', bytes: [0x1A, 0x45, 0xDF, 0xA3] },
+  { mime: 'video/quicktime', offset: 4, bytes: [0x66, 0x74, 0x79, 0x70] },
+]
+
+function validateMagicBytes(buffer, declaredMime) {
+  for (const sig of MAGIC_BYTES) {
+    const offset = sig.offset || 0
+    if (buffer.length < offset + sig.bytes.length) continue
+    const match = sig.bytes.every((b, i) => buffer[offset + i] === b)
+    if (match) return true
+  }
+  return false
+}
+
+// Multer storage: random filename, no original name preserved
+const storage = multer.diskStorage({
+  destination: UPLOADS_DIR,
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase().replace(/[^a-z0-9.]/g, '')
+    const safeName = crypto.randomUUID() + (ext || '.bin')
+    cb(null, safeName)
+  },
+})
+
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50 MB max
+    files: 4,                    // max 4 files per post
+  },
+  fileFilter: (_req, file, cb) => {
+    if (!ALLOWED_MIME_TYPES.has(file.mimetype)) {
+      return cb(new Error('File type not allowed'))
+    }
+    // Block path traversal in filename
+    if (file.originalname.includes('..') || file.originalname.includes('/') || file.originalname.includes('\\')) {
+      return cb(new Error('Invalid filename'))
+    }
+    cb(null, true)
+  },
+})
+
+// Serve uploads with security headers (no script execution, no sniffing)
+app.use('/uploads', (req, res, next) => {
+  // Block anything that isn't GET
+  if (req.method !== 'GET') return res.status(405).end()
+  // Prevent MIME sniffing and script execution
+  res.setHeader('X-Content-Type-Options', 'nosniff')
+  res.setHeader('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'")
+  res.setHeader('Cache-Control', 'public, max-age=86400')
+  next()
+}, express.static(UPLOADS_DIR, {
+  dotfiles: 'deny',        // No hidden files
+  index: false,             // No directory listing
+  extensions: false,        // No extension guessing
+}))
 
 // ── Auth middleware ──
 async function authenticate(req, res, next) {
@@ -116,8 +198,6 @@ app.get('/api/profile/:id', authenticate, async (req, res) => {
 
 // GET /api/profile — current user profile
 app.get('/api/profile', authenticate, async (req, res) => {
-  req.params.id = req.userId
-  // Reuse the :id handler logic
   try {
     const [users] = await pool.query(
       `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count,
@@ -141,11 +221,11 @@ app.get('/api/profile', authenticate, async (req, res) => {
 
 // ── Feed routes ──
 
-// GET /api/feed — get all posts with comments
+// GET /api/feed — get all posts with comments and media
 app.get('/api/feed', authenticate, async (req, res) => {
   try {
     const [posts] = await pool.query(
-      `SELECT p.id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.created_at
+      `SELECT p.id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.created_at
        FROM posts p JOIN users u ON p.author_id = u.id
        ORDER BY p.created_at DESC`
     )
@@ -164,29 +244,57 @@ app.get('/api/feed', authenticate, async (req, res) => {
       if (!commentsByPost[c.post_id]) commentsByPost[c.post_id] = []
       commentsByPost[c.post_id].push({ author: c.author, text: { da: c.text_da, en: c.text_en } })
     }
-    const result = posts.map(p => ({
-      id: p.id,
-      author: p.author,
-      time: { da: p.time_da, en: p.time_en },
-      text: { da: p.text_da, en: p.text_en },
-      likes: p.likes,
-      liked: likedSet.has(p.id),
-      comments: commentsByPost[p.id] || [],
-    }))
+    const result = posts.map(p => {
+      let media = null
+      if (p.media) {
+        try { media = typeof p.media === 'string' ? JSON.parse(p.media) : p.media } catch {}
+      }
+      return {
+        id: p.id,
+        author: p.author,
+        time: { da: p.time_da, en: p.time_en },
+        text: { da: p.text_da, en: p.text_en },
+        likes: p.likes,
+        liked: likedSet.has(p.id),
+        media,
+        comments: commentsByPost[p.id] || [],
+      }
+    })
     res.json(result)
   } catch (err) {
     res.status(500).json({ error: 'Failed to load feed' })
   }
 })
 
-// POST /api/feed — create a new post
-app.post('/api/feed', authenticate, async (req, res) => {
+// POST /api/feed — create a new post (with optional media)
+app.post('/api/feed', authenticate, upload.array('media', 4), async (req, res) => {
   const { text } = req.body
   if (!text) return res.status(400).json({ error: 'Post text required' })
+
+  // Validate magic bytes for each uploaded file
+  const mediaUrls = []
+  if (req.files?.length) {
+    for (const file of req.files) {
+      const buf = fs.readFileSync(file.path, { length: 16 })
+      const header = Buffer.alloc(16)
+      const fd = fs.openSync(file.path, 'r')
+      fs.readSync(fd, header, 0, 16, 0)
+      fs.closeSync(fd)
+      if (!validateMagicBytes(header, file.mimetype)) {
+        // Delete the suspicious file immediately
+        fs.unlinkSync(file.path)
+        return res.status(400).json({ error: `File "${file.originalname}" failed content validation` })
+      }
+      const type = file.mimetype.startsWith('video/') ? 'video' : 'image'
+      mediaUrls.push({ url: `/uploads/${file.filename}`, type, mime: file.mimetype })
+    }
+  }
+
   try {
+    const mediaJson = mediaUrls.length > 0 ? JSON.stringify(mediaUrls) : null
     const [result] = await pool.query(
-      'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en) VALUES (?, ?, ?, ?, ?)',
-      [req.userId, text, text, 'Lige nu', 'Just now']
+      'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media) VALUES (?, ?, ?, ?, ?, ?)',
+      [req.userId, text, text, 'Lige nu', 'Just now', mediaJson]
     )
     const [users] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
     res.json({
@@ -195,10 +303,29 @@ app.post('/api/feed', authenticate, async (req, res) => {
       time: { da: 'Lige nu', en: 'Just now' },
       text: { da: text, en: text },
       likes: 0, liked: false, comments: [],
+      media: mediaUrls.length > 0 ? mediaUrls : null,
     })
   } catch (err) {
     res.status(500).json({ error: 'Failed to create post' })
   }
+})
+
+// POST /api/upload — standalone upload endpoint (for drag-and-drop preview)
+app.post('/api/upload', authenticate, upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' })
+
+  // Validate magic bytes
+  const header = Buffer.alloc(16)
+  const fd = fs.openSync(req.file.path, 'r')
+  fs.readSync(fd, header, 0, 16, 0)
+  fs.closeSync(fd)
+  if (!validateMagicBytes(header, req.file.mimetype)) {
+    fs.unlinkSync(req.file.path)
+    return res.status(400).json({ error: 'File content does not match declared type' })
+  }
+
+  const type = req.file.mimetype.startsWith('video/') ? 'video' : 'image'
+  res.json({ url: `/uploads/${req.file.filename}`, type, mime: req.file.mimetype })
 })
 
 // POST /api/feed/:id/like — toggle like
@@ -263,7 +390,6 @@ app.get('/api/friends', authenticate, async (req, res) => {
 // GET /api/messages — get message threads
 app.get('/api/messages', authenticate, async (req, res) => {
   try {
-    // Get all unique conversation partners
     const [partners] = await pool.query(
       `SELECT DISTINCT
         CASE WHEN sender_id = ? THEN receiver_id ELSE sender_id END as partner_id
@@ -314,6 +440,17 @@ app.post('/api/messages/:friendId', authenticate, async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: 'Failed to send message' })
   }
+})
+
+// Multer error handler
+app.use((err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: 'File too large (max 50 MB)' })
+    if (err.code === 'LIMIT_FILE_COUNT') return res.status(400).json({ error: 'Too many files (max 4)' })
+    return res.status(400).json({ error: err.message })
+  }
+  if (err) return res.status(400).json({ error: err.message })
+  next()
 })
 
 const PORT = process.env.PORT || 3001

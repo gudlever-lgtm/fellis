@@ -66,7 +66,30 @@ export async function apiFetchFeed() {
   return await request('/api/feed')
 }
 
-export async function apiCreatePost(text) {
+export async function apiCreatePost(text, mediaFiles) {
+  if (mediaFiles?.length) {
+    // Use FormData for multipart upload
+    const form = new FormData()
+    form.append('text', text)
+    for (const file of mediaFiles) {
+      form.append('media', file)
+    }
+    try {
+      const res = await fetch(`${API_BASE}/api/feed`, {
+        method: 'POST',
+        headers: { 'X-Session-Id': getSessionId() },
+        body: form,
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error || `HTTP ${res.status}`)
+      }
+      return await res.json()
+    } catch (err) {
+      if (err.message === 'Failed to fetch') return null
+      throw err
+    }
+  }
   return await request('/api/feed', {
     method: 'POST',
     body: JSON.stringify({ text }),
