@@ -242,6 +242,58 @@ app.post('/api/auth/register', async (req, res) => {
   }
 })
 
+// POST /api/auth/forgot-password — request password reset (or set first password for FB users)
+app.post('/api/auth/forgot-password', async (req, res) => {
+  const { email } = req.body
+  if (!email) return res.status(400).json({ error: 'Email required' })
+  try {
+    const [users] = await pool.query('SELECT id, name, facebook_id, password_hash FROM users WHERE email = ?', [email])
+    if (users.length === 0) {
+      // Don't reveal if user exists or not — always return success
+      return res.json({ ok: true })
+    }
+    const user = users[0]
+    const token = crypto.randomUUID()
+    // Store reset token (reuse sessions table with a special prefix)
+    await pool.query(
+      'INSERT INTO sessions (id, user_id, lang, expires_at) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 1 HOUR))',
+      [`reset:${token}`, user.id, 'da']
+    )
+    // In a real app, send email. For demo, return the token directly.
+    res.json({ ok: true, resetToken: token, isFacebookUser: !!user.facebook_id, hasPassword: !!user.password_hash })
+  } catch (err) {
+    res.status(500).json({ error: 'Request failed' })
+  }
+})
+
+// POST /api/auth/reset-password — set new password using reset token
+app.post('/api/auth/reset-password', async (req, res) => {
+  const { token, password } = req.body
+  if (!token || !password) return res.status(400).json({ error: 'Token and password required' })
+  if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' })
+  try {
+    const [rows] = await pool.query(
+      'SELECT user_id FROM sessions WHERE id = ? AND expires_at > NOW()',
+      [`reset:${token}`]
+    )
+    if (rows.length === 0) return res.status(400).json({ error: 'Invalid or expired reset token' })
+    const userId = rows[0].user_id
+    const hash = crypto.createHash('sha256').update(password).digest('hex')
+    await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [hash, userId])
+    // Clean up reset token
+    await pool.query('DELETE FROM sessions WHERE id = ?', [`reset:${token}`])
+    // Create a new login session
+    const sessionId = crypto.randomUUID()
+    await pool.query(
+      'INSERT INTO sessions (id, user_id, lang, expires_at) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY))',
+      [sessionId, userId, 'da']
+    )
+    res.json({ ok: true, sessionId, userId })
+  } catch (err) {
+    res.status(500).json({ error: 'Reset failed' })
+  }
+})
+
 // POST /api/auth/logout
 app.post('/api/auth/logout', authenticate, async (req, res) => {
   const sessionId = req.headers['x-session-id']
@@ -523,7 +575,7 @@ app.get('/api/profile', authenticate, async (req, res) => {
   try {
     const [users] = await pool.query(
       `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url,
-        u.email, u.facebook_id, u.created_at,
+        u.email, u.facebook_id, u.password_hash, u.created_at,
         (SELECT COUNT(*) FROM friendships WHERE user_id = u.id) as friend_count,
         (SELECT COUNT(*) FROM posts WHERE author_id = u.id) as post_count
        FROM users u WHERE u.id = ?`,
@@ -539,6 +591,7 @@ app.get('/api/profile', authenticate, async (req, res) => {
       friendCount: u.friend_count, postCount: u.post_count, photoCount: u.photo_count || 0,
       email: u.email || null,
       loginMethod: u.facebook_id ? 'facebook' : 'email',
+      hasPassword: !!u.password_hash,
       createdAt: u.created_at,
     })
   } catch (err) {

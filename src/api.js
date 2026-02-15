@@ -51,6 +51,24 @@ export async function apiRegister(name, email, password, lang) {
   return data
 }
 
+export async function apiForgotPassword(email) {
+  return await request('/api/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  })
+}
+
+export async function apiResetPassword(token, password) {
+  const data = await request('/api/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ token, password }),
+  })
+  if (data?.sessionId) {
+    localStorage.setItem('fellis_session_id', data.sessionId)
+  }
+  return data
+}
+
 export async function apiCheckSession() {
   if (!getSessionId()) return null
   return await request('/api/auth/session')

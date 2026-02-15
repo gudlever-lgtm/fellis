@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { FRIENDS, nameToColor, getInitials } from './data.js'
-import { apiLogin, apiRegister, getFacebookAuthUrl } from './api.js'
+import { apiLogin, apiRegister, apiForgotPassword, apiResetPassword, getFacebookAuthUrl } from './api.js'
 
 // ── Landing translations ──
 const T = {
@@ -69,6 +69,18 @@ const T = {
     loginError: 'Ugyldig e-mail eller adgangskode',
     loginNoAccount: 'Har du ikke en konto?',
     loginSignup: 'Kom i gang',
+    forgotPassword: 'Glemt adgangskode?',
+    forgotTitle: 'Nulstil adgangskode',
+    forgotEmail: 'Din e-mail',
+    forgotSubmit: 'Send nulstilingslink',
+    forgotSent: 'Nulstillingslink sendt!',
+    forgotSetNew: 'Opret ny adgangskode',
+    forgotNewPassword: 'Ny adgangskode (min. 6 tegn)',
+    forgotConfirm: 'Gem adgangskode',
+    forgotSuccess: 'Adgangskode opdateret! Du er nu logget ind.',
+    forgotError: 'Kunne ikke nulstille adgangskode',
+    forgotFbNote: 'Din konto blev oprettet via Facebook. Opret en adgangskode for at logge ind med e-mail.',
+    forgotBack: 'Tilbage til login',
     // Register fields (step 4)
     registerTitle: 'Opret din fellis.eu konto',
     registerName: 'Fulde navn',
@@ -142,6 +154,18 @@ const T = {
     loginError: 'Invalid email or password',
     loginNoAccount: "Don't have an account?",
     loginSignup: 'Get started',
+    forgotPassword: 'Forgotten password?',
+    forgotTitle: 'Reset password',
+    forgotEmail: 'Your email',
+    forgotSubmit: 'Send reset link',
+    forgotSent: 'Reset link sent!',
+    forgotSetNew: 'Set new password',
+    forgotNewPassword: 'New password (min. 6 characters)',
+    forgotConfirm: 'Save password',
+    forgotSuccess: 'Password updated! You are now logged in.',
+    forgotError: 'Could not reset password',
+    forgotFbNote: 'Your account was created via Facebook. Set a password to log in with email.',
+    forgotBack: 'Back to login',
     // Register fields (step 4)
     registerTitle: 'Create your fellis.eu account',
     registerName: 'Full name',
@@ -167,6 +191,15 @@ export default function Landing({ onEnterPlatform }) {
   const [loginPassword, setLoginPassword] = useState('')
   const [loginError, setLoginError] = useState('')
   const [loginLoading, setLoginLoading] = useState(false)
+
+  // Forgot password state
+  const [forgotMode, setForgotMode] = useState(null) // null | 'email' | 'reset' | 'done'
+  const [forgotEmail, setForgotEmail] = useState('')
+  const [forgotToken, setForgotToken] = useState('')
+  const [forgotNewPw, setForgotNewPw] = useState('')
+  const [forgotError, setForgotError] = useState('')
+  const [forgotLoading, setForgotLoading] = useState(false)
+  const [forgotFbNote, setForgotFbNote] = useState(false)
 
   // Register state (step 4)
   const [regName, setRegName] = useState('')
@@ -201,6 +234,66 @@ export default function Landing({ onEnterPlatform }) {
     }
     setLoginLoading(false)
   }, [loginEmail, loginPassword, lang, t, onEnterPlatform])
+
+  // ── Forgot password handlers ──
+  const handleForgotSubmitEmail = useCallback(async (e) => {
+    e.preventDefault()
+    if (!forgotEmail.trim()) return
+    setForgotLoading(true)
+    setForgotError('')
+    try {
+      const data = await apiForgotPassword(forgotEmail.trim())
+      if (data?.resetToken) {
+        setForgotToken(data.resetToken)
+        setForgotFbNote(data.isFacebookUser && !data.hasPassword)
+        setForgotMode('reset')
+      } else {
+        setForgotError(t.forgotError)
+      }
+    } catch {
+      setForgotError(t.forgotError)
+    }
+    setForgotLoading(false)
+  }, [forgotEmail, t])
+
+  const handleForgotResetPw = useCallback(async (e) => {
+    e.preventDefault()
+    if (!forgotNewPw.trim() || forgotNewPw.length < 6) {
+      setForgotError(lang === 'da' ? 'Adgangskode skal være mindst 6 tegn' : 'Password must be at least 6 characters')
+      return
+    }
+    setForgotLoading(true)
+    setForgotError('')
+    try {
+      const data = await apiResetPassword(forgotToken, forgotNewPw.trim())
+      if (data?.sessionId) {
+        setForgotMode('done')
+        setTimeout(() => {
+          setShowLoginModal(false)
+          setForgotMode(null)
+          onEnterPlatform(lang)
+        }, 1500)
+      } else {
+        setForgotError(t.forgotError)
+      }
+    } catch {
+      setForgotError(t.forgotError)
+    }
+    setForgotLoading(false)
+  }, [forgotToken, forgotNewPw, lang, t, onEnterPlatform])
+
+  const openForgotPassword = useCallback(() => {
+    setForgotMode('email')
+    setForgotEmail(loginEmail)
+    setForgotError('')
+    setForgotNewPw('')
+    setForgotFbNote(false)
+  }, [loginEmail])
+
+  const closeForgotPassword = useCallback(() => {
+    setForgotMode(null)
+    setForgotError('')
+  }, [])
 
   // ── Register handler (step 4 done) ──
   const handleRegister = useCallback(async (e) => {
@@ -278,40 +371,94 @@ export default function Landing({ onEnterPlatform }) {
 
       {/* Login Modal */}
       {showLoginModal && (
-        <div className="modal-backdrop" onClick={() => setShowLoginModal(false)}>
+        <div className="modal-backdrop" onClick={() => { setShowLoginModal(false); setForgotMode(null) }}>
           <div className="fb-modal" onClick={e => e.stopPropagation()}>
             <div className="fb-modal-header" style={{ background: '#2D6A4F' }}>
               <div className="fb-modal-logo" style={{ color: '#fff', fontFamily: "'Playfair Display', serif" }}>fellis.eu</div>
             </div>
-            <form className="fb-modal-form" onSubmit={handleLogin}>
-              <h3>{t.loginTitle}</h3>
-              <input
-                type="email"
-                placeholder={t.loginEmail}
-                value={loginEmail}
-                onChange={e => setLoginEmail(e.target.value)}
-                className="fb-input"
-                autoFocus
-              />
-              <input
-                type="password"
-                placeholder={t.loginPassword}
-                value={loginPassword}
-                onChange={e => setLoginPassword(e.target.value)}
-                className="fb-input"
-              />
-              {loginError && <div className="fb-error">{loginError}</div>}
-              <button type="submit" className="fb-login-submit" style={{ background: '#2D6A4F' }} disabled={loginLoading}>
-                {loginLoading ? '...' : t.loginSubmit}
-              </button>
-              <button type="button" className="fb-forgot" onClick={() => setShowLoginModal(false)}>{t.loginCancel}</button>
-              <div className="fb-forgot-link" style={{ marginTop: 8 }}>
-                {t.loginNoAccount}{' '}
-                <span style={{ color: '#2D6A4F', cursor: 'pointer', fontWeight: 600 }} onClick={() => { setShowLoginModal(false); setStep(1) }}>
-                  {t.loginSignup}
-                </span>
+
+            {/* Normal login */}
+            {!forgotMode && (
+              <form className="fb-modal-form" onSubmit={handleLogin}>
+                <h3>{t.loginTitle}</h3>
+                <input
+                  type="email"
+                  placeholder={t.loginEmail}
+                  value={loginEmail}
+                  onChange={e => setLoginEmail(e.target.value)}
+                  className="fb-input"
+                  autoFocus
+                />
+                <input
+                  type="password"
+                  placeholder={t.loginPassword}
+                  value={loginPassword}
+                  onChange={e => setLoginPassword(e.target.value)}
+                  className="fb-input"
+                />
+                {loginError && <div className="fb-error">{loginError}</div>}
+                <button type="submit" className="fb-login-submit" style={{ background: '#2D6A4F' }} disabled={loginLoading}>
+                  {loginLoading ? '...' : t.loginSubmit}
+                </button>
+                <button type="button" className="fb-forgot" onClick={openForgotPassword}>{t.forgotPassword}</button>
+                <div className="fb-forgot-link" style={{ marginTop: 8 }}>
+                  {t.loginNoAccount}{' '}
+                  <span style={{ color: '#2D6A4F', cursor: 'pointer', fontWeight: 600 }} onClick={() => { setShowLoginModal(false); setStep(1) }}>
+                    {t.loginSignup}
+                  </span>
+                </div>
+              </form>
+            )}
+
+            {/* Forgot password: enter email */}
+            {forgotMode === 'email' && (
+              <form className="fb-modal-form" onSubmit={handleForgotSubmitEmail}>
+                <h3>{t.forgotTitle}</h3>
+                <input
+                  type="email"
+                  placeholder={t.forgotEmail}
+                  value={forgotEmail}
+                  onChange={e => setForgotEmail(e.target.value)}
+                  className="fb-input"
+                  autoFocus
+                />
+                {forgotError && <div className="fb-error">{forgotError}</div>}
+                <button type="submit" className="fb-login-submit" style={{ background: '#2D6A4F' }} disabled={forgotLoading}>
+                  {forgotLoading ? '...' : t.forgotSubmit}
+                </button>
+                <button type="button" className="fb-forgot" onClick={closeForgotPassword}>{t.forgotBack}</button>
+              </form>
+            )}
+
+            {/* Forgot password: set new password */}
+            {forgotMode === 'reset' && (
+              <form className="fb-modal-form" onSubmit={handleForgotResetPw}>
+                <h3>{t.forgotSetNew}</h3>
+                {forgotFbNote && <div className="fb-info-note">{t.forgotFbNote}</div>}
+                <input
+                  type="password"
+                  placeholder={t.forgotNewPassword}
+                  value={forgotNewPw}
+                  onChange={e => setForgotNewPw(e.target.value)}
+                  className="fb-input"
+                  autoFocus
+                  minLength={6}
+                />
+                {forgotError && <div className="fb-error">{forgotError}</div>}
+                <button type="submit" className="fb-login-submit" style={{ background: '#2D6A4F' }} disabled={forgotLoading}>
+                  {forgotLoading ? '...' : t.forgotConfirm}
+                </button>
+                <button type="button" className="fb-forgot" onClick={closeForgotPassword}>{t.forgotBack}</button>
+              </form>
+            )}
+
+            {/* Forgot password: success */}
+            {forgotMode === 'done' && (
+              <div className="fb-modal-form" style={{ textAlign: 'center', padding: '32px 24px' }}>
+                <div style={{ fontSize: 48, marginBottom: 16 }}>✓</div>
+                <p style={{ color: '#2D6A4F', fontWeight: 600 }}>{t.forgotSuccess}</p>
               </div>
-            </form>
+            )}
           </div>
         </div>
       )}
