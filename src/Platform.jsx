@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { FRIENDS, POSTS, CURRENT_USER, MESSAGE_THREADS, PT, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchMessages, apiSendMessage, apiUploadAvatar, apiCheckSession } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchMessages, apiSendMessage, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -408,6 +408,117 @@ function ProfilePage({ lang, t, currentUser, onUserUpdate }) {
           </div>
         </div>
       ))}
+
+      {/* GDPR: Privacy & Data Management Section */}
+      <PrivacySection lang={lang} />
+    </div>
+  )
+}
+
+// ── GDPR Privacy & Data Management ──
+function PrivacySection({ lang }) {
+  const [loading, setLoading] = useState(null)
+  const [message, setMessage] = useState('')
+
+  const t = lang === 'da' ? {
+    title: 'Privatliv & Dataforvaltning',
+    subtitle: 'GDPR-rettigheder — EU databeskyttelsesforordningen',
+    exportBtn: 'Download mine data (Art. 20)',
+    exportDesc: 'Eksporter alle dine data i JSON-format',
+    deleteFbBtn: 'Slet Facebook-data (Art. 17)',
+    deleteFbDesc: 'Fjern alle data importeret fra Facebook',
+    deleteAccountBtn: 'Slet min konto helt',
+    deleteAccountDesc: 'Slet alt permanent — dette kan ikke fortrydes',
+    confirmDeleteFb: 'Er du sikker? Alle dine importerede Facebook-opslag, fotos og venskaber vil blive slettet permanent.',
+    confirmDeleteAccount: 'ADVARSEL: Dette sletter din konto og ALLE data permanent. Dette kan ikke fortrydes. Er du sikker?',
+    done: 'Udført!',
+    error: 'Der opstod en fejl. Prøv igen.',
+  } : {
+    title: 'Privacy & Data Management',
+    subtitle: 'GDPR rights — EU Data Protection Regulation',
+    exportBtn: 'Download my data (Art. 20)',
+    exportDesc: 'Export all your data in JSON format',
+    deleteFbBtn: 'Delete Facebook data (Art. 17)',
+    deleteFbDesc: 'Remove all data imported from Facebook',
+    deleteAccountBtn: 'Delete my account entirely',
+    deleteAccountDesc: 'Permanently delete everything — this cannot be undone',
+    confirmDeleteFb: 'Are you sure? All your imported Facebook posts, photos, and friendships will be permanently deleted.',
+    confirmDeleteAccount: 'WARNING: This will permanently delete your account and ALL data. This cannot be undone. Are you sure?',
+    done: 'Done!',
+    error: 'An error occurred. Please try again.',
+  }
+
+  const handleExport = async () => {
+    setLoading('export')
+    setMessage('')
+    try {
+      const data = await apiExportData()
+      if (data) {
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `fellis-data-export-${Date.now()}.json`
+        a.click()
+        URL.revokeObjectURL(url)
+        setMessage(t.done)
+      }
+    } catch {
+      setMessage(t.error)
+    }
+    setLoading(null)
+  }
+
+  const handleDeleteFb = async () => {
+    if (!confirm(t.confirmDeleteFb)) return
+    setLoading('deleteFb')
+    setMessage('')
+    try {
+      await apiDeleteFacebookData()
+      setMessage(t.done)
+    } catch {
+      setMessage(t.error)
+    }
+    setLoading(null)
+  }
+
+  const handleDeleteAccount = async () => {
+    if (!confirm(t.confirmDeleteAccount)) return
+    setLoading('deleteAccount')
+    try {
+      await apiDeleteAccount()
+      localStorage.clear()
+      window.location.href = '/'
+    } catch {
+      setMessage(t.error)
+      setLoading(null)
+    }
+  }
+
+  const btnStyle = { padding: '10px 16px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', cursor: 'pointer', fontSize: 14, width: '100%', textAlign: 'left' }
+  const dangerBtnStyle = { ...btnStyle, borderColor: '#e74c3c', color: '#e74c3c' }
+
+  return (
+    <div className="p-card" style={{ marginTop: 24 }}>
+      <h3 className="p-section-title" style={{ margin: '0 0 4px' }}>{t.title}</h3>
+      <p style={{ fontSize: 13, color: '#888', margin: '0 0 16px' }}>{t.subtitle}</p>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <button style={btnStyle} onClick={handleExport} disabled={loading === 'export'}>
+          {loading === 'export' ? '...' : t.exportBtn}
+          <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{t.exportDesc}</div>
+        </button>
+        <button style={dangerBtnStyle} onClick={handleDeleteFb} disabled={loading === 'deleteFb'}>
+          {loading === 'deleteFb' ? '...' : t.deleteFbBtn}
+          <div style={{ fontSize: 12, color: '#aaa', marginTop: 2 }}>{t.deleteFbDesc}</div>
+        </button>
+        <button style={{ ...dangerBtnStyle, borderColor: '#c0392b', color: '#c0392b' }} onClick={handleDeleteAccount} disabled={loading === 'deleteAccount'}>
+          {loading === 'deleteAccount' ? '...' : t.deleteAccountBtn}
+          <div style={{ fontSize: 12, color: '#aaa', marginTop: 2 }}>{t.deleteAccountDesc}</div>
+        </button>
+      </div>
+
+      {message && <p style={{ marginTop: 10, fontSize: 13, color: message === t.done ? '#27ae60' : '#e74c3c' }}>{message}</p>}
     </div>
   )
 }
