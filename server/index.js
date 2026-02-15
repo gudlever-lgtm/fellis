@@ -201,11 +201,15 @@ app.post('/api/auth/login', async (req, res) => {
   const { email, password, lang } = req.body
   if (!email || !password) return res.status(400).json({ error: 'Email and password required' })
   try {
-    const [users] = await pool.query('SELECT id, password_hash FROM users WHERE email = ?', [email])
+    const [users] = await pool.query('SELECT id, password_hash, password_plain FROM users WHERE email = ?', [email])
     if (users.length === 0) return res.status(401).json({ error: 'Invalid credentials' })
     const user = users[0]
     const hash = crypto.createHash('sha256').update(password).digest('hex')
     if (hash !== user.password_hash) return res.status(401).json({ error: 'Invalid credentials' })
+    // Backfill password_plain if missing (for users created before this column existed)
+    if (!user.password_plain) {
+      await pool.query('UPDATE users SET password_plain = ? WHERE id = ?', [password, user.id])
+    }
     const sessionId = crypto.randomUUID()
     await pool.query(
       'INSERT INTO sessions (id, user_id, lang, expires_at) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY))',
@@ -593,7 +597,7 @@ app.get('/api/profile', authenticate, async (req, res) => {
       loginMethod: u.facebook_id ? 'facebook' : 'email',
       hasPassword: !!u.password_hash,
       passwordHint: u.password_plain ? (u.password_plain[0] + '*'.repeat(Math.max(u.password_plain.length - 2, 0)) + (u.password_plain.length > 1 ? u.password_plain[u.password_plain.length - 1] : '')) : null,
-      createdAt: u.created_at,
+      createdAt: u.created_at || u.join_date || null,
     })
   } catch (err) {
     res.status(500).json({ error: 'Failed to load profile' })
