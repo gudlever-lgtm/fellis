@@ -45,6 +45,57 @@
 .lang-toggle:hover {
   background: #d6f0e0;
 }
+.nav-right-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.login-btn {
+  background: #2D6A4F;
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 8px 20px;
+  border-radius: 20px;
+  transition: background 0.2s;
+}
+.login-btn:hover { background: #245a42; }
+.logout-btn {
+  background: none;
+  color: #A09890;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 16px;
+  transition: all 0.2s;
+}
+.logout-btn:hover { background: #f5f0eb; color: #6B6560; }
+
+/* ── Register form (step 4) ── */
+.register-form {
+  max-width: 400px;
+  margin: 24px auto 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.register-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  text-align: center;
+}
+.register-input {
+  padding: 12px 16px;
+  border: 1px solid #E8E4DF;
+  border-radius: 8px;
+  font-size: 15px;
+  transition: border-color 0.2s;
+}
+.register-input:focus {
+  border-color: #2D6A4F;
+  outline: none;
+}
 
 /* ── Landing ── */
 .landing {
@@ -265,6 +316,13 @@
 }
 .fb-icon {
   font-size: 22px;
+}
+.fb-note {
+  margin-top: 16px;
+  font-size: 13px;
+  color: #A09890;
+  max-width: 400px;
+  line-height: 1.5;
 }
 
 .connected-state {
@@ -649,6 +707,12 @@
 .fb-input:focus {
   border-color: #1877F2;
 }
+.fb-error {
+  color: #e74c3c;
+  font-size: 13px;
+  text-align: left;
+  padding: 0 2px;
+}
 .fb-login-submit {
   background: #1877F2;
   color: #fff;
@@ -748,6 +812,13 @@
   color: #fff;
   font-weight: 700;
   font-size: 13px;
+}
+.p-nav-avatar-img {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  cursor: pointer;
 }
 
 /* ── Content area ── */
@@ -863,6 +934,81 @@
   margin-bottom: 12px;
   color: #1A1A1A;
 }
+
+/* ── Post media (images/videos) ── */
+.p-post-media {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 12px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.p-post-media-1 { grid-template-columns: 1fr; }
+.p-post-media-2 { grid-template-columns: 1fr 1fr; }
+.p-post-media-3 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.p-post-media-3 .p-media-item:first-child { grid-row: 1 / 3; }
+.p-post-media-4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.p-media-item {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  min-height: 180px;
+  max-height: 500px;
+  background: #f0ede8;
+}
+.p-post-media-1 .p-media-item { max-height: 600px; border-radius: 12px; }
+
+/* ── Media button + previews in new post ── */
+.p-media-btn {
+  background: none;
+  font-size: 20px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.p-media-btn:hover { background: #F0FAF4; }
+.p-media-previews {
+  display: flex;
+  gap: 8px;
+  padding: 8px 0 0 48px;
+  flex-wrap: wrap;
+}
+.p-media-preview {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.p-media-preview-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.p-media-preview-remove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.6);
+  color: #fff;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+  line-height: 1;
+}
+.p-media-preview-remove:hover { background: rgba(0,0,0,0.8); }
+
 .p-post-stats {
   display: flex;
   justify-content: space-between;
@@ -966,6 +1112,14 @@
   padding: 0 24px 24px;
   text-align: center;
 }
+.p-profile-avatar-wrapper {
+  position: relative;
+  width: 88px;
+  height: 88px;
+  margin: -44px auto 12px;
+  cursor: pointer;
+}
+.p-profile-avatar-wrapper:hover .p-profile-avatar-overlay { opacity: 1; }
 .p-profile-avatar {
   width: 88px;
   height: 88px;
@@ -976,8 +1130,27 @@
   color: #fff;
   font-weight: 700;
   font-size: 30px;
-  margin: -44px auto 12px;
   border: 4px solid #fff;
+}
+.p-profile-avatar-img {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid #fff;
+  display: block;
+}
+.p-profile-avatar-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  opacity: 0;
+  transition: opacity 0.2s;
 }
 .p-profile-name {
   font-size: 24px;
