@@ -1,6 +1,7 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import Landing from './Landing.jsx'
 import Platform from './Platform.jsx'
+import { apiCheckSession, apiLogout } from './api.js'
 import './App.css'
 
 function App() {
@@ -10,6 +11,22 @@ function App() {
   const [lang, setLang] = useState(() => {
     return localStorage.getItem('fellis_lang') || 'da'
   })
+
+  // On mount, validate session with server if available
+  useEffect(() => {
+    apiCheckSession().then(data => {
+      if (data) {
+        // Server confirmed session is valid
+        setView('platform')
+        if (data.lang) setLang(data.lang)
+        localStorage.setItem('fellis_logged_in', 'true')
+      } else if (!localStorage.getItem('fellis_logged_in')) {
+        // No local session either
+        setView('landing')
+      }
+      // If server unreachable but localStorage says logged in, trust localStorage (demo mode)
+    })
+  }, [])
 
   const handleEnterPlatform = useCallback((selectedLang) => {
     setLang(selectedLang)
@@ -22,6 +39,8 @@ function App() {
     setView('landing')
     localStorage.removeItem('fellis_logged_in')
     localStorage.removeItem('fellis_lang')
+    localStorage.removeItem('fellis_session_id')
+    apiLogout().catch(() => {}) // Best-effort server logout
   }, [])
 
   if (view === 'platform') {

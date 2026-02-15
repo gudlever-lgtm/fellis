@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { FRIENDS, POSTS, CURRENT_USER, MESSAGE_THREADS, PT, nameToColor, getInitials } from './data.js'
+import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchMessages, apiSendMessage } from './api.js'
 
 export default function Platform({ lang: initialLang, onBackToLanding }) {
   const [lang, setLang] = useState(initialLang || 'da')
@@ -56,17 +57,33 @@ function FeedPage({ lang, t }) {
   const [expandedComments, setExpandedComments] = useState(new Set())
   const [commentTexts, setCommentTexts] = useState({})
 
+  // Try loading feed from API
+  useEffect(() => {
+    apiFetchFeed().then(data => {
+      if (data) {
+        setPosts(data)
+        setLikedPosts(new Set(data.filter(p => p.liked).map(p => p.id)))
+      }
+    })
+  }, [])
+
   const handlePost = useCallback(() => {
     if (!newPostText.trim()) return
-    const newPost = {
-      id: Date.now(),
-      author: CURRENT_USER.name,
-      time: { da: 'Lige nu', en: 'Just now' },
-      text: { da: newPostText, en: newPostText },
-      likes: 0,
-      comments: [],
-    }
-    setPosts(prev => [newPost, ...prev])
+    const text = newPostText.trim()
+    apiCreatePost(text).then(data => {
+      if (data) {
+        setPosts(prev => [data, ...prev])
+      } else {
+        // Fallback: local-only post
+        setPosts(prev => [{
+          id: Date.now(),
+          author: CURRENT_USER.name,
+          time: { da: 'Lige nu', en: 'Just now' },
+          text: { da: text, en: text },
+          likes: 0, comments: [],
+        }, ...prev])
+      }
+    })
     setNewPostText('')
   }, [newPostText])
 
@@ -76,6 +93,7 @@ function FeedPage({ lang, t }) {
       next.has(id) ? next.delete(id) : next.add(id)
       return next
     })
+    apiToggleLike(id).catch(() => {}) // Best-effort
   }, [])
 
   const toggleComments = useCallback((id) => {
@@ -89,13 +107,13 @@ function FeedPage({ lang, t }) {
   const handleComment = useCallback((postId) => {
     const text = commentTexts[postId]
     if (!text?.trim()) return
-    setPosts(prev => prev.map(p => {
-      if (p.id !== postId) return p
-      return {
-        ...p,
-        comments: [...p.comments, { author: CURRENT_USER.name, text: { da: text, en: text } }],
-      }
-    }))
+    apiAddComment(postId, text.trim()).then(data => {
+      const comment = data || { author: CURRENT_USER.name, text: { da: text, en: text } }
+      setPosts(prev => prev.map(p => {
+        if (p.id !== postId) return p
+        return { ...p, comments: [...p.comments, comment] }
+      }))
+    })
     setCommentTexts(prev => ({ ...prev, [postId]: '' }))
   }, [commentTexts])
 
@@ -186,32 +204,44 @@ function FeedPage({ lang, t }) {
 
 // ── Profile ──
 function ProfilePage({ lang, t }) {
+  const [profile, setProfile] = useState(CURRENT_USER)
+  const [userPosts, setUserPosts] = useState(POSTS.filter(p => p.author === CURRENT_USER.name))
+
+  useEffect(() => {
+    apiFetchProfile().then(data => {
+      if (data) setProfile(data)
+    })
+    apiFetchFeed().then(data => {
+      if (data) setUserPosts(data.filter(p => p.author === (profile.name || CURRENT_USER.name)))
+    })
+  }, [])
+
   return (
     <div className="p-profile">
       <div className="p-card p-profile-card">
         <div className="p-profile-banner" />
         <div className="p-profile-info">
-          <div className="p-profile-avatar" style={{ background: nameToColor(CURRENT_USER.name) }}>
-            {CURRENT_USER.initials}
+          <div className="p-profile-avatar" style={{ background: nameToColor(profile.name) }}>
+            {profile.initials}
           </div>
-          <h2 className="p-profile-name">{CURRENT_USER.name}</h2>
-          <p className="p-profile-handle">{CURRENT_USER.handle}</p>
-          <p className="p-profile-bio">{CURRENT_USER.bio[lang]}</p>
+          <h2 className="p-profile-name">{profile.name}</h2>
+          <p className="p-profile-handle">{profile.handle}</p>
+          <p className="p-profile-bio">{profile.bio?.[lang] || profile.bio?.da || ''}</p>
           <div className="p-profile-meta">
-            <span>📍 {CURRENT_USER.location}</span>
-            <span>📅 {t.joined} {CURRENT_USER.joinDate}</span>
+            <span>📍 {profile.location}</span>
+            <span>📅 {t.joined} {profile.joinDate}</span>
           </div>
           <div className="p-profile-stats">
             <div className="p-profile-stat">
-              <strong>{CURRENT_USER.postCount}</strong>
+              <strong>{profile.postCount}</strong>
               <span>{t.postsLabel}</span>
             </div>
             <div className="p-profile-stat">
-              <strong>{CURRENT_USER.friendCount}</strong>
+              <strong>{profile.friendCount}</strong>
               <span>{t.friendsLabel}</span>
             </div>
             <div className="p-profile-stat">
-              <strong>{CURRENT_USER.photoCount.toLocaleString()}</strong>
+              <strong>{(profile.photoCount || 0).toLocaleString()}</strong>
               <span>{t.photosLabel}</span>
             </div>
           </div>
@@ -220,7 +250,7 @@ function ProfilePage({ lang, t }) {
 
       {/* User's posts */}
       <h3 className="p-section-title">{t.postsLabel}</h3>
-      {POSTS.filter(p => p.author === CURRENT_USER.name).map(post => (
+      {userPosts.map(post => (
         <div key={post.id} className="p-card p-post">
           <div className="p-post-header">
             <div className="p-avatar-sm" style={{ background: nameToColor(post.author) }}>{getInitials(post.author)}</div>
@@ -244,8 +274,15 @@ function ProfilePage({ lang, t }) {
 function FriendsPage({ lang, t, onMessage }) {
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
+  const [friends, setFriends] = useState(FRIENDS)
 
-  const filtered = FRIENDS.filter(f => {
+  useEffect(() => {
+    apiFetchFriends().then(data => {
+      if (data) setFriends(data)
+    })
+  }, [])
+
+  const filtered = friends.filter(f => {
     if (filter === 'online' && !f.online) return false
     if (search && !f.name.toLowerCase().includes(search.toLowerCase())) return false
     return true
@@ -263,10 +300,10 @@ function FriendsPage({ lang, t, onMessage }) {
         />
         <div className="p-filter-tabs">
           <button className={`p-filter-tab${filter === 'all' ? ' active' : ''}`} onClick={() => setFilter('all')}>
-            {t.allFriends} ({FRIENDS.length})
+            {t.allFriends} ({friends.length})
           </button>
           <button className={`p-filter-tab${filter === 'online' ? ' active' : ''}`} onClick={() => setFilter('online')}>
-            {t.onlineFriends} ({FRIENDS.filter(f => f.online).length})
+            {t.onlineFriends} ({friends.filter(f => f.online).length})
           </button>
         </div>
       </div>
@@ -300,24 +337,34 @@ function MessagesPage({ lang, t }) {
   const messagesEndRef = useRef(null)
 
   useEffect(() => {
+    apiFetchMessages().then(data => {
+      if (data) setThreads(data)
+    })
+  }, [])
+
+  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [threads, activeThread])
 
   const handleSend = useCallback(() => {
     if (!newMsg.trim()) return
+    const text = newMsg.trim()
+    // Optimistic local update
     setThreads(prev => prev.map((thread, i) => {
       if (i !== activeThread) return thread
       return {
         ...thread,
         messages: [...thread.messages, {
           from: CURRENT_USER.name,
-          text: { da: newMsg, en: newMsg },
+          text: { da: text, en: text },
           time: new Date().toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' }),
         }],
         unread: 0,
       }
     }))
     setNewMsg('')
+    // Best-effort API send (friendId not easily available without backend IDs, fire-and-forget)
+    apiSendMessage(activeThread + 1, text).catch(() => {})
   }, [newMsg, activeThread])
 
   const thread = threads[activeThread]
