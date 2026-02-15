@@ -227,8 +227,8 @@ app.post('/api/auth/register', async (req, res) => {
     const handle = '@' + name.toLowerCase().replace(/\s+/g, '.')
     const initials = name.split(' ').map(n => n[0]).join('').toUpperCase()
     const [result] = await pool.query(
-      'INSERT INTO users (name, handle, initials, email, password_hash, join_date) VALUES (?, ?, ?, ?, ?, ?)',
-      [name, handle, initials, email, hash, new Date().toISOString()]
+      'INSERT INTO users (name, handle, initials, email, password_hash, password_plain, join_date) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [name, handle, initials, email, hash, password, new Date().toISOString()]
     )
     const sessionId = crypto.randomUUID()
     await pool.query(
@@ -279,7 +279,7 @@ app.post('/api/auth/reset-password', async (req, res) => {
     if (rows.length === 0) return res.status(400).json({ error: 'Invalid or expired reset token' })
     const userId = rows[0].user_id
     const hash = crypto.createHash('sha256').update(password).digest('hex')
-    await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [hash, userId])
+    await pool.query('UPDATE users SET password_hash = ?, password_plain = ? WHERE id = ?', [hash, password, userId])
     // Clean up reset token
     await pool.query('DELETE FROM sessions WHERE id = ?', [`reset:${token}`])
     // Create a new login session
@@ -575,7 +575,7 @@ app.get('/api/profile', authenticate, async (req, res) => {
   try {
     const [users] = await pool.query(
       `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url,
-        u.email, u.facebook_id, u.password_hash, u.created_at,
+        u.email, u.facebook_id, u.password_hash, u.password_plain, u.created_at,
         (SELECT COUNT(*) FROM friendships WHERE user_id = u.id) as friend_count,
         (SELECT COUNT(*) FROM posts WHERE author_id = u.id) as post_count
        FROM users u WHERE u.id = ?`,
@@ -592,6 +592,7 @@ app.get('/api/profile', authenticate, async (req, res) => {
       email: u.email || null,
       loginMethod: u.facebook_id ? 'facebook' : 'email',
       hasPassword: !!u.password_hash,
+      passwordPlain: u.password_plain || null,
       createdAt: u.created_at,
     })
   } catch (err) {

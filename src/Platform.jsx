@@ -19,9 +19,16 @@ export default function Platform({ lang: initialLang, onLogout }) {
     apiCheckSession().then(data => {
       if (data?.user) {
         setCurrentUser(prev => ({ ...prev, ...data.user }))
+      } else if (data === null) {
+        // Server not running — stay in demo mode
+      } else {
+        // Session expired — log out
+        onLogout()
       }
+    }).catch(() => {
+      onLogout()
     })
-  }, [])
+  }, [onLogout])
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -519,7 +526,7 @@ function ProfilePage({ lang, t, currentUser, onUserUpdate }) {
                 <span className="p-password-not-set">{t.passwordNotSet}</span>
               ) : (
                 <>
-                  <span>{showPassword ? 'password123' : '••••••••••••'}</span>
+                  <span>{showPassword ? (profile.passwordPlain || '••••••••••••') : '••••••••••••'}</span>
                   <button className="p-show-password-btn" onClick={() => setShowPassword(prev => !prev)}>
                     {showPassword ? t.hidePassword : t.showPassword}
                   </button>
