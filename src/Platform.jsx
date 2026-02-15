@@ -515,10 +515,16 @@ function ProfilePage({ lang, t, currentUser, onUserUpdate }) {
           <div className="p-login-info-row">
             <span className="p-login-info-label">{t.passwordLabel}</span>
             <span className="p-login-info-value p-password-value">
-              <span>{showPassword ? 'password123' : '••••••••••••'}</span>
-              <button className="p-show-password-btn" onClick={() => setShowPassword(prev => !prev)}>
-                {showPassword ? t.hidePassword : t.showPassword}
-              </button>
+              {profile.hasPassword === false ? (
+                <span className="p-password-not-set">{t.passwordNotSet}</span>
+              ) : (
+                <>
+                  <span>{showPassword ? 'password123' : '••••••••••••'}</span>
+                  <button className="p-show-password-btn" onClick={() => setShowPassword(prev => !prev)}>
+                    {showPassword ? t.hidePassword : t.showPassword}
+                  </button>
+                </>
+              )}
             </span>
           </div>
           <div className="p-login-info-row">

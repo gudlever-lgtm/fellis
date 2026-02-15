@@ -1388,6 +1388,21 @@
   background: #2D6A4F;
   color: #fff;
 }
+.p-password-not-set {
+  color: #B0A8A0;
+  font-style: italic;
+  font-size: 13px;
+}
+.fb-info-note {
+  background: #FFF3CD;
+  border: 1px solid #FFE69C;
+  color: #664D03;
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.4;
+  margin-bottom: 4px;
+}
 
 /* ── Friends page ── */
 .p-friends-page .p-card {
