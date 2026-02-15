@@ -7,7 +7,7 @@ import multer from 'multer'
 import pool from './db.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const UPLOADS_DIR = path.join(__dirname, 'uploads')
+const UPLOADS_DIR = process.env.UPLOADS_DIR || '/var/www/fellis.eu/uploads'
 
 // Ensure uploads directory exists
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true })
