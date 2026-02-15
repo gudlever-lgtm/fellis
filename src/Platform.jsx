@@ -509,6 +509,14 @@ function MessagesPage({ lang, t, currentUser }) {
 
   const thread = threads[activeThread]
 
+  if (!thread) return (
+    <div className="p-messages">
+      <div className="p-empty-state" style={{ padding: '48px', textAlign: 'center', color: '#65676b' }}>
+        {t.noMessages || 'No messages yet'}
+      </div>
+    </div>
+  )
+
   return (
     <div className="p-messages">
       <div className="p-msg-sidebar">
