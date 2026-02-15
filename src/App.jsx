@@ -4,10 +4,10 @@ import './App.css'
 // ── Translations ──
 const T = {
   da: {
-    navBrand: 'some.eu',
+    navBrand: 'fellis.eu',
     langToggle: 'EN',
     headline: 'Flyt dit sociale liv til Europa',
-    subtitle: 'Migrer dine Facebook-data sikkert til some.eu — den nye danske platform bygget til dig, ikke til annoncører.',
+    subtitle: 'Migrer dine Facebook-data sikkert til fellis.eu — den nye danske platform bygget til dig, ikke til annoncører.',
     cta: 'Kom i gang',
     trustEncrypt: 'End-to-end krypteret',
     trustEU: 'Hostet i EU',
@@ -15,7 +15,7 @@ const T = {
     step1: 'Forbind Facebook',
     step2: 'Vælg indhold',
     step3: 'Inviter venner',
-    step4: 'Velkommen til some.eu',
+    step4: 'Velkommen til fellis.eu',
     connectTitle: 'Forbind din Facebook-konto',
     connectSubtitle: 'Vi henter dine data sikkert og sletter dem fra vores servere efter migrering.',
     connectBtn: 'Forbind med Facebook',
@@ -25,7 +25,7 @@ const T = {
     posts: 'Opslag',
     photos: 'Fotos',
     selectTitle: 'Vælg indhold der skal migreres',
-    selectSubtitle: 'Vælg hvad du vil tage med til some.eu',
+    selectSubtitle: 'Vælg hvad du vil tage med til fellis.eu',
     profileInfo: 'Profiloplysninger',
     profileInfoDesc: 'Navn, bio, profilbillede',
     friendsList: 'Venneliste',
@@ -36,18 +36,18 @@ const T = {
     next: 'Næste',
     importing: 'Importerer dit indhold...',
     inviteTitle: 'Inviter dine venner',
-    inviteSubtitle: 'Hjælp dine venner med at skifte til some.eu',
+    inviteSubtitle: 'Hjælp dine venner med at skifte til fellis.eu',
     selectAll: 'Vælg alle',
     deselectAll: 'Fravælg alle',
     mutualFriends: 'fælles venner',
     skip: 'Spring over',
     sendInvites: 'Send invitationer',
     sendingInvites: 'Sender invitationer...',
-    doneTitle: 'Velkommen til some.eu!',
+    doneTitle: 'Velkommen til fellis.eu!',
     doneSubtitle: 'Din migrering er fuldført. Dit nye digitale hjem venter.',
     itemsMigrated: 'Elementer migreret',
     friendsInvited: 'Venner inviteret',
-    profilePreview: 'Din some.eu profil',
+    profilePreview: 'Din fellis.eu profil',
     viewProfile: 'Se din profil',
     tagProfile: 'Profil',
     tagFriends: '312 venner',
@@ -55,10 +55,10 @@ const T = {
     tagPhotos: '2.341 fotos',
   },
   en: {
-    navBrand: 'some.eu',
+    navBrand: 'fellis.eu',
     langToggle: 'DA',
     headline: 'Move your social life to Europe',
-    subtitle: 'Securely migrate your Facebook data to some.eu — the new Danish platform built for you, not advertisers.',
+    subtitle: 'Securely migrate your Facebook data to fellis.eu — the new Danish platform built for you, not advertisers.',
     cta: 'Get started',
     trustEncrypt: 'End-to-end encrypted',
     trustEU: 'EU hosted',
@@ -66,7 +66,7 @@ const T = {
     step1: 'Connect Facebook',
     step2: 'Select content',
     step3: 'Invite friends',
-    step4: 'Welcome to some.eu',
+    step4: 'Welcome to fellis.eu',
     connectTitle: 'Connect your Facebook account',
     connectSubtitle: 'We securely fetch your data and delete it from our servers after migration.',
     connectBtn: 'Connect with Facebook',
@@ -76,7 +76,7 @@ const T = {
     posts: 'Posts',
     photos: 'Photos',
     selectTitle: 'Select content to migrate',
-    selectSubtitle: 'Choose what to bring to some.eu',
+    selectSubtitle: 'Choose what to bring to fellis.eu',
     profileInfo: 'Profile info',
     profileInfoDesc: 'Name, bio, profile photo',
     friendsList: 'Friends list',
@@ -87,18 +87,18 @@ const T = {
     next: 'Next',
     importing: 'Importing your content...',
     inviteTitle: 'Invite your friends',
-    inviteSubtitle: 'Help your friends switch to some.eu',
+    inviteSubtitle: 'Help your friends switch to fellis.eu',
     selectAll: 'Select all',
     deselectAll: 'Deselect all',
     mutualFriends: 'mutual friends',
     skip: 'Skip',
     sendInvites: 'Send invitations',
     sendingInvites: 'Sending invitations...',
-    doneTitle: 'Welcome to some.eu!',
+    doneTitle: 'Welcome to fellis.eu!',
     doneSubtitle: 'Your migration is complete. Your new digital home awaits.',
     itemsMigrated: 'Items migrated',
     friendsInvited: 'Friends invited',
-    profilePreview: 'Your some.eu profile',
+    profilePreview: 'Your fellis.eu profile',
     viewProfile: 'View your profile',
     tagProfile: 'Profile',
     tagFriends: '312 friends',
@@ -229,7 +229,7 @@ function App() {
       {/* Nav */}
       <nav className="nav">
         <div className="nav-logo">
-          <div className="nav-logo-icon">S</div>
+          <div className="nav-logo-icon">F</div>
           {t.navBrand}
         </div>
         <button className="lang-toggle" onClick={toggleLang}>
@@ -249,7 +249,7 @@ function App() {
               <div className="dot" />
               <div className="dot" />
             </div>
-            <div className="brand-box brand-some">S</div>
+            <div className="brand-box brand-some">F</div>
           </div>
           <h1>{t.headline}</h1>
           <p className="landing-subtitle">{t.subtitle}</p>
