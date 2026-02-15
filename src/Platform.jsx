@@ -8,6 +8,8 @@ export default function Platform({ lang: initialLang, onLogout }) {
   const [lang, setLang] = useState(initialLang || 'da')
   const [page, setPage] = useState('feed')
   const [currentUser, setCurrentUser] = useState(CURRENT_USER)
+  const [showAvatarMenu, setShowAvatarMenu] = useState(false)
+  const avatarMenuRef = useRef(null)
   const t = PT[lang]
 
   const toggleLang = useCallback(() => setLang(p => p === 'da' ? 'en' : 'da'), [])
@@ -21,51 +23,103 @@ export default function Platform({ lang: initialLang, onLogout }) {
     })
   }, [])
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    if (!showAvatarMenu) return
+    const handleClick = (e) => {
+      if (avatarMenuRef.current && !avatarMenuRef.current.contains(e.target)) {
+        setShowAvatarMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [showAvatarMenu])
+
+  const navigateTo = useCallback((p) => {
+    setPage(p)
+    setShowAvatarMenu(false)
+  }, [])
+
   const avatarSrc = currentUser.avatar_url
     ? (currentUser.avatar_url.startsWith('http') || currentUser.avatar_url.startsWith('blob:') ? currentUser.avatar_url : `${API_BASE}${currentUser.avatar_url}`)
     : null
 
+  const menuT = lang === 'da' ? {
+    viewProfile: 'Se profil',
+    editProfile: 'Rediger profil',
+    privacy: 'Privatliv & Data',
+    logout: 'Log ud',
+  } : {
+    viewProfile: 'View profile',
+    editProfile: 'Edit profile',
+    privacy: 'Privacy & Data',
+    logout: 'Log out',
+  }
+
   return (
     <div className="platform">
-      {/* Platform nav */}
+      {/* Platform nav — only Feed, Friends, Messages in main tabs */}
       <nav className="p-nav">
         <div className="p-nav-left">
-          <div className="nav-logo" style={{ cursor: 'pointer' }} onClick={() => setPage('feed')}>
+          <div className="nav-logo" style={{ cursor: 'pointer' }} onClick={() => navigateTo('feed')}>
             <div className="nav-logo-icon">F</div>
             {t.navBrand}
           </div>
         </div>
         <div className="p-nav-tabs">
-          {['feed', 'friends', 'messages', 'profile', 'privacy'].map(p => (
+          {['feed', 'friends', 'messages'].map(p => (
             <button
               key={p}
               className={`p-nav-tab${page === p ? ' active' : ''}`}
-              onClick={() => setPage(p)}
+              onClick={() => navigateTo(p)}
             >
-              <span className="p-nav-tab-icon">{p === 'feed' ? '🏠' : p === 'friends' ? '👥' : p === 'messages' ? '💬' : p === 'privacy' ? '🔒' : '👤'}</span>
-              <span className="p-nav-tab-label">{p === 'privacy' ? (lang === 'da' ? 'Privatliv' : 'Privacy') : (t[p] || t[p + 'Label'] || p)}</span>
+              <span className="p-nav-tab-icon">{p === 'feed' ? '🏠' : p === 'friends' ? '👥' : '💬'}</span>
+              <span className="p-nav-tab-label">{t[p] || p}</span>
             </button>
           ))}
         </div>
         <div className="p-nav-right">
           <button className="lang-toggle" onClick={toggleLang}>{t.langToggle}</button>
-          {avatarSrc ? (
-            <img className="p-nav-avatar-img" src={avatarSrc} alt="" onClick={() => setPage('profile')} />
-          ) : (
-            <div className="p-nav-avatar" style={{ background: nameToColor(currentUser.name), cursor: 'pointer' }} onClick={() => setPage('profile')}>
-              {currentUser.initials || getInitials(currentUser.name)}
-            </div>
-          )}
-          <button className="logout-btn" onClick={onLogout} title={lang === 'da' ? 'Log ud' : 'Log out'}>
-            {lang === 'da' ? 'Log ud' : 'Log out'}
-          </button>
+          {/* Avatar with dropdown menu */}
+          <div ref={avatarMenuRef} style={{ position: 'relative' }}>
+            {avatarSrc ? (
+              <img className="p-nav-avatar-img" src={avatarSrc} alt="" onClick={() => setShowAvatarMenu(v => !v)} />
+            ) : (
+              <div className="p-nav-avatar" style={{ background: nameToColor(currentUser.name), cursor: 'pointer' }} onClick={() => setShowAvatarMenu(v => !v)}>
+                {currentUser.initials || getInitials(currentUser.name)}
+              </div>
+            )}
+            {showAvatarMenu && (
+              <div className="avatar-dropdown">
+                <div className="avatar-dropdown-header">
+                  <strong>{currentUser.name}</strong>
+                  <span style={{ fontSize: 12, color: '#888' }}>{currentUser.handle}</span>
+                </div>
+                <div className="avatar-dropdown-divider" />
+                <button className="avatar-dropdown-item" onClick={() => navigateTo('profile')}>
+                  <span>👤</span> {menuT.viewProfile}
+                </button>
+                <button className="avatar-dropdown-item" onClick={() => navigateTo('edit-profile')}>
+                  <span>✏️</span> {menuT.editProfile}
+                </button>
+                <button className="avatar-dropdown-item" onClick={() => navigateTo('privacy')}>
+                  <span>🔒</span> {menuT.privacy}
+                </button>
+                <div className="avatar-dropdown-divider" />
+                <button className="avatar-dropdown-item avatar-dropdown-danger" onClick={() => { setShowAvatarMenu(false); onLogout() }}>
+                  <span>🚪</span> {menuT.logout}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </nav>
 
       <div className="p-content">
         {page === 'feed' && <FeedPage lang={lang} t={t} currentUser={currentUser} />}
-        {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} onUserUpdate={setCurrentUser} onNavigate={setPage} />}
-        {page === 'friends' && <FriendsPage lang={lang} t={t} onMessage={() => setPage('messages')} />}
+        {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} onUserUpdate={setCurrentUser} />}
+        {page === 'edit-profile' && <EditProfilePage lang={lang} t={t} currentUser={currentUser} onUserUpdate={setCurrentUser} onNavigate={navigateTo} />}
+        {page === 'friends' && <FriendsPage lang={lang} t={t} onMessage={() => navigateTo('messages')} />}
         {page === 'messages' && <MessagesPage lang={lang} t={t} currentUser={currentUser} />}
         {page === 'privacy' && <PrivacySection lang={lang} onLogout={onLogout} />}
       </div>
@@ -301,11 +355,10 @@ function FeedPage({ lang, t, currentUser }) {
   )
 }
 
-// ── Profile ──
-function ProfilePage({ lang, t, currentUser, onUserUpdate, onNavigate }) {
+// ── Profile (clean — read-only view) ──
+function ProfilePage({ lang, t, currentUser, onUserUpdate }) {
   const [profile, setProfile] = useState({ ...CURRENT_USER, ...currentUser })
   const [userPosts, setUserPosts] = useState(POSTS.filter(p => p.author === CURRENT_USER.name))
-  const avatarInputRef = useRef(null)
 
   useEffect(() => {
     apiFetchProfile().then(data => {
@@ -321,24 +374,6 @@ function ProfilePage({ lang, t, currentUser, onUserUpdate, onNavigate }) {
     })
   }, [currentUser.name, onUserUpdate])
 
-  const handleAvatarUpload = useCallback(async (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    // Optimistic preview
-    const previewUrl = URL.createObjectURL(file)
-    setProfile(prev => ({ ...prev, avatarUrl: previewUrl }))
-    onUserUpdate(prev => ({ ...prev, avatar_url: previewUrl }))
-    try {
-      const data = await apiUploadAvatar(file)
-      if (data?.avatarUrl) {
-        setProfile(prev => ({ ...prev, avatarUrl: data.avatarUrl }))
-        onUserUpdate(prev => ({ ...prev, avatar_url: data.avatarUrl }))
-      }
-    } catch {
-      // Keep the local preview even if server fails
-    }
-  }, [onUserUpdate])
-
   const avatarUrl = profile.avatarUrl || profile.avatar_url
   const avatarSrc = avatarUrl
     ? (avatarUrl.startsWith('http') || avatarUrl.startsWith('blob:') ? avatarUrl : `${API_BASE}${avatarUrl}`)
@@ -349,7 +384,7 @@ function ProfilePage({ lang, t, currentUser, onUserUpdate, onNavigate }) {
       <div className="p-card p-profile-card">
         <div className="p-profile-banner" />
         <div className="p-profile-info">
-          <div className="p-profile-avatar-wrapper" onClick={() => avatarInputRef.current?.click()} title={lang === 'da' ? 'Skift profilbillede' : 'Change profile picture'}>
+          <div className="p-profile-avatar-wrapper">
             {avatarSrc ? (
               <img className="p-profile-avatar-img" src={avatarSrc} alt="" />
             ) : (
@@ -357,20 +392,12 @@ function ProfilePage({ lang, t, currentUser, onUserUpdate, onNavigate }) {
                 {profile.initials || getInitials(profile.name)}
               </div>
             )}
-            <div className="p-profile-avatar-overlay">📷</div>
-            <input
-              ref={avatarInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/gif,image/webp"
-              style={{ display: 'none' }}
-              onChange={handleAvatarUpload}
-            />
           </div>
           <h2 className="p-profile-name">{profile.name}</h2>
           <p className="p-profile-handle">{profile.handle}</p>
           <p className="p-profile-bio">{profile.bio?.[lang] || profile.bio?.da || ''}</p>
           <div className="p-profile-meta">
-            <span>📍 {profile.location}</span>
+            {profile.location && <span>📍 {profile.location}</span>}
             <span>📅 {t.joined} {profile.joinDate ? new Date(profile.joinDate).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}</span>
           </div>
           <div className="p-profile-stats">
@@ -409,20 +436,115 @@ function ProfilePage({ lang, t, currentUser, onUserUpdate, onNavigate }) {
           </div>
         </div>
       ))}
+    </div>
+  )
+}
 
-      {/* GDPR: Link to Privacy & Data Management page */}
-      <div className="p-card" style={{ marginTop: 24, textAlign: 'center' }}>
+// ── Edit Profile ──
+function EditProfilePage({ lang, t, currentUser, onUserUpdate, onNavigate }) {
+  const [profile, setProfile] = useState({ ...CURRENT_USER, ...currentUser })
+  const avatarInputRef = useRef(null)
+
+  useEffect(() => {
+    apiFetchProfile().then(data => {
+      if (data) setProfile(data)
+    })
+  }, [])
+
+  const handleAvatarUpload = useCallback(async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const previewUrl = URL.createObjectURL(file)
+    setProfile(prev => ({ ...prev, avatarUrl: previewUrl }))
+    onUserUpdate(prev => ({ ...prev, avatar_url: previewUrl }))
+    try {
+      const data = await apiUploadAvatar(file)
+      if (data?.avatarUrl) {
+        setProfile(prev => ({ ...prev, avatarUrl: data.avatarUrl }))
+        onUserUpdate(prev => ({ ...prev, avatar_url: data.avatarUrl }))
+      }
+    } catch {}
+  }, [onUserUpdate])
+
+  const avatarUrl = profile.avatarUrl || profile.avatar_url
+  const avatarSrc = avatarUrl
+    ? (avatarUrl.startsWith('http') || avatarUrl.startsWith('blob:') ? avatarUrl : `${API_BASE}${avatarUrl}`)
+    : null
+
+  const editT = lang === 'da' ? {
+    title: 'Rediger profil',
+    avatarLabel: 'Profilbillede',
+    avatarBtn: 'Skift billede',
+    nameLabel: 'Navn',
+    bioLabel: 'Bio',
+    locationLabel: 'Lokation',
+    back: 'Tilbage til profil',
+  } : {
+    title: 'Edit profile',
+    avatarLabel: 'Profile picture',
+    avatarBtn: 'Change picture',
+    nameLabel: 'Name',
+    bioLabel: 'Bio',
+    locationLabel: 'Location',
+    back: 'Back to profile',
+  }
+
+  const fieldStyle = { display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box' }
+  const labelStyle = { display: 'block', fontSize: 13, fontWeight: 600, color: '#555', marginBottom: 4, marginTop: 16 }
+
+  return (
+    <div className="p-profile" style={{ maxWidth: 520 }}>
+      <div className="p-card" style={{ padding: 24 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 20 }}>{editT.title}</h2>
+
+        {/* Avatar upload */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 8 }}>
+          <div className="p-profile-avatar-wrapper" onClick={() => avatarInputRef.current?.click()} title={editT.avatarBtn} style={{ cursor: 'pointer' }}>
+            {avatarSrc ? (
+              <img className="p-profile-avatar-img" src={avatarSrc} alt="" />
+            ) : (
+              <div className="p-profile-avatar" style={{ background: nameToColor(profile.name) }}>
+                {profile.initials || getInitials(profile.name)}
+              </div>
+            )}
+            <div className="p-profile-avatar-overlay">📷</div>
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/gif,image/webp"
+              style={{ display: 'none' }}
+              onChange={handleAvatarUpload}
+            />
+          </div>
+          <div>
+            <div style={{ fontWeight: 600, fontSize: 14 }}>{editT.avatarLabel}</div>
+            <button
+              style={{ marginTop: 4, padding: '6px 12px', borderRadius: 6, border: '1px solid #2D6A4F', background: '#fff', color: '#2D6A4F', cursor: 'pointer', fontSize: 13 }}
+              onClick={() => avatarInputRef.current?.click()}
+            >
+              {editT.avatarBtn}
+            </button>
+          </div>
+        </div>
+
+        {/* Name (read-only for now) */}
+        <label style={labelStyle}>{editT.nameLabel}</label>
+        <input style={fieldStyle} value={profile.name || ''} readOnly />
+
+        {/* Bio */}
+        <label style={labelStyle}>{editT.bioLabel}</label>
+        <textarea style={{ ...fieldStyle, minHeight: 80, resize: 'vertical' }} value={profile.bio?.[lang] || profile.bio?.da || ''} readOnly />
+
+        {/* Location */}
+        <label style={labelStyle}>{editT.locationLabel}</label>
+        <input style={fieldStyle} value={profile.location || ''} readOnly />
+
         <button
-          style={{ padding: '12px 24px', borderRadius: 8, border: '1px solid #2D6A4F', background: '#fff', color: '#2D6A4F', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
-          onClick={() => onNavigate('privacy')}
+          style={{ marginTop: 24, padding: '10px 20px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
+          onClick={() => onNavigate('profile')}
         >
-          🔒 {lang === 'da' ? 'Privatliv & Dataforvaltning (GDPR)' : 'Privacy & Data Management (GDPR)'}
+          {editT.back}
         </button>
-        <p style={{ fontSize: 12, color: '#888', marginTop: 8 }}>
-          {lang === 'da'
-            ? 'Se samtykke-status, eksporter dine data, slet Facebook-data eller din konto'
-            : 'View consent status, export your data, delete Facebook data or your account'}
-        </p>
       </div>
     </div>
   )
