@@ -155,7 +155,7 @@ app.post('/api/auth/register', async (req, res) => {
     const initials = name.split(' ').map(n => n[0]).join('').toUpperCase()
     const [result] = await pool.query(
       'INSERT INTO users (name, handle, initials, email, password_hash, join_date) VALUES (?, ?, ?, ?, ?, ?)',
-      [name, handle, initials, email, hash, new Date().getFullYear().toString()]
+      [name, handle, initials, email, hash, new Date().toISOString()]
     )
     const sessionId = crypto.randomUUID()
     await pool.query(
@@ -242,7 +242,7 @@ app.get('/api/auth/facebook/callback', async (req, res) => {
       const [result] = await pool.query(
         `INSERT INTO users (name, handle, initials, email, join_date, avatar_url, facebook_id, fb_access_token)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [fbProfile.name, handle, initials, fbProfile.email || null, new Date().getFullYear().toString(), avatarUrl, fbProfile.id, fbToken]
+        [fbProfile.name, handle, initials, fbProfile.email || null, new Date().toISOString(), avatarUrl, fbProfile.id, fbToken]
       )
       userId = result.insertId
     }

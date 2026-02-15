@@ -21,7 +21,7 @@ export const CURRENT_USER = {
   initials: 'SN',
   bio: { da: 'Grafisk designer fra København. Elsker kaffe, kunst og lange gåture.', en: 'Graphic designer from Copenhagen. Loves coffee, art and long walks.' },
   location: 'København, Danmark',
-  joinDate: '2026',
+  joinDate: '2026-01-15T10:30:00.000Z',
   friendCount: 312,
   postCount: 847,
   photoCount: 2341,
