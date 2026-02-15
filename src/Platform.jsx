@@ -36,14 +36,14 @@ export default function Platform({ lang: initialLang, onLogout }) {
           </div>
         </div>
         <div className="p-nav-tabs">
-          {['feed', 'friends', 'messages', 'profile'].map(p => (
+          {['feed', 'friends', 'messages', 'profile', 'privacy'].map(p => (
             <button
               key={p}
               className={`p-nav-tab${page === p ? ' active' : ''}`}
               onClick={() => setPage(p)}
             >
-              <span className="p-nav-tab-icon">{p === 'feed' ? '🏠' : p === 'friends' ? '👥' : p === 'messages' ? '💬' : '👤'}</span>
-              <span className="p-nav-tab-label">{t[p] || t[p + 'Label'] || p}</span>
+              <span className="p-nav-tab-icon">{p === 'feed' ? '🏠' : p === 'friends' ? '👥' : p === 'messages' ? '💬' : p === 'privacy' ? '🔒' : '👤'}</span>
+              <span className="p-nav-tab-label">{p === 'privacy' ? (lang === 'da' ? 'Privatliv' : 'Privacy') : (t[p] || t[p + 'Label'] || p)}</span>
             </button>
           ))}
         </div>
@@ -64,9 +64,10 @@ export default function Platform({ lang: initialLang, onLogout }) {
 
       <div className="p-content">
         {page === 'feed' && <FeedPage lang={lang} t={t} currentUser={currentUser} />}
-        {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} onUserUpdate={setCurrentUser} />}
+        {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} onUserUpdate={setCurrentUser} onNavigate={setPage} />}
         {page === 'friends' && <FriendsPage lang={lang} t={t} onMessage={() => setPage('messages')} />}
         {page === 'messages' && <MessagesPage lang={lang} t={t} currentUser={currentUser} />}
+        {page === 'privacy' && <PrivacySection lang={lang} onLogout={onLogout} />}
       </div>
     </div>
   )
@@ -301,7 +302,7 @@ function FeedPage({ lang, t, currentUser }) {
 }
 
 // ── Profile ──
-function ProfilePage({ lang, t, currentUser, onUserUpdate }) {
+function ProfilePage({ lang, t, currentUser, onUserUpdate, onNavigate }) {
   const [profile, setProfile] = useState({ ...CURRENT_USER, ...currentUser })
   const [userPosts, setUserPosts] = useState(POSTS.filter(p => p.author === CURRENT_USER.name))
   const avatarInputRef = useRef(null)
@@ -409,41 +410,152 @@ function ProfilePage({ lang, t, currentUser, onUserUpdate }) {
         </div>
       ))}
 
-      {/* GDPR: Privacy & Data Management Section */}
-      <PrivacySection lang={lang} />
+      {/* GDPR: Link to Privacy & Data Management page */}
+      <div className="p-card" style={{ marginTop: 24, textAlign: 'center' }}>
+        <button
+          style={{ padding: '12px 24px', borderRadius: 8, border: '1px solid #2D6A4F', background: '#fff', color: '#2D6A4F', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
+          onClick={() => onNavigate('privacy')}
+        >
+          🔒 {lang === 'da' ? 'Privatliv & Dataforvaltning (GDPR)' : 'Privacy & Data Management (GDPR)'}
+        </button>
+        <p style={{ fontSize: 12, color: '#888', marginTop: 8 }}>
+          {lang === 'da'
+            ? 'Se samtykke-status, eksporter dine data, slet Facebook-data eller din konto'
+            : 'View consent status, export your data, delete Facebook data or your account'}
+        </p>
+      </div>
     </div>
   )
 }
 
 // ── GDPR Privacy & Data Management ──
-function PrivacySection({ lang }) {
+// Full page for exercising GDPR rights and managing Facebook data
+function PrivacySection({ lang, onLogout }) {
   const [loading, setLoading] = useState(null)
   const [message, setMessage] = useState('')
+  const [consents, setConsents] = useState(null)
+
+  // Load consent status on mount
+  useEffect(() => {
+    apiGetConsentStatus().then(data => {
+      if (data) setConsents(data)
+    })
+  }, [])
 
   const t = lang === 'da' ? {
+    // Page header
     title: 'Privatliv & Dataforvaltning',
-    subtitle: 'GDPR-rettigheder — EU databeskyttelsesforordningen',
-    exportBtn: 'Download mine data (Art. 20)',
-    exportDesc: 'Eksporter alle dine data i JSON-format',
-    deleteFbBtn: 'Slet Facebook-data (Art. 17)',
-    deleteFbDesc: 'Fjern alle data importeret fra Facebook',
-    deleteAccountBtn: 'Slet min konto helt',
-    deleteAccountDesc: 'Slet alt permanent — dette kan ikke fortrydes',
-    confirmDeleteFb: 'Er du sikker? Alle dine importerede Facebook-opslag, fotos og venskaber vil blive slettet permanent.',
-    confirmDeleteAccount: 'ADVARSEL: Dette sletter din konto og ALLE data permanent. Dette kan ikke fortrydes. Er du sikker?',
+    subtitle: 'Dine rettigheder i henhold til EU\'s GDPR-forordning og Facebooks platformvilkår',
+    // Privacy notice (transparency — GDPR Art. 13 & 14)
+    privacyTitle: 'Sådan behandler vi dine data',
+    privacyIntro: 'fellis.eu er en dansk platform hostet i EU. Vi er forpligtet til at beskytte dine persondata i henhold til EU\'s General Data Protection Regulation (GDPR).',
+    privacyWhatTitle: 'Hvad vi indsamler',
+    privacyWhat: [
+      'Kontooplysninger: navn, e-mail, profilbillede',
+      'Indhold du opretter: opslag, kommentarer, beskeder',
+      'Facebook-data (kun med dit samtykke): opslag, fotos, venneliste (kun eksisterende brugere)',
+    ],
+    privacyWhyTitle: 'Hvorfor vi indsamler det',
+    privacyWhy: [
+      'For at levere platformens funktionalitet',
+      'For at migrere dit indhold fra Facebook (kun med samtykke)',
+      'Vi sælger ALDRIG dine data eller bruger dem til reklamer',
+    ],
+    privacyStorageTitle: 'Opbevaring og sikkerhed',
+    privacyStorage: [
+      'Alle data opbevares på EU-servere (Danmark)',
+      'Facebook-tokens krypteres med AES-256-GCM',
+      'Facebook-tokens slettes automatisk efter 90 dage',
+      'Sessioner udløber efter 30 dage',
+    ],
+    // Consent management
+    consentTitle: 'Samtykke-status',
+    consentFbImport: 'Facebook dataimport',
+    consentDataProcessing: 'Generel databehandling',
+    consentGiven: 'Samtykke givet',
+    consentNotGiven: 'Intet samtykke',
+    consentWithdrawn: 'Samtykke trukket tilbage',
+    consentWithdrawBtn: 'Træk samtykke tilbage',
+    consentWithdrawConfirm: 'Er du sikker på, at du vil trække dit samtykke tilbage? Din Facebook-token vil blive slettet.',
+    consentDate: 'Givet den',
+    // Facebook data
+    fbTitle: 'Facebook-data',
+    fbDesc: 'Data importeret fra din Facebook-konto. I henhold til Facebooks platformvilkår og GDPR har du fuld kontrol over disse data.',
+    deleteFbBtn: 'Slet alle Facebook-data',
+    deleteFbDesc: 'Fjerner alle opslag, fotos og venskaber importeret fra Facebook. Dine egne opslag oprettet på fellis.eu bevares.',
+    confirmDeleteFb: 'Er du sikker? Alle dine importerede Facebook-opslag, fotos og venskaber vil blive slettet permanent. Dette kan ikke fortrydes.',
+    // GDPR rights
+    rightsTitle: 'Dine GDPR-rettigheder',
+    rightExport: 'Ret til dataportabilitet (Art. 20)',
+    rightExportDesc: 'Download alle dine data i et maskinlæsbart JSON-format.',
+    exportBtn: 'Download mine data',
+    rightErasure: 'Ret til sletning (Art. 17)',
+    rightErasureDesc: 'Slet din konto og alle tilknyttede data permanent. Dette inkluderer alle opslag, kommentarer, beskeder, venskaber og uploadede filer.',
+    deleteAccountBtn: 'Slet min konto permanent',
+    confirmDeleteAccount: 'ADVARSEL: Dette sletter din konto og ALLE dine data permanent. Dette kan ikke fortrydes.\n\nDine opslag, kommentarer, beskeder, venskaber, uploadede filer og samtykkehistorik vil blive slettet.\n\nEr du helt sikker?',
+    // Contact
+    contactTitle: 'Kontakt databeskyttelsesansvarlig',
+    contactDesc: 'Har du spørgsmål om dine data eller vil du udøve en rettighed, der ikke er dækket her, kan du kontakte os på:',
+    contactEmail: 'privacy@fellis.eu',
+    // Status
     done: 'Udført!',
     error: 'Der opstod en fejl. Prøv igen.',
   } : {
+    // Page header
     title: 'Privacy & Data Management',
-    subtitle: 'GDPR rights — EU Data Protection Regulation',
-    exportBtn: 'Download my data (Art. 20)',
-    exportDesc: 'Export all your data in JSON format',
-    deleteFbBtn: 'Delete Facebook data (Art. 17)',
-    deleteFbDesc: 'Remove all data imported from Facebook',
-    deleteAccountBtn: 'Delete my account entirely',
-    deleteAccountDesc: 'Permanently delete everything — this cannot be undone',
-    confirmDeleteFb: 'Are you sure? All your imported Facebook posts, photos, and friendships will be permanently deleted.',
-    confirmDeleteAccount: 'WARNING: This will permanently delete your account and ALL data. This cannot be undone. Are you sure?',
+    subtitle: 'Your rights under the EU GDPR regulation and Facebook Platform Terms',
+    // Privacy notice
+    privacyTitle: 'How we handle your data',
+    privacyIntro: 'fellis.eu is a Danish platform hosted in the EU. We are committed to protecting your personal data under the EU General Data Protection Regulation (GDPR).',
+    privacyWhatTitle: 'What we collect',
+    privacyWhat: [
+      'Account information: name, email, profile picture',
+      'Content you create: posts, comments, messages',
+      'Facebook data (only with your consent): posts, photos, friends list (only existing users)',
+    ],
+    privacyWhyTitle: 'Why we collect it',
+    privacyWhy: [
+      'To provide the platform functionality',
+      'To migrate your content from Facebook (only with consent)',
+      'We NEVER sell your data or use it for advertising',
+    ],
+    privacyStorageTitle: 'Storage and security',
+    privacyStorage: [
+      'All data stored on EU servers (Denmark)',
+      'Facebook tokens encrypted with AES-256-GCM',
+      'Facebook tokens automatically deleted after 90 days',
+      'Sessions expire after 30 days',
+    ],
+    // Consent management
+    consentTitle: 'Consent Status',
+    consentFbImport: 'Facebook data import',
+    consentDataProcessing: 'General data processing',
+    consentGiven: 'Consent given',
+    consentNotGiven: 'No consent',
+    consentWithdrawn: 'Consent withdrawn',
+    consentWithdrawBtn: 'Withdraw consent',
+    consentWithdrawConfirm: 'Are you sure you want to withdraw your consent? Your Facebook token will be deleted.',
+    consentDate: 'Given on',
+    // Facebook data
+    fbTitle: 'Facebook Data',
+    fbDesc: 'Data imported from your Facebook account. Under Facebook Platform Terms and GDPR, you have full control over this data.',
+    deleteFbBtn: 'Delete all Facebook data',
+    deleteFbDesc: 'Removes all posts, photos, and friendships imported from Facebook. Your own posts created on fellis.eu are preserved.',
+    confirmDeleteFb: 'Are you sure? All your imported Facebook posts, photos, and friendships will be permanently deleted. This cannot be undone.',
+    // GDPR rights
+    rightsTitle: 'Your GDPR Rights',
+    rightExport: 'Right to data portability (Art. 20)',
+    rightExportDesc: 'Download all your data in a machine-readable JSON format.',
+    exportBtn: 'Download my data',
+    rightErasure: 'Right to erasure (Art. 17)',
+    rightErasureDesc: 'Permanently delete your account and all associated data. This includes all posts, comments, messages, friendships, and uploaded files.',
+    deleteAccountBtn: 'Delete my account permanently',
+    confirmDeleteAccount: 'WARNING: This will permanently delete your account and ALL your data. This cannot be undone.\n\nYour posts, comments, messages, friendships, uploaded files, and consent history will be deleted.\n\nAre you absolutely sure?',
+    // Contact
+    contactTitle: 'Contact Data Protection Officer',
+    contactDesc: 'If you have questions about your data or want to exercise a right not covered here, contact us at:',
+    contactEmail: 'privacy@fellis.eu',
+    // Status
     done: 'Done!',
     error: 'An error occurred. Please try again.',
   }
@@ -476,6 +588,9 @@ function PrivacySection({ lang }) {
     try {
       await apiDeleteFacebookData()
       setMessage(t.done)
+      // Refresh consent status
+      const data = await apiGetConsentStatus()
+      if (data) setConsents(data)
     } catch {
       setMessage(t.error)
     }
@@ -495,30 +610,142 @@ function PrivacySection({ lang }) {
     }
   }
 
-  const btnStyle = { padding: '10px 16px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', cursor: 'pointer', fontSize: 14, width: '100%', textAlign: 'left' }
+  const handleWithdrawConsent = async (consentType) => {
+    if (!confirm(t.consentWithdrawConfirm)) return
+    setLoading('withdraw_' + consentType)
+    setMessage('')
+    try {
+      await apiWithdrawConsent(consentType)
+      setMessage(t.done)
+      // Refresh consent status
+      const data = await apiGetConsentStatus()
+      if (data) setConsents(data)
+    } catch {
+      setMessage(t.error)
+    }
+    setLoading(null)
+  }
+
+  const sectionStyle = { background: '#fff', borderRadius: 12, padding: 20, marginBottom: 16, border: '1px solid #E8E4DF' }
+  const sectionTitleStyle = { fontSize: 16, fontWeight: 700, marginBottom: 8, color: '#2D3436' }
+  const listStyle = { fontSize: 13, lineHeight: 1.8, color: '#555', paddingLeft: 20, margin: '8px 0 0' }
+  const btnStyle = { padding: '12px 16px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', cursor: 'pointer', fontSize: 14, width: '100%', textAlign: 'left', display: 'block' }
   const dangerBtnStyle = { ...btnStyle, borderColor: '#e74c3c', color: '#e74c3c' }
 
-  return (
-    <div className="p-card" style={{ marginTop: 24 }}>
-      <h3 className="p-section-title" style={{ margin: '0 0 4px' }}>{t.title}</h3>
-      <p style={{ fontSize: 13, color: '#888', margin: '0 0 16px' }}>{t.subtitle}</p>
+  const consentLabel = (type) => type === 'facebook_import' ? t.consentFbImport : t.consentDataProcessing
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <button style={btnStyle} onClick={handleExport} disabled={loading === 'export'}>
-          {loading === 'export' ? '...' : t.exportBtn}
-          <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{t.exportDesc}</div>
-        </button>
+  const formatDate = (dateStr) => {
+    if (!dateStr) return ''
+    return new Date(dateStr).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', {
+      year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
+    })
+  }
+
+  return (
+    <div className="p-profile" style={{ maxWidth: 640 }}>
+      <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>{t.title}</h2>
+      <p style={{ fontSize: 14, color: '#888', marginBottom: 20 }}>{t.subtitle}</p>
+
+      {/* ── Privacy Notice (Transparency — GDPR Art. 13 & 14) ── */}
+      <div style={sectionStyle}>
+        <h3 style={sectionTitleStyle}>{t.privacyTitle}</h3>
+        <p style={{ fontSize: 13, color: '#555', marginBottom: 12 }}>{t.privacyIntro}</p>
+
+        <p style={{ fontSize: 14, fontWeight: 600, marginBottom: 0 }}>{t.privacyWhatTitle}</p>
+        <ul style={listStyle}>
+          {t.privacyWhat.map((item, i) => <li key={i}>{item}</li>)}
+        </ul>
+
+        <p style={{ fontSize: 14, fontWeight: 600, marginBottom: 0, marginTop: 12 }}>{t.privacyWhyTitle}</p>
+        <ul style={listStyle}>
+          {t.privacyWhy.map((item, i) => <li key={i}>{item}</li>)}
+        </ul>
+
+        <p style={{ fontSize: 14, fontWeight: 600, marginBottom: 0, marginTop: 12 }}>{t.privacyStorageTitle}</p>
+        <ul style={listStyle}>
+          {t.privacyStorage.map((item, i) => <li key={i}>{item}</li>)}
+        </ul>
+      </div>
+
+      {/* ── Consent Management (GDPR Art. 7) ── */}
+      <div style={sectionStyle}>
+        <h3 style={sectionTitleStyle}>{t.consentTitle}</h3>
+        {consents ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {['facebook_import', 'data_processing'].map(type => {
+              const c = consents[type]
+              const isGiven = c?.given
+              const isWithdrawn = c?.withdrawn_at
+              return (
+                <div key={type} style={{ padding: 12, borderRadius: 8, border: '1px solid #E8E4DF', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>{consentLabel(type)}</div>
+                    <div style={{ fontSize: 12, color: isGiven ? '#27ae60' : isWithdrawn ? '#e67e22' : '#999', marginTop: 2 }}>
+                      {isGiven ? t.consentGiven : isWithdrawn ? t.consentWithdrawn : t.consentNotGiven}
+                      {c?.date && <span style={{ color: '#aaa', marginLeft: 8 }}>{t.consentDate} {formatDate(c.date)}</span>}
+                    </div>
+                  </div>
+                  {isGiven && (
+                    <button
+                      style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #e67e22', background: '#fff', color: '#e67e22', cursor: 'pointer', fontSize: 12, whiteSpace: 'nowrap' }}
+                      disabled={loading === 'withdraw_' + type}
+                      onClick={() => handleWithdrawConsent(type)}
+                    >
+                      {loading === 'withdraw_' + type ? '...' : t.consentWithdrawBtn}
+                    </button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          <p style={{ fontSize: 13, color: '#999' }}>...</p>
+        )}
+      </div>
+
+      {/* ── Facebook Data Management ── */}
+      <div style={sectionStyle}>
+        <h3 style={sectionTitleStyle}>{t.fbTitle}</h3>
+        <p style={{ fontSize: 13, color: '#555', marginBottom: 12 }}>{t.fbDesc}</p>
         <button style={dangerBtnStyle} onClick={handleDeleteFb} disabled={loading === 'deleteFb'}>
-          {loading === 'deleteFb' ? '...' : t.deleteFbBtn}
-          <div style={{ fontSize: 12, color: '#aaa', marginTop: 2 }}>{t.deleteFbDesc}</div>
-        </button>
-        <button style={{ ...dangerBtnStyle, borderColor: '#c0392b', color: '#c0392b' }} onClick={handleDeleteAccount} disabled={loading === 'deleteAccount'}>
-          {loading === 'deleteAccount' ? '...' : t.deleteAccountBtn}
-          <div style={{ fontSize: 12, color: '#aaa', marginTop: 2 }}>{t.deleteAccountDesc}</div>
+          <strong>{loading === 'deleteFb' ? '...' : t.deleteFbBtn}</strong>
+          <div style={{ fontSize: 12, color: '#aaa', marginTop: 2, fontWeight: 400 }}>{t.deleteFbDesc}</div>
         </button>
       </div>
 
-      {message && <p style={{ marginTop: 10, fontSize: 13, color: message === t.done ? '#27ae60' : '#e74c3c' }}>{message}</p>}
+      {/* ── GDPR Rights (Art. 17 & 20) ── */}
+      <div style={sectionStyle}>
+        <h3 style={sectionTitleStyle}>{t.rightsTitle}</h3>
+
+        <div style={{ marginBottom: 12 }}>
+          <p style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{t.rightExport}</p>
+          <p style={{ fontSize: 13, color: '#555', marginBottom: 8 }}>{t.rightExportDesc}</p>
+          <button style={btnStyle} onClick={handleExport} disabled={loading === 'export'}>
+            <strong>{loading === 'export' ? '...' : t.exportBtn}</strong>
+          </button>
+        </div>
+
+        <div style={{ borderTop: '1px solid #eee', paddingTop: 12, marginTop: 12 }}>
+          <p style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, color: '#c0392b' }}>{t.rightErasure}</p>
+          <p style={{ fontSize: 13, color: '#555', marginBottom: 8 }}>{t.rightErasureDesc}</p>
+          <button
+            style={{ ...dangerBtnStyle, borderColor: '#c0392b', color: '#c0392b' }}
+            onClick={handleDeleteAccount}
+            disabled={loading === 'deleteAccount'}
+          >
+            <strong>{loading === 'deleteAccount' ? '...' : t.deleteAccountBtn}</strong>
+          </button>
+        </div>
+      </div>
+
+      {/* ── Contact DPO ── */}
+      <div style={sectionStyle}>
+        <h3 style={sectionTitleStyle}>{t.contactTitle}</h3>
+        <p style={{ fontSize: 13, color: '#555' }}>{t.contactDesc}</p>
+        <p style={{ fontSize: 14, fontWeight: 600, color: '#2D6A4F', marginTop: 4 }}>{t.contactEmail}</p>
+      </div>
+
+      {message && <p style={{ marginTop: 4, marginBottom: 16, fontSize: 13, textAlign: 'center', color: message === t.done ? '#27ae60' : '#e74c3c' }}>{message}</p>}
     </div>
   )
 }
