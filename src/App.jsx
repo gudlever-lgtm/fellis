@@ -153,7 +153,10 @@ function App() {
         setView('platform')
         if (data.lang) setLang(data.lang)
         localStorage.setItem('fellis_logged_in', 'true')
-      } else if (!localStorage.getItem('fellis_logged_in')) {
+      } else {
+        // Session expired or invalid — clear and go to landing
+        localStorage.removeItem('fellis_logged_in')
+        localStorage.removeItem('fellis_session_id')
         setView('landing')
       }
     })
