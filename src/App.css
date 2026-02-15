@@ -45,6 +45,57 @@
 .lang-toggle:hover {
   background: #d6f0e0;
 }
+.nav-right-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.login-btn {
+  background: #2D6A4F;
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 8px 20px;
+  border-radius: 20px;
+  transition: background 0.2s;
+}
+.login-btn:hover { background: #245a42; }
+.logout-btn {
+  background: none;
+  color: #A09890;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 16px;
+  transition: all 0.2s;
+}
+.logout-btn:hover { background: #f5f0eb; color: #6B6560; }
+
+/* ── Register form (step 4) ── */
+.register-form {
+  max-width: 400px;
+  margin: 24px auto 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.register-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  text-align: center;
+}
+.register-input {
+  padding: 12px 16px;
+  border: 1px solid #E8E4DF;
+  border-radius: 8px;
+  font-size: 15px;
+  transition: border-color 0.2s;
+}
+.register-input:focus {
+  border-color: #2D6A4F;
+  outline: none;
+}
 
 /* ── Landing ── */
 .landing {
@@ -755,6 +806,13 @@
   font-weight: 700;
   font-size: 13px;
 }
+.p-nav-avatar-img {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  cursor: pointer;
+}
 
 /* ── Content area ── */
 .p-content {
@@ -1047,6 +1105,14 @@
   padding: 0 24px 24px;
   text-align: center;
 }
+.p-profile-avatar-wrapper {
+  position: relative;
+  width: 88px;
+  height: 88px;
+  margin: -44px auto 12px;
+  cursor: pointer;
+}
+.p-profile-avatar-wrapper:hover .p-profile-avatar-overlay { opacity: 1; }
 .p-profile-avatar {
   width: 88px;
   height: 88px;
@@ -1057,8 +1123,27 @@
   color: #fff;
   font-weight: 700;
   font-size: 30px;
-  margin: -44px auto 12px;
   border: 4px solid #fff;
+}
+.p-profile-avatar-img {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid #fff;
+  display: block;
+}
+.p-profile-avatar-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  opacity: 0;
+  transition: opacity 0.2s;
 }
 .p-profile-name {
   font-size: 24px;

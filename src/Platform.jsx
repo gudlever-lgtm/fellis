@@ -1,20 +1,36 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { FRIENDS, POSTS, CURRENT_USER, MESSAGE_THREADS, PT, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchMessages, apiSendMessage } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchMessages, apiSendMessage, apiUploadAvatar, apiCheckSession } from './api.js'
 
-export default function Platform({ lang: initialLang, onBackToLanding }) {
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
+export default function Platform({ lang: initialLang, onLogout }) {
   const [lang, setLang] = useState(initialLang || 'da')
   const [page, setPage] = useState('feed')
+  const [currentUser, setCurrentUser] = useState(CURRENT_USER)
   const t = PT[lang]
 
   const toggleLang = useCallback(() => setLang(p => p === 'da' ? 'en' : 'da'), [])
+
+  // Load current user from session
+  useEffect(() => {
+    apiCheckSession().then(data => {
+      if (data?.user) {
+        setCurrentUser(prev => ({ ...prev, ...data.user }))
+      }
+    })
+  }, [])
+
+  const avatarSrc = currentUser.avatar_url
+    ? (currentUser.avatar_url.startsWith('http') ? currentUser.avatar_url : `${API_BASE}${currentUser.avatar_url}`)
+    : null
 
   return (
     <div className="platform">
       {/* Platform nav */}
       <nav className="p-nav">
         <div className="p-nav-left">
-          <div className="nav-logo" onClick={onBackToLanding} style={{ cursor: 'pointer' }}>
+          <div className="nav-logo" style={{ cursor: 'pointer' }} onClick={() => setPage('feed')}>
             <div className="nav-logo-icon">F</div>
             {t.navBrand}
           </div>
@@ -33,17 +49,24 @@ export default function Platform({ lang: initialLang, onBackToLanding }) {
         </div>
         <div className="p-nav-right">
           <button className="lang-toggle" onClick={toggleLang}>{t.langToggle}</button>
-          <div className="p-nav-avatar" style={{ background: nameToColor(CURRENT_USER.name) }}>
-            {CURRENT_USER.initials}
-          </div>
+          {avatarSrc ? (
+            <img className="p-nav-avatar-img" src={avatarSrc} alt="" onClick={() => setPage('profile')} />
+          ) : (
+            <div className="p-nav-avatar" style={{ background: nameToColor(currentUser.name), cursor: 'pointer' }} onClick={() => setPage('profile')}>
+              {currentUser.initials || getInitials(currentUser.name)}
+            </div>
+          )}
+          <button className="logout-btn" onClick={onLogout} title={lang === 'da' ? 'Log ud' : 'Log out'}>
+            {lang === 'da' ? 'Log ud' : 'Log out'}
+          </button>
         </div>
       </nav>
 
       <div className="p-content">
-        {page === 'feed' && <FeedPage lang={lang} t={t} />}
-        {page === 'profile' && <ProfilePage lang={lang} t={t} />}
+        {page === 'feed' && <FeedPage lang={lang} t={t} currentUser={currentUser} />}
+        {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} onUserUpdate={setCurrentUser} />}
         {page === 'friends' && <FriendsPage lang={lang} t={t} onMessage={() => setPage('messages')} />}
-        {page === 'messages' && <MessagesPage lang={lang} t={t} />}
+        {page === 'messages' && <MessagesPage lang={lang} t={t} currentUser={currentUser} />}
       </div>
     </div>
   )
@@ -52,7 +75,6 @@ export default function Platform({ lang: initialLang, onBackToLanding }) {
 // ── Media display component ──
 function PostMedia({ media }) {
   if (!media?.length) return null
-  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
   const count = media.length
   return (
     <div className={`p-post-media p-post-media-${Math.min(count, 4)}`}>
@@ -72,7 +94,7 @@ function PostMedia({ media }) {
 }
 
 // ── Feed ──
-function FeedPage({ lang, t }) {
+function FeedPage({ lang, t, currentUser }) {
   const [posts, setPosts] = useState(POSTS)
   const [newPostText, setNewPostText] = useState('')
   const [mediaFiles, setMediaFiles] = useState([])
@@ -95,7 +117,6 @@ function FeedPage({ lang, t }) {
   const handleFileSelect = useCallback((e) => {
     const files = Array.from(e.target.files).slice(0, 4)
     setMediaFiles(files)
-    // Generate previews
     const previews = files.map(f => ({
       url: URL.createObjectURL(f),
       type: f.type.startsWith('video/') ? 'video' : 'image',
@@ -120,13 +141,12 @@ function FeedPage({ lang, t }) {
       if (data) {
         setPosts(prev => [data, ...prev])
       } else {
-        // Fallback: local-only post with local previews
         const localMedia = mediaPreviews.length > 0
           ? mediaPreviews.map(p => ({ url: p.url, type: p.type, mime: '' }))
           : null
         setPosts(prev => [{
           id: Date.now(),
-          author: CURRENT_USER.name,
+          author: currentUser.name,
           time: { da: 'Lige nu', en: 'Just now' },
           text: { da: text, en: text },
           likes: 0, comments: [], media: localMedia,
@@ -137,7 +157,7 @@ function FeedPage({ lang, t }) {
     setMediaFiles([])
     setMediaPreviews([])
     if (fileInputRef.current) fileInputRef.current.value = ''
-  }, [newPostText, mediaFiles, mediaPreviews])
+  }, [newPostText, mediaFiles, mediaPreviews, currentUser.name])
 
   const toggleLike = useCallback((id) => {
     setLikedPosts(prev => {
@@ -145,7 +165,7 @@ function FeedPage({ lang, t }) {
       next.has(id) ? next.delete(id) : next.add(id)
       return next
     })
-    apiToggleLike(id).catch(() => {}) // Best-effort
+    apiToggleLike(id).catch(() => {})
   }, [])
 
   const toggleComments = useCallback((id) => {
@@ -160,22 +180,22 @@ function FeedPage({ lang, t }) {
     const text = commentTexts[postId]
     if (!text?.trim()) return
     apiAddComment(postId, text.trim()).then(data => {
-      const comment = data || { author: CURRENT_USER.name, text: { da: text, en: text } }
+      const comment = data || { author: currentUser.name, text: { da: text, en: text } }
       setPosts(prev => prev.map(p => {
         if (p.id !== postId) return p
         return { ...p, comments: [...p.comments, comment] }
       }))
     })
     setCommentTexts(prev => ({ ...prev, [postId]: '' }))
-  }, [commentTexts])
+  }, [commentTexts, currentUser.name])
 
   return (
     <div className="p-feed">
       {/* New post */}
       <div className="p-card p-new-post">
         <div className="p-new-post-row">
-          <div className="p-avatar-sm" style={{ background: nameToColor(CURRENT_USER.name) }}>
-            {CURRENT_USER.initials}
+          <div className="p-avatar-sm" style={{ background: nameToColor(currentUser.name) }}>
+            {currentUser.initials || getInitials(currentUser.name)}
           </div>
           <input
             className="p-new-post-input"
@@ -259,8 +279,8 @@ function FeedPage({ lang, t }) {
                   </div>
                 ))}
                 <div className="p-comment-input-row">
-                  <div className="p-avatar-xs" style={{ background: nameToColor(CURRENT_USER.name) }}>
-                    {CURRENT_USER.initials}
+                  <div className="p-avatar-xs" style={{ background: nameToColor(currentUser.name) }}>
+                    {currentUser.initials || getInitials(currentUser.name)}
                   </div>
                   <input
                     className="p-comment-input"
@@ -281,26 +301,69 @@ function FeedPage({ lang, t }) {
 }
 
 // ── Profile ──
-function ProfilePage({ lang, t }) {
-  const [profile, setProfile] = useState(CURRENT_USER)
+function ProfilePage({ lang, t, currentUser, onUserUpdate }) {
+  const [profile, setProfile] = useState({ ...CURRENT_USER, ...currentUser })
   const [userPosts, setUserPosts] = useState(POSTS.filter(p => p.author === CURRENT_USER.name))
+  const avatarInputRef = useRef(null)
 
   useEffect(() => {
     apiFetchProfile().then(data => {
-      if (data) setProfile(data)
+      if (data) {
+        setProfile(data)
+        if (data.avatar_url || data.avatarUrl) {
+          onUserUpdate(prev => ({ ...prev, avatar_url: data.avatarUrl || data.avatar_url }))
+        }
+      }
     })
     apiFetchFeed().then(data => {
-      if (data) setUserPosts(data.filter(p => p.author === (profile.name || CURRENT_USER.name)))
+      if (data) setUserPosts(data.filter(p => p.author === (currentUser.name || CURRENT_USER.name)))
     })
-  }, [])
+  }, [currentUser.name, onUserUpdate])
+
+  const handleAvatarUpload = useCallback(async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    // Optimistic preview
+    const previewUrl = URL.createObjectURL(file)
+    setProfile(prev => ({ ...prev, avatarUrl: previewUrl }))
+    onUserUpdate(prev => ({ ...prev, avatar_url: previewUrl }))
+    try {
+      const data = await apiUploadAvatar(file)
+      if (data?.avatarUrl) {
+        setProfile(prev => ({ ...prev, avatarUrl: data.avatarUrl }))
+        onUserUpdate(prev => ({ ...prev, avatar_url: data.avatarUrl }))
+      }
+    } catch {
+      // Keep the local preview even if server fails
+    }
+  }, [onUserUpdate])
+
+  const avatarUrl = profile.avatarUrl || profile.avatar_url
+  const avatarSrc = avatarUrl
+    ? (avatarUrl.startsWith('http') || avatarUrl.startsWith('blob:') ? avatarUrl : `${API_BASE}${avatarUrl}`)
+    : null
 
   return (
     <div className="p-profile">
       <div className="p-card p-profile-card">
         <div className="p-profile-banner" />
         <div className="p-profile-info">
-          <div className="p-profile-avatar" style={{ background: nameToColor(profile.name) }}>
-            {profile.initials}
+          <div className="p-profile-avatar-wrapper" onClick={() => avatarInputRef.current?.click()} title={lang === 'da' ? 'Skift profilbillede' : 'Change profile picture'}>
+            {avatarSrc ? (
+              <img className="p-profile-avatar-img" src={avatarSrc} alt="" />
+            ) : (
+              <div className="p-profile-avatar" style={{ background: nameToColor(profile.name) }}>
+                {profile.initials || getInitials(profile.name)}
+              </div>
+            )}
+            <div className="p-profile-avatar-overlay">📷</div>
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/gif,image/webp"
+              style={{ display: 'none' }}
+              onChange={handleAvatarUpload}
+            />
           </div>
           <h2 className="p-profile-name">{profile.name}</h2>
           <p className="p-profile-handle">{profile.handle}</p>
@@ -409,7 +472,7 @@ function FriendsPage({ lang, t, onMessage }) {
 }
 
 // ── Messages ──
-function MessagesPage({ lang, t }) {
+function MessagesPage({ lang, t, currentUser }) {
   const [activeThread, setActiveThread] = useState(0)
   const [threads, setThreads] = useState(MESSAGE_THREADS)
   const [newMsg, setNewMsg] = useState('')
@@ -428,13 +491,12 @@ function MessagesPage({ lang, t }) {
   const handleSend = useCallback(() => {
     if (!newMsg.trim()) return
     const text = newMsg.trim()
-    // Optimistic local update
     setThreads(prev => prev.map((thread, i) => {
       if (i !== activeThread) return thread
       return {
         ...thread,
         messages: [...thread.messages, {
-          from: CURRENT_USER.name,
+          from: currentUser.name,
           text: { da: text, en: text },
           time: new Date().toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' }),
         }],
@@ -442,9 +504,8 @@ function MessagesPage({ lang, t }) {
       }
     }))
     setNewMsg('')
-    // Best-effort API send (friendId not easily available without backend IDs, fire-and-forget)
     apiSendMessage(activeThread + 1, text).catch(() => {})
-  }, [newMsg, activeThread])
+  }, [newMsg, activeThread, currentUser.name])
 
   const thread = threads[activeThread]
 
@@ -483,7 +544,7 @@ function MessagesPage({ lang, t }) {
         </div>
         <div className="p-msg-body">
           {thread.messages.map((msg, i) => {
-            const isMe = msg.from === CURRENT_USER.name
+            const isMe = msg.from === currentUser.name
             return (
               <div key={i} className={`p-msg-bubble-row${isMe ? ' mine' : ''}`}>
                 {!isMe && (

@@ -1,11 +1,13 @@
 import { useState, useCallback } from 'react'
 import { FRIENDS, nameToColor, getInitials } from './data.js'
+import { apiLogin, apiRegister } from './api.js'
 
 // ── Landing translations ──
 const T = {
   da: {
     navBrand: 'fellis.eu',
     langToggle: 'EN',
+    loginBtn: 'Log ind',
     headline: 'Flyt dit sociale liv til Europa',
     subtitle: 'Migrer dine Facebook-data sikkert til fellis.eu — den nye danske platform bygget til dig, ikke til annoncører.',
     cta: 'Kom i gang',
@@ -58,10 +60,27 @@ const T = {
     fbLogin: 'Log ind',
     fbCancel: 'Annuller',
     fbForgot: 'Glemt adgangskode?',
+    // Login modal
+    loginTitle: 'Log ind på fellis.eu',
+    loginEmail: 'E-mail',
+    loginPassword: 'Adgangskode',
+    loginSubmit: 'Log ind',
+    loginCancel: 'Annuller',
+    loginError: 'Ugyldig e-mail eller adgangskode',
+    loginNoAccount: 'Har du ikke en konto?',
+    loginSignup: 'Kom i gang',
+    // Register fields (step 4)
+    registerTitle: 'Opret din fellis.eu konto',
+    registerName: 'Fulde navn',
+    registerEmail: 'E-mail',
+    registerPassword: 'Vælg adgangskode (min. 6 tegn)',
+    registerSubmit: 'Opret konto & gå til profil',
+    registerError: 'Kunne ikke oprette konto',
   },
   en: {
     navBrand: 'fellis.eu',
     langToggle: 'DA',
+    loginBtn: 'Log in',
     headline: 'Move your social life to Europe',
     subtitle: 'Securely migrate your Facebook data to fellis.eu — the new Danish platform built for you, not advertisers.',
     cta: 'Get started',
@@ -114,6 +133,22 @@ const T = {
     fbLogin: 'Log in',
     fbCancel: 'Cancel',
     fbForgot: 'Forgotten password?',
+    // Login modal
+    loginTitle: 'Log in to fellis.eu',
+    loginEmail: 'Email',
+    loginPassword: 'Password',
+    loginSubmit: 'Log in',
+    loginCancel: 'Cancel',
+    loginError: 'Invalid email or password',
+    loginNoAccount: "Don't have an account?",
+    loginSignup: 'Get started',
+    // Register fields (step 4)
+    registerTitle: 'Create your fellis.eu account',
+    registerName: 'Full name',
+    registerEmail: 'Email',
+    registerPassword: 'Choose a password (min. 6 characters)',
+    registerSubmit: 'Create account & go to profile',
+    registerError: 'Could not create account',
   },
 }
 
@@ -121,6 +156,7 @@ export default function Landing({ onEnterPlatform }) {
   const [lang, setLang] = useState('da')
   const [step, setStep] = useState(0)
   const [showFbModal, setShowFbModal] = useState(false)
+  const [showLoginModal, setShowLoginModal] = useState(false)
   const [fbEmail, setFbEmail] = useState('')
   const [fbPassword, setFbPassword] = useState('')
   const [fbConnecting, setFbConnecting] = useState(false)
@@ -131,9 +167,72 @@ export default function Landing({ onEnterPlatform }) {
   const [inviteLoading, setInviteLoading] = useState(false)
   const [invitedCount, setInvitedCount] = useState(0)
 
+  // Login modal state
+  const [loginEmail, setLoginEmail] = useState('')
+  const [loginPassword, setLoginPassword] = useState('')
+  const [loginError, setLoginError] = useState('')
+  const [loginLoading, setLoginLoading] = useState(false)
+
+  // Register state (step 4)
+  const [regName, setRegName] = useState('')
+  const [regEmail, setRegEmail] = useState('')
+  const [regPassword, setRegPassword] = useState('')
+  const [regError, setRegError] = useState('')
+  const [regLoading, setRegLoading] = useState(false)
+
   const t = T[lang]
 
   const toggleLang = useCallback(() => setLang(p => p === 'da' ? 'en' : 'da'), [])
+
+  // ── Login handler ──
+  const handleLogin = useCallback(async (e) => {
+    e.preventDefault()
+    if (!loginEmail.trim() || !loginPassword.trim()) {
+      setLoginError(t.loginError)
+      return
+    }
+    setLoginLoading(true)
+    setLoginError('')
+    try {
+      const data = await apiLogin(loginEmail.trim(), loginPassword.trim(), lang)
+      if (data?.sessionId) {
+        setShowLoginModal(false)
+        onEnterPlatform(lang)
+      } else {
+        setLoginError(t.loginError)
+      }
+    } catch {
+      setLoginError(t.loginError)
+    }
+    setLoginLoading(false)
+  }, [loginEmail, loginPassword, lang, t, onEnterPlatform])
+
+  // ── Register handler (step 4 done) ──
+  const handleRegister = useCallback(async (e) => {
+    e.preventDefault()
+    if (!regName.trim() || !regEmail.trim() || !regPassword.trim()) {
+      setRegError(t.registerError)
+      return
+    }
+    if (regPassword.length < 6) {
+      setRegError(lang === 'da' ? 'Adgangskode skal være mindst 6 tegn' : 'Password must be at least 6 characters')
+      return
+    }
+    setRegLoading(true)
+    setRegError('')
+    try {
+      const data = await apiRegister(regName.trim(), regEmail.trim(), regPassword.trim(), lang)
+      if (data?.sessionId) {
+        onEnterPlatform(lang)
+      } else {
+        // Server not running — enter demo mode
+        onEnterPlatform(lang)
+      }
+    } catch {
+      setRegError(t.registerError)
+      setRegLoading(false)
+    }
+  }, [regName, regEmail, regPassword, lang, t, onEnterPlatform])
 
   // Open FB login modal
   const handleFbClick = useCallback(() => {
@@ -210,8 +309,53 @@ export default function Landing({ onEnterPlatform }) {
           <div className="nav-logo-icon">F</div>
           {t.navBrand}
         </div>
-        <button className="lang-toggle" onClick={toggleLang}>{t.langToggle}</button>
+        <div className="nav-right-group">
+          <button className="lang-toggle" onClick={toggleLang}>{t.langToggle}</button>
+          <button className="login-btn" onClick={() => { setShowLoginModal(true); setLoginError(''); setLoginEmail(''); setLoginPassword('') }}>
+            {t.loginBtn}
+          </button>
+        </div>
       </nav>
+
+      {/* Login Modal */}
+      {showLoginModal && (
+        <div className="modal-backdrop" onClick={() => setShowLoginModal(false)}>
+          <div className="fb-modal" onClick={e => e.stopPropagation()}>
+            <div className="fb-modal-header" style={{ background: '#2D6A4F' }}>
+              <div className="fb-modal-logo" style={{ color: '#fff', fontFamily: "'Playfair Display', serif" }}>fellis.eu</div>
+            </div>
+            <form className="fb-modal-form" onSubmit={handleLogin}>
+              <h3>{t.loginTitle}</h3>
+              <input
+                type="email"
+                placeholder={t.loginEmail}
+                value={loginEmail}
+                onChange={e => setLoginEmail(e.target.value)}
+                className="fb-input"
+                autoFocus
+              />
+              <input
+                type="password"
+                placeholder={t.loginPassword}
+                value={loginPassword}
+                onChange={e => setLoginPassword(e.target.value)}
+                className="fb-input"
+              />
+              {loginError && <div className="fb-error">{loginError}</div>}
+              <button type="submit" className="fb-login-submit" style={{ background: '#2D6A4F' }} disabled={loginLoading}>
+                {loginLoading ? '...' : t.loginSubmit}
+              </button>
+              <button type="button" className="fb-forgot" onClick={() => setShowLoginModal(false)}>{t.loginCancel}</button>
+              <div className="fb-forgot-link" style={{ marginTop: 8 }}>
+                {t.loginNoAccount}{' '}
+                <span style={{ color: '#2D6A4F', cursor: 'pointer', fontWeight: 600 }} onClick={() => { setShowLoginModal(false); setStep(1) }}>
+                  {t.loginSignup}
+                </span>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Facebook Login Modal */}
       {showFbModal && (
@@ -357,7 +501,7 @@ export default function Landing({ onEnterPlatform }) {
         </div>
       )}
 
-      {/* Step 4 */}
+      {/* Step 4 — Done + Register */}
       {step === 4 && (
         <div className="step-container done-page">
           <div className="done-checkmark">✓</div>
@@ -367,19 +511,40 @@ export default function Landing({ onEnterPlatform }) {
             <div className="stat-item"><div className="stat-number">{migratedCount.toLocaleString()}</div><div className="stat-label">{t.itemsMigrated}</div></div>
             <div className="stat-item"><div className="stat-number">{invitedCount}</div><div className="stat-label">{t.friendsInvited}</div></div>
           </div>
-          <div className="profile-preview">
-            <div className="preview-header">
-              <div className="preview-avatar">SN</div>
-              <div><div className="preview-name">Sofie Nielsen</div><div className="preview-handle">@sofie.nielsen</div></div>
-            </div>
-            <div className="preview-tags">
-              {selectedContent.profile && <span className="preview-tag">{t.tagProfile}</span>}
-              {selectedContent.friends && <span className="preview-tag">{t.tagFriends}</span>}
-              {selectedContent.posts && <span className="preview-tag">{t.tagPosts}</span>}
-              {selectedContent.posts && <span className="preview-tag">{t.tagPhotos}</span>}
-            </div>
-          </div>
-          <button className="btn-primary" onClick={() => onEnterPlatform(lang)}>{t.viewProfile}</button>
+
+          {/* Registration form */}
+          <form className="register-form" onSubmit={handleRegister}>
+            <h3 className="register-title">{t.registerTitle}</h3>
+            <input
+              type="text"
+              placeholder={t.registerName}
+              value={regName}
+              onChange={e => setRegName(e.target.value)}
+              className="register-input"
+              required
+            />
+            <input
+              type="email"
+              placeholder={t.registerEmail}
+              value={regEmail}
+              onChange={e => setRegEmail(e.target.value)}
+              className="register-input"
+              required
+            />
+            <input
+              type="password"
+              placeholder={t.registerPassword}
+              value={regPassword}
+              onChange={e => setRegPassword(e.target.value)}
+              className="register-input"
+              minLength={6}
+              required
+            />
+            {regError && <div className="fb-error">{regError}</div>}
+            <button type="submit" className="btn-primary" style={{ width: '100%' }} disabled={regLoading}>
+              {regLoading ? '...' : t.registerSubmit}
+            </button>
+          </form>
         </div>
       )}
     </div>

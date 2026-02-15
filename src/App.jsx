@@ -16,15 +16,12 @@ function App() {
   useEffect(() => {
     apiCheckSession().then(data => {
       if (data) {
-        // Server confirmed session is valid
         setView('platform')
         if (data.lang) setLang(data.lang)
         localStorage.setItem('fellis_logged_in', 'true')
       } else if (!localStorage.getItem('fellis_logged_in')) {
-        // No local session either
         setView('landing')
       }
-      // If server unreachable but localStorage says logged in, trust localStorage (demo mode)
     })
   }, [])
 
@@ -35,16 +32,16 @@ function App() {
     localStorage.setItem('fellis_lang', selectedLang)
   }, [])
 
-  const handleBackToLanding = useCallback(() => {
+  const handleLogout = useCallback(() => {
     setView('landing')
     localStorage.removeItem('fellis_logged_in')
     localStorage.removeItem('fellis_lang')
     localStorage.removeItem('fellis_session_id')
-    apiLogout().catch(() => {}) // Best-effort server logout
+    apiLogout().catch(() => {})
   }, [])
 
   if (view === 'platform') {
-    return <Platform lang={lang} onBackToLanding={handleBackToLanding} />
+    return <Platform lang={lang} onLogout={handleLogout} />
   }
 
   return <Landing onEnterPlatform={handleEnterPlatform} />

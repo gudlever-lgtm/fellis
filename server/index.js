@@ -163,7 +163,7 @@ app.post('/api/auth/logout', authenticate, async (req, res) => {
 // GET /api/auth/session — check if session is valid
 app.get('/api/auth/session', authenticate, async (req, res) => {
   try {
-    const [users] = await pool.query('SELECT id, name, handle, initials FROM users WHERE id = ?', [req.userId])
+    const [users] = await pool.query('SELECT id, name, handle, initials, avatar_url FROM users WHERE id = ?', [req.userId])
     if (users.length === 0) return res.status(404).json({ error: 'User not found' })
     res.json({ user: users[0], lang: req.lang })
   } catch (err) {
@@ -177,7 +177,7 @@ app.get('/api/auth/session', authenticate, async (req, res) => {
 app.get('/api/profile/:id', authenticate, async (req, res) => {
   try {
     const [users] = await pool.query(
-      `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count,
+      `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url,
         (SELECT COUNT(*) FROM friendships WHERE user_id = u.id) as friend_count,
         (SELECT COUNT(*) FROM posts WHERE author_id = u.id) as post_count
        FROM users u WHERE u.id = ?`,
@@ -189,6 +189,7 @@ app.get('/api/profile/:id', authenticate, async (req, res) => {
       id: u.id, name: u.name, handle: u.handle, initials: u.initials,
       bio: { da: u.bio_da || '', en: u.bio_en || '' },
       location: u.location, joinDate: u.join_date,
+      avatarUrl: u.avatar_url || null,
       friendCount: u.friend_count, postCount: u.post_count, photoCount: u.photo_count || 0,
     })
   } catch (err) {
@@ -200,7 +201,7 @@ app.get('/api/profile/:id', authenticate, async (req, res) => {
 app.get('/api/profile', authenticate, async (req, res) => {
   try {
     const [users] = await pool.query(
-      `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count,
+      `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url,
         (SELECT COUNT(*) FROM friendships WHERE user_id = u.id) as friend_count,
         (SELECT COUNT(*) FROM posts WHERE author_id = u.id) as post_count
        FROM users u WHERE u.id = ?`,
@@ -212,10 +213,36 @@ app.get('/api/profile', authenticate, async (req, res) => {
       id: u.id, name: u.name, handle: u.handle, initials: u.initials,
       bio: { da: u.bio_da || '', en: u.bio_en || '' },
       location: u.location, joinDate: u.join_date,
+      avatarUrl: u.avatar_url || null,
       friendCount: u.friend_count, postCount: u.post_count, photoCount: u.photo_count || 0,
     })
   } catch (err) {
     res.status(500).json({ error: 'Failed to load profile' })
+  }
+})
+
+// POST /api/profile/avatar — upload profile picture
+app.post('/api/profile/avatar', authenticate, upload.single('avatar'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' })
+  // Validate magic bytes
+  const header = Buffer.alloc(16)
+  const fd = fs.openSync(req.file.path, 'r')
+  fs.readSync(fd, header, 0, 16, 0)
+  fs.closeSync(fd)
+  if (!validateMagicBytes(header, req.file.mimetype)) {
+    fs.unlinkSync(req.file.path)
+    return res.status(400).json({ error: 'File content does not match declared type' })
+  }
+  if (!req.file.mimetype.startsWith('image/')) {
+    fs.unlinkSync(req.file.path)
+    return res.status(400).json({ error: 'Only image files allowed for profile picture' })
+  }
+  const avatarUrl = `/uploads/${req.file.filename}`
+  try {
+    await pool.query('UPDATE users SET avatar_url = ? WHERE id = ?', [avatarUrl, req.userId])
+    res.json({ avatarUrl })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update avatar' })
   }
 })
 

@@ -129,3 +129,24 @@ export async function apiSendMessage(friendId, text) {
     body: JSON.stringify({ text }),
   })
 }
+
+// Profile avatar
+export async function apiUploadAvatar(file) {
+  const form = new FormData()
+  form.append('avatar', file)
+  try {
+    const res = await fetch(`${API_BASE}/api/profile/avatar`, {
+      method: 'POST',
+      headers: { 'X-Session-Id': getSessionId() },
+      body: form,
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.error || `HTTP ${res.status}`)
+    }
+    return await res.json()
+  } catch (err) {
+    if (err.message === 'Failed to fetch') return null
+    throw err
+  }
+}
