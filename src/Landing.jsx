@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react'
 import { nameToColor, getInitials } from './data.js'
 
 // Placeholder friends for the invite step (migration wizard only)
-const INVITE_INVITE_FRIENDS = [
+const INVITE_FRIENDS = [
   { name: 'Ven 1', mutual: 5, online: false },
   { name: 'Ven 2', mutual: 3, online: true },
   { name: 'Ven 3', mutual: 8, online: false },
