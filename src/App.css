@@ -1009,6 +1009,7 @@
   background: #f0ede8;
 }
 .p-post-media-1 .p-media-item { max-height: 600px; border-radius: 12px; }
+.p-media-clickable { cursor: zoom-in; }
 
 /* ── Media button + previews in new post ── */
 .p-media-btn {
@@ -1463,6 +1464,89 @@
   border-color: #2D6A4F;
 }
 
+/* ── Lightbox ── */
+.lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  cursor: pointer;
+  padding: 24px;
+}
+.lightbox-content {
+  max-width: 90vw;
+  max-height: 90vh;
+  cursor: default;
+}
+.lightbox-media {
+  max-width: 90vw;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: 8px;
+  display: block;
+}
+.lightbox-close {
+  position: fixed;
+  top: 16px;
+  right: 20px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+  font-size: 18px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+.lightbox-close:hover {
+  background: rgba(255,255,255,0.3);
+}
+
+/* ── Comment media ── */
+.p-comment-media {
+  margin-top: 6px;
+}
+.p-comment-media .p-post-media {
+  border-radius: 8px;
+}
+.p-comment-media .p-media-item {
+  min-height: 80px;
+  max-height: 200px;
+  border-radius: 8px;
+}
+.p-comment-media-btn {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+.p-comment-media-btn:hover {
+  background: #F0FAF4;
+}
+.p-comment-media-preview {
+  position: relative;
+  display: inline-block;
+  margin-left: 36px;
+  margin-bottom: 4px;
+}
+.p-comment-media-thumb {
+  width: 80px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 8px;
+  display: block;
+}
+
 /* ── Responsive ── */
 @media (max-width: 640px) {
   .landing h1 {
@@ -1493,6 +1577,29 @@
   .p-nav-tab-icon {
     font-size: 20px;
   }
+  .p-content {
+    padding: 16px 10px 60px;
+  }
+  .p-card {
+    padding: 14px;
+  }
+  .p-new-post-input {
+    font-size: 14px;
+  }
+  .p-post-media-2,
+  .p-post-media-3,
+  .p-post-media-4 {
+    grid-template-columns: 1fr 1fr;
+  }
+  .p-media-item {
+    min-height: 120px;
+  }
+  .p-profile-banner {
+    height: 100px;
+  }
+  .p-profile-stats {
+    gap: 16px;
+  }
   .p-msg-sidebar {
     width: 72px;
   }
@@ -1506,5 +1613,33 @@
   }
   .p-friends-grid {
     grid-template-columns: 1fr 1fr;
+  }
+  .avatar-dropdown {
+    right: -8px;
+    min-width: 180px;
+  }
+  .lang-toggle {
+    font-size: 12px;
+    padding: 4px 10px;
+  }
+  .lightbox-overlay {
+    padding: 12px;
+  }
+}
+
+/* ── Extra small screens ── */
+@media (max-width: 380px) {
+  .p-nav-left .nav-logo {
+    font-size: 0;
+  }
+  .p-nav-left .nav-logo-icon {
+    font-size: 18px;
+  }
+  .p-friends-grid {
+    grid-template-columns: 1fr;
+  }
+  .p-profile-meta {
+    flex-direction: column;
+    gap: 4px;
   }
 }

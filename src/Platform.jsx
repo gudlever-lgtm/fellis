@@ -128,23 +128,52 @@ export default function Platform({ lang: initialLang, onLogout }) {
 }
 
 // ── Media display component ──
+// ── Lightbox modal ──
+function Lightbox({ src, type, mime, onClose }) {
+  useEffect(() => {
+    const handleKey = (e) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [onClose])
+  return (
+    <div className="lightbox-overlay" onClick={onClose}>
+      <div className="lightbox-content" onClick={e => e.stopPropagation()}>
+        {type === 'video' ? (
+          <video className="lightbox-media" controls autoPlay playsInline>
+            <source src={src} type={mime} />
+          </video>
+        ) : (
+          <img className="lightbox-media" src={src} alt="" />
+        )}
+      </div>
+      <button className="lightbox-close" onClick={onClose}>✕</button>
+    </div>
+  )
+}
+
 function PostMedia({ media }) {
+  const [lightbox, setLightbox] = useState(null)
   if (!media?.length) return null
   const count = media.length
   return (
-    <div className={`p-post-media p-post-media-${Math.min(count, 4)}`}>
-      {media.map((m, i) => {
-        const src = m.url.startsWith('http') ? m.url : `${API_BASE}${m.url}`
-        if (m.type === 'video') {
-          return (
-            <video key={i} className="p-media-item" controls preload="metadata" playsInline>
-              <source src={src} type={m.mime} />
-            </video>
-          )
-        }
-        return <img key={i} className="p-media-item" src={src} alt="" loading="lazy" />
-      })}
-    </div>
+    <>
+      <div className={`p-post-media p-post-media-${Math.min(count, 4)}`}>
+        {media.map((m, i) => {
+          const src = m.url.startsWith('http') ? m.url : `${API_BASE}${m.url}`
+          if (m.type === 'video') {
+            return (
+              <video key={i} className="p-media-item" controls preload="metadata" playsInline
+                onClick={() => setLightbox({ src, type: 'video', mime: m.mime })}>
+                <source src={src} type={m.mime} />
+              </video>
+            )
+          }
+          return <img key={i} className="p-media-item p-media-clickable" src={src} alt="" loading="lazy"
+            onClick={() => setLightbox({ src, type: 'image' })} />
+        })}
+      </div>
+      {lightbox && <Lightbox {...lightbox} onClose={() => setLightbox(null)} />}
+    </>
   )
 }
 
@@ -157,7 +186,9 @@ function FeedPage({ lang, t, currentUser }) {
   const [likedPosts, setLikedPosts] = useState(new Set())
   const [expandedComments, setExpandedComments] = useState(new Set())
   const [commentTexts, setCommentTexts] = useState({})
+  const [commentMedia, setCommentMedia] = useState({})
   const fileInputRef = useRef(null)
+  const commentFileRefs = useRef({})
 
   // Try loading feed from API
   useEffect(() => {
@@ -231,18 +262,47 @@ function FeedPage({ lang, t, currentUser }) {
     })
   }, [])
 
+  const handleCommentFileSelect = useCallback((postId, e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const preview = {
+      url: URL.createObjectURL(file),
+      type: file.type.startsWith('video/') ? 'video' : 'image',
+      file,
+    }
+    setCommentMedia(prev => ({ ...prev, [postId]: preview }))
+  }, [])
+
+  const removeCommentMedia = useCallback((postId) => {
+    setCommentMedia(prev => {
+      if (prev[postId]) URL.revokeObjectURL(prev[postId].url)
+      const next = { ...prev }
+      delete next[postId]
+      return next
+    })
+  }, [])
+
   const handleComment = useCallback((postId) => {
     const text = commentTexts[postId]
-    if (!text?.trim()) return
-    apiAddComment(postId, text.trim()).then(data => {
-      const comment = data || { author: currentUser.name, text: { da: text, en: text } }
+    const media = commentMedia[postId]
+    if (!text?.trim() && !media) return
+    const commentText = (text || '').trim()
+    const localMedia = media ? [{ url: media.url, type: media.type, mime: '' }] : null
+    apiAddComment(postId, commentText).then(data => {
+      const comment = data || { author: currentUser.name, text: { da: commentText, en: commentText }, media: localMedia }
       setPosts(prev => prev.map(p => {
         if (p.id !== postId) return p
         return { ...p, comments: [...p.comments, comment] }
       }))
     })
     setCommentTexts(prev => ({ ...prev, [postId]: '' }))
-  }, [commentTexts, currentUser.name])
+    setCommentMedia(prev => {
+      const next = { ...prev }
+      delete next[postId]
+      return next
+    })
+    if (commentFileRefs.current[postId]) commentFileRefs.current[postId].value = ''
+  }, [commentTexts, commentMedia, currentUser.name])
 
   return (
     <div className="p-feed">
@@ -330,9 +390,25 @@ function FeedPage({ lang, t, currentUser }) {
                     <div className="p-comment-bubble">
                       <span className="p-comment-author">{c.author}</span>
                       <span>{c.text[lang]}</span>
+                      {c.media?.length > 0 && (
+                        <div className="p-comment-media">
+                          <PostMedia media={c.media} />
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
+                {/* Comment media preview */}
+                {commentMedia[post.id] && (
+                  <div className="p-comment-media-preview">
+                    {commentMedia[post.id].type === 'video' ? (
+                      <video src={commentMedia[post.id].url} className="p-comment-media-thumb" />
+                    ) : (
+                      <img src={commentMedia[post.id].url} alt="" className="p-comment-media-thumb" />
+                    )}
+                    <button className="p-media-preview-remove" onClick={() => removeCommentMedia(post.id)}>✕</button>
+                  </div>
+                )}
                 <div className="p-comment-input-row">
                   <div className="p-avatar-xs" style={{ background: nameToColor(currentUser.name) }}>
                     {currentUser.initials || getInitials(currentUser.name)}
@@ -344,6 +420,16 @@ function FeedPage({ lang, t, currentUser }) {
                     onChange={e => setCommentTexts(prev => ({ ...prev, [post.id]: e.target.value }))}
                     onKeyDown={e => e.key === 'Enter' && handleComment(post.id)}
                   />
+                  <input
+                    ref={el => commentFileRefs.current[post.id] = el}
+                    type="file"
+                    accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
+                    style={{ display: 'none' }}
+                    onChange={e => handleCommentFileSelect(post.id, e)}
+                  />
+                  <button className="p-comment-media-btn" onClick={() => commentFileRefs.current[post.id]?.click()} title={lang === 'da' ? 'Tilføj billede/video' : 'Add image/video'}>
+                    📷
+                  </button>
                   <button className="p-send-btn" onClick={() => handleComment(post.id)}>{t.send}</button>
                 </div>
               </div>
