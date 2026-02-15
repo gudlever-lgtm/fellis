@@ -503,6 +503,29 @@ function ProfilePage({ lang, t, currentUser, onUserUpdate }) {
         </div>
       </div>
 
+      {/* Login info */}
+      <div className="p-card p-login-info-card">
+        <h3 className="p-section-title">{t.loginInfo}</h3>
+        <div className="p-login-info">
+          {profile.email && (
+            <div className="p-login-info-row">
+              <span className="p-login-info-label">{t.emailLabel}</span>
+              <span className="p-login-info-value">{profile.email}</span>
+            </div>
+          )}
+          <div className="p-login-info-row">
+            <span className="p-login-info-label">{t.loginMethodLabel}</span>
+            <span className="p-login-info-value">{profile.loginMethod === 'facebook' ? t.loginMethodFacebook : t.loginMethodEmail}</span>
+          </div>
+          {profile.createdAt && (
+            <div className="p-login-info-row">
+              <span className="p-login-info-label">{t.accountCreatedLabel}</span>
+              <span className="p-login-info-value">{new Date(profile.createdAt).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* User's posts */}
       <h3 className="p-section-title">{t.postsLabel}</h3>
       {userPosts.map(post => (
