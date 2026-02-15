@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { FRIENDS, POSTS, CURRENT_USER, MESSAGE_THREADS, PT, nameToColor, getInitials } from './data.js'
 import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchMessages, apiSendMessage, apiUploadAvatar, apiCheckSession } from './api.js'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_BASE = import.meta.env.VITE_API_URL || ''
 
 export default function Platform({ lang: initialLang, onLogout }) {
   const [lang, setLang] = useState(initialLang || 'da')

@@ -1,7 +1,7 @@
 // API client for fellis.eu backend
 // Falls back to null when the server is unavailable (demo mode uses mock data)
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_BASE = import.meta.env.VITE_API_URL || ''
 
 function getSessionId() {
   return localStorage.getItem('fellis_session_id')
