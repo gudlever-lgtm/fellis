@@ -171,6 +171,189 @@ app.get('/api/auth/session', authenticate, async (req, res) => {
   }
 })
 
+// ── Facebook OAuth ──
+
+const FB_APP_ID = process.env.FB_APP_ID
+const FB_APP_SECRET = process.env.FB_APP_SECRET
+const FB_REDIRECT_URI = process.env.FB_REDIRECT_URI || 'https://fellis.eu/api/auth/facebook/callback'
+const FB_GRAPH_URL = 'https://graph.facebook.com/v21.0'
+
+// Scopes: read profile, friends list, posts, photos — NO write/delete permissions
+const FB_SCOPES = 'public_profile,email,user_friends,user_posts,user_photos'
+
+// Step 1: Redirect user to Facebook login
+app.get('/api/auth/facebook', (req, res) => {
+  if (!FB_APP_ID) return res.status(500).json({ error: 'Facebook integration not configured' })
+  const lang = req.query.lang || 'da'
+  const state = crypto.randomUUID() + ':' + lang
+  const url = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${FB_APP_ID}&redirect_uri=${encodeURIComponent(FB_REDIRECT_URI)}&scope=${FB_SCOPES}&state=${state}&response_type=code`
+  res.redirect(url)
+})
+
+// Step 2: Facebook redirects back with auth code
+app.get('/api/auth/facebook/callback', async (req, res) => {
+  const { code, state } = req.query
+  if (!code) return res.redirect('/?fb_error=denied')
+  const lang = state?.split(':')?.[1] || 'da'
+
+  try {
+    // Exchange code for access token
+    const tokenRes = await fetch(
+      `${FB_GRAPH_URL}/oauth/access_token?client_id=${FB_APP_ID}&client_secret=${FB_APP_SECRET}&redirect_uri=${encodeURIComponent(FB_REDIRECT_URI)}&code=${code}`
+    )
+    const tokenData = await tokenRes.json()
+    if (!tokenData.access_token) return res.redirect('/?fb_error=token')
+    const fbToken = tokenData.access_token
+
+    // Fetch Facebook profile
+    const profileRes = await fetch(`${FB_GRAPH_URL}/me?fields=id,name,email,picture.width(200).height(200)&access_token=${fbToken}`)
+    const fbProfile = await profileRes.json()
+    if (!fbProfile.id) return res.redirect('/?fb_error=profile')
+
+    // Check if user already exists (by email or facebook_id)
+    let userId
+    const [existing] = await pool.query('SELECT id FROM users WHERE email = ? OR facebook_id = ?', [fbProfile.email, fbProfile.id])
+
+    if (existing.length > 0) {
+      userId = existing[0].id
+      // Update Facebook token for data refresh
+      await pool.query('UPDATE users SET facebook_id = ?, fb_access_token = ? WHERE id = ?', [fbProfile.id, fbToken, userId])
+    } else {
+      // Create new user from Facebook data
+      const handle = '@' + (fbProfile.name || 'user').toLowerCase().replace(/\s+/g, '.')
+      const initials = (fbProfile.name || 'U').split(' ').map(n => n[0]).join('').toUpperCase()
+      const avatarUrl = fbProfile.picture?.data?.url || null
+      const [result] = await pool.query(
+        `INSERT INTO users (name, handle, initials, email, join_date, avatar_url, facebook_id, fb_access_token)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [fbProfile.name, handle, initials, fbProfile.email || null, new Date().getFullYear().toString(), avatarUrl, fbProfile.id, fbToken]
+      )
+      userId = result.insertId
+    }
+
+    // Import Facebook data in the background (non-blocking)
+    importFacebookData(userId, fbToken).catch(err => console.error('FB import error:', err))
+
+    // Create session
+    const sessionId = crypto.randomUUID()
+    await pool.query(
+      'INSERT INTO sessions (id, user_id, lang, expires_at) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY))',
+      [sessionId, userId, lang]
+    )
+
+    // Redirect to frontend with session
+    res.redirect(`/?fb_session=${sessionId}&fb_lang=${lang}`)
+  } catch (err) {
+    console.error('Facebook callback error:', err)
+    res.redirect('/?fb_error=server')
+  }
+})
+
+// Import Facebook data into fellis DB (friends, posts, photos)
+async function importFacebookData(userId, fbToken) {
+  // Import friends (only those also on Facebook, read-only)
+  try {
+    const friendsRes = await fetch(`${FB_GRAPH_URL}/me/friends?fields=id,name,picture.width(100).height(100)&limit=500&access_token=${fbToken}`)
+    const friendsData = await friendsRes.json()
+    if (friendsData.data) {
+      for (const friend of friendsData.data) {
+        // Check if friend exists on fellis
+        const [existing] = await pool.query('SELECT id FROM users WHERE facebook_id = ?', [friend.id])
+        if (existing.length > 0) {
+          // Add friendship if not exists
+          await pool.query(
+            'INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)',
+            [userId, existing[0].id]
+          )
+          await pool.query(
+            'INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)',
+            [existing[0].id, userId]
+          )
+        }
+      }
+    }
+  } catch (err) {
+    console.error('FB friends import error:', err)
+  }
+
+  // Import posts (read-only — just copying text into fellis)
+  try {
+    const postsRes = await fetch(`${FB_GRAPH_URL}/me/posts?fields=message,created_time,full_picture&limit=100&access_token=${fbToken}`)
+    const postsData = await postsRes.json()
+    if (postsData.data) {
+      for (const post of postsData.data) {
+        if (!post.message) continue
+        const created = new Date(post.created_time)
+        const timeStr = created.toLocaleDateString('da-DK', { day: 'numeric', month: 'short', year: 'numeric' })
+        const timeStrEn = created.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
+
+        // Download image if present
+        let mediaJson = null
+        if (post.full_picture) {
+          try {
+            const imgRes = await fetch(post.full_picture)
+            if (imgRes.ok) {
+              const contentType = imgRes.headers.get('content-type') || 'image/jpeg'
+              const ext = contentType.includes('png') ? '.png' : contentType.includes('gif') ? '.gif' : '.jpg'
+              const filename = crypto.randomUUID() + ext
+              const imgPath = path.join(UPLOADS_DIR, filename)
+              const buffer = Buffer.from(await imgRes.arrayBuffer())
+              fs.writeFileSync(imgPath, buffer)
+              mediaJson = JSON.stringify([{ url: `/uploads/${filename}`, type: 'image', mime: contentType }])
+            }
+          } catch {}
+        }
+
+        await pool.query(
+          'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media) VALUES (?, ?, ?, ?, ?, ?)',
+          [userId, post.message, post.message, timeStr, timeStrEn, mediaJson]
+        )
+      }
+    }
+  } catch (err) {
+    console.error('FB posts import error:', err)
+  }
+
+  // Import photos
+  try {
+    const photosRes = await fetch(`${FB_GRAPH_URL}/me/photos?type=uploaded&fields=images,name,created_time&limit=100&access_token=${fbToken}`)
+    const photosData = await photosRes.json()
+    if (photosData.data) {
+      let photoCount = 0
+      for (const photo of photosData.data) {
+        const imgUrl = photo.images?.[0]?.source
+        if (!imgUrl) continue
+        try {
+          const imgRes = await fetch(imgUrl)
+          if (imgRes.ok) {
+            const contentType = imgRes.headers.get('content-type') || 'image/jpeg'
+            const ext = contentType.includes('png') ? '.png' : '.gif' ? '.gif' : '.jpg'
+            const filename = crypto.randomUUID() + ext
+            const imgPath = path.join(UPLOADS_DIR, filename)
+            const buffer = Buffer.from(await imgRes.arrayBuffer())
+            fs.writeFileSync(imgPath, buffer)
+            const caption = photo.name || ''
+            const created = new Date(photo.created_time)
+            const timeStr = created.toLocaleDateString('da-DK', { day: 'numeric', month: 'short', year: 'numeric' })
+            const timeStrEn = created.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
+            const mediaJson = JSON.stringify([{ url: `/uploads/${filename}`, type: 'image', mime: contentType }])
+            await pool.query(
+              'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media) VALUES (?, ?, ?, ?, ?, ?)',
+              [userId, caption, caption, timeStr, timeStrEn, mediaJson]
+            )
+            photoCount++
+          }
+        } catch {}
+      }
+      if (photoCount > 0) {
+        await pool.query('UPDATE users SET photo_count = photo_count + ? WHERE id = ?', [photoCount, userId])
+      }
+    }
+  } catch (err) {
+    console.error('FB photos import error:', err)
+  }
+}
+
 // ── Profile routes ──
 
 // GET /api/profile/:id

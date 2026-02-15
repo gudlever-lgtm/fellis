@@ -317,6 +317,13 @@
 .fb-icon {
   font-size: 22px;
 }
+.fb-note {
+  margin-top: 16px;
+  font-size: 13px;
+  color: #A09890;
+  max-width: 400px;
+  line-height: 1.5;
+}
 
 .connected-state {
   text-align: center;

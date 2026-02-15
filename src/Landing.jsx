@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { FRIENDS, nameToColor, getInitials } from './data.js'
-import { apiLogin, apiRegister } from './api.js'
+import { apiLogin, apiRegister, getFacebookAuthUrl } from './api.js'
 
 // ── Landing translations ──
 const T = {
@@ -155,12 +155,7 @@ const T = {
 export default function Landing({ onEnterPlatform }) {
   const [lang, setLang] = useState('da')
   const [step, setStep] = useState(0)
-  const [showFbModal, setShowFbModal] = useState(false)
   const [showLoginModal, setShowLoginModal] = useState(false)
-  const [fbEmail, setFbEmail] = useState('')
-  const [fbPassword, setFbPassword] = useState('')
-  const [fbConnecting, setFbConnecting] = useState(false)
-  const [fbConnected, setFbConnected] = useState(false)
   const [selectedContent, setSelectedContent] = useState({ profile: true, friends: true, posts: true })
   const [importLoading, setImportLoading] = useState(false)
   const [selectedFriends, setSelectedFriends] = useState(new Set(FRIENDS.map((_, i) => i)))
@@ -234,46 +229,10 @@ export default function Landing({ onEnterPlatform }) {
     }
   }, [regName, regEmail, regPassword, lang, t, onEnterPlatform])
 
-  // Open FB login modal
+  // Redirect to real Facebook OAuth
   const handleFbClick = useCallback(() => {
-    setShowFbModal(true)
-    setFbEmail('')
-    setFbPassword('')
-    setFbError('')
-  }, [])
-
-  const [fbError, setFbError] = useState('')
-
-  // Submit FB login
-  const handleFbLogin = useCallback((e) => {
-    e.preventDefault()
-    const emailTrimmed = fbEmail.trim()
-    const passwordTrimmed = fbPassword.trim()
-    if (!emailTrimmed) {
-      setFbError(lang === 'da' ? 'Indtast din e-mail eller telefonnummer' : 'Please enter your email or phone number')
-      return
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrimmed) && !/^\+?[\d\s\-()]{7,}$/.test(emailTrimmed)) {
-      setFbError(lang === 'da' ? 'Indtast en gyldig e-mail eller telefonnummer' : 'Please enter a valid email or phone number')
-      return
-    }
-    if (!passwordTrimmed) {
-      setFbError(lang === 'da' ? 'Indtast din adgangskode' : 'Please enter your password')
-      return
-    }
-    if (passwordTrimmed.length < 6) {
-      setFbError(lang === 'da' ? 'Adgangskoden skal være mindst 6 tegn' : 'Password must be at least 6 characters')
-      return
-    }
-    setFbError('')
-    setShowFbModal(false)
-    setFbConnecting(true)
-    setTimeout(() => {
-      setFbConnecting(false)
-      setFbConnected(true)
-      setTimeout(() => setStep(2), 800)
-    }, 2000)
-  }, [fbEmail, fbPassword, lang])
+    window.location.href = getFacebookAuthUrl(lang)
+  }, [lang])
 
   const handleContentNext = useCallback(() => {
     setImportLoading(true)
@@ -357,39 +316,6 @@ export default function Landing({ onEnterPlatform }) {
         </div>
       )}
 
-      {/* Facebook Login Modal */}
-      {showFbModal && (
-        <div className="modal-backdrop" onClick={() => setShowFbModal(false)}>
-          <div className="fb-modal" onClick={e => e.stopPropagation()}>
-            <div className="fb-modal-header">
-              <div className="fb-modal-logo">facebook</div>
-            </div>
-            <form className="fb-modal-form" onSubmit={handleFbLogin}>
-              <h3>{t.fbLoginTitle}</h3>
-              <input
-                type="text"
-                placeholder={t.fbEmail}
-                value={fbEmail}
-                onChange={e => setFbEmail(e.target.value)}
-                className="fb-input"
-                autoFocus
-              />
-              <input
-                type="password"
-                placeholder={t.fbPassword}
-                value={fbPassword}
-                onChange={e => setFbPassword(e.target.value)}
-                className="fb-input"
-              />
-              {fbError && <div className="fb-error">{fbError}</div>}
-              <button type="submit" className="fb-login-submit">{t.fbLogin}</button>
-              <button type="button" className="fb-forgot" onClick={() => setShowFbModal(false)}>{t.fbCancel}</button>
-              <div className="fb-forgot-link">{t.fbForgot}</div>
-            </form>
-          </div>
-        </div>
-      )}
-
       {/* Landing */}
       {step === 0 && (
         <div className="landing">
@@ -413,29 +339,19 @@ export default function Landing({ onEnterPlatform }) {
 
       {step >= 1 && <ProgressBar step={step} t={t} />}
 
-      {/* Step 1 */}
+      {/* Step 1 — Connect Facebook (redirects to real Facebook OAuth) */}
       {step === 1 && (
         <div className="step-container">
           <h2>{t.connectTitle}</h2>
           <p className="step-subtitle">{t.connectSubtitle}</p>
-          {fbConnecting ? (
-            <div className="loading-overlay"><div className="spinner" /><p className="loading-text">{t.connecting}</p></div>
-          ) : fbConnected ? (
-            <div className="connected-state">
-              <div className="checkmark-circle">✓</div>
-              <p className="connected-label">{t.connected}</p>
-              <div className="stats-row">
-                <div className="stat-item"><div className="stat-number">312</div><div className="stat-label">{t.friends}</div></div>
-                <div className="stat-item"><div className="stat-number">847</div><div className="stat-label">{t.posts}</div></div>
-                <div className="stat-item"><div className="stat-number">2.341</div><div className="stat-label">{t.photos}</div></div>
-              </div>
-            </div>
-          ) : (
-            <button className="fb-btn" onClick={handleFbClick}>
-              <span className="fb-icon">f</span>
-              {t.connectBtn}
-            </button>
-          )}
+          <button className="fb-btn" onClick={handleFbClick}>
+            <span className="fb-icon">f</span>
+            {t.connectBtn}
+          </button>
+          <p className="fb-note">{lang === 'da'
+            ? 'Du bliver sendt til Facebook for at godkende. Ingen data slettes fra din Facebook-konto.'
+            : 'You will be redirected to Facebook to authorize. No data will be deleted from your Facebook account.'
+          }</p>
         </div>
       )}
 

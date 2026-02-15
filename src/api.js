@@ -130,6 +130,11 @@ export async function apiSendMessage(friendId, text) {
   })
 }
 
+// Facebook OAuth
+export function getFacebookAuthUrl(lang) {
+  return `${API_BASE}/api/auth/facebook?lang=${lang}`
+}
+
 // Profile avatar
 export async function apiUploadAvatar(file) {
   const form = new FormData()

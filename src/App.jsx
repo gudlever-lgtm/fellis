@@ -12,8 +12,31 @@ function App() {
     return localStorage.getItem('fellis_lang') || 'da'
   })
 
-  // On mount, validate session with server if available
+  // On mount: check for Facebook OAuth callback or validate existing session
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const fbSession = params.get('fb_session')
+    const fbLang = params.get('fb_lang')
+
+    if (fbSession) {
+      // Returning from Facebook OAuth — store session and enter platform
+      localStorage.setItem('fellis_session_id', fbSession)
+      localStorage.setItem('fellis_logged_in', 'true')
+      if (fbLang) {
+        localStorage.setItem('fellis_lang', fbLang)
+        setLang(fbLang)
+      }
+      setView('platform')
+      // Clean up URL params
+      window.history.replaceState({}, '', window.location.pathname)
+      return
+    }
+
+    const fbError = params.get('fb_error')
+    if (fbError) {
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+
     apiCheckSession().then(data => {
       if (data) {
         setView('platform')

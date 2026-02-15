@@ -22,7 +22,7 @@ export default function Platform({ lang: initialLang, onLogout }) {
   }, [])
 
   const avatarSrc = currentUser.avatar_url
-    ? (currentUser.avatar_url.startsWith('http') ? currentUser.avatar_url : `${API_BASE}${currentUser.avatar_url}`)
+    ? (currentUser.avatar_url.startsWith('http') || currentUser.avatar_url.startsWith('blob:') ? currentUser.avatar_url : `${API_BASE}${currentUser.avatar_url}`)
     : null
 
   return (
