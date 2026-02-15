@@ -370,7 +370,7 @@ function ProfilePage({ lang, t, currentUser, onUserUpdate }) {
           <p className="p-profile-bio">{profile.bio?.[lang] || profile.bio?.da || ''}</p>
           <div className="p-profile-meta">
             <span>📍 {profile.location}</span>
-            <span>📅 {t.joined} {profile.joinDate}</span>
+            <span>📅 {t.joined} {profile.joinDate ? new Date(profile.joinDate).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}</span>
           </div>
           <div className="p-profile-stats">
             <div className="p-profile-stat">
