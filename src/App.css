@@ -1283,6 +1283,25 @@
   font-size: 14px;
   color: #1A1A1A;
 }
+.p-password-value {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.p-show-password-btn {
+  background: none;
+  border: 1px solid #2D6A4F;
+  color: #2D6A4F;
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.p-show-password-btn:hover {
+  background: #2D6A4F;
+  color: #fff;
+}
 
 /* ── Friends page ── */
 .p-friends-page .p-card {

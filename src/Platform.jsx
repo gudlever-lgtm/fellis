@@ -445,6 +445,7 @@ function FeedPage({ lang, t, currentUser }) {
 function ProfilePage({ lang, t, currentUser, onUserUpdate }) {
   const [profile, setProfile] = useState({ ...CURRENT_USER, ...currentUser })
   const [userPosts, setUserPosts] = useState(POSTS.filter(p => p.author === CURRENT_USER.name))
+  const [showPassword, setShowPassword] = useState(false)
 
   useEffect(() => {
     apiFetchProfile().then(data => {
@@ -507,22 +508,27 @@ function ProfilePage({ lang, t, currentUser, onUserUpdate }) {
       <div className="p-card p-login-info-card">
         <h3 className="p-section-title">{t.loginInfo}</h3>
         <div className="p-login-info">
-          {profile.email && (
-            <div className="p-login-info-row">
-              <span className="p-login-info-label">{t.emailLabel}</span>
-              <span className="p-login-info-value">{profile.email}</span>
-            </div>
-          )}
+          <div className="p-login-info-row">
+            <span className="p-login-info-label">{t.emailLabel}</span>
+            <span className="p-login-info-value">{profile.email || '—'}</span>
+          </div>
+          <div className="p-login-info-row">
+            <span className="p-login-info-label">{t.passwordLabel}</span>
+            <span className="p-login-info-value p-password-value">
+              <span>{showPassword ? 'password123' : '••••••••••••'}</span>
+              <button className="p-show-password-btn" onClick={() => setShowPassword(prev => !prev)}>
+                {showPassword ? t.hidePassword : t.showPassword}
+              </button>
+            </span>
+          </div>
           <div className="p-login-info-row">
             <span className="p-login-info-label">{t.loginMethodLabel}</span>
             <span className="p-login-info-value">{profile.loginMethod === 'facebook' ? t.loginMethodFacebook : t.loginMethodEmail}</span>
           </div>
-          {profile.createdAt && (
-            <div className="p-login-info-row">
-              <span className="p-login-info-label">{t.accountCreatedLabel}</span>
-              <span className="p-login-info-value">{new Date(profile.createdAt).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-            </div>
-          )}
+          <div className="p-login-info-row">
+            <span className="p-login-info-label">{t.accountCreatedLabel}</span>
+            <span className="p-login-info-value">{profile.createdAt ? new Date(profile.createdAt).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</span>
+          </div>
         </div>
       </div>
 

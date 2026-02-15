@@ -25,6 +25,9 @@ export const CURRENT_USER = {
   friendCount: 312,
   postCount: 847,
   photoCount: 2341,
+  email: 'sofie@fellis.eu',
+  loginMethod: 'email',
+  createdAt: '2026-01-15T10:30:00.000Z',
 }
 
 // Friends
@@ -157,6 +160,9 @@ export const PT = {
     accountCreatedLabel: 'Konto oprettet',
     loginMethodEmail: 'E-mail & adgangskode',
     loginMethodFacebook: 'Facebook',
+    passwordLabel: 'Adgangskode',
+    showPassword: 'Vis Kode',
+    hidePassword: 'Skjul Kode',
     messagesTitle: 'Beskeder',
     typeMessage: 'Skriv en besked...',
     noMessages: 'Vælg en samtale for at starte',
@@ -195,6 +201,9 @@ export const PT = {
     accountCreatedLabel: 'Account created',
     loginMethodEmail: 'Email & password',
     loginMethodFacebook: 'Facebook',
+    passwordLabel: 'Password',
+    showPassword: 'Show',
+    hidePassword: 'Hide',
     messagesTitle: 'Messages',
     typeMessage: 'Type a message...',
     noMessages: 'Select a conversation to start',
