@@ -1,5 +1,12 @@
 import { useState, useCallback } from 'react'
-import { FRIENDS, nameToColor, getInitials } from './data.js'
+import { nameToColor, getInitials } from './data.js'
+
+// Placeholder friends for the invite step (migration wizard only)
+const INVITE_INVITE_FRIENDS = [
+  { name: 'Ven 1', mutual: 5, online: false },
+  { name: 'Ven 2', mutual: 3, online: true },
+  { name: 'Ven 3', mutual: 8, online: false },
+]
 import { apiLogin, apiRegister, apiForgotPassword, apiResetPassword, getFacebookAuthUrl } from './api.js'
 
 // ── Landing translations ──
@@ -194,7 +201,7 @@ export default function Landing({ onEnterPlatform }) {
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [selectedContent, setSelectedContent] = useState({ profile: true, friends: true, posts: true })
   const [importLoading, setImportLoading] = useState(false)
-  const [selectedFriends, setSelectedFriends] = useState(new Set(FRIENDS.map((_, i) => i)))
+  const [selectedFriends, setSelectedFriends] = useState(new Set(INVITE_FRIENDS.map((_, i) => i)))
   const [inviteLoading, setInviteLoading] = useState(false)
   const [invitedCount, setInvitedCount] = useState(0)
   const [directSignup, setDirectSignup] = useState(false)
@@ -355,7 +362,7 @@ export default function Landing({ onEnterPlatform }) {
   }, [])
 
   const toggleAllFriends = useCallback(() => {
-    setSelectedFriends(prev => prev.size === FRIENDS.length ? new Set() : new Set(FRIENDS.map((_, i) => i)))
+    setSelectedFriends(prev => prev.size === INVITE_FRIENDS.length ? new Set() : new Set(INVITE_FRIENDS.map((_, i) => i)))
   }, [])
 
   const handleSendInvites = useCallback(() => {
@@ -565,13 +572,13 @@ export default function Landing({ onEnterPlatform }) {
               <h2>{t.inviteTitle}</h2>
               <p className="step-subtitle">{t.inviteSubtitle}</p>
               <div className="friends-header">
-                <span style={{ fontSize: 14, color: '#6B6560' }}>{selectedFriends.size} / {FRIENDS.length}</span>
+                <span style={{ fontSize: 14, color: '#6B6560' }}>{selectedFriends.size} / {INVITE_FRIENDS.length}</span>
                 <button className="select-all-btn" onClick={toggleAllFriends}>
-                  {selectedFriends.size === FRIENDS.length ? t.deselectAll : t.selectAll}
+                  {selectedFriends.size === INVITE_FRIENDS.length ? t.deselectAll : t.selectAll}
                 </button>
               </div>
               <div className="friends-list">
-                {FRIENDS.map((friend, idx) => (
+                {INVITE_FRIENDS.map((friend, idx) => (
                   <div key={idx} className={`friend-item${selectedFriends.has(idx) ? ' selected' : ''}`} onClick={() => toggleFriend(idx)}>
                     <div className="friend-avatar" style={{ background: nameToColor(friend.name) }}>
                       {getInitials(friend.name)}

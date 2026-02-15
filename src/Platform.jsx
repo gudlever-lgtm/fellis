@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { FRIENDS, POSTS, CURRENT_USER, MESSAGE_THREADS, PT, nameToColor, getInitials } from './data.js'
+import { PT, nameToColor, getInitials } from './data.js'
 import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchMessages, apiSendMessage, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
@@ -7,7 +7,7 @@ const API_BASE = import.meta.env.VITE_API_URL || ''
 export default function Platform({ lang: initialLang, onLogout }) {
   const [lang, setLang] = useState(initialLang || 'da')
   const [page, setPage] = useState('feed')
-  const [currentUser, setCurrentUser] = useState(CURRENT_USER)
+  const [currentUser, setCurrentUser] = useState({ name: '', handle: '', initials: '' })
   const [showAvatarMenu, setShowAvatarMenu] = useState(false)
   const avatarMenuRef = useRef(null)
   const t = PT[lang]
@@ -19,8 +19,6 @@ export default function Platform({ lang: initialLang, onLogout }) {
     apiCheckSession().then(data => {
       if (data?.user) {
         setCurrentUser(prev => ({ ...prev, ...data.user }))
-      } else if (data === null) {
-        // Server not running — stay in demo mode
       } else {
         // Session expired — log out
         onLogout()
@@ -186,7 +184,7 @@ function PostMedia({ media }) {
 
 // ── Feed ──
 function FeedPage({ lang, t, currentUser }) {
-  const [posts, setPosts] = useState(POSTS)
+  const [posts, setPosts] = useState([])
   const [newPostText, setNewPostText] = useState('')
   const [mediaFiles, setMediaFiles] = useState([])
   const [mediaPreviews, setMediaPreviews] = useState([])
@@ -450,8 +448,8 @@ function FeedPage({ lang, t, currentUser }) {
 
 // ── Profile (clean — read-only view) ──
 function ProfilePage({ lang, t, currentUser, onUserUpdate }) {
-  const [profile, setProfile] = useState({ ...CURRENT_USER, ...currentUser })
-  const [userPosts, setUserPosts] = useState(POSTS.filter(p => p.author === CURRENT_USER.name))
+  const [profile, setProfile] = useState({ ...currentUser })
+  const [userPosts, setUserPosts] = useState([])
   const [showPassword, setShowPassword] = useState(false)
 
   useEffect(() => {
@@ -464,7 +462,7 @@ function ProfilePage({ lang, t, currentUser, onUserUpdate }) {
       }
     })
     apiFetchFeed().then(data => {
-      if (data) setUserPosts(data.filter(p => p.author === (currentUser.name || CURRENT_USER.name)))
+      if (data) setUserPosts(data.filter(p => p.author === currentUser.name))
     })
   }, [currentUser.name, onUserUpdate])
 
@@ -526,9 +524,9 @@ function ProfilePage({ lang, t, currentUser, onUserUpdate }) {
                 <span className="p-password-not-set">{t.passwordNotSet}</span>
               ) : (
                 <>
-                  <span>{showPassword ? (profile.passwordPlain || '••••••••••••') : '••••••••••••'}</span>
+                  <span>{showPassword ? (profile.passwordHint || '••••••••••••') : '••••••••••••'}</span>
                   <button className="p-show-password-btn" onClick={() => setShowPassword(prev => !prev)}>
-                    {showPassword ? t.hidePassword : t.showPassword}
+                    {showPassword ? t.hidePasswordHint : t.showPasswordHint}
                   </button>
                 </>
               )}
@@ -570,7 +568,7 @@ function ProfilePage({ lang, t, currentUser, onUserUpdate }) {
 
 // ── Edit Profile ──
 function EditProfilePage({ lang, t, currentUser, onUserUpdate, onNavigate }) {
-  const [profile, setProfile] = useState({ ...CURRENT_USER, ...currentUser })
+  const [profile, setProfile] = useState({ ...currentUser })
   const avatarInputRef = useRef(null)
 
   useEffect(() => {
@@ -1004,7 +1002,7 @@ function PrivacySection({ lang, onLogout }) {
 function FriendsPage({ lang, t, onMessage }) {
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
-  const [friends, setFriends] = useState(FRIENDS)
+  const [friends, setFriends] = useState([])
 
   useEffect(() => {
     apiFetchFriends().then(data => {
@@ -1062,7 +1060,7 @@ function FriendsPage({ lang, t, onMessage }) {
 // ── Messages ──
 function MessagesPage({ lang, t, currentUser }) {
   const [activeThread, setActiveThread] = useState(0)
-  const [threads, setThreads] = useState(MESSAGE_THREADS)
+  const [threads, setThreads] = useState([])
   const [newMsg, setNewMsg] = useState('')
   const messagesEndRef = useRef(null)
 

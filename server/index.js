@@ -592,7 +592,7 @@ app.get('/api/profile', authenticate, async (req, res) => {
       email: u.email || null,
       loginMethod: u.facebook_id ? 'facebook' : 'email',
       hasPassword: !!u.password_hash,
-      passwordPlain: u.password_plain || null,
+      passwordHint: u.password_plain ? (u.password_plain[0] + '*'.repeat(Math.max(u.password_plain.length - 2, 0)) + (u.password_plain.length > 1 ? u.password_plain[u.password_plain.length - 1] : '')) : null,
       createdAt: u.created_at,
     })
   } catch (err) {
