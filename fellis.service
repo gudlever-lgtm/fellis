@@ -1,0 +1,16 @@
+[Unit]
+Description=fellis.eu Express API server
+After=network.target mariadb.service
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/var/www/fellis.eu/server
+ExecStart=/usr/bin/node index.js
+Restart=on-failure
+RestartSec=5
+Environment=NODE_ENV=production
+EnvironmentFile=/var/www/fellis.eu/server/.env
+
+[Install]
+WantedBy=multi-user.target
