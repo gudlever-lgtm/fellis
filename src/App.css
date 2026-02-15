@@ -649,6 +649,12 @@
 .fb-input:focus {
   border-color: #1877F2;
 }
+.fb-error {
+  color: #e74c3c;
+  font-size: 13px;
+  text-align: left;
+  padding: 0 2px;
+}
 .fb-login-submit {
   background: #1877F2;
   color: #fff;

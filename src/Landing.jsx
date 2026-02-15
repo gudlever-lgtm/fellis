@@ -140,11 +140,33 @@ export default function Landing({ onEnterPlatform }) {
     setShowFbModal(true)
     setFbEmail('')
     setFbPassword('')
+    setFbError('')
   }, [])
+
+  const [fbError, setFbError] = useState('')
 
   // Submit FB login
   const handleFbLogin = useCallback((e) => {
     e.preventDefault()
+    const emailTrimmed = fbEmail.trim()
+    const passwordTrimmed = fbPassword.trim()
+    if (!emailTrimmed) {
+      setFbError(lang === 'da' ? 'Indtast din e-mail eller telefonnummer' : 'Please enter your email or phone number')
+      return
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrimmed) && !/^\+?[\d\s\-()]{7,}$/.test(emailTrimmed)) {
+      setFbError(lang === 'da' ? 'Indtast en gyldig e-mail eller telefonnummer' : 'Please enter a valid email or phone number')
+      return
+    }
+    if (!passwordTrimmed) {
+      setFbError(lang === 'da' ? 'Indtast din adgangskode' : 'Please enter your password')
+      return
+    }
+    if (passwordTrimmed.length < 6) {
+      setFbError(lang === 'da' ? 'Adgangskoden skal være mindst 6 tegn' : 'Password must be at least 6 characters')
+      return
+    }
+    setFbError('')
     setShowFbModal(false)
     setFbConnecting(true)
     setTimeout(() => {
@@ -152,7 +174,7 @@ export default function Landing({ onEnterPlatform }) {
       setFbConnected(true)
       setTimeout(() => setStep(2), 800)
     }, 2000)
-  }, [])
+  }, [fbEmail, fbPassword, lang])
 
   const handleContentNext = useCallback(() => {
     setImportLoading(true)
@@ -215,6 +237,7 @@ export default function Landing({ onEnterPlatform }) {
                 onChange={e => setFbPassword(e.target.value)}
                 className="fb-input"
               />
+              {fbError && <div className="fb-error">{fbError}</div>}
               <button type="submit" className="fb-login-submit">{t.fbLogin}</button>
               <button type="button" className="fb-forgot" onClick={() => setShowFbModal(false)}>{t.fbCancel}</button>
               <div className="fb-forgot-link">{t.fbForgot}</div>
