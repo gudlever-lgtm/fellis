@@ -135,6 +135,37 @@ export function getFacebookAuthUrl(lang) {
   return `${API_BASE}/api/auth/facebook?lang=${lang}`
 }
 
+// GDPR Compliance endpoints
+export async function apiGiveConsent(consentTypes) {
+  return await request('/api/gdpr/consent', {
+    method: 'POST',
+    body: JSON.stringify({ consent_types: consentTypes }),
+  })
+}
+
+export async function apiGetConsentStatus() {
+  return await request('/api/gdpr/consent')
+}
+
+export async function apiWithdrawConsent(consentType) {
+  return await request('/api/gdpr/consent/withdraw', {
+    method: 'POST',
+    body: JSON.stringify({ consent_type: consentType }),
+  })
+}
+
+export async function apiDeleteFacebookData() {
+  return await request('/api/gdpr/facebook-data', { method: 'DELETE' })
+}
+
+export async function apiDeleteAccount() {
+  return await request('/api/gdpr/account', { method: 'DELETE' })
+}
+
+export async function apiExportData() {
+  return await request('/api/gdpr/export')
+}
+
 // Profile avatar
 export async function apiUploadAvatar(file) {
   const form = new FormData()

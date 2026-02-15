@@ -28,6 +28,79 @@ const UPLOADS_DIR = process.env.UPLOADS_DIR || '/var/www/fellis.eu/uploads'
 // Ensure uploads directory exists
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true })
 
+// ── GDPR Compliance: Token encryption (Art. 32 — security of processing) ──
+// Facebook access tokens are encrypted at rest using AES-256-GCM.
+// The encryption key MUST be set via FB_TOKEN_ENCRYPTION_KEY env var (32-byte hex).
+const FB_TOKEN_KEY = process.env.FB_TOKEN_ENCRYPTION_KEY
+  ? Buffer.from(process.env.FB_TOKEN_ENCRYPTION_KEY, 'hex')
+  : null
+
+function encryptToken(plaintext) {
+  if (!FB_TOKEN_KEY || !plaintext) return plaintext
+  const iv = crypto.randomBytes(12)
+  const cipher = crypto.createCipheriv('aes-256-gcm', FB_TOKEN_KEY, iv)
+  const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()])
+  const tag = cipher.getAuthTag()
+  // Format: base64(iv:tag:ciphertext)
+  return Buffer.concat([iv, tag, encrypted]).toString('base64')
+}
+
+function decryptToken(encoded) {
+  if (!FB_TOKEN_KEY || !encoded) return encoded
+  try {
+    const buf = Buffer.from(encoded, 'base64')
+    const iv = buf.subarray(0, 12)
+    const tag = buf.subarray(12, 28)
+    const ciphertext = buf.subarray(28)
+    const decipher = crypto.createDecipheriv('aes-256-gcm', FB_TOKEN_KEY, iv)
+    decipher.setAuthTag(tag)
+    return decipher.update(ciphertext) + decipher.final('utf8')
+  } catch {
+    // Fallback: token may not be encrypted yet (pre-migration data)
+    return encoded
+  }
+}
+
+// ── GDPR Compliance: Audit logging (Art. 30 — records of processing) ──
+async function auditLog(userId, action, details = null, ipAddress = null) {
+  try {
+    await pool.query(
+      'INSERT INTO audit_log (user_id, action, details, ip_address) VALUES (?, ?, ?, ?)',
+      [userId, action, details ? JSON.stringify(details) : null, ipAddress]
+    )
+  } catch (err) {
+    console.error('Audit log error:', err.message)
+  }
+}
+
+// ── GDPR Compliance: Consent verification (Art. 6 & 7) ──
+async function hasConsent(userId, consentType) {
+  const [rows] = await pool.query(
+    'SELECT id FROM gdpr_consent WHERE user_id = ? AND consent_type = ? AND consent_given = 1 AND withdrawn_at IS NULL ORDER BY created_at DESC LIMIT 1',
+    [userId, consentType]
+  )
+  return rows.length > 0
+}
+
+async function recordConsent(userId, consentType, ipAddress = null, userAgent = null) {
+  await pool.query(
+    'INSERT INTO gdpr_consent (user_id, consent_type, consent_given, ip_address, user_agent) VALUES (?, ?, 1, ?, ?)',
+    [userId, consentType, ipAddress, userAgent]
+  )
+  await auditLog(userId, 'consent_given', { consent_type: consentType }, ipAddress)
+}
+
+async function withdrawConsent(userId, consentType, ipAddress = null) {
+  await pool.query(
+    'UPDATE gdpr_consent SET consent_given = 0, withdrawn_at = NOW() WHERE user_id = ? AND consent_type = ? AND consent_given = 1',
+    [userId, consentType]
+  )
+  await auditLog(userId, 'consent_withdrawn', { consent_type: consentType }, ipAddress)
+}
+
+// Data retention: Facebook tokens expire after 90 days (configurable)
+const FB_DATA_RETENTION_DAYS = parseInt(process.env.FB_DATA_RETENTION_DAYS || '90')
+
 const app = express()
 app.use(express.json())
 
@@ -197,20 +270,41 @@ const FB_GRAPH_URL = 'https://graph.facebook.com/v21.0'
 // Scopes: read profile, friends list, posts, photos — NO write/delete permissions
 const FB_SCOPES = 'public_profile,email,user_friends,user_posts,user_photos'
 
+// GDPR/Security: In-memory store for OAuth CSRF state tokens (short-lived)
+const oauthStateTokens = new Map()
+
 // Step 1: Redirect user to Facebook login
+// GDPR Note: No data is collected at this step — user is simply redirected to Facebook.
 app.get('/api/auth/facebook', (req, res) => {
   if (!FB_APP_ID) return res.status(500).json({ error: 'Facebook integration not configured' })
   const lang = req.query.lang || 'da'
-  const state = crypto.randomUUID() + ':' + lang
+  // Security: CSRF protection — generate a cryptographic state token and verify on callback
+  const stateToken = crypto.randomUUID()
+  oauthStateTokens.set(stateToken, { lang, created: Date.now() })
+  // Clean up stale tokens (older than 10 minutes)
+  for (const [key, val] of oauthStateTokens) {
+    if (Date.now() - val.created > 600000) oauthStateTokens.delete(key)
+  }
+  const state = stateToken + ':' + lang
   const url = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${FB_APP_ID}&redirect_uri=${encodeURIComponent(FB_REDIRECT_URI)}&scope=${FB_SCOPES}&state=${state}&response_type=code`
   res.redirect(url)
 })
 
 // Step 2: Facebook redirects back with auth code
+// GDPR Art. 6 & 7: User account is created but Facebook data import is DEFERRED
+// until explicit consent is given via POST /api/gdpr/consent.
 app.get('/api/auth/facebook/callback', async (req, res) => {
   const { code, state } = req.query
   if (!code) return res.redirect('/?fb_error=denied')
+
+  // Security: Validate CSRF state token
+  const stateToken = state?.split(':')?.[0]
   const lang = state?.split(':')?.[1] || 'da'
+  if (!stateToken || !oauthStateTokens.has(stateToken)) {
+    console.error('OAuth CSRF validation failed: invalid state token')
+    return res.redirect('/?fb_error=csrf')
+  }
+  oauthStateTokens.delete(stateToken)
 
   try {
     // Exchange code for access token
@@ -221,10 +315,14 @@ app.get('/api/auth/facebook/callback', async (req, res) => {
     if (!tokenData.access_token) return res.redirect('/?fb_error=token')
     const fbToken = tokenData.access_token
 
-    // Fetch Facebook profile
+    // GDPR Art. 5(1)(c) — Data minimization: Only fetch fields strictly needed for account creation
     const profileRes = await fetch(`${FB_GRAPH_URL}/me?fields=id,name,email,picture.width(200).height(200)&access_token=${fbToken}`)
     const fbProfile = await profileRes.json()
     if (!fbProfile.id) return res.redirect('/?fb_error=profile')
+
+    // GDPR Art. 32 — Encrypt the token before storage
+    const encryptedToken = encryptToken(fbToken)
+    const tokenExpiry = new Date(Date.now() + FB_DATA_RETENTION_DAYS * 86400000).toISOString()
 
     // Check if user already exists (by email or facebook_id)
     let userId
@@ -232,23 +330,31 @@ app.get('/api/auth/facebook/callback', async (req, res) => {
 
     if (existing.length > 0) {
       userId = existing[0].id
-      // Update Facebook token for data refresh
-      await pool.query('UPDATE users SET facebook_id = ?, fb_access_token = ? WHERE id = ?', [fbProfile.id, fbToken, userId])
+      // Update Facebook token (encrypted) for potential data refresh
+      await pool.query(
+        'UPDATE users SET facebook_id = ?, fb_access_token = ?, fb_token_expires_at = ? WHERE id = ?',
+        [fbProfile.id, encryptedToken, tokenExpiry, userId]
+      )
     } else {
-      // Create new user from Facebook data
+      // Create new user from Facebook data (minimal: name, email, avatar only)
       const handle = '@' + (fbProfile.name || 'user').toLowerCase().replace(/\s+/g, '.')
       const initials = (fbProfile.name || 'U').split(' ').map(n => n[0]).join('').toUpperCase()
       const avatarUrl = fbProfile.picture?.data?.url || null
       const [result] = await pool.query(
-        `INSERT INTO users (name, handle, initials, email, join_date, avatar_url, facebook_id, fb_access_token)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [fbProfile.name, handle, initials, fbProfile.email || null, new Date().toISOString(), avatarUrl, fbProfile.id, fbToken]
+        `INSERT INTO users (name, handle, initials, email, join_date, avatar_url, facebook_id, fb_access_token, fb_token_expires_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [fbProfile.name, handle, initials, fbProfile.email || null, new Date().toISOString(), avatarUrl, fbProfile.id, encryptedToken, tokenExpiry]
       )
       userId = result.insertId
     }
 
-    // Import Facebook data in the background (non-blocking)
-    importFacebookData(userId, fbToken).catch(err => console.error('FB import error:', err))
+    // Audit log: Facebook authentication (no data import yet — that requires consent)
+    const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress
+    await auditLog(userId, 'fb_auth_success', { facebook_id: fbProfile.id }, clientIp)
+
+    // GDPR CHANGE: Do NOT import Facebook data here.
+    // Data import is deferred until user gives explicit consent via POST /api/gdpr/consent.
+    // The encrypted token is stored so import can happen after consent.
 
     // Create session
     const sessionId = crypto.randomUUID()
@@ -257,8 +363,8 @@ app.get('/api/auth/facebook/callback', async (req, res) => {
       [sessionId, userId, lang]
     )
 
-    // Redirect to frontend with session
-    res.redirect(`/?fb_session=${sessionId}&fb_lang=${lang}`)
+    // Redirect to frontend — frontend will show consent dialog before importing
+    res.redirect(`/?fb_session=${sessionId}&fb_lang=${lang}&fb_needs_consent=true`)
   } catch (err) {
     console.error('Facebook callback error:', err)
     res.redirect('/?fb_error=server')
@@ -266,48 +372,43 @@ app.get('/api/auth/facebook/callback', async (req, res) => {
 })
 
 // Import Facebook data into fellis DB (friends, posts, photos)
+// GDPR Art. 6 & 7: This function MUST only be called after verified consent.
+// GDPR Art. 5(1)(c): Only imports data strictly necessary for app functionality.
 async function importFacebookData(userId, fbToken) {
-  // Import friends — create placeholder users for friends not yet on fellis
+  await auditLog(userId, 'fb_import_start', { timestamp: new Date().toISOString() })
+
+  let friendsImported = 0, postsImported = 0, photosImported = 0
+
+  // Import friends — GDPR CHANGE: Only link friends who already have fellis accounts.
+  // Creating placeholder accounts for third parties without their consent violates GDPR Art. 6.
   try {
-    const friendsRes = await fetch(`${FB_GRAPH_URL}/me/friends?fields=id,name,picture.width(100).height(100)&limit=500&access_token=${fbToken}`)
+    const friendsRes = await fetch(`${FB_GRAPH_URL}/me/friends?fields=id,name&limit=500&access_token=${fbToken}`)
     const friendsData = await friendsRes.json()
     if (friendsData.data) {
-      let importedCount = 0
       for (const friend of friendsData.data) {
-        let friendUserId
+        // GDPR: Only create friendships with users who already exist on fellis
+        // We cannot create accounts for third parties without their explicit consent
         const [existing] = await pool.query('SELECT id FROM users WHERE facebook_id = ?', [friend.id])
         if (existing.length > 0) {
-          friendUserId = existing[0].id
-        } else {
-          // Create placeholder user for this Facebook friend
-          const avatarUrl = friend.picture?.data?.url || null
-          const handle = 'fb_' + friend.id
-          const initials = friend.name.split(' ').map(w => w[0]).join('').slice(0, 3).toUpperCase()
-          const [result] = await pool.query(
-            'INSERT INTO users (name, handle, initials, facebook_id, avatar_url) VALUES (?, ?, ?, ?, ?)',
-            [friend.name, handle, initials, friend.id, avatarUrl]
+          const friendUserId = existing[0].id
+          await pool.query(
+            'INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count, source) VALUES (?, ?, 0, ?)',
+            [userId, friendUserId, 'facebook']
           )
-          friendUserId = result.insertId
+          await pool.query(
+            'INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count, source) VALUES (?, ?, 0, ?)',
+            [friendUserId, userId, 'facebook']
+          )
+          friendsImported++
         }
-        // Add bidirectional friendship
-        await pool.query(
-          'INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)',
-          [userId, friendUserId]
-        )
-        await pool.query(
-          'INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)',
-          [friendUserId, userId]
-        )
-        importedCount++
       }
-      // Update friend count
-      await pool.query('UPDATE users SET friend_count = ? WHERE id = ?', [importedCount, userId])
+      await pool.query('UPDATE users SET friend_count = ? WHERE id = ?', [friendsImported, userId])
     }
   } catch (err) {
     console.error('FB friends import error:', err)
   }
 
-  // Import posts (read-only — just copying text into fellis)
+  // Import posts — GDPR Art. 5(1)(c): Only text and single image per post
   try {
     const postsRes = await fetch(`${FB_GRAPH_URL}/me/posts?fields=message,created_time,full_picture&limit=100&access_token=${fbToken}`)
     const postsData = await postsRes.json()
@@ -318,7 +419,6 @@ async function importFacebookData(userId, fbToken) {
         const timeStr = created.toLocaleDateString('da-DK', { day: 'numeric', month: 'short', year: 'numeric' })
         const timeStrEn = created.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
 
-        // Download image if present
         let mediaJson = null
         if (post.full_picture) {
           try {
@@ -336,9 +436,10 @@ async function importFacebookData(userId, fbToken) {
         }
 
         await pool.query(
-          'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media) VALUES (?, ?, ?, ?, ?, ?)',
-          [userId, post.message, post.message, timeStr, timeStrEn, mediaJson]
+          'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media, source) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [userId, post.message, post.message, timeStr, timeStrEn, mediaJson, 'facebook_post']
         )
+        postsImported++
       }
     }
   } catch (err) {
@@ -350,7 +451,6 @@ async function importFacebookData(userId, fbToken) {
     const photosRes = await fetch(`${FB_GRAPH_URL}/me/photos?type=uploaded&fields=images,name,created_time&limit=100&access_token=${fbToken}`)
     const photosData = await photosRes.json()
     if (photosData.data) {
-      let photoCount = 0
       for (const photo of photosData.data) {
         const imgUrl = photo.images?.[0]?.source
         if (!imgUrl) continue
@@ -358,7 +458,7 @@ async function importFacebookData(userId, fbToken) {
           const imgRes = await fetch(imgUrl)
           if (imgRes.ok) {
             const contentType = imgRes.headers.get('content-type') || 'image/jpeg'
-            const ext = contentType.includes('png') ? '.png' : '.gif' ? '.gif' : '.jpg'
+            const ext = contentType.includes('png') ? '.png' : contentType.includes('gif') ? '.gif' : '.jpg'
             const filename = crypto.randomUUID() + ext
             const imgPath = path.join(UPLOADS_DIR, filename)
             const buffer = Buffer.from(await imgRes.arrayBuffer())
@@ -369,20 +469,27 @@ async function importFacebookData(userId, fbToken) {
             const timeStrEn = created.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
             const mediaJson = JSON.stringify([{ url: `/uploads/${filename}`, type: 'image', mime: contentType }])
             await pool.query(
-              'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media) VALUES (?, ?, ?, ?, ?, ?)',
-              [userId, caption, caption, timeStr, timeStrEn, mediaJson]
+              'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media, source) VALUES (?, ?, ?, ?, ?, ?, ?)',
+              [userId, caption, caption, timeStr, timeStrEn, mediaJson, 'facebook_photo']
             )
-            photoCount++
+            photosImported++
           }
         } catch {}
       }
-      if (photoCount > 0) {
-        await pool.query('UPDATE users SET photo_count = photo_count + ? WHERE id = ?', [photoCount, userId])
+      if (photosImported > 0) {
+        await pool.query('UPDATE users SET photo_count = photo_count + ? WHERE id = ?', [photosImported, userId])
       }
     }
   } catch (err) {
     console.error('FB photos import error:', err)
   }
+
+  // Update import timestamp for data retention tracking
+  await pool.query('UPDATE users SET fb_data_imported_at = NOW() WHERE id = ?', [userId])
+
+  await auditLog(userId, 'fb_import_complete', {
+    friends: friendsImported, posts: postsImported, photos: photosImported
+  })
 }
 
 // ── Profile routes ──
@@ -690,6 +797,294 @@ app.post('/api/messages/:friendId', authenticate, async (req, res) => {
   }
 })
 
+// ══════════════════════════════════════════════════════════════
+// ── GDPR COMPLIANCE ENDPOINTS ──
+// ══════════════════════════════════════════════════════════════
+
+// POST /api/gdpr/consent — Record explicit consent and trigger Facebook data import
+// GDPR Art. 6 & 7: Consent must be freely given, specific, informed, and unambiguous.
+// This endpoint is called AFTER the user reviews the consent dialog on the frontend.
+app.post('/api/gdpr/consent', authenticate, async (req, res) => {
+  const { consent_types } = req.body // Array: ['facebook_import', 'data_processing']
+  if (!consent_types || !Array.isArray(consent_types) || consent_types.length === 0) {
+    return res.status(400).json({ error: 'consent_types array required' })
+  }
+  const validTypes = ['facebook_import', 'data_processing']
+  for (const ct of consent_types) {
+    if (!validTypes.includes(ct)) return res.status(400).json({ error: `Invalid consent type: ${ct}` })
+  }
+
+  const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress
+  const userAgent = req.headers['user-agent'] || null
+
+  try {
+    for (const ct of consent_types) {
+      await recordConsent(req.userId, ct, clientIp, userAgent)
+    }
+
+    // If user consented to facebook_import, trigger the import now
+    if (consent_types.includes('facebook_import')) {
+      const [users] = await pool.query('SELECT fb_access_token FROM users WHERE id = ?', [req.userId])
+      const encryptedToken = users[0]?.fb_access_token
+      if (encryptedToken) {
+        const fbToken = decryptToken(encryptedToken)
+        // Import in background (non-blocking)
+        importFacebookData(req.userId, fbToken).catch(err => console.error('FB import error:', err))
+        res.json({ ok: true, import_started: true })
+      } else {
+        res.json({ ok: true, import_started: false, reason: 'no_facebook_token' })
+      }
+    } else {
+      res.json({ ok: true, import_started: false })
+    }
+  } catch (err) {
+    console.error('Consent recording error:', err)
+    res.status(500).json({ error: 'Failed to record consent' })
+  }
+})
+
+// GET /api/gdpr/consent — Check current consent status
+app.get('/api/gdpr/consent', authenticate, async (req, res) => {
+  try {
+    const [consents] = await pool.query(
+      'SELECT consent_type, consent_given, created_at, withdrawn_at FROM gdpr_consent WHERE user_id = ? ORDER BY created_at DESC',
+      [req.userId]
+    )
+    // Return the latest consent status per type
+    const status = {}
+    for (const c of consents) {
+      if (!status[c.consent_type]) {
+        status[c.consent_type] = {
+          given: c.consent_given === 1 && !c.withdrawn_at,
+          date: c.created_at,
+          withdrawn_at: c.withdrawn_at,
+        }
+      }
+    }
+    res.json(status)
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to check consent' })
+  }
+})
+
+// POST /api/gdpr/consent/withdraw — Withdraw consent (GDPR Art. 7(3))
+// Withdrawing consent must be as easy as giving it.
+app.post('/api/gdpr/consent/withdraw', authenticate, async (req, res) => {
+  const { consent_type } = req.body
+  if (!consent_type) return res.status(400).json({ error: 'consent_type required' })
+
+  const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress
+
+  try {
+    await withdrawConsent(req.userId, consent_type, clientIp)
+
+    // If withdrawing facebook_import consent, also purge the Facebook token
+    if (consent_type === 'facebook_import') {
+      await pool.query(
+        'UPDATE users SET fb_access_token = NULL, fb_token_expires_at = NULL WHERE id = ?',
+        [req.userId]
+      )
+      await auditLog(req.userId, 'fb_token_purged', { reason: 'consent_withdrawn' }, clientIp)
+    }
+
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to withdraw consent' })
+  }
+})
+
+// DELETE /api/gdpr/facebook-data — Right to erasure for Facebook-sourced data (GDPR Art. 17)
+// Deletes all data that was imported from Facebook while preserving native content.
+app.delete('/api/gdpr/facebook-data', authenticate, async (req, res) => {
+  const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress
+
+  try {
+    await auditLog(req.userId, 'fb_data_delete_start', null, clientIp)
+
+    // 1. Delete Facebook-sourced posts and their media files
+    const [fbPosts] = await pool.query(
+      "SELECT id, media FROM posts WHERE author_id = ? AND source IN ('facebook_post', 'facebook_photo')",
+      [req.userId]
+    )
+    for (const post of fbPosts) {
+      // Delete associated media files from disk
+      if (post.media) {
+        try {
+          const mediaArr = typeof post.media === 'string' ? JSON.parse(post.media) : post.media
+          for (const m of mediaArr) {
+            if (m.url?.startsWith('/uploads/')) {
+              const filePath = path.join(UPLOADS_DIR, path.basename(m.url))
+              if (fs.existsSync(filePath)) fs.unlinkSync(filePath)
+            }
+          }
+        } catch {}
+      }
+    }
+    // Cascade: comments and likes on these posts are deleted via ON DELETE CASCADE
+    if (fbPosts.length > 0) {
+      await pool.query(
+        "DELETE FROM posts WHERE author_id = ? AND source IN ('facebook_post', 'facebook_photo')",
+        [req.userId]
+      )
+    }
+
+    // 2. Delete Facebook-sourced friendships
+    await pool.query(
+      "DELETE FROM friendships WHERE (user_id = ? OR friend_id = ?) AND source = 'facebook'",
+      [req.userId, req.userId]
+    )
+
+    // 3. Purge Facebook token and metadata
+    await pool.query(
+      'UPDATE users SET fb_access_token = NULL, fb_token_expires_at = NULL, fb_data_imported_at = NULL WHERE id = ?',
+      [req.userId]
+    )
+
+    // 4. Withdraw any Facebook-related consent
+    await withdrawConsent(req.userId, 'facebook_import', clientIp)
+
+    await auditLog(req.userId, 'fb_data_delete_complete', {
+      posts_deleted: fbPosts.length
+    }, clientIp)
+
+    res.json({ ok: true, deleted: { posts: fbPosts.length } })
+  } catch (err) {
+    console.error('Facebook data deletion error:', err)
+    res.status(500).json({ error: 'Failed to delete Facebook data' })
+  }
+})
+
+// DELETE /api/gdpr/account — Full account deletion (GDPR Art. 17 — Right to be forgotten)
+// Deletes the user and ALL associated data. This is irreversible.
+app.delete('/api/gdpr/account', authenticate, async (req, res) => {
+  const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress
+
+  try {
+    // Log before deletion (user_id will be preserved in audit log for legal compliance)
+    await auditLog(req.userId, 'account_delete_request', null, clientIp)
+
+    // Delete uploaded media files owned by this user
+    const [userPosts] = await pool.query('SELECT media FROM posts WHERE author_id = ?', [req.userId])
+    for (const post of userPosts) {
+      if (post.media) {
+        try {
+          const mediaArr = typeof post.media === 'string' ? JSON.parse(post.media) : post.media
+          for (const m of mediaArr) {
+            if (m.url?.startsWith('/uploads/')) {
+              const filePath = path.join(UPLOADS_DIR, path.basename(m.url))
+              if (fs.existsSync(filePath)) fs.unlinkSync(filePath)
+            }
+          }
+        } catch {}
+      }
+    }
+
+    // Delete avatar if it's a local upload
+    const [userInfo] = await pool.query('SELECT avatar_url FROM users WHERE id = ?', [req.userId])
+    if (userInfo[0]?.avatar_url?.startsWith('/uploads/')) {
+      const avatarPath = path.join(UPLOADS_DIR, path.basename(userInfo[0].avatar_url))
+      if (fs.existsSync(avatarPath)) fs.unlinkSync(avatarPath)
+    }
+
+    // CASCADE DELETE: posts, comments, likes, messages, friendships, sessions, consent records
+    // all have ON DELETE CASCADE foreign keys referencing users(id)
+    await pool.query('DELETE FROM users WHERE id = ?', [req.userId])
+
+    await auditLog(null, 'account_deleted', { former_user_id: req.userId }, clientIp)
+
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('Account deletion error:', err)
+    res.status(500).json({ error: 'Failed to delete account' })
+  }
+})
+
+// GET /api/gdpr/export — Data portability (GDPR Art. 20)
+// Returns all user data in a structured JSON format for download.
+app.get('/api/gdpr/export', authenticate, async (req, res) => {
+  const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress
+
+  try {
+    await auditLog(req.userId, 'data_export_request', null, clientIp)
+
+    const [users] = await pool.query(
+      'SELECT id, name, handle, email, bio_da, bio_en, location, join_date, created_at FROM users WHERE id = ?',
+      [req.userId]
+    )
+    const [posts] = await pool.query(
+      'SELECT id, text_da, text_en, time_da, time_en, likes, source, created_at FROM posts WHERE author_id = ?',
+      [req.userId]
+    )
+    const [comments] = await pool.query(
+      'SELECT c.id, c.post_id, c.text_da, c.text_en, c.created_at FROM comments c WHERE c.author_id = ?',
+      [req.userId]
+    )
+    const [friends] = await pool.query(
+      'SELECT u.name, f.source, f.created_at FROM friendships f JOIN users u ON f.friend_id = u.id WHERE f.user_id = ?',
+      [req.userId]
+    )
+    const [messages] = await pool.query(
+      `SELECT u.name as partner, m.text_da, m.text_en, m.time, m.created_at,
+              CASE WHEN m.sender_id = ? THEN 'sent' ELSE 'received' END as direction
+       FROM messages m JOIN users u ON (CASE WHEN m.sender_id = ? THEN m.receiver_id ELSE m.sender_id END) = u.id
+       WHERE m.sender_id = ? OR m.receiver_id = ?`,
+      [req.userId, req.userId, req.userId, req.userId]
+    )
+    const [consents] = await pool.query(
+      'SELECT consent_type, consent_given, created_at, withdrawn_at FROM gdpr_consent WHERE user_id = ?',
+      [req.userId]
+    )
+
+    const exportData = {
+      export_date: new Date().toISOString(),
+      export_format: 'GDPR Art. 20 Data Portability Export',
+      user: users[0] || null,
+      posts,
+      comments,
+      friends,
+      messages,
+      consent_history: consents,
+    }
+
+    res.setHeader('Content-Type', 'application/json')
+    res.setHeader('Content-Disposition', `attachment; filename="fellis-data-export-${req.userId}-${Date.now()}.json"`)
+    res.json(exportData)
+  } catch (err) {
+    console.error('Data export error:', err)
+    res.status(500).json({ error: 'Failed to export data' })
+  }
+})
+
+// ── Data Retention Cleanup (GDPR Art. 5(1)(e) — storage limitation) ──
+// Runs periodically to purge expired Facebook tokens and stale data.
+async function runDataRetentionCleanup() {
+  try {
+    // Purge expired Facebook tokens
+    const [expired] = await pool.query(
+      'SELECT id FROM users WHERE fb_token_expires_at IS NOT NULL AND fb_token_expires_at < NOW()'
+    )
+    if (expired.length > 0) {
+      await pool.query(
+        'UPDATE users SET fb_access_token = NULL, fb_token_expires_at = NULL WHERE fb_token_expires_at < NOW()'
+      )
+      for (const u of expired) {
+        await auditLog(u.id, 'fb_token_expired_purge', { reason: 'data_retention_policy' })
+      }
+      console.log(`[GDPR Retention] Purged ${expired.length} expired Facebook tokens`)
+    }
+
+    // Purge expired sessions
+    await pool.query('DELETE FROM sessions WHERE expires_at < NOW()')
+  } catch (err) {
+    console.error('[GDPR Retention] Cleanup error:', err)
+  }
+}
+
+// Run cleanup every 6 hours
+setInterval(runDataRetentionCleanup, 6 * 60 * 60 * 1000)
+// Also run once on startup
+runDataRetentionCleanup()
+
 // Multer error handler
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
@@ -704,4 +1099,8 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
   console.log(`fellis.eu API running on http://localhost:${PORT}`)
+  if (!FB_TOKEN_KEY) {
+    console.warn('⚠️  WARNING: FB_TOKEN_ENCRYPTION_KEY not set. Facebook tokens will be stored unencrypted.')
+    console.warn('   Generate a key with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"')
+  }
 })
