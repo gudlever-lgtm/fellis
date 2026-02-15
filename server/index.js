@@ -523,6 +523,7 @@ app.get('/api/profile', authenticate, async (req, res) => {
   try {
     const [users] = await pool.query(
       `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url,
+        u.email, u.facebook_id, u.created_at,
         (SELECT COUNT(*) FROM friendships WHERE user_id = u.id) as friend_count,
         (SELECT COUNT(*) FROM posts WHERE author_id = u.id) as post_count
        FROM users u WHERE u.id = ?`,
@@ -536,6 +537,9 @@ app.get('/api/profile', authenticate, async (req, res) => {
       location: u.location, joinDate: u.join_date,
       avatarUrl: u.avatar_url || null,
       friendCount: u.friend_count, postCount: u.post_count, photoCount: u.photo_count || 0,
+      email: u.email || null,
+      loginMethod: u.facebook_id ? 'facebook' : 'email',
+      createdAt: u.created_at,
     })
   } catch (err) {
     res.status(500).json({ error: 'Failed to load profile' })
