@@ -267,26 +267,41 @@ app.get('/api/auth/facebook/callback', async (req, res) => {
 
 // Import Facebook data into fellis DB (friends, posts, photos)
 async function importFacebookData(userId, fbToken) {
-  // Import friends (only those also on Facebook, read-only)
+  // Import friends — create placeholder users for friends not yet on fellis
   try {
     const friendsRes = await fetch(`${FB_GRAPH_URL}/me/friends?fields=id,name,picture.width(100).height(100)&limit=500&access_token=${fbToken}`)
     const friendsData = await friendsRes.json()
     if (friendsData.data) {
+      let importedCount = 0
       for (const friend of friendsData.data) {
-        // Check if friend exists on fellis
+        let friendUserId
         const [existing] = await pool.query('SELECT id FROM users WHERE facebook_id = ?', [friend.id])
         if (existing.length > 0) {
-          // Add friendship if not exists
-          await pool.query(
-            'INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)',
-            [userId, existing[0].id]
+          friendUserId = existing[0].id
+        } else {
+          // Create placeholder user for this Facebook friend
+          const avatarUrl = friend.picture?.data?.url || null
+          const handle = 'fb_' + friend.id
+          const initials = friend.name.split(' ').map(w => w[0]).join('').slice(0, 3).toUpperCase()
+          const [result] = await pool.query(
+            'INSERT INTO users (name, handle, initials, facebook_id, avatar_url) VALUES (?, ?, ?, ?, ?)',
+            [friend.name, handle, initials, friend.id, avatarUrl]
           )
-          await pool.query(
-            'INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)',
-            [existing[0].id, userId]
-          )
+          friendUserId = result.insertId
         }
+        // Add bidirectional friendship
+        await pool.query(
+          'INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)',
+          [userId, friendUserId]
+        )
+        await pool.query(
+          'INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)',
+          [friendUserId, userId]
+        )
+        importedCount++
       }
+      // Update friend count
+      await pool.query('UPDATE users SET friend_count = ? WHERE id = ?', [importedCount, userId])
     }
   } catch (err) {
     console.error('FB friends import error:', err)
@@ -453,13 +468,20 @@ app.get('/api/feed', authenticate, async (req, res) => {
     const [posts] = await pool.query(
       `SELECT p.id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.created_at
        FROM posts p JOIN users u ON p.author_id = u.id
-       ORDER BY p.created_at DESC`
+       WHERE p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?)
+       ORDER BY p.created_at DESC`,
+      [req.userId, req.userId]
     )
-    const [comments] = await pool.query(
-      `SELECT c.id, c.post_id, u.name as author, c.text_da, c.text_en
-       FROM comments c JOIN users u ON c.author_id = u.id
-       ORDER BY c.created_at ASC`
-    )
+    const postIds = posts.map(p => p.id)
+    const [comments] = postIds.length > 0
+      ? await pool.query(
+        `SELECT c.id, c.post_id, u.name as author, c.text_da, c.text_en
+         FROM comments c JOIN users u ON c.author_id = u.id
+         WHERE c.post_id IN (?)
+         ORDER BY c.created_at ASC`,
+        [postIds]
+      )
+      : [[]]
     const [userLikes] = await pool.query(
       'SELECT post_id FROM post_likes WHERE user_id = ?',
       [req.userId]
