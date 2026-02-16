@@ -343,12 +343,27 @@ function FeedPage({ lang, t, currentUser }) {
           <div className="p-avatar-sm" style={{ background: nameToColor(currentUser.name) }}>
             {currentUser.initials || getInitials(currentUser.name)}
           </div>
-          <input
+          <textarea
             className="p-new-post-input"
             placeholder={t.newPost}
             value={newPostText}
-            onChange={e => setNewPostText(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handlePost()}
+            rows={1}
+            onChange={e => { setNewPostText(e.target.value); e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px' }}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handlePost() } }}
+            onPaste={e => {
+              const items = Array.from(e.clipboardData?.items || [])
+              const imageItems = items.filter(item => item.type.startsWith('image/'))
+              if (imageItems.length > 0) {
+                e.preventDefault()
+                const files = imageItems.map(item => item.getAsFile()).filter(Boolean)
+                setMediaFiles(prev => [...prev, ...files].slice(0, 4))
+                setMediaPreviews(prev => [...prev, ...files.map(f => ({
+                  url: URL.createObjectURL(f),
+                  type: 'image',
+                  name: f.name,
+                }))].slice(0, 4))
+              }
+            }}
           />
           <input
             ref={fileInputRef}

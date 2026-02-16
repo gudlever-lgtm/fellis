@@ -930,7 +930,7 @@
 /* ── New post ── */
 .p-new-post-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
 }
 .p-new-post-input {
@@ -943,6 +943,11 @@
   outline: none;
   background: #FAFAF7;
   transition: border-color 0.2s;
+  resize: none;
+  overflow: hidden;
+  min-height: 40px;
+  max-height: 300px;
+  line-height: 1.4;
 }
 .p-new-post-input:focus {
   border-color: #2D6A4F;
