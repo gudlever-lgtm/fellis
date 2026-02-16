@@ -899,19 +899,68 @@ app.get('/api/messages', authenticate, async (req, res) => {
   }
 })
 
+// Bot auto-reply responses
+const BOT_REPLIES_DA = [
+  'Hej! Tak for din besked 😊',
+  'Det lyder rigtig spændende!',
+  'Godt at høre fra dig! 🤖',
+  'Helt enig! Fortæl mere?',
+  'Haha, det er sjovt 😂',
+  'Ja, det synes jeg også! 👍',
+  'Nej, det vidste jeg ikke! Tak for info 🙏',
+  'Fedt! Skal vi snakke mere om det?',
+  'Det er en god idé! 💡',
+  'Jeg er glad for at vi er venner her på fellis.eu 💚',
+  'Vejret er fantastisk i Botland i dag! ☀️',
+  'Har du set de seneste opslag? De er gode!',
+]
+const BOT_REPLIES_EN = [
+  'Hey! Thanks for your message 😊',
+  'That sounds really exciting!',
+  'Good to hear from you! 🤖',
+  'Totally agree! Tell me more?',
+  'Haha, that\'s funny 😂',
+  'Yes, I think so too! 👍',
+  'No way, I didn\'t know that! Thanks 🙏',
+  'Cool! Want to talk more about it?',
+  'That\'s a great idea! 💡',
+  'I\'m glad we\'re friends here on fellis.eu 💚',
+  'The weather is fantastic in Botland today! ☀️',
+  'Have you seen the latest posts? They\'re great!',
+]
+
 // POST /api/messages/:friendId — send a message
 app.post('/api/messages/:friendId', authenticate, async (req, res) => {
   const { text } = req.body
   if (!text) return res.status(400).json({ error: 'Message text required' })
   try {
+    const friendId = parseInt(req.params.friendId)
     const now = new Date()
     const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
     await pool.query(
       'INSERT INTO messages (sender_id, receiver_id, text_da, text_en, time) VALUES (?, ?, ?, ?, ?)',
-      [req.userId, req.params.friendId, text, text, time]
+      [req.userId, friendId, text, text, time]
     )
     const [users] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
     res.json({ from: users[0].name, text: { da: text, en: text }, time })
+
+    // Bot auto-reply: check if recipient is a bot user
+    const [botCheck] = await pool.query('SELECT id, name FROM users WHERE id = ? AND handle LIKE ?', [friendId, '%bot%'])
+    if (botCheck.length > 0) {
+      const delay = 2000 + Math.random() * 4000 // 2-6 seconds
+      setTimeout(async () => {
+        try {
+          const replyDa = BOT_REPLIES_DA[Math.floor(Math.random() * BOT_REPLIES_DA.length)]
+          const replyEn = BOT_REPLIES_EN[Math.floor(Math.random() * BOT_REPLIES_EN.length)]
+          const replyTime = new Date()
+          const rTime = `${replyTime.getHours().toString().padStart(2, '0')}:${replyTime.getMinutes().toString().padStart(2, '0')}`
+          await pool.query(
+            'INSERT INTO messages (sender_id, receiver_id, text_da, text_en, time) VALUES (?, ?, ?, ?, ?)',
+            [friendId, req.userId, replyDa, replyEn, rTime]
+          )
+        } catch {}
+      }, delay)
+    }
   } catch (err) {
     res.status(500).json({ error: 'Failed to send message' })
   }

@@ -1268,15 +1268,26 @@ function MessagesPage({ lang, t, currentUser }) {
   const messagesEndRef = useRef(null)
 
   useEffect(() => {
-    apiFetchMessages().then(data => {
-      if (data && data.length > 0) {
-        setThreads(data)
-        setActiveThread(0)
-      }
-    })
+    const loadMessages = () => {
+      apiFetchMessages().then(data => {
+        if (data && data.length > 0) {
+          setThreads(prev => {
+            if (prev.length === 0) { setActiveThread(0); return data }
+            // Merge: keep active thread selection, update messages
+            return data.map((th, i) => {
+              const existing = prev.find(p => p.friend === th.friend)
+              return existing ? { ...th, unread: existing.unread } : th
+            })
+          })
+        }
+      })
+    }
+    loadMessages()
+    const interval = setInterval(loadMessages, 5000)
     apiFetchFriends().then(data => {
       if (data) setFriends(data)
     })
+    return () => clearInterval(interval)
   }, [])
 
   useEffect(() => {
