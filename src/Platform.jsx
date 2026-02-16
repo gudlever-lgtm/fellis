@@ -343,6 +343,7 @@ function FeedPage({ lang, t, currentUser }) {
           <div className="p-avatar-sm" style={{ background: nameToColor(currentUser.name) }}>
             {currentUser.initials || getInitials(currentUser.name)}
           </div>
+          <div className="p-post-help-wrapper">
           <textarea
             className="p-new-post-input"
             placeholder={t.newPost}
@@ -365,6 +366,15 @@ function FeedPage({ lang, t, currentUser }) {
               }
             }}
           />
+          <div className="p-post-help-tip">
+            <span className="p-post-help-icon">?</span>
+            <div className="p-post-help-tooltip">
+              {lang === 'da'
+                ? '• Shift+Enter for linjeskift\n• Enter for at poste\n• Ctrl+V for at indsætte billeder\n• Op til 4 billeder/videoer'
+                : '• Shift+Enter for new line\n• Enter to post\n• Ctrl+V to paste images\n• Up to 4 images/videos'}
+            </div>
+          </div>
+          </div>
           <input
             ref={fileInputRef}
             type="file"
@@ -1119,14 +1129,23 @@ function FriendsPage({ lang, t, onMessage }) {
 
 // ── Messages ──
 function MessagesPage({ lang, t, currentUser }) {
-  const [activeThread, setActiveThread] = useState(0)
+  const [activeThread, setActiveThread] = useState(null)
   const [threads, setThreads] = useState([])
+  const [friends, setFriends] = useState([])
+  const [showFriendPicker, setShowFriendPicker] = useState(false)
+  const [friendSearch, setFriendSearch] = useState('')
   const [newMsg, setNewMsg] = useState('')
   const messagesEndRef = useRef(null)
 
   useEffect(() => {
     apiFetchMessages().then(data => {
-      if (data) setThreads(data)
+      if (data && data.length > 0) {
+        setThreads(data)
+        setActiveThread(0)
+      }
+    })
+    apiFetchFriends().then(data => {
+      if (data) setFriends(data)
     })
   }, [])
 
@@ -1134,14 +1153,28 @@ function MessagesPage({ lang, t, currentUser }) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [threads, activeThread])
 
+  const startConversation = useCallback((friend) => {
+    const existingIdx = threads.findIndex(th => th.friendId === friend.id || th.friend === friend.name)
+    if (existingIdx >= 0) {
+      setActiveThread(existingIdx)
+    } else {
+      setThreads(prev => [...prev, { friend: friend.name, friendId: friend.id, messages: [], unread: 0 }])
+      setActiveThread(threads.length)
+    }
+    setShowFriendPicker(false)
+    setFriendSearch('')
+  }, [threads])
+
   const handleSend = useCallback(() => {
-    if (!newMsg.trim()) return
+    if (!newMsg.trim() || activeThread === null) return
     const text = newMsg.trim()
-    setThreads(prev => prev.map((thread, i) => {
-      if (i !== activeThread) return thread
+    const thread = threads[activeThread]
+    const friendId = thread.friendId || (friends.find(f => f.name === thread.friend)?.id)
+    setThreads(prev => prev.map((th, i) => {
+      if (i !== activeThread) return th
       return {
-        ...thread,
-        messages: [...thread.messages, {
+        ...th,
+        messages: [...th.messages, {
           from: currentUser.name,
           text: { da: text, en: text },
           time: new Date().toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' }),
@@ -1150,28 +1183,51 @@ function MessagesPage({ lang, t, currentUser }) {
       }
     }))
     setNewMsg('')
-    apiSendMessage(activeThread + 1, text).catch(() => {})
-  }, [newMsg, activeThread, currentUser.name])
+    if (friendId) apiSendMessage(friendId, text).catch(() => {})
+  }, [newMsg, activeThread, threads, friends, currentUser.name])
 
-  const thread = threads[activeThread]
-
-  if (!thread) return (
-    <div className="p-messages">
-      <div className="p-empty-state" style={{ padding: '48px', textAlign: 'center', color: '#65676b' }}>
-        {t.noMessages || 'No messages yet'}
-      </div>
-    </div>
+  const thread = activeThread !== null ? threads[activeThread] : null
+  const filteredFriends = friends.filter(f =>
+    f.name.toLowerCase().includes(friendSearch.toLowerCase())
   )
 
   return (
     <div className="p-messages">
       <div className="p-msg-sidebar">
-        <h3 className="p-msg-sidebar-title">{t.messagesTitle}</h3>
+        <div className="p-msg-sidebar-header">
+          <h3 className="p-msg-sidebar-title">{t.messagesTitle}</h3>
+          <button className="p-msg-new-btn" onClick={() => setShowFriendPicker(!showFriendPicker)} title={t.newConversation || 'Ny samtale'}>+</button>
+        </div>
+        {showFriendPicker && (
+          <div className="p-msg-friend-picker">
+            <input
+              className="p-msg-friend-search"
+              placeholder={t.searchFriends}
+              value={friendSearch}
+              onChange={e => setFriendSearch(e.target.value)}
+              autoFocus
+            />
+            <div className="p-msg-friend-list">
+              {filteredFriends.map(friend => (
+                <div key={friend.id} className="p-msg-friend-item" onClick={() => startConversation(friend)}>
+                  <div className="p-avatar-xs" style={{ background: nameToColor(friend.name) }}>
+                    {getInitials(friend.name)}
+                  </div>
+                  <span>{friend.name}</span>
+                  {friend.online && <span className="p-msg-online-dot" />}
+                </div>
+              ))}
+              {filteredFriends.length === 0 && (
+                <div className="p-msg-no-friends">{lang === 'da' ? 'Ingen venner fundet' : 'No friends found'}</div>
+              )}
+            </div>
+          </div>
+        )}
         {threads.map((th, i) => (
           <div
             key={i}
             className={`p-msg-thread${i === activeThread ? ' active' : ''}`}
-            onClick={() => { setActiveThread(i); setThreads(prev => prev.map((t, j) => j === i ? { ...t, unread: 0 } : t)) }}
+            onClick={() => { setActiveThread(i); setShowFriendPicker(false); setThreads(prev => prev.map((t, j) => j === i ? { ...t, unread: 0 } : t)) }}
           >
             <div className="p-avatar-sm" style={{ background: nameToColor(th.friend) }}>
               {getInitials(th.friend)}
@@ -1182,7 +1238,7 @@ function MessagesPage({ lang, t, currentUser }) {
                 {th.unread > 0 && <span className="p-msg-badge">{th.unread}</span>}
               </div>
               <div className="p-msg-thread-preview">
-                {th.messages[th.messages.length - 1].text[lang].slice(0, 40)}...
+                {th.messages.length > 0 ? th.messages[th.messages.length - 1].text[lang].slice(0, 40) + '...' : (lang === 'da' ? 'Start en samtale...' : 'Start a conversation...')}
               </div>
             </div>
           </div>
@@ -1190,41 +1246,67 @@ function MessagesPage({ lang, t, currentUser }) {
       </div>
 
       <div className="p-msg-main">
-        <div className="p-msg-header">
-          <div className="p-avatar-sm" style={{ background: nameToColor(thread.friend) }}>
-            {getInitials(thread.friend)}
-          </div>
-          <span className="p-msg-header-name">{thread.friend}</span>
-        </div>
-        <div className="p-msg-body">
-          {thread.messages.map((msg, i) => {
-            const isMe = msg.from === currentUser.name
-            return (
-              <div key={i} className={`p-msg-bubble-row${isMe ? ' mine' : ''}`}>
-                {!isMe && (
-                  <div className="p-avatar-xs" style={{ background: nameToColor(msg.from) }}>
-                    {getInitials(msg.from)}
-                  </div>
-                )}
-                <div className={`p-msg-bubble${isMe ? ' mine' : ''}`}>
-                  <div>{msg.text[lang]}</div>
-                  <div className="p-msg-time">{msg.time}</div>
-                </div>
+        {thread ? (
+          <>
+            <div className="p-msg-header">
+              <div className="p-avatar-sm" style={{ background: nameToColor(thread.friend) }}>
+                {getInitials(thread.friend)}
               </div>
-            )
-          })}
-          <div ref={messagesEndRef} />
-        </div>
-        <div className="p-msg-input-row">
-          <input
-            className="p-msg-input"
-            placeholder={t.typeMessage}
-            value={newMsg}
-            onChange={e => setNewMsg(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleSend()}
-          />
-          <button className="p-send-btn" onClick={handleSend}>{t.send}</button>
-        </div>
+              <span className="p-msg-header-name">{thread.friend}</span>
+            </div>
+            <div className="p-msg-body">
+              {thread.messages.length === 0 && (
+                <div className="p-msg-empty-thread">
+                  <div className="p-avatar-lg" style={{ background: nameToColor(thread.friend), width: 64, height: 64, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, color: '#fff', fontWeight: 700, margin: '0 auto 12px' }}>
+                    {getInitials(thread.friend)}
+                  </div>
+                  <div style={{ fontWeight: 600, fontSize: 16 }}>{thread.friend}</div>
+                  <div style={{ color: '#65676b', fontSize: 13, marginTop: 4 }}>
+                    {lang === 'da' ? 'Send den første besked!' : 'Send the first message!'}
+                  </div>
+                </div>
+              )}
+              {thread.messages.map((msg, i) => {
+                const isMe = msg.from === currentUser.name
+                return (
+                  <div key={i} className={`p-msg-bubble-row${isMe ? ' mine' : ''}`}>
+                    {!isMe && (
+                      <div className="p-avatar-xs" style={{ background: nameToColor(msg.from) }}>
+                        {getInitials(msg.from)}
+                      </div>
+                    )}
+                    <div className={`p-msg-bubble${isMe ? ' mine' : ''}`}>
+                      <div>{msg.text[lang]}</div>
+                      <div className="p-msg-time">{msg.time}</div>
+                    </div>
+                  </div>
+                )
+              })}
+              <div ref={messagesEndRef} />
+            </div>
+            <div className="p-msg-input-row">
+              <input
+                className="p-msg-input"
+                placeholder={t.typeMessage}
+                value={newMsg}
+                onChange={e => setNewMsg(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleSend()}
+              />
+              <button className="p-send-btn" onClick={handleSend}>{t.send}</button>
+            </div>
+          </>
+        ) : (
+          <div className="p-msg-empty-state">
+            <div style={{ fontSize: 48, marginBottom: 12 }}>💬</div>
+            <div style={{ fontWeight: 600, fontSize: 18 }}>{t.messagesTitle}</div>
+            <div style={{ color: '#65676b', marginTop: 8 }}>
+              {lang === 'da' ? 'Vælg en samtale eller start en ny' : 'Select a conversation or start a new one'}
+            </div>
+            <button className="p-msg-start-btn" onClick={() => setShowFriendPicker(true)}>
+              {lang === 'da' ? 'Ny samtale' : 'New conversation'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

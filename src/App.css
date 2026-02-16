@@ -952,6 +952,58 @@
 .p-new-post-input:focus {
   border-color: #2D6A4F;
 }
+.p-post-help-wrapper {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+}
+.p-post-help-wrapper .p-new-post-input {
+  flex: 1;
+}
+.p-post-help-tip {
+  position: relative;
+  margin-left: 6px;
+  margin-top: 8px;
+}
+.p-post-help-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #E8E4DF;
+  color: #6B6560;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.p-post-help-icon:hover {
+  background: #2D6A4F;
+  color: #fff;
+}
+.p-post-help-tooltip {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  background: #3A3330;
+  color: #fff;
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.8;
+  white-space: pre-line;
+  z-index: 20;
+  min-width: 220px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+.p-post-help-tip:hover .p-post-help-tooltip {
+  display: block;
+}
 .p-post-btn {
   background: #2D6A4F;
   color: #fff;
@@ -1452,10 +1504,111 @@
   overflow-y: auto;
   flex-shrink: 0;
 }
-.p-msg-sidebar-title {
+.p-msg-sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 16px 20px;
-  font-size: 18px;
   border-bottom: 1px solid #E8E4DF;
+}
+.p-msg-sidebar-title {
+  font-size: 18px;
+  margin: 0;
+}
+.p-msg-new-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #2D6A4F;
+  color: #fff;
+  font-size: 20px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: none;
+  transition: background 0.15s;
+  line-height: 1;
+}
+.p-msg-new-btn:hover {
+  background: #1B4332;
+}
+.p-msg-friend-picker {
+  border-bottom: 1px solid #E8E4DF;
+  background: #FAFAF7;
+}
+.p-msg-friend-search {
+  width: 100%;
+  padding: 10px 20px;
+  border: none;
+  border-bottom: 1px solid #E8E4DF;
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  outline: none;
+  background: transparent;
+  box-sizing: border-box;
+}
+.p-msg-friend-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+.p-msg-friend-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.15s;
+}
+.p-msg-friend-item:hover {
+  background: #F0FAF4;
+}
+.p-msg-online-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2D6A4F;
+  margin-left: auto;
+}
+.p-msg-no-friends {
+  padding: 16px 20px;
+  color: #A09890;
+  font-size: 13px;
+  text-align: center;
+}
+.p-msg-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+  padding: 48px;
+}
+.p-msg-start-btn {
+  margin-top: 16px;
+  padding: 10px 24px;
+  background: #2D6A4F;
+  color: #fff;
+  border: none;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.p-msg-start-btn:hover {
+  background: #1B4332;
+}
+.p-msg-empty-thread {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  color: #3A3330;
 }
 .p-msg-thread {
   display: flex;
