@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { PT, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchMessages, apiSendMessage, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchMessages, apiSendMessage, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -1003,10 +1003,17 @@ function FriendsPage({ lang, t, onMessage }) {
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [friends, setFriends] = useState([])
+  const [inviteLink, setInviteLink] = useState('')
+  const [inviteCopied, setInviteCopied] = useState(false)
 
   useEffect(() => {
     apiFetchFriends().then(data => {
       if (data) setFriends(data)
+    })
+    apiGetInviteLink().then(data => {
+      if (data?.token) {
+        setInviteLink(`https://fellis.eu/?invite=${data.token}`)
+      }
     })
   }, [])
 
@@ -1016,8 +1023,50 @@ function FriendsPage({ lang, t, onMessage }) {
     return true
   })
 
+  const handleCopyInvite = useCallback(() => {
+    navigator.clipboard.writeText(inviteLink).catch(() => {})
+    setInviteCopied(true)
+    setTimeout(() => setInviteCopied(false), 2000)
+  }, [inviteLink])
+
+  const handleFbShare = useCallback(() => {
+    const shareUrl = encodeURIComponent(inviteLink || 'https://fellis.eu')
+    window.open(
+      `https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`,
+      'facebook-share',
+      'width=580,height=400'
+    )
+  }, [inviteLink])
+
   return (
     <div className="p-friends-page">
+      {/* Invite friends card */}
+      <div className="p-card p-invite-card">
+        <h3 className="p-section-title" style={{ margin: '0 0 8px' }}>
+          {lang === 'da' ? 'Inviter venner fra Facebook' : 'Invite friends from Facebook'}
+        </h3>
+        <p className="p-invite-desc">
+          {lang === 'da'
+            ? 'Del dit link med Facebook-venner — I bliver automatisk forbundet, når de tilmelder sig.'
+            : 'Share your link with Facebook friends — you will be automatically connected when they sign up.'}
+        </p>
+        <div className="p-invite-link-row">
+          <input
+            className="p-invite-link-input"
+            value={inviteLink || 'https://fellis.eu/?invite=...'}
+            readOnly
+            onClick={e => e.target.select()}
+          />
+          <button className="p-invite-copy-btn" onClick={handleCopyInvite}>
+            {inviteCopied ? (lang === 'da' ? 'Kopieret!' : 'Copied!') : (lang === 'da' ? 'Kopier' : 'Copy')}
+          </button>
+        </div>
+        <button className="p-fb-share-btn" onClick={handleFbShare}>
+          <span className="fb-icon">f</span>
+          {lang === 'da' ? 'Del på Facebook' : 'Share on Facebook'}
+        </button>
+      </div>
+
       <div className="p-card">
         <h3 className="p-section-title" style={{ margin: '0 0 16px' }}>{t.friendsTitle}</h3>
         <input

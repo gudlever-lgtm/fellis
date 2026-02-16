@@ -40,10 +40,10 @@ export async function apiLogin(email, password, lang) {
   return data
 }
 
-export async function apiRegister(name, email, password, lang) {
+export async function apiRegister(name, email, password, lang, inviteToken) {
   const data = await request('/api/auth/register', {
     method: 'POST',
-    body: JSON.stringify({ name, email, password, lang }),
+    body: JSON.stringify({ name, email, password, lang, inviteToken: inviteToken || undefined }),
   })
   if (data?.sessionId) {
     localStorage.setItem('fellis_session_id', data.sessionId)
@@ -182,6 +182,32 @@ export async function apiDeleteAccount() {
 
 export async function apiExportData() {
   return await request('/api/gdpr/export')
+}
+
+// Invites
+export async function apiGetInviteLink() {
+  return await request('/api/invites/link')
+}
+
+export async function apiGetInviteInfo(token) {
+  try {
+    const res = await fetch(`${API_BASE}/api/invite/${token}`)
+    if (!res.ok) return null
+    return await res.json()
+  } catch {
+    return null
+  }
+}
+
+export async function apiSendInvites(friends) {
+  return await request('/api/invites', {
+    method: 'POST',
+    body: JSON.stringify({ friends }),
+  })
+}
+
+export async function apiGetInvites() {
+  return await request('/api/invites')
 }
 
 // Profile avatar

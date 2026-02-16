@@ -7,7 +7,7 @@ const INVITE_FRIENDS = [
   { name: 'Ven 2', mutual: 3, online: true },
   { name: 'Ven 3', mutual: 8, online: false },
 ]
-import { apiLogin, apiRegister, apiForgotPassword, apiResetPassword, getFacebookAuthUrl } from './api.js'
+import { apiLogin, apiRegister, apiForgotPassword, apiResetPassword, getFacebookAuthUrl, apiSendInvites } from './api.js'
 
 // ── Landing translations ──
 const T = {
@@ -58,6 +58,12 @@ const T = {
     skip: 'Spring over',
     sendInvites: 'Send invitationer',
     sendingInvites: 'Sender invitationer...',
+    inviteLinkTitle: 'Del dit invitationslink',
+    inviteLinkDesc: 'Del dette link med dine Facebook-venner, så I automatisk bliver forbundet på fellis.eu',
+    copyLink: 'Kopier link',
+    linkCopied: 'Kopieret!',
+    shareOnFacebook: 'Del på Facebook',
+    invitedBy: 'inviterer dig til fellis.eu',
     doneTitle: 'Velkommen til fellis.eu!',
     doneSubtitle: 'Din migrering er fuldført. Dit nye digitale hjem venter.',
     itemsMigrated: 'Elementer migreret',
@@ -149,6 +155,12 @@ const T = {
     skip: 'Skip',
     sendInvites: 'Send invitations',
     sendingInvites: 'Sending invitations...',
+    inviteLinkTitle: 'Share your invite link',
+    inviteLinkDesc: 'Share this link with your Facebook friends so you automatically connect on fellis.eu',
+    copyLink: 'Copy link',
+    linkCopied: 'Copied!',
+    shareOnFacebook: 'Share on Facebook',
+    invitedBy: 'invites you to fellis.eu',
     doneTitle: 'Welcome to fellis.eu!',
     doneSubtitle: 'Your migration is complete. Your new digital home awaits.',
     itemsMigrated: 'Items migrated',
@@ -195,7 +207,7 @@ const T = {
   },
 }
 
-export default function Landing({ onEnterPlatform }) {
+export default function Landing({ onEnterPlatform, inviteToken, inviterName }) {
   const [lang, setLang] = useState('da')
   const [step, setStep] = useState(0)
   const [showLoginModal, setShowLoginModal] = useState(false)
@@ -204,7 +216,7 @@ export default function Landing({ onEnterPlatform }) {
   const [selectedFriends, setSelectedFriends] = useState(new Set(INVITE_FRIENDS.map((_, i) => i)))
   const [inviteLoading, setInviteLoading] = useState(false)
   const [invitedCount, setInvitedCount] = useState(0)
-  const [directSignup, setDirectSignup] = useState(false)
+  const [inviteLinkCopied, setInviteLinkCopied] = useState(false)
 
   // Login modal state
   const [loginEmail, setLoginEmail] = useState('')
@@ -227,7 +239,8 @@ export default function Landing({ onEnterPlatform }) {
   const [regPassword, setRegPassword] = useState('')
   const [regError, setRegError] = useState('')
   const [regLoading, setRegLoading] = useState(false)
-  // directSignup is already declared above
+  // Direct signup (skipping Facebook migration)
+  const [directSignup, setDirectSignup] = useState(false)
 
   const t = T[lang]
 
@@ -330,7 +343,7 @@ export default function Landing({ onEnterPlatform }) {
     setRegLoading(true)
     setRegError('')
     try {
-      const data = await apiRegister(regName.trim(), regEmail.trim(), regPassword.trim(), lang)
+      const data = await apiRegister(regName.trim(), regEmail.trim(), regPassword.trim(), lang, inviteToken || undefined)
       if (data?.sessionId) {
         onEnterPlatform(lang)
       } else {
@@ -341,7 +354,7 @@ export default function Landing({ onEnterPlatform }) {
       setRegError(t.registerError)
       setRegLoading(false)
     }
-  }, [regName, regEmail, regPassword, lang, t, onEnterPlatform])
+  }, [regName, regEmail, regPassword, lang, t, onEnterPlatform, inviteToken])
 
   // Redirect to real Facebook OAuth
   const handleFbClick = useCallback(() => {
@@ -365,11 +378,17 @@ export default function Landing({ onEnterPlatform }) {
     setSelectedFriends(prev => prev.size === INVITE_FRIENDS.length ? new Set() : new Set(INVITE_FRIENDS.map((_, i) => i)))
   }, [])
 
-  const handleSendInvites = useCallback(() => {
+  const handleSendInvites = useCallback(async () => {
     setInviteLoading(true)
     const count = selectedFriends.size
+    const friendsList = Array.from(selectedFriends).map(idx => ({ name: INVITE_FRIENDS[idx].name }))
+    try {
+      await apiSendInvites(friendsList)
+    } catch {
+      // Continue even if API fails (demo mode)
+    }
     setTimeout(() => { setInviteLoading(false); setInvitedCount(count); setStep(4) }, 2000)
-  }, [selectedFriends.size])
+  }, [selectedFriends])
 
   const handleSkip = useCallback(() => { setInvitedCount(0); setStep(4) }, [])
 
@@ -484,6 +503,15 @@ export default function Landing({ onEnterPlatform }) {
         </div>
       )}
 
+      {/* Invite banner (shown when arriving via invite link) */}
+      {inviterName && step === 0 && (
+        <div className="invite-banner">
+          <div className="invite-banner-text">
+            <strong>{inviterName}</strong> {t.invitedBy}
+          </div>
+        </div>
+      )}
+
       {/* Landing */}
       {step === 0 && (
         <div className="landing">
@@ -571,6 +599,49 @@ export default function Landing({ onEnterPlatform }) {
             <>
               <h2>{t.inviteTitle}</h2>
               <p className="step-subtitle">{t.inviteSubtitle}</p>
+
+              {/* Shareable invite link section */}
+              <div className="invite-link-section">
+                <h4 className="invite-link-title">{t.inviteLinkTitle}</h4>
+                <p className="invite-link-desc">{t.inviteLinkDesc}</p>
+                <div className="invite-link-row">
+                  <input
+                    className="invite-link-input"
+                    value={`https://fellis.eu/?invite=personal`}
+                    readOnly
+                    onClick={e => e.target.select()}
+                  />
+                  <button
+                    className="invite-link-copy-btn"
+                    onClick={() => {
+                      navigator.clipboard.writeText('https://fellis.eu/?invite=personal').catch(() => {})
+                      setInviteLinkCopied(true)
+                      setTimeout(() => setInviteLinkCopied(false), 2000)
+                    }}
+                  >
+                    {inviteLinkCopied ? t.linkCopied : t.copyLink}
+                  </button>
+                </div>
+                <button
+                  className="fb-share-btn"
+                  onClick={() => {
+                    const shareUrl = encodeURIComponent('https://fellis.eu/?invite=personal')
+                    window.open(
+                      `https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`,
+                      'facebook-share',
+                      'width=580,height=400'
+                    )
+                  }}
+                >
+                  <span className="fb-icon">f</span>
+                  {t.shareOnFacebook}
+                </button>
+              </div>
+
+              <div className="invite-divider">
+                <span>{lang === 'da' ? 'eller vælg venner' : 'or select friends'}</span>
+              </div>
+
               <div className="friends-header">
                 <span style={{ fontSize: 14, color: '#6B6560' }}>{selectedFriends.size} / {INVITE_FRIENDS.length}</span>
                 <button className="select-all-btn" onClick={toggleAllFriends}>
