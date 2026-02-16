@@ -383,7 +383,14 @@ function FeedPage({ lang, t, currentUser }) {
               <button className="p-action-btn" onClick={() => toggleComments(post.id)}>
                 💬 {t.comment}
               </button>
-              <button className="p-action-btn">↗ {t.share}</button>
+              <button className="p-action-btn" onClick={() => {
+                const url = `${window.location.origin}/#post-${post.id}`
+                if (navigator.share) {
+                  navigator.share({ title: post.author, text: post.text[lang], url })
+                } else {
+                  navigator.clipboard.writeText(url).then(() => alert(lang === 'da' ? 'Link kopieret!' : 'Link copied!'))
+                }
+              }}>↗ {t.share}</button>
             </div>
             {showComments && (
               <div className="p-comments">
