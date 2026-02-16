@@ -730,10 +730,10 @@ app.post('/api/feed', authenticate, upload.array('media', 4), async (req, res) =
   }
 })
 
-// PUT /api/feed/:id — edit a post (10 min limit)
-app.put('/api/feed/:id', authenticate, async (req, res) => {
+// PUT /api/feed/:id — edit a post (10 min limit, with optional media changes)
+app.put('/api/feed/:id', authenticate, upload.array('media', 4), async (req, res) => {
   const postId = parseInt(req.params.id)
-  const { text } = req.body
+  const { text, keepMedia } = req.body
   if (!text) return res.status(400).json({ error: 'Post text required' })
   try {
     const [posts] = await pool.query('SELECT author_id, created_at FROM posts WHERE id = ?', [postId])
@@ -741,8 +741,29 @@ app.put('/api/feed/:id', authenticate, async (req, res) => {
     if (posts[0].author_id !== req.userId) return res.status(403).json({ error: 'Not your post' })
     const elapsed = Date.now() - new Date(posts[0].created_at).getTime()
     if (elapsed > 10 * 60 * 1000) return res.status(403).json({ error: 'Edit window expired (10 min)' })
-    await pool.query('UPDATE posts SET text_da = ?, text_en = ?, edited_at = NOW() WHERE id = ?', [text, text, postId])
-    res.json({ success: true })
+
+    // Build updated media list: kept existing + new uploads
+    let updatedMedia = []
+    if (keepMedia) {
+      try { updatedMedia = JSON.parse(keepMedia) } catch {}
+    }
+    if (req.files?.length) {
+      for (const file of req.files) {
+        const header = Buffer.alloc(16)
+        const fd = fs.openSync(file.path, 'r')
+        fs.readSync(fd, header, 0, 16, 0)
+        fs.closeSync(fd)
+        if (!validateMagicBytes(header, file.mimetype)) {
+          fs.unlinkSync(file.path)
+          return res.status(400).json({ error: `File "${file.originalname}" failed content validation` })
+        }
+        const type = file.mimetype.startsWith('video/') ? 'video' : 'image'
+        updatedMedia.push({ url: `/uploads/${file.filename}`, type, mime: file.mimetype })
+      }
+    }
+    const mediaJson = updatedMedia.length > 0 ? JSON.stringify(updatedMedia) : null
+    await pool.query('UPDATE posts SET text_da = ?, text_en = ?, media = ?, edited_at = NOW() WHERE id = ?', [text, text, mediaJson, postId])
+    res.json({ success: true, media: updatedMedia.length > 0 ? updatedMedia : null })
   } catch (err) {
     res.status(500).json({ error: 'Failed to edit post' })
   }

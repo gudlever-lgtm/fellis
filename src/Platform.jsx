@@ -197,6 +197,10 @@ function FeedPage({ lang, t, currentUser }) {
   const [postMenu, setPostMenu] = useState(null)
   const [editingPost, setEditingPost] = useState(null)
   const [editText, setEditText] = useState('')
+  const [editKeepMedia, setEditKeepMedia] = useState([])
+  const [editNewFiles, setEditNewFiles] = useState([])
+  const [editNewPreviews, setEditNewPreviews] = useState([])
+  const editFileRef = useRef(null)
   const pickerTimeout = useRef(null)
   const fileInputRef = useRef(null)
   const commentFileRefs = useRef({})
@@ -236,7 +240,7 @@ function FeedPage({ lang, t, currentUser }) {
     const files = mediaFiles.length > 0 ? mediaFiles : null
     apiCreatePost(text, files).then(data => {
       if (data) {
-        setPosts(prev => [data, ...prev])
+        setPosts(prev => [{ ...data, isOwn: true, createdAt: new Date().toISOString() }, ...prev])
       } else {
         const localMedia = mediaPreviews.length > 0
           ? mediaPreviews.map(p => ({ url: p.url, type: p.type, mime: '' }))
@@ -244,6 +248,8 @@ function FeedPage({ lang, t, currentUser }) {
         setPosts(prev => [{
           id: Date.now(),
           author: currentUser.name,
+          isOwn: true,
+          createdAt: new Date().toISOString(),
           time: { da: 'Lige nu', en: 'Just now' },
           text: { da: text, en: text },
           likes: 0, comments: [], media: localMedia,
@@ -297,21 +303,28 @@ function FeedPage({ lang, t, currentUser }) {
   const handleEditPost = useCallback((post) => {
     setEditingPost(post.id)
     setEditText(post.text[lang] || post.text.da)
+    setEditKeepMedia(post.media || [])
+    setEditNewFiles([])
+    setEditNewPreviews([])
     setPostMenu(null)
   }, [lang])
 
   const handleSaveEdit = useCallback((postId) => {
     if (!editText.trim()) return
-    apiEditPost(postId, editText.trim()).then(data => {
+    apiEditPost(postId, editText.trim(), editKeepMedia, editNewFiles).then(data => {
       if (data && !data.error) {
-        setPosts(prev => prev.map(p => p.id === postId ? { ...p, text: { da: editText.trim(), en: editText.trim() }, edited: true } : p))
+        setPosts(prev => prev.map(p => p.id === postId ? { ...p, text: { da: editText.trim(), en: editText.trim() }, edited: true, media: data.media || null } : p))
       } else {
         alert(data?.error || (lang === 'da' ? 'Kunne ikke redigere' : 'Could not edit'))
       }
     })
+    editNewPreviews.forEach(p => URL.revokeObjectURL(p.url))
     setEditingPost(null)
     setEditText('')
-  }, [editText, lang])
+    setEditKeepMedia([])
+    setEditNewFiles([])
+    setEditNewPreviews([])
+  }, [editText, editKeepMedia, editNewFiles, editNewPreviews, lang])
 
   const handleDeletePost = useCallback((post) => {
     setPostMenu(null)
@@ -482,8 +495,55 @@ function FeedPage({ lang, t, currentUser }) {
                   onChange={e => setEditText(e.target.value)}
                   autoFocus
                 />
+                {(editKeepMedia.length > 0 || editNewPreviews.length > 0) && (
+                  <div className="p-edit-media-grid">
+                    {editKeepMedia.map((m, i) => (
+                      <div key={`keep-${i}`} className="p-edit-media-item">
+                        {m.type === 'video'
+                          ? <video src={m.url.startsWith('http') ? m.url : `${API_BASE}${m.url}`} className="p-edit-media-thumb" />
+                          : <img src={m.url.startsWith('http') ? m.url : `${API_BASE}${m.url}`} className="p-edit-media-thumb" alt="" />
+                        }
+                        <button className="p-edit-media-remove" onClick={() => setEditKeepMedia(prev => prev.filter((_, j) => j !== i))}>✕</button>
+                      </div>
+                    ))}
+                    {editNewPreviews.map((p, i) => (
+                      <div key={`new-${i}`} className="p-edit-media-item">
+                        <img src={p.url} className="p-edit-media-thumb" alt="" />
+                        <button className="p-edit-media-remove" onClick={() => {
+                          URL.revokeObjectURL(p.url)
+                          setEditNewPreviews(prev => prev.filter((_, j) => j !== i))
+                          setEditNewFiles(prev => prev.filter((_, j) => j !== i))
+                        }}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div className="p-post-edit-actions">
-                  <button className="p-post-edit-cancel" onClick={() => { setEditingPost(null); setEditText('') }}>{lang === 'da' ? 'Annuller' : 'Cancel'}</button>
+                  {editKeepMedia.length > 0 && (
+                    <button className="p-post-edit-remove-all" onClick={() => setEditKeepMedia([])}>
+                      {lang === 'da' ? 'Fjern alle billeder' : 'Remove all images'}
+                    </button>
+                  )}
+                  {(editKeepMedia.length + editNewPreviews.length) < 4 && (
+                    <>
+                      <input ref={editFileRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm" multiple style={{ display: 'none' }}
+                        onChange={e => {
+                          const files = Array.from(e.target.files).slice(0, 4 - editKeepMedia.length - editNewPreviews.length)
+                          setEditNewFiles(prev => [...prev, ...files])
+                          setEditNewPreviews(prev => [...prev, ...files.map(f => ({ url: URL.createObjectURL(f), type: f.type.startsWith('video/') ? 'video' : 'image' }))])
+                          e.target.value = ''
+                        }}
+                      />
+                      <button className="p-post-edit-add-media" onClick={() => editFileRef.current?.click()}>
+                        📷 {lang === 'da' ? 'Tilføj' : 'Add'}
+                      </button>
+                    </>
+                  )}
+                  <div style={{ flex: 1 }} />
+                  <button className="p-post-edit-cancel" onClick={() => {
+                    editNewPreviews.forEach(p => URL.revokeObjectURL(p.url))
+                    setEditingPost(null); setEditText(''); setEditKeepMedia([]); setEditNewFiles([]); setEditNewPreviews([])
+                  }}>{lang === 'da' ? 'Annuller' : 'Cancel'}</button>
                   <button className="p-post-edit-save" onClick={() => handleSaveEdit(post.id)}>{lang === 'da' ? 'Gem' : 'Save'}</button>
                 </div>
               </div>

@@ -118,11 +118,24 @@ export async function apiToggleLike(postId) {
   return await request(`/api/feed/${postId}/like`, { method: 'POST' })
 }
 
-export async function apiEditPost(postId, text) {
-  return await request(`/api/feed/${postId}`, {
-    method: 'PUT',
-    body: JSON.stringify({ text }),
-  })
+export async function apiEditPost(postId, text, keepMedia = [], newFiles = []) {
+  const form = new FormData()
+  form.append('text', text)
+  form.append('keepMedia', JSON.stringify(keepMedia))
+  for (const file of newFiles) {
+    form.append('media', file)
+  }
+  try {
+    const sid = getSessionId()
+    const h = {}
+    if (sid) h['X-Session-Id'] = sid
+    const res = await fetch(`${API_BASE}/api/feed/${postId}`, { method: 'PUT', headers: h, body: form })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      return { error: body.error || `HTTP ${res.status}` }
+    }
+    return await res.json()
+  } catch { return null }
 }
 
 export async function apiDeletePost(postId) {
