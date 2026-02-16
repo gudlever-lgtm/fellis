@@ -192,6 +192,9 @@ function FeedPage({ lang, t, currentUser }) {
   const [expandedComments, setExpandedComments] = useState(new Set())
   const [commentTexts, setCommentTexts] = useState({})
   const [commentMedia, setCommentMedia] = useState({})
+  const [reactions, setReactions] = useState({})
+  const [reactionPicker, setReactionPicker] = useState(null)
+  const pickerTimeout = useRef(null)
   const fileInputRef = useRef(null)
   const commentFileRefs = useRef({})
 
@@ -250,13 +253,36 @@ function FeedPage({ lang, t, currentUser }) {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }, [newPostText, mediaFiles, mediaPreviews, currentUser.name])
 
+  const REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '😡']
+
   const toggleLike = useCallback((id) => {
+    setReactions(prev => {
+      if (prev[id]) {
+        const next = { ...prev }
+        delete next[id]
+        return next
+      }
+      return { ...prev, [id]: '👍' }
+    })
     setLikedPosts(prev => {
       const next = new Set(prev)
       next.has(id) ? next.delete(id) : next.add(id)
       return next
     })
     apiToggleLike(id).catch(() => {})
+  }, [])
+
+  const selectReaction = useCallback((postId, emoji) => {
+    setReactions(prev => ({ ...prev, [postId]: emoji }))
+    setLikedPosts(prev => {
+      const next = new Set(prev)
+      if (!next.has(postId)) {
+        next.add(postId)
+        apiToggleLike(postId).catch(() => {})
+      }
+      return next
+    })
+    setReactionPicker(null)
   }, [])
 
   const toggleComments = useCallback((id) => {
@@ -371,15 +397,27 @@ function FeedPage({ lang, t, currentUser }) {
             <div className="p-post-body">{post.text[lang]}</div>
             {post.media && <PostMedia media={post.media} />}
             <div className="p-post-stats">
-              <span>{post.likes + (liked ? 1 : 0)} {t.like.toLowerCase()}</span>
+              <span>{liked && reactions[post.id] ? reactions[post.id] + ' ' : ''}{post.likes + (liked ? 1 : 0)} {t.like.toLowerCase()}</span>
               <span onClick={() => toggleComments(post.id)} style={{ cursor: 'pointer' }}>
                 {post.comments.length} {t.comment.toLowerCase()}{post.comments.length !== 1 ? (lang === 'da' ? 'er' : 's') : ''}
               </span>
             </div>
             <div className="p-post-actions">
-              <button className={`p-action-btn${liked ? ' liked' : ''}`} onClick={() => toggleLike(post.id)}>
-                {liked ? '❤️' : '🤍'} {t.like}
-              </button>
+              <div className="p-like-wrapper"
+                onMouseEnter={() => { pickerTimeout.current = setTimeout(() => setReactionPicker(post.id), 500) }}
+                onMouseLeave={() => { clearTimeout(pickerTimeout.current); setReactionPicker(null) }}
+              >
+                {reactionPicker === post.id && (
+                  <div className="p-reaction-picker">
+                    {REACTIONS.map(emoji => (
+                      <button key={emoji} className="p-reaction-emoji" onClick={() => selectReaction(post.id, emoji)}>{emoji}</button>
+                    ))}
+                  </div>
+                )}
+                <button className={`p-action-btn${liked ? ' liked' : ''}`} onClick={() => toggleLike(post.id)}>
+                  {liked ? (reactions[post.id] || '👍') : '🤍'} {t.like}
+                </button>
+              </div>
               <button className="p-action-btn" onClick={() => toggleComments(post.id)}>
                 💬 {t.comment}
               </button>
