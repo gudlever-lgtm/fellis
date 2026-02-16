@@ -1694,6 +1694,172 @@
   }
 }
 
+/* ── Invite banner (landing page, arriving via invite link) ── */
+.invite-banner {
+  background: linear-gradient(135deg, #F0FAF4 0%, #d6f0e0 100%);
+  border-bottom: 1px solid #c0dfc8;
+  padding: 12px 24px;
+  text-align: center;
+}
+.invite-banner-text {
+  font-size: 15px;
+  color: #2D6A4F;
+}
+.invite-banner-text strong {
+  font-weight: 700;
+}
+
+/* ── Invite link section (Landing Step 3) ── */
+.invite-link-section {
+  background: #F0FAF4;
+  border: 1px solid #d0e8d8;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+  text-align: center;
+}
+.invite-link-title {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: #2D6A4F;
+  margin-bottom: 6px;
+}
+.invite-link-desc {
+  font-size: 13px;
+  color: #6B6560;
+  margin-bottom: 14px;
+  line-height: 1.5;
+}
+.invite-link-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.invite-link-input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid #d0e8d8;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  color: #2D6A4F;
+  background: #fff;
+  outline: none;
+  cursor: text;
+}
+.invite-link-input:focus {
+  border-color: #2D6A4F;
+}
+.invite-link-copy-btn {
+  background: #2D6A4F;
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+  transition: background 0.2s;
+}
+.invite-link-copy-btn:hover {
+  background: #40916C;
+}
+.fb-share-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: #1877F2;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 24px;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+.fb-share-btn:hover {
+  background: #1565d8;
+}
+
+/* ── Invite divider ── */
+.invite-divider {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  color: #A09890;
+  font-size: 13px;
+}
+.invite-divider::before,
+.invite-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #E8E4DF;
+}
+
+/* ── Platform invite card (Friends page) ── */
+.p-invite-card {
+  background: linear-gradient(135deg, #F0FAF4 0%, #fff 100%);
+  border-color: #d0e8d8;
+}
+.p-invite-desc {
+  font-size: 13px;
+  color: #6B6560;
+  margin-bottom: 14px;
+  line-height: 1.5;
+}
+.p-invite-link-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.p-invite-link-input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid #d0e8d8;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  color: #2D6A4F;
+  background: #fff;
+  outline: none;
+  cursor: text;
+}
+.p-invite-link-input:focus {
+  border-color: #2D6A4F;
+}
+.p-invite-copy-btn {
+  background: #2D6A4F;
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+  transition: background 0.2s;
+}
+.p-invite-copy-btn:hover {
+  background: #40916C;
+}
+.p-fb-share-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: #1877F2;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 24px;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+.p-fb-share-btn:hover {
+  background: #1565d8;
+}
+.p-fb-share-btn .fb-icon {
+  font-size: 18px;
+}
+
 /* ── Extra small screens ── */
 @media (max-width: 380px) {
   .p-nav-left .nav-logo {

@@ -223,23 +223,50 @@ app.post('/api/auth/login', async (req, res) => {
 
 // POST /api/auth/register — create account after migration
 app.post('/api/auth/register', async (req, res) => {
-  const { name, email, password, lang } = req.body
+  const { name, email, password, lang, inviteToken } = req.body
   if (!name || !email || !password) return res.status(400).json({ error: 'Name, email, and password required' })
   if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' })
   try {
     const hash = crypto.createHash('sha256').update(password).digest('hex')
     const handle = '@' + name.toLowerCase().replace(/\s+/g, '.')
     const initials = name.split(' ').map(n => n[0]).join('').toUpperCase()
+    const userInviteToken = crypto.randomBytes(32).toString('hex')
     const [result] = await pool.query(
-      'INSERT INTO users (name, handle, initials, email, password_hash, password_plain, join_date) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [name, handle, initials, email, hash, password, new Date().toISOString()]
+      'INSERT INTO users (name, handle, initials, email, password_hash, password_plain, join_date, invite_token) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [name, handle, initials, email, hash, password, new Date().toISOString(), userInviteToken]
     )
+    const newUserId = result.insertId
     const sessionId = crypto.randomUUID()
     await pool.query(
       'INSERT INTO sessions (id, user_id, lang, expires_at) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY))',
-      [sessionId, result.insertId, lang || 'da']
+      [sessionId, newUserId, lang || 'da']
     )
-    res.json({ sessionId, userId: result.insertId })
+
+    // If registered via invite link, auto-connect with inviter
+    if (inviteToken) {
+      try {
+        const [inviter] = await pool.query('SELECT id FROM users WHERE invite_token = ?', [inviteToken])
+        if (inviter.length > 0) {
+          const inviterId = inviter[0].id
+          await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [newUserId, inviterId])
+          await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [inviterId, newUserId])
+        }
+        const [invitation] = await pool.query(
+          'SELECT id, inviter_id FROM invitations WHERE invite_token = ? AND status = ?',
+          [inviteToken, 'pending']
+        )
+        if (invitation.length > 0) {
+          const inviterId = invitation[0].inviter_id
+          await pool.query('UPDATE invitations SET status = ?, accepted_by = ? WHERE id = ?', ['accepted', newUserId, invitation[0].id])
+          await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [newUserId, inviterId])
+          await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [inviterId, newUserId])
+        }
+      } catch (err) {
+        console.error('Invite auto-connect error:', err)
+      }
+    }
+
+    res.json({ sessionId, userId: newUserId })
   } catch (err) {
     if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Email or handle already exists' })
     res.status(500).json({ error: 'Registration failed' })
@@ -396,10 +423,11 @@ app.get('/api/auth/facebook/callback', async (req, res) => {
       const handle = '@' + (fbProfile.name || 'user').toLowerCase().replace(/\s+/g, '.')
       const initials = (fbProfile.name || 'U').split(' ').map(n => n[0]).join('').toUpperCase()
       const avatarUrl = fbProfile.picture?.data?.url || null
+      const userInviteToken = crypto.randomBytes(32).toString('hex')
       const [result] = await pool.query(
-        `INSERT INTO users (name, handle, initials, email, join_date, avatar_url, facebook_id, fb_access_token, fb_token_expires_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [fbProfile.name, handle, initials, fbProfile.email || null, new Date().toISOString(), avatarUrl, fbProfile.id, encryptedToken, tokenExpiry]
+        `INSERT INTO users (name, handle, initials, email, join_date, avatar_url, facebook_id, fb_access_token, fb_token_expires_at, invite_token)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [fbProfile.name, handle, initials, fbProfile.email || null, new Date().toISOString(), avatarUrl, fbProfile.id, encryptedToken, tokenExpiry, userInviteToken]
       )
       userId = result.insertId
     }
@@ -781,6 +809,88 @@ app.post('/api/feed/:id/comment', authenticate, async (req, res) => {
     res.json({ author: users[0].name, text: { da: text, en: text } })
   } catch (err) {
     res.status(500).json({ error: 'Failed to add comment' })
+  }
+})
+
+// ── Invite routes ──
+
+// GET /api/invite/:token — public: get inviter info from invite link
+app.get('/api/invite/:token', async (req, res) => {
+  const { token } = req.params
+  try {
+    const [users] = await pool.query(
+      'SELECT id, name, avatar_url FROM users WHERE invite_token = ?',
+      [token]
+    )
+    if (users.length > 0) {
+      return res.json({ inviter: { name: users[0].name, avatarUrl: users[0].avatar_url } })
+    }
+    const [invitations] = await pool.query(
+      `SELECT u.name, u.avatar_url FROM invitations i
+       JOIN users u ON i.inviter_id = u.id
+       WHERE i.invite_token = ? AND i.status = 'pending'`,
+      [token]
+    )
+    if (invitations.length > 0) {
+      return res.json({ inviter: { name: invitations[0].name, avatarUrl: invitations[0].avatar_url } })
+    }
+    res.status(404).json({ error: 'Invite not found' })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to load invite' })
+  }
+})
+
+// GET /api/invites/link — get current user's personal invite link
+app.get('/api/invites/link', authenticate, async (req, res) => {
+  try {
+    const [users] = await pool.query('SELECT invite_token FROM users WHERE id = ?', [req.userId])
+    if (users.length === 0) return res.status(404).json({ error: 'User not found' })
+    let token = users[0].invite_token
+    if (!token) {
+      token = crypto.randomBytes(32).toString('hex')
+      await pool.query('UPDATE users SET invite_token = ? WHERE id = ?', [token, req.userId])
+    }
+    res.json({ token })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to get invite link' })
+  }
+})
+
+// POST /api/invites — create individual invitations for selected friends
+app.post('/api/invites', authenticate, async (req, res) => {
+  const { friends } = req.body
+  if (!friends?.length) return res.status(400).json({ error: 'No friends selected' })
+  try {
+    const created = []
+    for (const friend of friends) {
+      const token = crypto.randomBytes(32).toString('hex')
+      await pool.query(
+        'INSERT INTO invitations (inviter_id, invite_token, invitee_name) VALUES (?, ?, ?)',
+        [req.userId, token, friend.name || null]
+      )
+      created.push({ name: friend.name, token })
+    }
+    res.json({ invitations: created, count: created.length })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to create invitations' })
+  }
+})
+
+// GET /api/invites — list invitations sent by current user
+app.get('/api/invites', authenticate, async (req, res) => {
+  try {
+    const [invitations] = await pool.query(
+      `SELECT i.id, i.invite_token, i.invitee_name, i.status, i.created_at,
+              u.name as accepted_by_name
+       FROM invitations i
+       LEFT JOIN users u ON i.accepted_by = u.id
+       WHERE i.inviter_id = ?
+       ORDER BY i.created_at DESC`,
+      [req.userId]
+    )
+    res.json(invitations)
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to load invitations' })
   }
 })
 

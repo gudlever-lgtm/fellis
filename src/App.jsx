@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import Landing from './Landing.jsx'
 import Platform from './Platform.jsx'
-import { apiCheckSession, apiLogout, apiGiveConsent } from './api.js'
+import { apiCheckSession, apiLogout, apiGiveConsent, apiGetInviteInfo } from './api.js'
 import './App.css'
 
 // GDPR Consent Dialog translations
@@ -117,8 +117,10 @@ function App() {
   })
   // GDPR: Show consent dialog after Facebook OAuth before importing data
   const [showConsent, setShowConsent] = useState(false)
+  const [inviteToken, setInviteToken] = useState(null)
+  const [inviterName, setInviterName] = useState(null)
 
-  // On mount: check for Facebook OAuth callback or validate existing session
+  // On mount: check for Facebook OAuth callback, invite links, or validate existing session
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const fbSession = params.get('fb_session')
@@ -141,6 +143,22 @@ function App() {
       // Clean up URL params
       window.history.replaceState({}, '', window.location.pathname)
       return
+    }
+
+    // Check for invite token in URL
+    const invite = params.get('invite')
+    if (invite) {
+      setInviteToken(invite)
+      localStorage.setItem('fellis_invite_token', invite)
+      apiGetInviteInfo(invite).then(data => {
+        if (data?.inviter?.name) {
+          setInviterName(data.inviter.name)
+        }
+      })
+      window.history.replaceState({}, '', window.location.pathname)
+    } else {
+      const storedInvite = localStorage.getItem('fellis_invite_token')
+      if (storedInvite) setInviteToken(storedInvite)
     }
 
     const fbError = params.get('fb_error')
@@ -167,6 +185,9 @@ function App() {
     setView('platform')
     localStorage.setItem('fellis_logged_in', 'true')
     localStorage.setItem('fellis_lang', selectedLang)
+    localStorage.removeItem('fellis_invite_token')
+    setInviteToken(null)
+    setInviterName(null)
   }, [])
 
   const handleLogout = useCallback(() => {
@@ -203,7 +224,7 @@ function App() {
     )
   }
 
-  return <Landing onEnterPlatform={handleEnterPlatform} />
+  return <Landing onEnterPlatform={handleEnterPlatform} inviteToken={inviteToken} inviterName={inviterName} />
 }
 
 export default App
