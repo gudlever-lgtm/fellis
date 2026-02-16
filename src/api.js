@@ -118,6 +118,17 @@ export async function apiToggleLike(postId) {
   return await request(`/api/feed/${postId}/like`, { method: 'POST' })
 }
 
+export async function apiEditPost(postId, text) {
+  return await request(`/api/feed/${postId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ text }),
+  })
+}
+
+export async function apiDeletePost(postId) {
+  return await request(`/api/feed/${postId}`, { method: 'DELETE' })
+}
+
 export async function apiAddComment(postId, text) {
   return await request(`/api/feed/${postId}/comment`, {
     method: 'POST',

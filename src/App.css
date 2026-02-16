@@ -1036,6 +1036,103 @@
   font-size: 12px;
   color: #A09890;
 }
+.p-post-edited {
+  font-style: italic;
+  color: #B0A8A0;
+}
+.p-post-menu-wrapper {
+  position: relative;
+  margin-left: auto;
+}
+.p-post-menu-btn {
+  background: none;
+  border: none;
+  font-size: 16px;
+  color: #A09890;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 50%;
+  letter-spacing: 1px;
+  transition: background 0.15s;
+}
+.p-post-menu-btn:hover {
+  background: #F0FAF4;
+  color: #3A3330;
+}
+.p-post-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: #fff;
+  border: 1px solid #E8E4DF;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  z-index: 20;
+  min-width: 160px;
+  overflow: hidden;
+}
+.p-post-menu button {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  background: none;
+  border: none;
+  text-align: left;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-family: 'DM Sans', sans-serif;
+}
+.p-post-menu button:hover {
+  background: #F0FAF4;
+}
+.p-post-menu-delete {
+  color: #d32f2f;
+}
+.p-post-menu-delete:hover {
+  background: #fde8e8 !important;
+}
+.p-post-edit {
+  padding: 0 0 8px;
+}
+.p-post-edit-input {
+  width: 100%;
+  border: 1px solid #2D6A4F;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-family: 'DM Sans', sans-serif;
+  resize: none;
+  min-height: 60px;
+  outline: none;
+  box-sizing: border-box;
+}
+.p-post-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+.p-post-edit-cancel {
+  background: none;
+  border: 1px solid #E8E4DF;
+  padding: 6px 16px;
+  border-radius: 16px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+}
+.p-post-edit-save {
+  background: #2D6A4F;
+  color: #fff;
+  border: none;
+  padding: 6px 16px;
+  border-radius: 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+}
 .p-post-body {
   font-size: 15px;
   line-height: 1.6;

@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { PT, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchMessages, apiSendMessage, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiEditPost, apiDeletePost, apiFetchProfile, apiFetchFriends, apiFetchMessages, apiSendMessage, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -194,6 +194,9 @@ function FeedPage({ lang, t, currentUser }) {
   const [commentMedia, setCommentMedia] = useState({})
   const [reactions, setReactions] = useState({})
   const [reactionPicker, setReactionPicker] = useState(null)
+  const [postMenu, setPostMenu] = useState(null)
+  const [editingPost, setEditingPost] = useState(null)
+  const [editText, setEditText] = useState('')
   const pickerTimeout = useRef(null)
   const fileInputRef = useRef(null)
   const commentFileRefs = useRef({})
@@ -285,6 +288,44 @@ function FeedPage({ lang, t, currentUser }) {
     setReactionPicker(null)
   }, [])
 
+  const canEditDelete = useCallback((post) => {
+    if (!post.isOwn) return false
+    if (!post.createdAt) return true
+    return Date.now() - new Date(post.createdAt).getTime() < 10 * 60 * 1000
+  }, [])
+
+  const handleEditPost = useCallback((post) => {
+    setEditingPost(post.id)
+    setEditText(post.text[lang] || post.text.da)
+    setPostMenu(null)
+  }, [lang])
+
+  const handleSaveEdit = useCallback((postId) => {
+    if (!editText.trim()) return
+    apiEditPost(postId, editText.trim()).then(data => {
+      if (data && !data.error) {
+        setPosts(prev => prev.map(p => p.id === postId ? { ...p, text: { da: editText.trim(), en: editText.trim() }, edited: true } : p))
+      } else {
+        alert(data?.error || (lang === 'da' ? 'Kunne ikke redigere' : 'Could not edit'))
+      }
+    })
+    setEditingPost(null)
+    setEditText('')
+  }, [editText, lang])
+
+  const handleDeletePost = useCallback((post) => {
+    setPostMenu(null)
+    const msg = lang === 'da' ? 'Er du sikker på du vil slette dette opslag?' : 'Are you sure you want to delete this post?'
+    if (!confirm(msg)) return
+    apiDeletePost(post.id).then(data => {
+      if (data && !data.error) {
+        setPosts(prev => prev.filter(p => p.id !== post.id))
+      } else {
+        alert(data?.error || (lang === 'da' ? 'Kunne ikke slette' : 'Could not delete'))
+      }
+    })
+  }, [lang])
+
   const toggleComments = useCallback((id) => {
     setExpandedComments(prev => {
       const next = new Set(prev)
@@ -370,8 +411,8 @@ function FeedPage({ lang, t, currentUser }) {
             <span className="p-post-help-icon">?</span>
             <div className="p-post-help-tooltip">
               {lang === 'da'
-                ? '• Shift+Enter for linjeskift\n• Enter for at poste\n• Ctrl+V for at indsætte billeder\n• Op til 4 billeder/videoer'
-                : '• Shift+Enter for new line\n• Enter to post\n• Ctrl+V to paste images\n• Up to 4 images/videos'}
+                ? '• Shift+Enter for linjeskift\n• Enter for at poste\n• Ctrl+V for at indsætte billeder\n• Op til 4 billeder/videoer\n• ••• på dine opslag: rediger/slet (10 min)'
+                : '• Shift+Enter for new line\n• Enter to post\n• Ctrl+V to paste images\n• Up to 4 images/videos\n• ••• on your posts: edit/delete (10 min)'}
             </div>
           </div>
           </div>
@@ -414,12 +455,41 @@ function FeedPage({ lang, t, currentUser }) {
               <div className="p-avatar-sm" style={{ background: nameToColor(post.author) }}>
                 {getInitials(post.author)}
               </div>
-              <div>
+              <div style={{ flex: 1 }}>
                 <div className="p-post-author">{post.author}</div>
-                <div className="p-post-time">{post.time[lang]}</div>
+                <div className="p-post-time">
+                  {post.time[lang]}
+                  {post.edited && <span className="p-post-edited"> · {lang === 'da' ? 'redigeret' : 'edited'}</span>}
+                </div>
               </div>
+              {post.isOwn && canEditDelete(post) && (
+                <div className="p-post-menu-wrapper">
+                  <button className="p-post-menu-btn" onClick={() => setPostMenu(postMenu === post.id ? null : post.id)}>•••</button>
+                  {postMenu === post.id && (
+                    <div className="p-post-menu">
+                      <button onClick={() => handleEditPost(post)}>{lang === 'da' ? 'Rediger opslag' : 'Edit post'}</button>
+                      <button className="p-post-menu-delete" onClick={() => handleDeletePost(post)}>{lang === 'da' ? 'Slet opslag' : 'Delete post'}</button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-            <div className="p-post-body">{post.text[lang]}</div>
+            {editingPost === post.id ? (
+              <div className="p-post-edit">
+                <textarea
+                  className="p-post-edit-input"
+                  value={editText}
+                  onChange={e => setEditText(e.target.value)}
+                  autoFocus
+                />
+                <div className="p-post-edit-actions">
+                  <button className="p-post-edit-cancel" onClick={() => { setEditingPost(null); setEditText('') }}>{lang === 'da' ? 'Annuller' : 'Cancel'}</button>
+                  <button className="p-post-edit-save" onClick={() => handleSaveEdit(post.id)}>{lang === 'da' ? 'Gem' : 'Save'}</button>
+                </div>
+              </div>
+            ) : (
+              <div className="p-post-body">{post.text[lang]}</div>
+            )}
             {post.media && <PostMedia media={post.media} />}
             <div className="p-post-stats">
               <span>{liked && reactions[post.id] ? reactions[post.id] + ' ' : ''}{post.likes + (liked ? 1 : 0)} {t.like.toLowerCase()}</span>

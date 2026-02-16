@@ -635,7 +635,7 @@ app.post('/api/profile/avatar', authenticate, upload.single('avatar'), async (re
 app.get('/api/feed', authenticate, async (req, res) => {
   try {
     const [posts] = await pool.query(
-      `SELECT p.id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.created_at
+      `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.created_at, p.edited_at
        FROM posts p JOIN users u ON p.author_id = u.id
        WHERE p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?)
        ORDER BY p.created_at DESC`,
@@ -669,11 +669,14 @@ app.get('/api/feed', authenticate, async (req, res) => {
       return {
         id: p.id,
         author: p.author,
+        isOwn: p.author_id === req.userId,
         time: { da: p.time_da, en: p.time_en },
         text: { da: p.text_da, en: p.text_en },
         likes: p.likes,
         liked: likedSet.has(p.id),
         media,
+        edited: !!p.edited_at,
+        createdAt: p.created_at,
         comments: commentsByPost[p.id] || [],
       }
     })
@@ -724,6 +727,40 @@ app.post('/api/feed', authenticate, upload.array('media', 4), async (req, res) =
     })
   } catch (err) {
     res.status(500).json({ error: 'Failed to create post' })
+  }
+})
+
+// PUT /api/feed/:id — edit a post (10 min limit)
+app.put('/api/feed/:id', authenticate, async (req, res) => {
+  const postId = parseInt(req.params.id)
+  const { text } = req.body
+  if (!text) return res.status(400).json({ error: 'Post text required' })
+  try {
+    const [posts] = await pool.query('SELECT author_id, created_at FROM posts WHERE id = ?', [postId])
+    if (posts.length === 0) return res.status(404).json({ error: 'Post not found' })
+    if (posts[0].author_id !== req.userId) return res.status(403).json({ error: 'Not your post' })
+    const elapsed = Date.now() - new Date(posts[0].created_at).getTime()
+    if (elapsed > 10 * 60 * 1000) return res.status(403).json({ error: 'Edit window expired (10 min)' })
+    await pool.query('UPDATE posts SET text_da = ?, text_en = ?, edited_at = NOW() WHERE id = ?', [text, text, postId])
+    res.json({ success: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to edit post' })
+  }
+})
+
+// DELETE /api/feed/:id — delete a post (10 min limit)
+app.delete('/api/feed/:id', authenticate, async (req, res) => {
+  const postId = parseInt(req.params.id)
+  try {
+    const [posts] = await pool.query('SELECT author_id, created_at FROM posts WHERE id = ?', [postId])
+    if (posts.length === 0) return res.status(404).json({ error: 'Post not found' })
+    if (posts[0].author_id !== req.userId) return res.status(403).json({ error: 'Not your post' })
+    const elapsed = Date.now() - new Date(posts[0].created_at).getTime()
+    if (elapsed > 10 * 60 * 1000) return res.status(403).json({ error: 'Delete window expired (10 min)' })
+    await pool.query('DELETE FROM posts WHERE id = ?', [postId])
+    res.json({ success: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete post' })
   }
 })
 
