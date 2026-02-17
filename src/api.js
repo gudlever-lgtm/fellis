@@ -51,6 +51,24 @@ export async function apiRegister(name, email, password, lang) {
   return data
 }
 
+export async function apiForgotPassword(email) {
+  return await request('/api/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  })
+}
+
+export async function apiResetPassword(token, password) {
+  const data = await request('/api/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ token, password }),
+  })
+  if (data?.sessionId) {
+    localStorage.setItem('fellis_session_id', data.sessionId)
+  }
+  return data
+}
+
 export async function apiCheckSession() {
   if (!getSessionId()) return null
   return await request('/api/auth/session')
@@ -100,6 +118,30 @@ export async function apiToggleLike(postId) {
   return await request(`/api/feed/${postId}/like`, { method: 'POST' })
 }
 
+export async function apiEditPost(postId, text, keepMedia = [], newFiles = []) {
+  const form = new FormData()
+  form.append('text', text)
+  form.append('keepMedia', JSON.stringify(keepMedia))
+  for (const file of newFiles) {
+    form.append('media', file)
+  }
+  try {
+    const sid = getSessionId()
+    const h = {}
+    if (sid) h['X-Session-Id'] = sid
+    const res = await fetch(`${API_BASE}/api/feed/${postId}`, { method: 'PUT', headers: h, body: form })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      return { error: body.error || `HTTP ${res.status}` }
+    }
+    return await res.json()
+  } catch { return null }
+}
+
+export async function apiDeletePost(postId) {
+  return await request(`/api/feed/${postId}`, { method: 'DELETE' })
+}
+
 export async function apiAddComment(postId, text) {
   return await request(`/api/feed/${postId}/comment`, {
     method: 'POST',
@@ -133,6 +175,37 @@ export async function apiSendMessage(friendId, text) {
 // Facebook OAuth
 export function getFacebookAuthUrl(lang) {
   return `${API_BASE}/api/auth/facebook?lang=${lang}`
+}
+
+// GDPR Compliance endpoints
+export async function apiGiveConsent(consentTypes) {
+  return await request('/api/gdpr/consent', {
+    method: 'POST',
+    body: JSON.stringify({ consent_types: consentTypes }),
+  })
+}
+
+export async function apiGetConsentStatus() {
+  return await request('/api/gdpr/consent')
+}
+
+export async function apiWithdrawConsent(consentType) {
+  return await request('/api/gdpr/consent/withdraw', {
+    method: 'POST',
+    body: JSON.stringify({ consent_type: consentType }),
+  })
+}
+
+export async function apiDeleteFacebookData() {
+  return await request('/api/gdpr/facebook-data', { method: 'DELETE' })
+}
+
+export async function apiDeleteAccount() {
+  return await request('/api/gdpr/account', { method: 'DELETE' })
+}
+
+export async function apiExportData() {
+  return await request('/api/gdpr/export')
 }
 
 // Profile avatar
