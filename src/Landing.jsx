@@ -11,6 +11,12 @@ const T = {
     headline: 'Flyt dit sociale liv til Europa',
     subtitle: 'Migrer dine Facebook-data sikkert til fellis.eu — den nye danske platform bygget til dig, ikke til annoncører.',
     cta: 'Kom i gang',
+    fbCardTitle: 'Migrer fra Facebook',
+    fbCardDesc: 'Importer dine opslag, fotos og venner sikkert til fellis.eu.',
+    fbCardBtn: 'Kom i gang med Facebook',
+    createCardTitle: 'Opret ny konto',
+    createCardDesc: 'Start frisk på fellis.eu uden at importere fra Facebook.',
+    createCardBtn: 'Opret konto',
     trustEncrypt: 'End-to-end krypteret',
     trustEU: 'Hostet i EU',
     trustDelete: 'Data slettet efter migrering',
@@ -84,6 +90,12 @@ const T = {
     headline: 'Move your social life to Europe',
     subtitle: 'Securely migrate your Facebook data to fellis.eu — the new Danish platform built for you, not advertisers.',
     cta: 'Get started',
+    fbCardTitle: 'Migrate from Facebook',
+    fbCardDesc: 'Securely import your posts, photos and friends to fellis.eu.',
+    fbCardBtn: 'Get started with Facebook',
+    createCardTitle: 'Create new account',
+    createCardDesc: 'Start fresh on fellis.eu without importing from Facebook.',
+    createCardBtn: 'Create account',
     trustEncrypt: 'End-to-end encrypted',
     trustEU: 'EU hosted',
     trustDelete: 'Data deleted after migration',
@@ -161,6 +173,7 @@ export default function Landing({ onEnterPlatform }) {
   const [selectedFriends, setSelectedFriends] = useState(new Set(FRIENDS.map((_, i) => i)))
   const [inviteLoading, setInviteLoading] = useState(false)
   const [invitedCount, setInvitedCount] = useState(0)
+  const [directSignup, setDirectSignup] = useState(false)
 
   // Login modal state
   const [loginEmail, setLoginEmail] = useState('')
@@ -319,16 +332,32 @@ export default function Landing({ onEnterPlatform }) {
       {/* Landing */}
       {step === 0 && (
         <div className="landing">
-          <div className="migration-visual">
-            <div className="brand-box brand-fb">f</div>
-            <div className="dots-container">
-              <div className="dot" /><div className="dot" /><div className="dot" /><div className="dot" /><div className="dot" />
-            </div>
-            <div className="brand-box brand-some">F</div>
-          </div>
           <h1>{t.headline}</h1>
           <p className="landing-subtitle">{t.subtitle}</p>
-          <button className="cta-btn" onClick={() => setStep(1)}>{t.cta}</button>
+          <div className="landing-cards">
+            {/* Facebook migration card */}
+            <div className="landing-card landing-card-fb">
+              <div className="landing-card-visual">
+                <div className="brand-box brand-fb" style={{ width: 56, height: 56, fontSize: 22 }}>f</div>
+                <div className="dots-container" style={{ gap: 6 }}>
+                  <div className="dot" /><div className="dot" /><div className="dot" />
+                </div>
+                <div className="brand-box brand-some" style={{ width: 56, height: 56, fontSize: 22 }}>F</div>
+              </div>
+              <h3>{t.fbCardTitle}</h3>
+              <p>{t.fbCardDesc}</p>
+              <button className="landing-card-btn landing-card-btn-fb" onClick={() => setStep(1)}>{t.fbCardBtn}</button>
+            </div>
+            {/* Create account card */}
+            <div className="landing-card landing-card-create">
+              <div className="landing-card-visual">
+                <div className="brand-box brand-some" style={{ width: 72, height: 72, fontSize: 28 }}>F</div>
+              </div>
+              <h3>{t.createCardTitle}</h3>
+              <p>{t.createCardDesc}</p>
+              <button className="landing-card-btn landing-card-btn-create" onClick={() => { setDirectSignup(true); setStep(4) }}>{t.createCardBtn}</button>
+            </div>
+          </div>
           <div className="trust-row">
             <div className="trust-item"><div className="trust-icon">🔒</div><span className="trust-label">{t.trustEncrypt}</span></div>
             <div className="trust-item"><div className="trust-icon">🇪🇺</div><span className="trust-label">{t.trustEU}</span></div>
@@ -337,7 +366,7 @@ export default function Landing({ onEnterPlatform }) {
         </div>
       )}
 
-      {step >= 1 && <ProgressBar step={step} t={t} />}
+      {step >= 1 && !directSignup && <ProgressBar step={step} t={t} />}
 
       {/* Step 1 — Connect Facebook (redirects to real Facebook OAuth) */}
       {step === 1 && (
@@ -420,13 +449,17 @@ export default function Landing({ onEnterPlatform }) {
       {/* Step 4 — Done + Register */}
       {step === 4 && (
         <div className="step-container done-page">
-          <div className="done-checkmark">✓</div>
-          <h2>{t.doneTitle}</h2>
-          <p className="step-subtitle">{t.doneSubtitle}</p>
-          <div className="done-stats">
-            <div className="stat-item"><div className="stat-number">{migratedCount.toLocaleString()}</div><div className="stat-label">{t.itemsMigrated}</div></div>
-            <div className="stat-item"><div className="stat-number">{invitedCount}</div><div className="stat-label">{t.friendsInvited}</div></div>
-          </div>
+          {!directSignup && (
+            <>
+              <div className="done-checkmark">✓</div>
+              <h2>{t.doneTitle}</h2>
+              <p className="step-subtitle">{t.doneSubtitle}</p>
+              <div className="done-stats">
+                <div className="stat-item"><div className="stat-number">{migratedCount.toLocaleString()}</div><div className="stat-label">{t.itemsMigrated}</div></div>
+                <div className="stat-item"><div className="stat-number">{invitedCount}</div><div className="stat-label">{t.friendsInvited}</div></div>
+              </div>
+            </>
+          )}
 
           {/* Registration form */}
           <form className="register-form" onSubmit={handleRegister}>
