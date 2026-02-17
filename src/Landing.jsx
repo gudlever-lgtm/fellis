@@ -187,6 +187,7 @@ export default function Landing({ onEnterPlatform }) {
   const [regPassword, setRegPassword] = useState('')
   const [regError, setRegError] = useState('')
   const [regLoading, setRegLoading] = useState(false)
+  const [directRegister, setDirectRegister] = useState(false)
 
   const t = T[lang]
 
@@ -320,7 +321,7 @@ export default function Landing({ onEnterPlatform }) {
               <button type="button" className="fb-forgot" onClick={() => setShowLoginModal(false)}>{t.loginCancel}</button>
               <div className="fb-forgot-link" style={{ marginTop: 8 }}>
                 {t.loginNoAccount}{' '}
-                <span style={{ color: '#2D6A4F', cursor: 'pointer', fontWeight: 600 }} onClick={() => { setShowLoginModal(false); setStep(1) }}>
+                <span style={{ color: '#2D6A4F', cursor: 'pointer', fontWeight: 600 }} onClick={() => { setShowLoginModal(false); setDirectRegister(true); setStep(4) }}>
                   {t.loginSignup}
                 </span>
               </div>
@@ -366,7 +367,7 @@ export default function Landing({ onEnterPlatform }) {
         </div>
       )}
 
-      {step >= 1 && !directSignup && <ProgressBar step={step} t={t} />}
+      {step >= 1 && !directRegister && <ProgressBar step={step} t={t} />}
 
       {/* Step 1 — Connect Facebook (redirects to real Facebook OAuth) */}
       {step === 1 && (
@@ -449,7 +450,7 @@ export default function Landing({ onEnterPlatform }) {
       {/* Step 4 — Done + Register */}
       {step === 4 && (
         <div className="step-container done-page">
-          {!directSignup && (
+          {!directRegister && (
             <>
               <div className="done-checkmark">✓</div>
               <h2>{t.doneTitle}</h2>
