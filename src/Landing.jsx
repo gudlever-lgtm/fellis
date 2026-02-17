@@ -173,7 +173,6 @@ export default function Landing({ onEnterPlatform }) {
   const [selectedFriends, setSelectedFriends] = useState(new Set(FRIENDS.map((_, i) => i)))
   const [inviteLoading, setInviteLoading] = useState(false)
   const [invitedCount, setInvitedCount] = useState(0)
-  const [directSignup, setDirectSignup] = useState(false)
 
   // Login modal state
   const [loginEmail, setLoginEmail] = useState('')
@@ -356,7 +355,7 @@ export default function Landing({ onEnterPlatform }) {
               </div>
               <h3>{t.createCardTitle}</h3>
               <p>{t.createCardDesc}</p>
-              <button className="landing-card-btn landing-card-btn-create" onClick={() => { setDirectSignup(true); setStep(4) }}>{t.createCardBtn}</button>
+              <button className="landing-card-btn landing-card-btn-create" onClick={() => { setDirectRegister(true); setStep(4) }}>{t.createCardBtn}</button>
             </div>
           </div>
           <div className="trust-row">
