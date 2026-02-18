@@ -1826,6 +1826,16 @@
   .nav {
     padding: 12px 16px;
   }
+  .p-nav {
+    padding: 0 12px;
+  }
+  .nav-logo {
+    font-size: 0;
+    gap: 0;
+  }
+  .nav-logo-icon {
+    font-size: 18px;
+  }
   .p-nav-tab-label {
     display: none;
   }
@@ -2050,12 +2060,6 @@
 
 /* ── Extra small screens ── */
 @media (max-width: 380px) {
-  .p-nav-left .nav-logo {
-    font-size: 0;
-  }
-  .p-nav-left .nav-logo-icon {
-    font-size: 18px;
-  }
   .p-friends-grid {
     grid-template-columns: 1fr;
   }
