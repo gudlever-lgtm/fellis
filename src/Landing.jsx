@@ -1,6 +1,13 @@
 import { useState, useCallback } from 'react'
-import { FRIENDS, nameToColor, getInitials } from './data.js'
-import { apiLogin, apiRegister, getFacebookAuthUrl } from './api.js'
+import { nameToColor, getInitials } from './data.js'
+
+// Placeholder friends for the invite step (migration wizard only)
+const INVITE_FRIENDS = [
+  { name: 'Ven 1', mutual: 5, online: false },
+  { name: 'Ven 2', mutual: 3, online: true },
+  { name: 'Ven 3', mutual: 8, online: false },
+]
+import { apiLogin, apiRegister, apiForgotPassword, apiResetPassword, getFacebookAuthUrl, apiSendInvites } from './api.js'
 
 // ── Landing translations ──
 const T = {
@@ -51,6 +58,12 @@ const T = {
     skip: 'Spring over',
     sendInvites: 'Send invitationer',
     sendingInvites: 'Sender invitationer...',
+    inviteLinkTitle: 'Del dit invitationslink',
+    inviteLinkDesc: 'Del dette link med dine Facebook-venner, så I automatisk bliver forbundet på fellis.eu',
+    copyLink: 'Kopier link',
+    linkCopied: 'Kopieret!',
+    shareOnFacebook: 'Del på Facebook',
+    invitedBy: 'inviterer dig til fellis.eu',
     doneTitle: 'Velkommen til fellis.eu!',
     doneSubtitle: 'Din migrering er fuldført. Dit nye digitale hjem venter.',
     itemsMigrated: 'Elementer migreret',
@@ -75,6 +88,18 @@ const T = {
     loginError: 'Ugyldig e-mail eller adgangskode',
     loginNoAccount: 'Har du ikke en konto?',
     loginSignup: 'Kom i gang',
+    forgotPassword: 'Glemt adgangskode?',
+    forgotTitle: 'Nulstil adgangskode',
+    forgotEmail: 'Din e-mail',
+    forgotSubmit: 'Send nulstilingslink',
+    forgotSent: 'Nulstillingslink sendt!',
+    forgotSetNew: 'Opret ny adgangskode',
+    forgotNewPassword: 'Ny adgangskode (min. 6 tegn)',
+    forgotConfirm: 'Gem adgangskode',
+    forgotSuccess: 'Adgangskode opdateret! Du er nu logget ind.',
+    forgotError: 'Kunne ikke nulstille adgangskode',
+    forgotFbNote: 'Din konto blev oprettet via Facebook. Opret en adgangskode for at logge ind med e-mail.',
+    forgotBack: 'Tilbage til login',
     // Register fields (step 4)
     registerTitle: 'Opret din fellis.eu konto',
     registerName: 'Fulde navn',
@@ -82,6 +107,11 @@ const T = {
     registerPassword: 'Vælg adgangskode (min. 6 tegn)',
     registerSubmit: 'Opret konto & gå til profil',
     registerError: 'Kunne ikke oprette konto',
+    // Create account card (step 1)
+    createAccountTitle: 'Opret konto direkte',
+    createAccountDesc: 'Opret en konto uden Facebook — brug e-mail og adgangskode.',
+    createAccountBtn: 'Opret konto',
+    orDivider: 'eller',
   },
   en: {
     navBrand: 'fellis.eu',
@@ -130,6 +160,12 @@ const T = {
     skip: 'Skip',
     sendInvites: 'Send invitations',
     sendingInvites: 'Sending invitations...',
+    inviteLinkTitle: 'Share your invite link',
+    inviteLinkDesc: 'Share this link with your Facebook friends so you automatically connect on fellis.eu',
+    copyLink: 'Copy link',
+    linkCopied: 'Copied!',
+    shareOnFacebook: 'Share on Facebook',
+    invitedBy: 'invites you to fellis.eu',
     doneTitle: 'Welcome to fellis.eu!',
     doneSubtitle: 'Your migration is complete. Your new digital home awaits.',
     itemsMigrated: 'Items migrated',
@@ -154,6 +190,18 @@ const T = {
     loginError: 'Invalid email or password',
     loginNoAccount: "Don't have an account?",
     loginSignup: 'Get started',
+    forgotPassword: 'Forgotten password?',
+    forgotTitle: 'Reset password',
+    forgotEmail: 'Your email',
+    forgotSubmit: 'Send reset link',
+    forgotSent: 'Reset link sent!',
+    forgotSetNew: 'Set new password',
+    forgotNewPassword: 'New password (min. 6 characters)',
+    forgotConfirm: 'Save password',
+    forgotSuccess: 'Password updated! You are now logged in.',
+    forgotError: 'Could not reset password',
+    forgotFbNote: 'Your account was created via Facebook. Set a password to log in with email.',
+    forgotBack: 'Back to login',
     // Register fields (step 4)
     registerTitle: 'Create your fellis.eu account',
     registerName: 'Full name',
@@ -161,19 +209,24 @@ const T = {
     registerPassword: 'Choose a password (min. 6 characters)',
     registerSubmit: 'Create account & go to profile',
     registerError: 'Could not create account',
+    // Create account card (step 1)
+    createAccountTitle: 'Create account directly',
+    createAccountDesc: 'Create an account without Facebook — use email and password.',
+    createAccountBtn: 'Create account',
+    orDivider: 'or',
   },
 }
 
-export default function Landing({ onEnterPlatform }) {
+export default function Landing({ onEnterPlatform, inviteToken, inviterName }) {
   const [lang, setLang] = useState('da')
   const [step, setStep] = useState(0)
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [selectedContent, setSelectedContent] = useState({ profile: true, friends: true, posts: true })
   const [importLoading, setImportLoading] = useState(false)
-  const [selectedFriends, setSelectedFriends] = useState(new Set(FRIENDS.map((_, i) => i)))
+  const [selectedFriends, setSelectedFriends] = useState(new Set(INVITE_FRIENDS.map((_, i) => i)))
   const [inviteLoading, setInviteLoading] = useState(false)
   const [invitedCount, setInvitedCount] = useState(0)
-  const [directSignup, setDirectSignup] = useState(false)
+  const [inviteLinkCopied, setInviteLinkCopied] = useState(false)
 
   // Login modal state
   const [loginEmail, setLoginEmail] = useState('')
@@ -181,13 +234,24 @@ export default function Landing({ onEnterPlatform }) {
   const [loginError, setLoginError] = useState('')
   const [loginLoading, setLoginLoading] = useState(false)
 
+  // Forgot password state
+  const [forgotMode, setForgotMode] = useState(null) // null | 'email' | 'reset' | 'done'
+  const [forgotEmail, setForgotEmail] = useState('')
+  const [forgotToken, setForgotToken] = useState('')
+  const [forgotNewPw, setForgotNewPw] = useState('')
+  const [forgotError, setForgotError] = useState('')
+  const [forgotLoading, setForgotLoading] = useState(false)
+  const [forgotFbNote, setForgotFbNote] = useState(false)
+
+  // Direct signup (skipping Facebook migration)
+  const [directSignup, setDirectSignup] = useState(false)
+
   // Register state (step 4)
   const [regName, setRegName] = useState('')
   const [regEmail, setRegEmail] = useState('')
   const [regPassword, setRegPassword] = useState('')
   const [regError, setRegError] = useState('')
   const [regLoading, setRegLoading] = useState(false)
-  const [directRegister, setDirectRegister] = useState(false)
 
   const t = T[lang]
 
@@ -216,6 +280,66 @@ export default function Landing({ onEnterPlatform }) {
     setLoginLoading(false)
   }, [loginEmail, loginPassword, lang, t, onEnterPlatform])
 
+  // ── Forgot password handlers ──
+  const handleForgotSubmitEmail = useCallback(async (e) => {
+    e.preventDefault()
+    if (!forgotEmail.trim()) return
+    setForgotLoading(true)
+    setForgotError('')
+    try {
+      const data = await apiForgotPassword(forgotEmail.trim())
+      if (data?.resetToken) {
+        setForgotToken(data.resetToken)
+        setForgotFbNote(data.isFacebookUser && !data.hasPassword)
+        setForgotMode('reset')
+      } else {
+        setForgotError(t.forgotError)
+      }
+    } catch {
+      setForgotError(t.forgotError)
+    }
+    setForgotLoading(false)
+  }, [forgotEmail, t])
+
+  const handleForgotResetPw = useCallback(async (e) => {
+    e.preventDefault()
+    if (!forgotNewPw.trim() || forgotNewPw.length < 6) {
+      setForgotError(lang === 'da' ? 'Adgangskode skal være mindst 6 tegn' : 'Password must be at least 6 characters')
+      return
+    }
+    setForgotLoading(true)
+    setForgotError('')
+    try {
+      const data = await apiResetPassword(forgotToken, forgotNewPw.trim())
+      if (data?.sessionId) {
+        setForgotMode('done')
+        setTimeout(() => {
+          setShowLoginModal(false)
+          setForgotMode(null)
+          onEnterPlatform(lang)
+        }, 1500)
+      } else {
+        setForgotError(t.forgotError)
+      }
+    } catch {
+      setForgotError(t.forgotError)
+    }
+    setForgotLoading(false)
+  }, [forgotToken, forgotNewPw, lang, t, onEnterPlatform])
+
+  const openForgotPassword = useCallback(() => {
+    setForgotMode('email')
+    setForgotEmail(loginEmail)
+    setForgotError('')
+    setForgotNewPw('')
+    setForgotFbNote(false)
+  }, [loginEmail])
+
+  const closeForgotPassword = useCallback(() => {
+    setForgotMode(null)
+    setForgotError('')
+  }, [])
+
   // ── Register handler (step 4 done) ──
   const handleRegister = useCallback(async (e) => {
     e.preventDefault()
@@ -230,7 +354,7 @@ export default function Landing({ onEnterPlatform }) {
     setRegLoading(true)
     setRegError('')
     try {
-      const data = await apiRegister(regName.trim(), regEmail.trim(), regPassword.trim(), lang)
+      const data = await apiRegister(regName.trim(), regEmail.trim(), regPassword.trim(), lang, inviteToken || undefined)
       if (data?.sessionId) {
         onEnterPlatform(lang)
       } else {
@@ -241,7 +365,7 @@ export default function Landing({ onEnterPlatform }) {
       setRegError(t.registerError)
       setRegLoading(false)
     }
-  }, [regName, regEmail, regPassword, lang, t, onEnterPlatform])
+  }, [regName, regEmail, regPassword, lang, t, onEnterPlatform, inviteToken])
 
   // Redirect to real Facebook OAuth
   const handleFbClick = useCallback(() => {
@@ -262,14 +386,20 @@ export default function Landing({ onEnterPlatform }) {
   }, [])
 
   const toggleAllFriends = useCallback(() => {
-    setSelectedFriends(prev => prev.size === FRIENDS.length ? new Set() : new Set(FRIENDS.map((_, i) => i)))
+    setSelectedFriends(prev => prev.size === INVITE_FRIENDS.length ? new Set() : new Set(INVITE_FRIENDS.map((_, i) => i)))
   }, [])
 
-  const handleSendInvites = useCallback(() => {
+  const handleSendInvites = useCallback(async () => {
     setInviteLoading(true)
     const count = selectedFriends.size
+    const friendsList = Array.from(selectedFriends).map(idx => ({ name: INVITE_FRIENDS[idx].name }))
+    try {
+      await apiSendInvites(friendsList)
+    } catch {
+      // Continue even if API fails (demo mode)
+    }
     setTimeout(() => { setInviteLoading(false); setInvitedCount(count); setStep(4) }, 2000)
-  }, [selectedFriends.size])
+  }, [selectedFriends])
 
   const handleSkip = useCallback(() => { setInvitedCount(0); setStep(4) }, [])
 
@@ -292,40 +422,103 @@ export default function Landing({ onEnterPlatform }) {
 
       {/* Login Modal */}
       {showLoginModal && (
-        <div className="modal-backdrop" onClick={() => setShowLoginModal(false)}>
+        <div className="modal-backdrop" onClick={() => { setShowLoginModal(false); setForgotMode(null) }}>
           <div className="fb-modal" onClick={e => e.stopPropagation()}>
             <div className="fb-modal-header" style={{ background: '#2D6A4F' }}>
               <div className="fb-modal-logo" style={{ color: '#fff', fontFamily: "'Playfair Display', serif" }}>fellis.eu</div>
             </div>
-            <form className="fb-modal-form" onSubmit={handleLogin}>
-              <h3>{t.loginTitle}</h3>
-              <input
-                type="email"
-                placeholder={t.loginEmail}
-                value={loginEmail}
-                onChange={e => setLoginEmail(e.target.value)}
-                className="fb-input"
-                autoFocus
-              />
-              <input
-                type="password"
-                placeholder={t.loginPassword}
-                value={loginPassword}
-                onChange={e => setLoginPassword(e.target.value)}
-                className="fb-input"
-              />
-              {loginError && <div className="fb-error">{loginError}</div>}
-              <button type="submit" className="fb-login-submit" style={{ background: '#2D6A4F' }} disabled={loginLoading}>
-                {loginLoading ? '...' : t.loginSubmit}
-              </button>
-              <button type="button" className="fb-forgot" onClick={() => setShowLoginModal(false)}>{t.loginCancel}</button>
-              <div className="fb-forgot-link" style={{ marginTop: 8 }}>
-                {t.loginNoAccount}{' '}
-                <span style={{ color: '#2D6A4F', cursor: 'pointer', fontWeight: 600 }} onClick={() => { setShowLoginModal(false); setDirectRegister(true); setStep(4) }}>
-                  {t.loginSignup}
-                </span>
+
+            {/* Normal login */}
+            {!forgotMode && (
+              <form className="fb-modal-form" onSubmit={handleLogin}>
+                <h3>{t.loginTitle}</h3>
+                <input
+                  type="email"
+                  placeholder={t.loginEmail}
+                  value={loginEmail}
+                  onChange={e => setLoginEmail(e.target.value)}
+                  className="fb-input"
+                  autoFocus
+                />
+                <input
+                  type="password"
+                  placeholder={t.loginPassword}
+                  value={loginPassword}
+                  onChange={e => setLoginPassword(e.target.value)}
+                  className="fb-input"
+                />
+                {loginError && <div className="fb-error">{loginError}</div>}
+                <button type="submit" className="fb-login-submit" style={{ background: '#2D6A4F' }} disabled={loginLoading}>
+                  {loginLoading ? '...' : t.loginSubmit}
+                </button>
+                <button type="button" className="fb-forgot" onClick={openForgotPassword}>{t.forgotPassword}</button>
+                <div className="fb-forgot-link" style={{ marginTop: 8 }}>
+                  {t.loginNoAccount}{' '}
+                  <span style={{ color: '#2D6A4F', cursor: 'pointer', fontWeight: 600 }} onClick={() => { setShowLoginModal(false); setDirectSignup(true); setStep(4) }}>
+                    {t.loginSignup}
+                  </span>
+                </div>
+              </form>
+            )}
+
+            {/* Forgot password: enter email */}
+            {forgotMode === 'email' && (
+              <form className="fb-modal-form" onSubmit={handleForgotSubmitEmail}>
+                <h3>{t.forgotTitle}</h3>
+                <input
+                  type="email"
+                  placeholder={t.forgotEmail}
+                  value={forgotEmail}
+                  onChange={e => setForgotEmail(e.target.value)}
+                  className="fb-input"
+                  autoFocus
+                />
+                {forgotError && <div className="fb-error">{forgotError}</div>}
+                <button type="submit" className="fb-login-submit" style={{ background: '#2D6A4F' }} disabled={forgotLoading}>
+                  {forgotLoading ? '...' : t.forgotSubmit}
+                </button>
+                <button type="button" className="fb-forgot" onClick={closeForgotPassword}>{t.forgotBack}</button>
+              </form>
+            )}
+
+            {/* Forgot password: set new password */}
+            {forgotMode === 'reset' && (
+              <form className="fb-modal-form" onSubmit={handleForgotResetPw}>
+                <h3>{t.forgotSetNew}</h3>
+                {forgotFbNote && <div className="fb-info-note">{t.forgotFbNote}</div>}
+                <input
+                  type="password"
+                  placeholder={t.forgotNewPassword}
+                  value={forgotNewPw}
+                  onChange={e => setForgotNewPw(e.target.value)}
+                  className="fb-input"
+                  autoFocus
+                  minLength={6}
+                />
+                {forgotError && <div className="fb-error">{forgotError}</div>}
+                <button type="submit" className="fb-login-submit" style={{ background: '#2D6A4F' }} disabled={forgotLoading}>
+                  {forgotLoading ? '...' : t.forgotConfirm}
+                </button>
+                <button type="button" className="fb-forgot" onClick={closeForgotPassword}>{t.forgotBack}</button>
+              </form>
+            )}
+
+            {/* Forgot password: success */}
+            {forgotMode === 'done' && (
+              <div className="fb-modal-form" style={{ textAlign: 'center', padding: '32px 24px' }}>
+                <div style={{ fontSize: 48, marginBottom: 16 }}>✓</div>
+                <p style={{ color: '#2D6A4F', fontWeight: 600 }}>{t.forgotSuccess}</p>
               </div>
-            </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Invite banner (shown when arriving via invite link) */}
+      {inviterName && step === 0 && (
+        <div className="invite-banner">
+          <div className="invite-banner-text">
+            <strong>{inviterName}</strong> {t.invitedBy}
           </div>
         </div>
       )}
@@ -361,27 +554,44 @@ export default function Landing({ onEnterPlatform }) {
           </div>
           <div className="trust-row">
             <div className="trust-item"><div className="trust-icon">🔒</div><span className="trust-label">{t.trustEncrypt}</span></div>
-            <div className="trust-item"><div className="trust-icon">🇪🇺</div><span className="trust-label">{t.trustEU}</span></div>
+            <div className="trust-item"><div className="trust-icon">🇪🇺</div><a href="https://yggdrasilcloud.dk/" target="_blank" rel="noopener noreferrer" className="trust-label trust-link">{t.trustEU}</a></div>
             <div className="trust-item"><div className="trust-icon">🗑️</div><span className="trust-label">{t.trustDelete}</span></div>
           </div>
         </div>
       )}
 
-      {step >= 1 && !directRegister && <ProgressBar step={step} t={t} />}
+      {step >= 1 && !directSignup && <ProgressBar step={step} t={t} />}
 
-      {/* Step 1 — Connect Facebook (redirects to real Facebook OAuth) */}
+      {/* Step 1 — Connect Facebook or Create Account */}
       {step === 1 && (
         <div className="step-container">
           <h2>{t.connectTitle}</h2>
           <p className="step-subtitle">{t.connectSubtitle}</p>
-          <button className="fb-btn" onClick={handleFbClick}>
-            <span className="fb-icon">f</span>
-            {t.connectBtn}
-          </button>
-          <p className="fb-note">{lang === 'da'
-            ? 'Du bliver sendt til Facebook for at godkende. Ingen data slettes fra din Facebook-konto.'
-            : 'You will be redirected to Facebook to authorize. No data will be deleted from your Facebook account.'
-          }</p>
+          <div className="step1-options">
+            <div className="step1-card">
+              <div className="step1-card-icon" style={{ background: '#EBF4FF' }}>f</div>
+              <h4>{t.connectBtn}</h4>
+              <p className="step1-card-desc">{lang === 'da'
+                ? 'Importer dine data fra Facebook automatisk.'
+                : 'Automatically import your data from Facebook.'
+              }</p>
+              <button className="fb-btn" onClick={handleFbClick}>
+                <span className="fb-icon">f</span>
+                {t.connectBtn}
+              </button>
+            </div>
+            <div className="step1-divider">
+              <span>{t.orDivider}</span>
+            </div>
+            <div className="step1-card">
+              <div className="step1-card-icon" style={{ background: '#F0FAF4' }}>✉</div>
+              <h4>{t.createAccountTitle}</h4>
+              <p className="step1-card-desc">{t.createAccountDesc}</p>
+              <button className="btn-primary" style={{ width: '100%' }} onClick={() => { setDirectSignup(true); setStep(4) }}>
+                {t.createAccountBtn}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -417,14 +627,57 @@ export default function Landing({ onEnterPlatform }) {
             <>
               <h2>{t.inviteTitle}</h2>
               <p className="step-subtitle">{t.inviteSubtitle}</p>
+
+              {/* Shareable invite link section */}
+              <div className="invite-link-section">
+                <h4 className="invite-link-title">{t.inviteLinkTitle}</h4>
+                <p className="invite-link-desc">{t.inviteLinkDesc}</p>
+                <div className="invite-link-row">
+                  <input
+                    className="invite-link-input"
+                    value={`https://fellis.eu/?invite=personal`}
+                    readOnly
+                    onClick={e => e.target.select()}
+                  />
+                  <button
+                    className="invite-link-copy-btn"
+                    onClick={() => {
+                      navigator.clipboard.writeText('https://fellis.eu/?invite=personal').catch(() => {})
+                      setInviteLinkCopied(true)
+                      setTimeout(() => setInviteLinkCopied(false), 2000)
+                    }}
+                  >
+                    {inviteLinkCopied ? t.linkCopied : t.copyLink}
+                  </button>
+                </div>
+                <button
+                  className="fb-share-btn"
+                  onClick={() => {
+                    const shareUrl = encodeURIComponent('https://fellis.eu/?invite=personal')
+                    window.open(
+                      `https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`,
+                      'facebook-share',
+                      'width=580,height=400'
+                    )
+                  }}
+                >
+                  <span className="fb-icon">f</span>
+                  {t.shareOnFacebook}
+                </button>
+              </div>
+
+              <div className="invite-divider">
+                <span>{lang === 'da' ? 'eller vælg venner' : 'or select friends'}</span>
+              </div>
+
               <div className="friends-header">
-                <span style={{ fontSize: 14, color: '#6B6560' }}>{selectedFriends.size} / {FRIENDS.length}</span>
+                <span style={{ fontSize: 14, color: '#6B6560' }}>{selectedFriends.size} / {INVITE_FRIENDS.length}</span>
                 <button className="select-all-btn" onClick={toggleAllFriends}>
-                  {selectedFriends.size === FRIENDS.length ? t.deselectAll : t.selectAll}
+                  {selectedFriends.size === INVITE_FRIENDS.length ? t.deselectAll : t.selectAll}
                 </button>
               </div>
               <div className="friends-list">
-                {FRIENDS.map((friend, idx) => (
+                {INVITE_FRIENDS.map((friend, idx) => (
                   <div key={idx} className={`friend-item${selectedFriends.has(idx) ? ' selected' : ''}`} onClick={() => toggleFriend(idx)}>
                     <div className="friend-avatar" style={{ background: nameToColor(friend.name) }}>
                       {getInitials(friend.name)}
@@ -450,7 +703,7 @@ export default function Landing({ onEnterPlatform }) {
       {/* Step 4 — Done + Register */}
       {step === 4 && (
         <div className="step-container done-page">
-          {!directRegister && (
+          {!directSignup && (
             <>
               <div className="done-checkmark">✓</div>
               <h2>{t.doneTitle}</h2>

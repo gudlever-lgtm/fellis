@@ -305,6 +305,15 @@
   color: #6B6560;
   font-weight: 500;
 }
+.trust-link {
+  text-decoration: none;
+  color: #2D6A4F;
+  transition: color 0.2s;
+}
+.trust-link:hover {
+  text-decoration: underline;
+  color: #40916C;
+}
 
 /* ── Progress bar ── */
 .progress-bar {
@@ -380,6 +389,71 @@
   color: #6B6560;
   margin-bottom: 32px;
   font-size: 15px;
+}
+
+/* ── Step 1: Two-column options ── */
+.step1-options {
+  display: flex;
+  gap: 24px;
+  align-items: stretch;
+}
+.step1-card {
+  flex: 1;
+  background: #fff;
+  border: 2px solid #E8E4DF;
+  border-radius: 12px;
+  padding: 24px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.step1-card:hover {
+  border-color: #40916C;
+}
+.step1-card h4 {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+}
+.step1-card-desc {
+  font-size: 13px;
+  color: #6B6560;
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+.step1-card-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 700;
+  color: #1877F2;
+}
+.step1-card-icon[style*="F0FAF4"] {
+  color: #2D6A4F;
+}
+.step1-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #A09890;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 0 4px;
+}
+@media (max-width: 640px) {
+  .step1-options {
+    flex-direction: column;
+  }
+  .step1-divider {
+    padding: 4px 0;
+  }
 }
 
 /* ── Facebook connect ── */
@@ -907,6 +981,57 @@
   cursor: pointer;
 }
 
+/* ── Avatar dropdown menu ── */
+.avatar-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: #fff;
+  border: 1px solid #E8E4DF;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  min-width: 200px;
+  z-index: 100;
+  overflow: hidden;
+}
+.avatar-dropdown-header {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.avatar-dropdown-divider {
+  height: 1px;
+  background: #E8E4DF;
+}
+.avatar-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 16px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: #2D3436;
+  text-align: left;
+}
+.avatar-dropdown-item:hover {
+  background: #F5F0EB;
+}
+.avatar-dropdown-item span {
+  font-size: 16px;
+  width: 20px;
+  text-align: center;
+}
+.avatar-dropdown-danger {
+  color: #e74c3c;
+}
+.avatar-dropdown-danger:hover {
+  background: #fef2f2;
+}
+
 /* ── Content area ── */
 .p-content {
   max-width: 680px;
@@ -1044,6 +1169,7 @@
   background: #f0ede8;
 }
 .p-post-media-1 .p-media-item { max-height: 600px; border-radius: 12px; }
+.p-media-clickable { cursor: zoom-in; }
 
 /* ── Media button + previews in new post ── */
 .p-media-btn {
@@ -1285,6 +1411,73 @@
   color: #1A1A1A;
 }
 
+/* ── Login info card ── */
+.p-login-info-card {
+  margin-top: 20px;
+  padding: 20px 24px;
+}
+.p-login-info-card .p-section-title {
+  margin-top: 0;
+}
+.p-login-info {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.p-login-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+}
+.p-login-info-row:last-child {
+  border-bottom: none;
+}
+.p-login-info-label {
+  font-size: 14px;
+  color: #6B6560;
+  font-weight: 500;
+}
+.p-login-info-value {
+  font-size: 14px;
+  color: #1A1A1A;
+}
+.p-password-value {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.p-show-password-btn {
+  background: none;
+  border: 1px solid #2D6A4F;
+  color: #2D6A4F;
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.p-show-password-btn:hover {
+  background: #2D6A4F;
+  color: #fff;
+}
+.p-password-not-set {
+  color: #B0A8A0;
+  font-style: italic;
+  font-size: 13px;
+}
+.fb-info-note {
+  background: #FFF3CD;
+  border: 1px solid #FFE69C;
+  color: #664D03;
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.4;
+  margin-bottom: 4px;
+}
+
 /* ── Friends page ── */
 .p-friends-page .p-card {
   margin-bottom: 20px;
@@ -1498,6 +1691,108 @@
   border-color: #2D6A4F;
 }
 
+/* ── Feed virtual scroll sentinels ── */
+.p-feed-sentinel {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.p-feed-loading {
+  font-size: 13px;
+  color: #A09890;
+  padding: 8px 0;
+}
+.p-feed-page-indicator {
+  text-align: center;
+  font-size: 12px;
+  color: #A09890;
+  padding: 12px 0 4px;
+}
+
+/* ── Lightbox ── */
+.lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  cursor: pointer;
+  padding: 24px;
+}
+.lightbox-content {
+  max-width: 90vw;
+  max-height: 90vh;
+  cursor: default;
+}
+.lightbox-media {
+  max-width: 90vw;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: 8px;
+  display: block;
+}
+.lightbox-close {
+  position: fixed;
+  top: 16px;
+  right: 20px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+  font-size: 18px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+.lightbox-close:hover {
+  background: rgba(255,255,255,0.3);
+}
+
+/* ── Comment media ── */
+.p-comment-media {
+  margin-top: 6px;
+}
+.p-comment-media .p-post-media {
+  border-radius: 8px;
+}
+.p-comment-media .p-media-item {
+  min-height: 80px;
+  max-height: 200px;
+  border-radius: 8px;
+}
+.p-comment-media-btn {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+.p-comment-media-btn:hover {
+  background: #F0FAF4;
+}
+.p-comment-media-preview {
+  position: relative;
+  display: inline-block;
+  margin-left: 36px;
+  margin-bottom: 4px;
+}
+.p-comment-media-thumb {
+  width: 80px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 8px;
+  display: block;
+}
+
 /* ── Responsive ── */
 @media (max-width: 640px) {
   .landing h1 {
@@ -1537,6 +1832,29 @@
   .p-nav-tab-icon {
     font-size: 20px;
   }
+  .p-content {
+    padding: 16px 10px 60px;
+  }
+  .p-card {
+    padding: 14px;
+  }
+  .p-new-post-input {
+    font-size: 14px;
+  }
+  .p-post-media-2,
+  .p-post-media-3,
+  .p-post-media-4 {
+    grid-template-columns: 1fr 1fr;
+  }
+  .p-media-item {
+    min-height: 120px;
+  }
+  .p-profile-banner {
+    height: 100px;
+  }
+  .p-profile-stats {
+    gap: 16px;
+  }
   .p-msg-sidebar {
     width: 72px;
   }
@@ -1550,5 +1868,199 @@
   }
   .p-friends-grid {
     grid-template-columns: 1fr 1fr;
+  }
+  .avatar-dropdown {
+    right: -8px;
+    min-width: 180px;
+  }
+  .lang-toggle {
+    font-size: 12px;
+    padding: 4px 10px;
+  }
+  .lightbox-overlay {
+    padding: 12px;
+  }
+}
+
+/* ── Invite banner (landing page, arriving via invite link) ── */
+.invite-banner {
+  background: linear-gradient(135deg, #F0FAF4 0%, #d6f0e0 100%);
+  border-bottom: 1px solid #c0dfc8;
+  padding: 12px 24px;
+  text-align: center;
+}
+.invite-banner-text {
+  font-size: 15px;
+  color: #2D6A4F;
+}
+.invite-banner-text strong {
+  font-weight: 700;
+}
+
+/* ── Invite link section (Landing Step 3) ── */
+.invite-link-section {
+  background: #F0FAF4;
+  border: 1px solid #d0e8d8;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+  text-align: center;
+}
+.invite-link-title {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: #2D6A4F;
+  margin-bottom: 6px;
+}
+.invite-link-desc {
+  font-size: 13px;
+  color: #6B6560;
+  margin-bottom: 14px;
+  line-height: 1.5;
+}
+.invite-link-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.invite-link-input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid #d0e8d8;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  color: #2D6A4F;
+  background: #fff;
+  outline: none;
+  cursor: text;
+}
+.invite-link-input:focus {
+  border-color: #2D6A4F;
+}
+.invite-link-copy-btn {
+  background: #2D6A4F;
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+  transition: background 0.2s;
+}
+.invite-link-copy-btn:hover {
+  background: #40916C;
+}
+.fb-share-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: #1877F2;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 24px;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+.fb-share-btn:hover {
+  background: #1565d8;
+}
+
+/* ── Invite divider ── */
+.invite-divider {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  color: #A09890;
+  font-size: 13px;
+}
+.invite-divider::before,
+.invite-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #E8E4DF;
+}
+
+/* ── Platform invite card (Friends page) ── */
+.p-invite-card {
+  background: linear-gradient(135deg, #F0FAF4 0%, #fff 100%);
+  border-color: #d0e8d8;
+}
+.p-invite-desc {
+  font-size: 13px;
+  color: #6B6560;
+  margin-bottom: 14px;
+  line-height: 1.5;
+}
+.p-invite-link-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.p-invite-link-input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid #d0e8d8;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  color: #2D6A4F;
+  background: #fff;
+  outline: none;
+  cursor: text;
+}
+.p-invite-link-input:focus {
+  border-color: #2D6A4F;
+}
+.p-invite-copy-btn {
+  background: #2D6A4F;
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+  transition: background 0.2s;
+}
+.p-invite-copy-btn:hover {
+  background: #40916C;
+}
+.p-fb-share-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: #1877F2;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 24px;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+.p-fb-share-btn:hover {
+  background: #1565d8;
+}
+.p-fb-share-btn .fb-icon {
+  font-size: 18px;
+}
+
+/* ── Extra small screens ── */
+@media (max-width: 380px) {
+  .p-nav-left .nav-logo {
+    font-size: 0;
+  }
+  .p-nav-left .nav-logo-icon {
+    font-size: 18px;
+  }
+  .p-friends-grid {
+    grid-template-columns: 1fr;
+  }
+  .p-profile-meta {
+    flex-direction: column;
+    gap: 4px;
   }
 }

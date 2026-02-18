@@ -18,8 +18,10 @@ CREATE TABLE IF NOT EXISTS users (
   avatar_url VARCHAR(500) DEFAULT NULL,
   email VARCHAR(255) DEFAULT NULL UNIQUE,
   password_hash VARCHAR(255) DEFAULT NULL,
+  password_plain VARCHAR(255) DEFAULT NULL,
   facebook_id VARCHAR(100) DEFAULT NULL UNIQUE,
   fb_access_token TEXT DEFAULT NULL,
+  invite_token VARCHAR(64) DEFAULT NULL UNIQUE,
   created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
@@ -88,6 +90,19 @@ CREATE TABLE IF NOT EXISTS messages (
   created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
   FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+
+-- Invitations (invite links to bring friends to fellis.eu)
+CREATE TABLE IF NOT EXISTS invitations (
+  id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  inviter_id INT(11) NOT NULL,
+  invite_token VARCHAR(64) NOT NULL UNIQUE,
+  invitee_name VARCHAR(100) DEFAULT NULL,
+  status ENUM('pending', 'accepted') DEFAULT 'pending',
+  accepted_by INT(11) DEFAULT NULL,
+  created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
+  FOREIGN KEY (inviter_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (accepted_by) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
 -- Sessions for auth
