@@ -1250,6 +1250,87 @@
 .p-action-btn.liked {
   color: #E07A5F;
 }
+.p-action-btn.active {
+  background: #F0FAF4;
+  color: #2D6A4F;
+}
+
+/* ── Share popup ── */
+.p-share-wrap {
+  position: relative;
+  flex: 1;
+}
+.p-share-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 199;
+}
+.p-share-popup {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fff;
+  border: 1px solid #E8E4DF;
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.13);
+  min-width: 200px;
+  z-index: 200;
+  padding: 6px;
+  animation: sharePopIn 0.14s ease;
+}
+@keyframes sharePopIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(6px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+.p-share-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #3D3530;
+  background: none;
+  text-align: left;
+  transition: background 0.1s;
+}
+.p-share-option:hover {
+  background: #F0FAF4;
+  color: #2D6A4F;
+}
+.p-share-divider {
+  height: 1px;
+  background: #E8E4DF;
+  margin: 4px 6px;
+}
+.p-share-section-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #A09890;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 4px 10px 2px;
+}
+.p-share-loading,
+.p-share-empty {
+  font-size: 12px;
+  color: #A09890;
+  padding: 6px 10px 4px;
+}
+.p-share-friend-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.p-share-sent {
+  color: #2D6A4F;
+  font-size: 14px;
+  font-weight: 700;
+}
 
 /* ── Comments ── */
 .p-comments {

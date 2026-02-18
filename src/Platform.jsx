@@ -197,7 +197,9 @@ function FeedPage({ lang, t, currentUser }) {
   const [expandedComments, setExpandedComments] = useState(new Set())
   const [commentTexts, setCommentTexts] = useState({})
   const [commentMedia, setCommentMedia] = useState({})
-  const [shareToast, setShareToast] = useState(null)
+  const [sharePopup, setSharePopup] = useState(null)      // postId of open popup
+  const [sharePopupFriends, setSharePopupFriends] = useState(null) // null = not loaded yet
+  const [shareSentTo, setShareSentTo] = useState(null)   // friendId just messaged
   const fileInputRef = useRef(null)
   const commentFileRefs = useRef({})
   const bottomSentinelRef = useRef(null)
@@ -351,18 +353,28 @@ function FeedPage({ lang, t, currentUser }) {
     })
   }, [])
 
-  const handleShare = useCallback(async (post) => {
-    const text = post.text[lang] || post.text.da || ''
-    const shareData = { title: `${post.author} on fellis.eu`, text, url: window.location.origin }
-    if (navigator.share) {
-      try { await navigator.share(shareData) } catch {}
-    } else {
-      try {
-        await navigator.clipboard.writeText(`${text}\n\n${window.location.origin}`)
-        setShareToast(post.id)
-        setTimeout(() => setShareToast(null), 2000)
-      } catch {}
+  const toggleSharePopup = useCallback(async (postId) => {
+    if (sharePopup === postId) { setSharePopup(null); return }
+    setShareSentTo(null)
+    setSharePopup(postId)
+    if (sharePopupFriends === null) {
+      const data = await apiFetchFriends()
+      setSharePopupFriends(data || [])
     }
+  }, [sharePopup, sharePopupFriends])
+
+  const handleCopyLink = useCallback(async (post) => {
+    const text = post.text[lang] || post.text.da || ''
+    try { await navigator.clipboard.writeText(`${text}\n\n${window.location.origin}`) } catch {}
+    setSharePopup(null)
+  }, [lang])
+
+  const handleShareToFriend = useCallback(async (post, friendId) => {
+    const text = post.text[lang] || post.text.da || ''
+    const msg = `${post.author}: "${text.slice(0, 120)}${text.length > 120 ? '…' : ''}" — fellis.eu`
+    await apiSendMessage(friendId, msg)
+    setShareSentTo(friendId)
+    setTimeout(() => { setSharePopup(null); setShareSentTo(null) }, 1200)
   }, [lang])
 
   const handleComment = useCallback((postId) => {
@@ -471,9 +483,36 @@ function FeedPage({ lang, t, currentUser }) {
               <button className="p-action-btn" onClick={() => toggleComments(post.id)}>
                 💬 {t.comment}
               </button>
-              <button className="p-action-btn" onClick={() => handleShare(post)}>
-                ↗ {t.share} {shareToast === post.id && <span style={{ fontSize: 11, color: '#2D6A4F' }}>✓</span>}
-              </button>
+              <div className="p-share-wrap">
+                <button className={`p-action-btn${sharePopup === post.id ? ' active' : ''}`} onClick={() => toggleSharePopup(post.id)}>
+                  ↗ {t.share}
+                </button>
+                {sharePopup === post.id && (
+                  <>
+                    <div className="p-share-backdrop" onClick={() => setSharePopup(null)} />
+                    <div className="p-share-popup">
+                      <button className="p-share-option" onClick={() => handleCopyLink(post)}>
+                        🔗 {lang === 'da' ? 'Kopiér link' : 'Copy link'}
+                      </button>
+                      <div className="p-share-divider" />
+                      <div className="p-share-section-label">{lang === 'da' ? 'Send til ven' : 'Send to friend'}</div>
+                      {sharePopupFriends === null && (
+                        <div className="p-share-loading">{lang === 'da' ? 'Indlæser…' : 'Loading…'}</div>
+                      )}
+                      {sharePopupFriends?.length === 0 && (
+                        <div className="p-share-empty">{lang === 'da' ? 'Ingen venner endnu' : 'No friends yet'}</div>
+                      )}
+                      {sharePopupFriends?.map(f => (
+                        <button key={f.id} className="p-share-option p-share-friend" onClick={() => handleShareToFriend(post, f.id)}>
+                          <div className="p-avatar-xs" style={{ background: nameToColor(f.name) }}>{getInitials(f.name)}</div>
+                          <span className="p-share-friend-name">{f.name}</span>
+                          {shareSentTo === f.id && <span className="p-share-sent">✓</span>}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
             {showComments && (
               <div className="p-comments">
