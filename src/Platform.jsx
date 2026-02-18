@@ -307,8 +307,11 @@ function FeedPage({ lang, t, currentUser }) {
   const [sharePopup, setSharePopup] = useState(null)      // postId of open popup
   const [sharePopupFriends, setSharePopupFriends] = useState(null) // null = not loaded yet
   const [shareSentTo, setShareSentTo] = useState(null)   // friendId just messaged
+  const [postExpanded, setPostExpanded] = useState(false)
+  const [mediaPopup, setMediaPopup] = useState(false)
   const fileInputRef = useRef(null)
   const cameraInputRef = useRef(null)
+  const textareaRef = useRef(null)
   const commentFileRefs = useRef({})
   const bottomSentinelRef = useRef(null)
   const topSentinelRef = useRef(null)
@@ -437,8 +440,11 @@ function FeedPage({ lang, t, currentUser }) {
     setNewPostText('')
     setMediaFiles([])
     setMediaPreviews([])
+    setPostExpanded(false)
+    setMediaPopup(false)
     if (fileInputRef.current) fileInputRef.current.value = ''
     if (cameraInputRef.current) cameraInputRef.current.value = ''
+    if (textareaRef.current) textareaRef.current.style.height = 'auto'
   }, [newPostText, mediaFiles, mediaPreviews, currentUser.name])
 
   const toggleLike = useCallback((id) => {
@@ -531,54 +537,86 @@ function FeedPage({ lang, t, currentUser }) {
     <div className="p-feed" ref={feedContainerRef}>
       {/* New post */}
       <div className="p-card p-new-post">
-        <div className="p-new-post-row">
-          <div className="p-avatar-sm" style={{ background: nameToColor(currentUser.name) }}>
-            {currentUser.initials || getInitials(currentUser.name)}
+        {/* Hidden file inputs */}
+        <input ref={fileInputRef} type="file"
+          accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
+          multiple style={{ display: 'none' }} onChange={handleFileSelect} />
+        <input ref={cameraInputRef} type="file"
+          accept="image/*,video/*" capture="environment"
+          style={{ display: 'none' }} onChange={handleFileSelect} />
+
+        {/* Collapsed prompt — click anywhere to expand */}
+        {!postExpanded && !newPostText && !mediaPreviews.length ? (
+          <div className="p-new-post-row p-new-post-collapsed" onClick={() => { setPostExpanded(true); setTimeout(() => textareaRef.current?.focus(), 0) }}>
+            <div className="p-avatar-sm" style={{ background: nameToColor(currentUser.name) }}>
+              {currentUser.initials || getInitials(currentUser.name)}
+            </div>
+            <div className="p-new-post-prompt">{t.newPost}</div>
           </div>
-          <input
-            className="p-new-post-input"
-            placeholder={t.newPost}
-            value={newPostText}
-            onChange={e => setNewPostText(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handlePost()}
-          />
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
-            multiple
-            style={{ display: 'none' }}
-            onChange={handleFileSelect}
-          />
-          <input
-            ref={cameraInputRef}
-            type="file"
-            accept="image/*,video/*"
-            capture="environment"
-            style={{ display: 'none' }}
-            onChange={handleFileSelect}
-          />
-          <button className="p-media-btn" onClick={() => fileInputRef.current?.click()} title={lang === 'da' ? 'Vælg billede/video' : 'Choose image/video'}>
-            🖼️
-          </button>
-          <button className="p-media-btn" onClick={() => cameraInputRef.current?.click()} title={lang === 'da' ? 'Tag billede/video' : 'Take photo/video'}>
-            📷
-          </button>
-          <button className="p-post-btn" onClick={handlePost} disabled={!newPostText.trim()}>{t.post}</button>
-        </div>
-        {mediaPreviews.length > 0 && (
-          <div className="p-media-previews">
-            {mediaPreviews.map((p, i) => (
-              <div key={i} className="p-media-preview">
-                {p.type === 'video' ? (
-                  <video src={p.url} className="p-media-preview-thumb" />
-                ) : (
-                  <img src={p.url} alt="" className="p-media-preview-thumb" />
-                )}
-                <button className="p-media-preview-remove" onClick={() => removeMedia(i)}>✕</button>
+        ) : (
+          /* Expanded composer */
+          <>
+            <div className="p-new-post-row">
+              <div className="p-avatar-sm" style={{ background: nameToColor(currentUser.name) }}>
+                {currentUser.initials || getInitials(currentUser.name)}
               </div>
-            ))}
-          </div>
+              <textarea
+                ref={textareaRef}
+                className="p-new-post-textarea"
+                placeholder={t.newPost}
+                value={newPostText}
+                onChange={e => {
+                  setNewPostText(e.target.value)
+                  e.target.style.height = 'auto'
+                  e.target.style.height = e.target.scrollHeight + 'px'
+                }}
+                onFocus={() => setPostExpanded(true)}
+                onBlur={() => { if (!newPostText.trim() && !mediaPreviews.length) setPostExpanded(false) }}
+                autoFocus={postExpanded && !newPostText}
+              />
+            </div>
+            {mediaPreviews.length > 0 && (
+              <div className="p-media-previews">
+                {mediaPreviews.map((p, i) => (
+                  <div key={i} className="p-media-preview">
+                    {p.type === 'video'
+                      ? <video src={p.url} className="p-media-preview-thumb" />
+                      : <img src={p.url} alt="" className="p-media-preview-thumb" />}
+                    <button className="p-media-preview-remove" onClick={() => removeMedia(i)}>✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="p-new-post-actions">
+              {/* Media attachment popup */}
+              <div className="p-media-popup-wrap">
+                <button
+                  className={`p-media-popup-btn${mediaPopup ? ' active' : ''}`}
+                  onMouseDown={e => e.preventDefault()} // keep textarea focus
+                  onClick={() => setMediaPopup(p => !p)}
+                  title={lang === 'da' ? 'Tilføj medie' : 'Add media'}
+                >
+                  +
+                </button>
+                {mediaPopup && (
+                  <>
+                    <div className="p-share-backdrop" onClick={() => setMediaPopup(false)} />
+                    <div className="p-share-popup p-media-popup">
+                      <button className="p-share-option" onMouseDown={e => e.preventDefault()} onClick={() => { fileInputRef.current?.click(); setMediaPopup(false) }}>
+                        <span className="p-media-popup-icon">🖼️</span>
+                        {lang === 'da' ? 'Galleri' : 'Gallery'}
+                      </button>
+                      <button className="p-share-option" onMouseDown={e => e.preventDefault()} onClick={() => { cameraInputRef.current?.click(); setMediaPopup(false) }}>
+                        <span className="p-media-popup-icon">📷</span>
+                        {lang === 'da' ? 'Kamera' : 'Camera'}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+              <button className="p-post-btn" onMouseDown={e => e.preventDefault()} onClick={handlePost} disabled={!newPostText.trim()}>{t.post}</button>
+            </div>
+          </>
         )}
       </div>
 
