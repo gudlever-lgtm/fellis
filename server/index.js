@@ -389,8 +389,8 @@ const FB_APP_SECRET = process.env.FB_APP_SECRET
 const FB_REDIRECT_URI = process.env.FB_REDIRECT_URI || 'https://fellis.eu/api/auth/facebook/callback'
 const FB_GRAPH_URL = 'https://graph.facebook.com/v21.0'
 
-// Scopes: read profile, friends list, posts, photos — NO write/delete permissions
-const FB_SCOPES = 'public_profile,email,user_friends,user_posts,user_photos'
+// Scopes: basic profile only — no extended permissions required, app can go Live without App Review
+const FB_SCOPES = 'public_profile,email'
 
 // GDPR/Security: In-memory store for OAuth CSRF state tokens (short-lived)
 const oauthStateTokens = new Map()
