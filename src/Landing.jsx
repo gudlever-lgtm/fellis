@@ -7,7 +7,7 @@ const INVITE_FRIENDS = [
   { name: 'Ven 2', mutual: 3, online: true },
   { name: 'Ven 3', mutual: 8, online: false },
 ]
-import { apiLogin, apiRegister, apiForgotPassword, apiResetPassword, getFacebookAuthUrl, apiSendInvites } from './api.js'
+import { apiLogin, apiRegister, apiForgotPassword, apiResetPassword, getFacebookAuthUrl, apiSendInvites, apiGetInviteLink } from './api.js'
 
 // ── Landing translations ──
 const T = {
@@ -227,6 +227,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName }) {
   const [inviteLoading, setInviteLoading] = useState(false)
   const [invitedCount, setInvitedCount] = useState(0)
   const [inviteLinkCopied, setInviteLinkCopied] = useState(false)
+  const [inviteLink, setInviteLink] = useState('')
 
   // Login modal state
   const [loginEmail, setLoginEmail] = useState('')
@@ -374,6 +375,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName }) {
 
   const handleContentNext = useCallback(() => {
     setImportLoading(true)
+    apiGetInviteLink().then(data => { if (data?.token) setInviteLink(`https://fellis.eu/?invite=${data.token}`) })
     setTimeout(() => { setImportLoading(false); setStep(3) }, 1800)
   }, [])
 
@@ -610,7 +612,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName }) {
                 <ContentCard icon="📸" title={t.postsPhotos} desc={t.postsPhotosDesc} selected={selectedContent.posts} onToggle={() => setSelectedContent(s => ({ ...s, posts: !s.posts }))} />
               </div>
               <div className="btn-row">
-                <button className="btn-secondary" onClick={() => { setStep(1); setFbConnected(false) }}>{t.back}</button>
+                <button className="btn-secondary" onClick={() => setStep(1)}>{t.back}</button>
                 <button className="btn-primary" onClick={handleContentNext}>{t.next}</button>
               </div>
             </>
@@ -635,14 +637,14 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName }) {
                 <div className="invite-link-row">
                   <input
                     className="invite-link-input"
-                    value={`https://fellis.eu/?invite=personal`}
+                    value={inviteLink || `https://fellis.eu/?invite=…`}
                     readOnly
                     onClick={e => e.target.select()}
                   />
                   <button
                     className="invite-link-copy-btn"
                     onClick={() => {
-                      navigator.clipboard.writeText('https://fellis.eu/?invite=personal').catch(() => {})
+                      navigator.clipboard.writeText(inviteLink || '').catch(() => {})
                       setInviteLinkCopied(true)
                       setTimeout(() => setInviteLinkCopied(false), 2000)
                     }}
@@ -653,7 +655,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName }) {
                 <button
                   className="fb-share-btn"
                   onClick={() => {
-                    const shareUrl = encodeURIComponent('https://fellis.eu/?invite=personal')
+                    const shareUrl = encodeURIComponent(inviteLink || 'https://fellis.eu')
                     window.open(
                       `https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`,
                       'facebook-share',
