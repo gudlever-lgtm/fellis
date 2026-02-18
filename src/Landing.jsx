@@ -252,8 +252,6 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName }) {
   const [regPassword, setRegPassword] = useState('')
   const [regError, setRegError] = useState('')
   const [regLoading, setRegLoading] = useState(false)
-  // Direct signup (skipping Facebook migration)
-  const [directSignup, setDirectSignup] = useState(false)
 
   const t = T[lang]
 
