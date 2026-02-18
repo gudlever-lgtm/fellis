@@ -526,7 +526,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName }) {
           <button className="cta-btn" onClick={() => setStep(1)}>{t.cta}</button>
           <div className="trust-row">
             <div className="trust-item"><div className="trust-icon">🔒</div><span className="trust-label">{t.trustEncrypt}</span></div>
-            <div className="trust-item"><div className="trust-icon">🇪🇺</div><span className="trust-label">{t.trustEU}</span></div>
+            <div className="trust-item"><div className="trust-icon">🇪🇺</div><a href="https://yggdrasilcloud.dk/" target="_blank" rel="noopener noreferrer" className="trust-label trust-link">{t.trustEU}</a></div>
             <div className="trust-item"><div className="trust-icon">🗑️</div><span className="trust-label">{t.trustDelete}</span></div>
           </div>
         </div>
