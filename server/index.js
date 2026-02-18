@@ -1488,6 +1488,42 @@ setInterval(runDataRetentionCleanup, 6 * 60 * 60 * 1000)
 // Also run once on startup
 runDataRetentionCleanup()
 
+// ── Background bot activity — bots react to recent posts every few minutes ──
+const BOT_HANDLES = ['@anna.bot', '@erik.bot']
+const BOT_REACTIONS = ['❤️', '👍', '😄', '😮', '❤️', '👍', '❤️'] // weighted positive
+async function runBotActivity() {
+  try {
+    const [bots] = await pool.query('SELECT id FROM users WHERE handle IN (?)', [BOT_HANDLES])
+    if (bots.length === 0) return
+    const botIds = bots.map(b => b.id)
+    // Recent posts from the last 48 hours not yet liked by any bot
+    const [posts] = await pool.query(
+      `SELECT p.id FROM posts p
+       WHERE p.author_id NOT IN (?) AND p.created_at > DATE_SUB(NOW(), INTERVAL 48 HOUR)
+         AND p.id NOT IN (SELECT post_id FROM post_likes WHERE user_id IN (?))
+       ORDER BY RAND() LIMIT 5`,
+      [botIds, botIds]
+    )
+    for (const post of posts) {
+      for (const bot of bots) {
+        if (Math.random() > 0.6) continue // 40% chance each bot reacts
+        const reaction = BOT_REACTIONS[Math.floor(Math.random() * BOT_REACTIONS.length)]
+        try {
+          await pool.query('INSERT IGNORE INTO post_likes (post_id, user_id, reaction) VALUES (?, ?, ?)', [post.id, bot.id, reaction])
+        } catch {
+          await pool.query('INSERT IGNORE INTO post_likes (post_id, user_id) VALUES (?, ?)', [post.id, bot.id])
+        }
+        await pool.query('UPDATE posts SET likes = likes + 1 WHERE id = ?', [post.id])
+      }
+    }
+  } catch {}
+}
+// Run bot activity every 4 minutes with a 2-minute startup delay
+setTimeout(() => {
+  runBotActivity()
+  setInterval(runBotActivity, 4 * 60 * 1000)
+}, 2 * 60 * 1000)
+
 // Multer error handler
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
