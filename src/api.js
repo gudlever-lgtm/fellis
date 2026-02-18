@@ -80,8 +80,8 @@ export async function apiLogout() {
 }
 
 // Feed
-export async function apiFetchFeed() {
-  return await request('/api/feed')
+export async function apiFetchFeed(offset = 0, limit = 20) {
+  return await request(`/api/feed?offset=${offset}&limit=${limit}`)
 }
 
 export async function apiCreatePost(text, mediaFiles) {
@@ -146,6 +146,10 @@ export async function apiSendMessage(friendId, text) {
     method: 'POST',
     body: JSON.stringify({ text }),
   })
+}
+
+export async function apiFetchOlderMessages(friendId, offset = 0, limit = 20) {
+  return await request(`/api/messages/${friendId}/older?offset=${offset}&limit=${limit}`)
 }
 
 // Facebook OAuth

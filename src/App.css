@@ -1531,6 +1531,25 @@
   border-color: #2D6A4F;
 }
 
+/* ── Feed virtual scroll sentinels ── */
+.p-feed-sentinel {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.p-feed-loading {
+  font-size: 13px;
+  color: #A09890;
+  padding: 8px 0;
+}
+.p-feed-page-indicator {
+  text-align: center;
+  font-size: 12px;
+  color: #A09890;
+  padding: 12px 0 4px;
+}
+
 /* ── Lightbox ── */
 .lightbox-overlay {
   position: fixed;

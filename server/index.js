@@ -659,15 +659,26 @@ app.post('/api/profile/avatar', authenticate, upload.single('avatar'), async (re
 
 // ── Feed routes ──
 
-// GET /api/feed — get all posts with comments and media
+// GET /api/feed — get posts with pagination (max 20 in DOM)
 app.get('/api/feed', authenticate, async (req, res) => {
   try {
+    const limit = Math.min(parseInt(req.query.limit) || 20, 50)
+    const offset = Math.max(parseInt(req.query.offset) || 0, 0)
+
+    const [countResult] = await pool.query(
+      `SELECT COUNT(*) as total FROM posts p
+       WHERE p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?)`,
+      [req.userId, req.userId]
+    )
+    const total = countResult[0].total
+
     const [posts] = await pool.query(
       `SELECT p.id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.created_at
        FROM posts p JOIN users u ON p.author_id = u.id
        WHERE p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?)
-       ORDER BY p.created_at DESC`,
-      [req.userId, req.userId]
+       ORDER BY p.created_at DESC
+       LIMIT ? OFFSET ?`,
+      [req.userId, req.userId, limit, offset]
     )
     const postIds = posts.map(p => p.id)
     const [comments] = postIds.length > 0
@@ -705,7 +716,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
         comments: commentsByPost[p.id] || [],
       }
     })
-    res.json(result)
+    res.json({ posts: result, total, offset, limit })
   } catch (err) {
     res.status(500).json({ error: 'Failed to load feed' })
   }
@@ -914,7 +925,7 @@ app.get('/api/friends', authenticate, async (req, res) => {
 
 // ── Messages routes ──
 
-// GET /api/messages — get message threads
+// GET /api/messages — get message threads (latest 20 messages per thread)
 app.get('/api/messages', authenticate, async (req, res) => {
   try {
     const [partners] = await pool.query(
@@ -925,27 +936,65 @@ app.get('/api/messages', authenticate, async (req, res) => {
     )
     const threads = []
     for (const p of partners) {
+      const [totalResult] = await pool.query(
+        `SELECT COUNT(*) as total FROM messages
+         WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)`,
+        [req.userId, p.partner_id, p.partner_id, req.userId]
+      )
+      const totalMsgs = totalResult[0].total
       const [msgs] = await pool.query(
         `SELECT m.id, u_sender.name as from_name, m.text_da, m.text_en, m.time, m.is_read
          FROM messages m
          JOIN users u_sender ON m.sender_id = u_sender.id
          WHERE (m.sender_id = ? AND m.receiver_id = ?) OR (m.sender_id = ? AND m.receiver_id = ?)
-         ORDER BY m.created_at ASC`,
+         ORDER BY m.created_at DESC
+         LIMIT 20`,
         [req.userId, p.partner_id, p.partner_id, req.userId]
       )
-      const [friendInfo] = await pool.query('SELECT name FROM users WHERE id = ?', [p.partner_id])
-      const unread = msgs.filter(m => !m.is_read && m.from_name !== 'Sofie Nielsen').length
+      msgs.reverse() // Show oldest first within the window
+      const [friendInfo] = await pool.query('SELECT id, name FROM users WHERE id = ?', [p.partner_id])
+      const unread = msgs.filter(m => !m.is_read && m.from_name !== friendInfo[0].name).length
       threads.push({
+        friendId: friendInfo[0].id,
         friend: friendInfo[0].name,
         messages: msgs.map(m => ({
           from: m.from_name,
           text: { da: m.text_da, en: m.text_en },
           time: m.time,
         })),
+        totalMessages: totalMsgs,
         unread,
       })
     }
     res.json(threads)
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to load messages' })
+  }
+})
+
+// GET /api/messages/:friendId/older?before=N — load older messages for a thread
+app.get('/api/messages/:friendId/older', authenticate, async (req, res) => {
+  const friendId = parseInt(req.params.friendId)
+  const offset = Math.max(parseInt(req.query.offset) || 0, 0)
+  const limit = Math.min(parseInt(req.query.limit) || 20, 50)
+  try {
+    const [msgs] = await pool.query(
+      `SELECT m.id, u_sender.name as from_name, m.text_da, m.text_en, m.time
+       FROM messages m
+       JOIN users u_sender ON m.sender_id = u_sender.id
+       WHERE (m.sender_id = ? AND m.receiver_id = ?) OR (m.sender_id = ? AND m.receiver_id = ?)
+       ORDER BY m.created_at DESC
+       LIMIT ? OFFSET ?`,
+      [req.userId, friendId, friendId, req.userId, limit, offset]
+    )
+    msgs.reverse()
+    res.json({
+      messages: msgs.map(m => ({
+        from: m.from_name,
+        text: { da: m.text_da, en: m.text_en },
+        time: m.time,
+      })),
+    })
   } catch (err) {
     res.status(500).json({ error: 'Failed to load messages' })
   }
