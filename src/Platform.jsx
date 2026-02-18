@@ -502,13 +502,17 @@ function FeedPage({ lang, t, currentUser }) {
                       {sharePopupFriends?.length === 0 && (
                         <div className="p-share-empty">{lang === 'da' ? 'Ingen venner endnu' : 'No friends yet'}</div>
                       )}
-                      {sharePopupFriends?.map(f => (
-                        <button key={f.id} className="p-share-option p-share-friend" onClick={() => handleShareToFriend(post, f.id)}>
-                          <div className="p-avatar-xs" style={{ background: nameToColor(f.name) }}>{getInitials(f.name)}</div>
-                          <span className="p-share-friend-name">{f.name}</span>
-                          {shareSentTo === f.id && <span className="p-share-sent">✓</span>}
-                        </button>
-                      ))}
+                      {sharePopupFriends?.length > 0 && (
+                        <div className="p-share-friends-list">
+                          {sharePopupFriends.map(f => (
+                            <button key={f.id} className="p-share-option p-share-friend" onClick={() => handleShareToFriend(post, f.id)}>
+                              <div className="p-avatar-xs" style={{ background: nameToColor(f.name) }}>{getInitials(f.name)}</div>
+                              <span className="p-share-friend-name">{f.name}</span>
+                              {shareSentTo === f.id && <span className="p-share-sent">✓</span>}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </>
                 )}
