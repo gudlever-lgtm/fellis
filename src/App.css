@@ -1160,17 +1160,18 @@
   background: #40916C;
   transform: rotate(45deg);
 }
-/* Smaller variant for comment row */
-.p-media-popup-btn-sm {
-  width: 26px;
-  height: 26px;
-  font-size: 18px;
-}
-/* Media popup panel — opens upward, anchored left */
+/* Media popup panel — opens upward.
+   Post composer: button is left-aligned → anchor left.
+   Comment row: button is right-aligned → anchor right to stay on screen. */
 .p-media-popup {
   left: 0;
   transform: none;
   min-width: 180px;
+}
+.p-media-popup-right {
+  left: auto;
+  right: 0;
+  transform: none;
 }
 /* Round brand-coloured icon inside each media popup option */
 .p-media-popup-icon {

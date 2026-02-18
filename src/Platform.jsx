@@ -540,8 +540,8 @@ function FeedPage({ lang, t, currentUser }) {
         <input ref={fileInputRef} type="file"
           accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
           multiple style={{ display: 'none' }} onChange={handleFileSelect} />
-        <input ref={cameraInputRef} type="file"
-          accept="image/*,video/*" capture="environment"
+        <input ref={el => { cameraInputRef.current = el; el?.setAttribute('capture', 'environment') }} type="file"
+          accept="image/*,video/*"
           style={{ display: 'none' }} onChange={handleFileSelect} />
 
         {/* Collapsed prompt — click anywhere to expand */}
@@ -728,8 +728,8 @@ function FeedPage({ lang, t, currentUser }) {
                   <input ref={el => commentFileRefs.current[post.id] = el} type="file"
                     accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
                     style={{ display: 'none' }} onChange={e => handleCommentFileSelect(post.id, e)} />
-                  <input ref={el => commentCameraRefs.current[post.id] = el} type="file"
-                    accept="image/*,video/*" capture="environment"
+                  <input ref={el => { commentCameraRefs.current[post.id] = el; el?.setAttribute('capture', 'environment') }} type="file"
+                    accept="image/*,video/*"
                     style={{ display: 'none' }} onChange={e => handleCommentFileSelect(post.id, e)} />
                   <input
                     className="p-comment-input"
@@ -741,14 +741,14 @@ function FeedPage({ lang, t, currentUser }) {
                   {/* Media attachment popup */}
                   <div className="p-media-popup-wrap">
                     <button
-                      className={`p-media-popup-btn p-media-popup-btn-sm${commentMediaPopup === post.id ? ' active' : ''}`}
+                      className={`p-media-popup-btn${commentMediaPopup === post.id ? ' active' : ''}`}
                       onClick={() => setCommentMediaPopup(p => p === post.id ? null : post.id)}
                       title={lang === 'da' ? 'Tilføj medie' : 'Add media'}
                     >+</button>
                     {commentMediaPopup === post.id && (
                       <>
                         <div className="p-share-backdrop" onClick={() => setCommentMediaPopup(null)} />
-                        <div className="p-share-popup p-media-popup">
+                        <div className="p-share-popup p-media-popup p-media-popup-right">
                           <button className="p-share-option" onClick={() => { commentFileRefs.current[post.id]?.click(); setCommentMediaPopup(null) }}>
                             <span className="p-media-popup-icon">🖼️</span>
                             {lang === 'da' ? 'Galleri' : 'Gallery'}
