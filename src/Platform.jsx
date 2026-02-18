@@ -357,6 +357,7 @@ function FeedPage({ lang, t, currentUser }) {
       setTotal(data.total)
       setOffset(newOffset)
       setLikedPosts(new Set(data.posts.filter(p => p.liked).map(p => p.id)))
+      setReactions(Object.fromEntries(data.posts.filter(p => p.userReaction).map(p => [p.id, p.userReaction])))
       offsetRef.current = newOffset
       totalRef.current = data.total
       if (container) {
@@ -386,6 +387,7 @@ function FeedPage({ lang, t, currentUser }) {
         setTotal(data.total)
         totalRef.current = data.total
         setLikedPosts(new Set(data.posts.filter(p => p.liked).map(p => p.id)))
+        setReactions(Object.fromEntries(data.posts.filter(p => p.userReaction).map(p => [p.id, p.userReaction])))
       }
     })
   }, [])
@@ -473,25 +475,47 @@ function FeedPage({ lang, t, currentUser }) {
   }, [newPostText, mediaFiles, mediaPreviews, currentUser.name])
 
   const toggleLike = useCallback((id, emoji) => {
+    const isLiked = likedPosts.has(id)
+    const prevEmoji = reactions[id] || '❤️'
+    const nextEmoji = emoji || '❤️'
+
+    let action // 'add' | 'remove' | 'change'
+    if (!isLiked) action = 'add'
+    else if (emoji && emoji !== prevEmoji) action = 'change'
+    else action = 'remove'
+
+    // Update liked set
     setLikedPosts(prev => {
       const next = new Set(prev)
-      if (next.has(id) && !emoji) {
-        // Already liked and no emoji chosen — remove like
-        next.delete(id)
-        setReactions(r => { const n = { ...r }; delete n[id]; return n })
-      } else if (!next.has(id)) {
-        next.add(id)
-        if (emoji) setReactions(r => ({ ...r, [id]: emoji }))
-      } else if (emoji) {
-        // Already liked, just change emoji
-        setReactions(r => ({ ...r, [id]: emoji }))
-        return prev
-      }
+      if (action === 'remove') next.delete(id); else next.add(id)
       return next
     })
-    apiToggleLike(id).catch(() => {})
+
+    // Update user's reaction
+    if (action === 'remove') {
+      setReactions(r => { const n = { ...r }; delete n[id]; return n })
+    } else {
+      setReactions(r => ({ ...r, [id]: nextEmoji }))
+    }
+
+    // Optimistic update to aggregated reaction counts
+    setPosts(prev => prev.map(p => {
+      if (p.id !== id) return p
+      const reacts = (p.reactions || []).map(r => ({ ...r }))
+      if (action === 'remove' || action === 'change') {
+        const i = reacts.findIndex(r => r.emoji === prevEmoji)
+        if (i >= 0) { if (reacts[i].count > 1) reacts[i].count--; else reacts.splice(i, 1) }
+      }
+      if (action === 'add' || action === 'change') {
+        const i = reacts.findIndex(r => r.emoji === nextEmoji)
+        if (i >= 0) reacts[i].count++; else reacts.push({ emoji: nextEmoji, count: 1 })
+      }
+      return { ...p, likes: action === 'add' ? p.likes + 1 : action === 'remove' ? p.likes - 1 : p.likes, reactions: reacts }
+    }))
+
+    apiToggleLike(id, action === 'remove' ? null : nextEmoji).catch(() => {})
     setLikePopup(null)
-  }, [])
+  }, [likedPosts, reactions])
 
   const toggleComments = useCallback((id) => {
     setExpandedComments(prev => {
@@ -679,7 +703,14 @@ function FeedPage({ lang, t, currentUser }) {
             <PostText text={post.text} lang={lang} />
             {post.media && <PostMedia media={post.media} />}
             <div className="p-post-stats">
-              <span>{post.likes + (liked ? 1 : 0)} {t.like.toLowerCase()}</span>
+              <span className="p-reaction-summary">
+                {post.reactions?.length > 0
+                  ? post.reactions.slice(0, 3).map(r => (
+                      <span key={r.emoji} className="p-reaction-tally">{r.emoji} {r.count}</span>
+                    ))
+                  : `${post.likes} ${t.like.toLowerCase()}`
+                }
+              </span>
               <span onClick={() => toggleComments(post.id)} style={{ cursor: 'pointer' }}>
                 {post.comments.length} {t.comment.toLowerCase()}{post.comments.length !== 1 ? (lang === 'da' ? 'er' : 's') : ''}
               </span>

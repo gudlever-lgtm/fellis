@@ -1431,6 +1431,20 @@
   color: #2D6A4F;
 }
 
+/* ── Reaction summary in stats ── */
+.p-reaction-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.p-reaction-tally {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 13px;
+  color: #6B6560;
+}
+
 /* ── Reaction popup ── */
 .p-reaction-wrap {
   position: relative;

@@ -119,8 +119,11 @@ export async function apiCreatePost(text, mediaFiles) {
   })
 }
 
-export async function apiToggleLike(postId) {
-  return await request(`/api/feed/${postId}/like`, { method: 'POST' })
+export async function apiToggleLike(postId, reaction) {
+  return await request(`/api/feed/${postId}/like`, {
+    method: 'POST',
+    body: JSON.stringify({ reaction }),
+  })
 }
 
 export async function apiAddComment(postId, text, mediaFile) {

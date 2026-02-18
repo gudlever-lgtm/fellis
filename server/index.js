@@ -190,9 +190,11 @@ const upload = multer({
   },
 })
 
-// Auto-migration: add media column to comments if it doesn't exist yet
+// Auto-migrations
 pool.query('ALTER TABLE comments ADD COLUMN IF NOT EXISTS media JSON DEFAULT NULL')
   .catch(err => console.error('Migration (comments.media):', err.message))
+pool.query("ALTER TABLE post_likes ADD COLUMN IF NOT EXISTS reaction VARCHAR(10) DEFAULT '❤️'")
+  .catch(err => console.error('Migration (post_likes.reaction):', err.message))
 
 // Serve uploads with security headers (no script execution, no sniffing)
 app.use('/uploads', (req, res, next) => {
@@ -742,11 +744,36 @@ app.get('/api/feed', authenticate, async (req, res) => {
         comments = rows
       }
     }
-    const [userLikes] = await pool.query(
-      'SELECT post_id FROM post_likes WHERE user_id = ?',
-      [req.userId]
-    )
+    // Fetch user's own likes (with reaction if column exists)
+    let userLikes = []
+    try {
+      const [rows] = await pool.query('SELECT post_id, reaction FROM post_likes WHERE user_id = ?', [req.userId])
+      userLikes = rows
+    } catch {
+      const [rows] = await pool.query('SELECT post_id FROM post_likes WHERE user_id = ?', [req.userId])
+      userLikes = rows
+    }
     const likedSet = new Set(userLikes.map(l => l.post_id))
+    const userReactionMap = {}
+    for (const l of userLikes) { if (l.reaction) userReactionMap[l.post_id] = l.reaction }
+
+    // Fetch aggregated reaction counts for all posts
+    let reactionRows = []
+    if (postIds.length > 0) {
+      try {
+        const [rows] = await pool.query(
+          `SELECT post_id, reaction, COUNT(*) as cnt FROM post_likes WHERE post_id IN (?) GROUP BY post_id, reaction ORDER BY cnt DESC`,
+          [postIds]
+        )
+        reactionRows = rows
+      } catch {}
+    }
+    const reactionsByPost = {}
+    for (const r of reactionRows) {
+      if (!reactionsByPost[r.post_id]) reactionsByPost[r.post_id] = []
+      reactionsByPost[r.post_id].push({ emoji: r.reaction, count: Number(r.cnt) })
+    }
+
     const commentsByPost = {}
     for (const c of comments) {
       if (!commentsByPost[c.post_id]) commentsByPost[c.post_id] = []
@@ -766,6 +793,8 @@ app.get('/api/feed', authenticate, async (req, res) => {
         text: { da: p.text_da, en: p.text_en },
         likes: p.likes,
         liked: likedSet.has(p.id),
+        userReaction: userReactionMap[p.id] || null,
+        reactions: reactionsByPost[p.id] || [],
         media,
         comments: commentsByPost[p.id] || [],
       }
@@ -838,22 +867,36 @@ app.post('/api/upload', authenticate, upload.single('file'), async (req, res) =>
   res.json({ url: `/uploads/${req.file.filename}`, type, mime: req.file.mimetype })
 })
 
-// POST /api/feed/:id/like — toggle like
+// POST /api/feed/:id/like — toggle like or change reaction
 app.post('/api/feed/:id/like', authenticate, async (req, res) => {
   const postId = parseInt(req.params.id)
+  const reaction = req.body?.reaction || '❤️'
   try {
     const [existing] = await pool.query(
-      'SELECT id FROM post_likes WHERE post_id = ? AND user_id = ?',
+      'SELECT id, reaction FROM post_likes WHERE post_id = ? AND user_id = ?',
       [postId, req.userId]
     )
     if (existing.length > 0) {
+      const cur = existing[0].reaction || '❤️'
+      if (cur !== reaction) {
+        // Change reaction without removing the like
+        try {
+          await pool.query('UPDATE post_likes SET reaction = ? WHERE post_id = ? AND user_id = ?', [reaction, postId, req.userId])
+        } catch {} // reaction column not yet migrated
+        return res.json({ liked: true, reaction })
+      }
+      // Same reaction — toggle off
       await pool.query('DELETE FROM post_likes WHERE post_id = ? AND user_id = ?', [postId, req.userId])
       await pool.query('UPDATE posts SET likes = likes - 1 WHERE id = ?', [postId])
       res.json({ liked: false })
     } else {
-      await pool.query('INSERT INTO post_likes (post_id, user_id) VALUES (?, ?)', [postId, req.userId])
+      try {
+        await pool.query('INSERT INTO post_likes (post_id, user_id, reaction) VALUES (?, ?, ?)', [postId, req.userId, reaction])
+      } catch {
+        await pool.query('INSERT INTO post_likes (post_id, user_id) VALUES (?, ?)', [postId, req.userId])
+      }
       await pool.query('UPDATE posts SET likes = likes + 1 WHERE id = ?', [postId])
-      res.json({ liked: true })
+      res.json({ liked: true, reaction })
     }
   } catch (err) {
     res.status(500).json({ error: 'Failed to toggle like' })
