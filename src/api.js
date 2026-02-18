@@ -219,6 +219,11 @@ export async function apiGetInvites() {
   return await request('/api/invites')
 }
 
+// Link preview
+export async function apiLinkPreview(url) {
+  return await request(`/api/link-preview?url=${encodeURIComponent(url)}`)
+}
+
 // Profile avatar
 export async function apiUploadAvatar(file) {
   const form = new FormData()

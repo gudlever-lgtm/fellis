@@ -1052,6 +1052,69 @@ app.post('/api/messages/:friendId', authenticate, async (req, res) => {
   }
 })
 
+// ── Link preview proxy ──
+
+function isSafeExternalUrl(urlStr) {
+  let parsed
+  try { parsed = new URL(urlStr) } catch { return false }
+  if (!['http:', 'https:'].includes(parsed.protocol)) return false
+  const host = parsed.hostname.toLowerCase()
+  if (host === 'localhost') return false
+  if (host === '::1' || host === '[::1]') return false
+  const ipv4 = host.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/)
+  if (ipv4) {
+    const [a, b] = [parseInt(ipv4[1]), parseInt(ipv4[2])]
+    if (a === 127 || a === 10 || a === 0) return false
+    if (a === 172 && b >= 16 && b <= 31) return false
+    if (a === 192 && b === 168) return false
+    if (a === 169 && b === 254) return false
+  }
+  return true
+}
+
+function decodeHTMLEntities(str) {
+  return str
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&apos;/g, "'")
+}
+
+function extractOgMeta(html, prop) {
+  const esc = prop.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const m =
+    html.match(new RegExp(`<meta[^>]+property=["']${esc}["'][^>]+content=["']([^"']+)["']`, 'i')) ||
+    html.match(new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+property=["']${esc}["']`, 'i'))
+  return m ? decodeHTMLEntities(m[1]) : null
+}
+
+// GET /api/link-preview?url=... — fetch Open Graph meta for any URL
+app.get('/api/link-preview', authenticate, async (req, res) => {
+  const { url } = req.query
+  if (!url) return res.status(400).json({ error: 'url required' })
+  if (!isSafeExternalUrl(url)) return res.status(400).json({ error: 'URL not allowed' })
+  try {
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => ctrl.abort(), 5000)
+    const response = await fetch(url, {
+      signal: ctrl.signal,
+      redirect: 'follow',
+      headers: { 'User-Agent': 'fellis-link-preview/1.0', Accept: 'text/html' },
+    })
+    clearTimeout(timer)
+    if (!response.ok) return res.json({ url })
+    const contentType = response.headers.get('content-type') || ''
+    if (!contentType.includes('text/html')) return res.json({ url })
+    const html = (await response.text()).slice(0, 60000) // only need <head>
+    const title = extractOgMeta(html, 'og:title') ||
+      (html.match(/<title[^>]*>([^<]*)<\/title>/i)?.[1]?.trim() ?? null)
+    const image = extractOgMeta(html, 'og:image')
+    const description = extractOgMeta(html, 'og:description')
+    const siteName = extractOgMeta(html, 'og:site_name') || new URL(url).hostname.replace(/^www\./, '')
+    res.json({ url, title: title ? decodeHTMLEntities(title) : null, image, description, siteName })
+  } catch {
+    res.json({ url }) // silently return empty — preview just won't show
+  }
+})
+
 // ══════════════════════════════════════════════════════════════
 // ── GDPR COMPLIANCE ENDPOINTS ──
 // ══════════════════════════════════════════════════════════════

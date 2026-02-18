@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { PT, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchMessages, apiSendMessage, apiFetchOlderMessages, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchMessages, apiSendMessage, apiFetchOlderMessages, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiLinkPreview } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -153,6 +153,110 @@ function Lightbox({ src, type, mime, onClose }) {
       </div>
       <button className="lightbox-close" onClick={onClose}>✕</button>
     </div>
+  )
+}
+
+// ── Link preview ──
+
+const URL_RE = /https?:\/\/[^\s<>"']+/g
+const previewCache = new Map()
+
+function extractFirstUrl(text) {
+  URL_RE.lastIndex = 0
+  const m = URL_RE.exec(text)
+  if (!m) return null
+  return m[0].replace(/[.,!?;:)>]+$/, '')
+}
+
+function linkifyText(text) {
+  const parts = []
+  const re = /https?:\/\/[^\s<>"']+/g
+  let last = 0, m
+  while ((m = re.exec(text)) !== null) {
+    const url = m[0].replace(/[.,!?;:)>]+$/, '')
+    if (m.index > last) parts.push({ t: 'text', v: text.slice(last, m.index) })
+    parts.push({ t: 'url', v: url })
+    last = m.index + m[0].length
+  }
+  if (last < text.length) parts.push({ t: 'text', v: text.slice(last) })
+  return parts
+}
+
+function extractYouTubeId(url) {
+  try {
+    const u = new URL(url)
+    if (u.hostname.includes('youtube.com')) {
+      if (u.pathname.startsWith('/shorts/')) return u.pathname.split('/')[2]
+      return u.searchParams.get('v')
+    }
+    if (u.hostname === 'youtu.be') return u.pathname.slice(1).split('?')[0]
+  } catch {}
+  return null
+}
+
+function LinkPreview({ url }) {
+  const cached = previewCache.get(url)
+  const [data, setData] = useState(cached ?? null)
+  const [ytExpanded, setYtExpanded] = useState(false)
+  const ytId = extractYouTubeId(url)
+
+  useEffect(() => {
+    if (ytId || cached !== undefined) return
+    apiLinkPreview(url).then(d => {
+      previewCache.set(url, d ?? null)
+      if (d) setData(d)
+    })
+  }, [url, ytId, cached])
+
+  if (ytId) {
+    return (
+      <div className="link-preview link-preview-yt">
+        {ytExpanded ? (
+          <div className="link-preview-yt-embed">
+            <iframe
+              src={`https://www.youtube.com/embed/${ytId}?autoplay=1&rel=0`}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen loading="lazy"
+            />
+          </div>
+        ) : (
+          <div className="link-preview-yt-thumb" onClick={() => setYtExpanded(true)}>
+            <img src={`https://img.youtube.com/vi/${ytId}/hqdefault.jpg`} alt="" loading="lazy" />
+            <div className="link-preview-play">▶</div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  if (!data || (!data.title && !data.image)) return null
+  return (
+    <a className="link-preview link-preview-og" href={url} target="_blank" rel="noopener noreferrer">
+      {data.image && <img className="link-preview-og-img" src={data.image} alt="" loading="lazy" />}
+      <div className="link-preview-og-body">
+        {data.siteName && <div className="link-preview-og-site">{data.siteName}</div>}
+        {data.title && <div className="link-preview-og-title">{data.title}</div>}
+        {data.description && <div className="link-preview-og-desc">{data.description}</div>}
+      </div>
+    </a>
+  )
+}
+
+function PostText({ text, lang }) {
+  const str = text[lang] || text.da || ''
+  const parts = linkifyText(str)
+  const firstUrl = parts.find(p => p.t === 'url')?.v
+  return (
+    <>
+      <div className="p-post-body">
+        {parts.map((p, i) =>
+          p.t === 'url'
+            ? <a key={i} href={p.v} target="_blank" rel="noopener noreferrer" className="post-link">{p.v}</a>
+            : <span key={i}>{p.v}</span>
+        )}
+      </div>
+      {firstUrl && <LinkPreview url={firstUrl} />}
+    </>
   )
 }
 
@@ -468,7 +572,7 @@ function FeedPage({ lang, t, currentUser }) {
                 <div className="p-post-time">{post.time[lang]}</div>
               </div>
             </div>
-            <div className="p-post-body">{post.text[lang]}</div>
+            <PostText text={post.text} lang={lang} />
             {post.media && <PostMedia media={post.media} />}
             <div className="p-post-stats">
               <span>{post.likes + (liked ? 1 : 0)} {t.like.toLowerCase()}</span>
