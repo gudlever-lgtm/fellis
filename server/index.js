@@ -104,6 +104,35 @@ const FB_DATA_RETENTION_DAYS = parseInt(process.env.FB_DATA_RETENTION_DAYS || '9
 const app = express()
 app.use(express.json())
 
+// ── Cookie helpers for persistent login ──
+const COOKIE_NAME = 'fellis_sid'
+const COOKIE_MAX_AGE = 30 * 24 * 60 * 60 * 1000 // 30 days
+
+function setSessionCookie(res, sessionId) {
+  res.cookie(COOKIE_NAME, sessionId, {
+    httpOnly: true,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: COOKIE_MAX_AGE,
+    secure: process.env.NODE_ENV === 'production',
+  })
+}
+
+function clearSessionCookie(res) {
+  res.clearCookie(COOKIE_NAME, { path: '/' })
+}
+
+function getSessionIdFromRequest(req) {
+  // Header takes priority, then cookie
+  const fromHeader = req.headers['x-session-id']
+  if (fromHeader) return fromHeader
+  // Parse cookie manually
+  const cookies = req.headers.cookie
+  if (!cookies) return null
+  const match = cookies.split(';').map(c => c.trim()).find(c => c.startsWith(COOKIE_NAME + '='))
+  return match ? match.split('=')[1] : null
+}
+
 // ── Upload security ──
 
 // Allowed MIME types (images + videos only)
@@ -178,7 +207,7 @@ app.use('/uploads', (req, res, next) => {
 
 // ── Auth middleware ──
 async function authenticate(req, res, next) {
-  const sessionId = req.headers['x-session-id']
+  const sessionId = getSessionIdFromRequest(req)
   if (!sessionId) return res.status(401).json({ error: 'Not authenticated' })
   try {
     const [rows] = await pool.query(
@@ -215,6 +244,7 @@ app.post('/api/auth/login', async (req, res) => {
       'INSERT INTO sessions (id, user_id, lang, expires_at) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY))',
       [sessionId, user.id, lang || 'da']
     )
+    setSessionCookie(res, sessionId)
     res.json({ sessionId, userId: user.id })
   } catch (err) {
     res.status(500).json({ error: 'Login failed' })
@@ -223,23 +253,51 @@ app.post('/api/auth/login', async (req, res) => {
 
 // POST /api/auth/register — create account after migration
 app.post('/api/auth/register', async (req, res) => {
-  const { name, email, password, lang } = req.body
+  const { name, email, password, lang, inviteToken } = req.body
   if (!name || !email || !password) return res.status(400).json({ error: 'Name, email, and password required' })
   if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' })
   try {
     const hash = crypto.createHash('sha256').update(password).digest('hex')
     const handle = '@' + name.toLowerCase().replace(/\s+/g, '.')
     const initials = name.split(' ').map(n => n[0]).join('').toUpperCase()
+    const userInviteToken = crypto.randomBytes(32).toString('hex')
     const [result] = await pool.query(
-      'INSERT INTO users (name, handle, initials, email, password_hash, password_plain, join_date) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [name, handle, initials, email, hash, password, new Date().toISOString()]
+      'INSERT INTO users (name, handle, initials, email, password_hash, password_plain, join_date, invite_token) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [name, handle, initials, email, hash, password, new Date().toISOString(), userInviteToken]
     )
+    const newUserId = result.insertId
     const sessionId = crypto.randomUUID()
     await pool.query(
       'INSERT INTO sessions (id, user_id, lang, expires_at) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY))',
-      [sessionId, result.insertId, lang || 'da']
+      [sessionId, newUserId, lang || 'da']
     )
-    res.json({ sessionId, userId: result.insertId })
+
+    // If registered via invite link, auto-connect with inviter
+    if (inviteToken) {
+      try {
+        const [inviter] = await pool.query('SELECT id FROM users WHERE invite_token = ?', [inviteToken])
+        if (inviter.length > 0) {
+          const inviterId = inviter[0].id
+          await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [newUserId, inviterId])
+          await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [inviterId, newUserId])
+        }
+        const [invitation] = await pool.query(
+          'SELECT id, inviter_id FROM invitations WHERE invite_token = ? AND status = ?',
+          [inviteToken, 'pending']
+        )
+        if (invitation.length > 0) {
+          const inviterId = invitation[0].inviter_id
+          await pool.query('UPDATE invitations SET status = ?, accepted_by = ? WHERE id = ?', ['accepted', newUserId, invitation[0].id])
+          await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [newUserId, inviterId])
+          await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [inviterId, newUserId])
+        }
+      } catch (err) {
+        console.error('Invite auto-connect error:', err)
+      }
+    }
+
+    setSessionCookie(res, sessionId)
+    res.json({ sessionId, userId: newUserId })
   } catch (err) {
     if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Email or handle already exists' })
     res.status(500).json({ error: 'Registration failed' })
@@ -292,6 +350,7 @@ app.post('/api/auth/reset-password', async (req, res) => {
       'INSERT INTO sessions (id, user_id, lang, expires_at) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY))',
       [sessionId, userId, 'da']
     )
+    setSessionCookie(res, sessionId)
     res.json({ ok: true, sessionId, userId })
   } catch (err) {
     res.status(500).json({ error: 'Reset failed' })
@@ -300,8 +359,9 @@ app.post('/api/auth/reset-password', async (req, res) => {
 
 // POST /api/auth/logout
 app.post('/api/auth/logout', authenticate, async (req, res) => {
-  const sessionId = req.headers['x-session-id']
+  const sessionId = getSessionIdFromRequest(req)
   await pool.query('DELETE FROM sessions WHERE id = ?', [sessionId])
+  clearSessionCookie(res)
   res.json({ ok: true })
 })
 
@@ -396,10 +456,11 @@ app.get('/api/auth/facebook/callback', async (req, res) => {
       const handle = '@' + (fbProfile.name || 'user').toLowerCase().replace(/\s+/g, '.')
       const initials = (fbProfile.name || 'U').split(' ').map(n => n[0]).join('').toUpperCase()
       const avatarUrl = fbProfile.picture?.data?.url || null
+      const userInviteToken = crypto.randomBytes(32).toString('hex')
       const [result] = await pool.query(
-        `INSERT INTO users (name, handle, initials, email, join_date, avatar_url, facebook_id, fb_access_token, fb_token_expires_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [fbProfile.name, handle, initials, fbProfile.email || null, new Date().toISOString(), avatarUrl, fbProfile.id, encryptedToken, tokenExpiry]
+        `INSERT INTO users (name, handle, initials, email, join_date, avatar_url, facebook_id, fb_access_token, fb_token_expires_at, invite_token)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [fbProfile.name, handle, initials, fbProfile.email || null, new Date().toISOString(), avatarUrl, fbProfile.id, encryptedToken, tokenExpiry, userInviteToken]
       )
       userId = result.insertId
     }
@@ -420,6 +481,7 @@ app.get('/api/auth/facebook/callback', async (req, res) => {
     )
 
     // Redirect to frontend — frontend will show consent dialog before importing
+    setSessionCookie(res, sessionId)
     res.redirect(`/?fb_session=${sessionId}&fb_lang=${lang}&fb_needs_consent=true`)
   } catch (err) {
     console.error('Facebook callback error:', err)
@@ -631,15 +693,26 @@ app.post('/api/profile/avatar', authenticate, upload.single('avatar'), async (re
 
 // ── Feed routes ──
 
-// GET /api/feed — get all posts with comments and media
+// GET /api/feed — get posts with pagination (max 20 in DOM)
 app.get('/api/feed', authenticate, async (req, res) => {
   try {
+    const limit = Math.min(parseInt(req.query.limit) || 20, 50)
+    const offset = Math.max(parseInt(req.query.offset) || 0, 0)
+
+    const [countResult] = await pool.query(
+      `SELECT COUNT(*) as total FROM posts p
+       WHERE p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?)`,
+      [req.userId, req.userId]
+    )
+    const total = countResult[0].total
+
     const [posts] = await pool.query(
       `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.created_at, p.edited_at
        FROM posts p JOIN users u ON p.author_id = u.id
        WHERE p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?)
-       ORDER BY p.created_at DESC`,
-      [req.userId, req.userId]
+       ORDER BY p.created_at DESC
+       LIMIT ? OFFSET ?`,
+      [req.userId, req.userId, limit, offset]
     )
     const postIds = posts.map(p => p.id)
     const [comments] = postIds.length > 0
@@ -680,7 +753,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
         comments: commentsByPost[p.id] || [],
       }
     })
-    res.json(result)
+    res.json({ posts: result, total, offset, limit })
   } catch (err) {
     res.status(500).json({ error: 'Failed to load feed' })
   }
@@ -842,6 +915,88 @@ app.post('/api/feed/:id/comment', authenticate, async (req, res) => {
   }
 })
 
+// ── Invite routes ──
+
+// GET /api/invite/:token — public: get inviter info from invite link
+app.get('/api/invite/:token', async (req, res) => {
+  const { token } = req.params
+  try {
+    const [users] = await pool.query(
+      'SELECT id, name, avatar_url FROM users WHERE invite_token = ?',
+      [token]
+    )
+    if (users.length > 0) {
+      return res.json({ inviter: { name: users[0].name, avatarUrl: users[0].avatar_url } })
+    }
+    const [invitations] = await pool.query(
+      `SELECT u.name, u.avatar_url FROM invitations i
+       JOIN users u ON i.inviter_id = u.id
+       WHERE i.invite_token = ? AND i.status = 'pending'`,
+      [token]
+    )
+    if (invitations.length > 0) {
+      return res.json({ inviter: { name: invitations[0].name, avatarUrl: invitations[0].avatar_url } })
+    }
+    res.status(404).json({ error: 'Invite not found' })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to load invite' })
+  }
+})
+
+// GET /api/invites/link — get current user's personal invite link
+app.get('/api/invites/link', authenticate, async (req, res) => {
+  try {
+    const [users] = await pool.query('SELECT invite_token FROM users WHERE id = ?', [req.userId])
+    if (users.length === 0) return res.status(404).json({ error: 'User not found' })
+    let token = users[0].invite_token
+    if (!token) {
+      token = crypto.randomBytes(32).toString('hex')
+      await pool.query('UPDATE users SET invite_token = ? WHERE id = ?', [token, req.userId])
+    }
+    res.json({ token })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to get invite link' })
+  }
+})
+
+// POST /api/invites — create individual invitations for selected friends
+app.post('/api/invites', authenticate, async (req, res) => {
+  const { friends } = req.body
+  if (!friends?.length) return res.status(400).json({ error: 'No friends selected' })
+  try {
+    const created = []
+    for (const friend of friends) {
+      const token = crypto.randomBytes(32).toString('hex')
+      await pool.query(
+        'INSERT INTO invitations (inviter_id, invite_token, invitee_name) VALUES (?, ?, ?)',
+        [req.userId, token, friend.name || null]
+      )
+      created.push({ name: friend.name, token })
+    }
+    res.json({ invitations: created, count: created.length })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to create invitations' })
+  }
+})
+
+// GET /api/invites — list invitations sent by current user
+app.get('/api/invites', authenticate, async (req, res) => {
+  try {
+    const [invitations] = await pool.query(
+      `SELECT i.id, i.invite_token, i.invitee_name, i.status, i.created_at,
+              u.name as accepted_by_name
+       FROM invitations i
+       LEFT JOIN users u ON i.accepted_by = u.id
+       WHERE i.inviter_id = ?
+       ORDER BY i.created_at DESC`,
+      [req.userId]
+    )
+    res.json(invitations)
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to load invitations' })
+  }
+})
+
 // ── Friends routes ──
 
 // GET /api/friends — get current user's friends
@@ -862,7 +1017,7 @@ app.get('/api/friends', authenticate, async (req, res) => {
 
 // ── Messages routes ──
 
-// GET /api/messages — get message threads
+// GET /api/messages — get message threads (latest 20 messages per thread)
 app.get('/api/messages', authenticate, async (req, res) => {
   try {
     const [partners] = await pool.query(
@@ -873,23 +1028,33 @@ app.get('/api/messages', authenticate, async (req, res) => {
     )
     const threads = []
     for (const p of partners) {
+      const [totalResult] = await pool.query(
+        `SELECT COUNT(*) as total FROM messages
+         WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)`,
+        [req.userId, p.partner_id, p.partner_id, req.userId]
+      )
+      const totalMsgs = totalResult[0].total
       const [msgs] = await pool.query(
         `SELECT m.id, u_sender.name as from_name, m.text_da, m.text_en, m.time, m.is_read
          FROM messages m
          JOIN users u_sender ON m.sender_id = u_sender.id
          WHERE (m.sender_id = ? AND m.receiver_id = ?) OR (m.sender_id = ? AND m.receiver_id = ?)
-         ORDER BY m.created_at ASC`,
+         ORDER BY m.created_at DESC
+         LIMIT 20`,
         [req.userId, p.partner_id, p.partner_id, req.userId]
       )
-      const [friendInfo] = await pool.query('SELECT name FROM users WHERE id = ?', [p.partner_id])
-      const unread = msgs.filter(m => !m.is_read && m.from_name !== 'Sofie Nielsen').length
+      msgs.reverse() // Show oldest first within the window
+      const [friendInfo] = await pool.query('SELECT id, name FROM users WHERE id = ?', [p.partner_id])
+      const unread = msgs.filter(m => !m.is_read && m.from_name !== friendInfo[0].name).length
       threads.push({
+        friendId: friendInfo[0].id,
         friend: friendInfo[0].name,
         messages: msgs.map(m => ({
           from: m.from_name,
           text: { da: m.text_da, en: m.text_en },
           time: m.time,
         })),
+        totalMessages: totalMsgs,
         unread,
       })
     }
@@ -899,6 +1064,7 @@ app.get('/api/messages', authenticate, async (req, res) => {
   }
 })
 
+<<<<<<< HEAD
 // Bot auto-reply responses
 const BOT_REPLIES_DA = [
   'Hej! Tak for din besked 😊',
@@ -928,6 +1094,35 @@ const BOT_REPLIES_EN = [
   'The weather is fantastic in Botland today! ☀️',
   'Have you seen the latest posts? They\'re great!',
 ]
+=======
+// GET /api/messages/:friendId/older?before=N — load older messages for a thread
+app.get('/api/messages/:friendId/older', authenticate, async (req, res) => {
+  const friendId = parseInt(req.params.friendId)
+  const offset = Math.max(parseInt(req.query.offset) || 0, 0)
+  const limit = Math.min(parseInt(req.query.limit) || 20, 50)
+  try {
+    const [msgs] = await pool.query(
+      `SELECT m.id, u_sender.name as from_name, m.text_da, m.text_en, m.time
+       FROM messages m
+       JOIN users u_sender ON m.sender_id = u_sender.id
+       WHERE (m.sender_id = ? AND m.receiver_id = ?) OR (m.sender_id = ? AND m.receiver_id = ?)
+       ORDER BY m.created_at DESC
+       LIMIT ? OFFSET ?`,
+      [req.userId, friendId, friendId, req.userId, limit, offset]
+    )
+    msgs.reverse()
+    res.json({
+      messages: msgs.map(m => ({
+        from: m.from_name,
+        text: { da: m.text_da, en: m.text_en },
+        time: m.time,
+      })),
+    })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to load messages' })
+  }
+})
+>>>>>>> origin/claude/facebook-invite-connect-OuCLk
 
 // POST /api/messages/:friendId — send a message
 app.post('/api/messages/:friendId', authenticate, async (req, res) => {

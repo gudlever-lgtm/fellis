@@ -305,6 +305,15 @@
   color: #6B6560;
   font-weight: 500;
 }
+.trust-link {
+  text-decoration: none;
+  color: #2D6A4F;
+  transition: color 0.2s;
+}
+.trust-link:hover {
+  text-decoration: underline;
+  color: #40916C;
+}
 
 /* ── Progress bar ── */
 .progress-bar {
@@ -380,6 +389,71 @@
   color: #6B6560;
   margin-bottom: 32px;
   font-size: 15px;
+}
+
+/* ── Step 1: Two-column options ── */
+.step1-options {
+  display: flex;
+  gap: 24px;
+  align-items: stretch;
+}
+.step1-card {
+  flex: 1;
+  background: #fff;
+  border: 2px solid #E8E4DF;
+  border-radius: 12px;
+  padding: 24px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.step1-card:hover {
+  border-color: #40916C;
+}
+.step1-card h4 {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+}
+.step1-card-desc {
+  font-size: 13px;
+  color: #6B6560;
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+.step1-card-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 700;
+  color: #1877F2;
+}
+.step1-card-icon[style*="F0FAF4"] {
+  color: #2D6A4F;
+}
+.step1-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #A09890;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 0 4px;
+}
+@media (max-width: 640px) {
+  .step1-options {
+    flex-direction: column;
+  }
+  .step1-divider {
+    padding: 4px 0;
+  }
 }
 
 /* ── Facebook connect ── */
@@ -1969,6 +2043,25 @@
   border-color: #2D6A4F;
 }
 
+/* ── Feed virtual scroll sentinels ── */
+.p-feed-sentinel {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.p-feed-loading {
+  font-size: 13px;
+  color: #A09890;
+  padding: 8px 0;
+}
+.p-feed-page-indicator {
+  text-align: center;
+  font-size: 12px;
+  color: #A09890;
+  padding: 12px 0 4px;
+}
+
 /* ── Lightbox ── */
 .lightbox-overlay {
   position: fixed;
@@ -2139,6 +2232,172 @@
   .lightbox-overlay {
     padding: 12px;
   }
+}
+
+/* ── Invite banner (landing page, arriving via invite link) ── */
+.invite-banner {
+  background: linear-gradient(135deg, #F0FAF4 0%, #d6f0e0 100%);
+  border-bottom: 1px solid #c0dfc8;
+  padding: 12px 24px;
+  text-align: center;
+}
+.invite-banner-text {
+  font-size: 15px;
+  color: #2D6A4F;
+}
+.invite-banner-text strong {
+  font-weight: 700;
+}
+
+/* ── Invite link section (Landing Step 3) ── */
+.invite-link-section {
+  background: #F0FAF4;
+  border: 1px solid #d0e8d8;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+  text-align: center;
+}
+.invite-link-title {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: #2D6A4F;
+  margin-bottom: 6px;
+}
+.invite-link-desc {
+  font-size: 13px;
+  color: #6B6560;
+  margin-bottom: 14px;
+  line-height: 1.5;
+}
+.invite-link-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.invite-link-input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid #d0e8d8;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  color: #2D6A4F;
+  background: #fff;
+  outline: none;
+  cursor: text;
+}
+.invite-link-input:focus {
+  border-color: #2D6A4F;
+}
+.invite-link-copy-btn {
+  background: #2D6A4F;
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+  transition: background 0.2s;
+}
+.invite-link-copy-btn:hover {
+  background: #40916C;
+}
+.fb-share-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: #1877F2;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 24px;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+.fb-share-btn:hover {
+  background: #1565d8;
+}
+
+/* ── Invite divider ── */
+.invite-divider {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  color: #A09890;
+  font-size: 13px;
+}
+.invite-divider::before,
+.invite-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #E8E4DF;
+}
+
+/* ── Platform invite card (Friends page) ── */
+.p-invite-card {
+  background: linear-gradient(135deg, #F0FAF4 0%, #fff 100%);
+  border-color: #d0e8d8;
+}
+.p-invite-desc {
+  font-size: 13px;
+  color: #6B6560;
+  margin-bottom: 14px;
+  line-height: 1.5;
+}
+.p-invite-link-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.p-invite-link-input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid #d0e8d8;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  color: #2D6A4F;
+  background: #fff;
+  outline: none;
+  cursor: text;
+}
+.p-invite-link-input:focus {
+  border-color: #2D6A4F;
+}
+.p-invite-copy-btn {
+  background: #2D6A4F;
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+  transition: background 0.2s;
+}
+.p-invite-copy-btn:hover {
+  background: #40916C;
+}
+.p-fb-share-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: #1877F2;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 24px;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+.p-fb-share-btn:hover {
+  background: #1565d8;
+}
+.p-fb-share-btn .fb-icon {
+  font-size: 18px;
 }
 
 /* ── Extra small screens ── */

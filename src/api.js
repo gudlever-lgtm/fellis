@@ -16,7 +16,11 @@ function headers() {
 
 async function request(path, options = {}) {
   try {
-    const res = await fetch(`${API_BASE}${path}`, { ...options, headers: headers() })
+    const res = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers: headers(),
+      credentials: 'same-origin', // Send cookies with requests
+    })
     if (!res.ok) {
       const body = await res.json().catch(() => ({}))
       throw new Error(body.error || `HTTP ${res.status}`)
@@ -40,10 +44,10 @@ export async function apiLogin(email, password, lang) {
   return data
 }
 
-export async function apiRegister(name, email, password, lang) {
+export async function apiRegister(name, email, password, lang, inviteToken) {
   const data = await request('/api/auth/register', {
     method: 'POST',
-    body: JSON.stringify({ name, email, password, lang }),
+    body: JSON.stringify({ name, email, password, lang, inviteToken: inviteToken || undefined }),
   })
   if (data?.sessionId) {
     localStorage.setItem('fellis_session_id', data.sessionId)
@@ -70,7 +74,7 @@ export async function apiResetPassword(token, password) {
 }
 
 export async function apiCheckSession() {
-  if (!getSessionId()) return null
+  // Try session check even without localStorage — cookie may carry the session
   return await request('/api/auth/session')
 }
 
@@ -80,8 +84,8 @@ export async function apiLogout() {
 }
 
 // Feed
-export async function apiFetchFeed() {
-  return await request('/api/feed')
+export async function apiFetchFeed(offset = 0, limit = 20) {
+  return await request(`/api/feed?offset=${offset}&limit=${limit}`)
 }
 
 export async function apiCreatePost(text, mediaFiles) {
@@ -96,6 +100,7 @@ export async function apiCreatePost(text, mediaFiles) {
       const res = await fetch(`${API_BASE}/api/feed`, {
         method: 'POST',
         headers: { 'X-Session-Id': getSessionId() },
+        credentials: 'same-origin',
         body: form,
       })
       if (!res.ok) {
@@ -172,6 +177,10 @@ export async function apiSendMessage(friendId, text) {
   })
 }
 
+export async function apiFetchOlderMessages(friendId, offset = 0, limit = 20) {
+  return await request(`/api/messages/${friendId}/older?offset=${offset}&limit=${limit}`)
+}
+
 // Facebook OAuth
 export function getFacebookAuthUrl(lang) {
   return `${API_BASE}/api/auth/facebook?lang=${lang}`
@@ -208,6 +217,32 @@ export async function apiExportData() {
   return await request('/api/gdpr/export')
 }
 
+// Invites
+export async function apiGetInviteLink() {
+  return await request('/api/invites/link')
+}
+
+export async function apiGetInviteInfo(token) {
+  try {
+    const res = await fetch(`${API_BASE}/api/invite/${token}`)
+    if (!res.ok) return null
+    return await res.json()
+  } catch {
+    return null
+  }
+}
+
+export async function apiSendInvites(friends) {
+  return await request('/api/invites', {
+    method: 'POST',
+    body: JSON.stringify({ friends }),
+  })
+}
+
+export async function apiGetInvites() {
+  return await request('/api/invites')
+}
+
 // Profile avatar
 export async function apiUploadAvatar(file) {
   const form = new FormData()
@@ -216,6 +251,7 @@ export async function apiUploadAvatar(file) {
     const res = await fetch(`${API_BASE}/api/profile/avatar`, {
       method: 'POST',
       headers: { 'X-Session-Id': getSessionId() },
+      credentials: 'same-origin',
       body: form,
     })
     if (!res.ok) {

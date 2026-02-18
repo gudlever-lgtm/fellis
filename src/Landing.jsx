@@ -7,7 +7,7 @@ const INVITE_FRIENDS = [
   { name: 'Ven 2', mutual: 3, online: true },
   { name: 'Ven 3', mutual: 8, online: false },
 ]
-import { apiLogin, apiRegister, apiForgotPassword, apiResetPassword, getFacebookAuthUrl } from './api.js'
+import { apiLogin, apiRegister, apiForgotPassword, apiResetPassword, getFacebookAuthUrl, apiSendInvites } from './api.js'
 
 // ── Landing translations ──
 const T = {
@@ -58,6 +58,12 @@ const T = {
     skip: 'Spring over',
     sendInvites: 'Send invitationer',
     sendingInvites: 'Sender invitationer...',
+    inviteLinkTitle: 'Del dit invitationslink',
+    inviteLinkDesc: 'Del dette link med dine Facebook-venner, så I automatisk bliver forbundet på fellis.eu',
+    copyLink: 'Kopier link',
+    linkCopied: 'Kopieret!',
+    shareOnFacebook: 'Del på Facebook',
+    invitedBy: 'inviterer dig til fellis.eu',
     doneTitle: 'Velkommen til fellis.eu!',
     doneSubtitle: 'Din migrering er fuldført. Dit nye digitale hjem venter.',
     itemsMigrated: 'Elementer migreret',
@@ -101,6 +107,11 @@ const T = {
     registerPassword: 'Vælg adgangskode (min. 6 tegn)',
     registerSubmit: 'Opret konto & gå til profil',
     registerError: 'Kunne ikke oprette konto',
+    // Create account card (step 1)
+    createAccountTitle: 'Opret konto direkte',
+    createAccountDesc: 'Opret en konto uden Facebook — brug e-mail og adgangskode.',
+    createAccountBtn: 'Opret konto',
+    orDivider: 'eller',
   },
   en: {
     navBrand: 'fellis.eu',
@@ -149,6 +160,12 @@ const T = {
     skip: 'Skip',
     sendInvites: 'Send invitations',
     sendingInvites: 'Sending invitations...',
+    inviteLinkTitle: 'Share your invite link',
+    inviteLinkDesc: 'Share this link with your Facebook friends so you automatically connect on fellis.eu',
+    copyLink: 'Copy link',
+    linkCopied: 'Copied!',
+    shareOnFacebook: 'Share on Facebook',
+    invitedBy: 'invites you to fellis.eu',
     doneTitle: 'Welcome to fellis.eu!',
     doneSubtitle: 'Your migration is complete. Your new digital home awaits.',
     itemsMigrated: 'Items migrated',
@@ -192,10 +209,15 @@ const T = {
     registerPassword: 'Choose a password (min. 6 characters)',
     registerSubmit: 'Create account & go to profile',
     registerError: 'Could not create account',
+    // Create account card (step 1)
+    createAccountTitle: 'Create account directly',
+    createAccountDesc: 'Create an account without Facebook — use email and password.',
+    createAccountBtn: 'Create account',
+    orDivider: 'or',
   },
 }
 
-export default function Landing({ onEnterPlatform }) {
+export default function Landing({ onEnterPlatform, inviteToken, inviterName }) {
   const [lang, setLang] = useState('da')
   const [step, setStep] = useState(0)
   const [showLoginModal, setShowLoginModal] = useState(false)
@@ -204,6 +226,7 @@ export default function Landing({ onEnterPlatform }) {
   const [selectedFriends, setSelectedFriends] = useState(new Set(INVITE_FRIENDS.map((_, i) => i)))
   const [inviteLoading, setInviteLoading] = useState(false)
   const [invitedCount, setInvitedCount] = useState(0)
+  const [inviteLinkCopied, setInviteLinkCopied] = useState(false)
 
   // Login modal state
   const [loginEmail, setLoginEmail] = useState('')
@@ -219,6 +242,9 @@ export default function Landing({ onEnterPlatform }) {
   const [forgotError, setForgotError] = useState('')
   const [forgotLoading, setForgotLoading] = useState(false)
   const [forgotFbNote, setForgotFbNote] = useState(false)
+
+  // Direct signup (skipping Facebook migration)
+  const [directSignup, setDirectSignup] = useState(false)
 
   // Register state (step 4)
   const [regName, setRegName] = useState('')
@@ -329,7 +355,7 @@ export default function Landing({ onEnterPlatform }) {
     setRegLoading(true)
     setRegError('')
     try {
-      const data = await apiRegister(regName.trim(), regEmail.trim(), regPassword.trim(), lang)
+      const data = await apiRegister(regName.trim(), regEmail.trim(), regPassword.trim(), lang, inviteToken || undefined)
       if (data?.sessionId) {
         onEnterPlatform(lang)
       } else {
@@ -340,7 +366,7 @@ export default function Landing({ onEnterPlatform }) {
       setRegError(t.registerError)
       setRegLoading(false)
     }
-  }, [regName, regEmail, regPassword, lang, t, onEnterPlatform])
+  }, [regName, regEmail, regPassword, lang, t, onEnterPlatform, inviteToken])
 
   // Redirect to real Facebook OAuth
   const handleFbClick = useCallback(() => {
@@ -364,11 +390,17 @@ export default function Landing({ onEnterPlatform }) {
     setSelectedFriends(prev => prev.size === INVITE_FRIENDS.length ? new Set() : new Set(INVITE_FRIENDS.map((_, i) => i)))
   }, [])
 
-  const handleSendInvites = useCallback(() => {
+  const handleSendInvites = useCallback(async () => {
     setInviteLoading(true)
     const count = selectedFriends.size
+    const friendsList = Array.from(selectedFriends).map(idx => ({ name: INVITE_FRIENDS[idx].name }))
+    try {
+      await apiSendInvites(friendsList)
+    } catch {
+      // Continue even if API fails (demo mode)
+    }
     setTimeout(() => { setInviteLoading(false); setInvitedCount(count); setStep(4) }, 2000)
-  }, [selectedFriends.size])
+  }, [selectedFriends])
 
   const handleSkip = useCallback(() => { setInvitedCount(0); setStep(4) }, [])
 
@@ -513,6 +545,15 @@ export default function Landing({ onEnterPlatform }) {
         </div>
       )}
 
+      {/* Invite banner (shown when arriving via invite link) */}
+      {inviterName && step === 0 && (
+        <div className="invite-banner">
+          <div className="invite-banner-text">
+            <strong>{inviterName}</strong> {t.invitedBy}
+          </div>
+        </div>
+      )}
+
       {/* Landing */}
       {step === 0 && (
         <div className="landing">
@@ -544,27 +585,48 @@ export default function Landing({ onEnterPlatform }) {
           </div>
           <div className="trust-row">
             <div className="trust-item"><div className="trust-icon">🔒</div><span className="trust-label">{t.trustEncrypt}</span></div>
-            <div className="trust-item"><div className="trust-icon">🇪🇺</div><span className="trust-label">{t.trustEU}</span></div>
+            <div className="trust-item"><div className="trust-icon">🇪🇺</div><a href="https://yggdrasilcloud.dk/" target="_blank" rel="noopener noreferrer" className="trust-label trust-link">{t.trustEU}</a></div>
             <div className="trust-item"><div className="trust-icon">🗑️</div><span className="trust-label">{t.trustDelete}</span></div>
           </div>
         </div>
       )}
 
+<<<<<<< HEAD
       {step >= 1 && !directRegister && <ProgressBar step={step} t={t} />}
+=======
+      {step >= 1 && !directSignup && <ProgressBar step={step} t={t} />}
+>>>>>>> origin/claude/facebook-invite-connect-OuCLk
 
-      {/* Step 1 — Connect Facebook (redirects to real Facebook OAuth) */}
+      {/* Step 1 — Connect Facebook or Create Account */}
       {step === 1 && (
         <div className="step-container">
           <h2>{t.connectTitle}</h2>
           <p className="step-subtitle">{t.connectSubtitle}</p>
-          <button className="fb-btn" onClick={handleFbClick}>
-            <span className="fb-icon">f</span>
-            {t.connectBtn}
-          </button>
-          <p className="fb-note">{lang === 'da'
-            ? 'Du bliver sendt til Facebook for at godkende. Ingen data slettes fra din Facebook-konto.'
-            : 'You will be redirected to Facebook to authorize. No data will be deleted from your Facebook account.'
-          }</p>
+          <div className="step1-options">
+            <div className="step1-card">
+              <div className="step1-card-icon" style={{ background: '#EBF4FF' }}>f</div>
+              <h4>{t.connectBtn}</h4>
+              <p className="step1-card-desc">{lang === 'da'
+                ? 'Importer dine data fra Facebook automatisk.'
+                : 'Automatically import your data from Facebook.'
+              }</p>
+              <button className="fb-btn" onClick={handleFbClick}>
+                <span className="fb-icon">f</span>
+                {t.connectBtn}
+              </button>
+            </div>
+            <div className="step1-divider">
+              <span>{t.orDivider}</span>
+            </div>
+            <div className="step1-card">
+              <div className="step1-card-icon" style={{ background: '#F0FAF4' }}>✉</div>
+              <h4>{t.createAccountTitle}</h4>
+              <p className="step1-card-desc">{t.createAccountDesc}</p>
+              <button className="btn-primary" style={{ width: '100%' }} onClick={() => { setDirectSignup(true); setStep(4) }}>
+                {t.createAccountBtn}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -600,6 +662,49 @@ export default function Landing({ onEnterPlatform }) {
             <>
               <h2>{t.inviteTitle}</h2>
               <p className="step-subtitle">{t.inviteSubtitle}</p>
+
+              {/* Shareable invite link section */}
+              <div className="invite-link-section">
+                <h4 className="invite-link-title">{t.inviteLinkTitle}</h4>
+                <p className="invite-link-desc">{t.inviteLinkDesc}</p>
+                <div className="invite-link-row">
+                  <input
+                    className="invite-link-input"
+                    value={`https://fellis.eu/?invite=personal`}
+                    readOnly
+                    onClick={e => e.target.select()}
+                  />
+                  <button
+                    className="invite-link-copy-btn"
+                    onClick={() => {
+                      navigator.clipboard.writeText('https://fellis.eu/?invite=personal').catch(() => {})
+                      setInviteLinkCopied(true)
+                      setTimeout(() => setInviteLinkCopied(false), 2000)
+                    }}
+                  >
+                    {inviteLinkCopied ? t.linkCopied : t.copyLink}
+                  </button>
+                </div>
+                <button
+                  className="fb-share-btn"
+                  onClick={() => {
+                    const shareUrl = encodeURIComponent('https://fellis.eu/?invite=personal')
+                    window.open(
+                      `https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`,
+                      'facebook-share',
+                      'width=580,height=400'
+                    )
+                  }}
+                >
+                  <span className="fb-icon">f</span>
+                  {t.shareOnFacebook}
+                </button>
+              </div>
+
+              <div className="invite-divider">
+                <span>{lang === 'da' ? 'eller vælg venner' : 'or select friends'}</span>
+              </div>
+
               <div className="friends-header">
                 <span style={{ fontSize: 14, color: '#6B6560' }}>{selectedFriends.size} / {INVITE_FRIENDS.length}</span>
                 <button className="select-all-btn" onClick={toggleAllFriends}>
@@ -633,7 +738,11 @@ export default function Landing({ onEnterPlatform }) {
       {/* Step 4 — Done + Register */}
       {step === 4 && (
         <div className="step-container done-page">
+<<<<<<< HEAD
           {!directRegister && (
+=======
+          {!directSignup && (
+>>>>>>> origin/claude/facebook-invite-connect-OuCLk
             <>
               <div className="done-checkmark">✓</div>
               <h2>{t.doneTitle}</h2>
