@@ -313,6 +313,8 @@ function FeedPage({ lang, t, currentUser }) {
   const cameraInputRef = useRef(null)
   const textareaRef = useRef(null)
   const commentFileRefs = useRef({})
+  const commentCameraRefs = useRef({})
+  const [commentMediaPopup, setCommentMediaPopup] = useState(null) // postId of open popup
   const bottomSentinelRef = useRef(null)
   const topSentinelRef = useRef(null)
   const feedContainerRef = useRef(null)
@@ -522,11 +524,8 @@ function FeedPage({ lang, t, currentUser }) {
       }))
     })
     setCommentTexts(prev => ({ ...prev, [postId]: '' }))
-    setCommentMedia(prev => {
-      const next = { ...prev }
-      delete next[postId]
-      return next
-    })
+    setCommentMedia(prev => { const n = { ...prev }; delete n[postId]; return n })
+    setCommentMediaPopup(null)
     if (commentFileRefs.current[postId]) commentFileRefs.current[postId].value = ''
   }, [commentTexts, commentMedia, currentUser.name])
 
@@ -725,6 +724,13 @@ function FeedPage({ lang, t, currentUser }) {
                   <div className="p-avatar-xs" style={{ background: nameToColor(currentUser.name) }}>
                     {currentUser.initials || getInitials(currentUser.name)}
                   </div>
+                  {/* Hidden file inputs */}
+                  <input ref={el => commentFileRefs.current[post.id] = el} type="file"
+                    accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
+                    style={{ display: 'none' }} onChange={e => handleCommentFileSelect(post.id, e)} />
+                  <input ref={el => commentCameraRefs.current[post.id] = el} type="file"
+                    accept="image/*,video/*" capture="environment"
+                    style={{ display: 'none' }} onChange={e => handleCommentFileSelect(post.id, e)} />
                   <input
                     className="p-comment-input"
                     placeholder={t.writeComment}
@@ -732,16 +738,29 @@ function FeedPage({ lang, t, currentUser }) {
                     onChange={e => setCommentTexts(prev => ({ ...prev, [post.id]: e.target.value }))}
                     onKeyDown={e => e.key === 'Enter' && handleComment(post.id)}
                   />
-                  <input
-                    ref={el => commentFileRefs.current[post.id] = el}
-                    type="file"
-                    accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
-                    style={{ display: 'none' }}
-                    onChange={e => handleCommentFileSelect(post.id, e)}
-                  />
-                  <button className="p-comment-media-btn" onClick={() => commentFileRefs.current[post.id]?.click()} title={lang === 'da' ? 'Tilføj billede/video' : 'Add image/video'}>
-                    📷
-                  </button>
+                  {/* Media attachment popup */}
+                  <div className="p-media-popup-wrap">
+                    <button
+                      className={`p-media-popup-btn p-media-popup-btn-sm${commentMediaPopup === post.id ? ' active' : ''}`}
+                      onClick={() => setCommentMediaPopup(p => p === post.id ? null : post.id)}
+                      title={lang === 'da' ? 'Tilføj medie' : 'Add media'}
+                    >+</button>
+                    {commentMediaPopup === post.id && (
+                      <>
+                        <div className="p-share-backdrop" onClick={() => setCommentMediaPopup(null)} />
+                        <div className="p-share-popup p-media-popup">
+                          <button className="p-share-option" onClick={() => { commentFileRefs.current[post.id]?.click(); setCommentMediaPopup(null) }}>
+                            <span className="p-media-popup-icon">🖼️</span>
+                            {lang === 'da' ? 'Galleri' : 'Gallery'}
+                          </button>
+                          <button className="p-share-option" onClick={() => { commentCameraRefs.current[post.id]?.click(); setCommentMediaPopup(null) }}>
+                            <span className="p-media-popup-icon">📷</span>
+                            {lang === 'da' ? 'Kamera' : 'Camera'}
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
                   <button className="p-send-btn" onClick={() => handleComment(post.id)}>{t.send}</button>
                 </div>
               </div>

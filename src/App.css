@@ -1160,6 +1160,12 @@
   background: #40916C;
   transform: rotate(45deg);
 }
+/* Smaller variant for comment row */
+.p-media-popup-btn-sm {
+  width: 26px;
+  height: 26px;
+  font-size: 18px;
+}
 /* Media popup panel — opens upward, anchored left */
 .p-media-popup {
   left: 0;
