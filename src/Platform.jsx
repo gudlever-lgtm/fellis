@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { PT, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchMessages, apiSendMessage, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchMessages, apiSendMessage, apiFetchOlderMessages, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -183,8 +183,13 @@ function PostMedia({ media }) {
 }
 
 // ── Feed ──
+const PAGE_SIZE = 20
+
 function FeedPage({ lang, t, currentUser }) {
   const [posts, setPosts] = useState([])
+  const [offset, setOffset] = useState(0)
+  const [total, setTotal] = useState(0)
+  const [loadingPage, setLoadingPage] = useState(false)
   const [newPostText, setNewPostText] = useState('')
   const [mediaFiles, setMediaFiles] = useState([])
   const [mediaPreviews, setMediaPreviews] = useState([])
@@ -192,18 +197,75 @@ function FeedPage({ lang, t, currentUser }) {
   const [expandedComments, setExpandedComments] = useState(new Set())
   const [commentTexts, setCommentTexts] = useState({})
   const [commentMedia, setCommentMedia] = useState({})
+  const [shareToast, setShareToast] = useState(null)
   const fileInputRef = useRef(null)
   const commentFileRefs = useRef({})
+  const bottomSentinelRef = useRef(null)
+  const topSentinelRef = useRef(null)
+  const feedContainerRef = useRef(null)
 
-  // Try loading feed from API
+  // Fetch a page of posts
+  const fetchPage = useCallback(async (newOffset, direction) => {
+    if (loadingPage) return
+    setLoadingPage(true)
+    const data = await apiFetchFeed(newOffset, PAGE_SIZE)
+    if (data?.posts) {
+      setPosts(data.posts)
+      setTotal(data.total)
+      setOffset(newOffset)
+      setLikedPosts(new Set(data.posts.filter(p => p.liked).map(p => p.id)))
+      // Scroll to top when going forward, bottom when going back
+      if (feedContainerRef.current) {
+        if (direction === 'down') {
+          feedContainerRef.current.scrollTop = 0
+        } else if (direction === 'up') {
+          requestAnimationFrame(() => {
+            if (feedContainerRef.current) {
+              feedContainerRef.current.scrollTop = feedContainerRef.current.scrollHeight
+            }
+          })
+        }
+      }
+    }
+    setLoadingPage(false)
+  }, [loadingPage])
+
+  // Initial load
   useEffect(() => {
-    apiFetchFeed().then(data => {
-      if (data) {
-        setPosts(data)
-        setLikedPosts(new Set(data.filter(p => p.liked).map(p => p.id)))
+    apiFetchFeed(0, PAGE_SIZE).then(data => {
+      if (data?.posts) {
+        setPosts(data.posts)
+        setTotal(data.total)
+        setLikedPosts(new Set(data.posts.filter(p => p.liked).map(p => p.id)))
       }
     })
   }, [])
+
+  // Bottom sentinel — load next page
+  useEffect(() => {
+    const el = bottomSentinelRef.current
+    if (!el) return
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && !loadingPage && offset + PAGE_SIZE < total) {
+        fetchPage(offset + PAGE_SIZE, 'down')
+      }
+    }, { threshold: 0.1 })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [offset, total, loadingPage, fetchPage])
+
+  // Top sentinel — load previous page
+  useEffect(() => {
+    const el = topSentinelRef.current
+    if (!el) return
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && !loadingPage && offset > 0) {
+        fetchPage(Math.max(0, offset - PAGE_SIZE), 'up')
+      }
+    }, { threshold: 0.1 })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [offset, loadingPage, fetchPage])
 
   const handleFileSelect = useCallback((e) => {
     const files = Array.from(e.target.files).slice(0, 4)
@@ -230,7 +292,8 @@ function FeedPage({ lang, t, currentUser }) {
     const files = mediaFiles.length > 0 ? mediaFiles : null
     apiCreatePost(text, files).then(data => {
       if (data) {
-        setPosts(prev => [data, ...prev])
+        setPosts(prev => [data, ...prev].slice(0, PAGE_SIZE))
+        setTotal(prev => prev + 1)
       } else {
         const localMedia = mediaPreviews.length > 0
           ? mediaPreviews.map(p => ({ url: p.url, type: p.type, mime: '' }))
@@ -241,7 +304,8 @@ function FeedPage({ lang, t, currentUser }) {
           time: { da: 'Lige nu', en: 'Just now' },
           text: { da: text, en: text },
           likes: 0, comments: [], media: localMedia,
-        }, ...prev])
+        }, ...prev].slice(0, PAGE_SIZE))
+        setTotal(prev => prev + 1)
       }
     })
     setNewPostText('')
@@ -287,6 +351,20 @@ function FeedPage({ lang, t, currentUser }) {
     })
   }, [])
 
+  const handleShare = useCallback(async (post) => {
+    const text = post.text[lang] || post.text.da || ''
+    const shareData = { title: `${post.author} on fellis.eu`, text, url: window.location.origin }
+    if (navigator.share) {
+      try { await navigator.share(shareData) } catch {}
+    } else {
+      try {
+        await navigator.clipboard.writeText(`${text}\n\n${window.location.origin}`)
+        setShareToast(post.id)
+        setTimeout(() => setShareToast(null), 2000)
+      } catch {}
+    }
+  }, [lang])
+
   const handleComment = useCallback((postId) => {
     const text = commentTexts[postId]
     const media = commentMedia[postId]
@@ -309,8 +387,11 @@ function FeedPage({ lang, t, currentUser }) {
     if (commentFileRefs.current[postId]) commentFileRefs.current[postId].value = ''
   }, [commentTexts, commentMedia, currentUser.name])
 
+  const pageNum = Math.floor(offset / PAGE_SIZE) + 1
+  const totalPages = Math.ceil(total / PAGE_SIZE)
+
   return (
-    <div className="p-feed">
+    <div className="p-feed" ref={feedContainerRef}>
       {/* New post */}
       <div className="p-card p-new-post">
         <div className="p-new-post-row">
@@ -353,7 +434,14 @@ function FeedPage({ lang, t, currentUser }) {
         )}
       </div>
 
-      {/* Posts */}
+      {/* Top sentinel — triggers loading previous page */}
+      {offset > 0 && (
+        <div ref={topSentinelRef} className="p-feed-sentinel">
+          {loadingPage && <div className="p-feed-loading">{lang === 'da' ? 'Indlæser...' : 'Loading...'}</div>}
+        </div>
+      )}
+
+      {/* Posts — max PAGE_SIZE in DOM */}
       {posts.map(post => {
         const liked = likedPosts.has(post.id)
         const showComments = expandedComments.has(post.id)
@@ -383,7 +471,9 @@ function FeedPage({ lang, t, currentUser }) {
               <button className="p-action-btn" onClick={() => toggleComments(post.id)}>
                 💬 {t.comment}
               </button>
-              <button className="p-action-btn">↗ {t.share}</button>
+              <button className="p-action-btn" onClick={() => handleShare(post)}>
+                ↗ {t.share} {shareToast === post.id && <span style={{ fontSize: 11, color: '#2D6A4F' }}>✓</span>}
+              </button>
             </div>
             {showComments && (
               <div className="p-comments">
@@ -442,6 +532,20 @@ function FeedPage({ lang, t, currentUser }) {
           </div>
         )
       })}
+
+      {/* Bottom sentinel — triggers loading next page */}
+      {offset + PAGE_SIZE < total && (
+        <div ref={bottomSentinelRef} className="p-feed-sentinel">
+          {loadingPage && <div className="p-feed-loading">{lang === 'da' ? 'Indlæser...' : 'Loading...'}</div>}
+        </div>
+      )}
+
+      {/* Page indicator */}
+      {totalPages > 1 && (
+        <div className="p-feed-page-indicator">
+          {pageNum} / {totalPages}
+        </div>
+      )}
     </div>
   )
 }
@@ -461,8 +565,9 @@ function ProfilePage({ lang, t, currentUser, onUserUpdate }) {
         }
       }
     })
-    apiFetchFeed().then(data => {
-      if (data) setUserPosts(data.filter(p => p.author === currentUser.name))
+    apiFetchFeed(0, 100).then(data => {
+      const posts = data?.posts || data || []
+      setUserPosts(posts.filter(p => p.author === currentUser.name))
     })
   }, [currentUser.name, onUserUpdate])
 
@@ -1107,11 +1212,16 @@ function FriendsPage({ lang, t, onMessage }) {
 }
 
 // ── Messages ──
+const MSG_PAGE_SIZE = 20
+
 function MessagesPage({ lang, t, currentUser }) {
   const [activeThread, setActiveThread] = useState(0)
   const [threads, setThreads] = useState([])
   const [newMsg, setNewMsg] = useState('')
+  const [loadingOlder, setLoadingOlder] = useState(false)
   const messagesEndRef = useRef(null)
+  const msgBodyRef = useRef(null)
+  const topMsgSentinelRef = useRef(null)
 
   useEffect(() => {
     apiFetchMessages().then(data => {
@@ -1123,24 +1233,61 @@ function MessagesPage({ lang, t, currentUser }) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [threads, activeThread])
 
+  // Load older messages when scrolling to top of chat
+  useEffect(() => {
+    const el = topMsgSentinelRef.current
+    if (!el) return
+    const thread = threads[activeThread]
+    if (!thread || !thread.friendId) return
+    const hasOlder = thread.messages.length < (thread.totalMessages || 0)
+    if (!hasOlder) return
+    const observer = new IntersectionObserver(async (entries) => {
+      if (!entries[0].isIntersecting || loadingOlder) return
+      setLoadingOlder(true)
+      const prevScrollHeight = msgBodyRef.current?.scrollHeight || 0
+      const data = await apiFetchOlderMessages(thread.friendId, thread.messages.length, MSG_PAGE_SIZE)
+      if (data?.messages?.length > 0) {
+        setThreads(prev => prev.map((th, i) => {
+          if (i !== activeThread) return th
+          const combined = [...data.messages, ...th.messages]
+          // Keep max 40 messages (20 old + 20 current), trim from bottom if needed
+          const trimmed = combined.length > 40 ? combined.slice(0, 40) : combined
+          return { ...th, messages: trimmed }
+        }))
+        // Preserve scroll position after prepending
+        requestAnimationFrame(() => {
+          if (msgBodyRef.current) {
+            const newScrollHeight = msgBodyRef.current.scrollHeight
+            msgBodyRef.current.scrollTop = newScrollHeight - prevScrollHeight
+          }
+        })
+      }
+      setLoadingOlder(false)
+    }, { threshold: 0.1 })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [activeThread, threads, loadingOlder])
+
   const handleSend = useCallback(() => {
     if (!newMsg.trim()) return
     const text = newMsg.trim()
-    setThreads(prev => prev.map((thread, i) => {
-      if (i !== activeThread) return thread
-      return {
-        ...thread,
-        messages: [...thread.messages, {
-          from: currentUser.name,
-          text: { da: text, en: text },
-          time: new Date().toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' }),
-        }],
-        unread: 0,
-      }
+    const thread = threads[activeThread]
+    setThreads(prev => prev.map((th, i) => {
+      if (i !== activeThread) return th
+      const newMessages = [...th.messages, {
+        from: currentUser.name,
+        text: { da: text, en: text },
+        time: new Date().toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' }),
+      }]
+      // Keep max 20 in DOM — trim oldest if needed
+      const trimmed = newMessages.length > MSG_PAGE_SIZE ? newMessages.slice(-MSG_PAGE_SIZE) : newMessages
+      return { ...th, messages: trimmed, totalMessages: (th.totalMessages || th.messages.length) + 1, unread: 0 }
     }))
     setNewMsg('')
-    apiSendMessage(activeThread + 1, text).catch(() => {})
-  }, [newMsg, activeThread, currentUser.name])
+    if (thread?.friendId) {
+      apiSendMessage(thread.friendId, text).catch(() => {})
+    }
+  }, [newMsg, activeThread, threads, currentUser.name])
 
   const thread = threads[activeThread]
 
@@ -1151,6 +1298,8 @@ function MessagesPage({ lang, t, currentUser }) {
       </div>
     </div>
   )
+
+  const hasOlderMessages = thread.messages.length < (thread.totalMessages || 0)
 
   return (
     <div className="p-messages">
@@ -1171,7 +1320,7 @@ function MessagesPage({ lang, t, currentUser }) {
                 {th.unread > 0 && <span className="p-msg-badge">{th.unread}</span>}
               </div>
               <div className="p-msg-thread-preview">
-                {th.messages[th.messages.length - 1].text[lang].slice(0, 40)}...
+                {th.messages.length > 0 ? th.messages[th.messages.length - 1].text[lang].slice(0, 40) + '...' : ''}
               </div>
             </div>
           </div>
@@ -1185,7 +1334,13 @@ function MessagesPage({ lang, t, currentUser }) {
           </div>
           <span className="p-msg-header-name">{thread.friend}</span>
         </div>
-        <div className="p-msg-body">
+        <div className="p-msg-body" ref={msgBodyRef}>
+          {/* Top sentinel — load older messages */}
+          {hasOlderMessages && (
+            <div ref={topMsgSentinelRef} className="p-feed-sentinel">
+              {loadingOlder && <div className="p-feed-loading">{lang === 'da' ? 'Indlæser ældre...' : 'Loading older...'}</div>}
+            </div>
+          )}
           {thread.messages.map((msg, i) => {
             const isMe = msg.from === currentUser.name
             return (
