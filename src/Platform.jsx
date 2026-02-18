@@ -294,6 +294,9 @@ function FeedPage({ lang, t, currentUser }) {
   const [offset, setOffset] = useState(0)
   const [total, setTotal] = useState(0)
   const [loadingPage, setLoadingPage] = useState(false)
+  const isFetchingRef = useRef(false)   // ref guard — avoids stale closure in observers
+  const offsetRef = useRef(0)           // mirrors offset state for stable observer callbacks
+  const totalRef = useRef(0)            // mirrors total state for stable observer callbacks
   const [newPostText, setNewPostText] = useState('')
   const [mediaFiles, setMediaFiles] = useState([])
   const [mediaPreviews, setMediaPreviews] = useState([])
@@ -305,36 +308,46 @@ function FeedPage({ lang, t, currentUser }) {
   const [sharePopupFriends, setSharePopupFriends] = useState(null) // null = not loaded yet
   const [shareSentTo, setShareSentTo] = useState(null)   // friendId just messaged
   const fileInputRef = useRef(null)
+  const cameraInputRef = useRef(null)
   const commentFileRefs = useRef({})
   const bottomSentinelRef = useRef(null)
   const topSentinelRef = useRef(null)
   const feedContainerRef = useRef(null)
 
-  // Fetch a page of posts
+  // Fetch a page of posts — stable callback (empty deps), guards via ref
   const fetchPage = useCallback(async (newOffset, direction) => {
-    if (loadingPage) return
+    if (isFetchingRef.current) return
+    isFetchingRef.current = true
     setLoadingPage(true)
     const data = await apiFetchFeed(newOffset, PAGE_SIZE)
     if (data?.posts) {
+      const container = feedContainerRef.current
+      // Capture scroll height BEFORE React flushes the DOM update
+      const prevScrollHeight = container?.scrollHeight ?? 0
       setPosts(data.posts)
       setTotal(data.total)
       setOffset(newOffset)
       setLikedPosts(new Set(data.posts.filter(p => p.liked).map(p => p.id)))
-      // Scroll to top when going forward, bottom when going back
-      if (feedContainerRef.current) {
+      offsetRef.current = newOffset
+      totalRef.current = data.total
+      if (container) {
         if (direction === 'down') {
-          feedContainerRef.current.scrollTop = 0
+          container.scrollTop = 0
         } else if (direction === 'up') {
+          // After DOM paints: jump to the position that puts the user
+          // at the bottom of the newly loaded page so they can keep scrolling up
           requestAnimationFrame(() => {
             if (feedContainerRef.current) {
-              feedContainerRef.current.scrollTop = feedContainerRef.current.scrollHeight
+              feedContainerRef.current.scrollTop =
+                feedContainerRef.current.scrollHeight - prevScrollHeight
             }
           })
         }
       }
     }
     setLoadingPage(false)
-  }, [loadingPage])
+    isFetchingRef.current = false
+  }, []) // stable — all mutable reads go through refs
 
   // Initial load
   useEffect(() => {
@@ -342,36 +355,43 @@ function FeedPage({ lang, t, currentUser }) {
       if (data?.posts) {
         setPosts(data.posts)
         setTotal(data.total)
+        totalRef.current = data.total
         setLikedPosts(new Set(data.posts.filter(p => p.liked).map(p => p.id)))
       }
     })
   }, [])
 
   // Bottom sentinel — load next page
+  // Depends only on `offset` (to re-observe when sentinel mounts/unmounts) and
+  // `fetchPage` (stable). Reads current values via refs inside the callback.
   useEffect(() => {
     const el = bottomSentinelRef.current
     if (!el) return
     const observer = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting && !loadingPage && offset + PAGE_SIZE < total) {
-        fetchPage(offset + PAGE_SIZE, 'down')
+      if (entries[0].isIntersecting &&
+          !isFetchingRef.current &&
+          offsetRef.current + PAGE_SIZE < totalRef.current) {
+        fetchPage(offsetRef.current + PAGE_SIZE, 'down')
       }
     }, { threshold: 0.1 })
     observer.observe(el)
     return () => observer.disconnect()
-  }, [offset, total, loadingPage, fetchPage])
+  }, [offset, fetchPage]) // offset: sentinel mounts when offset changes; fetchPage: stable
 
   // Top sentinel — load previous page
   useEffect(() => {
     const el = topSentinelRef.current
     if (!el) return
     const observer = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting && !loadingPage && offset > 0) {
-        fetchPage(Math.max(0, offset - PAGE_SIZE), 'up')
+      if (entries[0].isIntersecting &&
+          !isFetchingRef.current &&
+          offsetRef.current > 0) {
+        fetchPage(Math.max(0, offsetRef.current - PAGE_SIZE), 'up')
       }
     }, { threshold: 0.1 })
     observer.observe(el)
     return () => observer.disconnect()
-  }, [offset, loadingPage, fetchPage])
+  }, [offset, fetchPage]) // offset: sentinel mounts/unmounts; fetchPage: stable
 
   const handleFileSelect = useCallback((e) => {
     const files = Array.from(e.target.files).slice(0, 4)
@@ -418,6 +438,7 @@ function FeedPage({ lang, t, currentUser }) {
     setMediaFiles([])
     setMediaPreviews([])
     if (fileInputRef.current) fileInputRef.current.value = ''
+    if (cameraInputRef.current) cameraInputRef.current.value = ''
   }, [newPostText, mediaFiles, mediaPreviews, currentUser.name])
 
   const toggleLike = useCallback((id) => {
@@ -529,7 +550,18 @@ function FeedPage({ lang, t, currentUser }) {
             style={{ display: 'none' }}
             onChange={handleFileSelect}
           />
-          <button className="p-media-btn" onClick={() => fileInputRef.current?.click()} title={lang === 'da' ? 'Tilføj billede/video' : 'Add image/video'}>
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*,video/*"
+            capture="environment"
+            style={{ display: 'none' }}
+            onChange={handleFileSelect}
+          />
+          <button className="p-media-btn" onClick={() => fileInputRef.current?.click()} title={lang === 'da' ? 'Vælg billede/video' : 'Choose image/video'}>
+            🖼️
+          </button>
+          <button className="p-media-btn" onClick={() => cameraInputRef.current?.click()} title={lang === 'da' ? 'Tag billede/video' : 'Take photo/video'}>
             📷
           </button>
           <button className="p-post-btn" onClick={handlePost} disabled={!newPostText.trim()}>{t.post}</button>
