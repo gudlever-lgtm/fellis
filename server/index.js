@@ -190,6 +190,10 @@ const upload = multer({
   },
 })
 
+// Auto-migration: add media column to comments if it doesn't exist yet
+pool.query('ALTER TABLE comments ADD COLUMN IF NOT EXISTS media JSON DEFAULT NULL')
+  .catch(err => console.error('Migration (comments.media):', err.message))
+
 // Serve uploads with security headers (no script execution, no sniffing)
 app.use('/uploads', (req, res, next) => {
   // Block anything that isn't GET
@@ -715,15 +719,29 @@ app.get('/api/feed', authenticate, async (req, res) => {
       [req.userId, req.userId, limit, offset]
     )
     const postIds = posts.map(p => p.id)
-    const [comments] = postIds.length > 0
-      ? await pool.query(
-        `SELECT c.id, c.post_id, u.name as author, c.text_da, c.text_en, c.media
-         FROM comments c JOIN users u ON c.author_id = u.id
-         WHERE c.post_id IN (?)
-         ORDER BY c.created_at ASC`,
-        [postIds]
-      )
-      : [[]]
+    let comments = []
+    if (postIds.length > 0) {
+      try {
+        const [rows] = await pool.query(
+          `SELECT c.id, c.post_id, u.name as author, c.text_da, c.text_en, c.media
+           FROM comments c JOIN users u ON c.author_id = u.id
+           WHERE c.post_id IN (?)
+           ORDER BY c.created_at ASC`,
+          [postIds]
+        )
+        comments = rows
+      } catch {
+        // media column may not exist yet — fall back to query without it
+        const [rows] = await pool.query(
+          `SELECT c.id, c.post_id, u.name as author, c.text_da, c.text_en
+           FROM comments c JOIN users u ON c.author_id = u.id
+           WHERE c.post_id IN (?)
+           ORDER BY c.created_at ASC`,
+          [postIds]
+        )
+        comments = rows
+      }
+    }
     const [userLikes] = await pool.query(
       'SELECT post_id FROM post_likes WHERE user_id = ?',
       [req.userId]
@@ -861,10 +879,18 @@ app.post('/api/feed/:id/comment', authenticate, upload.single('media'), async (r
     mediaJson = JSON.stringify([{ url: `/uploads/${req.file.filename}`, type, mime: req.file.mimetype }])
   }
   try {
-    await pool.query(
-      'INSERT INTO comments (post_id, author_id, text_da, text_en, media) VALUES (?, ?, ?, ?, ?)',
-      [postId, req.userId, text, text, mediaJson]
-    )
+    try {
+      await pool.query(
+        'INSERT INTO comments (post_id, author_id, text_da, text_en, media) VALUES (?, ?, ?, ?, ?)',
+        [postId, req.userId, text, text, mediaJson]
+      )
+    } catch {
+      // media column not yet migrated — insert without it
+      await pool.query(
+        'INSERT INTO comments (post_id, author_id, text_da, text_en) VALUES (?, ?, ?, ?)',
+        [postId, req.userId, text, text]
+      )
+    }
     const [users] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
     const media = mediaJson ? JSON.parse(mediaJson) : null
     res.json({ author: users[0].name, text: { da: text, en: text }, media })
