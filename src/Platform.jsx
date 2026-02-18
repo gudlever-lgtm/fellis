@@ -286,6 +286,20 @@ function PostMedia({ media }) {
   )
 }
 
+// ── Camera helper — must be in DOM before .click() for iOS Safari capture to work ──
+function openCamera(onFile) {
+  const inp = document.createElement('input')
+  inp.type = 'file'
+  inp.accept = 'image/*,video/*'
+  inp.setAttribute('capture', 'environment')
+  inp.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;'
+  document.body.appendChild(inp)
+  const cleanup = () => { if (inp.parentNode) inp.parentNode.removeChild(inp) }
+  inp.addEventListener('change', (e) => { onFile(e); cleanup() }, { once: true })
+  inp.addEventListener('cancel', cleanup, { once: true })
+  inp.click()
+}
+
 // ── Reaction emojis ──
 const REACTIONS = [
   { emoji: '👍', label: { da: 'Synes godt om', en: 'Like' } },
@@ -626,7 +640,7 @@ function FeedPage({ lang, t, currentUser }) {
                         <span className="p-media-popup-icon">🖼️</span>
                         {lang === 'da' ? 'Galleri' : 'Gallery'}
                       </button>
-                      <button className="p-share-option" onMouseDown={e => e.preventDefault()} onClick={() => { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*,video/*'; inp.setAttribute('capture', 'environment'); inp.addEventListener('change', handleFileSelect, { once: true }); inp.click(); setMediaPopup(false) }}>
+                      <button className="p-share-option" onMouseDown={e => e.preventDefault()} onClick={() => { setMediaPopup(false); openCamera(handleFileSelect) }}>
                         <span className="p-media-popup-icon">📷</span>
                         {lang === 'da' ? 'Kamera' : 'Camera'}
                       </button>
@@ -789,7 +803,7 @@ function FeedPage({ lang, t, currentUser }) {
                             <span className="p-media-popup-icon">🖼️</span>
                             {lang === 'da' ? 'Galleri' : 'Gallery'}
                           </button>
-                          <button className="p-share-option" onClick={() => { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*,video/*'; inp.setAttribute('capture', 'environment'); inp.addEventListener('change', e => handleCommentFileSelect(post.id, e), { once: true }); inp.click(); setCommentMediaPopup(null) }}>
+                          <button className="p-share-option" onClick={() => { setCommentMediaPopup(null); openCamera(e => handleCommentFileSelect(post.id, e)) }}>
                             <span className="p-media-popup-icon">📷</span>
                             {lang === 'da' ? 'Kamera' : 'Camera'}
                           </button>
