@@ -821,6 +821,25 @@ function PrivacySection({ lang, onLogout }) {
       'Facebook-tokens slettes automatisk efter 90 dage',
       'Sessioner udløber efter 30 dage',
     ],
+    // Hosting card
+    hostingTitle: 'Hosting og datasuverænitet',
+    hostingProvider: 'Yggdrasil Cloud',
+    hostingProviderUrl: 'https://yggdrasilcloud.dk/',
+    hostingIntro: 'fellis.eu er hostet hos Yggdrasil Cloud — en dansk cloud-udbyder med servere placeret i Danmark.',
+    hostingWhyTitle: 'Hvorfor EU-hosting er vigtigt',
+    hostingWhy: [
+      'Dine data forlader aldrig EU — de opbevares fysisk i Danmark og er underlagt dansk og europæisk lovgivning.',
+      'EU\'s GDPR-forordning giver dig som borger stærke rettigheder over dine persondata, herunder ret til indsigt, rettelse, sletning og dataportabilitet.',
+      'Til forskel fra platforme hostet i USA eller andre tredjelande er dine data ikke underlagt lovgivning som FISA 702, CLOUD Act eller lignende overvågningsbestemmelser.',
+      'Danske datacentre opererer under strenge europæiske standarder for sikkerhed, miljø og energieffektivitet.',
+    ],
+    hostingRightsTitle: 'Dine fordele ved EU-hosting',
+    hostingRights: [
+      'Fuld GDPR-beskyttelse — dine data behandles i overensstemmelse med verdens strengeste persondatalovgivning.',
+      'Ingen overførsel til tredjelande — dine data deles ikke med myndigheder uden for EU uden retsgrundlag.',
+      'Datatilsynet (den danske databeskyttelsesmyndighed) fører tilsyn med behandlingen af dine data.',
+      'Du har altid ret til at klage til Datatilsynet, hvis du mener, dine rettigheder er krænket.',
+    ],
     // Consent management
     consentTitle: 'Samtykke-status',
     consentFbImport: 'Facebook dataimport',
@@ -878,6 +897,25 @@ function PrivacySection({ lang, onLogout }) {
       'Facebook tokens encrypted with AES-256-GCM',
       'Facebook tokens automatically deleted after 90 days',
       'Sessions expire after 30 days',
+    ],
+    // Hosting card
+    hostingTitle: 'Hosting and data sovereignty',
+    hostingProvider: 'Yggdrasil Cloud',
+    hostingProviderUrl: 'https://yggdrasilcloud.dk/',
+    hostingIntro: 'fellis.eu is hosted by Yggdrasil Cloud — a Danish cloud provider with servers located in Denmark.',
+    hostingWhyTitle: 'Why EU hosting matters',
+    hostingWhy: [
+      'Your data never leaves the EU — it is physically stored in Denmark and subject to Danish and European law.',
+      'The EU GDPR regulation gives you as a citizen strong rights over your personal data, including the right to access, rectification, erasure, and data portability.',
+      'Unlike platforms hosted in the USA or other third countries, your data is not subject to legislation such as FISA 702, the CLOUD Act, or similar surveillance provisions.',
+      'Danish data centers operate under strict European standards for security, environment, and energy efficiency.',
+    ],
+    hostingRightsTitle: 'Your benefits from EU hosting',
+    hostingRights: [
+      'Full GDPR protection — your data is processed in accordance with the world\'s strictest personal data legislation.',
+      'No transfers to third countries — your data is not shared with authorities outside the EU without a legal basis.',
+      'The Danish Data Protection Agency (Datatilsynet) supervises the processing of your data.',
+      'You always have the right to file a complaint with the Danish Data Protection Agency if you believe your rights have been violated.',
     ],
     // Consent management
     consentTitle: 'Consent Status',
@@ -1014,9 +1052,34 @@ function PrivacySection({ lang, onLogout }) {
           {t.privacyWhy.map((item, i) => <li key={i}>{item}</li>)}
         </ul>
 
-        <p style={{ fontSize: 14, fontWeight: 600, marginBottom: 0, marginTop: 12 }}>{t.privacyStorageTitle}</p>
+      </div>
+
+      {/* ── Storage & Security — own card ── */}
+      <div style={sectionStyle}>
+        <h3 style={sectionTitleStyle}>{t.privacyStorageTitle}</h3>
         <ul style={listStyle}>
           {t.privacyStorage.map((item, i) => <li key={i}>{item}</li>)}
+        </ul>
+      </div>
+
+      {/* ── Hosting & Data Sovereignty — own card ── */}
+      <div style={{ ...sectionStyle, background: 'linear-gradient(135deg, #F0FAF4 0%, #fff 100%)', borderColor: '#d0e8d8' }}>
+        <h3 style={sectionTitleStyle}>{t.hostingTitle}</h3>
+        <p style={{ fontSize: 13, color: '#555', marginBottom: 12 }}>
+          {t.hostingIntro}{' '}
+          <a href={t.hostingProviderUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#2D6A4F', fontWeight: 600 }}>
+            {t.hostingProvider} &#8599;
+          </a>
+        </p>
+
+        <p style={{ fontSize: 14, fontWeight: 600, marginBottom: 0 }}>{t.hostingWhyTitle}</p>
+        <ul style={listStyle}>
+          {t.hostingWhy.map((item, i) => <li key={i}>{item}</li>)}
+        </ul>
+
+        <p style={{ fontSize: 14, fontWeight: 600, marginBottom: 0, marginTop: 12 }}>{t.hostingRightsTitle}</p>
+        <ul style={listStyle}>
+          {t.hostingRights.map((item, i) => <li key={i}>{item}</li>)}
         </ul>
       </div>
 

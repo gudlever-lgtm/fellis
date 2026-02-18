@@ -104,6 +104,35 @@ const FB_DATA_RETENTION_DAYS = parseInt(process.env.FB_DATA_RETENTION_DAYS || '9
 const app = express()
 app.use(express.json())
 
+// ── Cookie helpers for persistent login ──
+const COOKIE_NAME = 'fellis_sid'
+const COOKIE_MAX_AGE = 30 * 24 * 60 * 60 * 1000 // 30 days
+
+function setSessionCookie(res, sessionId) {
+  res.cookie(COOKIE_NAME, sessionId, {
+    httpOnly: true,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: COOKIE_MAX_AGE,
+    secure: process.env.NODE_ENV === 'production',
+  })
+}
+
+function clearSessionCookie(res) {
+  res.clearCookie(COOKIE_NAME, { path: '/' })
+}
+
+function getSessionIdFromRequest(req) {
+  // Header takes priority, then cookie
+  const fromHeader = req.headers['x-session-id']
+  if (fromHeader) return fromHeader
+  // Parse cookie manually
+  const cookies = req.headers.cookie
+  if (!cookies) return null
+  const match = cookies.split(';').map(c => c.trim()).find(c => c.startsWith(COOKIE_NAME + '='))
+  return match ? match.split('=')[1] : null
+}
+
 // ── Upload security ──
 
 // Allowed MIME types (images + videos only)
@@ -178,7 +207,7 @@ app.use('/uploads', (req, res, next) => {
 
 // ── Auth middleware ──
 async function authenticate(req, res, next) {
-  const sessionId = req.headers['x-session-id']
+  const sessionId = getSessionIdFromRequest(req)
   if (!sessionId) return res.status(401).json({ error: 'Not authenticated' })
   try {
     const [rows] = await pool.query(
@@ -215,6 +244,7 @@ app.post('/api/auth/login', async (req, res) => {
       'INSERT INTO sessions (id, user_id, lang, expires_at) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY))',
       [sessionId, user.id, lang || 'da']
     )
+    setSessionCookie(res, sessionId)
     res.json({ sessionId, userId: user.id })
   } catch (err) {
     res.status(500).json({ error: 'Login failed' })
@@ -266,6 +296,7 @@ app.post('/api/auth/register', async (req, res) => {
       }
     }
 
+    setSessionCookie(res, sessionId)
     res.json({ sessionId, userId: newUserId })
   } catch (err) {
     if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Email or handle already exists' })
@@ -319,6 +350,7 @@ app.post('/api/auth/reset-password', async (req, res) => {
       'INSERT INTO sessions (id, user_id, lang, expires_at) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY))',
       [sessionId, userId, 'da']
     )
+    setSessionCookie(res, sessionId)
     res.json({ ok: true, sessionId, userId })
   } catch (err) {
     res.status(500).json({ error: 'Reset failed' })
@@ -327,8 +359,9 @@ app.post('/api/auth/reset-password', async (req, res) => {
 
 // POST /api/auth/logout
 app.post('/api/auth/logout', authenticate, async (req, res) => {
-  const sessionId = req.headers['x-session-id']
+  const sessionId = getSessionIdFromRequest(req)
   await pool.query('DELETE FROM sessions WHERE id = ?', [sessionId])
+  clearSessionCookie(res)
   res.json({ ok: true })
 })
 
@@ -448,6 +481,7 @@ app.get('/api/auth/facebook/callback', async (req, res) => {
     )
 
     // Redirect to frontend — frontend will show consent dialog before importing
+    setSessionCookie(res, sessionId)
     res.redirect(`/?fb_session=${sessionId}&fb_lang=${lang}&fb_needs_consent=true`)
   } catch (err) {
     console.error('Facebook callback error:', err)

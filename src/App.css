@@ -305,6 +305,15 @@
   color: #6B6560;
   font-weight: 500;
 }
+.trust-link {
+  text-decoration: none;
+  color: #2D6A4F;
+  transition: color 0.2s;
+}
+.trust-link:hover {
+  text-decoration: underline;
+  color: #40916C;
+}
 
 /* ── Progress bar ── */
 .progress-bar {

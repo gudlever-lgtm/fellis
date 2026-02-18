@@ -16,7 +16,11 @@ function headers() {
 
 async function request(path, options = {}) {
   try {
-    const res = await fetch(`${API_BASE}${path}`, { ...options, headers: headers() })
+    const res = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers: headers(),
+      credentials: 'same-origin', // Send cookies with requests
+    })
     if (!res.ok) {
       const body = await res.json().catch(() => ({}))
       throw new Error(body.error || `HTTP ${res.status}`)
@@ -70,7 +74,7 @@ export async function apiResetPassword(token, password) {
 }
 
 export async function apiCheckSession() {
-  if (!getSessionId()) return null
+  // Try session check even without localStorage — cookie may carry the session
   return await request('/api/auth/session')
 }
 
@@ -96,6 +100,7 @@ export async function apiCreatePost(text, mediaFiles) {
       const res = await fetch(`${API_BASE}/api/feed`, {
         method: 'POST',
         headers: { 'X-Session-Id': getSessionId() },
+        credentials: 'same-origin',
         body: form,
       })
       if (!res.ok) {
@@ -222,6 +227,7 @@ export async function apiUploadAvatar(file) {
     const res = await fetch(`${API_BASE}/api/profile/avatar`, {
       method: 'POST',
       headers: { 'X-Session-Id': getSessionId() },
+      credentials: 'same-origin',
       body: form,
     })
     if (!res.ok) {
