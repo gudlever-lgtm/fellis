@@ -107,6 +107,11 @@ const T = {
     registerPassword: 'Vælg adgangskode (min. 6 tegn)',
     registerSubmit: 'Opret konto & gå til profil',
     registerError: 'Kunne ikke oprette konto',
+    // Create account card (step 1)
+    createAccountTitle: 'Opret konto direkte',
+    createAccountDesc: 'Opret en konto uden Facebook — brug e-mail og adgangskode.',
+    createAccountBtn: 'Opret konto',
+    orDivider: 'eller',
   },
   en: {
     navBrand: 'fellis.eu',
@@ -204,6 +209,11 @@ const T = {
     registerPassword: 'Choose a password (min. 6 characters)',
     registerSubmit: 'Create account & go to profile',
     registerError: 'Could not create account',
+    // Create account card (step 1)
+    createAccountTitle: 'Create account directly',
+    createAccountDesc: 'Create an account without Facebook — use email and password.',
+    createAccountBtn: 'Create account',
+    orDivider: 'or',
   },
 }
 
@@ -232,6 +242,9 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName }) {
   const [forgotError, setForgotError] = useState('')
   const [forgotLoading, setForgotLoading] = useState(false)
   const [forgotFbNote, setForgotFbNote] = useState(false)
+
+  // Direct signup (skipping Facebook migration)
+  const [directSignup, setDirectSignup] = useState(false)
 
   // Register state (step 4)
   const [regName, setRegName] = useState('')
@@ -551,19 +564,36 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName }) {
 
       {step >= 1 && !directSignup && <ProgressBar step={step} t={t} />}
 
-      {/* Step 1 — Connect Facebook (redirects to real Facebook OAuth) */}
+      {/* Step 1 — Connect Facebook or Create Account */}
       {step === 1 && (
         <div className="step-container">
           <h2>{t.connectTitle}</h2>
           <p className="step-subtitle">{t.connectSubtitle}</p>
-          <button className="fb-btn" onClick={handleFbClick}>
-            <span className="fb-icon">f</span>
-            {t.connectBtn}
-          </button>
-          <p className="fb-note">{lang === 'da'
-            ? 'Du bliver sendt til Facebook for at godkende. Ingen data slettes fra din Facebook-konto.'
-            : 'You will be redirected to Facebook to authorize. No data will be deleted from your Facebook account.'
-          }</p>
+          <div className="step1-options">
+            <div className="step1-card">
+              <div className="step1-card-icon" style={{ background: '#EBF4FF' }}>f</div>
+              <h4>{t.connectBtn}</h4>
+              <p className="step1-card-desc">{lang === 'da'
+                ? 'Importer dine data fra Facebook automatisk.'
+                : 'Automatically import your data from Facebook.'
+              }</p>
+              <button className="fb-btn" onClick={handleFbClick}>
+                <span className="fb-icon">f</span>
+                {t.connectBtn}
+              </button>
+            </div>
+            <div className="step1-divider">
+              <span>{t.orDivider}</span>
+            </div>
+            <div className="step1-card">
+              <div className="step1-card-icon" style={{ background: '#F0FAF4' }}>✉</div>
+              <h4>{t.createAccountTitle}</h4>
+              <p className="step1-card-desc">{t.createAccountDesc}</p>
+              <button className="btn-primary" style={{ width: '100%' }} onClick={() => { setDirectSignup(true); setStep(4) }}>
+                {t.createAccountBtn}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
