@@ -286,6 +286,16 @@ function PostMedia({ media }) {
   )
 }
 
+// ── Reaction emojis ──
+const REACTIONS = [
+  { emoji: '👍', label: { da: 'Synes godt om', en: 'Like' } },
+  { emoji: '❤️', label: { da: 'Elsker', en: 'Love' } },
+  { emoji: '😄', label: { da: 'Haha', en: 'Haha' } },
+  { emoji: '😮', label: { da: 'Wow', en: 'Wow' } },
+  { emoji: '😢', label: { da: 'Trist', en: 'Sad' } },
+  { emoji: '😡', label: { da: 'Vred', en: 'Angry' } },
+]
+
 // ── Feed ──
 const PAGE_SIZE = 20
 
@@ -301,6 +311,8 @@ function FeedPage({ lang, t, currentUser }) {
   const [mediaFiles, setMediaFiles] = useState([])
   const [mediaPreviews, setMediaPreviews] = useState([])
   const [likedPosts, setLikedPosts] = useState(new Set())
+  const [reactions, setReactions] = useState({})   // postId → emoji
+  const [likePopup, setLikePopup] = useState(null) // postId with open reaction popup
   const [expandedComments, setExpandedComments] = useState(new Set())
   const [commentTexts, setCommentTexts] = useState({})
   const [commentMedia, setCommentMedia] = useState({})
@@ -310,10 +322,8 @@ function FeedPage({ lang, t, currentUser }) {
   const [postExpanded, setPostExpanded] = useState(false)
   const [mediaPopup, setMediaPopup] = useState(false)
   const fileInputRef = useRef(null)
-  const cameraInputRef = useRef(null)
   const textareaRef = useRef(null)
   const commentFileRefs = useRef({})
-  const commentCameraRefs = useRef({})
   const [commentMediaPopup, setCommentMediaPopup] = useState(null) // postId of open popup
   const bottomSentinelRef = useRef(null)
   const topSentinelRef = useRef(null)
@@ -445,17 +455,28 @@ function FeedPage({ lang, t, currentUser }) {
     setPostExpanded(false)
     setMediaPopup(false)
     if (fileInputRef.current) fileInputRef.current.value = ''
-    if (cameraInputRef.current) cameraInputRef.current.value = ''
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
   }, [newPostText, mediaFiles, mediaPreviews, currentUser.name])
 
-  const toggleLike = useCallback((id) => {
+  const toggleLike = useCallback((id, emoji) => {
     setLikedPosts(prev => {
       const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
+      if (next.has(id) && !emoji) {
+        // Already liked and no emoji chosen — remove like
+        next.delete(id)
+        setReactions(r => { const n = { ...r }; delete n[id]; return n })
+      } else if (!next.has(id)) {
+        next.add(id)
+        if (emoji) setReactions(r => ({ ...r, [id]: emoji }))
+      } else if (emoji) {
+        // Already liked, just change emoji
+        setReactions(r => ({ ...r, [id]: emoji }))
+        return prev
+      }
       return next
     })
     apiToggleLike(id).catch(() => {})
+    setLikePopup(null)
   }, [])
 
   const toggleComments = useCallback((id) => {
@@ -516,8 +537,11 @@ function FeedPage({ lang, t, currentUser }) {
     if (!text?.trim() && !media) return
     const commentText = (text || '').trim()
     const localMedia = media ? [{ url: media.url, type: media.type, mime: '' }] : null
-    apiAddComment(postId, commentText).then(data => {
-      const comment = data || { author: currentUser.name, text: { da: commentText, en: commentText }, media: localMedia }
+    apiAddComment(postId, commentText, media?.file ?? null).then(data => {
+      // Use server response but fall back to local; always show local media preview
+      const comment = data
+        ? { ...data, media: data.media ?? localMedia }
+        : { author: currentUser.name, text: { da: commentText, en: commentText }, media: localMedia }
       setPosts(prev => prev.map(p => {
         if (p.id !== postId) return p
         return { ...p, comments: [...p.comments, comment] }
@@ -536,13 +560,10 @@ function FeedPage({ lang, t, currentUser }) {
     <div className="p-feed" ref={feedContainerRef}>
       {/* New post */}
       <div className="p-card p-new-post">
-        {/* Hidden file inputs */}
+        {/* Hidden file input — gallery only */}
         <input ref={fileInputRef} type="file"
           accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
           multiple style={{ display: 'none' }} onChange={handleFileSelect} />
-        <input ref={el => { cameraInputRef.current = el; el?.setAttribute('capture', 'environment') }} type="file"
-          accept="image/*,video/*"
-          style={{ display: 'none' }} onChange={handleFileSelect} />
 
         {/* Collapsed prompt — click anywhere to expand */}
         {!postExpanded && !newPostText && !mediaPreviews.length ? (
@@ -605,7 +626,7 @@ function FeedPage({ lang, t, currentUser }) {
                         <span className="p-media-popup-icon">🖼️</span>
                         {lang === 'da' ? 'Galleri' : 'Gallery'}
                       </button>
-                      <button className="p-share-option" onMouseDown={e => e.preventDefault()} onClick={() => { cameraInputRef.current?.click(); setMediaPopup(false) }}>
+                      <button className="p-share-option" onMouseDown={e => e.preventDefault()} onClick={() => { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*,video/*'; inp.setAttribute('capture', 'environment'); inp.addEventListener('change', handleFileSelect, { once: true }); inp.click(); setMediaPopup(false) }}>
                         <span className="p-media-popup-icon">📷</span>
                         {lang === 'da' ? 'Kamera' : 'Camera'}
                       </button>
@@ -650,9 +671,27 @@ function FeedPage({ lang, t, currentUser }) {
               </span>
             </div>
             <div className="p-post-actions">
-              <button className={`p-action-btn${liked ? ' liked' : ''}`} onClick={() => toggleLike(post.id)}>
-                {liked ? '❤️' : '🤍'} {t.like}
-              </button>
+              <div className="p-reaction-wrap">
+                <button
+                  className={`p-action-btn${liked ? ' liked' : ''}`}
+                  onClick={() => liked ? toggleLike(post.id) : setLikePopup(p => p === post.id ? null : post.id)}
+                >
+                  {liked ? (reactions[post.id] || '❤️') : '🤍'} {t.like}
+                </button>
+                {likePopup === post.id && (
+                  <>
+                    <div className="p-share-backdrop" onClick={() => setLikePopup(null)} />
+                    <div className="p-reaction-popup">
+                      {REACTIONS.map(r => (
+                        <button key={r.emoji} className="p-reaction-btn" title={r.label[lang]}
+                          onClick={() => toggleLike(post.id, r.emoji)}>
+                          {r.emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
               <button className="p-action-btn" onClick={() => toggleComments(post.id)}>
                 💬 {t.comment}
               </button>
@@ -724,12 +763,9 @@ function FeedPage({ lang, t, currentUser }) {
                   <div className="p-avatar-xs" style={{ background: nameToColor(currentUser.name) }}>
                     {currentUser.initials || getInitials(currentUser.name)}
                   </div>
-                  {/* Hidden file inputs */}
+                  {/* Hidden file input — gallery only */}
                   <input ref={el => commentFileRefs.current[post.id] = el} type="file"
                     accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
-                    style={{ display: 'none' }} onChange={e => handleCommentFileSelect(post.id, e)} />
-                  <input ref={el => { commentCameraRefs.current[post.id] = el; el?.setAttribute('capture', 'environment') }} type="file"
-                    accept="image/*,video/*"
                     style={{ display: 'none' }} onChange={e => handleCommentFileSelect(post.id, e)} />
                   <input
                     className="p-comment-input"
@@ -753,7 +789,7 @@ function FeedPage({ lang, t, currentUser }) {
                             <span className="p-media-popup-icon">🖼️</span>
                             {lang === 'da' ? 'Galleri' : 'Gallery'}
                           </button>
-                          <button className="p-share-option" onClick={() => { commentCameraRefs.current[post.id]?.click(); setCommentMediaPopup(null) }}>
+                          <button className="p-share-option" onClick={() => { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*,video/*'; inp.setAttribute('capture', 'environment'); inp.addEventListener('change', e => handleCommentFileSelect(post.id, e), { once: true }); inp.click(); setCommentMediaPopup(null) }}>
                             <span className="p-media-popup-icon">📷</span>
                             {lang === 'da' ? 'Kamera' : 'Camera'}
                           </button>

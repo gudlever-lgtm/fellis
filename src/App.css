@@ -1431,6 +1431,45 @@
   color: #2D6A4F;
 }
 
+/* ── Reaction popup ── */
+.p-reaction-wrap {
+  position: relative;
+  flex: 1;
+}
+.p-reaction-popup {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fff;
+  border: 1px solid #E8E4DF;
+  border-radius: 40px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.15);
+  display: flex;
+  gap: 2px;
+  padding: 6px 8px;
+  z-index: 200;
+  animation: reactionPopIn 0.14s ease;
+}
+@keyframes reactionPopIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(6px) scale(0.9); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+.p-reaction-btn {
+  background: none;
+  border: none;
+  font-size: 28px;
+  padding: 4px 6px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.12s, background 0.1s;
+  line-height: 1;
+}
+.p-reaction-btn:hover {
+  transform: scale(1.35);
+  background: #F0FAF4;
+}
+
 /* ── Share popup ── */
 .p-share-wrap {
   position: relative;

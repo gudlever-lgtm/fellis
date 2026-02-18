@@ -123,7 +123,28 @@ export async function apiToggleLike(postId) {
   return await request(`/api/feed/${postId}/like`, { method: 'POST' })
 }
 
-export async function apiAddComment(postId, text) {
+export async function apiAddComment(postId, text, mediaFile) {
+  if (mediaFile) {
+    const form = new FormData()
+    form.append('text', text)
+    form.append('media', mediaFile)
+    try {
+      const res = await fetch(`${API_BASE}/api/feed/${postId}/comment`, {
+        method: 'POST',
+        headers: { 'X-Session-Id': getSessionId() },
+        credentials: 'same-origin',
+        body: form,
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error || `HTTP ${res.status}`)
+      }
+      return await res.json()
+    } catch (err) {
+      if (err.message === 'Failed to fetch') return null
+      throw err
+    }
+  }
   return await request(`/api/feed/${postId}/comment`, {
     method: 'POST',
     body: JSON.stringify({ text }),

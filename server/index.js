@@ -717,7 +717,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
     const postIds = posts.map(p => p.id)
     const [comments] = postIds.length > 0
       ? await pool.query(
-        `SELECT c.id, c.post_id, u.name as author, c.text_da, c.text_en
+        `SELECT c.id, c.post_id, u.name as author, c.text_da, c.text_en, c.media
          FROM comments c JOIN users u ON c.author_id = u.id
          WHERE c.post_id IN (?)
          ORDER BY c.created_at ASC`,
@@ -732,7 +732,9 @@ app.get('/api/feed', authenticate, async (req, res) => {
     const commentsByPost = {}
     for (const c of comments) {
       if (!commentsByPost[c.post_id]) commentsByPost[c.post_id] = []
-      commentsByPost[c.post_id].push({ author: c.author, text: { da: c.text_da, en: c.text_en } })
+      let cMedia = null
+      if (c.media) { try { cMedia = typeof c.media === 'string' ? JSON.parse(c.media) : c.media } catch {} }
+      commentsByPost[c.post_id].push({ author: c.author, text: { da: c.text_da, en: c.text_en }, media: cMedia })
     }
     const result = posts.map(p => {
       let media = null
@@ -840,18 +842,32 @@ app.post('/api/feed/:id/like', authenticate, async (req, res) => {
   }
 })
 
-// POST /api/feed/:id/comment — add comment
-app.post('/api/feed/:id/comment', authenticate, async (req, res) => {
-  const { text } = req.body
-  if (!text) return res.status(400).json({ error: 'Comment text required' })
+// POST /api/feed/:id/comment — add comment (with optional single media file)
+app.post('/api/feed/:id/comment', authenticate, upload.single('media'), async (req, res) => {
+  const text = (req.body.text || '').trim()
+  if (!text && !req.file) return res.status(400).json({ error: 'Comment text or media required' })
   const postId = parseInt(req.params.id)
+  let mediaJson = null
+  if (req.file) {
+    const header = Buffer.alloc(16)
+    const fd = fs.openSync(req.file.path, 'r')
+    fs.readSync(fd, header, 0, 16, 0)
+    fs.closeSync(fd)
+    if (!validateMagicBytes(header, req.file.mimetype)) {
+      fs.unlinkSync(req.file.path)
+      return res.status(400).json({ error: 'File failed content validation' })
+    }
+    const type = req.file.mimetype.startsWith('video/') ? 'video' : 'image'
+    mediaJson = JSON.stringify([{ url: `/uploads/${req.file.filename}`, type, mime: req.file.mimetype }])
+  }
   try {
     await pool.query(
-      'INSERT INTO comments (post_id, author_id, text_da, text_en) VALUES (?, ?, ?, ?)',
-      [postId, req.userId, text, text]
+      'INSERT INTO comments (post_id, author_id, text_da, text_en, media) VALUES (?, ?, ?, ?, ?)',
+      [postId, req.userId, text, text, mediaJson]
     )
     const [users] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
-    res.json({ author: users[0].name, text: { da: text, en: text } })
+    const media = mediaJson ? JSON.parse(mediaJson) : null
+    res.json({ author: users[0].name, text: { da: text, en: text }, media })
   } catch (err) {
     res.status(500).json({ error: 'Failed to add comment' })
   }
