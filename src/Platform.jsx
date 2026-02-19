@@ -2377,33 +2377,28 @@ function MessagesPage({ lang, t, currentUser, openConvId, onConvOpened }) {
           <div className="p-msg-empty-sidebar">{lang === 'da' ? 'Ingen samtaler endnu' : 'No conversations yet'}</div>
         )}
 
-        {/* Delete confirm inline */}
-        {deleteConvId && (() => {
-          const dc = conversations.find(c => c.id === deleteConvId)
-          return (
-            <div className="p-msg-delete-confirm" onClick={e => e.stopPropagation()}>
-              <span>{lang === 'da' ? `Slet "${dc?.name}"?` : `Delete "${dc?.name}"?`}</span>
-              <button className="p-msg-delete-yes" onClick={async () => {
-                await apiLeaveConversation(deleteConvId)
-                setConversations(prev => prev.filter(c => c.id !== deleteConvId))
-                setDeleteConvId(null)
-                setActiveConv(0)
-              }}>
-                {lang === 'da' ? 'Slet' : 'Delete'}
-              </button>
-              <button className="p-msg-delete-no" onClick={() => setDeleteConvId(null)}>
-                {lang === 'da' ? 'Annuller' : 'Cancel'}
-              </button>
-            </div>
-          )
-        })()}
-
         {conversations.map((c, i) => {
           const lastMsg = c.messages[c.messages.length - 1]
           const cIsMuted = c.mutedUntil && new Date(c.mutedUntil) > new Date()
           return (
+            <React.Fragment key={c.id}>
+              {deleteConvId === c.id && (
+                <div className="p-msg-delete-confirm" onClick={e => e.stopPropagation()}>
+                  <span>{lang === 'da' ? `Slet "${c.name}"?` : `Delete "${c.name}"?`}</span>
+                  <button className="p-msg-delete-yes" onClick={async () => {
+                    await apiLeaveConversation(deleteConvId)
+                    setConversations(prev => prev.filter(x => x.id !== deleteConvId))
+                    setDeleteConvId(null)
+                    setActiveConv(0)
+                  }}>
+                    {lang === 'da' ? 'Slet' : 'Delete'}
+                  </button>
+                  <button className="p-msg-delete-no" onClick={() => setDeleteConvId(null)}>
+                    {lang === 'da' ? 'Annuller' : 'Cancel'}
+                  </button>
+                </div>
+              )}
             <div
-              key={c.id}
               className={`p-msg-thread${i === activeConv ? ' active' : ''}`}
               onClick={() => selectConv(i)}
             >
@@ -2439,6 +2434,7 @@ function MessagesPage({ lang, t, currentUser, openConvId, onConvOpened }) {
                 onClick={e => { e.stopPropagation(); setDeleteConvId(c.id) }}
               >🗑</button>
             </div>
+            </React.Fragment>
           )
         })}
       </div>
