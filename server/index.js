@@ -61,6 +61,60 @@ function decryptToken(encoded) {
   }
 }
 
+// ── Conversations: schema migration + 1:1 message backfill ──
+async function initConversations() {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS conversations (
+      id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      name VARCHAR(200) DEFAULT NULL,
+      is_group TINYINT(1) DEFAULT 0,
+      created_by INT(11) DEFAULT NULL,
+      created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
+      FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    await pool.query(`CREATE TABLE IF NOT EXISTS conversation_participants (
+      conversation_id INT(11) NOT NULL,
+      user_id INT(11) NOT NULL,
+      muted_until DATETIME DEFAULT NULL,
+      joined_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
+      PRIMARY KEY (conversation_id, user_id),
+      FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    // Add conversation_id column (safe — fails silently if already present)
+    await pool.query('ALTER TABLE messages ADD COLUMN conversation_id INT(11) DEFAULT NULL AFTER id').catch(() => {})
+    await pool.query('ALTER TABLE messages ADD INDEX idx_msg_conv (conversation_id)').catch(() => {})
+    // Migrate existing 1:1 messages to conversation records
+    const [[{ cnt }]] = await pool.query('SELECT COUNT(*) as cnt FROM messages WHERE conversation_id IS NULL')
+    if (cnt === 0) return
+    const [pairs] = await pool.query(`
+      SELECT LEAST(sender_id, receiver_id) as user1, GREATEST(sender_id, receiver_id) as user2
+      FROM messages WHERE conversation_id IS NULL GROUP BY user1, user2`)
+    for (const { user1, user2 } of pairs) {
+      const [existing] = await pool.query(`
+        SELECT c.id FROM conversations c
+        JOIN conversation_participants cp1 ON cp1.conversation_id = c.id AND cp1.user_id = ?
+        JOIN conversation_participants cp2 ON cp2.conversation_id = c.id AND cp2.user_id = ?
+        WHERE c.is_group = 0 LIMIT 1`, [user1, user2])
+      let convId
+      if (existing.length > 0) {
+        convId = existing[0].id
+      } else {
+        const [r] = await pool.query('INSERT INTO conversations (is_group, created_by) VALUES (0, ?)', [user1])
+        convId = r.insertId
+        await pool.query('INSERT IGNORE INTO conversation_participants (conversation_id, user_id) VALUES (?, ?), (?, ?)',
+          [convId, user1, convId, user2])
+      }
+      await pool.query(`UPDATE messages SET conversation_id = ? WHERE conversation_id IS NULL
+        AND ((sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?))`,
+        [convId, user1, user2, user2, user1])
+    }
+    console.log('Conversations migration complete')
+  } catch (err) {
+    console.error('initConversations error:', err.message)
+  }
+}
+
 // ── GDPR Compliance: Audit logging (Art. 30 — records of processing) ──
 async function auditLog(userId, action, details = null, ipAddress = null) {
   try {
@@ -957,98 +1011,195 @@ app.get('/api/friends', authenticate, async (req, res) => {
   }
 })
 
-// ── Messages routes ──
+// ── Conversation routes ──
 
-// GET /api/messages — get message threads (latest 20 messages per thread)
-app.get('/api/messages', authenticate, async (req, res) => {
+// Helper: fetch a full conversation object for the current user
+async function getConversationForUser(convId, userId, myName) {
+  const [participants] = await pool.query(
+    `SELECT u.id, u.name FROM users u
+     JOIN conversation_participants cp ON cp.user_id = u.id
+     WHERE cp.conversation_id = ?`, [convId])
+  const [msgs] = await pool.query(
+    `SELECT u.name as from_name, m.text_da, m.text_en, m.time, m.is_read
+     FROM messages m JOIN users u ON m.sender_id = u.id
+     WHERE m.conversation_id = ? ORDER BY m.created_at DESC LIMIT 20`, [convId])
+  msgs.reverse()
+  const [[{ total }]] = await pool.query('SELECT COUNT(*) as total FROM messages WHERE conversation_id = ?', [convId])
+  const [[conv]] = await pool.query(
+    `SELECT c.name, c.is_group, cp.muted_until FROM conversations c
+     JOIN conversation_participants cp ON cp.conversation_id = c.id AND cp.user_id = ?
+     WHERE c.id = ?`, [userId, convId])
+  const unread = msgs.filter(m => !m.is_read && m.from_name !== myName).length
+  const displayName = conv.is_group
+    ? (conv.name || participants.filter(p => p.id !== userId).map(p => p.name.split(' ')[0]).join(', '))
+    : (participants.find(p => p.id !== userId)?.name || 'Unknown')
+  return {
+    id: convId,
+    name: displayName,
+    isGroup: conv.is_group === 1,
+    groupName: conv.name,
+    participants: participants.map(p => ({ id: p.id, name: p.name })),
+    messages: msgs.map(m => ({ from: m.from_name, text: { da: m.text_da, en: m.text_en }, time: m.time })),
+    totalMessages: total,
+    unread,
+    mutedUntil: conv.muted_until,
+  }
+}
+
+// GET /api/conversations — all conversations for the current user
+app.get('/api/conversations', authenticate, async (req, res) => {
   try {
-    const [partners] = await pool.query(
-      `SELECT DISTINCT
-        CASE WHEN sender_id = ? THEN receiver_id ELSE sender_id END as partner_id
-       FROM messages WHERE sender_id = ? OR receiver_id = ?`,
-      [req.userId, req.userId, req.userId]
-    )
-    const threads = []
-    for (const p of partners) {
-      const [totalResult] = await pool.query(
-        `SELECT COUNT(*) as total FROM messages
-         WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)`,
-        [req.userId, p.partner_id, p.partner_id, req.userId]
-      )
-      const totalMsgs = totalResult[0].total
-      const [msgs] = await pool.query(
-        `SELECT m.id, u_sender.name as from_name, m.text_da, m.text_en, m.time, m.is_read
-         FROM messages m
-         JOIN users u_sender ON m.sender_id = u_sender.id
-         WHERE (m.sender_id = ? AND m.receiver_id = ?) OR (m.sender_id = ? AND m.receiver_id = ?)
-         ORDER BY m.created_at DESC
-         LIMIT 20`,
-        [req.userId, p.partner_id, p.partner_id, req.userId]
-      )
-      msgs.reverse() // Show oldest first within the window
-      const [friendInfo] = await pool.query('SELECT id, name FROM users WHERE id = ?', [p.partner_id])
-      const unread = msgs.filter(m => !m.is_read && m.from_name !== friendInfo[0].name).length
-      threads.push({
-        friendId: friendInfo[0].id,
-        friend: friendInfo[0].name,
-        messages: msgs.map(m => ({
-          from: m.from_name,
-          text: { da: m.text_da, en: m.text_en },
-          time: m.time,
-        })),
-        totalMessages: totalMsgs,
-        unread,
-      })
+    const [[me]] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
+    const [convRows] = await pool.query(
+      `SELECT c.id FROM conversations c
+       JOIN conversation_participants cp ON cp.conversation_id = c.id AND cp.user_id = ?
+       ORDER BY (SELECT MAX(created_at) FROM messages WHERE conversation_id = c.id) DESC,
+                c.created_at DESC`, [req.userId])
+    const result = []
+    for (const { id } of convRows) {
+      result.push(await getConversationForUser(id, req.userId, me.name))
     }
-    res.json(threads)
+    res.json(result)
   } catch (err) {
-    res.status(500).json({ error: 'Failed to load messages' })
+    console.error('GET /api/conversations error:', err)
+    res.status(500).json({ error: 'Failed to load conversations' })
   }
 })
 
-// GET /api/messages/:friendId/older?before=N — load older messages for a thread
-app.get('/api/messages/:friendId/older', authenticate, async (req, res) => {
-  const friendId = parseInt(req.params.friendId)
+// GET /api/conversations/:id/messages/older — paginated older messages
+app.get('/api/conversations/:id/messages/older', authenticate, async (req, res) => {
+  const convId = parseInt(req.params.id)
   const offset = Math.max(parseInt(req.query.offset) || 0, 0)
   const limit = Math.min(parseInt(req.query.limit) || 20, 50)
   try {
+    const [check] = await pool.query(
+      'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, req.userId])
+    if (!check.length) return res.status(403).json({ error: 'Not a participant' })
     const [msgs] = await pool.query(
-      `SELECT m.id, u_sender.name as from_name, m.text_da, m.text_en, m.time
-       FROM messages m
-       JOIN users u_sender ON m.sender_id = u_sender.id
-       WHERE (m.sender_id = ? AND m.receiver_id = ?) OR (m.sender_id = ? AND m.receiver_id = ?)
-       ORDER BY m.created_at DESC
-       LIMIT ? OFFSET ?`,
-      [req.userId, friendId, friendId, req.userId, limit, offset]
-    )
+      `SELECT u.name as from_name, m.text_da, m.text_en, m.time
+       FROM messages m JOIN users u ON m.sender_id = u.id
+       WHERE m.conversation_id = ? ORDER BY m.created_at DESC LIMIT ? OFFSET ?`,
+      [convId, limit, offset])
     msgs.reverse()
-    res.json({
-      messages: msgs.map(m => ({
-        from: m.from_name,
-        text: { da: m.text_da, en: m.text_en },
-        time: m.time,
-      })),
-    })
+    res.json({ messages: msgs.map(m => ({ from: m.from_name, text: { da: m.text_da, en: m.text_en }, time: m.time })) })
   } catch (err) {
     res.status(500).json({ error: 'Failed to load messages' })
   }
 })
 
-// POST /api/messages/:friendId — send a message
-app.post('/api/messages/:friendId', authenticate, async (req, res) => {
+// POST /api/conversations — create a new 1:1 or group conversation
+app.post('/api/conversations', authenticate, async (req, res) => {
+  const { participantIds, name, isGroup } = req.body
+  if (!participantIds || !Array.isArray(participantIds) || !participantIds.length)
+    return res.status(400).json({ error: 'participantIds required' })
+  const allIds = [req.userId, ...participantIds.filter(id => id !== req.userId)]
+  try {
+    // For 1:1: return existing conversation if found
+    if (!isGroup && allIds.length === 2) {
+      const otherId = allIds.find(id => id !== req.userId)
+      const [existing] = await pool.query(
+        `SELECT c.id FROM conversations c
+         JOIN conversation_participants cp1 ON cp1.conversation_id = c.id AND cp1.user_id = ?
+         JOIN conversation_participants cp2 ON cp2.conversation_id = c.id AND cp2.user_id = ?
+         WHERE c.is_group = 0 LIMIT 1`, [req.userId, otherId])
+      if (existing.length > 0) return res.json({ id: existing[0].id, exists: true })
+    }
+    const [r] = await pool.query(
+      'INSERT INTO conversations (name, is_group, created_by) VALUES (?, ?, ?)',
+      [name || null, isGroup ? 1 : 0, req.userId])
+    const convId = r.insertId
+    for (const uid of allIds)
+      await pool.query('INSERT IGNORE INTO conversation_participants (conversation_id, user_id) VALUES (?, ?)', [convId, uid])
+    res.json({ id: convId, exists: false })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to create conversation' })
+  }
+})
+
+// POST /api/conversations/:id/messages — send a message
+app.post('/api/conversations/:id/messages', authenticate, async (req, res) => {
+  const convId = parseInt(req.params.id)
   const { text } = req.body
   if (!text) return res.status(400).json({ error: 'Message text required' })
   try {
+    const [check] = await pool.query(
+      'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, req.userId])
+    if (!check.length) return res.status(403).json({ error: 'Not a participant' })
     const now = new Date()
     const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
     await pool.query(
-      'INSERT INTO messages (sender_id, receiver_id, text_da, text_en, time) VALUES (?, ?, ?, ?, ?)',
-      [req.userId, req.params.friendId, text, text, time]
-    )
-    const [users] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
-    res.json({ from: users[0].name, text: { da: text, en: text }, time })
+      'INSERT INTO messages (conversation_id, sender_id, receiver_id, text_da, text_en, time) VALUES (?, ?, 0, ?, ?, ?)',
+      [convId, req.userId, text, text, time])
+    const [[user]] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
+    res.json({ from: user.name, text: { da: text, en: text }, time })
   } catch (err) {
     res.status(500).json({ error: 'Failed to send message' })
+  }
+})
+
+// POST /api/conversations/:id/invite — add participants to an existing conversation
+app.post('/api/conversations/:id/invite', authenticate, async (req, res) => {
+  const convId = parseInt(req.params.id)
+  const { userIds } = req.body
+  if (!userIds || !Array.isArray(userIds) || !userIds.length)
+    return res.status(400).json({ error: 'userIds required' })
+  try {
+    const [check] = await pool.query(
+      'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, req.userId])
+    if (!check.length) return res.status(403).json({ error: 'Not a participant' })
+    for (const uid of userIds)
+      await pool.query('INSERT IGNORE INTO conversation_participants (conversation_id, user_id) VALUES (?, ?)', [convId, uid])
+    // Promote to group if adding to a 1:1
+    await pool.query('UPDATE conversations SET is_group = 1 WHERE id = ? AND is_group = 0', [convId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to invite participants' })
+  }
+})
+
+// POST /api/conversations/:id/mute — mute for N minutes (null to unmute)
+app.post('/api/conversations/:id/mute', authenticate, async (req, res) => {
+  const convId = parseInt(req.params.id)
+  const { minutes } = req.body
+  try {
+    const [check] = await pool.query(
+      'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, req.userId])
+    if (!check.length) return res.status(403).json({ error: 'Not a participant' })
+    const mutedUntil = (minutes && minutes > 0) ? new Date(Date.now() + minutes * 60 * 1000) : null
+    await pool.query(
+      'UPDATE conversation_participants SET muted_until = ? WHERE conversation_id = ? AND user_id = ?',
+      [mutedUntil, convId, req.userId])
+    res.json({ ok: true, mutedUntil })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to mute conversation' })
+  }
+})
+
+// DELETE /api/conversations/:id/leave — leave a group conversation
+app.delete('/api/conversations/:id/leave', authenticate, async (req, res) => {
+  const convId = parseInt(req.params.id)
+  try {
+    await pool.query(
+      'DELETE FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to leave conversation' })
+  }
+})
+
+// PATCH /api/conversations/:id — rename a group conversation
+app.patch('/api/conversations/:id', authenticate, async (req, res) => {
+  const convId = parseInt(req.params.id)
+  const { name } = req.body
+  if (!name) return res.status(400).json({ error: 'name required' })
+  try {
+    const [check] = await pool.query(
+      'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, req.userId])
+    if (!check.length) return res.status(403).json({ error: 'Not a participant' })
+    await pool.query('UPDATE conversations SET name = ? WHERE id = ?', [name, convId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to rename conversation' })
   }
 })
 
@@ -1358,4 +1509,5 @@ app.listen(PORT, () => {
     console.warn('⚠️  WARNING: FB_TOKEN_ENCRYPTION_KEY not set. Facebook tokens will be stored unencrypted.')
     console.warn('   Generate a key with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"')
   }
+  initConversations()
 })

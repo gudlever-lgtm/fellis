@@ -92,6 +92,31 @@ CREATE TABLE IF NOT EXISTS messages (
   FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
+-- Group conversations
+CREATE TABLE IF NOT EXISTS conversations (
+  id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(200) DEFAULT NULL,
+  is_group TINYINT(1) DEFAULT 0,
+  created_by INT(11) DEFAULT NULL,
+  created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
+  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+
+-- Conversation participants with per-user mute support
+CREATE TABLE IF NOT EXISTS conversation_participants (
+  conversation_id INT(11) NOT NULL,
+  user_id INT(11) NOT NULL,
+  muted_until DATETIME DEFAULT NULL,
+  joined_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
+  PRIMARY KEY (conversation_id, user_id),
+  FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+
+-- Migration for existing installations:
+-- ALTER TABLE messages ADD COLUMN conversation_id INT(11) DEFAULT NULL AFTER id;
+-- ALTER TABLE messages ADD INDEX idx_msg_conv (conversation_id);
+
 -- Invitations (invite links to bring friends to fellis.eu)
 CREATE TABLE IF NOT EXISTS invitations (
   id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,

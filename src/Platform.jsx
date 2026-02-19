@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { PT, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchMessages, apiSendMessage, apiFetchOlderMessages, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -1320,51 +1320,200 @@ function FriendsPage({ lang, t, onMessage }) {
 // ── Messages ──
 const MSG_PAGE_SIZE = 20
 
+// ── New Conversation / New Group Modal ──
+function NewConvModal({ t, lang, friends, existingParticipantIds = [], isGroupMode, onClose, onCreate }) {
+  const [selected, setSelected] = useState([])
+  const [groupName, setGroupName] = useState('')
+  const [search, setSearch] = useState('')
+
+  const eligible = friends.filter(f =>
+    !existingParticipantIds.includes(f.id) &&
+    f.name.toLowerCase().includes(search.toLowerCase())
+  )
+  const toggle = (id) => setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+
+  const canCreate = isGroupMode ? selected.length >= 1 : selected.length === 1
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="p-msg-modal" onClick={e => e.stopPropagation()}>
+        <div className="p-msg-modal-header">
+          <span>{isGroupMode ? t.newGroupTitle : t.newConvTitle}</span>
+          <button className="p-msg-modal-close" onClick={onClose}>✕</button>
+        </div>
+        {isGroupMode && (
+          <input
+            className="p-msg-modal-input"
+            placeholder={t.groupNamePlaceholder}
+            value={groupName}
+            onChange={e => setGroupName(e.target.value)}
+          />
+        )}
+        <input
+          className="p-msg-modal-input"
+          placeholder={t.searchFriends}
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          autoFocus
+        />
+        <div className="p-msg-modal-list">
+          {eligible.map(f => (
+            <label key={f.id} className={`p-msg-modal-item${selected.includes(f.id) ? ' selected' : ''}`}>
+              <input type="checkbox" checked={selected.includes(f.id)} onChange={() => toggle(f.id)} style={{ display: 'none' }} />
+              <div className="p-avatar-sm" style={{ background: nameToColor(f.name), flexShrink: 0 }}>{getInitials(f.name)}</div>
+              <span className="p-msg-modal-name">{f.name}</span>
+              {selected.includes(f.id) && <span className="p-msg-modal-check">✓</span>}
+            </label>
+          ))}
+          {eligible.length === 0 && <div className="p-msg-modal-empty">{lang === 'da' ? 'Ingen venner fundet' : 'No friends found'}</div>}
+        </div>
+        <div className="p-msg-modal-footer">
+          <button className="p-msg-modal-btn secondary" onClick={onClose}>{t.cancel}</button>
+          <button
+            className="p-msg-modal-btn primary"
+            disabled={!canCreate}
+            onClick={() => onCreate(selected, isGroupMode ? (groupName || null) : null, isGroupMode)}
+          >
+            {isGroupMode ? t.createGroup : t.startConv}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Conversation Header Menu ──
+function ConvMenu({ t, lang, conv, onClose, onInvite, onMute, onRename, onLeave }) {
+  const isMuted = conv.mutedUntil && new Date(conv.mutedUntil) > new Date()
+
+  return (
+    <div className="p-msg-conv-menu" onClick={e => e.stopPropagation()}>
+      <button className="p-msg-conv-menu-item" onClick={() => { onInvite(); onClose() }}>
+        <span>👤+</span> {t.invitePeople}
+      </button>
+      {conv.isGroup && (
+        <button className="p-msg-conv-menu-item" onClick={() => { onRename(); onClose() }}>
+          <span>✏️</span> {t.renameGroup}
+        </button>
+      )}
+      <button className="p-msg-conv-menu-item" onClick={() => { onMute(); onClose() }}>
+        <span>{isMuted ? '🔔' : '🔕'}</span> {isMuted ? t.unmuteConv : t.muteConv}
+      </button>
+      {conv.isGroup && (
+        <button className="p-msg-conv-menu-item danger" onClick={() => { onLeave(); onClose() }}>
+          <span>🚪</span> {t.leaveGroup}
+        </button>
+      )}
+    </div>
+  )
+}
+
+// ── Mute Duration Picker ──
+function MuteModal({ t, onClose, onMute }) {
+  const options = [
+    { label: t.mute1h, minutes: 60 },
+    { label: t.mute8h, minutes: 480 },
+    { label: t.mute24h, minutes: 1440 },
+    { label: t.mute1w, minutes: 10080 },
+    { label: t.muteOff, minutes: null },
+  ]
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="p-msg-modal" style={{ maxWidth: 320 }} onClick={e => e.stopPropagation()}>
+        <div className="p-msg-modal-header">
+          <span>{t.muteTitle}</span>
+          <button className="p-msg-modal-close" onClick={onClose}>✕</button>
+        </div>
+        <div className="p-msg-modal-list">
+          {options.map(o => (
+            <button key={o.label} className="p-msg-modal-item mute-option" onClick={() => { onMute(o.minutes); onClose() }}>
+              {o.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Rename Group Modal ──
+function RenameModal({ t, current, onClose, onRename }) {
+  const [name, setName] = useState(current || '')
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="p-msg-modal" style={{ maxWidth: 360 }} onClick={e => e.stopPropagation()}>
+        <div className="p-msg-modal-header">
+          <span>{t.renameTitle}</span>
+          <button className="p-msg-modal-close" onClick={onClose}>✕</button>
+        </div>
+        <input
+          className="p-msg-modal-input"
+          value={name}
+          onChange={e => setName(e.target.value)}
+          autoFocus
+          onKeyDown={e => e.key === 'Enter' && name.trim() && onRename(name.trim())}
+        />
+        <div className="p-msg-modal-footer">
+          <button className="p-msg-modal-btn secondary" onClick={onClose}>{t.cancel}</button>
+          <button className="p-msg-modal-btn primary" disabled={!name.trim()} onClick={() => onRename(name.trim())}>
+            {t.renameBtn}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function MessagesPage({ lang, t, currentUser }) {
-  const [activeThread, setActiveThread] = useState(0)
-  const [threads, setThreads] = useState([])
+  const [activeConv, setActiveConv] = useState(0)
+  const [conversations, setConversations] = useState([])
+  const [friends, setFriends] = useState([])
   const [newMsg, setNewMsg] = useState('')
   const [loadingOlder, setLoadingOlder] = useState(false)
+  const [modal, setModal] = useState(null) // null | 'new' | 'newGroup' | 'invite' | 'mute' | 'rename'
+  const [showConvMenu, setShowConvMenu] = useState(false)
   const messagesEndRef = useRef(null)
   const msgBodyRef = useRef(null)
   const topMsgSentinelRef = useRef(null)
+  const menuRef = useRef(null)
 
   useEffect(() => {
-    apiFetchMessages().then(data => {
-      if (data) setThreads(data)
-    })
+    apiFetchConversations().then(data => { if (data) setConversations(data) })
+    apiFetchFriends().then(data => { if (data) setFriends(data) })
   }, [])
+
+  // Close conv menu on outside click
+  useEffect(() => {
+    if (!showConvMenu) return
+    const handle = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setShowConvMenu(false) }
+    document.addEventListener('mousedown', handle)
+    return () => document.removeEventListener('mousedown', handle)
+  }, [showConvMenu])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [threads, activeThread])
+  }, [conversations, activeConv])
 
-  // Load older messages when scrolling to top of chat
+  // Infinite scroll — load older messages at top
   useEffect(() => {
     const el = topMsgSentinelRef.current
     if (!el) return
-    const thread = threads[activeThread]
-    if (!thread || !thread.friendId) return
-    const hasOlder = thread.messages.length < (thread.totalMessages || 0)
-    if (!hasOlder) return
+    const conv = conversations[activeConv]
+    if (!conv || conv.messages.length >= (conv.totalMessages || 0)) return
     const observer = new IntersectionObserver(async (entries) => {
       if (!entries[0].isIntersecting || loadingOlder) return
       setLoadingOlder(true)
       const prevScrollHeight = msgBodyRef.current?.scrollHeight || 0
-      const data = await apiFetchOlderMessages(thread.friendId, thread.messages.length, MSG_PAGE_SIZE)
+      const data = await apiFetchOlderConversationMessages(conv.id, conv.messages.length, MSG_PAGE_SIZE)
       if (data?.messages?.length > 0) {
-        setThreads(prev => prev.map((th, i) => {
-          if (i !== activeThread) return th
-          const combined = [...data.messages, ...th.messages]
-          // Keep max 40 messages (20 old + 20 current), trim from bottom if needed
-          const trimmed = combined.length > 40 ? combined.slice(0, 40) : combined
-          return { ...th, messages: trimmed }
+        setConversations(prev => prev.map((c, i) => {
+          if (i !== activeConv) return c
+          const combined = [...data.messages, ...c.messages]
+          return { ...c, messages: combined.length > 40 ? combined.slice(0, 40) : combined }
         }))
-        // Preserve scroll position after prepending
         requestAnimationFrame(() => {
           if (msgBodyRef.current) {
-            const newScrollHeight = msgBodyRef.current.scrollHeight
-            msgBodyRef.current.scrollTop = newScrollHeight - prevScrollHeight
+            msgBodyRef.current.scrollTop = msgBodyRef.current.scrollHeight - prevScrollHeight
           }
         })
       }
@@ -1372,110 +1521,276 @@ function MessagesPage({ lang, t, currentUser }) {
     }, { threshold: 0.1 })
     observer.observe(el)
     return () => observer.disconnect()
-  }, [activeThread, threads, loadingOlder])
+  }, [activeConv, conversations, loadingOlder])
 
   const handleSend = useCallback(() => {
     if (!newMsg.trim()) return
     const text = newMsg.trim()
-    const thread = threads[activeThread]
-    setThreads(prev => prev.map((th, i) => {
-      if (i !== activeThread) return th
-      const newMessages = [...th.messages, {
-        from: currentUser.name,
-        text: { da: text, en: text },
-        time: new Date().toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' }),
-      }]
-      // Keep max 20 in DOM — trim oldest if needed
-      const trimmed = newMessages.length > MSG_PAGE_SIZE ? newMessages.slice(-MSG_PAGE_SIZE) : newMessages
-      return { ...th, messages: trimmed, totalMessages: (th.totalMessages || th.messages.length) + 1, unread: 0 }
+    const conv = conversations[activeConv]
+    const time = new Date().toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' })
+    setConversations(prev => prev.map((c, i) => {
+      if (i !== activeConv) return c
+      const msgs = [...c.messages, { from: currentUser.name, text: { da: text, en: text }, time }]
+      return { ...c, messages: msgs.length > MSG_PAGE_SIZE ? msgs.slice(-MSG_PAGE_SIZE) : msgs,
+        totalMessages: (c.totalMessages || c.messages.length) + 1, unread: 0 }
     }))
     setNewMsg('')
-    if (thread?.friendId) {
-      apiSendMessage(thread.friendId, text).catch(() => {})
+    if (conv?.id) apiSendConversationMessage(conv.id, text).catch(() => {})
+  }, [newMsg, activeConv, conversations, currentUser.name])
+
+  const selectConv = useCallback((i) => {
+    setActiveConv(i)
+    setShowConvMenu(false)
+    setConversations(prev => prev.map((c, j) => j === i ? { ...c, unread: 0 } : c))
+  }, [])
+
+  // Create new 1:1 or group
+  const handleCreate = async (selectedIds, groupName, isGroup) => {
+    setModal(null)
+    const data = await apiCreateConversation(selectedIds, groupName, isGroup)
+    if (data?.id) {
+      // Refresh conversations
+      const updated = await apiFetchConversations()
+      if (updated) {
+        setConversations(updated)
+        const idx = updated.findIndex(c => c.id === data.id)
+        setActiveConv(idx >= 0 ? idx : 0)
+      }
     }
-  }, [newMsg, activeThread, threads, currentUser.name])
+  }
 
-  const thread = threads[activeThread]
+  // Invite more people to the active conversation
+  const handleInvite = async (selectedIds) => {
+    setModal(null)
+    const conv = conversations[activeConv]
+    if (!conv) return
+    await apiInviteToConversation(conv.id, selectedIds)
+    const updated = await apiFetchConversations()
+    if (updated) {
+      setConversations(updated)
+      const idx = updated.findIndex(c => c.id === conv.id)
+      setActiveConv(idx >= 0 ? idx : 0)
+    }
+  }
 
-  if (!thread) return (
-    <div className="p-messages">
-      <div className="p-empty-state" style={{ padding: '48px', textAlign: 'center', color: '#65676b' }}>
-        {t.noMessages || 'No messages yet'}
-      </div>
-    </div>
-  )
+  // Mute
+  const handleMute = async (minutes) => {
+    const conv = conversations[activeConv]
+    if (!conv) return
+    const result = await apiMuteConversation(conv.id, minutes)
+    if (result) {
+      setConversations(prev => prev.map((c, i) =>
+        i === activeConv ? { ...c, mutedUntil: result.mutedUntil } : c))
+    }
+  }
 
-  const hasOlderMessages = thread.messages.length < (thread.totalMessages || 0)
+  // Rename
+  const handleRename = async (name) => {
+    setModal(null)
+    const conv = conversations[activeConv]
+    if (!conv) return
+    await apiRenameConversation(conv.id, name)
+    setConversations(prev => prev.map((c, i) =>
+      i === activeConv ? { ...c, name, groupName: name } : c))
+  }
+
+  // Leave group
+  const handleLeave = async () => {
+    const conv = conversations[activeConv]
+    if (!conv || !window.confirm(t.leaveConfirm)) return
+    await apiLeaveConversation(conv.id)
+    const updated = await apiFetchConversations()
+    setConversations(updated || [])
+    setActiveConv(0)
+  }
+
+  const conv = conversations[activeConv]
+  const isMuted = conv?.mutedUntil && new Date(conv.mutedUntil) > new Date()
+
+  // Friends not yet in this conversation (for invite)
+  const nonParticipants = friends.filter(f => !conv?.participants?.some(p => p.id === f.id))
 
   return (
-    <div className="p-messages">
+    <div className="p-messages" onClick={() => showConvMenu && setShowConvMenu(false)}>
+      {/* ── Sidebar ── */}
       <div className="p-msg-sidebar">
-        <h3 className="p-msg-sidebar-title">{t.messagesTitle}</h3>
-        {threads.map((th, i) => (
-          <div
-            key={i}
-            className={`p-msg-thread${i === activeThread ? ' active' : ''}`}
-            onClick={() => { setActiveThread(i); setThreads(prev => prev.map((t, j) => j === i ? { ...t, unread: 0 } : t)) }}
-          >
-            <div className="p-avatar-sm" style={{ background: nameToColor(th.friend) }}>
-              {getInitials(th.friend)}
-            </div>
-            <div className="p-msg-thread-info">
-              <div className="p-msg-thread-name">
-                {th.friend}
-                {th.unread > 0 && <span className="p-msg-badge">{th.unread}</span>}
-              </div>
-              <div className="p-msg-thread-preview">
-                {th.messages.length > 0 ? th.messages[th.messages.length - 1].text[lang].slice(0, 40) + '...' : ''}
-              </div>
-            </div>
+        <div className="p-msg-sidebar-header">
+          <h3 className="p-msg-sidebar-title">{t.messagesTitle}</h3>
+          <div className="p-msg-sidebar-actions">
+            <button className="p-msg-icon-btn" title={t.newMessage} onClick={() => setModal('new')}>✏️</button>
+            <button className="p-msg-icon-btn" title={t.newGroup} onClick={() => setModal('newGroup')}>👥</button>
           </div>
-        ))}
-      </div>
-
-      <div className="p-msg-main">
-        <div className="p-msg-header">
-          <div className="p-avatar-sm" style={{ background: nameToColor(thread.friend) }}>
-            {getInitials(thread.friend)}
-          </div>
-          <span className="p-msg-header-name">{thread.friend}</span>
         </div>
-        <div className="p-msg-body" ref={msgBodyRef}>
-          {/* Top sentinel — load older messages */}
-          {hasOlderMessages && (
-            <div ref={topMsgSentinelRef} className="p-feed-sentinel">
-              {loadingOlder && <div className="p-feed-loading">{lang === 'da' ? 'Indlæser ældre...' : 'Loading older...'}</div>}
-            </div>
-          )}
-          {thread.messages.map((msg, i) => {
-            const isMe = msg.from === currentUser.name
-            return (
-              <div key={i} className={`p-msg-bubble-row${isMe ? ' mine' : ''}`}>
-                {!isMe && (
-                  <div className="p-avatar-xs" style={{ background: nameToColor(msg.from) }}>
-                    {getInitials(msg.from)}
-                  </div>
-                )}
-                <div className={`p-msg-bubble${isMe ? ' mine' : ''}`}>
-                  <div>{msg.text[lang]}</div>
-                  <div className="p-msg-time">{msg.time}</div>
+
+        {conversations.length === 0 && (
+          <div className="p-msg-empty-sidebar">{lang === 'da' ? 'Ingen samtaler endnu' : 'No conversations yet'}</div>
+        )}
+
+        {conversations.map((c, i) => {
+          const lastMsg = c.messages[c.messages.length - 1]
+          const cIsMuted = c.mutedUntil && new Date(c.mutedUntil) > new Date()
+          return (
+            <div
+              key={c.id}
+              className={`p-msg-thread${i === activeConv ? ' active' : ''}`}
+              onClick={() => selectConv(i)}
+            >
+              {/* Avatar: stacked initials for group, single for 1:1 */}
+              {c.isGroup ? (
+                <div className="p-msg-group-avatar">
+                  {c.participants.slice(0, 2).map((p, pi) => (
+                    <div key={p.id} className="p-msg-group-avatar-chip" style={{ background: nameToColor(p.name), zIndex: 2 - pi, marginLeft: pi > 0 ? -10 : 0 }}>
+                      {getInitials(p.name)}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-avatar-sm" style={{ background: nameToColor(c.name), flexShrink: 0 }}>
+                  {getInitials(c.name)}
+                </div>
+              )}
+              <div className="p-msg-thread-info">
+                <div className="p-msg-thread-name">
+                  <span>{c.name}</span>
+                  <span className="p-msg-thread-badges">
+                    {cIsMuted && <span className="p-msg-muted-icon" title={t.mutedLabel}>🔕</span>}
+                    {c.unread > 0 && <span className="p-msg-badge">{c.unread}</span>}
+                  </span>
+                </div>
+                <div className="p-msg-thread-preview">
+                  {lastMsg ? `${c.isGroup ? lastMsg.from.split(' ')[0] + ': ' : ''}${lastMsg.text[lang]}`.slice(0, 42) : ''}
                 </div>
               </div>
-            )
-          })}
-          <div ref={messagesEndRef} />
-        </div>
-        <div className="p-msg-input-row">
-          <input
-            className="p-msg-input"
-            placeholder={t.typeMessage}
-            value={newMsg}
-            onChange={e => setNewMsg(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleSend()}
-          />
-          <button className="p-send-btn" onClick={handleSend}>{t.send}</button>
-        </div>
+            </div>
+          )
+        })}
       </div>
+
+      {/* ── Main chat area ── */}
+      {!conv ? (
+        <div className="p-msg-main p-msg-main-empty">
+          <div className="p-empty-state">{t.noMessages}</div>
+        </div>
+      ) : (
+        <div className="p-msg-main">
+          {/* Header */}
+          <div className="p-msg-header">
+            {conv.isGroup ? (
+              <div className="p-msg-group-avatar" style={{ flexShrink: 0 }}>
+                {conv.participants.slice(0, 2).map((p, pi) => (
+                  <div key={p.id} className="p-msg-group-avatar-chip" style={{ background: nameToColor(p.name), zIndex: 2 - pi, marginLeft: pi > 0 ? -10 : 0, width: 32, height: 32, fontSize: 11 }}>
+                    {getInitials(p.name)}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-avatar-sm" style={{ background: nameToColor(conv.name), flexShrink: 0 }}>
+                {getInitials(conv.name)}
+              </div>
+            )}
+            <div className="p-msg-header-info">
+              <span className="p-msg-header-name">
+                {conv.name}
+                {isMuted && <span className="p-msg-muted-icon" title={t.mutedLabel} style={{ marginLeft: 6 }}>🔕</span>}
+              </span>
+              {conv.isGroup && (
+                <span className="p-msg-header-sub">
+                  {conv.participants.length} {t.participants}
+                </span>
+              )}
+            </div>
+            {/* Conversation menu */}
+            <div ref={menuRef} style={{ position: 'relative', marginLeft: 'auto' }}>
+              <button
+                className="p-msg-icon-btn"
+                title={t.convMenu}
+                onClick={e => { e.stopPropagation(); setShowConvMenu(v => !v) }}
+              >•••</button>
+              {showConvMenu && (
+                <ConvMenu
+                  t={t}
+                  lang={lang}
+                  conv={conv}
+                  onClose={() => setShowConvMenu(false)}
+                  onInvite={() => setModal('invite')}
+                  onMute={() => setModal('mute')}
+                  onRename={() => setModal('rename')}
+                  onLeave={handleLeave}
+                />
+              )}
+            </div>
+          </div>
+
+          {/* Messages */}
+          <div className="p-msg-body" ref={msgBodyRef}>
+            {conv.messages.length < (conv.totalMessages || 0) && (
+              <div ref={topMsgSentinelRef} className="p-feed-sentinel">
+                {loadingOlder && <div className="p-feed-loading">{lang === 'da' ? 'Indlæser ældre...' : 'Loading older...'}</div>}
+              </div>
+            )}
+            {conv.messages.map((msg, i) => {
+              const isMe = msg.from === currentUser.name
+              return (
+                <div key={i} className={`p-msg-bubble-row${isMe ? ' mine' : ''}`}>
+                  {!isMe && (
+                    <div className="p-avatar-xs" style={{ background: nameToColor(msg.from), flexShrink: 0 }}>
+                      {getInitials(msg.from)}
+                    </div>
+                  )}
+                  <div className={`p-msg-bubble${isMe ? ' mine' : ''}`}>
+                    {conv.isGroup && !isMe && (
+                      <div className="p-msg-sender-name">{msg.from.split(' ')[0]}</div>
+                    )}
+                    <div>{msg.text[lang]}</div>
+                    <div className="p-msg-time">{msg.time}</div>
+                  </div>
+                </div>
+              )
+            })}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Input */}
+          <div className="p-msg-input-row">
+            <input
+              className="p-msg-input"
+              placeholder={t.typeMessage}
+              value={newMsg}
+              onChange={e => setNewMsg(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSend()}
+            />
+            <button className="p-send-btn" onClick={handleSend}>{t.send}</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modals ── */}
+      {(modal === 'new' || modal === 'newGroup') && (
+        <NewConvModal
+          t={t}
+          lang={lang}
+          friends={friends}
+          existingParticipantIds={[]}
+          isGroupMode={modal === 'newGroup'}
+          onClose={() => setModal(null)}
+          onCreate={handleCreate}
+        />
+      )}
+      {modal === 'invite' && conv && (
+        <NewConvModal
+          t={{ ...t, newConvTitle: t.inviteTitle, startConv: t.inviteBtn, newGroupTitle: t.inviteTitle, createGroup: t.inviteBtn }}
+          lang={lang}
+          friends={nonParticipants}
+          existingParticipantIds={conv.participants.map(p => p.id)}
+          isGroupMode={true}
+          onClose={() => setModal(null)}
+          onCreate={(ids) => handleInvite(ids)}
+        />
+      )}
+      {modal === 'mute' && <MuteModal t={t} onClose={() => setModal(null)} onMute={handleMute} />}
+      {modal === 'rename' && conv && (
+        <RenameModal t={t} current={conv.groupName} onClose={() => setModal(null)} onRename={handleRename} />
+      )}
     </div>
   )
 }

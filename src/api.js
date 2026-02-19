@@ -141,20 +141,52 @@ export async function apiFetchFriends() {
   return await request('/api/friends')
 }
 
-// Messages
-export async function apiFetchMessages() {
-  return await request('/api/messages')
+// Conversations (replaces legacy /api/messages)
+export async function apiFetchConversations() {
+  return await request('/api/conversations')
 }
 
-export async function apiSendMessage(friendId, text) {
-  return await request(`/api/messages/${friendId}`, {
+export async function apiSendConversationMessage(conversationId, text) {
+  return await request(`/api/conversations/${conversationId}/messages`, {
     method: 'POST',
     body: JSON.stringify({ text }),
   })
 }
 
-export async function apiFetchOlderMessages(friendId, offset = 0, limit = 20) {
-  return await request(`/api/messages/${friendId}/older?offset=${offset}&limit=${limit}`)
+export async function apiFetchOlderConversationMessages(conversationId, offset = 0, limit = 20) {
+  return await request(`/api/conversations/${conversationId}/messages/older?offset=${offset}&limit=${limit}`)
+}
+
+export async function apiCreateConversation(participantIds, name = null, isGroup = false) {
+  return await request('/api/conversations', {
+    method: 'POST',
+    body: JSON.stringify({ participantIds, name, isGroup }),
+  })
+}
+
+export async function apiInviteToConversation(conversationId, userIds) {
+  return await request(`/api/conversations/${conversationId}/invite`, {
+    method: 'POST',
+    body: JSON.stringify({ userIds }),
+  })
+}
+
+export async function apiMuteConversation(conversationId, minutes) {
+  return await request(`/api/conversations/${conversationId}/mute`, {
+    method: 'POST',
+    body: JSON.stringify({ minutes }),
+  })
+}
+
+export async function apiLeaveConversation(conversationId) {
+  return await request(`/api/conversations/${conversationId}/leave`, { method: 'DELETE' })
+}
+
+export async function apiRenameConversation(conversationId, name) {
+  return await request(`/api/conversations/${conversationId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ name }),
+  })
 }
 
 // Facebook OAuth
