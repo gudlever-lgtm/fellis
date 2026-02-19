@@ -165,8 +165,20 @@ export async function apiFetchFriends() {
   return await request('/api/friends')
 }
 
-export async function apiAddFriend(userId) {
-  return await request(`/api/friends/${userId}`, { method: 'POST' })
+export async function apiSendFriendRequest(userId) {
+  return await request(`/api/friends/request/${userId}`, { method: 'POST' })
+}
+
+export async function apiFetchFriendRequests() {
+  return await request('/api/friends/requests')
+}
+
+export async function apiAcceptFriendRequest(requestId) {
+  return await request(`/api/friends/requests/${requestId}/accept`, { method: 'POST' })
+}
+
+export async function apiDeclineFriendRequest(requestId) {
+  return await request(`/api/friends/requests/${requestId}/decline`, { method: 'POST' })
 }
 
 // Conversations (replaces legacy /api/messages)

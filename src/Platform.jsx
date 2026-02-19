@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { PT, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiAddFriend } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -1552,30 +1552,30 @@ function FriendsPage({ lang, t, onMessage }) {
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [friends, setFriends] = useState([])
+  const [requests, setRequests] = useState({ incoming: [], outgoing: [] })
   const [searchResults, setSearchResults] = useState(null) // null = no search active
-  const [addedIds, setAddedIds] = useState(new Set())
+  // sentIds: userId → requestId (or true if accepted)
+  const [sentIds, setSentIds] = useState({})
   const [inviteLink, setInviteLink] = useState('')
   const [inviteCopied, setInviteCopied] = useState(false)
   const searchTimerRef = useRef(null)
 
-  useEffect(() => {
-    apiFetchFriends().then(data => {
-      if (data) setFriends(data)
-    })
-    apiGetInviteLink().then(data => {
-      if (data?.token) {
-        setInviteLink(`https://fellis.eu/?invite=${data.token}`)
-      }
-    })
+  const refreshAll = useCallback(() => {
+    apiFetchFriends().then(data => { if (data) setFriends(data) })
+    apiFetchFriendRequests().then(data => { if (data) setRequests(data) })
   }, [])
+
+  useEffect(() => {
+    refreshAll()
+    apiGetInviteLink().then(data => {
+      if (data?.token) setInviteLink(`https://fellis.eu/?invite=${data.token}`)
+    })
+  }, [refreshAll])
 
   // Debounced user search
   useEffect(() => {
     clearTimeout(searchTimerRef.current)
-    if (search.trim().length < 2) {
-      setSearchResults(null)
-      return
-    }
+    if (search.trim().length < 2) { setSearchResults(null); return }
     searchTimerRef.current = setTimeout(async () => {
       const data = await apiSearchUsers(search.trim())
       if (data) setSearchResults(data)
@@ -1583,17 +1583,30 @@ function FriendsPage({ lang, t, onMessage }) {
     return () => clearTimeout(searchTimerRef.current)
   }, [search])
 
-  const handleAddFriend = useCallback(async (userId) => {
-    await apiAddFriend(userId)
-    setAddedIds(prev => new Set([...prev, userId]))
-    // Refresh friends list
-    apiFetchFriends().then(data => { if (data) setFriends(data) })
+  const handleSendRequest = useCallback(async (userId) => {
+    const res = await apiSendFriendRequest(userId)
+    if (res?.ok) {
+      // optimistic: mark as sent (we don't have the DB id yet, use placeholder)
+      setSentIds(prev => ({ ...prev, [userId]: 'sent' }))
+      // refresh to get real request id
+      apiFetchFriendRequests().then(data => { if (data) setRequests(data) })
+    }
   }, [])
 
-  const filtered = friends.filter(f => {
-    if (filter === 'online' && !f.online) return false
-    return true
-  })
+  const handleAccept = useCallback(async (reqId) => {
+    await apiAcceptFriendRequest(reqId)
+    refreshAll()
+  }, [refreshAll])
+
+  const handleDecline = useCallback(async (reqId) => {
+    await apiDeclineFriendRequest(reqId)
+    setRequests(prev => ({
+      ...prev,
+      incoming: prev.incoming.filter(r => r.id !== reqId),
+    }))
+  }, [])
+
+  const filtered = friends.filter(f => filter === 'all' || f.online)
 
   const handleCopyInvite = useCallback(() => {
     navigator.clipboard.writeText(inviteLink).catch(() => {})
@@ -1603,14 +1616,12 @@ function FriendsPage({ lang, t, onMessage }) {
 
   const handleFbShare = useCallback(() => {
     const shareUrl = encodeURIComponent(inviteLink || 'https://fellis.eu')
-    window.open(
-      `https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`,
-      'facebook-share',
-      'width=580,height=400'
-    )
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`, 'facebook-share', 'width=580,height=400')
   }, [inviteLink])
 
   const isSearching = search.trim().length >= 2
+  // Build a set of outgoing target user ids for quick lookup
+  const outgoingTargetIds = new Set(requests.outgoing.map(r => r.to_id))
 
   return (
     <div className="p-friends-page">
@@ -1641,6 +1652,33 @@ function FriendsPage({ lang, t, onMessage }) {
         </button>
       </div>
 
+      {/* Incoming connection requests */}
+      {requests.incoming.length > 0 && (
+        <div className="p-card p-friend-requests-card">
+          <h3 className="p-section-title" style={{ margin: '0 0 12px' }}>
+            {t.incomingRequests} ({requests.incoming.length})
+          </h3>
+          <div className="p-friend-requests-list">
+            {requests.incoming.map(req => (
+              <div key={req.id} className="p-friend-request-row">
+                <div className="p-avatar-sm" style={{ background: nameToColor(req.from_name) }}>
+                  {getInitials(req.from_name)}
+                </div>
+                <div className="p-friend-request-name">{req.from_name}</div>
+                <div className="p-friend-request-actions">
+                  <button className="p-freq-accept-btn" onClick={() => handleAccept(req.id)}>
+                    {t.acceptRequest}
+                  </button>
+                  <button className="p-freq-decline-btn" onClick={() => handleDecline(req.id)}>
+                    {t.declineRequest}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="p-card">
         <h3 className="p-section-title" style={{ margin: '0 0 16px' }}>
           {isSearching ? t.findPeople : t.friendsTitle}
@@ -1666,8 +1704,9 @@ function FriendsPage({ lang, t, onMessage }) {
       {isSearching ? (
         <div className="p-friends-grid">
           {(searchResults || []).map((user) => {
-            const isFriend = user.is_friend || addedIds.has(user.id)
-            const justAdded = addedIds.has(user.id)
+            const isFriend = user.is_friend
+            const hasSentRequest = outgoingTargetIds.has(user.id) || sentIds[user.id]
+            const incomingReq = requests.incoming.find(r => r.from_id === user.id)
             return (
               <div key={user.id} className="p-card p-friend-card">
                 <div className="p-friend-card-top">
@@ -1676,20 +1715,25 @@ function FriendsPage({ lang, t, onMessage }) {
                     {user.online && <div className="online-dot" />}
                   </div>
                   <div className="p-friend-card-name">{user.name}</div>
-                  {isFriend && !justAdded && (
-                    <div className="p-friend-card-mutual">{t.allFriends.replace('Alle ', '').replace('All ', '')} ✓</div>
-                  )}
-                  {justAdded && (
-                    <div className="p-friend-card-mutual" style={{ color: 'var(--color-green)' }}>{t.friendAdded} ✓</div>
-                  )}
+                  {isFriend && <div className="p-friend-card-mutual">✓ {t.allFriends}</div>}
                 </div>
                 {isFriend ? (
                   <button className="p-friend-msg-btn" onClick={onMessage}>
                     💬 {t.message}
                   </button>
+                ) : incomingReq ? (
+                  <div className="p-freq-inline-actions">
+                    <span className="p-freq-label">{t.requestReceived}</span>
+                    <button className="p-freq-accept-btn" onClick={() => handleAccept(incomingReq.id)}>{t.acceptRequest}</button>
+                    <button className="p-freq-decline-btn" onClick={() => handleDecline(incomingReq.id)}>{t.declineRequest}</button>
+                  </div>
+                ) : hasSentRequest ? (
+                  <button className="p-friend-msg-btn p-friend-sent-btn" disabled>
+                    ✉ {t.requestSent}
+                  </button>
                 ) : (
-                  <button className="p-friend-msg-btn p-friend-add-btn" onClick={() => handleAddFriend(user.id)}>
-                    ➕ {t.addFriend}
+                  <button className="p-friend-msg-btn p-friend-add-btn" onClick={() => handleSendRequest(user.id)}>
+                    ➕ {t.connectRequest}
                   </button>
                 )}
               </div>

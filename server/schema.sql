@@ -117,6 +117,18 @@ CREATE TABLE IF NOT EXISTS conversation_participants (
 -- ALTER TABLE messages ADD COLUMN conversation_id INT(11) DEFAULT NULL AFTER id;
 -- ALTER TABLE messages ADD INDEX idx_msg_conv (conversation_id);
 
+-- Friend / connection requests
+CREATE TABLE IF NOT EXISTS friend_requests (
+  id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  from_user_id INT(11) NOT NULL,
+  to_user_id INT(11) NOT NULL,
+  status ENUM('pending','accepted','declined') DEFAULT 'pending',
+  created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
+  UNIQUE KEY unique_request (from_user_id, to_user_id),
+  FOREIGN KEY (from_user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (to_user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+
 -- Invitations (invite links to bring friends to fellis.eu)
 CREATE TABLE IF NOT EXISTS invitations (
   id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,

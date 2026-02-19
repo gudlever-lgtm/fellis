@@ -1881,6 +1881,77 @@
 .p-friend-add-btn:hover {
   background: #E0E7FF;
 }
+.p-friend-sent-btn {
+  background: #F5F5F5;
+  color: #999;
+  cursor: default;
+}
+/* Connection request card */
+.p-friend-requests-card { padding: 16px 20px; }
+.p-friend-requests-list { display: flex; flex-direction: column; gap: 10px; }
+.p-friend-request-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.p-friend-request-name {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: #2D3436;
+}
+.p-friend-request-actions {
+  display: flex;
+  gap: 8px;
+}
+.p-freq-accept-btn {
+  background: #2D6A4F;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.p-freq-accept-btn:hover { background: #1B4332; }
+.p-freq-decline-btn {
+  background: #F0F0F0;
+  color: #555;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.p-freq-decline-btn:hover { background: #E0E0E0; }
+.p-freq-inline-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.p-freq-label {
+  font-size: 12px;
+  color: #888;
+  flex: 1;
+  text-align: center;
+}
+.p-avatar-sm {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+}
 
 /* ── Messages ── */
 .p-messages {

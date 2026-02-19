@@ -61,6 +61,26 @@ function decryptToken(encoded) {
   }
 }
 
+// ── Friend requests: schema init ──
+async function initFriendRequests() {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS friend_requests (
+      id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      from_user_id INT(11) NOT NULL,
+      to_user_id INT(11) NOT NULL,
+      status ENUM('pending','accepted','declined') DEFAULT 'pending',
+      created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
+      UNIQUE KEY unique_request (from_user_id, to_user_id),
+      FOREIGN KEY (from_user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (to_user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    // Also add source column to friendships if missing (for Facebook tracking)
+    await pool.query('ALTER TABLE friendships ADD COLUMN source VARCHAR(50) DEFAULT NULL').catch(() => {})
+  } catch (err) {
+    console.error('initFriendRequests error:', err.message)
+  }
+}
+
 // ── Conversations: schema migration + 1:1 message backfill ──
 async function initConversations() {
   try {
@@ -1096,17 +1116,75 @@ app.get('/api/friends', authenticate, async (req, res) => {
   }
 })
 
-// POST /api/friends/:userId — add a user as a friend (mutual)
-app.post('/api/friends/:userId', authenticate, async (req, res) => {
+// POST /api/friends/request/:userId — send a connection request
+app.post('/api/friends/request/:userId', authenticate, async (req, res) => {
   const targetId = parseInt(req.params.userId)
   if (!targetId || targetId === req.userId) return res.status(400).json({ error: 'Invalid user' })
   try {
     const [target] = await pool.query('SELECT id, name FROM users WHERE id = ?', [targetId])
     if (!target.length) return res.status(404).json({ error: 'User not found' })
-    await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [req.userId, targetId])
-    await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [targetId, req.userId])
+    // Already friends?
+    const [already] = await pool.query('SELECT id FROM friendships WHERE user_id = ? AND friend_id = ?', [req.userId, targetId])
+    if (already.length) return res.status(409).json({ error: 'Already friends' })
+    // Upsert: reset to pending if previously declined
+    await pool.query(
+      `INSERT INTO friend_requests (from_user_id, to_user_id, status) VALUES (?, ?, 'pending')
+       ON DUPLICATE KEY UPDATE status = 'pending', created_at = CURRENT_TIMESTAMP()`,
+      [req.userId, targetId]
+    )
     res.json({ ok: true })
-  } catch (err) { res.status(500).json({ error: 'Failed to add friend' }) }
+  } catch (err) { res.status(500).json({ error: 'Failed to send request' }) }
+})
+
+// GET /api/friends/requests — incoming pending requests + outgoing pending requests
+app.get('/api/friends/requests', authenticate, async (req, res) => {
+  try {
+    const [incoming] = await pool.query(
+      `SELECT fr.id, u.id as from_id, u.name as from_name, fr.created_at
+       FROM friend_requests fr JOIN users u ON u.id = fr.from_user_id
+       WHERE fr.to_user_id = ? AND fr.status = 'pending'
+       ORDER BY fr.created_at DESC`,
+      [req.userId]
+    )
+    const [outgoing] = await pool.query(
+      `SELECT fr.id, u.id as to_id, u.name as to_name, fr.status
+       FROM friend_requests fr JOIN users u ON u.id = fr.to_user_id
+       WHERE fr.from_user_id = ? AND fr.status = 'pending'`,
+      [req.userId]
+    )
+    res.json({ incoming, outgoing })
+  } catch (err) { res.status(500).json({ error: 'Failed to load requests' }) }
+})
+
+// POST /api/friends/requests/:id/accept
+app.post('/api/friends/requests/:id/accept', authenticate, async (req, res) => {
+  const reqId = parseInt(req.params.id)
+  try {
+    const [rows] = await pool.query(
+      `SELECT * FROM friend_requests WHERE id = ? AND to_user_id = ? AND status = 'pending'`,
+      [reqId, req.userId]
+    )
+    if (!rows.length) return res.status(404).json({ error: 'Request not found' })
+    const fromId = rows[0].from_user_id
+    await pool.query(`UPDATE friend_requests SET status = 'accepted' WHERE id = ?`, [reqId])
+    await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [req.userId, fromId])
+    await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [fromId, req.userId])
+    res.json({ ok: true })
+  } catch (err) { res.status(500).json({ error: 'Failed to accept request' }) }
+})
+
+// POST /api/friends/requests/:id/decline
+app.post('/api/friends/requests/:id/decline', authenticate, async (req, res) => {
+  const reqId = parseInt(req.params.id)
+  try {
+    const [rows] = await pool.query(
+      `SELECT * FROM friend_requests WHERE id = ? AND to_user_id = ? AND status = 'pending'`,
+      [reqId, req.userId]
+    )
+    if (!rows.length) return res.status(404).json({ error: 'Request not found' })
+    await pool.query(`UPDATE friend_requests SET status = 'declined' WHERE id = ?`, [reqId])
+    res.json({ ok: true })
+  } catch (err) { res.status(500).json({ error: 'Failed to decline request' }) }
 })
 
 // ── Conversation routes ──
@@ -1335,7 +1413,7 @@ app.get('/api/posts/:id', authenticate, async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'Failed to fetch post' }) }
 })
 
-// GET /api/users/search?q=... — search all users (for friends/add-friends)
+// GET /api/users/search?q=... — search all users, includes friendship/request state
 app.get('/api/users/search', authenticate, async (req, res) => {
   const { q } = req.query
   if (!q || q.trim().length < 2) return res.json([])
@@ -1345,15 +1423,23 @@ app.get('/api/users/search', authenticate, async (req, res) => {
       `SELECT u.id, u.name,
               CASE WHEN f.id IS NOT NULL THEN 1 ELSE 0 END as is_friend,
               COALESCE(f.is_online, 0) as online,
-              COALESCE(f.mutual_count, 0) as mutual
+              COALESCE(f.mutual_count, 0) as mutual,
+              (SELECT id FROM friend_requests WHERE from_user_id = ? AND to_user_id = u.id AND status = 'pending') as sent_request_id,
+              (SELECT id FROM friend_requests WHERE from_user_id = u.id AND to_user_id = ? AND status = 'pending') as received_request_id
        FROM users u
        LEFT JOIN friendships f ON f.friend_id = u.id AND f.user_id = ?
        WHERE u.id != ? AND u.name LIKE ?
        ORDER BY is_friend DESC, u.name
        LIMIT 20`,
-      [req.userId, req.userId, like]
+      [req.userId, req.userId, req.userId, req.userId, like]
     )
-    res.json(users.map(u => ({ ...u, is_friend: !!u.is_friend, online: !!u.online })))
+    res.json(users.map(u => ({
+      ...u,
+      is_friend: !!u.is_friend,
+      online: !!u.online,
+      sent_request_id: u.sent_request_id || null,
+      received_request_id: u.received_request_id || null,
+    })))
   } catch (err) { res.status(500).json({ error: 'User search failed' }) }
 })
 
@@ -1822,5 +1908,6 @@ app.listen(PORT, () => {
     console.warn('⚠️  WARNING: FB_TOKEN_ENCRYPTION_KEY not set. Facebook tokens will be stored unencrypted.')
     console.warn('   Generate a key with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"')
   }
+  initFriendRequests()
   initConversations()
 })
