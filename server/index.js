@@ -17,6 +17,21 @@ try {
   }
 } catch {}
 
+function formatPostTime(createdAt, lang) {
+  const now = new Date()
+  const created = new Date(createdAt)
+  const diffMs = now - created
+  if (diffMs < 60_000) return lang === 'da' ? 'Lige nu' : 'Just now'
+  const today = now.toDateString() === created.toDateString()
+  if (today) {
+    return created.toLocaleTimeString(lang === 'da' ? 'da-DK' : 'en-US', { hour: '2-digit', minute: '2-digit' })
+  }
+  const thisYear = now.getFullYear() === created.getFullYear()
+  return created.toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', {
+    day: 'numeric', month: 'short', ...(thisYear ? {} : { year: 'numeric' })
+  })
+}
+
 import express from 'express'
 import crypto from 'crypto'
 import fs from 'fs'
@@ -871,7 +886,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
         id: p.id,
         author: p.author,
         authorId: p.author_id,
-        time: { da: p.time_da, en: p.time_en },
+        time: { da: formatPostTime(p.created_at, 'da'), en: formatPostTime(p.created_at, 'en') },
         text: { da: p.text_da, en: p.text_en },
         likes: p.likes,
         liked: likedSet.has(p.id),
@@ -918,10 +933,11 @@ app.post('/api/feed', authenticate, upload.array('media', 4), async (req, res) =
       [req.userId, text, text, 'Lige nu', 'Just now', mediaJson]
     )
     const [users] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
+    const now = new Date()
     res.json({
       id: result.insertId,
       author: users[0].name,
-      time: { da: 'Lige nu', en: 'Just now' },
+      time: { da: formatPostTime(now, 'da'), en: formatPostTime(now, 'en') },
       text: { da: text, en: text },
       likes: 0, liked: false, comments: [],
       media: mediaUrls.length > 0 ? mediaUrls : null,

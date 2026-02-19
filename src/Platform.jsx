@@ -477,7 +477,7 @@ function FeedPage({ lang, t, currentUser, highlightPostId, onHighlightCleared })
         setPosts(prev => [{
           id: Date.now(),
           author: currentUser.name,
-          time: { da: 'Lige nu', en: 'Just now' },
+          time: { da: new Date().toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' }), en: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) },
           text: { da: text, en: text },
           likes: 0, comments: [], media: localMedia,
         }, ...prev].slice(0, PAGE_SIZE))
@@ -719,7 +719,10 @@ function FeedPage({ lang, t, currentUser, highlightPostId, onHighlightCleared })
                   </>
                 )}
               </div>
-              <button className="p-post-btn" onMouseDown={e => e.preventDefault()} onClick={handlePost} disabled={!newPostText.trim()}>{t.post}</button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span className="p-input-hint-icon" title={t.postInputHint}>?</span>
+                <button className="p-post-btn" onMouseDown={e => e.preventDefault()} onClick={handlePost} disabled={!newPostText.trim()}>{t.post}</button>
+              </div>
             </div>
           </>
         )}
@@ -2525,6 +2528,7 @@ function MessagesPage({ lang, t, currentUser, openConvId, onConvOpened }) {
 
           {/* Input */}
           <div className="p-msg-input-row">
+            <span className="p-input-hint-icon" title={t.msgInputHint}>?</span>
             <input
               className="p-msg-input"
               placeholder={t.typeMessage}
