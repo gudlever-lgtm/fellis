@@ -333,6 +333,7 @@ function FeedPage({ lang, t, currentUser, highlightPostId, onHighlightCleared })
   const [posts, setPosts] = useState([])
   const [pinnedPost, setPinnedPost] = useState(null)
   const pinnedRef = useRef(null)
+  const [viewProfileId, setViewProfileId] = useState(null)
   const [offset, setOffset] = useState(0)
   const [total, setTotal] = useState(0)
   const [loadingPage, setLoadingPage] = useState(false)
@@ -633,6 +634,15 @@ function FeedPage({ lang, t, currentUser, highlightPostId, onHighlightCleared })
 
   return (
     <div className="p-feed" ref={feedContainerRef}>
+      {viewProfileId && (
+        <FriendProfileModal
+          userId={viewProfileId}
+          lang={lang}
+          t={t}
+          onClose={() => setViewProfileId(null)}
+          onMessage={() => setViewProfileId(null)}
+        />
+      )}
       {/* New post */}
       <div className="p-card p-new-post">
         {/* Hidden file input — gallery only */}
@@ -756,11 +766,19 @@ function FeedPage({ lang, t, currentUser, highlightPostId, onHighlightCleared })
         return (
           <div key={post.id} className="p-card p-post">
             <div className="p-post-header">
-              <div className="p-avatar-sm" style={{ background: nameToColor(post.author) }}>
+              <div
+                className="p-avatar-sm"
+                style={{ background: nameToColor(post.author), cursor: post.authorId && post.author !== currentUser.name ? 'pointer' : 'default' }}
+                onClick={() => post.authorId && post.author !== currentUser.name && setViewProfileId(post.authorId)}
+              >
                 {getInitials(post.author)}
               </div>
               <div>
-                <div className="p-post-author">{post.author}</div>
+                <div
+                  className="p-post-author"
+                  style={{ cursor: post.authorId && post.author !== currentUser.name ? 'pointer' : 'default' }}
+                  onClick={() => post.authorId && post.author !== currentUser.name && setViewProfileId(post.authorId)}
+                >{post.author}</div>
                 <div className="p-post-time">{post.time[lang]}</div>
               </div>
             </div>
@@ -1547,6 +1565,78 @@ function PrivacySection({ lang, onLogout }) {
   )
 }
 
+// ── Friend Profile Modal ──
+function FriendProfileModal({ userId, lang, t, onClose, onMessage }) {
+  const [profile, setProfile] = useState(null)
+
+  useEffect(() => {
+    if (!userId) return
+    apiFetchProfile(userId).then(data => { if (data) setProfile(data) })
+  }, [userId])
+
+  if (!userId) return null
+
+  const avatarSrc = profile?.avatarUrl
+    ? (profile.avatarUrl.startsWith('http') ? profile.avatarUrl : `${API_BASE}${profile.avatarUrl}`)
+    : null
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="p-friend-profile-modal" onClick={e => e.stopPropagation()}>
+        <button className="p-msg-modal-close p-friend-profile-close" onClick={onClose}>✕</button>
+        {!profile ? (
+          <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-muted)' }}>…</div>
+        ) : (
+          <>
+            <div className="p-friend-profile-banner" />
+            <div className="p-friend-profile-body">
+              <div className="p-friend-profile-avatar-wrap">
+                {avatarSrc ? (
+                  <img className="p-friend-profile-avatar-img" src={avatarSrc} alt="" />
+                ) : (
+                  <div className="p-friend-profile-avatar" style={{ background: nameToColor(profile.name) }}>
+                    {profile.initials || getInitials(profile.name)}
+                  </div>
+                )}
+              </div>
+              <h2 className="p-friend-profile-name">{profile.name}</h2>
+              {profile.handle && <p className="p-friend-profile-handle">@{profile.handle}</p>}
+              {profile.bio?.[lang] && <p className="p-friend-profile-bio">{profile.bio[lang]}</p>}
+              <div className="p-friend-profile-meta">
+                {profile.location && <span>📍 {profile.location}</span>}
+                {profile.joinDate && (
+                  <span>📅 {lang === 'da' ? 'Medlem siden' : 'Joined'} {new Date(profile.joinDate).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long' })}</span>
+                )}
+              </div>
+              <div className="p-friend-profile-stats">
+                <div className="p-friend-profile-stat">
+                  <strong>{profile.friendCount}</strong>
+                  <span>{t.friendsLabel}</span>
+                </div>
+                {profile.mutualCount > 0 && (
+                  <div className="p-friend-profile-stat">
+                    <strong>{profile.mutualCount}</strong>
+                    <span>{t.mutualFriends}</span>
+                  </div>
+                )}
+                <div className="p-friend-profile-stat">
+                  <strong>{profile.postCount}</strong>
+                  <span>{t.postsLabel}</span>
+                </div>
+              </div>
+              {profile.isFriend && (
+                <button className="p-friend-msg-btn" style={{ marginTop: 16 }} onClick={() => { onClose(); onMessage() }}>
+                  💬 {t.message}
+                </button>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Friends ──
 function FriendsPage({ lang, t, onMessage }) {
   const [filter, setFilter] = useState('all')
@@ -1559,6 +1649,7 @@ function FriendsPage({ lang, t, onMessage }) {
   const [inviteCopied, setInviteCopied] = useState(false)
   const [openMenuId, setOpenMenuId] = useState(null) // friend card •••
   const [unfriendTarget, setUnfriendTarget] = useState(null) // { id, name }
+  const [viewProfileId, setViewProfileId] = useState(null)
   const searchTimerRef = useRef(null)
 
   const refreshAll = useCallback(() => {
@@ -1635,6 +1726,15 @@ function FriendsPage({ lang, t, onMessage }) {
 
   return (
     <div className="p-friends-page">
+      {viewProfileId && (
+        <FriendProfileModal
+          userId={viewProfileId}
+          lang={lang}
+          t={t}
+          onClose={() => setViewProfileId(null)}
+          onMessage={() => { setViewProfileId(null); onMessage() }}
+        />
+      )}
       {/* Unfriend confirm modal */}
       {unfriendTarget && (
         <div className="modal-backdrop" onClick={() => setUnfriendTarget(null)}>
@@ -1761,6 +1861,9 @@ function FriendsPage({ lang, t, onMessage }) {
                       <button className="p-friend-menu-btn" onClick={e => { e.stopPropagation(); setOpenMenuId(openMenuId === user.id ? null : user.id) }}>•••</button>
                       {openMenuId === user.id && (
                         <div className="p-friend-menu" onClick={e => e.stopPropagation()}>
+                          <button className="p-friend-menu-item" onClick={() => { setOpenMenuId(null); setViewProfileId(user.id) }}>
+                            👤 {lang === 'da' ? 'Vis profil' : 'View profile'}
+                          </button>
                           <button className="p-friend-menu-item p-friend-menu-danger" onClick={() => { setOpenMenuId(null); setUnfriendTarget({ id: user.id, name: user.name }) }}>
                             {t.unfriend}
                           </button>
@@ -1810,6 +1913,9 @@ function FriendsPage({ lang, t, onMessage }) {
                   <button className="p-friend-menu-btn" onClick={e => { e.stopPropagation(); setOpenMenuId(openMenuId === friend.id ? null : friend.id) }}>•••</button>
                   {openMenuId === friend.id && (
                     <div className="p-friend-menu" onClick={e => e.stopPropagation()}>
+                      <button className="p-friend-menu-item" onClick={() => { setOpenMenuId(null); setViewProfileId(friend.id) }}>
+                        👤 {lang === 'da' ? 'Vis profil' : 'View profile'}
+                      </button>
                       <button className="p-friend-menu-item" onClick={() => { setOpenMenuId(null); onMessage() }}>
                         💬 {t.message}
                       </button>
@@ -2109,6 +2215,7 @@ function MessagesPage({ lang, t, currentUser, openConvId, onConvOpened }) {
   const [loadingOlder, setLoadingOlder] = useState(false)
   const [modal, setModal] = useState(null) // null | 'new' | 'newGroup' | 'invite' | 'mute' | 'rename'
   const [showConvMenu, setShowConvMenu] = useState(false)
+  const [deleteConvId, setDeleteConvId] = useState(null) // id to confirm delete
   const messagesEndRef = useRef(null)
   const msgBodyRef = useRef(null)
   const topMsgSentinelRef = useRef(null)
@@ -2270,6 +2377,27 @@ function MessagesPage({ lang, t, currentUser, openConvId, onConvOpened }) {
           <div className="p-msg-empty-sidebar">{lang === 'da' ? 'Ingen samtaler endnu' : 'No conversations yet'}</div>
         )}
 
+        {/* Delete confirm inline */}
+        {deleteConvId && (() => {
+          const dc = conversations.find(c => c.id === deleteConvId)
+          return (
+            <div className="p-msg-delete-confirm" onClick={e => e.stopPropagation()}>
+              <span>{lang === 'da' ? `Slet "${dc?.name}"?` : `Delete "${dc?.name}"?`}</span>
+              <button className="p-msg-delete-yes" onClick={async () => {
+                await apiLeaveConversation(deleteConvId)
+                setConversations(prev => prev.filter(c => c.id !== deleteConvId))
+                setDeleteConvId(null)
+                setActiveConv(0)
+              }}>
+                {lang === 'da' ? 'Slet' : 'Delete'}
+              </button>
+              <button className="p-msg-delete-no" onClick={() => setDeleteConvId(null)}>
+                {lang === 'da' ? 'Annuller' : 'Cancel'}
+              </button>
+            </div>
+          )
+        })()}
+
         {conversations.map((c, i) => {
           const lastMsg = c.messages[c.messages.length - 1]
           const cIsMuted = c.mutedUntil && new Date(c.mutedUntil) > new Date()
@@ -2305,6 +2433,11 @@ function MessagesPage({ lang, t, currentUser, openConvId, onConvOpened }) {
                   {lastMsg ? `${c.isGroup ? lastMsg.from.split(' ')[0] + ': ' : ''}${lastMsg.text[lang]}`.slice(0, 42) : ''}
                 </div>
               </div>
+              <button
+                className="p-msg-thread-delete"
+                title={lang === 'da' ? 'Slet chat' : 'Delete chat'}
+                onClick={e => { e.stopPropagation(); setDeleteConvId(c.id) }}
+              >🗑</button>
             </div>
           )
         })}

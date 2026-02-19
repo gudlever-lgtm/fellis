@@ -692,15 +692,20 @@ async function importFacebookData(userId, fbToken) {
 
 // ── Profile routes ──
 
-// GET /api/profile/:id
+// GET /api/profile/:id — public profile (friend view)
 app.get('/api/profile/:id', authenticate, async (req, res) => {
+  const targetId = parseInt(req.params.id)
   try {
     const [users] = await pool.query(
       `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url,
         (SELECT COUNT(*) FROM friendships WHERE user_id = u.id) as friend_count,
-        (SELECT COUNT(*) FROM posts WHERE author_id = u.id) as post_count
+        (SELECT COUNT(*) FROM posts WHERE author_id = u.id) as post_count,
+        (SELECT COUNT(*) FROM friendships f1
+           JOIN friendships f2 ON f1.friend_id = f2.friend_id
+           WHERE f1.user_id = ? AND f2.user_id = u.id) as mutual_count,
+        (SELECT COUNT(*) FROM friendships WHERE user_id = ? AND friend_id = u.id) as is_friend
        FROM users u WHERE u.id = ?`,
-      [req.params.id]
+      [req.userId, req.userId, targetId]
     )
     if (users.length === 0) return res.status(404).json({ error: 'User not found' })
     const u = users[0]
@@ -710,6 +715,8 @@ app.get('/api/profile/:id', authenticate, async (req, res) => {
       location: u.location, joinDate: u.join_date,
       avatarUrl: u.avatar_url || null,
       friendCount: u.friend_count, postCount: u.post_count, photoCount: u.photo_count || 0,
+      mutualCount: u.mutual_count || 0,
+      isFriend: !!u.is_friend,
     })
   } catch (err) {
     res.status(500).json({ error: 'Failed to load profile' })
@@ -787,7 +794,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
     const total = countResult[0].total
 
     const [posts] = await pool.query(
-      `SELECT p.id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.created_at
+      `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.created_at
        FROM posts p JOIN users u ON p.author_id = u.id
        WHERE p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?)
        ORDER BY p.created_at DESC
@@ -863,6 +870,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
       return {
         id: p.id,
         author: p.author,
+        authorId: p.author_id,
         time: { da: p.time_da, en: p.time_en },
         text: { da: p.text_da, en: p.text_en },
         likes: p.likes,
@@ -1429,7 +1437,7 @@ app.get('/api/posts/:id', authenticate, async (req, res) => {
   const postId = parseInt(req.params.id)
   try {
     const [posts] = await pool.query(
-      `SELECT p.id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media,
+      `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media,
               (SELECT reaction FROM post_likes WHERE post_id = p.id AND user_id = ?) as userReaction
        FROM posts p JOIN users u ON u.id = p.author_id WHERE p.id = ?`,
       [req.userId, postId]
@@ -1445,7 +1453,7 @@ app.get('/api/posts/:id', authenticate, async (req, res) => {
       'SELECT reaction, COUNT(*) as count FROM post_likes WHERE post_id = ? GROUP BY reaction', [postId]
     )
     res.json({
-      id: post.id, author: post.author,
+      id: post.id, author: post.author, authorId: post.author_id,
       text: { da: post.text_da, en: post.text_en },
       time: { da: post.time_da, en: post.time_en },
       likes: post.likes, liked: !!post.userReaction, userReaction: post.userReaction,

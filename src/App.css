@@ -2057,6 +2057,7 @@
   padding: 14px 20px;
   cursor: pointer;
   transition: background 0.15s;
+  position: relative;
 }
 .p-msg-thread:hover {
   background: #FAFAF7;
@@ -2064,6 +2065,54 @@
 .p-msg-thread.active {
   background: #F0FAF4;
 }
+.p-msg-thread-delete {
+  opacity: 0;
+  background: none;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  color: #C0392B;
+  transition: opacity 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+.p-msg-thread:hover .p-msg-thread-delete { opacity: 0.6; }
+.p-msg-thread-delete:hover { opacity: 1 !important; background: #FFF0EE; }
+.p-msg-delete-confirm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: #FFF8F8;
+  border-bottom: 1px solid #FFD7D7;
+  font-size: 13px;
+  color: #2D3436;
+  flex-wrap: wrap;
+}
+.p-msg-delete-confirm span { flex: 1; font-weight: 500; }
+.p-msg-delete-yes {
+  background: #C0392B;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 5px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.p-msg-delete-yes:hover { background: #96281B; }
+.p-msg-delete-no {
+  background: #F0F0F0;
+  color: #555;
+  border: none;
+  border-radius: 8px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.p-msg-delete-no:hover { background: #E0E0E0; }
 .p-msg-thread-info {
   flex: 1;
   min-width: 0;
@@ -2486,6 +2535,63 @@
   border-radius: 2px;
   font-style: normal;
 }
+
+/* ── Friend Profile Modal ── */
+.p-friend-profile-modal {
+  position: relative;
+  background: #fff;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 400px;
+  overflow: hidden;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+}
+.p-friend-profile-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  z-index: 10;
+  background: rgba(255,255,255,0.85);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+}
+.p-friend-profile-banner {
+  height: 80px;
+  background: linear-gradient(135deg, #2D6A4F 0%, #52B788 100%);
+}
+.p-friend-profile-body {
+  padding: 0 24px 24px;
+  text-align: center;
+}
+.p-friend-profile-avatar-wrap { margin-top: -36px; margin-bottom: 10px; }
+.p-friend-profile-avatar {
+  width: 72px; height: 72px; border-radius: 50%; border: 3px solid #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 24px; font-weight: 700; color: #fff;
+}
+.p-friend-profile-avatar-img {
+  width: 72px; height: 72px; border-radius: 50%; border: 3px solid #fff; object-fit: cover;
+}
+.p-friend-profile-name { font-size: 18px; font-weight: 700; color: #2D3436; margin: 0 0 2px; }
+.p-friend-profile-handle { font-size: 13px; color: #888; margin: 0 0 8px; }
+.p-friend-profile-bio { font-size: 13px; color: #555; margin: 0 0 10px; line-height: 1.55; }
+.p-friend-profile-meta {
+  display: flex; flex-direction: column; gap: 4px;
+  font-size: 12px; color: #888; margin-bottom: 14px;
+}
+.p-friend-profile-stats {
+  display: flex; justify-content: center; gap: 24px; margin-bottom: 4px;
+}
+.p-friend-profile-stat { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.p-friend-profile-stat strong { font-size: 16px; font-weight: 700; color: #2D3436; }
+.p-friend-profile-stat span { font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: 0.5px; }
+.p-post-author[style*="pointer"] { text-decoration: none; }
+.p-post-author[style*="pointer"]:hover { text-decoration: underline; }
 
 /* ── Pinned search result post ── */
 .p-post-pinned-banner {
