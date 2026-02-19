@@ -1096,6 +1096,19 @@ app.get('/api/friends', authenticate, async (req, res) => {
   }
 })
 
+// POST /api/friends/:userId — add a user as a friend (mutual)
+app.post('/api/friends/:userId', authenticate, async (req, res) => {
+  const targetId = parseInt(req.params.userId)
+  if (!targetId || targetId === req.userId) return res.status(400).json({ error: 'Invalid user' })
+  try {
+    const [target] = await pool.query('SELECT id, name FROM users WHERE id = ?', [targetId])
+    if (!target.length) return res.status(404).json({ error: 'User not found' })
+    await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [req.userId, targetId])
+    await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [targetId, req.userId])
+    res.json({ ok: true })
+  } catch (err) { res.status(500).json({ error: 'Failed to add friend' }) }
+})
+
 // ── Conversation routes ──
 
 // Helper: fetch a full conversation object for the current user
@@ -1289,6 +1302,60 @@ app.patch('/api/conversations/:id', authenticate, async (req, res) => {
 })
 
 // ── Search ──
+
+// GET /api/posts/:id — fetch a single post (for search result navigation)
+app.get('/api/posts/:id', authenticate, async (req, res) => {
+  const postId = parseInt(req.params.id)
+  try {
+    const [posts] = await pool.query(
+      `SELECT p.id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media,
+              (SELECT reaction FROM post_likes WHERE post_id = p.id AND user_id = ?) as userReaction
+       FROM posts p JOIN users u ON u.id = p.author_id WHERE p.id = ?`,
+      [req.userId, postId]
+    )
+    if (!posts.length) return res.status(404).json({ error: 'Post not found' })
+    const post = posts[0]
+    const [comments] = await pool.query(
+      `SELECT u.name as author, c.text_da, c.text_en, c.media
+       FROM comments c JOIN users u ON u.id = c.author_id
+       WHERE c.post_id = ? ORDER BY c.created_at ASC`, [postId]
+    )
+    const [rxRows] = await pool.query(
+      'SELECT reaction, COUNT(*) as count FROM post_likes WHERE post_id = ? GROUP BY reaction', [postId]
+    )
+    res.json({
+      id: post.id, author: post.author,
+      text: { da: post.text_da, en: post.text_en },
+      time: { da: post.time_da, en: post.time_en },
+      likes: post.likes, liked: !!post.userReaction, userReaction: post.userReaction,
+      reactions: Object.fromEntries(rxRows.map(r => [r.reaction, r.count])),
+      media: post.media,
+      comments: comments.map(c => ({ author: c.author, text: { da: c.text_da, en: c.text_en }, media: c.media })),
+    })
+  } catch (err) { res.status(500).json({ error: 'Failed to fetch post' }) }
+})
+
+// GET /api/users/search?q=... — search all users (for friends/add-friends)
+app.get('/api/users/search', authenticate, async (req, res) => {
+  const { q } = req.query
+  if (!q || q.trim().length < 2) return res.json([])
+  const like = `%${q.trim()}%`
+  try {
+    const [users] = await pool.query(
+      `SELECT u.id, u.name,
+              CASE WHEN f.id IS NOT NULL THEN 1 ELSE 0 END as is_friend,
+              COALESCE(f.is_online, 0) as online,
+              COALESCE(f.mutual_count, 0) as mutual
+       FROM users u
+       LEFT JOIN friendships f ON f.friend_id = u.id AND f.user_id = ?
+       WHERE u.id != ? AND u.name LIKE ?
+       ORDER BY is_friend DESC, u.name
+       LIMIT 20`,
+      [req.userId, req.userId, like]
+    )
+    res.json(users.map(u => ({ ...u, is_friend: !!u.is_friend, online: !!u.online })))
+  } catch (err) { res.status(500).json({ error: 'User search failed' }) }
+})
 
 // GET /api/search?q=... — search posts and messages the current user is involved in
 // Posts: authored by, liked by, or commented on by the user

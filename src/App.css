@@ -1874,6 +1874,13 @@
 .p-friend-msg-btn:hover {
   background: #d6f0e0;
 }
+.p-friend-add-btn {
+  background: #EEF2FF;
+  color: #3730A3;
+}
+.p-friend-add-btn:hover {
+  background: #E0E7FF;
+}
 
 /* ── Messages ── */
 .p-messages {
@@ -2365,6 +2372,35 @@
   padding: 0 1px;
   border-radius: 2px;
   font-style: normal;
+}
+
+/* ── Pinned search result post ── */
+.p-post-pinned-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #FFF8E1;
+  border: 1px solid #FFE082;
+  border-bottom: none;
+  border-radius: 12px 12px 0 0;
+  padding: 6px 14px;
+  font-size: 13px;
+  color: #7B5C00;
+  font-weight: 600;
+}
+.p-post-pinned-close {
+  background: none;
+  border: none;
+  font-size: 14px;
+  color: #7B5C00;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+.p-post-pinned {
+  border-radius: 0 0 12px 12px;
+  border: 2px solid #FFE082;
+  border-top: none;
 }
 
 /* ── Feed virtual scroll sentinels ── */

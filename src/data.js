@@ -208,7 +208,10 @@ export const PT = {
     convMenu: 'Samtaleindstillinger',
     allFriends: 'Alle venner',
     onlineFriends: 'Online',
-    searchFriends: 'Søg venner...',
+    searchFriends: 'Søg efter brugere...',
+    addFriend: 'Tilføj ven',
+    friendAdded: 'Ven tilføjet',
+    findPeople: 'Find brugere',
     backToLanding: 'Tilbage til landing',
   },
   en: {
@@ -289,7 +292,10 @@ export const PT = {
     convMenu: 'Conversation settings',
     allFriends: 'All friends',
     onlineFriends: 'Online',
-    searchFriends: 'Search friends...',
+    searchFriends: 'Search for users...',
+    addFriend: 'Add friend',
+    friendAdded: 'Friend added',
+    findPeople: 'Find people',
     backToLanding: 'Back to landing',
   },
 }

@@ -165,6 +165,10 @@ export async function apiFetchFriends() {
   return await request('/api/friends')
 }
 
+export async function apiAddFriend(userId) {
+  return await request(`/api/friends/${userId}`, { method: 'POST' })
+}
+
 // Conversations (replaces legacy /api/messages)
 export async function apiFetchConversations() {
   return await request('/api/conversations')
@@ -278,6 +282,16 @@ export async function apiGetInvites() {
 // Link preview
 export async function apiLinkPreview(url) {
   return await request(`/api/link-preview?url=${encodeURIComponent(url)}`)
+}
+
+// Fetch a single post by ID (for search result navigation)
+export async function apiGetPost(id) {
+  return await request(`/api/posts/${id}`)
+}
+
+// Search all users (for add-friends)
+export async function apiSearchUsers(q) {
+  return await request(`/api/users/search?q=${encodeURIComponent(q)}`)
 }
 
 // Search (posts and messages the user is involved in)

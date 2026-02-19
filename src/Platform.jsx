@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { PT, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiLinkPreview, apiSearch } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiAddFriend } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -10,6 +10,7 @@ export default function Platform({ lang: initialLang, onLogout }) {
   const [currentUser, setCurrentUser] = useState({ name: '', handle: '', initials: '' })
   const [showAvatarMenu, setShowAvatarMenu] = useState(false)
   const [openConvId, setOpenConvId] = useState(null)
+  const [highlightPostId, setHighlightPostId] = useState(null)
   const avatarMenuRef = useRef(null)
   const t = PT[lang]
 
@@ -128,7 +129,7 @@ export default function Platform({ lang: initialLang, onLogout }) {
       </nav>
 
       <div className="p-content">
-        {page === 'feed' && <FeedPage lang={lang} t={t} currentUser={currentUser} />}
+        {page === 'feed' && <FeedPage lang={lang} t={t} currentUser={currentUser} highlightPostId={highlightPostId} onHighlightCleared={() => setHighlightPostId(null)} />}
         {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} onUserUpdate={setCurrentUser} />}
         {page === 'edit-profile' && <EditProfilePage lang={lang} t={t} currentUser={currentUser} onUserUpdate={setCurrentUser} onNavigate={navigateTo} />}
         {page === 'friends' && <FriendsPage lang={lang} t={t} onMessage={() => navigateTo('messages')} />}
@@ -138,7 +139,7 @@ export default function Platform({ lang: initialLang, onLogout }) {
           <SearchPage
             lang={lang}
             t={t}
-            onNavigateToPost={() => navigateTo('feed')}
+            onNavigateToPost={(postId) => { setHighlightPostId(postId); navigateTo('feed') }}
             onNavigateToConv={(convId) => { setOpenConvId(convId); navigateTo('messages') }}
           />
         )}
@@ -328,8 +329,10 @@ const REACTIONS = [
 // ── Feed ──
 const PAGE_SIZE = 20
 
-function FeedPage({ lang, t, currentUser }) {
+function FeedPage({ lang, t, currentUser, highlightPostId, onHighlightCleared }) {
   const [posts, setPosts] = useState([])
+  const [pinnedPost, setPinnedPost] = useState(null)
+  const pinnedRef = useRef(null)
   const [offset, setOffset] = useState(0)
   const [total, setTotal] = useState(0)
   const [loadingPage, setLoadingPage] = useState(false)
@@ -606,6 +609,25 @@ function FeedPage({ lang, t, currentUser }) {
     if (commentFileRefs.current[postId]) commentFileRefs.current[postId].value = ''
   }, [commentTexts, commentMedia, currentUser.name])
 
+  // Fetch and pin the specific post from a search result click
+  useEffect(() => {
+    if (!highlightPostId) { setPinnedPost(null); return }
+    apiGetPost(highlightPostId).then(post => {
+      if (!post) return
+      setPinnedPost(post)
+      if (post.liked || post.userReaction) {
+        setLikedPosts(prev => { const s = new Set(prev); s.add(post.id); return s })
+        if (post.userReaction) setReactions(prev => ({ ...prev, [post.id]: post.userReaction }))
+      }
+    })
+  }, [highlightPostId])
+
+  useEffect(() => {
+    if (pinnedPost && pinnedRef.current) {
+      pinnedRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [pinnedPost])
+
   const pageNum = Math.floor(offset / PAGE_SIZE) + 1
   const totalPages = Math.ceil(total / PAGE_SIZE)
 
@@ -699,6 +721,33 @@ function FeedPage({ lang, t, currentUser }) {
           {loadingPage && <div className="p-feed-loading">{lang === 'da' ? 'Indlæser...' : 'Loading...'}</div>}
         </div>
       )}
+
+      {/* Pinned search result */}
+      {pinnedPost && (() => {
+        const post = pinnedPost
+        const liked = likedPosts.has(post.id)
+        const showComments = expandedComments.has(post.id)
+        return (
+          <div ref={pinnedRef}>
+            <div className="p-post-pinned-banner">
+              <span>📍 {lang === 'da' ? 'Søgeresultat' : 'Search result'}</span>
+              <button className="p-post-pinned-close" onClick={() => { setPinnedPost(null); onHighlightCleared?.() }}>✕</button>
+            </div>
+            <div className="p-card p-post p-post-pinned">
+              <div className="p-post-header">
+                <div className="p-avatar-sm" style={{ background: nameToColor(post.author) }}>{getInitials(post.author)}</div>
+                <div><div className="p-post-author">{post.author}</div><div className="p-post-time">{post.time?.[lang]}</div></div>
+              </div>
+              <div className="p-post-text">{post.text[lang]}</div>
+              {post.media?.length > 0 && (
+                <div className={`p-post-media p-post-media-${Math.min(post.media.length, 4)}`}>
+                  {post.media.slice(0, 4).map((m, mi) => <MediaItem key={mi} item={m} />)}
+                </div>
+              )}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Posts — max PAGE_SIZE in DOM */}
       {posts.map(post => {
@@ -1503,8 +1552,11 @@ function FriendsPage({ lang, t, onMessage }) {
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [friends, setFriends] = useState([])
+  const [searchResults, setSearchResults] = useState(null) // null = no search active
+  const [addedIds, setAddedIds] = useState(new Set())
   const [inviteLink, setInviteLink] = useState('')
   const [inviteCopied, setInviteCopied] = useState(false)
+  const searchTimerRef = useRef(null)
 
   useEffect(() => {
     apiFetchFriends().then(data => {
@@ -1517,9 +1569,29 @@ function FriendsPage({ lang, t, onMessage }) {
     })
   }, [])
 
+  // Debounced user search
+  useEffect(() => {
+    clearTimeout(searchTimerRef.current)
+    if (search.trim().length < 2) {
+      setSearchResults(null)
+      return
+    }
+    searchTimerRef.current = setTimeout(async () => {
+      const data = await apiSearchUsers(search.trim())
+      if (data) setSearchResults(data)
+    }, 320)
+    return () => clearTimeout(searchTimerRef.current)
+  }, [search])
+
+  const handleAddFriend = useCallback(async (userId) => {
+    await apiAddFriend(userId)
+    setAddedIds(prev => new Set([...prev, userId]))
+    // Refresh friends list
+    apiFetchFriends().then(data => { if (data) setFriends(data) })
+  }, [])
+
   const filtered = friends.filter(f => {
     if (filter === 'online' && !f.online) return false
-    if (search && !f.name.toLowerCase().includes(search.toLowerCase())) return false
     return true
   })
 
@@ -1537,6 +1609,8 @@ function FriendsPage({ lang, t, onMessage }) {
       'width=580,height=400'
     )
   }, [inviteLink])
+
+  const isSearching = search.trim().length >= 2
 
   return (
     <div className="p-friends-page">
@@ -1568,40 +1642,84 @@ function FriendsPage({ lang, t, onMessage }) {
       </div>
 
       <div className="p-card">
-        <h3 className="p-section-title" style={{ margin: '0 0 16px' }}>{t.friendsTitle}</h3>
+        <h3 className="p-section-title" style={{ margin: '0 0 16px' }}>
+          {isSearching ? t.findPeople : t.friendsTitle}
+        </h3>
         <input
           className="p-search-input"
           placeholder={t.searchFriends}
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
-        <div className="p-filter-tabs">
-          <button className={`p-filter-tab${filter === 'all' ? ' active' : ''}`} onClick={() => setFilter('all')}>
-            {t.allFriends} ({friends.length})
-          </button>
-          <button className={`p-filter-tab${filter === 'online' ? ' active' : ''}`} onClick={() => setFilter('online')}>
-            {t.onlineFriends} ({friends.filter(f => f.online).length})
-          </button>
-        </div>
-      </div>
-
-      <div className="p-friends-grid">
-        {filtered.map((friend, idx) => (
-          <div key={idx} className="p-card p-friend-card">
-            <div className="p-friend-card-top">
-              <div className="p-avatar-md" style={{ background: nameToColor(friend.name) }}>
-                {getInitials(friend.name)}
-                {friend.online && <div className="online-dot" />}
-              </div>
-              <div className="p-friend-card-name">{friend.name}</div>
-              <div className="p-friend-card-mutual">{friend.mutual} {t.mutualFriends}</div>
-            </div>
-            <button className="p-friend-msg-btn" onClick={onMessage}>
-              💬 {t.message}
+        {!isSearching && (
+          <div className="p-filter-tabs">
+            <button className={`p-filter-tab${filter === 'all' ? ' active' : ''}`} onClick={() => setFilter('all')}>
+              {t.allFriends} ({friends.length})
+            </button>
+            <button className={`p-filter-tab${filter === 'online' ? ' active' : ''}`} onClick={() => setFilter('online')}>
+              {t.onlineFriends} ({friends.filter(f => f.online).length})
             </button>
           </div>
-        ))}
+        )}
       </div>
+
+      {isSearching ? (
+        <div className="p-friends-grid">
+          {(searchResults || []).map((user) => {
+            const isFriend = user.is_friend || addedIds.has(user.id)
+            const justAdded = addedIds.has(user.id)
+            return (
+              <div key={user.id} className="p-card p-friend-card">
+                <div className="p-friend-card-top">
+                  <div className="p-avatar-md" style={{ background: nameToColor(user.name) }}>
+                    {getInitials(user.name)}
+                    {user.online && <div className="online-dot" />}
+                  </div>
+                  <div className="p-friend-card-name">{user.name}</div>
+                  {isFriend && !justAdded && (
+                    <div className="p-friend-card-mutual">{t.allFriends.replace('Alle ', '').replace('All ', '')} ✓</div>
+                  )}
+                  {justAdded && (
+                    <div className="p-friend-card-mutual" style={{ color: 'var(--color-green)' }}>{t.friendAdded} ✓</div>
+                  )}
+                </div>
+                {isFriend ? (
+                  <button className="p-friend-msg-btn" onClick={onMessage}>
+                    💬 {t.message}
+                  </button>
+                ) : (
+                  <button className="p-friend-msg-btn p-friend-add-btn" onClick={() => handleAddFriend(user.id)}>
+                    ➕ {t.addFriend}
+                  </button>
+                )}
+              </div>
+            )
+          })}
+          {searchResults !== null && searchResults.length === 0 && (
+            <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '24px', color: 'var(--color-muted)' }}>
+              {lang === 'da' ? 'Ingen brugere fundet' : 'No users found'}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="p-friends-grid">
+          {filtered.map((friend, idx) => (
+            <div key={idx} className="p-card p-friend-card">
+              <div className="p-friend-card-top">
+                <div className="p-avatar-md" style={{ background: nameToColor(friend.name) }}>
+                  {getInitials(friend.name)}
+                  {friend.online && <div className="online-dot" />}
+                </div>
+                <div className="p-friend-card-name">{friend.name}</div>
+                <div className="p-friend-card-mutual">{friend.mutual} {t.mutualFriends}</div>
+              </div>
+              <button className="p-friend-msg-btn" onClick={onMessage}>
+                💬 {t.message}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -1807,7 +1925,7 @@ function SearchPage({ lang, t, onNavigateToPost, onNavigateToConv }) {
         <input
           ref={inputRef}
           className="p-search-bar-input"
-          type="search"
+          type="text"
           placeholder={t.searchPlaceholder}
           value={query}
           onChange={e => setQuery(e.target.value)}
