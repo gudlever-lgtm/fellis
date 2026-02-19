@@ -22,14 +22,25 @@ function formatPostTime(createdAt, lang) {
   const created = new Date(createdAt)
   const diffMs = now - created
   if (diffMs < 60_000) return lang === 'da' ? 'Lige nu' : 'Just now'
+  const locale = lang === 'da' ? 'da-DK' : 'en-US'
+  const timeStr = created.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
   const today = now.toDateString() === created.toDateString()
-  if (today) {
-    return created.toLocaleTimeString(lang === 'da' ? 'da-DK' : 'en-US', { hour: '2-digit', minute: '2-digit' })
-  }
+  if (today) return timeStr
   const thisYear = now.getFullYear() === created.getFullYear()
-  return created.toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', {
+  const dateStr = created.toLocaleDateString(locale, {
     day: 'numeric', month: 'short', ...(thisYear ? {} : { year: 'numeric' })
   })
+  return `${dateStr} ${timeStr}`
+}
+
+function formatMsgTime(createdAt) {
+  const now = new Date()
+  const created = new Date(createdAt)
+  const timeStr = `${created.getHours().toString().padStart(2, '0')}:${created.getMinutes().toString().padStart(2, '0')}`
+  const today = now.toDateString() === created.toDateString()
+  if (today) return timeStr
+  const dateStr = created.toLocaleDateString('da-DK', { day: 'numeric', month: 'short' })
+  return `${dateStr} ${timeStr}`
 }
 
 import express from 'express'
@@ -1263,7 +1274,7 @@ async function getConversationForUser(convId, userId, myName) {
      JOIN conversation_participants cp ON cp.user_id = u.id
      WHERE cp.conversation_id = ?`, [convId])
   const [msgs] = await pool.query(
-    `SELECT u.name as from_name, m.text_da, m.text_en, m.time, m.is_read
+    `SELECT u.name as from_name, m.text_da, m.text_en, m.time, m.is_read, m.created_at
      FROM messages m JOIN users u ON m.sender_id = u.id
      WHERE m.conversation_id = ? ORDER BY m.created_at DESC LIMIT 20`, [convId])
   msgs.reverse()
@@ -1282,7 +1293,7 @@ async function getConversationForUser(convId, userId, myName) {
     isGroup: conv.is_group === 1,
     groupName: conv.name,
     participants: participants.map(p => ({ id: p.id, name: p.name })),
-    messages: msgs.map(m => ({ from: m.from_name, text: { da: m.text_da, en: m.text_en }, time: m.time })),
+    messages: msgs.map(m => ({ from: m.from_name, text: { da: m.text_da, en: m.text_en }, time: m.created_at ? formatMsgTime(m.created_at) : m.time })),
     totalMessages: total,
     unread,
     mutedUntil: conv.muted_until,
@@ -1319,12 +1330,12 @@ app.get('/api/conversations/:id/messages/older', authenticate, async (req, res) 
       'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, req.userId])
     if (!check.length) return res.status(403).json({ error: 'Not a participant' })
     const [msgs] = await pool.query(
-      `SELECT u.name as from_name, m.text_da, m.text_en, m.time
+      `SELECT u.name as from_name, m.text_da, m.text_en, m.time, m.created_at
        FROM messages m JOIN users u ON m.sender_id = u.id
        WHERE m.conversation_id = ? ORDER BY m.created_at DESC LIMIT ? OFFSET ?`,
       [convId, limit, offset])
     msgs.reverse()
-    res.json({ messages: msgs.map(m => ({ from: m.from_name, text: { da: m.text_da, en: m.text_en }, time: m.time })) })
+    res.json({ messages: msgs.map(m => ({ from: m.from_name, text: { da: m.text_da, en: m.text_en }, time: m.created_at ? formatMsgTime(m.created_at) : m.time })) })
   } catch (err) {
     res.status(500).json({ error: 'Failed to load messages' })
   }
@@ -1374,7 +1385,7 @@ app.post('/api/conversations/:id/messages', authenticate, async (req, res) => {
       'INSERT INTO messages (conversation_id, sender_id, receiver_id, text_da, text_en, time) VALUES (?, ?, 0, ?, ?, ?)',
       [convId, req.userId, text, text, time])
     const [[user]] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
-    res.json({ from: user.name, text: { da: text, en: text }, time })
+    res.json({ from: user.name, text: { da: text, en: text }, time: formatMsgTime(now) })
   } catch (err) {
     res.status(500).json({ error: 'Failed to send message' })
   }

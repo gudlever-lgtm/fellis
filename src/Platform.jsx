@@ -443,6 +443,19 @@ function FeedPage({ lang, t, currentUser, highlightPostId, onHighlightCleared })
     return () => observer.disconnect()
   }, [offset, fetchPage]) // offset: sentinel mounts/unmounts; fetchPage: stable
 
+  const handleFeedPaste = useCallback((e) => {
+    const items = Array.from(e.clipboardData?.items || [])
+    const imageItems = items.filter(item => item.type.startsWith('image/'))
+    if (imageItems.length === 0) return
+    const files = imageItems.map(item => item.getAsFile()).filter(Boolean).slice(0, 4)
+    if (files.length === 0) return
+    setMediaFiles(prev => [...prev, ...files].slice(0, 4))
+    setMediaPreviews(prev => [...prev, ...files.map(f => ({
+      url: URL.createObjectURL(f), type: 'image', name: f.name || 'image.png',
+    }))].slice(0, 4))
+    setPostExpanded(true)
+  }, [])
+
   const handleFileSelect = useCallback((e) => {
     const files = Array.from(e.target.files).slice(0, 4)
     setMediaFiles(files)
@@ -675,6 +688,10 @@ function FeedPage({ lang, t, currentUser, highlightPostId, onHighlightCleared })
                   e.target.style.height = 'auto'
                   e.target.style.height = e.target.scrollHeight + 'px'
                 }}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handlePost() }
+                }}
+                onPaste={handleFeedPaste}
                 onFocus={() => setPostExpanded(true)}
                 onBlur={() => { if (!newPostText.trim() && !mediaPreviews.length) setPostExpanded(false) }}
                 autoFocus={postExpanded && !newPostText}
@@ -720,7 +737,10 @@ function FeedPage({ lang, t, currentUser, highlightPostId, onHighlightCleared })
                 )}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span className="p-input-hint-icon" title={t.postInputHint}>?</span>
+                <span className="p-input-hint-wrap">
+                  <span className="p-input-hint-icon">?</span>
+                  <span className="p-input-hint-tooltip">{t.postInputHint}</span>
+                </span>
                 <button className="p-post-btn" onMouseDown={e => e.preventDefault()} onClick={handlePost} disabled={!newPostText.trim()}>{t.post}</button>
               </div>
             </div>
@@ -2220,6 +2240,7 @@ function MessagesPage({ lang, t, currentUser, openConvId, onConvOpened }) {
   const [showConvMenu, setShowConvMenu] = useState(false)
   const [deleteConvId, setDeleteConvId] = useState(null) // id to confirm delete
   const messagesEndRef = useRef(null)
+  const msgInputRef = useRef(null)
   const msgBodyRef = useRef(null)
   const topMsgSentinelRef = useRef(null)
   const menuRef = useRef(null)
@@ -2276,6 +2297,12 @@ function MessagesPage({ lang, t, currentUser, openConvId, onConvOpened }) {
     observer.observe(el)
     return () => observer.disconnect()
   }, [activeConv, conversations, loadingOlder])
+
+  useEffect(() => {
+    if (!newMsg && msgInputRef.current) {
+      msgInputRef.current.style.height = 'auto'
+    }
+  }, [newMsg])
 
   const handleSend = useCallback(() => {
     if (!newMsg.trim()) return
@@ -2528,13 +2555,24 @@ function MessagesPage({ lang, t, currentUser, openConvId, onConvOpened }) {
 
           {/* Input */}
           <div className="p-msg-input-row">
-            <span className="p-input-hint-icon" title={t.msgInputHint}>?</span>
-            <input
+            <span className="p-input-hint-wrap">
+              <span className="p-input-hint-icon">?</span>
+              <span className="p-input-hint-tooltip">{t.msgInputHint}</span>
+            </span>
+            <textarea
+              ref={msgInputRef}
               className="p-msg-input"
               placeholder={t.typeMessage}
               value={newMsg}
-              onChange={e => setNewMsg(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSend()}
+              rows={1}
+              onChange={e => {
+                setNewMsg(e.target.value)
+                e.target.style.height = 'auto'
+                e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'
+              }}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
+              }}
             />
             <button className="p-send-btn" onClick={handleSend}>{t.send}</button>
           </div>
