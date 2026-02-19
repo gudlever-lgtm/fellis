@@ -2050,6 +2050,10 @@
   color: #A09890;
   text-align: center;
 }
+.p-msg-thread-wrap {
+  display: flex;
+  flex-direction: column;
+}
 .p-msg-thread {
   display: flex;
   align-items: center;
