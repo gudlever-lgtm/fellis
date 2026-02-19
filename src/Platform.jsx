@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect, Fragment } from 'react'
 import { PT, nameToColor, getInitials } from './data.js'
 import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend } from './api.js'
 
@@ -2381,7 +2381,7 @@ function MessagesPage({ lang, t, currentUser, openConvId, onConvOpened }) {
           const lastMsg = c.messages[c.messages.length - 1]
           const cIsMuted = c.mutedUntil && new Date(c.mutedUntil) > new Date()
           return (
-            <React.Fragment key={c.id}>
+            <Fragment key={c.id}>
               {deleteConvId === c.id && (
                 <div className="p-msg-delete-confirm" onClick={e => e.stopPropagation()}>
                   <span>{lang === 'da' ? `Slet "${c.name}"?` : `Delete "${c.name}"?`}</span>
@@ -2434,7 +2434,7 @@ function MessagesPage({ lang, t, currentUser, openConvId, onConvOpened }) {
                 onClick={e => { e.stopPropagation(); setDeleteConvId(c.id) }}
               >🗑</button>
             </div>
-            </React.Fragment>
+            </Fragment>
           )
         })}
       </div>
