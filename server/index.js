@@ -1187,6 +1187,49 @@ app.post('/api/friends/requests/:id/decline', authenticate, async (req, res) => 
   } catch (err) { res.status(500).json({ error: 'Failed to decline request' }) }
 })
 
+// DELETE /api/friends/:userId — unfriend (mutual). Optional ?notify=1 sends a message.
+app.delete('/api/friends/:userId', authenticate, async (req, res) => {
+  const targetId = parseInt(req.params.userId)
+  if (!targetId || targetId === req.userId) return res.status(400).json({ error: 'Invalid user' })
+  const notify = req.query.notify === '1'
+  try {
+    await pool.query('DELETE FROM friendships WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)',
+      [req.userId, targetId, targetId, req.userId])
+    // Clean up any friend_requests between the two users
+    await pool.query(
+      `DELETE FROM friend_requests WHERE (from_user_id = ? AND to_user_id = ?) OR (from_user_id = ? AND to_user_id = ?)`,
+      [req.userId, targetId, targetId, req.userId]
+    )
+    if (notify) {
+      // Find or create 1:1 conversation and send a system-like message
+      const [[me]] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
+      const [convRows] = await pool.query(
+        `SELECT c.id FROM conversations c
+         JOIN conversation_participants cp1 ON cp1.conversation_id = c.id AND cp1.user_id = ?
+         JOIN conversation_participants cp2 ON cp2.conversation_id = c.id AND cp2.user_id = ?
+         WHERE c.is_group = 0 LIMIT 1`, [req.userId, targetId]
+      )
+      let convId
+      if (convRows.length) {
+        convId = convRows[0].id
+      } else {
+        const [r] = await pool.query('INSERT INTO conversations (is_group, created_by) VALUES (0, ?)', [req.userId])
+        convId = r.insertId
+        await pool.query('INSERT IGNORE INTO conversation_participants (conversation_id, user_id) VALUES (?, ?), (?, ?)',
+          [convId, req.userId, convId, targetId])
+      }
+      const msgDa = `${me.name} har fjernet dig som ven.`
+      const msgEn = `${me.name} has removed you as a friend.`
+      await pool.query(
+        `INSERT INTO messages (conversation_id, sender_id, receiver_id, text_da, text_en, time, created_at)
+         VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
+        [convId, req.userId, targetId, msgDa, msgEn]
+      )
+    }
+    res.json({ ok: true })
+  } catch (err) { res.status(500).json({ error: 'Failed to unfriend' }) }
+})
+
 // ── Conversation routes ──
 
 // Helper: fetch a full conversation object for the current user

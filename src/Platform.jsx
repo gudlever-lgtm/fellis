@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { PT, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -1553,11 +1553,12 @@ function FriendsPage({ lang, t, onMessage }) {
   const [search, setSearch] = useState('')
   const [friends, setFriends] = useState([])
   const [requests, setRequests] = useState({ incoming: [], outgoing: [] })
-  const [searchResults, setSearchResults] = useState(null) // null = no search active
-  // sentIds: userId → requestId (or true if accepted)
+  const [searchResults, setSearchResults] = useState(null)
   const [sentIds, setSentIds] = useState({})
   const [inviteLink, setInviteLink] = useState('')
   const [inviteCopied, setInviteCopied] = useState(false)
+  const [openMenuId, setOpenMenuId] = useState(null) // friend card •••
+  const [unfriendTarget, setUnfriendTarget] = useState(null) // { id, name }
   const searchTimerRef = useRef(null)
 
   const refreshAll = useCallback(() => {
@@ -1571,6 +1572,14 @@ function FriendsPage({ lang, t, onMessage }) {
       if (data?.token) setInviteLink(`https://fellis.eu/?invite=${data.token}`)
     })
   }, [refreshAll])
+
+  // Close •••menu on outside click
+  useEffect(() => {
+    if (!openMenuId) return
+    const close = () => setOpenMenuId(null)
+    document.addEventListener('click', close)
+    return () => document.removeEventListener('click', close)
+  }, [openMenuId])
 
   // Debounced user search
   useEffect(() => {
@@ -1586,9 +1595,7 @@ function FriendsPage({ lang, t, onMessage }) {
   const handleSendRequest = useCallback(async (userId) => {
     const res = await apiSendFriendRequest(userId)
     if (res?.ok) {
-      // optimistic: mark as sent (we don't have the DB id yet, use placeholder)
       setSentIds(prev => ({ ...prev, [userId]: 'sent' }))
-      // refresh to get real request id
       apiFetchFriendRequests().then(data => { if (data) setRequests(data) })
     }
   }, [])
@@ -1600,11 +1607,15 @@ function FriendsPage({ lang, t, onMessage }) {
 
   const handleDecline = useCallback(async (reqId) => {
     await apiDeclineFriendRequest(reqId)
-    setRequests(prev => ({
-      ...prev,
-      incoming: prev.incoming.filter(r => r.id !== reqId),
-    }))
+    setRequests(prev => ({ ...prev, incoming: prev.incoming.filter(r => r.id !== reqId) }))
   }, [])
+
+  const handleUnfriend = useCallback(async (notify) => {
+    if (!unfriendTarget) return
+    await apiUnfriend(unfriendTarget.id, notify)
+    setUnfriendTarget(null)
+    refreshAll()
+  }, [unfriendTarget, refreshAll])
 
   const filtered = friends.filter(f => filter === 'all' || f.online)
 
@@ -1620,11 +1631,41 @@ function FriendsPage({ lang, t, onMessage }) {
   }, [inviteLink])
 
   const isSearching = search.trim().length >= 2
-  // Build a set of outgoing target user ids for quick lookup
   const outgoingTargetIds = new Set(requests.outgoing.map(r => r.to_id))
 
   return (
     <div className="p-friends-page">
+      {/* Unfriend confirm modal */}
+      {unfriendTarget && (
+        <div className="modal-backdrop" onClick={() => setUnfriendTarget(null)}>
+          <div className="p-msg-modal" style={{ maxWidth: 360 }} onClick={e => e.stopPropagation()}>
+            <div className="p-msg-modal-header">
+              <span>{t.unfriendConfirm}</span>
+              <button className="p-msg-modal-close" onClick={() => setUnfriendTarget(null)}>✕</button>
+            </div>
+            <div style={{ padding: '16px 20px' }}>
+              <div style={{ marginBottom: 12, fontSize: 14, color: '#555' }}>
+                <strong>{unfriendTarget.name}</strong>
+              </div>
+              <button
+                className="p-friend-msg-btn"
+                style={{ marginBottom: 8, textAlign: 'left' }}
+                onClick={() => handleUnfriend(false)}
+              >
+                🔇 {t.unfriendSilent}
+              </button>
+              <button
+                className="p-friend-msg-btn p-friend-add-btn"
+                style={{ textAlign: 'left' }}
+                onClick={() => handleUnfriend(true)}
+              >
+                ✉ {t.unfriendNotify}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Invite friends card */}
       <div className="p-card p-invite-card">
         <h3 className="p-section-title" style={{ margin: '0 0 8px' }}>
@@ -1666,12 +1707,8 @@ function FriendsPage({ lang, t, onMessage }) {
                 </div>
                 <div className="p-friend-request-name">{req.from_name}</div>
                 <div className="p-friend-request-actions">
-                  <button className="p-freq-accept-btn" onClick={() => handleAccept(req.id)}>
-                    {t.acceptRequest}
-                  </button>
-                  <button className="p-freq-decline-btn" onClick={() => handleDecline(req.id)}>
-                    {t.declineRequest}
-                  </button>
+                  <button className="p-freq-accept-btn" onClick={() => handleAccept(req.id)}>{t.acceptRequest}</button>
+                  <button className="p-freq-decline-btn" onClick={() => handleDecline(req.id)}>{t.declineRequest}</button>
                 </div>
               </div>
             ))}
@@ -1718,9 +1755,19 @@ function FriendsPage({ lang, t, onMessage }) {
                   {isFriend && <div className="p-friend-card-mutual">✓ {t.allFriends}</div>}
                 </div>
                 {isFriend ? (
-                  <button className="p-friend-msg-btn" onClick={onMessage}>
-                    💬 {t.message}
-                  </button>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button className="p-friend-msg-btn" style={{ flex: 1 }} onClick={onMessage}>💬 {t.message}</button>
+                    <div className="p-friend-menu-wrap" style={{ position: 'relative' }}>
+                      <button className="p-friend-menu-btn" onClick={e => { e.stopPropagation(); setOpenMenuId(openMenuId === user.id ? null : user.id) }}>•••</button>
+                      {openMenuId === user.id && (
+                        <div className="p-friend-menu" onClick={e => e.stopPropagation()}>
+                          <button className="p-friend-menu-item p-friend-menu-danger" onClick={() => { setOpenMenuId(null); setUnfriendTarget({ id: user.id, name: user.name }) }}>
+                            {t.unfriend}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 ) : incomingReq ? (
                   <div className="p-freq-inline-actions">
                     <span className="p-freq-label">{t.requestReceived}</span>
@@ -1728,9 +1775,7 @@ function FriendsPage({ lang, t, onMessage }) {
                     <button className="p-freq-decline-btn" onClick={() => handleDecline(incomingReq.id)}>{t.declineRequest}</button>
                   </div>
                 ) : hasSentRequest ? (
-                  <button className="p-friend-msg-btn p-friend-sent-btn" disabled>
-                    ✉ {t.requestSent}
-                  </button>
+                  <button className="p-friend-msg-btn p-friend-sent-btn" disabled>✉ {t.requestSent}</button>
                 ) : (
                   <button className="p-friend-msg-btn p-friend-add-btn" onClick={() => handleSendRequest(user.id)}>
                     ➕ {t.connectRequest}
@@ -1747,8 +1792,8 @@ function FriendsPage({ lang, t, onMessage }) {
         </div>
       ) : (
         <div className="p-friends-grid">
-          {filtered.map((friend, idx) => (
-            <div key={idx} className="p-card p-friend-card">
+          {filtered.map((friend) => (
+            <div key={friend.id} className="p-card p-friend-card">
               <div className="p-friend-card-top">
                 <div className="p-avatar-md" style={{ background: nameToColor(friend.name) }}>
                   {getInitials(friend.name)}
@@ -1757,9 +1802,24 @@ function FriendsPage({ lang, t, onMessage }) {
                 <div className="p-friend-card-name">{friend.name}</div>
                 <div className="p-friend-card-mutual">{friend.mutual} {t.mutualFriends}</div>
               </div>
-              <button className="p-friend-msg-btn" onClick={onMessage}>
-                💬 {t.message}
-              </button>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="p-friend-msg-btn" style={{ flex: 1 }} onClick={onMessage}>
+                  💬 {t.message}
+                </button>
+                <div className="p-friend-menu-wrap" style={{ position: 'relative' }}>
+                  <button className="p-friend-menu-btn" onClick={e => { e.stopPropagation(); setOpenMenuId(openMenuId === friend.id ? null : friend.id) }}>•••</button>
+                  {openMenuId === friend.id && (
+                    <div className="p-friend-menu" onClick={e => e.stopPropagation()}>
+                      <button className="p-friend-menu-item" onClick={() => { setOpenMenuId(null); onMessage() }}>
+                        💬 {t.message}
+                      </button>
+                      <button className="p-friend-menu-item p-friend-menu-danger" onClick={() => { setOpenMenuId(null); setUnfriendTarget({ id: friend.id, name: friend.name }) }}>
+                        {t.unfriend}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           ))}
         </div>

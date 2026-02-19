@@ -218,6 +218,10 @@ export const PT = {
     acceptRequest: 'Accepter',
     declineRequest: 'Afvis',
     incomingRequests: 'Forbindelsesanmodninger',
+    unfriend: 'Fjern ven',
+    unfriendConfirm: 'Fjern som ven?',
+    unfriendSilent: 'Fjern stille (ingen besked)',
+    unfriendNotify: 'Fjern og send besked',
     backToLanding: 'Tilbage til landing',
   },
   en: {
@@ -308,6 +312,10 @@ export const PT = {
     acceptRequest: 'Accept',
     declineRequest: 'Decline',
     incomingRequests: 'Connection requests',
+    unfriend: 'Unfriend',
+    unfriendConfirm: 'Remove as friend?',
+    unfriendSilent: 'Remove silently (no message)',
+    unfriendNotify: 'Remove and send a message',
     backToLanding: 'Back to landing',
   },
 }

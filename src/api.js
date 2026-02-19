@@ -181,6 +181,10 @@ export async function apiDeclineFriendRequest(requestId) {
   return await request(`/api/friends/requests/${requestId}/decline`, { method: 'POST' })
 }
 
+export async function apiUnfriend(userId, notify = false) {
+  return await request(`/api/friends/${userId}${notify ? '?notify=1' : ''}`, { method: 'DELETE' })
+}
+
 // Conversations (replaces legacy /api/messages)
 export async function apiFetchConversations() {
   return await request('/api/conversations')
