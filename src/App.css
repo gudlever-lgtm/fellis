@@ -1090,27 +1090,105 @@
 /* ── New post ── */
 .p-new-post-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
 }
-.p-new-post-input {
+.p-new-post-collapsed {
+  align-items: center;
+  cursor: pointer;
+}
+.p-new-post-prompt {
   flex: 1;
   border: 1px solid #E8E4DF;
   border-radius: 20px;
   padding: 10px 16px;
   font-size: 14px;
-  font-family: 'DM Sans', sans-serif;
-  outline: none;
+  color: #A09890;
   background: #FAFAF7;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, background 0.2s;
+  user-select: none;
 }
-.p-new-post-input:focus {
+.p-new-post-collapsed:hover .p-new-post-prompt {
   border-color: #2D6A4F;
+  background: #F5FBF7;
+}
+.p-new-post-textarea {
+  flex: 1;
+  border: none;
+  outline: none;
+  resize: none;
+  font-size: 15px;
+  font-family: 'DM Sans', sans-serif;
+  line-height: 1.5;
+  background: transparent;
+  padding: 6px 0;
+  min-height: 44px;
+  overflow: hidden;
+  color: #1A1A1A;
+}
+.p-new-post-textarea::placeholder {
+  color: #A09890;
+}
+.p-new-post-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #F0EDE9;
+}
+/* Media popup trigger */
+.p-media-popup-wrap {
+  position: relative;
+}
+.p-media-popup-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #2D6A4F;
+  color: #fff;
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, transform 0.15s;
+}
+.p-media-popup-btn:hover,
+.p-media-popup-btn.active {
+  background: #40916C;
+  transform: rotate(45deg);
+}
+/* Media popup panel — opens upward.
+   Post composer: button is left-aligned → anchor left.
+   Comment row: button is right-aligned → anchor right to stay on screen. */
+.p-media-popup {
+  left: 0;
+  transform: none;
+  min-width: 180px;
+}
+.p-media-popup-right {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+/* Round brand-coloured icon inside each media popup option */
+.p-media-popup-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #2D6A4F;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
 }
 .p-post-btn {
   background: #2D6A4F;
   color: #fff;
-  padding: 10px 20px;
+  padding: 8px 20px;
   border-radius: 20px;
   font-weight: 600;
   font-size: 14px;
@@ -1120,7 +1198,7 @@
   background: #40916C;
 }
 .p-post-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
@@ -1144,6 +1222,114 @@
   line-height: 1.6;
   margin-bottom: 12px;
   color: #1A1A1A;
+}
+
+/* ── Linkified text ── */
+.post-link {
+  color: #2D6A4F;
+  text-decoration: underline;
+  word-break: break-all;
+}
+.post-link:hover {
+  color: #1a5438;
+}
+
+/* ── Link preview cards ── */
+.link-preview {
+  display: block;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #E8E4DF;
+  margin-bottom: 12px;
+  text-decoration: none;
+  color: inherit;
+  transition: box-shadow 0.15s;
+}
+.link-preview:hover {
+  box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+}
+
+/* YouTube */
+.link-preview-yt-thumb {
+  position: relative;
+  cursor: pointer;
+  background: #000;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+}
+.link-preview-yt-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.85;
+  display: block;
+}
+.link-preview-play {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+  color: #fff;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.7);
+  transition: transform 0.15s;
+}
+.link-preview-yt-thumb:hover .link-preview-play {
+  transform: scale(1.12);
+}
+.link-preview-yt-embed {
+  aspect-ratio: 16 / 9;
+}
+.link-preview-yt-embed iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+}
+
+/* Open Graph cards */
+.link-preview-og {
+  display: flex;
+  flex-direction: column;
+}
+.link-preview-og-img {
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+  display: block;
+}
+.link-preview-og-body {
+  padding: 10px 12px;
+  background: #F8F6F3;
+}
+.link-preview-og-site {
+  font-size: 11px;
+  font-weight: 600;
+  color: #A09890;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 3px;
+}
+.link-preview-og-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1A1A1A;
+  line-height: 1.4;
+  margin-bottom: 3px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.link-preview-og-desc {
+  font-size: 12px;
+  color: #6B6560;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 /* ── Post media (images/videos) ── */
@@ -1172,16 +1358,6 @@
 .p-media-clickable { cursor: zoom-in; }
 
 /* ── Media button + previews in new post ── */
-.p-media-btn {
-  background: none;
-  font-size: 20px;
-  padding: 6px 10px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.15s;
-  flex-shrink: 0;
-}
-.p-media-btn:hover { background: #F0FAF4; }
 .p-media-previews {
   display: flex;
   gap: 8px;
@@ -1253,6 +1429,59 @@
 .p-action-btn.active {
   background: #F0FAF4;
   color: #2D6A4F;
+}
+
+/* ── Reaction summary in stats ── */
+.p-reaction-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.p-reaction-tally {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 13px;
+  color: #6B6560;
+}
+
+/* ── Reaction popup ── */
+.p-reaction-wrap {
+  position: relative;
+  flex: 1;
+}
+.p-reaction-popup {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fff;
+  border: 1px solid #E8E4DF;
+  border-radius: 40px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.15);
+  display: flex;
+  gap: 2px;
+  padding: 6px 8px;
+  z-index: 200;
+  animation: reactionPopIn 0.14s ease;
+}
+@keyframes reactionPopIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(6px) scale(0.9); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+.p-reaction-btn {
+  background: none;
+  border: none;
+  font-size: 28px;
+  padding: 4px 6px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.12s, background 0.1s;
+  line-height: 1;
+}
+.p-reaction-btn:hover {
+  transform: scale(1.35);
+  background: #F0FAF4;
 }
 
 /* ── Share popup ── */
@@ -2171,9 +2400,6 @@
   }
   .p-card {
     padding: 14px;
-  }
-  .p-new-post-input {
-    font-size: 14px;
   }
   .p-post-media-2,
   .p-post-media-3,

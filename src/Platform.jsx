@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { PT, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiLinkPreview } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -156,6 +156,110 @@ function Lightbox({ src, type, mime, onClose }) {
   )
 }
 
+// ── Link preview ──
+
+const URL_RE = /https?:\/\/[^\s<>"']+/g
+const previewCache = new Map()
+
+function extractFirstUrl(text) {
+  URL_RE.lastIndex = 0
+  const m = URL_RE.exec(text)
+  if (!m) return null
+  return m[0].replace(/[.,!?;:)>]+$/, '')
+}
+
+function linkifyText(text) {
+  const parts = []
+  const re = /https?:\/\/[^\s<>"']+/g
+  let last = 0, m
+  while ((m = re.exec(text)) !== null) {
+    const url = m[0].replace(/[.,!?;:)>]+$/, '')
+    if (m.index > last) parts.push({ t: 'text', v: text.slice(last, m.index) })
+    parts.push({ t: 'url', v: url })
+    last = m.index + m[0].length
+  }
+  if (last < text.length) parts.push({ t: 'text', v: text.slice(last) })
+  return parts
+}
+
+function extractYouTubeId(url) {
+  try {
+    const u = new URL(url)
+    if (u.hostname.includes('youtube.com')) {
+      if (u.pathname.startsWith('/shorts/')) return u.pathname.split('/')[2]
+      return u.searchParams.get('v')
+    }
+    if (u.hostname === 'youtu.be') return u.pathname.slice(1).split('?')[0]
+  } catch {}
+  return null
+}
+
+function LinkPreview({ url }) {
+  const cached = previewCache.get(url)
+  const [data, setData] = useState(cached ?? null)
+  const [ytExpanded, setYtExpanded] = useState(false)
+  const ytId = extractYouTubeId(url)
+
+  useEffect(() => {
+    if (ytId || cached !== undefined) return
+    apiLinkPreview(url).then(d => {
+      previewCache.set(url, d ?? null)
+      if (d) setData(d)
+    })
+  }, [url, ytId, cached])
+
+  if (ytId) {
+    return (
+      <div className="link-preview link-preview-yt">
+        {ytExpanded ? (
+          <div className="link-preview-yt-embed">
+            <iframe
+              src={`https://www.youtube.com/embed/${ytId}?autoplay=1&rel=0`}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen loading="lazy"
+            />
+          </div>
+        ) : (
+          <div className="link-preview-yt-thumb" onClick={() => setYtExpanded(true)}>
+            <img src={`https://img.youtube.com/vi/${ytId}/hqdefault.jpg`} alt="" loading="lazy" />
+            <div className="link-preview-play">▶</div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  if (!data || (!data.title && !data.image)) return null
+  return (
+    <a className="link-preview link-preview-og" href={url} target="_blank" rel="noopener noreferrer">
+      {data.image && <img className="link-preview-og-img" src={data.image} alt="" loading="lazy" />}
+      <div className="link-preview-og-body">
+        {data.siteName && <div className="link-preview-og-site">{data.siteName}</div>}
+        {data.title && <div className="link-preview-og-title">{data.title}</div>}
+        {data.description && <div className="link-preview-og-desc">{data.description}</div>}
+      </div>
+    </a>
+  )
+}
+
+function PostText({ text, lang }) {
+  const str = text[lang] || text.da || ''
+  const parts = linkifyText(str)
+  const firstUrl = parts.find(p => p.t === 'url')?.v
+  return (
+    <>
+      <div className="p-post-body">
+        {parts.map((p, i) =>
+          p.t === 'url'
+            ? <a key={i} href={p.v} target="_blank" rel="noopener noreferrer" className="post-link">{p.v}</a>
+            : <span key={i}>{p.v}</span>
+        )}
+      </div>
+      {firstUrl && <LinkPreview url={firstUrl} />}
+    </>
+  )
+}
+
 function PostMedia({ media }) {
   const [lightbox, setLightbox] = useState(null)
   if (!media?.length) return null
@@ -182,6 +286,30 @@ function PostMedia({ media }) {
   )
 }
 
+// ── Camera helper — must be in DOM before .click() for iOS Safari capture to work ──
+function openCamera(onFile) {
+  const inp = document.createElement('input')
+  inp.type = 'file'
+  inp.accept = 'image/*,video/*'
+  inp.setAttribute('capture', 'environment')
+  inp.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;'
+  document.body.appendChild(inp)
+  const cleanup = () => { if (inp.parentNode) inp.parentNode.removeChild(inp) }
+  inp.addEventListener('change', (e) => { onFile(e); cleanup() }, { once: true })
+  inp.addEventListener('cancel', cleanup, { once: true })
+  inp.click()
+}
+
+// ── Reaction emojis ──
+const REACTIONS = [
+  { emoji: '👍', label: { da: 'Synes godt om', en: 'Like' } },
+  { emoji: '❤️', label: { da: 'Elsker', en: 'Love' } },
+  { emoji: '😄', label: { da: 'Haha', en: 'Haha' } },
+  { emoji: '😮', label: { da: 'Wow', en: 'Wow' } },
+  { emoji: '😢', label: { da: 'Trist', en: 'Sad' } },
+  { emoji: '😡', label: { da: 'Vred', en: 'Angry' } },
+]
+
 // ── Feed ──
 const PAGE_SIZE = 20
 
@@ -190,47 +318,66 @@ function FeedPage({ lang, t, currentUser }) {
   const [offset, setOffset] = useState(0)
   const [total, setTotal] = useState(0)
   const [loadingPage, setLoadingPage] = useState(false)
+  const isFetchingRef = useRef(false)   // ref guard — avoids stale closure in observers
+  const offsetRef = useRef(0)           // mirrors offset state for stable observer callbacks
+  const totalRef = useRef(0)            // mirrors total state for stable observer callbacks
   const [newPostText, setNewPostText] = useState('')
   const [mediaFiles, setMediaFiles] = useState([])
   const [mediaPreviews, setMediaPreviews] = useState([])
   const [likedPosts, setLikedPosts] = useState(new Set())
+  const [reactions, setReactions] = useState({})   // postId → emoji
+  const [likePopup, setLikePopup] = useState(null) // postId with open reaction popup
   const [expandedComments, setExpandedComments] = useState(new Set())
   const [commentTexts, setCommentTexts] = useState({})
   const [commentMedia, setCommentMedia] = useState({})
   const [sharePopup, setSharePopup] = useState(null)      // postId of open popup
   const [sharePopupFriends, setSharePopupFriends] = useState(null) // null = not loaded yet
   const [shareSentTo, setShareSentTo] = useState(null)   // friendId just messaged
+  const [postExpanded, setPostExpanded] = useState(false)
+  const [mediaPopup, setMediaPopup] = useState(false)
   const fileInputRef = useRef(null)
+  const textareaRef = useRef(null)
   const commentFileRefs = useRef({})
+  const [commentMediaPopup, setCommentMediaPopup] = useState(null) // postId of open popup
   const bottomSentinelRef = useRef(null)
   const topSentinelRef = useRef(null)
   const feedContainerRef = useRef(null)
 
-  // Fetch a page of posts
+  // Fetch a page of posts — stable callback (empty deps), guards via ref
   const fetchPage = useCallback(async (newOffset, direction) => {
-    if (loadingPage) return
+    if (isFetchingRef.current) return
+    isFetchingRef.current = true
     setLoadingPage(true)
     const data = await apiFetchFeed(newOffset, PAGE_SIZE)
     if (data?.posts) {
+      const container = feedContainerRef.current
+      // Capture scroll height BEFORE React flushes the DOM update
+      const prevScrollHeight = container?.scrollHeight ?? 0
       setPosts(data.posts)
       setTotal(data.total)
       setOffset(newOffset)
       setLikedPosts(new Set(data.posts.filter(p => p.liked).map(p => p.id)))
-      // Scroll to top when going forward, bottom when going back
-      if (feedContainerRef.current) {
+      setReactions(Object.fromEntries(data.posts.filter(p => p.userReaction).map(p => [p.id, p.userReaction])))
+      offsetRef.current = newOffset
+      totalRef.current = data.total
+      if (container) {
         if (direction === 'down') {
-          feedContainerRef.current.scrollTop = 0
+          container.scrollTop = 0
         } else if (direction === 'up') {
+          // After DOM paints: jump to the position that puts the user
+          // at the bottom of the newly loaded page so they can keep scrolling up
           requestAnimationFrame(() => {
             if (feedContainerRef.current) {
-              feedContainerRef.current.scrollTop = feedContainerRef.current.scrollHeight
+              feedContainerRef.current.scrollTop =
+                feedContainerRef.current.scrollHeight - prevScrollHeight
             }
           })
         }
       }
     }
     setLoadingPage(false)
-  }, [loadingPage])
+    isFetchingRef.current = false
+  }, []) // stable — all mutable reads go through refs
 
   // Initial load
   useEffect(() => {
@@ -238,36 +385,44 @@ function FeedPage({ lang, t, currentUser }) {
       if (data?.posts) {
         setPosts(data.posts)
         setTotal(data.total)
+        totalRef.current = data.total
         setLikedPosts(new Set(data.posts.filter(p => p.liked).map(p => p.id)))
+        setReactions(Object.fromEntries(data.posts.filter(p => p.userReaction).map(p => [p.id, p.userReaction])))
       }
     })
   }, [])
 
   // Bottom sentinel — load next page
+  // Depends only on `offset` (to re-observe when sentinel mounts/unmounts) and
+  // `fetchPage` (stable). Reads current values via refs inside the callback.
   useEffect(() => {
     const el = bottomSentinelRef.current
     if (!el) return
     const observer = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting && !loadingPage && offset + PAGE_SIZE < total) {
-        fetchPage(offset + PAGE_SIZE, 'down')
+      if (entries[0].isIntersecting &&
+          !isFetchingRef.current &&
+          offsetRef.current + PAGE_SIZE < totalRef.current) {
+        fetchPage(offsetRef.current + PAGE_SIZE, 'down')
       }
     }, { threshold: 0.1 })
     observer.observe(el)
     return () => observer.disconnect()
-  }, [offset, total, loadingPage, fetchPage])
+  }, [offset, fetchPage]) // offset: sentinel mounts when offset changes; fetchPage: stable
 
   // Top sentinel — load previous page
   useEffect(() => {
     const el = topSentinelRef.current
     if (!el) return
     const observer = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting && !loadingPage && offset > 0) {
-        fetchPage(Math.max(0, offset - PAGE_SIZE), 'up')
+      if (entries[0].isIntersecting &&
+          !isFetchingRef.current &&
+          offsetRef.current > 0) {
+        fetchPage(Math.max(0, offsetRef.current - PAGE_SIZE), 'up')
       }
     }, { threshold: 0.1 })
     observer.observe(el)
     return () => observer.disconnect()
-  }, [offset, loadingPage, fetchPage])
+  }, [offset, fetchPage]) // offset: sentinel mounts/unmounts; fetchPage: stable
 
   const handleFileSelect = useCallback((e) => {
     const files = Array.from(e.target.files).slice(0, 4)
@@ -313,17 +468,54 @@ function FeedPage({ lang, t, currentUser }) {
     setNewPostText('')
     setMediaFiles([])
     setMediaPreviews([])
+    setPostExpanded(false)
+    setMediaPopup(false)
     if (fileInputRef.current) fileInputRef.current.value = ''
+    if (textareaRef.current) textareaRef.current.style.height = 'auto'
   }, [newPostText, mediaFiles, mediaPreviews, currentUser.name])
 
-  const toggleLike = useCallback((id) => {
+  const toggleLike = useCallback((id, emoji) => {
+    const isLiked = likedPosts.has(id)
+    const prevEmoji = reactions[id] || '❤️'
+    const nextEmoji = emoji || '❤️'
+
+    let action // 'add' | 'remove' | 'change'
+    if (!isLiked) action = 'add'
+    else if (emoji && emoji !== prevEmoji) action = 'change'
+    else action = 'remove'
+
+    // Update liked set
     setLikedPosts(prev => {
       const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
+      if (action === 'remove') next.delete(id); else next.add(id)
       return next
     })
-    apiToggleLike(id).catch(() => {})
-  }, [])
+
+    // Update user's reaction
+    if (action === 'remove') {
+      setReactions(r => { const n = { ...r }; delete n[id]; return n })
+    } else {
+      setReactions(r => ({ ...r, [id]: nextEmoji }))
+    }
+
+    // Optimistic update to aggregated reaction counts
+    setPosts(prev => prev.map(p => {
+      if (p.id !== id) return p
+      const reacts = (p.reactions || []).map(r => ({ ...r }))
+      if (action === 'remove' || action === 'change') {
+        const i = reacts.findIndex(r => r.emoji === prevEmoji)
+        if (i >= 0) { if (reacts[i].count > 1) reacts[i].count--; else reacts.splice(i, 1) }
+      }
+      if (action === 'add' || action === 'change') {
+        const i = reacts.findIndex(r => r.emoji === nextEmoji)
+        if (i >= 0) reacts[i].count++; else reacts.push({ emoji: nextEmoji, count: 1 })
+      }
+      return { ...p, likes: action === 'add' ? p.likes + 1 : action === 'remove' ? p.likes - 1 : p.likes, reactions: reacts }
+    }))
+
+    apiToggleLike(id, action === 'remove' ? null : nextEmoji).catch(() => {})
+    setLikePopup(null)
+  }, [likedPosts, reactions])
 
   const toggleComments = useCallback((id) => {
     setExpandedComments(prev => {
@@ -383,19 +575,19 @@ function FeedPage({ lang, t, currentUser }) {
     if (!text?.trim() && !media) return
     const commentText = (text || '').trim()
     const localMedia = media ? [{ url: media.url, type: media.type, mime: '' }] : null
-    apiAddComment(postId, commentText).then(data => {
-      const comment = data || { author: currentUser.name, text: { da: commentText, en: commentText }, media: localMedia }
+    apiAddComment(postId, commentText, media?.file ?? null).then(data => {
+      // Use server response but fall back to local; always show local media preview
+      const comment = data
+        ? { ...data, media: data.media ?? localMedia }
+        : { author: currentUser.name, text: { da: commentText, en: commentText }, media: localMedia }
       setPosts(prev => prev.map(p => {
         if (p.id !== postId) return p
         return { ...p, comments: [...p.comments, comment] }
       }))
     })
     setCommentTexts(prev => ({ ...prev, [postId]: '' }))
-    setCommentMedia(prev => {
-      const next = { ...prev }
-      delete next[postId]
-      return next
-    })
+    setCommentMedia(prev => { const n = { ...prev }; delete n[postId]; return n })
+    setCommentMediaPopup(null)
     if (commentFileRefs.current[postId]) commentFileRefs.current[postId].value = ''
   }, [commentTexts, commentMedia, currentUser.name])
 
@@ -406,43 +598,83 @@ function FeedPage({ lang, t, currentUser }) {
     <div className="p-feed" ref={feedContainerRef}>
       {/* New post */}
       <div className="p-card p-new-post">
-        <div className="p-new-post-row">
-          <div className="p-avatar-sm" style={{ background: nameToColor(currentUser.name) }}>
-            {currentUser.initials || getInitials(currentUser.name)}
+        {/* Hidden file input — gallery only */}
+        <input ref={fileInputRef} type="file"
+          accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
+          multiple style={{ display: 'none' }} onChange={handleFileSelect} />
+
+        {/* Collapsed prompt — click anywhere to expand */}
+        {!postExpanded && !newPostText && !mediaPreviews.length ? (
+          <div className="p-new-post-row p-new-post-collapsed" onClick={() => { setPostExpanded(true); setTimeout(() => textareaRef.current?.focus(), 0) }}>
+            <div className="p-avatar-sm" style={{ background: nameToColor(currentUser.name) }}>
+              {currentUser.initials || getInitials(currentUser.name)}
+            </div>
+            <div className="p-new-post-prompt">{t.newPost}</div>
           </div>
-          <input
-            className="p-new-post-input"
-            placeholder={t.newPost}
-            value={newPostText}
-            onChange={e => setNewPostText(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handlePost()}
-          />
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
-            multiple
-            style={{ display: 'none' }}
-            onChange={handleFileSelect}
-          />
-          <button className="p-media-btn" onClick={() => fileInputRef.current?.click()} title={lang === 'da' ? 'Tilføj billede/video' : 'Add image/video'}>
-            📷
-          </button>
-          <button className="p-post-btn" onClick={handlePost} disabled={!newPostText.trim()}>{t.post}</button>
-        </div>
-        {mediaPreviews.length > 0 && (
-          <div className="p-media-previews">
-            {mediaPreviews.map((p, i) => (
-              <div key={i} className="p-media-preview">
-                {p.type === 'video' ? (
-                  <video src={p.url} className="p-media-preview-thumb" />
-                ) : (
-                  <img src={p.url} alt="" className="p-media-preview-thumb" />
-                )}
-                <button className="p-media-preview-remove" onClick={() => removeMedia(i)}>✕</button>
+        ) : (
+          /* Expanded composer */
+          <>
+            <div className="p-new-post-row">
+              <div className="p-avatar-sm" style={{ background: nameToColor(currentUser.name) }}>
+                {currentUser.initials || getInitials(currentUser.name)}
               </div>
-            ))}
-          </div>
+              <textarea
+                ref={textareaRef}
+                className="p-new-post-textarea"
+                placeholder={t.newPost}
+                value={newPostText}
+                onChange={e => {
+                  setNewPostText(e.target.value)
+                  e.target.style.height = 'auto'
+                  e.target.style.height = e.target.scrollHeight + 'px'
+                }}
+                onFocus={() => setPostExpanded(true)}
+                onBlur={() => { if (!newPostText.trim() && !mediaPreviews.length) setPostExpanded(false) }}
+                autoFocus={postExpanded && !newPostText}
+              />
+            </div>
+            {mediaPreviews.length > 0 && (
+              <div className="p-media-previews">
+                {mediaPreviews.map((p, i) => (
+                  <div key={i} className="p-media-preview">
+                    {p.type === 'video'
+                      ? <video src={p.url} className="p-media-preview-thumb" />
+                      : <img src={p.url} alt="" className="p-media-preview-thumb" />}
+                    <button className="p-media-preview-remove" onClick={() => removeMedia(i)}>✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="p-new-post-actions">
+              {/* Media attachment popup */}
+              <div className="p-media-popup-wrap">
+                <button
+                  className={`p-media-popup-btn${mediaPopup ? ' active' : ''}`}
+                  onMouseDown={e => e.preventDefault()} // keep textarea focus
+                  onClick={() => setMediaPopup(p => !p)}
+                  title={lang === 'da' ? 'Tilføj medie' : 'Add media'}
+                >
+                  +
+                </button>
+                {mediaPopup && (
+                  <>
+                    <div className="p-share-backdrop" onClick={() => setMediaPopup(false)} />
+                    <div className="p-share-popup p-media-popup">
+                      <button className="p-share-option" onMouseDown={e => e.preventDefault()} onClick={() => { fileInputRef.current?.click(); setMediaPopup(false) }}>
+                        <span className="p-media-popup-icon">🖼️</span>
+                        {lang === 'da' ? 'Galleri' : 'Gallery'}
+                      </button>
+                      <button className="p-share-option" onMouseDown={e => e.preventDefault()} onClick={() => { setMediaPopup(false); openCamera(handleFileSelect) }}>
+                        <span className="p-media-popup-icon">📷</span>
+                        {lang === 'da' ? 'Kamera' : 'Camera'}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+              <button className="p-post-btn" onMouseDown={e => e.preventDefault()} onClick={handlePost} disabled={!newPostText.trim()}>{t.post}</button>
+            </div>
+          </>
         )}
       </div>
 
@@ -468,18 +700,43 @@ function FeedPage({ lang, t, currentUser }) {
                 <div className="p-post-time">{post.time[lang]}</div>
               </div>
             </div>
-            <div className="p-post-body">{post.text[lang]}</div>
+            <PostText text={post.text} lang={lang} />
             {post.media && <PostMedia media={post.media} />}
             <div className="p-post-stats">
-              <span>{post.likes + (liked ? 1 : 0)} {t.like.toLowerCase()}</span>
+              <span className="p-reaction-summary">
+                {post.reactions?.length > 0
+                  ? post.reactions.slice(0, 3).map(r => (
+                      <span key={r.emoji} className="p-reaction-tally">{r.emoji} {r.count}</span>
+                    ))
+                  : `${post.likes} ${t.like.toLowerCase()}`
+                }
+              </span>
               <span onClick={() => toggleComments(post.id)} style={{ cursor: 'pointer' }}>
                 {post.comments.length} {t.comment.toLowerCase()}{post.comments.length !== 1 ? (lang === 'da' ? 'er' : 's') : ''}
               </span>
             </div>
             <div className="p-post-actions">
-              <button className={`p-action-btn${liked ? ' liked' : ''}`} onClick={() => toggleLike(post.id)}>
-                {liked ? '❤️' : '🤍'} {t.like}
-              </button>
+              <div className="p-reaction-wrap">
+                <button
+                  className={`p-action-btn${liked ? ' liked' : ''}`}
+                  onClick={() => liked ? toggleLike(post.id) : setLikePopup(p => p === post.id ? null : post.id)}
+                >
+                  {liked ? (reactions[post.id] || '❤️') : '🤍'} {t.like}
+                </button>
+                {likePopup === post.id && (
+                  <>
+                    <div className="p-share-backdrop" onClick={() => setLikePopup(null)} />
+                    <div className="p-reaction-popup">
+                      {REACTIONS.map(r => (
+                        <button key={r.emoji} className="p-reaction-btn" title={r.label[lang]}
+                          onClick={() => toggleLike(post.id, r.emoji)}>
+                          {r.emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
               <button className="p-action-btn" onClick={() => toggleComments(post.id)}>
                 💬 {t.comment}
               </button>
@@ -551,6 +808,10 @@ function FeedPage({ lang, t, currentUser }) {
                   <div className="p-avatar-xs" style={{ background: nameToColor(currentUser.name) }}>
                     {currentUser.initials || getInitials(currentUser.name)}
                   </div>
+                  {/* Hidden file input — gallery only */}
+                  <input ref={el => commentFileRefs.current[post.id] = el} type="file"
+                    accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
+                    style={{ display: 'none' }} onChange={e => handleCommentFileSelect(post.id, e)} />
                   <input
                     className="p-comment-input"
                     placeholder={t.writeComment}
@@ -558,16 +819,29 @@ function FeedPage({ lang, t, currentUser }) {
                     onChange={e => setCommentTexts(prev => ({ ...prev, [post.id]: e.target.value }))}
                     onKeyDown={e => e.key === 'Enter' && handleComment(post.id)}
                   />
-                  <input
-                    ref={el => commentFileRefs.current[post.id] = el}
-                    type="file"
-                    accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
-                    style={{ display: 'none' }}
-                    onChange={e => handleCommentFileSelect(post.id, e)}
-                  />
-                  <button className="p-comment-media-btn" onClick={() => commentFileRefs.current[post.id]?.click()} title={lang === 'da' ? 'Tilføj billede/video' : 'Add image/video'}>
-                    📷
-                  </button>
+                  {/* Media attachment popup */}
+                  <div className="p-media-popup-wrap">
+                    <button
+                      className={`p-media-popup-btn${commentMediaPopup === post.id ? ' active' : ''}`}
+                      onClick={() => setCommentMediaPopup(p => p === post.id ? null : post.id)}
+                      title={lang === 'da' ? 'Tilføj medie' : 'Add media'}
+                    >+</button>
+                    {commentMediaPopup === post.id && (
+                      <>
+                        <div className="p-share-backdrop" onClick={() => setCommentMediaPopup(null)} />
+                        <div className="p-share-popup p-media-popup p-media-popup-right">
+                          <button className="p-share-option" onClick={() => { commentFileRefs.current[post.id]?.click(); setCommentMediaPopup(null) }}>
+                            <span className="p-media-popup-icon">🖼️</span>
+                            {lang === 'da' ? 'Galleri' : 'Gallery'}
+                          </button>
+                          <button className="p-share-option" onClick={() => { setCommentMediaPopup(null); openCamera(e => handleCommentFileSelect(post.id, e)) }}>
+                            <span className="p-media-popup-icon">📷</span>
+                            {lang === 'da' ? 'Kamera' : 'Camera'}
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
                   <button className="p-send-btn" onClick={() => handleComment(post.id)}>{t.send}</button>
                 </div>
               </div>

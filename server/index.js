@@ -244,6 +244,12 @@ const upload = multer({
   },
 })
 
+// Auto-migrations
+pool.query('ALTER TABLE comments ADD COLUMN IF NOT EXISTS media JSON DEFAULT NULL')
+  .catch(err => console.error('Migration (comments.media):', err.message))
+pool.query("ALTER TABLE post_likes ADD COLUMN IF NOT EXISTS reaction VARCHAR(10) DEFAULT '❤️'")
+  .catch(err => console.error('Migration (post_likes.reaction):', err.message))
+
 // Serve uploads with security headers (no script execution, no sniffing)
 app.use('/uploads', (req, res, next) => {
   // Block anything that isn't GET
@@ -437,8 +443,8 @@ const FB_APP_SECRET = process.env.FB_APP_SECRET
 const FB_REDIRECT_URI = process.env.FB_REDIRECT_URI || 'https://fellis.eu/api/auth/facebook/callback'
 const FB_GRAPH_URL = 'https://graph.facebook.com/v21.0'
 
-// Scopes: read profile, friends list, posts, photos — NO write/delete permissions
-const FB_SCOPES = 'public_profile,email,user_friends,user_posts,user_photos'
+// Scopes: basic profile only — no extended permissions required, app can go Live without App Review
+const FB_SCOPES = 'public_profile,email'
 
 // GDPR/Security: In-memory store for OAuth CSRF state tokens (short-lived)
 const oauthStateTokens = new Map()
@@ -769,24 +775,65 @@ app.get('/api/feed', authenticate, async (req, res) => {
       [req.userId, req.userId, limit, offset]
     )
     const postIds = posts.map(p => p.id)
-    const [comments] = postIds.length > 0
-      ? await pool.query(
-        `SELECT c.id, c.post_id, u.name as author, c.text_da, c.text_en
-         FROM comments c JOIN users u ON c.author_id = u.id
-         WHERE c.post_id IN (?)
-         ORDER BY c.created_at ASC`,
-        [postIds]
-      )
-      : [[]]
-    const [userLikes] = await pool.query(
-      'SELECT post_id FROM post_likes WHERE user_id = ?',
-      [req.userId]
-    )
+    let comments = []
+    if (postIds.length > 0) {
+      try {
+        const [rows] = await pool.query(
+          `SELECT c.id, c.post_id, u.name as author, c.text_da, c.text_en, c.media
+           FROM comments c JOIN users u ON c.author_id = u.id
+           WHERE c.post_id IN (?)
+           ORDER BY c.created_at ASC`,
+          [postIds]
+        )
+        comments = rows
+      } catch {
+        // media column may not exist yet — fall back to query without it
+        const [rows] = await pool.query(
+          `SELECT c.id, c.post_id, u.name as author, c.text_da, c.text_en
+           FROM comments c JOIN users u ON c.author_id = u.id
+           WHERE c.post_id IN (?)
+           ORDER BY c.created_at ASC`,
+          [postIds]
+        )
+        comments = rows
+      }
+    }
+    // Fetch user's own likes (with reaction if column exists)
+    let userLikes = []
+    try {
+      const [rows] = await pool.query('SELECT post_id, reaction FROM post_likes WHERE user_id = ?', [req.userId])
+      userLikes = rows
+    } catch {
+      const [rows] = await pool.query('SELECT post_id FROM post_likes WHERE user_id = ?', [req.userId])
+      userLikes = rows
+    }
     const likedSet = new Set(userLikes.map(l => l.post_id))
+    const userReactionMap = {}
+    for (const l of userLikes) { if (l.reaction) userReactionMap[l.post_id] = l.reaction }
+
+    // Fetch aggregated reaction counts for all posts
+    let reactionRows = []
+    if (postIds.length > 0) {
+      try {
+        const [rows] = await pool.query(
+          `SELECT post_id, reaction, COUNT(*) as cnt FROM post_likes WHERE post_id IN (?) GROUP BY post_id, reaction ORDER BY cnt DESC`,
+          [postIds]
+        )
+        reactionRows = rows
+      } catch {}
+    }
+    const reactionsByPost = {}
+    for (const r of reactionRows) {
+      if (!reactionsByPost[r.post_id]) reactionsByPost[r.post_id] = []
+      reactionsByPost[r.post_id].push({ emoji: r.reaction, count: Number(r.cnt) })
+    }
+
     const commentsByPost = {}
     for (const c of comments) {
       if (!commentsByPost[c.post_id]) commentsByPost[c.post_id] = []
-      commentsByPost[c.post_id].push({ author: c.author, text: { da: c.text_da, en: c.text_en } })
+      let cMedia = null
+      if (c.media) { try { cMedia = typeof c.media === 'string' ? JSON.parse(c.media) : c.media } catch {} }
+      commentsByPost[c.post_id].push({ author: c.author, text: { da: c.text_da, en: c.text_en }, media: cMedia })
     }
     const result = posts.map(p => {
       let media = null
@@ -800,6 +847,8 @@ app.get('/api/feed', authenticate, async (req, res) => {
         text: { da: p.text_da, en: p.text_en },
         likes: p.likes,
         liked: likedSet.has(p.id),
+        userReaction: userReactionMap[p.id] || null,
+        reactions: reactionsByPost[p.id] || [],
         media,
         comments: commentsByPost[p.id] || [],
       }
@@ -872,40 +921,76 @@ app.post('/api/upload', authenticate, upload.single('file'), async (req, res) =>
   res.json({ url: `/uploads/${req.file.filename}`, type, mime: req.file.mimetype })
 })
 
-// POST /api/feed/:id/like — toggle like
+// POST /api/feed/:id/like — toggle like or change reaction
 app.post('/api/feed/:id/like', authenticate, async (req, res) => {
   const postId = parseInt(req.params.id)
+  const reaction = req.body?.reaction || '❤️'
   try {
     const [existing] = await pool.query(
-      'SELECT id FROM post_likes WHERE post_id = ? AND user_id = ?',
+      'SELECT id, reaction FROM post_likes WHERE post_id = ? AND user_id = ?',
       [postId, req.userId]
     )
     if (existing.length > 0) {
+      const cur = existing[0].reaction || '❤️'
+      if (cur !== reaction) {
+        // Change reaction without removing the like
+        try {
+          await pool.query('UPDATE post_likes SET reaction = ? WHERE post_id = ? AND user_id = ?', [reaction, postId, req.userId])
+        } catch {} // reaction column not yet migrated
+        return res.json({ liked: true, reaction })
+      }
+      // Same reaction — toggle off
       await pool.query('DELETE FROM post_likes WHERE post_id = ? AND user_id = ?', [postId, req.userId])
       await pool.query('UPDATE posts SET likes = likes - 1 WHERE id = ?', [postId])
       res.json({ liked: false })
     } else {
-      await pool.query('INSERT INTO post_likes (post_id, user_id) VALUES (?, ?)', [postId, req.userId])
+      try {
+        await pool.query('INSERT INTO post_likes (post_id, user_id, reaction) VALUES (?, ?, ?)', [postId, req.userId, reaction])
+      } catch {
+        await pool.query('INSERT INTO post_likes (post_id, user_id) VALUES (?, ?)', [postId, req.userId])
+      }
       await pool.query('UPDATE posts SET likes = likes + 1 WHERE id = ?', [postId])
-      res.json({ liked: true })
+      res.json({ liked: true, reaction })
     }
   } catch (err) {
     res.status(500).json({ error: 'Failed to toggle like' })
   }
 })
 
-// POST /api/feed/:id/comment — add comment
-app.post('/api/feed/:id/comment', authenticate, async (req, res) => {
-  const { text } = req.body
-  if (!text) return res.status(400).json({ error: 'Comment text required' })
+// POST /api/feed/:id/comment — add comment (with optional single media file)
+app.post('/api/feed/:id/comment', authenticate, upload.single('media'), async (req, res) => {
+  const text = (req.body.text || '').trim()
+  if (!text && !req.file) return res.status(400).json({ error: 'Comment text or media required' })
   const postId = parseInt(req.params.id)
+  let mediaJson = null
+  if (req.file) {
+    const header = Buffer.alloc(16)
+    const fd = fs.openSync(req.file.path, 'r')
+    fs.readSync(fd, header, 0, 16, 0)
+    fs.closeSync(fd)
+    if (!validateMagicBytes(header, req.file.mimetype)) {
+      fs.unlinkSync(req.file.path)
+      return res.status(400).json({ error: 'File failed content validation' })
+    }
+    const type = req.file.mimetype.startsWith('video/') ? 'video' : 'image'
+    mediaJson = JSON.stringify([{ url: `/uploads/${req.file.filename}`, type, mime: req.file.mimetype }])
+  }
   try {
-    await pool.query(
-      'INSERT INTO comments (post_id, author_id, text_da, text_en) VALUES (?, ?, ?, ?)',
-      [postId, req.userId, text, text]
-    )
+    try {
+      await pool.query(
+        'INSERT INTO comments (post_id, author_id, text_da, text_en, media) VALUES (?, ?, ?, ?, ?)',
+        [postId, req.userId, text, text, mediaJson]
+      )
+    } catch {
+      // media column not yet migrated — insert without it
+      await pool.query(
+        'INSERT INTO comments (post_id, author_id, text_da, text_en) VALUES (?, ?, ?, ?)',
+        [postId, req.userId, text, text]
+      )
+    }
     const [users] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
-    res.json({ author: users[0].name, text: { da: text, en: text } })
+    const media = mediaJson ? JSON.parse(mediaJson) : null
+    res.json({ author: users[0].name, text: { da: text, en: text }, media })
   } catch (err) {
     res.status(500).json({ error: 'Failed to add comment' })
   }
@@ -1203,6 +1288,69 @@ app.patch('/api/conversations/:id', authenticate, async (req, res) => {
   }
 })
 
+// ── Link preview proxy ──
+
+function isSafeExternalUrl(urlStr) {
+  let parsed
+  try { parsed = new URL(urlStr) } catch { return false }
+  if (!['http:', 'https:'].includes(parsed.protocol)) return false
+  const host = parsed.hostname.toLowerCase()
+  if (host === 'localhost') return false
+  if (host === '::1' || host === '[::1]') return false
+  const ipv4 = host.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/)
+  if (ipv4) {
+    const [a, b] = [parseInt(ipv4[1]), parseInt(ipv4[2])]
+    if (a === 127 || a === 10 || a === 0) return false
+    if (a === 172 && b >= 16 && b <= 31) return false
+    if (a === 192 && b === 168) return false
+    if (a === 169 && b === 254) return false
+  }
+  return true
+}
+
+function decodeHTMLEntities(str) {
+  return str
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&apos;/g, "'")
+}
+
+function extractOgMeta(html, prop) {
+  const esc = prop.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const m =
+    html.match(new RegExp(`<meta[^>]+property=["']${esc}["'][^>]+content=["']([^"']+)["']`, 'i')) ||
+    html.match(new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+property=["']${esc}["']`, 'i'))
+  return m ? decodeHTMLEntities(m[1]) : null
+}
+
+// GET /api/link-preview?url=... — fetch Open Graph meta for any URL
+app.get('/api/link-preview', authenticate, async (req, res) => {
+  const { url } = req.query
+  if (!url) return res.status(400).json({ error: 'url required' })
+  if (!isSafeExternalUrl(url)) return res.status(400).json({ error: 'URL not allowed' })
+  try {
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => ctrl.abort(), 5000)
+    const response = await fetch(url, {
+      signal: ctrl.signal,
+      redirect: 'follow',
+      headers: { 'User-Agent': 'fellis-link-preview/1.0', Accept: 'text/html' },
+    })
+    clearTimeout(timer)
+    if (!response.ok) return res.json({ url })
+    const contentType = response.headers.get('content-type') || ''
+    if (!contentType.includes('text/html')) return res.json({ url })
+    const html = (await response.text()).slice(0, 60000) // only need <head>
+    const title = extractOgMeta(html, 'og:title') ||
+      (html.match(/<title[^>]*>([^<]*)<\/title>/i)?.[1]?.trim() ?? null)
+    const image = extractOgMeta(html, 'og:image')
+    const description = extractOgMeta(html, 'og:description')
+    const siteName = extractOgMeta(html, 'og:site_name') || new URL(url).hostname.replace(/^www\./, '')
+    res.json({ url, title: title ? decodeHTMLEntities(title) : null, image, description, siteName })
+  } catch {
+    res.json({ url }) // silently return empty — preview just won't show
+  }
+})
+
 // ══════════════════════════════════════════════════════════════
 // ── GDPR COMPLIANCE ENDPOINTS ──
 // ══════════════════════════════════════════════════════════════
@@ -1490,6 +1638,42 @@ async function runDataRetentionCleanup() {
 setInterval(runDataRetentionCleanup, 6 * 60 * 60 * 1000)
 // Also run once on startup
 runDataRetentionCleanup()
+
+// ── Background bot activity — bots react to recent posts every few minutes ──
+const BOT_HANDLES = ['@anna.bot', '@erik.bot']
+const BOT_REACTIONS = ['❤️', '👍', '😄', '😮', '❤️', '👍', '❤️'] // weighted positive
+async function runBotActivity() {
+  try {
+    const [bots] = await pool.query('SELECT id FROM users WHERE handle IN (?)', [BOT_HANDLES])
+    if (bots.length === 0) return
+    const botIds = bots.map(b => b.id)
+    // Recent posts from the last 48 hours not yet liked by any bot
+    const [posts] = await pool.query(
+      `SELECT p.id FROM posts p
+       WHERE p.author_id NOT IN (?) AND p.created_at > DATE_SUB(NOW(), INTERVAL 48 HOUR)
+         AND p.id NOT IN (SELECT post_id FROM post_likes WHERE user_id IN (?))
+       ORDER BY RAND() LIMIT 5`,
+      [botIds, botIds]
+    )
+    for (const post of posts) {
+      for (const bot of bots) {
+        if (Math.random() > 0.6) continue // 40% chance each bot reacts
+        const reaction = BOT_REACTIONS[Math.floor(Math.random() * BOT_REACTIONS.length)]
+        try {
+          await pool.query('INSERT IGNORE INTO post_likes (post_id, user_id, reaction) VALUES (?, ?, ?)', [post.id, bot.id, reaction])
+        } catch {
+          await pool.query('INSERT IGNORE INTO post_likes (post_id, user_id) VALUES (?, ?)', [post.id, bot.id])
+        }
+        await pool.query('UPDATE posts SET likes = likes + 1 WHERE id = ?', [post.id])
+      }
+    }
+  } catch {}
+}
+// Run bot activity every 4 minutes with a 2-minute startup delay
+setTimeout(() => {
+  runBotActivity()
+  setInterval(runBotActivity, 4 * 60 * 1000)
+}, 2 * 60 * 1000)
 
 // Multer error handler
 app.use((err, req, res, next) => {
