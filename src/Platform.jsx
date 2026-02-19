@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { PT, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiLinkPreview } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiLinkPreview, apiSearch } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -9,6 +9,7 @@ export default function Platform({ lang: initialLang, onLogout }) {
   const [page, setPage] = useState('feed')
   const [currentUser, setCurrentUser] = useState({ name: '', handle: '', initials: '' })
   const [showAvatarMenu, setShowAvatarMenu] = useState(false)
+  const [openConvId, setOpenConvId] = useState(null)
   const avatarMenuRef = useRef(null)
   const t = PT[lang]
 
@@ -84,6 +85,12 @@ export default function Platform({ lang: initialLang, onLogout }) {
           ))}
         </div>
         <div className="p-nav-right">
+          <button
+            className={`p-nav-search-btn${page === 'search' ? ' active' : ''}`}
+            onClick={() => navigateTo('search')}
+            title={t.search}
+            aria-label={t.search}
+          >🔍</button>
           <button className="lang-toggle" onClick={toggleLang}>{t.langToggle}</button>
           {/* Avatar with dropdown menu */}
           <div ref={avatarMenuRef} style={{ position: 'relative' }}>
@@ -125,8 +132,16 @@ export default function Platform({ lang: initialLang, onLogout }) {
         {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} onUserUpdate={setCurrentUser} />}
         {page === 'edit-profile' && <EditProfilePage lang={lang} t={t} currentUser={currentUser} onUserUpdate={setCurrentUser} onNavigate={navigateTo} />}
         {page === 'friends' && <FriendsPage lang={lang} t={t} onMessage={() => navigateTo('messages')} />}
-        {page === 'messages' && <MessagesPage lang={lang} t={t} currentUser={currentUser} />}
+        {page === 'messages' && <MessagesPage lang={lang} t={t} currentUser={currentUser} openConvId={openConvId} onConvOpened={() => setOpenConvId(null)} />}
         {page === 'privacy' && <PrivacySection lang={lang} onLogout={onLogout} />}
+        {page === 'search' && (
+          <SearchPage
+            lang={lang}
+            t={t}
+            onNavigateToPost={() => navigateTo('feed')}
+            onNavigateToConv={(convId) => { setOpenConvId(convId); navigateTo('messages') }}
+          />
+        )}
       </div>
     </div>
   )
@@ -1738,7 +1753,133 @@ function RenameModal({ t, current, onClose, onRename }) {
   )
 }
 
-function MessagesPage({ lang, t, currentUser }) {
+// ── Search ──
+function SearchPage({ lang, t, onNavigateToPost, onNavigateToConv }) {
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState(null) // { posts, messages } | null
+  const [loading, setLoading] = useState(false)
+  const inputRef = useRef(null)
+
+  useEffect(() => { inputRef.current?.focus() }, [])
+
+  useEffect(() => {
+    if (!query.trim() || query.trim().length < 2) { setResults(null); return }
+    setLoading(true)
+    const timer = setTimeout(async () => {
+      try {
+        const data = await apiSearch(query.trim())
+        setResults(data || { posts: [], messages: [] })
+      } finally {
+        setLoading(false)
+      }
+    }, 320)
+    return () => { clearTimeout(timer); setLoading(false) }
+  }, [query])
+
+  // Highlight matching text in an excerpt
+  const excerpt = (text, q) => {
+    if (!text) return null
+    const qi = text.toLowerCase().indexOf(q.toLowerCase())
+    if (qi === -1) return <span>{text.slice(0, 120)}{text.length > 120 ? '…' : ''}</span>
+    const start = Math.max(0, qi - 35)
+    const end = Math.min(text.length, qi + q.length + 65)
+    return (
+      <>
+        {start > 0 && '…'}
+        {text.slice(start, qi)}
+        <mark className="p-search-hl">{text.slice(qi, qi + q.length)}</mark>
+        {text.slice(qi + q.length, end)}
+        {end < text.length && '…'}
+      </>
+    )
+  }
+
+  const q = query.trim()
+  const hasPosts = results?.posts?.length > 0
+  const hasMessages = results?.messages?.length > 0
+  const empty = results && !hasPosts && !hasMessages
+
+  return (
+    <div className="p-search-page">
+      {/* Search bar */}
+      <div className="p-search-bar">
+        <span className="p-search-bar-icon">🔍</span>
+        <input
+          ref={inputRef}
+          className="p-search-bar-input"
+          type="search"
+          placeholder={t.searchPlaceholder}
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          autoComplete="off"
+        />
+        {query && <button className="p-search-bar-clear" onClick={() => { setQuery(''); setResults(null) }}>✕</button>}
+      </div>
+
+      {/* States */}
+      {!query && <p className="p-search-hint">{t.searchHint}</p>}
+      {loading && <div className="p-search-status">{lang === 'da' ? 'Søger…' : 'Searching…'}</div>}
+      {empty && !loading && (
+        <div className="p-search-status">
+          {lang === 'da' ? `Ingen resultater for "${q}"` : `No results for "${q}"`}
+        </div>
+      )}
+
+      {/* Results */}
+      {(hasPosts || hasMessages) && (
+        <div className="p-search-results">
+          {hasPosts && (
+            <section className="p-search-section">
+              <h3 className="p-search-section-title">
+                <span>📝</span> {t.searchPostsTitle}
+                <span className="p-search-count">{results.posts.length}</span>
+              </h3>
+              {results.posts.map(post => (
+                <div key={post.id} className="p-search-result" onClick={() => onNavigateToPost(post.id)}>
+                  <div className="p-search-result-top">
+                    <div className="p-avatar-xs" style={{ background: nameToColor(post.author), flexShrink: 0 }}>
+                      {getInitials(post.author)}
+                    </div>
+                    <span className="p-search-result-author">{post.author}</span>
+                    <span className="p-search-result-time">{post.time?.[lang]}</span>
+                    <span className="p-search-result-arrow">→</span>
+                  </div>
+                  <div className="p-search-result-text">{excerpt(post.text[lang], q)}</div>
+                </div>
+              ))}
+            </section>
+          )}
+          {hasMessages && (
+            <section className="p-search-section">
+              <h3 className="p-search-section-title">
+                <span>💬</span> {t.searchMessagesTitle}
+                <span className="p-search-count">{results.messages.length}</span>
+              </h3>
+              {results.messages.map(msg => (
+                <div key={msg.id} className="p-search-result" onClick={() => onNavigateToConv(msg.conversationId)}>
+                  <div className="p-search-result-top">
+                    <div className="p-avatar-xs" style={{ background: nameToColor(msg.convName), flexShrink: 0 }}>
+                      {getInitials(msg.convName)}
+                    </div>
+                    <span className="p-search-result-author">{msg.convName}</span>
+                    <span className="p-search-result-time">{msg.time}</span>
+                    <span className="p-search-result-arrow">→</span>
+                  </div>
+                  <div className="p-search-result-text">
+                    <span className="p-search-result-from">{msg.from}: </span>
+                    {excerpt(msg.text[lang], q)}
+                  </div>
+                </div>
+              ))}
+            </section>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function MessagesPage({ lang, t, currentUser, openConvId, onConvOpened }) {
   const [activeConv, setActiveConv] = useState(0)
   const [conversations, setConversations] = useState([])
   const [friends, setFriends] = useState([])
@@ -1755,6 +1896,13 @@ function MessagesPage({ lang, t, currentUser }) {
     apiFetchConversations().then(data => { if (data) setConversations(data) })
     apiFetchFriends().then(data => { if (data) setFriends(data) })
   }, [])
+
+  // Open a specific conversation when navigated from search
+  useEffect(() => {
+    if (!openConvId || !conversations.length) return
+    const idx = conversations.findIndex(c => c.id === openConvId)
+    if (idx >= 0) { setActiveConv(idx); onConvOpened?.() }
+  }, [openConvId, conversations])
 
   // Close conv menu on outside click
   useEffect(() => {

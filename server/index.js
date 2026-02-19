@@ -1288,6 +1288,68 @@ app.patch('/api/conversations/:id', authenticate, async (req, res) => {
   }
 })
 
+// ── Search ──
+
+// GET /api/search?q=... — search posts and messages the current user is involved in
+// Posts: authored by, liked by, or commented on by the user
+// Messages: within conversations the user participates in
+app.get('/api/search', authenticate, async (req, res) => {
+  const { q } = req.query
+  if (!q || q.trim().length < 2) return res.json({ posts: [], messages: [] })
+  const like = `%${q.trim()}%`
+  const uid = req.userId
+  try {
+    const [posts] = await pool.query(
+      `SELECT DISTINCT p.id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en
+       FROM posts p
+       JOIN users u ON u.id = p.author_id
+       LEFT JOIN post_likes pl ON pl.post_id = p.id AND pl.user_id = ?
+       LEFT JOIN comments co ON co.post_id = p.id AND co.author_id = ?
+       WHERE (p.author_id = ? OR pl.user_id IS NOT NULL OR co.author_id IS NOT NULL)
+         AND (p.text_da LIKE ? OR p.text_en LIKE ?)
+       ORDER BY p.created_at DESC LIMIT 15`,
+      [uid, uid, uid, like, like]
+    )
+    const [messages] = await pool.query(
+      `SELECT m.id, m.conversation_id, u.name as from_name, m.text_da, m.text_en, m.time,
+              c.is_group,
+              COALESCE(c.name, (
+                SELECT u2.name FROM users u2
+                JOIN conversation_participants cp2 ON cp2.user_id = u2.id
+                WHERE cp2.conversation_id = m.conversation_id AND u2.id != ? LIMIT 1
+              )) as conv_name
+       FROM messages m
+       JOIN users u ON u.id = m.sender_id
+       JOIN conversation_participants cp ON cp.conversation_id = m.conversation_id AND cp.user_id = ?
+       LEFT JOIN conversations c ON c.id = m.conversation_id
+       WHERE m.conversation_id IS NOT NULL
+         AND (m.text_da LIKE ? OR m.text_en LIKE ?)
+       ORDER BY m.created_at DESC LIMIT 15`,
+      [uid, uid, like, like]
+    )
+    res.json({
+      posts: posts.map(p => ({
+        id: p.id,
+        author: p.author,
+        text: { da: p.text_da, en: p.text_en },
+        time: { da: p.time_da, en: p.time_en },
+      })),
+      messages: messages.map(m => ({
+        id: m.id,
+        conversationId: m.conversation_id,
+        convName: m.conv_name || m.from_name,
+        isGroup: m.is_group === 1,
+        from: m.from_name,
+        text: { da: m.text_da, en: m.text_en },
+        time: m.time,
+      })),
+    })
+  } catch (err) {
+    console.error('Search error:', err)
+    res.status(500).json({ error: 'Search failed' })
+  }
+})
+
 // ── Link preview proxy ──
 
 function isSafeExternalUrl(urlStr) {

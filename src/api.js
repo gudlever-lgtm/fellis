@@ -280,6 +280,11 @@ export async function apiLinkPreview(url) {
   return await request(`/api/link-preview?url=${encodeURIComponent(url)}`)
 }
 
+// Search (posts and messages the user is involved in)
+export async function apiSearch(q) {
+  return await request(`/api/search?q=${encodeURIComponent(q)}`)
+}
+
 // Profile avatar
 export async function apiUploadAvatar(file) {
   const form = new FormData()
