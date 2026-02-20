@@ -2126,6 +2126,11 @@
   font-weight: 700;
   margin: 0;
 }
+.p-msg-sidebar-title-icon {
+  display: none;
+  font-size: 20px;
+  line-height: 1;
+}
 .p-msg-sidebar-actions {
   display: flex;
   gap: 4px;
@@ -2907,8 +2912,12 @@
     width: 60px;
   }
   .p-msg-sidebar-title,
-  .p-msg-thread-info {
+  .p-msg-thread-info,
+  .p-msg-thread-delete {
     display: none;
+  }
+  .p-msg-sidebar-title-icon {
+    display: inline;
   }
   .p-msg-sidebar-actions {
     flex-direction: column;

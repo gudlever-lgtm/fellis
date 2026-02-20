@@ -2827,6 +2827,7 @@ function MessagesPage({ lang, t, currentUser, openConvId, onConvOpened }) {
       <div className="p-msg-sidebar">
         <div className="p-msg-sidebar-header">
           <h3 className="p-msg-sidebar-title">{t.messagesTitle}</h3>
+          <span className="p-msg-sidebar-title-icon" title={t.messagesTitle}>💬</span>
           <div className="p-msg-sidebar-actions">
             <button className="p-msg-icon-btn" title={t.newMessage} onClick={() => setModal('new')}>✏️</button>
             <button className="p-msg-icon-btn" title={t.newGroup} onClick={() => setModal('newGroup')}>👥</button>
