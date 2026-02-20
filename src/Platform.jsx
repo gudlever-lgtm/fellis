@@ -112,14 +112,14 @@ export default function Platform({ lang: initialLang, onLogout }) {
           </div>
         </div>
         <div className="p-nav-tabs">
-          {['feed', 'friends', 'messages', 'events'].map(p => (
+          {['feed', 'friends', 'messages', 'events', ...(mode === 'business' ? ['jobs'] : [])].map(p => (
             <button
               key={p}
               className={`p-nav-tab${page === p ? ' active' : ''}`}
               onClick={() => navigateTo(p)}
             >
               <span className="p-nav-tab-icon">
-                {p === 'feed' ? '🏠' : p === 'friends' ? '👥' : p === 'messages' ? '💬' : '📅'}
+                {p === 'feed' ? '🏠' : p === 'friends' ? '👥' : p === 'messages' ? '💬' : p === 'events' ? '📅' : '💼'}
               </span>
               <span className="p-nav-tab-label">
                 {p === 'friends'
@@ -190,6 +190,11 @@ export default function Platform({ lang: initialLang, onLogout }) {
                 <button className="avatar-dropdown-item" onClick={() => { setShowAvatarMenu(false); setShowModeModal(true) }}>
                   <span>{mode === 'business' ? '💼' : '🏠'}</span> {t.modeSwitch}
                 </button>
+                {mode === 'business' && (
+                  <button className="avatar-dropdown-item" onClick={() => navigateTo('company')}>
+                    <span>🏢</span> {t.companies}
+                  </button>
+                )}
                 <button className="avatar-dropdown-item" onClick={() => navigateTo('privacy')}>
                   <span>🔒</span> {menuT.privacy}
                 </button>
@@ -205,18 +210,22 @@ export default function Platform({ lang: initialLang, onLogout }) {
 
       <div className="p-content">
         {page === 'feed' && <FeedPage lang={lang} t={t} currentUser={currentUser} mode={mode} highlightPostId={highlightPostId} onHighlightCleared={() => setHighlightPostId(null)} />}
-        {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} />}
+        {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} />}
         {page === 'edit-profile' && <EditProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} />}
         {page === 'friends' && <FriendsPage lang={lang} t={t} mode={mode} onMessage={() => navigateTo('messages')} />}
         {page === 'messages' && <MessagesPage lang={lang} t={t} currentUser={currentUser} openConvId={openConvId} onConvOpened={() => setOpenConvId(null)} />}
         {page === 'events' && <EventsPage lang={lang} t={t} currentUser={currentUser} mode={mode} />}
+        {page === 'jobs' && <JobsPage lang={lang} t={t} currentUser={currentUser} mode={mode} />}
+        {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} />}
         {page === 'privacy' && <PrivacySection lang={lang} onLogout={onLogout} />}
         {page === 'search' && (
           <SearchPage
             lang={lang}
             t={t}
+            mode={mode}
             onNavigateToPost={(postId) => { setHighlightPostId(postId); navigateTo('feed') }}
             onNavigateToConv={(convId) => { setOpenConvId(convId); navigateTo('messages') }}
+            onNavigateToCompany={() => navigateTo('company')}
           />
         )}
       </div>
@@ -1033,6 +1042,35 @@ function FeedPage({ lang, t, currentUser, highlightPostId, onHighlightCleared })
         )
       })()}
 
+      {/* Company post feed item */}
+      {offset === 0 && MOCK_COMPANIES[0] && (
+        <div className="p-card p-post">
+          <div className="p-post-header">
+            <div className="p-company-logo-sm" style={{ background: MOCK_COMPANIES[0].color, borderRadius: 8, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 16, flexShrink: 0 }}>
+              {MOCK_COMPANIES[0].name[0]}
+            </div>
+            <div>
+              <div className="p-post-author">{MOCK_COMPANIES[0].name}</div>
+              <div className="p-post-time" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span className="p-event-type-badge" style={{ padding: '1px 6px', fontSize: 10 }}>{t.companyFeedLabel}</span>
+                <span>{lang === 'da' ? '1 t siden' : '1 hr ago'}</span>
+              </div>
+            </div>
+          </div>
+          <div className="p-post-text">
+            {lang === 'da'
+              ? `Vi søger en dygtig UX Designer til vores team i København. Se vores ledige stillinger og lær mere om vores kultur. 🚀`
+              : `We're looking for a talented UX Designer to join our team in Copenhagen. Check out our open positions and learn more about our culture. 🚀`
+            }
+          </div>
+          <div className="p-post-actions">
+            <button className="p-post-action-btn">❤️ {lang === 'da' ? 'Synes godt om' : 'Like'} (14)</button>
+            <button className="p-post-action-btn">💬 {lang === 'da' ? 'Kommentar' : 'Comment'} (3)</button>
+            <button className="p-post-action-btn">🔗 {lang === 'da' ? 'Følg siden' : 'Follow page'}</button>
+          </div>
+        </div>
+      )}
+
       {/* Event activity feed items — shown when at top of feed */}
       {offset === 0 && [
         { id: 'ea1', actor: 'Magnus Jensen', verb: 'going', event: MOCK_EVENTS[0], time: { da: '35 min siden', en: '35 min ago' } },
@@ -1259,7 +1297,7 @@ function FeedPage({ lang, t, currentUser, highlightPostId, onHighlightCleared })
 }
 
 // ── Profile (clean — read-only view) ──
-function ProfilePage({ lang, t, currentUser, mode, onUserUpdate }) {
+function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
   const [profile, setProfile] = useState({ ...currentUser })
   const [userPosts, setUserPosts] = useState([])
   const [showPassword, setShowPassword] = useState(false)
@@ -1307,12 +1345,8 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate }) {
             {profile.location && <span>📍 {profile.location}</span>}
             <span>📅 {t.joined} {profile.joinDate ? new Date(profile.joinDate).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}</span>
           </div>
-          {mode === 'business' && profile.skills && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, margin: '8px 0' }}>
-              {profile.skills.split(',').map(s => s.trim()).filter(Boolean).map(skill => (
-                <span key={skill} style={{ fontSize: 12, padding: '3px 10px', borderRadius: 20, background: '#EBF4FF', color: '#1877F2', fontWeight: 600 }}>{skill}</span>
-              ))}
-            </div>
+          {mode === 'business' && (
+            <SkillsSection profile={profile} t={t} lang={lang} isOwn={true} />
           )}
           <div style={{ marginBottom: 8 }}>
             <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 12, background: mode === 'business' ? '#EBF4FF' : '#F0FAF4', color: mode === 'business' ? '#1877F2' : '#2D6A4F' }}>
@@ -1369,6 +1403,31 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate }) {
           </div>
         </div>
       </div>
+
+      {/* Company pages (business mode) */}
+      {mode === 'business' && (
+        <div className="p-card" style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <h3 className="p-section-title" style={{ margin: 0 }}>🏢 {t.companies}</h3>
+            <button
+              style={{ fontSize: 13, color: '#2D6A4F', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer' }}
+              onClick={() => onNavigate?.('company')}
+            >
+              {t.myCompanies} →
+            </button>
+          </div>
+          {MOCK_COMPANIES.filter(c => c.role === 'owner').map(c => (
+            <div key={c.id} className="p-company-mini-card" onClick={() => onNavigate?.('company')}>
+              <div className="p-company-logo-sm" style={{ background: c.color }}>{c.name[0]}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>{c.name}</div>
+                <div style={{ fontSize: 12, color: '#888' }}>{c.industry} · {c.followers} {t.companyFollowers}</div>
+              </div>
+              <span className="p-company-role-badge">{t.companyRoleOwner}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* User's posts */}
       <h3 className="p-section-title">{t.postsLabel}</h3>
@@ -2442,7 +2501,7 @@ function RenameModal({ t, current, onClose, onRename }) {
 }
 
 // ── Search ──
-function SearchPage({ lang, t, onNavigateToPost, onNavigateToConv }) {
+function SearchPage({ lang, t, mode, onNavigateToPost, onNavigateToConv, onNavigateToCompany }) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState(null) // { posts, messages } | null
   const [loading, setLoading] = useState(false)
@@ -2485,7 +2544,15 @@ function SearchPage({ lang, t, onNavigateToPost, onNavigateToConv }) {
   const q = query.trim()
   const hasPosts = results?.posts?.length > 0
   const hasMessages = results?.messages?.length > 0
-  const empty = results && !hasPosts && !hasMessages
+  const companyMatches = q.length >= 2
+    ? MOCK_COMPANIES.filter(c =>
+        c.name.toLowerCase().includes(q.toLowerCase()) ||
+        c.industry.toLowerCase().includes(q.toLowerCase()) ||
+        c.tagline.toLowerCase().includes(q.toLowerCase())
+      )
+    : []
+  const hasCompanies = companyMatches.length > 0
+  const empty = results && !hasPosts && !hasMessages && !hasCompanies
 
   return (
     <div className="p-search-page">
@@ -2510,6 +2577,31 @@ function SearchPage({ lang, t, onNavigateToPost, onNavigateToConv }) {
       {empty && !loading && (
         <div className="p-search-status">
           {lang === 'da' ? `Ingen resultater for "${q}"` : `No results for "${q}"`}
+        </div>
+      )}
+
+      {/* Company results (always shown if match, no API needed) */}
+      {hasCompanies && (
+        <div className="p-search-results" style={{ marginBottom: 8 }}>
+          <section className="p-search-section">
+            <h3 className="p-search-section-title">
+              <span>🏢</span> {t.companies}
+              <span className="p-search-count">{companyMatches.length}</span>
+            </h3>
+            {companyMatches.map(c => (
+              <div key={c.id} className="p-search-result" onClick={onNavigateToCompany}>
+                <div className="p-search-result-top">
+                  <div style={{ width: 28, height: 28, borderRadius: 6, background: c.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>{c.name[0]}</div>
+                  <span className="p-search-result-author">{c.name}</span>
+                  <span className="p-search-result-time">{c.industry}</span>
+                  <span className="p-search-result-arrow">→</span>
+                </div>
+                <div className="p-search-result-text" style={{ paddingLeft: 36, color: '#888' }}>
+                  {c.tagline} · {c.followers} {t.companyFollowers}
+                </div>
+              </div>
+            ))}
+          </section>
         </div>
       )}
 
@@ -3366,6 +3458,700 @@ function CreateEventModal({ t, lang, mode, currentUser, onClose, onCreate }) {
               style={{ flex: 2, padding: '10px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>
               {t.eventCreate}
             </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ── Skills & Endorsements ──
+const MOCK_SKILL_ENDORSEMENTS = {
+  'UX Design': ['Magnus Jensen', 'Freja Andersen', 'Emil Larsen'],
+  'Figma': ['Clara Johansen', 'Astrid Poulsen'],
+  'React': ['Viktor Mortensen', 'Noah Rasmussen', 'Magnus Jensen', 'Emil Larsen'],
+}
+
+function SkillsSection({ profile, t, lang, isOwn }) {
+  const [skills, setSkills] = useState(() => {
+    const raw = profile.skills || 'UX Design, Figma, React'
+    return raw.split(',').map(s => s.trim()).filter(Boolean)
+  })
+  const [endorsements, setEndorsements] = useState(MOCK_SKILL_ENDORSEMENTS)
+  const [myEndorsed, setMyEndorsed] = useState(new Set())
+  const [newSkill, setNewSkill] = useState('')
+  const [showAdd, setShowAdd] = useState(false)
+
+  const endorse = (skill) => {
+    if (myEndorsed.has(skill)) return
+    setMyEndorsed(prev => new Set([...prev, skill]))
+    setEndorsements(prev => ({
+      ...prev,
+      [skill]: [...(prev[skill] || []), lang === 'da' ? 'Dig' : 'You'],
+    }))
+  }
+
+  const addSkill = () => {
+    const s = newSkill.trim()
+    if (!s || skills.includes(s) || skills.length >= 20) return
+    setSkills(prev => [...prev, s])
+    setNewSkill('')
+    setShowAdd(false)
+  }
+
+  if (skills.length === 0 && !isOwn) return null
+
+  return (
+    <div style={{ margin: '12px 0' }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: '#555', marginBottom: 8 }}>{t.skills}</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {skills.map(skill => {
+          const count = (endorsements[skill] || []).length
+          const myEndorsement = myEndorsed.has(skill)
+          return (
+            <div key={skill} className="p-skill-row">
+              <div style={{ flex: 1 }}>
+                <span style={{ fontSize: 13, fontWeight: 600 }}>{skill}</span>
+                {count > 0 && (
+                  <span style={{ fontSize: 12, color: '#888', marginLeft: 8 }}>
+                    {count} {t.endorsements}
+                  </span>
+                )}
+              </div>
+              {!isOwn && (
+                <button
+                  className={`p-endorse-btn${myEndorsement ? ' endorsed' : ''}`}
+                  onClick={() => endorse(skill)}
+                  disabled={myEndorsement}
+                >
+                  {myEndorsement ? `✓ ${t.endorsed}` : t.endorse}
+                </button>
+              )}
+            </div>
+          )
+        })}
+      </div>
+      {isOwn && (
+        showAdd ? (
+          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+            <input
+              style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13 }}
+              placeholder={t.skillPlaceholder}
+              value={newSkill}
+              onChange={e => setNewSkill(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addSkill() } if (e.key === 'Escape') setShowAdd(false) }}
+              autoFocus
+            />
+            <button onClick={addSkill} style={{ padding: '8px 14px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>+</button>
+            <button onClick={() => setShowAdd(false)} style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', cursor: 'pointer', fontSize: 13 }}>✕</button>
+          </div>
+        ) : (
+          <button
+            style={{ marginTop: 10, fontSize: 13, color: '#2D6A4F', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+            onClick={() => { if (skills.length >= 20) return; setShowAdd(true) }}
+          >
+            {skills.length >= 20 ? t.maxSkillsReached : `+ ${t.addSkill}`}
+          </button>
+        )
+      )}
+    </div>
+  )
+}
+
+// ── Company Pages ──
+const MOCK_COMPANIES = [
+  {
+    id: 1,
+    name: 'Designlab Studio',
+    tagline: 'Vi skaber digitale oplevelser der rykker',
+    website: 'https://designlab.dk',
+    industry: 'Design & Teknologi',
+    size: '11–50',
+    description: 'Designlab Studio er et dansk designbureau specialiseret i brugeroplevelse og digital produktudvikling. Vi arbejder med startups og etablerede virksomheder.',
+    followers: 847,
+    role: 'owner',
+    color: '#2D6A4F',
+    posts: [
+      { id: 'cp1', text: { da: 'Vi søger en dygtig UX Designer til vores team i København. 🚀', en: 'We\'re looking for a talented UX Designer to join our Copenhagen team. 🚀' }, time: { da: '1 t siden', en: '1 hr ago' }, likes: 14, comments: 3 },
+      { id: 'cp2', text: { da: 'Spændende samarbejde annonceret med Yggdrasil Cloud! Vi glæder os til at bygge fremtiden af dansk tech. 🇩🇰', en: 'Exciting partnership announced with Yggdrasil Cloud! Looking forward to building the future of Danish tech. 🇩🇰' }, time: { da: '2 d siden', en: '2 days ago' }, likes: 62, comments: 11 },
+    ],
+    jobs: [1],
+  },
+  {
+    id: 2,
+    name: 'NordTech A/S',
+    tagline: 'Scandinavian software for global markets',
+    website: 'https://nordtech.dk',
+    industry: 'Software & SaaS',
+    size: '51–200',
+    description: 'NordTech bygger skalerbare softwareløsninger til mellemstore virksomheder i Norden og Europa. Grundlagt i 2018.',
+    followers: 2341,
+    role: 'following',
+    color: '#1877F2',
+    posts: [
+      { id: 'cp3', text: { da: 'Vores Q1 rapport er ude — rekordvækst på 43% YoY! Tak til alle vores fantastiske kunder og medarbejdere. 📈', en: 'Our Q1 report is out — record growth of 43% YoY! Thanks to all our amazing customers and employees. 📈' }, time: { da: '3 d siden', en: '3 days ago' }, likes: 198, comments: 27 },
+    ],
+    jobs: [2],
+  },
+]
+
+const MOCK_JOBS = [
+  {
+    id: 1,
+    companyId: 1,
+    companyName: 'Designlab Studio',
+    companyColor: '#2D6A4F',
+    title: { da: 'Senior UX Designer', en: 'Senior UX Designer' },
+    location: 'København, Danmark',
+    remote: true,
+    type: 'fulltime',
+    description: { da: 'Vi søger en erfaren UX Designer til at lede brugeroplevelsesdesign på tværs af vores produkter. Du vil arbejde tæt med produktteamet og kunder.', en: 'We\'re looking for an experienced UX Designer to lead user experience design across our products. You\'ll work closely with the product team and clients.' },
+    requirements: { da: '5+ års erfaring med UX design\nSolid portefølje med case studies\nErfaring med Figma og prototyping\nFlydende dansk og engelsk', en: '5+ years of UX design experience\nSolid portfolio with case studies\nExperience with Figma and prototyping\nFluent Danish and English' },
+    applyLink: 'jobs@designlab.dk',
+    postedDate: '2026-02-10',
+    saved: false,
+  },
+  {
+    id: 2,
+    companyId: 2,
+    companyName: 'NordTech A/S',
+    companyColor: '#1877F2',
+    title: { da: 'Frontend Udviklere (React)', en: 'Frontend Developer (React)' },
+    location: 'Aarhus, Danmark',
+    remote: false,
+    type: 'fulltime',
+    description: { da: 'NordTech søger dygtige React-udviklere til vores voksende produktteam i Aarhus. Du vil arbejde på vores kerneplatform med moderne teknologier.', en: 'NordTech is looking for skilled React developers for our growing product team in Aarhus. You\'ll work on our core platform with modern technologies.' },
+    requirements: { da: '3+ års React-erfaring\nKendskab til TypeScript\nErfaring med REST APIs og GraphQL\nGodt kendskab til git og CI/CD', en: '3+ years React experience\nKnowledge of TypeScript\nExperience with REST APIs and GraphQL\nGood knowledge of git and CI/CD' },
+    applyLink: 'https://nordtech.dk/jobs',
+    postedDate: '2026-02-15',
+    saved: false,
+  },
+]
+
+function CompanyListPage({ lang, t, currentUser, mode, onNavigate }) {
+  const [companies, setCompanies] = useState(MOCK_COMPANIES)
+  const [selectedCompany, setSelectedCompany] = useState(null)
+  const [showCreate, setShowCreate] = useState(false)
+  const [tab, setTab] = useState('my')
+  const [followMap, setFollowMap] = useState(() => {
+    const m = {}
+    MOCK_COMPANIES.forEach(c => { m[c.id] = c.role === 'following' || c.role === 'owner' })
+    return m
+  })
+
+  const myCompanies = companies.filter(c => c.role === 'owner' || c.role === 'admin' || c.role === 'editor')
+  const followingCompanies = companies.filter(c => c.role === 'following')
+
+  const displayCompanies = tab === 'my' ? myCompanies : followingCompanies
+
+  const toggleFollow = (id) => {
+    setFollowMap(prev => ({ ...prev, [id]: !prev[id] }))
+    setCompanies(prev => prev.map(c => c.id === id ? {
+      ...c,
+      role: followMap[id] ? null : 'following',
+      followers: followMap[id] ? c.followers - 1 : c.followers + 1,
+    } : c))
+  }
+
+  if (selectedCompany) {
+    return (
+      <CompanyDetailView
+        company={selectedCompany}
+        t={t}
+        lang={lang}
+        mode={mode}
+        currentUser={currentUser}
+        isOwner={selectedCompany.role === 'owner'}
+        onBack={() => setSelectedCompany(null)}
+        onFollow={() => toggleFollow(selectedCompany.id)}
+        isFollowing={followMap[selectedCompany.id]}
+      />
+    )
+  }
+
+  return (
+    <div className="p-events" style={{ maxWidth: 720 }}>
+      <div className="p-events-header">
+        <h2 className="p-section-title" style={{ margin: 0 }}>🏢 {t.companies}</h2>
+        <button className="p-events-create-btn" onClick={() => setShowCreate(true)}>
+          + {t.createCompany}
+        </button>
+      </div>
+
+      <div className="p-filter-tabs" style={{ marginBottom: 16 }}>
+        <button className={`p-filter-tab${tab === 'my' ? ' active' : ''}`} onClick={() => setTab('my')}>
+          {t.myCompanies} ({myCompanies.length})
+        </button>
+        <button className={`p-filter-tab${tab === 'following' ? ' active' : ''}`} onClick={() => setTab('following')}>
+          {t.followingCompanies} ({followingCompanies.length})
+        </button>
+      </div>
+
+      {displayCompanies.length === 0 ? (
+        <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>
+          🏢 {tab === 'my'
+            ? (lang === 'da' ? 'Du administrerer ingen sider endnu.' : 'You don\'t manage any pages yet.')
+            : (lang === 'da' ? 'Du følger ingen sider endnu.' : 'You don\'t follow any pages yet.')
+          }
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {displayCompanies.map(company => (
+            <div key={company.id} className="p-card p-company-card" onClick={() => setSelectedCompany(company)}>
+              <div className="p-company-logo" style={{ background: company.color }}>{company.name[0]}</div>
+              <div className="p-company-card-body">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <h3 className="p-company-name">{company.name}</h3>
+                  {company.role === 'owner' && <span className="p-company-role-badge">{t.companyRoleOwner}</span>}
+                  {company.role === 'admin' && <span className="p-company-role-badge">{t.companyRoleAdmin}</span>}
+                  {company.role === 'editor' && <span className="p-company-role-badge" style={{ background: '#FFF3CD', color: '#856404' }}>{t.companyRoleEditor}</span>}
+                </div>
+                <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>{company.tagline}</div>
+                <div style={{ fontSize: 12, color: '#999' }}>
+                  🏭 {company.industry} · 👥 {company.size} · {company.followers.toLocaleString()} {t.companyFollowers}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showCreate && (
+        <CreateCompanyModal
+          t={t}
+          lang={lang}
+          currentUser={currentUser}
+          onClose={() => setShowCreate(false)}
+          onCreate={(c) => { setCompanies(prev => [c, ...prev]); setShowCreate(false) }}
+        />
+      )}
+    </div>
+  )
+}
+
+function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBack, onFollow, isFollowing }) {
+  const [tab, setTab] = useState('posts')
+  const [newPost, setNewPost] = useState('')
+  const [companyPosts, setCompanyPosts] = useState(company.posts || [])
+
+  const postCompany = () => {
+    if (!newPost.trim()) return
+    setCompanyPosts(prev => [{
+      id: `cp${Date.now()}`,
+      text: { da: newPost, en: newPost },
+      time: { da: 'Lige nu', en: 'Just now' },
+      likes: 0,
+      comments: 0,
+    }, ...prev])
+    setNewPost('')
+  }
+
+  const companyJobs = MOCK_JOBS.filter(j => j.companyId === company.id)
+
+  return (
+    <div className="p-events" style={{ maxWidth: 720 }}>
+      <button onClick={onBack} style={{ marginBottom: 16, background: 'none', border: 'none', color: '#2D6A4F', cursor: 'pointer', fontWeight: 600, fontSize: 14, padding: 0 }}>
+        ← {lang === 'da' ? 'Tilbage' : 'Back'}
+      </button>
+
+      {/* Company header */}
+      <div className="p-card" style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          <div className="p-company-logo" style={{ background: company.color, width: 72, height: 72, fontSize: 30, borderRadius: 16 }}>{company.name[0]}</div>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <h2 style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 800 }}>{company.name}</h2>
+            <div style={{ fontSize: 14, color: '#666', marginBottom: 8 }}>{company.tagline}</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, fontSize: 13, color: '#888', marginBottom: 12 }}>
+              <span>🏭 {company.industry}</span>
+              <span>👥 {company.size} {lang === 'da' ? 'medarbejdere' : 'employees'}</span>
+              <span>🌐 <a href={company.website} target="_blank" rel="noopener noreferrer" style={{ color: '#1877F2' }}>{company.website.replace('https://', '')}</a></span>
+              <span>❤️ {company.followers.toLocaleString()} {t.companyFollowers}</span>
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              {!isOwner && (
+                <button
+                  onClick={onFollow}
+                  className={isFollowing ? 'p-friend-msg-btn' : 'p-friend-add-btn p-friend-msg-btn'}
+                  style={{ padding: '8px 20px', borderRadius: 8 }}
+                >
+                  {isFollowing ? `✓ ${t.companyUnfollow}` : t.companyFollow}
+                </button>
+              )}
+              {isOwner && (
+                <span className="p-company-role-badge" style={{ alignSelf: 'center', padding: '6px 14px', fontSize: 13 }}>
+                  {t.companyRoleOwner}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="p-filter-tabs" style={{ marginBottom: 16 }}>
+        {['posts', 'about', 'jobs'].map(tp => (
+          <button key={tp} className={`p-filter-tab${tab === tp ? ' active' : ''}`} onClick={() => setTab(tp)}>
+            {tp === 'posts' ? t.companyPosts : tp === 'about' ? t.companyAbout : t.jobs}
+            {tp === 'jobs' && companyJobs.length > 0 && <span style={{ marginLeft: 4, fontSize: 11 }}>({companyJobs.length})</span>}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'posts' && (
+        <>
+          {(isOwner || company.role === 'admin' || company.role === 'editor') && (
+            <div className="p-card" style={{ marginBottom: 12 }}>
+              <textarea
+                className="p-post-textarea"
+                placeholder={t.companyPost}
+                value={newPost}
+                onChange={e => setNewPost(e.target.value)}
+                style={{ minHeight: 80, marginBottom: 10 }}
+              />
+              <button
+                className="p-post-submit-btn"
+                disabled={!newPost.trim()}
+                onClick={postCompany}
+                style={{ padding: '8px 20px' }}
+              >
+                {t.companyPosts}
+              </button>
+            </div>
+          )}
+          {companyPosts.map(post => (
+            <div key={post.id} className="p-card p-post" style={{ marginBottom: 12 }}>
+              <div className="p-post-header">
+                <div style={{ width: 36, height: 36, borderRadius: 8, background: company.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 16 }}>{company.name[0]}</div>
+                <div>
+                  <div className="p-post-author">{company.name}</div>
+                  <div className="p-post-time">{post.time[lang]}</div>
+                </div>
+              </div>
+              <div className="p-post-text">{post.text[lang] || post.text.da}</div>
+              <div className="p-post-stats">
+                <span>{post.likes} {t.like.toLowerCase()}{post.likes !== 1 && lang === 'da' ? 'r' : ''}</span>
+                <span>{typeof post.comments === 'number' ? post.comments : post.comments?.length} {t.comment.toLowerCase()}{lang === 'da' ? 'er' : 's'}</span>
+              </div>
+            </div>
+          ))}
+        </>
+      )}
+
+      {tab === 'about' && (
+        <div className="p-card">
+          <h4 style={{ margin: '0 0 12px', fontSize: 16, fontWeight: 700 }}>Om {company.name}</h4>
+          <p style={{ fontSize: 14, color: '#444', lineHeight: 1.6, margin: 0 }}>{company.description}</p>
+        </div>
+      )}
+
+      {tab === 'jobs' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {companyJobs.length === 0 ? (
+            <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>{t.jobNoJobs}</div>
+          ) : companyJobs.map(job => (
+            <JobCard key={job.id} job={job} t={t} lang={lang} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function CreateCompanyModal({ t, lang, currentUser, onClose, onCreate }) {
+  const [name, setName] = useState('')
+  const [tagline, setTagline] = useState('')
+  const [website, setWebsite] = useState('')
+  const [industry, setIndustry] = useState('')
+  const [size, setSize] = useState('')
+  const [description, setDescription] = useState('')
+
+  useEffect(() => {
+    const h = (e) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', h)
+    return () => document.removeEventListener('keydown', h)
+  }, [onClose])
+
+  const fS = { display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box', fontFamily: 'inherit' }
+  const lS = { display: 'block', fontSize: 13, fontWeight: 600, color: '#555', marginBottom: 4, marginTop: 14 }
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    if (!name.trim()) return
+    onCreate({
+      id: Date.now(),
+      name: name.trim(),
+      tagline: tagline.trim(),
+      website: website.trim(),
+      industry: industry.trim(),
+      size,
+      description: description.trim(),
+      followers: 1,
+      role: 'owner',
+      color: nameToColor(name),
+      posts: [],
+      jobs: [],
+    })
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="p-event-create-modal" onClick={e => e.stopPropagation()}>
+        <h3 style={{ margin: '0 0 20px', fontSize: 18, fontWeight: 700 }}>🏢 {t.createCompany}</h3>
+        <form onSubmit={handleSubmit}>
+          <label style={lS}>{t.companyName} *</label>
+          <input style={fS} value={name} onChange={e => setName(e.target.value)} required placeholder="Acme Corp" />
+          <label style={lS}>{t.companyTagline}</label>
+          <input style={fS} value={tagline} onChange={e => setTagline(e.target.value)} placeholder={lang === 'da' ? 'Kort slogan...' : 'Short tagline...'} />
+          <label style={lS}>{t.companyWebsite}</label>
+          <input style={fS} type="url" value={website} onChange={e => setWebsite(e.target.value)} placeholder="https://..." />
+          <label style={lS}>{t.companyIndustry}</label>
+          <input style={fS} value={industry} onChange={e => setIndustry(e.target.value)} placeholder={lang === 'da' ? 'f.eks. Software & SaaS' : 'e.g. Software & SaaS'} />
+          <label style={lS}>{t.companySize}</label>
+          <select style={fS} value={size} onChange={e => setSize(e.target.value)}>
+            <option value="">—</option>
+            {(t.companySizes || ['1–10', '11–50', '51–200', '201–500', '500+']).map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+          <label style={lS}>{t.companyDescription}</label>
+          <textarea style={{ ...fS, minHeight: 80, resize: 'vertical' }} value={description} onChange={e => setDescription(e.target.value)} placeholder={lang === 'da' ? 'Beskriv virksomheden...' : 'Describe the company...'} />
+          <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
+            <button type="button" onClick={onClose} style={{ flex: 1, padding: 10, borderRadius: 8, border: '1px solid #ddd', background: '#fff', cursor: 'pointer', fontSize: 14 }}>{t.companyCancel}</button>
+            <button type="submit" style={{ flex: 2, padding: 10, borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>{t.companyCreate}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ── Jobs ──
+function JobCard({ job, t, lang, onSave, saved }) {
+  const [isSaved, setIsSaved] = useState(saved || job.saved)
+  const title = typeof job.title === 'string' ? job.title : (job.title[lang] || job.title.da)
+  const desc = typeof job.description === 'string' ? job.description : (job.description[lang] || job.description.da)
+  const reqs = typeof job.requirements === 'string' ? job.requirements : (job.requirements[lang] || job.requirements.da)
+  const typeLabels = { fulltime: t.jobTypeFullTime, parttime: t.jobTypePartTime, freelance: t.jobTypeFreelance, internship: t.jobTypeInternship }
+
+  return (
+    <div className="p-card p-job-card">
+      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+        <div style={{ width: 44, height: 44, borderRadius: 10, background: job.companyColor, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 20, flexShrink: 0 }}>
+          {job.companyName[0]}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h3 style={{ margin: '0 0 2px', fontSize: 16, fontWeight: 700 }}>{title}</h3>
+          <div style={{ fontSize: 13, color: '#666', marginBottom: 6 }}>
+            {job.companyName} · {job.location}
+            {job.remote && <span style={{ marginLeft: 6, fontSize: 11, padding: '2px 8px', borderRadius: 20, background: '#F0FAF4', color: '#2D6A4F', fontWeight: 600 }}>{t.jobRemote}</span>}
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+            <span className="p-event-type-badge">{typeLabels[job.type] || job.type}</span>
+            <span style={{ fontSize: 12, color: '#999' }}>{job.postedDate}</span>
+          </div>
+          <p style={{ fontSize: 13, color: '#555', lineHeight: 1.5, margin: '0 0 10px' }}>{desc.slice(0, 200)}{desc.length > 200 ? '…' : ''}</p>
+          {reqs && (
+            <details style={{ marginBottom: 12 }}>
+              <summary style={{ fontSize: 13, color: '#2D6A4F', fontWeight: 600, cursor: 'pointer' }}>
+                {lang === 'da' ? 'Krav' : 'Requirements'}
+              </summary>
+              <pre style={{ fontSize: 12, color: '#555', whiteSpace: 'pre-wrap', marginTop: 8, fontFamily: 'inherit', lineHeight: 1.6 }}>{reqs}</pre>
+            </details>
+          )}
+          <div style={{ display: 'flex', gap: 10 }}>
+            <a
+              href={job.applyLink.startsWith('http') ? job.applyLink : `mailto:${job.applyLink}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-events-create-btn"
+              style={{ textDecoration: 'none', display: 'inline-block', padding: '8px 18px', fontSize: 13 }}
+            >
+              {t.jobApply} →
+            </a>
+            <button
+              onClick={() => setIsSaved(v => !v)}
+              style={{ padding: '8px 14px', borderRadius: 8, border: `1px solid ${isSaved ? '#2D6A4F' : '#ddd'}`, background: isSaved ? '#F0FAF4' : '#fff', color: isSaved ? '#2D6A4F' : '#555', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
+            >
+              {isSaved ? `★ ${t.jobSaved}` : `☆ ${t.jobSave}`}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function JobsPage({ lang, t, currentUser, mode }) {
+  const [jobs, setJobs] = useState(MOCK_JOBS)
+  const [savedIds, setSavedIds] = useState(new Set())
+  const [tab, setTab] = useState('all')
+  const [filterType, setFilterType] = useState('')
+  const [filterLocation, setFilterLocation] = useState('')
+  const [filterKeyword, setFilterKeyword] = useState('')
+  const [showCreate, setShowCreate] = useState(false)
+
+  const filtered = jobs.filter(j => {
+    const title = typeof j.title === 'string' ? j.title : (j.title[lang] || j.title.da)
+    const desc = typeof j.description === 'string' ? j.description : (j.description[lang] || j.description.da)
+    if (filterType && j.type !== filterType) return false
+    if (filterLocation && !j.location.toLowerCase().includes(filterLocation.toLowerCase()) && !j.remote) return false
+    if (filterKeyword && !title.toLowerCase().includes(filterKeyword.toLowerCase()) && !desc.toLowerCase().includes(filterKeyword.toLowerCase())) return false
+    if (tab === 'saved') return savedIds.has(j.id)
+    return true
+  })
+
+  return (
+    <div className="p-events" style={{ maxWidth: 720 }}>
+      <div className="p-events-header">
+        <h2 className="p-section-title" style={{ margin: 0 }}>💼 {t.jobsTitle}</h2>
+        <button className="p-events-create-btn" onClick={() => setShowCreate(true)}>
+          + {t.createJob}
+        </button>
+      </div>
+
+      {/* Filters */}
+      <div className="p-card" style={{ marginBottom: 14, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <input
+          className="p-search-input"
+          style={{ flex: 2, minWidth: 120 }}
+          placeholder={t.jobSearchKeyword}
+          value={filterKeyword}
+          onChange={e => setFilterKeyword(e.target.value)}
+        />
+        <input
+          className="p-search-input"
+          style={{ flex: 1, minWidth: 100 }}
+          placeholder={t.jobSearchLocation}
+          value={filterLocation}
+          onChange={e => setFilterLocation(e.target.value)}
+        />
+        <select
+          style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, fontFamily: 'inherit', color: '#444' }}
+          value={filterType}
+          onChange={e => setFilterType(e.target.value)}
+        >
+          <option value="">{t.jobSearchType}</option>
+          <option value="fulltime">{t.jobTypeFullTime}</option>
+          <option value="parttime">{t.jobTypePartTime}</option>
+          <option value="freelance">{t.jobTypeFreelance}</option>
+          <option value="internship">{t.jobTypeInternship}</option>
+        </select>
+      </div>
+
+      <div className="p-filter-tabs" style={{ marginBottom: 16 }}>
+        <button className={`p-filter-tab${tab === 'all' ? ' active' : ''}`} onClick={() => setTab('all')}>
+          {lang === 'da' ? 'Alle job' : 'All jobs'} ({jobs.length})
+        </button>
+        <button className={`p-filter-tab${tab === 'saved' ? ' active' : ''}`} onClick={() => setTab('saved')}>
+          {t.savedJobs} ({savedIds.size})
+        </button>
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>{t.jobNoJobs}</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {filtered.map(job => (
+            <JobCard
+              key={job.id}
+              job={job}
+              t={t}
+              lang={lang}
+              saved={savedIds.has(job.id)}
+              onSave={(id, v) => setSavedIds(prev => { const n = new Set(prev); v ? n.add(id) : n.delete(id); return n })}
+            />
+          ))}
+        </div>
+      )}
+
+      {showCreate && (
+        <CreateJobModal
+          t={t}
+          lang={lang}
+          companies={MOCK_COMPANIES.filter(c => c.role === 'owner' || c.role === 'admin')}
+          onClose={() => setShowCreate(false)}
+          onCreate={(job) => { setJobs(prev => [job, ...prev]); setShowCreate(false) }}
+        />
+      )}
+    </div>
+  )
+}
+
+function CreateJobModal({ t, lang, companies, onClose, onCreate }) {
+  const [title, setTitle] = useState('')
+  const [companyId, setCompanyId] = useState(companies[0]?.id || '')
+  const [location, setLocation] = useState('')
+  const [remote, setRemote] = useState(false)
+  const [type, setType] = useState('fulltime')
+  const [description, setDescription] = useState('')
+  const [requirements, setRequirements] = useState('')
+  const [applyLink, setApplyLink] = useState('')
+
+  useEffect(() => {
+    const h = (e) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', h)
+    return () => document.removeEventListener('keydown', h)
+  }, [onClose])
+
+  const fS = { display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box', fontFamily: 'inherit' }
+  const lS = { display: 'block', fontSize: 13, fontWeight: 600, color: '#555', marginBottom: 4, marginTop: 14 }
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    if (!title.trim() || !location.trim()) return
+    const company = companies.find(c => c.id === Number(companyId)) || companies[0]
+    onCreate({
+      id: Date.now(),
+      companyId: company?.id,
+      companyName: company?.name || '',
+      companyColor: company?.color || '#2D6A4F',
+      title: { da: title, en: title },
+      location,
+      remote,
+      type,
+      description: { da: description, en: description },
+      requirements: { da: requirements, en: requirements },
+      applyLink,
+      postedDate: new Date().toISOString().slice(0, 10),
+      saved: false,
+    })
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="p-event-create-modal" onClick={e => e.stopPropagation()}>
+        <h3 style={{ margin: '0 0 20px', fontSize: 18, fontWeight: 700 }}>💼 {t.createJob}</h3>
+        <form onSubmit={handleSubmit}>
+          {companies.length > 0 && (
+            <>
+              <label style={lS}>{t.companies}</label>
+              <select style={fS} value={companyId} onChange={e => setCompanyId(e.target.value)}>
+                {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </>
+          )}
+          <label style={lS}>{t.jobTitle} *</label>
+          <input style={fS} value={title} onChange={e => setTitle(e.target.value)} required placeholder={lang === 'da' ? 'f.eks. Senior Designer' : 'e.g. Senior Designer'} />
+          <label style={lS}>{t.jobLocation} *</label>
+          <input style={fS} value={location} onChange={e => setLocation(e.target.value)} required placeholder={lang === 'da' ? 'By, Land eller "Remote"' : 'City, Country or "Remote"'} />
+          <label style={{ ...lS, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input type="checkbox" checked={remote} onChange={e => setRemote(e.target.checked)} />
+            {t.jobRemote}
+          </label>
+          <label style={lS}>{t.jobType}</label>
+          <select style={fS} value={type} onChange={e => setType(e.target.value)}>
+            <option value="fulltime">{t.jobTypeFullTime}</option>
+            <option value="parttime">{t.jobTypePartTime}</option>
+            <option value="freelance">{t.jobTypeFreelance}</option>
+            <option value="internship">{t.jobTypeInternship}</option>
+          </select>
+          <label style={lS}>{t.jobDescription}</label>
+          <textarea style={{ ...fS, minHeight: 80, resize: 'vertical' }} value={description} onChange={e => setDescription(e.target.value)} placeholder={lang === 'da' ? 'Beskriv stillingen...' : 'Describe the position...'} />
+          <label style={lS}>{t.jobRequirements}</label>
+          <textarea style={{ ...fS, minHeight: 60, resize: 'vertical' }} value={requirements} onChange={e => setRequirements(e.target.value)} placeholder={lang === 'da' ? 'Krav til ansøgeren...' : 'Requirements for applicants...'} />
+          <label style={lS}>{t.jobApplyLink}</label>
+          <input style={fS} value={applyLink} onChange={e => setApplyLink(e.target.value)} placeholder={lang === 'da' ? 'Link eller e-mail' : 'Link or email'} />
+          <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
+            <button type="button" onClick={onClose} style={{ flex: 1, padding: 10, borderRadius: 8, border: '1px solid #ddd', background: '#fff', cursor: 'pointer', fontSize: 14 }}>{t.eventCancel}</button>
+            <button type="submit" style={{ flex: 2, padding: 10, borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>{t.jobPost}</button>
           </div>
         </form>
       </div>
