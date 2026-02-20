@@ -186,12 +186,17 @@ function extractFirstUrl(text) {
 
 function linkifyText(text) {
   const parts = []
-  const re = /https?:\/\/[^\s<>"']+/g
+  const re = /https?:\/\/[^\s<>"']+|@[A-Za-zÀ-ÖØ-öø-ÿ]\w*/g
   let last = 0, m
   while ((m = re.exec(text)) !== null) {
-    const url = m[0].replace(/[.,!?;:)>]+$/, '')
+    const raw = m[0]
     if (m.index > last) parts.push({ t: 'text', v: text.slice(last, m.index) })
-    parts.push({ t: 'url', v: url })
+    if (raw.startsWith('@')) {
+      parts.push({ t: 'mention', v: raw })
+    } else {
+      const url = raw.replace(/[.,!?;:)>]+$/, '')
+      parts.push({ t: 'url', v: url })
+    }
     last = m.index + m[0].length
   }
   if (last < text.length) parts.push({ t: 'text', v: text.slice(last) })
@@ -268,7 +273,9 @@ function PostText({ text, lang }) {
         {parts.map((p, i) =>
           p.t === 'url'
             ? <a key={i} href={p.v} target="_blank" rel="noopener noreferrer" className="post-link">{p.v}</a>
-            : <span key={i}>{p.v}</span>
+            : p.t === 'mention'
+              ? <span key={i} className="p-mention">{p.v}</span>
+              : <span key={i}>{p.v}</span>
         )}
       </div>
       {firstUrl && <LinkPreview url={firstUrl} />}
@@ -329,6 +336,61 @@ const REACTIONS = [
 // ── Feed ──
 const PAGE_SIZE = 20
 
+// ── @mention autocomplete ──────────────────────────────────────────────────
+function useMention(friends) {
+  const [query, setQuery] = useState(null) // null = closed
+  const [selIdx, setSelIdx] = useState(0)
+  const filtered = query !== null
+    ? friends.filter(f => f.name.toLowerCase().startsWith(query.toLowerCase()))
+    : []
+
+  const detect = useCallback((text, cursor) => {
+    const before = text.slice(0, cursor)
+    const m = before.match(/@([^\s@]*)$/)
+    if (m) { setQuery(m[1]); setSelIdx(0) } else setQuery(null)
+  }, [])
+
+  const close = useCallback(() => setQuery(null), [])
+
+  const handleKey = useCallback((e, onInsert) => {
+    if (query === null || !filtered.length) return false
+    if (e.key === 'ArrowDown') { e.preventDefault(); setSelIdx(i => Math.min(i + 1, filtered.length - 1)); return true }
+    if (e.key === 'ArrowUp')   { e.preventDefault(); setSelIdx(i => Math.max(i - 1, 0)); return true }
+    if (e.key === 'Enter')     { e.preventDefault(); onInsert(filtered[selIdx]); return true }
+    if (e.key === 'Escape')    { setQuery(null); return true }
+    return false
+  }, [query, filtered, selIdx])
+
+  const buildText = useCallback((text, cursor, friend) => {
+    const before = text.slice(0, cursor)
+    const atIdx = before.lastIndexOf('@')
+    const firstName = friend.name.split(' ')[0]
+    const newText = before.slice(0, atIdx) + '@' + firstName + ' ' + text.slice(cursor)
+    setQuery(null)
+    return { text: newText, cursor: atIdx + firstName.length + 2 }
+  }, [])
+
+  return { query, filtered, selIdx, detect, close, handleKey, buildText }
+}
+
+function MentionDropdown({ filtered, selIdx, onSelect }) {
+  if (!filtered.length) return null
+  return (
+    <div className="p-mention-dropdown">
+      {filtered.map((f, i) => (
+        <div key={f.id}
+          className={'p-mention-item' + (i === selIdx ? ' p-mention-item--sel' : '')}
+          onMouseDown={e => { e.preventDefault(); onSelect(f) }}>
+          <span className="p-mention-av" style={{ background: nameToColor(f.name) }}>
+            {getInitials(f.name)}
+          </span>
+          <span className="p-mention-name">{f.name}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function FeedPage({ lang, t, currentUser, highlightPostId, onHighlightCleared }) {
   const [posts, setPosts] = useState([])
   const [pinnedPost, setPinnedPost] = useState(null)
@@ -356,6 +418,7 @@ function FeedPage({ lang, t, currentUser, highlightPostId, onHighlightCleared })
   const [mediaPopup, setMediaPopup] = useState(false)
   const fileInputRef = useRef(null)
   const textareaRef = useRef(null)
+  const feedMention = useMention(sharePopupFriends || [])
   const commentFileRefs = useRef({})
   const [commentMediaPopup, setCommentMediaPopup] = useState(null) // postId of open popup
   const bottomSentinelRef = useRef(null)
@@ -678,24 +741,63 @@ function FeedPage({ lang, t, currentUser, highlightPostId, onHighlightCleared })
               <div className="p-avatar-sm" style={{ background: nameToColor(currentUser.name) }}>
                 {currentUser.initials || getInitials(currentUser.name)}
               </div>
-              <textarea
-                ref={textareaRef}
-                className="p-new-post-textarea"
-                placeholder={t.newPost}
-                value={newPostText}
-                onChange={e => {
-                  setNewPostText(e.target.value)
-                  e.target.style.height = 'auto'
-                  e.target.style.height = e.target.scrollHeight + 'px'
-                }}
-                onKeyDown={e => {
-                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handlePost() }
-                }}
-                onPaste={handleFeedPaste}
-                onFocus={() => setPostExpanded(true)}
-                onBlur={() => { if (!newPostText.trim() && !mediaPreviews.length) setPostExpanded(false) }}
-                autoFocus={postExpanded && !newPostText}
-              />
+              <div style={{ position: 'relative', flex: 1 }}>
+                {feedMention.query !== null && (
+                  <MentionDropdown
+                    filtered={feedMention.filtered}
+                    selIdx={feedMention.selIdx}
+                    onSelect={f => {
+                      const cursor = textareaRef.current?.selectionStart ?? newPostText.length
+                      const { text, cursor: newCursor } = feedMention.buildText(newPostText, cursor, f)
+                      setNewPostText(text)
+                      setTimeout(() => {
+                        if (textareaRef.current) {
+                          textareaRef.current.focus()
+                          textareaRef.current.setSelectionRange(newCursor, newCursor)
+                          textareaRef.current.style.height = 'auto'
+                          textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px'
+                        }
+                      }, 0)
+                    }}
+                  />
+                )}
+                <textarea
+                  ref={textareaRef}
+                  className="p-new-post-textarea"
+                  placeholder={t.newPost}
+                  value={newPostText}
+                  onChange={e => {
+                    setNewPostText(e.target.value)
+                    e.target.style.height = 'auto'
+                    e.target.style.height = e.target.scrollHeight + 'px'
+                    feedMention.detect(e.target.value, e.target.selectionStart)
+                    if (e.target.value.includes('@') && sharePopupFriends === null) {
+                      apiFetchFriends().then(d => { if (d) setSharePopupFriends(d) })
+                    }
+                  }}
+                  onKeyDown={e => {
+                    if (feedMention.handleKey(e, f => {
+                      const cursor = textareaRef.current?.selectionStart ?? newPostText.length
+                      const { text, cursor: nc } = feedMention.buildText(newPostText, cursor, f)
+                      setNewPostText(text)
+                      setTimeout(() => {
+                        if (textareaRef.current) {
+                          textareaRef.current.focus()
+                          textareaRef.current.setSelectionRange(nc, nc)
+                        }
+                      }, 0)
+                    })) return
+                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handlePost() }
+                  }}
+                  onPaste={handleFeedPaste}
+                  onFocus={() => setPostExpanded(true)}
+                  onBlur={() => {
+                    if (!newPostText.trim() && !mediaPreviews.length) setPostExpanded(false)
+                    feedMention.close()
+                  }}
+                  autoFocus={postExpanded && !newPostText}
+                />
+              </div>
             </div>
             {mediaPreviews.length > 0 && (
               <div className="p-media-previews">
@@ -2242,6 +2344,7 @@ function MessagesPage({ lang, t, currentUser, openConvId, onConvOpened }) {
   const messagesEndRef = useRef(null)
   const msgInputRef = useRef(null)
   const msgBodyRef = useRef(null)
+  const msgMention = useMention(friends)
   const topMsgSentinelRef = useRef(null)
   const menuRef = useRef(null)
 
@@ -2544,7 +2647,13 @@ function MessagesPage({ lang, t, currentUser, openConvId, onConvOpened }) {
                     {conv.isGroup && !isMe && (
                       <div className="p-msg-sender-name">{msg.from.split(' ')[0]}</div>
                     )}
-                    <div>{msg.text[lang]}</div>
+                    <div>{linkifyText(msg.text[lang] || '').map((p, pi) =>
+                      p.t === 'url'
+                        ? <a key={pi} href={p.v} target="_blank" rel="noopener noreferrer" className="post-link">{p.v}</a>
+                        : p.t === 'mention'
+                          ? <span key={pi} className="p-mention">{p.v}</span>
+                          : <span key={pi}>{p.v}</span>
+                    )}</div>
                     <div className="p-msg-time">{msg.time}</div>
                   </div>
                 </div>
@@ -2559,21 +2668,53 @@ function MessagesPage({ lang, t, currentUser, openConvId, onConvOpened }) {
               <span className="p-input-hint-icon">?</span>
               <span className="p-input-hint-tooltip">{t.msgInputHint}</span>
             </span>
-            <textarea
-              ref={msgInputRef}
-              className="p-msg-input"
-              placeholder={t.typeMessage}
-              value={newMsg}
-              rows={1}
-              onChange={e => {
-                setNewMsg(e.target.value)
-                e.target.style.height = 'auto'
-                e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'
-              }}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
-              }}
-            />
+            <div style={{ position: 'relative', flex: 1 }}>
+              {msgMention.query !== null && (
+                <MentionDropdown
+                  filtered={msgMention.filtered}
+                  selIdx={msgMention.selIdx}
+                  onSelect={f => {
+                    const cursor = msgInputRef.current?.selectionStart ?? newMsg.length
+                    const { text, cursor: nc } = msgMention.buildText(newMsg, cursor, f)
+                    setNewMsg(text)
+                    setTimeout(() => {
+                      if (msgInputRef.current) {
+                        msgInputRef.current.focus()
+                        msgInputRef.current.setSelectionRange(nc, nc)
+                      }
+                    }, 0)
+                  }}
+                />
+              )}
+              <textarea
+                ref={msgInputRef}
+                className="p-msg-input"
+                placeholder={t.typeMessage}
+                value={newMsg}
+                rows={1}
+                onChange={e => {
+                  setNewMsg(e.target.value)
+                  e.target.style.height = 'auto'
+                  e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'
+                  msgMention.detect(e.target.value, e.target.selectionStart)
+                }}
+                onKeyDown={e => {
+                  if (msgMention.handleKey(e, f => {
+                    const cursor = msgInputRef.current?.selectionStart ?? newMsg.length
+                    const { text, cursor: nc } = msgMention.buildText(newMsg, cursor, f)
+                    setNewMsg(text)
+                    setTimeout(() => {
+                      if (msgInputRef.current) {
+                        msgInputRef.current.focus()
+                        msgInputRef.current.setSelectionRange(nc, nc)
+                      }
+                    }, 0)
+                  })) return
+                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
+                }}
+                onBlur={() => setTimeout(() => msgMention.close(), 150)}
+              />
+            </div>
             <button className="p-send-btn" onClick={handleSend}>{t.send}</button>
           </div>
         </div>
