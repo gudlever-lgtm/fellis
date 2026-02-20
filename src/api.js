@@ -336,3 +336,50 @@ export async function apiUploadAvatar(file) {
     throw err
   }
 }
+
+// ── Marketplace ──
+export async function apiFetchListings({ category = '', location = '', q = '' } = {}) {
+  const params = new URLSearchParams()
+  if (category) params.set('category', category)
+  if (location) params.set('location', location)
+  if (q) params.set('q', q)
+  return await request(`/api/marketplace?${params}`)
+}
+
+export async function apiFetchMyListings() {
+  return await request('/api/marketplace/mine')
+}
+
+export async function apiCreateListing(formData) {
+  try {
+    const res = await fetch(`${API_BASE}/api/marketplace`, {
+      method: 'POST',
+      headers: { 'X-Session-Id': getSessionId() },
+      credentials: 'same-origin',
+      body: formData,
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.error || `HTTP ${res.status}`)
+    }
+    return await res.json()
+  } catch (err) {
+    if (err.message === 'Failed to fetch') return null
+    throw err
+  }
+}
+
+export async function apiUpdateListing(id, data) {
+  return await request(`/api/marketplace/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function apiMarkListingSold(id) {
+  return await request(`/api/marketplace/${id}/sold`, { method: 'POST' })
+}
+
+export async function apiDeleteListing(id) {
+  return await request(`/api/marketplace/${id}`, { method: 'DELETE' })
+}

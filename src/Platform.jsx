@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { PT, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -112,14 +112,14 @@ export default function Platform({ lang: initialLang, onLogout }) {
           </div>
         </div>
         <div className="p-nav-tabs">
-          {['feed', 'friends', 'messages', 'events', ...(mode === 'business' ? ['jobs'] : [])].map(p => (
+          {['feed', 'friends', 'messages', 'events', 'marketplace', ...(mode === 'business' ? ['jobs'] : [])].map(p => (
             <button
               key={p}
               className={`p-nav-tab${page === p ? ' active' : ''}`}
               onClick={() => navigateTo(p)}
             >
               <span className="p-nav-tab-icon">
-                {p === 'feed' ? '🏠' : p === 'friends' ? '👥' : p === 'messages' ? '💬' : p === 'events' ? '📅' : '💼'}
+                {p === 'feed' ? '🏠' : p === 'friends' ? '👥' : p === 'messages' ? '💬' : p === 'events' ? '📅' : p === 'marketplace' ? '🛍️' : '💼'}
               </span>
               <span className="p-nav-tab-label">
                 {p === 'friends'
@@ -215,6 +215,7 @@ export default function Platform({ lang: initialLang, onLogout }) {
         {page === 'friends' && <FriendsPage lang={lang} t={t} mode={mode} onMessage={() => navigateTo('messages')} />}
         {page === 'messages' && <MessagesPage lang={lang} t={t} currentUser={currentUser} mode={mode} openConvId={openConvId} onConvOpened={() => setOpenConvId(null)} />}
         {page === 'events' && <EventsPage lang={lang} t={t} currentUser={currentUser} mode={mode} />}
+        {page === 'marketplace' && <MarketplacePage lang={lang} t={t} currentUser={currentUser} onContactSeller={(sellerId) => { setOpenConvId(sellerId); navigateTo('messages') }} />}
         {page === 'jobs' && <JobsPage lang={lang} t={t} currentUser={currentUser} mode={mode} />}
         {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} />}
         {page === 'privacy' && <PrivacySection lang={lang} onLogout={onLogout} />}
@@ -2110,8 +2111,17 @@ function FriendsPage({ lang, t, mode, onMessage }) {
   const searchTimerRef = useRef(null)
 
   const refreshAll = useCallback(() => {
-    apiFetchFriends().then(data => { if (data) setFriends(data) })
-    apiFetchFriendRequests().then(data => { if (data) setRequests(data) })
+    apiFetchFriends().then(data => {
+      if (data) setFriends(data)
+    })
+    apiFetchFriendRequests().then(data => {
+      if (data) {
+        setRequests(data)
+      } else {
+        // Demo fallback: mirrors the mock notification for Liam Madsen
+        setRequests({ incoming: [{ id: 'mock-req-1', from_id: 'mock-liam', from_name: 'Liam Madsen' }], outgoing: [] })
+      }
+    })
   }, [])
 
   useEffect(() => {
@@ -2289,7 +2299,7 @@ function FriendsPage({ lang, t, mode, onMessage }) {
               {mode === 'business' ? t.allConnections : t.allFriends} ({friends.length})
             </button>
             <button className={`p-filter-tab${filter === 'online' ? ' active' : ''}`} onClick={() => setFilter('online')}>
-              {t.onlineFriends} ({friends.filter(f => f.online).length})
+              <span className="p-filter-online-dot" /> {t.onlineFriends} ({friends.filter(f => f.online).length})
             </button>
           </div>
         )}
@@ -4211,6 +4221,431 @@ function CreateJobModal({ t, lang, companies, onClose, onCreate }) {
           <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
             <button type="button" onClick={onClose} style={{ flex: 1, padding: 10, borderRadius: 8, border: '1px solid #ddd', background: '#fff', cursor: 'pointer', fontSize: 14 }}>{t.eventCancel}</button>
             <button type="submit" style={{ flex: 2, padding: 10, borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>{t.jobPost}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ── Marketplace ──
+const MARKETPLACE_CATEGORIES = [
+  { key: 'electronics', icon: '🖥️', labelKey: 'marketplaceCatElectronics' },
+  { key: 'furniture',   icon: '🪑', labelKey: 'marketplaceCatFurniture' },
+  { key: 'clothing',    icon: '👕', labelKey: 'marketplaceCatClothing' },
+  { key: 'sports',      icon: '⚽', labelKey: 'marketplaceCatSports' },
+  { key: 'books',       icon: '📚', labelKey: 'marketplaceCatBooks' },
+  { key: 'garden',      icon: '🌱', labelKey: 'marketplaceCatGarden' },
+  { key: 'vehicles',    icon: '🚗', labelKey: 'marketplaceCatVehicles' },
+  { key: 'other',       icon: '📦', labelKey: 'marketplaceCatOther' },
+]
+
+const MOCK_LISTINGS = [
+  { id: 1, title: { da: 'iPhone 13 Pro — næsten ny', en: 'iPhone 13 Pro — nearly new' }, price: 3200, priceNegotiable: false, description: { da: 'Sælger min iPhone 13 Pro 256GB. Ingen ridser, altid haft cover og skærmbeskytter. Original æske medfølger.', en: 'Selling my iPhone 13 Pro 256GB. No scratches, always had a case and screen protector. Original box included.' }, category: 'electronics', location: 'Frederiksberg', photos: [], seller: 'Magnus Jensen', sellerId: 'mock-magnus', postedAt: '2026-02-18', sold: false },
+  { id: 2, title: { da: 'IKEA KALLAX hylde 2×4 — hvid', en: 'IKEA KALLAX shelf unit 2×4 — white' }, price: 450, priceNegotiable: true, description: { da: 'Velholdt KALLAX hylde med 8 rum. Afhentes i Valby.', en: 'Well-kept KALLAX shelf with 8 compartments. Pick-up in Valby.' }, category: 'furniture', location: 'Valby, København', photos: [], seller: 'Clara Johansen', sellerId: 'mock-clara', postedAt: '2026-02-17', sold: false },
+  { id: 3, title: { da: 'Vintage vinterjjakke — str. M', en: 'Vintage winter jacket — size M' }, price: 280, priceNegotiable: true, description: { da: 'Fed vintage jakke fra 90erne. Str. M, svarer til 38–40.', en: 'Cool vintage jacket from the 90s. Size M, fits 38–40.' }, category: 'clothing', location: 'Nørrebro, København', photos: [], seller: 'Astrid Poulsen', sellerId: 'mock-astrid', postedAt: '2026-02-15', sold: false },
+  { id: 4, title: { da: 'Trek MTB cykel — 26 tommer', en: 'Trek MTB bicycle — 26 inch' }, price: 1800, priceNegotiable: false, description: { da: 'Trek Marlin 5, 2020-model. Ny kæde og bremser i 2025. Sælges pga. opgradering.', en: 'Trek Marlin 5, 2020 model. New chain and brakes in 2025. Selling due to upgrade.' }, category: 'sports', location: 'Aarhus C', photos: [], seller: 'Emil Larsen', sellerId: 'mock-emil', postedAt: '2026-02-14', sold: false },
+  { id: 5, title: { da: 'Harry Potter — komplet boksæt (DA)', en: 'Harry Potter — complete box set (DK edition)' }, price: 150, priceNegotiable: false, description: { da: 'Alle 7 bøger på dansk i original boks. Lidt slidte, men komplette.', en: 'All 7 books in Danish in original box. Slightly worn but complete.' }, category: 'books', location: 'Odense', photos: [], seller: 'Alma Hansen', sellerId: 'mock-alma', postedAt: '2026-02-13', sold: true },
+  { id: 6, title: { da: 'Weber kuglegrill — 57 cm', en: 'Weber kettle grill — 57 cm' }, price: 600, priceNegotiable: true, description: { da: 'Weber One-Touch 57 cm. Brugt 2 sæsoner, ellers i perfekt stand.', en: 'Weber One-Touch 57cm. Used 2 seasons, otherwise in perfect condition.' }, category: 'garden', location: 'Hellerup', photos: [], seller: 'Liam Madsen', sellerId: 'mock-liam', postedAt: '2026-02-12', sold: false },
+]
+
+function MarketplacePage({ lang, t, currentUser, onContactSeller }) {
+  const [tab, setTab] = useState('browse')
+  const [listings, setListings] = useState(MOCK_LISTINGS)
+  const [myListings, setMyListings] = useState([])
+  const [filters, setFilters] = useState({ category: '', location: '', q: '' })
+  const [selectedListing, setSelectedListing] = useState(null)
+  const [showForm, setShowForm] = useState(false)
+  const [editListing, setEditListing] = useState(null)
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null)
+
+  const catIcon = (key) => MARKETPLACE_CATEGORIES.find(c => c.key === key)?.icon || '📦'
+  const catLabel = (key) => { const f = MARKETPLACE_CATEGORIES.find(c => c.key === key); return f ? `${f.icon} ${t[f.labelKey] || key}` : key }
+  const listingTitle = (l) => typeof l.title === 'string' ? l.title : (l.title?.[lang] || l.title?.da || '')
+  const listingDesc  = (l) => typeof l.description === 'string' ? l.description : (l.description?.[lang] || l.description?.da || '')
+
+  useEffect(() => {
+    apiFetchListings(filters).then(data => { if (data?.listings || Array.isArray(data)) setListings(data?.listings || data) })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (tab !== 'mine') return
+    apiFetchMyListings().then(data => { if (data?.listings || Array.isArray(data)) setMyListings(data?.listings || data) })
+  }, [tab])
+
+  const filtered = listings.filter(l => {
+    if (filters.category && l.category !== filters.category) return false
+    if (filters.location && !l.location.toLowerCase().includes(filters.location.toLowerCase())) return false
+    if (filters.q) {
+      const q = filters.q.toLowerCase()
+      if (!listingTitle(l).toLowerCase().includes(q) && !listingDesc(l).toLowerCase().includes(q)) return false
+    }
+    return true
+  })
+
+  const handleCreate = async (formData, localListing) => {
+    const result = await apiCreateListing(formData)
+    const newL = result?.id ? result : { ...localListing, id: Date.now(), seller: currentUser.name, sellerId: currentUser.id, postedAt: new Date().toISOString().slice(0, 10), sold: false }
+    setListings(prev => [newL, ...prev])
+    setMyListings(prev => [newL, ...prev])
+    setShowForm(false)
+  }
+
+  const handleUpdate = async (id, formData, localListing) => {
+    const result = await apiUpdateListing(id, localListing)
+    const updated = result || localListing
+    setListings(prev => prev.map(l => l.id === id ? { ...l, ...updated } : l))
+    setMyListings(prev => prev.map(l => l.id === id ? { ...l, ...updated } : l))
+    setShowForm(false)
+    setEditListing(null)
+  }
+
+  const handleMarkSold = async (id) => {
+    await apiMarkListingSold(id)
+    setListings(prev => prev.map(l => l.id === id ? { ...l, sold: true } : l))
+    setMyListings(prev => prev.map(l => l.id === id ? { ...l, sold: true } : l))
+  }
+
+  const handleDelete = async (id) => {
+    await apiDeleteListing(id)
+    setListings(prev => prev.filter(l => l.id !== id))
+    setMyListings(prev => prev.filter(l => l.id !== id))
+    setDeleteConfirmId(null)
+  }
+
+  const displayListings = tab === 'mine' ? myListings : filtered
+
+  return (
+    <div className="p-marketplace">
+      <div className="p-marketplace-header">
+        <h2 className="p-section-title" style={{ margin: 0 }}>{t.marketplaceTitle}</h2>
+        <button className="p-marketplace-create-btn" onClick={() => { setEditListing(null); setShowForm(true) }}>
+          {t.marketplaceCreateBtn}
+        </button>
+      </div>
+
+      <div className="p-filter-tabs" style={{ marginBottom: 16 }}>
+        <button className={`p-filter-tab${tab === 'browse' ? ' active' : ''}`} onClick={() => setTab('browse')}>
+          🔍 {t.marketplaceBrowse}
+        </button>
+        <button className={`p-filter-tab${tab === 'mine' ? ' active' : ''}`} onClick={() => setTab('mine')}>
+          📋 {t.marketplaceMyListings}
+        </button>
+      </div>
+
+      {tab === 'browse' && (
+        <div className="p-marketplace-filters">
+          <input
+            className="p-search-input p-marketplace-search"
+            placeholder={t.marketplaceSearchPlaceholder}
+            value={filters.q}
+            onChange={e => setFilters(f => ({ ...f, q: e.target.value }))}
+          />
+          <select
+            className="p-marketplace-select"
+            value={filters.category}
+            onChange={e => setFilters(f => ({ ...f, category: e.target.value }))}
+          >
+            <option value="">{t.marketplaceFilterAll}</option>
+            {MARKETPLACE_CATEGORIES.map(c => (
+              <option key={c.key} value={c.key}>{c.icon} {t[c.labelKey]}</option>
+            ))}
+          </select>
+          <input
+            className="p-marketplace-location-input"
+            placeholder={lang === 'da' ? 'By eller område...' : 'City or area...'}
+            value={filters.location}
+            onChange={e => setFilters(f => ({ ...f, location: e.target.value }))}
+          />
+        </div>
+      )}
+
+      {tab === 'mine' && myListings.length === 0 ? (
+        <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>
+          <div style={{ fontSize: 36, marginBottom: 12 }}>🛍️</div>
+          <div style={{ marginBottom: 16 }}>{t.marketplaceNoMyListings}</div>
+          <button className="p-marketplace-create-btn" onClick={() => { setEditListing(null); setShowForm(true) }}>
+            {t.marketplaceCreateFirst}
+          </button>
+        </div>
+      ) : displayListings.length === 0 ? (
+        <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>
+          🔍 {t.marketplaceNoListings}
+        </div>
+      ) : (
+        <div className="p-marketplace-grid">
+          {displayListings.map(listing => (
+            <div
+              key={listing.id}
+              className={`p-card p-listing-card${listing.sold ? ' p-listing-sold' : ''}`}
+              onClick={() => setSelectedListing(listing)}
+            >
+              <div className="p-listing-photo-wrap">
+                {listing.photos?.length > 0 ? (
+                  <img
+                    className="p-listing-photo"
+                    src={listing.photos[0].url || listing.photos[0]}
+                    alt=""
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="p-listing-photo-placeholder">{catIcon(listing.category)}</div>
+                )}
+                {listing.sold && <div className="p-listing-sold-badge">{t.marketplaceSold}</div>}
+              </div>
+              <div className="p-listing-body">
+                <div className="p-listing-price">
+                  {listing.priceNegotiable
+                    ? t.marketplacePriceNegotiable
+                    : `${listing.price.toLocaleString()} ${lang === 'da' ? 'kr.' : 'DKK'}`}
+                </div>
+                <div className="p-listing-title">{listingTitle(listing)}</div>
+                <div className="p-listing-meta">
+                  <span>{catLabel(listing.category)}</span>
+                  <span>📍 {listing.location}</span>
+                </div>
+                {tab === 'mine' && (
+                  <div className="p-listing-actions" onClick={e => e.stopPropagation()}>
+                    {!listing.sold && (
+                      <button className="p-listing-action-btn" onClick={() => handleMarkSold(listing.id)}>
+                        ✓ {t.marketplaceMarkSold}
+                      </button>
+                    )}
+                    <button className="p-listing-action-btn" onClick={() => { setEditListing(listing); setShowForm(true) }}>
+                      ✏️ {t.marketplaceEdit}
+                    </button>
+                    <button className="p-listing-action-btn danger" onClick={() => setDeleteConfirmId(listing.id)}>
+                      🗑 {t.marketplaceDelete}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {deleteConfirmId && (
+        <div className="modal-backdrop" onClick={() => setDeleteConfirmId(null)}>
+          <div className="p-msg-modal" style={{ maxWidth: 360 }} onClick={e => e.stopPropagation()}>
+            <div className="p-msg-modal-header">
+              <span>{t.marketplaceDelete}</span>
+              <button className="p-msg-modal-close" onClick={() => setDeleteConfirmId(null)}>✕</button>
+            </div>
+            <div style={{ padding: '16px 20px 20px' }}>
+              <p style={{ margin: '0 0 16px', fontSize: 14, color: '#555' }}>{t.marketplaceDeleteConfirm}</p>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="p-msg-modal-btn secondary" onClick={() => setDeleteConfirmId(null)}>{t.marketplaceCancel}</button>
+                <button className="p-msg-modal-btn primary" style={{ background: '#C0392B' }} onClick={() => handleDelete(deleteConfirmId)}>
+                  {t.marketplaceDelete}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedListing && (
+        <ListingDetailModal
+          listing={selectedListing}
+          t={t}
+          lang={lang}
+          currentUser={currentUser}
+          catLabel={catLabel}
+          catIcon={catIcon}
+          listingTitle={listingTitle}
+          listingDesc={listingDesc}
+          onClose={() => setSelectedListing(null)}
+          onContactSeller={onContactSeller}
+        />
+      )}
+
+      {showForm && (
+        <ListingFormModal
+          t={t}
+          lang={lang}
+          listing={editListing}
+          listingTitle={listingTitle}
+          listingDesc={listingDesc}
+          onClose={() => { setShowForm(false); setEditListing(null) }}
+          onSubmit={editListing ? handleUpdate : handleCreate}
+        />
+      )}
+    </div>
+  )
+}
+
+function ListingDetailModal({ listing, t, lang, currentUser, catLabel, catIcon, listingTitle, listingDesc, onClose, onContactSeller }) {
+  useEffect(() => {
+    const handler = (e) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [onClose])
+
+  const isOwn = listing.seller === currentUser?.name || listing.sellerId === currentUser?.id
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="p-listing-detail-modal" onClick={e => e.stopPropagation()}>
+        <button className="p-listing-detail-close" onClick={onClose}>✕</button>
+        {listing.photos?.length > 0 ? (
+          <div className={`p-post-media p-post-media-${Math.min(listing.photos.length, 4)} p-listing-detail-photos`}>
+            {listing.photos.slice(0, 4).map((p, i) => (
+              <img key={i} className="p-media-item" src={p.url || p} alt="" loading="lazy" />
+            ))}
+          </div>
+        ) : (
+          <div className="p-listing-detail-no-photo">
+            <span style={{ fontSize: 56 }}>{catIcon(listing.category)}</span>
+          </div>
+        )}
+        <div className="p-listing-detail-body">
+          {listing.sold && <div className="p-listing-sold-badge p-listing-sold-badge-lg">{t.marketplaceSold}</div>}
+          <div className="p-listing-detail-price">
+            {listing.priceNegotiable
+              ? t.marketplacePriceNegotiable
+              : `${listing.price.toLocaleString()} ${lang === 'da' ? 'kr.' : 'DKK'}`}
+          </div>
+          <h2 className="p-listing-detail-title">{listingTitle(listing)}</h2>
+          <div className="p-listing-detail-meta">
+            <span>{catLabel(listing.category)}</span>
+            <span>📍 {listing.location}</span>
+            <span>👤 {listing.seller}</span>
+            {listing.postedAt && <span>📅 {listing.postedAt}</span>}
+          </div>
+          {listingDesc(listing) && <p className="p-listing-detail-desc">{listingDesc(listing)}</p>}
+          {!isOwn && !listing.sold && (
+            <button
+              className="p-marketplace-create-btn"
+              style={{ width: '100%', marginTop: 8, justifyContent: 'center' }}
+              onClick={() => { onContactSeller(listing.sellerId); onClose() }}
+            >
+              💬 {t.marketplaceContactSeller}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, onClose, onSubmit }) {
+  const isEdit = !!listing
+  const [title, setTitle]           = useState(isEdit ? listingTitle(listing) : '')
+  const [price, setPrice]           = useState(isEdit ? (listing.price || '') : '')
+  const [negotiable, setNegotiable] = useState(isEdit ? !!listing.priceNegotiable : false)
+  const [category, setCategory]     = useState(isEdit ? (listing.category || '') : '')
+  const [location, setLocation]     = useState(isEdit ? (listing.location || '') : '')
+  const [description, setDescription] = useState(isEdit ? listingDesc(listing) : '')
+  const [photoFiles, setPhotoFiles] = useState([])
+  const [photoPreviews, setPhotoPreviews] = useState(
+    isEdit ? (listing.photos || []).map(p => p.url || p) : []
+  )
+  const fileInputRef = useRef(null)
+
+  const handlePhotos = (e) => {
+    const files = Array.from(e.target.files).slice(0, 4 - photoPreviews.length)
+    if (!files.length) return
+    setPhotoFiles(prev => [...prev, ...files].slice(0, 4))
+    setPhotoPreviews(prev => [...prev, ...files.map(f => URL.createObjectURL(f))].slice(0, 4))
+  }
+
+  const removePhoto = (i) => {
+    setPhotoPreviews(prev => prev.filter((_, idx) => idx !== i))
+    setPhotoFiles(prev => prev.filter((_, idx) => idx !== i))
+  }
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    if (!title.trim() || (!negotiable && !price) || !category || !location.trim()) return
+    const localListing = {
+      title: { da: title, en: title },
+      price: negotiable ? 0 : Number(price),
+      priceNegotiable: negotiable,
+      category,
+      location,
+      description: { da: description, en: description },
+      photos: photoPreviews.map(url => ({ url })),
+    }
+    const formData = new FormData()
+    formData.append('title', title)
+    formData.append('price', negotiable ? 0 : price)
+    formData.append('priceNegotiable', negotiable)
+    formData.append('category', category)
+    formData.append('location', location)
+    formData.append('description', description)
+    photoFiles.forEach(f => formData.append('photos', f))
+    isEdit ? onSubmit(listing.id, formData, localListing) : onSubmit(formData, localListing)
+  }
+
+  const fS = { width: '100%', padding: '8px 10px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 12 }
+  const lS = { fontSize: 13, fontWeight: 600, color: '#555', marginBottom: 4, display: 'block' }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="p-listing-form-modal" onClick={e => e.stopPropagation()}>
+        <div className="p-msg-modal-header">
+          <span>{isEdit ? t.marketplaceEditTitle : t.marketplaceFormTitle}</span>
+          <button className="p-msg-modal-close" onClick={onClose}>✕</button>
+        </div>
+        <form onSubmit={handleSubmit} style={{ padding: '16px 20px 20px', overflowY: 'auto', maxHeight: 'calc(90vh - 60px)' }}>
+          <label style={lS}>{t.marketplaceFieldTitle}</label>
+          <input style={fS} value={title} onChange={e => setTitle(e.target.value)} placeholder={lang === 'da' ? 'Hvad sælger du?' : 'What are you selling?'} required />
+
+          <label style={lS}>{t.marketplaceFieldCategory}</label>
+          <select style={fS} value={category} onChange={e => setCategory(e.target.value)} required>
+            <option value="">{lang === 'da' ? 'Vælg kategori...' : 'Choose category...'}</option>
+            {MARKETPLACE_CATEGORIES.map(c => (
+              <option key={c.key} value={c.key}>{c.icon} {t[c.labelKey]}</option>
+            ))}
+          </select>
+
+          <label style={lS}>{t.marketplaceFieldPrice}</label>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 12 }}>
+            <input
+              style={{ ...fS, marginBottom: 0, flex: 1 }}
+              type="number"
+              min="0"
+              value={price}
+              onChange={e => setPrice(e.target.value)}
+              placeholder={lang === 'da' ? 'f.eks. 500' : 'e.g. 500'}
+              disabled={negotiable}
+              required={!negotiable}
+            />
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, whiteSpace: 'nowrap', cursor: 'pointer', flexShrink: 0 }}>
+              <input type="checkbox" checked={negotiable} onChange={e => setNegotiable(e.target.checked)} />
+              {t.marketplaceFieldNegotiable}
+            </label>
+          </div>
+
+          <label style={lS}>{t.marketplaceFieldLocation}</label>
+          <input style={fS} value={location} onChange={e => setLocation(e.target.value)} placeholder={lang === 'da' ? 'f.eks. Nørrebro, København' : 'e.g. Nørrebro, Copenhagen'} required />
+
+          <label style={lS}>{t.marketplaceFieldDescription}</label>
+          <textarea style={{ ...fS, minHeight: 80, resize: 'vertical' }} value={description} onChange={e => setDescription(e.target.value)} placeholder={lang === 'da' ? 'Beskriv varen...' : 'Describe the item...'} />
+
+          <label style={lS}>{t.marketplaceFieldPhotos}</label>
+          <div className="p-listing-photo-upload-row">
+            {photoPreviews.map((src, i) => (
+              <div key={i} className="p-listing-upload-thumb">
+                <img src={src} alt="" />
+                <button type="button" className="p-listing-upload-remove" onClick={() => removePhoto(i)}>✕</button>
+              </div>
+            ))}
+            {photoPreviews.length < 4 && (
+              <button type="button" className="p-listing-upload-add" onClick={() => fileInputRef.current?.click()}>
+                <span>📷</span>
+                <span>{lang === 'da' ? 'Tilføj foto' : 'Add photo'}</span>
+              </button>
+            )}
+          </div>
+          <input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handlePhotos} />
+
+          <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+            <button type="button" onClick={onClose} style={{ flex: 1, padding: 10, borderRadius: 8, border: '1px solid #ddd', background: '#fff', cursor: 'pointer', fontSize: 14 }}>{t.marketplaceCancel}</button>
+            <button type="submit" style={{ flex: 2, padding: 10, borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>
+              {isEdit ? t.marketplaceSaveEdit : t.marketplacePublish}
+            </button>
           </div>
         </form>
       </div>
