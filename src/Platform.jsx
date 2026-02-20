@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { PT, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -2125,6 +2125,9 @@ function FriendsPage({ lang, t, mode, onMessage }) {
   const [unfriendTarget, setUnfriendTarget] = useState(null) // { id, name }
   const [viewProfileId, setViewProfileId] = useState(null)
   const [invites, setInvites] = useState(null) // null = not yet loaded
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteEmailSending, setInviteEmailSending] = useState(false)
+  const [inviteEmailSentOk, setInviteEmailSentOk] = useState(false)
   const searchTimerRef = useRef(null)
 
   const refreshAll = useCallback(() => {
@@ -2204,6 +2207,26 @@ function FriendsPage({ lang, t, mode, onMessage }) {
     const shareUrl = encodeURIComponent(inviteLink || 'https://fellis.eu')
     window.open(`https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`, 'facebook-share', 'width=580,height=400')
   }, [inviteLink])
+
+  const handleSendEmailInvite = useCallback(async (e) => {
+    e.preventDefault()
+    if (!inviteEmail.trim()) return
+    setInviteEmailSending(true)
+    await apiSendInvites([inviteEmail.trim()]).catch(() => {})
+    // Optimistically add to outgoing list
+    setInvites(prev => {
+      const list = prev || []
+      return [{ id: `local-${Date.now()}`, email: inviteEmail.trim(), sentAt: new Date().toISOString(), status: 'pending' }, ...list]
+    })
+    setInviteEmail('')
+    setInviteEmailSending(false)
+    setInviteEmailSentOk(true)
+    setTimeout(() => setInviteEmailSentOk(false), 3000)
+  }, [inviteEmail])
+
+  const handleCancelInvite = useCallback((invId) => {
+    setInvites(prev => (prev || []).filter(inv => inv.id !== invId))
+  }, [])
 
   // Load invites lazily when the tab is first opened
   useEffect(() => {
@@ -2295,8 +2318,8 @@ function FriendsPage({ lang, t, mode, onMessage }) {
         </button>
       </div>
 
-      {/* Incoming connection requests */}
-      {requests.incoming.length > 0 && (
+      {/* Incoming connection requests (only on non-invites tabs; shown inside Invitations tab too) */}
+      {filter !== 'invites' && requests.incoming.length > 0 && (
         <div className="p-card p-friend-requests-card">
           <h3 className="p-section-title" style={{ margin: '0 0 12px' }}>
             {t.incomingRequests} ({requests.incoming.length})
@@ -2399,32 +2422,101 @@ function FriendsPage({ lang, t, mode, onMessage }) {
           )}
         </div>
       ) : filter === 'invites' ? (
-        <div className="p-card p-invites-list">
-          {invites === null ? (
-            <div style={{ textAlign: 'center', padding: '24px', color: '#888' }}>...</div>
-          ) : invites.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '24px', color: '#888' }}>
-              <div style={{ fontSize: 28, marginBottom: 8 }}>✉️</div>
-              {t.invitesNoSent}
-            </div>
-          ) : (
-            invites.map((inv, i) => (
-              <div key={inv.id || i} className="p-invite-row">
-                <div className="p-avatar-sm" style={{ background: nameToColor(inv.name || inv.email || '?') }}>
-                  {getInitials(inv.name || inv.email || '?')}
-                </div>
-                <div className="p-invite-row-info">
-                  <div className="p-invite-row-name">{inv.name || inv.email}</div>
-                  {inv.sentAt && (
-                    <div className="p-invite-row-meta">{t.invitesSentLabel}: {new Date(inv.sentAt).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
-                  )}
-                </div>
-                <span className={`p-invite-status-badge${inv.status === 'joined' ? ' joined' : ''}`}>
-                  {inv.status === 'joined' ? t.invitesJoined : t.invitesPending}
-                </span>
+        <div className="p-invites-page">
+
+          {/* ── Incoming connection requests ── */}
+          <div className="p-card p-invites-section">
+            <h3 className="p-invites-section-title">{t.invitesIncomingTitle}</h3>
+            {requests.incoming.length === 0 ? (
+              <div className="p-invites-empty">{t.invitesIncomingEmpty}</div>
+            ) : (
+              <div className="p-invites-list">
+                {requests.incoming.map(req => (
+                  <div key={req.id} className="p-invite-row">
+                    <div className="p-avatar-sm" style={{ background: nameToColor(req.from_name) }}>
+                      {getInitials(req.from_name)}
+                    </div>
+                    <div className="p-invite-row-info">
+                      <div className="p-invite-row-name">{req.from_name}</div>
+                      <div className="p-invite-row-meta">{lang === 'da' ? 'Vil gerne forbindes med dig' : 'Wants to connect with you'}</div>
+                    </div>
+                    <div className="p-invite-row-actions">
+                      <button className="p-freq-accept-btn" onClick={() => handleAccept(req.id)}>{t.acceptRequest}</button>
+                      <button className="p-freq-decline-btn" onClick={() => handleDecline(req.id)}>{t.declineRequest}</button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))
-          )}
+            )}
+          </div>
+
+          {/* ── Send new invitation by email ── */}
+          <div className="p-card p-invites-section">
+            <h3 className="p-invites-section-title">{t.invitesSendTitle}</h3>
+            <form className="p-invite-email-form" onSubmit={handleSendEmailInvite}>
+              <input
+                className="p-invite-email-input"
+                type="email"
+                placeholder={t.invitesSendPlaceholder}
+                value={inviteEmail}
+                onChange={e => { setInviteEmail(e.target.value); setInviteEmailSentOk(false) }}
+                disabled={inviteEmailSending}
+                required
+              />
+              <button className="p-invite-email-btn" type="submit" disabled={inviteEmailSending || !inviteEmail.trim()}>
+                {inviteEmailSending ? t.invitesSending : t.invitesSendBtn}
+              </button>
+            </form>
+            {inviteEmailSentOk && <div className="p-invite-sent-ok">✓ {t.invitesSentOk}</div>}
+            <div className="p-invite-link-section">
+              <div className="p-invite-link-label">{lang === 'da' ? 'Eller del dit personlige invitationslink:' : 'Or share your personal invite link:'}</div>
+              <div className="p-invite-link-row">
+                <input
+                  className="p-invite-link-input"
+                  value={inviteLink || 'https://fellis.eu/?invite=...'}
+                  readOnly
+                  onClick={e => e.target.select()}
+                />
+                <button className="p-invite-copy-btn" onClick={handleCopyInvite}>
+                  {inviteCopied ? (lang === 'da' ? 'Kopieret!' : 'Copied!') : (lang === 'da' ? 'Kopier' : 'Copy')}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Outgoing invitations ── */}
+          <div className="p-card p-invites-section">
+            <h3 className="p-invites-section-title">{t.invitesSentTitle}</h3>
+            {invites === null ? (
+              <div className="p-invites-empty">…</div>
+            ) : invites.length === 0 ? (
+              <div className="p-invites-empty">✉️ {t.invitesNoSent}</div>
+            ) : (
+              <div className="p-invites-list">
+                {invites.map((inv, i) => (
+                  <div key={inv.id || i} className="p-invite-row">
+                    <div className="p-avatar-sm" style={{ background: nameToColor(inv.name || inv.email || '?') }}>
+                      {getInitials(inv.name || inv.email || '?')}
+                    </div>
+                    <div className="p-invite-row-info">
+                      <div className="p-invite-row-name">{inv.name || inv.email}</div>
+                      {inv.sentAt && (
+                        <div className="p-invite-row-meta">{t.invitesSentLabel}: {new Date(inv.sentAt).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+                      )}
+                    </div>
+                    <div className="p-invite-row-actions">
+                      <span className={`p-invite-status-badge${inv.status === 'joined' ? ' joined' : ''}`}>
+                        {inv.status === 'joined' ? t.invitesJoined : t.invitesPending}
+                      </span>
+                      {inv.status !== 'joined' && (
+                        <button className="p-invite-cancel-btn" onClick={() => handleCancelInvite(inv.id || i)} title={t.invitesCancelBtn}>✕</button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       ) : (
         <div className="p-friends-grid">

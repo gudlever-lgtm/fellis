@@ -3681,6 +3681,79 @@
 }
 .p-invite-status-badge.joined { background: #F0FAF4; color: #2D6A4F; }
 
+/* ── Invites page redesign ── */
+.p-invites-page { display: flex; flex-direction: column; gap: 14px; }
+.p-invites-section { }
+.p-invites-section-title {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #111;
+}
+.p-invites-empty {
+  color: #A09890;
+  font-size: 13px;
+  padding: 6px 0 4px;
+}
+.p-invite-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.p-invite-cancel-btn {
+  background: none;
+  border: 1px solid #ddd;
+  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  font-size: 11px;
+  color: #aaa;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+.p-invite-cancel-btn:hover { border-color: #E53935; color: #E53935; background: #FFF5F5; }
+/* Email invite form */
+.p-invite-email-form {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.p-invite-email-input {
+  flex: 1;
+  border: 1px solid #E0DDD8;
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 14px;
+  outline: none;
+  background: #FAFAF9;
+}
+.p-invite-email-input:focus { border-color: #1877F2; background: #fff; }
+.p-invite-email-btn {
+  background: #1877F2;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.p-invite-email-btn:disabled { opacity: 0.55; cursor: default; }
+.p-invite-email-btn:not(:disabled):hover { background: #1464d0; }
+.p-invite-sent-ok {
+  color: #2D6A4F;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.p-invite-link-section { margin-top: 12px; }
+.p-invite-link-label { font-size: 12px; color: #888; margin-bottom: 6px; }
+
 /* ── Online filter dot (Friends page) ── */
 .p-filter-online-dot {
   display: inline-block;
