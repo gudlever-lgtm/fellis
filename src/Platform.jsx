@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { PT, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiGetAdminSettings, apiSaveAdminSettings } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -30,9 +30,16 @@ export default function Platform({ lang: initialLang, onLogout }) {
   const [showAvatarMenu, setShowAvatarMenu] = useState(false)
   const [openConvId, setOpenConvId] = useState(null)
   const [highlightPostId, setHighlightPostId] = useState(null)
-  const [mode, setMode] = useState(() => localStorage.getItem('fellis_mode') || 'common')
+  const [mode, setMode] = useState(() => {
+    const stored = localStorage.getItem('fellis_mode') || 'privat'
+    if (stored === 'common') { localStorage.setItem('fellis_mode', 'privat'); return 'privat' }
+    return stored
+  })
   const [showNotifPanel, setShowNotifPanel] = useState(false)
-  const [notifs, setNotifs] = useState(() => makeMockNotifs(localStorage.getItem('fellis_mode') || 'common'))
+  const [notifs, setNotifs] = useState(() => {
+    const stored = localStorage.getItem('fellis_mode') || 'privat'
+    return makeMockNotifs(stored === 'common' ? 'privat' : stored)
+  })
   const [showModeModal, setShowModeModal] = useState(false)
   const [plan, setPlan] = useState(null) // null = free, 'business_pro' = paid
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
@@ -43,6 +50,15 @@ export default function Platform({ lang: initialLang, onLogout }) {
   const unreadCount = notifs.filter(n => !n.read).length
 
   const switchMode = (newMode) => {
+    // 'business_pro' is a UI-only tier key: mode=business + plan=business_pro
+    if (newMode === 'business_pro') {
+      if (plan !== 'business_pro') {
+        setShowModeModal(false)
+        setShowUpgradeModal(true)
+        return
+      }
+      newMode = 'business' // already pro, just ensure mode is business
+    }
     setMode(newMode)
     localStorage.setItem('fellis_mode', newMode)
     setNotifs(makeMockNotifs(newMode))
@@ -114,19 +130,20 @@ export default function Platform({ lang: initialLang, onLogout }) {
           </div>
         </div>
         <div className="p-nav-tabs">
-          {['feed', 'friends', 'messages', 'events', 'marketplace', ...(mode === 'business' ? ['jobs', 'analytics'] : [])].map(p => (
+          {['feed', 'friends', 'messages', 'events', 'marketplace', ...(mode === 'business' ? ['jobs', 'analytics'] : []), ...(currentUser.is_admin ? ['admin'] : [])].map(p => (
             <button
               key={p}
               className={`p-nav-tab${page === p ? ' active' : ''}`}
               onClick={() => navigateTo(p)}
             >
               <span className="p-nav-tab-icon">
-                {p === 'feed' ? '🏠' : p === 'friends' ? '👥' : p === 'messages' ? '💬' : p === 'events' ? '📅' : p === 'marketplace' ? '🛍️' : p === 'analytics' ? '📊' : '💼'}
+                {p === 'feed' ? '🏠' : p === 'friends' ? '👥' : p === 'messages' ? '💬' : p === 'events' ? '📅' : p === 'marketplace' ? '🛍️' : p === 'analytics' ? '📊' : p === 'admin' ? '⚙️' : '💼'}
               </span>
               <span className="p-nav-tab-label">
                 {p === 'friends'
                   ? (mode === 'business' ? t.connectionsLabel : t.friends)
                   : p === 'analytics' ? t.analyticsNav
+                  : p === 'admin' ? t.adminTitle
                   : (t[p] || p)}
               </span>
             </button>
@@ -180,7 +197,7 @@ export default function Platform({ lang: initialLang, onLogout }) {
                   <strong>{currentUser.name}</strong>
                   <span style={{ fontSize: 12, color: '#888' }}>{currentUser.handle}</span>
                   <span style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>
-                    {mode === 'business' ? t.modeBusinessTag : t.modeCommonTag}
+                    {mode === 'privat' ? t.modeCommonTag : plan === 'business_pro' ? t.modeBusinessProTag : t.modeBusinessTag}
                   </span>
                 </div>
                 <div className="avatar-dropdown-divider" />
@@ -191,7 +208,7 @@ export default function Platform({ lang: initialLang, onLogout }) {
                   <span>✏️</span> {menuT.editProfile}
                 </button>
                 <button className="avatar-dropdown-item" onClick={() => { setShowAvatarMenu(false); setShowModeModal(true) }}>
-                  <span>{mode === 'business' ? '💼' : '🏠'}</span> {t.modeSwitch}
+                  <span>{mode === 'business' ? (plan === 'business_pro' ? '🚀' : '💼') : '🏠'}</span> {t.modeSwitch}
                 </button>
                 {mode === 'business' && (
                   <button className="avatar-dropdown-item" onClick={() => navigateTo('company')}>
@@ -223,6 +240,7 @@ export default function Platform({ lang: initialLang, onLogout }) {
         {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} />}
         {page === 'analytics' && <AnalyticsPage lang={lang} t={t} currentUser={currentUser} plan={plan} onUpgrade={() => setShowUpgradeModal(true)} />}
         {page === 'privacy' && <PrivacySection lang={lang} onLogout={onLogout} />}
+        {page === 'admin' && currentUser.is_admin && <AdminPage lang={lang} t={t} />}
         {page === 'search' && (
           <SearchPage
             lang={lang}
@@ -239,31 +257,41 @@ export default function Platform({ lang: initialLang, onLogout }) {
       {showUpgradeModal && (
         <UpgradeModal lang={lang} t={t} onUpgrade={() => { setPlan('business_pro'); setShowUpgradeModal(false) }} onClose={() => setShowUpgradeModal(false)} />
       )}
-      {showModeModal && (
-        <div className="modal-backdrop" onClick={() => setShowModeModal(false)}>
-          <div className="mode-modal" onClick={e => e.stopPropagation()}>
-            <h3 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 700 }}>{t.modeTitle}</h3>
-            <p style={{ margin: '0 0 20px', fontSize: 13, color: '#888' }}>{t.modeCurrentLabel}: <strong>{mode === 'business' ? t.modeBusiness : t.modeCommon}</strong></p>
-            <div style={{ display: 'flex', gap: 12 }}>
-              {[
-                { key: 'common', label: t.modeCommon, icon: '🏠', desc: t.modeCommonDesc },
-                { key: 'business', label: t.modeBusiness, icon: '💼', desc: t.modeBusinessDesc },
-              ].map(({ key, label, icon, desc }) => (
-                <button
-                  key={key}
-                  onClick={() => switchMode(key)}
-                  className={`mode-card${mode === key ? ' mode-card-active' : ''}`}
-                >
-                  <span style={{ fontSize: 28 }}>{icon}</span>
-                  <strong style={{ fontSize: 15 }}>{label}</strong>
-                  <span style={{ fontSize: 12, color: '#777', lineHeight: 1.4 }}>{desc}</span>
-                  {mode === key && <span className="mode-card-check">✓</span>}
-                </button>
-              ))}
+      {showModeModal && (() => {
+        const currentTier = mode === 'privat' ? 'privat' : plan === 'business_pro' ? 'business_pro' : 'business'
+        const currentLabel = currentTier === 'privat' ? t.modeCommon : currentTier === 'business_pro' ? t.modeBusinessPro : t.modeBusiness
+        return (
+          <div className="modal-backdrop" onClick={() => setShowModeModal(false)}>
+            <div className="mode-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
+              <h3 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 700 }}>{t.modeTitle}</h3>
+              <p style={{ margin: '0 0 20px', fontSize: 13, color: '#888' }}>{t.modeCurrentLabel}: <strong>{currentLabel}</strong></p>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                {[
+                  { key: 'privat', label: t.modeCommon, icon: '🏠', desc: t.modeCommonDesc, badge: null },
+                  { key: 'business', label: t.modeBusiness, icon: '💼', desc: t.modeBusinessDesc, badge: lang === 'da' ? 'Gratis' : 'Free' },
+                  { key: 'business_pro', label: t.modeBusinessPro, icon: '🚀', desc: t.modeBusinessProDesc, badge: lang === 'da' ? 'Betalt' : 'Paid' },
+                ].map(({ key, label, icon, desc, badge }) => {
+                  const isActive = key === currentTier
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => switchMode(key)}
+                      className={`mode-card${isActive ? ' mode-card-active' : ''}`}
+                      style={{ flex: '1 1 140px', minWidth: 130 }}
+                    >
+                      <span style={{ fontSize: 28 }}>{icon}</span>
+                      <strong style={{ fontSize: 14 }}>{label}</strong>
+                      {badge && <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 10, background: key === 'business_pro' ? '#2D6A4F' : '#e8f5ee', color: key === 'business_pro' ? '#fff' : '#2D6A4F', fontWeight: 700 }}>{badge}</span>}
+                      <span style={{ fontSize: 11, color: '#777', lineHeight: 1.4 }}>{desc}</span>
+                      {isActive && <span className="mode-card-check">✓</span>}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
     </div>
   )
 }
@@ -1339,7 +1367,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
       const posts = data?.posts || data || []
       setUserPosts(posts.filter(p => p.author === currentUser.name))
     })
-    if (mode === 'common') {
+    if (mode === 'privat') {
       apiFetchConversations().then(convs => {
         if (convs) setFamilyGroups(convs.filter(c => c.isFamilyGroup))
       })
@@ -1434,7 +1462,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
       </div>
 
       {/* Family section (common mode) */}
-      {mode === 'common' && (
+      {mode === 'privat' && (
         <div className="p-card p-family-section" style={{ marginBottom: 16 }}>
           <h3 className="p-section-title" style={{ margin: '0 0 4px' }}>🏡 {t.familySection}</h3>
           <p className="p-family-section-desc">{t.familySectionDesc}</p>
@@ -2232,7 +2260,7 @@ function FriendsPage({ lang, t, mode, onMessage }) {
   useEffect(() => {
     if (filter !== 'invites' || invites !== null) return
     const MOCK = [
-      { id: 'mock-inv-1', name: 'Liam Madsen', email: 'liam@fellis.eu', sentAt: '2026-02-18T10:00:00', status: 'pending' },
+      { id: 'mock-inv-1', name: 'Peter Hansen', email: 'peter@example.dk', sentAt: '2026-02-18T10:00:00', status: 'pending' },
       { id: 'mock-inv-2', name: 'Freja Andersen', email: 'freja@fellis.eu', sentAt: '2026-02-15T14:00:00', status: 'joined' },
     ]
     apiGetInvites()
@@ -2592,7 +2620,7 @@ function NewConvModal({ t, lang, mode, friends, existingParticipantIds = [], isG
             onChange={e => setGroupName(e.target.value)}
           />
         )}
-        {isGroupMode && mode === 'common' && (
+        {isGroupMode && mode === 'privat' && (
           <label className={`p-family-group-toggle${isFamilyGroup ? ' active' : ''}`}>
             <input
               type="checkbox"
@@ -3546,7 +3574,7 @@ function EventDetailModal({ event, t, lang, mode, myRsvp, extras, onRsvp, onExtr
         </div>
 
         {/* Common-mode extras */}
-        {myRsvp && myRsvp !== 'notGoing' && mode === 'common' && (
+        {myRsvp && myRsvp !== 'notGoing' && mode === 'privat' && (
           <div style={{ marginTop: 16, padding: 16, background: '#F9F9F9', borderRadius: 10 }}>
             <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>{t.eventDietary}</label>
             <input
@@ -4399,8 +4427,8 @@ const MARKETPLACE_CATEGORIES = [
 ]
 
 const MOCK_LISTINGS = [
-  { id: 1, title: { da: 'iPhone 13 Pro — næsten ny', en: 'iPhone 13 Pro — nearly new' }, price: 3200, priceNegotiable: false, description: { da: 'Sælger min iPhone 13 Pro 256GB. Ingen ridser, altid haft cover og skærmbeskytter. Original æske medfølger.', en: 'Selling my iPhone 13 Pro 256GB. No scratches, always had a case and screen protector. Original box included.' }, category: 'electronics', location: 'Frederiksberg', photos: [], seller: 'Magnus Jensen', sellerId: 'mock-magnus', postedAt: '2026-02-18', sold: false },
-  { id: 2, title: { da: 'IKEA KALLAX hylde 2×4 — hvid', en: 'IKEA KALLAX shelf unit 2×4 — white' }, price: 450, priceNegotiable: true, description: { da: 'Velholdt KALLAX hylde med 8 rum. Afhentes i Valby.', en: 'Well-kept KALLAX shelf with 8 compartments. Pick-up in Valby.' }, category: 'furniture', location: 'Valby, København', photos: [], seller: 'Clara Johansen', sellerId: 'mock-clara', postedAt: '2026-02-17', sold: false },
+  { id: 1, title: { da: 'iPhone 13 Pro — næsten ny', en: 'iPhone 13 Pro — nearly new' }, price: 3200, priceNegotiable: false, description: { da: 'Sælger min iPhone 13 Pro 256GB. Ingen ridser, altid haft cover og skærmbeskytter. Original æske medfølger.', en: 'Selling my iPhone 13 Pro 256GB. No scratches, always had a case and screen protector. Original box included.' }, category: 'electronics', location: 'Frederiksberg', photos: [], seller: 'Magnus Jensen', sellerId: 'mock-magnus', postedAt: '2026-02-18', sold: false, mobilepay: '20123456' },
+  { id: 2, title: { da: 'IKEA KALLAX hylde 2×4 — hvid', en: 'IKEA KALLAX shelf unit 2×4 — white' }, price: 450, priceNegotiable: true, description: { da: 'Velholdt KALLAX hylde med 8 rum. Afhentes i Valby.', en: 'Well-kept KALLAX shelf with 8 compartments. Pick-up in Valby.' }, category: 'furniture', location: 'Valby, København', photos: [], seller: 'Clara Johansen', sellerId: 'mock-clara', postedAt: '2026-02-17', sold: false, mobilepay: '31456789' },
   { id: 3, title: { da: 'Vintage vinterjjakke — str. M', en: 'Vintage winter jacket — size M' }, price: 280, priceNegotiable: true, description: { da: 'Fed vintage jakke fra 90erne. Str. M, svarer til 38–40.', en: 'Cool vintage jacket from the 90s. Size M, fits 38–40.' }, category: 'clothing', location: 'Nørrebro, København', photos: [], seller: 'Astrid Poulsen', sellerId: 'mock-astrid', postedAt: '2026-02-15', sold: false },
   { id: 4, title: { da: 'Trek MTB cykel — 26 tommer', en: 'Trek MTB bicycle — 26 inch' }, price: 1800, priceNegotiable: false, description: { da: 'Trek Marlin 5, 2020-model. Ny kæde og bremser i 2025. Sælges pga. opgradering.', en: 'Trek Marlin 5, 2020 model. New chain and brakes in 2025. Selling due to upgrade.' }, category: 'sports', location: 'Aarhus C', photos: [], seller: 'Emil Larsen', sellerId: 'mock-emil', postedAt: '2026-02-14', sold: false },
   { id: 5, title: { da: 'Harry Potter — komplet boksæt (DA)', en: 'Harry Potter — complete box set (DK edition)' }, price: 150, priceNegotiable: false, description: { da: 'Alle 7 bøger på dansk i original boks. Lidt slidte, men komplette.', en: 'All 7 books in Danish in original box. Slightly worn but complete.' }, category: 'books', location: 'Odense', photos: [], seller: 'Alma Hansen', sellerId: 'mock-alma', postedAt: '2026-02-13', sold: true },
@@ -4416,6 +4444,8 @@ function MarketplacePage({ lang, t, currentUser, onContactSeller }) {
   const [showForm, setShowForm] = useState(false)
   const [editListing, setEditListing] = useState(null)
   const [deleteConfirmId, setDeleteConfirmId] = useState(null)
+  const [boostedIds, setBoostedIds] = useState({})
+  const [boostMsg, setBoostMsg] = useState(null)
 
   const catIcon = (key) => MARKETPLACE_CATEGORIES.find(c => c.key === key)?.icon || '📦'
   const catLabel = (key) => { const f = MARKETPLACE_CATEGORIES.find(c => c.key === key); return f ? `${f.icon} ${t[f.labelKey] || key}` : key }
@@ -4471,10 +4501,27 @@ function MarketplacePage({ lang, t, currentUser, onContactSeller }) {
     setDeleteConfirmId(null)
   }
 
+  const handleBoost = async (id) => {
+    const res = await apiBoostListing(id).catch(() => null)
+    if (res?.checkoutUrl) {
+      window.location.href = res.checkoutUrl
+    } else {
+      // Stripe not yet configured — show info message
+      setBoostedIds(prev => ({ ...prev, [id]: true }))
+      setBoostMsg(t.marketplaceBoostSuccess)
+      setTimeout(() => setBoostMsg(null), 4000)
+    }
+  }
+
   const displayListings = tab === 'mine' ? myListings : filtered
 
   return (
     <div className="p-marketplace">
+      {boostMsg && (
+        <div style={{ background: '#40916C', color: '#fff', padding: '10px 16px', borderRadius: 8, marginBottom: 12, fontSize: 14, fontWeight: 600 }}>
+          {boostMsg}
+        </div>
+      )}
       <div className="p-marketplace-header">
         <h2 className="p-section-title" style={{ margin: 0 }}>{t.marketplaceTitle}</h2>
         <button className="p-marketplace-create-btn" onClick={() => { setEditListing(null); setShowForm(true) }}>
@@ -4550,6 +4597,7 @@ function MarketplacePage({ lang, t, currentUser, onContactSeller }) {
                   <div className="p-listing-photo-placeholder">{catIcon(listing.category)}</div>
                 )}
                 {listing.sold && <div className="p-listing-sold-badge">{t.marketplaceSold}</div>}
+                {boostedIds[listing.id] && <div className="p-listing-sold-badge" style={{ background: '#F4A261' }}>{t.marketplaceBoosted}</div>}
               </div>
               <div className="p-listing-body">
                 <div className="p-listing-price">
@@ -4564,6 +4612,11 @@ function MarketplacePage({ lang, t, currentUser, onContactSeller }) {
                 </div>
                 {tab === 'mine' && (
                   <div className="p-listing-actions" onClick={e => e.stopPropagation()}>
+                    {!listing.sold && !boostedIds[listing.id] && (
+                      <button className="p-listing-action-btn" style={{ color: '#F4A261', borderColor: '#F4A261' }} onClick={() => handleBoost(listing.id)}>
+                        {t.marketplaceBoostBtn}
+                      </button>
+                    )}
                     {!listing.sold && (
                       <button className="p-listing-action-btn" onClick={() => handleMarkSold(listing.id)}>
                         ✓ {t.marketplaceMarkSold}
@@ -4673,13 +4726,23 @@ function ListingDetailModal({ listing, t, lang, currentUser, catLabel, catIcon, 
           </div>
           {listingDesc(listing) && <p className="p-listing-detail-desc">{listingDesc(listing)}</p>}
           {!isOwn && !listing.sold && (
-            <button
-              className="p-marketplace-create-btn"
-              style={{ width: '100%', marginTop: 8, justifyContent: 'center' }}
-              onClick={() => { onContactSeller(listing.sellerId); onClose() }}
-            >
-              💬 {t.marketplaceContactSeller}
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+              <button
+                className="p-marketplace-create-btn"
+                style={{ width: '100%', justifyContent: 'center' }}
+                onClick={() => { onContactSeller(listing.sellerId); onClose() }}
+              >
+                💬 {t.marketplaceContactSeller}
+              </button>
+              {listing.mobilepay && (
+                <a
+                  href={`mobilepay://send?phone=${listing.mobilepay}`}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 16px', borderRadius: 8, border: '2px solid #5A78FF', color: '#5A78FF', fontWeight: 700, fontSize: 14, textDecoration: 'none', background: '#fff' }}
+                >
+                  📱 MobilePay · {listing.mobilepay}
+                </a>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -4695,6 +4758,7 @@ function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, onClose
   const [category, setCategory]     = useState(isEdit ? (listing.category || '') : '')
   const [location, setLocation]     = useState(isEdit ? (listing.location || '') : '')
   const [description, setDescription] = useState(isEdit ? listingDesc(listing) : '')
+  const [mobilepay, setMobilepay]   = useState(isEdit ? (listing.mobilepay || '') : '')
   const [photoFiles, setPhotoFiles] = useState([])
   const [photoPreviews, setPhotoPreviews] = useState(
     isEdit ? (listing.photos || []).map(p => p.url || p) : []
@@ -4724,6 +4788,7 @@ function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, onClose
       location,
       description: { da: description, en: description },
       photos: photoPreviews.map(url => ({ url })),
+      mobilepay: mobilepay.trim() || null,
     }
     const formData = new FormData()
     formData.append('title', title)
@@ -4732,6 +4797,7 @@ function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, onClose
     formData.append('category', category)
     formData.append('location', location)
     formData.append('description', description)
+    if (mobilepay.trim()) formData.append('mobilepay', mobilepay.trim())
     photoFiles.forEach(f => formData.append('photos', f))
     isEdit ? onSubmit(listing.id, formData, localListing) : onSubmit(formData, localListing)
   }
@@ -4778,6 +4844,12 @@ function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, onClose
 
           <label style={lS}>{t.marketplaceFieldLocation}</label>
           <input style={fS} value={location} onChange={e => setLocation(e.target.value)} placeholder={lang === 'da' ? 'f.eks. Nørrebro, København' : 'e.g. Nørrebro, Copenhagen'} required />
+
+          <label style={lS}>{t.marketplaceFieldMobilepay}</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <span style={{ fontSize: 18 }}>📱</span>
+            <input style={{ ...fS, marginBottom: 0, flex: 1 }} value={mobilepay} onChange={e => setMobilepay(e.target.value.replace(/\D/g, '').slice(0, 8))} placeholder={lang === 'da' ? 'f.eks. 20123456' : 'e.g. 20123456'} maxLength={8} inputMode="numeric" />
+          </div>
 
           <label style={lS}>{t.marketplaceFieldDescription}</label>
           <textarea style={{ ...fS, minHeight: 80, resize: 'vertical' }} value={description} onChange={e => setDescription(e.target.value)} placeholder={lang === 'da' ? 'Beskriv varen...' : 'Describe the item...'} />
@@ -5205,6 +5277,86 @@ function AnalyticsPage({ lang, t, currentUser, plan, onUpgrade }) {
           </div>
         </div>
       </PlanGate>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ── Admin Page ───────────────────────────────────────────────────────────────
+
+function AdminPage({ lang, t }) {
+  const STRIPE_FIELDS = [
+    { key: 'stripe_secret_key', label: t.adminStripeSecretKey, type: 'password', placeholder: 'sk_live_...' },
+    { key: 'stripe_pub_key', label: t.adminStripePubKey, type: 'text', placeholder: 'pk_live_...' },
+    { key: 'stripe_webhook_secret', label: t.adminStripeWebhookSecret, type: 'password', placeholder: 'whsec_...' },
+    { key: 'stripe_price_pro_monthly', label: t.adminStripePriceProMonthly, type: 'text', placeholder: 'price_...' },
+    { key: 'stripe_price_pro_yearly', label: t.adminStripePriceProYearly, type: 'text', placeholder: 'price_...' },
+    { key: 'stripe_price_boost', label: t.adminStripePriceBoost, type: 'text', placeholder: 'price_...' },
+  ]
+
+  const [form, setForm] = useState({
+    stripe_secret_key: '', stripe_pub_key: '', stripe_webhook_secret: '',
+    stripe_price_pro_monthly: '', stripe_price_pro_yearly: '', stripe_price_boost: '',
+  })
+  const [status, setStatus] = useState('idle') // idle | saving | saved
+
+  useEffect(() => {
+    apiGetAdminSettings().then(data => {
+      if (data?.settings) setForm(prev => ({ ...prev, ...data.settings }))
+    })
+  }, [])
+
+  const handleSave = async (e) => {
+    e.preventDefault()
+    setStatus('saving')
+    await apiSaveAdminSettings(form).catch(() => {})
+    setStatus('saved')
+    setTimeout(() => setStatus('idle'), 3000)
+  }
+
+  const fS = { width: '100%', padding: '9px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 0 }
+  const lS = { fontSize: 13, fontWeight: 600, color: '#555', marginBottom: 4, display: 'block' }
+
+  return (
+    <div style={{ maxWidth: 640, margin: '0 auto', padding: '24px 16px' }}>
+      <h2 style={{ margin: '0 0 20px', fontSize: 22, fontWeight: 700 }}>⚙️ {t.adminTitle}</h2>
+
+      {/* Stripe config */}
+      <div className="p-card" style={{ marginBottom: 20 }}>
+        <h3 style={{ margin: '0 0 8px', fontSize: 16, fontWeight: 700 }}>💳 {t.adminStripeTitle}</h3>
+
+        {/* Info card */}
+        <div style={{ background: '#F0F7FF', border: '1px solid #BDD8F9', borderRadius: 8, padding: '12px 14px', marginBottom: 20, fontSize: 13, lineHeight: 1.6, color: '#2C4A6E' }}>
+          ℹ️ {t.adminStripeInfoCard}
+        </div>
+
+        <form onSubmit={handleSave}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {STRIPE_FIELDS.map(({ key, label, type, placeholder }) => (
+              <div key={key}>
+                <label style={lS}>{label}</label>
+                <input
+                  style={fS}
+                  type={type}
+                  placeholder={placeholder}
+                  value={form[key] || ''}
+                  onChange={e => setForm(prev => ({ ...prev, [key]: e.target.value }))}
+                  autoComplete="off"
+                />
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: 20 }}>
+            <button
+              type="submit"
+              disabled={status === 'saving'}
+              style={{ padding: '10px 24px', borderRadius: 8, border: 'none', background: status === 'saved' ? '#40916C' : '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}
+            >
+              {status === 'saving' ? t.adminSaving : status === 'saved' ? t.adminSaved : t.adminSave}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   )
 }

@@ -476,7 +476,8 @@ app.get('/api/auth/session', authenticate, async (req, res) => {
   try {
     const [users] = await pool.query('SELECT id, name, handle, initials, avatar_url FROM users WHERE id = ?', [req.userId])
     if (users.length === 0) return res.status(404).json({ error: 'User not found' })
-    res.json({ user: users[0], lang: req.lang })
+    const user = { ...users[0], is_admin: users[0].id === 1 }
+    res.json({ user, lang: req.lang })
   } catch (err) {
     res.status(500).json({ error: 'Session check failed' })
   }
@@ -1968,6 +1969,58 @@ setTimeout(() => {
   setInterval(runBotActivity, 4 * 60 * 1000)
 }, 2 * 60 * 1000)
 
+// ── Admin settings ──────────────────────────────────────────────────────────
+
+async function initAdminSettings() {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS admin_settings (
+      key_name VARCHAR(100) NOT NULL PRIMARY KEY,
+      key_value TEXT DEFAULT NULL,
+      updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP() ON UPDATE CURRENT_TIMESTAMP()
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+  } catch (err) {
+    console.error('initAdminSettings error:', err.message)
+  }
+}
+
+function requireAdmin(req, res, next) {
+  if (!req.userId) return res.status(401).json({ error: 'Not authenticated' })
+  if (req.userId !== 1) return res.status(403).json({ error: 'Admin only' })
+  next()
+}
+
+// GET /api/admin/settings — get Stripe config (admin only)
+app.get('/api/admin/settings', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT key_name, key_value FROM admin_settings')
+    const settings = {}
+    for (const row of rows) settings[row.key_name] = row.key_value
+    // Mask secrets — return only whether they are set, not the actual values
+    const masked = {}
+    for (const [k, v] of Object.entries(settings)) {
+      masked[k] = v ? (k.includes('secret') || k.includes('Secret') ? '••••••••' + v.slice(-4) : v) : ''
+    }
+    res.json({ settings: masked })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to load settings' })
+  }
+})
+
+// POST /api/admin/settings — save Stripe config (admin only)
+app.post('/api/admin/settings', authenticate, requireAdmin, async (req, res) => {
+  const allowed = ['stripe_secret_key', 'stripe_pub_key', 'stripe_webhook_secret', 'stripe_price_pro_monthly', 'stripe_price_pro_yearly', 'stripe_price_boost']
+  try {
+    for (const [key, value] of Object.entries(req.body)) {
+      if (!allowed.includes(key)) continue
+      if (!value || value === '••••••••' + (value || '').slice(-4)) continue // skip masked/empty
+      await pool.query('INSERT INTO admin_settings (key_name, key_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE key_value = VALUES(key_value)', [key, value])
+    }
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to save settings' })
+  }
+})
+
 // Multer error handler
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
@@ -1988,4 +2041,5 @@ app.listen(PORT, () => {
   }
   initFriendRequests()
   initConversations()
+  initAdminSettings()
 })

@@ -383,3 +383,19 @@ export async function apiMarkListingSold(id) {
 export async function apiDeleteListing(id) {
   return await request(`/api/marketplace/${id}`, { method: 'DELETE' })
 }
+
+export async function apiBoostListing(id) {
+  return await request(`/api/marketplace/${id}/boost`, { method: 'POST' })
+}
+
+// ── Admin ──
+export async function apiGetAdminSettings() {
+  return await request('/api/admin/settings')
+}
+
+export async function apiSaveAdminSettings(data) {
+  return await request('/api/admin/settings', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
