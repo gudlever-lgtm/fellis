@@ -2208,16 +2208,19 @@ function FriendsPage({ lang, t, mode, onMessage }) {
   // Load invites lazily when the tab is first opened
   useEffect(() => {
     if (filter !== 'invites' || invites !== null) return
-    apiGetInvites().then(data => {
-      if (data) {
-        setInvites(Array.isArray(data) ? data : (data?.invites || []))
-      } else {
-        setInvites([
-          { id: 'mock-inv-1', name: 'Liam Madsen', email: 'liam@fellis.eu', sentAt: '2026-02-18T10:00:00', status: 'pending' },
-          { id: 'mock-inv-2', name: 'Freja Andersen', email: 'freja@fellis.eu', sentAt: '2026-02-15T14:00:00', status: 'joined' },
-        ])
-      }
-    })
+    const MOCK = [
+      { id: 'mock-inv-1', name: 'Liam Madsen', email: 'liam@fellis.eu', sentAt: '2026-02-18T10:00:00', status: 'pending' },
+      { id: 'mock-inv-2', name: 'Freja Andersen', email: 'freja@fellis.eu', sentAt: '2026-02-15T14:00:00', status: 'joined' },
+    ]
+    apiGetInvites()
+      .then(data => {
+        if (data && (Array.isArray(data) ? data.length : data?.invites?.length)) {
+          setInvites(Array.isArray(data) ? data : (data?.invites || []))
+        } else {
+          setInvites(MOCK)
+        }
+      })
+      .catch(() => setInvites(MOCK))
   }, [filter, invites])
 
   const isSearching = search.trim().length >= 2
