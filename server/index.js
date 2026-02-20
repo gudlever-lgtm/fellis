@@ -205,6 +205,11 @@ app.use('/uploads', (req, res, next) => {
   extensions: false,        // No extension guessing
 }))
 
+// ── Public privacy policy page ──
+app.get('/privacy', (req, res) => {
+  res.sendFile(path.join(__dirname, '../privacy/index.html'))
+})
+
 // ── Auth middleware ──
 async function authenticate(req, res, next) {
   const sessionId = getSessionIdFromRequest(req)
