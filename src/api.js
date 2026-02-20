@@ -201,10 +201,10 @@ export async function apiFetchOlderConversationMessages(conversationId, offset =
   return await request(`/api/conversations/${conversationId}/messages/older?offset=${offset}&limit=${limit}`)
 }
 
-export async function apiCreateConversation(participantIds, name = null, isGroup = false) {
+export async function apiCreateConversation(participantIds, name = null, isGroup = false, isFamilyGroup = false) {
   return await request('/api/conversations', {
     method: 'POST',
-    body: JSON.stringify({ participantIds, name, isGroup }),
+    body: JSON.stringify({ participantIds, name, isGroup, isFamilyGroup }),
   })
 }
 

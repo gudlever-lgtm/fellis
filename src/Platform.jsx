@@ -213,7 +213,7 @@ export default function Platform({ lang: initialLang, onLogout }) {
         {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} />}
         {page === 'edit-profile' && <EditProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} />}
         {page === 'friends' && <FriendsPage lang={lang} t={t} mode={mode} onMessage={() => navigateTo('messages')} />}
-        {page === 'messages' && <MessagesPage lang={lang} t={t} currentUser={currentUser} openConvId={openConvId} onConvOpened={() => setOpenConvId(null)} />}
+        {page === 'messages' && <MessagesPage lang={lang} t={t} currentUser={currentUser} mode={mode} openConvId={openConvId} onConvOpened={() => setOpenConvId(null)} />}
         {page === 'events' && <EventsPage lang={lang} t={t} currentUser={currentUser} mode={mode} />}
         {page === 'jobs' && <JobsPage lang={lang} t={t} currentUser={currentUser} mode={mode} />}
         {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} />}
@@ -1170,10 +1170,16 @@ function FeedPage({ lang, t, currentUser, highlightPostId, onHighlightCleared })
                 💬 {t.comment}
               </button>
               <div className="p-share-wrap">
+                {post.familyGroupId ? (
+                  <button className="p-action-btn p-action-btn-family-locked" disabled title={t.familyPostNotShareable}>
+                    🏡 {t.share}
+                  </button>
+                ) : (
                 <button className={`p-action-btn${sharePopup === post.id ? ' active' : ''}`} onClick={() => toggleSharePopup(post.id)}>
                   ↗ {t.share}
                 </button>
-                {sharePopup === post.id && (
+                )}
+                {!post.familyGroupId && sharePopup === post.id && (
                   <>
                     <div className="p-share-backdrop" onClick={() => setSharePopup(null)} />
                     <div className="p-share-popup">
@@ -1301,6 +1307,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
   const [profile, setProfile] = useState({ ...currentUser })
   const [userPosts, setUserPosts] = useState([])
   const [showPassword, setShowPassword] = useState(false)
+  const [familyGroups, setFamilyGroups] = useState([])
 
   useEffect(() => {
     apiFetchProfile().then(data => {
@@ -1315,7 +1322,12 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
       const posts = data?.posts || data || []
       setUserPosts(posts.filter(p => p.author === currentUser.name))
     })
-  }, [currentUser.name, onUserUpdate])
+    if (mode === 'common') {
+      apiFetchConversations().then(convs => {
+        if (convs) setFamilyGroups(convs.filter(c => c.isFamilyGroup))
+      })
+    }
+  }, [currentUser.name, mode, onUserUpdate])
 
   const avatarUrl = profile.avatarUrl || profile.avatar_url
   const avatarSrc = avatarUrl
@@ -1403,6 +1415,32 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
           </div>
         </div>
       </div>
+
+      {/* Family section (common mode) */}
+      {mode === 'common' && (
+        <div className="p-card p-family-section" style={{ marginBottom: 16 }}>
+          <h3 className="p-section-title" style={{ margin: '0 0 4px' }}>🏡 {t.familySection}</h3>
+          <p className="p-family-section-desc">{t.familySectionDesc}</p>
+          {familyGroups.length === 0 ? (
+            <div className="p-family-empty">{t.familyNoGroups}</div>
+          ) : (
+            familyGroups.map(g => (
+              <div key={g.id} className="p-family-group-row">
+                <div className="p-family-group-icon">🏡</div>
+                <div className="p-family-group-info">
+                  <span className="p-family-group-name">{g.name || t.familyGroup}</span>
+                  <span className="p-family-group-meta">{g.participants.length} {t.participants}</span>
+                </div>
+                <div className="p-family-group-avatars">
+                  {g.participants.slice(0, 4).map(p => (
+                    <div key={p.id} className="p-avatar-xs p-family-avatar" style={{ background: nameToColor(p.name) }}>{getInitials(p.name)}</div>
+                  ))}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
 
       {/* Company pages (business mode) */}
       {mode === 'business' && (
@@ -2357,10 +2395,11 @@ function FriendsPage({ lang, t, mode, onMessage }) {
 const MSG_PAGE_SIZE = 20
 
 // ── New Conversation / New Group Modal ──
-function NewConvModal({ t, lang, friends, existingParticipantIds = [], isGroupMode, onClose, onCreate }) {
+function NewConvModal({ t, lang, mode, friends, existingParticipantIds = [], isGroupMode, onClose, onCreate }) {
   const [selected, setSelected] = useState([])
   const [groupName, setGroupName] = useState('')
   const [search, setSearch] = useState('')
+  const [isFamilyGroup, setIsFamilyGroup] = useState(false)
 
   const eligible = friends.filter(f =>
     !existingParticipantIds.includes(f.id) &&
@@ -2385,6 +2424,22 @@ function NewConvModal({ t, lang, friends, existingParticipantIds = [], isGroupMo
             onChange={e => setGroupName(e.target.value)}
           />
         )}
+        {isGroupMode && mode === 'common' && (
+          <label className={`p-family-group-toggle${isFamilyGroup ? ' active' : ''}`}>
+            <input
+              type="checkbox"
+              checked={isFamilyGroup}
+              onChange={e => setIsFamilyGroup(e.target.checked)}
+              style={{ display: 'none' }}
+            />
+            <span className="p-family-toggle-icon">🏡</span>
+            <div className="p-family-toggle-text">
+              <span className="p-family-toggle-label">{t.familyGroupToggle}</span>
+              <span className="p-family-toggle-info">{t.familyGroupInfo}</span>
+            </div>
+            <span className={`p-family-toggle-check${isFamilyGroup ? ' on' : ''}`}>{isFamilyGroup ? '✓' : ''}</span>
+          </label>
+        )}
         <input
           className="p-msg-modal-input"
           placeholder={t.searchFriends}
@@ -2408,9 +2463,9 @@ function NewConvModal({ t, lang, friends, existingParticipantIds = [], isGroupMo
           <button
             className="p-msg-modal-btn primary"
             disabled={!canCreate}
-            onClick={() => onCreate(selected, isGroupMode ? (groupName || null) : null, isGroupMode)}
+            onClick={() => onCreate(selected, isGroupMode ? (groupName || null) : null, isGroupMode, isGroupMode ? isFamilyGroup : false)}
           >
-            {isGroupMode ? t.createGroup : t.startConv}
+            {isGroupMode ? (isFamilyGroup ? `🏡 ${t.createGroup}` : t.createGroup) : t.startConv}
           </button>
         </div>
       </div>
@@ -2659,7 +2714,7 @@ function SearchPage({ lang, t, mode, onNavigateToPost, onNavigateToConv, onNavig
   )
 }
 
-function MessagesPage({ lang, t, currentUser, openConvId, onConvOpened }) {
+function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened }) {
   const [activeConv, setActiveConv] = useState(0)
   const [conversations, setConversations] = useState([])
   const [friends, setFriends] = useState([])
@@ -2756,9 +2811,9 @@ function MessagesPage({ lang, t, currentUser, openConvId, onConvOpened }) {
   }, [])
 
   // Create new 1:1 or group
-  const handleCreate = async (selectedIds, groupName, isGroup) => {
+  const handleCreate = async (selectedIds, groupName, isGroup, isFamilyGroup = false) => {
     setModal(null)
-    const data = await apiCreateConversation(selectedIds, groupName, isGroup)
+    const data = await apiCreateConversation(selectedIds, groupName, isGroup, isFamilyGroup)
     if (data?.id) {
       // Refresh conversations
       const updated = await apiFetchConversations()
@@ -2881,6 +2936,7 @@ function MessagesPage({ lang, t, currentUser, openConvId, onConvOpened }) {
                 <div className="p-msg-thread-name">
                   <span>{c.name}</span>
                   <span className="p-msg-thread-badges">
+                    {c.isFamilyGroup && <span className="p-msg-family-badge" title={t.familyGroup}>🏡</span>}
                     {cIsMuted && <span className="p-msg-muted-icon" title={t.mutedLabel}>🔕</span>}
                     {c.unread > 0 && <span className="p-msg-badge">{c.unread}</span>}
                   </span>
@@ -2925,11 +2981,12 @@ function MessagesPage({ lang, t, currentUser, openConvId, onConvOpened }) {
             <div className="p-msg-header-info">
               <span className="p-msg-header-name">
                 {conv.name}
+                {conv.isFamilyGroup && <span className="p-msg-family-badge p-msg-family-badge-header" title={t.familyGroup}>🏡</span>}
                 {isMuted && <span className="p-msg-muted-icon" title={t.mutedLabel} style={{ marginLeft: 6 }}>🔕</span>}
               </span>
               {conv.isGroup && (
                 <span className="p-msg-header-sub">
-                  {conv.participants.length} {t.participants}
+                  {conv.isFamilyGroup ? `${t.familyGroup} · ` : ''}{conv.participants.length} {t.participants}
                 </span>
               )}
             </div>
@@ -3053,6 +3110,7 @@ function MessagesPage({ lang, t, currentUser, openConvId, onConvOpened }) {
         <NewConvModal
           t={t}
           lang={lang}
+          mode={mode}
           friends={friends}
           existingParticipantIds={[]}
           isGroupMode={modal === 'newGroup'}
