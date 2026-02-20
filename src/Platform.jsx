@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { PT, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -2108,6 +2108,7 @@ function FriendsPage({ lang, t, mode, onMessage }) {
   const [openMenuId, setOpenMenuId] = useState(null) // friend card •••
   const [unfriendTarget, setUnfriendTarget] = useState(null) // { id, name }
   const [viewProfileId, setViewProfileId] = useState(null)
+  const [invites, setInvites] = useState(null) // null = not yet loaded
   const searchTimerRef = useRef(null)
 
   const refreshAll = useCallback(() => {
@@ -2175,7 +2176,7 @@ function FriendsPage({ lang, t, mode, onMessage }) {
     refreshAll()
   }, [unfriendTarget, refreshAll])
 
-  const filtered = friends.filter(f => filter === 'all' || f.online)
+  const filtered = filter === 'invites' ? [] : friends.filter(f => filter === 'all' || f.online)
 
   const handleCopyInvite = useCallback(() => {
     navigator.clipboard.writeText(inviteLink).catch(() => {})
@@ -2187,6 +2188,14 @@ function FriendsPage({ lang, t, mode, onMessage }) {
     const shareUrl = encodeURIComponent(inviteLink || 'https://fellis.eu')
     window.open(`https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`, 'facebook-share', 'width=580,height=400')
   }, [inviteLink])
+
+  // Load invites lazily when the tab is first opened
+  useEffect(() => {
+    if (filter !== 'invites' || invites !== null) return
+    apiGetInvites().then(data => {
+      setInvites(Array.isArray(data) ? data : (data?.invites || []))
+    })
+  }, [filter, invites])
 
   const isSearching = search.trim().length >= 2
   const outgoingTargetIds = new Set(requests.outgoing.map(r => r.to_id))
@@ -2301,6 +2310,9 @@ function FriendsPage({ lang, t, mode, onMessage }) {
             <button className={`p-filter-tab${filter === 'online' ? ' active' : ''}`} onClick={() => setFilter('online')}>
               <span className="p-filter-online-dot" /> {t.onlineFriends} ({friends.filter(f => f.online).length})
             </button>
+            <button className={`p-filter-tab${filter === 'invites' ? ' active' : ''}`} onClick={() => setFilter('invites')}>
+              ✉️ {t.invitesTab}{invites !== null && invites.length > 0 ? ` (${invites.length})` : ''}
+            </button>
           </div>
         )}
       </div>
@@ -2358,6 +2370,34 @@ function FriendsPage({ lang, t, mode, onMessage }) {
             <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '24px', color: 'var(--color-muted)' }}>
               {lang === 'da' ? 'Ingen brugere fundet' : 'No users found'}
             </div>
+          )}
+        </div>
+      ) : filter === 'invites' ? (
+        <div className="p-card p-invites-list">
+          {invites === null ? (
+            <div style={{ textAlign: 'center', padding: '24px', color: '#888' }}>...</div>
+          ) : invites.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '24px', color: '#888' }}>
+              <div style={{ fontSize: 28, marginBottom: 8 }}>✉️</div>
+              {t.invitesNoSent}
+            </div>
+          ) : (
+            invites.map((inv, i) => (
+              <div key={inv.id || i} className="p-invite-row">
+                <div className="p-avatar-sm" style={{ background: nameToColor(inv.name || inv.email || '?') }}>
+                  {getInitials(inv.name || inv.email || '?')}
+                </div>
+                <div className="p-invite-row-info">
+                  <div className="p-invite-row-name">{inv.name || inv.email}</div>
+                  {inv.sentAt && (
+                    <div className="p-invite-row-meta">{t.invitesSentLabel}: {new Date(inv.sentAt).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+                  )}
+                </div>
+                <span className={`p-invite-status-badge${inv.status === 'joined' ? ' joined' : ''}`}>
+                  {inv.status === 'joined' ? t.invitesJoined : t.invitesPending}
+                </span>
+              </div>
+            ))
           )}
         </div>
       ) : (

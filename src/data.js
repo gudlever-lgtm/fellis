@@ -232,6 +232,11 @@ export const PT = {
     unfriendConfirm: 'Fjern som ven?',
     unfriendSilent: 'Fjern stille (ingen besked)',
     unfriendNotify: 'Fjern og send besked',
+    invitesTab: 'Invitationer',
+    invitesPending: 'Afventer svar',
+    invitesJoined: 'Tilmeldt',
+    invitesNoSent: 'Du har ikke sendt nogen invitationer endnu.',
+    invitesSentLabel: 'Inviteret',
     backToLanding: 'Tilbage til landing',
     // Account mode
     modeTitle: 'Vælg kontotype',
@@ -509,6 +514,11 @@ export const PT = {
     unfriendConfirm: 'Remove as friend?',
     unfriendSilent: 'Remove silently (no message)',
     unfriendNotify: 'Remove and send a message',
+    invitesTab: 'Invitations',
+    invitesPending: 'Awaiting reply',
+    invitesJoined: 'Joined',
+    invitesNoSent: "You haven't sent any invitations yet.",
+    invitesSentLabel: 'Invited',
     backToLanding: 'Back to landing',
     // Account mode
     modeTitle: 'Choose account type',
