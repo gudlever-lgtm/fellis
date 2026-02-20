@@ -4031,3 +4031,332 @@
 @media (max-width: 380px) {
   .p-marketplace-grid { grid-template-columns: 1fr; }
 }
+
+/* ─── Post Insights Panel ──────────────────── */
+.p-action-btn-insights { color: #1877F2; }
+.p-post-insights-panel {
+  background: #F0F6FF;
+  border: 1px solid #D0E3FF;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin: 8px 0 4px;
+}
+.p-post-insights-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 12px;
+  color: #1877F2;
+}
+.p-post-insights-close {
+  background: none; border: none; cursor: pointer; font-size: 16px; color: #888;
+}
+.p-post-insights-stats {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.p-post-insights-stat {
+  flex: 1;
+  min-width: 60px;
+  text-align: center;
+  background: #fff;
+  border-radius: 8px;
+  padding: 10px 8px;
+}
+.p-post-insights-num {
+  font-size: 20px;
+  font-weight: 800;
+  color: #1877F2;
+}
+.p-post-insights-lbl {
+  font-size: 11px;
+  color: #666;
+  margin-top: 3px;
+}
+
+/* ─── Plan Gate ────────────────────────────── */
+.p-plan-gate {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.p-plan-gate-blur {
+  filter: blur(3px);
+  pointer-events: none;
+  user-select: none;
+  opacity: 0.6;
+}
+.p-plan-gate-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(255,255,255,0.55);
+  backdrop-filter: blur(2px);
+  z-index: 10;
+}
+.p-plan-gate-lock { font-size: 36px; }
+.p-plan-gate-msg {
+  font-weight: 700;
+  font-size: 16px;
+  color: #222;
+  text-align: center;
+  padding: 0 24px;
+}
+.p-plan-gate-btn {
+  background: #1877F2;
+  color: #fff;
+  border: none;
+  border-radius: 20px;
+  padding: 10px 22px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.p-plan-gate-btn:hover { background: #1464d0; }
+
+/* ─── Upgrade Modal ────────────────────────── */
+.p-upgrade-modal {
+  background: #fff;
+  border-radius: 16px;
+  padding: 28px;
+  max-width: 420px;
+  width: 92vw;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+}
+.p-upgrade-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.p-upgrade-plan-badge {
+  background: linear-gradient(135deg, #1877F2, #7E57C2);
+  color: #fff;
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+.p-upgrade-modal-close {
+  background: none; border: none; cursor: pointer; font-size: 18px; color: #aaa;
+}
+.p-upgrade-modal-title {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 800;
+  color: #111;
+}
+.p-upgrade-modal-desc {
+  margin: 0 0 16px;
+  font-size: 14px;
+  color: #555;
+}
+.p-upgrade-features {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 20px;
+}
+.p-upgrade-features li {
+  padding: 5px 0;
+  font-size: 14px;
+  color: #333;
+}
+.p-upgrade-btn {
+  display: block;
+  width: 100%;
+  padding: 13px;
+  background: linear-gradient(135deg, #1877F2, #7E57C2);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-bottom: 10px;
+}
+.p-upgrade-btn:hover { opacity: 0.92; }
+.p-upgrade-cancel {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  background: none;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  font-size: 14px;
+  color: #888;
+  cursor: pointer;
+}
+
+/* ─── Analytics Page ───────────────────────── */
+.p-analytics {
+  max-width: 800px;
+  margin: 0 auto;
+  padding-bottom: 40px;
+}
+.p-analytics-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.p-analytics-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  color: #111;
+}
+.p-analytics-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.p-analytics-range-tabs {
+  display: flex;
+  gap: 4px;
+  background: #F0F2F5;
+  border-radius: 20px;
+  padding: 3px;
+}
+.p-analytics-range-btn {
+  background: none;
+  border: none;
+  border-radius: 16px;
+  padding: 5px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  color: #666;
+  font-weight: 600;
+  transition: background 0.15s;
+}
+.p-analytics-range-btn.active {
+  background: #fff;
+  color: #1877F2;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+}
+.p-analytics-export-btns { display: flex; gap: 6px; }
+.p-analytics-export-btn {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  color: #555;
+  font-weight: 600;
+}
+.p-analytics-export-btn:hover { background: #F0F2F5; }
+
+.p-plan-badge-bar {
+  margin-bottom: 16px;
+}
+
+.p-analytics-section {
+  background: #fff;
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+}
+.p-analytics-section-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: #111;
+  margin-bottom: 14px;
+}
+.p-analytics-subsection-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+.p-analytics-subsection-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+.p-analytics-chart-wrap {
+  border-radius: 8px;
+  overflow: hidden;
+  background: #F8FAFF;
+  padding: 8px;
+}
+.p-analytics-stat-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.p-analytics-stat-card {
+  flex: 1;
+  min-width: 100px;
+  background: #F8FAFF;
+  border-radius: 10px;
+  padding: 14px 12px;
+  text-align: center;
+}
+.p-analytics-stat-value {
+  font-size: 22px;
+  font-weight: 900;
+}
+.p-analytics-stat-label {
+  font-size: 11px;
+  color: #888;
+  margin-top: 4px;
+}
+.p-analytics-stat-sub {
+  font-size: 10px;
+  color: #bbb;
+  margin-top: 2px;
+}
+
+/* HBarChart */
+.p-analytics-hbar-list { display: flex; flex-direction: column; gap: 7px; }
+.p-analytics-hbar-row { display: flex; align-items: center; gap: 8px; }
+.p-analytics-hbar-label { font-size: 12px; color: #555; width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.p-analytics-hbar-track { flex: 1; background: #F0F2F5; border-radius: 4px; height: 8px; overflow: hidden; }
+.p-analytics-hbar-fill { height: 100%; border-radius: 4px; transition: width 0.4s; }
+.p-analytics-hbar-val { font-size: 12px; color: #555; font-weight: 700; width: 40px; text-align: right; }
+
+/* Heatmap */
+.p-analytics-heatmap { overflow-x: auto; }
+.p-analytics-heatmap-inner { display: inline-flex; flex-direction: column; gap: 3px; min-width: 320px; }
+.p-analytics-heatmap-row { display: flex; gap: 3px; align-items: center; }
+.p-analytics-heatmap-header { }
+.p-analytics-heatmap-corner { width: 32px; }
+.p-analytics-heatmap-cell { display: flex; align-items: center; justify-content: center; }
+.p-analytics-heatmap-hour { width: 32px; font-size: 10px; color: #aaa; }
+.p-analytics-heatmap-day { width: 32px; font-size: 11px; color: #555; font-weight: 600; }
+.p-analytics-heatmap-dot { width: 32px; height: 20px; border-radius: 4px; cursor: default; }
+
+/* Funnel */
+.p-analytics-funnel { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.p-analytics-funnel-step { max-width: 100%; }
+.p-analytics-funnel-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 13px;
+}
+
+@media (max-width: 640px) {
+  .p-analytics-subsection-grid { grid-template-columns: 1fr; }
+  .p-analytics-stat-row { flex-direction: column; }
+  .p-analytics-stat-card { min-width: unset; }
+  .p-analytics-header { flex-direction: column; }
+}

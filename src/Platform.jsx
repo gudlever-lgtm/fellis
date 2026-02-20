@@ -34,6 +34,8 @@ export default function Platform({ lang: initialLang, onLogout }) {
   const [showNotifPanel, setShowNotifPanel] = useState(false)
   const [notifs, setNotifs] = useState(() => makeMockNotifs(localStorage.getItem('fellis_mode') || 'common'))
   const [showModeModal, setShowModeModal] = useState(false)
+  const [plan, setPlan] = useState(null) // null = free, 'business_pro' = paid
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
   const avatarMenuRef = useRef(null)
   const notifRef = useRef(null)
   const t = PT[lang]
@@ -112,18 +114,19 @@ export default function Platform({ lang: initialLang, onLogout }) {
           </div>
         </div>
         <div className="p-nav-tabs">
-          {['feed', 'friends', 'messages', 'events', 'marketplace', ...(mode === 'business' ? ['jobs'] : [])].map(p => (
+          {['feed', 'friends', 'messages', 'events', 'marketplace', ...(mode === 'business' ? ['jobs', 'analytics'] : [])].map(p => (
             <button
               key={p}
               className={`p-nav-tab${page === p ? ' active' : ''}`}
               onClick={() => navigateTo(p)}
             >
               <span className="p-nav-tab-icon">
-                {p === 'feed' ? '🏠' : p === 'friends' ? '👥' : p === 'messages' ? '💬' : p === 'events' ? '📅' : p === 'marketplace' ? '🛍️' : '💼'}
+                {p === 'feed' ? '🏠' : p === 'friends' ? '👥' : p === 'messages' ? '💬' : p === 'events' ? '📅' : p === 'marketplace' ? '🛍️' : p === 'analytics' ? '📊' : '💼'}
               </span>
               <span className="p-nav-tab-label">
                 {p === 'friends'
                   ? (mode === 'business' ? t.connectionsLabel : t.friends)
+                  : p === 'analytics' ? t.analyticsNav
                   : (t[p] || p)}
               </span>
             </button>
@@ -218,6 +221,7 @@ export default function Platform({ lang: initialLang, onLogout }) {
         {page === 'marketplace' && <MarketplacePage lang={lang} t={t} currentUser={currentUser} onContactSeller={(sellerId) => { setOpenConvId(sellerId); navigateTo('messages') }} />}
         {page === 'jobs' && <JobsPage lang={lang} t={t} currentUser={currentUser} mode={mode} />}
         {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} />}
+        {page === 'analytics' && <AnalyticsPage lang={lang} t={t} currentUser={currentUser} plan={plan} onUpgrade={() => setShowUpgradeModal(true)} />}
         {page === 'privacy' && <PrivacySection lang={lang} onLogout={onLogout} />}
         {page === 'search' && (
           <SearchPage
@@ -232,6 +236,9 @@ export default function Platform({ lang: initialLang, onLogout }) {
       </div>
 
       {/* Mode switch modal */}
+      {showUpgradeModal && (
+        <UpgradeModal lang={lang} t={t} onUpgrade={() => { setPlan('business_pro'); setShowUpgradeModal(false) }} onClose={() => setShowUpgradeModal(false)} />
+      )}
       {showModeModal && (
         <div className="modal-backdrop" onClick={() => setShowModeModal(false)}>
           <div className="mode-modal" onClick={e => e.stopPropagation()}>
@@ -550,11 +557,12 @@ function MentionDropdown({ filtered, selIdx, onSelect }) {
   )
 }
 
-function FeedPage({ lang, t, currentUser, highlightPostId, onHighlightCleared }) {
+function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightCleared }) {
   const [posts, setPosts] = useState([])
   const [pinnedPost, setPinnedPost] = useState(null)
   const pinnedRef = useRef(null)
   const [viewProfileId, setViewProfileId] = useState(null)
+  const [insightsPostId, setInsightsPostId] = useState(null)
   const [offset, setOffset] = useState(0)
   const [total, setTotal] = useState(0)
   const [loadingPage, setLoadingPage] = useState(false)
@@ -1210,7 +1218,15 @@ function FeedPage({ lang, t, currentUser, highlightPostId, onHighlightCleared })
                   </>
                 )}
               </div>
+              {mode === 'business' && post.author === currentUser.name && (
+                <button className="p-action-btn p-action-btn-insights" onClick={() => setInsightsPostId(p => p === post.id ? null : post.id)}>
+                  📊 {t.analyticsPostInsights}
+                </button>
+              )}
             </div>
+            {insightsPostId === post.id && mode === 'business' && (
+              <PostInsightsPanel t={t} post={post} onClose={() => setInsightsPostId(null)} />
+            )}
             {showComments && (
               <div className="p-comments">
                 {post.comments.map((c, i) => (
@@ -2193,7 +2209,14 @@ function FriendsPage({ lang, t, mode, onMessage }) {
   useEffect(() => {
     if (filter !== 'invites' || invites !== null) return
     apiGetInvites().then(data => {
-      setInvites(Array.isArray(data) ? data : (data?.invites || []))
+      if (data) {
+        setInvites(Array.isArray(data) ? data : (data?.invites || []))
+      } else {
+        setInvites([
+          { id: 'mock-inv-1', name: 'Liam Madsen', email: 'liam@fellis.eu', sentAt: '2026-02-18T10:00:00', status: 'pending' },
+          { id: 'mock-inv-2', name: 'Freja Andersen', email: 'freja@fellis.eu', sentAt: '2026-02-15T14:00:00', status: 'joined' },
+        ])
+      }
     })
   }, [filter, invites])
 
@@ -4689,6 +4712,404 @@ function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, onClose
           </div>
         </form>
       </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────
+// ── Analytics helpers ──────────────────────
+// ─────────────────────────────────────────────
+
+function seededRand(seed) {
+  let s = seed
+  return () => { s = (s * 1664525 + 1013904223) & 0xffffffff; return (s >>> 0) / 0xffffffff }
+}
+
+function genViews(days, base, seed) {
+  const r = seededRand(seed)
+  return Array.from({ length: days }, (_, i) => Math.round(base + r() * base * 0.6 - base * 0.3 + Math.sin(i / 3) * base * 0.2))
+}
+
+function MiniLineChart({ data, color = '#1877F2', height = 80 }) {
+  if (!data || data.length < 2) return null
+  const w = 280, h = height
+  const min = Math.min(...data), max = Math.max(...data)
+  const range = max - min || 1
+  const pts = data.map((v, i) => {
+    const x = (i / (data.length - 1)) * (w - 20) + 10
+    const y = h - 10 - ((v - min) / range) * (h - 20)
+    return `${x},${y}`
+  })
+  const area = `M${pts.join('L')}L${(data.length - 1) / (data.length - 1) * (w - 20) + 10},${h}L10,${h}Z`
+  return (
+    <svg width="100%" viewBox={`0 0 ${w} ${h}`} style={{ display: 'block' }}>
+      <defs>
+        <linearGradient id="lc-grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.25" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={area} fill="url(#lc-grad)" />
+      <polyline points={pts.join(' ')} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" />
+      {pts.map((pt, i) => i === data.length - 1 ? (
+        <circle key={i} cx={pt.split(',')[0]} cy={pt.split(',')[1]} r="3" fill={color} />
+      ) : null)}
+    </svg>
+  )
+}
+
+function HBarChart({ items, color = '#1877F2' }) {
+  const max = Math.max(...items.map(i => i.value), 1)
+  return (
+    <div className="p-analytics-hbar-list">
+      {items.map((item, i) => (
+        <div key={i} className="p-analytics-hbar-row">
+          <div className="p-analytics-hbar-label">{item.label}</div>
+          <div className="p-analytics-hbar-track">
+            <div className="p-analytics-hbar-fill" style={{ width: `${(item.value / max) * 100}%`, background: color }} />
+          </div>
+          <div className="p-analytics-hbar-val">{item.value.toLocaleString()}</div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function StatCard({ label, value, sub, color }) {
+  return (
+    <div className="p-analytics-stat-card">
+      <div className="p-analytics-stat-value" style={{ color }}>{value}</div>
+      <div className="p-analytics-stat-label">{label}</div>
+      {sub && <div className="p-analytics-stat-sub">{sub}</div>}
+    </div>
+  )
+}
+
+function HeatmapGrid({ lang }) {
+  const days = lang === 'da' ? ['Man', 'Tir', 'Ons', 'Tor', 'Fre', 'Lør', 'Søn'] : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+  const hours = ['8', '10', '12', '14', '16', '18', '20']
+  const r = seededRand(42)
+  const heat = days.map(() => hours.map(() => r()))
+  const peak = (d, h) => heat[d][h]
+  return (
+    <div className="p-analytics-heatmap">
+      <div className="p-analytics-heatmap-inner">
+        <div className="p-analytics-heatmap-row p-analytics-heatmap-header">
+          <div className="p-analytics-heatmap-corner" />
+          {hours.map(h => <div key={h} className="p-analytics-heatmap-cell p-analytics-heatmap-hour">{h}h</div>)}
+        </div>
+        {days.map((d, di) => (
+          <div key={d} className="p-analytics-heatmap-row">
+            <div className="p-analytics-heatmap-cell p-analytics-heatmap-day">{d}</div>
+            {hours.map((h, hi) => {
+              const v = peak(di, hi)
+              const opacity = 0.1 + v * 0.85
+              return <div key={hi} className="p-analytics-heatmap-cell p-analytics-heatmap-dot" style={{ background: `rgba(24,119,242,${opacity.toFixed(2)})` }} title={`${d} ${h}h`} />
+            })}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────
+// ── PostInsightsPanel ────────────────────────
+// ─────────────────────────────────────────────
+
+function PostInsightsPanel({ t, post, onClose }) {
+  const r = seededRand((post.id || 1) * 7)
+  const reach = Math.round((post.likes || 1) * (12 + r() * 30))
+  const impressions = Math.round(reach * (1.4 + r() * 0.8))
+  const shares = post.comments?.length ? Math.round(post.comments.length * (0.5 + r() * 2)) : Math.round(r() * 8)
+  return (
+    <div className="p-post-insights-panel">
+      <div className="p-post-insights-header">
+        <span>📊 {t.analyticsPostInsightsTitle}</span>
+        <button className="p-post-insights-close" onClick={onClose}>✕</button>
+      </div>
+      <div className="p-post-insights-stats">
+        <div className="p-post-insights-stat">
+          <div className="p-post-insights-num">{reach.toLocaleString()}</div>
+          <div className="p-post-insights-lbl">{t.analyticsInsightReach}</div>
+        </div>
+        <div className="p-post-insights-stat">
+          <div className="p-post-insights-num">{impressions.toLocaleString()}</div>
+          <div className="p-post-insights-lbl">{t.analyticsInsightImpressions}</div>
+        </div>
+        <div className="p-post-insights-stat">
+          <div className="p-post-insights-num">{post.likes || 0}</div>
+          <div className="p-post-insights-lbl">{t.analyticsInsightLikes}</div>
+        </div>
+        <div className="p-post-insights-stat">
+          <div className="p-post-insights-num">{post.comments?.length || 0}</div>
+          <div className="p-post-insights-lbl">{t.analyticsInsightComments}</div>
+        </div>
+        <div className="p-post-insights-stat">
+          <div className="p-post-insights-num">{shares}</div>
+          <div className="p-post-insights-lbl">{t.analyticsInsightShares}</div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────
+// ── PlanGate ─────────────────────────────────
+// ─────────────────────────────────────────────
+
+function PlanGate({ plan, required = 'business_pro', t, onUpgrade, children }) {
+  const locked = plan !== required
+  if (!locked) return children
+  return (
+    <div className="p-plan-gate">
+      <div className="p-plan-gate-blur">{children}</div>
+      <div className="p-plan-gate-overlay">
+        <div className="p-plan-gate-lock">🔒</div>
+        <div className="p-plan-gate-msg">{t.analyticsLockedMsg}</div>
+        <button className="p-plan-gate-btn" onClick={onUpgrade}>{t.analyticsLockedBtn}</button>
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────
+// ── UpgradeModal ──────────────────────────────
+// ─────────────────────────────────────────────
+
+function UpgradeModal({ lang, t, onUpgrade, onClose }) {
+  const features = lang === 'da'
+    ? ['Målgruppeindsigt & demografi', 'Indholdsanalyse & trends', 'Virksomhedsside-statistik', 'Forbindelsestragt', 'Branche-benchmarking', 'CSV / PDF export', 'Datointerval-selector']
+    : ['Audience insights & demographics', 'Content analysis & trends', 'Company page statistics', 'Connection funnel', 'Industry benchmarking', 'CSV / PDF export', 'Date range selector']
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="p-upgrade-modal" onClick={e => e.stopPropagation()}>
+        <div className="p-upgrade-modal-header">
+          <span className="p-upgrade-plan-badge">{t.analyticsPlanBadge}</span>
+          <button className="p-upgrade-modal-close" onClick={onClose}>✕</button>
+        </div>
+        <h2 className="p-upgrade-modal-title">{t.analyticsUpgradeTitle}</h2>
+        <p className="p-upgrade-modal-desc">{t.analyticsUpgradeDesc}</p>
+        <ul className="p-upgrade-features">
+          {features.map((f, i) => <li key={i}>✓ {f}</li>)}
+        </ul>
+        <button className="p-upgrade-btn" onClick={onUpgrade}>{t.analyticsUpgradeBtn}</button>
+        <button className="p-upgrade-cancel" onClick={onClose}>{t.analyticsUpgradeCancel}</button>
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────
+// ── AnalyticsPage ─────────────────────────────
+// ─────────────────────────────────────────────
+
+const ANALYTICS_RANGES = [7, 30, 90]
+
+function AnalyticsPage({ lang, t, currentUser, plan, onUpgrade }) {
+  const [range, setRange] = useState(30)
+
+  // ── Mock data (seeded, stable) ──
+  const profileViews = genViews(range, 45, 999)
+  const followerViews = genViews(range, 12, 777)
+  const totalViews = profileViews.reduce((a, b) => a + b, 0)
+  const totalFollowers = followerViews.reduce((a, b) => a + b, 0)
+  const avgEngRate = '4.7%'
+
+  const topPosts = [
+    { label: lang === 'da' ? 'Produktlancering' : 'Product launch', value: 1842 },
+    { label: lang === 'da' ? 'Branchen i 2026' : 'Industry in 2026', value: 1290 },
+    { label: lang === 'da' ? 'Tips til netværk' : 'Networking tips', value: 967 },
+    { label: lang === 'da' ? 'Bag om kulisserne' : 'Behind the scenes', value: 744 },
+    { label: lang === 'da' ? 'Teamhistorie' : 'Team story', value: 521 },
+  ]
+
+  // Paid-tier mock data
+  const industryData = [
+    { label: lang === 'da' ? 'Teknologi' : 'Technology', value: 34 },
+    { label: lang === 'da' ? 'Marketing' : 'Marketing', value: 22 },
+    { label: lang === 'da' ? 'Finans' : 'Finance', value: 17 },
+    { label: lang === 'da' ? 'Sundhed' : 'Healthcare', value: 14 },
+    { label: lang === 'da' ? 'Andet' : 'Other', value: 13 },
+  ]
+  const cityData = [
+    { label: 'København', value: 412 },
+    { label: 'Aarhus', value: 187 },
+    { label: 'Odense', value: 98 },
+    { label: 'Aalborg', value: 74 },
+    { label: 'Esbjerg', value: 31 },
+  ]
+  const seniorityData = [
+    { label: lang === 'da' ? 'Senior' : 'Senior', value: 38 },
+    { label: lang === 'da' ? 'Leder' : 'Manager', value: 27 },
+    { label: lang === 'da' ? 'Direktør' : 'Director', value: 18 },
+    { label: lang === 'da' ? 'Junior' : 'Junior', value: 17 },
+  ]
+  const growthSource = [
+    { label: lang === 'da' ? 'Søgning' : 'Search', value: 41 },
+    { label: lang === 'da' ? 'Forslag' : 'Suggestions', value: 33 },
+    { label: lang === 'da' ? 'Opslag' : 'Posts', value: 26 },
+  ]
+  const postTypes = [
+    { label: lang === 'da' ? 'Tekst' : 'Text', value: 6.1 },
+    { label: lang === 'da' ? 'Billede' : 'Image', value: 8.4 },
+    { label: lang === 'da' ? 'Video' : 'Video', value: 11.2 },
+    { label: lang === 'da' ? 'Dokument' : 'Document', value: 5.8 },
+  ]
+  const topics = [
+    { label: '#innovation', value: 12.3 },
+    { label: '#leadershin', value: 9.7 },
+    { label: '#startup', value: 8.1 },
+    { label: '#ai', value: 14.5 },
+    { label: '#fellis', value: 6.2 },
+  ]
+  const engTrend = genViews(range, 5, 333)
+  const funnelData = [
+    { label: t.analyticsFunnelViews, value: totalViews, pct: 100 },
+    { label: t.analyticsFunnelRequests, value: Math.round(totalViews * 0.18), pct: 18 },
+    { label: t.analyticsFunnelAccepted, value: Math.round(totalViews * 0.11), pct: 11 },
+  ]
+  const competitors = [
+    { label: lang === 'da' ? 'Dig' : 'You', value: 4.7, color: '#1877F2' },
+    { label: lang === 'da' ? 'Branchegennemsnit' : 'Industry avg', value: 3.2, color: '#aaa' },
+    { label: lang === 'da' ? 'Top 10%' : 'Top 10%', value: 7.9, color: '#2D6A4F' },
+  ]
+
+  function exportCSV() {
+    const rows = [['Date', 'Profile Views', 'New Connections']]
+    const today = new Date()
+    profileViews.forEach((v, i) => {
+      const d = new Date(today); d.setDate(today.getDate() - (profileViews.length - 1 - i))
+      rows.push([d.toISOString().slice(0, 10), v, followerViews[i]])
+    })
+    const csv = rows.map(r => r.join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = url; a.download = `fellis-analytics-${range}d.csv`; a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  return (
+    <div className="p-analytics">
+      {/* Header */}
+      <div className="p-analytics-header">
+        <h2 className="p-analytics-title">{t.analyticsTitle}</h2>
+        <div className="p-analytics-controls">
+          <div className="p-analytics-range-tabs">
+            {ANALYTICS_RANGES.map(r => (
+              <button key={r} className={`p-analytics-range-btn${range === r ? ' active' : ''}`} onClick={() => setRange(r)}>
+                {r === 7 ? t.analyticsRange7 : r === 30 ? t.analyticsRange30 : t.analyticsRange90}
+              </button>
+            ))}
+          </div>
+          {plan === 'business_pro' && (
+            <div className="p-analytics-export-btns">
+              <button className="p-analytics-export-btn" onClick={exportCSV}>{t.analyticsExportCSV}</button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {plan === 'business_pro' && (
+        <div className="p-plan-badge-bar">
+          <span className="p-upgrade-plan-badge">{t.analyticsPlanBadge} ✓</span>
+        </div>
+      )}
+
+      {/* ── Free tier ── */}
+      <div className="p-analytics-section">
+        <div className="p-analytics-section-title">{t.analyticsProfileViews}</div>
+        <div className="p-analytics-stat-row">
+          <StatCard label={t.analyticsProfileViews} value={totalViews.toLocaleString()} sub={`${range}d`} color="#1877F2" />
+          <StatCard label={t.analyticsFollowerGrowth} value={`+${totalFollowers}`} sub={`${range}d`} color="#2D6A4F" />
+          <StatCard label={t.analyticsEngRate} value={avgEngRate} color="#F4A261" />
+        </div>
+        <div className="p-analytics-chart-wrap">
+          <MiniLineChart data={profileViews} color="#1877F2" height={100} />
+        </div>
+      </div>
+
+      <div className="p-analytics-section">
+        <div className="p-analytics-section-title">{t.analyticsTopPosts}</div>
+        <HBarChart items={topPosts} color="#1877F2" />
+      </div>
+
+      {/* ── Paid tier ── */}
+      <PlanGate plan={plan} t={t} onUpgrade={onUpgrade}>
+        <div className="p-analytics-section">
+          <div className="p-analytics-section-title">{t.analyticsAudienceTitle}</div>
+          <div className="p-analytics-subsection-grid">
+            <div>
+              <div className="p-analytics-subsection-label">{t.analyticsAudienceIndustry}</div>
+              <HBarChart items={industryData} color="#1877F2" />
+            </div>
+            <div>
+              <div className="p-analytics-subsection-label">{t.analyticsAudienceCities}</div>
+              <HBarChart items={cityData} color="#2D6A4F" />
+            </div>
+          </div>
+          <div className="p-analytics-subsection-grid" style={{ marginTop: 16 }}>
+            <div>
+              <div className="p-analytics-subsection-label">{t.analyticsAudienceSeniority}</div>
+              <HBarChart items={seniorityData} color="#F4A261" />
+            </div>
+            <div>
+              <div className="p-analytics-subsection-label">{t.analyticsAudienceGrowthSource}</div>
+              <HBarChart items={growthSource} color="#7E57C2" />
+            </div>
+          </div>
+          <div style={{ marginTop: 20 }}>
+            <div className="p-analytics-subsection-label">{t.analyticsAudienceBestTime}</div>
+            <HeatmapGrid lang={lang} />
+          </div>
+        </div>
+
+        <div className="p-analytics-section">
+          <div className="p-analytics-section-title">{t.analyticsContentTitle}</div>
+          <div className="p-analytics-subsection-label">{t.analyticsContentPostType} (% eng.)</div>
+          <HBarChart items={postTypes.map(p => ({ label: p.label, value: p.value }))} color="#1877F2" />
+          <div className="p-analytics-subsection-label" style={{ marginTop: 16 }}>{t.analyticsContentTopics}</div>
+          <HBarChart items={topics.map(p => ({ label: p.label, value: p.value }))} color="#F4A261" />
+          <div className="p-analytics-subsection-label" style={{ marginTop: 16 }}>{t.analyticsContentEngTrend}</div>
+          <div className="p-analytics-chart-wrap">
+            <MiniLineChart data={engTrend} color="#F4A261" height={80} />
+          </div>
+        </div>
+
+        <div className="p-analytics-section">
+          <div className="p-analytics-section-title">{t.analyticsFunnelTitle}</div>
+          <div className="p-analytics-funnel">
+            {funnelData.map((step, i) => (
+              <div key={i} className="p-analytics-funnel-step" style={{ width: `${step.pct + 40}%` }}>
+                <div className="p-analytics-funnel-bar" style={{ background: i === 0 ? '#1877F2' : i === 1 ? '#4aa3f7' : '#2D6A4F' }}>
+                  <span>{step.label}</span>
+                  <strong>{step.value.toLocaleString()}</strong>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="p-analytics-section">
+          <div className="p-analytics-section-title">{t.analyticsCompetitorTitle}</div>
+          <HBarChart items={competitors.map(c => ({ label: c.label, value: c.value }))} color="#1877F2" />
+          <p style={{ fontSize: 12, color: '#aaa', margin: '8px 0 0' }}>
+            {lang === 'da' ? 'Baseret på anonymiserede branchedata.' : 'Based on anonymised industry data.'}
+          </p>
+        </div>
+
+        <div className="p-analytics-section">
+          <div className="p-analytics-section-title">{t.analyticsCompanyTitle}</div>
+          <div className="p-analytics-stat-row">
+            <StatCard label={lang === 'da' ? 'Virksomhedsfølgere' : 'Company followers'} value="1,284" sub={lang === 'da' ? 'total' : 'total'} color="#1877F2" />
+            <StatCard label={lang === 'da' ? 'Nye følgere' : 'New followers'} value={`+${Math.round(range * 3.4)}`} sub={`${range}d`} color="#2D6A4F" />
+            <StatCard label={lang === 'da' ? 'Jobopslag' : 'Job posts'} value="7" color="#F4A261" />
+          </div>
+          <div className="p-analytics-chart-wrap" style={{ marginTop: 12 }}>
+            <MiniLineChart data={genViews(range, 1200, 555)} color="#2D6A4F" height={80} />
+          </div>
+        </div>
+      </PlanGate>
     </div>
   )
 }
