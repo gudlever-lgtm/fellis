@@ -300,7 +300,7 @@
   <script>
     function setLang(lang) {
       document.querySelectorAll('[data-lang]').forEach(el => {
-        el.style.display = el.dataset.lang === lang ? '' : 'none';
+        el.style.display = el.dataset.lang === lang ? 'block' : 'none';
       });
       document.getElementById('btn-da').classList.toggle('active', lang === 'da');
       document.getElementById('btn-en').classList.toggle('active', lang === 'en');
