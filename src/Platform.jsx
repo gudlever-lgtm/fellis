@@ -112,13 +112,15 @@ export default function Platform({ lang: initialLang, onLogout }) {
           </div>
         </div>
         <div className="p-nav-tabs">
-          {['feed', 'friends', 'messages'].map(p => (
+          {['feed', 'friends', 'messages', 'events'].map(p => (
             <button
               key={p}
               className={`p-nav-tab${page === p ? ' active' : ''}`}
               onClick={() => navigateTo(p)}
             >
-              <span className="p-nav-tab-icon">{p === 'feed' ? '🏠' : p === 'friends' ? '👥' : '💬'}</span>
+              <span className="p-nav-tab-icon">
+                {p === 'feed' ? '🏠' : p === 'friends' ? '👥' : p === 'messages' ? '💬' : '📅'}
+              </span>
               <span className="p-nav-tab-label">
                 {p === 'friends'
                   ? (mode === 'business' ? t.connectionsLabel : t.friends)
@@ -207,6 +209,7 @@ export default function Platform({ lang: initialLang, onLogout }) {
         {page === 'edit-profile' && <EditProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} />}
         {page === 'friends' && <FriendsPage lang={lang} t={t} mode={mode} onMessage={() => navigateTo('messages')} />}
         {page === 'messages' && <MessagesPage lang={lang} t={t} currentUser={currentUser} openConvId={openConvId} onConvOpened={() => setOpenConvId(null)} />}
+        {page === 'events' && <EventsPage lang={lang} t={t} currentUser={currentUser} mode={mode} />}
         {page === 'privacy' && <PrivacySection lang={lang} onLogout={onLogout} />}
         {page === 'search' && (
           <SearchPage
@@ -1030,6 +1033,41 @@ function FeedPage({ lang, t, currentUser, highlightPostId, onHighlightCleared })
         )
       })()}
 
+      {/* Event activity feed items — shown when at top of feed */}
+      {offset === 0 && [
+        { id: 'ea1', actor: 'Magnus Jensen', verb: 'going', event: MOCK_EVENTS[0], time: { da: '35 min siden', en: '35 min ago' } },
+        { id: 'ea2', actor: 'Freja Andersen', verb: 'created', event: MOCK_EVENTS[1], time: { da: '3 t siden', en: '3 hrs ago' } },
+      ].map(item => {
+        const title = typeof item.event.title === 'string' ? item.event.title : (item.event.title[lang] || item.event.title.da)
+        const loc = typeof item.event.location === 'string' ? item.event.location : (item.event.location[lang] || item.event.location.da)
+        const action = item.verb === 'going' ? t.eventFeedRsvpd : t.eventFeedCreated
+        return (
+          <div key={item.id} className="p-card p-post p-event-feed-card">
+            <div className="p-post-header">
+              <div className="p-avatar-sm" style={{ background: nameToColor(item.actor) }}>{getInitials(item.actor)}</div>
+              <div>
+                <div className="p-post-author">{item.actor} <span style={{ fontWeight: 400, color: '#888' }}>{action}</span></div>
+                <div className="p-post-time">{item.time[lang]}</div>
+              </div>
+              <span className="p-event-type-badge" style={{ marginLeft: 'auto' }}>{t.eventFeedLabel}</span>
+            </div>
+            <div className="p-event-feed-body">
+              <div className="p-event-date-col" style={{ minWidth: 44 }}>
+                <div className="p-event-month">{new Date(item.event.date).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { month: 'short' }).toUpperCase()}</div>
+                <div className="p-event-day">{new Date(item.event.date).getDate()}</div>
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{title}</div>
+                <div style={{ fontSize: 13, color: '#777' }}>📍 {loc}</div>
+                <div style={{ fontSize: 12, color: '#aaa', marginTop: 2 }}>
+                  ✅ {item.event.going.length} {t.eventAttendees}
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      })}
+
       {/* Posts — max PAGE_SIZE in DOM */}
       {posts.map(post => {
         const liked = likedPosts.has(post.id)
@@ -1221,7 +1259,7 @@ function FeedPage({ lang, t, currentUser, highlightPostId, onHighlightCleared })
 }
 
 // ── Profile (clean — read-only view) ──
-function ProfilePage({ lang, t, currentUser, onUserUpdate }) {
+function ProfilePage({ lang, t, currentUser, mode, onUserUpdate }) {
   const [profile, setProfile] = useState({ ...currentUser })
   const [userPosts, setUserPosts] = useState([])
   const [showPassword, setShowPassword] = useState(false)
@@ -1264,8 +1302,22 @@ function ProfilePage({ lang, t, currentUser, onUserUpdate }) {
           <p className="p-profile-handle">{profile.handle}</p>
           <p className="p-profile-bio">{profile.bio?.[lang] || profile.bio?.da || ''}</p>
           <div className="p-profile-meta">
+            {mode === 'business' && profile.jobTitle && <span>💼 {profile.jobTitle}{profile.company ? ` · ${profile.company}` : ''}</span>}
+            {mode === 'business' && profile.industry && <span>🏭 {profile.industry}</span>}
             {profile.location && <span>📍 {profile.location}</span>}
             <span>📅 {t.joined} {profile.joinDate ? new Date(profile.joinDate).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}</span>
+          </div>
+          {mode === 'business' && profile.skills && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, margin: '8px 0' }}>
+              {profile.skills.split(',').map(s => s.trim()).filter(Boolean).map(skill => (
+                <span key={skill} style={{ fontSize: 12, padding: '3px 10px', borderRadius: 20, background: '#EBF4FF', color: '#1877F2', fontWeight: 600 }}>{skill}</span>
+              ))}
+            </div>
+          )}
+          <div style={{ marginBottom: 8 }}>
+            <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 12, background: mode === 'business' ? '#EBF4FF' : '#F0FAF4', color: mode === 'business' ? '#1877F2' : '#2D6A4F' }}>
+              {mode === 'business' ? t.modeBusinessTag : t.modeCommonTag}
+            </span>
           </div>
           <div className="p-profile-stats">
             <div className="p-profile-stat">
@@ -1274,7 +1326,7 @@ function ProfilePage({ lang, t, currentUser, onUserUpdate }) {
             </div>
             <div className="p-profile-stat">
               <strong>{profile.friendCount}</strong>
-              <span>{t.friendsLabel}</span>
+              <span>{mode === 'business' ? t.connectionsLabel : t.friendsLabel}</span>
             </div>
             <div className="p-profile-stat">
               <strong>{(profile.photoCount || 0).toLocaleString()}</strong>
@@ -1342,7 +1394,7 @@ function ProfilePage({ lang, t, currentUser, onUserUpdate }) {
 }
 
 // ── Edit Profile ──
-function EditProfilePage({ lang, t, currentUser, onUserUpdate, onNavigate }) {
+function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
   const [profile, setProfile] = useState({ ...currentUser })
   const avatarInputRef = useRef(null)
 
@@ -1439,6 +1491,43 @@ function EditProfilePage({ lang, t, currentUser, onUserUpdate, onNavigate }) {
         {/* Location */}
         <label style={labelStyle}>{editT.locationLabel}</label>
         <input style={fieldStyle} value={profile.location || ''} readOnly />
+
+        {/* Business-only fields */}
+        {mode === 'business' && (
+          <>
+            <div style={{ margin: '20px 0 12px', borderTop: '1px solid #eee', paddingTop: 16, fontSize: 13, fontWeight: 700, color: '#2D6A4F' }}>
+              💼 {t.modeBusiness}
+            </div>
+            <label style={labelStyle}>{t.titleLabel}</label>
+            <input
+              style={fieldStyle}
+              placeholder={lang === 'da' ? 'f.eks. Senior Designer' : 'e.g. Senior Designer'}
+              value={profile.jobTitle || ''}
+              onChange={e => setProfile(p => ({ ...p, jobTitle: e.target.value }))}
+            />
+            <label style={labelStyle}>{t.companyLabel}</label>
+            <input
+              style={fieldStyle}
+              placeholder={lang === 'da' ? 'Virksomhedsnavn' : 'Company name'}
+              value={profile.company || ''}
+              onChange={e => setProfile(p => ({ ...p, company: e.target.value }))}
+            />
+            <label style={labelStyle}>{t.industryLabel}</label>
+            <input
+              style={fieldStyle}
+              placeholder={lang === 'da' ? 'f.eks. Design & Teknologi' : 'e.g. Design & Technology'}
+              value={profile.industry || ''}
+              onChange={e => setProfile(p => ({ ...p, industry: e.target.value }))}
+            />
+            <label style={labelStyle}>{t.skillsLabel}</label>
+            <input
+              style={fieldStyle}
+              placeholder={lang === 'da' ? 'f.eks. UX, Figma, React (komma-adskilt)' : 'e.g. UX, Figma, React (comma-separated)'}
+              value={profile.skills || ''}
+              onChange={e => setProfile(p => ({ ...p, skills: e.target.value }))}
+            />
+          </>
+        )}
 
         <button
           style={{ marginTop: 24, padding: '10px 20px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
@@ -1909,7 +1998,7 @@ function FriendProfileModal({ userId, lang, t, onClose, onMessage }) {
 }
 
 // ── Friends ──
-function FriendsPage({ lang, t, onMessage }) {
+function FriendsPage({ lang, t, mode, onMessage }) {
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [friends, setFriends] = useState([])
@@ -2089,7 +2178,7 @@ function FriendsPage({ lang, t, onMessage }) {
 
       <div className="p-card">
         <h3 className="p-section-title" style={{ margin: '0 0 16px' }}>
-          {isSearching ? t.findPeople : t.friendsTitle}
+          {isSearching ? t.findPeople : (mode === 'business' ? t.connectionsTitle : t.friendsTitle)}
         </h3>
         <input
           className="p-search-input"
@@ -2100,7 +2189,7 @@ function FriendsPage({ lang, t, onMessage }) {
         {!isSearching && (
           <div className="p-filter-tabs">
             <button className={`p-filter-tab${filter === 'all' ? ' active' : ''}`} onClick={() => setFilter('all')}>
-              {t.allFriends} ({friends.length})
+              {mode === 'business' ? t.allConnections : t.allFriends} ({friends.length})
             </button>
             <button className={`p-filter-tab${filter === 'online' ? ' active' : ''}`} onClick={() => setFilter('online')}>
               {t.onlineFriends} ({friends.filter(f => f.online).length})
@@ -2123,7 +2212,7 @@ function FriendsPage({ lang, t, onMessage }) {
                     {user.online && <div className="online-dot" />}
                   </div>
                   <div className="p-friend-card-name">{user.name}</div>
-                  {isFriend && <div className="p-friend-card-mutual">✓ {t.allFriends}</div>}
+                  {isFriend && <div className="p-friend-card-mutual">✓ {mode === 'business' ? t.allConnections : t.allFriends}</div>}
                 </div>
                 {isFriend ? (
                   <div style={{ display: 'flex', gap: 8 }}>
@@ -2893,6 +2982,393 @@ function MessagesPage({ lang, t, currentUser, openConvId, onConvOpened }) {
       {modal === 'rename' && conv && (
         <RenameModal t={t} current={conv.groupName} onClose={() => setModal(null)} onRename={handleRename} />
       )}
+    </div>
+  )
+}
+
+// ── Events ──
+const MOCK_EVENTS = [
+  {
+    id: 1,
+    title: { da: 'Designere i KBH — Sommermøde', en: 'Designers in CPH — Summer Meetup' },
+    date: '2026-03-15T18:00:00',
+    location: 'Café Nørreport, København',
+    description: { da: 'Månedligt netværksmøde for designere i Storkøbenhavn. Alle er velkomne — uanset erfaring!', en: 'Monthly networking meetup for designers in Greater Copenhagen. Everyone welcome — regardless of experience!' },
+    organizer: 'Sofie Nielsen',
+    cover: null,
+    going: ['Magnus Jensen', 'Clara Johansen', 'Emil Larsen', 'Alma Hansen'],
+    maybe: ['Astrid Poulsen', 'Liam Madsen'],
+    eventType: null,
+    ticketUrl: '',
+    cap: null,
+  },
+  {
+    id: 2,
+    title: { da: 'UX & AI — Fremtidens brugeroplevelse', en: 'UX & AI — The Future of User Experience' },
+    date: '2026-04-02T09:00:00',
+    location: 'Copenhagen Business School, Frederiksberg',
+    description: { da: 'Konference om, hvordan kunstig intelligens ændrer UX-designet. Oplæg fra brancheledere og workshops.', en: 'Conference on how artificial intelligence is changing UX design. Keynotes from industry leaders and workshops.' },
+    organizer: 'Freja Andersen',
+    cover: null,
+    going: ['Sofie Nielsen', 'Viktor Mortensen', 'Noah Rasmussen'],
+    maybe: ['Ida Pedersen'],
+    eventType: 'conference',
+    ticketUrl: 'https://example.com/tickets',
+    cap: 200,
+  },
+  {
+    id: 3,
+    title: { da: 'Kvartalsvis brunch i Vesterbro', en: 'Quarterly brunch in Vesterbro' },
+    date: '2026-03-22T10:30:00',
+    location: 'Værnedamsvej 7, København V',
+    description: { da: 'Hyggeligt brunchmøde for nærområdets beboere. Medbring noget at spise og dele!', en: 'Cosy brunch gathering for local residents. Bring something to eat and share!' },
+    organizer: 'Alma Hansen',
+    cover: null,
+    going: ['Oscar Christensen', 'Clara Johansen', 'Magnus Jensen', 'Sofie Nielsen', 'Ida Pedersen'],
+    maybe: [],
+    eventType: null,
+    ticketUrl: '',
+    cap: null,
+  },
+  {
+    id: 4,
+    title: { da: 'Webinar: Bygning af skalerbare React-apps', en: 'Webinar: Building Scalable React Apps' },
+    date: '2026-04-10T14:00:00',
+    location: { da: 'Online (Zoom)', en: 'Online (Zoom)' },
+    description: { da: 'Gratis webinar for frontend-udviklere om best practices for store React-projekter.', en: 'Free webinar for frontend developers on best practices for large React projects.' },
+    organizer: 'Emil Larsen',
+    cover: null,
+    going: ['Sofie Nielsen', 'Liam Madsen', 'Astrid Poulsen'],
+    maybe: ['Viktor Mortensen', 'Noah Rasmussen', 'Magnus Jensen'],
+    eventType: 'webinar',
+    ticketUrl: 'https://example.com/register',
+    cap: 500,
+  },
+]
+
+function EventsPage({ lang, t, currentUser, mode }) {
+  const [tab, setTab] = useState('my')
+  const [events, setEvents] = useState(MOCK_EVENTS)
+  const [selectedEvent, setSelectedEvent] = useState(null)
+  const [showCreate, setShowCreate] = useState(false)
+  const [rsvpMap, setRsvpMap] = useState({ 1: 'going', 3: 'going' })
+  const [rsvpExtras, setRsvpExtras] = useState({}) // { [eventId]: { dietary, plusOne } }
+
+  const handleRsvp = (eventId, status) => {
+    setRsvpMap(prev => ({ ...prev, [eventId]: prev[eventId] === status ? null : status }))
+  }
+
+  const getEventTitle = (e) => typeof e.title === 'string' ? e.title : (e.title[lang] || e.title.da)
+  const getEventDesc = (e) => typeof e.description === 'string' ? e.description : (e.description[lang] || e.description.da)
+  const getEventLocation = (e) => typeof e.location === 'string' ? e.location : (e.location[lang] || e.location.da)
+
+  const myEvents = events.filter(e => rsvpMap[e.id] || e.organizer === currentUser.name)
+  const discoverEvents = events.filter(e => !rsvpMap[e.id] && e.organizer !== currentUser.name)
+  const displayEvents = tab === 'my' ? myEvents : discoverEvents
+
+  const formatDate = (iso) => {
+    const d = new Date(iso)
+    return d.toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  }
+
+  const eventTypeLabel = (type) => {
+    const map = { conference: t.eventTypeConference, webinar: t.eventTypeWebinar, workshop: t.eventTypeWorkshop, meetup: t.eventTypeMeetup }
+    return map[type] || null
+  }
+
+  return (
+    <div className="p-events">
+      {/* Header */}
+      <div className="p-events-header">
+        <h2 className="p-section-title" style={{ margin: 0 }}>{t.eventsTitle}</h2>
+        <button className="p-events-create-btn" onClick={() => setShowCreate(true)}>
+          + {t.createEvent}
+        </button>
+      </div>
+
+      {/* Tabs */}
+      <div className="p-filter-tabs" style={{ marginBottom: 16 }}>
+        <button className={`p-filter-tab${tab === 'my' ? ' active' : ''}`} onClick={() => setTab('my')}>
+          {t.myEvents} ({myEvents.length})
+        </button>
+        <button className={`p-filter-tab${tab === 'discover' ? ' active' : ''}`} onClick={() => setTab('discover')}>
+          {t.discoverEvents} ({discoverEvents.length})
+        </button>
+      </div>
+
+      {/* Event list */}
+      {displayEvents.length === 0 ? (
+        <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>
+          📅 {t.eventNoUpcoming}
+        </div>
+      ) : (
+        <div className="p-events-list">
+          {displayEvents.map(ev => {
+            const myRsvp = rsvpMap[ev.id]
+            const typeLabel = ev.eventType ? eventTypeLabel(ev.eventType) : null
+            return (
+              <div key={ev.id} className="p-card p-event-card" onClick={() => setSelectedEvent(ev)}>
+                <div className="p-event-card-body">
+                  <div className="p-event-date-col">
+                    <div className="p-event-month">{new Date(ev.date).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { month: 'short' }).toUpperCase()}</div>
+                    <div className="p-event-day">{new Date(ev.date).getDate()}</div>
+                  </div>
+                  <div className="p-event-info">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <h3 className="p-event-title">{getEventTitle(ev)}</h3>
+                      {typeLabel && <span className="p-event-type-badge">{typeLabel}</span>}
+                    </div>
+                    <div className="p-event-meta">
+                      <span>📍 {getEventLocation(ev)}</span>
+                      <span>🕐 {formatDate(ev.date)}</span>
+                    </div>
+                    <div className="p-event-meta" style={{ color: '#888' }}>
+                      <span>✅ {ev.going.length} {t.eventAttendees}</span>
+                      {ev.maybe.length > 0 && <span>❓ {ev.maybe.length} {t.eventMaybes}</span>}
+                      {ev.cap && <span>🔢 max {ev.cap}</span>}
+                    </div>
+                  </div>
+                  <div className="p-event-rsvp-col" onClick={e => e.stopPropagation()}>
+                    {['going', 'maybe', 'notGoing'].map(s => (
+                      <button
+                        key={s}
+                        className={`p-event-rsvp-btn${myRsvp === s ? ' active' : ''}`}
+                        onClick={() => handleRsvp(ev.id, s)}
+                        title={t[`event${s.charAt(0).toUpperCase() + s.slice(1)}`]}
+                      >
+                        {s === 'going' ? '✅' : s === 'maybe' ? '❓' : '❌'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Event detail modal */}
+      {selectedEvent && (
+        <EventDetailModal
+          event={selectedEvent}
+          t={t}
+          lang={lang}
+          mode={mode}
+          myRsvp={rsvpMap[selectedEvent.id]}
+          extras={rsvpExtras[selectedEvent.id] || {}}
+          onRsvp={(s) => handleRsvp(selectedEvent.id, s)}
+          onExtrasChange={(ex) => setRsvpExtras(prev => ({ ...prev, [selectedEvent.id]: ex }))}
+          onClose={() => setSelectedEvent(null)}
+          getTitle={getEventTitle}
+          getDesc={getEventDesc}
+          getLocation={getEventLocation}
+          formatDate={formatDate}
+          eventTypeLabel={eventTypeLabel}
+        />
+      )}
+
+      {/* Create event modal */}
+      {showCreate && (
+        <CreateEventModal
+          t={t}
+          lang={lang}
+          mode={mode}
+          currentUser={currentUser}
+          onClose={() => setShowCreate(false)}
+          onCreate={(ev) => { setEvents(prev => [ev, ...prev]); setShowCreate(false) }}
+        />
+      )}
+    </div>
+  )
+}
+
+function EventDetailModal({ event, t, lang, mode, myRsvp, extras, onRsvp, onExtrasChange, onClose, getTitle, getDesc, getLocation, formatDate, eventTypeLabel }) {
+  useEffect(() => {
+    const h = (e) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', h)
+    return () => document.removeEventListener('keydown', h)
+  }, [onClose])
+
+  const typeLabel = event.eventType ? eventTypeLabel(event.eventType) : null
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="p-event-detail-modal" onClick={e => e.stopPropagation()}>
+        <button className="lightbox-close" style={{ position: 'absolute', top: 12, right: 16 }} onClick={onClose}>✕</button>
+
+        {typeLabel && <div className="p-event-type-badge" style={{ marginBottom: 8 }}>{typeLabel}</div>}
+        <h2 style={{ margin: '0 0 8px', fontSize: 22, fontWeight: 700 }}>{getTitle(event)}</h2>
+
+        <div className="p-event-meta" style={{ marginBottom: 12 }}>
+          <span>📅 {formatDate(event.date)}</span>
+          <span>📍 {getLocation(event)}</span>
+          <span>👤 {t.eventOrganizer}: <strong>{event.organizer}</strong></span>
+          {event.cap && <span>🔢 max {event.cap} {t.eventAttendees}</span>}
+          {event.ticketUrl && <a href={event.ticketUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#1877F2' }}>🎟 {t.eventTicketUrl}</a>}
+        </div>
+
+        <p style={{ fontSize: 14, color: '#444', lineHeight: 1.6, marginBottom: 20 }}>{getDesc(event)}</p>
+
+        {/* RSVP */}
+        <div className="p-event-detail-rsvp">
+          {['going', 'maybe', 'notGoing'].map(s => {
+            const label = t[`event${s.charAt(0).toUpperCase() + s.slice(1)}`]
+            const icon = s === 'going' ? '✅' : s === 'maybe' ? '❓' : '❌'
+            return (
+              <button
+                key={s}
+                className={`p-event-rsvp-full-btn${myRsvp === s ? ' active' : ''}`}
+                onClick={() => onRsvp(s)}
+              >
+                {icon} {label}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Common-mode extras */}
+        {myRsvp && myRsvp !== 'notGoing' && mode === 'common' && (
+          <div style={{ marginTop: 16, padding: 16, background: '#F9F9F9', borderRadius: 10 }}>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>{t.eventDietary}</label>
+            <input
+              style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box', marginBottom: 10 }}
+              placeholder={lang === 'da' ? 'f.eks. vegetar, nøddeallergi...' : 'e.g. vegetarian, nut allergy...'}
+              value={extras.dietary || ''}
+              onChange={e => onExtrasChange({ ...extras, dietary: e.target.value })}
+            />
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
+              <input type="checkbox" checked={!!extras.plusOne} onChange={e => onExtrasChange({ ...extras, plusOne: e.target.checked })} />
+              {t.eventPlusOne}
+            </label>
+          </div>
+        )}
+
+        {/* Attendees */}
+        <div style={{ marginTop: 20 }}>
+          <h4 style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 700 }}>✅ {t.eventGoing} ({event.going.length})</h4>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {event.going.map(name => (
+              <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', background: '#F0FAF4', borderRadius: 20, fontSize: 13 }}>
+                <div style={{ width: 22, height: 22, borderRadius: '50%', background: nameToColor(name), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#fff', fontWeight: 700 }}>
+                  {getInitials(name)}
+                </div>
+                {name}
+              </div>
+            ))}
+          </div>
+          {event.maybe.length > 0 && (
+            <>
+              <h4 style={{ margin: '14px 0 10px', fontSize: 14, fontWeight: 700 }}>❓ {t.eventMaybe} ({event.maybe.length})</h4>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {event.maybe.map(name => (
+                  <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', background: '#FFF8E7', borderRadius: 20, fontSize: 13 }}>
+                    <div style={{ width: 22, height: 22, borderRadius: '50%', background: nameToColor(name), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#fff', fontWeight: 700 }}>
+                      {getInitials(name)}
+                    </div>
+                    {name}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function CreateEventModal({ t, lang, mode, currentUser, onClose, onCreate }) {
+  const [title, setTitle] = useState('')
+  const [date, setDate] = useState('')
+  const [location, setLocation] = useState('')
+  const [description, setDescription] = useState('')
+  const [eventType, setEventType] = useState('')
+  const [ticketUrl, setTicketUrl] = useState('')
+  const [cap, setCap] = useState('')
+
+  useEffect(() => {
+    const h = (e) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', h)
+    return () => document.removeEventListener('keydown', h)
+  }, [onClose])
+
+  const fieldStyle = { display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box', fontFamily: 'inherit' }
+  const labelStyle = { display: 'block', fontSize: 13, fontWeight: 600, color: '#555', marginBottom: 4, marginTop: 14 }
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    if (!title.trim() || !date || !location.trim()) return
+    const newEvent = {
+      id: Date.now(),
+      title: { da: title, en: title },
+      date,
+      location,
+      description: { da: description, en: description },
+      organizer: currentUser.name,
+      cover: null,
+      going: [currentUser.name],
+      maybe: [],
+      eventType: eventType || null,
+      ticketUrl,
+      cap: cap ? parseInt(cap) : null,
+    }
+    onCreate(newEvent)
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="p-event-create-modal" onClick={e => e.stopPropagation()}>
+        <h3 style={{ margin: '0 0 20px', fontSize: 18, fontWeight: 700 }}>{t.createEvent}</h3>
+        <form onSubmit={handleSubmit}>
+          <label style={labelStyle}>{t.eventTitle} *</label>
+          <input style={fieldStyle} value={title} onChange={e => setTitle(e.target.value)} required
+            placeholder={lang === 'da' ? 'Begivenhedens navn' : 'Event name'} />
+
+          <label style={labelStyle}>{t.eventDate} *</label>
+          <input style={fieldStyle} type="datetime-local" value={date} onChange={e => setDate(e.target.value)} required />
+
+          <label style={labelStyle}>{t.eventLocation} *</label>
+          <input style={fieldStyle} value={location} onChange={e => setLocation(e.target.value)} required
+            placeholder={lang === 'da' ? 'Adresse eller "Online"' : 'Address or "Online"'} />
+
+          <label style={labelStyle}>{t.eventDescription}</label>
+          <textarea style={{ ...fieldStyle, minHeight: 80, resize: 'vertical' }} value={description} onChange={e => setDescription(e.target.value)}
+            placeholder={lang === 'da' ? 'Beskriv begivenheden...' : 'Describe the event...'} />
+
+          {/* Business-only fields */}
+          {mode === 'business' && (
+            <>
+              <label style={labelStyle}>{t.eventType}</label>
+              <select style={fieldStyle} value={eventType} onChange={e => setEventType(e.target.value)}>
+                <option value="">—</option>
+                <option value="conference">{t.eventTypeConference}</option>
+                <option value="webinar">{t.eventTypeWebinar}</option>
+                <option value="workshop">{t.eventTypeWorkshop}</option>
+                <option value="meetup">{t.eventTypeMeetup}</option>
+              </select>
+
+              <label style={labelStyle}>{t.eventTicketUrl}</label>
+              <input style={fieldStyle} type="url" value={ticketUrl} onChange={e => setTicketUrl(e.target.value)}
+                placeholder="https://..." />
+
+              <label style={labelStyle}>{t.eventCap}</label>
+              <input style={fieldStyle} type="number" min="1" value={cap} onChange={e => setCap(e.target.value)}
+                placeholder={t.eventCapPlaceholder} />
+            </>
+          )}
+
+          <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
+            <button type="button" onClick={onClose}
+              style={{ flex: 1, padding: '10px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', cursor: 'pointer', fontSize: 14 }}>
+              {t.eventCancel}
+            </button>
+            <button type="submit"
+              style={{ flex: 2, padding: '10px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>
+              {t.eventCreate}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   )
 }

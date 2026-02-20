@@ -112,6 +112,16 @@ const T = {
     createAccountDesc: 'Opret en konto uden Facebook — brug e-mail og adgangskode.',
     createAccountBtn: 'Opret konto',
     orDivider: 'eller',
+    // Mode selector (step 5)
+    modeStepTitle: 'Vælg din kontotype',
+    modeStepSubtitle: 'Du kan altid skifte den i dine profilindstillinger.',
+    modeCommon: 'Privat',
+    modeBusiness: 'Erhverv',
+    modeCommonDesc: 'Til personlig brug, familie og fællesskab. Venner, opslag og begivenheder.',
+    modeBusinessDesc: 'Til professionelt netværk og virksomhedsnærvær. Forbindelser, branchebegivenheder og virksomhedssider.',
+    modeCommonFeatures: ['Venner & fællesskab', 'Familie-venlige indstillinger', 'Personlige begivenheder'],
+    modeBusinessFeatures: ['Professionelle forbindelser', 'Virksomhedssider', 'Konferencer & webinarer'],
+    modeSelectBtn: 'Kom i gang',
   },
   en: {
     navBrand: 'fellis.eu',
@@ -214,6 +224,16 @@ const T = {
     createAccountDesc: 'Create an account without Facebook — use email and password.',
     createAccountBtn: 'Create account',
     orDivider: 'or',
+    // Mode selector (step 5)
+    modeStepTitle: 'Choose your account type',
+    modeStepSubtitle: 'You can always change this in your profile settings.',
+    modeCommon: 'Personal',
+    modeBusiness: 'Business',
+    modeCommonDesc: 'For personal use, family, and community. Friends, posts, and events.',
+    modeBusinessDesc: 'For professional networking and company presence. Connections, industry events, and company pages.',
+    modeCommonFeatures: ['Friends & community', 'Family-friendly settings', 'Personal events'],
+    modeBusinessFeatures: ['Professional connections', 'Company pages', 'Conferences & webinars'],
+    modeSelectBtn: 'Get started',
   },
 }
 
@@ -246,6 +266,9 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName }) {
 
   // Direct signup (skipping Facebook migration)
   const [directSignup, setDirectSignup] = useState(false)
+
+  // Mode selection (step 5)
+  const [pendingEnter, setPendingEnter] = useState(false)
 
   // Register state (step 4)
   const [regName, setRegName] = useState('')
@@ -355,18 +378,15 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName }) {
     setRegLoading(true)
     setRegError('')
     try {
-      const data = await apiRegister(regName.trim(), regEmail.trim(), regPassword.trim(), lang, inviteToken || undefined)
-      if (data?.sessionId) {
-        onEnterPlatform(lang)
-      } else {
-        // Server not running — enter demo mode
-        onEnterPlatform(lang)
-      }
+      await apiRegister(regName.trim(), regEmail.trim(), regPassword.trim(), lang, inviteToken || undefined)
+      // Show mode selector before entering platform
+      setPendingEnter(true)
+      setStep(5)
     } catch {
       setRegError(t.registerError)
       setRegLoading(false)
     }
-  }, [regName, regEmail, regPassword, lang, t, onEnterPlatform, inviteToken])
+  }, [regName, regEmail, regPassword, lang, t, inviteToken])
 
   // Redirect to real Facebook OAuth
   const handleFbClick = useCallback(() => {
@@ -750,6 +770,47 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName }) {
               {regLoading ? '...' : t.registerSubmit}
             </button>
           </form>
+        </div>
+      )}
+      {/* Step 5 — Mode selector */}
+      {step === 5 && (
+        <div className="step-container" style={{ maxWidth: 560 }}>
+          <div style={{ textAlign: 'center', marginBottom: 28 }}>
+            <div style={{ fontSize: 40, marginBottom: 8 }}>🎉</div>
+            <h2 style={{ margin: '0 0 8px' }}>{t.modeStepTitle}</h2>
+            <p style={{ margin: 0, color: '#888', fontSize: 14 }}>{t.modeStepSubtitle}</p>
+          </div>
+          <div style={{ display: 'flex', gap: 16 }}>
+            {[
+              { key: 'common', label: t.modeCommon, icon: '🏠', desc: t.modeCommonDesc, features: t.modeCommonFeatures, color: '#2D6A4F', bg: '#F0FAF4' },
+              { key: 'business', label: t.modeBusiness, icon: '💼', desc: t.modeBusinessDesc, features: t.modeBusinessFeatures, color: '#1877F2', bg: '#EBF4FF' },
+            ].map(({ key, label, icon, desc, features, color, bg }) => (
+              <button
+                key={key}
+                onClick={() => {
+                  localStorage.setItem('fellis_mode', key)
+                  onEnterPlatform(lang)
+                }}
+                style={{
+                  flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
+                  gap: 10, padding: 24, borderRadius: 16, border: `2px solid ${color}`,
+                  background: bg, cursor: 'pointer', textAlign: 'left', transition: 'transform 0.15s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+                onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+              >
+                <span style={{ fontSize: 36 }}>{icon}</span>
+                <strong style={{ fontSize: 18, color }}>{label}</strong>
+                <span style={{ fontSize: 13, color: '#555', lineHeight: 1.5 }}>{desc}</span>
+                <ul style={{ margin: '4px 0 0', padding: '0 0 0 16px', fontSize: 12, color: '#666', lineHeight: 1.8 }}>
+                  {features.map(f => <li key={f}>{f}</li>)}
+                </ul>
+                <span style={{ marginTop: 8, alignSelf: 'stretch', padding: '10px', borderRadius: 10, background: color, color: '#fff', fontWeight: 700, fontSize: 14, textAlign: 'center' }}>
+                  {t.modeSelectBtn} →
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>
