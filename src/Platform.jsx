@@ -4,6 +4,25 @@ import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProf
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
+// ── Mock notifications ──
+function makeMockNotifs(mode) {
+  const isBiz = mode === 'business'
+  const base = [
+    { id: 1, type: 'friend_request', actor: 'Liam Madsen', time: '2 min', read: false, targetPage: 'friends' },
+    { id: 2, type: 'like', actor: 'Clara Johansen', time: '15 min', read: false, targetPage: 'feed' },
+    { id: 3, type: 'comment', actor: 'Magnus Jensen', time: '1 t', read: false, targetPage: 'feed' },
+    { id: 4, type: 'accepted', actor: 'Astrid Poulsen', time: '3 t', read: true, targetPage: 'friends' },
+    { id: 5, type: 'group_post', actor: 'Emil Larsen', group: 'Designere i KBH', time: '5 t', read: true, targetPage: 'feed' },
+  ]
+  if (isBiz) {
+    base.push(
+      { id: 6, type: 'profile_view', actor: 'Freja Andersen', time: '8 t', read: true, targetPage: 'profile' },
+      { id: 7, type: 'endorsement', actor: 'Noah Rasmussen', time: '1 d', read: true, targetPage: 'profile' },
+    )
+  }
+  return base
+}
+
 export default function Platform({ lang: initialLang, onLogout }) {
   const [lang, setLang] = useState(initialLang || 'da')
   const [page, setPage] = useState('feed')
@@ -11,8 +30,24 @@ export default function Platform({ lang: initialLang, onLogout }) {
   const [showAvatarMenu, setShowAvatarMenu] = useState(false)
   const [openConvId, setOpenConvId] = useState(null)
   const [highlightPostId, setHighlightPostId] = useState(null)
+  const [mode, setMode] = useState(() => localStorage.getItem('fellis_mode') || 'common')
+  const [showNotifPanel, setShowNotifPanel] = useState(false)
+  const [notifs, setNotifs] = useState(() => makeMockNotifs(localStorage.getItem('fellis_mode') || 'common'))
+  const [showModeModal, setShowModeModal] = useState(false)
   const avatarMenuRef = useRef(null)
+  const notifRef = useRef(null)
   const t = PT[lang]
+
+  const unreadCount = notifs.filter(n => !n.read).length
+
+  const switchMode = (newMode) => {
+    setMode(newMode)
+    localStorage.setItem('fellis_mode', newMode)
+    setNotifs(makeMockNotifs(newMode))
+    setShowModeModal(false)
+  }
+
+  const markAllRead = () => setNotifs(prev => prev.map(n => ({ ...n, read: true })))
 
   const toggleLang = useCallback(() => setLang(p => p === 'da' ? 'en' : 'da'), [])
 
@@ -30,17 +65,20 @@ export default function Platform({ lang: initialLang, onLogout }) {
     })
   }, [onLogout])
 
-  // Close dropdown when clicking outside
+  // Close dropdowns when clicking outside
   useEffect(() => {
-    if (!showAvatarMenu) return
+    if (!showAvatarMenu && !showNotifPanel) return
     const handleClick = (e) => {
-      if (avatarMenuRef.current && !avatarMenuRef.current.contains(e.target)) {
+      if (showAvatarMenu && avatarMenuRef.current && !avatarMenuRef.current.contains(e.target)) {
         setShowAvatarMenu(false)
+      }
+      if (showNotifPanel && notifRef.current && !notifRef.current.contains(e.target)) {
+        setShowNotifPanel(false)
       }
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
-  }, [showAvatarMenu])
+  }, [showAvatarMenu, showNotifPanel])
 
   const navigateTo = useCallback((p) => {
     setPage(p)
@@ -81,7 +119,11 @@ export default function Platform({ lang: initialLang, onLogout }) {
               onClick={() => navigateTo(p)}
             >
               <span className="p-nav-tab-icon">{p === 'feed' ? '🏠' : p === 'friends' ? '👥' : '💬'}</span>
-              <span className="p-nav-tab-label">{t[p] || p}</span>
+              <span className="p-nav-tab-label">
+                {p === 'friends'
+                  ? (mode === 'business' ? t.connectionsLabel : t.friends)
+                  : (t[p] || p)}
+              </span>
             </button>
           ))}
         </div>
@@ -92,6 +134,31 @@ export default function Platform({ lang: initialLang, onLogout }) {
             title={t.search}
             aria-label={t.search}
           >🔍</button>
+
+          {/* Notification bell */}
+          <div ref={notifRef} style={{ position: 'relative' }}>
+            <button
+              className="p-nav-notif-btn"
+              onClick={() => { setShowNotifPanel(v => !v); setShowAvatarMenu(false) }}
+              aria-label={t.notifications}
+              title={t.notifications}
+            >
+              🔔
+              {unreadCount > 0 && <span className="notif-badge">{unreadCount}</span>}
+            </button>
+            {showNotifPanel && (
+              <NotificationsPanel
+                notifs={notifs}
+                t={t}
+                lang={lang}
+                mode={mode}
+                onMarkAllRead={markAllRead}
+                onMarkRead={(id) => setNotifs(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))}
+                onNavigate={(pg) => { navigateTo(pg); setShowNotifPanel(false) }}
+              />
+            )}
+          </div>
+
           <button className="lang-toggle" onClick={toggleLang}>{t.langToggle}</button>
           {/* Avatar with dropdown menu */}
           <div ref={avatarMenuRef} style={{ position: 'relative' }}>
@@ -107,6 +174,9 @@ export default function Platform({ lang: initialLang, onLogout }) {
                 <div className="avatar-dropdown-header">
                   <strong>{currentUser.name}</strong>
                   <span style={{ fontSize: 12, color: '#888' }}>{currentUser.handle}</span>
+                  <span style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>
+                    {mode === 'business' ? t.modeBusinessTag : t.modeCommonTag}
+                  </span>
                 </div>
                 <div className="avatar-dropdown-divider" />
                 <button className="avatar-dropdown-item" onClick={() => navigateTo('profile')}>
@@ -114,6 +184,9 @@ export default function Platform({ lang: initialLang, onLogout }) {
                 </button>
                 <button className="avatar-dropdown-item" onClick={() => navigateTo('edit-profile')}>
                   <span>✏️</span> {menuT.editProfile}
+                </button>
+                <button className="avatar-dropdown-item" onClick={() => { setShowAvatarMenu(false); setShowModeModal(true) }}>
+                  <span>{mode === 'business' ? '💼' : '🏠'}</span> {t.modeSwitch}
                 </button>
                 <button className="avatar-dropdown-item" onClick={() => navigateTo('privacy')}>
                   <span>🔒</span> {menuT.privacy}
@@ -129,10 +202,10 @@ export default function Platform({ lang: initialLang, onLogout }) {
       </nav>
 
       <div className="p-content">
-        {page === 'feed' && <FeedPage lang={lang} t={t} currentUser={currentUser} highlightPostId={highlightPostId} onHighlightCleared={() => setHighlightPostId(null)} />}
-        {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} onUserUpdate={setCurrentUser} />}
-        {page === 'edit-profile' && <EditProfilePage lang={lang} t={t} currentUser={currentUser} onUserUpdate={setCurrentUser} onNavigate={navigateTo} />}
-        {page === 'friends' && <FriendsPage lang={lang} t={t} onMessage={() => navigateTo('messages')} />}
+        {page === 'feed' && <FeedPage lang={lang} t={t} currentUser={currentUser} mode={mode} highlightPostId={highlightPostId} onHighlightCleared={() => setHighlightPostId(null)} />}
+        {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} />}
+        {page === 'edit-profile' && <EditProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} />}
+        {page === 'friends' && <FriendsPage lang={lang} t={t} mode={mode} onMessage={() => navigateTo('messages')} />}
         {page === 'messages' && <MessagesPage lang={lang} t={t} currentUser={currentUser} openConvId={openConvId} onConvOpened={() => setOpenConvId(null)} />}
         {page === 'privacy' && <PrivacySection lang={lang} onLogout={onLogout} />}
         {page === 'search' && (
@@ -143,6 +216,79 @@ export default function Platform({ lang: initialLang, onLogout }) {
             onNavigateToConv={(convId) => { setOpenConvId(convId); navigateTo('messages') }}
           />
         )}
+      </div>
+
+      {/* Mode switch modal */}
+      {showModeModal && (
+        <div className="modal-backdrop" onClick={() => setShowModeModal(false)}>
+          <div className="mode-modal" onClick={e => e.stopPropagation()}>
+            <h3 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 700 }}>{t.modeTitle}</h3>
+            <p style={{ margin: '0 0 20px', fontSize: 13, color: '#888' }}>{t.modeCurrentLabel}: <strong>{mode === 'business' ? t.modeBusiness : t.modeCommon}</strong></p>
+            <div style={{ display: 'flex', gap: 12 }}>
+              {[
+                { key: 'common', label: t.modeCommon, icon: '🏠', desc: t.modeCommonDesc },
+                { key: 'business', label: t.modeBusiness, icon: '💼', desc: t.modeBusinessDesc },
+              ].map(({ key, label, icon, desc }) => (
+                <button
+                  key={key}
+                  onClick={() => switchMode(key)}
+                  className={`mode-card${mode === key ? ' mode-card-active' : ''}`}
+                >
+                  <span style={{ fontSize: 28 }}>{icon}</span>
+                  <strong style={{ fontSize: 15 }}>{label}</strong>
+                  <span style={{ fontSize: 12, color: '#777', lineHeight: 1.4 }}>{desc}</span>
+                  {mode === key && <span className="mode-card-check">✓</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Notifications Panel ──
+function NotificationsPanel({ notifs, t, lang, mode, onMarkAllRead, onMarkRead, onNavigate }) {
+  const getLabel = (n) => {
+    switch (n.type) {
+      case 'friend_request': return mode === 'business' ? t.notifConnectionRequest : t.notifFriendRequest
+      case 'like': return t.notifLike
+      case 'comment': return t.notifComment
+      case 'accepted': return mode === 'business' ? t.notifConnectionAccepted : t.notifAccepted
+      case 'group_post': return `${t.notifGroupPost} "${n.group}"`
+      case 'profile_view': return t.notifProfileView
+      case 'endorsement': return t.notifEndorsement
+      default: return ''
+    }
+  }
+  const unread = notifs.filter(n => !n.read).length
+  return (
+    <div className="notif-panel">
+      <div className="notif-panel-header">
+        <span style={{ fontWeight: 700, fontSize: 15 }}>{t.notifications}</span>
+        {unread > 0 && (
+          <button className="notif-mark-all" onClick={onMarkAllRead}>{t.markAllRead}</button>
+        )}
+      </div>
+      <div className="notif-list">
+        {notifs.length === 0 ? (
+          <div className="notif-empty">{t.noNotifications}</div>
+        ) : notifs.map(n => (
+          <div
+            key={n.id}
+            className={`notif-item${n.read ? '' : ' notif-item-unread'}`}
+            onClick={() => { onMarkRead(n.id); onNavigate(n.targetPage) }}
+          >
+            <div className="notif-item-dot" style={{ opacity: n.read ? 0 : 1 }} />
+            <div className="notif-item-body">
+              <span className="notif-actor">{n.actor}</span>
+              {' '}
+              <span>{getLabel(n)}</span>
+            </div>
+            <div className="notif-item-time">{n.time}</div>
+          </div>
+        ))}
       </div>
     </div>
   )
