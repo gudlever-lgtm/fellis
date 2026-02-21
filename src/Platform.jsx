@@ -896,7 +896,8 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
   const handleShareToFriend = useCallback(async (post, friendId) => {
     const text = post.text[lang] || post.text.da || ''
     const msg = `${post.author}: "${text.slice(0, 120)}${text.length > 120 ? '…' : ''}" — fellis.eu`
-    await apiSendMessage(friendId, msg)
+    const conv = await apiCreateConversation([friendId], null, false, false).catch(() => null)
+    if (conv?.id) await apiSendConversationMessage(conv.id, msg).catch(() => {})
     setShareSentTo(friendId)
     setTimeout(() => { setSharePopup(null); setShareSentTo(null) }, 1200)
   }, [lang])
