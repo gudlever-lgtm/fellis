@@ -295,6 +295,26 @@ export async function apiGetInvites() {
   return await request('/api/invites')
 }
 
+export async function apiCancelInvite(id) {
+  return await request(`/api/invites/${id}`, { method: 'DELETE' })
+}
+
+// Events
+export async function apiFetchEvents() {
+  return await request('/api/events')
+}
+
+export async function apiCreateEvent(data) {
+  return await request('/api/events', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function apiRsvpEvent(eventId, status, extras = {}) {
+  return await request(`/api/events/${eventId}/rsvp`, {
+    method: 'PUT',
+    body: JSON.stringify({ status, dietary: extras.dietary || null, plusOne: extras.plusOne || false }),
+  })
+}
+
 // Link preview
 export async function apiLinkPreview(url) {
   return await request(`/api/link-preview?url=${encodeURIComponent(url)}`)

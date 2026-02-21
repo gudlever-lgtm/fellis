@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { PT, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiGetAdminSettings, apiSaveAdminSettings } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiGetAdminSettings, apiSaveAdminSettings, apiFetchEvents, apiCreateEvent, apiRsvpEvent } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -252,7 +252,13 @@ export default function Platform({ lang: initialLang, onLogout }) {
         }} />}
         {page === 'messages' && <MessagesPage lang={lang} t={t} currentUser={currentUser} mode={mode} openConvId={openConvId} onConvOpened={() => setOpenConvId(null)} />}
         {page === 'events' && <EventsPage lang={lang} t={t} currentUser={currentUser} mode={mode} />}
-        {page === 'marketplace' && <MarketplacePage lang={lang} t={t} currentUser={currentUser} onContactSeller={(sellerId) => { setOpenConvId(sellerId); navigateTo('messages') }} />}
+        {page === 'marketplace' && <MarketplacePage lang={lang} t={t} currentUser={currentUser} onContactSeller={async (sellerId) => {
+          if (sellerId) {
+            const data = await apiCreateConversation([sellerId], null, false, false).catch(() => null)
+            if (data?.id) setOpenConvId(data.id)
+          }
+          navigateTo('messages')
+        }} />}
         {page === 'jobs' && <JobsPage lang={lang} t={t} currentUser={currentUser} mode={mode} />}
         {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} />}
         {page === 'analytics' && <AnalyticsPage lang={lang} t={t} currentUser={currentUser} plan={plan} onUpgrade={() => setShowUpgradeModal(true)} />}
@@ -636,6 +642,12 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
   const bottomSentinelRef = useRef(null)
   const topSentinelRef = useRef(null)
   const feedContainerRef = useRef(null)
+  const [feedSelectedEvent, setFeedSelectedEvent] = useState(null)
+  const [feedRsvpMap, setFeedRsvpMap] = useState({ 1: 'going', 3: 'going' })
+  const [feedRsvpExtras, setFeedRsvpExtras] = useState({})
+  const handleFeedRsvp = (eventId, status) => {
+    setFeedRsvpMap(prev => ({ ...prev, [eventId]: prev[eventId] === status ? null : status }))
+  }
 
   // Fetch a page of posts — stable callback (empty deps), guards via ref
   const fetchPage = useCallback(async (newOffset, direction) => {
@@ -1118,9 +1130,7 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
             }
           </div>
           <div className="p-post-actions">
-            <button className="p-post-action-btn">❤️ {lang === 'da' ? 'Synes godt om' : 'Like'} (14)</button>
-            <button className="p-post-action-btn">💬 {lang === 'da' ? 'Kommentar' : 'Comment'} (3)</button>
-            <button className="p-post-action-btn">🔗 {lang === 'da' ? 'Følg siden' : 'Follow page'}</button>
+            <span style={{ fontSize: 13, color: '#aaa' }}>❤️ 14 · 💬 3</span>
           </div>
         </div>
       )}
@@ -1134,7 +1144,7 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
         const loc = typeof item.event.location === 'string' ? item.event.location : (item.event.location[lang] || item.event.location.da)
         const action = item.verb === 'going' ? t.eventFeedRsvpd : t.eventFeedCreated
         return (
-          <div key={item.id} className="p-card p-post p-event-feed-card">
+          <div key={item.id} className="p-card p-post p-event-feed-card" style={{ cursor: 'pointer' }} onClick={() => setFeedSelectedEvent(item.event)}>
             <div className="p-post-header">
               <div className="p-avatar-sm" style={{ background: nameToColor(item.actor) }}>{getInitials(item.actor)}</div>
               <div>
@@ -1143,16 +1153,31 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
               </div>
               <span className="p-event-type-badge" style={{ marginLeft: 'auto' }}>{t.eventFeedLabel}</span>
             </div>
-            <div className="p-event-feed-body">
+            <div className="p-event-feed-body" style={{ alignItems: 'flex-start' }}>
               <div className="p-event-date-col" style={{ minWidth: 44 }}>
                 <div className="p-event-month">{new Date(item.event.date).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { month: 'short' }).toUpperCase()}</div>
                 <div className="p-event-day">{new Date(item.event.date).getDate()}</div>
               </div>
-              <div>
+              <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{title}</div>
                 <div style={{ fontSize: 13, color: '#777' }}>📍 {loc}</div>
-                <div style={{ fontSize: 12, color: '#aaa', marginTop: 2 }}>
+                <div style={{ fontSize: 12, color: '#aaa', marginTop: 2, marginBottom: 10 }}>
                   ✅ {item.event.going.length} {t.eventAttendees}
+                </div>
+                <div style={{ display: 'flex', gap: 6 }} onClick={e => e.stopPropagation()}>
+                  {[
+                    { key: 'going', icon: '✅', label: t.eventGoing },
+                    { key: 'maybe', icon: '❓', label: t.eventMaybe },
+                    { key: 'notGoing', icon: '❌', label: t.eventNotGoing },
+                  ].map(({ key, icon, label }) => {
+                    const isActive = feedRsvpMap[item.event.id] === key
+                    return (
+                      <button key={key} onClick={() => handleFeedRsvp(item.event.id, key)} title={label}
+                        style={{ background: isActive ? '#2D6A4F' : '#f0f0f0', color: isActive ? '#fff' : '#777', border: `1.5px solid ${isActive ? '#2D6A4F' : '#e0e0e0'}`, borderRadius: 6, fontSize: 11, padding: '3px 8px', cursor: 'pointer', fontWeight: isActive ? 700 : 400, transition: 'all 0.12s' }}>
+                        {icon} {label}
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
             </div>
@@ -1360,6 +1385,33 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
           {pageNum} / {totalPages}
         </div>
       )}
+
+      {/* Feed event detail modal */}
+      {feedSelectedEvent && (() => {
+        const getT = (e) => typeof e.title === 'string' ? e.title : (e.title?.[lang] || e.title?.da || '')
+        const getD = (e) => typeof e.description === 'string' ? e.description : (e.description?.[lang] || e.description?.da || '')
+        const getL = (e) => typeof e.location === 'string' ? e.location : (e.location?.[lang] || e.location?.da || '')
+        const fmtD = (iso) => new Date(iso).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+        const evTypeLabel = (type) => ({ conference: t.eventTypeConference, webinar: t.eventTypeWebinar, workshop: t.eventTypeWorkshop, meetup: t.eventTypeMeetup })[type] || null
+        return (
+          <EventDetailModal
+            event={feedSelectedEvent}
+            t={t}
+            lang={lang}
+            mode={mode}
+            myRsvp={feedRsvpMap[feedSelectedEvent.id]}
+            extras={feedRsvpExtras[feedSelectedEvent.id] || {}}
+            onRsvp={(s) => handleFeedRsvp(feedSelectedEvent.id, s)}
+            onExtrasChange={(ex) => setFeedRsvpExtras(prev => ({ ...prev, [feedSelectedEvent.id]: ex }))}
+            onClose={() => setFeedSelectedEvent(null)}
+            getTitle={getT}
+            getDesc={getD}
+            getLocation={getL}
+            formatDate={fmtD}
+            eventTypeLabel={evTypeLabel}
+          />
+        )
+      })()}
     </div>
   )
 }
@@ -2321,8 +2373,15 @@ function FriendsPage({ lang, t, mode, onMessage }) {
     setTimeout(() => setInviteEmailSentOk(false), 3000)
   }, [inviteEmail])
 
-  const handleCancelInvite = useCallback((invId) => {
+  const handleCancelInvite = useCallback(async (invId, lang) => {
+    const msg = lang === 'da' ? 'Trække invitationen tilbage?' : 'Withdraw this invitation?'
+    if (!window.confirm(msg)) return
+    // Optimistic removal
     setInvites(prev => (prev || []).filter(inv => inv.id !== invId))
+    // If it's a real DB id (number), call the API
+    if (typeof invId === 'number' || (typeof invId === 'string' && !invId.startsWith('mock-') && !invId.startsWith('local-'))) {
+      await apiCancelInvite(invId).catch(() => {})
+    }
   }, [])
 
   // Load invites lazily when the tab is first opened
@@ -2330,7 +2389,6 @@ function FriendsPage({ lang, t, mode, onMessage }) {
     if (filter !== 'invites' || invites !== null) return
     const MOCK = [
       { id: 'mock-inv-1', name: 'Peter Hansen', email: 'peter@example.dk', sentAt: '2026-02-18T10:00:00', status: 'pending' },
-      { id: 'mock-inv-2', name: 'Freja Andersen', email: 'freja@fellis.eu', sentAt: '2026-02-15T14:00:00', status: 'joined' },
     ]
     apiGetInvites()
       .then(data => {
@@ -2584,13 +2642,13 @@ function FriendsPage({ lang, t, mode, onMessage }) {
           {/* ── Outgoing invitations ── */}
           <div className="p-card p-invites-section">
             <h3 className="p-invites-section-title">{t.invitesSentTitle}</h3>
-            {invites === null ? (
-              <div className="p-invites-empty">…</div>
-            ) : invites.length === 0 ? (
-              <div className="p-invites-empty">✉️ {t.invitesNoSent}</div>
-            ) : (
+            {(() => {
+              const pending = (invites || []).filter(inv => inv.status !== 'joined' && inv.status !== 'accepted')
+              if (invites === null) return <div className="p-invites-empty">…</div>
+              if (pending.length === 0) return <div className="p-invites-empty">✉️ {t.invitesNoSent}</div>
+              return (
               <div className="p-invites-list">
-                {invites.map((inv, i) => (
+                {pending.map((inv, i) => (
                   <div key={inv.id || i} className="p-invite-row">
                     <div className="p-avatar-sm" style={{ background: nameToColor(inv.name || inv.email || '?') }}>
                       {getInitials(inv.name || inv.email || '?')}
@@ -2602,17 +2660,14 @@ function FriendsPage({ lang, t, mode, onMessage }) {
                       )}
                     </div>
                     <div className="p-invite-row-actions">
-                      <span className={`p-invite-status-badge${inv.status === 'joined' ? ' joined' : ''}`}>
-                        {inv.status === 'joined' ? t.invitesJoined : t.invitesPending}
-                      </span>
-                      {inv.status !== 'joined' && (
-                        <button className="p-invite-cancel-btn" onClick={() => handleCancelInvite(inv.id || i)} title={t.invitesCancelBtn}>✕</button>
-                      )}
+                      <span className="p-invite-status-badge">{t.invitesPending}</span>
+                      <button className="p-invite-cancel-btn" onClick={() => handleCancelInvite(inv.id || i, lang)} title={t.invitesCancelBtn}>✕</button>
                     </div>
                   </div>
                 ))}
               </div>
-            )}
+              )
+            })()}
           </div>
         </div>
       ) : (
@@ -3527,10 +3582,23 @@ function EventsPage({ lang, t, currentUser, mode }) {
 
   useEffect(() => {
     apiFetchFriends().then(data => { if (data) setFriends(data) })
+    apiFetchEvents().then(data => {
+      if (data?.events?.length) {
+        const apiIds = new Set(data.events.map(e => e.id))
+        // Merge: real DB events first, then mock placeholders not in DB
+        setEvents([...data.events, ...MOCK_EVENTS.filter(m => !apiIds.has(m.id))])
+        // Populate rsvpMap from API myRsvp field
+        const map = {}
+        data.events.forEach(e => { if (e.myRsvp) map[e.id] = e.myRsvp })
+        setRsvpMap(prev => ({ ...prev, ...map }))
+      }
+    })
   }, [])
 
   const handleRsvp = (eventId, status) => {
-    setRsvpMap(prev => ({ ...prev, [eventId]: prev[eventId] === status ? null : status }))
+    const newStatus = rsvpMap[eventId] === status ? null : status
+    setRsvpMap(prev => ({ ...prev, [eventId]: newStatus }))
+    apiRsvpEvent(eventId, newStatus, rsvpExtras[eventId] || {}).catch(() => {})
   }
 
   const getEventTitle = (e) => typeof e.title === 'string' ? e.title : (e.title[lang] || e.title.da)
@@ -3673,7 +3741,19 @@ function EventsPage({ lang, t, currentUser, mode }) {
           mode={mode}
           currentUser={currentUser}
           onClose={() => setShowCreate(false)}
-          onCreate={(ev) => { setEvents(prev => [ev, ...prev]); setShowCreate(false) }}
+          onCreate={async (ev) => {
+            const saved = await apiCreateEvent({
+              title: typeof ev.title === 'string' ? ev.title : (ev.title?.da || ev.title?.en || ''),
+              description: typeof ev.description === 'string' ? ev.description : (ev.description?.da || ''),
+              date: ev.date,
+              location: typeof ev.location === 'string' ? ev.location : (ev.location?.da || ''),
+              eventType: ev.eventType || null,
+              ticketUrl: ev.ticketUrl || null,
+              cap: ev.cap || null,
+            }).catch(() => null)
+            setEvents(prev => [saved || ev, ...prev])
+            setShowCreate(false)
+          }}
         />
       )}
 
@@ -4672,7 +4752,14 @@ function MarketplacePage({ lang, t, currentUser, onContactSeller }) {
   const listingDesc  = (l) => typeof l.description === 'string' ? l.description : (l.description?.[lang] || l.description?.da || '')
 
   useEffect(() => {
-    apiFetchListings(filters).then(data => { if (data?.listings || Array.isArray(data)) setListings(data?.listings || data) })
+    apiFetchListings(filters).then(data => {
+      const apiListings = data?.listings || (Array.isArray(data) ? data : null)
+      if (apiListings) {
+        // Merge: real DB listings first, then mock placeholders not already in DB (by id)
+        const apiIds = new Set(apiListings.map(l => l.id))
+        setListings([...apiListings, ...MOCK_LISTINGS.filter(m => !apiIds.has(m.id))])
+      }
+    })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -4681,8 +4768,9 @@ function MarketplacePage({ lang, t, currentUser, onContactSeller }) {
   }, [tab])
 
   const filtered = listings.filter(l => {
+    if (l.sold) return false  // hide sold listings in Browse
     if (filters.category && l.category !== filters.category) return false
-    if (filters.location && !l.location.toLowerCase().includes(filters.location.toLowerCase())) return false
+    if (filters.location && !l.location?.toLowerCase().includes(filters.location.toLowerCase())) return false
     if (filters.q) {
       const q = filters.q.toLowerCase()
       if (!listingTitle(l).toLowerCase().includes(q) && !listingDesc(l).toLowerCase().includes(q)) return false
@@ -4966,11 +5054,21 @@ function ListingDetailModal({ listing, t, lang, currentUser, catLabel, catIcon, 
                 💬 {t.marketplaceContactSeller}
               </button>
               {listing.mobilepay && (
-                <a
-                  href={`mobilepay://send?phone=${listing.mobilepay}`}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 16px', borderRadius: 8, border: '2px solid #5A78FF', color: '#5A78FF', fontWeight: 700, fontSize: 14, textDecoration: 'none', background: '#fff' }}
-                >
+                <a href={`mobilepay://send?phone=${listing.mobilepay}`}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 16px', borderRadius: 8, border: '2px solid #5A78FF', color: '#5A78FF', fontWeight: 700, fontSize: 14, textDecoration: 'none', background: '#fff' }}>
                   📱 MobilePay · {listing.mobilepay}
+                </a>
+              )}
+              {listing.contact_phone && (
+                <a href={`tel:${listing.contact_phone}`}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 16px', borderRadius: 8, border: '1.5px solid #ddd', color: '#333', fontWeight: 600, fontSize: 14, textDecoration: 'none', background: '#fff' }}>
+                  📞 {listing.contact_phone}
+                </a>
+              )}
+              {listing.contact_email && (
+                <a href={`mailto:${listing.contact_email}`}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 16px', borderRadius: 8, border: '1.5px solid #ddd', color: '#333', fontWeight: 600, fontSize: 14, textDecoration: 'none', background: '#fff' }}>
+                  ✉️ {listing.contact_email}
                 </a>
               )}
             </div>
@@ -4990,6 +5088,8 @@ function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, onClose
   const [location, setLocation]     = useState(isEdit ? (listing.location || '') : '')
   const [description, setDescription] = useState(isEdit ? listingDesc(listing) : '')
   const [mobilepay, setMobilepay]   = useState(isEdit ? (listing.mobilepay || '') : '')
+  const [phone, setPhone]           = useState(isEdit ? (listing.contact_phone || '') : '')
+  const [contactEmail, setContactEmail] = useState(isEdit ? (listing.contact_email || '') : '')
   const [photoFiles, setPhotoFiles] = useState([])
   const [photoPreviews, setPhotoPreviews] = useState(
     isEdit ? (listing.photos || []).map(p => p.url || p) : []
@@ -5020,6 +5120,8 @@ function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, onClose
       description: { da: description, en: description },
       photos: photoPreviews.map(url => ({ url })),
       mobilepay: mobilepay.trim() || null,
+      contact_phone: phone.trim() || null,
+      contact_email: contactEmail.trim() || null,
     }
     const formData = new FormData()
     formData.append('title', title)
@@ -5029,6 +5131,8 @@ function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, onClose
     formData.append('location', location)
     formData.append('description', description)
     if (mobilepay.trim()) formData.append('mobilepay', mobilepay.trim())
+    if (phone.trim()) formData.append('contact_phone', phone.trim())
+    if (contactEmail.trim()) formData.append('contact_email', contactEmail.trim())
     photoFiles.forEach(f => formData.append('photos', f))
     isEdit ? onSubmit(listing.id, formData, localListing) : onSubmit(formData, localListing)
   }
@@ -5076,10 +5180,18 @@ function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, onClose
           <label style={lS}>{t.marketplaceFieldLocation}</label>
           <input style={fS} value={location} onChange={e => setLocation(e.target.value)} placeholder={lang === 'da' ? 'f.eks. Nørrebro, København' : 'e.g. Nørrebro, Copenhagen'} required />
 
-          <label style={lS}>{t.marketplaceFieldMobilepay}</label>
+          <label style={{ ...lS, marginTop: 4 }}>{lang === 'da' ? 'Kontaktmuligheder (valgfrit)' : 'Contact options (optional)'}</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <span style={{ fontSize: 18, flexShrink: 0 }}>📱</span>
+            <input style={{ ...fS, marginBottom: 0, flex: 1 }} value={mobilepay} onChange={e => setMobilepay(e.target.value.replace(/\D/g, '').slice(0, 8))} placeholder={lang === 'da' ? 'MobilePay (f.eks. 20123456)' : 'MobilePay (e.g. 20123456)'} maxLength={8} inputMode="numeric" />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <span style={{ fontSize: 18, flexShrink: 0 }}>📞</span>
+            <input style={{ ...fS, marginBottom: 0, flex: 1 }} value={phone} onChange={e => setPhone(e.target.value)} placeholder={lang === 'da' ? 'Telefonnummer (valgfrit)' : 'Phone number (optional)'} inputMode="tel" />
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-            <span style={{ fontSize: 18 }}>📱</span>
-            <input style={{ ...fS, marginBottom: 0, flex: 1 }} value={mobilepay} onChange={e => setMobilepay(e.target.value.replace(/\D/g, '').slice(0, 8))} placeholder={lang === 'da' ? 'f.eks. 20123456' : 'e.g. 20123456'} maxLength={8} inputMode="numeric" />
+            <span style={{ fontSize: 18, flexShrink: 0 }}>✉️</span>
+            <input style={{ ...fS, marginBottom: 0, flex: 1 }} value={contactEmail} onChange={e => setContactEmail(e.target.value)} placeholder={lang === 'da' ? 'E-mailadresse (valgfrit)' : 'Email address (optional)'} type="email" />
           </div>
 
           <label style={lS}>{t.marketplaceFieldDescription}</label>

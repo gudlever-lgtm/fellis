@@ -47,7 +47,20 @@ import express from 'express'
 import crypto from 'crypto'
 import fs from 'fs'
 import multer from 'multer'
+import nodemailer from 'nodemailer'
 import pool from './db.js'
+
+// ── Mail transport (only active when MAIL_HOST is configured) ──
+function createMailer() {
+  if (!process.env.MAIL_HOST) return null
+  return nodemailer.createTransport({
+    host: process.env.MAIL_HOST,
+    port: parseInt(process.env.MAIL_PORT || '587'),
+    secure: process.env.MAIL_SECURE === 'true',
+    auth: { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS },
+  })
+}
+const mailer = createMailer()
 
 const UPLOADS_DIR = process.env.UPLOADS_DIR || '/var/www/fellis.eu/uploads'
 
@@ -84,6 +97,39 @@ function decryptToken(encoded) {
   } catch {
     // Fallback: token may not be encrypted yet (pre-migration data)
     return encoded
+  }
+}
+
+// ── Events: schema init ──
+async function initEvents() {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS events (
+      id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      organizer_id INT(11) NOT NULL,
+      title VARCHAR(255) NOT NULL,
+      description TEXT DEFAULT NULL,
+      date DATETIME NOT NULL,
+      location VARCHAR(255) DEFAULT NULL,
+      event_type VARCHAR(50) DEFAULT NULL,
+      ticket_url VARCHAR(500) DEFAULT NULL,
+      cap INT(11) DEFAULT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (organizer_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    await pool.query(`CREATE TABLE IF NOT EXISTS event_rsvps (
+      id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      event_id INT(11) NOT NULL,
+      user_id INT(11) NOT NULL,
+      status ENUM('going','maybe','notGoing') NOT NULL,
+      dietary VARCHAR(255) DEFAULT NULL,
+      plus_one TINYINT(1) DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_event_user (event_id, user_id),
+      FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+  } catch (err) {
+    console.error('initEvents error:', err.message)
   }
 }
 
@@ -295,6 +341,12 @@ pool.query('ALTER TABLE comments ADD COLUMN IF NOT EXISTS media JSON DEFAULT NUL
   .catch(err => console.error('Migration (comments.media):', err.message))
 pool.query("ALTER TABLE post_likes ADD COLUMN IF NOT EXISTS reaction VARCHAR(10) DEFAULT '❤️'")
   .catch(err => console.error('Migration (post_likes.reaction):', err.message))
+pool.query('ALTER TABLE invitations ADD COLUMN IF NOT EXISTS invitee_email VARCHAR(255) DEFAULT NULL')
+  .catch(err => console.error('Migration (invitations.invitee_email):', err.message))
+pool.query('ALTER TABLE marketplace_listings ADD COLUMN IF NOT EXISTS contact_phone VARCHAR(20) DEFAULT NULL')
+  .catch(err => console.error('Migration (marketplace_listings.contact_phone):', err.message))
+pool.query('ALTER TABLE marketplace_listings ADD COLUMN IF NOT EXISTS contact_email VARCHAR(255) DEFAULT NULL')
+  .catch(err => console.error('Migration (marketplace_listings.contact_email):', err.message))
 
 // Serve uploads with security headers (no script execution, no sniffing)
 app.use('/uploads', (req, res, next) => {
@@ -1096,23 +1148,57 @@ app.get('/api/invites/link', authenticate, async (req, res) => {
   }
 })
 
-// POST /api/invites — create individual invitations for selected friends
+// POST /api/invites — create individual invitations and send email if SMTP is configured
 app.post('/api/invites', authenticate, async (req, res) => {
   const { friends } = req.body
   if (!friends?.length) return res.status(400).json({ error: 'No friends selected' })
   try {
+    // Get inviter info and their personal invite link
+    const [[inviter]] = await pool.query('SELECT name, invite_token FROM users WHERE id = ?', [req.userId])
+    const siteBase = process.env.SITE_URL || 'https://fellis.eu'
     const created = []
     for (const friend of friends) {
+      // friend can be a string (email) or object { name, email }
+      const email = typeof friend === 'string' ? friend : (friend.email || null)
+      const name  = typeof friend === 'string' ? null   : (friend.name  || null)
       const token = crypto.randomBytes(32).toString('hex')
       await pool.query(
-        'INSERT INTO invitations (inviter_id, invite_token, invitee_name) VALUES (?, ?, ?)',
-        [req.userId, token, friend.name || null]
+        'INSERT INTO invitations (inviter_id, invite_token, invitee_name, invitee_email) VALUES (?, ?, ?, ?)',
+        [req.userId, token, name || email, email]
       )
-      created.push({ name: friend.name, token })
+      const inviteUrl = `${siteBase}/?invite=${inviter.invite_token || token}`
+      // Send email if SMTP is configured and we have a recipient address
+      if (mailer && email) {
+        const fromName = inviter.name || 'Fellis'
+        const fromAddr = process.env.MAIL_FROM || process.env.MAIL_USER
+        await mailer.sendMail({
+          from: `"${fromName} via Fellis" <${fromAddr}>`,
+          to: email,
+          subject: `${inviter.name || 'En ven'} har inviteret dig til Fellis`,
+          text: `Hej!\n\n${inviter.name || 'En ven'} vil gerne forbindes med dig på Fellis.\n\nKlik her for at oprette din konto:\n${inviteUrl}\n\nVenlig hilsen,\nFellis`,
+          html: `<p>Hej!</p><p><strong>${inviter.name || 'En ven'}</strong> vil gerne forbindes med dig på <strong>Fellis</strong>.</p><p><a href="${inviteUrl}" style="background:#2D6A4F;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:bold">Opret konto og forbind</a></p><p style="color:#888;font-size:12px">Eller kopier dette link: ${inviteUrl}</p>`,
+        }).catch(err => console.error('Mail send error:', err.message))
+      }
+      created.push({ name: name || email, email, token })
     }
-    res.json({ invitations: created, count: created.length })
+    res.json({ invitations: created, count: created.length, emailSent: !!(mailer) })
   } catch (err) {
+    console.error('POST /api/invites error:', err.message)
     res.status(500).json({ error: 'Failed to create invitations' })
+  }
+})
+
+// DELETE /api/invites/:id — withdraw a sent invitation
+app.delete('/api/invites/:id', authenticate, async (req, res) => {
+  try {
+    const [[inv]] = await pool.query('SELECT inviter_id FROM invitations WHERE id = ?', [req.params.id])
+    if (!inv) return res.status(404).json({ error: 'Not found' })
+    if (inv.inviter_id !== req.userId) return res.status(403).json({ error: 'Forbidden' })
+    await pool.query('DELETE FROM invitations WHERE id = ?', [req.params.id])
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/invites error:', err.message)
+    res.status(500).json({ error: 'Failed to cancel invitation' })
   }
 })
 
@@ -1120,15 +1206,21 @@ app.post('/api/invites', authenticate, async (req, res) => {
 app.get('/api/invites', authenticate, async (req, res) => {
   try {
     const [invitations] = await pool.query(
-      `SELECT i.id, i.invite_token, i.invitee_name, i.status, i.created_at,
+      `SELECT i.id, i.invite_token, i.invitee_name, i.invitee_email, i.status, i.created_at,
               u.name as accepted_by_name
        FROM invitations i
        LEFT JOIN users u ON i.accepted_by = u.id
-       WHERE i.inviter_id = ?
+       WHERE i.inviter_id = ? AND i.status != 'accepted'
        ORDER BY i.created_at DESC`,
       [req.userId]
     )
-    res.json(invitations)
+    res.json(invitations.map(i => ({
+      id: i.id,
+      name: i.invitee_name || i.invitee_email || null,
+      email: i.invitee_email || null,
+      sentAt: i.created_at,
+      status: i.status,
+    })))
   } catch (err) {
     res.status(500).json({ error: 'Failed to load invitations' })
   }
@@ -2025,12 +2117,12 @@ app.get('/api/marketplace', authenticate, async (req, res) => {
 
 app.post('/api/marketplace', authenticate, upload.array('photos', 10), async (req, res) => {
   try {
-    const { title, price, category, location, description, mobilepay } = req.body
+    const { title, price, category, location, description, mobilepay, contact_phone, contact_email } = req.body
     if (!title || !category) return res.status(400).json({ error: 'Missing required fields' })
     const photos = (req.files || []).map(f => ({ url: `/uploads/${f.filename}`, type: 'image', mime: f.mimetype }))
     const [result] = await pool.query(
-      `INSERT INTO marketplace_listings (user_id, title, price, category, location, description, mobilepay, photos) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [req.userId, title, price || null, category, location || null, description || null, mobilepay || null, photos.length ? JSON.stringify(photos) : null]
+      `INSERT INTO marketplace_listings (user_id, title, price, category, location, description, mobilepay, contact_phone, contact_email, photos) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [req.userId, title, price || null, category, location || null, description || null, mobilepay || null, contact_phone || null, contact_email || null, photos.length ? JSON.stringify(photos) : null]
     )
     const [[listing]] = await pool.query(
       `SELECT l.*, u.name AS seller_name, u.handle AS seller_handle FROM marketplace_listings l JOIN users u ON l.user_id = u.id WHERE l.id = ?`,
@@ -2045,17 +2137,17 @@ app.post('/api/marketplace', authenticate, upload.array('photos', 10), async (re
 
 app.put('/api/marketplace/:id', authenticate, upload.array('photos', 10), async (req, res) => {
   try {
-    const { title, price, category, location, description, mobilepay } = req.body
+    const { title, price, category, location, description, mobilepay, contact_phone, contact_email } = req.body
     const [[existing]] = await pool.query('SELECT user_id FROM marketplace_listings WHERE id = ?', [req.params.id])
     if (!existing) return res.status(404).json({ error: 'Not found' })
     if (existing.user_id !== req.userId) return res.status(403).json({ error: 'Forbidden' })
     const photos = (req.files || []).map(f => ({ url: `/uploads/${f.filename}`, type: 'image', mime: f.mimetype }))
     const photosJson = photos.length ? JSON.stringify(photos) : (req.body.keepPhotos === '1' ? undefined : null)
     await pool.query(
-      `UPDATE marketplace_listings SET title=?, price=?, category=?, location=?, description=?, mobilepay=?${photosJson !== undefined ? ', photos=?' : ''} WHERE id=?`,
+      `UPDATE marketplace_listings SET title=?, price=?, category=?, location=?, description=?, mobilepay=?, contact_phone=?, contact_email=?${photosJson !== undefined ? ', photos=?' : ''} WHERE id=?`,
       photosJson !== undefined
-        ? [title, price || null, category, location || null, description || null, mobilepay || null, photosJson, req.params.id]
-        : [title, price || null, category, location || null, description || null, mobilepay || null, req.params.id]
+        ? [title, price || null, category, location || null, description || null, mobilepay || null, contact_phone || null, contact_email || null, photosJson, req.params.id]
+        : [title, price || null, category, location || null, description || null, mobilepay || null, contact_phone || null, contact_email || null, req.params.id]
     )
     const [[listing]] = await pool.query(
       `SELECT l.*, u.name AS seller_name FROM marketplace_listings l JOIN users u ON l.user_id = u.id WHERE l.id = ?`,
@@ -2146,6 +2238,93 @@ app.post('/api/admin/settings', authenticate, requireAdmin, async (req, res) => 
   }
 })
 
+// ── Events API ──
+
+// GET /api/events — list all events with RSVP counts and current user's RSVP
+app.get('/api/events', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT e.*, u.name AS organizer_name,
+        (SELECT COUNT(*) FROM event_rsvps r WHERE r.event_id = e.id AND r.status = 'going') AS going_count,
+        (SELECT COUNT(*) FROM event_rsvps r WHERE r.event_id = e.id AND r.status = 'maybe') AS maybe_count,
+        (SELECT GROUP_CONCAT(u2.name ORDER BY r2.created_at SEPARATOR ',')
+          FROM event_rsvps r2 JOIN users u2 ON r2.user_id = u2.id
+          WHERE r2.event_id = e.id AND r2.status = 'going') AS going_names,
+        (SELECT GROUP_CONCAT(u3.name ORDER BY r3.created_at SEPARATOR ',')
+          FROM event_rsvps r3 JOIN users u3 ON r3.user_id = u3.id
+          WHERE r3.event_id = e.id AND r3.status = 'maybe') AS maybe_names,
+        (SELECT r4.status FROM event_rsvps r4 WHERE r4.event_id = e.id AND r4.user_id = ?) AS my_rsvp
+       FROM events e JOIN users u ON e.organizer_id = u.id
+       ORDER BY e.date ASC`,
+      [req.userId]
+    )
+    const events = rows.map(e => ({
+      id: e.id,
+      title: e.title,
+      description: e.description,
+      date: e.date,
+      location: e.location,
+      organizer: e.organizer_name,
+      organizerId: e.organizer_id,
+      eventType: e.event_type,
+      ticketUrl: e.ticket_url,
+      cap: e.cap,
+      going: e.going_names ? e.going_names.split(',') : [],
+      maybe: e.maybe_names ? e.maybe_names.split(',') : [],
+      myRsvp: e.my_rsvp || null,
+    }))
+    res.json({ events })
+  } catch (err) {
+    console.error('GET /api/events error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/events — create event
+app.post('/api/events', authenticate, async (req, res) => {
+  try {
+    const { title, description, date, location, eventType, ticketUrl, cap } = req.body
+    if (!title || !date) return res.status(400).json({ error: 'Title and date required' })
+    const [result] = await pool.query(
+      `INSERT INTO events (organizer_id, title, description, date, location, event_type, ticket_url, cap) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [req.userId, title, description || null, date, location || null, eventType || null, ticketUrl || null, cap || null]
+    )
+    const [[event]] = await pool.query(
+      `SELECT e.*, u.name AS organizer_name FROM events e JOIN users u ON e.organizer_id = u.id WHERE e.id = ?`,
+      [result.insertId]
+    )
+    res.json({
+      id: event.id, title: event.title, description: event.description,
+      date: event.date, location: event.location, organizer: event.organizer_name,
+      organizerId: event.organizer_id, eventType: event.event_type,
+      ticketUrl: event.ticket_url, cap: event.cap, going: [], maybe: [], myRsvp: null,
+    })
+  } catch (err) {
+    console.error('POST /api/events error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// PUT /api/events/:id/rsvp — set RSVP for current user
+app.put('/api/events/:id/rsvp', authenticate, async (req, res) => {
+  try {
+    const { status, dietary, plusOne } = req.body
+    if (status === null || status === undefined) {
+      await pool.query('DELETE FROM event_rsvps WHERE event_id = ? AND user_id = ?', [req.params.id, req.userId])
+    } else {
+      await pool.query(
+        `INSERT INTO event_rsvps (event_id, user_id, status, dietary, plus_one) VALUES (?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE status = VALUES(status), dietary = VALUES(dietary), plus_one = VALUES(plus_one)`,
+        [req.params.id, req.userId, status, dietary || null, plusOne ? 1 : 0]
+      )
+    }
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('PUT /api/events/:id/rsvp error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // Multer error handler
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
@@ -2164,6 +2343,7 @@ app.listen(PORT, () => {
     console.warn('⚠️  WARNING: FB_TOKEN_ENCRYPTION_KEY not set. Facebook tokens will be stored unencrypted.')
     console.warn('   Generate a key with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"')
   }
+  initEvents()
   initFriendRequests()
   initConversations()
   initMarketplace()
