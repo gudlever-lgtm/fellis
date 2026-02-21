@@ -30,6 +30,7 @@ export default function Platform({ lang: initialLang, onLogout }) {
   const [showAvatarMenu, setShowAvatarMenu] = useState(false)
   const [openConvId, setOpenConvId] = useState(null)
   const [highlightPostId, setHighlightPostId] = useState(null)
+  const [viewUserId, setViewUserId] = useState(null)
   const [mode, setMode] = useState(() => {
     const stored = localStorage.getItem('fellis_mode') || 'privat'
     if (stored === 'common') { localStorage.setItem('fellis_mode', 'privat'); return 'privat' }
@@ -241,9 +242,13 @@ export default function Platform({ lang: initialLang, onLogout }) {
 
       <div className="p-content">
         <div style={{ display: page === 'feed' ? '' : 'none' }}>
-          <FeedPage lang={lang} t={t} currentUser={currentUser} mode={mode} highlightPostId={highlightPostId} onHighlightCleared={() => setHighlightPostId(null)} />
+          <FeedPage lang={lang} t={t} currentUser={currentUser} mode={mode} highlightPostId={highlightPostId} onHighlightCleared={() => setHighlightPostId(null)}
+            onViewProfile={(uid) => { setViewUserId(uid); navigateTo('view-profile') }}
+            onViewOwnProfile={() => navigateTo('profile')}
+          />
         </div>
         {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} />}
+        {page === 'view-profile' && viewUserId && <FriendProfilePage userId={viewUserId} lang={lang} t={t} currentUser={currentUser} onBack={() => navigateTo('feed')} onMessage={async (prof) => { const data = await apiCreateConversation([prof.id], null, false, false).catch(() => null); if (data?.id) setOpenConvId(data.id); navigateTo('messages') }} />}
         {page === 'edit-profile' && <EditProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} />}
         {page === 'friends' && <FriendsPage lang={lang} t={t} mode={mode} onMessage={async (friend) => {
           if (friend?.id) {
@@ -611,11 +616,10 @@ function MentionDropdown({ filtered, selIdx, onSelect }) {
   )
 }
 
-function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightCleared }) {
+function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile }) {
   const [posts, setPosts] = useState([])
   const [pinnedPost, setPinnedPost] = useState(null)
   const pinnedRef = useRef(null)
-  const [viewProfileId, setViewProfileId] = useState(null)
   const [insightsPostId, setInsightsPostId] = useState(null)
   const [offset, setOffset] = useState(0)
   const [total, setTotal] = useState(0)
@@ -990,15 +994,6 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
 
   return (
     <div className="p-feed" ref={feedContainerRef}>
-      {viewProfileId && (
-        <FriendProfileModal
-          userId={viewProfileId}
-          lang={lang}
-          t={t}
-          onClose={() => setViewProfileId(null)}
-          onMessage={() => setViewProfileId(null)}
-        />
-      )}
       {/* New post */}
       <div className="p-card p-new-post">
         {/* Hidden file input — gallery only */}
@@ -1281,16 +1276,16 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
             <div className="p-post-header">
               <div
                 className="p-avatar-sm"
-                style={{ background: nameToColor(post.author), cursor: post.authorId && !isOwn ? 'pointer' : 'default' }}
-                onClick={() => post.authorId && !isOwn && setViewProfileId(post.authorId)}
+                style={{ background: nameToColor(post.author), cursor: 'pointer' }}
+                onClick={() => isOwn ? onViewOwnProfile?.() : (post.authorId && onViewProfile?.(post.authorId))}
               >
                 {getInitials(post.author)}
               </div>
               <div style={{ flex: 1 }}>
                 <div
                   className="p-post-author"
-                  style={{ cursor: post.authorId && !isOwn ? 'pointer' : 'default' }}
-                  onClick={() => post.authorId && !isOwn && setViewProfileId(post.authorId)}
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => isOwn ? onViewOwnProfile?.() : (post.authorId && onViewProfile?.(post.authorId))}
                 >{post.author}</div>
                 <div className="p-post-time">{post.time[lang]}</div>
               </div>
@@ -2301,6 +2296,62 @@ function PrivacySection({ lang, onLogout }) {
       </div>
 
       {message && <p style={{ marginTop: 4, marginBottom: 16, fontSize: 13, textAlign: 'center', color: message === t.done ? '#27ae60' : '#e74c3c' }}>{message}</p>}
+    </div>
+  )
+}
+
+// ── Friend Profile (full page) ──
+function FriendProfilePage({ userId, lang, t, currentUser, onBack, onMessage }) {
+  const [profile, setProfile] = useState(null)
+  useEffect(() => {
+    if (!userId) return
+    apiFetchProfile(userId).then(data => { if (data) setProfile(data) })
+  }, [userId])
+
+  const avatarSrc = profile?.avatarUrl
+    ? (profile.avatarUrl.startsWith('http') ? profile.avatarUrl : `${API_BASE}${profile.avatarUrl}`)
+    : null
+
+  return (
+    <div className="p-profile">
+      <button onClick={onBack} style={{ marginBottom: 16, background: 'none', border: 'none', color: '#2D6A4F', cursor: 'pointer', fontWeight: 600, fontSize: 14, padding: 0 }}>
+        ← {lang === 'da' ? 'Tilbage' : 'Back'}
+      </button>
+      {!profile ? (
+        <div className="p-card" style={{ padding: 40, textAlign: 'center', color: '#aaa' }}>…</div>
+      ) : (
+        <div className="p-card p-profile-card">
+          <div className="p-profile-banner" />
+          <div className="p-profile-info">
+            <div className="p-profile-avatar-wrapper">
+              {avatarSrc ? (
+                <img className="p-profile-avatar-img" src={avatarSrc} alt="" />
+              ) : (
+                <div className="p-profile-avatar" style={{ background: nameToColor(profile.name) }}>
+                  {profile.initials || getInitials(profile.name)}
+                </div>
+              )}
+            </div>
+            <h2 className="p-profile-name">{profile.name}</h2>
+            {profile.handle && <p className="p-profile-handle">@{profile.handle}</p>}
+            {profile.bio?.[lang] && <p className="p-profile-bio">{profile.bio[lang]}</p>}
+            <div className="p-profile-meta">
+              {profile.location && <span>📍 {profile.location}</span>}
+              {profile.joinDate && <span>📅 {lang === 'da' ? 'Medlem siden' : 'Joined'} {new Date(profile.joinDate).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long' })}</span>}
+            </div>
+            <div className="p-friend-profile-stats" style={{ justifyContent: 'center', marginTop: 12 }}>
+              <div className="p-friend-profile-stat"><strong>{profile.friendCount}</strong><span>{t.friendsLabel}</span></div>
+              {profile.mutualCount > 0 && <div className="p-friend-profile-stat"><strong>{profile.mutualCount}</strong><span>{t.mutualFriends}</span></div>}
+              <div className="p-friend-profile-stat"><strong>{profile.postCount}</strong><span>{t.postsLabel}</span></div>
+            </div>
+            {profile.isFriend && (
+              <button className="p-friend-msg-btn" style={{ marginTop: 16 }} onClick={() => onMessage(profile)}>
+                💬 {t.message}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
