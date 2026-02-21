@@ -257,7 +257,9 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
           }
           navigateTo('messages')
         }} />}
-        {page === 'messages' && <MessagesPage lang={lang} t={t} currentUser={currentUser} mode={mode} openConvId={openConvId} onConvOpened={() => setOpenConvId(null)} />}
+        <div style={{ display: page === 'messages' ? '' : 'none' }}>
+          <MessagesPage lang={lang} t={t} currentUser={currentUser} mode={mode} openConvId={openConvId} onConvOpened={() => setOpenConvId(null)} />
+        </div>
         {page === 'events' && <EventsPage lang={lang} t={t} currentUser={currentUser} mode={mode} />}
         {page === 'marketplace' && <MarketplacePage lang={lang} t={t} currentUser={currentUser} onContactSeller={async (sellerId) => {
           const numId = parseInt(sellerId)
@@ -3306,12 +3308,19 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened }) 
     apiFetchFriends().then(data => { if (data) setFriends(data) })
   }, [])
 
-  // Open a specific conversation when navigated from search
+  // Open a specific conversation when navigated from elsewhere (search, contact seller, etc.)
   useEffect(() => {
-    if (!openConvId || !conversations.length) return
+    if (!openConvId) return
     const idx = conversations.findIndex(c => c.id === openConvId)
-    if (idx >= 0) { setActiveConv(idx); onConvOpened?.() }
-  }, [openConvId, conversations])
+    if (idx >= 0) { setActiveConv(idx); onConvOpened?.(); return }
+    // Conversation not in list yet (e.g. just created) — refetch and retry
+    apiFetchConversations().then(data => {
+      if (!data) return
+      setConversations(data)
+      const i = data.findIndex(c => c.id === openConvId)
+      if (i >= 0) { setActiveConv(i); onConvOpened?.() }
+    })
+  }, [openConvId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Close conv menu on outside click
   useEffect(() => {
