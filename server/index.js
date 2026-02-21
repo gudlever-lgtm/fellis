@@ -2335,6 +2335,8 @@ app.post('/api/events', authenticate, async (req, res) => {
 app.put('/api/events/:id/rsvp', authenticate, async (req, res) => {
   try {
     const { status, dietary, plusOne } = req.body
+    const [[event]] = await pool.query('SELECT id FROM events WHERE id = ?', [req.params.id])
+    if (!event) return res.status(404).json({ error: 'Event not found' })
     if (status === null || status === undefined) {
       await pool.query('DELETE FROM event_rsvps WHERE event_id = ? AND user_id = ?', [req.params.id, req.userId])
     } else {

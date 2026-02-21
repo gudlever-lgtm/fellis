@@ -645,10 +645,13 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
   const [feedSelectedEvent, setFeedSelectedEvent] = useState(null)
   const [feedRsvpMap, setFeedRsvpMap] = useState({})
   const [feedRsvpExtras, setFeedRsvpExtras] = useState({})
+  const [feedEvents, setFeedEvents] = useState([])
+  const feedDbEventIds = new Set(feedEvents.map(e => e.id))
+
   const handleFeedRsvp = (eventId, status) => {
     const newStatus = feedRsvpMap[eventId] === status ? null : status
     setFeedRsvpMap(prev => ({ ...prev, [eventId]: newStatus }))
-    if (typeof eventId === 'number') apiRsvpEvent(eventId, newStatus, {}).catch(() => {})
+    if (feedDbEventIds.has(eventId)) apiRsvpEvent(eventId, newStatus, {}).catch(() => {})
   }
 
   // Fetch a page of posts — stable callback (empty deps), guards via ref
@@ -696,6 +699,14 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
         totalRef.current = data.total
         setLikedPosts(new Set(data.posts.filter(p => p.liked).map(p => p.id)))
         setReactions(Object.fromEntries(data.posts.filter(p => p.userReaction).map(p => [p.id, p.userReaction])))
+      }
+    })
+    apiFetchEvents().then(data => {
+      if (data?.events?.length) {
+        setFeedEvents(data.events)
+        const map = {}
+        data.events.forEach(e => { if (e.myRsvp) map[e.id] = e.myRsvp })
+        setFeedRsvpMap(map)
       }
     })
   }, [])
@@ -1137,11 +1148,13 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
         </div>
       )}
 
-      {/* Event activity feed items — shown when at top of feed */}
-      {offset === 0 && [
-        { id: 'ea1', actor: 'Magnus Jensen', verb: 'going', event: MOCK_EVENTS[0], time: { da: '35 min siden', en: '35 min ago' } },
-        { id: 'ea2', actor: 'Freja Andersen', verb: 'created', event: MOCK_EVENTS[1], time: { da: '3 t siden', en: '3 hrs ago' } },
-      ].map(item => {
+      {/* Event activity feed items — shown when at top of feed, using real DB events */}
+      {offset === 0 && feedEvents.slice(0, 2).map((ev, idx) => {
+        const item = { id: `ea${idx}`, event: ev, verb: idx === 0 ? 'going' : 'created',
+          actor: ev.going?.[0] || ev.organizer,
+          time: { da: 'For nylig', en: 'Recently' } }
+        return item
+      }).map(item => {
         const title = typeof item.event.title === 'string' ? item.event.title : (item.event.title[lang] || item.event.title.da)
         const loc = typeof item.event.location === 'string' ? item.event.location : (item.event.location[lang] || item.event.location.da)
         const action = item.verb === 'going' ? t.eventFeedRsvpd : t.eventFeedCreated
