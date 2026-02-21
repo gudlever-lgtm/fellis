@@ -255,10 +255,16 @@ function App() {
   const [showConsent, setShowConsent] = useState(false)
   const [inviteToken, setInviteToken] = useState(null)
   const [inviterName, setInviterName] = useState(null)
+  const [initialPostId, setInitialPostId] = useState(null)
 
   // On mount: check for Facebook OAuth callback, invite links, or validate existing session
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
+    const postId = params.get('post')
+    if (postId) {
+      setInitialPostId(parseInt(postId))
+      window.history.replaceState({}, '', window.location.pathname)
+    }
     const fbSession = params.get('fb_session')
     const fbLang = params.get('fb_lang')
     const fbNeedsConsent = params.get('fb_needs_consent')
@@ -355,7 +361,7 @@ function App() {
             onDecline={handleConsentDecline}
           />
         )}
-        <Platform lang={lang} onLogout={handleLogout} />
+        <Platform lang={lang} onLogout={handleLogout} initialPostId={initialPostId} />
       </>
     )
   }

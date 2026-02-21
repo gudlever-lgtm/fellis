@@ -23,13 +23,13 @@ function makeMockNotifs(mode) {
   return base
 }
 
-export default function Platform({ lang: initialLang, onLogout }) {
+export default function Platform({ lang: initialLang, onLogout, initialPostId }) {
   const [lang, setLang] = useState(initialLang || 'da')
   const [page, setPage] = useState('feed')
   const [currentUser, setCurrentUser] = useState({ name: '', handle: '', initials: '' })
   const [showAvatarMenu, setShowAvatarMenu] = useState(false)
   const [openConvId, setOpenConvId] = useState(null)
-  const [highlightPostId, setHighlightPostId] = useState(null)
+  const [highlightPostId, setHighlightPostId] = useState(initialPostId || null)
   const [viewUserId, setViewUserId] = useState(null)
   const [mode, setMode] = useState(() => {
     const stored = localStorage.getItem('fellis_mode') || 'privat'
@@ -915,11 +915,13 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
     }
   }, [sharePopup, sharePopupFriends])
 
+  const [copyLinkDone, setCopyLinkDone] = useState(null) // postId that was just copied
   const handleCopyLink = useCallback(async (post) => {
-    const text = post.text[lang] || post.text.da || ''
-    try { await navigator.clipboard.writeText(`${text}\n\n${window.location.origin}`) } catch {}
-    setSharePopup(null)
-  }, [lang])
+    const url = `${window.location.origin}/?post=${post.id}`
+    try { await navigator.clipboard.writeText(url) } catch {}
+    setCopyLinkDone(post.id)
+    setTimeout(() => { setCopyLinkDone(null); setSharePopup(null) }, 1200)
+  }, [])
 
   const handleShareToFriend = useCallback(async (post, friendId) => {
     const text = post.text[lang] || post.text.da || ''
@@ -1374,8 +1376,8 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
                   <>
                     <div className="p-share-backdrop" onClick={() => setSharePopup(null)} />
                     <div className="p-share-popup">
-                      <button className="p-share-option" onClick={() => handleCopyLink(post)}>
-                        🔗 {lang === 'da' ? 'Kopiér link' : 'Copy link'}
+                      <button className="p-share-option" onClick={() => handleCopyLink(post)} style={copyLinkDone === post.id ? { color: '#2D6A4F', fontWeight: 700 } : {}}>
+                        {copyLinkDone === post.id ? `✅ ${lang === 'da' ? 'Kopieret!' : 'Copied!'}` : `🔗 ${lang === 'da' ? 'Kopiér link' : 'Copy link'}`}
                       </button>
                       <div className="p-share-divider" />
                       <div className="p-share-section-label">{lang === 'da' ? 'Send til ven' : 'Send to friend'}</div>
