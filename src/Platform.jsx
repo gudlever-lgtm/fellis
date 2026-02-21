@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { PT, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiGetAdminSettings, apiSaveAdminSettings, apiFetchEvents, apiCreateEvent, apiRsvpEvent } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiFetchEvents, apiCreateEvent, apiRsvpEvent } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -2278,6 +2278,13 @@ function FriendsPage({ lang, t, mode, onMessage }) {
   const [inviteEmailSending, setInviteEmailSending] = useState(false)
   const [inviteEmailSentOk, setInviteEmailSentOk] = useState(false)
   const searchTimerRef = useRef(null)
+  const { rels, setRel } = useContactRelationships()
+  const REL_OPTS = [
+    { key: 'family', label: t.relFamily },
+    { key: 'colleague', label: t.relColleague },
+    { key: 'close', label: t.relCloseFriend },
+    { key: 'neighbor', label: t.relNeighbor },
+  ]
 
   const refreshAll = useCallback(() => {
     apiFetchFriends().then(data => {
@@ -2674,13 +2681,19 @@ function FriendsPage({ lang, t, mode, onMessage }) {
         <div className="p-friends-grid">
           {filtered.map((friend) => (
             <div key={friend.id} className="p-card p-friend-card">
-              <div className="p-friend-card-top">
+              <div className="p-friend-card-top" style={{ cursor: 'pointer' }} onClick={() => setViewProfileId(friend.id)}>
                 <div className="p-avatar-md" style={{ background: nameToColor(friend.name) }}>
                   {getInitials(friend.name)}
                   {friend.online && <div className="online-dot" />}
                 </div>
                 <div className="p-friend-card-name">{friend.name}</div>
-                <div className="p-friend-card-mutual">{friend.mutual} {t.mutualFriends}</div>
+                {rels[String(friend.id)] ? (
+                  <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: '#EBF4FF', color: '#1877F2', fontWeight: 600 }}>
+                    {REL_OPTS.find(r => r.key === rels[String(friend.id)])?.label}
+                  </span>
+                ) : (
+                  <div className="p-friend-card-mutual">{friend.mutual} {t.mutualFriends}</div>
+                )}
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button className="p-friend-msg-btn" style={{ flex: 1 }} onClick={() => onMessage(friend)}>
@@ -2696,6 +2709,19 @@ function FriendsPage({ lang, t, mode, onMessage }) {
                       <button className="p-friend-menu-item" onClick={() => { setOpenMenuId(null); onMessage(friend) }}>
                         💬 {t.message}
                       </button>
+                      <div className="p-friend-menu-item" style={{ cursor: 'default' }}>
+                        <span style={{ fontSize: 12, color: '#888', marginBottom: 2, display: 'block' }}>
+                          {lang === 'da' ? 'Relation' : 'Relationship'}
+                        </span>
+                        <select
+                          value={rels[String(friend.id)] || ''}
+                          onChange={e => setRel(friend.id, e.target.value || null)}
+                          style={{ width: '100%', fontSize: 12, padding: '4px 6px', borderRadius: 6, border: '1px solid #e0e0e0', background: '#fafafa' }}
+                        >
+                          <option value="">{t.relNone}</option>
+                          {REL_OPTS.map(r => <option key={r.key} value={r.key}>{r.label}</option>)}
+                        </select>
+                      </div>
                       <button className="p-friend-menu-item p-friend-menu-danger" onClick={() => { setOpenMenuId(null); setUnfriendTarget({ id: friend.id, name: friend.name }) }}>
                         {t.unfriend}
                       </button>
@@ -2752,7 +2778,9 @@ function NewConvModal({ t, lang, mode, friends, existingParticipantIds = [], isG
   )
   const toggle = (id) => setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
 
-  const canCreate = isGroupMode ? selected.length >= 1 : selected.length === 1
+  // Allow multi-select in both modes — if >1 selected in 1:1 mode, auto-create a group
+  const effectiveGroupMode = isGroupMode || selected.length > 1
+  const canCreate = selected.length >= 1
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -2761,7 +2789,7 @@ function NewConvModal({ t, lang, mode, friends, existingParticipantIds = [], isG
           <span>{isGroupMode ? t.newGroupTitle : t.newConvTitle}</span>
           <button className="p-msg-modal-close" onClick={onClose}>✕</button>
         </div>
-        {isGroupMode && (
+        {effectiveGroupMode && (
           <input
             className="p-msg-modal-input"
             placeholder={t.groupNamePlaceholder}
@@ -2769,7 +2797,7 @@ function NewConvModal({ t, lang, mode, friends, existingParticipantIds = [], isG
             onChange={e => setGroupName(e.target.value)}
           />
         )}
-        {isGroupMode && mode === 'privat' && (
+        {effectiveGroupMode && mode === 'privat' && (
           <label className={`p-family-group-toggle${isFamilyGroup ? ' active' : ''}`}>
             <input
               type="checkbox"
@@ -2836,9 +2864,9 @@ function NewConvModal({ t, lang, mode, friends, existingParticipantIds = [], isG
           <button
             className="p-msg-modal-btn primary"
             disabled={!canCreate}
-            onClick={() => onCreate(selected, isGroupMode ? (groupName || null) : null, isGroupMode, isGroupMode ? isFamilyGroup : false)}
+            onClick={() => onCreate(selected, effectiveGroupMode ? (groupName || null) : null, effectiveGroupMode, effectiveGroupMode ? isFamilyGroup : false)}
           >
-            {isGroupMode ? (isFamilyGroup ? `🏡 ${t.createGroup}` : t.createGroup) : t.startConv}
+            {effectiveGroupMode ? (isFamilyGroup ? `🏡 ${t.createGroup}` : t.createGroup) : t.startConv}
           </button>
         </div>
       </div>
@@ -5637,16 +5665,19 @@ function AdminPage({ lang, t }) {
     { key: 'stripe_price_boost', label: t.adminStripePriceBoost, type: 'text', placeholder: 'price_...' },
   ]
 
+  const [adminTab, setAdminTab] = useState('stats')
   const [form, setForm] = useState({
     stripe_secret_key: '', stripe_pub_key: '', stripe_webhook_secret: '',
     stripe_price_pro_monthly: '', stripe_price_pro_yearly: '', stripe_price_boost: '',
   })
   const [status, setStatus] = useState('idle') // idle | saving | saved
+  const [stats, setStats] = useState(null)
 
   useEffect(() => {
     apiGetAdminSettings().then(data => {
       if (data?.settings) setForm(prev => ({ ...prev, ...data.settings }))
     })
+    apiGetAdminStats().then(data => { if (data) setStats(data) })
   }, [])
 
   const handleSave = async (e) => {
@@ -5660,46 +5691,85 @@ function AdminPage({ lang, t }) {
   const fS = { width: '100%', padding: '9px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 0 }
   const lS = { fontSize: 13, fontWeight: 600, color: '#555', marginBottom: 4, display: 'block' }
 
+  const statItems = stats ? [
+    { icon: '👥', label: lang === 'da' ? 'Brugere i alt' : 'Total users', value: stats.users },
+    { icon: '🟢', label: lang === 'da' ? 'Aktive sessioner' : 'Active sessions', value: stats.active_users },
+    { icon: '🆕', label: lang === 'da' ? 'Nye brugere (7 dage)' : 'New users (7 days)', value: stats.new_users_7d },
+    { icon: '📝', label: lang === 'da' ? 'Opslag i alt' : 'Total posts', value: stats.posts },
+    { icon: '💬', label: lang === 'da' ? 'Beskeder i alt' : 'Total messages', value: stats.messages },
+    { icon: '📅', label: lang === 'da' ? 'Begivenheder' : 'Events', value: stats.events },
+    { icon: '✅', label: lang === 'da' ? 'Tilmeldinger (going)' : 'Event RSVPs (going)', value: stats.rsvps },
+    { icon: '🛍️', label: lang === 'da' ? 'Aktive annoncer' : 'Active listings', value: stats.listings },
+    { icon: '🤝', label: lang === 'da' ? 'Forbindelser' : 'Friendships', value: stats.friendships },
+  ] : []
+
   return (
     <div style={{ maxWidth: 640, margin: '0 auto', padding: '24px 16px' }}>
-      <h2 style={{ margin: '0 0 20px', fontSize: 22, fontWeight: 700 }}>⚙️ {t.adminTitle}</h2>
+      <h2 style={{ margin: '0 0 16px', fontSize: 22, fontWeight: 700 }}>⚙️ {t.adminTitle}</h2>
 
-      {/* Stripe config */}
-      <div className="p-card" style={{ marginBottom: 20 }}>
-        <h3 style={{ margin: '0 0 8px', fontSize: 16, fontWeight: 700 }}>💳 {t.adminStripeTitle}</h3>
-
-        {/* Info card */}
-        <div style={{ background: '#F0F7FF', border: '1px solid #BDD8F9', borderRadius: 8, padding: '12px 14px', marginBottom: 20, fontSize: 13, lineHeight: 1.6, color: '#2C4A6E' }}>
-          ℹ️ {t.adminStripeInfoCard}
-        </div>
-
-        <form onSubmit={handleSave}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {STRIPE_FIELDS.map(({ key, label, type, placeholder }) => (
-              <div key={key}>
-                <label style={lS}>{label}</label>
-                <input
-                  style={fS}
-                  type={type}
-                  placeholder={placeholder}
-                  value={form[key] || ''}
-                  onChange={e => setForm(prev => ({ ...prev, [key]: e.target.value }))}
-                  autoComplete="off"
-                />
-              </div>
-            ))}
-          </div>
-          <div style={{ marginTop: 20 }}>
-            <button
-              type="submit"
-              disabled={status === 'saving'}
-              style={{ padding: '10px 24px', borderRadius: 8, border: 'none', background: status === 'saved' ? '#40916C' : '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}
-            >
-              {status === 'saving' ? t.adminSaving : status === 'saved' ? t.adminSaved : t.adminSave}
-            </button>
-          </div>
-        </form>
+      <div className="p-filter-tabs" style={{ marginBottom: 20 }}>
+        <button className={`p-filter-tab${adminTab === 'stats' ? ' active' : ''}`} onClick={() => setAdminTab('stats')}>
+          📊 {lang === 'da' ? 'Status' : 'Overview'}
+        </button>
+        <button className={`p-filter-tab${adminTab === 'stripe' ? ' active' : ''}`} onClick={() => setAdminTab('stripe')}>
+          💳 {t.adminStripeTitle}
+        </button>
       </div>
+
+      {adminTab === 'stats' && (
+        <div>
+          {!stats ? (
+            <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>
+              {lang === 'da' ? 'Henter statistik…' : 'Loading statistics…'}
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
+              {statItems.map(s => (
+                <div key={s.label} className="p-card" style={{ textAlign: 'center', padding: '20px 16px' }}>
+                  <div style={{ fontSize: 32, marginBottom: 6 }}>{s.icon}</div>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: '#2D6A4F', marginBottom: 4 }}>{s.value ?? '—'}</div>
+                  <div style={{ fontSize: 12, color: '#888', fontWeight: 500 }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {adminTab === 'stripe' && (
+        <div className="p-card" style={{ marginBottom: 20 }}>
+          <h3 style={{ margin: '0 0 8px', fontSize: 16, fontWeight: 700 }}>💳 {t.adminStripeTitle}</h3>
+          <div style={{ background: '#F0F7FF', border: '1px solid #BDD8F9', borderRadius: 8, padding: '12px 14px', marginBottom: 20, fontSize: 13, lineHeight: 1.6, color: '#2C4A6E' }}>
+            ℹ️ {t.adminStripeInfoCard}
+          </div>
+          <form onSubmit={handleSave}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {STRIPE_FIELDS.map(({ key, label, type, placeholder }) => (
+                <div key={key}>
+                  <label style={lS}>{label}</label>
+                  <input
+                    style={fS}
+                    type={type}
+                    placeholder={placeholder}
+                    value={form[key] || ''}
+                    onChange={e => setForm(prev => ({ ...prev, [key]: e.target.value }))}
+                    autoComplete="off"
+                  />
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: 20 }}>
+              <button
+                type="submit"
+                disabled={status === 'saving'}
+                style={{ padding: '10px 24px', borderRadius: 8, border: 'none', background: status === 'saved' ? '#40916C' : '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}
+              >
+                {status === 'saving' ? t.adminSaving : status === 'saved' ? t.adminSaved : t.adminSave}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   )
 }

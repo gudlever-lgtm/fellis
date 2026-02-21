@@ -2238,6 +2238,25 @@ app.post('/api/admin/settings', authenticate, requireAdmin, async (req, res) => 
   }
 })
 
+// GET /api/admin/stats — platform statistics (admin only)
+app.get('/api/admin/stats', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [[{ users }]] = await pool.query('SELECT COUNT(*) as users FROM users')
+    const [[{ active_users }]] = await pool.query("SELECT COUNT(DISTINCT user_id) as active_users FROM sessions WHERE expires_at > NOW()")
+    const [[{ posts }]] = await pool.query('SELECT COUNT(*) as posts FROM posts')
+    const [[{ events }]] = await pool.query('SELECT COUNT(*) as events FROM events').catch(() => [[{ events: 0 }]])
+    const [[{ listings }]] = await pool.query('SELECT COUNT(*) as listings FROM marketplace_listings WHERE sold = 0').catch(() => [[{ listings: 0 }]])
+    const [[{ friendships }]] = await pool.query('SELECT COUNT(*) as friendships FROM friendships')
+    const [[{ messages }]] = await pool.query('SELECT COUNT(*) as messages FROM messages')
+    const [[{ new_users_7d }]] = await pool.query("SELECT COUNT(*) as new_users_7d FROM users WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)").catch(() => [[{ new_users_7d: 0 }]])
+    const [[{ rsvps }]] = await pool.query("SELECT COUNT(*) as rsvps FROM event_rsvps WHERE status = 'going'").catch(() => [[{ rsvps: 0 }]])
+    res.json({ users, active_users, posts, events, listings, friendships, messages, new_users_7d, rsvps })
+  } catch (err) {
+    console.error('GET /api/admin/stats error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // ── Events API ──
 
 // GET /api/events — list all events with RSVP counts and current user's RSVP

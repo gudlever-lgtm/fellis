@@ -419,3 +419,7 @@ export async function apiSaveAdminSettings(data) {
     body: JSON.stringify(data),
   })
 }
+
+export async function apiGetAdminStats() {
+  return await request('/api/admin/stats')
+}
