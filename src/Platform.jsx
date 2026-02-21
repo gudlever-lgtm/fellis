@@ -643,10 +643,12 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
   const topSentinelRef = useRef(null)
   const feedContainerRef = useRef(null)
   const [feedSelectedEvent, setFeedSelectedEvent] = useState(null)
-  const [feedRsvpMap, setFeedRsvpMap] = useState({ 1: 'going', 3: 'going' })
+  const [feedRsvpMap, setFeedRsvpMap] = useState({})
   const [feedRsvpExtras, setFeedRsvpExtras] = useState({})
   const handleFeedRsvp = (eventId, status) => {
-    setFeedRsvpMap(prev => ({ ...prev, [eventId]: prev[eventId] === status ? null : status }))
+    const newStatus = feedRsvpMap[eventId] === status ? null : status
+    setFeedRsvpMap(prev => ({ ...prev, [eventId]: newStatus }))
+    if (typeof eventId === 'number') apiRsvpEvent(eventId, newStatus, {}).catch(() => {})
   }
 
   // Fetch a page of posts — stable callback (empty deps), guards via ref
@@ -3603,7 +3605,7 @@ function EventsPage({ lang, t, currentUser, mode }) {
   const [events, setEvents] = useState(MOCK_EVENTS)
   const [selectedEvent, setSelectedEvent] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
-  const [rsvpMap, setRsvpMap] = useState({ 1: 'going', 3: 'going' })
+  const [rsvpMap, setRsvpMap] = useState({})
   const [rsvpExtras, setRsvpExtras] = useState({}) // { [eventId]: { dietary, plusOne } }
   const [shareEventId, setShareEventId] = useState(null)
   const [friends, setFriends] = useState([])
@@ -3611,11 +3613,9 @@ function EventsPage({ lang, t, currentUser, mode }) {
   useEffect(() => {
     apiFetchFriends().then(data => { if (data) setFriends(data) })
     apiFetchEvents().then(data => {
-      if (data?.events?.length) {
-        const apiIds = new Set(data.events.map(e => e.id))
-        // Merge: real DB events first, then mock placeholders not in DB
-        setEvents([...data.events, ...MOCK_EVENTS.filter(m => !apiIds.has(m.id))])
-        // Populate rsvpMap from API myRsvp field
+      if (data?.events) {
+        // Use only real DB events (no mock placeholders) so count matches admin stats
+        setEvents(data.events.length ? data.events : MOCK_EVENTS)
         const map = {}
         data.events.forEach(e => { if (e.myRsvp) map[e.id] = e.myRsvp })
         setRsvpMap(prev => ({ ...prev, ...map }))
@@ -4315,6 +4315,25 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
   const [tab, setTab] = useState('posts')
   const [newPost, setNewPost] = useState('')
   const [companyPosts, setCompanyPosts] = useState(company.posts || [])
+  const [likedCompanyPosts, setLikedCompanyPosts] = useState(new Set())
+  const [expandedCompanyComments, setExpandedCompanyComments] = useState(new Set())
+  const [companyCommentInputs, setCompanyCommentInputs] = useState({})
+
+  const toggleCompanyLike = (postId) => {
+    setLikedCompanyPosts(prev => {
+      const next = new Set(prev)
+      if (next.has(postId)) { next.delete(postId); setCompanyPosts(p => p.map(x => x.id === postId ? { ...x, likes: x.likes - 1 } : x)) }
+      else { next.add(postId); setCompanyPosts(p => p.map(x => x.id === postId ? { ...x, likes: x.likes + 1 } : x)) }
+      return next
+    })
+  }
+  const toggleCompanyComments = (postId) => setExpandedCompanyComments(prev => { const n = new Set(prev); n.has(postId) ? n.delete(postId) : n.add(postId); return n })
+  const addCompanyComment = (postId) => {
+    const text = companyCommentInputs[postId]?.trim()
+    if (!text) return
+    setCompanyPosts(p => p.map(x => x.id === postId ? { ...x, comments: (typeof x.comments === 'number' ? x.comments : (x.comments?.length || 0)) + 1, commentList: [...(x.commentList || []), { id: Date.now(), author: currentUser.name, text }] } : x))
+    setCompanyCommentInputs(prev => ({ ...prev, [postId]: '' }))
+  }
 
   const postCompany = () => {
     if (!newPost.trim()) return
@@ -4400,22 +4419,49 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
               </button>
             </div>
           )}
-          {companyPosts.map(post => (
-            <div key={post.id} className="p-card p-post" style={{ marginBottom: 12 }}>
-              <div className="p-post-header">
-                <div style={{ width: 36, height: 36, borderRadius: 8, background: company.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 16 }}>{company.name[0]}</div>
-                <div>
-                  <div className="p-post-author">{company.name}</div>
-                  <div className="p-post-time">{post.time[lang]}</div>
+          {companyPosts.map(post => {
+            const liked = likedCompanyPosts.has(post.id)
+            const commentCount = typeof post.comments === 'number' ? post.comments : (post.commentList?.length || 0)
+            const showComments = expandedCompanyComments.has(post.id)
+            return (
+              <div key={post.id} className="p-card p-post" style={{ marginBottom: 12 }}>
+                <div className="p-post-header">
+                  <div style={{ width: 36, height: 36, borderRadius: 8, background: company.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 16 }}>{company.name[0]}</div>
+                  <div>
+                    <div className="p-post-author">{company.name}</div>
+                    <div className="p-post-time">{post.time[lang]}</div>
+                  </div>
                 </div>
+                <div className="p-post-text">{post.text[lang] || post.text.da}</div>
+                <div className="p-post-stats">
+                  <span>{post.likes} {t.like.toLowerCase()}{post.likes !== 1 && lang === 'da' ? 'r' : ''}</span>
+                  <span>{commentCount} {t.comment.toLowerCase()}{lang === 'da' ? 'er' : 's'}</span>
+                </div>
+                <div className="p-post-actions">
+                  <button className={`p-post-action-btn${liked ? ' liked' : ''}`} onClick={() => toggleCompanyLike(post.id)}>
+                    {liked ? '❤️' : '🤍'} {t.like}
+                  </button>
+                  <button className="p-post-action-btn" onClick={() => toggleCompanyComments(post.id)}>
+                    💬 {t.comment}
+                  </button>
+                </div>
+                {showComments && (
+                  <div className="p-comments-section">
+                    {(post.commentList || []).map(c => (
+                      <div key={c.id} className="p-comment"><span className="p-comment-author">{c.author}</span> {c.text}</div>
+                    ))}
+                    <div className="p-comment-input-row">
+                      <input className="p-comment-input" placeholder={t.addComment}
+                        value={companyCommentInputs[post.id] || ''}
+                        onChange={e => setCompanyCommentInputs(prev => ({ ...prev, [post.id]: e.target.value }))}
+                        onKeyDown={e => e.key === 'Enter' && addCompanyComment(post.id)} />
+                      <button className="p-comment-send" onClick={() => addCompanyComment(post.id)}>{t.send}</button>
+                    </div>
+                  </div>
+                )}
               </div>
-              <div className="p-post-text">{post.text[lang] || post.text.da}</div>
-              <div className="p-post-stats">
-                <span>{post.likes} {t.like.toLowerCase()}{post.likes !== 1 && lang === 'da' ? 'r' : ''}</span>
-                <span>{typeof post.comments === 'number' ? post.comments : post.comments?.length} {t.comment.toLowerCase()}{lang === 'da' ? 'er' : 's'}</span>
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </>
       )}
 

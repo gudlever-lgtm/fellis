@@ -131,6 +131,9 @@ async function initEvents() {
       FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    // Migrate: add columns that may be missing on existing installations
+    await pool.query(`ALTER TABLE event_rsvps ADD COLUMN IF NOT EXISTS dietary VARCHAR(255) DEFAULT NULL`).catch(() => {})
+    await pool.query(`ALTER TABLE event_rsvps ADD COLUMN IF NOT EXISTS plus_one TINYINT(1) DEFAULT 0`).catch(() => {})
   } catch (err) {
     console.error('initEvents error:', err.message)
   }
@@ -2093,9 +2096,10 @@ async function initMarketplace() {
 function parseListingPhotos(row) {
   if (!row) return row
   const photos = row.photos
-  if (!photos) return { ...row, photos: [] }
-  if (Array.isArray(photos)) return row
-  try { return { ...row, photos: JSON.parse(photos) } } catch { return { ...row, photos: [] } }
+  const base = { ...row, sellerId: row.user_id, seller: row.seller_name || row.seller }
+  if (!photos) return { ...base, photos: [] }
+  if (Array.isArray(photos)) return base
+  try { return { ...base, photos: JSON.parse(photos) } } catch { return { ...base, photos: [] } }
 }
 
 app.get('/api/marketplace', authenticate, async (req, res) => {
