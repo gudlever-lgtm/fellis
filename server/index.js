@@ -182,6 +182,13 @@ async function initConversations() {
     // Add conversation_id column (safe — fails silently if already present)
     await pool.query('ALTER TABLE messages ADD COLUMN conversation_id INT(11) DEFAULT NULL AFTER id').catch(() => {})
     await pool.query('ALTER TABLE messages ADD INDEX idx_msg_conv (conversation_id)').catch(() => {})
+    // Clean up broken 1:1 conversations created with null/missing participants
+    await pool.query(`
+      DELETE c FROM conversations c
+      WHERE c.is_group = 0
+        AND (SELECT COUNT(*) FROM conversation_participants WHERE conversation_id = c.id) < 2
+        AND (SELECT COUNT(*) FROM messages WHERE conversation_id = c.id) = 0
+    `).catch(() => {})
     // Migrate existing 1:1 messages to conversation records
     const [[{ cnt }]] = await pool.query('SELECT COUNT(*) as cnt FROM messages WHERE conversation_id IS NULL')
     if (cnt === 0) return
@@ -1383,9 +1390,11 @@ async function getConversationForUser(convId, userId, myName) {
      JOIN conversation_participants cp ON cp.conversation_id = c.id AND cp.user_id = ?
      WHERE c.id = ?`, [userId, convId])
   const unread = msgs.filter(m => !m.is_read && m.from_name !== myName).length
+  const otherParticipant = participants.find(p => p.id !== userId)
+  const fallbackName = msgs.find(m => m.from_name !== myName)?.from_name || null
   const displayName = conv.is_group
     ? (conv.name || participants.filter(p => p.id !== userId).map(p => p.name.split(' ')[0]).join(', '))
-    : (participants.find(p => p.id !== userId)?.name || 'Unknown')
+    : (otherParticipant?.name || fallbackName || 'Ukendt')
   return {
     id: convId,
     name: displayName,
@@ -1445,7 +1454,9 @@ app.post('/api/conversations', authenticate, async (req, res) => {
   const { participantIds, name, isGroup } = req.body
   if (!participantIds || !Array.isArray(participantIds) || !participantIds.length)
     return res.status(400).json({ error: 'participantIds required' })
-  const allIds = [req.userId, ...participantIds.filter(id => id !== req.userId)]
+  const validIds = participantIds.map(id => parseInt(id)).filter(id => !isNaN(id) && id > 0)
+  if (!validIds.length) return res.status(400).json({ error: 'No valid participant IDs' })
+  const allIds = [req.userId, ...validIds.filter(id => id !== req.userId)]
   try {
     // For 1:1: return existing conversation if found
     if (!isGroup && allIds.length === 2) {
