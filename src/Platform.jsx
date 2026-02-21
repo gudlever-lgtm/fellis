@@ -661,6 +661,7 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
   const [feedSelectedEvent, setFeedSelectedEvent] = useState(null)
   const [feedRsvpMap, setFeedRsvpMap] = useState({})
   const [feedRsvpExtras, setFeedRsvpExtras] = useState({})
+  const { rels } = useContactRelationships()
   const CP_FEED_DEFAULT_COMMENTS = [
     { id: 1, author: 'Mia Skov', text: 'Spændende mulighed!' },
     { id: 2, author: 'Jonas Holm', text: 'Sender ansøgning i dag 🙌' },
@@ -1293,11 +1294,24 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
                 {getInitials(post.author)}
               </div>
               <div style={{ flex: 1 }}>
-                <div
-                  className="p-post-author"
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => isOwn ? onViewOwnProfile?.() : (post.authorId && onViewProfile?.(post.authorId))}
-                >{post.author}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div
+                    className="p-post-author"
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => isOwn ? onViewOwnProfile?.() : (post.authorId && onViewProfile?.(post.authorId))}
+                  >{post.author}</div>
+                  {(() => {
+                    const relType = !isOwn && post.authorId && rels[String(post.authorId)]
+                    if (!relType) return null
+                    if (mode === 'business' && relType === 'family') return null
+                    const label = { family: t.relFamily, colleague: t.relColleague, close: t.relCloseFriend, neighbor: t.relNeighbor }[relType]
+                    if (!label) return null
+                    const color = mode === 'business'
+                      ? { colleague: '#1877F2', close: '#2D6A4F', neighbor: '#7C6F64' }[relType] || '#888'
+                      : { family: '#E07B39', colleague: '#1877F2', close: '#2D6A4F', neighbor: '#7C6F64' }[relType] || '#888'
+                    return <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 10, background: color + '18', color, letterSpacing: '0.02em', flexShrink: 0 }}>{label}</span>
+                  })()}
+                </div>
                 <div className="p-post-time">{post.time[lang]}</div>
               </div>
               <div style={{ position: 'relative' }}>
