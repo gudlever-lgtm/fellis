@@ -29,7 +29,12 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
   const [currentUser, setCurrentUser] = useState({ name: '', handle: '', initials: '' })
   const [showAvatarMenu, setShowAvatarMenu] = useState(false)
   const [openConvId, setOpenConvId] = useState(null)
-  const [highlightPostId, setHighlightPostId] = useState(initialPostId || null)
+  const [highlightPostId, setHighlightPostId] = useState(null)
+
+  // React to initialPostId prop (set async in App after URL parse)
+  useEffect(() => {
+    if (initialPostId) setHighlightPostId(initialPostId)
+  }, [initialPostId])
   const [viewUserId, setViewUserId] = useState(null)
   const [mode, setMode] = useState(() => {
     const stored = localStorage.getItem('fellis_mode') || 'privat'
@@ -988,9 +993,11 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
   }, [highlightPostId])
 
   useEffect(() => {
-    if (pinnedPost && pinnedRef.current) {
-      pinnedRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }
+    if (!pinnedPost) return
+    const timer = setTimeout(() => {
+      pinnedRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 150)
+    return () => clearTimeout(timer)
   }, [pinnedPost])
 
   const pageNum = Math.floor(offset / PAGE_SIZE) + 1
@@ -1144,7 +1151,7 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
         return (
           <div ref={pinnedRef}>
             <div className="p-post-pinned-banner">
-              <span>📍 {lang === 'da' ? 'Søgeresultat' : 'Search result'}</span>
+              <span>📍 {lang === 'da' ? 'Vist opslag' : 'Linked post'}</span>
               <button className="p-post-pinned-close" onClick={() => { setPinnedPost(null); onHighlightCleared?.() }}>✕</button>
             </div>
             <div className="p-card p-post p-post-pinned">
@@ -5318,13 +5325,19 @@ function ListingDetailModal({ listing, t, lang, currentUser, catLabel, catIcon, 
           {listingDesc(listing) && <p className="p-listing-detail-desc">{listingDesc(listing)}</p>}
           {!isOwn && !listing.sold && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
-              <button
-                className="p-marketplace-create-btn"
-                style={{ width: '100%', justifyContent: 'center' }}
-                onClick={() => { onContactSeller(listing.sellerId); onClose() }}
-              >
-                💬 {t.marketplaceContactSeller}
-              </button>
+              {typeof listing.sellerId === 'number' && listing.sellerId > 0 ? (
+                <button
+                  className="p-marketplace-create-btn"
+                  style={{ width: '100%', justifyContent: 'center' }}
+                  onClick={() => { onContactSeller(listing.sellerId); onClose() }}
+                >
+                  💬 {t.marketplaceContactSeller}
+                </button>
+              ) : (
+                <div style={{ textAlign: 'center', color: '#aaa', fontSize: 13, padding: '8px 0' }}>
+                  {lang === 'da' ? 'Sælgeren er ikke på Fellis — kontakt via MobilePay' : 'Seller is not on Fellis — contact via MobilePay'}
+                </div>
+              )}
               {listing.mobilepay && (
                 <a href={`mobilepay://send?phone=${listing.mobilepay}`}
                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 16px', borderRadius: 8, border: '2px solid #5A78FF', color: '#5A78FF', fontWeight: 700, fontSize: 14, textDecoration: 'none', background: '#fff' }}>
