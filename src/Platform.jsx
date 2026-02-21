@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { PT, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiFetchEvents, apiCreateEvent, apiRsvpEvent } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiDeletePost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiFetchEvents, apiCreateEvent, apiRsvpEvent } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -634,6 +634,8 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
   const [shareSentTo, setShareSentTo] = useState(null)   // friendId just messaged
   const [postExpanded, setPostExpanded] = useState(false)
   const [mediaPopup, setMediaPopup] = useState(false)
+  const [postMenu, setPostMenu] = useState(null)       // postId with open options menu
+  const [hiddenPosts, setHiddenPosts] = useState(new Set()) // locally hidden post ids
   const fileInputRef = useRef(null)
   const textareaRef = useRef(null)
   const feedMention = useMention(sharePopupFriends || [])
@@ -901,6 +903,24 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
     setShareSentTo(friendId)
     setTimeout(() => { setSharePopup(null); setShareSentTo(null) }, 1200)
   }, [lang])
+
+  const handleDeletePost = useCallback(async (postId) => {
+    setPostMenu(null)
+    await apiDeletePost(postId).catch(() => {})
+    setPosts(prev => prev.filter(p => p.id !== postId))
+  }, [])
+
+  const handleHidePost = useCallback((postId) => {
+    setHiddenPosts(prev => new Set([...prev, postId]))
+    setPostMenu(null)
+  }, [])
+
+  const handleUnfriendFromPost = useCallback(async (post) => {
+    setPostMenu(null)
+    if (!post.authorId) return
+    await apiUnfriend(post.authorId).catch(() => {})
+    setPosts(prev => prev.filter(p => p.authorId !== post.authorId))
+  }, [])
 
   const handleComment = useCallback((postId) => {
     const text = commentTexts[postId]
@@ -1202,26 +1222,58 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
       })}
 
       {/* Posts — max PAGE_SIZE in DOM */}
-      {posts.map(post => {
+      {posts.filter(post => !hiddenPosts.has(post.id)).map(post => {
         const liked = likedPosts.has(post.id)
         const showComments = expandedComments.has(post.id)
+        const isOwn = post.author === currentUser.name
+        const menuOpen = postMenu === post.id
         return (
           <div key={post.id} className="p-card p-post">
             <div className="p-post-header">
               <div
                 className="p-avatar-sm"
-                style={{ background: nameToColor(post.author), cursor: post.authorId && post.author !== currentUser.name ? 'pointer' : 'default' }}
-                onClick={() => post.authorId && post.author !== currentUser.name && setViewProfileId(post.authorId)}
+                style={{ background: nameToColor(post.author), cursor: post.authorId && !isOwn ? 'pointer' : 'default' }}
+                onClick={() => post.authorId && !isOwn && setViewProfileId(post.authorId)}
               >
                 {getInitials(post.author)}
               </div>
-              <div>
+              <div style={{ flex: 1 }}>
                 <div
                   className="p-post-author"
-                  style={{ cursor: post.authorId && post.author !== currentUser.name ? 'pointer' : 'default' }}
-                  onClick={() => post.authorId && post.author !== currentUser.name && setViewProfileId(post.authorId)}
+                  style={{ cursor: post.authorId && !isOwn ? 'pointer' : 'default' }}
+                  onClick={() => post.authorId && !isOwn && setViewProfileId(post.authorId)}
                 >{post.author}</div>
                 <div className="p-post-time">{post.time[lang]}</div>
+              </div>
+              <div style={{ position: 'relative' }}>
+                <button
+                  onClick={() => setPostMenu(p => p === post.id ? null : post.id)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', fontSize: 18, lineHeight: 1, padding: '0 4px', borderRadius: 4 }}
+                  title={lang === 'da' ? 'Valgmuligheder' : 'Options'}
+                >···</button>
+                {menuOpen && (
+                  <>
+                    <div style={{ position: 'fixed', inset: 0, zIndex: 99 }} onClick={() => setPostMenu(null)} />
+                    <div style={{ position: 'absolute', right: 0, top: '110%', background: '#fff', border: '1px solid #E8E4DF', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 100, minWidth: 180, overflow: 'hidden' }}>
+                      {isOwn ? (
+                        <button className="p-post-menu-item danger" onClick={() => handleDeletePost(post.id)}>
+                          🗑️ {lang === 'da' ? 'Slet opslag' : 'Delete post'}
+                        </button>
+                      ) : (
+                        <>
+                          <button className="p-post-menu-item" onClick={() => handleHidePost(post.id)}>
+                            🙈 {lang === 'da' ? 'Skjul opslag' : 'Hide post'}
+                          </button>
+                          {post.authorId && (
+                            <button className="p-post-menu-item danger" onClick={() => handleUnfriendFromPost(post)}>
+                              👋 {lang === 'da' ? `Ophæv venskab med ${post.author.split(' ')[0]}` : `Unfriend ${post.author.split(' ')[0]}`}
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
             <PostText text={post.text} lang={lang} />

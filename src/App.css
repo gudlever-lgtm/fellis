@@ -1630,6 +1630,24 @@
   background: #F0FAF4;
   color: #2D6A4F;
 }
+.p-post-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #3D3530;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.p-post-menu-item:hover { background: #F7F5F3; }
+.p-post-menu-item.danger { color: #C0392B; }
+.p-post-menu-item.danger:hover { background: #FFF0EE; }
 .p-share-divider {
   height: 1px;
   background: #E8E4DF;

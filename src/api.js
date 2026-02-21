@@ -154,6 +154,10 @@ export async function apiAddComment(postId, text, mediaFile) {
   })
 }
 
+export async function apiDeletePost(postId) {
+  return await request(`/api/feed/${postId}`, { method: 'DELETE' })
+}
+
 // Profile
 export async function apiFetchProfile(userId) {
   if (userId) return await request(`/api/profile/${userId}`)

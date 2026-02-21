@@ -1117,6 +1117,19 @@ app.post('/api/feed/:id/comment', authenticate, upload.single('media'), async (r
   }
 })
 
+// DELETE /api/feed/:id — delete own post
+app.delete('/api/feed/:id', authenticate, async (req, res) => {
+  try {
+    const postId = parseInt(req.params.id)
+    const [rows] = await pool.query('SELECT id FROM posts WHERE id = ? AND author_id = ?', [postId, req.userId])
+    if (!rows.length) return res.status(403).json({ error: 'Not your post' })
+    await pool.query('DELETE FROM posts WHERE id = ?', [postId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete post' })
+  }
+})
+
 // ── Invite routes ──
 
 // GET /api/invite/:token — public: get inviter info from invite link
