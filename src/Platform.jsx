@@ -1347,12 +1347,26 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
   )
 }
 
+// ── Profile mock photos (FB import + local) ──
+const MOCK_FB_PHOTOS = [
+  { id: 1, source: 'facebook', caption: { da: 'Sommerferie på Bornholm', en: 'Summer holiday on Bornholm' }, color: '#4ECDC4' },
+  { id: 2, source: 'facebook', caption: { da: 'Designkonference 2025', en: 'Design conference 2025' }, color: '#FF6B6B' },
+  { id: 3, source: 'facebook', caption: { da: 'Nyt kontor — første dag!', en: 'New office — first day!' }, color: '#FFD166' },
+  { id: 4, source: 'facebook', caption: { da: 'Påskefrokost med familien', en: 'Easter lunch with the family' }, color: '#95E1D3' },
+  { id: 5, source: 'facebook', caption: { da: 'Kvindernes internationale kampdag', en: "International Women's Day" }, color: '#F38181' },
+  { id: 6, source: 'facebook', caption: { da: 'Valentinsdag ❤️', en: 'Valentine\'s Day ❤️' }, color: '#FCE38A' },
+  { id: 7, source: 'fellis', caption: { da: 'Mit designprojekt', en: 'My design project' }, color: '#EAFFD0' },
+  { id: 8, source: 'fellis', caption: { da: 'Vinter i København', en: 'Winter in Copenhagen' }, color: '#C4F1F9' },
+  { id: 9, source: 'facebook', caption: { da: 'Juleaften 🎄', en: 'Christmas Eve 🎄' }, color: '#A29BFE' },
+]
+
 // ── Profile (clean — read-only view) ──
 function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
   const [profile, setProfile] = useState({ ...currentUser })
   const [userPosts, setUserPosts] = useState([])
   const [showPassword, setShowPassword] = useState(false)
   const [familyGroups, setFamilyGroups] = useState([])
+  const [profileTab, setProfileTab] = useState('about')
 
   useEffect(() => {
     apiFetchProfile().then(data => {
@@ -1427,110 +1441,148 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
         </div>
       </div>
 
-      {/* Login info */}
-      <div className="p-card p-login-info-card">
-        <h3 className="p-section-title">{t.loginInfo}</h3>
-        <div className="p-login-info">
-          <div className="p-login-info-row">
-            <span className="p-login-info-label">{t.emailLabel}</span>
-            <span className="p-login-info-value">{profile.email || '—'}</span>
-          </div>
-          <div className="p-login-info-row">
-            <span className="p-login-info-label">{t.passwordLabel}</span>
-            <span className="p-login-info-value p-password-value">
-              {profile.hasPassword === false ? (
-                <span className="p-password-not-set">{t.passwordNotSet}</span>
-              ) : (
-                <>
-                  <span>{showPassword ? (profile.passwordHint || '••••••••••••') : '••••••••••••'}</span>
-                  <button className="p-show-password-btn" onClick={() => setShowPassword(prev => !prev)}>
-                    {showPassword ? t.hidePasswordHint : t.showPasswordHint}
-                  </button>
-                </>
-              )}
-            </span>
-          </div>
-          <div className="p-login-info-row">
-            <span className="p-login-info-label">{t.loginMethodLabel}</span>
-            <span className="p-login-info-value">{profile.loginMethod === 'facebook' ? t.loginMethodFacebook : t.loginMethodEmail}</span>
-          </div>
-          <div className="p-login-info-row">
-            <span className="p-login-info-label">{t.accountCreatedLabel}</span>
-            <span className="p-login-info-value">{profile.createdAt ? new Date(profile.createdAt).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</span>
-          </div>
-        </div>
+      {/* Profile tabs */}
+      <div className="p-filter-tabs" style={{ marginBottom: 16 }}>
+        <button className={`p-filter-tab${profileTab === 'about' ? ' active' : ''}`} onClick={() => setProfileTab('about')}>{t.profileTabAbout}</button>
+        <button className={`p-filter-tab${profileTab === 'posts' ? ' active' : ''}`} onClick={() => setProfileTab('posts')}>{t.profileTabPosts}{userPosts.length > 0 ? ` (${userPosts.length})` : ''}</button>
+        <button className={`p-filter-tab${profileTab === 'photos' ? ' active' : ''}`} onClick={() => setProfileTab('photos')}>{t.profileTabPhotos} ({MOCK_FB_PHOTOS.length})</button>
       </div>
 
-      {/* Family section (common mode) */}
-      {mode === 'privat' && (
-        <div className="p-card p-family-section" style={{ marginBottom: 16 }}>
-          <h3 className="p-section-title" style={{ margin: '0 0 4px' }}>🏡 {t.familySection}</h3>
-          <p className="p-family-section-desc">{t.familySectionDesc}</p>
-          {familyGroups.length === 0 ? (
-            <div className="p-family-empty">{t.familyNoGroups}</div>
-          ) : (
-            familyGroups.map(g => (
-              <div key={g.id} className="p-family-group-row">
-                <div className="p-family-group-icon">🏡</div>
-                <div className="p-family-group-info">
-                  <span className="p-family-group-name">{g.name || t.familyGroup}</span>
-                  <span className="p-family-group-meta">{g.participants.length} {t.participants}</span>
+      {/* About tab */}
+      {profileTab === 'about' && (<>
+        <div className="p-card p-login-info-card">
+          <h3 className="p-section-title">{t.loginInfo}</h3>
+          <div className="p-login-info">
+            <div className="p-login-info-row">
+              <span className="p-login-info-label">{t.emailLabel}</span>
+              <span className="p-login-info-value">{profile.email || '—'}</span>
+            </div>
+            <div className="p-login-info-row">
+              <span className="p-login-info-label">{t.passwordLabel}</span>
+              <span className="p-login-info-value p-password-value">
+                {profile.hasPassword === false ? (
+                  <span className="p-password-not-set">{t.passwordNotSet}</span>
+                ) : (
+                  <>
+                    <span>{showPassword ? (profile.passwordHint || '••••••••••••') : '••••••••••••'}</span>
+                    <button className="p-show-password-btn" onClick={() => setShowPassword(prev => !prev)}>
+                      {showPassword ? t.hidePasswordHint : t.showPasswordHint}
+                    </button>
+                  </>
+                )}
+              </span>
+            </div>
+            <div className="p-login-info-row">
+              <span className="p-login-info-label">{t.loginMethodLabel}</span>
+              <span className="p-login-info-value">{profile.loginMethod === 'facebook' ? t.loginMethodFacebook : t.loginMethodEmail}</span>
+            </div>
+            <div className="p-login-info-row">
+              <span className="p-login-info-label">{t.accountCreatedLabel}</span>
+              <span className="p-login-info-value">{profile.createdAt ? new Date(profile.createdAt).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</span>
+            </div>
+          </div>
+        </div>
+
+        {mode === 'privat' && (
+          <div className="p-card p-family-section" style={{ marginBottom: 16 }}>
+            <h3 className="p-section-title" style={{ margin: '0 0 4px' }}>🏡 {t.familySection}</h3>
+            <p className="p-family-section-desc">{t.familySectionDesc}</p>
+            {familyGroups.length === 0 ? (
+              <div className="p-family-empty">{t.familyNoGroups}</div>
+            ) : (
+              familyGroups.map(g => (
+                <div key={g.id} className="p-family-group-row">
+                  <div className="p-family-group-icon">🏡</div>
+                  <div className="p-family-group-info">
+                    <span className="p-family-group-name">{g.name || t.familyGroup}</span>
+                    <span className="p-family-group-meta">{g.participants.length} {t.participants}</span>
+                  </div>
+                  <div className="p-family-group-avatars">
+                    {g.participants.slice(0, 4).map(p => (
+                      <div key={p.id} className="p-avatar-xs p-family-avatar" style={{ background: nameToColor(p.name) }}>{getInitials(p.name)}</div>
+                    ))}
+                  </div>
                 </div>
-                <div className="p-family-group-avatars">
-                  {g.participants.slice(0, 4).map(p => (
-                    <div key={p.id} className="p-avatar-xs p-family-avatar" style={{ background: nameToColor(p.name) }}>{getInitials(p.name)}</div>
-                  ))}
+              ))
+            )}
+          </div>
+        )}
+
+        {mode === 'business' && (
+          <div className="p-card" style={{ marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h3 className="p-section-title" style={{ margin: 0 }}>🏢 {t.companies}</h3>
+              <button
+                style={{ fontSize: 13, color: '#2D6A4F', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer' }}
+                onClick={() => onNavigate?.('company')}
+              >
+                {t.myCompanies} →
+              </button>
+            </div>
+            {MOCK_COMPANIES.filter(c => c.role === 'owner').map(c => (
+              <div key={c.id} className="p-company-mini-card" onClick={() => onNavigate?.('company')}>
+                <div className="p-company-logo-sm" style={{ background: c.color }}>{c.name[0]}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>{c.name}</div>
+                  <div style={{ fontSize: 12, color: '#888' }}>{c.industry} · {c.followers} {t.companyFollowers}</div>
+                </div>
+                <span className="p-company-role-badge">{t.companyRoleOwner}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </>)}
+
+      {/* Posts tab */}
+      {profileTab === 'posts' && (
+        userPosts.length === 0
+          ? <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>📭 {lang === 'da' ? 'Ingen opslag endnu' : 'No posts yet'}</div>
+          : userPosts.map(post => (
+            <div key={post.id} className="p-card p-post">
+              <div className="p-post-header">
+                <div className="p-avatar-sm" style={{ background: nameToColor(post.author) }}>{getInitials(post.author)}</div>
+                <div>
+                  <div className="p-post-author">{post.author}</div>
+                  <div className="p-post-time">{post.time[lang]}</div>
                 </div>
               </div>
-            ))
+              <div className="p-post-body">{post.text[lang]}</div>
+              {post.media && <PostMedia media={post.media} />}
+              <div className="p-post-stats">
+                <span>{post.likes} {t.like.toLowerCase()}</span>
+                <span>{post.comments.length} {t.comment.toLowerCase()}{post.comments.length !== 1 ? (lang === 'da' ? 'er' : 's') : ''}</span>
+              </div>
+            </div>
+          ))
+      )}
+
+      {/* Photos tab */}
+      {profileTab === 'photos' && (
+        <div className="p-card" style={{ padding: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <h3 className="p-section-title" style={{ margin: 0 }}>{t.profileTabPhotos}</h3>
+            <span style={{ fontSize: 12, color: '#888' }}>
+              {t.profilePhotosFacebook}: {MOCK_FB_PHOTOS.filter(p => p.source === 'facebook').length}
+            </span>
+          </div>
+          {MOCK_FB_PHOTOS.length === 0 ? (
+            <div style={{ textAlign: 'center', color: '#888', padding: '40px 0' }}>{t.profileNoPhotos}</div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+              {MOCK_FB_PHOTOS.map(photo => (
+                <div key={photo.id} style={{ position: 'relative', aspectRatio: '1', borderRadius: 8, overflow: 'hidden', background: photo.color, cursor: 'pointer', minHeight: 90 }}>
+                  {photo.source === 'facebook' && (
+                    <div style={{ position: 'absolute', top: 4, left: 4, background: '#1877F2', color: '#fff', borderRadius: 4, fontSize: 10, padding: '1px 5px', fontWeight: 700, lineHeight: 1.4 }}>f</div>
+                  )}
+                  <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.45)', color: '#fff', fontSize: 10, padding: '4px 6px', lineHeight: 1.3 }}>
+                    {photo.caption[lang]}
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       )}
-
-      {/* Company pages (business mode) */}
-      {mode === 'business' && (
-        <div className="p-card" style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <h3 className="p-section-title" style={{ margin: 0 }}>🏢 {t.companies}</h3>
-            <button
-              style={{ fontSize: 13, color: '#2D6A4F', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer' }}
-              onClick={() => onNavigate?.('company')}
-            >
-              {t.myCompanies} →
-            </button>
-          </div>
-          {MOCK_COMPANIES.filter(c => c.role === 'owner').map(c => (
-            <div key={c.id} className="p-company-mini-card" onClick={() => onNavigate?.('company')}>
-              <div className="p-company-logo-sm" style={{ background: c.color }}>{c.name[0]}</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: 14 }}>{c.name}</div>
-                <div style={{ fontSize: 12, color: '#888' }}>{c.industry} · {c.followers} {t.companyFollowers}</div>
-              </div>
-              <span className="p-company-role-badge">{t.companyRoleOwner}</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* User's posts */}
-      <h3 className="p-section-title">{t.postsLabel}</h3>
-      {userPosts.map(post => (
-        <div key={post.id} className="p-card p-post">
-          <div className="p-post-header">
-            <div className="p-avatar-sm" style={{ background: nameToColor(post.author) }}>{getInitials(post.author)}</div>
-            <div>
-              <div className="p-post-author">{post.author}</div>
-              <div className="p-post-time">{post.time[lang]}</div>
-            </div>
-          </div>
-          <div className="p-post-body">{post.text[lang]}</div>
-          {post.media && <PostMedia media={post.media} />}
-          <div className="p-post-stats">
-            <span>{post.likes} {t.like.toLowerCase()}</span>
-            <span>{post.comments.length} {t.comment.toLowerCase()}{post.comments.length !== 1 ? (lang === 'da' ? 'er' : 's') : ''}</span>
-          </div>
-        </div>
-      ))}
     </div>
   )
 }
@@ -2590,16 +2642,41 @@ function FriendsPage({ lang, t, mode, onMessage }) {
 // ── Messages ──
 const MSG_PAGE_SIZE = 20
 
+// ── Contact relationship tags (persisted in localStorage) ──
+function useContactRelationships() {
+  const [rels, setRels] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('fellis_contact_rels') || '{}') } catch { return {} }
+  })
+  const setRel = (friendId, rel) => {
+    setRels(prev => {
+      const next = rel ? { ...prev, [String(friendId)]: rel } : Object.fromEntries(Object.entries(prev).filter(([k]) => k !== String(friendId)))
+      localStorage.setItem('fellis_contact_rels', JSON.stringify(next))
+      return next
+    })
+  }
+  return { rels, setRel }
+}
+
 // ── New Conversation / New Group Modal ──
 function NewConvModal({ t, lang, mode, friends, existingParticipantIds = [], isGroupMode, onClose, onCreate }) {
   const [selected, setSelected] = useState([])
   const [groupName, setGroupName] = useState('')
   const [search, setSearch] = useState('')
   const [isFamilyGroup, setIsFamilyGroup] = useState(false)
+  const [relFilter, setRelFilter] = useState('all')
+  const { rels, setRel } = useContactRelationships()
+
+  const REL_OPTS = [
+    { key: 'family', label: t.relFamily },
+    { key: 'colleague', label: t.relColleague },
+    { key: 'close', label: t.relCloseFriend },
+    { key: 'neighbor', label: t.relNeighbor },
+  ]
 
   const eligible = friends.filter(f =>
     !existingParticipantIds.includes(f.id) &&
-    f.name.toLowerCase().includes(search.toLowerCase())
+    f.name.toLowerCase().includes(search.toLowerCase()) &&
+    (relFilter === 'all' || rels[String(f.id)] === relFilter)
   )
   const toggle = (id) => setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
 
@@ -2643,15 +2720,43 @@ function NewConvModal({ t, lang, mode, friends, existingParticipantIds = [], isG
           onChange={e => setSearch(e.target.value)}
           autoFocus
         />
-        <div className="p-msg-modal-list">
-          {eligible.map(f => (
-            <label key={f.id} className={`p-msg-modal-item${selected.includes(f.id) ? ' selected' : ''}`}>
-              <input type="checkbox" checked={selected.includes(f.id)} onChange={() => toggle(f.id)} style={{ display: 'none' }} />
-              <div className="p-avatar-sm" style={{ background: nameToColor(f.name), flexShrink: 0 }}>{getInitials(f.name)}</div>
-              <span className="p-msg-modal-name">{f.name}</span>
-              {selected.includes(f.id) && <span className="p-msg-modal-check">✓</span>}
-            </label>
+        {/* Relationship filter chips */}
+        <div style={{ display: 'flex', gap: 6, padding: '6px 12px 6px', flexWrap: 'wrap', borderBottom: '1px solid #f0f0f0' }}>
+          {[{ key: 'all', label: t.relFilterAll }, ...REL_OPTS].map(r => (
+            <button
+              key={r.key}
+              onClick={() => setRelFilter(r.key)}
+              style={{ fontSize: 11, padding: '2px 9px', borderRadius: 12, border: 'none', cursor: 'pointer',
+                background: relFilter === r.key ? '#2D6A4F' : '#f0f0f0',
+                color: relFilter === r.key ? '#fff' : '#555',
+                fontWeight: relFilter === r.key ? 600 : 400 }}
+            >{r.label}</button>
           ))}
+        </div>
+        <div className="p-msg-modal-list">
+          {eligible.map(f => {
+            const relKey = rels[String(f.id)] || ''
+            const relLabel = REL_OPTS.find(r => r.key === relKey)?.label
+            return (
+              <label key={f.id} className={`p-msg-modal-item${selected.includes(f.id) ? ' selected' : ''}`}>
+                <input type="checkbox" checked={selected.includes(f.id)} onChange={() => toggle(f.id)} style={{ display: 'none' }} />
+                <div className="p-avatar-sm" style={{ background: nameToColor(f.name), flexShrink: 0 }}>{getInitials(f.name)}</div>
+                <span className="p-msg-modal-name">{f.name}</span>
+                {relLabel && <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 8, background: '#EBF4FF', color: '#1877F2', fontWeight: 600, flexShrink: 0 }}>{relLabel}</span>}
+                <select
+                  value={relKey}
+                  onClick={e => e.stopPropagation()}
+                  onChange={e => { e.stopPropagation(); setRel(f.id, e.target.value || null) }}
+                  style={{ fontSize: 11, border: '1px solid #e0e0e0', borderRadius: 6, padding: '2px 4px', color: '#888', background: '#fafafa', cursor: 'pointer', flexShrink: 0, marginLeft: 'auto' }}
+                  title={t.relLabel}
+                >
+                  <option value="">{t.relNone}</option>
+                  {REL_OPTS.map(r => <option key={r.key} value={r.key}>{r.label}</option>)}
+                </select>
+                {selected.includes(f.id) && <span className="p-msg-modal-check">✓</span>}
+              </label>
+            )
+          })}
           {eligible.length === 0 && <div className="p-msg-modal-empty">{lang === 'da' ? 'Ingen venner fundet' : 'No friends found'}</div>}
         </div>
         <div className="p-msg-modal-footer">
@@ -3400,6 +3505,12 @@ function EventsPage({ lang, t, currentUser, mode }) {
   const [showCreate, setShowCreate] = useState(false)
   const [rsvpMap, setRsvpMap] = useState({ 1: 'going', 3: 'going' })
   const [rsvpExtras, setRsvpExtras] = useState({}) // { [eventId]: { dietary, plusOne } }
+  const [shareEventId, setShareEventId] = useState(null)
+  const [friends, setFriends] = useState([])
+
+  useEffect(() => {
+    apiFetchFriends().then(data => { if (data) setFriends(data) })
+  }, [])
 
   const handleRsvp = (eventId, status) => {
     setRsvpMap(prev => ({ ...prev, [eventId]: prev[eventId] === status ? null : status }))
@@ -3486,6 +3597,12 @@ function EventsPage({ lang, t, currentUser, mode }) {
                         {s === 'going' ? '✅' : s === 'maybe' ? '❓' : '❌'}
                       </button>
                     ))}
+                    <button
+                      className="p-event-rsvp-btn"
+                      title={t.eventShareWith}
+                      onClick={e => { e.stopPropagation(); setShareEventId(ev.id) }}
+                      style={{ marginTop: 4, opacity: 0.8 }}
+                    >📤</button>
                   </div>
                 </div>
               </div>
@@ -3525,6 +3642,74 @@ function EventsPage({ lang, t, currentUser, mode }) {
           onCreate={(ev) => { setEvents(prev => [ev, ...prev]); setShowCreate(false) }}
         />
       )}
+
+      {/* Share event modal */}
+      {shareEventId && (
+        <ShareEventModal
+          event={events.find(e => e.id === shareEventId)}
+          friends={friends}
+          t={t}
+          lang={lang}
+          getTitle={getEventTitle}
+          onClose={() => setShareEventId(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+function ShareEventModal({ event, friends, t, lang, getTitle, onClose }) {
+  const [selected, setSelected] = useState([])
+  const [shared, setShared] = useState(false)
+  const toggle = (id) => setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  const handleShare = () => {
+    setShared(true)
+    setTimeout(onClose, 1800)
+  }
+  useEffect(() => {
+    const h = (e) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', h)
+    return () => document.removeEventListener('keydown', h)
+  }, [onClose])
+  if (!event) return null
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="p-msg-modal" onClick={e => e.stopPropagation()}>
+        <div className="p-msg-modal-header">
+          <span>📤 {t.eventShareWith}</span>
+          <button className="p-msg-modal-close" onClick={onClose}>✕</button>
+        </div>
+        <div style={{ padding: '8px 16px 10px', fontSize: 13, color: '#555', borderBottom: '1px solid #eee', fontWeight: 500 }}>
+          {getTitle(event)}
+        </div>
+        {shared ? (
+          <div style={{ textAlign: 'center', padding: '32px 16px', color: '#2D6A4F', fontWeight: 600, fontSize: 15 }}>
+            ✅ {t.eventShared}
+          </div>
+        ) : (<>
+          <div className="p-msg-modal-list">
+            {friends.length === 0 && <div className="p-msg-modal-empty">{lang === 'da' ? 'Ingen venner fundet' : 'No friends found'}</div>}
+            {friends.map(f => (
+              <label key={f.id} className={`p-msg-modal-item${selected.includes(f.id) ? ' selected' : ''}`}>
+                <input type="checkbox" checked={selected.includes(f.id)} onChange={() => toggle(f.id)} style={{ display: 'none' }} />
+                <div className="p-avatar-sm" style={{ background: nameToColor(f.name), flexShrink: 0 }}>{getInitials(f.name)}</div>
+                <span className="p-msg-modal-name">{f.name}</span>
+                {selected.includes(f.id) && <span className="p-msg-modal-check">✓</span>}
+              </label>
+            ))}
+          </div>
+          <div className="p-msg-modal-footer">
+            <button className="p-msg-modal-btn secondary" onClick={onClose}>{t.cancel}</button>
+            <button
+              className="p-msg-modal-btn primary"
+              disabled={selected.length === 0}
+              onClick={handleShare}
+            >
+              📤 {t.eventShareConfirm}{selected.length > 0 ? ` (${selected.length})` : ''}
+            </button>
+          </div>
+        </>)}
+      </div>
     </div>
   )
 }
