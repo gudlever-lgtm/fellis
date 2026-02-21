@@ -4504,24 +4504,28 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
                   <span>{commentCount} {t.comment.toLowerCase()}{lang === 'da' ? 'er' : 's'}</span>
                 </div>
                 <div className="p-post-actions">
-                  <button className={`p-post-action-btn${liked ? ' liked' : ''}`} onClick={() => toggleCompanyLike(post.id)}>
+                  <button className={`p-action-btn${liked ? ' liked' : ''}`} onClick={() => toggleCompanyLike(post.id)}>
                     {liked ? '❤️' : '🤍'} {t.like}
                   </button>
-                  <button className="p-post-action-btn" onClick={() => toggleCompanyComments(post.id)}>
+                  <button className="p-action-btn" onClick={() => toggleCompanyComments(post.id)}>
                     💬 {t.comment}
                   </button>
                 </div>
                 {showComments && (
-                  <div className="p-comments-section">
+                  <div className="p-comments">
                     {(post.commentList || []).map(c => (
-                      <div key={c.id} className="p-comment"><span className="p-comment-author">{c.author}</span> {c.text}</div>
+                      <div key={c.id} className="p-comment">
+                        <div className="p-comment-bubble">
+                          <span className="p-comment-author">{c.author}</span> {c.text}
+                        </div>
+                      </div>
                     ))}
                     <div className="p-comment-input-row">
-                      <input className="p-comment-input" placeholder={t.addComment}
+                      <input className="p-comment-input" placeholder={t.writeComment}
                         value={companyCommentInputs[post.id] || ''}
                         onChange={e => setCompanyCommentInputs(prev => ({ ...prev, [post.id]: e.target.value }))}
                         onKeyDown={e => e.key === 'Enter' && addCompanyComment(post.id)} />
-                      <button className="p-comment-send" onClick={() => addCompanyComment(post.id)}>{t.send}</button>
+                      <button className="p-send-btn" onClick={() => addCompanyComment(post.id)}>{t.send}</button>
                     </div>
                   </div>
                 )}
