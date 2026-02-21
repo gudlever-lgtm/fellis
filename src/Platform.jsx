@@ -3616,9 +3616,9 @@ function EventsPage({ lang, t, currentUser, mode }) {
                           onClick={() => handleRsvp(ev.id, key)}
                           title={label}
                           style={{
-                            background: isActive ? '#2D6A4F' : 'transparent',
-                            color: isActive ? '#fff' : '#666',
-                            border: `1.5px solid ${isActive ? '#2D6A4F' : '#d8d8d8'}`,
+                            background: isActive ? '#2D6A4F' : '#f0f0f0',
+                            color: isActive ? '#fff' : '#777',
+                            border: `1.5px solid ${isActive ? '#2D6A4F' : '#e0e0e0'}`,
                             borderRadius: 6,
                             fontSize: 11,
                             padding: '3px 8px',
