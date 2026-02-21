@@ -47,20 +47,23 @@ import express from 'express'
 import crypto from 'crypto'
 import fs from 'fs'
 import multer from 'multer'
-import nodemailer from 'nodemailer'
 import pool from './db.js'
 
-// ── Mail transport (only active when MAIL_HOST is configured) ──
-function createMailer() {
-  if (!process.env.MAIL_HOST) return null
-  return nodemailer.createTransport({
-    host: process.env.MAIL_HOST,
-    port: parseInt(process.env.MAIL_PORT || '587'),
-    secure: process.env.MAIL_SECURE === 'true',
-    auth: { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS },
-  })
+// ── Mail transport (only active when MAIL_HOST is configured + nodemailer installed) ──
+let mailer = null
+if (process.env.MAIL_HOST) {
+  try {
+    const nodemailer = (await import('nodemailer')).default
+    mailer = nodemailer.createTransport({
+      host: process.env.MAIL_HOST,
+      port: parseInt(process.env.MAIL_PORT || '587'),
+      secure: process.env.MAIL_SECURE === 'true',
+      auth: { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS },
+    })
+  } catch {
+    console.warn('nodemailer not installed — email sending disabled')
+  }
 }
-const mailer = createMailer()
 
 const UPLOADS_DIR = process.env.UPLOADS_DIR || '/var/www/fellis.eu/uploads'
 
