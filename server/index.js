@@ -1504,9 +1504,13 @@ app.post('/api/conversations/:id/messages', authenticate, async (req, res) => {
     if (!check.length) return res.status(403).json({ error: 'Not a participant' })
     const now = new Date()
     const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
+    const [others] = await pool.query(
+      'SELECT user_id FROM conversation_participants WHERE conversation_id = ? AND user_id != ? LIMIT 1',
+      [convId, req.userId])
+    const receiverId = others.length ? others[0].user_id : req.userId
     await pool.query(
-      'INSERT INTO messages (conversation_id, sender_id, receiver_id, text_da, text_en, time) VALUES (?, ?, 0, ?, ?, ?)',
-      [convId, req.userId, text, text, time])
+      'INSERT INTO messages (conversation_id, sender_id, receiver_id, text_da, text_en, time) VALUES (?, ?, ?, ?, ?, ?)',
+      [convId, req.userId, receiverId, text, text, time])
     const [[user]] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
     res.json({ from: user.name, text: { da: text, en: text }, time: formatMsgTime(now) })
   } catch (err) {

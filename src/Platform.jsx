@@ -253,8 +253,9 @@ export default function Platform({ lang: initialLang, onLogout }) {
         {page === 'messages' && <MessagesPage lang={lang} t={t} currentUser={currentUser} mode={mode} openConvId={openConvId} onConvOpened={() => setOpenConvId(null)} />}
         {page === 'events' && <EventsPage lang={lang} t={t} currentUser={currentUser} mode={mode} />}
         {page === 'marketplace' && <MarketplacePage lang={lang} t={t} currentUser={currentUser} onContactSeller={async (sellerId) => {
-          if (sellerId) {
-            const data = await apiCreateConversation([sellerId], null, false, false).catch(() => null)
+          const numId = parseInt(sellerId)
+          if (numId > 0 && !isNaN(numId) && numId !== currentUser.id) {
+            const data = await apiCreateConversation([numId], null, false, false).catch(() => null)
             if (data?.id) setOpenConvId(data.id)
           }
           navigateTo('messages')
@@ -647,6 +648,11 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
   const [feedSelectedEvent, setFeedSelectedEvent] = useState(null)
   const [feedRsvpMap, setFeedRsvpMap] = useState({})
   const [feedRsvpExtras, setFeedRsvpExtras] = useState({})
+  const [cpFeedLiked, setCpFeedLiked] = useState(false)
+  const [cpFeedLikes, setCpFeedLikes] = useState(14)
+  const [cpFeedShowComments, setCpFeedShowComments] = useState(false)
+  const [cpFeedComments, setCpFeedComments] = useState([{ id: 1, author: 'Mia Skov', text: lang === 'da' ? 'Spændende mulighed!' : 'Exciting opportunity!' }, { id: 2, author: 'Jonas Holm', text: lang === 'da' ? 'Sender ansøgning i dag 🙌' : 'Sending my application today 🙌' }, { id: 3, author: 'Rikke Dahl', text: lang === 'da' ? 'Godt at se jer vokse!' : 'Great to see you grow!' }])
+  const [cpFeedCommentText, setCpFeedCommentText] = useState('')
   const [feedEvents, setFeedEvents] = useState([])
   const feedDbEventIds = new Set(feedEvents.map(e => e.id))
 
@@ -1163,9 +1169,36 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
               : `We're looking for a talented UX Designer to join our team in Copenhagen. Check out our open positions and learn more about our culture. 🚀`
             }
           </div>
-          <div className="p-post-actions">
-            <span style={{ fontSize: 13, color: '#aaa' }}>❤️ 14 · 💬 3</span>
+          <div className="p-post-stats">
+            <span>{cpFeedLikes} {t.like.toLowerCase()}{cpFeedLikes !== 1 && lang === 'da' ? 'r' : ''}</span>
+            <span>{cpFeedComments.length} {t.comment.toLowerCase()}{lang === 'da' ? 'er' : 's'}</span>
           </div>
+          <div className="p-post-actions">
+            <button className={`p-action-btn${cpFeedLiked ? ' liked' : ''}`} onClick={() => { setCpFeedLiked(p => !p); setCpFeedLikes(p => cpFeedLiked ? p - 1 : p + 1) }}>
+              {cpFeedLiked ? '❤️' : '🤍'} {t.like}
+            </button>
+            <button className="p-action-btn" onClick={() => setCpFeedShowComments(p => !p)}>
+              💬 {t.comment}
+            </button>
+          </div>
+          {cpFeedShowComments && (
+            <div className="p-comments">
+              {cpFeedComments.map(c => (
+                <div key={c.id} className="p-comment">
+                  <div className="p-comment-bubble">
+                    <span className="p-comment-author">{c.author}</span> {c.text}
+                  </div>
+                </div>
+              ))}
+              <div className="p-comment-input-row">
+                <input className="p-comment-input" placeholder={t.writeComment}
+                  value={cpFeedCommentText}
+                  onChange={e => setCpFeedCommentText(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && cpFeedCommentText.trim()) { setCpFeedComments(p => [...p, { id: Date.now(), author: currentUser.name, text: cpFeedCommentText.trim() }]); setCpFeedCommentText('') } }} />
+                <button className="p-send-btn" onClick={() => { if (cpFeedCommentText.trim()) { setCpFeedComments(p => [...p, { id: Date.now(), author: currentUser.name, text: cpFeedCommentText.trim() }]); setCpFeedCommentText('') } }}>{t.send}</button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
