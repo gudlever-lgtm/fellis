@@ -1994,6 +1994,15 @@ async function initMarketplace() {
   }
 }
 
+// MariaDB returns JSON columns as strings — parse them before sending to client
+function parseListingPhotos(row) {
+  if (!row) return row
+  const photos = row.photos
+  if (!photos) return { ...row, photos: [] }
+  if (Array.isArray(photos)) return row
+  try { return { ...row, photos: JSON.parse(photos) } } catch { return { ...row, photos: [] } }
+}
+
 app.get('/api/marketplace', authenticate, async (req, res) => {
   try {
     const { q, category, location } = req.query
@@ -2007,7 +2016,7 @@ app.get('/api/marketplace', authenticate, async (req, res) => {
     if (where.length) sql += ' WHERE ' + where.join(' AND ')
     sql += ' ORDER BY (l.boosted_until > NOW()) DESC, l.created_at DESC'
     const [rows] = await pool.query(sql, params)
-    res.json({ listings: rows })
+    res.json({ listings: rows.map(parseListingPhotos) })
   } catch (err) {
     console.error('GET /api/marketplace error:', err.message)
     res.status(500).json({ error: 'Server error' })
@@ -2027,7 +2036,7 @@ app.post('/api/marketplace', authenticate, upload.array('photos', 10), async (re
       `SELECT l.*, u.name AS seller_name, u.handle AS seller_handle FROM marketplace_listings l JOIN users u ON l.user_id = u.id WHERE l.id = ?`,
       [result.insertId]
     )
-    res.json(listing)
+    res.json(parseListingPhotos(listing))
   } catch (err) {
     console.error('POST /api/marketplace error:', err.message)
     res.status(500).json({ error: 'Server error' })
@@ -2052,7 +2061,7 @@ app.put('/api/marketplace/:id', authenticate, upload.array('photos', 10), async 
       `SELECT l.*, u.name AS seller_name FROM marketplace_listings l JOIN users u ON l.user_id = u.id WHERE l.id = ?`,
       [req.params.id]
     )
-    res.json(listing)
+    res.json(parseListingPhotos(listing))
   } catch (err) {
     console.error('PUT /api/marketplace/:id error:', err.message)
     res.status(500).json({ error: 'Server error' })
