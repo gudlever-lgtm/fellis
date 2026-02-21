@@ -37,8 +37,9 @@ export default function Platform({ lang: initialLang, onLogout }) {
   })
   const [showNotifPanel, setShowNotifPanel] = useState(false)
   const [notifs, setNotifs] = useState(() => {
-    const stored = localStorage.getItem('fellis_mode') || 'privat'
-    return makeMockNotifs(stored === 'common' ? 'privat' : stored)
+    const storedMode = localStorage.getItem('fellis_mode') || 'privat'
+    const readIds = new Set(JSON.parse(localStorage.getItem('fellis_notifs_read') || '[]'))
+    return makeMockNotifs(storedMode === 'common' ? 'privat' : storedMode).map(n => readIds.has(n.id) ? { ...n, read: true } : n)
   })
   const [showModeModal, setShowModeModal] = useState(false)
   const [plan, setPlan] = useState(null) // null = free, 'business_pro' = paid
@@ -65,7 +66,13 @@ export default function Platform({ lang: initialLang, onLogout }) {
     setShowModeModal(false)
   }
 
-  const markAllRead = () => setNotifs(prev => prev.map(n => ({ ...n, read: true })))
+  const markAllRead = () => {
+    setNotifs(prev => {
+      const all = prev.map(n => ({ ...n, read: true }))
+      localStorage.setItem('fellis_notifs_read', JSON.stringify(all.map(n => n.id)))
+      return all
+    })
+  }
 
   const toggleLang = useCallback(() => setLang(p => p === 'da' ? 'en' : 'da'), [])
 
@@ -175,7 +182,11 @@ export default function Platform({ lang: initialLang, onLogout }) {
                 lang={lang}
                 mode={mode}
                 onMarkAllRead={markAllRead}
-                onMarkRead={(id) => setNotifs(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))}
+                onMarkRead={(id) => setNotifs(prev => {
+                  const next = prev.map(n => n.id === id ? { ...n, read: true } : n)
+                  localStorage.setItem('fellis_notifs_read', JSON.stringify(next.filter(n => n.read).map(n => n.id)))
+                  return next
+                })}
                 onNavigate={(pg) => { navigateTo(pg); setShowNotifPanel(false) }}
               />
             )}
@@ -232,7 +243,13 @@ export default function Platform({ lang: initialLang, onLogout }) {
         {page === 'feed' && <FeedPage lang={lang} t={t} currentUser={currentUser} mode={mode} highlightPostId={highlightPostId} onHighlightCleared={() => setHighlightPostId(null)} />}
         {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} />}
         {page === 'edit-profile' && <EditProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} />}
-        {page === 'friends' && <FriendsPage lang={lang} t={t} mode={mode} onMessage={() => navigateTo('messages')} />}
+        {page === 'friends' && <FriendsPage lang={lang} t={t} mode={mode} onMessage={async (friend) => {
+          if (friend?.id) {
+            const data = await apiCreateConversation([friend.id], null, false, false).catch(() => null)
+            if (data?.id) setOpenConvId(data.id)
+          }
+          navigateTo('messages')
+        }} />}
         {page === 'messages' && <MessagesPage lang={lang} t={t} currentUser={currentUser} mode={mode} openConvId={openConvId} onConvOpened={() => setOpenConvId(null)} />}
         {page === 'events' && <EventsPage lang={lang} t={t} currentUser={currentUser} mode={mode} />}
         {page === 'marketplace' && <MarketplacePage lang={lang} t={t} currentUser={currentUser} onContactSeller={(sellerId) => { setOpenConvId(sellerId); navigateTo('messages') }} />}
@@ -2179,7 +2196,7 @@ function FriendProfileModal({ userId, lang, t, onClose, onMessage }) {
                 </div>
               </div>
               {profile.isFriend && (
-                <button className="p-friend-msg-btn" style={{ marginTop: 16 }} onClick={() => { onClose(); onMessage() }}>
+                <button className="p-friend-msg-btn" style={{ marginTop: 16 }} onClick={() => { onClose(); onMessage(profile) }}>
                   💬 {t.message}
                 </button>
               )}
@@ -2337,7 +2354,7 @@ function FriendsPage({ lang, t, mode, onMessage }) {
           lang={lang}
           t={t}
           onClose={() => setViewProfileId(null)}
-          onMessage={() => { setViewProfileId(null); onMessage() }}
+          onMessage={(prof) => { setViewProfileId(null); onMessage(prof) }}
         />
       )}
       {/* Unfriend confirm modal */}
@@ -2464,7 +2481,7 @@ function FriendsPage({ lang, t, mode, onMessage }) {
                 </div>
                 {isFriend ? (
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button className="p-friend-msg-btn" style={{ flex: 1 }} onClick={onMessage}>💬 {t.message}</button>
+                    <button className="p-friend-msg-btn" style={{ flex: 1 }} onClick={() => onMessage(user)}>💬 {t.message}</button>
                     <div className="p-friend-menu-wrap" style={{ position: 'relative' }}>
                       <button className="p-friend-menu-btn" onClick={e => { e.stopPropagation(); setOpenMenuId(openMenuId === user.id ? null : user.id) }}>•••</button>
                       {openMenuId === user.id && (
@@ -2611,7 +2628,7 @@ function FriendsPage({ lang, t, mode, onMessage }) {
                 <div className="p-friend-card-mutual">{friend.mutual} {t.mutualFriends}</div>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button className="p-friend-msg-btn" style={{ flex: 1 }} onClick={onMessage}>
+                <button className="p-friend-msg-btn" style={{ flex: 1 }} onClick={() => onMessage(friend)}>
                   💬 {t.message}
                 </button>
                 <div className="p-friend-menu-wrap" style={{ position: 'relative' }}>
@@ -2621,7 +2638,7 @@ function FriendsPage({ lang, t, mode, onMessage }) {
                       <button className="p-friend-menu-item" onClick={() => { setOpenMenuId(null); setViewProfileId(friend.id) }}>
                         👤 {lang === 'da' ? 'Vis profil' : 'View profile'}
                       </button>
-                      <button className="p-friend-menu-item" onClick={() => { setOpenMenuId(null); onMessage() }}>
+                      <button className="p-friend-menu-item" onClick={() => { setOpenMenuId(null); onMessage(friend) }}>
                         💬 {t.message}
                       </button>
                       <button className="p-friend-menu-item p-friend-menu-danger" onClick={() => { setOpenMenuId(null); setUnfriendTarget({ id: friend.id, name: friend.name }) }}>
@@ -3587,22 +3604,39 @@ function EventsPage({ lang, t, currentUser, mode }) {
                     </div>
                   </div>
                   <div className="p-event-rsvp-col" onClick={e => e.stopPropagation()}>
-                    {['going', 'maybe', 'notGoing'].map(s => (
-                      <button
-                        key={s}
-                        className={`p-event-rsvp-btn${myRsvp === s ? ' active' : ''}`}
-                        onClick={() => handleRsvp(ev.id, s)}
-                        title={t[`event${s.charAt(0).toUpperCase() + s.slice(1)}`]}
-                      >
-                        {s === 'going' ? '✅' : s === 'maybe' ? '❓' : '❌'}
-                      </button>
-                    ))}
+                    {[
+                      { key: 'going', label: t.eventGoing, icon: '✓' },
+                      { key: 'maybe', label: t.eventMaybe, icon: '∼' },
+                      { key: 'notGoing', label: t.eventNotGoing, icon: '✗' },
+                    ].map(({ key, label, icon }) => {
+                      const isActive = myRsvp === key
+                      return (
+                        <button
+                          key={key}
+                          onClick={() => handleRsvp(ev.id, key)}
+                          title={label}
+                          style={{
+                            background: isActive ? '#2D6A4F' : 'transparent',
+                            color: isActive ? '#fff' : '#666',
+                            border: `1.5px solid ${isActive ? '#2D6A4F' : '#d8d8d8'}`,
+                            borderRadius: 6,
+                            fontSize: 11,
+                            padding: '3px 8px',
+                            cursor: 'pointer',
+                            fontWeight: isActive ? 700 : 400,
+                            display: 'block',
+                            width: '100%',
+                            textAlign: 'center',
+                            transition: 'all 0.12s',
+                          }}
+                        >{icon} {label}</button>
+                      )
+                    })}
                     <button
-                      className="p-event-rsvp-btn"
                       title={t.eventShareWith}
                       onClick={e => { e.stopPropagation(); setShareEventId(ev.id) }}
-                      style={{ marginTop: 4, opacity: 0.8 }}
-                    >📤</button>
+                      style={{ marginTop: 4, background: 'none', border: '1.5px solid #d8d8d8', borderRadius: 6, fontSize: 11, padding: '3px 8px', cursor: 'pointer', color: '#888', width: '100%' }}
+                    >📤 {lang === 'da' ? 'Del' : 'Share'}</button>
                   </div>
                 </div>
               </div>
@@ -4725,12 +4759,18 @@ function MarketplacePage({ lang, t, currentUser, onContactSeller }) {
 
       {tab === 'browse' && (
         <div className="p-marketplace-filters">
-          <input
-            className="p-search-input p-marketplace-search"
-            placeholder={t.marketplaceSearchPlaceholder}
-            value={filters.q}
-            onChange={e => setFilters(f => ({ ...f, q: e.target.value }))}
-          />
+          <div style={{ position: 'relative', flex: 1, minWidth: 140 }}>
+            <input
+              className="p-search-input p-marketplace-search"
+              style={{ width: '100%', boxSizing: 'border-box', paddingRight: filters.q ? 28 : undefined }}
+              placeholder={t.marketplaceSearchPlaceholder}
+              value={filters.q}
+              onChange={e => setFilters(f => ({ ...f, q: e.target.value }))}
+            />
+            {filters.q && (
+              <button onClick={() => setFilters(f => ({ ...f, q: '' }))} style={{ position: 'absolute', right: 7, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', fontSize: 14, lineHeight: 1, padding: 2 }}>✕</button>
+            )}
+          </div>
           <select
             className="p-marketplace-select"
             value={filters.category}
@@ -4741,12 +4781,18 @@ function MarketplacePage({ lang, t, currentUser, onContactSeller }) {
               <option key={c.key} value={c.key}>{c.icon} {t[c.labelKey]}</option>
             ))}
           </select>
-          <input
-            className="p-marketplace-location-input"
-            placeholder={lang === 'da' ? 'By eller område...' : 'City or area...'}
-            value={filters.location}
-            onChange={e => setFilters(f => ({ ...f, location: e.target.value }))}
-          />
+          <div style={{ position: 'relative', flex: 1, minWidth: 120 }}>
+            <input
+              className="p-marketplace-location-input"
+              style={{ width: '100%', boxSizing: 'border-box', paddingRight: filters.location ? 28 : undefined }}
+              placeholder={lang === 'da' ? 'By eller område...' : 'City or area...'}
+              value={filters.location}
+              onChange={e => setFilters(f => ({ ...f, location: e.target.value }))}
+            />
+            {filters.location && (
+              <button onClick={() => setFilters(f => ({ ...f, location: '' }))} style={{ position: 'absolute', right: 7, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', fontSize: 14, lineHeight: 1, padding: 2 }}>✕</button>
+            )}
+          </div>
         </div>
       )}
 

@@ -1969,6 +1969,122 @@ setTimeout(() => {
   setInterval(runBotActivity, 4 * 60 * 1000)
 }, 2 * 60 * 1000)
 
+// ── Marketplace ──────────────────────────────────────────────────────────────
+
+async function initMarketplace() {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS marketplace_listings (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      title VARCHAR(255) NOT NULL,
+      price VARCHAR(100) DEFAULT NULL,
+      category VARCHAR(100) NOT NULL,
+      location VARCHAR(255) DEFAULT NULL,
+      description TEXT DEFAULT NULL,
+      mobilepay VARCHAR(20) DEFAULT NULL,
+      photos JSON DEFAULT NULL,
+      boosted_until TIMESTAMP NULL DEFAULT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_user_id (user_id),
+      INDEX idx_category (category)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+  } catch (err) {
+    console.error('initMarketplace error:', err.message)
+  }
+}
+
+app.get('/api/marketplace', authenticate, async (req, res) => {
+  try {
+    const { q, category, location } = req.query
+    let sql = `SELECT l.*, u.name AS seller_name, u.handle AS seller_handle, u.avatar_url AS seller_avatar
+               FROM marketplace_listings l JOIN users u ON l.user_id = u.id`
+    const params = []
+    const where = []
+    if (q) { where.push('(l.title LIKE ? OR l.description LIKE ?)'); params.push(`%${q}%`, `%${q}%`) }
+    if (category) { where.push('l.category = ?'); params.push(category) }
+    if (location) { where.push('l.location LIKE ?'); params.push(`%${location}%`) }
+    if (where.length) sql += ' WHERE ' + where.join(' AND ')
+    sql += ' ORDER BY (l.boosted_until > NOW()) DESC, l.created_at DESC'
+    const [rows] = await pool.query(sql, params)
+    res.json({ listings: rows })
+  } catch (err) {
+    console.error('GET /api/marketplace error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.post('/api/marketplace', authenticate, upload.array('photos', 10), async (req, res) => {
+  try {
+    const { title, price, category, location, description, mobilepay } = req.body
+    if (!title || !category) return res.status(400).json({ error: 'Missing required fields' })
+    const photos = (req.files || []).map(f => ({ url: `/uploads/${f.filename}`, type: 'image', mime: f.mimetype }))
+    const [result] = await pool.query(
+      `INSERT INTO marketplace_listings (user_id, title, price, category, location, description, mobilepay, photos) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [req.userId, title, price || null, category, location || null, description || null, mobilepay || null, photos.length ? JSON.stringify(photos) : null]
+    )
+    const [[listing]] = await pool.query(
+      `SELECT l.*, u.name AS seller_name, u.handle AS seller_handle FROM marketplace_listings l JOIN users u ON l.user_id = u.id WHERE l.id = ?`,
+      [result.insertId]
+    )
+    res.json(listing)
+  } catch (err) {
+    console.error('POST /api/marketplace error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.put('/api/marketplace/:id', authenticate, upload.array('photos', 10), async (req, res) => {
+  try {
+    const { title, price, category, location, description, mobilepay } = req.body
+    const [[existing]] = await pool.query('SELECT user_id FROM marketplace_listings WHERE id = ?', [req.params.id])
+    if (!existing) return res.status(404).json({ error: 'Not found' })
+    if (existing.user_id !== req.userId) return res.status(403).json({ error: 'Forbidden' })
+    const photos = (req.files || []).map(f => ({ url: `/uploads/${f.filename}`, type: 'image', mime: f.mimetype }))
+    const photosJson = photos.length ? JSON.stringify(photos) : (req.body.keepPhotos === '1' ? undefined : null)
+    await pool.query(
+      `UPDATE marketplace_listings SET title=?, price=?, category=?, location=?, description=?, mobilepay=?${photosJson !== undefined ? ', photos=?' : ''} WHERE id=?`,
+      photosJson !== undefined
+        ? [title, price || null, category, location || null, description || null, mobilepay || null, photosJson, req.params.id]
+        : [title, price || null, category, location || null, description || null, mobilepay || null, req.params.id]
+    )
+    const [[listing]] = await pool.query(
+      `SELECT l.*, u.name AS seller_name FROM marketplace_listings l JOIN users u ON l.user_id = u.id WHERE l.id = ?`,
+      [req.params.id]
+    )
+    res.json(listing)
+  } catch (err) {
+    console.error('PUT /api/marketplace/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.delete('/api/marketplace/:id', authenticate, async (req, res) => {
+  try {
+    const [[existing]] = await pool.query('SELECT user_id FROM marketplace_listings WHERE id = ?', [req.params.id])
+    if (!existing) return res.status(404).json({ error: 'Not found' })
+    if (existing.user_id !== req.userId) return res.status(403).json({ error: 'Forbidden' })
+    await pool.query('DELETE FROM marketplace_listings WHERE id = ?', [req.params.id])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.post('/api/marketplace/:id/boost', authenticate, async (req, res) => {
+  try {
+    const [[existing]] = await pool.query('SELECT user_id FROM marketplace_listings WHERE id = ?', [req.params.id])
+    if (!existing) return res.status(404).json({ error: 'Not found' })
+    if (existing.user_id !== req.userId) return res.status(403).json({ error: 'Forbidden' })
+    // When Stripe is configured, create a Checkout session here
+    // For now: set boosted_until to 7 days from now (free boost for testing)
+    await pool.query('UPDATE marketplace_listings SET boosted_until = DATE_ADD(NOW(), INTERVAL 7 DAY) WHERE id = ?', [req.params.id])
+    res.json({ ok: true, boostedUntil: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString() })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // ── Admin settings ──────────────────────────────────────────────────────────
 
 async function initAdminSettings() {
@@ -2041,5 +2157,6 @@ app.listen(PORT, () => {
   }
   initFriendRequests()
   initConversations()
+  initMarketplace()
   initAdminSettings()
 })
