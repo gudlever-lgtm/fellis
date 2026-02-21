@@ -240,7 +240,9 @@ export default function Platform({ lang: initialLang, onLogout }) {
       </nav>
 
       <div className="p-content">
-        {page === 'feed' && <FeedPage lang={lang} t={t} currentUser={currentUser} mode={mode} highlightPostId={highlightPostId} onHighlightCleared={() => setHighlightPostId(null)} />}
+        <div style={{ display: page === 'feed' ? '' : 'none' }}>
+          <FeedPage lang={lang} t={t} currentUser={currentUser} mode={mode} highlightPostId={highlightPostId} onHighlightCleared={() => setHighlightPostId(null)} />
+        </div>
         {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} />}
         {page === 'edit-profile' && <EditProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} />}
         {page === 'friends' && <FriendsPage lang={lang} t={t} mode={mode} onMessage={async (friend) => {
