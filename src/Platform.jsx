@@ -648,10 +648,15 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
   const [feedSelectedEvent, setFeedSelectedEvent] = useState(null)
   const [feedRsvpMap, setFeedRsvpMap] = useState({})
   const [feedRsvpExtras, setFeedRsvpExtras] = useState({})
-  const [cpFeedLiked, setCpFeedLiked] = useState(false)
-  const [cpFeedLikes, setCpFeedLikes] = useState(14)
+  const CP_FEED_DEFAULT_COMMENTS = [
+    { id: 1, author: 'Mia Skov', text: 'Spændende mulighed!' },
+    { id: 2, author: 'Jonas Holm', text: 'Sender ansøgning i dag 🙌' },
+    { id: 3, author: 'Rikke Dahl', text: 'Godt at se jer vokse!' },
+  ]
+  const [cpFeedLiked, setCpFeedLiked] = useState(() => { try { return JSON.parse(localStorage.getItem('fellis_cpfeed_liked') || 'false') } catch { return false } })
+  const [cpFeedLikes, setCpFeedLikes] = useState(() => { try { return JSON.parse(localStorage.getItem('fellis_cpfeed_likes') || '14') } catch { return 14 } })
   const [cpFeedShowComments, setCpFeedShowComments] = useState(false)
-  const [cpFeedComments, setCpFeedComments] = useState([{ id: 1, author: 'Mia Skov', text: lang === 'da' ? 'Spændende mulighed!' : 'Exciting opportunity!' }, { id: 2, author: 'Jonas Holm', text: lang === 'da' ? 'Sender ansøgning i dag 🙌' : 'Sending my application today 🙌' }, { id: 3, author: 'Rikke Dahl', text: lang === 'da' ? 'Godt at se jer vokse!' : 'Great to see you grow!' }])
+  const [cpFeedComments, setCpFeedComments] = useState(() => { try { return JSON.parse(localStorage.getItem('fellis_cpfeed_comments') || 'null') || CP_FEED_DEFAULT_COMMENTS } catch { return CP_FEED_DEFAULT_COMMENTS } })
   const [cpFeedCommentText, setCpFeedCommentText] = useState('')
   const [feedEvents, setFeedEvents] = useState([])
   const feedDbEventIds = new Set(feedEvents.map(e => e.id))
@@ -697,6 +702,15 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
     setLoadingPage(false)
     isFetchingRef.current = false
   }, []) // stable — all mutable reads go through refs
+
+  // Persist company feed post interactions
+  useEffect(() => {
+    try {
+      localStorage.setItem('fellis_cpfeed_liked', JSON.stringify(cpFeedLiked))
+      localStorage.setItem('fellis_cpfeed_likes', JSON.stringify(cpFeedLikes))
+      localStorage.setItem('fellis_cpfeed_comments', JSON.stringify(cpFeedComments))
+    } catch {}
+  }, [cpFeedLiked, cpFeedLikes, cpFeedComments])
 
   // Initial load
   useEffect(() => {
@@ -4413,10 +4427,27 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate }) {
 function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBack, onFollow, isFollowing }) {
   const [tab, setTab] = useState('posts')
   const [newPost, setNewPost] = useState('')
-  const [companyPosts, setCompanyPosts] = useState(company.posts || [])
-  const [likedCompanyPosts, setLikedCompanyPosts] = useState(new Set())
+  const [companyPosts, setCompanyPosts] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('fellis_cp_posts') || '{}')
+      return (company.posts || []).map(p => saved[p.id] ? { ...p, ...saved[p.id] } : p)
+    } catch { return company.posts || [] }
+  })
+  const [likedCompanyPosts, setLikedCompanyPosts] = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem('fellis_cp_liked') || '[]')) }
+    catch { return new Set() }
+  })
   const [expandedCompanyComments, setExpandedCompanyComments] = useState(new Set())
   const [companyCommentInputs, setCompanyCommentInputs] = useState({})
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('fellis_cp_liked', JSON.stringify([...likedCompanyPosts]))
+      const saved = {}
+      companyPosts.forEach(p => { saved[p.id] = { likes: p.likes, commentList: p.commentList || [] } })
+      localStorage.setItem('fellis_cp_posts', JSON.stringify(saved))
+    } catch {}
+  }, [likedCompanyPosts, companyPosts])
 
   const toggleCompanyLike = (postId) => {
     setLikedCompanyPosts(prev => {
