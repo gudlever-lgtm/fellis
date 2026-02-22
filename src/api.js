@@ -395,7 +395,7 @@ export async function apiCreateListing(formData) {
 
 export async function apiUpdateListing(id, data) {
   return await request(`/api/marketplace/${id}`, {
-    method: 'PATCH',
+    method: 'PUT',
     body: JSON.stringify(data),
   })
 }

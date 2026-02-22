@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "node tests/check-api-routes.js && vite build",
+    "test": "node tests/check-api-routes.js",
     "lint": "eslint .",
     "preview": "vite preview",
     "server": "node server/index.js",
