@@ -5293,7 +5293,7 @@ function MarketplacePage({ lang, t, currentUser, onContactSeller }) {
           }}
           onMarkSold={async () => {
             await handleMarkSold(selectedListing.id)
-            setSelectedListing(prev => prev ? { ...prev, sold: true } : null)
+            setSelectedListing(null) // close modal — listing disappears from browse
           }}
         />
       )}

@@ -2165,6 +2165,19 @@ app.get('/api/marketplace', authenticate, async (req, res) => {
   }
 })
 
+app.get('/api/marketplace/mine', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT l.*, u.name AS seller_name, u.handle AS seller_handle, u.avatar_url AS seller_avatar
+       FROM marketplace_listings l JOIN users u ON l.user_id = u.id
+       WHERE l.user_id = ? ORDER BY l.created_at DESC`, [req.userId])
+    res.json({ listings: rows.map(parseListingPhotos) })
+  } catch (err) {
+    console.error('GET /api/marketplace/mine error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 app.post('/api/marketplace', authenticate, upload.array('photos', 10), async (req, res) => {
   try {
     const { title, price, category, location, description, mobilepay, contact_phone, contact_email } = req.body
@@ -2231,6 +2244,18 @@ app.post('/api/marketplace/:id/boost', authenticate, async (req, res) => {
     // For now: set boosted_until to 7 days from now (free boost for testing)
     await pool.query('UPDATE marketplace_listings SET boosted_until = DATE_ADD(NOW(), INTERVAL 7 DAY) WHERE id = ?', [req.params.id])
     res.json({ ok: true, boostedUntil: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString() })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.post('/api/marketplace/:id/sold', authenticate, async (req, res) => {
+  try {
+    const [[existing]] = await pool.query('SELECT user_id FROM marketplace_listings WHERE id = ?', [req.params.id])
+    if (!existing) return res.status(404).json({ error: 'Not found' })
+    if (existing.user_id !== req.userId) return res.status(403).json({ error: 'Forbidden' })
+    await pool.query('UPDATE marketplace_listings SET sold = 1 WHERE id = ?', [req.params.id])
+    res.json({ ok: true })
   } catch (err) {
     res.status(500).json({ error: 'Server error' })
   }
