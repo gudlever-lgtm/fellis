@@ -282,9 +282,11 @@ function clearSessionCookie(res) {
 }
 
 function getSessionIdFromRequest(req) {
-  // Header takes priority, then cookie
+  // Header takes priority, then cookie.
+  // Guard against the literal strings "null"/"undefined" that JS sends when the
+  // client calls fetch with headers: { 'X-Session-Id': null }.
   const fromHeader = req.headers['x-session-id']
-  if (fromHeader) return fromHeader
+  if (fromHeader && fromHeader !== 'null' && fromHeader !== 'undefined') return fromHeader
   // Parse cookie manually
   const cookies = req.headers.cookie
   if (!cookies) return null

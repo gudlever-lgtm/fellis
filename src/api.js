@@ -14,6 +14,14 @@ function headers() {
   return h
 }
 
+// For FormData/multipart requests: only include X-Session-Id if we actually have one.
+// Passing null/undefined would send the literal string "null" as the header value,
+// which causes the server to reject the request as "Session expired".
+function formHeaders() {
+  const sid = getSessionId()
+  return sid ? { 'X-Session-Id': sid } : {}
+}
+
 async function request(path, options = {}) {
   try {
     const res = await fetch(`${API_BASE}${path}`, {
@@ -99,7 +107,7 @@ export async function apiCreatePost(text, mediaFiles) {
     try {
       const res = await fetch(`${API_BASE}/api/feed`, {
         method: 'POST',
-        headers: { 'X-Session-Id': getSessionId() },
+        headers: formHeaders(),
         credentials: 'same-origin',
         body: form,
       })
@@ -134,7 +142,7 @@ export async function apiAddComment(postId, text, mediaFile) {
     try {
       const res = await fetch(`${API_BASE}/api/feed/${postId}/comment`, {
         method: 'POST',
-        headers: { 'X-Session-Id': getSessionId() },
+        headers: formHeaders(),
         credentials: 'same-origin',
         body: form,
       })
@@ -346,7 +354,7 @@ export async function apiUploadAvatar(file) {
   try {
     const res = await fetch(`${API_BASE}/api/profile/avatar`, {
       method: 'POST',
-      headers: { 'X-Session-Id': getSessionId() },
+      headers: formHeaders(),
       credentials: 'same-origin',
       body: form,
     })
@@ -378,7 +386,7 @@ export async function apiCreateListing(formData) {
   try {
     const res = await fetch(`${API_BASE}/api/marketplace`, {
       method: 'POST',
-      headers: { 'X-Session-Id': getSessionId() },
+      headers: formHeaders(),
       credentials: 'same-origin',
       body: formData,
     })
@@ -397,7 +405,7 @@ export async function apiUpdateListing(id, formData) {
   try {
     const res = await fetch(`${API_BASE}/api/marketplace/${id}`, {
       method: 'PUT',
-      headers: { 'X-Session-Id': getSessionId() },
+      headers: formHeaders(),
       credentials: 'same-origin',
       body: formData,
     })
