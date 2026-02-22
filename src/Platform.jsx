@@ -54,7 +54,6 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
     return makeMockNotifs(storedMode === 'common' ? 'privat' : storedMode).map(n => readIds.has(n.id) ? { ...n, read: true } : n)
   })
   const [showModeModal, setShowModeModal] = useState(false)
-  const [plan, setPlan] = useState(null) // null = free, 'business_pro' = paid
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
   const avatarMenuRef = useRef(null)
   const notifRef = useRef(null)
