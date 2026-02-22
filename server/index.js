@@ -17,11 +17,53 @@ try {
   }
 } catch {}
 
+function formatPostTime(createdAt, lang) {
+  const now = new Date()
+  const created = new Date(createdAt)
+  const diffMs = now - created
+  if (diffMs < 60_000) return lang === 'da' ? 'Lige nu' : 'Just now'
+  const locale = lang === 'da' ? 'da-DK' : 'en-US'
+  const timeStr = created.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
+  const today = now.toDateString() === created.toDateString()
+  if (today) return timeStr
+  const thisYear = now.getFullYear() === created.getFullYear()
+  const dateStr = created.toLocaleDateString(locale, {
+    day: 'numeric', month: 'short', ...(thisYear ? {} : { year: 'numeric' })
+  })
+  return `${dateStr} ${timeStr}`
+}
+
+function formatMsgTime(createdAt) {
+  const now = new Date()
+  const created = new Date(createdAt)
+  const timeStr = `${created.getHours().toString().padStart(2, '0')}:${created.getMinutes().toString().padStart(2, '0')}`
+  const today = now.toDateString() === created.toDateString()
+  if (today) return timeStr
+  const dateStr = created.toLocaleDateString('da-DK', { day: 'numeric', month: 'short' })
+  return `${dateStr} ${timeStr}`
+}
+
 import express from 'express'
 import crypto from 'crypto'
 import fs from 'fs'
 import multer from 'multer'
 import pool from './db.js'
+
+// ── Mail transport (only active when MAIL_HOST is configured + nodemailer installed) ──
+let mailer = null
+if (process.env.MAIL_HOST) {
+  try {
+    const nodemailer = (await import('nodemailer')).default
+    mailer = nodemailer.createTransport({
+      host: process.env.MAIL_HOST,
+      port: parseInt(process.env.MAIL_PORT || '587'),
+      secure: process.env.MAIL_SECURE === 'true',
+      auth: { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS },
+    })
+  } catch {
+    console.warn('nodemailer not installed — email sending disabled')
+  }
+}
 
 const UPLOADS_DIR = process.env.UPLOADS_DIR || '/var/www/fellis.eu/uploads'
 
@@ -58,6 +100,123 @@ function decryptToken(encoded) {
   } catch {
     // Fallback: token may not be encrypted yet (pre-migration data)
     return encoded
+  }
+}
+
+// ── Events: schema init ──
+async function initEvents() {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS events (
+      id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      organizer_id INT(11) NOT NULL,
+      title VARCHAR(255) NOT NULL,
+      description TEXT DEFAULT NULL,
+      date DATETIME NOT NULL,
+      location VARCHAR(255) DEFAULT NULL,
+      event_type VARCHAR(50) DEFAULT NULL,
+      ticket_url VARCHAR(500) DEFAULT NULL,
+      cap INT(11) DEFAULT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (organizer_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    await pool.query(`CREATE TABLE IF NOT EXISTS event_rsvps (
+      id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      event_id INT(11) NOT NULL,
+      user_id INT(11) NOT NULL,
+      status ENUM('going','maybe','notGoing') NOT NULL,
+      dietary VARCHAR(255) DEFAULT NULL,
+      plus_one TINYINT(1) DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_event_user (event_id, user_id),
+      FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    // Migrate: add columns that may be missing on existing installations
+    await pool.query(`ALTER TABLE event_rsvps ADD COLUMN IF NOT EXISTS dietary VARCHAR(255) DEFAULT NULL`).catch(() => {})
+    await pool.query(`ALTER TABLE event_rsvps ADD COLUMN IF NOT EXISTS plus_one TINYINT(1) DEFAULT 0`).catch(() => {})
+  } catch (err) {
+    console.error('initEvents error:', err.message)
+  }
+}
+
+// ── Friend requests: schema init ──
+async function initFriendRequests() {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS friend_requests (
+      id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      from_user_id INT(11) NOT NULL,
+      to_user_id INT(11) NOT NULL,
+      status ENUM('pending','accepted','declined') DEFAULT 'pending',
+      created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
+      UNIQUE KEY unique_request (from_user_id, to_user_id),
+      FOREIGN KEY (from_user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (to_user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    // Also add source column to friendships if missing (for Facebook tracking)
+    await pool.query('ALTER TABLE friendships ADD COLUMN source VARCHAR(50) DEFAULT NULL').catch(() => {})
+  } catch (err) {
+    console.error('initFriendRequests error:', err.message)
+  }
+}
+
+// ── Conversations: schema migration + 1:1 message backfill ──
+async function initConversations() {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS conversations (
+      id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      name VARCHAR(200) DEFAULT NULL,
+      is_group TINYINT(1) DEFAULT 0,
+      created_by INT(11) DEFAULT NULL,
+      created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
+      FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    await pool.query(`CREATE TABLE IF NOT EXISTS conversation_participants (
+      conversation_id INT(11) NOT NULL,
+      user_id INT(11) NOT NULL,
+      muted_until DATETIME DEFAULT NULL,
+      joined_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
+      PRIMARY KEY (conversation_id, user_id),
+      FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    // Add conversation_id column (safe — fails silently if already present)
+    await pool.query('ALTER TABLE messages ADD COLUMN conversation_id INT(11) DEFAULT NULL AFTER id').catch(() => {})
+    await pool.query('ALTER TABLE messages ADD INDEX idx_msg_conv (conversation_id)').catch(() => {})
+    // Clean up broken 1:1 conversations created with null/missing participants
+    await pool.query(`
+      DELETE c FROM conversations c
+      WHERE c.is_group = 0
+        AND (SELECT COUNT(*) FROM conversation_participants WHERE conversation_id = c.id) < 2
+        AND (SELECT COUNT(*) FROM messages WHERE conversation_id = c.id) = 0
+    `).catch(() => {})
+    // Migrate existing 1:1 messages to conversation records
+    const [[{ cnt }]] = await pool.query('SELECT COUNT(*) as cnt FROM messages WHERE conversation_id IS NULL')
+    if (cnt === 0) return
+    const [pairs] = await pool.query(`
+      SELECT LEAST(sender_id, receiver_id) as user1, GREATEST(sender_id, receiver_id) as user2
+      FROM messages WHERE conversation_id IS NULL GROUP BY user1, user2`)
+    for (const { user1, user2 } of pairs) {
+      const [existing] = await pool.query(`
+        SELECT c.id FROM conversations c
+        JOIN conversation_participants cp1 ON cp1.conversation_id = c.id AND cp1.user_id = ?
+        JOIN conversation_participants cp2 ON cp2.conversation_id = c.id AND cp2.user_id = ?
+        WHERE c.is_group = 0 LIMIT 1`, [user1, user2])
+      let convId
+      if (existing.length > 0) {
+        convId = existing[0].id
+      } else {
+        const [r] = await pool.query('INSERT INTO conversations (is_group, created_by) VALUES (0, ?)', [user1])
+        convId = r.insertId
+        await pool.query('INSERT IGNORE INTO conversation_participants (conversation_id, user_id) VALUES (?, ?), (?, ?)',
+          [convId, user1, convId, user2])
+      }
+      await pool.query(`UPDATE messages SET conversation_id = ? WHERE conversation_id IS NULL
+        AND ((sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?))`,
+        [convId, user1, user2, user2, user1])
+    }
+    console.log('Conversations migration complete')
+  } catch (err) {
+    console.error('initConversations error:', err.message)
   }
 }
 
@@ -123,9 +282,11 @@ function clearSessionCookie(res) {
 }
 
 function getSessionIdFromRequest(req) {
-  // Header takes priority, then cookie
+  // Header takes priority, then cookie.
+  // Guard against the literal strings "null"/"undefined" that JS sends when the
+  // client calls fetch with headers: { 'X-Session-Id': null }.
   const fromHeader = req.headers['x-session-id']
-  if (fromHeader) return fromHeader
+  if (fromHeader && fromHeader !== 'null' && fromHeader !== 'undefined') return fromHeader
   // Parse cookie manually
   const cookies = req.headers.cookie
   if (!cookies) return null
@@ -189,6 +350,25 @@ const upload = multer({
     cb(null, true)
   },
 })
+
+// Auto-migrations
+pool.query('ALTER TABLE comments ADD COLUMN IF NOT EXISTS media JSON DEFAULT NULL')
+  .catch(err => console.error('Migration (comments.media):', err.message))
+pool.query("ALTER TABLE post_likes ADD COLUMN IF NOT EXISTS reaction VARCHAR(10) DEFAULT '❤️'")
+  .catch(err => console.error('Migration (post_likes.reaction):', err.message))
+pool.query('ALTER TABLE invitations ADD COLUMN IF NOT EXISTS invitee_email VARCHAR(255) DEFAULT NULL')
+  .catch(err => console.error('Migration (invitations.invitee_email):', err.message))
+pool.query('ALTER TABLE marketplace_listings ADD COLUMN IF NOT EXISTS contact_phone VARCHAR(20) DEFAULT NULL')
+  .catch(err => console.error('Migration (marketplace_listings.contact_phone):', err.message))
+pool.query('ALTER TABLE marketplace_listings ADD COLUMN IF NOT EXISTS contact_email VARCHAR(255) DEFAULT NULL')
+  .catch(err => console.error('Migration (marketplace_listings.contact_email):', err.message))
+pool.query('ALTER TABLE marketplace_listings ADD COLUMN IF NOT EXISTS sold TINYINT(1) NOT NULL DEFAULT 0')
+  .catch(err => console.error('Migration (marketplace_listings.sold):', err.message))
+pool.query('ALTER TABLE marketplace_listings ADD COLUMN IF NOT EXISTS priceNegotiable TINYINT(1) NOT NULL DEFAULT 0')
+  .catch(err => console.error('Migration (marketplace_listings.priceNegotiable):', err.message))
+
+pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS mode VARCHAR(20) DEFAULT 'privat'")
+  .catch(err => console.error('Migration (users.mode):', err.message))
 
 // Serve uploads with security headers (no script execution, no sniffing)
 app.use('/uploads', (req, res, next) => {
@@ -370,7 +550,8 @@ app.get('/api/auth/session', authenticate, async (req, res) => {
   try {
     const [users] = await pool.query('SELECT id, name, handle, initials, avatar_url FROM users WHERE id = ?', [req.userId])
     if (users.length === 0) return res.status(404).json({ error: 'User not found' })
-    res.json({ user: users[0], lang: req.lang })
+    const user = { ...users[0], is_admin: users[0].id === 1 }
+    res.json({ user, lang: req.lang })
   } catch (err) {
     res.status(500).json({ error: 'Session check failed' })
   }
@@ -383,8 +564,8 @@ const FB_APP_SECRET = process.env.FB_APP_SECRET
 const FB_REDIRECT_URI = process.env.FB_REDIRECT_URI || 'https://fellis.eu/api/auth/facebook/callback'
 const FB_GRAPH_URL = 'https://graph.facebook.com/v21.0'
 
-// Scopes: read profile, friends list, posts, photos — NO write/delete permissions
-const FB_SCOPES = 'public_profile,email,user_friends,user_posts,user_photos'
+// Scopes: basic profile only — no extended permissions required, app can go Live without App Review
+const FB_SCOPES = 'public_profile,email'
 
 // GDPR/Security: In-memory store for OAuth CSRF state tokens (short-lived)
 const oauthStateTokens = new Map()
@@ -612,24 +793,35 @@ async function importFacebookData(userId, fbToken) {
 
 // ── Profile routes ──
 
-// GET /api/profile/:id
+// GET /api/profile/:id — public profile (friend view)
 app.get('/api/profile/:id', authenticate, async (req, res) => {
+  const targetId = parseInt(req.params.id)
   try {
     const [users] = await pool.query(
       `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url,
         (SELECT COUNT(*) FROM friendships WHERE user_id = u.id) as friend_count,
-        (SELECT COUNT(*) FROM posts WHERE author_id = u.id) as post_count
+        (SELECT COUNT(*) FROM posts WHERE author_id = u.id) as post_count,
+        (SELECT COUNT(*) FROM friendships f1
+           JOIN friendships f2 ON f1.friend_id = f2.friend_id
+           WHERE f1.user_id = ? AND f2.user_id = u.id) as mutual_count,
+        (SELECT COUNT(*) FROM friendships WHERE user_id = ? AND friend_id = u.id) as is_friend
        FROM users u WHERE u.id = ?`,
-      [req.params.id]
+      [req.userId, req.userId, targetId]
     )
     if (users.length === 0) return res.status(404).json({ error: 'User not found' })
     const u = users[0]
+    // Log profile view (fire-and-forget, skip self-views)
+    if (targetId !== req.userId) {
+      pool.query('INSERT INTO profile_views (viewer_id, profile_id) VALUES (?, ?)', [req.userId, targetId]).catch(() => {})
+    }
     res.json({
       id: u.id, name: u.name, handle: u.handle, initials: u.initials,
       bio: { da: u.bio_da || '', en: u.bio_en || '' },
       location: u.location, joinDate: u.join_date,
       avatarUrl: u.avatar_url || null,
       friendCount: u.friend_count, postCount: u.post_count, photoCount: u.photo_count || 0,
+      mutualCount: u.mutual_count || 0,
+      isFriend: !!u.is_friend,
     })
   } catch (err) {
     res.status(500).json({ error: 'Failed to load profile' })
@@ -663,6 +855,18 @@ app.get('/api/profile', authenticate, async (req, res) => {
     })
   } catch (err) {
     res.status(500).json({ error: 'Failed to load profile' })
+  }
+})
+
+// PATCH /api/me/mode — update user mode (privat / business)
+app.patch('/api/me/mode', authenticate, async (req, res) => {
+  const { mode } = req.body
+  if (!['privat', 'business'].includes(mode)) return res.status(400).json({ error: 'Invalid mode' })
+  try {
+    await pool.query('UPDATE users SET mode = ? WHERE id = ?', [mode, req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update mode' })
   }
 })
 
@@ -707,7 +911,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
     const total = countResult[0].total
 
     const [posts] = await pool.query(
-      `SELECT p.id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.created_at
+      `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.created_at
        FROM posts p JOIN users u ON p.author_id = u.id
        WHERE p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?)
        ORDER BY p.created_at DESC
@@ -715,24 +919,65 @@ app.get('/api/feed', authenticate, async (req, res) => {
       [req.userId, req.userId, limit, offset]
     )
     const postIds = posts.map(p => p.id)
-    const [comments] = postIds.length > 0
-      ? await pool.query(
-        `SELECT c.id, c.post_id, u.name as author, c.text_da, c.text_en
-         FROM comments c JOIN users u ON c.author_id = u.id
-         WHERE c.post_id IN (?)
-         ORDER BY c.created_at ASC`,
-        [postIds]
-      )
-      : [[]]
-    const [userLikes] = await pool.query(
-      'SELECT post_id FROM post_likes WHERE user_id = ?',
-      [req.userId]
-    )
+    let comments = []
+    if (postIds.length > 0) {
+      try {
+        const [rows] = await pool.query(
+          `SELECT c.id, c.post_id, u.name as author, c.text_da, c.text_en, c.media
+           FROM comments c JOIN users u ON c.author_id = u.id
+           WHERE c.post_id IN (?)
+           ORDER BY c.created_at ASC`,
+          [postIds]
+        )
+        comments = rows
+      } catch {
+        // media column may not exist yet — fall back to query without it
+        const [rows] = await pool.query(
+          `SELECT c.id, c.post_id, u.name as author, c.text_da, c.text_en
+           FROM comments c JOIN users u ON c.author_id = u.id
+           WHERE c.post_id IN (?)
+           ORDER BY c.created_at ASC`,
+          [postIds]
+        )
+        comments = rows
+      }
+    }
+    // Fetch user's own likes (with reaction if column exists)
+    let userLikes = []
+    try {
+      const [rows] = await pool.query('SELECT post_id, reaction FROM post_likes WHERE user_id = ?', [req.userId])
+      userLikes = rows
+    } catch {
+      const [rows] = await pool.query('SELECT post_id FROM post_likes WHERE user_id = ?', [req.userId])
+      userLikes = rows
+    }
     const likedSet = new Set(userLikes.map(l => l.post_id))
+    const userReactionMap = {}
+    for (const l of userLikes) { if (l.reaction) userReactionMap[l.post_id] = l.reaction }
+
+    // Fetch aggregated reaction counts for all posts
+    let reactionRows = []
+    if (postIds.length > 0) {
+      try {
+        const [rows] = await pool.query(
+          `SELECT post_id, reaction, COUNT(*) as cnt FROM post_likes WHERE post_id IN (?) GROUP BY post_id, reaction ORDER BY cnt DESC`,
+          [postIds]
+        )
+        reactionRows = rows
+      } catch {}
+    }
+    const reactionsByPost = {}
+    for (const r of reactionRows) {
+      if (!reactionsByPost[r.post_id]) reactionsByPost[r.post_id] = []
+      reactionsByPost[r.post_id].push({ emoji: r.reaction, count: Number(r.cnt) })
+    }
+
     const commentsByPost = {}
     for (const c of comments) {
       if (!commentsByPost[c.post_id]) commentsByPost[c.post_id] = []
-      commentsByPost[c.post_id].push({ author: c.author, text: { da: c.text_da, en: c.text_en } })
+      let cMedia = null
+      if (c.media) { try { cMedia = typeof c.media === 'string' ? JSON.parse(c.media) : c.media } catch {} }
+      commentsByPost[c.post_id].push({ author: c.author, text: { da: c.text_da, en: c.text_en }, media: cMedia })
     }
     const result = posts.map(p => {
       let media = null
@@ -742,10 +987,13 @@ app.get('/api/feed', authenticate, async (req, res) => {
       return {
         id: p.id,
         author: p.author,
-        time: { da: p.time_da, en: p.time_en },
+        authorId: p.author_id,
+        time: { da: formatPostTime(p.created_at, 'da'), en: formatPostTime(p.created_at, 'en') },
         text: { da: p.text_da, en: p.text_en },
         likes: p.likes,
         liked: likedSet.has(p.id),
+        userReaction: userReactionMap[p.id] || null,
+        reactions: reactionsByPost[p.id] || [],
         media,
         comments: commentsByPost[p.id] || [],
       }
@@ -787,10 +1035,11 @@ app.post('/api/feed', authenticate, upload.array('media', 4), async (req, res) =
       [req.userId, text, text, 'Lige nu', 'Just now', mediaJson]
     )
     const [users] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
+    const now = new Date()
     res.json({
       id: result.insertId,
       author: users[0].name,
-      time: { da: 'Lige nu', en: 'Just now' },
+      time: { da: formatPostTime(now, 'da'), en: formatPostTime(now, 'en') },
       text: { da: text, en: text },
       likes: 0, liked: false, comments: [],
       media: mediaUrls.length > 0 ? mediaUrls : null,
@@ -818,42 +1067,91 @@ app.post('/api/upload', authenticate, upload.single('file'), async (req, res) =>
   res.json({ url: `/uploads/${req.file.filename}`, type, mime: req.file.mimetype })
 })
 
-// POST /api/feed/:id/like — toggle like
+// POST /api/feed/:id/like — toggle like or change reaction
 app.post('/api/feed/:id/like', authenticate, async (req, res) => {
   const postId = parseInt(req.params.id)
+  const reaction = req.body?.reaction || '❤️'
   try {
     const [existing] = await pool.query(
-      'SELECT id FROM post_likes WHERE post_id = ? AND user_id = ?',
+      'SELECT id, reaction FROM post_likes WHERE post_id = ? AND user_id = ?',
       [postId, req.userId]
     )
     if (existing.length > 0) {
+      const cur = existing[0].reaction || '❤️'
+      if (cur !== reaction) {
+        // Change reaction without removing the like
+        try {
+          await pool.query('UPDATE post_likes SET reaction = ? WHERE post_id = ? AND user_id = ?', [reaction, postId, req.userId])
+        } catch {} // reaction column not yet migrated
+        return res.json({ liked: true, reaction })
+      }
+      // Same reaction — toggle off
       await pool.query('DELETE FROM post_likes WHERE post_id = ? AND user_id = ?', [postId, req.userId])
       await pool.query('UPDATE posts SET likes = likes - 1 WHERE id = ?', [postId])
       res.json({ liked: false })
     } else {
-      await pool.query('INSERT INTO post_likes (post_id, user_id) VALUES (?, ?)', [postId, req.userId])
+      try {
+        await pool.query('INSERT INTO post_likes (post_id, user_id, reaction) VALUES (?, ?, ?)', [postId, req.userId, reaction])
+      } catch {
+        await pool.query('INSERT INTO post_likes (post_id, user_id) VALUES (?, ?)', [postId, req.userId])
+      }
       await pool.query('UPDATE posts SET likes = likes + 1 WHERE id = ?', [postId])
-      res.json({ liked: true })
+      res.json({ liked: true, reaction })
     }
   } catch (err) {
     res.status(500).json({ error: 'Failed to toggle like' })
   }
 })
 
-// POST /api/feed/:id/comment — add comment
-app.post('/api/feed/:id/comment', authenticate, async (req, res) => {
-  const { text } = req.body
-  if (!text) return res.status(400).json({ error: 'Comment text required' })
+// POST /api/feed/:id/comment — add comment (with optional single media file)
+app.post('/api/feed/:id/comment', authenticate, upload.single('media'), async (req, res) => {
+  const text = (req.body.text || '').trim()
+  if (!text && !req.file) return res.status(400).json({ error: 'Comment text or media required' })
   const postId = parseInt(req.params.id)
+  let mediaJson = null
+  if (req.file) {
+    const header = Buffer.alloc(16)
+    const fd = fs.openSync(req.file.path, 'r')
+    fs.readSync(fd, header, 0, 16, 0)
+    fs.closeSync(fd)
+    if (!validateMagicBytes(header, req.file.mimetype)) {
+      fs.unlinkSync(req.file.path)
+      return res.status(400).json({ error: 'File failed content validation' })
+    }
+    const type = req.file.mimetype.startsWith('video/') ? 'video' : 'image'
+    mediaJson = JSON.stringify([{ url: `/uploads/${req.file.filename}`, type, mime: req.file.mimetype }])
+  }
   try {
-    await pool.query(
-      'INSERT INTO comments (post_id, author_id, text_da, text_en) VALUES (?, ?, ?, ?)',
-      [postId, req.userId, text, text]
-    )
+    try {
+      await pool.query(
+        'INSERT INTO comments (post_id, author_id, text_da, text_en, media) VALUES (?, ?, ?, ?, ?)',
+        [postId, req.userId, text, text, mediaJson]
+      )
+    } catch {
+      // media column not yet migrated — insert without it
+      await pool.query(
+        'INSERT INTO comments (post_id, author_id, text_da, text_en) VALUES (?, ?, ?, ?)',
+        [postId, req.userId, text, text]
+      )
+    }
     const [users] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
-    res.json({ author: users[0].name, text: { da: text, en: text } })
+    const media = mediaJson ? JSON.parse(mediaJson) : null
+    res.json({ author: users[0].name, text: { da: text, en: text }, media })
   } catch (err) {
     res.status(500).json({ error: 'Failed to add comment' })
+  }
+})
+
+// DELETE /api/feed/:id — delete own post
+app.delete('/api/feed/:id', authenticate, async (req, res) => {
+  try {
+    const postId = parseInt(req.params.id)
+    const [rows] = await pool.query('SELECT id FROM posts WHERE id = ? AND author_id = ?', [postId, req.userId])
+    if (!rows.length) return res.status(403).json({ error: 'Not your post' })
+    await pool.query('DELETE FROM posts WHERE id = ?', [postId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete post' })
   }
 })
 
@@ -901,23 +1199,57 @@ app.get('/api/invites/link', authenticate, async (req, res) => {
   }
 })
 
-// POST /api/invites — create individual invitations for selected friends
+// POST /api/invites — create individual invitations and send email if SMTP is configured
 app.post('/api/invites', authenticate, async (req, res) => {
   const { friends } = req.body
   if (!friends?.length) return res.status(400).json({ error: 'No friends selected' })
   try {
+    // Get inviter info and their personal invite link
+    const [[inviter]] = await pool.query('SELECT name, invite_token FROM users WHERE id = ?', [req.userId])
+    const siteBase = process.env.SITE_URL || 'https://fellis.eu'
     const created = []
     for (const friend of friends) {
+      // friend can be a string (email) or object { name, email }
+      const email = typeof friend === 'string' ? friend : (friend.email || null)
+      const name  = typeof friend === 'string' ? null   : (friend.name  || null)
       const token = crypto.randomBytes(32).toString('hex')
       await pool.query(
-        'INSERT INTO invitations (inviter_id, invite_token, invitee_name) VALUES (?, ?, ?)',
-        [req.userId, token, friend.name || null]
+        'INSERT INTO invitations (inviter_id, invite_token, invitee_name, invitee_email) VALUES (?, ?, ?, ?)',
+        [req.userId, token, name || email, email]
       )
-      created.push({ name: friend.name, token })
+      const inviteUrl = `${siteBase}/?invite=${inviter.invite_token || token}`
+      // Send email if SMTP is configured and we have a recipient address
+      if (mailer && email) {
+        const fromName = inviter.name || 'Fellis'
+        const fromAddr = process.env.MAIL_FROM || process.env.MAIL_USER
+        await mailer.sendMail({
+          from: `"${fromName} via Fellis" <${fromAddr}>`,
+          to: email,
+          subject: `${inviter.name || 'En ven'} har inviteret dig til Fellis`,
+          text: `Hej!\n\n${inviter.name || 'En ven'} vil gerne forbindes med dig på Fellis.\n\nKlik her for at oprette din konto:\n${inviteUrl}\n\nVenlig hilsen,\nFellis`,
+          html: `<p>Hej!</p><p><strong>${inviter.name || 'En ven'}</strong> vil gerne forbindes med dig på <strong>Fellis</strong>.</p><p><a href="${inviteUrl}" style="background:#2D6A4F;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:bold">Opret konto og forbind</a></p><p style="color:#888;font-size:12px">Eller kopier dette link: ${inviteUrl}</p>`,
+        }).catch(err => console.error('Mail send error:', err.message))
+      }
+      created.push({ name: name || email, email, token })
     }
-    res.json({ invitations: created, count: created.length })
+    res.json({ invitations: created, count: created.length, emailSent: !!(mailer) })
   } catch (err) {
+    console.error('POST /api/invites error:', err.message)
     res.status(500).json({ error: 'Failed to create invitations' })
+  }
+})
+
+// DELETE /api/invites/:id — withdraw a sent invitation
+app.delete('/api/invites/:id', authenticate, async (req, res) => {
+  try {
+    const [[inv]] = await pool.query('SELECT inviter_id FROM invitations WHERE id = ?', [req.params.id])
+    if (!inv) return res.status(404).json({ error: 'Not found' })
+    if (inv.inviter_id !== req.userId) return res.status(403).json({ error: 'Forbidden' })
+    await pool.query('DELETE FROM invitations WHERE id = ?', [req.params.id])
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/invites error:', err.message)
+    res.status(500).json({ error: 'Failed to cancel invitation' })
   }
 })
 
@@ -925,15 +1257,21 @@ app.post('/api/invites', authenticate, async (req, res) => {
 app.get('/api/invites', authenticate, async (req, res) => {
   try {
     const [invitations] = await pool.query(
-      `SELECT i.id, i.invite_token, i.invitee_name, i.status, i.created_at,
+      `SELECT i.id, i.invite_token, i.invitee_name, i.invitee_email, i.status, i.created_at,
               u.name as accepted_by_name
        FROM invitations i
        LEFT JOIN users u ON i.accepted_by = u.id
-       WHERE i.inviter_id = ?
+       WHERE i.inviter_id = ? AND i.status != 'accepted'
        ORDER BY i.created_at DESC`,
       [req.userId]
     )
-    res.json(invitations)
+    res.json(invitations.map(i => ({
+      id: i.id,
+      name: i.invitee_name || i.invitee_email || null,
+      email: i.invitee_email || null,
+      sentAt: i.created_at,
+      status: i.status,
+    })))
   } catch (err) {
     res.status(500).json({ error: 'Failed to load invitations' })
   }
@@ -957,98 +1295,504 @@ app.get('/api/friends', authenticate, async (req, res) => {
   }
 })
 
-// ── Messages routes ──
-
-// GET /api/messages — get message threads (latest 20 messages per thread)
-app.get('/api/messages', authenticate, async (req, res) => {
+// POST /api/friends/request/:userId — send a connection request
+app.post('/api/friends/request/:userId', authenticate, async (req, res) => {
+  const targetId = parseInt(req.params.userId)
+  if (!targetId || targetId === req.userId) return res.status(400).json({ error: 'Invalid user' })
   try {
-    const [partners] = await pool.query(
-      `SELECT DISTINCT
-        CASE WHEN sender_id = ? THEN receiver_id ELSE sender_id END as partner_id
-       FROM messages WHERE sender_id = ? OR receiver_id = ?`,
-      [req.userId, req.userId, req.userId]
+    const [target] = await pool.query('SELECT id, name FROM users WHERE id = ?', [targetId])
+    if (!target.length) return res.status(404).json({ error: 'User not found' })
+    // Already friends?
+    const [already] = await pool.query('SELECT id FROM friendships WHERE user_id = ? AND friend_id = ?', [req.userId, targetId])
+    if (already.length) return res.status(409).json({ error: 'Already friends' })
+    // Upsert: reset to pending if previously declined
+    await pool.query(
+      `INSERT INTO friend_requests (from_user_id, to_user_id, status) VALUES (?, ?, 'pending')
+       ON DUPLICATE KEY UPDATE status = 'pending', created_at = CURRENT_TIMESTAMP()`,
+      [req.userId, targetId]
     )
-    const threads = []
-    for (const p of partners) {
-      const [totalResult] = await pool.query(
-        `SELECT COUNT(*) as total FROM messages
-         WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)`,
-        [req.userId, p.partner_id, p.partner_id, req.userId]
+    res.json({ ok: true })
+  } catch (err) { res.status(500).json({ error: 'Failed to send request' }) }
+})
+
+// GET /api/friends/requests — incoming pending requests + outgoing pending requests
+app.get('/api/friends/requests', authenticate, async (req, res) => {
+  try {
+    const [incoming] = await pool.query(
+      `SELECT fr.id, u.id as from_id, u.name as from_name, fr.created_at
+       FROM friend_requests fr JOIN users u ON u.id = fr.from_user_id
+       WHERE fr.to_user_id = ? AND fr.status = 'pending'
+       ORDER BY fr.created_at DESC`,
+      [req.userId]
+    )
+    const [outgoing] = await pool.query(
+      `SELECT fr.id, u.id as to_id, u.name as to_name, fr.status
+       FROM friend_requests fr JOIN users u ON u.id = fr.to_user_id
+       WHERE fr.from_user_id = ? AND fr.status = 'pending'`,
+      [req.userId]
+    )
+    res.json({ incoming, outgoing })
+  } catch (err) { res.status(500).json({ error: 'Failed to load requests' }) }
+})
+
+// POST /api/friends/requests/:id/accept
+app.post('/api/friends/requests/:id/accept', authenticate, async (req, res) => {
+  const reqId = parseInt(req.params.id)
+  try {
+    const [rows] = await pool.query(
+      `SELECT * FROM friend_requests WHERE id = ? AND to_user_id = ? AND status = 'pending'`,
+      [reqId, req.userId]
+    )
+    if (!rows.length) return res.status(404).json({ error: 'Request not found' })
+    const fromId = rows[0].from_user_id
+    await pool.query(`UPDATE friend_requests SET status = 'accepted' WHERE id = ?`, [reqId])
+    await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [req.userId, fromId])
+    await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [fromId, req.userId])
+    res.json({ ok: true })
+  } catch (err) { res.status(500).json({ error: 'Failed to accept request' }) }
+})
+
+// POST /api/friends/requests/:id/decline
+app.post('/api/friends/requests/:id/decline', authenticate, async (req, res) => {
+  const reqId = parseInt(req.params.id)
+  try {
+    const [rows] = await pool.query(
+      `SELECT * FROM friend_requests WHERE id = ? AND to_user_id = ? AND status = 'pending'`,
+      [reqId, req.userId]
+    )
+    if (!rows.length) return res.status(404).json({ error: 'Request not found' })
+    await pool.query(`UPDATE friend_requests SET status = 'declined' WHERE id = ?`, [reqId])
+    res.json({ ok: true })
+  } catch (err) { res.status(500).json({ error: 'Failed to decline request' }) }
+})
+
+// DELETE /api/friends/:userId — unfriend (mutual). Optional ?notify=1 sends a message.
+app.delete('/api/friends/:userId', authenticate, async (req, res) => {
+  const targetId = parseInt(req.params.userId)
+  if (!targetId || targetId === req.userId) return res.status(400).json({ error: 'Invalid user' })
+  const notify = req.query.notify === '1'
+  try {
+    await pool.query('DELETE FROM friendships WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)',
+      [req.userId, targetId, targetId, req.userId])
+    // Clean up any friend_requests between the two users
+    await pool.query(
+      `DELETE FROM friend_requests WHERE (from_user_id = ? AND to_user_id = ?) OR (from_user_id = ? AND to_user_id = ?)`,
+      [req.userId, targetId, targetId, req.userId]
+    )
+    if (notify) {
+      // Find or create 1:1 conversation and send a system-like message
+      const [[me]] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
+      const [convRows] = await pool.query(
+        `SELECT c.id FROM conversations c
+         JOIN conversation_participants cp1 ON cp1.conversation_id = c.id AND cp1.user_id = ?
+         JOIN conversation_participants cp2 ON cp2.conversation_id = c.id AND cp2.user_id = ?
+         WHERE c.is_group = 0 LIMIT 1`, [req.userId, targetId]
       )
-      const totalMsgs = totalResult[0].total
-      const [msgs] = await pool.query(
-        `SELECT m.id, u_sender.name as from_name, m.text_da, m.text_en, m.time, m.is_read
-         FROM messages m
-         JOIN users u_sender ON m.sender_id = u_sender.id
-         WHERE (m.sender_id = ? AND m.receiver_id = ?) OR (m.sender_id = ? AND m.receiver_id = ?)
-         ORDER BY m.created_at DESC
-         LIMIT 20`,
-        [req.userId, p.partner_id, p.partner_id, req.userId]
+      let convId
+      if (convRows.length) {
+        convId = convRows[0].id
+      } else {
+        const [r] = await pool.query('INSERT INTO conversations (is_group, created_by) VALUES (0, ?)', [req.userId])
+        convId = r.insertId
+        await pool.query('INSERT IGNORE INTO conversation_participants (conversation_id, user_id) VALUES (?, ?), (?, ?)',
+          [convId, req.userId, convId, targetId])
+      }
+      const msgDa = `${me.name} har fjernet dig som ven.`
+      const msgEn = `${me.name} has removed you as a friend.`
+      await pool.query(
+        `INSERT INTO messages (conversation_id, sender_id, receiver_id, text_da, text_en, time, created_at)
+         VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
+        [convId, req.userId, targetId, msgDa, msgEn]
       )
-      msgs.reverse() // Show oldest first within the window
-      const [friendInfo] = await pool.query('SELECT id, name FROM users WHERE id = ?', [p.partner_id])
-      const unread = msgs.filter(m => !m.is_read && m.from_name !== friendInfo[0].name).length
-      threads.push({
-        friendId: friendInfo[0].id,
-        friend: friendInfo[0].name,
-        messages: msgs.map(m => ({
-          from: m.from_name,
-          text: { da: m.text_da, en: m.text_en },
-          time: m.time,
-        })),
-        totalMessages: totalMsgs,
-        unread,
-      })
     }
-    res.json(threads)
+    res.json({ ok: true })
+  } catch (err) { res.status(500).json({ error: 'Failed to unfriend' }) }
+})
+
+// ── Conversation routes ──
+
+// Helper: fetch a full conversation object for the current user
+async function getConversationForUser(convId, userId, myName) {
+  const [participants] = await pool.query(
+    `SELECT u.id, u.name FROM users u
+     JOIN conversation_participants cp ON cp.user_id = u.id
+     WHERE cp.conversation_id = ?`, [convId])
+  const [msgs] = await pool.query(
+    `SELECT u.name as from_name, m.text_da, m.text_en, m.time, m.is_read, m.created_at
+     FROM messages m JOIN users u ON m.sender_id = u.id
+     WHERE m.conversation_id = ? ORDER BY m.created_at DESC LIMIT 20`, [convId])
+  msgs.reverse()
+  const [[{ total }]] = await pool.query('SELECT COUNT(*) as total FROM messages WHERE conversation_id = ?', [convId])
+  const [[conv]] = await pool.query(
+    `SELECT c.name, c.is_group, cp.muted_until FROM conversations c
+     JOIN conversation_participants cp ON cp.conversation_id = c.id AND cp.user_id = ?
+     WHERE c.id = ?`, [userId, convId])
+  const unread = msgs.filter(m => !m.is_read && m.from_name !== myName).length
+  const otherParticipant = participants.find(p => p.id !== userId)
+  const fallbackName = msgs.find(m => m.from_name !== myName)?.from_name || null
+  const displayName = conv.is_group
+    ? (conv.name || participants.filter(p => p.id !== userId).map(p => p.name.split(' ')[0]).join(', '))
+    : (otherParticipant?.name || fallbackName || 'Ukendt')
+  return {
+    id: convId,
+    name: displayName,
+    isGroup: conv.is_group === 1,
+    groupName: conv.name,
+    participants: participants.map(p => ({ id: p.id, name: p.name })),
+    messages: msgs.map(m => ({ from: m.from_name, text: { da: m.text_da, en: m.text_en }, time: m.created_at ? formatMsgTime(m.created_at) : m.time })),
+    totalMessages: total,
+    unread,
+    mutedUntil: conv.muted_until,
+  }
+}
+
+// GET /api/conversations — all conversations for the current user
+app.get('/api/conversations', authenticate, async (req, res) => {
+  try {
+    const [[me]] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
+    const [convRows] = await pool.query(
+      `SELECT c.id FROM conversations c
+       JOIN conversation_participants cp ON cp.conversation_id = c.id AND cp.user_id = ?
+       ORDER BY (SELECT MAX(created_at) FROM messages WHERE conversation_id = c.id) DESC,
+                c.created_at DESC`, [req.userId])
+    const result = []
+    for (const { id } of convRows) {
+      result.push(await getConversationForUser(id, req.userId, me.name))
+    }
+    res.json(result)
+  } catch (err) {
+    console.error('GET /api/conversations error:', err)
+    res.status(500).json({ error: 'Failed to load conversations' })
+  }
+})
+
+// GET /api/conversations/:id/messages/older — paginated older messages
+app.get('/api/conversations/:id/messages/older', authenticate, async (req, res) => {
+  const convId = parseInt(req.params.id)
+  const offset = Math.max(parseInt(req.query.offset) || 0, 0)
+  const limit = Math.min(parseInt(req.query.limit) || 20, 50)
+  try {
+    const [check] = await pool.query(
+      'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, req.userId])
+    if (!check.length) return res.status(403).json({ error: 'Not a participant' })
+    const [msgs] = await pool.query(
+      `SELECT u.name as from_name, m.text_da, m.text_en, m.time, m.created_at
+       FROM messages m JOIN users u ON m.sender_id = u.id
+       WHERE m.conversation_id = ? ORDER BY m.created_at DESC LIMIT ? OFFSET ?`,
+      [convId, limit, offset])
+    msgs.reverse()
+    res.json({ messages: msgs.map(m => ({ from: m.from_name, text: { da: m.text_da, en: m.text_en }, time: m.created_at ? formatMsgTime(m.created_at) : m.time })) })
   } catch (err) {
     res.status(500).json({ error: 'Failed to load messages' })
   }
 })
 
-// GET /api/messages/:friendId/older?before=N — load older messages for a thread
-app.get('/api/messages/:friendId/older', authenticate, async (req, res) => {
-  const friendId = parseInt(req.params.friendId)
-  const offset = Math.max(parseInt(req.query.offset) || 0, 0)
-  const limit = Math.min(parseInt(req.query.limit) || 20, 50)
+// POST /api/conversations — create a new 1:1 or group conversation
+app.post('/api/conversations', authenticate, async (req, res) => {
+  const { participantIds, name, isGroup } = req.body
+  if (!participantIds || !Array.isArray(participantIds) || !participantIds.length)
+    return res.status(400).json({ error: 'participantIds required' })
+  const validIds = participantIds.map(id => parseInt(id)).filter(id => !isNaN(id) && id > 0)
+  if (!validIds.length) return res.status(400).json({ error: 'No valid participant IDs' })
+  const allIds = [req.userId, ...validIds.filter(id => id !== req.userId)]
   try {
-    const [msgs] = await pool.query(
-      `SELECT m.id, u_sender.name as from_name, m.text_da, m.text_en, m.time
-       FROM messages m
-       JOIN users u_sender ON m.sender_id = u_sender.id
-       WHERE (m.sender_id = ? AND m.receiver_id = ?) OR (m.sender_id = ? AND m.receiver_id = ?)
-       ORDER BY m.created_at DESC
-       LIMIT ? OFFSET ?`,
-      [req.userId, friendId, friendId, req.userId, limit, offset]
+    // For 1:1: return existing conversation if found
+    if (!isGroup && allIds.length === 2) {
+      const otherId = allIds.find(id => id !== req.userId)
+      const [existing] = await pool.query(
+        `SELECT c.id FROM conversations c
+         JOIN conversation_participants cp1 ON cp1.conversation_id = c.id AND cp1.user_id = ?
+         JOIN conversation_participants cp2 ON cp2.conversation_id = c.id AND cp2.user_id = ?
+         WHERE c.is_group = 0 LIMIT 1`, [req.userId, otherId])
+      if (existing.length > 0) return res.json({ id: existing[0].id, exists: true })
+    }
+    const [r] = await pool.query(
+      'INSERT INTO conversations (name, is_group, created_by) VALUES (?, ?, ?)',
+      [name || null, isGroup ? 1 : 0, req.userId])
+    const convId = r.insertId
+    for (const uid of allIds)
+      await pool.query('INSERT IGNORE INTO conversation_participants (conversation_id, user_id) VALUES (?, ?)', [convId, uid])
+    res.json({ id: convId, exists: false })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to create conversation' })
+  }
+})
+
+// POST /api/conversations/:id/messages — send a message
+app.post('/api/conversations/:id/messages', authenticate, async (req, res) => {
+  const convId = parseInt(req.params.id)
+  const { text } = req.body
+  if (!text) return res.status(400).json({ error: 'Message text required' })
+  try {
+    const [check] = await pool.query(
+      'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, req.userId])
+    if (!check.length) return res.status(403).json({ error: 'Not a participant' })
+    const now = new Date()
+    const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
+    const [others] = await pool.query(
+      'SELECT user_id FROM conversation_participants WHERE conversation_id = ? AND user_id != ? LIMIT 1',
+      [convId, req.userId])
+    const receiverId = others.length ? others[0].user_id : req.userId
+    await pool.query(
+      'INSERT INTO messages (conversation_id, sender_id, receiver_id, text_da, text_en, time) VALUES (?, ?, ?, ?, ?, ?)',
+      [convId, req.userId, receiverId, text, text, time])
+    const [[user]] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
+    res.json({ from: user.name, text: { da: text, en: text }, time: formatMsgTime(now) })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to send message' })
+  }
+})
+
+// POST /api/conversations/:id/invite — add participants to an existing conversation
+app.post('/api/conversations/:id/invite', authenticate, async (req, res) => {
+  const convId = parseInt(req.params.id)
+  const { userIds } = req.body
+  if (!userIds || !Array.isArray(userIds) || !userIds.length)
+    return res.status(400).json({ error: 'userIds required' })
+  try {
+    const [check] = await pool.query(
+      'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, req.userId])
+    if (!check.length) return res.status(403).json({ error: 'Not a participant' })
+    for (const uid of userIds)
+      await pool.query('INSERT IGNORE INTO conversation_participants (conversation_id, user_id) VALUES (?, ?)', [convId, uid])
+    // Promote to group if adding to a 1:1
+    await pool.query('UPDATE conversations SET is_group = 1 WHERE id = ? AND is_group = 0', [convId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to invite participants' })
+  }
+})
+
+// POST /api/conversations/:id/mute — mute for N minutes (null to unmute)
+app.post('/api/conversations/:id/mute', authenticate, async (req, res) => {
+  const convId = parseInt(req.params.id)
+  const { minutes } = req.body
+  try {
+    const [check] = await pool.query(
+      'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, req.userId])
+    if (!check.length) return res.status(403).json({ error: 'Not a participant' })
+    const mutedUntil = (minutes && minutes > 0) ? new Date(Date.now() + minutes * 60 * 1000) : null
+    await pool.query(
+      'UPDATE conversation_participants SET muted_until = ? WHERE conversation_id = ? AND user_id = ?',
+      [mutedUntil, convId, req.userId])
+    res.json({ ok: true, mutedUntil })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to mute conversation' })
+  }
+})
+
+// DELETE /api/conversations/:id/leave — leave a group conversation
+app.delete('/api/conversations/:id/leave', authenticate, async (req, res) => {
+  const convId = parseInt(req.params.id)
+  try {
+    await pool.query(
+      'DELETE FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to leave conversation' })
+  }
+})
+
+// PATCH /api/conversations/:id — rename a group conversation
+app.patch('/api/conversations/:id', authenticate, async (req, res) => {
+  const convId = parseInt(req.params.id)
+  const { name } = req.body
+  if (!name) return res.status(400).json({ error: 'name required' })
+  try {
+    const [check] = await pool.query(
+      'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, req.userId])
+    if (!check.length) return res.status(403).json({ error: 'Not a participant' })
+    await pool.query('UPDATE conversations SET name = ? WHERE id = ?', [name, convId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to rename conversation' })
+  }
+})
+
+// ── Search ──
+
+// GET /api/posts/:id — fetch a single post (for search result navigation)
+app.get('/api/posts/:id', authenticate, async (req, res) => {
+  const postId = parseInt(req.params.id)
+  try {
+    const [posts] = await pool.query(
+      `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media,
+              (SELECT reaction FROM post_likes WHERE post_id = p.id AND user_id = ?) as userReaction
+       FROM posts p JOIN users u ON u.id = p.author_id WHERE p.id = ?`,
+      [req.userId, postId]
     )
-    msgs.reverse()
+    if (!posts.length) return res.status(404).json({ error: 'Post not found' })
+    const post = posts[0]
+    const [comments] = await pool.query(
+      `SELECT u.name as author, c.text_da, c.text_en, c.media
+       FROM comments c JOIN users u ON u.id = c.author_id
+       WHERE c.post_id = ? ORDER BY c.created_at ASC`, [postId]
+    )
+    const [rxRows] = await pool.query(
+      'SELECT reaction, COUNT(*) as count FROM post_likes WHERE post_id = ? GROUP BY reaction', [postId]
+    )
     res.json({
-      messages: msgs.map(m => ({
+      id: post.id, author: post.author, authorId: post.author_id,
+      text: { da: post.text_da, en: post.text_en },
+      time: { da: post.time_da, en: post.time_en },
+      likes: post.likes, liked: !!post.userReaction, userReaction: post.userReaction,
+      reactions: Object.fromEntries(rxRows.map(r => [r.reaction, r.count])),
+      media: post.media,
+      comments: comments.map(c => ({ author: c.author, text: { da: c.text_da, en: c.text_en }, media: c.media })),
+    })
+  } catch (err) { res.status(500).json({ error: 'Failed to fetch post' }) }
+})
+
+// GET /api/users/search?q=... — search all users, includes friendship/request state
+app.get('/api/users/search', authenticate, async (req, res) => {
+  const { q } = req.query
+  if (!q || q.trim().length < 2) return res.json([])
+  const like = `%${q.trim()}%`
+  try {
+    const [users] = await pool.query(
+      `SELECT u.id, u.name,
+              CASE WHEN f.id IS NOT NULL THEN 1 ELSE 0 END as is_friend,
+              COALESCE(f.is_online, 0) as online,
+              COALESCE(f.mutual_count, 0) as mutual,
+              (SELECT id FROM friend_requests WHERE from_user_id = ? AND to_user_id = u.id AND status = 'pending') as sent_request_id,
+              (SELECT id FROM friend_requests WHERE from_user_id = u.id AND to_user_id = ? AND status = 'pending') as received_request_id
+       FROM users u
+       LEFT JOIN friendships f ON f.friend_id = u.id AND f.user_id = ?
+       WHERE u.id != ? AND u.name LIKE ?
+       ORDER BY is_friend DESC, u.name
+       LIMIT 20`,
+      [req.userId, req.userId, req.userId, req.userId, like]
+    )
+    res.json(users.map(u => ({
+      ...u,
+      is_friend: !!u.is_friend,
+      online: !!u.online,
+      sent_request_id: u.sent_request_id || null,
+      received_request_id: u.received_request_id || null,
+    })))
+  } catch (err) { res.status(500).json({ error: 'User search failed' }) }
+})
+
+// GET /api/search?q=... — search posts and messages the current user is involved in
+// Posts: authored by, liked by, or commented on by the user
+// Messages: within conversations the user participates in
+app.get('/api/search', authenticate, async (req, res) => {
+  const { q } = req.query
+  if (!q || q.trim().length < 2) return res.json({ posts: [], messages: [] })
+  const like = `%${q.trim()}%`
+  const uid = req.userId
+  try {
+    const [posts] = await pool.query(
+      `SELECT DISTINCT p.id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en
+       FROM posts p
+       JOIN users u ON u.id = p.author_id
+       LEFT JOIN post_likes pl ON pl.post_id = p.id AND pl.user_id = ?
+       LEFT JOIN comments co ON co.post_id = p.id AND co.author_id = ?
+       WHERE (p.author_id = ? OR pl.user_id IS NOT NULL OR co.author_id IS NOT NULL)
+         AND (p.text_da LIKE ? OR p.text_en LIKE ?)
+       ORDER BY p.created_at DESC LIMIT 15`,
+      [uid, uid, uid, like, like]
+    )
+    const [messages] = await pool.query(
+      `SELECT m.id, m.conversation_id, u.name as from_name, m.text_da, m.text_en, m.time,
+              c.is_group,
+              COALESCE(c.name, (
+                SELECT u2.name FROM users u2
+                JOIN conversation_participants cp2 ON cp2.user_id = u2.id
+                WHERE cp2.conversation_id = m.conversation_id AND u2.id != ? LIMIT 1
+              )) as conv_name
+       FROM messages m
+       JOIN users u ON u.id = m.sender_id
+       JOIN conversation_participants cp ON cp.conversation_id = m.conversation_id AND cp.user_id = ?
+       LEFT JOIN conversations c ON c.id = m.conversation_id
+       WHERE m.conversation_id IS NOT NULL
+         AND (m.text_da LIKE ? OR m.text_en LIKE ?)
+       ORDER BY m.created_at DESC LIMIT 15`,
+      [uid, uid, like, like]
+    )
+    res.json({
+      posts: posts.map(p => ({
+        id: p.id,
+        author: p.author,
+        text: { da: p.text_da, en: p.text_en },
+        time: { da: p.time_da, en: p.time_en },
+      })),
+      messages: messages.map(m => ({
+        id: m.id,
+        conversationId: m.conversation_id,
+        convName: m.conv_name || m.from_name,
+        isGroup: m.is_group === 1,
         from: m.from_name,
         text: { da: m.text_da, en: m.text_en },
         time: m.time,
       })),
     })
   } catch (err) {
-    res.status(500).json({ error: 'Failed to load messages' })
+    console.error('Search error:', err)
+    res.status(500).json({ error: 'Search failed' })
   }
 })
 
-// POST /api/messages/:friendId — send a message
-app.post('/api/messages/:friendId', authenticate, async (req, res) => {
-  const { text } = req.body
-  if (!text) return res.status(400).json({ error: 'Message text required' })
+// ── Link preview proxy ──
+
+function isSafeExternalUrl(urlStr) {
+  let parsed
+  try { parsed = new URL(urlStr) } catch { return false }
+  if (!['http:', 'https:'].includes(parsed.protocol)) return false
+  const host = parsed.hostname.toLowerCase()
+  if (host === 'localhost') return false
+  if (host === '::1' || host === '[::1]') return false
+  const ipv4 = host.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/)
+  if (ipv4) {
+    const [a, b] = [parseInt(ipv4[1]), parseInt(ipv4[2])]
+    if (a === 127 || a === 10 || a === 0) return false
+    if (a === 172 && b >= 16 && b <= 31) return false
+    if (a === 192 && b === 168) return false
+    if (a === 169 && b === 254) return false
+  }
+  return true
+}
+
+function decodeHTMLEntities(str) {
+  return str
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&apos;/g, "'")
+}
+
+function extractOgMeta(html, prop) {
+  const esc = prop.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const m =
+    html.match(new RegExp(`<meta[^>]+property=["']${esc}["'][^>]+content=["']([^"']+)["']`, 'i')) ||
+    html.match(new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+property=["']${esc}["']`, 'i'))
+  return m ? decodeHTMLEntities(m[1]) : null
+}
+
+// GET /api/link-preview?url=... — fetch Open Graph meta for any URL
+app.get('/api/link-preview', authenticate, async (req, res) => {
+  const { url } = req.query
+  if (!url) return res.status(400).json({ error: 'url required' })
+  if (!isSafeExternalUrl(url)) return res.status(400).json({ error: 'URL not allowed' })
   try {
-    const now = new Date()
-    const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
-    await pool.query(
-      'INSERT INTO messages (sender_id, receiver_id, text_da, text_en, time) VALUES (?, ?, ?, ?, ?)',
-      [req.userId, req.params.friendId, text, text, time]
-    )
-    const [users] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
-    res.json({ from: users[0].name, text: { da: text, en: text }, time })
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to send message' })
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => ctrl.abort(), 5000)
+    const response = await fetch(url, {
+      signal: ctrl.signal,
+      redirect: 'follow',
+      headers: { 'User-Agent': 'fellis-link-preview/1.0', Accept: 'text/html' },
+    })
+    clearTimeout(timer)
+    if (!response.ok) return res.json({ url })
+    const contentType = response.headers.get('content-type') || ''
+    if (!contentType.includes('text/html')) return res.json({ url })
+    const html = (await response.text()).slice(0, 60000) // only need <head>
+    const title = extractOgMeta(html, 'og:title') ||
+      (html.match(/<title[^>]*>([^<]*)<\/title>/i)?.[1]?.trim() ?? null)
+    const image = extractOgMeta(html, 'og:image')
+    const description = extractOgMeta(html, 'og:description')
+    const siteName = extractOgMeta(html, 'og:site_name') || new URL(url).hostname.replace(/^www\./, '')
+    res.json({ url, title: title ? decodeHTMLEntities(title) : null, image, description, siteName })
+  } catch {
+    res.json({ url }) // silently return empty — preview just won't show
   }
 })
 
@@ -1340,14 +2084,502 @@ setInterval(runDataRetentionCleanup, 6 * 60 * 60 * 1000)
 // Also run once on startup
 runDataRetentionCleanup()
 
+// ── Background bot activity — bots react to recent posts every few minutes ──
+const BOT_HANDLES = ['@anna.bot', '@erik.bot']
+const BOT_REACTIONS = ['❤️', '👍', '😄', '😮', '❤️', '👍', '❤️'] // weighted positive
+async function runBotActivity() {
+  try {
+    const [bots] = await pool.query('SELECT id FROM users WHERE handle IN (?)', [BOT_HANDLES])
+    if (bots.length === 0) return
+    const botIds = bots.map(b => b.id)
+    // Recent posts from the last 48 hours not yet liked by any bot
+    const [posts] = await pool.query(
+      `SELECT p.id FROM posts p
+       WHERE p.author_id NOT IN (?) AND p.created_at > DATE_SUB(NOW(), INTERVAL 48 HOUR)
+         AND p.id NOT IN (SELECT post_id FROM post_likes WHERE user_id IN (?))
+       ORDER BY RAND() LIMIT 5`,
+      [botIds, botIds]
+    )
+    for (const post of posts) {
+      for (const bot of bots) {
+        if (Math.random() > 0.6) continue // 40% chance each bot reacts
+        const reaction = BOT_REACTIONS[Math.floor(Math.random() * BOT_REACTIONS.length)]
+        try {
+          await pool.query('INSERT IGNORE INTO post_likes (post_id, user_id, reaction) VALUES (?, ?, ?)', [post.id, bot.id, reaction])
+        } catch {
+          await pool.query('INSERT IGNORE INTO post_likes (post_id, user_id) VALUES (?, ?)', [post.id, bot.id])
+        }
+        await pool.query('UPDATE posts SET likes = likes + 1 WHERE id = ?', [post.id])
+      }
+    }
+  } catch {}
+}
+// Run bot activity every 4 minutes with a 2-minute startup delay
+setTimeout(() => {
+  runBotActivity()
+  setInterval(runBotActivity, 4 * 60 * 1000)
+}, 2 * 60 * 1000)
+
+// ── Marketplace ──────────────────────────────────────────────────────────────
+
+async function initMarketplace() {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS marketplace_listings (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      title VARCHAR(255) NOT NULL,
+      price VARCHAR(100) DEFAULT NULL,
+      category VARCHAR(100) NOT NULL,
+      location VARCHAR(255) DEFAULT NULL,
+      description TEXT DEFAULT NULL,
+      mobilepay VARCHAR(20) DEFAULT NULL,
+      photos JSON DEFAULT NULL,
+      boosted_until TIMESTAMP NULL DEFAULT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_user_id (user_id),
+      INDEX idx_category (category)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+  } catch (err) {
+    console.error('initMarketplace error:', err.message)
+  }
+}
+
+// MariaDB returns JSON columns as strings — parse them before sending to client
+function parseListingPhotos(row) {
+  if (!row) return row
+  const photos = row.photos
+  const base = { ...row, sellerId: row.user_id, seller: row.seller_name || row.seller }
+  if (!photos) return { ...base, photos: [] }
+  if (Array.isArray(photos)) return base
+  try { return { ...base, photos: JSON.parse(photos) } } catch { return { ...base, photos: [] } }
+}
+
+app.get('/api/marketplace', authenticate, async (req, res) => {
+  try {
+    const { q, category, location } = req.query
+    let sql = `SELECT l.*, u.name AS seller_name, u.handle AS seller_handle, u.avatar_url AS seller_avatar
+               FROM marketplace_listings l JOIN users u ON l.user_id = u.id`
+    const params = []
+    const where = []
+    if (q) { where.push('(l.title LIKE ? OR l.description LIKE ?)'); params.push(`%${q}%`, `%${q}%`) }
+    if (category) { where.push('l.category = ?'); params.push(category) }
+    if (location) { where.push('l.location LIKE ?'); params.push(`%${location}%`) }
+    if (where.length) sql += ' WHERE ' + where.join(' AND ')
+    sql += ' ORDER BY (l.boosted_until > NOW()) DESC, l.created_at DESC'
+    const [rows] = await pool.query(sql, params)
+    res.json({ listings: rows.map(parseListingPhotos) })
+  } catch (err) {
+    console.error('GET /api/marketplace error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.get('/api/marketplace/mine', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT l.*, u.name AS seller_name, u.handle AS seller_handle, u.avatar_url AS seller_avatar
+       FROM marketplace_listings l JOIN users u ON l.user_id = u.id
+       WHERE l.user_id = ? ORDER BY l.created_at DESC`, [req.userId])
+    res.json({ listings: rows.map(parseListingPhotos) })
+  } catch (err) {
+    console.error('GET /api/marketplace/mine error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.post('/api/marketplace', authenticate, upload.array('photos', 10), async (req, res) => {
+  try {
+    const { title, price, priceNegotiable, category, location, description, mobilepay, contact_phone, contact_email } = req.body
+    if (!title || !category) return res.status(400).json({ error: 'Missing required fields' })
+    const photos = (req.files || []).map(f => ({ url: `/uploads/${f.filename}`, type: 'image', mime: f.mimetype }))
+    const [result] = await pool.query(
+      `INSERT INTO marketplace_listings (user_id, title, price, priceNegotiable, category, location, description, mobilepay, contact_phone, contact_email, photos) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [req.userId, title, price || null, priceNegotiable === 'true' ? 1 : 0, category, location || null, description || null, mobilepay || null, contact_phone || null, contact_email || null, photos.length ? JSON.stringify(photos) : null]
+    )
+    const [[listing]] = await pool.query(
+      `SELECT l.*, u.name AS seller_name, u.handle AS seller_handle FROM marketplace_listings l JOIN users u ON l.user_id = u.id WHERE l.id = ?`,
+      [result.insertId]
+    )
+    res.json(parseListingPhotos(listing))
+  } catch (err) {
+    console.error('POST /api/marketplace error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.put('/api/marketplace/:id', authenticate, upload.array('photos', 10), async (req, res) => {
+  try {
+    const { title, price, priceNegotiable, category, location, description, mobilepay, contact_phone, contact_email } = req.body
+    console.log(`[PUT /api/marketplace/${req.params.id}] body fields:`, Object.keys(req.body), '| files:', (req.files || []).length)
+    if (!title || !category) {
+      console.error(`[PUT /api/marketplace/${req.params.id}] Missing required fields – title="${title}" category="${category}"`)
+      return res.status(400).json({ error: 'Manglende påkrævede felter (titel/kategori)' })
+    }
+    const [[existing]] = await pool.query('SELECT user_id FROM marketplace_listings WHERE id = ?', [req.params.id])
+    if (!existing) return res.status(404).json({ error: 'Not found' })
+    if (existing.user_id !== req.userId) return res.status(403).json({ error: 'Forbidden' })
+    // Merge existing photos (kept by client) with any newly uploaded files
+    let existingPhotos = []
+    if (req.body.existingPhotos) {
+      try { existingPhotos = JSON.parse(req.body.existingPhotos) } catch {}
+    }
+    const newPhotos = (req.files || []).map(f => ({ url: `/uploads/${f.filename}`, type: 'image', mime: f.mimetype }))
+    const allPhotos = [...existingPhotos, ...newPhotos]
+    const photosJson = allPhotos.length ? JSON.stringify(allPhotos) : null
+    await pool.query(
+      `UPDATE marketplace_listings SET title=?, price=?, priceNegotiable=?, category=?, location=?, description=?, mobilepay=?, contact_phone=?, contact_email=?, photos=? WHERE id=?`,
+      [title, price || null, priceNegotiable === 'true' ? 1 : 0, category, location || null, description || null, mobilepay || null, contact_phone || null, contact_email || null, photosJson, req.params.id]
+    )
+    const [[listing]] = await pool.query(
+      `SELECT l.*, u.name AS seller_name FROM marketplace_listings l JOIN users u ON l.user_id = u.id WHERE l.id = ?`,
+      [req.params.id]
+    )
+    res.json(parseListingPhotos(listing))
+  } catch (err) {
+    console.error('PUT /api/marketplace/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.delete('/api/marketplace/:id', authenticate, async (req, res) => {
+  try {
+    const [[existing]] = await pool.query('SELECT user_id FROM marketplace_listings WHERE id = ?', [req.params.id])
+    if (!existing) return res.status(404).json({ error: 'Not found' })
+    if (existing.user_id !== req.userId) return res.status(403).json({ error: 'Forbidden' })
+    await pool.query('DELETE FROM marketplace_listings WHERE id = ?', [req.params.id])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.post('/api/marketplace/:id/boost', authenticate, async (req, res) => {
+  try {
+    const [[existing]] = await pool.query('SELECT user_id FROM marketplace_listings WHERE id = ?', [req.params.id])
+    if (!existing) return res.status(404).json({ error: 'Not found' })
+    if (existing.user_id !== req.userId) return res.status(403).json({ error: 'Forbidden' })
+    // When Stripe is configured, create a Checkout session here
+    // For now: set boosted_until to 7 days from now (free boost for testing)
+    await pool.query('UPDATE marketplace_listings SET boosted_until = DATE_ADD(NOW(), INTERVAL 7 DAY) WHERE id = ?', [req.params.id])
+    res.json({ ok: true, boostedUntil: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString() })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.post('/api/marketplace/:id/sold', authenticate, async (req, res) => {
+  try {
+    const [[existing]] = await pool.query('SELECT user_id FROM marketplace_listings WHERE id = ?', [req.params.id])
+    if (!existing) return res.status(404).json({ error: 'Not found' })
+    if (existing.user_id !== req.userId) return res.status(403).json({ error: 'Forbidden' })
+    await pool.query('UPDATE marketplace_listings SET sold = 1 WHERE id = ?', [req.params.id])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Admin settings ──────────────────────────────────────────────────────────
+
+async function initAdminSettings() {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS admin_settings (
+      key_name VARCHAR(100) NOT NULL PRIMARY KEY,
+      key_value TEXT DEFAULT NULL,
+      updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP() ON UPDATE CURRENT_TIMESTAMP()
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+  } catch (err) {
+    console.error('initAdminSettings error:', err.message)
+  }
+}
+
+async function initAnalytics() {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS profile_views (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      viewer_id INT NOT NULL,
+      profile_id INT NOT NULL,
+      viewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_pv_profile (profile_id, viewed_at),
+      INDEX idx_pv_viewer (viewer_id),
+      FOREIGN KEY (profile_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (viewer_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+  } catch (err) {
+    console.error('initAnalytics error:', err.message)
+  }
+}
+
+function requireAdmin(req, res, next) {
+  if (!req.userId) return res.status(401).json({ error: 'Not authenticated' })
+  if (req.userId !== 1) return res.status(403).json({ error: 'Admin only' })
+  next()
+}
+
+// GET /api/analytics — per-user analytics (real data from DB)
+app.get('/api/analytics', authenticate, async (req, res) => {
+  try {
+    const days = Math.min(Math.max(parseInt(req.query.days) || 30, 7), 90)
+
+    // Profile views per day (sparse rows — gaps filled client-side)
+    const [viewRows] = await pool.query(
+      `SELECT DATE(viewed_at) as date, COUNT(*) as count
+       FROM profile_views
+       WHERE profile_id = ? AND viewed_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+       GROUP BY DATE(viewed_at) ORDER BY date ASC`,
+      [req.userId, days]
+    )
+
+    // New connections per day
+    const [connRows] = await pool.query(
+      `SELECT DATE(created_at) as date, COUNT(*) as count
+       FROM friendships
+       WHERE user_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+       GROUP BY DATE(created_at) ORDER BY date ASC`,
+      [req.userId, days]
+    )
+
+    // Top posts by engagement (likes + comments)
+    const [topPosts] = await pool.query(
+      `SELECT p.id,
+              SUBSTRING(COALESCE(NULLIF(p.text_da,''), NULLIF(p.text_en,''), ''), 1, 60) as text,
+              p.likes,
+              COUNT(DISTINCT c.id) as comment_count,
+              (p.likes + COUNT(DISTINCT c.id)) as engagement
+       FROM posts p
+       LEFT JOIN comments c ON c.post_id = p.id
+       WHERE p.author_id = ?
+       GROUP BY p.id ORDER BY engagement DESC LIMIT 5`,
+      [req.userId]
+    )
+
+    // Engagement received in period
+    const [[engStats]] = await pool.query(
+      `SELECT COALESCE(SUM(p.likes), 0) as likes_received,
+              COUNT(DISTINCT c.id) as comments_received,
+              COUNT(DISTINCT p.id) as post_count
+       FROM posts p
+       LEFT JOIN comments c ON c.post_id = p.id
+         AND c.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+       WHERE p.author_id = ? AND p.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)`,
+      [days, req.userId, days]
+    )
+
+    // Engagement trend per day (comments on user's posts)
+    const [engTrendRows] = await pool.query(
+      `SELECT DATE(c.created_at) as date, COUNT(*) as count
+       FROM comments c JOIN posts p ON c.post_id = p.id
+       WHERE p.author_id = ? AND c.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+       GROUP BY DATE(c.created_at) ORDER BY date ASC`,
+      [req.userId, days]
+    )
+
+    // Funnel: profile views → friend requests received → new connections
+    const [[funnel]] = await pool.query(
+      `SELECT
+        (SELECT COUNT(*) FROM profile_views WHERE profile_id = ? AND viewed_at >= DATE_SUB(NOW(), INTERVAL ? DAY)) as views,
+        (SELECT COUNT(*) FROM friend_requests WHERE to_user_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)) as requests,
+        (SELECT COUNT(*) FROM friendships WHERE user_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)) as connections`,
+      [req.userId, days, req.userId, days, req.userId, days]
+    )
+
+    // Total connections
+    const [[{ total_connections }]] = await pool.query(
+      'SELECT COUNT(*) as total_connections FROM friendships WHERE user_id = ?',
+      [req.userId]
+    )
+
+    // Post type split: text-only vs with-media
+    const [[postTypes]] = await pool.query(
+      `SELECT
+        SUM(CASE WHEN media IS NULL OR media = '[]' THEN 1 ELSE 0 END) as text_count,
+        SUM(CASE WHEN media IS NOT NULL AND media != '[]' THEN 1 ELSE 0 END) as media_count
+       FROM posts WHERE author_id = ?`,
+      [req.userId]
+    )
+
+    res.json({
+      days,
+      views: viewRows,
+      connections: connRows,
+      topPosts: topPosts.map(p => ({
+        label: (p.text || '').trim().slice(0, 50) || `Post #${p.id}`,
+        value: Number(p.engagement),
+      })),
+      engagement: {
+        likes: Number(engStats.likes_received),
+        comments: Number(engStats.comments_received),
+        posts: Number(engStats.post_count),
+      },
+      engTrend: engTrendRows,
+      funnel: { views: Number(funnel.views), requests: Number(funnel.requests), connections: Number(funnel.connections) },
+      totalConnections: Number(total_connections),
+      postTypes: { text: Number(postTypes.text_count || 0), media: Number(postTypes.media_count || 0) },
+    })
+  } catch (err) {
+    console.error('GET /api/analytics error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/admin/settings — get Stripe config (admin only)
+app.get('/api/admin/settings', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT key_name, key_value FROM admin_settings')
+    const settings = {}
+    for (const row of rows) settings[row.key_name] = row.key_value
+    // Mask secrets — return only whether they are set, not the actual values
+    const masked = {}
+    for (const [k, v] of Object.entries(settings)) {
+      masked[k] = v ? (k.includes('secret') || k.includes('Secret') ? '••••••••' + v.slice(-4) : v) : ''
+    }
+    res.json({ settings: masked })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to load settings' })
+  }
+})
+
+// POST /api/admin/settings — save Stripe config (admin only)
+app.post('/api/admin/settings', authenticate, requireAdmin, async (req, res) => {
+  const allowed = ['stripe_secret_key', 'stripe_pub_key', 'stripe_webhook_secret', 'stripe_price_pro_monthly', 'stripe_price_pro_yearly', 'stripe_price_boost']
+  try {
+    for (const [key, value] of Object.entries(req.body)) {
+      if (!allowed.includes(key)) continue
+      if (!value || value === '••••••••' + (value || '').slice(-4)) continue // skip masked/empty
+      await pool.query('INSERT INTO admin_settings (key_name, key_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE key_value = VALUES(key_value)', [key, value])
+    }
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to save settings' })
+  }
+})
+
+// GET /api/admin/stats — platform statistics (admin only)
+app.get('/api/admin/stats', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [[{ users }]] = await pool.query('SELECT COUNT(*) as users FROM users')
+    const [[{ active_users }]] = await pool.query("SELECT COUNT(DISTINCT user_id) as active_users FROM sessions WHERE expires_at > NOW()")
+    const [[{ posts }]] = await pool.query('SELECT COUNT(*) as posts FROM posts')
+    const [[{ events }]] = await pool.query('SELECT COUNT(*) as events FROM events').catch(() => [[{ events: 0 }]])
+    const [[{ listings }]] = await pool.query('SELECT COUNT(*) as listings FROM marketplace_listings WHERE sold = 0').catch(() => [[{ listings: 0 }]])
+    const [[{ friendships }]] = await pool.query('SELECT COUNT(*) as friendships FROM friendships')
+    const [[{ messages }]] = await pool.query('SELECT COUNT(*) as messages FROM messages')
+    const [[{ new_users_7d }]] = await pool.query("SELECT COUNT(*) as new_users_7d FROM users WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)").catch(() => [[{ new_users_7d: 0 }]])
+    const [[{ rsvps }]] = await pool.query("SELECT COUNT(*) as rsvps FROM event_rsvps WHERE status = 'going'").catch(() => [[{ rsvps: 0 }]])
+    const [[{ users_privat }]] = await pool.query("SELECT COUNT(*) as users_privat FROM users WHERE mode = 'privat' OR mode IS NULL").catch(() => [[{ users_privat: 0 }]])
+    const [[{ users_business }]] = await pool.query("SELECT COUNT(*) as users_business FROM users WHERE mode = 'business'").catch(() => [[{ users_business: 0 }]])
+    const [[{ posts_business }]] = await pool.query("SELECT COUNT(*) as posts_business FROM posts p JOIN users u ON u.id = p.author_id WHERE u.mode = 'business'").catch(() => [[{ posts_business: 0 }]])
+    const [[{ new_business_7d }]] = await pool.query("SELECT COUNT(*) as new_business_7d FROM users WHERE mode = 'business' AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)").catch(() => [[{ new_business_7d: 0 }]])
+    const [[{ active_business }]] = await pool.query("SELECT COUNT(DISTINCT s.user_id) as active_business FROM sessions s JOIN users u ON u.id = s.user_id WHERE u.mode = 'business' AND s.expires_at > NOW()").catch(() => [[{ active_business: 0 }]])
+    res.json({ users, active_users, posts, events, listings, friendships, messages, new_users_7d, rsvps, users_privat, users_business, posts_business, new_business_7d, active_business })
+  } catch (err) {
+    console.error('GET /api/admin/stats error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Events API ──
+
+// GET /api/events — list all events with RSVP counts and current user's RSVP
+app.get('/api/events', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT e.*, u.name AS organizer_name,
+        (SELECT COUNT(*) FROM event_rsvps r WHERE r.event_id = e.id AND r.status = 'going') AS going_count,
+        (SELECT COUNT(*) FROM event_rsvps r WHERE r.event_id = e.id AND r.status = 'maybe') AS maybe_count,
+        (SELECT GROUP_CONCAT(u2.name ORDER BY r2.created_at SEPARATOR ',')
+          FROM event_rsvps r2 JOIN users u2 ON r2.user_id = u2.id
+          WHERE r2.event_id = e.id AND r2.status = 'going') AS going_names,
+        (SELECT GROUP_CONCAT(u3.name ORDER BY r3.created_at SEPARATOR ',')
+          FROM event_rsvps r3 JOIN users u3 ON r3.user_id = u3.id
+          WHERE r3.event_id = e.id AND r3.status = 'maybe') AS maybe_names,
+        (SELECT r4.status FROM event_rsvps r4 WHERE r4.event_id = e.id AND r4.user_id = ?) AS my_rsvp
+       FROM events e JOIN users u ON e.organizer_id = u.id
+       ORDER BY e.date ASC`,
+      [req.userId]
+    )
+    const events = rows.map(e => ({
+      id: e.id,
+      title: e.title,
+      description: e.description,
+      date: e.date,
+      location: e.location,
+      organizer: e.organizer_name,
+      organizerId: e.organizer_id,
+      eventType: e.event_type,
+      ticketUrl: e.ticket_url,
+      cap: e.cap,
+      going: e.going_names ? e.going_names.split(',') : [],
+      maybe: e.maybe_names ? e.maybe_names.split(',') : [],
+      myRsvp: e.my_rsvp || null,
+    }))
+    res.json({ events })
+  } catch (err) {
+    console.error('GET /api/events error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/events — create event
+app.post('/api/events', authenticate, async (req, res) => {
+  try {
+    const { title, description, date, location, eventType, ticketUrl, cap } = req.body
+    if (!title || !date) return res.status(400).json({ error: 'Title and date required' })
+    const [result] = await pool.query(
+      `INSERT INTO events (organizer_id, title, description, date, location, event_type, ticket_url, cap) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [req.userId, title, description || null, date, location || null, eventType || null, ticketUrl || null, cap || null]
+    )
+    const [[event]] = await pool.query(
+      `SELECT e.*, u.name AS organizer_name FROM events e JOIN users u ON e.organizer_id = u.id WHERE e.id = ?`,
+      [result.insertId]
+    )
+    res.json({
+      id: event.id, title: event.title, description: event.description,
+      date: event.date, location: event.location, organizer: event.organizer_name,
+      organizerId: event.organizer_id, eventType: event.event_type,
+      ticketUrl: event.ticket_url, cap: event.cap, going: [], maybe: [], myRsvp: null,
+    })
+  } catch (err) {
+    console.error('POST /api/events error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// PUT /api/events/:id/rsvp — set RSVP for current user
+app.put('/api/events/:id/rsvp', authenticate, async (req, res) => {
+  try {
+    const { status, dietary, plusOne } = req.body
+    const [[event]] = await pool.query('SELECT id FROM events WHERE id = ?', [req.params.id])
+    if (!event) return res.status(404).json({ error: 'Event not found' })
+    if (status === null || status === undefined) {
+      await pool.query('DELETE FROM event_rsvps WHERE event_id = ? AND user_id = ?', [req.params.id, req.userId])
+    } else {
+      await pool.query(
+        `INSERT INTO event_rsvps (event_id, user_id, status, dietary, plus_one) VALUES (?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE status = VALUES(status), dietary = VALUES(dietary), plus_one = VALUES(plus_one)`,
+        [req.params.id, req.userId, status, dietary || null, plusOne ? 1 : 0]
+      )
+    }
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('PUT /api/events/:id/rsvp error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // Multer error handler
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
+    console.error(`[multer error] ${req.method} ${req.path}: ${err.code} – ${err.message}`)
     if (err.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: 'File too large (max 50 MB)' })
     if (err.code === 'LIMIT_FILE_COUNT') return res.status(400).json({ error: 'Too many files (max 4)' })
     return res.status(400).json({ error: err.message })
   }
-  if (err) return res.status(400).json({ error: err.message })
+  if (err) {
+    console.error(`[middleware error] ${req.method} ${req.path}: ${err.message}`)
+    return res.status(400).json({ error: err.message })
+  }
   next()
 })
 
@@ -1358,4 +2590,10 @@ app.listen(PORT, () => {
     console.warn('⚠️  WARNING: FB_TOKEN_ENCRYPTION_KEY not set. Facebook tokens will be stored unencrypted.')
     console.warn('   Generate a key with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"')
   }
+  initEvents()
+  initFriendRequests()
+  initConversations()
+  initMarketplace()
+  initAdminSettings()
+  initAnalytics()
 })

@@ -14,6 +14,14 @@ function headers() {
   return h
 }
 
+// For FormData/multipart requests: only include X-Session-Id if we actually have one.
+// Passing null/undefined would send the literal string "null" as the header value,
+// which causes the server to reject the request as "Session expired".
+function formHeaders() {
+  const sid = getSessionId()
+  return sid ? { 'X-Session-Id': sid } : {}
+}
+
 async function request(path, options = {}) {
   try {
     const res = await fetch(`${API_BASE}${path}`, {
@@ -99,7 +107,7 @@ export async function apiCreatePost(text, mediaFiles) {
     try {
       const res = await fetch(`${API_BASE}/api/feed`, {
         method: 'POST',
-        headers: { 'X-Session-Id': getSessionId() },
+        headers: formHeaders(),
         credentials: 'same-origin',
         body: form,
       })
@@ -119,15 +127,43 @@ export async function apiCreatePost(text, mediaFiles) {
   })
 }
 
-export async function apiToggleLike(postId) {
-  return await request(`/api/feed/${postId}/like`, { method: 'POST' })
+export async function apiToggleLike(postId, reaction) {
+  return await request(`/api/feed/${postId}/like`, {
+    method: 'POST',
+    body: JSON.stringify({ reaction }),
+  })
 }
 
-export async function apiAddComment(postId, text) {
+export async function apiAddComment(postId, text, mediaFile) {
+  if (mediaFile) {
+    const form = new FormData()
+    form.append('text', text)
+    form.append('media', mediaFile)
+    try {
+      const res = await fetch(`${API_BASE}/api/feed/${postId}/comment`, {
+        method: 'POST',
+        headers: formHeaders(),
+        credentials: 'same-origin',
+        body: form,
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error || `HTTP ${res.status}`)
+      }
+      return await res.json()
+    } catch (err) {
+      if (err.message === 'Failed to fetch') return null
+      throw err
+    }
+  }
   return await request(`/api/feed/${postId}/comment`, {
     method: 'POST',
     body: JSON.stringify({ text }),
   })
+}
+
+export async function apiDeletePost(postId) {
+  return await request(`/api/feed/${postId}`, { method: 'DELETE' })
 }
 
 // Profile
@@ -141,20 +177,72 @@ export async function apiFetchFriends() {
   return await request('/api/friends')
 }
 
-// Messages
-export async function apiFetchMessages() {
-  return await request('/api/messages')
+export async function apiSendFriendRequest(userId) {
+  return await request(`/api/friends/request/${userId}`, { method: 'POST' })
 }
 
-export async function apiSendMessage(friendId, text) {
-  return await request(`/api/messages/${friendId}`, {
+export async function apiFetchFriendRequests() {
+  return await request('/api/friends/requests')
+}
+
+export async function apiAcceptFriendRequest(requestId) {
+  return await request(`/api/friends/requests/${requestId}/accept`, { method: 'POST' })
+}
+
+export async function apiDeclineFriendRequest(requestId) {
+  return await request(`/api/friends/requests/${requestId}/decline`, { method: 'POST' })
+}
+
+export async function apiUnfriend(userId, notify = false) {
+  return await request(`/api/friends/${userId}${notify ? '?notify=1' : ''}`, { method: 'DELETE' })
+}
+
+// Conversations (replaces legacy /api/messages)
+export async function apiFetchConversations() {
+  return await request('/api/conversations')
+}
+
+export async function apiSendConversationMessage(conversationId, text) {
+  return await request(`/api/conversations/${conversationId}/messages`, {
     method: 'POST',
     body: JSON.stringify({ text }),
   })
 }
 
-export async function apiFetchOlderMessages(friendId, offset = 0, limit = 20) {
-  return await request(`/api/messages/${friendId}/older?offset=${offset}&limit=${limit}`)
+export async function apiFetchOlderConversationMessages(conversationId, offset = 0, limit = 20) {
+  return await request(`/api/conversations/${conversationId}/messages/older?offset=${offset}&limit=${limit}`)
+}
+
+export async function apiCreateConversation(participantIds, name = null, isGroup = false, isFamilyGroup = false) {
+  return await request('/api/conversations', {
+    method: 'POST',
+    body: JSON.stringify({ participantIds, name, isGroup, isFamilyGroup }),
+  })
+}
+
+export async function apiInviteToConversation(conversationId, userIds) {
+  return await request(`/api/conversations/${conversationId}/invite`, {
+    method: 'POST',
+    body: JSON.stringify({ userIds }),
+  })
+}
+
+export async function apiMuteConversation(conversationId, minutes) {
+  return await request(`/api/conversations/${conversationId}/mute`, {
+    method: 'POST',
+    body: JSON.stringify({ minutes }),
+  })
+}
+
+export async function apiLeaveConversation(conversationId) {
+  return await request(`/api/conversations/${conversationId}/leave`, { method: 'DELETE' })
+}
+
+export async function apiRenameConversation(conversationId, name) {
+  return await request(`/api/conversations/${conversationId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ name }),
+  })
 }
 
 // Facebook OAuth
@@ -219,6 +307,46 @@ export async function apiGetInvites() {
   return await request('/api/invites')
 }
 
+export async function apiCancelInvite(id) {
+  return await request(`/api/invites/${id}`, { method: 'DELETE' })
+}
+
+// Events
+export async function apiFetchEvents() {
+  return await request('/api/events')
+}
+
+export async function apiCreateEvent(data) {
+  return await request('/api/events', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function apiRsvpEvent(eventId, status, extras = {}) {
+  return await request(`/api/events/${eventId}/rsvp`, {
+    method: 'PUT',
+    body: JSON.stringify({ status, dietary: extras.dietary || null, plusOne: extras.plusOne || false }),
+  })
+}
+
+// Link preview
+export async function apiLinkPreview(url) {
+  return await request(`/api/link-preview?url=${encodeURIComponent(url)}`)
+}
+
+// Fetch a single post by ID (for search result navigation)
+export async function apiGetPost(id) {
+  return await request(`/api/posts/${id}`)
+}
+
+// Search all users (for add-friends)
+export async function apiSearchUsers(q) {
+  return await request(`/api/users/search?q=${encodeURIComponent(q)}`)
+}
+
+// Search (posts and messages the user is involved in)
+export async function apiSearch(q) {
+  return await request(`/api/search?q=${encodeURIComponent(q)}`)
+}
+
 // Profile avatar
 export async function apiUploadAvatar(file) {
   const form = new FormData()
@@ -226,7 +354,7 @@ export async function apiUploadAvatar(file) {
   try {
     const res = await fetch(`${API_BASE}/api/profile/avatar`, {
       method: 'POST',
-      headers: { 'X-Session-Id': getSessionId() },
+      headers: formHeaders(),
       credentials: 'same-origin',
       body: form,
     })
@@ -239,4 +367,91 @@ export async function apiUploadAvatar(file) {
     if (err.message === 'Failed to fetch') return null
     throw err
   }
+}
+
+// ── Marketplace ──
+export async function apiFetchListings({ category = '', location = '', q = '' } = {}) {
+  const params = new URLSearchParams()
+  if (category) params.set('category', category)
+  if (location) params.set('location', location)
+  if (q) params.set('q', q)
+  return await request(`/api/marketplace?${params}`)
+}
+
+export async function apiFetchMyListings() {
+  return await request('/api/marketplace/mine')
+}
+
+export async function apiCreateListing(formData) {
+  try {
+    const res = await fetch(`${API_BASE}/api/marketplace`, {
+      method: 'POST',
+      headers: formHeaders(),
+      credentials: 'same-origin',
+      body: formData,
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.error || `HTTP ${res.status}`)
+    }
+    return await res.json()
+  } catch (err) {
+    if (err.message === 'Failed to fetch') return null
+    throw err
+  }
+}
+
+export async function apiUpdateListing(id, formData) {
+  try {
+    const res = await fetch(`${API_BASE}/api/marketplace/${id}`, {
+      method: 'PUT',
+      headers: formHeaders(),
+      credentials: 'same-origin',
+      body: formData,
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.error || `HTTP ${res.status}`)
+    }
+    return await res.json()
+  } catch (err) {
+    if (err.message === 'Failed to fetch') return null
+    throw err
+  }
+}
+
+export async function apiMarkListingSold(id) {
+  return await request(`/api/marketplace/${id}/sold`, { method: 'POST' })
+}
+
+export async function apiDeleteListing(id) {
+  return await request(`/api/marketplace/${id}`, { method: 'DELETE' })
+}
+
+export async function apiBoostListing(id) {
+  return await request(`/api/marketplace/${id}/boost`, { method: 'POST' })
+}
+
+// ── Admin ──
+export async function apiGetAdminSettings() {
+  return await request('/api/admin/settings')
+}
+
+export async function apiSaveAdminSettings(data) {
+  return await request('/api/admin/settings', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function apiGetAdminStats() {
+  return await request('/api/admin/stats')
+}
+
+export async function apiGetAnalytics(days = 30) {
+  return await request(`/api/analytics?days=${days}`)
+}
+
+export async function apiUpdateMode(mode) {
+  return await request('/api/me/mode', { method: 'PATCH', body: JSON.stringify({ mode }) })
 }

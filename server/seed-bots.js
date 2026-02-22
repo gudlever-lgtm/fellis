@@ -120,14 +120,23 @@ async function seedBots() {
     }
     console.log(`Bots commented on ${commentCount} existing posts`)
 
-    // Bots like existing posts
+    // Bots like existing posts with reactions
+    const BOT_REACTIONS = ['👍', '❤️', '😄', '😮', '❤️', '👍'] // weighted toward positive
     let likeCount = 0
     for (const post of existingPosts) {
       for (const botId of botIds) {
-        await conn.query(
-          'INSERT IGNORE INTO post_likes (post_id, user_id) VALUES (?, ?)',
-          [post.id, botId]
-        )
+        const reaction = BOT_REACTIONS[Math.floor(Math.random() * BOT_REACTIONS.length)]
+        try {
+          await conn.query(
+            'INSERT IGNORE INTO post_likes (post_id, user_id, reaction) VALUES (?, ?, ?)',
+            [post.id, botId, reaction]
+          )
+        } catch {
+          await conn.query(
+            'INSERT IGNORE INTO post_likes (post_id, user_id) VALUES (?, ?)',
+            [post.id, botId]
+          )
+        }
         await conn.query(
           'UPDATE posts SET likes = likes + 1 WHERE id = ?',
           [post.id]
@@ -135,7 +144,7 @@ async function seedBots() {
         likeCount++
       }
     }
-    console.log(`Bots liked ${likeCount} posts`)
+    console.log(`Bots liked ${likeCount} posts with reactions`)
 
     console.log('\n✅ Bots seeded! Login: anna.bot@fellis.eu / bot123 or erik.bot@fellis.eu / bot123')
     console.log('To remove bots: node --env-file=.env cleanup-bots.js')
