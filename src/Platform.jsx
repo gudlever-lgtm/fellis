@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { PT, nameToColor, getInitials } from './data.js'
 import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiFetchProfile, apiFetchFriends, apiFetchMessages, apiSendMessage, apiFetchOlderMessages, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink } from './api.js'
+import AnalyticsPage, { PostInsightsPanel } from './Analytics.jsx'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -8,6 +9,12 @@ export default function Platform({ lang: initialLang, onLogout }) {
   const [lang, setLang] = useState(initialLang || 'da')
   const [page, setPage] = useState('feed')
   const [currentUser, setCurrentUser] = useState({ name: '', handle: '', initials: '' })
+  const [plan, setPlan] = useState(() => localStorage.getItem('fellis_plan') || 'business')
+
+  const handleUpgradePlan = useCallback((newPlan) => {
+    setPlan(newPlan)
+    localStorage.setItem('fellis_plan', newPlan)
+  }, [])
   const [showAvatarMenu, setShowAvatarMenu] = useState(false)
   const avatarMenuRef = useRef(null)
   const t = PT[lang]
@@ -52,11 +59,13 @@ export default function Platform({ lang: initialLang, onLogout }) {
   const menuT = lang === 'da' ? {
     viewProfile: 'Se profil',
     editProfile: 'Rediger profil',
+    analytics: 'Analyser',
     privacy: 'Privatliv & Data',
     logout: 'Log ud',
   } : {
     viewProfile: 'View profile',
     editProfile: 'Edit profile',
+    analytics: 'Analytics',
     privacy: 'Privacy & Data',
     logout: 'Log out',
   }
@@ -72,13 +81,15 @@ export default function Platform({ lang: initialLang, onLogout }) {
           </div>
         </div>
         <div className="p-nav-tabs">
-          {['feed', 'friends', 'messages'].map(p => (
+          {['feed', 'friends', 'messages', 'analytics'].map(p => (
             <button
               key={p}
               className={`p-nav-tab${page === p ? ' active' : ''}`}
               onClick={() => navigateTo(p)}
             >
-              <span className="p-nav-tab-icon">{p === 'feed' ? '🏠' : p === 'friends' ? '👥' : '💬'}</span>
+              <span className="p-nav-tab-icon">
+                {p === 'feed' ? '🏠' : p === 'friends' ? '👥' : p === 'messages' ? '💬' : '📊'}
+              </span>
               <span className="p-nav-tab-label">{t[p] || p}</span>
             </button>
           ))}
@@ -99,6 +110,16 @@ export default function Platform({ lang: initialLang, onLogout }) {
                 <div className="avatar-dropdown-header">
                   <strong>{currentUser.name}</strong>
                   <span style={{ fontSize: 12, color: '#888' }}>{currentUser.handle}</span>
+                  <span style={{
+                    fontSize: 11, fontWeight: 700, marginTop: 4,
+                    padding: '2px 8px', borderRadius: 10,
+                    background: plan === 'business_pro' ? '#2D6A4F' : '#F0FAF4',
+                    color: plan === 'business_pro' ? '#fff' : '#2D6A4F',
+                    border: plan === 'business_pro' ? 'none' : '1px solid #2D6A4F',
+                    alignSelf: 'flex-start',
+                  }}>
+                    {plan === 'business_pro' ? 'Business Pro ⚡' : 'Business'}
+                  </span>
                 </div>
                 <div className="avatar-dropdown-divider" />
                 <button className="avatar-dropdown-item" onClick={() => navigateTo('profile')}>
@@ -106,6 +127,9 @@ export default function Platform({ lang: initialLang, onLogout }) {
                 </button>
                 <button className="avatar-dropdown-item" onClick={() => navigateTo('edit-profile')}>
                   <span>✏️</span> {menuT.editProfile}
+                </button>
+                <button className="avatar-dropdown-item" onClick={() => navigateTo('analytics')}>
+                  <span>📊</span> {menuT.analytics}
                 </button>
                 <button className="avatar-dropdown-item" onClick={() => navigateTo('privacy')}>
                   <span>🔒</span> {menuT.privacy}
@@ -121,12 +145,13 @@ export default function Platform({ lang: initialLang, onLogout }) {
       </nav>
 
       <div className="p-content">
-        {page === 'feed' && <FeedPage lang={lang} t={t} currentUser={currentUser} />}
-        {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} onUserUpdate={setCurrentUser} />}
+        {page === 'feed' && <FeedPage lang={lang} t={t} currentUser={currentUser} plan={plan} />}
+        {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} plan={plan} onUserUpdate={setCurrentUser} />}
         {page === 'edit-profile' && <EditProfilePage lang={lang} t={t} currentUser={currentUser} onUserUpdate={setCurrentUser} onNavigate={navigateTo} />}
         {page === 'friends' && <FriendsPage lang={lang} t={t} onMessage={() => navigateTo('messages')} />}
         {page === 'messages' && <MessagesPage lang={lang} t={t} currentUser={currentUser} />}
         {page === 'privacy' && <PrivacySection lang={lang} onLogout={onLogout} />}
+        {page === 'analytics' && <AnalyticsPage lang={lang} currentPlan={plan} onUpgradePlan={handleUpgradePlan} />}
       </div>
     </div>
   )
@@ -185,7 +210,7 @@ function PostMedia({ media }) {
 // ── Feed ──
 const PAGE_SIZE = 20
 
-function FeedPage({ lang, t, currentUser }) {
+function FeedPage({ lang, t, currentUser, plan }) {
   const [posts, setPosts] = useState([])
   const [offset, setOffset] = useState(0)
   const [total, setTotal] = useState(0)
@@ -198,6 +223,7 @@ function FeedPage({ lang, t, currentUser }) {
   const [commentTexts, setCommentTexts] = useState({})
   const [commentMedia, setCommentMedia] = useState({})
   const [shareToast, setShareToast] = useState(null)
+  const [openInsights, setOpenInsights] = useState(null) // postId
   const fileInputRef = useRef(null)
   const commentFileRefs = useRef({})
   const bottomSentinelRef = useRef(null)
@@ -451,10 +477,18 @@ function FeedPage({ lang, t, currentUser }) {
               <div className="p-avatar-sm" style={{ background: nameToColor(post.author) }}>
                 {getInitials(post.author)}
               </div>
-              <div>
+              <div style={{ flex: 1 }}>
                 <div className="p-post-author">{post.author}</div>
                 <div className="p-post-time">{post.time[lang]}</div>
               </div>
+              {post.author === currentUser.name && (
+                <button
+                  className="p-insights-link"
+                  onClick={() => setOpenInsights(openInsights === post.id ? null : post.id)}
+                >
+                  📊 {lang === 'da' ? 'Se indsigt' : 'See insights'}
+                </button>
+              )}
             </div>
             <div className="p-post-body">{post.text[lang]}</div>
             {post.media && <PostMedia media={post.media} />}
@@ -475,6 +509,10 @@ function FeedPage({ lang, t, currentUser }) {
                 ↗ {t.share} {shareToast === post.id && <span style={{ fontSize: 11, color: '#2D6A4F' }}>✓</span>}
               </button>
             </div>
+            {/* Post insights panel (own posts only) */}
+            {openInsights === post.id && (
+              <PostInsightsPanel post={post} lang={lang} onClose={() => setOpenInsights(null)} />
+            )}
             {showComments && (
               <div className="p-comments">
                 {post.comments.map((c, i) => (
@@ -551,7 +589,7 @@ function FeedPage({ lang, t, currentUser }) {
 }
 
 // ── Profile (clean — read-only view) ──
-function ProfilePage({ lang, t, currentUser, onUserUpdate }) {
+function ProfilePage({ lang, t, currentUser, plan, onUserUpdate }) {
   const [profile, setProfile] = useState({ ...currentUser })
   const [userPosts, setUserPosts] = useState([])
   const [showPassword, setShowPassword] = useState(false)
@@ -590,7 +628,18 @@ function ProfilePage({ lang, t, currentUser, onUserUpdate }) {
               </div>
             )}
           </div>
-          <h2 className="p-profile-name">{profile.name}</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
+            <h2 className="p-profile-name" style={{ margin: 0 }}>{profile.name}</h2>
+            <span style={{
+              fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 10,
+              background: plan === 'business_pro' ? '#2D6A4F' : '#F0FAF4',
+              color: plan === 'business_pro' ? '#fff' : '#2D6A4F',
+              border: plan === 'business_pro' ? 'none' : '1px solid #2D6A4F',
+              flexShrink: 0,
+            }}>
+              {plan === 'business_pro' ? 'Business Pro ⚡' : 'Business'}
+            </span>
+          </div>
           <p className="p-profile-handle">{profile.handle}</p>
           <p className="p-profile-bio">{profile.bio?.[lang] || profile.bio?.da || ''}</p>
           <div className="p-profile-meta">

@@ -2064,3 +2064,57 @@
     gap: 4px;
   }
 }
+
+/* ── Business Analytics ── */
+.p-insights-link {
+  background: none;
+  border: 1px solid #b3dfc5;
+  color: #2D6A4F;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 16px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s, border-color 0.2s;
+  flex-shrink: 0;
+}
+.p-insights-link:hover {
+  background: #F0FAF4;
+  border-color: #2D6A4F;
+}
+
+/* Avatar dropdown — plan badge row */
+.avatar-dropdown-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Analytics grid responsive */
+@media (max-width: 600px) {
+  .p-nav-tab-label {
+    display: none;
+  }
+  .p-nav-tab {
+    padding: 8px 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Audience grid stacks on small screens */
+  [style*="grid-template-columns: 1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media print {
+  .p-nav,
+  .p-insights-link,
+  .modal-backdrop {
+    display: none !important;
+  }
+  .p-content {
+    padding: 0;
+  }
+}
