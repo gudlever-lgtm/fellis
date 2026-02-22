@@ -361,6 +361,9 @@ pool.query('ALTER TABLE marketplace_listings ADD COLUMN IF NOT EXISTS contact_ph
 pool.query('ALTER TABLE marketplace_listings ADD COLUMN IF NOT EXISTS contact_email VARCHAR(255) DEFAULT NULL')
   .catch(err => console.error('Migration (marketplace_listings.contact_email):', err.message))
 
+pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS mode VARCHAR(20) DEFAULT 'privat'")
+  .catch(err => console.error('Migration (users.mode):', err.message))
+
 // Serve uploads with security headers (no script execution, no sniffing)
 app.use('/uploads', (req, res, next) => {
   // Block anything that isn't GET
@@ -842,6 +845,18 @@ app.get('/api/profile', authenticate, async (req, res) => {
     })
   } catch (err) {
     res.status(500).json({ error: 'Failed to load profile' })
+  }
+})
+
+// PATCH /api/me/mode — update user mode (privat / business)
+app.patch('/api/me/mode', authenticate, async (req, res) => {
+  const { mode } = req.body
+  if (!['privat', 'business'].includes(mode)) return res.status(400).json({ error: 'Invalid mode' })
+  try {
+    await pool.query('UPDATE users SET mode = ? WHERE id = ?', [mode, req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update mode' })
   }
 })
 
@@ -2285,7 +2300,9 @@ app.get('/api/admin/stats', authenticate, requireAdmin, async (req, res) => {
     const [[{ messages }]] = await pool.query('SELECT COUNT(*) as messages FROM messages')
     const [[{ new_users_7d }]] = await pool.query("SELECT COUNT(*) as new_users_7d FROM users WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)").catch(() => [[{ new_users_7d: 0 }]])
     const [[{ rsvps }]] = await pool.query("SELECT COUNT(*) as rsvps FROM event_rsvps WHERE status = 'going'").catch(() => [[{ rsvps: 0 }]])
-    res.json({ users, active_users, posts, events, listings, friendships, messages, new_users_7d, rsvps })
+    const [[{ users_privat }]] = await pool.query("SELECT COUNT(*) as users_privat FROM users WHERE mode = 'privat' OR mode IS NULL").catch(() => [[{ users_privat: 0 }]])
+    const [[{ users_business }]] = await pool.query("SELECT COUNT(*) as users_business FROM users WHERE mode = 'business'").catch(() => [[{ users_business: 0 }]])
+    res.json({ users, active_users, posts, events, listings, friendships, messages, new_users_7d, rsvps, users_privat, users_business })
   } catch (err) {
     console.error('GET /api/admin/stats error:', err.message)
     res.status(500).json({ error: 'Server error' })

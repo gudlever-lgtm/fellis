@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { PT, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiDeletePost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiFetchEvents, apiCreateEvent, apiRsvpEvent } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiDeletePost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateMode } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -70,6 +70,9 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
     localStorage.setItem('fellis_mode', newMode)
     setNotifs(makeMockNotifs(newMode))
     setShowModeModal(false)
+    // Sync mode to server so admin stats can segment by mode
+    const serverMode = newMode === 'business' ? 'business' : 'privat'
+    apiUpdateMode(serverMode).catch(() => {})
   }
 
   const markAllRead = () => {
@@ -82,11 +85,14 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
 
   const toggleLang = useCallback(() => setLang(p => p === 'da' ? 'en' : 'da'), [])
 
-  // Load current user from session
+  // Load current user from session + sync mode to server
   useEffect(() => {
     apiCheckSession().then(data => {
       if (data?.user) {
         setCurrentUser(prev => ({ ...prev, ...data.user }))
+        // Sync current localStorage mode to server (for admin stats)
+        const serverMode = mode === 'business' ? 'business' : 'privat'
+        apiUpdateMode(serverMode).catch(() => {})
       } else {
         // Session expired — log out
         onLogout()
@@ -94,7 +100,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
     }).catch(() => {
       onLogout()
     })
-  }, [onLogout])
+  }, [onLogout]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -5280,6 +5286,15 @@ function MarketplacePage({ lang, t, currentUser, onContactSeller }) {
           listingDesc={listingDesc}
           onClose={() => setSelectedListing(null)}
           onContactSeller={onContactSeller}
+          onEdit={() => {
+            setEditListing(selectedListing)
+            setShowForm(true)
+            setSelectedListing(null)
+          }}
+          onMarkSold={async () => {
+            await handleMarkSold(selectedListing.id)
+            setSelectedListing(prev => prev ? { ...prev, sold: true } : null)
+          }}
         />
       )}
 
@@ -5298,7 +5313,7 @@ function MarketplacePage({ lang, t, currentUser, onContactSeller }) {
   )
 }
 
-function ListingDetailModal({ listing, t, lang, currentUser, catLabel, catIcon, listingTitle, listingDesc, onClose, onContactSeller }) {
+function ListingDetailModal({ listing, t, lang, currentUser, catLabel, catIcon, listingTitle, listingDesc, onClose, onContactSeller, onEdit, onMarkSold }) {
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', handler)
@@ -5337,8 +5352,33 @@ function ListingDetailModal({ listing, t, lang, currentUser, catLabel, catIcon, 
             {listing.postedAt && <span>📅 {listing.postedAt}</span>}
           </div>
           {listingDesc(listing) && <p className="p-listing-detail-desc">{listingDesc(listing)}</p>}
+
+          {/* Owner actions */}
+          {isOwn && (
+            <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+              <button
+                className="p-marketplace-create-btn"
+                style={{ flex: 1, justifyContent: 'center', background: '#fff', color: '#2D6A4F', border: '1.5px solid #2D6A4F' }}
+                onClick={() => { onEdit?.(); }}
+              >
+                ✏️ {lang === 'da' ? 'Rediger' : 'Edit'}
+              </button>
+              {!listing.sold && (
+                <button
+                  className="p-marketplace-create-btn"
+                  style={{ flex: 1, justifyContent: 'center', background: '#fff', color: '#E07B39', border: '1.5px solid #E07B39' }}
+                  onClick={() => { onMarkSold?.(); }}
+                >
+                  ✅ {lang === 'da' ? 'Marker som solgt' : 'Mark as sold'}
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Contact section for other users */}
           {!isOwn && !listing.sold && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
+              {/* Primary: Fellis messages — always default for public listings */}
               {typeof listing.sellerId === 'number' && listing.sellerId > 0 ? (
                 <button
                   className="p-marketplace-create-btn"
@@ -5348,27 +5388,35 @@ function ListingDetailModal({ listing, t, lang, currentUser, catLabel, catIcon, 
                   💬 {t.marketplaceContactSeller}
                 </button>
               ) : (
-                <div style={{ textAlign: 'center', color: '#aaa', fontSize: 13, padding: '8px 0' }}>
-                  {lang === 'da' ? 'Sælgeren er ikke på Fellis — kontakt via MobilePay' : 'Seller is not on Fellis — contact via MobilePay'}
+                <div style={{ textAlign: 'center', color: '#aaa', fontSize: 13, padding: '4px 0' }}>
+                  {lang === 'da' ? 'Sælgeren er ikke på Fellis' : 'Seller is not on Fellis'}
                 </div>
               )}
-              {listing.mobilepay && (
-                <a href={`mobilepay://send?phone=${listing.mobilepay}`}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 16px', borderRadius: 8, border: '2px solid #5A78FF', color: '#5A78FF', fontWeight: 700, fontSize: 14, textDecoration: 'none', background: '#fff' }}>
-                  📱 MobilePay · {listing.mobilepay}
-                </a>
-              )}
-              {listing.contact_phone && (
-                <a href={`tel:${listing.contact_phone}`}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 16px', borderRadius: 8, border: '1.5px solid #ddd', color: '#333', fontWeight: 600, fontSize: 14, textDecoration: 'none', background: '#fff' }}>
-                  📞 {listing.contact_phone}
-                </a>
-              )}
-              {listing.contact_email && (
-                <a href={`mailto:${listing.contact_email}`}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 16px', borderRadius: 8, border: '1.5px solid #ddd', color: '#333', fontWeight: 600, fontSize: 14, textDecoration: 'none', background: '#fff' }}>
-                  ✉️ {listing.contact_email}
-                </a>
+              {/* Additional contact options */}
+              {(listing.mobilepay || listing.contact_phone || listing.contact_email) && (
+                <div style={{ borderTop: '1px solid #f0ebe5', paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ fontSize: 11, color: '#aaa', textAlign: 'center', marginBottom: 2 }}>
+                    {lang === 'da' ? 'Andre kontaktmuligheder' : 'Other contact options'}
+                  </div>
+                  {listing.mobilepay && (
+                    <a href={`mobilepay://send?phone=${listing.mobilepay}`}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 16px', borderRadius: 8, border: '2px solid #5A78FF', color: '#5A78FF', fontWeight: 700, fontSize: 14, textDecoration: 'none', background: '#fff' }}>
+                      📱 MobilePay · {listing.mobilepay}
+                    </a>
+                  )}
+                  {listing.contact_phone && (
+                    <a href={`tel:${listing.contact_phone}`}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 16px', borderRadius: 8, border: '1.5px solid #ddd', color: '#333', fontWeight: 600, fontSize: 14, textDecoration: 'none', background: '#fff' }}>
+                      📞 {listing.contact_phone}
+                    </a>
+                  )}
+                  {listing.contact_email && (
+                    <a href={`mailto:${listing.contact_email}`}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 16px', borderRadius: 8, border: '1.5px solid #ddd', color: '#333', fontWeight: 600, fontSize: 14, textDecoration: 'none', background: '#fff' }}>
+                      ✉️ {listing.contact_email}
+                    </a>
+                  )}
+                </div>
               )}
             </div>
           )}
@@ -5479,7 +5527,12 @@ function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, onClose
           <label style={lS}>{t.marketplaceFieldLocation}</label>
           <input style={fS} value={location} onChange={e => setLocation(e.target.value)} placeholder={lang === 'da' ? 'f.eks. Nørrebro, København' : 'e.g. Nørrebro, Copenhagen'} required />
 
-          <label style={{ ...lS, marginTop: 4 }}>{lang === 'da' ? 'Kontaktmuligheder (valgfrit)' : 'Contact options (optional)'}</label>
+          <div style={{ marginTop: 8, marginBottom: 4 }}>
+            <label style={lS}>{lang === 'da' ? 'Ekstra kontaktmuligheder (valgfrit)' : 'Extra contact options (optional)'}</label>
+            <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
+              {lang === 'da' ? '💬 Fellis beskeder er standard — tilføj ekstra muligheder nedenfor hvis ønsket' : '💬 Fellis messages is the default — add extra options below if desired'}
+            </div>
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
             <span style={{ fontSize: 18, flexShrink: 0 }}>📱</span>
             <input style={{ ...fS, marginBottom: 0, flex: 1 }} value={mobilepay} onChange={e => setMobilepay(e.target.value.replace(/\D/g, '').slice(0, 8))} placeholder={lang === 'da' ? 'MobilePay (f.eks. 20123456)' : 'MobilePay (e.g. 20123456)'} maxLength={8} inputMode="numeric" />
@@ -5994,6 +6047,7 @@ function AdminPage({ lang, t }) {
               {lang === 'da' ? 'Henter statistik…' : 'Loading statistics…'}
             </div>
           ) : (
+            <>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
               {statItems.map(s => (
                 <div key={s.label} className="p-card" style={{ textAlign: 'center', padding: '20px 16px' }}>
@@ -6003,6 +6057,39 @@ function AdminPage({ lang, t }) {
                 </div>
               ))}
             </div>
+
+            {/* Mode segmentation */}
+            <div className="p-card" style={{ marginTop: 16, padding: '20px 24px' }}>
+              <h3 style={{ margin: '0 0 14px', fontSize: 15, fontWeight: 700 }}>
+                {lang === 'da' ? '📊 Brugere pr. tilstand' : '📊 Users by mode'}
+              </h3>
+              {(() => {
+                const privat = stats.users_privat ?? 0
+                const business = stats.users_business ?? 0
+                const total = privat + business || 1
+                const pctPrivat = Math.round((privat / total) * 100)
+                const pctBusiness = 100 - pctPrivat
+                return (
+                  <div>
+                    <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
+                      <div style={{ flex: 1, background: '#F0FAF4', border: '1px solid #b7dfca', borderRadius: 10, padding: '14px 16px', textAlign: 'center' }}>
+                        <div style={{ fontSize: 22, fontWeight: 800, color: '#2D6A4F' }}>{privat}</div>
+                        <div style={{ fontSize: 12, color: '#555', marginTop: 2 }}>🏠 {lang === 'da' ? 'Privat' : 'Private'} ({pctPrivat}%)</div>
+                      </div>
+                      <div style={{ flex: 1, background: '#EBF4FF', border: '1px solid #b3d4f5', borderRadius: 10, padding: '14px 16px', textAlign: 'center' }}>
+                        <div style={{ fontSize: 22, fontWeight: 800, color: '#1877F2' }}>{business}</div>
+                        <div style={{ fontSize: 12, color: '#555', marginTop: 2 }}>💼 {lang === 'da' ? 'Business' : 'Business'} ({pctBusiness}%)</div>
+                      </div>
+                    </div>
+                    <div style={{ height: 10, borderRadius: 5, overflow: 'hidden', display: 'flex', background: '#f5f0eb' }}>
+                      <div style={{ width: `${pctPrivat}%`, background: '#2D6A4F', transition: 'width 0.4s' }} />
+                      <div style={{ width: `${pctBusiness}%`, background: '#1877F2', transition: 'width 0.4s' }} />
+                    </div>
+                  </div>
+                )
+              })()}
+            </div>
+            </>
           )}
         </div>
       )}
