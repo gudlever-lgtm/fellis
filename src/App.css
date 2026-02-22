@@ -1100,7 +1100,7 @@
 .p-new-post-prompt {
   flex: 1;
   border: 1px solid #E8E4DF;
-  border-radius: 20px;
+  border-radius: 12px;
   padding: 10px 16px;
   font-size: 14px;
   color: #A09890;
@@ -1975,9 +1975,33 @@
   font-weight: 600;
   font-size: 14px;
 }
+.p-friend-card-status {
+  font-size: 12px;
+  color: #A09890;
+  margin-top: -2px;
+}
+.p-friend-card-status.online {
+  color: #52B788;
+  font-weight: 600;
+}
 .p-friend-card-mutual {
   font-size: 12px;
   color: #A09890;
+}
+.p-friends-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 48px 20px;
+  color: #A09890;
+}
+.p-friends-empty-icon {
+  font-size: 36px;
+  display: block;
+  margin-bottom: 10px;
+  opacity: 0.5;
+}
+.p-friends-empty p {
+  font-size: 14px;
 }
 .p-friend-msg-btn {
   background: #F0FAF4;

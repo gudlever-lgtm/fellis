@@ -1150,6 +1150,22 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
             </div>
           </>
         )}
+        <div className="p-new-post-toolbar">
+          <div className="p-new-post-toolbar-left">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
+              multiple
+              style={{ display: 'none' }}
+              onChange={handleFileSelect}
+            />
+            <button className="p-media-btn" onClick={() => fileInputRef.current?.click()} title={lang === 'da' ? 'Tilføj billede/video' : 'Add image/video'}>
+              📷 <span className="p-media-btn-label">{lang === 'da' ? 'Foto/Video' : 'Photo/Video'}</span>
+            </button>
+          </div>
+          <button className="p-post-btn" onClick={handlePost} disabled={!newPostText.trim()}>{t.post}</button>
+        </div>
       </div>
 
       {/* Top sentinel — triggers loading previous page */}
@@ -2892,6 +2908,9 @@ function FriendsPage({ lang, t, mode, onMessage }) {
                   {friend.online && <div className="online-dot" />}
                 </div>
                 <div className="p-friend-card-name">{friend.name}</div>
+                <div className={`p-friend-card-status${friend.online ? ' online' : ''}`}>
+                  {friend.online ? (lang === 'da' ? 'Online' : 'Online') : (lang === 'da' ? 'Offline' : 'Offline')}
+                </div>
                 {rels[String(friend.id)] ? (
                   <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: '#EBF4FF', color: '#1877F2', fontWeight: 600 }}>
                     {REL_OPTS.find(r => r.key === rels[String(friend.id)])?.label}
@@ -2936,6 +2955,16 @@ function FriendsPage({ lang, t, mode, onMessage }) {
               </div>
             </div>
           ))}
+          {filtered.length === 0 && (
+            <div className="p-friends-empty">
+              <span className="p-friends-empty-icon">👥</span>
+              <p>
+                {filter === 'online'
+                  ? (lang === 'da' ? 'Ingen venner er online lige nu' : 'No friends are online right now')
+                  : (lang === 'da' ? 'Du har endnu ingen venner på fellis' : 'You have no friends on fellis yet')}
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>
