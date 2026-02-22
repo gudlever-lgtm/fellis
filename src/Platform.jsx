@@ -5086,7 +5086,7 @@ function MarketplacePage({ lang, t, currentUser, onContactSeller }) {
   }
 
   const handleUpdate = async (id, formData, localListing) => {
-    const result = await apiUpdateListing(id, localListing)
+    const result = await apiUpdateListing(id, formData)
     const updated = result || localListing
     setListings(prev => prev.map(l => l.id === id ? { ...l, ...updated } : l))
     setMyListings(prev => prev.map(l => l.id === id ? { ...l, ...updated } : l))
@@ -5481,7 +5481,16 @@ function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, onClose
     if (phone.trim()) formData.append('contact_phone', phone.trim())
     if (contactEmail.trim()) formData.append('contact_email', contactEmail.trim())
     photoFiles.forEach(f => formData.append('photos', f))
-    isEdit ? onSubmit(listing.id, formData, localListing) : onSubmit(formData, localListing)
+    if (isEdit) {
+      // Tell server which existing photos to keep (non-blob URLs already on server)
+      const existingPhotos = photoPreviews
+        .filter(url => !url.startsWith('blob:'))
+        .map(url => ({ url, type: 'image' }))
+      formData.append('existingPhotos', JSON.stringify(existingPhotos))
+      onSubmit(listing.id, formData, localListing)
+    } else {
+      onSubmit(formData, localListing)
+    }
   }
 
   const fS = { width: '100%', padding: '8px 10px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 12 }

@@ -393,11 +393,23 @@ export async function apiCreateListing(formData) {
   }
 }
 
-export async function apiUpdateListing(id, data) {
-  return await request(`/api/marketplace/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(data),
-  })
+export async function apiUpdateListing(id, formData) {
+  try {
+    const res = await fetch(`${API_BASE}/api/marketplace/${id}`, {
+      method: 'PUT',
+      headers: { 'X-Session-Id': getSessionId() },
+      credentials: 'same-origin',
+      body: formData,
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.error || `HTTP ${res.status}`)
+    }
+    return await res.json()
+  } catch (err) {
+    if (err.message === 'Failed to fetch') return null
+    throw err
+  }
 }
 
 export async function apiMarkListingSold(id) {

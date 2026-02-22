@@ -360,6 +360,8 @@ pool.query('ALTER TABLE marketplace_listings ADD COLUMN IF NOT EXISTS contact_ph
   .catch(err => console.error('Migration (marketplace_listings.contact_phone):', err.message))
 pool.query('ALTER TABLE marketplace_listings ADD COLUMN IF NOT EXISTS contact_email VARCHAR(255) DEFAULT NULL')
   .catch(err => console.error('Migration (marketplace_listings.contact_email):', err.message))
+pool.query('ALTER TABLE marketplace_listings ADD COLUMN IF NOT EXISTS sold TINYINT(1) NOT NULL DEFAULT 0')
+  .catch(err => console.error('Migration (marketplace_listings.sold):', err.message))
 
 pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS mode VARCHAR(20) DEFAULT 'privat'")
   .catch(err => console.error('Migration (users.mode):', err.message))
@@ -2204,13 +2206,17 @@ app.put('/api/marketplace/:id', authenticate, upload.array('photos', 10), async 
     const [[existing]] = await pool.query('SELECT user_id FROM marketplace_listings WHERE id = ?', [req.params.id])
     if (!existing) return res.status(404).json({ error: 'Not found' })
     if (existing.user_id !== req.userId) return res.status(403).json({ error: 'Forbidden' })
-    const photos = (req.files || []).map(f => ({ url: `/uploads/${f.filename}`, type: 'image', mime: f.mimetype }))
-    const photosJson = photos.length ? JSON.stringify(photos) : (req.body.keepPhotos === '1' ? undefined : null)
+    // Merge existing photos (kept by client) with any newly uploaded files
+    let existingPhotos = []
+    if (req.body.existingPhotos) {
+      try { existingPhotos = JSON.parse(req.body.existingPhotos) } catch {}
+    }
+    const newPhotos = (req.files || []).map(f => ({ url: `/uploads/${f.filename}`, type: 'image', mime: f.mimetype }))
+    const allPhotos = [...existingPhotos, ...newPhotos]
+    const photosJson = allPhotos.length ? JSON.stringify(allPhotos) : null
     await pool.query(
-      `UPDATE marketplace_listings SET title=?, price=?, category=?, location=?, description=?, mobilepay=?, contact_phone=?, contact_email=?${photosJson !== undefined ? ', photos=?' : ''} WHERE id=?`,
-      photosJson !== undefined
-        ? [title, price || null, category, location || null, description || null, mobilepay || null, contact_phone || null, contact_email || null, photosJson, req.params.id]
-        : [title, price || null, category, location || null, description || null, mobilepay || null, contact_phone || null, contact_email || null, req.params.id]
+      `UPDATE marketplace_listings SET title=?, price=?, category=?, location=?, description=?, mobilepay=?, contact_phone=?, contact_email=?, photos=? WHERE id=?`,
+      [title, price || null, category, location || null, description || null, mobilepay || null, contact_phone || null, contact_email || null, photosJson, req.params.id]
     )
     const [[listing]] = await pool.query(
       `SELECT l.*, u.name AS seller_name FROM marketplace_listings l JOIN users u ON l.user_id = u.id WHERE l.id = ?`,
