@@ -265,6 +265,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
           <FeedPage lang={lang} t={t} currentUser={currentUser} mode={mode} highlightPostId={highlightPostId} onHighlightCleared={() => setHighlightPostId(null)}
             onViewProfile={(uid) => { setViewUserId(uid); navigateTo('view-profile') }}
             onViewOwnProfile={() => navigateTo('profile')}
+            onNavigateToCompany={() => navigateTo('company')}
           />
         </div>
         {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} />}
@@ -638,7 +639,7 @@ function MentionDropdown({ filtered, selIdx, onSelect }) {
   )
 }
 
-function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile }) {
+function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onNavigateToCompany }) {
   const [posts, setPosts] = useState([])
   const [pinnedPost, setPinnedPost] = useState(null)
   const pinnedRef = useRef(null)
@@ -1206,11 +1207,11 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
       {offset === 0 && MOCK_COMPANIES[0] && (
         <div className="p-card p-post">
           <div className="p-post-header">
-            <div className="p-company-logo-sm" style={{ background: MOCK_COMPANIES[0].color, borderRadius: 8, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 16, flexShrink: 0 }}>
+            <div className="p-company-logo-sm" style={{ background: MOCK_COMPANIES[0].color, borderRadius: 8, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 16, flexShrink: 0, cursor: 'pointer' }} onClick={onNavigateToCompany}>
               {MOCK_COMPANIES[0].name[0]}
             </div>
             <div>
-              <div className="p-post-author">{MOCK_COMPANIES[0].name}</div>
+              <div className="p-post-author" style={{ cursor: 'pointer' }} onClick={onNavigateToCompany}>{MOCK_COMPANIES[0].name}</div>
               <div className="p-post-time" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span className="p-event-type-badge" style={{ padding: '1px 6px', fontSize: 10 }}>{t.companyFeedLabel}</span>
                 <span>{lang === 'da' ? '1 t siden' : '1 hr ago'}</span>
@@ -1232,7 +1233,7 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
             }
           </div>
           <div className="p-post-stats">
-            <span>{cpFeedLikes} {t.like.toLowerCase()}{cpFeedLikes !== 1 && lang === 'da' ? 'r' : ''}</span>
+            <span>{cpFeedLikes} {t.like.toLowerCase()}</span>
             <span>{cpFeedComments.length} {t.comment.toLowerCase()}{lang === 'da' ? 'er' : 's'}</span>
           </div>
           <div className="p-post-actions">
@@ -1609,7 +1610,6 @@ const MOCK_FB_PHOTOS = [
 function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
   const [profile, setProfile] = useState({ ...currentUser })
   const [userPosts, setUserPosts] = useState([])
-  const [showPassword, setShowPassword] = useState(false)
   const [familyGroups, setFamilyGroups] = useState([])
   const [profileTab, setProfileTab] = useState('about')
 
@@ -1706,38 +1706,6 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
 
       {/* About tab */}
       {profileTab === 'about' && (<>
-        <div className="p-card p-login-info-card">
-          <h3 className="p-section-title">{t.loginInfo}</h3>
-          <div className="p-login-info">
-            <div className="p-login-info-row">
-              <span className="p-login-info-label">{t.emailLabel}</span>
-              <span className="p-login-info-value">{profile.email || '—'}</span>
-            </div>
-            <div className="p-login-info-row">
-              <span className="p-login-info-label">{t.passwordLabel}</span>
-              <span className="p-login-info-value p-password-value">
-                {profile.hasPassword === false ? (
-                  <span className="p-password-not-set">{t.passwordNotSet}</span>
-                ) : (
-                  <>
-                    <span>{showPassword ? (profile.passwordHint || '••••••••••••') : '••••••••••••'}</span>
-                    <button className="p-show-password-btn" onClick={() => setShowPassword(prev => !prev)}>
-                      {showPassword ? t.hidePasswordHint : t.showPasswordHint}
-                    </button>
-                  </>
-                )}
-              </span>
-            </div>
-            <div className="p-login-info-row">
-              <span className="p-login-info-label">{t.loginMethodLabel}</span>
-              <span className="p-login-info-value">{profile.loginMethod === 'facebook' ? t.loginMethodFacebook : t.loginMethodEmail}</span>
-            </div>
-            <div className="p-login-info-row">
-              <span className="p-login-info-label">{t.accountCreatedLabel}</span>
-              <span className="p-login-info-value">{profile.createdAt ? new Date(profile.createdAt).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</span>
-            </div>
-          </div>
-        </div>
 
         {mode === 'privat' && (
           <div className="p-card p-family-section" style={{ marginBottom: 16 }}>
@@ -1846,6 +1814,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
 // ── Edit Profile ──
 function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
   const [profile, setProfile] = useState({ ...currentUser })
+  const [showPassword, setShowPassword] = useState(false)
   const avatarInputRef = useRef(null)
 
   useEffect(() => {
@@ -1978,6 +1947,40 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
             />
           </>
         )}
+
+        {/* Login info */}
+        <div style={{ margin: '24px 0 0', borderTop: '1px solid #eee', paddingTop: 20 }}>
+          <h3 className="p-section-title">{t.loginInfo}</h3>
+          <div className="p-login-info">
+            <div className="p-login-info-row">
+              <span className="p-login-info-label">{t.emailLabel}</span>
+              <span className="p-login-info-value">{profile.email || '—'}</span>
+            </div>
+            <div className="p-login-info-row">
+              <span className="p-login-info-label">{t.passwordLabel}</span>
+              <span className="p-login-info-value p-password-value">
+                {profile.hasPassword === false ? (
+                  <span className="p-password-not-set">{t.passwordNotSet}</span>
+                ) : (
+                  <>
+                    <span>{showPassword ? (profile.passwordHint || '••••••••••••') : '••••••••••••'}</span>
+                    <button className="p-show-password-btn" onClick={() => setShowPassword(prev => !prev)}>
+                      {showPassword ? t.hidePasswordHint : t.showPasswordHint}
+                    </button>
+                  </>
+                )}
+              </span>
+            </div>
+            <div className="p-login-info-row">
+              <span className="p-login-info-label">{t.loginMethodLabel}</span>
+              <span className="p-login-info-value">{profile.loginMethod === 'facebook' ? t.loginMethodFacebook : t.loginMethodEmail}</span>
+            </div>
+            <div className="p-login-info-row">
+              <span className="p-login-info-label">{t.accountCreatedLabel}</span>
+              <span className="p-login-info-value">{profile.createdAt ? new Date(profile.createdAt).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</span>
+            </div>
+          </div>
+        </div>
 
         <button
           style={{ marginTop: 24, padding: '10px 20px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
