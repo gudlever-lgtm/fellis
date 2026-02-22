@@ -362,6 +362,8 @@ pool.query('ALTER TABLE marketplace_listings ADD COLUMN IF NOT EXISTS contact_em
   .catch(err => console.error('Migration (marketplace_listings.contact_email):', err.message))
 pool.query('ALTER TABLE marketplace_listings ADD COLUMN IF NOT EXISTS sold TINYINT(1) NOT NULL DEFAULT 0')
   .catch(err => console.error('Migration (marketplace_listings.sold):', err.message))
+pool.query('ALTER TABLE marketplace_listings ADD COLUMN IF NOT EXISTS priceNegotiable TINYINT(1) NOT NULL DEFAULT 0')
+  .catch(err => console.error('Migration (marketplace_listings.priceNegotiable):', err.message))
 
 pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS mode VARCHAR(20) DEFAULT 'privat'")
   .catch(err => console.error('Migration (users.mode):', err.message))
@@ -2182,12 +2184,12 @@ app.get('/api/marketplace/mine', authenticate, async (req, res) => {
 
 app.post('/api/marketplace', authenticate, upload.array('photos', 10), async (req, res) => {
   try {
-    const { title, price, category, location, description, mobilepay, contact_phone, contact_email } = req.body
+    const { title, price, priceNegotiable, category, location, description, mobilepay, contact_phone, contact_email } = req.body
     if (!title || !category) return res.status(400).json({ error: 'Missing required fields' })
     const photos = (req.files || []).map(f => ({ url: `/uploads/${f.filename}`, type: 'image', mime: f.mimetype }))
     const [result] = await pool.query(
-      `INSERT INTO marketplace_listings (user_id, title, price, category, location, description, mobilepay, contact_phone, contact_email, photos) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [req.userId, title, price || null, category, location || null, description || null, mobilepay || null, contact_phone || null, contact_email || null, photos.length ? JSON.stringify(photos) : null]
+      `INSERT INTO marketplace_listings (user_id, title, price, priceNegotiable, category, location, description, mobilepay, contact_phone, contact_email, photos) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [req.userId, title, price || null, priceNegotiable === 'true' ? 1 : 0, category, location || null, description || null, mobilepay || null, contact_phone || null, contact_email || null, photos.length ? JSON.stringify(photos) : null]
     )
     const [[listing]] = await pool.query(
       `SELECT l.*, u.name AS seller_name, u.handle AS seller_handle FROM marketplace_listings l JOIN users u ON l.user_id = u.id WHERE l.id = ?`,
@@ -2202,7 +2204,12 @@ app.post('/api/marketplace', authenticate, upload.array('photos', 10), async (re
 
 app.put('/api/marketplace/:id', authenticate, upload.array('photos', 10), async (req, res) => {
   try {
-    const { title, price, category, location, description, mobilepay, contact_phone, contact_email } = req.body
+    const { title, price, priceNegotiable, category, location, description, mobilepay, contact_phone, contact_email } = req.body
+    console.log(`[PUT /api/marketplace/${req.params.id}] body fields:`, Object.keys(req.body), '| files:', (req.files || []).length)
+    if (!title || !category) {
+      console.error(`[PUT /api/marketplace/${req.params.id}] Missing required fields – title="${title}" category="${category}"`)
+      return res.status(400).json({ error: 'Manglende påkrævede felter (titel/kategori)' })
+    }
     const [[existing]] = await pool.query('SELECT user_id FROM marketplace_listings WHERE id = ?', [req.params.id])
     if (!existing) return res.status(404).json({ error: 'Not found' })
     if (existing.user_id !== req.userId) return res.status(403).json({ error: 'Forbidden' })
@@ -2215,8 +2222,8 @@ app.put('/api/marketplace/:id', authenticate, upload.array('photos', 10), async 
     const allPhotos = [...existingPhotos, ...newPhotos]
     const photosJson = allPhotos.length ? JSON.stringify(allPhotos) : null
     await pool.query(
-      `UPDATE marketplace_listings SET title=?, price=?, category=?, location=?, description=?, mobilepay=?, contact_phone=?, contact_email=?, photos=? WHERE id=?`,
-      [title, price || null, category, location || null, description || null, mobilepay || null, contact_phone || null, contact_email || null, photosJson, req.params.id]
+      `UPDATE marketplace_listings SET title=?, price=?, priceNegotiable=?, category=?, location=?, description=?, mobilepay=?, contact_phone=?, contact_email=?, photos=? WHERE id=?`,
+      [title, price || null, priceNegotiable === 'true' ? 1 : 0, category, location || null, description || null, mobilepay || null, contact_phone || null, contact_email || null, photosJson, req.params.id]
     )
     const [[listing]] = await pool.query(
       `SELECT l.*, u.name AS seller_name FROM marketplace_listings l JOIN users u ON l.user_id = u.id WHERE l.id = ?`,
@@ -2435,11 +2442,15 @@ app.put('/api/events/:id/rsvp', authenticate, async (req, res) => {
 // Multer error handler
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
+    console.error(`[multer error] ${req.method} ${req.path}: ${err.code} – ${err.message}`)
     if (err.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: 'File too large (max 50 MB)' })
     if (err.code === 'LIMIT_FILE_COUNT') return res.status(400).json({ error: 'Too many files (max 4)' })
     return res.status(400).json({ error: err.message })
   }
-  if (err) return res.status(400).json({ error: err.message })
+  if (err) {
+    console.error(`[middleware error] ${req.method} ${req.path}: ${err.message}`)
+    return res.status(400).json({ error: err.message })
+  }
   next()
 })
 

@@ -5044,6 +5044,7 @@ function MarketplacePage({ lang, t, currentUser, onContactSeller }) {
   const [deleteConfirmId, setDeleteConfirmId] = useState(null)
   const [boostedIds, setBoostedIds] = useState({})
   const [boostMsg, setBoostMsg] = useState(null)
+  const [formError, setFormError] = useState(null)
 
   const catIcon = (key) => MARKETPLACE_CATEGORIES.find(c => c.key === key)?.icon || '📦'
   const catLabel = (key) => { const f = MARKETPLACE_CATEGORIES.find(c => c.key === key); return f ? `${f.icon} ${t[f.labelKey] || key}` : key }
@@ -5086,12 +5087,18 @@ function MarketplacePage({ lang, t, currentUser, onContactSeller }) {
   }
 
   const handleUpdate = async (id, formData, localListing) => {
-    const result = await apiUpdateListing(id, formData)
-    const updated = result || localListing
-    setListings(prev => prev.map(l => l.id === id ? { ...l, ...updated } : l))
-    setMyListings(prev => prev.map(l => l.id === id ? { ...l, ...updated } : l))
-    setShowForm(false)
-    setEditListing(null)
+    try {
+      setFormError(null)
+      const result = await apiUpdateListing(id, formData)
+      const updated = result || localListing
+      setListings(prev => prev.map(l => l.id === id ? { ...l, ...updated } : l))
+      setMyListings(prev => prev.map(l => l.id === id ? { ...l, ...updated } : l))
+      setShowForm(false)
+      setEditListing(null)
+    } catch (err) {
+      console.error('handleUpdate error:', err)
+      setFormError(err.message || 'Der skete en fejl – prøv igen')
+    }
   }
 
   const handleMarkSold = async (id) => {
@@ -5130,7 +5137,7 @@ function MarketplacePage({ lang, t, currentUser, onContactSeller }) {
       )}
       <div className="p-marketplace-header">
         <h2 className="p-section-title" style={{ margin: 0 }}>{t.marketplaceTitle}</h2>
-        <button className="p-marketplace-create-btn" onClick={() => { setEditListing(null); setShowForm(true) }}>
+        <button className="p-marketplace-create-btn" onClick={() => { setEditListing(null); setFormError(null); setShowForm(true) }}>
           {t.marketplaceCreateBtn}
         </button>
       </div>
@@ -5187,7 +5194,7 @@ function MarketplacePage({ lang, t, currentUser, onContactSeller }) {
         <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>
           <div style={{ fontSize: 36, marginBottom: 12 }}>🛍️</div>
           <div style={{ marginBottom: 16 }}>{t.marketplaceNoMyListings}</div>
-          <button className="p-marketplace-create-btn" onClick={() => { setEditListing(null); setShowForm(true) }}>
+          <button className="p-marketplace-create-btn" onClick={() => { setEditListing(null); setFormError(null); setShowForm(true) }}>
             {t.marketplaceCreateFirst}
           </button>
         </div>
@@ -5240,7 +5247,7 @@ function MarketplacePage({ lang, t, currentUser, onContactSeller }) {
                         ✓ {t.marketplaceMarkSold}
                       </button>
                     )}
-                    <button className="p-listing-action-btn" onClick={() => { setEditListing(listing); setShowForm(true) }}>
+                    <button className="p-listing-action-btn" onClick={() => { setEditListing(listing); setFormError(null); setShowForm(true) }}>
                       ✏️ {t.marketplaceEdit}
                     </button>
                     <button className="p-listing-action-btn danger" onClick={() => setDeleteConfirmId(listing.id)}>
@@ -5288,6 +5295,7 @@ function MarketplacePage({ lang, t, currentUser, onContactSeller }) {
           onContactSeller={onContactSeller}
           onEdit={() => {
             setEditListing(selectedListing)
+            setFormError(null)
             setShowForm(true)
             setSelectedListing(null)
           }}
@@ -5305,7 +5313,8 @@ function MarketplacePage({ lang, t, currentUser, onContactSeller }) {
           listing={editListing}
           listingTitle={listingTitle}
           listingDesc={listingDesc}
-          onClose={() => { setShowForm(false); setEditListing(null) }}
+          formError={formError}
+          onClose={() => { setShowForm(false); setEditListing(null); setFormError(null) }}
           onSubmit={editListing ? handleUpdate : handleCreate}
         />
       )}
@@ -5426,7 +5435,7 @@ function ListingDetailModal({ listing, t, lang, currentUser, catLabel, catIcon, 
   )
 }
 
-function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, onClose, onSubmit }) {
+function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, formError, onClose, onSubmit }) {
   const isEdit = !!listing
   const [title, setTitle]           = useState(isEdit ? listingTitle(listing) : '')
   const [price, setPrice]           = useState(isEdit ? (listing.price || '') : '')
@@ -5575,6 +5584,11 @@ function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, onClose
           </div>
           <input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handlePhotos} />
 
+          {formError && (
+            <div style={{ background: '#fff0f0', border: '1px solid #f5c6c6', borderRadius: 8, padding: '10px 14px', marginTop: 12, fontSize: 13, color: '#c0392b' }}>
+              ⚠️ {formError}
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
             <button type="button" onClick={onClose} style={{ flex: 1, padding: 10, borderRadius: 8, border: '1px solid #ddd', background: '#fff', cursor: 'pointer', fontSize: 14 }}>{t.marketplaceCancel}</button>
             <button type="submit" style={{ flex: 2, padding: 10, borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>
