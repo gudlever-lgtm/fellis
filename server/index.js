@@ -2327,7 +2327,10 @@ app.get('/api/admin/stats', authenticate, requireAdmin, async (req, res) => {
     const [[{ rsvps }]] = await pool.query("SELECT COUNT(*) as rsvps FROM event_rsvps WHERE status = 'going'").catch(() => [[{ rsvps: 0 }]])
     const [[{ users_privat }]] = await pool.query("SELECT COUNT(*) as users_privat FROM users WHERE mode = 'privat' OR mode IS NULL").catch(() => [[{ users_privat: 0 }]])
     const [[{ users_business }]] = await pool.query("SELECT COUNT(*) as users_business FROM users WHERE mode = 'business'").catch(() => [[{ users_business: 0 }]])
-    res.json({ users, active_users, posts, events, listings, friendships, messages, new_users_7d, rsvps, users_privat, users_business })
+    const [[{ posts_business }]] = await pool.query("SELECT COUNT(*) as posts_business FROM posts p JOIN users u ON u.id = p.author_id WHERE u.mode = 'business'").catch(() => [[{ posts_business: 0 }]])
+    const [[{ new_business_7d }]] = await pool.query("SELECT COUNT(*) as new_business_7d FROM users WHERE mode = 'business' AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)").catch(() => [[{ new_business_7d: 0 }]])
+    const [[{ active_business }]] = await pool.query("SELECT COUNT(DISTINCT s.user_id) as active_business FROM sessions s JOIN users u ON u.id = s.user_id WHERE u.mode = 'business' AND s.expires_at > NOW()").catch(() => [[{ active_business: 0 }]])
+    res.json({ users, active_users, posts, events, listings, friendships, messages, new_users_7d, rsvps, users_privat, users_business, posts_business, new_business_7d, active_business })
   } catch (err) {
     console.error('GET /api/admin/stats error:', err.message)
     res.status(500).json({ error: 'Server error' })

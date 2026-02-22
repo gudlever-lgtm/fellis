@@ -6071,6 +6071,7 @@ function AdminPage({ lang, t }) {
                 const pctBusiness = 100 - pctPrivat
                 return (
                   <div>
+                    {/* User count split */}
                     <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
                       <div style={{ flex: 1, background: '#F0FAF4', border: '1px solid #b7dfca', borderRadius: 10, padding: '14px 16px', textAlign: 'center' }}>
                         <div style={{ fontSize: 22, fontWeight: 800, color: '#2D6A4F' }}>{privat}</div>
@@ -6078,12 +6079,28 @@ function AdminPage({ lang, t }) {
                       </div>
                       <div style={{ flex: 1, background: '#EBF4FF', border: '1px solid #b3d4f5', borderRadius: 10, padding: '14px 16px', textAlign: 'center' }}>
                         <div style={{ fontSize: 22, fontWeight: 800, color: '#1877F2' }}>{business}</div>
-                        <div style={{ fontSize: 12, color: '#555', marginTop: 2 }}>💼 {lang === 'da' ? 'Business' : 'Business'} ({pctBusiness}%)</div>
+                        <div style={{ fontSize: 12, color: '#555', marginTop: 2 }}>💼 Business ({pctBusiness}%)</div>
                       </div>
                     </div>
-                    <div style={{ height: 10, borderRadius: 5, overflow: 'hidden', display: 'flex', background: '#f5f0eb' }}>
+                    <div style={{ height: 10, borderRadius: 5, overflow: 'hidden', display: 'flex', background: '#f5f0eb', marginBottom: 16 }}>
                       <div style={{ width: `${pctPrivat}%`, background: '#2D6A4F', transition: 'width 0.4s' }} />
                       <div style={{ width: `${pctBusiness}%`, background: '#1877F2', transition: 'width 0.4s' }} />
+                    </div>
+                    {/* Business-specific stats */}
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#1877F2', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      💼 {lang === 'da' ? 'Business statistik' : 'Business metrics'}
+                    </div>
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      {[
+                        { label: lang === 'da' ? 'Opslag' : 'Posts', value: stats.posts_business ?? '—' },
+                        { label: lang === 'da' ? 'Nye (7 dage)' : 'New (7 days)', value: stats.new_business_7d ?? '—' },
+                        { label: lang === 'da' ? 'Aktive nu' : 'Active now', value: stats.active_business ?? '—' },
+                      ].map(s => (
+                        <div key={s.label} style={{ flex: 1, background: '#f5f9ff', border: '1px solid #d0e4f8', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
+                          <div style={{ fontSize: 20, fontWeight: 800, color: '#1877F2' }}>{s.value}</div>
+                          <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>{s.label}</div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )
