@@ -810,6 +810,10 @@ app.get('/api/profile/:id', authenticate, async (req, res) => {
     )
     if (users.length === 0) return res.status(404).json({ error: 'User not found' })
     const u = users[0]
+    // Log profile view (fire-and-forget, skip self-views)
+    if (targetId !== req.userId) {
+      pool.query('INSERT INTO profile_views (viewer_id, profile_id) VALUES (?, ?)', [req.userId, targetId]).catch(() => {})
+    }
     res.json({
       id: u.id, name: u.name, handle: u.handle, initials: u.initials,
       bio: { da: u.bio_da || '', en: u.bio_en || '' },
@@ -2290,11 +2294,134 @@ async function initAdminSettings() {
   }
 }
 
+async function initAnalytics() {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS profile_views (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      viewer_id INT NOT NULL,
+      profile_id INT NOT NULL,
+      viewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_pv_profile (profile_id, viewed_at),
+      INDEX idx_pv_viewer (viewer_id),
+      FOREIGN KEY (profile_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (viewer_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+  } catch (err) {
+    console.error('initAnalytics error:', err.message)
+  }
+}
+
 function requireAdmin(req, res, next) {
   if (!req.userId) return res.status(401).json({ error: 'Not authenticated' })
   if (req.userId !== 1) return res.status(403).json({ error: 'Admin only' })
   next()
 }
+
+// GET /api/analytics — per-user analytics (real data from DB)
+app.get('/api/analytics', authenticate, async (req, res) => {
+  try {
+    const days = Math.min(Math.max(parseInt(req.query.days) || 30, 7), 90)
+
+    // Profile views per day (sparse rows — gaps filled client-side)
+    const [viewRows] = await pool.query(
+      `SELECT DATE(viewed_at) as date, COUNT(*) as count
+       FROM profile_views
+       WHERE profile_id = ? AND viewed_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+       GROUP BY DATE(viewed_at) ORDER BY date ASC`,
+      [req.userId, days]
+    )
+
+    // New connections per day
+    const [connRows] = await pool.query(
+      `SELECT DATE(created_at) as date, COUNT(*) as count
+       FROM friendships
+       WHERE user_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+       GROUP BY DATE(created_at) ORDER BY date ASC`,
+      [req.userId, days]
+    )
+
+    // Top posts by engagement (likes + comments)
+    const [topPosts] = await pool.query(
+      `SELECT p.id,
+              SUBSTRING(COALESCE(NULLIF(p.text_da,''), NULLIF(p.text_en,''), ''), 1, 60) as text,
+              p.likes,
+              COUNT(DISTINCT c.id) as comment_count,
+              (p.likes + COUNT(DISTINCT c.id)) as engagement
+       FROM posts p
+       LEFT JOIN comments c ON c.post_id = p.id
+       WHERE p.author_id = ?
+       GROUP BY p.id ORDER BY engagement DESC LIMIT 5`,
+      [req.userId]
+    )
+
+    // Engagement received in period
+    const [[engStats]] = await pool.query(
+      `SELECT COALESCE(SUM(p.likes), 0) as likes_received,
+              COUNT(DISTINCT c.id) as comments_received,
+              COUNT(DISTINCT p.id) as post_count
+       FROM posts p
+       LEFT JOIN comments c ON c.post_id = p.id
+         AND c.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+       WHERE p.author_id = ? AND p.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)`,
+      [days, req.userId, days]
+    )
+
+    // Engagement trend per day (comments on user's posts)
+    const [engTrendRows] = await pool.query(
+      `SELECT DATE(c.created_at) as date, COUNT(*) as count
+       FROM comments c JOIN posts p ON c.post_id = p.id
+       WHERE p.author_id = ? AND c.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+       GROUP BY DATE(c.created_at) ORDER BY date ASC`,
+      [req.userId, days]
+    )
+
+    // Funnel: profile views → friend requests received → new connections
+    const [[funnel]] = await pool.query(
+      `SELECT
+        (SELECT COUNT(*) FROM profile_views WHERE profile_id = ? AND viewed_at >= DATE_SUB(NOW(), INTERVAL ? DAY)) as views,
+        (SELECT COUNT(*) FROM friend_requests WHERE to_user_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)) as requests,
+        (SELECT COUNT(*) FROM friendships WHERE user_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)) as connections`,
+      [req.userId, days, req.userId, days, req.userId, days]
+    )
+
+    // Total connections
+    const [[{ total_connections }]] = await pool.query(
+      'SELECT COUNT(*) as total_connections FROM friendships WHERE user_id = ?',
+      [req.userId]
+    )
+
+    // Post type split: text-only vs with-media
+    const [[postTypes]] = await pool.query(
+      `SELECT
+        SUM(CASE WHEN media IS NULL OR media = '[]' THEN 1 ELSE 0 END) as text_count,
+        SUM(CASE WHEN media IS NOT NULL AND media != '[]' THEN 1 ELSE 0 END) as media_count
+       FROM posts WHERE author_id = ?`,
+      [req.userId]
+    )
+
+    res.json({
+      days,
+      views: viewRows,
+      connections: connRows,
+      topPosts: topPosts.map(p => ({
+        label: (p.text || '').trim().slice(0, 50) || `Post #${p.id}`,
+        value: Number(p.engagement),
+      })),
+      engagement: {
+        likes: Number(engStats.likes_received),
+        comments: Number(engStats.comments_received),
+        posts: Number(engStats.post_count),
+      },
+      engTrend: engTrendRows,
+      funnel: { views: Number(funnel.views), requests: Number(funnel.requests), connections: Number(funnel.connections) },
+      totalConnections: Number(total_connections),
+      postTypes: { text: Number(postTypes.text_count || 0), media: Number(postTypes.media_count || 0) },
+    })
+  } catch (err) {
+    console.error('GET /api/analytics error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
 
 // GET /api/admin/settings — get Stripe config (admin only)
 app.get('/api/admin/settings', authenticate, requireAdmin, async (req, res) => {
@@ -2468,4 +2595,5 @@ app.listen(PORT, () => {
   initConversations()
   initMarketplace()
   initAdminSettings()
+  initAnalytics()
 })

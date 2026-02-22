@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { PT, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiDeletePost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateMode } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiDeletePost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateMode } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -5780,23 +5780,69 @@ const ANALYTICS_RANGES = [7, 30, 90]
 
 function AnalyticsPage({ lang, t, currentUser, plan, onUpgrade }) {
   const [range, setRange] = useState(30)
+  const [analytics, setAnalytics] = useState(null)
 
-  // ── Mock data (seeded, stable) ──
-  const profileViews = genViews(range, 45, 999)
-  const followerViews = genViews(range, 12, 777)
+  useEffect(() => {
+    setAnalytics(null)
+    apiGetAnalytics(range).then(data => setAnalytics(data)).catch(() => {})
+  }, [range])
+
+  // Convert sparse {date, count} rows into a dense array covering the last `days` days
+  const fillDays = useCallback((rows, days) => {
+    const map = {}
+    ;(rows || []).forEach(r => { map[(r.date || '').slice(0, 10)] = Number(r.count) })
+    return Array.from({ length: days }, (_, i) => {
+      const d = new Date(); d.setDate(d.getDate() - (days - 1 - i))
+      return map[d.toISOString().slice(0, 10)] || 0
+    })
+  }, [])
+
+  // ── Time series ── (real when loaded, seeded fallback while loading)
+  const profileViews = analytics ? fillDays(analytics.views, range) : genViews(range, 0, 999)
+  const connViews    = analytics ? fillDays(analytics.connections, range) : genViews(range, 0, 777)
+  const engTrend     = analytics ? fillDays(analytics.engTrend, range) : genViews(range, 0, 333)
+
   const totalViews = profileViews.reduce((a, b) => a + b, 0)
-  const totalFollowers = followerViews.reduce((a, b) => a + b, 0)
-  const avgEngRate = '4.7%'
+  const totalConns = connViews.reduce((a, b) => a + b, 0)
 
-  const topPosts = [
-    { label: lang === 'da' ? 'Produktlancering' : 'Product launch', value: 1842 },
-    { label: lang === 'da' ? 'Branchen i 2026' : 'Industry in 2026', value: 1290 },
-    { label: lang === 'da' ? 'Tips til netværk' : 'Networking tips', value: 967 },
-    { label: lang === 'da' ? 'Bag om kulisserne' : 'Behind the scenes', value: 744 },
-    { label: lang === 'da' ? 'Teamhistorie' : 'Team story', value: 521 },
+  const eng = analytics?.engagement
+  const avgEngRate = eng
+    ? (eng.posts > 0 ? ((eng.likes + eng.comments) / eng.posts).toFixed(1) : '0.0')
+    : '–'
+
+  // Top posts: real data; empty-state message when user has no posts yet
+  const topPosts = analytics?.topPosts?.length
+    ? analytics.topPosts
+    : analytics
+      ? [{ label: lang === 'da' ? 'Ingen opslag endnu' : 'No posts yet', value: 0 }]
+      : [{ label: '…', value: 0 }]
+
+  // ── Funnel (real) ──
+  const fv = analytics?.funnel
+  const funnelViews = fv ? fv.views : totalViews
+  const funnelReqs  = fv ? fv.requests : 0
+  const funnelConns = fv ? fv.connections : 0
+  const maxF = Math.max(funnelViews, 1)
+  const funnelData = [
+    { label: t.analyticsFunnelViews,    value: funnelViews, pct: 100 },
+    { label: t.analyticsFunnelRequests, value: funnelReqs,  pct: Math.max(funnelReqs > 0 ? Math.round((funnelReqs / maxF) * 100) : 0, funnelReqs > 0 ? 8 : 0) },
+    { label: t.analyticsFunnelAccepted, value: funnelConns, pct: Math.max(funnelConns > 0 ? Math.round((funnelConns / maxF) * 100) : 0, funnelConns > 0 ? 4 : 0) },
   ]
 
-  // Paid-tier mock data
+  // ── Post types (real) ──
+  const pt = analytics?.postTypes
+  const postTypeItems = pt && (pt.text + pt.media) > 0
+    ? [
+        { label: lang === 'da' ? 'Tekst' : 'Text', value: pt.text },
+        { label: lang === 'da' ? 'Medie' : 'Media', value: pt.media },
+      ].filter(i => i.value > 0)
+    : [
+        { label: lang === 'da' ? 'Tekst' : 'Text', value: 6.1 },
+        { label: lang === 'da' ? 'Billede' : 'Image', value: 8.4 },
+        { label: lang === 'da' ? 'Video' : 'Video', value: 11.2 },
+      ]
+
+  // ── Audience demographics — estimated (no demographic fields in profiles yet) ──
   const industryData = [
     { label: lang === 'da' ? 'Teknologi' : 'Technology', value: 34 },
     { label: lang === 'da' ? 'Marketing' : 'Marketing', value: 22 },
@@ -5822,24 +5868,12 @@ function AnalyticsPage({ lang, t, currentUser, plan, onUpgrade }) {
     { label: lang === 'da' ? 'Forslag' : 'Suggestions', value: 33 },
     { label: lang === 'da' ? 'Opslag' : 'Posts', value: 26 },
   ]
-  const postTypes = [
-    { label: lang === 'da' ? 'Tekst' : 'Text', value: 6.1 },
-    { label: lang === 'da' ? 'Billede' : 'Image', value: 8.4 },
-    { label: lang === 'da' ? 'Video' : 'Video', value: 11.2 },
-    { label: lang === 'da' ? 'Dokument' : 'Document', value: 5.8 },
-  ]
   const topics = [
     { label: '#innovation', value: 12.3 },
-    { label: '#leadershin', value: 9.7 },
+    { label: '#leadership', value: 9.7 },
     { label: '#startup', value: 8.1 },
     { label: '#ai', value: 14.5 },
     { label: '#fellis', value: 6.2 },
-  ]
-  const engTrend = genViews(range, 5, 333)
-  const funnelData = [
-    { label: t.analyticsFunnelViews, value: totalViews, pct: 100 },
-    { label: t.analyticsFunnelRequests, value: Math.round(totalViews * 0.18), pct: 18 },
-    { label: t.analyticsFunnelAccepted, value: Math.round(totalViews * 0.11), pct: 11 },
   ]
   const competitors = [
     { label: lang === 'da' ? 'Dig' : 'You', value: 4.7, color: '#1877F2' },
@@ -5847,12 +5881,15 @@ function AnalyticsPage({ lang, t, currentUser, plan, onUpgrade }) {
     { label: lang === 'da' ? 'Top 10%' : 'Top 10%', value: 7.9, color: '#2D6A4F' },
   ]
 
+  // Total connections (real)
+  const totalConnectionsVal = analytics?.totalConnections ?? currentUser?.friendCount ?? 0
+
   function exportCSV() {
     const rows = [['Date', 'Profile Views', 'New Connections']]
     const today = new Date()
     profileViews.forEach((v, i) => {
       const d = new Date(today); d.setDate(today.getDate() - (profileViews.length - 1 - i))
-      rows.push([d.toISOString().slice(0, 10), v, followerViews[i]])
+      rows.push([d.toISOString().slice(0, 10), v, connViews[i]])
     })
     const csv = rows.map(r => r.join(',')).join('\n')
     const blob = new Blob([csv], { type: 'text/csv' })
@@ -5893,7 +5930,7 @@ function AnalyticsPage({ lang, t, currentUser, plan, onUpgrade }) {
         <div className="p-analytics-section-title">{t.analyticsProfileViews}</div>
         <div className="p-analytics-stat-row">
           <StatCard label={t.analyticsProfileViews} value={totalViews.toLocaleString()} sub={`${range}d`} color="#1877F2" />
-          <StatCard label={t.analyticsFollowerGrowth} value={`+${totalFollowers}`} sub={`${range}d`} color="#2D6A4F" />
+          <StatCard label={t.analyticsFollowerGrowth} value={totalConns > 0 ? `+${totalConns}` : '0'} sub={`${range}d`} color="#2D6A4F" />
           <StatCard label={t.analyticsEngRate} value={avgEngRate} color="#F4A261" />
         </div>
         <div className="p-analytics-chart-wrap">
@@ -5909,7 +5946,7 @@ function AnalyticsPage({ lang, t, currentUser, plan, onUpgrade }) {
       {/* ── Paid tier ── */}
       <PlanGate plan={plan} t={t} onUpgrade={onUpgrade}>
         <div className="p-analytics-section">
-          <div className="p-analytics-section-title">{t.analyticsAudienceTitle}</div>
+          <div className="p-analytics-section-title">{t.analyticsAudienceTitle} <span style={{ fontSize: 11, color: '#aaa', fontWeight: 400 }}>{lang === 'da' ? '(estimeret)' : '(estimated)'}</span></div>
           <div className="p-analytics-subsection-grid">
             <div>
               <div className="p-analytics-subsection-label">{t.analyticsAudienceIndustry}</div>
@@ -5938,13 +5975,13 @@ function AnalyticsPage({ lang, t, currentUser, plan, onUpgrade }) {
 
         <div className="p-analytics-section">
           <div className="p-analytics-section-title">{t.analyticsContentTitle}</div>
-          <div className="p-analytics-subsection-label">{t.analyticsContentPostType} (% eng.)</div>
-          <HBarChart items={postTypes.map(p => ({ label: p.label, value: p.value }))} color="#1877F2" />
+          <div className="p-analytics-subsection-label">{t.analyticsContentPostType}</div>
+          <HBarChart items={postTypeItems} color="#1877F2" />
           <div className="p-analytics-subsection-label" style={{ marginTop: 16 }}>{t.analyticsContentTopics}</div>
           <HBarChart items={topics.map(p => ({ label: p.label, value: p.value }))} color="#F4A261" />
           <div className="p-analytics-subsection-label" style={{ marginTop: 16 }}>{t.analyticsContentEngTrend}</div>
           <div className="p-analytics-chart-wrap">
-            <MiniLineChart data={engTrend} color="#F4A261" height={80} />
+            <MiniLineChart data={engTrend.some(v => v > 0) ? engTrend : genViews(range, 2, 333)} color="#F4A261" height={80} />
           </div>
         </div>
 
@@ -5973,12 +6010,12 @@ function AnalyticsPage({ lang, t, currentUser, plan, onUpgrade }) {
         <div className="p-analytics-section">
           <div className="p-analytics-section-title">{t.analyticsCompanyTitle}</div>
           <div className="p-analytics-stat-row">
-            <StatCard label={lang === 'da' ? 'Virksomhedsfølgere' : 'Company followers'} value="1,284" sub={lang === 'da' ? 'total' : 'total'} color="#1877F2" />
-            <StatCard label={lang === 'da' ? 'Nye følgere' : 'New followers'} value={`+${Math.round(range * 3.4)}`} sub={`${range}d`} color="#2D6A4F" />
-            <StatCard label={lang === 'da' ? 'Jobopslag' : 'Job posts'} value="7" color="#F4A261" />
+            <StatCard label={lang === 'da' ? 'Forbindelser i alt' : 'Total connections'} value={totalConnectionsVal.toLocaleString()} sub={lang === 'da' ? 'total' : 'total'} color="#1877F2" />
+            <StatCard label={lang === 'da' ? 'Nye forbindelser' : 'New connections'} value={totalConns > 0 ? `+${totalConns}` : '0'} sub={`${range}d`} color="#2D6A4F" />
+            <StatCard label={lang === 'da' ? 'Opslag i perioden' : 'Posts in period'} value={eng?.posts ?? '–'} color="#F4A261" />
           </div>
           <div className="p-analytics-chart-wrap" style={{ marginTop: 12 }}>
-            <MiniLineChart data={genViews(range, 1200, 555)} color="#2D6A4F" height={80} />
+            <MiniLineChart data={connViews.some(v => v > 0) ? connViews : genViews(range, 1, 555)} color="#2D6A4F" height={80} />
           </div>
         </div>
       </PlanGate>

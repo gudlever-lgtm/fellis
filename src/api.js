@@ -448,6 +448,10 @@ export async function apiGetAdminStats() {
   return await request('/api/admin/stats')
 }
 
+export async function apiGetAnalytics(days = 30) {
+  return await request(`/api/analytics?days=${days}`)
+}
+
 export async function apiUpdateMode(mode) {
   return await request('/api/me/mode', { method: 'PATCH', body: JSON.stringify({ mode }) })
 }
