@@ -68,7 +68,8 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
     }
     setMode(newMode)
     localStorage.setItem('fellis_mode', newMode)
-    setNotifs(makeMockNotifs(newMode))
+    const savedReadIds = new Set(JSON.parse(localStorage.getItem('fellis_notifs_read') || '[]'))
+    setNotifs(makeMockNotifs(newMode).map(n => savedReadIds.has(n.id) ? { ...n, read: true } : n))
     setShowModeModal(false)
     // Sync mode to server so admin stats can segment by mode
     const serverMode = newMode === 'business' ? 'business' : 'privat'
@@ -2590,22 +2591,19 @@ function FriendsPage({ lang, t, mode, onMessage }) {
     }
   }, [])
 
-  // Load invites lazily when the tab is first opened
+  // Load invites on mount so the count is visible in the tab label
   useEffect(() => {
-    if (filter !== 'invites' || invites !== null) return
-    const MOCK = [
-      { id: 'mock-inv-1', name: 'Peter Hansen', email: 'peter@example.dk', sentAt: '2026-02-18T10:00:00', status: 'pending' },
-    ]
+    if (invites !== null) return
     apiGetInvites()
       .then(data => {
         if (data && (Array.isArray(data) ? data.length : data?.invites?.length)) {
           setInvites(Array.isArray(data) ? data : (data?.invites || []))
         } else {
-          setInvites(MOCK)
+          setInvites([])
         }
       })
-      .catch(() => setInvites(MOCK))
-  }, [filter, invites])
+      .catch(() => setInvites([]))
+  }, [invites])
 
   const isSearching = search.trim().length >= 2
   const outgoingTargetIds = new Set(requests.outgoing.map(r => r.to_id))
@@ -2652,17 +2650,32 @@ function FriendsPage({ lang, t, mode, onMessage }) {
         </div>
       )}
 
-      {/* Invite friends card */}
+      {/* Invite friends card – email + link + Facebook */}
       <div className="p-card p-invite-card">
-        <h3 className="p-section-title" style={{ margin: '0 0 8px' }}>
-          {lang === 'da' ? 'Inviter venner fra Facebook' : 'Invite friends from Facebook'}
+        <h3 className="p-section-title" style={{ margin: '0 0 6px' }}>
+          {lang === 'da' ? 'Inviter venner' : 'Invite friends'}
         </h3>
         <p className="p-invite-desc">
           {lang === 'da'
-            ? 'Del dit link med Facebook-venner — I bliver automatisk forbundet, når de tilmelder sig.'
-            : 'Share your link with Facebook friends — you will be automatically connected when they sign up.'}
+            ? 'Inviter via e-mail eller del dit link – I bliver automatisk forbundet, når de tilmelder sig.'
+            : 'Invite by email or share your link – you will be automatically connected when they sign up.'}
         </p>
-        <div className="p-invite-link-row">
+        <form className="p-invite-email-form" onSubmit={handleSendEmailInvite} style={{ marginBottom: 8 }}>
+          <input
+            className="p-invite-email-input"
+            type="email"
+            placeholder={t.invitesSendPlaceholder}
+            value={inviteEmail}
+            onChange={e => { setInviteEmail(e.target.value); setInviteEmailSentOk(false) }}
+            disabled={inviteEmailSending}
+            required
+          />
+          <button className="p-invite-email-btn" type="submit" disabled={inviteEmailSending || !inviteEmail.trim()}>
+            {inviteEmailSending ? t.invitesSending : t.invitesSendBtn}
+          </button>
+        </form>
+        {inviteEmailSentOk && <div className="p-invite-sent-ok">✓ {t.invitesSentOk}</div>}
+        <div className="p-invite-link-row" style={{ marginBottom: 8 }}>
           <input
             className="p-invite-link-input"
             value={inviteLink || 'https://fellis.eu/?invite=...'}
@@ -2811,40 +2824,6 @@ function FriendsPage({ lang, t, mode, onMessage }) {
             )}
           </div>
 
-          {/* ── Send new invitation by email ── */}
-          <div className="p-card p-invites-section">
-            <h3 className="p-invites-section-title">{t.invitesSendTitle}</h3>
-            <form className="p-invite-email-form" onSubmit={handleSendEmailInvite}>
-              <input
-                className="p-invite-email-input"
-                type="email"
-                placeholder={t.invitesSendPlaceholder}
-                value={inviteEmail}
-                onChange={e => { setInviteEmail(e.target.value); setInviteEmailSentOk(false) }}
-                disabled={inviteEmailSending}
-                required
-              />
-              <button className="p-invite-email-btn" type="submit" disabled={inviteEmailSending || !inviteEmail.trim()}>
-                {inviteEmailSending ? t.invitesSending : t.invitesSendBtn}
-              </button>
-            </form>
-            {inviteEmailSentOk && <div className="p-invite-sent-ok">✓ {t.invitesSentOk}</div>}
-            <div className="p-invite-link-section">
-              <div className="p-invite-link-label">{lang === 'da' ? 'Eller del dit personlige invitationslink:' : 'Or share your personal invite link:'}</div>
-              <div className="p-invite-link-row">
-                <input
-                  className="p-invite-link-input"
-                  value={inviteLink || 'https://fellis.eu/?invite=...'}
-                  readOnly
-                  onClick={e => e.target.select()}
-                />
-                <button className="p-invite-copy-btn" onClick={handleCopyInvite}>
-                  {inviteCopied ? (lang === 'da' ? 'Kopieret!' : 'Copied!') : (lang === 'da' ? 'Kopier' : 'Copy')}
-                </button>
-              </div>
-            </div>
-          </div>
-
           {/* ── Outgoing invitations ── */}
           <div className="p-card p-invites-section">
             <h3 className="p-invites-section-title">{t.invitesSentTitle}</h3>
@@ -2857,7 +2836,7 @@ function FriendsPage({ lang, t, mode, onMessage }) {
                 {pending.map((inv, i) => (
                   <div key={inv.id || i} className="p-invite-row">
                     <div className="p-avatar-sm" style={{ background: nameToColor(inv.name || inv.email || '?') }}>
-                      {getInitials(inv.name || inv.email || '?')}
+                      {(inv.name || inv.email || '?')[0].toUpperCase()}
                     </div>
                     <div className="p-invite-row-info">
                       <div className="p-invite-row-name">{inv.name || inv.email}</div>
@@ -5437,12 +5416,13 @@ function ListingDetailModal({ listing, t, lang, currentUser, catLabel, catIcon, 
 
 function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, formError, onClose, onSubmit }) {
   const isEdit = !!listing
-  const [title, setTitle]           = useState(isEdit ? listingTitle(listing) : '')
+  const sanitize = (v) => (!v || v === '[object Object]') ? '' : v
+  const [title, setTitle]           = useState(isEdit ? sanitize(listingTitle(listing)) : '')
   const [price, setPrice]           = useState(isEdit ? (listing.price || '') : '')
   const [negotiable, setNegotiable] = useState(isEdit ? !!listing.priceNegotiable : false)
   const [category, setCategory]     = useState(isEdit ? (listing.category || '') : '')
   const [location, setLocation]     = useState(isEdit ? (listing.location || '') : '')
-  const [description, setDescription] = useState(isEdit ? listingDesc(listing) : '')
+  const [description, setDescription] = useState(isEdit ? sanitize(listingDesc(listing)) : '')
   const [mobilepay, setMobilepay]   = useState(isEdit ? (listing.mobilepay || '') : '')
   const [phone, setPhone]           = useState(isEdit ? (listing.contact_phone || '') : '')
   const [contactEmail, setContactEmail] = useState(isEdit ? (listing.contact_email || '') : '')
@@ -5460,8 +5440,13 @@ function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, formErr
   }
 
   const removePhoto = (i) => {
+    const url = photoPreviews[i]
     setPhotoPreviews(prev => prev.filter((_, idx) => idx !== i))
-    setPhotoFiles(prev => prev.filter((_, idx) => idx !== i))
+    if (url?.startsWith('blob:')) {
+      // photoFiles only holds NEW files; find this file's index by counting blob URLs before i
+      const fileIdx = photoPreviews.slice(0, i).filter(u => u.startsWith('blob:')).length
+      setPhotoFiles(prev => prev.filter((_, idx) => idx !== fileIdx))
+    }
   }
 
   const handleSubmit = (e) => {
@@ -5489,13 +5474,15 @@ function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, formErr
     if (mobilepay.trim()) formData.append('mobilepay', mobilepay.trim())
     if (phone.trim()) formData.append('contact_phone', phone.trim())
     if (contactEmail.trim()) formData.append('contact_email', contactEmail.trim())
-    photoFiles.forEach(f => formData.append('photos', f))
     if (isEdit) {
-      // Tell server which existing photos to keep (non-blob URLs already on server)
+      // Tell server which existing photos to keep — append BEFORE file uploads so multer parses it first
       const existingPhotos = photoPreviews
         .filter(url => !url.startsWith('blob:'))
         .map(url => ({ url, type: 'image' }))
       formData.append('existingPhotos', JSON.stringify(existingPhotos))
+    }
+    photoFiles.forEach(f => formData.append('photos', f))
+    if (isEdit) {
       onSubmit(listing.id, formData, localListing)
     } else {
       onSubmit(formData, localListing)
