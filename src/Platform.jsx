@@ -398,25 +398,17 @@ function FeedPage({ lang, t, currentUser }) {
           <div className="p-avatar-sm" style={{ background: nameToColor(currentUser.name) }}>
             {currentUser.initials || getInitials(currentUser.name)}
           </div>
-          <input
-            className="p-new-post-input"
+          <textarea
+            className="p-new-post-textarea"
             placeholder={t.newPost}
             value={newPostText}
-            onChange={e => setNewPostText(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handlePost()}
+            rows={1}
+            onChange={e => {
+              setNewPostText(e.target.value)
+              e.target.style.height = 'auto'
+              e.target.style.height = Math.min(e.target.scrollHeight, 300) + 'px'
+            }}
           />
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
-            multiple
-            style={{ display: 'none' }}
-            onChange={handleFileSelect}
-          />
-          <button className="p-media-btn" onClick={() => fileInputRef.current?.click()} title={lang === 'da' ? 'Tilføj billede/video' : 'Add image/video'}>
-            📷
-          </button>
-          <button className="p-post-btn" onClick={handlePost} disabled={!newPostText.trim()}>{t.post}</button>
         </div>
         {mediaPreviews.length > 0 && (
           <div className="p-media-previews">
@@ -432,6 +424,22 @@ function FeedPage({ lang, t, currentUser }) {
             ))}
           </div>
         )}
+        <div className="p-new-post-toolbar">
+          <div className="p-new-post-toolbar-left">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
+              multiple
+              style={{ display: 'none' }}
+              onChange={handleFileSelect}
+            />
+            <button className="p-media-btn" onClick={() => fileInputRef.current?.click()} title={lang === 'da' ? 'Tilføj billede/video' : 'Add image/video'}>
+              📷 <span className="p-media-btn-label">{lang === 'da' ? 'Foto/Video' : 'Photo/Video'}</span>
+            </button>
+          </div>
+          <button className="p-post-btn" onClick={handlePost} disabled={!newPostText.trim()}>{t.post}</button>
+        </div>
       </div>
 
       {/* Top sentinel — triggers loading previous page */}
@@ -1262,6 +1270,11 @@ function FriendsPage({ lang, t, onMessage }) {
                 {friend.online && <div className="online-dot" />}
               </div>
               <div className="p-friend-card-name">{friend.name}</div>
+              <div className={`p-friend-card-status${friend.online ? ' online' : ''}`}>
+                {friend.online
+                  ? (lang === 'da' ? 'Online' : 'Online')
+                  : (lang === 'da' ? 'Offline' : 'Offline')}
+              </div>
               <div className="p-friend-card-mutual">{friend.mutual} {t.mutualFriends}</div>
             </div>
             <button className="p-friend-msg-btn" onClick={onMessage}>
@@ -1269,6 +1282,18 @@ function FriendsPage({ lang, t, onMessage }) {
             </button>
           </div>
         ))}
+        {filtered.length === 0 && (
+          <div className="p-friends-empty">
+            <span className="p-friends-empty-icon">👥</span>
+            <p>
+              {search
+                ? (lang === 'da' ? 'Ingen venner matcher din søgning' : 'No friends match your search')
+                : filter === 'online'
+                  ? (lang === 'da' ? 'Ingen venner er online lige nu' : 'No friends are online right now')
+                  : (lang === 'da' ? 'Du har endnu ingen venner på fellis' : 'You have no friends on fellis yet')}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   )
