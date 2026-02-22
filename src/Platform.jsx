@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { PT, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiDeletePost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateMode } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiDeletePost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiChangePassword, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateMode } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -1814,7 +1814,11 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
 // ── Edit Profile ──
 function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
   const [profile, setProfile] = useState({ ...currentUser })
-  const [showPassword, setShowPassword] = useState(false)
+  const [pwCurrent, setPwCurrent] = useState('')
+  const [pwNew, setPwNew] = useState('')
+  const [pwConfirm, setPwConfirm] = useState('')
+  const [pwMsg, setPwMsg] = useState(null) // { ok: bool, text: string }
+  const [pwSaving, setPwSaving] = useState(false)
   const avatarInputRef = useRef(null)
 
   useEffect(() => {
@@ -1957,21 +1961,6 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
               <span className="p-login-info-value">{profile.email || '—'}</span>
             </div>
             <div className="p-login-info-row">
-              <span className="p-login-info-label">{t.passwordLabel}</span>
-              <span className="p-login-info-value p-password-value">
-                {profile.hasPassword === false ? (
-                  <span className="p-password-not-set">{t.passwordNotSet}</span>
-                ) : (
-                  <>
-                    <span>{showPassword ? (profile.passwordHint || '••••••••••••') : '••••••••••••'}</span>
-                    <button className="p-show-password-btn" onClick={() => setShowPassword(prev => !prev)}>
-                      {showPassword ? t.hidePasswordHint : t.showPasswordHint}
-                    </button>
-                  </>
-                )}
-              </span>
-            </div>
-            <div className="p-login-info-row">
               <span className="p-login-info-label">{t.loginMethodLabel}</span>
               <span className="p-login-info-value">{profile.loginMethod === 'facebook' ? t.loginMethodFacebook : t.loginMethodEmail}</span>
             </div>
@@ -1981,6 +1970,38 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
             </div>
           </div>
         </div>
+
+        {/* Change password */}
+        {profile.loginMethod !== 'facebook' && (
+          <div style={{ margin: '20px 0 0', borderTop: '1px solid #eee', paddingTop: 20 }}>
+            <h3 className="p-section-title">{lang === 'da' ? 'Skift adgangskode' : 'Change password'}</h3>
+            <label style={labelStyle}>{lang === 'da' ? 'Nuværende adgangskode' : 'Current password'}</label>
+            <input style={fieldStyle} type="password" value={pwCurrent} onChange={e => { setPwCurrent(e.target.value); setPwMsg(null) }} autoComplete="current-password" />
+            <label style={labelStyle}>{lang === 'da' ? 'Ny adgangskode' : 'New password'}</label>
+            <input style={fieldStyle} type="password" value={pwNew} onChange={e => { setPwNew(e.target.value); setPwMsg(null) }} autoComplete="new-password" />
+            <label style={labelStyle}>{lang === 'da' ? 'Bekræft ny adgangskode' : 'Confirm new password'}</label>
+            <input style={fieldStyle} type="password" value={pwConfirm} onChange={e => { setPwConfirm(e.target.value); setPwMsg(null) }} autoComplete="new-password" />
+            {pwMsg && (
+              <div style={{ marginTop: 8, fontSize: 13, color: pwMsg.ok ? '#2D6A4F' : '#c0392b', fontWeight: 500 }}>{pwMsg.text}</div>
+            )}
+            <button
+              style={{ marginTop: 12, padding: '8px 18px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: pwSaving ? 'default' : 'pointer', fontSize: 14, fontWeight: 600, opacity: pwSaving ? 0.7 : 1 }}
+              disabled={pwSaving}
+              onClick={async () => {
+                if (!pwCurrent || !pwNew || !pwConfirm) { setPwMsg({ ok: false, text: lang === 'da' ? 'Udfyld alle felter' : 'Fill in all fields' }); return }
+                if (pwNew !== pwConfirm) { setPwMsg({ ok: false, text: lang === 'da' ? 'Adgangskoderne stemmer ikke overens' : 'Passwords do not match' }); return }
+                if (pwNew.length < 6) { setPwMsg({ ok: false, text: lang === 'da' ? 'Minimum 6 tegn' : 'Minimum 6 characters' }); return }
+                setPwSaving(true)
+                const res = await apiChangePassword(pwCurrent, pwNew)
+                setPwSaving(false)
+                if (res?.ok) { setPwMsg({ ok: true, text: lang === 'da' ? 'Adgangskode ændret ✓' : 'Password changed ✓' }); setPwCurrent(''); setPwNew(''); setPwConfirm('') }
+                else { setPwMsg({ ok: false, text: res?.error || (lang === 'da' ? 'Noget gik galt' : 'Something went wrong') }) }
+              }}
+            >
+              {pwSaving ? (lang === 'da' ? 'Gemmer…' : 'Saving…') : (lang === 'da' ? 'Skift adgangskode' : 'Change password')}
+            </button>
+          </div>
+        )}
 
         <button
           style={{ marginTop: 24, padding: '10px 20px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}

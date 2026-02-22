@@ -81,6 +81,13 @@ export async function apiResetPassword(token, password) {
   return data
 }
 
+export async function apiChangePassword(currentPassword, newPassword) {
+  return await request('/api/auth/change-password', {
+    method: 'POST',
+    body: JSON.stringify({ currentPassword, newPassword }),
+  })
+}
+
 export async function apiCheckSession() {
   // Try session check even without localStorage — cookie may carry the session
   return await request('/api/auth/session')
