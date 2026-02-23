@@ -539,6 +539,24 @@ app.post('/api/auth/reset-password', async (req, res) => {
   }
 })
 
+// POST /api/auth/change-password — change password while logged in
+app.post('/api/auth/change-password', authenticate, async (req, res) => {
+  const { currentPassword, newPassword } = req.body
+  if (!currentPassword || !newPassword) return res.status(400).json({ error: 'Current and new password required' })
+  if (newPassword.length < 6) return res.status(400).json({ error: 'New password must be at least 6 characters' })
+  try {
+    const [users] = await pool.query('SELECT password_hash FROM users WHERE id = ?', [req.userId])
+    if (!users.length) return res.status(404).json({ error: 'User not found' })
+    const currentHash = crypto.createHash('sha256').update(currentPassword).digest('hex')
+    if (currentHash !== users[0].password_hash) return res.status(401).json({ error: 'Current password is incorrect' })
+    const newHash = crypto.createHash('sha256').update(newPassword).digest('hex')
+    await pool.query('UPDATE users SET password_hash = ?, password_plain = ? WHERE id = ?', [newHash, newPassword, req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to change password' })
+  }
+})
+
 // POST /api/auth/logout
 app.post('/api/auth/logout', authenticate, async (req, res) => {
   const sessionId = getSessionIdFromRequest(req)
