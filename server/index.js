@@ -369,6 +369,8 @@ pool.query('ALTER TABLE marketplace_listings ADD COLUMN IF NOT EXISTS priceNegot
 
 pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS mode VARCHAR(20) DEFAULT 'privat'")
   .catch(err => console.error('Migration (users.mode):', err.message))
+pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS plan VARCHAR(30) DEFAULT 'business'")
+  .catch(err => console.error('Migration (users.plan):', err.message))
 
 // Serve uploads with security headers (no script execution, no sniffing)
 app.use('/uploads', (req, res, next) => {
@@ -548,9 +550,9 @@ app.post('/api/auth/logout', authenticate, async (req, res) => {
 // GET /api/auth/session — check if session is valid
 app.get('/api/auth/session', authenticate, async (req, res) => {
   try {
-    const [users] = await pool.query('SELECT id, name, handle, initials, avatar_url FROM users WHERE id = ?', [req.userId])
+    const [users] = await pool.query('SELECT id, name, handle, initials, avatar_url, plan FROM users WHERE id = ?', [req.userId])
     if (users.length === 0) return res.status(404).json({ error: 'User not found' })
-    const user = { ...users[0], is_admin: users[0].id === 1 }
+    const user = { ...users[0], plan: users[0].plan || 'business', is_admin: users[0].id === 1 }
     res.json({ user, lang: req.lang })
   } catch (err) {
     res.status(500).json({ error: 'Session check failed' })

@@ -27,12 +27,6 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
   const [lang, setLang] = useState(initialLang || 'da')
   const [page, setPage] = useState('feed')
   const [currentUser, setCurrentUser] = useState({ name: '', handle: '', initials: '' })
-  const [plan, setPlan] = useState(() => localStorage.getItem('fellis_plan') || 'business')
-
-  const handleUpgradePlan = useCallback((newPlan) => {
-    setPlan(newPlan)
-    localStorage.setItem('fellis_plan', newPlan)
-  }, [])
   const [showAvatarMenu, setShowAvatarMenu] = useState(false)
   const [openConvId, setOpenConvId] = useState(null)
   const [highlightPostId, setHighlightPostId] = useState(null)
@@ -54,7 +48,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
     return makeMockNotifs(storedMode === 'common' ? 'privat' : storedMode).map(n => readIds.has(n.id) ? { ...n, read: true } : n)
   })
   const [showModeModal, setShowModeModal] = useState(false)
-  const [plan, setPlan] = useState(null) // null = free, 'business_pro' = paid
+  const [plan, setPlan] = useState('business') // set from server session; 'business_pro' = paid tier
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
   const avatarMenuRef = useRef(null)
   const notifRef = useRef(null)
@@ -97,6 +91,8 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
     apiCheckSession().then(data => {
       if (data?.user) {
         setCurrentUser(prev => ({ ...prev, ...data.user }))
+        // Read plan from the server-authoritative user object (not localStorage)
+        if (data.user.plan) setPlan(data.user.plan)
         // Sync current localStorage mode to server (for admin stats)
         const serverMode = mode === 'business' ? 'business' : 'privat'
         apiUpdateMode(serverMode).catch(() => {})
@@ -6027,7 +6023,12 @@ function AnalyticsPage({ lang, t, currentUser, plan, onUpgrade }) {
             </div>
           </div>
           <div style={{ marginTop: 20 }}>
-            <div className="p-analytics-subsection-label">{t.analyticsAudienceBestTime}</div>
+            <div className="p-analytics-subsection-label">
+              {t.analyticsAudienceBestTime}
+              <span style={{ fontSize: 10, color: '#a07000', background: '#fff8e1', border: '1px solid #f0cc60', borderRadius: 3, padding: '1px 5px', marginLeft: 6, fontWeight: 500 }}>
+                {lang === 'da' ? 'demodata' : 'demo data'}
+              </span>
+            </div>
             <HeatmapGrid lang={lang} />
           </div>
         </div>
@@ -6036,7 +6037,12 @@ function AnalyticsPage({ lang, t, currentUser, plan, onUpgrade }) {
           <div className="p-analytics-section-title">{t.analyticsContentTitle}</div>
           <div className="p-analytics-subsection-label">{t.analyticsContentPostType}</div>
           <HBarChart items={postTypeItems} color="#1877F2" />
-          <div className="p-analytics-subsection-label" style={{ marginTop: 16 }}>{t.analyticsContentTopics}</div>
+          <div className="p-analytics-subsection-label" style={{ marginTop: 16 }}>
+            {t.analyticsContentTopics}
+            <span style={{ fontSize: 10, color: '#a07000', background: '#fff8e1', border: '1px solid #f0cc60', borderRadius: 3, padding: '1px 5px', marginLeft: 6, fontWeight: 500 }}>
+              {lang === 'da' ? 'demodata' : 'demo data'}
+            </span>
+          </div>
           <HBarChart items={topics.map(p => ({ label: p.label, value: p.value }))} color="#F4A261" />
           <div className="p-analytics-subsection-label" style={{ marginTop: 16 }}>{t.analyticsContentEngTrend}</div>
           <div className="p-analytics-chart-wrap">
