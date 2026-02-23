@@ -26,6 +26,7 @@ function makeMockNotifs(mode) {
 export default function Platform({ lang: initialLang, onLogout, initialPostId }) {
   const [lang, setLang] = useState(initialLang || 'da')
   const [page, setPage] = useState('feed')
+  const [navData, setNavData] = useState(null)
   const [currentUser, setCurrentUser] = useState({ name: '', handle: '', initials: '' })
   const [showAvatarMenu, setShowAvatarMenu] = useState(false)
   const [openConvId, setOpenConvId] = useState(null)
@@ -118,7 +119,8 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
     return () => document.removeEventListener('mousedown', handleClick)
   }, [showAvatarMenu, showNotifPanel])
 
-  const navigateTo = useCallback((p) => {
+  const navigateTo = useCallback((p, data = null) => {
+    setNavData(data)
     setPage(p)
     setShowAvatarMenu(false)
   }, [])
@@ -257,6 +259,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
           <FeedPage lang={lang} t={t} currentUser={currentUser} mode={mode} highlightPostId={highlightPostId} onHighlightCleared={() => setHighlightPostId(null)}
             onViewProfile={(uid) => { setViewUserId(uid); navigateTo('view-profile') }}
             onViewOwnProfile={() => navigateTo('profile')}
+            onNavigateToCompany={(company) => navigateTo('company', company)}
           />
         </div>
         {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} />}
@@ -282,7 +285,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
           navigateTo('messages')
         }} />}
         {page === 'jobs' && <JobsPage lang={lang} t={t} currentUser={currentUser} mode={mode} />}
-        {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} />}
+        {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} initialCompany={navData} />}
         {page === 'analytics' && <AnalyticsPage lang={lang} t={t} currentUser={currentUser} plan={plan} onUpgrade={() => setShowUpgradeModal(true)} />}
         {page === 'privacy' && <PrivacySection lang={lang} onLogout={onLogout} />}
         {page === 'admin' && currentUser.is_admin && <AdminPage lang={lang} t={t} />}
@@ -630,7 +633,7 @@ function MentionDropdown({ filtered, selIdx, onSelect }) {
   )
 }
 
-function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile }) {
+function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onNavigateToCompany }) {
   const [posts, setPosts] = useState([])
   const [pinnedPost, setPinnedPost] = useState(null)
   const pinnedRef = useRef(null)
@@ -1182,11 +1185,11 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
       {offset === 0 && MOCK_COMPANIES[0] && (
         <div className="p-card p-post">
           <div className="p-post-header">
-            <div className="p-company-logo-sm" style={{ background: MOCK_COMPANIES[0].color, borderRadius: 8, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 16, flexShrink: 0 }}>
+            <div className="p-company-logo-sm" style={{ background: MOCK_COMPANIES[0].color, borderRadius: 8, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 16, flexShrink: 0, cursor: 'pointer' }} onClick={() => onNavigateToCompany?.(MOCK_COMPANIES[0])}>
               {MOCK_COMPANIES[0].name[0]}
             </div>
             <div>
-              <div className="p-post-author">{MOCK_COMPANIES[0].name}</div>
+              <div className="p-post-author" style={{ cursor: 'pointer' }} onClick={() => onNavigateToCompany?.(MOCK_COMPANIES[0])}>{MOCK_COMPANIES[0].name}</div>
               <div className="p-post-time" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span className="p-event-type-badge" style={{ padding: '1px 6px', fontSize: 10 }}>{t.companyFeedLabel}</span>
                 <span>{lang === 'da' ? '1 t siden' : '1 hr ago'}</span>
@@ -4393,9 +4396,9 @@ const MOCK_JOBS = [
   },
 ]
 
-function CompanyListPage({ lang, t, currentUser, mode, onNavigate }) {
+function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompany }) {
   const [companies, setCompanies] = useState(MOCK_COMPANIES)
-  const [selectedCompany, setSelectedCompany] = useState(null)
+  const [selectedCompany, setSelectedCompany] = useState(initialCompany || null)
   const [showCreate, setShowCreate] = useState(false)
   const [tab, setTab] = useState('my')
   const [followMap, setFollowMap] = useState(() => {
