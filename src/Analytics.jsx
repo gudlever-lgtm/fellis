@@ -1,4 +1,5 @@
-import { useState, useMemo, Fragment } from 'react'
+import { useState, useMemo, useEffect, useCallback, Fragment } from 'react'
+import { apiGetAnalytics } from './api.js'
 
 // ── Deterministic pseudo-random (seeded) ──
 function seed(s) {
@@ -534,18 +535,103 @@ export function PostInsightsPanel({ post, lang, onClose }) {
 export default function AnalyticsPage({ lang, currentPlan, onUpgradePlan }) {
   const [dateRange, setDateRange] = useState(30)
   const [showUpgrade, setShowUpgrade] = useState(false)
+  const [analyticsData, setAnalyticsData] = useState(null)
 
-  const profileViews = useMemo(() => generateDays(dateRange, 130, 45, 60, 1), [dateRange])
-  const followerGrowth = useMemo(() => generateFollowerGrowth(dateRange), [dateRange])
+  // Fetch real analytics data from the server whenever the date range changes
+  useEffect(() => {
+    setAnalyticsData(null)
+    apiGetAnalytics(dateRange).then(data => setAnalyticsData(data)).catch(() => {})
+  }, [dateRange])
+
+  // Fill sparse {date, count} API rows into a dense per-day array
+  const fillDays = useCallback((rows, days) => {
+    const map = {}
+    ;(rows || []).forEach(r => { map[(r.date || '').slice(0, 10)] = Number(r.count) })
+    return Array.from({ length: days }, (_, i) => {
+      const d = new Date(); d.setDate(d.getDate() - (days - 1 - i))
+      return {
+        label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        value: map[d.toISOString().slice(0, 10)] || 0,
+      }
+    })
+  }, [])
+
+  // Profile views: real API data (seeded fallback while loading)
+  const profileViews = useMemo(
+    () => analyticsData ? fillDays(analyticsData.views, dateRange) : generateDays(dateRange, 130, 45, 60, 1),
+    [analyticsData, dateRange, fillDays]
+  )
+
+  // New connections per day: real API data (seeded fallback while loading)
+  const connGrowth = useMemo(
+    () => analyticsData ? fillDays(analyticsData.connections, dateRange) : generateDays(dateRange, 5, 2, 4, 7),
+    [analyticsData, dateRange, fillDays]
+  )
+
+  // Engagement trend: real API data (seeded fallback while loading)
   const engRate = useMemo(
-    () => profileViews.map((pv, i) => ({ label: pv.label, value: parseFloat((3.5 + seed(i * 17 + 5) * 4).toFixed(1)) })),
-    [profileViews]
+    () => analyticsData
+      ? fillDays(analyticsData.engTrend, dateRange)
+      : profileViews.map((pv, i) => ({ label: pv.label, value: parseFloat((3.5 + seed(i * 17 + 5) * 4).toFixed(1)) })),
+    [analyticsData, dateRange, fillDays, profileViews]
   )
+
+  // Competitor chart: "you" line uses real connection data; industry line is estimated
   const compData = useMemo(
-    () => followerGrowth.map(fg => ({ label: fg.label, you: fg.value, industry: Math.round(fg.value * 0.81) })),
-    [followerGrowth]
+    () => connGrowth.map(fg => ({ label: fg.label, you: fg.value, industry: Math.round(fg.value * 0.81) })),
+    [connGrowth]
   )
+
   const heatmapData = useMemo(() => generateHeatmap(), [])
+
+  // Top posts: real API data when loaded; seeded fallback while loading; empty state if no posts
+  const topPostsData = useMemo(() => {
+    if (analyticsData?.topPosts?.length) {
+      // API returns {label, value} — label=post text, value=total engagement count
+      return analyticsData.topPosts.map(p => ({ text: p.label, reach: p.value, likes: null, comments: null, shares: null }))
+    }
+    if (analyticsData) return [] // loaded, but user has no posts yet
+    return TOP_POSTS // seeded fallback while loading
+  }, [analyticsData])
+
+  // Funnel: real API data when available; seeded fallback otherwise
+  const funnelData = useMemo(() => {
+    const fv = analyticsData?.funnel
+    if (fv) {
+      return lang === 'da'
+        ? [
+            { label: 'Profilvisninger', value: fv.views },
+            { label: 'Forbindelsesanmodninger', value: fv.requests },
+            { label: 'Accepteret', value: fv.connections },
+          ]
+        : [
+            { label: 'Profile views', value: fv.views },
+            { label: 'Connection requests', value: fv.requests },
+            { label: 'Accepted', value: fv.connections },
+          ]
+    }
+    return lang === 'da' ? FUNNEL_DA : FUNNEL
+  }, [analyticsData, lang])
+
+  // Post types: real API data (text vs. media); null = backend returned nothing yet
+  const postTypeData = useMemo(() => {
+    const pt = analyticsData?.postTypes
+    if (pt && (pt.text + pt.media) > 0) {
+      return [
+        { label: lang === 'da' ? 'Tekst' : 'Text', value: pt.text },
+        { label: lang === 'da' ? 'Medie' : 'Media', value: pt.media },
+      ].filter(d => d.value > 0)
+    }
+    return null // no real data available yet
+  }, [analyticsData, lang])
+
+  // KPI aggregates from real data
+  const totalViews = profileViews.reduce((s, d) => s + d.value, 0)
+  const totalConns = connGrowth.reduce((s, d) => s + d.value, 0)
+  const eng = analyticsData?.engagement
+  const avgEngRate = eng
+    ? (eng.posts > 0 ? ((eng.likes + eng.comments) / eng.posts).toFixed(1) : '0.0')
+    : '–'
 
   const handleUpgrade = () => {
     onUpgradePlan('business_pro')
@@ -554,8 +640,8 @@ export default function AnalyticsPage({ lang, currentPlan, onUpgradePlan }) {
 
   const handleExportCSV = () => {
     const rows = [
-      ['Date', 'Profile Views', 'Followers', 'Engagement Rate %'],
-      ...profileViews.map((pv, i) => [pv.label, pv.value, followerGrowth[i]?.value ?? '', engRate[i]?.value ?? '']),
+      ['Date', 'Profile Views', 'New Connections'],
+      ...profileViews.map((pv, i) => [pv.label, pv.value, connGrowth[i]?.value ?? '']),
     ]
     const csv = rows.map(r => r.join(',')).join('\n')
     const blob = new Blob([csv], { type: 'text/csv' })
@@ -568,6 +654,17 @@ export default function AnalyticsPage({ lang, currentPlan, onUpgradePlan }) {
   }
 
   const handleExportPDF = () => window.print()
+
+  // Visible badge appended to section titles that still use placeholder data
+  const demoTag = (
+    <span style={{
+      fontSize: 11, color: '#a07000', background: '#fff8e1',
+      border: '1px solid #f0cc60', borderRadius: 4,
+      padding: '1px 6px', marginLeft: 8, fontWeight: 500,
+    }}>
+      {lang === 'da' ? 'demodata' : 'demo data'}
+    </span>
+  )
 
   const card = {
     background: '#fff', borderRadius: 12, padding: 20, marginBottom: 16,
@@ -587,11 +684,12 @@ export default function AnalyticsPage({ lang, currentPlan, onUpgradePlan }) {
     upgradeBtn: 'Opgrader nu',
     profileViews: 'Profilvisninger',
     pvDesc: 'Unikke profilvisninger i perioden',
-    followerGrowth: 'Følgervækst',
-    fgDesc: 'Forbindelser/følgere over tid',
+    connGrowth: 'Nye forbindelser',
+    connGrowthDesc: 'Nye forbindelser accepteret i perioden',
     topPosts: 'Top 5 opslag',
-    tpDesc: 'Sorteret efter estimeret rækkevidde',
-    reach: 'rækkevidde',
+    tpDesc: 'Sorteret efter samlet engagement',
+    reach: 'engagement',
+    noPostsYet: 'Ingen opslag endnu',
     audience: 'Målgruppeanalyse',
     industryDist: 'Branchefordeling',
     topLoc: 'Top 5 lokationer',
@@ -600,21 +698,23 @@ export default function AnalyticsPage({ lang, currentPlan, onUpgradePlan }) {
     bestTimeDesc: 'Heatmap — mørkere felt = mere engagement',
     growthSrc: 'Vækstkilder',
     contentPerf: 'Indholdsperformance',
-    postType: 'Sammenligning af opslags-typer (rækkevidde)',
+    postType: 'Sammenligning af opslags-typer (engagement)',
     hashtagPerf: 'Emne / hashtag-performance',
-    engTrend: 'Engagementsrate over tid',
+    engTrend: 'Engagementstrend over tid',
     funnel: 'Forbindelsestragt',
     funnelDesc: 'Fra profilvisning til accepteret forbindelsesanmodning',
     postsDriving: 'Opslag der driver profilbesøg',
     competitor: 'Konkurrentbenchmarking',
-    compFollower: 'Følgervækst — dig vs. branchegennemsnit',
-    compNote: '* Konkurrentdata er anonymiserede branchegennemsnit — ingen individuelle data vises.',
+    compFollower: 'Forbindelsesvækst — dig vs. branchegennemsnit',
+    compNote: '* Branchelinjen er et estimeret gennemsnit — ingen individuelle konkurrentdata vises.',
     youLabel: 'Dig',
-    industryLabel: 'Branche-gns.',
+    industryLabel: 'Branche-gns. (est.)',
     exportTitle: 'Eksporter data',
     exportCSV: 'Download CSV',
     exportPDF: 'Download PDF',
-    totalViews: 'visninger i alt',
+    loading: 'Henter…',
+    avgEng: 'Gns. engagement/opslag',
+    newConns: 'nye forbindelser',
   } : {
     title: 'Analytics',
     subtitle: 'Business analytics for your account',
@@ -624,11 +724,12 @@ export default function AnalyticsPage({ lang, currentPlan, onUpgradePlan }) {
     upgradeBtn: 'Upgrade now',
     profileViews: 'Profile Views',
     pvDesc: 'Unique profile views in the selected period',
-    followerGrowth: 'Follower Growth',
-    fgDesc: 'Connections / followers over time',
+    connGrowth: 'New Connections',
+    connGrowthDesc: 'New connections accepted in the period',
     topPosts: 'Top 5 Posts',
-    tpDesc: 'Sorted by estimated reach',
-    reach: 'reach',
+    tpDesc: 'Sorted by total engagement',
+    reach: 'engagement',
+    noPostsYet: 'No posts yet',
     audience: 'Audience Insights',
     industryDist: 'Industry Distribution',
     topLoc: 'Top 5 Locations',
@@ -637,26 +738,24 @@ export default function AnalyticsPage({ lang, currentPlan, onUpgradePlan }) {
     bestTimeDesc: 'Heatmap — darker = more engagement from your audience',
     growthSrc: 'Audience Growth Source',
     contentPerf: 'Content Performance',
-    postType: 'Post type comparison (reach)',
+    postType: 'Post type comparison (engagement)',
     hashtagPerf: 'Topic / hashtag performance',
-    engTrend: 'Engagement rate over time',
+    engTrend: 'Engagement trend over time',
     funnel: 'Connection Funnel',
     funnelDesc: 'From profile view to accepted connection request',
     postsDriving: 'Posts driving profile visits',
     competitor: 'Competitor Benchmarking',
-    compFollower: 'Follower growth — you vs. industry average',
-    compNote: '* Competitor data is anonymized industry averages — no individual competitor data is shown.',
+    compFollower: 'Connection growth — you vs. industry average',
+    compNote: '* The industry line is an estimated average — no individual competitor data is shown.',
     youLabel: 'You',
-    industryLabel: 'Industry avg.',
+    industryLabel: 'Industry avg. (est.)',
     exportTitle: 'Export Data',
     exportCSV: 'Download CSV',
     exportPDF: 'Download PDF',
-    totalViews: 'total views',
+    loading: 'Loading…',
+    avgEng: 'Avg. engagement/post',
+    newConns: 'new connections',
   }
-
-  const totalViews = profileViews.reduce((s, d) => s + d.value, 0)
-  const latestFollowers = followerGrowth[followerGrowth.length - 1]?.value ?? 0
-  const funnelData = lang === 'da' ? FUNNEL_DA : FUNNEL
 
   return (
     <div className="p-profile" style={{ maxWidth: 720 }}>
@@ -706,64 +805,67 @@ export default function AnalyticsPage({ lang, currentPlan, onUpgradePlan }) {
         <DateRangeSelector value={dateRange} onChange={setDateRange} lang={lang} />
       </div>
 
-      {/* ── KPI row ── */}
+      {/* ── KPI row — real API data ── */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
-        <StatCard label={t.profileViews} value={totalViews.toLocaleString()} delta={12} />
-        <StatCard label={t.followerGrowth} value={latestFollowers.toLocaleString()} delta={5} color="#40916C" />
-        <StatCard label={lang === 'da' ? 'Gns. engagement' : 'Avg. engagement'} value="6.8%" delta={2} color="#6C63FF" />
+        <StatCard label={t.profileViews} value={analyticsData ? totalViews.toLocaleString() : t.loading} />
+        <StatCard label={t.connGrowth} value={analyticsData ? (totalConns > 0 ? `+${totalConns}` : '0') : t.loading} color="#40916C" />
+        <StatCard label={t.avgEng} value={avgEngRate} color="#6C63FF" />
       </div>
 
-      {/* ── FREE: Profile Views ── */}
+      {/* ── FREE: Profile Views (real SQL data) ── */}
       <div style={card}>
         <h3 style={sTitle}>{t.profileViews}</h3>
         <p style={sub}>{t.pvDesc}</p>
         <LineChart data={profileViews} />
       </div>
 
-      {/* ── FREE: Follower Growth ── */}
+      {/* ── FREE: New Connections (real SQL data) ── */}
       <div style={card}>
-        <h3 style={sTitle}>{t.followerGrowth}</h3>
-        <p style={sub}>{t.fgDesc}</p>
-        <LineChart data={followerGrowth} color="#40916C" />
+        <h3 style={sTitle}>{t.connGrowth}</h3>
+        <p style={sub}>{t.connGrowthDesc}</p>
+        <LineChart data={connGrowth} color="#40916C" />
       </div>
 
-      {/* ── FREE: Top 5 Posts ── */}
+      {/* ── FREE: Top 5 Posts (real SQL data) ── */}
       <div style={card}>
         <h3 style={sTitle}>{t.topPosts}</h3>
         <p style={sub}>{t.tpDesc}</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {TOP_POSTS.map((post, i) => (
-            <div key={i} style={{
-              padding: '12px 14px', borderRadius: 9, border: '1px solid #E8E4DF',
-              display: 'flex', alignItems: 'center', gap: 12,
-            }}>
-              <div style={{
-                width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
-                background: i === 0 ? '#FFD700' : i === 1 ? '#C0C0C0' : i === 2 ? '#CD7F32' : '#eee',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 12, fontWeight: 700, color: i < 3 ? '#333' : '#888',
+          {topPostsData.length === 0
+            ? <p style={{ fontSize: 13, color: '#aaa', textAlign: 'center', padding: '16px 0' }}>{t.noPostsYet}</p>
+            : topPostsData.map((post, i) => (
+              <div key={i} style={{
+                padding: '12px 14px', borderRadius: 9, border: '1px solid #E8E4DF',
+                display: 'flex', alignItems: 'center', gap: 12,
               }}>
-                {i + 1}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {post.text}
+                <div style={{
+                  width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+                  background: i === 0 ? '#FFD700' : i === 1 ? '#C0C0C0' : i === 2 ? '#CD7F32' : '#eee',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 12, fontWeight: 700, color: i < 3 ? '#333' : '#888',
+                }}>
+                  {i + 1}
                 </div>
-                <div style={{ display: 'flex', gap: 14, marginTop: 5, fontSize: 12, color: '#666', flexWrap: 'wrap' }}>
-                  <span>👁 {post.reach.toLocaleString()} {t.reach}</span>
-                  <span>❤️ {post.likes}</span>
-                  <span>💬 {post.comments}</span>
-                  <span>↗ {post.shares}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {post.text}
+                  </div>
+                  <div style={{ display: 'flex', gap: 14, marginTop: 5, fontSize: 12, color: '#666', flexWrap: 'wrap' }}>
+                    <span>⚡ {post.reach.toLocaleString()} {t.reach}</span>
+                    {post.likes !== null && <span>❤️ {post.likes}</span>}
+                    {post.comments !== null && <span>💬 {post.comments}</span>}
+                    {post.shares !== null && <span>↗ {post.shares}</span>}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))
+          }
         </div>
       </div>
 
-      {/* ── PRO: Audience Insights ── */}
+      {/* ── PRO: Audience Insights (no demographic fields in DB yet — demo data) ── */}
       <div style={card}>
-        <h3 style={sTitle}>{t.audience}</h3>
+        <h3 style={sTitle}>{t.audience} {demoTag}</h3>
         <PlanGate plan="business_pro" currentPlan={currentPlan} onUpgrade={() => setShowUpgrade(true)} lang={lang}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 20 }}>
             <div>
@@ -780,18 +882,18 @@ export default function AnalyticsPage({ lang, currentPlan, onUpgradePlan }) {
         </PlanGate>
       </div>
 
-      {/* ── PRO: Best Time to Post ── */}
+      {/* ── PRO: Best Time to Post (no posting-time data in DB yet — demo data) ── */}
       <div style={card}>
-        <h3 style={sTitle}>{t.bestTime}</h3>
+        <h3 style={sTitle}>{t.bestTime} {demoTag}</h3>
         <p style={sub}>{t.bestTimeDesc}</p>
         <PlanGate plan="business_pro" currentPlan={currentPlan} onUpgrade={() => setShowUpgrade(true)} lang={lang}>
           <PostingHeatmap data={heatmapData} lang={lang} />
         </PlanGate>
       </div>
 
-      {/* ── PRO: Audience Growth Source ── */}
+      {/* ── PRO: Audience Growth Source (no referral tracking yet — demo data) ── */}
       <div style={card}>
-        <h3 style={sTitle}>{t.growthSrc}</h3>
+        <h3 style={sTitle}>{t.growthSrc} {demoTag}</h3>
         <PlanGate plan="business_pro" currentPlan={currentPlan} onUpgrade={() => setShowUpgrade(true)} lang={lang}>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             {GROWTH_SOURCE.map((s, i) => (
@@ -812,29 +914,39 @@ export default function AnalyticsPage({ lang, currentPlan, onUpgradePlan }) {
       <div style={card}>
         <h3 style={sTitle}>{t.contentPerf}</h3>
         <PlanGate plan="business_pro" currentPlan={currentPlan} onUpgrade={() => setShowUpgrade(true)} lang={lang}>
-          <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: '#444' }}>{t.postType}</p>
-          <BarChart data={POST_TYPE_PERF} />
+          {/* Post types: real SQL data when available, demo fallback otherwise */}
+          <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: '#444' }}>
+            {t.postType}{!postTypeData && <>{' '}{demoTag}</>}
+          </p>
+          <BarChart data={postTypeData || POST_TYPE_PERF} />
 
-          <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, marginTop: 24, color: '#444' }}>{t.hashtagPerf}</p>
+          {/* Hashtag performance: no hashtag tracking in DB yet */}
+          <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, marginTop: 24, color: '#444' }}>
+            {t.hashtagPerf} {demoTag}
+          </p>
           <HBarChart data={HASHTAG_PERF} valueKey="value" color="#6C63FF" />
 
+          {/* Engagement trend: real SQL data */}
           <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, marginTop: 24, color: '#444' }}>{t.engTrend}</p>
           <LineChart data={engRate} color="#E07A5F" />
         </PlanGate>
       </div>
 
-      {/* ── PRO: Connection Funnel ── */}
+      {/* ── PRO: Connection Funnel (real SQL data) ── */}
       <div style={card}>
         <h3 style={sTitle}>{t.funnel}</h3>
         <p style={sub}>{t.funnelDesc}</p>
         <PlanGate plan="business_pro" currentPlan={currentPlan} onUpgrade={() => setShowUpgrade(true)} lang={lang}>
           <FunnelChart data={funnelData} />
-          <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, marginTop: 24, color: '#444' }}>{t.postsDriving}</p>
+          {/* Posts driving visits: no referrer tracking yet */}
+          <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, marginTop: 24, color: '#444' }}>
+            {t.postsDriving} {demoTag}
+          </p>
           <HBarChart data={POSTS_DRIVING_VISITS} valueKey="value" color="#D4A574" />
         </PlanGate>
       </div>
 
-      {/* ── PRO: Competitor Benchmarking ── */}
+      {/* ── PRO: Competitor Benchmarking ("you" line = real data; industry line = estimated) ── */}
       <div style={card}>
         <h3 style={sTitle}>{t.competitor}</h3>
         <PlanGate plan="business_pro" currentPlan={currentPlan} onUpgrade={() => setShowUpgrade(true)} lang={lang}>
@@ -854,7 +966,7 @@ export default function AnalyticsPage({ lang, currentPlan, onUpgradePlan }) {
         </PlanGate>
       </div>
 
-      {/* ── PRO: Export ── */}
+      {/* ── PRO: Export (exports real profile-views + connections data) ── */}
       <div style={card}>
         <h3 style={{ ...sTitle, marginBottom: 14 }}>{t.exportTitle}</h3>
         <PlanGate plan="business_pro" currentPlan={currentPlan} onUpgrade={() => setShowUpgrade(true)} lang={lang}>
