@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { PT, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiDeletePost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiChangePassword, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateMode } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiDeletePost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateMode } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -48,10 +48,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
     return makeMockNotifs(storedMode === 'common' ? 'privat' : storedMode).map(n => readIds.has(n.id) ? { ...n, read: true } : n)
   })
   const [showModeModal, setShowModeModal] = useState(false)
-<<<<<<< HEAD
   const [plan, setPlan] = useState('business') // set from server session; 'business_pro' = paid tier
-=======
->>>>>>> origin/claude/fix-company-navigation-0fx2N
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
   const avatarMenuRef = useRef(null)
   const notifRef = useRef(null)
@@ -264,7 +261,6 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
           <FeedPage lang={lang} t={t} currentUser={currentUser} mode={mode} highlightPostId={highlightPostId} onHighlightCleared={() => setHighlightPostId(null)}
             onViewProfile={(uid) => { setViewUserId(uid); navigateTo('view-profile') }}
             onViewOwnProfile={() => navigateTo('profile')}
-            onNavigateToCompany={() => navigateTo('company')}
           />
         </div>
         {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} />}
@@ -638,7 +634,7 @@ function MentionDropdown({ filtered, selIdx, onSelect }) {
   )
 }
 
-function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onNavigateToCompany }) {
+function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile }) {
   const [posts, setPosts] = useState([])
   const [pinnedPost, setPinnedPost] = useState(null)
   const pinnedRef = useRef(null)
@@ -1206,11 +1202,11 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
       {offset === 0 && MOCK_COMPANIES[0] && (
         <div className="p-card p-post">
           <div className="p-post-header">
-            <div className="p-company-logo-sm" style={{ background: MOCK_COMPANIES[0].color, borderRadius: 8, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 16, flexShrink: 0, cursor: 'pointer' }} onClick={onNavigateToCompany}>
+            <div className="p-company-logo-sm" style={{ background: MOCK_COMPANIES[0].color, borderRadius: 8, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 16, flexShrink: 0 }}>
               {MOCK_COMPANIES[0].name[0]}
             </div>
             <div>
-              <div className="p-post-author" style={{ cursor: 'pointer' }} onClick={onNavigateToCompany}>{MOCK_COMPANIES[0].name}</div>
+              <div className="p-post-author">{MOCK_COMPANIES[0].name}</div>
               <div className="p-post-time" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span className="p-event-type-badge" style={{ padding: '1px 6px', fontSize: 10 }}>{t.companyFeedLabel}</span>
                 <span>{lang === 'da' ? '1 t siden' : '1 hr ago'}</span>
@@ -1224,7 +1220,7 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
             }
           </div>
           <div className="p-post-stats">
-            <span>{cpFeedLikes} {t.like.toLowerCase()}</span>
+            <span>{cpFeedLikes} {t.like.toLowerCase()}{cpFeedLikes !== 1 && lang === 'da' ? 'r' : ''}</span>
             <span>{cpFeedComments.length} {t.comment.toLowerCase()}{lang === 'da' ? 'er' : 's'}</span>
           </div>
           <div className="p-post-actions">
@@ -1601,6 +1597,7 @@ const MOCK_FB_PHOTOS = [
 function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
   const [profile, setProfile] = useState({ ...currentUser })
   const [userPosts, setUserPosts] = useState([])
+  const [showPassword, setShowPassword] = useState(false)
   const [familyGroups, setFamilyGroups] = useState([])
   const [profileTab, setProfileTab] = useState('about')
 
@@ -1697,6 +1694,38 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
 
       {/* About tab */}
       {profileTab === 'about' && (<>
+        <div className="p-card p-login-info-card">
+          <h3 className="p-section-title">{t.loginInfo}</h3>
+          <div className="p-login-info">
+            <div className="p-login-info-row">
+              <span className="p-login-info-label">{t.emailLabel}</span>
+              <span className="p-login-info-value">{profile.email || '—'}</span>
+            </div>
+            <div className="p-login-info-row">
+              <span className="p-login-info-label">{t.passwordLabel}</span>
+              <span className="p-login-info-value p-password-value">
+                {profile.hasPassword === false ? (
+                  <span className="p-password-not-set">{t.passwordNotSet}</span>
+                ) : (
+                  <>
+                    <span>{showPassword ? (profile.passwordHint || '••••••••••••') : '••••••••••••'}</span>
+                    <button className="p-show-password-btn" onClick={() => setShowPassword(prev => !prev)}>
+                      {showPassword ? t.hidePasswordHint : t.showPasswordHint}
+                    </button>
+                  </>
+                )}
+              </span>
+            </div>
+            <div className="p-login-info-row">
+              <span className="p-login-info-label">{t.loginMethodLabel}</span>
+              <span className="p-login-info-value">{profile.loginMethod === 'facebook' ? t.loginMethodFacebook : t.loginMethodEmail}</span>
+            </div>
+            <div className="p-login-info-row">
+              <span className="p-login-info-label">{t.accountCreatedLabel}</span>
+              <span className="p-login-info-value">{profile.createdAt ? new Date(profile.createdAt).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</span>
+            </div>
+          </div>
+        </div>
 
         {mode === 'privat' && (
           <div className="p-card p-family-section" style={{ marginBottom: 16 }}>
@@ -1805,11 +1834,6 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
 // ── Edit Profile ──
 function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
   const [profile, setProfile] = useState({ ...currentUser })
-  const [pwCurrent, setPwCurrent] = useState('')
-  const [pwNew, setPwNew] = useState('')
-  const [pwConfirm, setPwConfirm] = useState('')
-  const [pwMsg, setPwMsg] = useState(null) // { ok: bool, text: string }
-  const [pwSaving, setPwSaving] = useState(false)
   const avatarInputRef = useRef(null)
 
   useEffect(() => {
@@ -1941,57 +1965,6 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
               onChange={e => setProfile(p => ({ ...p, skills: e.target.value }))}
             />
           </>
-        )}
-
-        {/* Login info */}
-        <div style={{ margin: '24px 0 0', borderTop: '1px solid #eee', paddingTop: 20 }}>
-          <h3 className="p-section-title">{t.loginInfo}</h3>
-          <div className="p-login-info">
-            <div className="p-login-info-row">
-              <span className="p-login-info-label">{t.emailLabel}</span>
-              <span className="p-login-info-value">{profile.email || '—'}</span>
-            </div>
-            <div className="p-login-info-row">
-              <span className="p-login-info-label">{t.loginMethodLabel}</span>
-              <span className="p-login-info-value">{profile.loginMethod === 'facebook' ? t.loginMethodFacebook : t.loginMethodEmail}</span>
-            </div>
-            <div className="p-login-info-row">
-              <span className="p-login-info-label">{t.accountCreatedLabel}</span>
-              <span className="p-login-info-value">{profile.createdAt ? new Date(profile.createdAt).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Change password */}
-        {profile.loginMethod !== 'facebook' && (
-          <div style={{ margin: '20px 0 0', borderTop: '1px solid #eee', paddingTop: 20 }}>
-            <h3 className="p-section-title">{lang === 'da' ? 'Skift adgangskode' : 'Change password'}</h3>
-            <label style={labelStyle}>{lang === 'da' ? 'Nuværende adgangskode' : 'Current password'}</label>
-            <input style={fieldStyle} type="password" value={pwCurrent} onChange={e => { setPwCurrent(e.target.value); setPwMsg(null) }} autoComplete="current-password" />
-            <label style={labelStyle}>{lang === 'da' ? 'Ny adgangskode' : 'New password'}</label>
-            <input style={fieldStyle} type="password" value={pwNew} onChange={e => { setPwNew(e.target.value); setPwMsg(null) }} autoComplete="new-password" />
-            <label style={labelStyle}>{lang === 'da' ? 'Bekræft ny adgangskode' : 'Confirm new password'}</label>
-            <input style={fieldStyle} type="password" value={pwConfirm} onChange={e => { setPwConfirm(e.target.value); setPwMsg(null) }} autoComplete="new-password" />
-            {pwMsg && (
-              <div style={{ marginTop: 8, fontSize: 13, color: pwMsg.ok ? '#2D6A4F' : '#c0392b', fontWeight: 500 }}>{pwMsg.text}</div>
-            )}
-            <button
-              style={{ marginTop: 12, padding: '8px 18px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: pwSaving ? 'default' : 'pointer', fontSize: 14, fontWeight: 600, opacity: pwSaving ? 0.7 : 1 }}
-              disabled={pwSaving}
-              onClick={async () => {
-                if (!pwCurrent || !pwNew || !pwConfirm) { setPwMsg({ ok: false, text: lang === 'da' ? 'Udfyld alle felter' : 'Fill in all fields' }); return }
-                if (pwNew !== pwConfirm) { setPwMsg({ ok: false, text: lang === 'da' ? 'Adgangskoderne stemmer ikke overens' : 'Passwords do not match' }); return }
-                if (pwNew.length < 6) { setPwMsg({ ok: false, text: lang === 'da' ? 'Minimum 6 tegn' : 'Minimum 6 characters' }); return }
-                setPwSaving(true)
-                const res = await apiChangePassword(pwCurrent, pwNew)
-                setPwSaving(false)
-                if (res?.ok) { setPwMsg({ ok: true, text: lang === 'da' ? 'Adgangskode ændret ✓' : 'Password changed ✓' }); setPwCurrent(''); setPwNew(''); setPwConfirm('') }
-                else { setPwMsg({ ok: false, text: res?.error || (lang === 'da' ? 'Noget gik galt' : 'Something went wrong') }) }
-              }}
-            >
-              {pwSaving ? (lang === 'da' ? 'Gemmer…' : 'Saving…') : (lang === 'da' ? 'Skift adgangskode' : 'Change password')}
-            </button>
-          </div>
         )}
 
         <button
