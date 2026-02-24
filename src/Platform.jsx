@@ -3566,7 +3566,7 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened }) 
                   <span className="p-msg-thread-badges">
                     {c.isFamilyGroup && <span className="p-msg-family-badge" title={t.familyGroup}>🏡</span>}
                     {cIsMuted && <span className="p-msg-muted-icon" title={t.mutedLabel}>🔕</span>}
-                    {c.unread > 0 && <span className="p-msg-badge">{c.unread}</span>}
+                    {c.unread > 0 && <span className="p-msg-badge" title={lang === 'da' ? `${c.unread} ulæste beskeder` : `${c.unread} unread messages`}>{c.unread}</span>}
                   </span>
                 </div>
                 <div className="p-msg-thread-preview">
@@ -3660,7 +3660,7 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened }) 
                     {conv.isGroup && !isMe && (
                       <div className="p-msg-sender-name">{msg.from.split(' ')[0]}</div>
                     )}
-                    <div>{linkifyText(msg.text[lang] || '').map((p, pi) =>
+                    <div style={{ whiteSpace: 'pre-wrap' }}>{linkifyText(msg.text[lang] || '').map((p, pi) =>
                       p.t === 'url'
                         ? <a key={pi} href={p.v} target="_blank" rel="noopener noreferrer" className="post-link">{p.v}</a>
                         : p.t === 'mention'
