@@ -4679,7 +4679,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
                 </div>
                 <div className="p-post-text">{post.text[lang] || post.text.da}</div>
                 <div className="p-post-stats">
-                  <span>{post.likes} {t.like.toLowerCase()}{post.likes !== 1 && lang === 'da' ? 'r' : ''}</span>
+                  <span>{post.likes} {t.like.toLowerCase()}</span>
                   <span>{commentCount} {t.comment.toLowerCase()}{lang === 'da' ? 'er' : 's'}</span>
                 </div>
                 <div className="p-post-actions">
