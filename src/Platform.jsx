@@ -1215,14 +1215,6 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
                 <span className="p-event-type-badge" style={{ padding: '1px 6px', fontSize: 10 }}>{t.companyFeedLabel}</span>
                 <span>{lang === 'da' ? '1 t siden' : '1 hr ago'}</span>
               </div>
-              {post.author === currentUser.name && (
-                <button
-                  className="p-insights-link"
-                  onClick={() => setOpenInsights(openInsights === post.id ? null : post.id)}
-                >
-                  📊 {lang === 'da' ? 'Se indsigt' : 'See insights'}
-                </button>
-              )}
             </div>
           </div>
           <div className="p-post-text">
