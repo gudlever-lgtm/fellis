@@ -1234,7 +1234,7 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
               <span>{lang === 'da' ? 'Vist opslag' : 'Linked post'}</span>
               <button className="p-post-pinned-close" onClick={() => { setPinnedPost(null); onHighlightCleared?.() }}>✕</button>
             </div>
-            <div className="p-card p-post p-post-pinned p-post-highlighted" onAnimationEnd={() => { setPinnedPost(null); onHighlightCleared?.() }}>
+            <div className="p-card p-post p-post-pinned p-post-highlighted">
               <div className="p-post-header">
                 <div className="p-avatar-sm" style={{ background: nameToColor(post.author) }}>{getInitials(post.author)}</div>
                 <div><div className="p-post-author">{post.author}</div><div className="p-post-time">{post.time?.[lang]}</div></div>
