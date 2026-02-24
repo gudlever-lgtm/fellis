@@ -9,10 +9,10 @@ function makeMockNotifs(mode) {
   const isBiz = mode === 'business'
   const base = [
     { id: 1, type: 'friend_request', actor: 'Liam Madsen', time: '2 min', read: false, targetPage: 'friends' },
-    { id: 2, type: 'like', actor: 'Clara Johansen', time: '15 min', read: false, targetPage: 'feed' },
-    { id: 3, type: 'comment', actor: 'Magnus Jensen', time: '1 t', read: false, targetPage: 'feed' },
+    { id: 2, type: 'like', actor: 'Clara Johansen', time: '15 min', read: false, targetPage: 'feed', postId: 1 },
+    { id: 3, type: 'comment', actor: 'Magnus Jensen', time: '1 t', read: false, targetPage: 'feed', postId: 2 },
     { id: 4, type: 'accepted', actor: 'Astrid Poulsen', time: '3 t', read: true, targetPage: 'friends' },
-    { id: 5, type: 'group_post', actor: 'Emil Larsen', group: 'Designere i KBH', time: '5 t', read: true, targetPage: 'feed' },
+    { id: 5, type: 'group_post', actor: 'Emil Larsen', group: 'Designere i KBH', time: '5 t', read: true, targetPage: 'feed', postId: 3 },
   ]
   if (isBiz) {
     base.push(
@@ -206,7 +206,11 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
                   localStorage.setItem('fellis_notifs_read', JSON.stringify(next.filter(n => n.read).map(n => n.id)))
                   return next
                 })}
-                onNavigate={(pg) => { navigateTo(pg); setShowNotifPanel(false) }}
+                onNavigate={(pg, postId) => {
+                  if (postId) { setHighlightPostId(postId) }
+                  navigateTo(pg)
+                  setShowNotifPanel(false)
+                }}
               />
             )}
           </div>
@@ -383,7 +387,7 @@ function NotificationsPanel({ notifs, t, lang, mode, onMarkAllRead, onMarkRead, 
           <div
             key={n.id}
             className={`notif-item${n.read ? '' : ' notif-item-unread'}`}
-            onClick={() => { onMarkRead(n.id); onNavigate(n.targetPage) }}
+            onClick={() => { onMarkRead(n.id); onNavigate(n.targetPage, n.postId) }}
           >
             <div className="notif-item-dot" style={{ opacity: n.read ? 0 : 1 }} />
             <div className="notif-item-body">
@@ -1153,9 +1157,6 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
                   style={{ display: 'none' }}
                   onChange={handleFileSelect}
                 />
-                <button className="p-post-btn" onMouseDown={e => e.preventDefault()} onClick={() => fileInputRef.current?.click()} title={lang === 'da' ? 'Tilføj billede/video' : 'Add image/video'}>
-                  📷 {lang === 'da' ? 'Foto/Video' : 'Photo/Video'}
-                </button>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span className="p-input-hint-wrap">
@@ -1184,10 +1185,10 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
         return (
           <div ref={pinnedRef}>
             <div className="p-post-pinned-banner">
-              <span>📍 {lang === 'da' ? 'Vist opslag' : 'Linked post'}</span>
+              <span>{lang === 'da' ? 'Vist opslag' : 'Linked post'}</span>
               <button className="p-post-pinned-close" onClick={() => { setPinnedPost(null); onHighlightCleared?.() }}>✕</button>
             </div>
-            <div className="p-card p-post p-post-pinned">
+            <div className="p-card p-post p-post-pinned p-post-highlighted" onAnimationEnd={() => { setPinnedPost(null); onHighlightCleared?.() }}>
               <div className="p-post-header">
                 <div className="p-avatar-sm" style={{ background: nameToColor(post.author) }}>{getInitials(post.author)}</div>
                 <div><div className="p-post-author">{post.author}</div><div className="p-post-time">{post.time?.[lang]}</div></div>
