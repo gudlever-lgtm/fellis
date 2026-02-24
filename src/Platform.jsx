@@ -1226,7 +1226,7 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
             }
           </div>
           <div className="p-post-stats">
-            <span>{cpFeedLikes} {t.like.toLowerCase()}{cpFeedLikes !== 1 && lang === 'da' ? 'r' : ''}</span>
+            <span>{cpFeedLikes} {t.like.toLowerCase()}</span>
             <span>{cpFeedComments.length} {t.comment.toLowerCase()}{lang === 'da' ? 'er' : 's'}</span>
           </div>
           <div className="p-post-actions">
