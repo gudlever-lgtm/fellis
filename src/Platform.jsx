@@ -268,6 +268,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
           <FeedPage lang={lang} t={t} currentUser={currentUser} mode={mode} highlightPostId={highlightPostId} onHighlightCleared={() => setHighlightPostId(null)}
             onViewProfile={(uid) => { setViewUserId(uid); navigateTo('view-profile') }}
             onViewOwnProfile={() => navigateTo('profile')}
+            onNavigate={navigateTo}
           />
         </div>
         {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} />}
@@ -641,7 +642,7 @@ function MentionDropdown({ filtered, selIdx, onSelect }) {
   )
 }
 
-function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile }) {
+function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onNavigate }) {
   const [posts, setPosts] = useState([])
   const [pinnedPost, setPinnedPost] = useState(null)
   const pinnedRef = useRef(null)
@@ -1213,7 +1214,7 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
               {MOCK_COMPANIES[0].name[0]}
             </div>
             <div>
-              <button className="p-post-author" style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textDecoration: 'underline', textDecorationColor: 'transparent' }} onMouseEnter={e => e.currentTarget.style.textDecorationColor = 'currentColor'} onMouseLeave={e => e.currentTarget.style.textDecorationColor = 'transparent'} onClick={() => navigateTo('company', { companyId: MOCK_COMPANIES[0].id })}>{MOCK_COMPANIES[0].name}</button>
+              <button className="p-post-author" style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textDecoration: 'underline', textDecorationColor: 'transparent' }} onMouseEnter={e => e.currentTarget.style.textDecorationColor = 'currentColor'} onMouseLeave={e => e.currentTarget.style.textDecorationColor = 'transparent'} onClick={() => onNavigate('company', { companyId: MOCK_COMPANIES[0].id })}>{MOCK_COMPANIES[0].name}</button>
               <div className="p-post-time" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span className="p-event-type-badge" style={{ padding: '1px 6px', fontSize: 10 }}>{t.companyFeedLabel}</span>
                 <span>{lang === 'da' ? '1 t siden' : '1 hr ago'}</span>

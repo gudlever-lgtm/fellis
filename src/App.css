@@ -1301,6 +1301,16 @@
   opacity: 0.4;
   cursor: not-allowed;
 }
+.p-new-post-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.p-new-post-toolbar-left {
+  display: contents;
+}
 
 /* ── Post ── */
 .p-post-header {
