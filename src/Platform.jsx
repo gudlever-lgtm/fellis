@@ -1149,14 +1149,6 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
                     </>
                   )}
                 </div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
-                  multiple
-                  style={{ display: 'none' }}
-                  onChange={handleFileSelect}
-                />
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span className="p-input-hint-wrap">
