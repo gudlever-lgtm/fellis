@@ -4526,6 +4526,10 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
 function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBack, onFollow, isFollowing }) {
   const [tab, setTab] = useState('posts')
   const [newPost, setNewPost] = useState('')
+  const [cpMediaFiles, setCpMediaFiles] = useState([])
+  const [cpMediaPreviews, setCpMediaPreviews] = useState([])
+  const [cpMediaPopup, setCpMediaPopup] = useState(false)
+  const cpFileInputRef = useRef(null)
   const [companyPosts, setCompanyPosts] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem('fellis_cp_posts') || '{}')
@@ -4564,16 +4568,37 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
     setCompanyCommentInputs(prev => ({ ...prev, [postId]: '' }))
   }
 
+  const handleCpFileSelect = (e) => {
+    const files = Array.from(e.target.files).slice(0, 4)
+    setCpMediaFiles(files)
+    setCpMediaPreviews(files.map(f => ({
+      url: URL.createObjectURL(f),
+      type: f.type.startsWith('video/') ? 'video' : 'image',
+      name: f.name,
+    })))
+  }
+  const removeCpMedia = (idx) => {
+    setCpMediaFiles(prev => prev.filter((_, i) => i !== idx))
+    setCpMediaPreviews(prev => { URL.revokeObjectURL(prev[idx].url); return prev.filter((_, i) => i !== idx) })
+  }
+
   const postCompany = () => {
-    if (!newPost.trim()) return
+    if (!newPost.trim() && !cpMediaFiles.length) return
+    const media = cpMediaPreviews.length > 0
+      ? cpMediaPreviews.map(p => ({ url: p.url, type: p.type, mime: '' }))
+      : null
     setCompanyPosts(prev => [{
       id: `cp${Date.now()}`,
       text: { da: newPost, en: newPost },
       time: { da: 'Lige nu', en: 'Just now' },
       likes: 0,
       comments: 0,
+      ...(media ? { media } : {}),
     }, ...prev])
     setNewPost('')
+    setCpMediaFiles([])
+    setCpMediaPreviews([])
+    if (cpFileInputRef.current) cpFileInputRef.current.value = ''
   }
 
   const companyJobs = MOCK_JOBS.filter(j => j.companyId === company.id)
@@ -4631,6 +4656,9 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
         <>
           {(isOwner || company.role === 'admin' || company.role === 'editor') && (
             <div className="p-card" style={{ marginBottom: 12 }}>
+              <input ref={cpFileInputRef} type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
+                multiple style={{ display: 'none' }} onChange={handleCpFileSelect} />
               <div className="p-new-post-row">
                 <div style={{ width: 36, height: 36, borderRadius: 8, background: company.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 16, flexShrink: 0 }}>
                   {company.name[0]}
@@ -4644,11 +4672,49 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
                   />
                 </div>
               </div>
+              {cpMediaPreviews.length > 0 && (
+                <div className="p-media-previews">
+                  {cpMediaPreviews.map((p, i) => (
+                    <div key={i} className="p-media-preview">
+                      {p.type === 'video'
+                        ? <video src={p.url} className="p-media-preview-thumb" />
+                        : <img src={p.url} alt="" className="p-media-preview-thumb" />}
+                      <button className="p-media-preview-remove" onClick={() => removeCpMedia(i)}>✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
               <div className="p-new-post-actions">
-                <span />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div className="p-media-popup-wrap">
+                    <button
+                      className={`p-media-popup-btn${cpMediaPopup ? ' active' : ''}`}
+                      onMouseDown={e => e.preventDefault()}
+                      onClick={() => setCpMediaPopup(p => !p)}
+                      title={lang === 'da' ? 'Tilføj medie' : 'Add media'}
+                    >
+                      +
+                    </button>
+                    {cpMediaPopup && (
+                      <>
+                        <div className="p-share-backdrop" onClick={() => setCpMediaPopup(false)} />
+                        <div className="p-share-popup p-media-popup">
+                          <button className="p-share-option" onMouseDown={e => e.preventDefault()} onClick={() => { cpFileInputRef.current?.click(); setCpMediaPopup(false) }}>
+                            <span className="p-media-popup-icon">🖼️</span>
+                            {lang === 'da' ? 'Galleri' : 'Gallery'}
+                          </button>
+                          <button className="p-share-option" onMouseDown={e => e.preventDefault()} onClick={() => { setCpMediaPopup(false); openCamera(handleCpFileSelect) }}>
+                            <span className="p-media-popup-icon">📷</span>
+                            {lang === 'da' ? 'Kamera' : 'Camera'}
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
                 <button
                   className="p-post-btn"
-                  disabled={!newPost.trim()}
+                  disabled={!newPost.trim() && !cpMediaPreviews.length}
                   onClick={postCompany}
                 >
                   {lang === 'da' ? 'Opslå' : 'Post'}
@@ -4670,6 +4736,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
                   </div>
                 </div>
                 <div className="p-post-text">{post.text[lang] || post.text.da}</div>
+                {post.media && <PostMedia media={post.media} />}
                 <div className="p-post-stats">
                   <span>{post.likes} {t.like.toLowerCase()}</span>
                   <span>{commentCount} {t.comment.toLowerCase()}{lang === 'da' ? 'er' : 's'}</span>
