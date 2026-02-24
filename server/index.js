@@ -1281,7 +1281,7 @@ app.get('/api/invites', authenticate, async (req, res) => {
               u.name as accepted_by_name
        FROM invitations i
        LEFT JOIN users u ON i.accepted_by = u.id
-       WHERE i.inviter_id = ? AND i.status != 'accepted'
+       WHERE i.inviter_id = ? AND i.status != 'accepted' AND (i.invitee_name IS NOT NULL OR i.invitee_email IS NOT NULL)
        ORDER BY i.created_at DESC`,
       [req.userId]
     )
@@ -1563,6 +1563,19 @@ app.post('/api/conversations/:id/messages', authenticate, async (req, res) => {
   }
 })
 
+// POST /api/conversations/:id/read — mark all messages in conversation as read for current user
+app.post('/api/conversations/:id/read', authenticate, async (req, res) => {
+  const convId = parseInt(req.params.id)
+  try {
+    await pool.query(
+      'UPDATE messages SET is_read = 1 WHERE conversation_id = ? AND sender_id != ?',
+      [convId, req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to mark as read' })
+  }
+})
+
 // POST /api/conversations/:id/invite — add participants to an existing conversation
 app.post('/api/conversations/:id/invite', authenticate, async (req, res) => {
   const convId = parseInt(req.params.id)
@@ -1657,8 +1670,8 @@ app.get('/api/posts/:id', authenticate, async (req, res) => {
       time: { da: post.time_da, en: post.time_en },
       likes: post.likes, liked: !!post.userReaction, userReaction: post.userReaction,
       reactions: Object.fromEntries(rxRows.map(r => [r.reaction, r.count])),
-      media: post.media,
-      comments: comments.map(c => ({ author: c.author, text: { da: c.text_da, en: c.text_en }, media: c.media })),
+      media: post.media ? JSON.parse(post.media) : null,
+      comments: comments.map(c => ({ author: c.author, text: { da: c.text_da, en: c.text_en }, media: c.media ? JSON.parse(c.media) : null })),
     })
   } catch (err) { res.status(500).json({ error: 'Failed to fetch post' }) }
 })

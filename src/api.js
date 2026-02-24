@@ -209,6 +209,10 @@ export async function apiFetchConversations() {
   return await request('/api/conversations')
 }
 
+export async function apiMarkConversationRead(conversationId) {
+  return await request(`/api/conversations/${conversationId}/read`, { method: 'POST' })
+}
+
 export async function apiSendConversationMessage(conversationId, text) {
   return await request(`/api/conversations/${conversationId}/messages`, {
     method: 'POST',

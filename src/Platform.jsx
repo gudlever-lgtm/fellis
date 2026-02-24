@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { PT, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiDeletePost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateMode } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiDeletePost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateMode } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -9,10 +9,10 @@ function makeMockNotifs(mode) {
   const isBiz = mode === 'business'
   const base = [
     { id: 1, type: 'friend_request', actor: 'Liam Madsen', time: '2 min', read: false, targetPage: 'friends' },
-    { id: 2, type: 'like', actor: 'Clara Johansen', time: '15 min', read: false, targetPage: 'feed' },
-    { id: 3, type: 'comment', actor: 'Magnus Jensen', time: '1 t', read: false, targetPage: 'feed' },
+    { id: 2, type: 'like', actor: 'Clara Johansen', time: '15 min', read: false, targetPage: 'feed', postId: 1 },
+    { id: 3, type: 'comment', actor: 'Magnus Jensen', time: '1 t', read: false, targetPage: 'feed', postId: 2 },
     { id: 4, type: 'accepted', actor: 'Astrid Poulsen', time: '3 t', read: true, targetPage: 'friends' },
-    { id: 5, type: 'group_post', actor: 'Emil Larsen', group: 'Designere i KBH', time: '5 t', read: true, targetPage: 'feed' },
+    { id: 5, type: 'group_post', actor: 'Emil Larsen', group: 'Designere i KBH', time: '5 t', read: true, targetPage: 'feed', postId: 3 },
   ]
   if (isBiz) {
     base.push(
@@ -120,8 +120,10 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
     return () => document.removeEventListener('mousedown', handleClick)
   }, [showAvatarMenu, showNotifPanel])
 
-  const navigateTo = useCallback((p) => {
+  const [navParam, setNavParam] = useState(null)
+  const navigateTo = useCallback((p, param = null) => {
     setPage(p)
+    setNavParam(param)
     setShowAvatarMenu(false)
   }, [])
 
@@ -154,7 +156,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
           </div>
         </div>
         <div className="p-nav-tabs">
-          {['feed', 'friends', 'messages', 'events', 'marketplace', ...(mode === 'business' ? ['jobs', 'analytics'] : []), ...(currentUser.is_admin ? ['admin'] : [])].map(p => (
+          {['feed', 'friends', 'messages', 'events', 'marketplace', ...(mode === 'business' ? ['jobs', 'analytics'] : [])].map(p => (
             <button
               key={p}
               className={`p-nav-tab${page === p ? ' active' : ''}`}
@@ -204,7 +206,11 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
                   localStorage.setItem('fellis_notifs_read', JSON.stringify(next.filter(n => n.read).map(n => n.id)))
                   return next
                 })}
-                onNavigate={(pg) => { navigateTo(pg); setShowNotifPanel(false) }}
+                onNavigate={(pg, postId) => {
+                  if (postId) { setHighlightPostId(postId) }
+                  navigateTo(pg)
+                  setShowNotifPanel(false)
+                }}
               />
             )}
           </div>
@@ -246,6 +252,11 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
                 <button className="avatar-dropdown-item" onClick={() => navigateTo('privacy')}>
                   <span>🔒</span> {menuT.privacy}
                 </button>
+                {currentUser.is_admin && (
+                  <button className="avatar-dropdown-item" onClick={() => navigateTo('admin')}>
+                    <span>⚙️</span> {t.adminTitle}
+                  </button>
+                )}
                 <div className="avatar-dropdown-divider" />
                 <button className="avatar-dropdown-item avatar-dropdown-danger" onClick={() => { setShowAvatarMenu(false); onLogout() }}>
                   <span>🚪</span> {menuT.logout}
@@ -261,6 +272,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
           <FeedPage lang={lang} t={t} currentUser={currentUser} mode={mode} highlightPostId={highlightPostId} onHighlightCleared={() => setHighlightPostId(null)}
             onViewProfile={(uid) => { setViewUserId(uid); navigateTo('view-profile') }}
             onViewOwnProfile={() => navigateTo('profile')}
+            onNavigate={navigateTo}
           />
         </div>
         {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} />}
@@ -286,7 +298,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
           navigateTo('messages')
         }} />}
         {page === 'jobs' && <JobsPage lang={lang} t={t} currentUser={currentUser} mode={mode} />}
-        {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} />}
+        {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} initialCompanyId={navParam?.companyId} />}
         {page === 'analytics' && <AnalyticsPage lang={lang} t={t} currentUser={currentUser} plan={plan} onUpgrade={() => setShowUpgradeModal(true)} />}
         {page === 'privacy' && <PrivacySection lang={lang} onLogout={onLogout} />}
         {page === 'admin' && currentUser.is_admin && <AdminPage lang={lang} t={t} />}
@@ -375,7 +387,7 @@ function NotificationsPanel({ notifs, t, lang, mode, onMarkAllRead, onMarkRead, 
           <div
             key={n.id}
             className={`notif-item${n.read ? '' : ' notif-item-unread'}`}
-            onClick={() => { onMarkRead(n.id); onNavigate(n.targetPage) }}
+            onClick={() => { onMarkRead(n.id); onNavigate(n.targetPage, n.postId) }}
           >
             <div className="notif-item-dot" style={{ opacity: n.read ? 0 : 1 }} />
             <div className="notif-item-body">
@@ -634,7 +646,7 @@ function MentionDropdown({ filtered, selIdx, onSelect }) {
   )
 }
 
-function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile }) {
+function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onNavigate }) {
   const [posts, setPosts] = useState([])
   const [pinnedPost, setPinnedPost] = useState(null)
   const pinnedRef = useRef(null)
@@ -823,7 +835,7 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
   }, [])
 
   const handlePost = useCallback(() => {
-    if (!newPostText.trim()) return
+    if (!newPostText.trim() && !mediaFiles.length) return
     const text = newPostText.trim()
     const files = mediaFiles.length > 0 ? mediaFiles : null
     apiCreatePost(text, files).then(data => {
@@ -1110,58 +1122,44 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
               </div>
             )}
             <div className="p-new-post-actions">
-              {/* Media attachment popup */}
-              <div className="p-media-popup-wrap">
-                <button
-                  className={`p-media-popup-btn${mediaPopup ? ' active' : ''}`}
-                  onMouseDown={e => e.preventDefault()} // keep textarea focus
-                  onClick={() => setMediaPopup(p => !p)}
-                  title={lang === 'da' ? 'Tilføj medie' : 'Add media'}
-                >
-                  +
-                </button>
-                {mediaPopup && (
-                  <>
-                    <div className="p-share-backdrop" onClick={() => setMediaPopup(false)} />
-                    <div className="p-share-popup p-media-popup">
-                      <button className="p-share-option" onMouseDown={e => e.preventDefault()} onClick={() => { fileInputRef.current?.click(); setMediaPopup(false) }}>
-                        <span className="p-media-popup-icon">🖼️</span>
-                        {lang === 'da' ? 'Galleri' : 'Gallery'}
-                      </button>
-                      <button className="p-share-option" onMouseDown={e => e.preventDefault()} onClick={() => { setMediaPopup(false); openCamera(handleFileSelect) }}>
-                        <span className="p-media-popup-icon">📷</span>
-                        {lang === 'da' ? 'Kamera' : 'Camera'}
-                      </button>
-                    </div>
-                  </>
-                )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {/* Media attachment popup */}
+                <div className="p-media-popup-wrap">
+                  <button
+                    className={`p-media-popup-btn${mediaPopup ? ' active' : ''}`}
+                    onMouseDown={e => e.preventDefault()}
+                    onClick={() => setMediaPopup(p => !p)}
+                    title={lang === 'da' ? 'Tilføj medie' : 'Add media'}
+                  >
+                    +
+                  </button>
+                  {mediaPopup && (
+                    <>
+                      <div className="p-share-backdrop" onClick={() => setMediaPopup(false)} />
+                      <div className="p-share-popup p-media-popup">
+                        <button className="p-share-option" onMouseDown={e => e.preventDefault()} onClick={() => { fileInputRef.current?.click(); setMediaPopup(false) }}>
+                          <span className="p-media-popup-icon">🖼️</span>
+                          {lang === 'da' ? 'Galleri' : 'Gallery'}
+                        </button>
+                        <button className="p-share-option" onMouseDown={e => e.preventDefault()} onClick={() => { setMediaPopup(false); openCamera(handleFileSelect) }}>
+                          <span className="p-media-popup-icon">📷</span>
+                          {lang === 'da' ? 'Kamera' : 'Camera'}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span className="p-input-hint-wrap">
                   <span className="p-input-hint-icon">?</span>
                   <span className="p-input-hint-tooltip">{t.postInputHint}</span>
                 </span>
-                <button className="p-post-btn" onMouseDown={e => e.preventDefault()} onClick={handlePost} disabled={!newPostText.trim()}>{t.post}</button>
+                <button className="p-post-btn" onMouseDown={e => e.preventDefault()} onClick={handlePost} disabled={!newPostText.trim() && !mediaPreviews.length}>{t.post}</button>
               </div>
             </div>
           </>
         )}
-        <div className="p-new-post-toolbar">
-          <div className="p-new-post-toolbar-left">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
-              multiple
-              style={{ display: 'none' }}
-              onChange={handleFileSelect}
-            />
-            <button className="p-media-btn" onClick={() => fileInputRef.current?.click()} title={lang === 'da' ? 'Tilføj billede/video' : 'Add image/video'}>
-              📷 <span className="p-media-btn-label">{lang === 'da' ? 'Foto/Video' : 'Photo/Video'}</span>
-            </button>
-          </div>
-          <button className="p-post-btn" onClick={handlePost} disabled={!newPostText.trim()}>{t.post}</button>
-        </div>
       </div>
 
       {/* Top sentinel — triggers loading previous page */}
@@ -1179,10 +1177,10 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
         return (
           <div ref={pinnedRef}>
             <div className="p-post-pinned-banner">
-              <span>📍 {lang === 'da' ? 'Vist opslag' : 'Linked post'}</span>
+              <span>{lang === 'da' ? 'Vist opslag' : 'Linked post'}</span>
               <button className="p-post-pinned-close" onClick={() => { setPinnedPost(null); onHighlightCleared?.() }}>✕</button>
             </div>
-            <div className="p-card p-post p-post-pinned">
+            <div className="p-card p-post p-post-pinned p-post-highlighted" onAnimationEnd={() => { setPinnedPost(null); onHighlightCleared?.() }}>
               <div className="p-post-header">
                 <div className="p-avatar-sm" style={{ background: nameToColor(post.author) }}>{getInitials(post.author)}</div>
                 <div><div className="p-post-author">{post.author}</div><div className="p-post-time">{post.time?.[lang]}</div></div>
@@ -1206,7 +1204,7 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
               {MOCK_COMPANIES[0].name[0]}
             </div>
             <div>
-              <div className="p-post-author">{MOCK_COMPANIES[0].name}</div>
+              <button className="p-post-author" style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textDecoration: 'underline', textDecorationColor: 'transparent' }} onMouseEnter={e => e.currentTarget.style.textDecorationColor = 'currentColor'} onMouseLeave={e => e.currentTarget.style.textDecorationColor = 'transparent'} onClick={() => onNavigate('company', { companyId: MOCK_COMPANIES[0].id })}>{MOCK_COMPANIES[0].name}</button>
               <div className="p-post-time" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span className="p-event-type-badge" style={{ padding: '1px 6px', fontSize: 10 }}>{t.companyFeedLabel}</span>
                 <span>{lang === 'da' ? '1 t siden' : '1 hr ago'}</span>
@@ -1220,7 +1218,7 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
             }
           </div>
           <div className="p-post-stats">
-            <span>{cpFeedLikes} {t.like.toLowerCase()}{cpFeedLikes !== 1 && lang === 'da' ? 'r' : ''}</span>
+            <span>{cpFeedLikes} {t.like.toLowerCase()}</span>
             <span>{cpFeedComments.length} {t.comment.toLowerCase()}{lang === 'da' ? 'er' : 's'}</span>
           </div>
           <div className="p-post-actions">
@@ -1273,9 +1271,9 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
               <span className="p-event-type-badge" style={{ marginLeft: 'auto' }}>{t.eventFeedLabel}</span>
             </div>
             <div className="p-event-feed-body" style={{ alignItems: 'flex-start' }}>
-              <div className="p-event-date-col" style={{ minWidth: 44 }}>
-                <div className="p-event-month">{new Date(item.event.date).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { month: 'short' }).toUpperCase()}</div>
-                <div className="p-event-day">{new Date(item.event.date).getDate()}</div>
+              <div className="p-event-date-col" style={{ minWidth: 54, flexDirection: 'row', alignItems: 'baseline', gap: 3, padding: '6px 8px' }}>
+                <span className="p-event-day" style={{ fontSize: 17, lineHeight: 1 }}>{new Date(item.event.date).getDate()}</span>
+                <span className="p-event-month">{new Date(item.event.date).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { month: 'short' }).toUpperCase()}</span>
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{title}</div>
@@ -3437,7 +3435,11 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened }) 
   const selectConv = useCallback((i) => {
     setActiveConv(i)
     setShowConvMenu(false)
-    setConversations(prev => prev.map((c, j) => j === i ? { ...c, unread: 0 } : c))
+    setConversations(prev => {
+      const conv = prev[i]
+      if (conv?.unread > 0 && conv?.id) apiMarkConversationRead(conv.id).catch(() => {})
+      return prev.map((c, j) => j === i ? { ...c, unread: 0 } : c)
+    })
   }, [])
 
   // Create new 1:1 or group
@@ -3568,7 +3570,7 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened }) 
                   <span className="p-msg-thread-badges">
                     {c.isFamilyGroup && <span className="p-msg-family-badge" title={t.familyGroup}>🏡</span>}
                     {cIsMuted && <span className="p-msg-muted-icon" title={t.mutedLabel}>🔕</span>}
-                    {c.unread > 0 && <span className="p-msg-badge">{c.unread}</span>}
+                    {c.unread > 0 && <span className="p-msg-badge" title={lang === 'da' ? `${c.unread} ulæste beskeder` : `${c.unread} unread messages`}>{c.unread}</span>}
                   </span>
                 </div>
                 <div className="p-msg-thread-preview">
@@ -3662,7 +3664,7 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened }) 
                     {conv.isGroup && !isMe && (
                       <div className="p-msg-sender-name">{msg.from.split(' ')[0]}</div>
                     )}
-                    <div>{linkifyText(msg.text[lang] || '').map((p, pi) =>
+                    <div style={{ whiteSpace: 'pre-wrap' }}>{linkifyText(msg.text[lang] || '').map((p, pi) =>
                       p.t === 'url'
                         ? <a key={pi} href={p.v} target="_blank" rel="noopener noreferrer" className="post-link">{p.v}</a>
                         : p.t === 'mention'
@@ -3929,37 +3931,22 @@ function EventsPage({ lang, t, currentUser, mode }) {
                   <div className="p-event-rsvp-col" onClick={e => e.stopPropagation()}>
                     {[
                       { key: 'going', label: t.eventGoing, icon: '✓' },
-                      { key: 'maybe', label: t.eventMaybe, icon: '∼' },
+                      { key: 'maybe', label: t.eventMaybe, icon: '~' },
                       { key: 'notGoing', label: t.eventNotGoing, icon: '✗' },
-                    ].map(({ key, label, icon }) => {
-                      const isActive = myRsvp === key
-                      return (
-                        <button
-                          key={key}
-                          onClick={() => handleRsvp(ev.id, key)}
-                          title={label}
-                          style={{
-                            background: isActive ? '#2D6A4F' : '#f0f0f0',
-                            color: isActive ? '#fff' : '#777',
-                            border: `1.5px solid ${isActive ? '#2D6A4F' : '#e0e0e0'}`,
-                            borderRadius: 6,
-                            fontSize: 11,
-                            padding: '3px 8px',
-                            cursor: 'pointer',
-                            fontWeight: isActive ? 700 : 400,
-                            display: 'block',
-                            width: '100%',
-                            textAlign: 'center',
-                            transition: 'all 0.12s',
-                          }}
-                        >{icon} {label}</button>
-                      )
-                    })}
+                    ].map(({ key, label, icon }) => (
+                      <button
+                        key={key}
+                        className={`p-event-rsvp-btn${myRsvp === key ? ' active' : ''}`}
+                        onClick={() => handleRsvp(ev.id, key)}
+                        title={label}
+                      >{icon}</button>
+                    ))}
                     <button
+                      className="p-event-rsvp-btn"
                       title={t.eventShareWith}
                       onClick={e => { e.stopPropagation(); setShareEventId(ev.id) }}
-                      style={{ marginTop: 4, background: 'none', border: '1.5px solid #d8d8d8', borderRadius: 6, fontSize: 11, padding: '3px 8px', cursor: 'pointer', color: '#888', width: '100%' }}
-                    >📤 {lang === 'da' ? 'Del' : 'Share'}</button>
+                      style={{ fontSize: 12 }}
+                    >📤</button>
                   </div>
                 </div>
               </div>
@@ -4437,9 +4424,11 @@ const MOCK_JOBS = [
   },
 ]
 
-function CompanyListPage({ lang, t, currentUser, mode, onNavigate }) {
+function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompanyId }) {
   const [companies, setCompanies] = useState(MOCK_COMPANIES)
-  const [selectedCompany, setSelectedCompany] = useState(null)
+  const [selectedCompany, setSelectedCompany] = useState(
+    initialCompanyId ? (MOCK_COMPANIES.find(c => c.id === initialCompanyId) || null) : null
+  )
   const [showCreate, setShowCreate] = useState(false)
   const [tab, setTab] = useState('my')
   const [followMap, setFollowMap] = useState(() => {
@@ -4541,6 +4530,10 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate }) {
 function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBack, onFollow, isFollowing }) {
   const [tab, setTab] = useState('posts')
   const [newPost, setNewPost] = useState('')
+  const [cpMediaFiles, setCpMediaFiles] = useState([])
+  const [cpMediaPreviews, setCpMediaPreviews] = useState([])
+  const [cpMediaPopup, setCpMediaPopup] = useState(false)
+  const cpFileInputRef = useRef(null)
   const [companyPosts, setCompanyPosts] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem('fellis_cp_posts') || '{}')
@@ -4579,16 +4572,37 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
     setCompanyCommentInputs(prev => ({ ...prev, [postId]: '' }))
   }
 
+  const handleCpFileSelect = (e) => {
+    const files = Array.from(e.target.files).slice(0, 4)
+    setCpMediaFiles(files)
+    setCpMediaPreviews(files.map(f => ({
+      url: URL.createObjectURL(f),
+      type: f.type.startsWith('video/') ? 'video' : 'image',
+      name: f.name,
+    })))
+  }
+  const removeCpMedia = (idx) => {
+    setCpMediaFiles(prev => prev.filter((_, i) => i !== idx))
+    setCpMediaPreviews(prev => { URL.revokeObjectURL(prev[idx].url); return prev.filter((_, i) => i !== idx) })
+  }
+
   const postCompany = () => {
-    if (!newPost.trim()) return
+    if (!newPost.trim() && !cpMediaFiles.length) return
+    const media = cpMediaPreviews.length > 0
+      ? cpMediaPreviews.map(p => ({ url: p.url, type: p.type, mime: '' }))
+      : null
     setCompanyPosts(prev => [{
       id: `cp${Date.now()}`,
       text: { da: newPost, en: newPost },
       time: { da: 'Lige nu', en: 'Just now' },
       likes: 0,
       comments: 0,
+      ...(media ? { media } : {}),
     }, ...prev])
     setNewPost('')
+    setCpMediaFiles([])
+    setCpMediaPreviews([])
+    if (cpFileInputRef.current) cpFileInputRef.current.value = ''
   }
 
   const companyJobs = MOCK_JOBS.filter(j => j.companyId === company.id)
@@ -4646,21 +4660,70 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
         <>
           {(isOwner || company.role === 'admin' || company.role === 'editor') && (
             <div className="p-card" style={{ marginBottom: 12 }}>
-              <textarea
-                className="p-post-textarea"
-                placeholder={t.companyPost}
-                value={newPost}
-                onChange={e => setNewPost(e.target.value)}
-                style={{ minHeight: 80, marginBottom: 10 }}
-              />
-              <button
-                className="p-post-submit-btn"
-                disabled={!newPost.trim()}
-                onClick={postCompany}
-                style={{ padding: '8px 20px' }}
-              >
-                {t.companyPosts}
-              </button>
+              <input ref={cpFileInputRef} type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
+                multiple style={{ display: 'none' }} onChange={handleCpFileSelect} />
+              <div className="p-new-post-row">
+                <div style={{ width: 36, height: 36, borderRadius: 8, background: company.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 16, flexShrink: 0 }}>
+                  {company.name[0]}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <textarea
+                    className="p-new-post-textarea"
+                    placeholder={t.companyPost}
+                    value={newPost}
+                    onChange={e => setNewPost(e.target.value)}
+                  />
+                </div>
+              </div>
+              {cpMediaPreviews.length > 0 && (
+                <div className="p-media-previews">
+                  {cpMediaPreviews.map((p, i) => (
+                    <div key={i} className="p-media-preview">
+                      {p.type === 'video'
+                        ? <video src={p.url} className="p-media-preview-thumb" />
+                        : <img src={p.url} alt="" className="p-media-preview-thumb" />}
+                      <button className="p-media-preview-remove" onClick={() => removeCpMedia(i)}>✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="p-new-post-actions">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div className="p-media-popup-wrap">
+                    <button
+                      className={`p-media-popup-btn${cpMediaPopup ? ' active' : ''}`}
+                      onMouseDown={e => e.preventDefault()}
+                      onClick={() => setCpMediaPopup(p => !p)}
+                      title={lang === 'da' ? 'Tilføj medie' : 'Add media'}
+                    >
+                      +
+                    </button>
+                    {cpMediaPopup && (
+                      <>
+                        <div className="p-share-backdrop" onClick={() => setCpMediaPopup(false)} />
+                        <div className="p-share-popup p-media-popup">
+                          <button className="p-share-option" onMouseDown={e => e.preventDefault()} onClick={() => { cpFileInputRef.current?.click(); setCpMediaPopup(false) }}>
+                            <span className="p-media-popup-icon">🖼️</span>
+                            {lang === 'da' ? 'Galleri' : 'Gallery'}
+                          </button>
+                          <button className="p-share-option" onMouseDown={e => e.preventDefault()} onClick={() => { setCpMediaPopup(false); openCamera(handleCpFileSelect) }}>
+                            <span className="p-media-popup-icon">📷</span>
+                            {lang === 'da' ? 'Kamera' : 'Camera'}
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <button
+                  className="p-post-btn"
+                  disabled={!newPost.trim() && !cpMediaPreviews.length}
+                  onClick={postCompany}
+                >
+                  {lang === 'da' ? 'Opslå' : 'Post'}
+                </button>
+              </div>
             </div>
           )}
           {companyPosts.map(post => {
@@ -4677,9 +4740,10 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
                   </div>
                 </div>
                 <div className="p-post-text">{post.text[lang] || post.text.da}</div>
+                {post.media && <PostMedia media={post.media} />}
                 <div className="p-post-stats">
-                  <span>{post.likes} {t.like.toLowerCase()}{post.likes !== 1 && lang === 'da' ? 'r' : ''}</span>
-                  <span>{commentCount} {t.comment.toLowerCase()}{lang === 'da' ? 'er' : 's'}</span>
+                  <span>{post.likes} {t.like.toLowerCase()}</span>
+                  <span onClick={() => toggleCompanyComments(post.id)} style={{ cursor: 'pointer' }}>{commentCount} {t.comment.toLowerCase()}{lang === 'da' ? 'er' : 's'}</span>
                 </div>
                 <div className="p-post-actions">
                   <button className={`p-action-btn${liked ? ' liked' : ''}`} onClick={() => toggleCompanyLike(post.id)}>
@@ -5176,39 +5240,41 @@ function MarketplacePage({ lang, t, currentUser, onContactSeller }) {
 
       {tab === 'browse' && (
         <div className="p-marketplace-filters">
-          <div style={{ position: 'relative', flex: 1, minWidth: 140 }}>
+          <div style={{ position: 'relative' }}>
             <input
               className="p-search-input p-marketplace-search"
-              style={{ width: '100%', boxSizing: 'border-box', paddingRight: filters.q ? 28 : undefined }}
+              style={{ width: '100%', boxSizing: 'border-box', paddingRight: filters.q ? 32 : undefined }}
               placeholder={t.marketplaceSearchPlaceholder}
               value={filters.q}
               onChange={e => setFilters(f => ({ ...f, q: e.target.value }))}
             />
             {filters.q && (
-              <button onClick={() => setFilters(f => ({ ...f, q: '' }))} style={{ position: 'absolute', right: 7, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', fontSize: 14, lineHeight: 1, padding: 2 }}>✕</button>
+              <button onClick={() => setFilters(f => ({ ...f, q: '' }))} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', fontSize: 14, lineHeight: 1, padding: 2 }}>✕</button>
             )}
           </div>
-          <select
-            className="p-marketplace-select"
-            value={filters.category}
-            onChange={e => setFilters(f => ({ ...f, category: e.target.value }))}
-          >
-            <option value="">{t.marketplaceFilterAll}</option>
-            {MARKETPLACE_CATEGORIES.map(c => (
-              <option key={c.key} value={c.key}>{c.icon} {t[c.labelKey]}</option>
-            ))}
-          </select>
-          <div style={{ position: 'relative', flex: 1, minWidth: 120 }}>
-            <input
-              className="p-marketplace-location-input"
-              style={{ width: '100%', boxSizing: 'border-box', paddingRight: filters.location ? 28 : undefined }}
-              placeholder={lang === 'da' ? 'By eller område...' : 'City or area...'}
-              value={filters.location}
-              onChange={e => setFilters(f => ({ ...f, location: e.target.value }))}
-            />
-            {filters.location && (
-              <button onClick={() => setFilters(f => ({ ...f, location: '' }))} style={{ position: 'absolute', right: 7, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', fontSize: 14, lineHeight: 1, padding: 2 }}>✕</button>
-            )}
+          <div className="p-marketplace-filter-row">
+            <select
+              className="p-marketplace-select"
+              value={filters.category}
+              onChange={e => setFilters(f => ({ ...f, category: e.target.value }))}
+            >
+              <option value="">{t.marketplaceFilterAll}</option>
+              {MARKETPLACE_CATEGORIES.map(c => (
+                <option key={c.key} value={c.key}>{c.icon} {t[c.labelKey]}</option>
+              ))}
+            </select>
+            <div style={{ position: 'relative', flex: 1 }}>
+              <input
+                className="p-marketplace-location-input"
+                style={{ width: '100%', boxSizing: 'border-box', paddingRight: filters.location ? 32 : 12 }}
+                placeholder={lang === 'da' ? '📍 By eller område...' : '📍 City or area...'}
+                value={filters.location}
+                onChange={e => setFilters(f => ({ ...f, location: e.target.value }))}
+              />
+              {filters.location && (
+                <button onClick={() => setFilters(f => ({ ...f, location: '' }))} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', fontSize: 14, lineHeight: 1, padding: 2 }}>✕</button>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -5257,6 +5323,7 @@ function MarketplacePage({ lang, t, currentUser, onContactSeller }) {
                 <div className="p-listing-meta">
                   <span>{catLabel(listing.category)}</span>
                   <span>📍 {listing.location}</span>
+                  <span style={{ color: '#aaa' }}>👤 {listing.seller}</span>
                 </div>
                 {tab === 'mine' && (
                   <div className="p-listing-actions" onClick={e => e.stopPropagation()}>
@@ -5380,8 +5447,17 @@ function ListingDetailModal({ listing, t, lang, currentUser, catLabel, catIcon, 
           <div className="p-listing-detail-meta">
             <span>{catLabel(listing.category)}</span>
             <span>📍 {listing.location}</span>
-            <span>👤 {listing.seller}</span>
             {listing.postedAt && <span>📅 {listing.postedAt}</span>}
+          </div>
+          {/* Seller info */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: '#F7F5F2', borderRadius: 10, marginTop: 10 }}>
+            <div style={{ width: 38, height: 38, borderRadius: '50%', background: '#2D6A4F', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 16, flexShrink: 0 }}>
+              {listing.seller?.[0]?.toUpperCase() || '?'}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 600, fontSize: 14, color: '#1A1A1A' }}>{listing.seller}</div>
+              <div style={{ fontSize: 12, color: '#aaa' }}>{lang === 'da' ? 'Sælger' : 'Seller'}{listing.postedAt ? ` · ${listing.postedAt}` : ''}</div>
+            </div>
           </div>
           {listingDesc(listing) && <p className="p-listing-detail-desc">{listingDesc(listing)}</p>}
 
