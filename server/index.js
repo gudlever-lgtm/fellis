@@ -1639,8 +1639,8 @@ app.get('/api/posts/:id', authenticate, async (req, res) => {
       time: { da: post.time_da, en: post.time_en },
       likes: post.likes, liked: !!post.userReaction, userReaction: post.userReaction,
       reactions: Object.fromEntries(rxRows.map(r => [r.reaction, r.count])),
-      media: post.media,
-      comments: comments.map(c => ({ author: c.author, text: { da: c.text_da, en: c.text_en }, media: c.media })),
+      media: post.media ? JSON.parse(post.media) : null,
+      comments: comments.map(c => ({ author: c.author, text: { da: c.text_da, en: c.text_en }, media: c.media ? JSON.parse(c.media) : null })),
     })
   } catch (err) { res.status(500).json({ error: 'Failed to fetch post' }) }
 })
