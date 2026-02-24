@@ -691,6 +691,22 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
     { id: 2, author: 'Jonas Holm', text: 'Sender ansøgning i dag 🙌' },
     { id: 3, author: 'Rikke Dahl', text: 'Godt at se jer vokse!' },
   ]
+  const CP_FEED_MOCK_LIKERS = [
+    { id: null, name: 'Mia Skov', reaction: '❤️' },
+    { id: null, name: 'Jonas Holm', reaction: '❤️' },
+    { id: null, name: 'Rikke Dahl', reaction: '❤️' },
+    { id: null, name: 'Louise Bak', reaction: '❤️' },
+    { id: null, name: 'Thomas Ravn', reaction: '❤️' },
+    { id: null, name: 'Emma Lund', reaction: '❤️' },
+    { id: null, name: 'Søren Vik', reaction: '🎉' },
+    { id: null, name: 'Astrid Poulsen', reaction: '❤️' },
+    { id: null, name: 'Henrik Dalgaard', reaction: '👍' },
+    { id: null, name: 'Camilla Frost', reaction: '❤️' },
+    { id: null, name: 'Nikolaj Bach', reaction: '❤️' },
+    { id: null, name: 'Anne-Marie Holm', reaction: '❤️' },
+    { id: null, name: 'Peter Nygaard', reaction: '❤️' },
+    { id: null, name: 'Sara Bonde', reaction: '❤️' },
+  ]
   const [cpFeedLiked, setCpFeedLiked] = useState(() => { try { return JSON.parse(localStorage.getItem('fellis_cpfeed_liked') || 'false') } catch { return false } })
   const [cpFeedLikes, setCpFeedLikes] = useState(() => { try { return JSON.parse(localStorage.getItem('fellis_cpfeed_likes') || '14') } catch { return 14 } })
   const [cpFeedShowComments, setCpFeedShowComments] = useState(false)
@@ -1052,9 +1068,9 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
                 ? <div style={{ padding: '16px', textAlign: 'center', color: '#aaa' }}>…</div>
                 : likersModal.likers.length === 0
                   ? <div style={{ padding: '16px', textAlign: 'center', color: '#aaa' }}>{lang === 'da' ? 'Ingen reaktioner endnu' : 'No reactions yet'}</div>
-                  : likersModal.likers.map(liker => (
-                    <div key={liker.id} className="p-msg-modal-item" style={{ cursor: 'pointer' }}
-                      onClick={() => { setLikersModal(null); onViewProfile(liker.id) }}>
+                  : likersModal.likers.map((liker, i) => (
+                    <div key={liker.id ?? `mock-${i}`} className="p-msg-modal-item" style={{ cursor: liker.id ? 'pointer' : 'default' }}
+                      onClick={() => { if (liker.id) { setLikersModal(null); onViewProfile(liker.id) } }}>
                       <div className="p-avatar-sm" style={{ background: nameToColor(liker.name) }}>
                         {getInitials(liker.name)}
                       </div>
@@ -1256,11 +1272,15 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
             }
           </div>
           <div className="p-post-stats">
-            <span>{cpFeedLikes} {t.like.toLowerCase()}</span>
-            <span>{cpFeedComments.length} {t.comment.toLowerCase()}{lang === 'da' ? 'er' : 's'}</span>
+            <span className="p-reaction-summary" style={{ cursor: 'pointer' }} onClick={() => setLikersModal({ postId: 'cpFeed', likers: [...(cpFeedLiked ? [{ id: currentUser.id, name: currentUser.name, reaction: '❤️' }] : []), ...CP_FEED_MOCK_LIKERS].slice(0, cpFeedLikes) })}>
+              {cpFeedLikes} {t.like.toLowerCase()}
+            </span>
+            <span style={{ cursor: 'pointer' }} onClick={() => setCpFeedShowComments(p => !p)}>
+              {cpFeedComments.length} {t.comment.toLowerCase()}{lang === 'da' ? 'er' : 's'}
+            </span>
           </div>
           <div className="p-post-actions">
-            <button className={`p-action-btn${cpFeedLiked ? ' liked' : ''}`} onClick={() => { setCpFeedLiked(p => !p); setCpFeedLikes(p => cpFeedLiked ? p - 1 : p + 1) }}>
+            <button className={`p-action-btn${cpFeedLiked ? ' liked' : ''}`} onClick={() => { setCpFeedLiked(p => !p); setCpFeedLikes(p => cpFeedLiked ? p - 1 : p + 1); if (!cpFeedShowComments) setCpFeedShowComments(true) }}>
               {cpFeedLiked ? '❤️' : '🤍'} {t.like}
             </button>
             <button className="p-action-btn" onClick={() => setCpFeedShowComments(p => !p)}>
