@@ -1263,7 +1263,7 @@ app.get('/api/invites', authenticate, async (req, res) => {
               u.name as accepted_by_name
        FROM invitations i
        LEFT JOIN users u ON i.accepted_by = u.id
-       WHERE i.inviter_id = ? AND i.status != 'accepted'
+       WHERE i.inviter_id = ? AND i.status != 'accepted' AND (i.invitee_name IS NOT NULL OR i.invitee_email IS NOT NULL)
        ORDER BY i.created_at DESC`,
       [req.userId]
     )
@@ -1542,6 +1542,19 @@ app.post('/api/conversations/:id/messages', authenticate, async (req, res) => {
     res.json({ from: user.name, text: { da: text, en: text }, time: formatMsgTime(now) })
   } catch (err) {
     res.status(500).json({ error: 'Failed to send message' })
+  }
+})
+
+// POST /api/conversations/:id/read — mark all messages in conversation as read for current user
+app.post('/api/conversations/:id/read', authenticate, async (req, res) => {
+  const convId = parseInt(req.params.id)
+  try {
+    await pool.query(
+      'UPDATE messages SET is_read = 1 WHERE conversation_id = ? AND sender_id != ?',
+      [convId, req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to mark as read' })
   }
 })
 

@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { PT, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiDeletePost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateMode } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiDeletePost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateMode } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -3435,7 +3435,11 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened }) 
   const selectConv = useCallback((i) => {
     setActiveConv(i)
     setShowConvMenu(false)
-    setConversations(prev => prev.map((c, j) => j === i ? { ...c, unread: 0 } : c))
+    setConversations(prev => {
+      const conv = prev[i]
+      if (conv?.unread > 0 && conv?.id) apiMarkConversationRead(conv.id).catch(() => {})
+      return prev.map((c, j) => j === i ? { ...c, unread: 0 } : c)
+    })
   }, [])
 
   // Create new 1:1 or group
@@ -4739,7 +4743,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
                 {post.media && <PostMedia media={post.media} />}
                 <div className="p-post-stats">
                   <span>{post.likes} {t.like.toLowerCase()}</span>
-                  <span>{commentCount} {t.comment.toLowerCase()}{lang === 'da' ? 'er' : 's'}</span>
+                  <span onClick={() => toggleCompanyComments(post.id)} style={{ cursor: 'pointer' }}>{commentCount} {t.comment.toLowerCase()}{lang === 'da' ? 'er' : 's'}</span>
                 </div>
                 <div className="p-post-actions">
                   <button className={`p-action-btn${liked ? ' liked' : ''}`} onClick={() => toggleCompanyLike(post.id)}>
