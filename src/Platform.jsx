@@ -120,8 +120,10 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
     return () => document.removeEventListener('mousedown', handleClick)
   }, [showAvatarMenu, showNotifPanel])
 
-  const navigateTo = useCallback((p) => {
+  const [navParam, setNavParam] = useState(null)
+  const navigateTo = useCallback((p, param = null) => {
     setPage(p)
+    setNavParam(param)
     setShowAvatarMenu(false)
   }, [])
 
@@ -291,7 +293,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
           navigateTo('messages')
         }} />}
         {page === 'jobs' && <JobsPage lang={lang} t={t} currentUser={currentUser} mode={mode} />}
-        {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} />}
+        {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} initialCompanyId={navParam?.companyId} />}
         {page === 'analytics' && <AnalyticsPage lang={lang} t={t} currentUser={currentUser} plan={plan} onUpgrade={() => setShowUpgradeModal(true)} />}
         {page === 'privacy' && <PrivacySection lang={lang} onLogout={onLogout} />}
         {page === 'admin' && currentUser.is_admin && <AdminPage lang={lang} t={t} />}
@@ -1161,8 +1163,8 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
               style={{ display: 'none' }}
               onChange={handleFileSelect}
             />
-            <button className="p-media-btn" onClick={() => fileInputRef.current?.click()} title={lang === 'da' ? 'Tilføj billede/video' : 'Add image/video'}>
-              📷 <span className="p-media-btn-label">{lang === 'da' ? 'Foto/Video' : 'Photo/Video'}</span>
+            <button className="p-post-btn" onClick={() => fileInputRef.current?.click()} title={lang === 'da' ? 'Tilføj billede/video' : 'Add image/video'}>
+              📷 {lang === 'da' ? 'Foto/Video' : 'Photo/Video'}
             </button>
           </div>
           <button className="p-post-btn" onClick={handlePost} disabled={!newPostText.trim()}>{t.post}</button>
@@ -1211,7 +1213,7 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
               {MOCK_COMPANIES[0].name[0]}
             </div>
             <div>
-              <div className="p-post-author">{MOCK_COMPANIES[0].name}</div>
+              <button className="p-post-author" style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textDecoration: 'underline', textDecorationColor: 'transparent' }} onMouseEnter={e => e.currentTarget.style.textDecorationColor = 'currentColor'} onMouseLeave={e => e.currentTarget.style.textDecorationColor = 'transparent'} onClick={() => navigateTo('company', { companyId: MOCK_COMPANIES[0].id })}>{MOCK_COMPANIES[0].name}</button>
               <div className="p-post-time" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span className="p-event-type-badge" style={{ padding: '1px 6px', fontSize: 10 }}>{t.companyFeedLabel}</span>
                 <span>{lang === 'da' ? '1 t siden' : '1 hr ago'}</span>
@@ -1278,9 +1280,9 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
               <span className="p-event-type-badge" style={{ marginLeft: 'auto' }}>{t.eventFeedLabel}</span>
             </div>
             <div className="p-event-feed-body" style={{ alignItems: 'flex-start' }}>
-              <div className="p-event-date-col" style={{ minWidth: 44 }}>
-                <div className="p-event-month">{new Date(item.event.date).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { month: 'short' }).toUpperCase()}</div>
-                <div className="p-event-day">{new Date(item.event.date).getDate()}</div>
+              <div className="p-event-date-col" style={{ minWidth: 54, flexDirection: 'row', alignItems: 'baseline', gap: 3, padding: '6px 8px' }}>
+                <span className="p-event-day" style={{ fontSize: 17, lineHeight: 1 }}>{new Date(item.event.date).getDate()}</span>
+                <span className="p-event-month">{new Date(item.event.date).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { month: 'short' }).toUpperCase()}</span>
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{title}</div>
@@ -3934,37 +3936,22 @@ function EventsPage({ lang, t, currentUser, mode }) {
                   <div className="p-event-rsvp-col" onClick={e => e.stopPropagation()}>
                     {[
                       { key: 'going', label: t.eventGoing, icon: '✓' },
-                      { key: 'maybe', label: t.eventMaybe, icon: '∼' },
+                      { key: 'maybe', label: t.eventMaybe, icon: '~' },
                       { key: 'notGoing', label: t.eventNotGoing, icon: '✗' },
-                    ].map(({ key, label, icon }) => {
-                      const isActive = myRsvp === key
-                      return (
-                        <button
-                          key={key}
-                          onClick={() => handleRsvp(ev.id, key)}
-                          title={label}
-                          style={{
-                            background: isActive ? '#2D6A4F' : '#f0f0f0',
-                            color: isActive ? '#fff' : '#777',
-                            border: `1.5px solid ${isActive ? '#2D6A4F' : '#e0e0e0'}`,
-                            borderRadius: 6,
-                            fontSize: 11,
-                            padding: '3px 8px',
-                            cursor: 'pointer',
-                            fontWeight: isActive ? 700 : 400,
-                            display: 'block',
-                            width: '100%',
-                            textAlign: 'center',
-                            transition: 'all 0.12s',
-                          }}
-                        >{icon} {label}</button>
-                      )
-                    })}
+                    ].map(({ key, label, icon }) => (
+                      <button
+                        key={key}
+                        className={`p-event-rsvp-btn${myRsvp === key ? ' active' : ''}`}
+                        onClick={() => handleRsvp(ev.id, key)}
+                        title={label}
+                      >{icon}</button>
+                    ))}
                     <button
+                      className="p-event-rsvp-btn"
                       title={t.eventShareWith}
                       onClick={e => { e.stopPropagation(); setShareEventId(ev.id) }}
-                      style={{ marginTop: 4, background: 'none', border: '1.5px solid #d8d8d8', borderRadius: 6, fontSize: 11, padding: '3px 8px', cursor: 'pointer', color: '#888', width: '100%' }}
-                    >📤 {lang === 'da' ? 'Del' : 'Share'}</button>
+                      style={{ fontSize: 12 }}
+                    >📤</button>
                   </div>
                 </div>
               </div>
@@ -4442,9 +4429,11 @@ const MOCK_JOBS = [
   },
 ]
 
-function CompanyListPage({ lang, t, currentUser, mode, onNavigate }) {
+function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompanyId }) {
   const [companies, setCompanies] = useState(MOCK_COMPANIES)
-  const [selectedCompany, setSelectedCompany] = useState(null)
+  const [selectedCompany, setSelectedCompany] = useState(
+    initialCompanyId ? (MOCK_COMPANIES.find(c => c.id === initialCompanyId) || null) : null
+  )
   const [showCreate, setShowCreate] = useState(false)
   const [tab, setTab] = useState('my')
   const [followMap, setFollowMap] = useState(() => {
@@ -5181,39 +5170,41 @@ function MarketplacePage({ lang, t, currentUser, onContactSeller }) {
 
       {tab === 'browse' && (
         <div className="p-marketplace-filters">
-          <div style={{ position: 'relative', flex: 1, minWidth: 140 }}>
+          <div style={{ position: 'relative' }}>
             <input
               className="p-search-input p-marketplace-search"
-              style={{ width: '100%', boxSizing: 'border-box', paddingRight: filters.q ? 28 : undefined }}
+              style={{ width: '100%', boxSizing: 'border-box', paddingRight: filters.q ? 32 : undefined }}
               placeholder={t.marketplaceSearchPlaceholder}
               value={filters.q}
               onChange={e => setFilters(f => ({ ...f, q: e.target.value }))}
             />
             {filters.q && (
-              <button onClick={() => setFilters(f => ({ ...f, q: '' }))} style={{ position: 'absolute', right: 7, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', fontSize: 14, lineHeight: 1, padding: 2 }}>✕</button>
+              <button onClick={() => setFilters(f => ({ ...f, q: '' }))} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', fontSize: 14, lineHeight: 1, padding: 2 }}>✕</button>
             )}
           </div>
-          <select
-            className="p-marketplace-select"
-            value={filters.category}
-            onChange={e => setFilters(f => ({ ...f, category: e.target.value }))}
-          >
-            <option value="">{t.marketplaceFilterAll}</option>
-            {MARKETPLACE_CATEGORIES.map(c => (
-              <option key={c.key} value={c.key}>{c.icon} {t[c.labelKey]}</option>
-            ))}
-          </select>
-          <div style={{ position: 'relative', flex: 1, minWidth: 120 }}>
-            <input
-              className="p-marketplace-location-input"
-              style={{ width: '100%', boxSizing: 'border-box', paddingRight: filters.location ? 28 : undefined }}
-              placeholder={lang === 'da' ? 'By eller område...' : 'City or area...'}
-              value={filters.location}
-              onChange={e => setFilters(f => ({ ...f, location: e.target.value }))}
-            />
-            {filters.location && (
-              <button onClick={() => setFilters(f => ({ ...f, location: '' }))} style={{ position: 'absolute', right: 7, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', fontSize: 14, lineHeight: 1, padding: 2 }}>✕</button>
-            )}
+          <div className="p-marketplace-filter-row">
+            <select
+              className="p-marketplace-select"
+              value={filters.category}
+              onChange={e => setFilters(f => ({ ...f, category: e.target.value }))}
+            >
+              <option value="">{t.marketplaceFilterAll}</option>
+              {MARKETPLACE_CATEGORIES.map(c => (
+                <option key={c.key} value={c.key}>{c.icon} {t[c.labelKey]}</option>
+              ))}
+            </select>
+            <div style={{ position: 'relative', flex: 1 }}>
+              <input
+                className="p-marketplace-location-input"
+                style={{ width: '100%', boxSizing: 'border-box', paddingRight: filters.location ? 32 : 12 }}
+                placeholder={lang === 'da' ? '📍 By eller område...' : '📍 City or area...'}
+                value={filters.location}
+                onChange={e => setFilters(f => ({ ...f, location: e.target.value }))}
+              />
+              {filters.location && (
+                <button onClick={() => setFilters(f => ({ ...f, location: '' }))} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', fontSize: 14, lineHeight: 1, padding: 2 }}>✕</button>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -5262,6 +5253,7 @@ function MarketplacePage({ lang, t, currentUser, onContactSeller }) {
                 <div className="p-listing-meta">
                   <span>{catLabel(listing.category)}</span>
                   <span>📍 {listing.location}</span>
+                  <span style={{ color: '#aaa' }}>👤 {listing.seller}</span>
                 </div>
                 {tab === 'mine' && (
                   <div className="p-listing-actions" onClick={e => e.stopPropagation()}>
@@ -5385,8 +5377,17 @@ function ListingDetailModal({ listing, t, lang, currentUser, catLabel, catIcon, 
           <div className="p-listing-detail-meta">
             <span>{catLabel(listing.category)}</span>
             <span>📍 {listing.location}</span>
-            <span>👤 {listing.seller}</span>
             {listing.postedAt && <span>📅 {listing.postedAt}</span>}
+          </div>
+          {/* Seller info */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: '#F7F5F2', borderRadius: 10, marginTop: 10 }}>
+            <div style={{ width: 38, height: 38, borderRadius: '50%', background: '#2D6A4F', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 16, flexShrink: 0 }}>
+              {listing.seller?.[0]?.toUpperCase() || '?'}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 600, fontSize: 14, color: '#1A1A1A' }}>{listing.seller}</div>
+              <div style={{ fontSize: 12, color: '#aaa' }}>{lang === 'da' ? 'Sælger' : 'Seller'}{listing.postedAt ? ` · ${listing.postedAt}` : ''}</div>
+            </div>
           </div>
           {listingDesc(listing) && <p className="p-listing-detail-desc">{listingDesc(listing)}</p>}
 
