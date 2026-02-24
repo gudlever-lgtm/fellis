@@ -4641,21 +4641,29 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
         <>
           {(isOwner || company.role === 'admin' || company.role === 'editor') && (
             <div className="p-card" style={{ marginBottom: 12 }}>
-              <textarea
-                className="p-post-textarea"
-                placeholder={t.companyPost}
-                value={newPost}
-                onChange={e => setNewPost(e.target.value)}
-                style={{ minHeight: 80, marginBottom: 10 }}
-              />
-              <button
-                className="p-post-submit-btn"
-                disabled={!newPost.trim()}
-                onClick={postCompany}
-                style={{ padding: '8px 20px' }}
-              >
-                {t.companyPosts}
-              </button>
+              <div className="p-new-post-row">
+                <div style={{ width: 36, height: 36, borderRadius: 8, background: company.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 16, flexShrink: 0 }}>
+                  {company.name[0]}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <textarea
+                    className="p-new-post-textarea"
+                    placeholder={t.companyPost}
+                    value={newPost}
+                    onChange={e => setNewPost(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="p-new-post-actions">
+                <span />
+                <button
+                  className="p-post-btn"
+                  disabled={!newPost.trim()}
+                  onClick={postCompany}
+                >
+                  {lang === 'da' ? 'Opslå' : 'Post'}
+                </button>
+              </div>
             </div>
           )}
           {companyPosts.map(post => {
