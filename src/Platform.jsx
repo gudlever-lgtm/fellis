@@ -835,7 +835,7 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
   }, [])
 
   const handlePost = useCallback(() => {
-    if (!newPostText.trim()) return
+    if (!newPostText.trim() && !mediaFiles.length) return
     const text = newPostText.trim()
     const files = mediaFiles.length > 0 ? mediaFiles : null
     apiCreatePost(text, files).then(data => {
@@ -1163,7 +1163,7 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
                   <span className="p-input-hint-icon">?</span>
                   <span className="p-input-hint-tooltip">{t.postInputHint}</span>
                 </span>
-                <button className="p-post-btn" onMouseDown={e => e.preventDefault()} onClick={handlePost} disabled={!newPostText.trim()}>{t.post}</button>
+                <button className="p-post-btn" onMouseDown={e => e.preventDefault()} onClick={handlePost} disabled={!newPostText.trim() && !mediaPreviews.length}>{t.post}</button>
               </div>
             </div>
           </>
