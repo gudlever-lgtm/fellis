@@ -154,7 +154,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
           </div>
         </div>
         <div className="p-nav-tabs">
-          {['feed', 'friends', 'messages', 'events', 'marketplace', ...(mode === 'business' ? ['jobs', 'analytics'] : []), ...(currentUser.is_admin ? ['admin'] : [])].map(p => (
+          {['feed', 'friends', 'messages', 'events', 'marketplace', ...(mode === 'business' ? ['jobs', 'analytics'] : [])].map(p => (
             <button
               key={p}
               className={`p-nav-tab${page === p ? ' active' : ''}`}
@@ -246,6 +246,11 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
                 <button className="avatar-dropdown-item" onClick={() => navigateTo('privacy')}>
                   <span>🔒</span> {menuT.privacy}
                 </button>
+                {currentUser.is_admin && (
+                  <button className="avatar-dropdown-item" onClick={() => navigateTo('admin')}>
+                    <span>⚙️</span> {t.adminTitle}
+                  </button>
+                )}
                 <div className="avatar-dropdown-divider" />
                 <button className="avatar-dropdown-item avatar-dropdown-danger" onClick={() => { setShowAvatarMenu(false); onLogout() }}>
                   <span>🚪</span> {menuT.logout}
