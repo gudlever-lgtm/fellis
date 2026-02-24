@@ -134,6 +134,10 @@ export async function apiCreatePost(text, mediaFiles) {
   })
 }
 
+export async function apiGetPostLikers(postId) {
+  return await request(`/api/feed/${postId}/likers`)
+}
+
 export async function apiToggleLike(postId, reaction) {
   return await request(`/api/feed/${postId}/like`, {
     method: 'POST',

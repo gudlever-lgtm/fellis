@@ -1123,6 +1123,21 @@ app.post('/api/feed/:id/like', authenticate, async (req, res) => {
   }
 })
 
+// GET /api/feed/:id/likers — list of users who liked a post with their reaction
+app.get('/api/feed/:id/likers', authenticate, async (req, res) => {
+  const postId = parseInt(req.params.id)
+  try {
+    const [rows] = await pool.query(
+      `SELECT u.id, u.name, u.avatar_url, COALESCE(pl.reaction, '❤️') as reaction
+       FROM post_likes pl JOIN users u ON u.id = pl.user_id
+       WHERE pl.post_id = ? ORDER BY pl.created_at DESC`,
+      [postId])
+    res.json(rows.map(r => ({ id: r.id, name: r.name, avatarUrl: r.avatar_url, reaction: r.reaction })))
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to load likers' })
+  }
+})
+
 // POST /api/feed/:id/comment — add comment (with optional single media file)
 app.post('/api/feed/:id/comment', authenticate, upload.single('media'), async (req, res) => {
   const text = (req.body.text || '').trim()

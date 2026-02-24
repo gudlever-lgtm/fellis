@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { PT, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiToggleLike, apiAddComment, apiDeletePost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateMode } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateMode } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -664,6 +664,7 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
   const [reactions, setReactions] = useState({})   // postId → emoji
   const [likePopup, setLikePopup] = useState(null) // postId with open reaction popup
   const [expandedComments, setExpandedComments] = useState(new Set())
+  const [likersModal, setLikersModal] = useState(null) // { postId, likers } | null
   const [commentTexts, setCommentTexts] = useState({})
   const [commentMedia, setCommentMedia] = useState({})
   const [sharePopup, setSharePopup] = useState(null)      // postId of open popup
@@ -916,6 +917,15 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
     })
   }, [])
 
+  const openLikersModal = useCallback((postId) => {
+    setLikersModal({ postId, likers: null })
+    apiGetPostLikers(postId).then(data => {
+      setLikersModal(prev => prev?.postId === postId ? { postId, likers: data || [] } : prev)
+    }).catch(() => {
+      setLikersModal(prev => prev?.postId === postId ? { postId, likers: [] } : prev)
+    })
+  }, [])
+
   const handleCommentFileSelect = useCallback((postId, e) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -1029,6 +1039,34 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
 
   return (
     <div className="p-feed" ref={feedContainerRef}>
+      {/* Likers modal */}
+      {likersModal && (
+        <div className="modal-backdrop" onClick={() => setLikersModal(null)}>
+          <div className="p-msg-modal" style={{ maxWidth: 380 }} onClick={e => e.stopPropagation()}>
+            <div className="p-msg-modal-header">
+              <span>{lang === 'da' ? 'Reaktioner' : 'Reactions'}</span>
+              <button className="p-msg-modal-close" onClick={() => setLikersModal(null)}>✕</button>
+            </div>
+            <div className="p-msg-modal-list">
+              {likersModal.likers === null
+                ? <div style={{ padding: '16px', textAlign: 'center', color: '#aaa' }}>…</div>
+                : likersModal.likers.length === 0
+                  ? <div style={{ padding: '16px', textAlign: 'center', color: '#aaa' }}>{lang === 'da' ? 'Ingen reaktioner endnu' : 'No reactions yet'}</div>
+                  : likersModal.likers.map(liker => (
+                    <div key={liker.id} className="p-msg-modal-item" style={{ cursor: 'pointer' }}
+                      onClick={() => { setLikersModal(null); onViewProfile(liker.id) }}>
+                      <div className="p-avatar-sm" style={{ background: nameToColor(liker.name) }}>
+                        {getInitials(liker.name)}
+                      </div>
+                      <span className="p-msg-modal-name">{liker.name}</span>
+                      <span style={{ marginLeft: 'auto', fontSize: 20 }}>{liker.reaction}</span>
+                    </div>
+                  ))
+              }
+            </div>
+          </div>
+        </div>
+      )}
       {/* New post */}
       <div className="p-card p-new-post">
         {/* Hidden file input — gallery only */}
@@ -1373,7 +1411,7 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
             <PostText text={post.text} lang={lang} />
             {post.media && <PostMedia media={post.media} />}
             <div className="p-post-stats">
-              <span className="p-reaction-summary">
+              <span className="p-reaction-summary" onClick={() => openLikersModal(post.id)} style={{ cursor: 'pointer' }}>
                 {post.reactions?.length > 0
                   ? post.reactions.slice(0, 3).map(r => (
                       <span key={r.emoji} className="p-reaction-tally">{r.emoji} {r.count}</span>
@@ -1389,7 +1427,10 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
               <div className="p-reaction-wrap">
                 <button
                   className={`p-action-btn${liked ? ' liked' : ''}`}
-                  onClick={() => liked ? toggleLike(post.id) : setLikePopup(p => p === post.id ? null : post.id)}
+                  onClick={() => {
+                    if (!expandedComments.has(post.id)) toggleComments(post.id)
+                    liked ? toggleLike(post.id) : setLikePopup(p => p === post.id ? null : post.id)
+                  }}
                 >
                   {liked ? (reactions[post.id] || '❤️') : '🤍'} {t.like}
                 </button>
@@ -4742,11 +4783,14 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
                 <div className="p-post-text">{post.text[lang] || post.text.da}</div>
                 {post.media && <PostMedia media={post.media} />}
                 <div className="p-post-stats">
-                  <span>{post.likes} {t.like.toLowerCase()}</span>
+                  <span onClick={() => toggleCompanyComments(post.id)} style={{ cursor: 'pointer' }}>{post.likes} {t.like.toLowerCase()}</span>
                   <span onClick={() => toggleCompanyComments(post.id)} style={{ cursor: 'pointer' }}>{commentCount} {t.comment.toLowerCase()}{lang === 'da' ? 'er' : 's'}</span>
                 </div>
                 <div className="p-post-actions">
-                  <button className={`p-action-btn${liked ? ' liked' : ''}`} onClick={() => toggleCompanyLike(post.id)}>
+                  <button className={`p-action-btn${liked ? ' liked' : ''}`} onClick={() => {
+                    if (!showComments) toggleCompanyComments(post.id)
+                    toggleCompanyLike(post.id)
+                  }}>
                     {liked ? '❤️' : '🤍'} {t.like}
                   </button>
                   <button className="p-action-btn" onClick={() => toggleCompanyComments(post.id)}>
@@ -5437,7 +5481,7 @@ function ListingDetailModal({ listing, t, lang, currentUser, catLabel, catIcon, 
           </div>
         )}
         <div className="p-listing-detail-body">
-          {listing.sold && <div className="p-listing-sold-badge p-listing-sold-badge-lg">{t.marketplaceSold}</div>}
+          {listing.sold ? <div className="p-listing-sold-badge p-listing-sold-badge-lg">{t.marketplaceSold}</div> : null}
           <div className="p-listing-detail-price">
             {listing.priceNegotiable
               ? t.marketplacePriceNegotiable
