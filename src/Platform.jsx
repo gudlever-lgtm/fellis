@@ -1118,31 +1118,44 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
               </div>
             )}
             <div className="p-new-post-actions">
-              {/* Media attachment popup */}
-              <div className="p-media-popup-wrap">
-                <button
-                  className={`p-media-popup-btn${mediaPopup ? ' active' : ''}`}
-                  onMouseDown={e => e.preventDefault()} // keep textarea focus
-                  onClick={() => setMediaPopup(p => !p)}
-                  title={lang === 'da' ? 'Tilføj medie' : 'Add media'}
-                >
-                  +
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {/* Media attachment popup */}
+                <div className="p-media-popup-wrap">
+                  <button
+                    className={`p-media-popup-btn${mediaPopup ? ' active' : ''}`}
+                    onMouseDown={e => e.preventDefault()}
+                    onClick={() => setMediaPopup(p => !p)}
+                    title={lang === 'da' ? 'Tilføj medie' : 'Add media'}
+                  >
+                    +
+                  </button>
+                  {mediaPopup && (
+                    <>
+                      <div className="p-share-backdrop" onClick={() => setMediaPopup(false)} />
+                      <div className="p-share-popup p-media-popup">
+                        <button className="p-share-option" onMouseDown={e => e.preventDefault()} onClick={() => { fileInputRef.current?.click(); setMediaPopup(false) }}>
+                          <span className="p-media-popup-icon">🖼️</span>
+                          {lang === 'da' ? 'Galleri' : 'Gallery'}
+                        </button>
+                        <button className="p-share-option" onMouseDown={e => e.preventDefault()} onClick={() => { setMediaPopup(false); openCamera(handleFileSelect) }}>
+                          <span className="p-media-popup-icon">📷</span>
+                          {lang === 'da' ? 'Kamera' : 'Camera'}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
+                  multiple
+                  style={{ display: 'none' }}
+                  onChange={handleFileSelect}
+                />
+                <button className="p-post-btn" onMouseDown={e => e.preventDefault()} onClick={() => fileInputRef.current?.click()} title={lang === 'da' ? 'Tilføj billede/video' : 'Add image/video'}>
+                  📷 {lang === 'da' ? 'Foto/Video' : 'Photo/Video'}
                 </button>
-                {mediaPopup && (
-                  <>
-                    <div className="p-share-backdrop" onClick={() => setMediaPopup(false)} />
-                    <div className="p-share-popup p-media-popup">
-                      <button className="p-share-option" onMouseDown={e => e.preventDefault()} onClick={() => { fileInputRef.current?.click(); setMediaPopup(false) }}>
-                        <span className="p-media-popup-icon">🖼️</span>
-                        {lang === 'da' ? 'Galleri' : 'Gallery'}
-                      </button>
-                      <button className="p-share-option" onMouseDown={e => e.preventDefault()} onClick={() => { setMediaPopup(false); openCamera(handleFileSelect) }}>
-                        <span className="p-media-popup-icon">📷</span>
-                        {lang === 'da' ? 'Kamera' : 'Camera'}
-                      </button>
-                    </div>
-                  </>
-                )}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span className="p-input-hint-wrap">
@@ -1154,22 +1167,6 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
             </div>
           </>
         )}
-        <div className="p-new-post-toolbar">
-          <div className="p-new-post-toolbar-left">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
-              multiple
-              style={{ display: 'none' }}
-              onChange={handleFileSelect}
-            />
-            <button className="p-post-btn" onClick={() => fileInputRef.current?.click()} title={lang === 'da' ? 'Tilføj billede/video' : 'Add image/video'}>
-              📷 {lang === 'da' ? 'Foto/Video' : 'Photo/Video'}
-            </button>
-          </div>
-          <button className="p-post-btn" onClick={handlePost} disabled={!newPostText.trim()}>{t.post}</button>
-        </div>
       </div>
 
       {/* Top sentinel — triggers loading previous page */}
