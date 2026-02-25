@@ -2565,6 +2565,26 @@ app.post('/api/companies/:id/follow', authenticate, async (req, res) => {
   }
 })
 
+// GET /api/companies/:id/members — list of company members with friendship status
+app.get('/api/companies/:id/members', authenticate, async (req, res) => {
+  try {
+    const [members] = await pool.query(
+      `SELECT u.id, u.name, u.handle, u.avatar_url,
+              cm.role,
+              (SELECT COUNT(*) > 0 FROM friendships WHERE user_id = ? AND friend_id = u.id) AS is_friend,
+              (SELECT COUNT(*) > 0 FROM friend_requests WHERE from_user_id = ? AND to_user_id = u.id AND status = 'pending') AS request_sent
+       FROM company_members cm JOIN users u ON u.id = cm.user_id
+       WHERE cm.company_id = ?
+       ORDER BY FIELD(cm.role, 'owner', 'admin', 'editor'), u.name`,
+      [req.userId, req.userId, req.params.id]
+    )
+    res.json({ members })
+  } catch (err) {
+    console.error('GET /api/companies/:id/members error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // GET /api/companies/:id/posts — paginated posts
 app.get('/api/companies/:id/posts', authenticate, async (req, res) => {
   try {

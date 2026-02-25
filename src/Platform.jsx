@@ -309,7 +309,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
             mode={mode}
             onNavigateToPost={(postId) => { setHighlightPostId(postId); navigateTo('feed') }}
             onNavigateToConv={(convId) => { setOpenConvId(convId); navigateTo('messages') }}
-            onNavigateToCompany={() => navigateTo('company')}
+            onNavigateToCompany={(id) => navigateTo('company', id ? { companyId: id } : null)}
           />
         )}
       </div>
@@ -3370,7 +3370,7 @@ function SearchPage({ lang, t, mode, onNavigateToPost, onNavigateToConv, onNavig
               <span className="p-search-count">{companyMatches.length}</span>
             </h3>
             {companyMatches.map(c => (
-              <div key={c.id} className="p-search-result" onClick={onNavigateToCompany}>
+              <div key={c.id} className="p-search-result" onClick={() => onNavigateToCompany(c.id)}>
                 <div className="p-search-result-top">
                   <div style={{ width: 28, height: 28, borderRadius: 6, background: c.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>{c.name[0]}</div>
                   <span className="p-search-result-author">{c.name}</span>
@@ -4467,6 +4467,7 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
   const [selectedCompany, setSelectedCompany] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
   const [tab, setTab] = useState('my')
+  const [openedFromFeed, setOpenedFromFeed] = useState(false)
 
   const loadCompanies = () => {
     setLoading(true)
@@ -4481,12 +4482,12 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
   useEffect(() => {
     if (initialCompanyId && companies.length > 0) {
       const found = companies.find(c => c.id === initialCompanyId)
-      if (found) { setSelectedCompany(found); return }
+      if (found) { setSelectedCompany(found); setOpenedFromFeed(true); return }
     }
     if (initialCompanyId && companies.length === 0 && !loading) {
       fetch(`/api/companies/${initialCompanyId}`, { credentials: 'include' })
         .then(r => r.json())
-        .then(data => { if (data.company) setSelectedCompany(data.company) })
+        .then(data => { if (data.company) { setSelectedCompany(data.company); setOpenedFromFeed(true) } })
         .catch(() => {})
     }
   }, [initialCompanyId, companies, loading])
@@ -4517,7 +4518,10 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
         mode={mode}
         currentUser={currentUser}
         isOwner={selectedCompany.member_role === 'owner'}
-        onBack={() => { setSelectedCompany(null); loadCompanies() }}
+        onBack={() => {
+          if (openedFromFeed && onNavigate) { onNavigate('feed') }
+          else { setSelectedCompany(null); setOpenedFromFeed(false); loadCompanies() }
+        }}
         onFollow={() => toggleFollow(selectedCompany.id)}
         isFollowing={!!selectedCompany.is_following}
       />
@@ -4599,6 +4603,9 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
   const [expandedCompanyComments, setExpandedCompanyComments] = useState(new Set())
   const [companyCommentInputs, setCompanyCommentInputs] = useState({})
   const [companyCommentLists, setCompanyCommentLists] = useState({})
+  const [companyMembers, setCompanyMembers] = useState([])
+  const [membersLoading, setMembersLoading] = useState(false)
+  const [memberConnectState, setMemberConnectState] = useState({}) // userId → 'sent'|'friend'
 
   useEffect(() => {
     setPostsLoading(true)
@@ -4611,6 +4618,32 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
       })
       .catch(() => setPostsLoading(false))
   }, [company.id])
+
+  useEffect(() => {
+    if (tab !== 'members') return
+    if (companyMembers.length > 0) return
+    setMembersLoading(true)
+    fetch(`/api/companies/${company.id}/members`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => {
+        const members = data.members || []
+        setCompanyMembers(members)
+        const state = {}
+        members.forEach(m => {
+          if (m.is_friend) state[m.id] = 'friend'
+          else if (m.request_sent) state[m.id] = 'sent'
+        })
+        setMemberConnectState(state)
+        setMembersLoading(false)
+      })
+      .catch(() => setMembersLoading(false))
+  }, [tab, company.id])
+
+  const connectWithMember = (userId) => {
+    fetch(`/api/friends/request/${userId}`, { method: 'POST', credentials: 'include' })
+      .then(() => setMemberConnectState(prev => ({ ...prev, [userId]: 'sent' })))
+      .catch(() => {})
+  }
 
   const toggleCompanyLike = (postId) => {
     fetch(`/api/companies/${company.id}/posts/${postId}/like`, { method: 'POST', credentials: 'include' })
@@ -4723,9 +4756,9 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
 
       {/* Tabs */}
       <div className="p-filter-tabs" style={{ marginBottom: 16 }}>
-        {['posts', 'about', 'jobs'].map(tp => (
+        {['posts', 'members', 'about', 'jobs'].map(tp => (
           <button key={tp} className={`p-filter-tab${tab === tp ? ' active' : ''}`} onClick={() => setTab(tp)}>
-            {tp === 'posts' ? t.companyPosts : tp === 'about' ? t.companyAbout : t.jobs}
+            {tp === 'posts' ? t.companyPosts : tp === 'members' ? t.companyMembers : tp === 'about' ? t.companyAbout : t.jobs}
             {tp === 'jobs' && companyJobs.length > 0 && <span style={{ marginLeft: 4, fontSize: 11 }}>({companyJobs.length})</span>}
           </button>
         ))}
@@ -4860,6 +4893,48 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
             )
           })}
         </>
+      )}
+
+      {tab === 'members' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {membersLoading ? (
+            <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>⏳</div>
+          ) : companyMembers.length === 0 ? (
+            <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>{t.companyNoMembers}</div>
+          ) : companyMembers.map(member => {
+            const connectStatus = memberConnectState[member.id]
+            const isSelf = member.id === currentUser?.id
+            const avatarSrc = member.avatar_url
+              ? (member.avatar_url.startsWith('http') ? member.avatar_url : `/uploads/${member.avatar_url}`)
+              : null
+            return (
+              <div key={member.id} className="p-card" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px' }}>
+                <div className="p-avatar-sm" style={{ background: nameToColor(member.name), flexShrink: 0 }}>
+                  {avatarSrc ? <img src={avatarSrc} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} /> : getInitials(member.name)}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>{member.name}</div>
+                  {member.handle && <div style={{ fontSize: 12, color: '#888' }}>@{member.handle}</div>}
+                  <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>
+                    {member.role === 'owner' ? t.companyRoleOwner : member.role === 'admin' ? t.companyRoleAdmin : t.companyRoleEditor}
+                  </div>
+                </div>
+                {!isSelf && (
+                  connectStatus === 'friend' ? (
+                    <span style={{ fontSize: 12, color: '#2D6A4F', fontWeight: 600 }}>✓ {mode === 'business' ? t.connectionsLabel : t.friendsLabel}</span>
+                  ) : connectStatus === 'sent' ? (
+                    <span style={{ fontSize: 12, color: '#888' }}>{t.requestSent}</span>
+                  ) : (
+                    <button className="p-friend-add-btn p-friend-msg-btn" style={{ padding: '6px 14px', fontSize: 13 }}
+                      onClick={() => connectWithMember(member.id)}>
+                      + {mode === 'business' ? t.connectBtn : t.addFriend}
+                    </button>
+                  )
+                )}
+              </div>
+            )
+          })}
+        </div>
       )}
 
       {tab === 'about' && (

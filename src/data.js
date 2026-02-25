@@ -411,6 +411,8 @@ export const PT = {
     companyCancel: 'Annuller',
     companySearchPlaceholder: 'Søg virksomheder...',
     companyFeedLabel: 'Virksomhedsside',
+    companyMembers: 'Medarbejdere',
+    companyNoMembers: 'Ingen medarbejdere endnu.',
     // Jobs (business mode)
     jobs: 'Job',
     jobsTitle: 'Jobopslag',
@@ -786,6 +788,8 @@ export const PT = {
     companyCancel: 'Cancel',
     companySearchPlaceholder: 'Search companies...',
     companyFeedLabel: 'Company page',
+    companyMembers: 'Employees',
+    companyNoMembers: 'No employees yet.',
     // Jobs (business mode)
     jobs: 'Jobs',
     jobsTitle: 'Job listings',
