@@ -2412,6 +2412,13 @@ async function initCompanies() {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
 
+    // Repair: ensure all companies have their owner in company_members
+    // (may be missing if company was created before this table existed)
+    await pool.query(`
+      INSERT IGNORE INTO company_members (company_id, user_id, role)
+      SELECT id, owner_id, 'owner' FROM companies WHERE owner_id > 0
+    `)
+
   } catch (err) {
     console.error('initCompanies error:', err.message)
   }

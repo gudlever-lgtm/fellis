@@ -121,10 +121,20 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
   }, [showAvatarMenu, showNotifPanel])
 
   const [navParam, setNavParam] = useState(null)
+  const savedFeedScroll = useRef(0)
+
   const navigateTo = useCallback((p, param = null) => {
+    if (p !== 'feed') {
+      // Save scroll position when leaving the feed
+      savedFeedScroll.current = window.scrollY
+    }
     setPage(p)
     setNavParam(param)
     setShowAvatarMenu(false)
+    if (p === 'feed') {
+      // Restore scroll position when returning to feed
+      requestAnimationFrame(() => window.scrollTo(0, savedFeedScroll.current))
+    }
   }, [])
 
   const avatarSrc = currentUser.avatar_url
