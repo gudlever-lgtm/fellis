@@ -281,7 +281,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
             onNavigate={navigateTo}
           />
         </div>
-        {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} />}
+        {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} plan={plan} onUserUpdate={setCurrentUser} onNavigate={navigateTo} />}
         {page === 'view-profile' && viewUserId && <FriendProfilePage userId={viewUserId} lang={lang} t={t} currentUser={currentUser} onBack={() => navigateTo('feed')} onMessage={async (prof) => { const data = await apiCreateConversation([prof.id], null, false, false).catch(() => null); if (data?.id) setOpenConvId(data.id); navigateTo('messages') }} />}
         {page === 'edit-profile' && <EditProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} />}
         {page === 'friends' && <FriendsPage lang={lang} t={t} mode={mode} onMessage={async (friend) => {
@@ -1695,7 +1695,7 @@ const MOCK_FB_PHOTOS = [
 ]
 
 // ── Profile (clean — read-only view) ──
-function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
+function ProfilePage({ lang, t, currentUser, mode, plan, onUserUpdate, onNavigate }) {
   const [profile, setProfile] = useState({ ...currentUser })
   const [userPosts, setUserPosts] = useState([])
   const [showPassword, setShowPassword] = useState(false)
@@ -1748,7 +1748,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
             <h2 className="p-profile-name" style={{ margin: 0 }}>{profile.name}</h2>
-            <span style={{
+            {mode === 'business' && <span style={{
               fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 10,
               background: plan === 'business_pro' ? '#2D6A4F' : '#F0FAF4',
               color: plan === 'business_pro' ? '#fff' : '#2D6A4F',
@@ -1756,7 +1756,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
               flexShrink: 0,
             }}>
               {plan === 'business_pro' ? 'Business Pro ⚡' : 'Business'}
-            </span>
+            </span>}
           </div>
           <p className="p-profile-handle">{profile.handle}</p>
           <p className="p-profile-bio">{profile.bio?.[lang] || profile.bio?.da || ''}</p>
