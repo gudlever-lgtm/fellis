@@ -50,6 +50,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
   const [showModeModal, setShowModeModal] = useState(false)
   const [plan, setPlan] = useState('business') // set from server session; 'business_pro' = paid tier
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+  const [hasCompanies, setHasCompanies] = useState(false)
   const avatarMenuRef = useRef(null)
   const notifRef = useRef(null)
   const t = PT[lang]
@@ -167,19 +168,20 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
           </div>
         </div>
         <div className="p-nav-tabs">
-          {['feed', 'friends', 'messages', 'events', 'marketplace', ...(mode === 'business' ? ['jobs', 'analytics'] : [])].map(p => (
+          {['feed', 'friends', 'messages', 'events', 'marketplace', ...(mode === 'business' ? ['jobs', 'analytics'] : []), ...(mode === 'business' || hasCompanies ? ['company'] : [])].map(p => (
             <button
               key={p}
               className={`p-nav-tab${page === p ? ' active' : ''}`}
               onClick={() => navigateTo(p)}
             >
               <span className="p-nav-tab-icon">
-                {p === 'feed' ? '🏠' : p === 'friends' ? '👥' : p === 'messages' ? '💬' : p === 'events' ? '📅' : p === 'marketplace' ? '🛍️' : p === 'analytics' ? '📊' : p === 'admin' ? '⚙️' : '💼'}
+                {p === 'feed' ? '🏠' : p === 'friends' ? '👥' : p === 'messages' ? '💬' : p === 'events' ? '📅' : p === 'marketplace' ? '🛍️' : p === 'analytics' ? '📊' : p === 'company' ? '🏢' : p === 'admin' ? '⚙️' : '💼'}
               </span>
               <span className="p-nav-tab-label">
                 {p === 'friends'
                   ? (mode === 'business' ? t.connectionsLabel : t.friends)
                   : p === 'analytics' ? t.analyticsNav
+                  : p === 'company' ? t.companies
                   : p === 'admin' ? t.adminTitle
                   : (t[p] || p)}
               </span>
@@ -255,11 +257,6 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
                 <button className="avatar-dropdown-item" onClick={() => { setShowAvatarMenu(false); setShowModeModal(true) }}>
                   <span>{mode === 'business' ? (plan === 'business_pro' ? '🚀' : '💼') : '🏠'}</span> {t.modeSwitch}
                 </button>
-                {mode === 'business' && (
-                  <button className="avatar-dropdown-item" onClick={() => navigateTo('company')}>
-                    <span>🏢</span> {t.companies}
-                  </button>
-                )}
                 <button className="avatar-dropdown-item" onClick={() => navigateTo('privacy')}>
                   <span>🔒</span> {menuT.privacy}
                 </button>
@@ -790,7 +787,9 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
     fetch('/api/companies', { credentials: 'include' })
       .then(r => r.json())
       .then(data => {
-        const followed = (data.companies || []).filter(c => c.is_following || c.role === 'following' || c.member_role === 'owner' || c.role === 'owner')
+        const allCompanies = data.companies || []
+        setHasCompanies(allCompanies.some(c => c.member_role === 'owner' || c.role === 'owner'))
+        const followed = allCompanies.filter(c => c.is_following || c.role === 'following' || c.member_role === 'owner' || c.role === 'owner')
         if (!followed.length) return
         return fetch(`/api/companies/${followed[0].id}/posts?limit=2`, { credentials: 'include' })
           .then(r => r.json())
