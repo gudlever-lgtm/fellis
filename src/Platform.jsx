@@ -707,11 +707,10 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
     { id: null, name: 'Peter Nygaard', reaction: '❤️' },
     { id: null, name: 'Sara Bonde', reaction: '❤️' },
   ]
-  const [cpFeedLiked, setCpFeedLiked] = useState(() => { try { return JSON.parse(localStorage.getItem('fellis_cpfeed_liked') || 'false') } catch { return false } })
-  const [cpFeedLikes, setCpFeedLikes] = useState(() => { try { return JSON.parse(localStorage.getItem('fellis_cpfeed_likes') || '14') } catch { return 14 } })
-  const [cpFeedShowComments, setCpFeedShowComments] = useState(false)
-  const [cpFeedComments, setCpFeedComments] = useState(() => { try { return JSON.parse(localStorage.getItem('fellis_cpfeed_comments') || 'null') || CP_FEED_DEFAULT_COMMENTS } catch { return CP_FEED_DEFAULT_COMMENTS } })
-  const [cpFeedCommentText, setCpFeedCommentText] = useState('')
+  const [cpFeedPosts, setCpFeedPosts] = useState([])
+  const [cpFeedExpanded, setCpFeedExpanded] = useState(new Set())
+  const [cpFeedCommentTexts, setCpFeedCommentTexts] = useState({})
+  const [cpFeedCommentLists, setCpFeedCommentLists] = useState({})
   const [feedEvents, setFeedEvents] = useState([])
   const feedDbEventIds = new Set(feedEvents.map(e => e.id))
 
@@ -785,6 +784,19 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
         setFeedRsvpMap(map)
       }
     })
+    // Load recent company posts from followed companies
+    fetch('/api/companies', { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => {
+        const followed = (data.companies || []).filter(c => c.is_following || c.member_role === 'owner')
+        if (!followed.length) return
+        return fetch(`/api/companies/${followed[0].id}/posts?limit=2`, { credentials: 'include' })
+          .then(r => r.json())
+          .then(pd => {
+            setCpFeedPosts((pd.posts || []).map(p => ({ ...p, company: followed[0] })))
+          })
+      })
+      .catch(() => {})
   }, [])
 
   // Bottom sentinel — load next page
@@ -1250,63 +1262,95 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
         )
       })()}
 
-      {/* Company post feed item */}
-      {offset === 0 && MOCK_COMPANIES[0] && (
-        <div className="p-card p-post">
-          <div className="p-post-header">
-            <div className="p-company-logo-sm" style={{ background: MOCK_COMPANIES[0].color, borderRadius: 8, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 16, flexShrink: 0 }}>
-              {MOCK_COMPANIES[0].name[0]}
-            </div>
-            <div>
-              <button className="p-post-author" style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textDecoration: 'underline', textDecorationColor: 'transparent' }} onMouseEnter={e => e.currentTarget.style.textDecorationColor = 'currentColor'} onMouseLeave={e => e.currentTarget.style.textDecorationColor = 'transparent'} onClick={() => onNavigate('company', { companyId: MOCK_COMPANIES[0].id })}>{MOCK_COMPANIES[0].name}</button>
-              <div className="p-post-time" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span className="p-event-type-badge" style={{ padding: '1px 6px', fontSize: 10 }}>{t.companyFeedLabel}</span>
-                <span>{lang === 'da' ? '1 t siden' : '1 hr ago'}</span>
+      {/* Company posts feed items — real data from followed companies */}
+      {offset === 0 && cpFeedPosts.map(post => {
+        const cp = post.company
+        const liked = !!post.liked
+        const showComments = cpFeedExpanded.has(post.id)
+        const postText = lang === 'da' ? (post.text_da || post.text_en) : (post.text_en || post.text_da)
+        const timeAgo = new Date(post.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short' })
+        const toggleLike = () => {
+          fetch(`/api/companies/${cp.id}/posts/${post.id}/like`, { method: 'POST', credentials: 'include' })
+            .then(r => r.json())
+            .then(data => setCpFeedPosts(prev => prev.map(p => p.id === post.id
+              ? { ...p, liked: data.liked ? 1 : 0, likes: data.liked ? p.likes + 1 : Math.max(0, p.likes - 1) }
+              : p)))
+            .catch(() => {})
+        }
+        const toggleComments = () => {
+          setCpFeedExpanded(prev => { const n = new Set(prev); n.has(post.id) ? n.delete(post.id) : n.add(post.id); return n })
+          if (!cpFeedCommentLists[post.id]) {
+            fetch(`/api/companies/${cp.id}/posts/${post.id}/comments`, { credentials: 'include' })
+              .then(r => r.json())
+              .then(data => setCpFeedCommentLists(prev => ({ ...prev, [post.id]: data.comments || [] })))
+              .catch(() => {})
+          }
+        }
+        const sendComment = () => {
+          const text = cpFeedCommentTexts[post.id]?.trim()
+          if (!text) return
+          fetch(`/api/companies/${cp.id}/posts/${post.id}/comments`, {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text }),
+          })
+            .then(r => r.json())
+            .then(comment => {
+              setCpFeedCommentLists(prev => ({ ...prev, [post.id]: [...(prev[post.id] || []), comment] }))
+              setCpFeedPosts(prev => prev.map(p => p.id === post.id ? { ...p, comment_count: (p.comment_count || 0) + 1 } : p))
+              setCpFeedCommentTexts(prev => ({ ...prev, [post.id]: '' }))
+            })
+            .catch(() => {})
+        }
+        return (
+          <div key={post.id} className="p-card p-post">
+            <div className="p-post-header">
+              <div className="p-company-logo-sm" style={{ background: cp.color, borderRadius: 8, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 16, flexShrink: 0 }}>
+                {cp.name[0]}
               </div>
-            </div>
-          </div>
-          <div className="p-post-text">
-            {lang === 'da'
-              ? `Vi søger en dygtig UX Designer til vores team i København. Se vores ledige stillinger og lær mere om vores kultur. 🚀`
-              : `We're looking for a talented UX Designer to join our team in Copenhagen. Check out our open positions and learn more about our culture. 🚀`
-            }
-          </div>
-          <div className="p-post-stats">
-            <span className="p-reaction-summary" style={{ cursor: 'pointer' }} onClick={() => setLikersModal({ postId: 'cpFeed', likers: [...(cpFeedLiked ? [{ id: currentUser.id, name: currentUser.name, reaction: '❤️' }] : []), ...CP_FEED_MOCK_LIKERS].slice(0, cpFeedLikes) })}>
-              {cpFeedLikes} {t.like.toLowerCase()}
-            </span>
-            <span style={{ cursor: 'pointer' }} onClick={() => setCpFeedShowComments(p => !p)}>
-              {cpFeedComments.length} {t.comment.toLowerCase()}{lang === 'da' ? 'er' : 's'}
-            </span>
-          </div>
-          <div className="p-post-actions">
-            <button className={`p-action-btn${cpFeedLiked ? ' liked' : ''}`} onClick={() => { setCpFeedLiked(p => !p); setCpFeedLikes(p => cpFeedLiked ? p - 1 : p + 1); if (!cpFeedShowComments) setCpFeedShowComments(true) }}>
-              {cpFeedLiked ? '❤️' : '🤍'} {t.like}
-            </button>
-            <button className="p-action-btn" onClick={() => setCpFeedShowComments(p => !p)}>
-              💬 {t.comment}
-            </button>
-          </div>
-          {cpFeedShowComments && (
-            <div className="p-comments">
-              {cpFeedComments.map(c => (
-                <div key={c.id} className="p-comment">
-                  <div className="p-comment-bubble">
-                    <span className="p-comment-author">{c.author}</span> {c.text}
-                  </div>
+              <div>
+                <button className="p-post-author" style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textDecoration: 'underline', textDecorationColor: 'transparent' }}
+                  onMouseEnter={e => e.currentTarget.style.textDecorationColor = 'currentColor'}
+                  onMouseLeave={e => e.currentTarget.style.textDecorationColor = 'transparent'}
+                  onClick={() => onNavigate('company', { companyId: cp.id })}>{cp.name}</button>
+                <div className="p-post-time" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span className="p-event-type-badge" style={{ padding: '1px 6px', fontSize: 10 }}>{t.companyFeedLabel}</span>
+                  <span>{timeAgo}</span>
                 </div>
-              ))}
-              <div className="p-comment-input-row">
-                <input className="p-comment-input" placeholder={t.writeComment}
-                  value={cpFeedCommentText}
-                  onChange={e => setCpFeedCommentText(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter' && cpFeedCommentText.trim()) { setCpFeedComments(p => [...p, { id: Date.now(), author: currentUser.name, text: cpFeedCommentText.trim() }]); setCpFeedCommentText('') } }} />
-                <button className="p-send-btn" onClick={() => { if (cpFeedCommentText.trim()) { setCpFeedComments(p => [...p, { id: Date.now(), author: currentUser.name, text: cpFeedCommentText.trim() }]); setCpFeedCommentText('') } }}>{t.send}</button>
               </div>
             </div>
-          )}
-        </div>
-      )}
+            <div className="p-post-text">{postText}</div>
+            <div className="p-post-stats">
+              <span style={{ cursor: 'pointer' }} onClick={toggleComments}>{post.likes} {t.like.toLowerCase()}</span>
+              <span style={{ cursor: 'pointer' }} onClick={toggleComments}>{post.comment_count || 0} {t.comment.toLowerCase()}{lang === 'da' ? 'er' : 's'}</span>
+            </div>
+            <div className="p-post-actions">
+              <button className={`p-action-btn${liked ? ' liked' : ''}`} onClick={() => { if (!showComments) toggleComments(); toggleLike() }}>
+                {liked ? '❤️' : '🤍'} {t.like}
+              </button>
+              <button className="p-action-btn" onClick={toggleComments}>💬 {t.comment}</button>
+            </div>
+            {showComments && (
+              <div className="p-comments">
+                {(cpFeedCommentLists[post.id] || []).map(c => (
+                  <div key={c.id} className="p-comment">
+                    <div className="p-comment-bubble">
+                      <span className="p-comment-author">{c.author_name}</span> {c.text}
+                    </div>
+                  </div>
+                ))}
+                <div className="p-comment-input-row">
+                  <input className="p-comment-input" placeholder={t.writeComment}
+                    value={cpFeedCommentTexts[post.id] || ''}
+                    onChange={e => setCpFeedCommentTexts(prev => ({ ...prev, [post.id]: e.target.value }))}
+                    onKeyDown={e => e.key === 'Enter' && sendComment()} />
+                  <button className="p-send-btn" onClick={sendComment}>{t.send}</button>
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })}
 
       {/* Event activity feed items — shown when at top of feed, using real DB events */}
       {offset === 0 && feedEvents.slice(0, 2).map((ev, idx) => {
@@ -1659,6 +1703,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
   const [showPassword, setShowPassword] = useState(false)
   const [familyGroups, setFamilyGroups] = useState([])
   const [profileTab, setProfileTab] = useState('about')
+  const [myCompanies, setMyCompanies] = useState([])
 
   useEffect(() => {
     apiFetchProfile().then(data => {
@@ -1677,6 +1722,12 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
       apiFetchConversations().then(convs => {
         if (convs) setFamilyGroups(convs.filter(c => c.isFamilyGroup))
       })
+    }
+    if (mode === 'business') {
+      fetch('/api/companies', { credentials: 'include' })
+        .then(r => r.json())
+        .then(data => setMyCompanies((data.companies || []).filter(c => c.member_role === 'owner')))
+        .catch(() => {})
     }
   }, [currentUser.name, mode, onUserUpdate])
 
@@ -1822,12 +1873,16 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
                 {t.myCompanies} →
               </button>
             </div>
-            {MOCK_COMPANIES.filter(c => c.role === 'owner').map(c => (
-              <div key={c.id} className="p-company-mini-card" onClick={() => onNavigate?.('company')}>
+            {myCompanies.length === 0 ? (
+              <div style={{ fontSize: 13, color: '#888', padding: '8px 0' }}>
+                {lang === 'da' ? 'Ingen sider endnu.' : 'No pages yet.'}
+              </div>
+            ) : myCompanies.map(c => (
+              <div key={c.id} className="p-company-mini-card" onClick={() => onNavigate?.('company', { companyId: c.id })}>
                 <div className="p-company-logo-sm" style={{ background: c.color }}>{c.name[0]}</div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 700, fontSize: 14 }}>{c.name}</div>
-                  <div style={{ fontSize: 12, color: '#888' }}>{c.industry} · {c.followers} {t.companyFollowers}</div>
+                  <div style={{ fontSize: 12, color: '#888' }}>{c.industry} · {(c.followers_count || 0)} {t.companyFollowers}</div>
                 </div>
                 <span className="p-company-role-badge">{t.companyRoleOwner}</span>
               </div>
@@ -3241,18 +3296,24 @@ function RenameModal({ t, current, onClose, onRename }) {
 function SearchPage({ lang, t, mode, onNavigateToPost, onNavigateToConv, onNavigateToCompany }) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState(null) // { posts, messages } | null
+  const [companyMatches, setCompanyMatches] = useState([])
   const [loading, setLoading] = useState(false)
   const inputRef = useRef(null)
 
   useEffect(() => { inputRef.current?.focus() }, [])
 
   useEffect(() => {
-    if (!query.trim() || query.trim().length < 2) { setResults(null); return }
+    if (!query.trim() || query.trim().length < 2) { setResults(null); setCompanyMatches([]); return }
     setLoading(true)
     const timer = setTimeout(async () => {
       try {
-        const data = await apiSearch(query.trim())
+        const [data, compData] = await Promise.all([
+          apiSearch(query.trim()),
+          fetch(`/api/companies/all?q=${encodeURIComponent(query.trim())}`, { credentials: 'include' })
+            .then(r => r.json()).catch(() => ({ companies: [] })),
+        ])
         setResults(data || { posts: [], messages: [] })
+        setCompanyMatches(compData.companies || [])
       } finally {
         setLoading(false)
       }
@@ -3278,16 +3339,8 @@ function SearchPage({ lang, t, mode, onNavigateToPost, onNavigateToConv, onNavig
     )
   }
 
-  const q = query.trim()
   const hasPosts = results?.posts?.length > 0
   const hasMessages = results?.messages?.length > 0
-  const companyMatches = q.length >= 2
-    ? MOCK_COMPANIES.filter(c =>
-        c.name.toLowerCase().includes(q.toLowerCase()) ||
-        c.industry.toLowerCase().includes(q.toLowerCase()) ||
-        c.tagline.toLowerCase().includes(q.toLowerCase())
-      )
-    : []
   const hasCompanies = companyMatches.length > 0
   const empty = results && !hasPosts && !hasMessages && !hasCompanies
 
@@ -3361,7 +3414,7 @@ function SearchPage({ lang, t, mode, onNavigateToPost, onNavigateToConv, onNavig
                     <span className="p-search-result-time">{post.time?.[lang]}</span>
                     <span className="p-search-result-arrow">→</span>
                   </div>
-                  <div className="p-search-result-text">{excerpt(post.text[lang], q)}</div>
+                  <div className="p-search-result-text">{excerpt(post.text[lang], query.trim())}</div>
                 </div>
               ))}
             </section>
@@ -3384,7 +3437,7 @@ function SearchPage({ lang, t, mode, onNavigateToPost, onNavigateToConv, onNavig
                   </div>
                   <div className="p-search-result-text">
                     <span className="p-search-result-from">{msg.from}: </span>
-                    {excerpt(msg.text[lang], q)}
+                    {excerpt(msg.text[lang], query.trim())}
                   </div>
                 </div>
               ))}
@@ -4415,101 +4468,53 @@ function SkillsSection({ profile, t, lang, isOwn }) {
   )
 }
 
-// ── Company Pages ──
-const MOCK_COMPANIES = [
-  {
-    id: 1,
-    name: 'Designlab Studio',
-    tagline: 'Vi skaber digitale oplevelser der rykker',
-    website: 'https://designlab.dk',
-    industry: 'Design & Teknologi',
-    size: '11–50',
-    description: 'Designlab Studio er et dansk designbureau specialiseret i brugeroplevelse og digital produktudvikling. Vi arbejder med startups og etablerede virksomheder.',
-    followers: 847,
-    role: 'owner',
-    color: '#2D6A4F',
-    posts: [
-      { id: 'cp1', text: { da: 'Vi søger en dygtig UX Designer til vores team i København. 🚀', en: 'We\'re looking for a talented UX Designer to join our Copenhagen team. 🚀' }, time: { da: '1 t siden', en: '1 hr ago' }, likes: 14, comments: 3 },
-      { id: 'cp2', text: { da: 'Spændende samarbejde annonceret med Yggdrasil Cloud! Vi glæder os til at bygge fremtiden af dansk tech. 🇩🇰', en: 'Exciting partnership announced with Yggdrasil Cloud! Looking forward to building the future of Danish tech. 🇩🇰' }, time: { da: '2 d siden', en: '2 days ago' }, likes: 62, comments: 11 },
-    ],
-    jobs: [1],
-  },
-  {
-    id: 2,
-    name: 'NordTech A/S',
-    tagline: 'Scandinavian software for global markets',
-    website: 'https://nordtech.dk',
-    industry: 'Software & SaaS',
-    size: '51–200',
-    description: 'NordTech bygger skalerbare softwareløsninger til mellemstore virksomheder i Norden og Europa. Grundlagt i 2018.',
-    followers: 2341,
-    role: 'following',
-    color: '#1877F2',
-    posts: [
-      { id: 'cp3', text: { da: 'Vores Q1 rapport er ude — rekordvækst på 43% YoY! Tak til alle vores fantastiske kunder og medarbejdere. 📈', en: 'Our Q1 report is out — record growth of 43% YoY! Thanks to all our amazing customers and employees. 📈' }, time: { da: '3 d siden', en: '3 days ago' }, likes: 198, comments: 27 },
-    ],
-    jobs: [2],
-  },
-]
-
-const MOCK_JOBS = [
-  {
-    id: 1,
-    companyId: 1,
-    companyName: 'Designlab Studio',
-    companyColor: '#2D6A4F',
-    title: { da: 'Senior UX Designer', en: 'Senior UX Designer' },
-    location: 'København, Danmark',
-    remote: true,
-    type: 'fulltime',
-    description: { da: 'Vi søger en erfaren UX Designer til at lede brugeroplevelsesdesign på tværs af vores produkter. Du vil arbejde tæt med produktteamet og kunder.', en: 'We\'re looking for an experienced UX Designer to lead user experience design across our products. You\'ll work closely with the product team and clients.' },
-    requirements: { da: '5+ års erfaring med UX design\nSolid portefølje med case studies\nErfaring med Figma og prototyping\nFlydende dansk og engelsk', en: '5+ years of UX design experience\nSolid portfolio with case studies\nExperience with Figma and prototyping\nFluent Danish and English' },
-    applyLink: 'jobs@designlab.dk',
-    postedDate: '2026-02-10',
-    saved: false,
-  },
-  {
-    id: 2,
-    companyId: 2,
-    companyName: 'NordTech A/S',
-    companyColor: '#1877F2',
-    title: { da: 'Frontend Udviklere (React)', en: 'Frontend Developer (React)' },
-    location: 'Aarhus, Danmark',
-    remote: false,
-    type: 'fulltime',
-    description: { da: 'NordTech søger dygtige React-udviklere til vores voksende produktteam i Aarhus. Du vil arbejde på vores kerneplatform med moderne teknologier.', en: 'NordTech is looking for skilled React developers for our growing product team in Aarhus. You\'ll work on our core platform with modern technologies.' },
-    requirements: { da: '3+ års React-erfaring\nKendskab til TypeScript\nErfaring med REST APIs og GraphQL\nGodt kendskab til git og CI/CD', en: '3+ years React experience\nKnowledge of TypeScript\nExperience with REST APIs and GraphQL\nGood knowledge of git and CI/CD' },
-    applyLink: 'https://nordtech.dk/jobs',
-    postedDate: '2026-02-15',
-    saved: false,
-  },
-]
+// ── Company Pages (data loaded from /api/companies and /api/jobs) ──
 
 function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompanyId }) {
-  const [companies, setCompanies] = useState(MOCK_COMPANIES)
-  const [selectedCompany, setSelectedCompany] = useState(
-    initialCompanyId ? (MOCK_COMPANIES.find(c => c.id === initialCompanyId) || null) : null
-  )
+  const [companies, setCompanies] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [selectedCompany, setSelectedCompany] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
   const [tab, setTab] = useState('my')
-  const [followMap, setFollowMap] = useState(() => {
-    const m = {}
-    MOCK_COMPANIES.forEach(c => { m[c.id] = c.role === 'following' || c.role === 'owner' })
-    return m
-  })
 
-  const myCompanies = companies.filter(c => c.role === 'owner' || c.role === 'admin' || c.role === 'editor')
-  const followingCompanies = companies.filter(c => c.role === 'following')
+  const loadCompanies = () => {
+    setLoading(true)
+    fetch('/api/companies', { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => { setCompanies(data.companies || []); setLoading(false) })
+      .catch(() => setLoading(false))
+  }
 
+  useEffect(() => { loadCompanies() }, [])
+
+  useEffect(() => {
+    if (initialCompanyId && companies.length > 0) {
+      const found = companies.find(c => c.id === initialCompanyId)
+      if (found) { setSelectedCompany(found); return }
+    }
+    if (initialCompanyId && companies.length === 0 && !loading) {
+      fetch(`/api/companies/${initialCompanyId}`, { credentials: 'include' })
+        .then(r => r.json())
+        .then(data => { if (data.company) setSelectedCompany(data.company) })
+        .catch(() => {})
+    }
+  }, [initialCompanyId, companies, loading])
+
+  const myCompanies = companies.filter(c => c.member_role === 'owner' || c.member_role === 'admin' || c.member_role === 'editor')
+  const followingCompanies = companies.filter(c => c.is_following && !myCompanies.find(m => m.id === c.id))
   const displayCompanies = tab === 'my' ? myCompanies : followingCompanies
 
   const toggleFollow = (id) => {
-    setFollowMap(prev => ({ ...prev, [id]: !prev[id] }))
-    setCompanies(prev => prev.map(c => c.id === id ? {
-      ...c,
-      role: followMap[id] ? null : 'following',
-      followers: followMap[id] ? c.followers - 1 : c.followers + 1,
-    } : c))
+    fetch(`/api/companies/${id}/follow`, { method: 'POST', credentials: 'include' })
+      .then(r => r.json())
+      .then(data => {
+        setCompanies(prev => prev.map(c => c.id === id ? {
+          ...c,
+          is_following: data.following,
+          followers_count: data.following ? c.followers_count + 1 : Math.max(0, c.followers_count - 1),
+        } : c))
+      })
+      .catch(() => {})
   }
 
   if (selectedCompany) {
@@ -4520,10 +4525,10 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
         lang={lang}
         mode={mode}
         currentUser={currentUser}
-        isOwner={selectedCompany.role === 'owner'}
-        onBack={() => setSelectedCompany(null)}
+        isOwner={selectedCompany.member_role === 'owner'}
+        onBack={() => { setSelectedCompany(null); loadCompanies() }}
         onFollow={() => toggleFollow(selectedCompany.id)}
-        isFollowing={followMap[selectedCompany.id]}
+        isFollowing={!!selectedCompany.is_following}
       />
     )
   }
@@ -4546,7 +4551,9 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
         </button>
       </div>
 
-      {displayCompanies.length === 0 ? (
+      {loading ? (
+        <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>⏳</div>
+      ) : displayCompanies.length === 0 ? (
         <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>
           🏢 {tab === 'my'
             ? (lang === 'da' ? 'Du administrerer ingen sider endnu.' : 'You don\'t manage any pages yet.')
@@ -4567,7 +4574,7 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
                 </div>
                 <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>{company.tagline}</div>
                 <div style={{ fontSize: 12, color: '#999' }}>
-                  🏭 {company.industry} · 👥 {company.size} · {company.followers.toLocaleString()} {t.companyFollowers}
+                  🏭 {company.industry} · 👥 {company.size} · {(company.followers_count || 0).toLocaleString()} {t.companyFollowers}
                 </div>
               </div>
             </div>
@@ -4595,42 +4602,61 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
   const [cpMediaPreviews, setCpMediaPreviews] = useState([])
   const [cpMediaPopup, setCpMediaPopup] = useState(false)
   const cpFileInputRef = useRef(null)
-  const [companyPosts, setCompanyPosts] = useState(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem('fellis_cp_posts') || '{}')
-      return (company.posts || []).map(p => saved[p.id] ? { ...p, ...saved[p.id] } : p)
-    } catch { return company.posts || [] }
-  })
-  const [likedCompanyPosts, setLikedCompanyPosts] = useState(() => {
-    try { return new Set(JSON.parse(localStorage.getItem('fellis_cp_liked') || '[]')) }
-    catch { return new Set() }
-  })
+  const [companyPosts, setCompanyPosts] = useState([])
+  const [companyJobs, setCompanyJobs] = useState([])
+  const [postsLoading, setPostsLoading] = useState(true)
   const [expandedCompanyComments, setExpandedCompanyComments] = useState(new Set())
   const [companyCommentInputs, setCompanyCommentInputs] = useState({})
+  const [companyCommentLists, setCompanyCommentLists] = useState({})
 
   useEffect(() => {
-    try {
-      localStorage.setItem('fellis_cp_liked', JSON.stringify([...likedCompanyPosts]))
-      const saved = {}
-      companyPosts.forEach(p => { saved[p.id] = { likes: p.likes, commentList: p.commentList || [] } })
-      localStorage.setItem('fellis_cp_posts', JSON.stringify(saved))
-    } catch {}
-  }, [likedCompanyPosts, companyPosts])
+    setPostsLoading(true)
+    fetch(`/api/companies/${company.id}`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => {
+        setCompanyPosts(data.posts || [])
+        setCompanyJobs(data.jobs || [])
+        setPostsLoading(false)
+      })
+      .catch(() => setPostsLoading(false))
+  }, [company.id])
 
   const toggleCompanyLike = (postId) => {
-    setLikedCompanyPosts(prev => {
-      const next = new Set(prev)
-      if (next.has(postId)) { next.delete(postId); setCompanyPosts(p => p.map(x => x.id === postId ? { ...x, likes: x.likes - 1 } : x)) }
-      else { next.add(postId); setCompanyPosts(p => p.map(x => x.id === postId ? { ...x, likes: x.likes + 1 } : x)) }
-      return next
-    })
+    fetch(`/api/companies/${company.id}/posts/${postId}/like`, { method: 'POST', credentials: 'include' })
+      .then(r => r.json())
+      .then(data => {
+        setCompanyPosts(prev => prev.map(p => p.id === postId
+          ? { ...p, liked: data.liked ? 1 : 0, likes: data.liked ? p.likes + 1 : Math.max(0, p.likes - 1) }
+          : p))
+      })
+      .catch(() => {})
   }
-  const toggleCompanyComments = (postId) => setExpandedCompanyComments(prev => { const n = new Set(prev); n.has(postId) ? n.delete(postId) : n.add(postId); return n })
+
+  const toggleCompanyComments = (postId) => {
+    setExpandedCompanyComments(prev => { const n = new Set(prev); n.has(postId) ? n.delete(postId) : n.add(postId); return n })
+    if (!companyCommentLists[postId]) {
+      fetch(`/api/companies/${company.id}/posts/${postId}/comments`, { credentials: 'include' })
+        .then(r => r.json())
+        .then(data => setCompanyCommentLists(prev => ({ ...prev, [postId]: data.comments || [] })))
+        .catch(() => {})
+    }
+  }
+
   const addCompanyComment = (postId) => {
     const text = companyCommentInputs[postId]?.trim()
     if (!text) return
-    setCompanyPosts(p => p.map(x => x.id === postId ? { ...x, comments: (typeof x.comments === 'number' ? x.comments : (x.comments?.length || 0)) + 1, commentList: [...(x.commentList || []), { id: Date.now(), author: currentUser.name, text }] } : x))
-    setCompanyCommentInputs(prev => ({ ...prev, [postId]: '' }))
+    fetch(`/api/companies/${company.id}/posts/${postId}/comments`, {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    })
+      .then(r => r.json())
+      .then(comment => {
+        setCompanyCommentLists(prev => ({ ...prev, [postId]: [...(prev[postId] || []), comment] }))
+        setCompanyPosts(prev => prev.map(p => p.id === postId ? { ...p, comment_count: (p.comment_count || 0) + 1 } : p))
+        setCompanyCommentInputs(prev => ({ ...prev, [postId]: '' }))
+      })
+      .catch(() => {})
   }
 
   const handleCpFileSelect = (e) => {
@@ -4648,25 +4674,22 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
   }
 
   const postCompany = () => {
-    if (!newPost.trim() && !cpMediaFiles.length) return
-    const media = cpMediaPreviews.length > 0
-      ? cpMediaPreviews.map(p => ({ url: p.url, type: p.type, mime: '' }))
-      : null
-    setCompanyPosts(prev => [{
-      id: `cp${Date.now()}`,
-      text: { da: newPost, en: newPost },
-      time: { da: 'Lige nu', en: 'Just now' },
-      likes: 0,
-      comments: 0,
-      ...(media ? { media } : {}),
-    }, ...prev])
-    setNewPost('')
-    setCpMediaFiles([])
-    setCpMediaPreviews([])
-    if (cpFileInputRef.current) cpFileInputRef.current.value = ''
+    if (!newPost.trim()) return
+    fetch(`/api/companies/${company.id}/posts`, {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text_da: newPost.trim(), text_en: newPost.trim() }),
+    })
+      .then(r => r.json())
+      .then(post => {
+        setCompanyPosts(prev => [post, ...prev])
+        setNewPost('')
+        setCpMediaFiles([])
+        setCpMediaPreviews([])
+        if (cpFileInputRef.current) cpFileInputRef.current.value = ''
+      })
+      .catch(() => {})
   }
-
-  const companyJobs = MOCK_JOBS.filter(j => j.companyId === company.id)
 
   return (
     <div className="p-events" style={{ maxWidth: 720 }}>
@@ -4685,7 +4708,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
               <span>🏭 {company.industry}</span>
               <span>👥 {company.size} {lang === 'da' ? 'medarbejdere' : 'employees'}</span>
               <span>🌐 <a href={company.website} target="_blank" rel="noopener noreferrer" style={{ color: '#1877F2' }}>{company.website.replace('https://', '')}</a></span>
-              <span>❤️ {company.followers.toLocaleString()} {t.companyFollowers}</span>
+              <span>❤️ {(company.followers_count || 0).toLocaleString()} {t.companyFollowers}</span>
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
               {!isOwner && (
@@ -4787,21 +4810,28 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
               </div>
             </div>
           )}
-          {companyPosts.map(post => {
-            const liked = likedCompanyPosts.has(post.id)
-            const commentCount = typeof post.comments === 'number' ? post.comments : (post.commentList?.length || 0)
+          {postsLoading ? (
+            <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>⏳</div>
+          ) : companyPosts.length === 0 ? (
+            <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>
+              {lang === 'da' ? 'Ingen opslag endnu.' : 'No posts yet.'}
+            </div>
+          ) : companyPosts.map(post => {
+            const liked = !!post.liked
+            const commentCount = post.comment_count || 0
             const showComments = expandedCompanyComments.has(post.id)
+            const postText = lang === 'da' ? (post.text_da || post.text_en) : (post.text_en || post.text_da)
+            const timeAgo = new Date(post.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short' })
             return (
               <div key={post.id} className="p-card p-post" style={{ marginBottom: 12 }}>
                 <div className="p-post-header">
                   <div style={{ width: 36, height: 36, borderRadius: 8, background: company.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 16 }}>{company.name[0]}</div>
                   <div>
                     <div className="p-post-author">{company.name}</div>
-                    <div className="p-post-time">{post.time[lang]}</div>
+                    <div className="p-post-time">{timeAgo}</div>
                   </div>
                 </div>
-                <div className="p-post-text">{post.text[lang] || post.text.da}</div>
-                {post.media && <PostMedia media={post.media} />}
+                <div className="p-post-text">{postText}</div>
                 <div className="p-post-stats">
                   <span onClick={() => toggleCompanyComments(post.id)} style={{ cursor: 'pointer' }}>{post.likes} {t.like.toLowerCase()}</span>
                   <span onClick={() => toggleCompanyComments(post.id)} style={{ cursor: 'pointer' }}>{commentCount} {t.comment.toLowerCase()}{lang === 'da' ? 'er' : 's'}</span>
@@ -4819,10 +4849,10 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
                 </div>
                 {showComments && (
                   <div className="p-comments">
-                    {(post.commentList || []).map(c => (
+                    {(companyCommentLists[post.id] || []).map(c => (
                       <div key={c.id} className="p-comment">
                         <div className="p-comment-bubble">
-                          <span className="p-comment-author">{c.author}</span> {c.text}
+                          <span className="p-comment-author">{c.author_name}</span> {c.text}
                         </div>
                       </div>
                     ))}
@@ -4850,10 +4880,13 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
 
       {tab === 'jobs' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {companyJobs.length === 0 ? (
+          {postsLoading ? (
+            <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>⏳</div>
+          ) : companyJobs.length === 0 ? (
             <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>{t.jobNoJobs}</div>
           ) : companyJobs.map(job => (
-            <JobCard key={job.id} job={job} t={t} lang={lang} />
+            <JobCard key={job.id} job={{ ...job, companyName: company.name, companyColor: company.color, company_name: company.name, company_color: company.color }} t={t} lang={lang}
+              onSaveToggle={(id, saved) => setCompanyJobs(prev => prev.map(j => j.id === id ? { ...j, saved } : j))} />
           ))}
         </div>
       )}
@@ -4878,23 +4911,30 @@ function CreateCompanyModal({ t, lang, currentUser, onClose, onCreate }) {
   const fS = { display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box', fontFamily: 'inherit' }
   const lS = { display: 'block', fontSize: 13, fontWeight: 600, color: '#555', marginBottom: 4, marginTop: 14 }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     if (!name.trim()) return
-    onCreate({
-      id: Date.now(),
-      name: name.trim(),
-      tagline: tagline.trim(),
-      website: website.trim(),
-      industry: industry.trim(),
-      size,
-      description: description.trim(),
-      followers: 1,
-      role: 'owner',
-      color: nameToColor(name),
-      posts: [],
-      jobs: [],
-    })
+    try {
+      const handle = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+      const res = await fetch('/api/companies', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: name.trim(),
+          handle: `@${handle}`,
+          tagline: tagline.trim() || null,
+          website: website.trim() || null,
+          industry: industry.trim() || null,
+          size: size || null,
+          description: description.trim() || null,
+          color: nameToColor(name),
+        }),
+      })
+      if (!res.ok) { const e = await res.json(); alert(e.error || 'Fejl'); return }
+      const company = await res.json()
+      onCreate({ ...company, member_role: 'owner', followers_count: 0 })
+    } catch { alert(lang === 'da' ? 'Netværksfejl' : 'Network error') }
   }
 
   return (
@@ -4928,28 +4968,42 @@ function CreateCompanyModal({ t, lang, currentUser, onClose, onCreate }) {
 }
 
 // ── Jobs ──
-function JobCard({ job, t, lang, onSave, saved }) {
-  const [isSaved, setIsSaved] = useState(saved || job.saved)
-  const title = typeof job.title === 'string' ? job.title : (job.title[lang] || job.title.da)
-  const desc = typeof job.description === 'string' ? job.description : (job.description[lang] || job.description.da)
-  const reqs = typeof job.requirements === 'string' ? job.requirements : (job.requirements[lang] || job.requirements.da)
+function JobCard({ job, t, lang, onSaveToggle }) {
+  const [isSaved, setIsSaved] = useState(!!job.saved)
+  const companyName = job.company_name || job.companyName || ''
+  const companyColor = job.company_color || job.companyColor || '#1877F2'
+  const title = typeof job.title === 'string' ? job.title : (job.title?.[lang] || job.title?.da || '')
+  const desc = typeof job.description === 'string' ? job.description : (job.description?.[lang] || job.description?.da || '')
+  const reqs = typeof job.requirements === 'string' ? job.requirements : (job.requirements?.[lang] || job.requirements?.da || '')
+  const applyLink = job.apply_link || job.applyLink || ''
+  const postedDate = job.created_at ? new Date(job.created_at).toLocaleDateString() : (job.postedDate || '')
   const typeLabels = { fulltime: t.jobTypeFullTime, parttime: t.jobTypePartTime, freelance: t.jobTypeFreelance, internship: t.jobTypeInternship }
+
+  const toggleSave = () => {
+    fetch(`/api/jobs/${job.id}/save`, { method: 'POST', credentials: 'include' })
+      .then(r => r.json())
+      .then(data => {
+        setIsSaved(data.saved)
+        onSaveToggle?.(job.id, data.saved)
+      })
+      .catch(() => {})
+  }
 
   return (
     <div className="p-card p-job-card">
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-        <div style={{ width: 44, height: 44, borderRadius: 10, background: job.companyColor, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 20, flexShrink: 0 }}>
-          {job.companyName[0]}
+        <div style={{ width: 44, height: 44, borderRadius: 10, background: companyColor, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 20, flexShrink: 0 }}>
+          {companyName[0]}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <h3 style={{ margin: '0 0 2px', fontSize: 16, fontWeight: 700 }}>{title}</h3>
           <div style={{ fontSize: 13, color: '#666', marginBottom: 6 }}>
-            {job.companyName} · {job.location}
-            {job.remote && <span style={{ marginLeft: 6, fontSize: 11, padding: '2px 8px', borderRadius: 20, background: '#F0FAF4', color: '#2D6A4F', fontWeight: 600 }}>{t.jobRemote}</span>}
+            {companyName} · {job.location}
+            {!!job.remote && <span style={{ marginLeft: 6, fontSize: 11, padding: '2px 8px', borderRadius: 20, background: '#F0FAF4', color: '#2D6A4F', fontWeight: 600 }}>{t.jobRemote}</span>}
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
             <span className="p-event-type-badge">{typeLabels[job.type] || job.type}</span>
-            <span style={{ fontSize: 12, color: '#999' }}>{job.postedDate}</span>
+            <span style={{ fontSize: 12, color: '#999' }}>{postedDate}</span>
           </div>
           <p style={{ fontSize: 13, color: '#555', lineHeight: 1.5, margin: '0 0 10px' }}>{desc.slice(0, 200)}{desc.length > 200 ? '…' : ''}</p>
           {reqs && (
@@ -4961,17 +5015,19 @@ function JobCard({ job, t, lang, onSave, saved }) {
             </details>
           )}
           <div style={{ display: 'flex', gap: 10 }}>
-            <a
-              href={job.applyLink.startsWith('http') ? job.applyLink : `mailto:${job.applyLink}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-events-create-btn"
-              style={{ textDecoration: 'none', display: 'inline-block', padding: '8px 18px', fontSize: 13 }}
-            >
-              {t.jobApply} →
-            </a>
+            {applyLink && (
+              <a
+                href={applyLink.startsWith('http') ? applyLink : `mailto:${applyLink}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-events-create-btn"
+                style={{ textDecoration: 'none', display: 'inline-block', padding: '8px 18px', fontSize: 13 }}
+              >
+                {t.jobApply} →
+              </a>
+            )}
             <button
-              onClick={() => setIsSaved(v => !v)}
+              onClick={toggleSave}
               style={{ padding: '8px 14px', borderRadius: 8, border: `1px solid ${isSaved ? '#2D6A4F' : '#ddd'}`, background: isSaved ? '#F0FAF4' : '#fff', color: isSaved ? '#2D6A4F' : '#555', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
             >
               {isSaved ? `★ ${t.jobSaved}` : `☆ ${t.jobSave}`}
@@ -4984,21 +5040,45 @@ function JobCard({ job, t, lang, onSave, saved }) {
 }
 
 function JobsPage({ lang, t, currentUser, mode }) {
-  const [jobs, setJobs] = useState(MOCK_JOBS)
-  const [savedIds, setSavedIds] = useState(new Set())
+  const [jobs, setJobs] = useState([])
+  const [savedJobs, setSavedJobs] = useState([])
+  const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('all')
   const [filterType, setFilterType] = useState('')
   const [filterLocation, setFilterLocation] = useState('')
   const [filterKeyword, setFilterKeyword] = useState('')
   const [showCreate, setShowCreate] = useState(false)
+  const [myCompanies, setMyCompanies] = useState([])
 
-  const filtered = jobs.filter(j => {
-    const title = typeof j.title === 'string' ? j.title : (j.title[lang] || j.title.da)
-    const desc = typeof j.description === 'string' ? j.description : (j.description[lang] || j.description.da)
-    if (filterType && j.type !== filterType) return false
-    if (filterLocation && !j.location.toLowerCase().includes(filterLocation.toLowerCase()) && !j.remote) return false
-    if (filterKeyword && !title.toLowerCase().includes(filterKeyword.toLowerCase()) && !desc.toLowerCase().includes(filterKeyword.toLowerCase())) return false
-    if (tab === 'saved') return savedIds.has(j.id)
+  useEffect(() => {
+    const params = new URLSearchParams()
+    if (filterKeyword) params.set('q', filterKeyword)
+    if (filterType) params.set('type', filterType)
+    setLoading(true)
+    fetch(`/api/jobs?${params}`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => { setJobs(data.jobs || []); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [filterKeyword, filterType])
+
+  useEffect(() => {
+    if (tab === 'saved') {
+      fetch('/api/jobs/saved', { credentials: 'include' })
+        .then(r => r.json())
+        .then(data => setSavedJobs(data.jobs || []))
+        .catch(() => {})
+    }
+  }, [tab])
+
+  useEffect(() => {
+    fetch('/api/companies', { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => setMyCompanies((data.companies || []).filter(c => c.member_role === 'owner' || c.member_role === 'admin')))
+      .catch(() => {})
+  }, [])
+
+  const displayJobs = tab === 'saved' ? savedJobs : jobs.filter(j => {
+    if (filterLocation && !j.location?.toLowerCase().includes(filterLocation.toLowerCase()) && !j.remote) return false
     return true
   })
 
@@ -5045,22 +5125,26 @@ function JobsPage({ lang, t, currentUser, mode }) {
           {lang === 'da' ? 'Alle job' : 'All jobs'} ({jobs.length})
         </button>
         <button className={`p-filter-tab${tab === 'saved' ? ' active' : ''}`} onClick={() => setTab('saved')}>
-          {t.savedJobs} ({savedIds.size})
+          {t.savedJobs} ({savedJobs.length})
         </button>
       </div>
 
-      {filtered.length === 0 ? (
+      {loading ? (
+        <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>⏳</div>
+      ) : displayJobs.length === 0 ? (
         <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>{t.jobNoJobs}</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {filtered.map(job => (
+          {displayJobs.map(job => (
             <JobCard
               key={job.id}
               job={job}
               t={t}
               lang={lang}
-              saved={savedIds.has(job.id)}
-              onSave={(id, v) => setSavedIds(prev => { const n = new Set(prev); v ? n.add(id) : n.delete(id); return n })}
+              onSaveToggle={(id, saved) => {
+                setJobs(prev => prev.map(j => j.id === id ? { ...j, saved } : j))
+                setSavedJobs(prev => saved ? [...prev, job] : prev.filter(j => j.id !== id))
+              }}
             />
           ))}
         </div>
@@ -5070,7 +5154,7 @@ function JobsPage({ lang, t, currentUser, mode }) {
         <CreateJobModal
           t={t}
           lang={lang}
-          companies={MOCK_COMPANIES.filter(c => c.role === 'owner' || c.role === 'admin')}
+          companies={myCompanies}
           onClose={() => setShowCreate(false)}
           onCreate={(job) => { setJobs(prev => [job, ...prev]); setShowCreate(false) }}
         />
@@ -5098,25 +5182,28 @@ function CreateJobModal({ t, lang, companies, onClose, onCreate }) {
   const fS = { display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box', fontFamily: 'inherit' }
   const lS = { display: 'block', fontSize: 13, fontWeight: 600, color: '#555', marginBottom: 4, marginTop: 14 }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!title.trim() || !location.trim()) return
-    const company = companies.find(c => c.id === Number(companyId)) || companies[0]
-    onCreate({
-      id: Date.now(),
-      companyId: company?.id,
-      companyName: company?.name || '',
-      companyColor: company?.color || '#2D6A4F',
-      title: { da: title, en: title },
-      location,
-      remote,
-      type,
-      description: { da: description, en: description },
-      requirements: { da: requirements, en: requirements },
-      applyLink,
-      postedDate: new Date().toISOString().slice(0, 10),
-      saved: false,
-    })
+    if (!title.trim()) return
+    try {
+      const res = await fetch('/api/jobs', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          company_id: Number(companyId) || companies[0]?.id,
+          title: title.trim(),
+          location: location.trim() || null,
+          remote,
+          type,
+          description: description.trim() || null,
+          requirements: requirements.trim() || null,
+          apply_link: applyLink.trim() || null,
+        }),
+      })
+      if (!res.ok) { const e = await res.json(); alert(e.error || 'Fejl'); return }
+      const job = await res.json()
+      onCreate(job)
+    } catch { alert(lang === 'da' ? 'Netværksfejl' : 'Network error') }
   }
 
   return (
