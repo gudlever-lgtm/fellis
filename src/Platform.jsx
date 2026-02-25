@@ -4469,6 +4469,9 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
   const [showCreate, setShowCreate] = useState(false)
   const [tab, setTab] = useState('my')
   const [openedFromFeed, setOpenedFromFeed] = useState(false)
+  const [discoverCompanies, setDiscoverCompanies] = useState([])
+  const [discoverLoading, setDiscoverLoading] = useState(false)
+  const [discoverSearch, setDiscoverSearch] = useState('')
 
   const loadCompanies = () => {
     setLoading(true)
@@ -4510,11 +4513,26 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
         setCompanies(prev => prev.map(c => c.id === id ? {
           ...c,
           is_following: data.following,
-          followers_count: data.following ? c.followers_count + 1 : Math.max(0, c.followers_count - 1),
+          followers_count: data.following ? (c.followers_count || 0) + 1 : Math.max(0, (c.followers_count || 0) - 1),
+        } : c))
+        setDiscoverCompanies(prev => prev.map(c => c.id === id ? {
+          ...c,
+          is_following: data.following,
+          followers_count: data.following ? (c.followers_count || 0) + 1 : Math.max(0, (c.followers_count || 0) - 1),
         } : c))
       })
       .catch(() => {})
   }
+
+  useEffect(() => {
+    if (tab !== 'discover') return
+    setDiscoverLoading(true)
+    const params = discoverSearch ? `?q=${encodeURIComponent(discoverSearch)}` : ''
+    fetch(`/api/companies/all${params}`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => { setDiscoverCompanies(data.companies || []); setDiscoverLoading(false) })
+      .catch(() => setDiscoverLoading(false))
+  }, [tab, discoverSearch])
 
   if (selectedCompany) {
     return (
@@ -4551,9 +4569,56 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
         <button className={`p-filter-tab${tab === 'following' ? ' active' : ''}`} onClick={() => setTab('following')}>
           {t.followingCompanies} ({followingCompanies.length})
         </button>
+        <button className={`p-filter-tab${tab === 'discover' ? ' active' : ''}`} onClick={() => setTab('discover')}>
+          {t.discoverCompanies}
+        </button>
       </div>
 
-      {loading ? (
+      {tab === 'discover' ? (
+        <>
+          <input
+            className="p-search-input"
+            style={{ marginBottom: 16, width: '100%', boxSizing: 'border-box' }}
+            placeholder={t.companySearchPlaceholder}
+            value={discoverSearch}
+            onChange={e => setDiscoverSearch(e.target.value)}
+          />
+          {discoverLoading ? (
+            <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>⏳</div>
+          ) : discoverCompanies.length === 0 ? (
+            <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>
+              {lang === 'da' ? 'Ingen virksomheder fundet.' : 'No companies found.'}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {discoverCompanies.map(company => {
+                const isMember = myCompanies.some(m => m.id === company.id)
+                return (
+                  <div key={company.id} className="p-card p-company-card" style={{ cursor: 'pointer' }}>
+                    <div className="p-company-logo" style={{ background: company.color }} onClick={() => setSelectedCompany(company)}>{company.name[0]}</div>
+                    <div className="p-company-card-body" onClick={() => setSelectedCompany(company)} style={{ flex: 1, minWidth: 0 }}>
+                      <h3 className="p-company-name">{company.name}</h3>
+                      <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>{company.tagline}</div>
+                      <div style={{ fontSize: 12, color: '#999' }}>
+                        🏭 {company.industry} · {(company.followers_count || 0).toLocaleString()} {t.companyFollowers}
+                      </div>
+                    </div>
+                    {!isMember && (
+                      <button
+                        onClick={e => { e.stopPropagation(); toggleFollow(company.id) }}
+                        className={company.is_following ? 'p-friend-msg-btn' : 'p-friend-add-btn p-friend-msg-btn'}
+                        style={{ padding: '7px 16px', borderRadius: 8, fontSize: 13, flexShrink: 0 }}
+                      >
+                        {company.is_following ? `✓ ${t.companyUnfollow}` : t.companyFollow}
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </>
+      ) : loading ? (
         <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>⏳</div>
       ) : displayCompanies.length === 0 ? (
         <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>
@@ -4564,23 +4629,35 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {displayCompanies.map(company => (
-            <div key={company.id} className="p-card p-company-card" onClick={() => setSelectedCompany(company)}>
-              <div className="p-company-logo" style={{ background: company.color }}>{company.name[0]}</div>
-              <div className="p-company-card-body">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                  <h3 className="p-company-name">{company.name}</h3>
-                  {company.role === 'owner' && <span className="p-company-role-badge">{t.companyRoleOwner}</span>}
-                  {company.role === 'admin' && <span className="p-company-role-badge">{t.companyRoleAdmin}</span>}
-                  {company.role === 'editor' && <span className="p-company-role-badge" style={{ background: '#FFF3CD', color: '#856404' }}>{t.companyRoleEditor}</span>}
+          {displayCompanies.map(company => {
+            const isMember = myCompanies.some(m => m.id === company.id)
+            return (
+              <div key={company.id} className="p-card p-company-card" style={{ cursor: 'pointer' }}>
+                <div className="p-company-logo" style={{ background: company.color }} onClick={() => setSelectedCompany(company)}>{company.name[0]}</div>
+                <div className="p-company-card-body" onClick={() => setSelectedCompany(company)} style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <h3 className="p-company-name">{company.name}</h3>
+                    {company.role === 'owner' && <span className="p-company-role-badge">{t.companyRoleOwner}</span>}
+                    {company.role === 'admin' && <span className="p-company-role-badge">{t.companyRoleAdmin}</span>}
+                    {company.role === 'editor' && <span className="p-company-role-badge" style={{ background: '#FFF3CD', color: '#856404' }}>{t.companyRoleEditor}</span>}
+                  </div>
+                  <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>{company.tagline}</div>
+                  <div style={{ fontSize: 12, color: '#999' }}>
+                    🏭 {company.industry} · 👥 {company.size} · {(company.followers_count || 0).toLocaleString()} {t.companyFollowers}
+                  </div>
                 </div>
-                <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>{company.tagline}</div>
-                <div style={{ fontSize: 12, color: '#999' }}>
-                  🏭 {company.industry} · 👥 {company.size} · {(company.followers_count || 0).toLocaleString()} {t.companyFollowers}
-                </div>
+                {tab === 'following' && !isMember && (
+                  <button
+                    onClick={e => { e.stopPropagation(); toggleFollow(company.id) }}
+                    className="p-friend-msg-btn"
+                    style={{ padding: '7px 16px', borderRadius: 8, fontSize: 13, flexShrink: 0 }}
+                  >
+                    ✓ {t.companyUnfollow}
+                  </button>
+                )}
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
@@ -4946,8 +5023,42 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
 
       {tab === 'about' && (
         <div className="p-card">
-          <h4 style={{ margin: '0 0 12px', fontSize: 16, fontWeight: 700 }}>Om {company.name}</h4>
-          <p style={{ fontSize: 14, color: '#444', lineHeight: 1.6, margin: 0 }}>{company.description}</p>
+          <h4 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 700 }}>{lang === 'da' ? 'Om' : 'About'} {company.name}</h4>
+          {company.description && (
+            <p style={{ fontSize: 14, color: '#444', lineHeight: 1.6, margin: '0 0 16px' }}>{company.description}</p>
+          )}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 24px', fontSize: 13 }}>
+            {company.company_type && (
+              <div><span style={{ color: '#888' }}>{t.companyType}:</span> <strong>{company.company_type}</strong></div>
+            )}
+            {company.cvr && (
+              <div><span style={{ color: '#888' }}>{t.companyCvr}:</span> <strong>{company.cvr}</strong></div>
+            )}
+            {company.founded_year && (
+              <div><span style={{ color: '#888' }}>{t.companyFoundedYear}:</span> <strong>{company.founded_year}</strong></div>
+            )}
+            {company.industry && (
+              <div><span style={{ color: '#888' }}>{t.companyIndustry}:</span> <strong>{company.industry}</strong></div>
+            )}
+            {company.size && (
+              <div><span style={{ color: '#888' }}>{t.companySize}:</span> <strong>{company.size}</strong></div>
+            )}
+            {company.address && (
+              <div style={{ gridColumn: 'span 2' }}><span style={{ color: '#888' }}>📍 {t.companyAddress}:</span> <strong>{company.address}</strong></div>
+            )}
+            {company.phone && (
+              <div><span style={{ color: '#888' }}>📞 {t.companyPhone}:</span> <a href={`tel:${company.phone}`} style={{ color: '#1877F2' }}>{company.phone}</a></div>
+            )}
+            {company.email && (
+              <div><span style={{ color: '#888' }}>✉️ {t.companyEmail}:</span> <a href={`mailto:${company.email}`} style={{ color: '#1877F2' }}>{company.email}</a></div>
+            )}
+            {company.website && (
+              <div><span style={{ color: '#888' }}>🌐 {t.companyWebsite}:</span> <a href={company.website} target="_blank" rel="noopener noreferrer" style={{ color: '#1877F2' }}>{company.website.replace(/^https?:\/\//, '')}</a></div>
+            )}
+            {company.linkedin && (
+              <div><span style={{ color: '#888' }}>LinkedIn:</span> <a href={company.linkedin} target="_blank" rel="noopener noreferrer" style={{ color: '#1877F2' }}>{lang === 'da' ? 'Profil' : 'Profile'}</a></div>
+            )}
+          </div>
         </div>
       )}
 
@@ -4974,6 +5085,13 @@ function CreateCompanyModal({ t, lang, currentUser, onClose, onCreate }) {
   const [industry, setIndustry] = useState('')
   const [size, setSize] = useState('')
   const [description, setDescription] = useState('')
+  const [cvr, setCvr] = useState('')
+  const [companyType, setCompanyType] = useState('')
+  const [address, setAddress] = useState('')
+  const [phone, setPhone] = useState('')
+  const [email, setEmail] = useState('')
+  const [linkedin, setLinkedin] = useState('')
+  const [foundedYear, setFoundedYear] = useState('')
 
   useEffect(() => {
     const h = (e) => { if (e.key === 'Escape') onClose() }
@@ -5002,6 +5120,13 @@ function CreateCompanyModal({ t, lang, currentUser, onClose, onCreate }) {
           size: size || null,
           description: description.trim() || null,
           color: nameToColor(name),
+          cvr: cvr.trim() || null,
+          company_type: companyType || null,
+          address: address.trim() || null,
+          phone: phone.trim() || null,
+          email: email.trim() || null,
+          linkedin: linkedin.trim() || null,
+          founded_year: foundedYear ? Number(foundedYear) : null,
         }),
       })
       if (!res.ok) { const e = await res.json(); alert(e.error || 'Fejl'); return }
@@ -5019,15 +5144,50 @@ function CreateCompanyModal({ t, lang, currentUser, onClose, onCreate }) {
           <input style={fS} value={name} onChange={e => setName(e.target.value)} required placeholder="Acme Corp" />
           <label style={lS}>{t.companyTagline}</label>
           <input style={fS} value={tagline} onChange={e => setTagline(e.target.value)} placeholder={lang === 'da' ? 'Kort slogan...' : 'Short tagline...'} />
-          <label style={lS}>{t.companyWebsite}</label>
-          <input style={fS} type="url" value={website} onChange={e => setWebsite(e.target.value)} placeholder="https://..." />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label style={lS}>{t.companyCvr}</label>
+              <input style={fS} value={cvr} onChange={e => setCvr(e.target.value)} placeholder="12345678" />
+            </div>
+            <div>
+              <label style={lS}>{t.companyType}</label>
+              <select style={fS} value={companyType} onChange={e => setCompanyType(e.target.value)}>
+                <option value="">—</option>
+                {(t.companyTypes || []).map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+          </div>
           <label style={lS}>{t.companyIndustry}</label>
           <input style={fS} value={industry} onChange={e => setIndustry(e.target.value)} placeholder={lang === 'da' ? 'f.eks. Software & SaaS' : 'e.g. Software & SaaS'} />
-          <label style={lS}>{t.companySize}</label>
-          <select style={fS} value={size} onChange={e => setSize(e.target.value)}>
-            <option value="">—</option>
-            {(t.companySizes || ['1–10', '11–50', '51–200', '201–500', '500+']).map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label style={lS}>{t.companySize}</label>
+              <select style={fS} value={size} onChange={e => setSize(e.target.value)}>
+                <option value="">—</option>
+                {(t.companySizes || ['1–10', '11–50', '51–200', '201–500', '500+']).map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={lS}>{t.companyFoundedYear}</label>
+              <input style={fS} type="number" value={foundedYear} onChange={e => setFoundedYear(e.target.value)} placeholder="2010" min="1800" max={new Date().getFullYear()} />
+            </div>
+          </div>
+          <label style={lS}>{t.companyAddress}</label>
+          <input style={fS} value={address} onChange={e => setAddress(e.target.value)} placeholder={lang === 'da' ? 'Adresse, By' : 'Address, City'} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label style={lS}>{t.companyPhone}</label>
+              <input style={fS} value={phone} onChange={e => setPhone(e.target.value)} placeholder="+45 12 34 56 78" />
+            </div>
+            <div>
+              <label style={lS}>{t.companyEmail}</label>
+              <input style={fS} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="info@firma.dk" />
+            </div>
+          </div>
+          <label style={lS}>{t.companyWebsite}</label>
+          <input style={fS} type="url" value={website} onChange={e => setWebsite(e.target.value)} placeholder="https://..." />
+          <label style={lS}>{t.companyLinkedin}</label>
+          <input style={fS} value={linkedin} onChange={e => setLinkedin(e.target.value)} placeholder="https://linkedin.com/company/..." />
           <label style={lS}>{t.companyDescription}</label>
           <textarea style={{ ...fS, minHeight: 80, resize: 'vertical' }} value={description} onChange={e => setDescription(e.target.value)} placeholder={lang === 'da' ? 'Beskriv virksomheden...' : 'Describe the company...'} />
           <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
@@ -5087,7 +5247,12 @@ function JobCard({ job, t, lang, onSaveToggle }) {
               <pre style={{ fontSize: 12, color: '#555', whiteSpace: 'pre-wrap', marginTop: 8, fontFamily: 'inherit', lineHeight: 1.6 }}>{reqs}</pre>
             </details>
           )}
-          <div style={{ display: 'flex', gap: 10 }}>
+          {job.deadline && (
+            <div style={{ fontSize: 12, color: '#c0392b', fontWeight: 600, marginBottom: 8 }}>
+              ⏳ {t.jobDeadline}: {new Date(job.deadline).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             {applyLink && (
               <a
                 href={applyLink.startsWith('http') ? applyLink : `mailto:${applyLink}`}
@@ -5097,6 +5262,14 @@ function JobCard({ job, t, lang, onSaveToggle }) {
                 style={{ textDecoration: 'none', display: 'inline-block', padding: '8px 18px', fontSize: 13 }}
               >
                 {t.jobApply} →
+              </a>
+            )}
+            {job.contact_email && (
+              <a
+                href={`mailto:${job.contact_email}`}
+                style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', color: '#555', fontWeight: 600, fontSize: 13, textDecoration: 'none', display: 'inline-block' }}
+              >
+                ✉️ {t.jobContact}
               </a>
             )}
             <button
@@ -5245,6 +5418,8 @@ function CreateJobModal({ t, lang, companies, onClose, onCreate }) {
   const [description, setDescription] = useState('')
   const [requirements, setRequirements] = useState('')
   const [applyLink, setApplyLink] = useState('')
+  const [contactEmail, setContactEmail] = useState('')
+  const [deadline, setDeadline] = useState('')
 
   useEffect(() => {
     const h = (e) => { if (e.key === 'Escape') onClose() }
@@ -5271,6 +5446,8 @@ function CreateJobModal({ t, lang, companies, onClose, onCreate }) {
           description: description.trim() || null,
           requirements: requirements.trim() || null,
           apply_link: applyLink.trim() || null,
+          contact_email: contactEmail.trim() || null,
+          deadline: deadline || null,
         }),
       })
       if (!res.ok) { const e = await res.json(); alert(e.error || 'Fejl'); return }
@@ -5312,7 +5489,17 @@ function CreateJobModal({ t, lang, companies, onClose, onCreate }) {
           <label style={lS}>{t.jobRequirements}</label>
           <textarea style={{ ...fS, minHeight: 60, resize: 'vertical' }} value={requirements} onChange={e => setRequirements(e.target.value)} placeholder={lang === 'da' ? 'Krav til ansøgeren...' : 'Requirements for applicants...'} />
           <label style={lS}>{t.jobApplyLink}</label>
-          <input style={fS} value={applyLink} onChange={e => setApplyLink(e.target.value)} placeholder={lang === 'da' ? 'Link eller e-mail' : 'Link or email'} />
+          <input style={fS} value={applyLink} onChange={e => setApplyLink(e.target.value)} placeholder="https://..." />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label style={lS}>{t.jobContactEmail}</label>
+              <input style={fS} type="email" value={contactEmail} onChange={e => setContactEmail(e.target.value)} placeholder="job@firma.dk" />
+            </div>
+            <div>
+              <label style={lS}>{t.jobDeadline}</label>
+              <input style={fS} type="date" value={deadline} onChange={e => setDeadline(e.target.value)} />
+            </div>
+          </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
             <button type="button" onClick={onClose} style={{ flex: 1, padding: 10, borderRadius: 8, border: '1px solid #ddd', background: '#fff', cursor: 'pointer', fontSize: 14 }}>{t.eventCancel}</button>
             <button type="submit" style={{ flex: 2, padding: 10, borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>{t.jobPost}</button>

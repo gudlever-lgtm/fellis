@@ -2419,6 +2419,19 @@ async function initCompanies() {
       SELECT id, owner_id, 'owner' FROM companies WHERE owner_id > 0
     `)
 
+    // Migrations: add new company profile columns if missing
+    await pool.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS cvr VARCHAR(20) DEFAULT NULL`)
+    await pool.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS company_type VARCHAR(50) DEFAULT NULL`)
+    await pool.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS address VARCHAR(255) DEFAULT NULL`)
+    await pool.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS phone VARCHAR(50) DEFAULT NULL`)
+    await pool.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS email VARCHAR(255) DEFAULT NULL`)
+    await pool.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS linkedin VARCHAR(500) DEFAULT NULL`)
+    await pool.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS founded_year SMALLINT DEFAULT NULL`)
+
+    // Migrations: add new job columns if missing
+    await pool.query(`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS contact_email VARCHAR(255) DEFAULT NULL`)
+    await pool.query(`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS deadline DATE DEFAULT NULL`)
+
   } catch (err) {
     console.error('initCompanies error:', err.message)
   }
@@ -2472,14 +2485,18 @@ app.get('/api/companies/all', authenticate, async (req, res) => {
 // POST /api/companies — create a new company
 app.post('/api/companies', authenticate, async (req, res) => {
   try {
-    const { name, handle, tagline, description, industry, size, website, color } = req.body
+    const { name, handle, tagline, description, industry, size, website, color,
+            cvr, company_type, address, phone, email, linkedin, founded_year } = req.body
     if (!name || !handle) return res.status(400).json({ error: 'name and handle required' })
     const safeHandle = handle.startsWith('@') ? handle : `@${handle}`
     const [result] = await pool.query(
-      `INSERT INTO companies (owner_id, name, handle, tagline, description, industry, size, website, color)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO companies (owner_id, name, handle, tagline, description, industry, size, website, color,
+         cvr, company_type, address, phone, email, linkedin, founded_year)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [req.userId, name, safeHandle, tagline || null, description || null,
-        industry || null, size || null, website || null, color || '#1877F2']
+        industry || null, size || null, website || null, color || '#1877F2',
+        cvr || null, company_type || null, address || null, phone || null,
+        email || null, linkedin || null, founded_year || null]
     )
     const companyId = result.insertId
     await pool.query(
@@ -2539,10 +2556,14 @@ app.put('/api/companies/:id', authenticate, async (req, res) => {
       [req.params.id, req.userId]
     )
     if (!member) return res.status(403).json({ error: 'Forbidden' })
-    const { name, tagline, description, industry, size, website, color } = req.body
+    const { name, tagline, description, industry, size, website, color,
+            cvr, company_type, address, phone, email, linkedin, founded_year } = req.body
     await pool.query(
-      'UPDATE companies SET name=?, tagline=?, description=?, industry=?, size=?, website=?, color=? WHERE id=?',
-      [name, tagline || null, description || null, industry || null, size || null, website || null, color || '#1877F2', req.params.id]
+      `UPDATE companies SET name=?, tagline=?, description=?, industry=?, size=?, website=?, color=?,
+         cvr=?, company_type=?, address=?, phone=?, email=?, linkedin=?, founded_year=? WHERE id=?`,
+      [name, tagline || null, description || null, industry || null, size || null, website || null, color || '#1877F2',
+       cvr || null, company_type || null, address || null, phone || null,
+       email || null, linkedin || null, founded_year || null, req.params.id]
     )
     const [[company]] = await pool.query('SELECT * FROM companies WHERE id = ?', [req.params.id])
     res.json(company)
@@ -2738,7 +2759,7 @@ app.get('/api/jobs/saved', authenticate, async (req, res) => {
 // POST /api/jobs — create job (must be company member)
 app.post('/api/jobs', authenticate, async (req, res) => {
   try {
-    const { company_id, title, location, remote, type, description, requirements, apply_link } = req.body
+    const { company_id, title, location, remote, type, description, requirements, apply_link, contact_email, deadline } = req.body
     if (!company_id || !title) return res.status(400).json({ error: 'company_id and title required' })
     const [[member]] = await pool.query(
       "SELECT role FROM company_members WHERE company_id = ? AND user_id = ?",
@@ -2746,10 +2767,11 @@ app.post('/api/jobs', authenticate, async (req, res) => {
     )
     if (!member) return res.status(403).json({ error: 'Forbidden' })
     const [result] = await pool.query(
-      `INSERT INTO jobs (company_id, title, location, remote, type, description, requirements, apply_link)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO jobs (company_id, title, location, remote, type, description, requirements, apply_link, contact_email, deadline)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [company_id, title, location || null, remote ? 1 : 0,
-        type || 'fulltime', description || null, requirements || null, apply_link || null]
+        type || 'fulltime', description || null, requirements || null,
+        apply_link || null, contact_email || null, deadline || null]
     )
     const [[job]] = await pool.query(
       `SELECT j.*, c.name AS company_name, c.color AS company_color, 0 AS saved
@@ -2773,12 +2795,13 @@ app.put('/api/jobs/:id', authenticate, async (req, res) => {
       [job.company_id, req.userId]
     )
     if (!member) return res.status(403).json({ error: 'Forbidden' })
-    const { title, location, remote, type, description, requirements, apply_link, active } = req.body
+    const { title, location, remote, type, description, requirements, apply_link, active, contact_email, deadline } = req.body
     await pool.query(
-      'UPDATE jobs SET title=?, location=?, remote=?, type=?, description=?, requirements=?, apply_link=?, active=? WHERE id=?',
+      'UPDATE jobs SET title=?, location=?, remote=?, type=?, description=?, requirements=?, apply_link=?, active=?, contact_email=?, deadline=? WHERE id=?',
       [title, location || null, remote ? 1 : 0, type || 'fulltime',
         description || null, requirements || null, apply_link || null,
-        active !== undefined ? (active ? 1 : 0) : 1, req.params.id]
+        active !== undefined ? (active ? 1 : 0) : 1,
+        contact_email || null, deadline || null, req.params.id]
     )
     const [[updated]] = await pool.query(
       `SELECT j.*, c.name AS company_name, c.color AS company_color FROM jobs j JOIN companies c ON c.id = j.company_id WHERE j.id = ?`,
