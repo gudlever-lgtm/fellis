@@ -124,18 +124,19 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
   const savedFeedScroll = useRef(0)
 
   const navigateTo = useCallback((p, param = null) => {
-    if (p !== 'feed') {
-      // Save scroll position when leaving the feed
-      savedFeedScroll.current = window.scrollY
-    }
+    if (p !== 'feed') savedFeedScroll.current = window.scrollY
     setPage(p)
     setNavParam(param)
     setShowAvatarMenu(false)
-    if (p === 'feed') {
-      // Restore scroll position when returning to feed
-      requestAnimationFrame(() => window.scrollTo(0, savedFeedScroll.current))
-    }
   }, [])
+
+  // Restore feed scroll position after DOM update (when returning to feed)
+  useEffect(() => {
+    if (page === 'feed' && savedFeedScroll.current > 0) {
+      const y = savedFeedScroll.current
+      requestAnimationFrame(() => window.scrollTo(0, y))
+    }
+  }, [page])
 
   const avatarSrc = currentUser.avatar_url
     ? (currentUser.avatar_url.startsWith('http') || currentUser.avatar_url.startsWith('blob:') ? currentUser.avatar_url : `${API_BASE}${currentUser.avatar_url}`)
@@ -789,7 +790,7 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
     fetch('/api/companies', { credentials: 'include' })
       .then(r => r.json())
       .then(data => {
-        const followed = (data.companies || []).filter(c => c.is_following || c.member_role === 'owner')
+        const followed = (data.companies || []).filter(c => c.is_following || c.role === 'following' || c.member_role === 'owner' || c.role === 'owner')
         if (!followed.length) return
         return fetch(`/api/companies/${followed[0].id}/posts?limit=2`, { credentials: 'include' })
           .then(r => r.json())
@@ -4503,8 +4504,13 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
     }
   }, [initialCompanyId, companies, loading])
 
-  const myCompanies = companies.filter(c => c.member_role === 'owner' || c.member_role === 'admin' || c.member_role === 'editor')
-  const followingCompanies = companies.filter(c => c.is_following && !myCompanies.find(m => m.id === c.id))
+  const myCompanies = companies.filter(c => {
+    const r = c.member_role || c.role
+    return r === 'owner' || r === 'admin' || r === 'editor'
+  })
+  const followingCompanies = companies.filter(c =>
+    (c.is_following || c.role === 'following') && !myCompanies.find(m => m.id === c.id)
+  )
   const displayCompanies = tab === 'my' ? myCompanies : followingCompanies
 
   const toggleFollow = (id) => {
