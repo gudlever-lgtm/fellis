@@ -2328,6 +2328,493 @@ app.post('/api/marketplace/:id/sold', authenticate, async (req, res) => {
   }
 })
 
+// ── Companies & Jobs ──────────────────────────────────────────────────────────
+
+async function initCompanies() {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS companies (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      owner_id INT NOT NULL,
+      name VARCHAR(255) NOT NULL,
+      handle VARCHAR(100) NOT NULL UNIQUE,
+      tagline VARCHAR(255) DEFAULT NULL,
+      description TEXT DEFAULT NULL,
+      industry VARCHAR(100) DEFAULT NULL,
+      size VARCHAR(50) DEFAULT NULL,
+      website VARCHAR(500) DEFAULT NULL,
+      color VARCHAR(20) DEFAULT '#1877F2',
+      logo_url VARCHAR(500) DEFAULT NULL,
+      followers_count INT NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_owner (owner_id),
+      FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+
+    await pool.query(`CREATE TABLE IF NOT EXISTS company_members (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      company_id INT NOT NULL,
+      user_id INT NOT NULL,
+      role ENUM('owner','admin','editor') NOT NULL DEFAULT 'editor',
+      joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_company_user (company_id, user_id),
+      FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+
+    await pool.query(`CREATE TABLE IF NOT EXISTS company_follows (
+      company_id INT NOT NULL,
+      user_id INT NOT NULL,
+      followed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (company_id, user_id),
+      FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+
+    await pool.query(`CREATE TABLE IF NOT EXISTS company_posts (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      company_id INT NOT NULL,
+      author_id INT NOT NULL,
+      text_da TEXT NOT NULL,
+      text_en TEXT DEFAULT NULL,
+      likes INT NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_company (company_id),
+      FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+      FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+
+    await pool.query(`CREATE TABLE IF NOT EXISTS company_post_likes (
+      post_id INT NOT NULL,
+      user_id INT NOT NULL,
+      reaction VARCHAR(10) NOT NULL DEFAULT '❤️',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (post_id, user_id),
+      FOREIGN KEY (post_id) REFERENCES company_posts(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+
+    await pool.query(`CREATE TABLE IF NOT EXISTS company_post_comments (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      post_id INT NOT NULL,
+      author_id INT NOT NULL,
+      text TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_post (post_id),
+      FOREIGN KEY (post_id) REFERENCES company_posts(id) ON DELETE CASCADE,
+      FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+
+    await pool.query(`CREATE TABLE IF NOT EXISTS jobs (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      company_id INT NOT NULL,
+      title VARCHAR(255) NOT NULL,
+      location VARCHAR(255) DEFAULT NULL,
+      remote TINYINT(1) NOT NULL DEFAULT 0,
+      type ENUM('fulltime','parttime','freelance','internship') NOT NULL DEFAULT 'fulltime',
+      description TEXT DEFAULT NULL,
+      requirements TEXT DEFAULT NULL,
+      apply_link VARCHAR(500) DEFAULT NULL,
+      active TINYINT(1) NOT NULL DEFAULT 1,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_company (company_id),
+      INDEX idx_active (active),
+      FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+
+    await pool.query(`CREATE TABLE IF NOT EXISTS job_saves (
+      job_id INT NOT NULL,
+      user_id INT NOT NULL,
+      saved_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (job_id, user_id),
+      FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+
+  } catch (err) {
+    console.error('initCompanies error:', err.message)
+  }
+}
+
+// GET /api/companies — companies the current user owns or follows
+app.get('/api/companies', authenticate, async (req, res) => {
+  try {
+    const [owned] = await pool.query(
+      `SELECT c.*, 'owner' AS role,
+              (SELECT COUNT(*) FROM company_follows WHERE company_id = c.id) AS followers_count
+       FROM companies c
+       JOIN company_members cm ON cm.company_id = c.id AND cm.user_id = ? AND cm.role = 'owner'`,
+      [req.userId]
+    )
+    const [following] = await pool.query(
+      `SELECT c.*, 'following' AS role,
+              (SELECT COUNT(*) FROM company_follows WHERE company_id = c.id) AS followers_count
+       FROM companies c
+       JOIN company_follows cf ON cf.company_id = c.id AND cf.user_id = ?
+       WHERE c.id NOT IN (SELECT company_id FROM company_members WHERE user_id = ? AND role = 'owner')`,
+      [req.userId, req.userId]
+    )
+    res.json({ companies: [...owned, ...following] })
+  } catch (err) {
+    console.error('GET /api/companies error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/companies/all — discover all companies (with optional search)
+app.get('/api/companies/all', authenticate, async (req, res) => {
+  try {
+    const { q } = req.query
+    let sql = `SELECT c.*,
+                 (SELECT COUNT(*) FROM company_follows WHERE company_id = c.id) AS followers_count,
+                 (SELECT COUNT(*) > 0 FROM company_follows WHERE company_id = c.id AND user_id = ?) AS is_following,
+                 (SELECT COUNT(*) > 0 FROM company_members WHERE company_id = c.id AND user_id = ? AND role = 'owner') AS is_owner
+               FROM companies c`
+    const params = [req.userId, req.userId]
+    if (q) { sql += ' WHERE c.name LIKE ? OR c.tagline LIKE ? OR c.industry LIKE ?'; params.push(`%${q}%`, `%${q}%`, `%${q}%`) }
+    sql += ' ORDER BY followers_count DESC LIMIT 50'
+    const [rows] = await pool.query(sql, params)
+    res.json({ companies: rows })
+  } catch (err) {
+    console.error('GET /api/companies/all error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/companies — create a new company
+app.post('/api/companies', authenticate, async (req, res) => {
+  try {
+    const { name, handle, tagline, description, industry, size, website, color } = req.body
+    if (!name || !handle) return res.status(400).json({ error: 'name and handle required' })
+    const safeHandle = handle.startsWith('@') ? handle : `@${handle}`
+    const [result] = await pool.query(
+      `INSERT INTO companies (owner_id, name, handle, tagline, description, industry, size, website, color)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [req.userId, name, safeHandle, tagline || null, description || null,
+        industry || null, size || null, website || null, color || '#1877F2']
+    )
+    const companyId = result.insertId
+    await pool.query(
+      'INSERT INTO company_members (company_id, user_id, role) VALUES (?, ?, ?)',
+      [companyId, req.userId, 'owner']
+    )
+    const [[company]] = await pool.query('SELECT * FROM companies WHERE id = ?', [companyId])
+    res.json({ ...company, role: 'owner', followers_count: 0 })
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Handle already taken' })
+    console.error('POST /api/companies error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/companies/:id — company details + posts + jobs
+app.get('/api/companies/:id', authenticate, async (req, res) => {
+  try {
+    const [[company]] = await pool.query(
+      `SELECT c.*,
+         (SELECT COUNT(*) FROM company_follows WHERE company_id = c.id) AS followers_count,
+         (SELECT COUNT(*) > 0 FROM company_follows WHERE company_id = c.id AND user_id = ?) AS is_following,
+         (SELECT role FROM company_members WHERE company_id = c.id AND user_id = ?) AS member_role
+       FROM companies c WHERE c.id = ?`,
+      [req.userId, req.userId, req.params.id]
+    )
+    if (!company) return res.status(404).json({ error: 'Not found' })
+
+    const [posts] = await pool.query(
+      `SELECT cp.*, u.name AS author_name, u.handle AS author_handle,
+              (SELECT COUNT(*) > 0 FROM company_post_likes WHERE post_id = cp.id AND user_id = ?) AS liked,
+              (SELECT COUNT(*) FROM company_post_comments WHERE post_id = cp.id) AS comment_count
+       FROM company_posts cp JOIN users u ON u.id = cp.author_id
+       WHERE cp.company_id = ? ORDER BY cp.created_at DESC LIMIT 20`,
+      [req.userId, req.params.id]
+    )
+
+    const [jobs] = await pool.query(
+      `SELECT j.*,
+              (SELECT COUNT(*) > 0 FROM job_saves WHERE job_id = j.id AND user_id = ?) AS saved
+       FROM jobs j WHERE j.company_id = ? AND j.active = 1 ORDER BY j.created_at DESC`,
+      [req.userId, req.params.id]
+    )
+
+    res.json({ company, posts, jobs })
+  } catch (err) {
+    console.error('GET /api/companies/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// PUT /api/companies/:id — update company
+app.put('/api/companies/:id', authenticate, async (req, res) => {
+  try {
+    const [[member]] = await pool.query(
+      "SELECT role FROM company_members WHERE company_id = ? AND user_id = ? AND role IN ('owner','admin')",
+      [req.params.id, req.userId]
+    )
+    if (!member) return res.status(403).json({ error: 'Forbidden' })
+    const { name, tagline, description, industry, size, website, color } = req.body
+    await pool.query(
+      'UPDATE companies SET name=?, tagline=?, description=?, industry=?, size=?, website=?, color=? WHERE id=?',
+      [name, tagline || null, description || null, industry || null, size || null, website || null, color || '#1877F2', req.params.id]
+    )
+    const [[company]] = await pool.query('SELECT * FROM companies WHERE id = ?', [req.params.id])
+    res.json(company)
+  } catch (err) {
+    console.error('PUT /api/companies/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/companies/:id/follow — follow or unfollow
+app.post('/api/companies/:id/follow', authenticate, async (req, res) => {
+  try {
+    const [[existing]] = await pool.query(
+      'SELECT 1 FROM company_follows WHERE company_id = ? AND user_id = ?',
+      [req.params.id, req.userId]
+    )
+    if (existing) {
+      await pool.query('DELETE FROM company_follows WHERE company_id = ? AND user_id = ?', [req.params.id, req.userId])
+      res.json({ following: false })
+    } else {
+      await pool.query('INSERT IGNORE INTO company_follows (company_id, user_id) VALUES (?, ?)', [req.params.id, req.userId])
+      res.json({ following: true })
+    }
+  } catch (err) {
+    console.error('POST /api/companies/:id/follow error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/companies/:id/posts — paginated posts
+app.get('/api/companies/:id/posts', authenticate, async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 20, 50)
+    const offset = parseInt(req.query.offset) || 0
+    const [posts] = await pool.query(
+      `SELECT cp.*, u.name AS author_name, u.handle AS author_handle,
+              (SELECT COUNT(*) > 0 FROM company_post_likes WHERE post_id = cp.id AND user_id = ?) AS liked,
+              (SELECT COUNT(*) FROM company_post_comments WHERE post_id = cp.id) AS comment_count
+       FROM company_posts cp JOIN users u ON u.id = cp.author_id
+       WHERE cp.company_id = ? ORDER BY cp.created_at DESC LIMIT ? OFFSET ?`,
+      [req.userId, req.params.id, limit, offset]
+    )
+    res.json({ posts })
+  } catch (err) {
+    console.error('GET /api/companies/:id/posts error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/companies/:id/posts — create post
+app.post('/api/companies/:id/posts', authenticate, async (req, res) => {
+  try {
+    const [[member]] = await pool.query(
+      "SELECT role FROM company_members WHERE company_id = ? AND user_id = ?",
+      [req.params.id, req.userId]
+    )
+    if (!member) return res.status(403).json({ error: 'Forbidden' })
+    const { text_da, text_en } = req.body
+    if (!text_da?.trim()) return res.status(400).json({ error: 'text_da required' })
+    const [result] = await pool.query(
+      'INSERT INTO company_posts (company_id, author_id, text_da, text_en) VALUES (?, ?, ?, ?)',
+      [req.params.id, req.userId, text_da.trim(), (text_en || text_da).trim()]
+    )
+    const [[post]] = await pool.query(
+      `SELECT cp.*, u.name AS author_name, u.handle AS author_handle, 0 AS liked, 0 AS comment_count
+       FROM company_posts cp JOIN users u ON u.id = cp.author_id WHERE cp.id = ?`,
+      [result.insertId]
+    )
+    res.json(post)
+  } catch (err) {
+    console.error('POST /api/companies/:id/posts error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/companies/:id/posts/:postId/like — like or unlike
+app.post('/api/companies/:id/posts/:postId/like', authenticate, async (req, res) => {
+  try {
+    const [[existing]] = await pool.query(
+      'SELECT 1 FROM company_post_likes WHERE post_id = ? AND user_id = ?',
+      [req.params.postId, req.userId]
+    )
+    if (existing) {
+      await pool.query('DELETE FROM company_post_likes WHERE post_id = ? AND user_id = ?', [req.params.postId, req.userId])
+      await pool.query('UPDATE company_posts SET likes = GREATEST(likes - 1, 0) WHERE id = ?', [req.params.postId])
+      res.json({ liked: false })
+    } else {
+      const reaction = req.body.reaction || '❤️'
+      await pool.query('INSERT IGNORE INTO company_post_likes (post_id, user_id, reaction) VALUES (?, ?, ?)', [req.params.postId, req.userId, reaction])
+      await pool.query('UPDATE company_posts SET likes = likes + 1 WHERE id = ?', [req.params.postId])
+      res.json({ liked: true })
+    }
+  } catch (err) {
+    console.error('POST company post like error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/companies/:id/posts/:postId/comments — get comments
+app.get('/api/companies/:id/posts/:postId/comments', authenticate, async (req, res) => {
+  try {
+    const [comments] = await pool.query(
+      `SELECT c.*, u.name AS author_name, u.handle AS author_handle
+       FROM company_post_comments c JOIN users u ON u.id = c.author_id
+       WHERE c.post_id = ? ORDER BY c.created_at ASC`,
+      [req.params.postId]
+    )
+    res.json({ comments })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/companies/:id/posts/:postId/comments — add comment
+app.post('/api/companies/:id/posts/:postId/comments', authenticate, async (req, res) => {
+  try {
+    const { text } = req.body
+    if (!text?.trim()) return res.status(400).json({ error: 'text required' })
+    const [result] = await pool.query(
+      'INSERT INTO company_post_comments (post_id, author_id, text) VALUES (?, ?, ?)',
+      [req.params.postId, req.userId, text.trim()]
+    )
+    const [[comment]] = await pool.query(
+      `SELECT c.*, u.name AS author_name, u.handle AS author_handle
+       FROM company_post_comments c JOIN users u ON u.id = c.author_id WHERE c.id = ?`,
+      [result.insertId]
+    )
+    res.json(comment)
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/jobs — all active jobs (with optional filters)
+app.get('/api/jobs', authenticate, async (req, res) => {
+  try {
+    const { q, type, remote, company_id } = req.query
+    let sql = `SELECT j.*, c.name AS company_name, c.handle AS company_handle, c.color AS company_color, c.logo_url AS company_logo,
+                 (SELECT COUNT(*) > 0 FROM job_saves WHERE job_id = j.id AND user_id = ?) AS saved
+               FROM jobs j JOIN companies c ON c.id = j.company_id
+               WHERE j.active = 1`
+    const params = [req.userId]
+    if (q) { sql += ' AND (j.title LIKE ? OR j.description LIKE ?)'; params.push(`%${q}%`, `%${q}%`) }
+    if (type) { sql += ' AND j.type = ?'; params.push(type) }
+    if (remote === '1') { sql += ' AND j.remote = 1' }
+    if (company_id) { sql += ' AND j.company_id = ?'; params.push(company_id) }
+    sql += ' ORDER BY j.created_at DESC LIMIT 50'
+    const [rows] = await pool.query(sql, params)
+    res.json({ jobs: rows })
+  } catch (err) {
+    console.error('GET /api/jobs error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/jobs/saved — jobs the user has saved
+app.get('/api/jobs/saved', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT j.*, c.name AS company_name, c.handle AS company_handle, c.color AS company_color,
+              1 AS saved
+       FROM jobs j JOIN companies c ON c.id = j.company_id
+       JOIN job_saves js ON js.job_id = j.id AND js.user_id = ?
+       ORDER BY js.saved_at DESC`,
+      [req.userId]
+    )
+    res.json({ jobs: rows })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/jobs — create job (must be company member)
+app.post('/api/jobs', authenticate, async (req, res) => {
+  try {
+    const { company_id, title, location, remote, type, description, requirements, apply_link } = req.body
+    if (!company_id || !title) return res.status(400).json({ error: 'company_id and title required' })
+    const [[member]] = await pool.query(
+      "SELECT role FROM company_members WHERE company_id = ? AND user_id = ?",
+      [company_id, req.userId]
+    )
+    if (!member) return res.status(403).json({ error: 'Forbidden' })
+    const [result] = await pool.query(
+      `INSERT INTO jobs (company_id, title, location, remote, type, description, requirements, apply_link)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [company_id, title, location || null, remote ? 1 : 0,
+        type || 'fulltime', description || null, requirements || null, apply_link || null]
+    )
+    const [[job]] = await pool.query(
+      `SELECT j.*, c.name AS company_name, c.color AS company_color, 0 AS saved
+       FROM jobs j JOIN companies c ON c.id = j.company_id WHERE j.id = ?`,
+      [result.insertId]
+    )
+    res.json(job)
+  } catch (err) {
+    console.error('POST /api/jobs error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// PUT /api/jobs/:id — update job
+app.put('/api/jobs/:id', authenticate, async (req, res) => {
+  try {
+    const [[job]] = await pool.query('SELECT company_id FROM jobs WHERE id = ?', [req.params.id])
+    if (!job) return res.status(404).json({ error: 'Not found' })
+    const [[member]] = await pool.query(
+      "SELECT role FROM company_members WHERE company_id = ? AND user_id = ?",
+      [job.company_id, req.userId]
+    )
+    if (!member) return res.status(403).json({ error: 'Forbidden' })
+    const { title, location, remote, type, description, requirements, apply_link, active } = req.body
+    await pool.query(
+      'UPDATE jobs SET title=?, location=?, remote=?, type=?, description=?, requirements=?, apply_link=?, active=? WHERE id=?',
+      [title, location || null, remote ? 1 : 0, type || 'fulltime',
+        description || null, requirements || null, apply_link || null,
+        active !== undefined ? (active ? 1 : 0) : 1, req.params.id]
+    )
+    const [[updated]] = await pool.query(
+      `SELECT j.*, c.name AS company_name, c.color AS company_color FROM jobs j JOIN companies c ON c.id = j.company_id WHERE j.id = ?`,
+      [req.params.id]
+    )
+    res.json(updated)
+  } catch (err) {
+    console.error('PUT /api/jobs/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// DELETE /api/jobs/:id — delete (close) job
+app.delete('/api/jobs/:id', authenticate, async (req, res) => {
+  try {
+    const [[job]] = await pool.query('SELECT company_id FROM jobs WHERE id = ?', [req.params.id])
+    if (!job) return res.status(404).json({ error: 'Not found' })
+    const [[member]] = await pool.query(
+      "SELECT role FROM company_members WHERE company_id = ? AND user_id = ? AND role IN ('owner','admin')",
+      [job.company_id, req.userId]
+    )
+    if (!member) return res.status(403).json({ error: 'Forbidden' })
+    await pool.query('UPDATE jobs SET active = 0 WHERE id = ?', [req.params.id])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/jobs/:id/save — save or unsave job
+app.post('/api/jobs/:id/save', authenticate, async (req, res) => {
+  try {
+    const [[existing]] = await pool.query('SELECT 1 FROM job_saves WHERE job_id = ? AND user_id = ?', [req.params.id, req.userId])
+    if (existing) {
+      await pool.query('DELETE FROM job_saves WHERE job_id = ? AND user_id = ?', [req.params.id, req.userId])
+      res.json({ saved: false })
+    } else {
+      await pool.query('INSERT IGNORE INTO job_saves (job_id, user_id) VALUES (?, ?)', [req.params.id, req.userId])
+      res.json({ saved: true })
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // ── Admin settings ──────────────────────────────────────────────────────────
 
 async function initAdminSettings() {
@@ -2642,6 +3129,7 @@ app.listen(PORT, () => {
   initFriendRequests()
   initConversations()
   initMarketplace()
+  initCompanies()
   initAdminSettings()
   initAnalytics()
 })

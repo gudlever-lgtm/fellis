@@ -1,6 +1,6 @@
 import pool from './db.js'
 
-const BOT_HANDLES = ['@anna.bot', '@erik.bot']
+const BOT_HANDLES = ['@anna.bot', '@erik.bot', '@maria.bot', '@nordbot.aps']
 
 async function cleanupBots() {
   const conn = await pool.getConnection()
@@ -35,6 +35,31 @@ async function cleanupBots() {
       await conn.query('DELETE FROM posts WHERE id IN (?)', [postIds])
       console.log(`Removed ${botPosts.length} bot posts (with their comments/likes)`)
     }
+
+    // Remove bot marketplace listings
+    const [delListings] = await conn.query('DELETE FROM marketplace_listings WHERE user_id IN (?)', [botIds])
+    console.log(`Removed ${delListings.affectedRows} bot marketplace listings`)
+
+    // Remove bot companies (cascade removes members, follows, posts, jobs, etc.)
+    const [botCompanies] = await conn.query('SELECT id FROM companies WHERE owner_id IN (?)', [botIds])
+    if (botCompanies.length > 0) {
+      const cIds = botCompanies.map(c => c.id)
+      await conn.query('DELETE FROM job_saves WHERE job_id IN (SELECT id FROM jobs WHERE company_id IN (?))', [cIds])
+      await conn.query('DELETE FROM jobs WHERE company_id IN (?)', [cIds])
+      await conn.query('DELETE FROM company_post_comments WHERE post_id IN (SELECT id FROM company_posts WHERE company_id IN (?))', [cIds])
+      await conn.query('DELETE FROM company_post_likes WHERE post_id IN (SELECT id FROM company_posts WHERE company_id IN (?))', [cIds])
+      await conn.query('DELETE FROM company_posts WHERE company_id IN (?)', [cIds])
+      await conn.query('DELETE FROM company_follows WHERE company_id IN (?)', [cIds])
+      await conn.query('DELETE FROM company_members WHERE company_id IN (?)', [cIds])
+      await conn.query('DELETE FROM companies WHERE id IN (?)', [cIds])
+      console.log(`Removed ${botCompanies.length} bot companies`)
+    }
+    // Also remove bot memberships in other companies
+    await conn.query('DELETE FROM company_members WHERE user_id IN (?)', [botIds])
+    await conn.query('DELETE FROM company_follows WHERE user_id IN (?)', [botIds])
+    // Remove bot company post comments (on any company)
+    await conn.query('DELETE FROM company_post_comments WHERE author_id IN (?)', [botIds])
+    await conn.query('DELETE FROM company_post_likes WHERE user_id IN (?)', [botIds])
 
     // Remove bot messages
     const [delMsgs] = await conn.query('DELETE FROM messages WHERE sender_id IN (?) OR receiver_id IN (?)', [botIds, botIds])
