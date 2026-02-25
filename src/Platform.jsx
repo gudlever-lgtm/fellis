@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect, useLayoutEffect } from 'react'
 import { PT, nameToColor, getInitials } from './data.js'
 import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateMode } from './api.js'
 
@@ -50,7 +50,6 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
   const [showModeModal, setShowModeModal] = useState(false)
   const [plan, setPlan] = useState('business') // set from server session; 'business_pro' = paid tier
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
-  const [hasCompanies, setHasCompanies] = useState(false)
   const avatarMenuRef = useRef(null)
   const notifRef = useRef(null)
   const t = PT[lang]
@@ -131,11 +130,10 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
     setShowAvatarMenu(false)
   }, [])
 
-  // Restore feed scroll position after DOM update (when returning to feed)
-  useEffect(() => {
+  // Restore feed scroll position synchronously before paint (when returning to feed)
+  useLayoutEffect(() => {
     if (page === 'feed' && savedFeedScroll.current > 0) {
-      const y = savedFeedScroll.current
-      requestAnimationFrame(() => window.scrollTo(0, y))
+      window.scrollTo(0, savedFeedScroll.current)
     }
   }, [page])
 
@@ -168,7 +166,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
           </div>
         </div>
         <div className="p-nav-tabs">
-          {['feed', 'friends', 'messages', 'events', 'marketplace', ...(mode === 'business' ? ['jobs', 'analytics'] : []), ...(mode === 'business' || hasCompanies ? ['company'] : [])].map(p => (
+          {['feed', 'friends', 'messages', 'events', 'marketplace', ...(mode === 'business' ? ['jobs', 'analytics'] : []), 'company'].map(p => (
             <button
               key={p}
               className={`p-nav-tab${page === p ? ' active' : ''}`}
@@ -788,7 +786,6 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
       .then(r => r.json())
       .then(data => {
         const allCompanies = data.companies || []
-        setHasCompanies(allCompanies.some(c => c.member_role === 'owner' || c.role === 'owner'))
         const followed = allCompanies.filter(c => c.is_following || c.role === 'following' || c.member_role === 'owner' || c.role === 'owner')
         if (!followed.length) return
         return fetch(`/api/companies/${followed[0].id}/posts?limit=2`, { credentials: 'include' })
@@ -1724,12 +1721,10 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
         if (convs) setFamilyGroups(convs.filter(c => c.isFamilyGroup))
       })
     }
-    if (mode === 'business') {
-      fetch('/api/companies', { credentials: 'include' })
-        .then(r => r.json())
-        .then(data => setMyCompanies((data.companies || []).filter(c => c.member_role === 'owner')))
-        .catch(() => {})
-    }
+    fetch('/api/companies', { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => setMyCompanies((data.companies || []).filter(c => c.member_role === 'owner')))
+      .catch(() => {})
   }, [currentUser.name, mode, onUserUpdate])
 
   const avatarUrl = profile.avatarUrl || profile.avatar_url
@@ -1863,7 +1858,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
           </div>
         )}
 
-        {mode === 'business' && (
+        {myCompanies.length > 0 && (
           <div className="p-card" style={{ marginBottom: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <h3 className="p-section-title" style={{ margin: 0 }}>🏢 {t.companies}</h3>
@@ -1874,11 +1869,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
                 {t.myCompanies} →
               </button>
             </div>
-            {myCompanies.length === 0 ? (
-              <div style={{ fontSize: 13, color: '#888', padding: '8px 0' }}>
-                {lang === 'da' ? 'Ingen sider endnu.' : 'No pages yet.'}
-              </div>
-            ) : myCompanies.map(c => (
+            {myCompanies.map(c => (
               <div key={c.id} className="p-company-mini-card" onClick={() => onNavigate?.('company', { companyId: c.id })}>
                 <div className="p-company-logo-sm" style={{ background: c.color }}>{c.name[0]}</div>
                 <div style={{ flex: 1 }}>
