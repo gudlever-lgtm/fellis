@@ -2421,14 +2421,14 @@ async function initCompanies() {
 app.get('/api/companies', authenticate, async (req, res) => {
   try {
     const [owned] = await pool.query(
-      `SELECT c.*, 'owner' AS role,
+      `SELECT c.*, 'owner' AS role, 'owner' AS member_role, 1 AS is_following,
               (SELECT COUNT(*) FROM company_follows WHERE company_id = c.id) AS followers_count
        FROM companies c
        JOIN company_members cm ON cm.company_id = c.id AND cm.user_id = ? AND cm.role = 'owner'`,
       [req.userId]
     )
     const [following] = await pool.query(
-      `SELECT c.*, 'following' AS role,
+      `SELECT c.*, 'following' AS role, NULL AS member_role, 1 AS is_following,
               (SELECT COUNT(*) FROM company_follows WHERE company_id = c.id) AS followers_count
        FROM companies c
        JOIN company_follows cf ON cf.company_id = c.id AND cf.user_id = ?

@@ -4480,11 +4480,12 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
   useEffect(() => { loadCompanies() }, [])
 
   useEffect(() => {
-    if (initialCompanyId && companies.length > 0) {
-      const found = companies.find(c => c.id === initialCompanyId)
-      if (found) { setSelectedCompany(found); setOpenedFromFeed(true); return }
-    }
-    if (initialCompanyId && companies.length === 0 && !loading) {
+    if (!initialCompanyId || loading) return
+    const found = companies.find(c => c.id === initialCompanyId)
+    if (found) {
+      setSelectedCompany(found)
+      setOpenedFromFeed(true)
+    } else {
       fetch(`/api/companies/${initialCompanyId}`, { credentials: 'include' })
         .then(r => r.json())
         .then(data => { if (data.company) { setSelectedCompany(data.company); setOpenedFromFeed(true) } })
