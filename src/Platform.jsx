@@ -756,15 +756,6 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
     isFetchingRef.current = false
   }, []) // stable — all mutable reads go through refs
 
-  // Persist company feed post interactions
-  useEffect(() => {
-    try {
-      localStorage.setItem('fellis_cpfeed_liked', JSON.stringify(cpFeedLiked))
-      localStorage.setItem('fellis_cpfeed_likes', JSON.stringify(cpFeedLikes))
-      localStorage.setItem('fellis_cpfeed_comments', JSON.stringify(cpFeedComments))
-    } catch {}
-  }, [cpFeedLiked, cpFeedLikes, cpFeedComments])
-
   // Initial load
   useEffect(() => {
     apiFetchFeed(0, PAGE_SIZE).then(data => {
