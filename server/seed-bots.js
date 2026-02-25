@@ -530,7 +530,7 @@ async function seedBots() {
     console.log('  erik.bot@fellis.eu / bot123')
     console.log('  maria.bot@fellis.eu / bot123')
     console.log('  nordbot@fellis.eu / bot123  (business mode)')
-    console.log('To remove bots: node --env-file=.env server/cleanup-bots.js')
+    console.log('To remove bots: node server/cleanup-bots.js')
 
   } finally {
     conn.release()

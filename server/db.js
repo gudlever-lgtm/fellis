@@ -1,4 +1,9 @@
 import mysql from 'mysql2/promise'
+import { resolve, dirname } from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+try { process.loadEnvFile(resolve(__dirname, '.env')) } catch { /* .env optional */ }
 
 let pool
 
