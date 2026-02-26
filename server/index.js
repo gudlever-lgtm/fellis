@@ -2430,6 +2430,13 @@ async function initCompanies() {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
 
+    // Repair: ensure all companies have their owner in company_members
+    // (may be missing if company was created before this table existed)
+    await pool.query(`
+      INSERT IGNORE INTO company_members (company_id, user_id, role)
+      SELECT id, owner_id, 'owner' FROM companies WHERE owner_id > 0
+    `)
+
   } catch (err) {
     console.error('initCompanies error:', err.message)
   }
@@ -2439,14 +2446,14 @@ async function initCompanies() {
 app.get('/api/companies', authenticate, async (req, res) => {
   try {
     const [owned] = await pool.query(
-      `SELECT c.*, 'owner' AS role,
+      `SELECT c.*, 'owner' AS role, 'owner' AS member_role, 1 AS is_following,
               (SELECT COUNT(*) FROM company_follows WHERE company_id = c.id) AS followers_count
        FROM companies c
        JOIN company_members cm ON cm.company_id = c.id AND cm.user_id = ? AND cm.role = 'owner'`,
       [req.userId]
     )
     const [following] = await pool.query(
-      `SELECT c.*, 'following' AS role,
+      `SELECT c.*, 'following' AS role, NULL AS member_role, 1 AS is_following,
               (SELECT COUNT(*) FROM company_follows WHERE company_id = c.id) AS followers_count
        FROM companies c
        JOIN company_follows cf ON cf.company_id = c.id AND cf.user_id = ?
@@ -2579,6 +2586,26 @@ app.post('/api/companies/:id/follow', authenticate, async (req, res) => {
     }
   } catch (err) {
     console.error('POST /api/companies/:id/follow error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/companies/:id/members — list of company members with friendship status
+app.get('/api/companies/:id/members', authenticate, async (req, res) => {
+  try {
+    const [members] = await pool.query(
+      `SELECT u.id, u.name, u.handle, u.avatar_url,
+              cm.role,
+              (SELECT COUNT(*) > 0 FROM friendships WHERE user_id = ? AND friend_id = u.id) AS is_friend,
+              (SELECT COUNT(*) > 0 FROM friend_requests WHERE from_user_id = ? AND to_user_id = u.id AND status = 'pending') AS request_sent
+       FROM company_members cm JOIN users u ON u.id = cm.user_id
+       WHERE cm.company_id = ?
+       ORDER BY FIELD(cm.role, 'owner', 'admin', 'editor'), u.name`,
+      [req.userId, req.userId, req.params.id]
+    )
+    res.json({ members })
+  } catch (err) {
+    console.error('GET /api/companies/:id/members error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })

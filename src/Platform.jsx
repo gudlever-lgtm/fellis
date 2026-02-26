@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect, useLayoutEffect } from 'react'
 import { PT, nameToColor, getInitials } from './data.js'
 import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateMode } from './api.js'
 
@@ -121,11 +121,21 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
   }, [showAvatarMenu, showNotifPanel])
 
   const [navParam, setNavParam] = useState(null)
+  const savedFeedScroll = useRef(0)
+
   const navigateTo = useCallback((p, param = null) => {
+    if (p !== 'feed') savedFeedScroll.current = window.scrollY
     setPage(p)
     setNavParam(param)
     setShowAvatarMenu(false)
   }, [])
+
+  // Restore feed scroll position synchronously before paint (when returning to feed)
+  useLayoutEffect(() => {
+    if (page === 'feed' && savedFeedScroll.current > 0) {
+      window.scrollTo(0, savedFeedScroll.current)
+    }
+  }, [page])
 
   const avatarSrc = currentUser.avatar_url
     ? (currentUser.avatar_url.startsWith('http') || currentUser.avatar_url.startsWith('blob:') ? currentUser.avatar_url : `${API_BASE}${currentUser.avatar_url}`)
@@ -156,19 +166,20 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
           </div>
         </div>
         <div className="p-nav-tabs">
-          {['feed', 'friends', 'messages', 'events', 'marketplace', ...(mode === 'business' ? ['jobs', 'analytics'] : [])].map(p => (
+          {['feed', 'friends', 'messages', 'events', 'marketplace', ...(mode === 'business' ? ['jobs', 'analytics'] : []), 'company'].map(p => (
             <button
               key={p}
               className={`p-nav-tab${page === p ? ' active' : ''}`}
               onClick={() => navigateTo(p)}
             >
               <span className="p-nav-tab-icon">
-                {p === 'feed' ? '🏠' : p === 'friends' ? '👥' : p === 'messages' ? '💬' : p === 'events' ? '📅' : p === 'marketplace' ? '🛍️' : p === 'analytics' ? '📊' : p === 'admin' ? '⚙️' : '💼'}
+                {p === 'feed' ? '🏠' : p === 'friends' ? '👥' : p === 'messages' ? '💬' : p === 'events' ? '📅' : p === 'marketplace' ? '🛍️' : p === 'analytics' ? '📊' : p === 'company' ? '🏢' : p === 'admin' ? '⚙️' : '💼'}
               </span>
               <span className="p-nav-tab-label">
                 {p === 'friends'
                   ? (mode === 'business' ? t.connectionsLabel : t.friends)
                   : p === 'analytics' ? t.analyticsNav
+                  : p === 'company' ? t.companies
                   : p === 'admin' ? t.adminTitle
                   : (t[p] || p)}
               </span>
@@ -244,11 +255,6 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
                 <button className="avatar-dropdown-item" onClick={() => { setShowAvatarMenu(false); setShowModeModal(true) }}>
                   <span>{mode === 'business' ? (plan === 'business_pro' ? '🚀' : '💼') : '🏠'}</span> {t.modeSwitch}
                 </button>
-                {mode === 'business' && (
-                  <button className="avatar-dropdown-item" onClick={() => navigateTo('company')}>
-                    <span>🏢</span> {t.companies}
-                  </button>
-                )}
                 <button className="avatar-dropdown-item" onClick={() => navigateTo('privacy')}>
                   <span>🔒</span> {menuT.privacy}
                 </button>
@@ -275,7 +281,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
             onNavigate={navigateTo}
           />
         </div>
-        {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} />}
+        {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} plan={plan} onUserUpdate={setCurrentUser} onNavigate={navigateTo} />}
         {page === 'view-profile' && viewUserId && <FriendProfilePage userId={viewUserId} lang={lang} t={t} currentUser={currentUser} onBack={() => navigateTo('feed')} onMessage={async (prof) => { const data = await apiCreateConversation([prof.id], null, false, false).catch(() => null); if (data?.id) setOpenConvId(data.id); navigateTo('messages') }} />}
         {page === 'edit-profile' && <EditProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} />}
         {page === 'friends' && <FriendsPage lang={lang} t={t} mode={mode} onMessage={async (friend) => {
@@ -309,7 +315,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
             mode={mode}
             onNavigateToPost={(postId) => { setHighlightPostId(postId); navigateTo('feed') }}
             onNavigateToConv={(convId) => { setOpenConvId(convId); navigateTo('messages') }}
-            onNavigateToCompany={() => navigateTo('company')}
+            onNavigateToCompany={(id) => navigateTo('company', id ? { companyId: id } : null)}
           />
         )}
       </div>
@@ -779,7 +785,8 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
     fetch('/api/companies', { credentials: 'include' })
       .then(r => r.json())
       .then(data => {
-        const followed = (data.companies || []).filter(c => c.is_following || c.member_role === 'owner')
+        const allCompanies = data.companies || []
+        const followed = allCompanies.filter(c => c.is_following || c.role === 'following' || c.member_role === 'owner' || c.role === 'owner')
         if (!followed.length) return
         return fetch(`/api/companies/${followed[0].id}/posts?limit=2`, { credentials: 'include' })
           .then(r => r.json())
@@ -1688,7 +1695,7 @@ const MOCK_FB_PHOTOS = [
 ]
 
 // ── Profile (clean — read-only view) ──
-function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
+function ProfilePage({ lang, t, currentUser, mode, plan, onUserUpdate, onNavigate }) {
   const [profile, setProfile] = useState({ ...currentUser })
   const [userPosts, setUserPosts] = useState([])
   const [showPassword, setShowPassword] = useState(false)
@@ -1714,12 +1721,10 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
         if (convs) setFamilyGroups(convs.filter(c => c.isFamilyGroup))
       })
     }
-    if (mode === 'business') {
-      fetch('/api/companies', { credentials: 'include' })
-        .then(r => r.json())
-        .then(data => setMyCompanies((data.companies || []).filter(c => c.member_role === 'owner')))
-        .catch(() => {})
-    }
+    fetch('/api/companies', { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => setMyCompanies((data.companies || []).filter(c => c.member_role === 'owner')))
+      .catch(() => {})
   }, [currentUser.name, mode, onUserUpdate])
 
   const avatarUrl = profile.avatarUrl || profile.avatar_url
@@ -1743,7 +1748,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
             <h2 className="p-profile-name" style={{ margin: 0 }}>{profile.name}</h2>
-            <span style={{
+            {mode === 'business' && <span style={{
               fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 10,
               background: plan === 'business_pro' ? '#2D6A4F' : '#F0FAF4',
               color: plan === 'business_pro' ? '#fff' : '#2D6A4F',
@@ -1751,7 +1756,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
               flexShrink: 0,
             }}>
               {plan === 'business_pro' ? 'Business Pro ⚡' : 'Business'}
-            </span>
+            </span>}
           </div>
           <p className="p-profile-handle">{profile.handle}</p>
           <p className="p-profile-bio">{profile.bio?.[lang] || profile.bio?.da || ''}</p>
@@ -1853,7 +1858,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
           </div>
         )}
 
-        {mode === 'business' && (
+        {myCompanies.length > 0 && (
           <div className="p-card" style={{ marginBottom: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <h3 className="p-section-title" style={{ margin: 0 }}>🏢 {t.companies}</h3>
@@ -1864,11 +1869,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
                 {t.myCompanies} →
               </button>
             </div>
-            {myCompanies.length === 0 ? (
-              <div style={{ fontSize: 13, color: '#888', padding: '8px 0' }}>
-                {lang === 'da' ? 'Ingen sider endnu.' : 'No pages yet.'}
-              </div>
-            ) : myCompanies.map(c => (
+            {myCompanies.map(c => (
               <div key={c.id} className="p-company-mini-card" onClick={() => onNavigate?.('company', { companyId: c.id })}>
                 <div className="p-company-logo-sm" style={{ background: c.color }}>{c.name[0]}</div>
                 <div style={{ flex: 1 }}>
@@ -3370,7 +3371,7 @@ function SearchPage({ lang, t, mode, onNavigateToPost, onNavigateToConv, onNavig
               <span className="p-search-count">{companyMatches.length}</span>
             </h3>
             {companyMatches.map(c => (
-              <div key={c.id} className="p-search-result" onClick={onNavigateToCompany}>
+              <div key={c.id} className="p-search-result" onClick={() => onNavigateToCompany(c.id)}>
                 <div className="p-search-result-top">
                   <div style={{ width: 28, height: 28, borderRadius: 6, background: c.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>{c.name[0]}</div>
                   <span className="p-search-result-author">{c.name}</span>
@@ -4467,6 +4468,7 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
   const [selectedCompany, setSelectedCompany] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
   const [tab, setTab] = useState('my')
+  const [openedFromFeed, setOpenedFromFeed] = useState(false)
 
   const loadCompanies = () => {
     setLoading(true)
@@ -4479,20 +4481,26 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
   useEffect(() => { loadCompanies() }, [])
 
   useEffect(() => {
-    if (initialCompanyId && companies.length > 0) {
-      const found = companies.find(c => c.id === initialCompanyId)
-      if (found) { setSelectedCompany(found); return }
-    }
-    if (initialCompanyId && companies.length === 0 && !loading) {
+    if (!initialCompanyId || loading) return
+    const found = companies.find(c => c.id === initialCompanyId)
+    if (found) {
+      setSelectedCompany(found)
+      setOpenedFromFeed(true)
+    } else {
       fetch(`/api/companies/${initialCompanyId}`, { credentials: 'include' })
         .then(r => r.json())
-        .then(data => { if (data.company) setSelectedCompany(data.company) })
+        .then(data => { if (data.company) { setSelectedCompany(data.company); setOpenedFromFeed(true) } })
         .catch(() => {})
     }
   }, [initialCompanyId, companies, loading])
 
-  const myCompanies = companies.filter(c => c.member_role === 'owner' || c.member_role === 'admin' || c.member_role === 'editor')
-  const followingCompanies = companies.filter(c => c.is_following && !myCompanies.find(m => m.id === c.id))
+  const myCompanies = companies.filter(c => {
+    const r = c.member_role || c.role
+    return r === 'owner' || r === 'admin' || r === 'editor'
+  })
+  const followingCompanies = companies.filter(c =>
+    (c.is_following || c.role === 'following') && !myCompanies.find(m => m.id === c.id)
+  )
   const displayCompanies = tab === 'my' ? myCompanies : followingCompanies
 
   const toggleFollow = (id) => {
@@ -4517,7 +4525,10 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
         mode={mode}
         currentUser={currentUser}
         isOwner={selectedCompany.member_role === 'owner'}
-        onBack={() => { setSelectedCompany(null); loadCompanies() }}
+        onBack={() => {
+          if (openedFromFeed && onNavigate) { onNavigate('feed') }
+          else { setSelectedCompany(null); setOpenedFromFeed(false); loadCompanies() }
+        }}
         onFollow={() => toggleFollow(selectedCompany.id)}
         isFollowing={!!selectedCompany.is_following}
       />
@@ -4599,6 +4610,9 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
   const [expandedCompanyComments, setExpandedCompanyComments] = useState(new Set())
   const [companyCommentInputs, setCompanyCommentInputs] = useState({})
   const [companyCommentLists, setCompanyCommentLists] = useState({})
+  const [companyMembers, setCompanyMembers] = useState([])
+  const [membersLoading, setMembersLoading] = useState(false)
+  const [memberConnectState, setMemberConnectState] = useState({}) // userId → 'sent'|'friend'
 
   useEffect(() => {
     setPostsLoading(true)
@@ -4611,6 +4625,32 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
       })
       .catch(() => setPostsLoading(false))
   }, [company.id])
+
+  useEffect(() => {
+    if (tab !== 'members') return
+    if (companyMembers.length > 0) return
+    setMembersLoading(true)
+    fetch(`/api/companies/${company.id}/members`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => {
+        const members = data.members || []
+        setCompanyMembers(members)
+        const state = {}
+        members.forEach(m => {
+          if (m.is_friend) state[m.id] = 'friend'
+          else if (m.request_sent) state[m.id] = 'sent'
+        })
+        setMemberConnectState(state)
+        setMembersLoading(false)
+      })
+      .catch(() => setMembersLoading(false))
+  }, [tab, company.id])
+
+  const connectWithMember = (userId) => {
+    fetch(`/api/friends/request/${userId}`, { method: 'POST', credentials: 'include' })
+      .then(() => setMemberConnectState(prev => ({ ...prev, [userId]: 'sent' })))
+      .catch(() => {})
+  }
 
   const toggleCompanyLike = (postId) => {
     fetch(`/api/companies/${company.id}/posts/${postId}/like`, { method: 'POST', credentials: 'include' })
@@ -4723,9 +4763,9 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
 
       {/* Tabs */}
       <div className="p-filter-tabs" style={{ marginBottom: 16 }}>
-        {['posts', 'about', 'jobs'].map(tp => (
+        {['posts', 'members', 'about', 'jobs'].map(tp => (
           <button key={tp} className={`p-filter-tab${tab === tp ? ' active' : ''}`} onClick={() => setTab(tp)}>
-            {tp === 'posts' ? t.companyPosts : tp === 'about' ? t.companyAbout : t.jobs}
+            {tp === 'posts' ? t.companyPosts : tp === 'members' ? t.companyMembers : tp === 'about' ? t.companyAbout : t.jobs}
             {tp === 'jobs' && companyJobs.length > 0 && <span style={{ marginLeft: 4, fontSize: 11 }}>({companyJobs.length})</span>}
           </button>
         ))}
@@ -4860,6 +4900,48 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
             )
           })}
         </>
+      )}
+
+      {tab === 'members' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {membersLoading ? (
+            <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>⏳</div>
+          ) : companyMembers.length === 0 ? (
+            <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>{t.companyNoMembers}</div>
+          ) : companyMembers.map(member => {
+            const connectStatus = memberConnectState[member.id]
+            const isSelf = member.id === currentUser?.id
+            const avatarSrc = member.avatar_url
+              ? (member.avatar_url.startsWith('http') ? member.avatar_url : `/uploads/${member.avatar_url}`)
+              : null
+            return (
+              <div key={member.id} className="p-card" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px' }}>
+                <div className="p-avatar-sm" style={{ background: nameToColor(member.name), flexShrink: 0 }}>
+                  {avatarSrc ? <img src={avatarSrc} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} /> : getInitials(member.name)}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>{member.name}</div>
+                  {member.handle && <div style={{ fontSize: 12, color: '#888' }}>@{member.handle}</div>}
+                  <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>
+                    {member.role === 'owner' ? t.companyRoleOwner : member.role === 'admin' ? t.companyRoleAdmin : t.companyRoleEditor}
+                  </div>
+                </div>
+                {!isSelf && (
+                  connectStatus === 'friend' ? (
+                    <span style={{ fontSize: 12, color: '#2D6A4F', fontWeight: 600 }}>✓ {mode === 'business' ? t.connectionsLabel : t.friendsLabel}</span>
+                  ) : connectStatus === 'sent' ? (
+                    <span style={{ fontSize: 12, color: '#888' }}>{t.requestSent}</span>
+                  ) : (
+                    <button className="p-friend-add-btn p-friend-msg-btn" style={{ padding: '6px 14px', fontSize: 13 }}
+                      onClick={() => connectWithMember(member.id)}>
+                      + {mode === 'business' ? t.connectBtn : t.addFriend}
+                    </button>
+                  )
+                )}
+              </div>
+            )
+          })}
+        </div>
       )}
 
       {tab === 'about' && (
