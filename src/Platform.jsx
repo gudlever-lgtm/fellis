@@ -1,5 +1,5 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
-import { PT, nameToColor, getInitials, detectMusicUrl } from './data.js'
+import { useState, useCallback, useRef, useEffect, useLayoutEffect } from 'react'
+import { PT, nameToColor, getInitials } from './data.js'
 import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateMode } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
@@ -121,11 +121,21 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
   }, [showAvatarMenu, showNotifPanel])
 
   const [navParam, setNavParam] = useState(null)
+  const savedFeedScroll = useRef(0)
+
   const navigateTo = useCallback((p, param = null) => {
+    if (p !== 'feed') savedFeedScroll.current = window.scrollY
     setPage(p)
     setNavParam(param)
     setShowAvatarMenu(false)
   }, [])
+
+  // Restore feed scroll position synchronously before paint (when returning to feed)
+  useLayoutEffect(() => {
+    if (page === 'feed' && savedFeedScroll.current > 0) {
+      window.scrollTo(0, savedFeedScroll.current)
+    }
+  }, [page])
 
   const avatarSrc = currentUser.avatar_url
     ? (currentUser.avatar_url.startsWith('http') || currentUser.avatar_url.startsWith('blob:') ? currentUser.avatar_url : `${API_BASE}${currentUser.avatar_url}`)
@@ -134,12 +144,14 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
   const menuT = lang === 'da' ? {
     viewProfile: 'Se profil',
     editProfile: 'Rediger profil',
+    settings: 'Indstillinger',
     analytics: 'Analyser',
     privacy: 'Privatliv & Data',
     logout: 'Log ud',
   } : {
     viewProfile: 'View profile',
     editProfile: 'Edit profile',
+    settings: 'Settings',
     analytics: 'Analytics',
     privacy: 'Privacy & Data',
     logout: 'Log out',
@@ -156,19 +168,20 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
           </div>
         </div>
         <div className="p-nav-tabs">
-          {['feed', 'friends', 'messages', 'events', 'marketplace', ...(mode === 'business' ? ['jobs', 'analytics'] : [])].map(p => (
+          {['feed', 'friends', 'messages', 'events', 'marketplace', ...(mode === 'business' ? ['jobs', 'analytics'] : []), 'company'].map(p => (
             <button
               key={p}
               className={`p-nav-tab${page === p ? ' active' : ''}`}
               onClick={() => navigateTo(p)}
             >
               <span className="p-nav-tab-icon">
-                {p === 'feed' ? '🏠' : p === 'friends' ? '👥' : p === 'messages' ? '💬' : p === 'events' ? '📅' : p === 'marketplace' ? '🛍️' : p === 'analytics' ? '📊' : p === 'admin' ? '⚙️' : '💼'}
+                {p === 'feed' ? '🏠' : p === 'friends' ? '👥' : p === 'messages' ? '💬' : p === 'events' ? '📅' : p === 'marketplace' ? '🛍️' : p === 'analytics' ? '📊' : p === 'company' ? '🏢' : p === 'admin' ? '⚙️' : '💼'}
               </span>
               <span className="p-nav-tab-label">
                 {p === 'friends'
                   ? (mode === 'business' ? t.connectionsLabel : t.friends)
                   : p === 'analytics' ? t.analyticsNav
+                  : p === 'company' ? t.companies
                   : p === 'admin' ? t.adminTitle
                   : (t[p] || p)}
               </span>
@@ -241,14 +254,9 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
                 <button className="avatar-dropdown-item" onClick={() => navigateTo('edit-profile')}>
                   <span>✏️</span> {menuT.editProfile}
                 </button>
-                <button className="avatar-dropdown-item" onClick={() => { setShowAvatarMenu(false); setShowModeModal(true) }}>
-                  <span>{mode === 'business' ? (plan === 'business_pro' ? '🚀' : '💼') : '🏠'}</span> {t.modeSwitch}
+                <button className="avatar-dropdown-item" onClick={() => navigateTo('settings')}>
+                  <span>⚙️</span> {menuT.settings}
                 </button>
-                {mode === 'business' && (
-                  <button className="avatar-dropdown-item" onClick={() => navigateTo('company')}>
-                    <span>🏢</span> {t.companies}
-                  </button>
-                )}
                 <button className="avatar-dropdown-item" onClick={() => navigateTo('privacy')}>
                   <span>🔒</span> {menuT.privacy}
                 </button>
@@ -300,6 +308,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
         {page === 'jobs' && <JobsPage lang={lang} t={t} currentUser={currentUser} mode={mode} />}
         {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} initialCompanyId={navParam?.companyId} />}
         {page === 'analytics' && <AnalyticsPage lang={lang} t={t} currentUser={currentUser} plan={plan} onUpgrade={() => setShowUpgradeModal(true)} />}
+        {page === 'settings' && <SettingsPage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onLogout={onLogout} onOpenModeModal={() => setShowModeModal(true)} />}
         {page === 'privacy' && <PrivacySection lang={lang} onLogout={onLogout} />}
         {page === 'admin' && currentUser.is_admin && <AdminPage lang={lang} t={t} />}
         {page === 'search' && (
@@ -309,7 +318,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
             mode={mode}
             onNavigateToPost={(postId) => { setHighlightPostId(postId); navigateTo('feed') }}
             onNavigateToConv={(convId) => { setOpenConvId(convId); navigateTo('messages') }}
-            onNavigateToCompany={() => navigateTo('company')}
+            onNavigateToCompany={(id) => navigateTo('company', id ? { companyId: id } : null)}
           />
         )}
       </div>
@@ -674,8 +683,6 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
   const [mediaPopup, setMediaPopup] = useState(false)
   const [postMenu, setPostMenu] = useState(null)       // postId with open options menu
   const [hiddenPosts, setHiddenPosts] = useState(new Set()) // locally hidden post ids
-  const [parachordEnabled] = useState(() => localStorage.getItem('fellis_parachord_enabled') !== 'false')
-  const [hiddenParachord, setHiddenParachord] = useState(new Set()) // post ids where button was hidden after 404/500
   const fileInputRef = useRef(null)
   const textareaRef = useRef(null)
   const feedMention = useMention(sharePopupFriends || [])
@@ -721,28 +728,6 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
     setFeedRsvpMap(prev => ({ ...prev, [eventId]: newStatus }))
     if (feedDbEventIds.has(eventId)) apiRsvpEvent(eventId, newStatus, {}).catch(() => {})
   }
-
-  const handleOpenParachord = useCallback(async (postId, musicUrl) => {
-    try {
-      const res = await fetch('http://127.0.0.1:9876/import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: 'From Fellis', tracks: [{ title: musicUrl, artist: '', url: musicUrl }] }),
-      })
-      if (res.status === 404 || res.status === 500) {
-        setHiddenParachord(prev => new Set([...prev, postId]))
-      }
-    } catch {
-      // Parachord not reachable locally — fall back to custom URL scheme
-      try {
-        const a = document.createElement('a')
-        a.href = `parachord://play?url=${encodeURIComponent(musicUrl)}`
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-      } catch {}
-    }
-  }, [])
 
   // Fetch a page of posts — stable callback (empty deps), guards via ref
   const fetchPage = useCallback(async (newOffset, direction) => {
@@ -803,7 +788,8 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
     fetch('/api/companies', { credentials: 'include' })
       .then(r => r.json())
       .then(data => {
-        const followed = (data.companies || []).filter(c => c.is_following || c.member_role === 'owner')
+        const allCompanies = data.companies || []
+        const followed = allCompanies.filter(c => c.is_following || c.role === 'following' || c.member_role === 'owner' || c.role === 'owner')
         if (!followed.length) return
         return fetch(`/api/companies/${followed[0].id}/posts?limit=2`, { credentials: 'include' })
           .then(r => r.json())
@@ -1570,20 +1556,6 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
                   </>
                 )}
               </div>
-              {(() => {
-                if (!parachordEnabled || hiddenParachord.has(post.id)) return null
-                const musicUrl = detectMusicUrl([post.text?.da, post.text?.en].filter(Boolean).join(' '))
-                if (!musicUrl) return null
-                return (
-                  <button
-                    className="p-action-btn"
-                    style={{ fontSize: 12, color: '#52B788' }}
-                    onClick={() => handleOpenParachord(post.id, musicUrl)}
-                  >
-                    {t.parachordBtn}
-                  </button>
-                )
-              })()}
               {mode === 'business' && post.author === currentUser.name && (
                 <button className="p-action-btn p-action-btn-insights" onClick={() => setInsightsPostId(p => p === post.id ? null : post.id)}>
                   📊 {t.analyticsPostInsights}
@@ -1729,17 +1701,9 @@ const MOCK_FB_PHOTOS = [
 function ProfilePage({ lang, t, currentUser, mode, plan, onUserUpdate, onNavigate }) {
   const [profile, setProfile] = useState({ ...currentUser })
   const [userPosts, setUserPosts] = useState([])
-  const [showPassword, setShowPassword] = useState(false)
   const [familyGroups, setFamilyGroups] = useState([])
   const [profileTab, setProfileTab] = useState('about')
   const [myCompanies, setMyCompanies] = useState([])
-  const [parachordEnabled, setParachordEnabled] = useState(() => localStorage.getItem('fellis_parachord_enabled') !== 'false')
-
-  const handleParachordToggle = () => {
-    const next = !parachordEnabled
-    setParachordEnabled(next)
-    localStorage.setItem('fellis_parachord_enabled', next ? 'true' : 'false')
-  }
 
   useEffect(() => {
     apiFetchProfile().then(data => {
@@ -1759,12 +1723,10 @@ function ProfilePage({ lang, t, currentUser, mode, plan, onUserUpdate, onNavigat
         if (convs) setFamilyGroups(convs.filter(c => c.isFamilyGroup))
       })
     }
-    if (mode === 'business') {
-      fetch('/api/companies', { credentials: 'include' })
-        .then(r => r.json())
-        .then(data => setMyCompanies((data.companies || []).filter(c => c.member_role === 'owner')))
-        .catch(() => {})
-    }
+    fetch('/api/companies', { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => setMyCompanies((data.companies || []).filter(c => c.member_role === 'owner')))
+      .catch(() => {})
   }, [currentUser.name, mode, onUserUpdate])
 
   const avatarUrl = profile.avatarUrl || profile.avatar_url
@@ -1788,7 +1750,7 @@ function ProfilePage({ lang, t, currentUser, mode, plan, onUserUpdate, onNavigat
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
             <h2 className="p-profile-name" style={{ margin: 0 }}>{profile.name}</h2>
-            <span style={{
+            {mode === 'business' && <span style={{
               fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 10,
               background: plan === 'business_pro' ? '#2D6A4F' : '#F0FAF4',
               color: plan === 'business_pro' ? '#fff' : '#2D6A4F',
@@ -1796,7 +1758,7 @@ function ProfilePage({ lang, t, currentUser, mode, plan, onUserUpdate, onNavigat
               flexShrink: 0,
             }}>
               {plan === 'business_pro' ? 'Business Pro ⚡' : 'Business'}
-            </span>
+            </span>}
           </div>
           <p className="p-profile-handle">{profile.handle}</p>
           <p className="p-profile-bio">{profile.bio?.[lang] || profile.bio?.da || ''}</p>
@@ -1840,63 +1802,6 @@ function ProfilePage({ lang, t, currentUser, mode, plan, onUserUpdate, onNavigat
 
       {/* About tab */}
       {profileTab === 'about' && (<>
-        <div className="p-card p-login-info-card">
-          <h3 className="p-section-title">{t.loginInfo}</h3>
-          <div className="p-login-info">
-            <div className="p-login-info-row">
-              <span className="p-login-info-label">{t.emailLabel}</span>
-              <span className="p-login-info-value">{profile.email || '—'}</span>
-            </div>
-            <div className="p-login-info-row">
-              <span className="p-login-info-label">{t.passwordLabel}</span>
-              <span className="p-login-info-value p-password-value">
-                {profile.hasPassword === false ? (
-                  <span className="p-password-not-set">{t.passwordNotSet}</span>
-                ) : (
-                  <>
-                    <span>{showPassword ? (profile.passwordHint || '••••••••••••') : '••••••••••••'}</span>
-                    <button className="p-show-password-btn" onClick={() => setShowPassword(prev => !prev)}>
-                      {showPassword ? t.hidePasswordHint : t.showPasswordHint}
-                    </button>
-                  </>
-                )}
-              </span>
-            </div>
-            <div className="p-login-info-row">
-              <span className="p-login-info-label">{t.loginMethodLabel}</span>
-              <span className="p-login-info-value">{profile.loginMethod === 'facebook' ? t.loginMethodFacebook : t.loginMethodEmail}</span>
-            </div>
-            <div className="p-login-info-row">
-              <span className="p-login-info-label">{t.accountCreatedLabel}</span>
-              <span className="p-login-info-value">{profile.createdAt ? new Date(profile.createdAt).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="p-card p-login-info-card" style={{ marginBottom: 16 }}>
-          <h3 className="p-section-title">🎵 {t.parachordSettingsTitle}</h3>
-          <div className="p-login-info">
-            <div className="p-login-info-row" style={{ alignItems: 'center' }}>
-              <span className="p-login-info-label" style={{ flex: 1 }}>{t.parachordToggleLabel}</span>
-              <button
-                onClick={handleParachordToggle}
-                style={{
-                  position: 'relative', width: 40, height: 22, borderRadius: 11,
-                  background: parachordEnabled ? '#52B788' : '#ccc',
-                  border: 'none', cursor: 'pointer', flexShrink: 0,
-                  transition: 'background 0.2s',
-                }}
-                title={t.parachordToggleLabel}
-              >
-                <span style={{
-                  position: 'absolute', top: 3, left: parachordEnabled ? 20 : 3,
-                  width: 16, height: 16, borderRadius: '50%', background: '#fff',
-                  transition: 'left 0.2s',
-                }} />
-              </button>
-            </div>
-          </div>
-        </div>
 
         {mode === 'privat' && (
           <div className="p-card p-family-section" style={{ marginBottom: 16 }}>
@@ -1923,7 +1828,7 @@ function ProfilePage({ lang, t, currentUser, mode, plan, onUserUpdate, onNavigat
           </div>
         )}
 
-        {mode === 'business' && (
+        {myCompanies.length > 0 && (
           <div className="p-card" style={{ marginBottom: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <h3 className="p-section-title" style={{ margin: 0 }}>🏢 {t.companies}</h3>
@@ -1934,11 +1839,7 @@ function ProfilePage({ lang, t, currentUser, mode, plan, onUserUpdate, onNavigat
                 {t.myCompanies} →
               </button>
             </div>
-            {myCompanies.length === 0 ? (
-              <div style={{ fontSize: 13, color: '#888', padding: '8px 0' }}>
-                {lang === 'da' ? 'Ingen sider endnu.' : 'No pages yet.'}
-              </div>
-            ) : myCompanies.map(c => (
+            {myCompanies.map(c => (
               <div key={c.id} className="p-company-mini-card" onClick={() => onNavigate?.('company', { companyId: c.id })}>
                 <div className="p-company-logo-sm" style={{ background: c.color }}>{c.name[0]}</div>
                 <div style={{ flex: 1 }}>
@@ -2045,6 +1946,8 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
     bioLabel: 'Bio',
     locationLabel: 'Lokation',
     back: 'Tilbage til profil',
+    skillsSection: 'Kompetencer',
+    settingsHint: '⚙️ E-mail og adgangskode ændres under Indstillinger',
   } : {
     title: 'Edit profile',
     avatarLabel: 'Profile picture',
@@ -2053,6 +1956,8 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
     bioLabel: 'Bio',
     locationLabel: 'Location',
     back: 'Back to profile',
+    skillsSection: 'Skills',
+    settingsHint: '⚙️ Edit email and password under Settings',
   }
 
   const fieldStyle = { display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box' }
@@ -2142,11 +2047,362 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
           </>
         )}
 
+        {/* Skills management */}
+        {mode === 'business' && (
+          <div style={{ margin: '28px 0 0', borderTop: '2px solid #eee', paddingTop: 20 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#2D6A4F', marginBottom: 12 }}>🏅 {editT.skillsSection}</div>
+            <SkillsSection profile={profile} t={t} lang={lang} isOwn={true} />
+          </div>
+        )}
+
+        {/* Hint to Settings for email/password */}
+        <div style={{ marginTop: 20, padding: '10px 14px', background: '#F8F9FA', borderRadius: 8, fontSize: 13, color: '#666' }}>
+          {editT.settingsHint}
+        </div>
+
         <button
-          style={{ marginTop: 24, padding: '10px 20px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
+          style={{ marginTop: 20, padding: '10px 20px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
           onClick={() => onNavigate('profile')}
         >
           {editT.back}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Settings Page ─────────────────────────────────────────────────────────────
+function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onLogout, onOpenModeModal }) {
+  const [tab, setTab] = useState('konto')
+
+  const fS = { display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box', fontFamily: 'inherit' }
+  const lS = { display: 'block', fontSize: 13, fontWeight: 600, color: '#555', marginBottom: 4, marginTop: 14 }
+  const tabLabels = { konto: t.settingsKonto, privatliv: t.settingsPrivatliv, sessions: t.settingsSessions, sprog: t.settingsSprog }
+
+  return (
+    <div className="p-events" style={{ maxWidth: 600 }}>
+      <h2 className="p-section-title" style={{ margin: '0 0 16px' }}>⚙️ {t.settings}</h2>
+      <div className="p-filter-tabs" style={{ marginBottom: 20 }}>
+        {Object.entries(tabLabels).map(([key, label]) => (
+          <button key={key} className={`p-filter-tab${tab === key ? ' active' : ''}`} onClick={() => setTab(key)}>{label}</button>
+        ))}
+      </div>
+
+      {tab === 'konto' && <SettingsKonto lang={lang} t={t} currentUser={currentUser} fS={fS} lS={lS} />}
+      {tab === 'privatliv' && <SettingsPrivatliv lang={lang} t={t} fS={fS} lS={lS} />}
+      {tab === 'sessions' && <SettingsSessions lang={lang} t={t} onLogout={onLogout} />}
+      {tab === 'sprog' && <SettingsSprog lang={lang} t={t} mode={mode} onOpenModeModal={onOpenModeModal} />}
+    </div>
+  )
+}
+
+function PasswordStrengthIndicator({ password, lang }) {
+  const [policy, setPolicy] = useState(null)
+  useEffect(() => {
+    fetch('/api/auth/password-policy').then(r => r.ok ? r.json() : null).then(p => { if (p) setPolicy(p) }).catch(() => {})
+  }, [])
+
+  if (!policy || !password) return null
+
+  const checks = [
+    { ok: password.length >= policy.min_length, da: `Min. ${policy.min_length} tegn`, en: `Min. ${policy.min_length} characters` },
+    ...(policy.require_uppercase ? [{ ok: /[A-Z]/.test(password), da: 'Stort bogstav (A–Z)', en: 'Uppercase letter (A–Z)' }] : []),
+    ...(policy.require_lowercase ? [{ ok: /[a-z]/.test(password), da: 'Lille bogstav (a–z)', en: 'Lowercase letter (a–z)' }] : []),
+    ...(policy.require_numbers   ? [{ ok: /[0-9]/.test(password), da: 'Tal (0–9)', en: 'Number (0–9)' }] : []),
+    ...(policy.require_symbols   ? [{ ok: /[^A-Za-z0-9]/.test(password), da: 'Specialtegn (!@#$…)', en: 'Symbol (!@#$…)' }] : []),
+  ]
+
+  // Only show when there's something to show
+  const hasRequirements = checks.length > 1 || (checks.length === 1 && !checks[0].ok)
+  if (!hasRequirements) return null
+
+  return (
+    <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 3 }}>
+      {checks.map((c, i) => (
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: c.ok ? '#2D6A4F' : '#888' }}>
+          <span style={{ fontSize: 11 }}>{c.ok ? '✓' : '○'}</span>
+          <span>{lang === 'da' ? c.da : c.en}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function SettingsKonto({ lang, t, currentUser, fS, lS }) {
+  const [profile, setProfile] = useState(null)
+  const [newEmail, setNewEmail] = useState(currentUser?.email || '')
+  const [emailPassword, setEmailPassword] = useState('')
+  const [emailMsg, setEmailMsg] = useState(null)
+  const [emailLoading, setEmailLoading] = useState(false)
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordMsg, setPasswordMsg] = useState(null)
+  const [passwordLoading, setPasswordLoading] = useState(false)
+  const [showCurrent, setShowCurrent] = useState(false)
+  const [showNew, setShowNew] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/profile', { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => { setProfile(data); setNewEmail(data.email || '') })
+      .catch(() => {})
+  }, [])
+
+  const handleChangeEmail = async (e) => {
+    e.preventDefault()
+    if (!newEmail.trim() || !emailPassword) return
+    setEmailLoading(true); setEmailMsg(null)
+    try {
+      const res = await fetch('/api/profile/email', {
+        method: 'PATCH', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newEmail: newEmail.trim(), password: emailPassword }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setEmailMsg({ ok: false, text: data.error }); return }
+      setEmailPassword('')
+      setEmailMsg({ ok: true, text: t.settingsSaved })
+    } catch { setEmailMsg({ ok: false, text: lang === 'da' ? 'Netværksfejl' : 'Network error' }) }
+    finally { setEmailLoading(false) }
+  }
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault()
+    if (!currentPassword || !newPassword || !confirmPassword) return
+    if (newPassword !== confirmPassword) {
+      setPasswordMsg({ ok: false, text: lang === 'da' ? 'Adgangskoderne stemmer ikke overens' : 'Passwords do not match' })
+      return
+    }
+    setPasswordLoading(true); setPasswordMsg(null)
+    try {
+      const res = await fetch('/api/profile/password', {
+        method: 'PATCH', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword, lang }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setPasswordMsg({ ok: false, text: data.error }); return }
+      setCurrentPassword(''); setNewPassword(''); setConfirmPassword('')
+      setPasswordMsg({ ok: true, text: t.settingsSaved })
+    } catch { setPasswordMsg({ ok: false, text: lang === 'da' ? 'Netværksfejl' : 'Network error' }) }
+    finally { setPasswordLoading(false) }
+  }
+
+  const isFacebook = profile?.loginMethod === 'facebook'
+
+  return (
+    <div className="p-card" style={{ padding: 24 }}>
+      {profile && (
+        <div style={{ fontSize: 12, color: '#888', marginBottom: 20, display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+          <span>{lang === 'da' ? 'Loginmetode' : 'Login method'}: <strong style={{ color: '#444' }}>{isFacebook ? 'Facebook' : (lang === 'da' ? 'E-mail & adgangskode' : 'Email & password')}</strong></span>
+          {profile.createdAt && <span>{lang === 'da' ? 'Konto oprettet' : 'Account created'}: <strong style={{ color: '#444' }}>{new Date(profile.createdAt).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</strong></span>}
+        </div>
+      )}
+
+      {/* Change email */}
+      <form onSubmit={handleChangeEmail} style={{ marginBottom: 28 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: '#333', marginBottom: 4 }}>{lang === 'da' ? 'E-mail' : 'Email'}</div>
+        <label style={lS}>{lang === 'da' ? 'Ny e-mail' : 'New email'}</label>
+        <input style={fS} type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} required />
+        <label style={lS}>{t.settingsEmailConfirm}</label>
+        <input style={fS} type="password" value={emailPassword} onChange={e => setEmailPassword(e.target.value)} required placeholder="••••••••" />
+        {emailMsg && <div style={{ marginTop: 8, fontSize: 13, color: emailMsg.ok ? '#2D6A4F' : '#c0392b', fontWeight: 600 }}>{emailMsg.ok ? '✓' : '✗'} {emailMsg.text}</div>}
+        <button type="submit" disabled={emailLoading} style={{ marginTop: 12, padding: '9px 20px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, opacity: emailLoading ? 0.7 : 1 }}>
+          {t.settingsSaveEmail}
+        </button>
+      </form>
+
+      <div style={{ borderTop: '1px solid #eee', paddingTop: 20 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: '#333', marginBottom: 4 }}>{lang === 'da' ? 'Adgangskode' : 'Password'}</div>
+        {isFacebook ? (
+          <p style={{ fontSize: 13, color: '#888', fontStyle: 'italic', margin: '8px 0 0' }}>{t.settingsFacebookNote}</p>
+        ) : (
+          <form onSubmit={handleChangePassword}>
+            <label style={lS}>{t.settingsCurrentPassword}</label>
+            <div style={{ position: 'relative' }}>
+              <input style={{ ...fS, paddingRight: 44 }} type={showCurrent ? 'text' : 'password'} value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} required placeholder="••••••••" />
+              <button type="button" onClick={() => setShowCurrent(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#888' }}>{showCurrent ? '🙈' : '👁️'}</button>
+            </div>
+            <label style={lS}>{t.settingsNewPassword}</label>
+            <div style={{ position: 'relative' }}>
+              <input style={{ ...fS, paddingRight: 44 }} type={showNew ? 'text' : 'password'} value={newPassword} onChange={e => setNewPassword(e.target.value)} required placeholder="••••••••" />
+              <button type="button" onClick={() => setShowNew(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#888' }}>{showNew ? '🙈' : '👁️'}</button>
+            </div>
+            <PasswordStrengthIndicator password={newPassword} lang={lang} />
+            <label style={lS}>{t.settingsConfirmPassword}</label>
+            <input style={fS} type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required placeholder="••••••••" />
+            {passwordMsg && <div style={{ marginTop: 8, fontSize: 13, color: passwordMsg.ok ? '#2D6A4F' : '#c0392b', fontWeight: 600 }}>{passwordMsg.ok ? '✓' : '✗'} {passwordMsg.text}</div>}
+            <button type="submit" disabled={passwordLoading} style={{ marginTop: 12, padding: '9px 20px', borderRadius: 8, border: 'none', background: '#444', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, opacity: passwordLoading ? 0.7 : 1 }}>
+              {t.settingsSavePassword}
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function SettingsPrivatliv({ lang, t, fS, lS }) {
+  const [profileVis, setProfileVis] = useState('all')
+  const [friendReqPrivacy, setFriendReqPrivacy] = useState('all')
+  const [loading, setLoading] = useState(true)
+  const [msg, setMsg] = useState(null)
+
+  useEffect(() => {
+    fetch('/api/settings/privacy', { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => { setProfileVis(data.profile_visibility || 'all'); setFriendReqPrivacy(data.friend_request_privacy || 'all'); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [])
+
+  const save = async () => {
+    setMsg(null)
+    try {
+      const res = await fetch('/api/settings/privacy', {
+        method: 'PATCH', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile_visibility: profileVis, friend_request_privacy: friendReqPrivacy }),
+      })
+      if (!res.ok) throw new Error()
+      setMsg({ ok: true, text: t.settingsSaved })
+    } catch { setMsg({ ok: false, text: lang === 'da' ? 'Fejl' : 'Error' }) }
+  }
+
+  if (loading) return <div className="p-card" style={{ padding: 24, textAlign: 'center', color: '#888' }}>⏳</div>
+
+  const radioStyle = { display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, cursor: 'pointer', padding: '8px 0' }
+
+  return (
+    <div className="p-card" style={{ padding: 24 }}>
+      <div style={{ fontSize: 14, fontWeight: 700, color: '#333', marginBottom: 12 }}>{t.settingsProfileVisibility}</div>
+      {[['all', t.settingsVisAll], ['friends', t.settingsVisFriends]].map(([val, label]) => (
+        <label key={val} style={radioStyle}>
+          <input type="radio" name="pv" value={val} checked={profileVis === val} onChange={() => setProfileVis(val)} />
+          {label}
+        </label>
+      ))}
+
+      <div style={{ fontSize: 14, fontWeight: 700, color: '#333', marginTop: 20, marginBottom: 12 }}>{t.settingsFriendReqPrivacy}</div>
+      {[['all', t.settingsReqAll], ['friends_of_friends', t.settingsReqFriends]].map(([val, label]) => (
+        <label key={val} style={radioStyle}>
+          <input type="radio" name="frp" value={val} checked={friendReqPrivacy === val} onChange={() => setFriendReqPrivacy(val)} />
+          {label}
+        </label>
+      ))}
+
+      {msg && <div style={{ marginTop: 12, fontSize: 13, color: msg.ok ? '#2D6A4F' : '#c0392b', fontWeight: 600 }}>{msg.ok ? '✓' : '✗'} {msg.text}</div>}
+      <button onClick={save} style={{ marginTop: 20, padding: '9px 22px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+        {lang === 'da' ? 'Gem indstillinger' : 'Save settings'}
+      </button>
+    </div>
+  )
+}
+
+function SettingsSessions({ lang, t, onLogout }) {
+  const [sessions, setSessions] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  const load = () => {
+    setLoading(true)
+    fetch('/api/settings/sessions', { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => { setSessions(data.sessions || []); setLoading(false) })
+      .catch(() => setLoading(false))
+  }
+  useEffect(() => { load() }, [])
+
+  const deleteSession = (id) => {
+    fetch(`/api/settings/sessions/${id}`, { method: 'DELETE', credentials: 'include' })
+      .then(() => load())
+      .catch(() => {})
+  }
+
+  const deleteOthers = () => {
+    fetch('/api/settings/sessions/others', { method: 'DELETE', credentials: 'include' })
+      .then(() => load())
+      .catch(() => {})
+  }
+
+  const parseUA = (ua) => {
+    if (!ua) return lang === 'da' ? 'Ukendt enhed' : 'Unknown device'
+    if (/iPhone|iPad|iPod/.test(ua)) return 'iOS'
+    if (/Android/.test(ua)) return 'Android'
+    if (/Windows/.test(ua)) return 'Windows'
+    if (/Macintosh|Mac OS/.test(ua)) return 'Mac'
+    if (/Linux/.test(ua)) return 'Linux'
+    return ua.slice(0, 40)
+  }
+
+  const others = sessions.filter(s => !s.is_current)
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {loading ? (
+        <div className="p-card" style={{ padding: 24, textAlign: 'center', color: '#888' }}>⏳</div>
+      ) : sessions.map(s => (
+        <div key={s.id} className="p-card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ fontSize: 22 }}>{/iPhone|iPad|iPod|Android/.test(s.user_agent || '') ? '📱' : '🖥️'}</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 600, fontSize: 14 }}>
+              {parseUA(s.user_agent)}
+              {!!s.is_current && <span style={{ marginLeft: 8, fontSize: 11, background: '#F0FAF4', color: '#2D6A4F', padding: '2px 8px', borderRadius: 20, fontWeight: 700 }}>{t.settingsSessionsCurrent}</span>}
+            </div>
+            <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
+              {s.ip_address && <span>{s.ip_address} · </span>}
+              {s.created_at ? new Date(s.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}
+            </div>
+          </div>
+          {!s.is_current && (
+            <button onClick={() => deleteSession(s.id)} style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid #e74c3c', background: '#fff', color: '#e74c3c', fontSize: 13, fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>
+              {t.settingsSessionsLogoutOne}
+            </button>
+          )}
+        </div>
+      ))}
+      {others.length > 0 && (
+        <button onClick={deleteOthers} style={{ padding: '10px 0', borderRadius: 8, border: '1px solid #e74c3c', background: '#fff', color: '#e74c3c', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+          {t.settingsSessionsLogoutOthers}
+        </button>
+      )}
+      {!loading && sessions.length === 0 && (
+        <div className="p-card" style={{ padding: 24, textAlign: 'center', color: '#888' }}>{t.settingsSessionsEmpty}</div>
+      )}
+    </div>
+  )
+}
+
+function SettingsSprog({ lang, t, mode, onOpenModeModal }) {
+  const switchLang = (newLang) => {
+    fetch('/api/me/lang', {
+      method: 'PATCH', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lang: newLang }),
+    }).catch(() => {})
+    // Reload to apply language change
+    window.location.reload()
+  }
+
+  const radioStyle = { display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, cursor: 'pointer', padding: '8px 0' }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="p-card" style={{ padding: 24 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: '#333', marginBottom: 12 }}>🌐 {t.settingsLanguage}</div>
+        {[['da', '🇩🇰 Dansk'], ['en', '🇬🇧 English']].map(([val, label]) => (
+          <label key={val} style={radioStyle}>
+            <input type="radio" name="lang" value={val} checked={lang === val} onChange={() => { if (lang !== val) switchLang(val) }} />
+            {label}
+          </label>
+        ))}
+      </div>
+      <div className="p-card" style={{ padding: 24 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: '#333', marginBottom: 8 }}>💼 {t.settingsMode}</div>
+        <div style={{ fontSize: 13, color: '#666', marginBottom: 12 }}>
+          {lang === 'da' ? `Nuværende: ${mode === 'business' ? 'Erhverv' : 'Privat'}` : `Current: ${mode === 'business' ? 'Business' : 'Personal'}`}
+        </div>
+        <button onClick={onOpenModeModal} style={{ padding: '9px 20px', borderRadius: 8, border: '1px solid #2D6A4F', background: '#fff', color: '#2D6A4F', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+          {t.modeSwitch}
         </button>
       </div>
     </div>
@@ -3440,7 +3696,7 @@ function SearchPage({ lang, t, mode, onNavigateToPost, onNavigateToConv, onNavig
               <span className="p-search-count">{companyMatches.length}</span>
             </h3>
             {companyMatches.map(c => (
-              <div key={c.id} className="p-search-result" onClick={onNavigateToCompany}>
+              <div key={c.id} className="p-search-result" onClick={() => onNavigateToCompany(c.id)}>
                 <div className="p-search-result-top">
                   <div style={{ width: 28, height: 28, borderRadius: 6, background: c.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>{c.name[0]}</div>
                   <span className="p-search-result-author">{c.name}</span>
@@ -4437,39 +4693,62 @@ function CreateEventModal({ t, lang, mode, currentUser, onClose, onCreate }) {
 }
 
 // ── Skills & Endorsements ──
-const MOCK_SKILL_ENDORSEMENTS = {
-  'UX Design': ['Magnus Jensen', 'Freja Andersen', 'Emil Larsen'],
-  'Figma': ['Clara Johansen', 'Astrid Poulsen'],
-  'React': ['Viktor Mortensen', 'Noah Rasmussen', 'Magnus Jensen', 'Emil Larsen'],
-}
-
 function SkillsSection({ profile, t, lang, isOwn }) {
-  const [skills, setSkills] = useState(() => {
-    const raw = profile.skills || 'UX Design, Figma, React'
-    return raw.split(',').map(s => s.trim()).filter(Boolean)
-  })
-  const [endorsements, setEndorsements] = useState(MOCK_SKILL_ENDORSEMENTS)
-  const [myEndorsed, setMyEndorsed] = useState(new Set())
+  const [skills, setSkills] = useState([])
+  const [loading, setLoading] = useState(true)
   const [newSkill, setNewSkill] = useState('')
   const [showAdd, setShowAdd] = useState(false)
+  const [endorsersPopup, setEndorsersPopup] = useState(null) // { skillId, names }
+  const [endorsersLoading, setEndorsersLoading] = useState(false)
 
-  const endorse = (skill) => {
-    if (myEndorsed.has(skill)) return
-    setMyEndorsed(prev => new Set([...prev, skill]))
-    setEndorsements(prev => ({
-      ...prev,
-      [skill]: [...(prev[skill] || []), lang === 'da' ? 'Dig' : 'You'],
-    }))
+  useEffect(() => {
+    if (!profile?.id) return
+    fetch(`/api/skills/${profile.id}`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => { setSkills(data.skills || []); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [profile?.id])
+
+  const endorse = (skillId) => {
+    fetch(`/api/skills/${skillId}/endorse`, { method: 'POST', credentials: 'include' })
+      .then(r => r.json())
+      .then(data => {
+        setSkills(prev => prev.map(s => s.id === skillId
+          ? { ...s, endorsed_by_me: data.endorsed ? 1 : 0, endorsement_count: s.endorsement_count + (data.endorsed ? 1 : -1) }
+          : s))
+      })
+      .catch(() => {})
   }
 
   const addSkill = () => {
-    const s = newSkill.trim()
-    if (!s || skills.includes(s) || skills.length >= 20) return
-    setSkills(prev => [...prev, s])
-    setNewSkill('')
-    setShowAdd(false)
+    const name = newSkill.trim()
+    if (!name || skills.length >= 20) return
+    fetch('/api/skills', {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    })
+      .then(r => r.json())
+      .then(skill => { setSkills(prev => [...prev, skill]); setNewSkill(''); setShowAdd(false) })
+      .catch(() => {})
   }
 
+  const removeSkill = (skillId) => {
+    fetch(`/api/skills/${skillId}`, { method: 'DELETE', credentials: 'include' })
+      .then(() => setSkills(prev => prev.filter(s => s.id !== skillId)))
+      .catch(() => {})
+  }
+
+  const showEndorsers = (skillId) => {
+    if (endorsersPopup?.skillId === skillId) { setEndorsersPopup(null); return }
+    setEndorsersLoading(true)
+    fetch(`/api/skills/${skillId}/endorsers`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => { setEndorsersPopup({ skillId, endorsers: data.endorsers || [] }); setEndorsersLoading(false) })
+      .catch(() => setEndorsersLoading(false))
+  }
+
+  if (loading) return <div style={{ margin: '12px 0', color: '#888', fontSize: 13 }}>⏳</div>
   if (skills.length === 0 && !isOwn) return null
 
   return (
@@ -4477,26 +4756,51 @@ function SkillsSection({ profile, t, lang, isOwn }) {
       <div style={{ fontSize: 13, fontWeight: 700, color: '#555', marginBottom: 8 }}>{t.skills}</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {skills.map(skill => {
-          const count = (endorsements[skill] || []).length
-          const myEndorsement = myEndorsed.has(skill)
+          const count = Number(skill.endorsement_count) || 0
+          const myEndorsement = !!skill.endorsed_by_me
+          const showPopup = endorsersPopup?.skillId === skill.id
           return (
-            <div key={skill} className="p-skill-row">
-              <div style={{ flex: 1 }}>
-                <span style={{ fontSize: 13, fontWeight: 600 }}>{skill}</span>
-                {count > 0 && (
-                  <span style={{ fontSize: 12, color: '#888', marginLeft: 8 }}>
-                    {count} {t.endorsements}
-                  </span>
+            <div key={skill.id}>
+              <div className="p-skill-row">
+                <div style={{ flex: 1 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600 }}>{skill.name}</span>
+                  {count > 0 && (
+                    <button
+                      onClick={() => showEndorsers(skill.id)}
+                      style={{ fontSize: 12, color: '#2D6A4F', marginLeft: 8, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 600 }}
+                    >
+                      {count} {t.endorsements}
+                    </button>
+                  )}
+                </div>
+                {!isOwn && (
+                  <button
+                    className={`p-endorse-btn${myEndorsement ? ' endorsed' : ''}`}
+                    onClick={() => endorse(skill.id)}
+                  >
+                    {myEndorsement ? `✓ ${t.endorsed}` : t.endorse}
+                  </button>
+                )}
+                {isOwn && (
+                  <button
+                    onClick={() => removeSkill(skill.id)}
+                    title={t.removeSkill}
+                    style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #ddd', background: '#fff', color: '#c0392b', fontSize: 12, cursor: 'pointer', lineHeight: 1 }}
+                  >✕</button>
                 )}
               </div>
-              {!isOwn && (
-                <button
-                  className={`p-endorse-btn${myEndorsement ? ' endorsed' : ''}`}
-                  onClick={() => endorse(skill)}
-                  disabled={myEndorsement}
-                >
-                  {myEndorsement ? `✓ ${t.endorsed}` : t.endorse}
-                </button>
+              {showPopup && (
+                <div style={{ marginTop: 4, padding: '10px 14px', background: '#F8F9FA', borderRadius: 8, fontSize: 12, color: '#555' }}>
+                  <div style={{ fontWeight: 600, marginBottom: 6 }}>{t.skillEndorsersTitle}:</div>
+                  {endorsersLoading ? '⏳' : (endorsersPopup.endorsers.length === 0
+                    ? (lang === 'da' ? 'Ingen endnu' : 'None yet')
+                    : endorsersPopup.endorsers.map(e => (
+                        <span key={e.id} style={{ display: 'inline-block', marginRight: 8, marginBottom: 4, background: '#fff', border: '1px solid #eee', borderRadius: 20, padding: '2px 10px' }}>
+                          {e.name}
+                        </span>
+                      ))
+                  )}
+                </div>
               )}
             </div>
           )
@@ -4537,6 +4841,10 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
   const [selectedCompany, setSelectedCompany] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
   const [tab, setTab] = useState('my')
+  const [openedFromFeed, setOpenedFromFeed] = useState(false)
+  const [discoverCompanies, setDiscoverCompanies] = useState([])
+  const [discoverLoading, setDiscoverLoading] = useState(false)
+  const [discoverSearch, setDiscoverSearch] = useState('')
 
   const loadCompanies = () => {
     setLoading(true)
@@ -4549,20 +4857,26 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
   useEffect(() => { loadCompanies() }, [])
 
   useEffect(() => {
-    if (initialCompanyId && companies.length > 0) {
-      const found = companies.find(c => c.id === initialCompanyId)
-      if (found) { setSelectedCompany(found); return }
-    }
-    if (initialCompanyId && companies.length === 0 && !loading) {
+    if (!initialCompanyId || loading) return
+    const found = companies.find(c => c.id === initialCompanyId)
+    if (found) {
+      setSelectedCompany(found)
+      setOpenedFromFeed(true)
+    } else {
       fetch(`/api/companies/${initialCompanyId}`, { credentials: 'include' })
         .then(r => r.json())
-        .then(data => { if (data.company) setSelectedCompany(data.company) })
+        .then(data => { if (data.company) { setSelectedCompany(data.company); setOpenedFromFeed(true) } })
         .catch(() => {})
     }
   }, [initialCompanyId, companies, loading])
 
-  const myCompanies = companies.filter(c => c.member_role === 'owner' || c.member_role === 'admin' || c.member_role === 'editor')
-  const followingCompanies = companies.filter(c => c.is_following && !myCompanies.find(m => m.id === c.id))
+  const myCompanies = companies.filter(c => {
+    const r = c.member_role || c.role
+    return r === 'owner' || r === 'admin' || r === 'editor'
+  })
+  const followingCompanies = companies.filter(c =>
+    (c.is_following || c.role === 'following') && !myCompanies.find(m => m.id === c.id)
+  )
   const displayCompanies = tab === 'my' ? myCompanies : followingCompanies
 
   const toggleFollow = (id) => {
@@ -4572,11 +4886,26 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
         setCompanies(prev => prev.map(c => c.id === id ? {
           ...c,
           is_following: data.following,
-          followers_count: data.following ? c.followers_count + 1 : Math.max(0, c.followers_count - 1),
+          followers_count: data.following ? (c.followers_count || 0) + 1 : Math.max(0, (c.followers_count || 0) - 1),
+        } : c))
+        setDiscoverCompanies(prev => prev.map(c => c.id === id ? {
+          ...c,
+          is_following: data.following,
+          followers_count: data.following ? (c.followers_count || 0) + 1 : Math.max(0, (c.followers_count || 0) - 1),
         } : c))
       })
       .catch(() => {})
   }
+
+  useEffect(() => {
+    if (tab !== 'discover') return
+    setDiscoverLoading(true)
+    const params = discoverSearch ? `?q=${encodeURIComponent(discoverSearch)}` : ''
+    fetch(`/api/companies/all${params}`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => { setDiscoverCompanies(data.companies || []); setDiscoverLoading(false) })
+      .catch(() => setDiscoverLoading(false))
+  }, [tab, discoverSearch])
 
   if (selectedCompany) {
     return (
@@ -4587,7 +4916,10 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
         mode={mode}
         currentUser={currentUser}
         isOwner={selectedCompany.member_role === 'owner'}
-        onBack={() => { setSelectedCompany(null); loadCompanies() }}
+        onBack={() => {
+          if (openedFromFeed && onNavigate) { onNavigate('feed') }
+          else { setSelectedCompany(null); setOpenedFromFeed(false); loadCompanies() }
+        }}
         onFollow={() => toggleFollow(selectedCompany.id)}
         isFollowing={!!selectedCompany.is_following}
       />
@@ -4610,9 +4942,56 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
         <button className={`p-filter-tab${tab === 'following' ? ' active' : ''}`} onClick={() => setTab('following')}>
           {t.followingCompanies} ({followingCompanies.length})
         </button>
+        <button className={`p-filter-tab${tab === 'discover' ? ' active' : ''}`} onClick={() => setTab('discover')}>
+          {t.discoverCompanies}
+        </button>
       </div>
 
-      {loading ? (
+      {tab === 'discover' ? (
+        <>
+          <input
+            className="p-search-input"
+            style={{ marginBottom: 16, width: '100%', boxSizing: 'border-box' }}
+            placeholder={t.companySearchPlaceholder}
+            value={discoverSearch}
+            onChange={e => setDiscoverSearch(e.target.value)}
+          />
+          {discoverLoading ? (
+            <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>⏳</div>
+          ) : discoverCompanies.length === 0 ? (
+            <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>
+              {lang === 'da' ? 'Ingen virksomheder fundet.' : 'No companies found.'}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {discoverCompanies.map(company => {
+                const isMember = myCompanies.some(m => m.id === company.id)
+                return (
+                  <div key={company.id} className="p-card p-company-card" style={{ cursor: 'pointer' }}>
+                    <div className="p-company-logo" style={{ background: company.color }} onClick={() => setSelectedCompany(company)}>{company.name[0]}</div>
+                    <div className="p-company-card-body" onClick={() => setSelectedCompany(company)} style={{ flex: 1, minWidth: 0 }}>
+                      <h3 className="p-company-name">{company.name}</h3>
+                      <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>{company.tagline}</div>
+                      <div style={{ fontSize: 12, color: '#999' }}>
+                        🏭 {company.industry} · {(company.followers_count || 0).toLocaleString()} {t.companyFollowers}
+                      </div>
+                    </div>
+                    {!isMember && (
+                      <button
+                        onClick={e => { e.stopPropagation(); toggleFollow(company.id) }}
+                        className={company.is_following ? 'p-friend-msg-btn' : 'p-friend-add-btn p-friend-msg-btn'}
+                        style={{ padding: '7px 16px', borderRadius: 8, fontSize: 13, flexShrink: 0 }}
+                      >
+                        {company.is_following ? `✓ ${t.companyUnfollow}` : t.companyFollow}
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </>
+      ) : loading ? (
         <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>⏳</div>
       ) : displayCompanies.length === 0 ? (
         <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>
@@ -4623,23 +5002,35 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {displayCompanies.map(company => (
-            <div key={company.id} className="p-card p-company-card" onClick={() => setSelectedCompany(company)}>
-              <div className="p-company-logo" style={{ background: company.color }}>{company.name[0]}</div>
-              <div className="p-company-card-body">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                  <h3 className="p-company-name">{company.name}</h3>
-                  {company.role === 'owner' && <span className="p-company-role-badge">{t.companyRoleOwner}</span>}
-                  {company.role === 'admin' && <span className="p-company-role-badge">{t.companyRoleAdmin}</span>}
-                  {company.role === 'editor' && <span className="p-company-role-badge" style={{ background: '#FFF3CD', color: '#856404' }}>{t.companyRoleEditor}</span>}
+          {displayCompanies.map(company => {
+            const isMember = myCompanies.some(m => m.id === company.id)
+            return (
+              <div key={company.id} className="p-card p-company-card" style={{ cursor: 'pointer' }}>
+                <div className="p-company-logo" style={{ background: company.color }} onClick={() => setSelectedCompany(company)}>{company.name[0]}</div>
+                <div className="p-company-card-body" onClick={() => setSelectedCompany(company)} style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <h3 className="p-company-name">{company.name}</h3>
+                    {company.role === 'owner' && <span className="p-company-role-badge">{t.companyRoleOwner}</span>}
+                    {company.role === 'admin' && <span className="p-company-role-badge">{t.companyRoleAdmin}</span>}
+                    {company.role === 'editor' && <span className="p-company-role-badge" style={{ background: '#FFF3CD', color: '#856404' }}>{t.companyRoleEditor}</span>}
+                  </div>
+                  <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>{company.tagline}</div>
+                  <div style={{ fontSize: 12, color: '#999' }}>
+                    🏭 {company.industry} · 👥 {company.size} · {(company.followers_count || 0).toLocaleString()} {t.companyFollowers}
+                  </div>
                 </div>
-                <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>{company.tagline}</div>
-                <div style={{ fontSize: 12, color: '#999' }}>
-                  🏭 {company.industry} · 👥 {company.size} · {(company.followers_count || 0).toLocaleString()} {t.companyFollowers}
-                </div>
+                {tab === 'following' && !isMember && (
+                  <button
+                    onClick={e => { e.stopPropagation(); toggleFollow(company.id) }}
+                    className="p-friend-msg-btn"
+                    style={{ padding: '7px 16px', borderRadius: 8, fontSize: 13, flexShrink: 0 }}
+                  >
+                    ✓ {t.companyUnfollow}
+                  </button>
+                )}
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
@@ -4669,6 +5060,9 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
   const [expandedCompanyComments, setExpandedCompanyComments] = useState(new Set())
   const [companyCommentInputs, setCompanyCommentInputs] = useState({})
   const [companyCommentLists, setCompanyCommentLists] = useState({})
+  const [companyMembers, setCompanyMembers] = useState([])
+  const [membersLoading, setMembersLoading] = useState(false)
+  const [memberConnectState, setMemberConnectState] = useState({}) // userId → 'sent'|'friend'
 
   useEffect(() => {
     setPostsLoading(true)
@@ -4681,6 +5075,32 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
       })
       .catch(() => setPostsLoading(false))
   }, [company.id])
+
+  useEffect(() => {
+    if (tab !== 'members') return
+    if (companyMembers.length > 0) return
+    setMembersLoading(true)
+    fetch(`/api/companies/${company.id}/members`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => {
+        const members = data.members || []
+        setCompanyMembers(members)
+        const state = {}
+        members.forEach(m => {
+          if (m.is_friend) state[m.id] = 'friend'
+          else if (m.request_sent) state[m.id] = 'sent'
+        })
+        setMemberConnectState(state)
+        setMembersLoading(false)
+      })
+      .catch(() => setMembersLoading(false))
+  }, [tab, company.id])
+
+  const connectWithMember = (userId) => {
+    fetch(`/api/friends/request/${userId}`, { method: 'POST', credentials: 'include' })
+      .then(() => setMemberConnectState(prev => ({ ...prev, [userId]: 'sent' })))
+      .catch(() => {})
+  }
 
   const toggleCompanyLike = (postId) => {
     fetch(`/api/companies/${company.id}/posts/${postId}/like`, { method: 'POST', credentials: 'include' })
@@ -4793,9 +5213,9 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
 
       {/* Tabs */}
       <div className="p-filter-tabs" style={{ marginBottom: 16 }}>
-        {['posts', 'about', 'jobs'].map(tp => (
+        {['posts', 'members', 'about', 'jobs'].map(tp => (
           <button key={tp} className={`p-filter-tab${tab === tp ? ' active' : ''}`} onClick={() => setTab(tp)}>
-            {tp === 'posts' ? t.companyPosts : tp === 'about' ? t.companyAbout : t.jobs}
+            {tp === 'posts' ? t.companyPosts : tp === 'members' ? t.companyMembers : tp === 'about' ? t.companyAbout : t.jobs}
             {tp === 'jobs' && companyJobs.length > 0 && <span style={{ marginLeft: 4, fontSize: 11 }}>({companyJobs.length})</span>}
           </button>
         ))}
@@ -4932,10 +5352,86 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
         </>
       )}
 
+      {tab === 'members' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {membersLoading ? (
+            <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>⏳</div>
+          ) : companyMembers.length === 0 ? (
+            <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>{t.companyNoMembers}</div>
+          ) : companyMembers.map(member => {
+            const connectStatus = memberConnectState[member.id]
+            const isSelf = member.id === currentUser?.id
+            const avatarSrc = member.avatar_url
+              ? (member.avatar_url.startsWith('http') ? member.avatar_url : `/uploads/${member.avatar_url}`)
+              : null
+            return (
+              <div key={member.id} className="p-card" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px' }}>
+                <div className="p-avatar-sm" style={{ background: nameToColor(member.name), flexShrink: 0 }}>
+                  {avatarSrc ? <img src={avatarSrc} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} /> : getInitials(member.name)}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>{member.name}</div>
+                  {member.handle && <div style={{ fontSize: 12, color: '#888' }}>@{member.handle}</div>}
+                  <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>
+                    {member.role === 'owner' ? t.companyRoleOwner : member.role === 'admin' ? t.companyRoleAdmin : t.companyRoleEditor}
+                  </div>
+                </div>
+                {!isSelf && (
+                  connectStatus === 'friend' ? (
+                    <span style={{ fontSize: 12, color: '#2D6A4F', fontWeight: 600 }}>✓ {mode === 'business' ? t.connectionsLabel : t.friendsLabel}</span>
+                  ) : connectStatus === 'sent' ? (
+                    <span style={{ fontSize: 12, color: '#888' }}>{t.requestSent}</span>
+                  ) : (
+                    <button className="p-friend-add-btn p-friend-msg-btn" style={{ padding: '6px 14px', fontSize: 13 }}
+                      onClick={() => connectWithMember(member.id)}>
+                      + {mode === 'business' ? t.connectBtn : t.addFriend}
+                    </button>
+                  )
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+
       {tab === 'about' && (
         <div className="p-card">
-          <h4 style={{ margin: '0 0 12px', fontSize: 16, fontWeight: 700 }}>Om {company.name}</h4>
-          <p style={{ fontSize: 14, color: '#444', lineHeight: 1.6, margin: 0 }}>{company.description}</p>
+          <h4 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 700 }}>{lang === 'da' ? 'Om' : 'About'} {company.name}</h4>
+          {company.description && (
+            <p style={{ fontSize: 14, color: '#444', lineHeight: 1.6, margin: '0 0 16px' }}>{company.description}</p>
+          )}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 24px', fontSize: 13 }}>
+            {company.company_type && (
+              <div><span style={{ color: '#888' }}>{t.companyType}:</span> <strong>{company.company_type}</strong></div>
+            )}
+            {company.cvr && (
+              <div><span style={{ color: '#888' }}>{t.companyCvr}:</span> <strong>{company.cvr}</strong></div>
+            )}
+            {company.founded_year && (
+              <div><span style={{ color: '#888' }}>{t.companyFoundedYear}:</span> <strong>{company.founded_year}</strong></div>
+            )}
+            {company.industry && (
+              <div><span style={{ color: '#888' }}>{t.companyIndustry}:</span> <strong>{company.industry}</strong></div>
+            )}
+            {company.size && (
+              <div><span style={{ color: '#888' }}>{t.companySize}:</span> <strong>{company.size}</strong></div>
+            )}
+            {company.address && (
+              <div style={{ gridColumn: 'span 2' }}><span style={{ color: '#888' }}>📍 {t.companyAddress}:</span> <strong>{company.address}</strong></div>
+            )}
+            {company.phone && (
+              <div><span style={{ color: '#888' }}>📞 {t.companyPhone}:</span> <a href={`tel:${company.phone}`} style={{ color: '#1877F2' }}>{company.phone}</a></div>
+            )}
+            {company.email && (
+              <div><span style={{ color: '#888' }}>✉️ {t.companyEmail}:</span> <a href={`mailto:${company.email}`} style={{ color: '#1877F2' }}>{company.email}</a></div>
+            )}
+            {company.website && (
+              <div><span style={{ color: '#888' }}>🌐 {t.companyWebsite}:</span> <a href={company.website} target="_blank" rel="noopener noreferrer" style={{ color: '#1877F2' }}>{company.website.replace(/^https?:\/\//, '')}</a></div>
+            )}
+            {company.linkedin && (
+              <div><span style={{ color: '#888' }}>LinkedIn:</span> <a href={company.linkedin} target="_blank" rel="noopener noreferrer" style={{ color: '#1877F2' }}>{lang === 'da' ? 'Profil' : 'Profile'}</a></div>
+            )}
+          </div>
         </div>
       )}
 
@@ -4962,6 +5458,13 @@ function CreateCompanyModal({ t, lang, currentUser, onClose, onCreate }) {
   const [industry, setIndustry] = useState('')
   const [size, setSize] = useState('')
   const [description, setDescription] = useState('')
+  const [cvr, setCvr] = useState('')
+  const [companyType, setCompanyType] = useState('')
+  const [address, setAddress] = useState('')
+  const [phone, setPhone] = useState('')
+  const [email, setEmail] = useState('')
+  const [linkedin, setLinkedin] = useState('')
+  const [foundedYear, setFoundedYear] = useState('')
 
   useEffect(() => {
     const h = (e) => { if (e.key === 'Escape') onClose() }
@@ -4990,6 +5493,13 @@ function CreateCompanyModal({ t, lang, currentUser, onClose, onCreate }) {
           size: size || null,
           description: description.trim() || null,
           color: nameToColor(name),
+          cvr: cvr.trim() || null,
+          company_type: companyType || null,
+          address: address.trim() || null,
+          phone: phone.trim() || null,
+          email: email.trim() || null,
+          linkedin: linkedin.trim() || null,
+          founded_year: foundedYear ? Number(foundedYear) : null,
         }),
       })
       if (!res.ok) { const e = await res.json(); alert(e.error || 'Fejl'); return }
@@ -5007,15 +5517,50 @@ function CreateCompanyModal({ t, lang, currentUser, onClose, onCreate }) {
           <input style={fS} value={name} onChange={e => setName(e.target.value)} required placeholder="Acme Corp" />
           <label style={lS}>{t.companyTagline}</label>
           <input style={fS} value={tagline} onChange={e => setTagline(e.target.value)} placeholder={lang === 'da' ? 'Kort slogan...' : 'Short tagline...'} />
-          <label style={lS}>{t.companyWebsite}</label>
-          <input style={fS} type="url" value={website} onChange={e => setWebsite(e.target.value)} placeholder="https://..." />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label style={lS}>{t.companyCvr}</label>
+              <input style={fS} value={cvr} onChange={e => setCvr(e.target.value)} placeholder="12345678" />
+            </div>
+            <div>
+              <label style={lS}>{t.companyType}</label>
+              <select style={fS} value={companyType} onChange={e => setCompanyType(e.target.value)}>
+                <option value="">—</option>
+                {(t.companyTypes || []).map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+          </div>
           <label style={lS}>{t.companyIndustry}</label>
           <input style={fS} value={industry} onChange={e => setIndustry(e.target.value)} placeholder={lang === 'da' ? 'f.eks. Software & SaaS' : 'e.g. Software & SaaS'} />
-          <label style={lS}>{t.companySize}</label>
-          <select style={fS} value={size} onChange={e => setSize(e.target.value)}>
-            <option value="">—</option>
-            {(t.companySizes || ['1–10', '11–50', '51–200', '201–500', '500+']).map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label style={lS}>{t.companySize}</label>
+              <select style={fS} value={size} onChange={e => setSize(e.target.value)}>
+                <option value="">—</option>
+                {(t.companySizes || ['1–10', '11–50', '51–200', '201–500', '500+']).map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={lS}>{t.companyFoundedYear}</label>
+              <input style={fS} type="number" value={foundedYear} onChange={e => setFoundedYear(e.target.value)} placeholder="2010" min="1800" max={new Date().getFullYear()} />
+            </div>
+          </div>
+          <label style={lS}>{t.companyAddress}</label>
+          <input style={fS} value={address} onChange={e => setAddress(e.target.value)} placeholder={lang === 'da' ? 'Adresse, By' : 'Address, City'} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label style={lS}>{t.companyPhone}</label>
+              <input style={fS} value={phone} onChange={e => setPhone(e.target.value)} placeholder="+45 12 34 56 78" />
+            </div>
+            <div>
+              <label style={lS}>{t.companyEmail}</label>
+              <input style={fS} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="info@firma.dk" />
+            </div>
+          </div>
+          <label style={lS}>{t.companyWebsite}</label>
+          <input style={fS} type="url" value={website} onChange={e => setWebsite(e.target.value)} placeholder="https://..." />
+          <label style={lS}>{t.companyLinkedin}</label>
+          <input style={fS} value={linkedin} onChange={e => setLinkedin(e.target.value)} placeholder="https://linkedin.com/company/..." />
           <label style={lS}>{t.companyDescription}</label>
           <textarea style={{ ...fS, minHeight: 80, resize: 'vertical' }} value={description} onChange={e => setDescription(e.target.value)} placeholder={lang === 'da' ? 'Beskriv virksomheden...' : 'Describe the company...'} />
           <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
@@ -5075,7 +5620,12 @@ function JobCard({ job, t, lang, onSaveToggle }) {
               <pre style={{ fontSize: 12, color: '#555', whiteSpace: 'pre-wrap', marginTop: 8, fontFamily: 'inherit', lineHeight: 1.6 }}>{reqs}</pre>
             </details>
           )}
-          <div style={{ display: 'flex', gap: 10 }}>
+          {job.deadline && (
+            <div style={{ fontSize: 12, color: '#c0392b', fontWeight: 600, marginBottom: 8 }}>
+              ⏳ {t.jobDeadline}: {new Date(job.deadline).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             {applyLink && (
               <a
                 href={applyLink.startsWith('http') ? applyLink : `mailto:${applyLink}`}
@@ -5085,6 +5635,14 @@ function JobCard({ job, t, lang, onSaveToggle }) {
                 style={{ textDecoration: 'none', display: 'inline-block', padding: '8px 18px', fontSize: 13 }}
               >
                 {t.jobApply} →
+              </a>
+            )}
+            {job.contact_email && (
+              <a
+                href={`mailto:${job.contact_email}`}
+                style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', color: '#555', fontWeight: 600, fontSize: 13, textDecoration: 'none', display: 'inline-block' }}
+              >
+                ✉️ {t.jobContact}
               </a>
             )}
             <button
@@ -5233,6 +5791,8 @@ function CreateJobModal({ t, lang, companies, onClose, onCreate }) {
   const [description, setDescription] = useState('')
   const [requirements, setRequirements] = useState('')
   const [applyLink, setApplyLink] = useState('')
+  const [contactEmail, setContactEmail] = useState('')
+  const [deadline, setDeadline] = useState('')
 
   useEffect(() => {
     const h = (e) => { if (e.key === 'Escape') onClose() }
@@ -5259,6 +5819,8 @@ function CreateJobModal({ t, lang, companies, onClose, onCreate }) {
           description: description.trim() || null,
           requirements: requirements.trim() || null,
           apply_link: applyLink.trim() || null,
+          contact_email: contactEmail.trim() || null,
+          deadline: deadline || null,
         }),
       })
       if (!res.ok) { const e = await res.json(); alert(e.error || 'Fejl'); return }
@@ -5300,7 +5862,17 @@ function CreateJobModal({ t, lang, companies, onClose, onCreate }) {
           <label style={lS}>{t.jobRequirements}</label>
           <textarea style={{ ...fS, minHeight: 60, resize: 'vertical' }} value={requirements} onChange={e => setRequirements(e.target.value)} placeholder={lang === 'da' ? 'Krav til ansøgeren...' : 'Requirements for applicants...'} />
           <label style={lS}>{t.jobApplyLink}</label>
-          <input style={fS} value={applyLink} onChange={e => setApplyLink(e.target.value)} placeholder={lang === 'da' ? 'Link eller e-mail' : 'Link or email'} />
+          <input style={fS} value={applyLink} onChange={e => setApplyLink(e.target.value)} placeholder="https://..." />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label style={lS}>{t.jobContactEmail}</label>
+              <input style={fS} type="email" value={contactEmail} onChange={e => setContactEmail(e.target.value)} placeholder="job@firma.dk" />
+            </div>
+            <div>
+              <label style={lS}>{t.jobDeadline}</label>
+              <input style={fS} type="date" value={deadline} onChange={e => setDeadline(e.target.value)} />
+            </div>
+          </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
             <button type="button" onClick={onClose} style={{ flex: 1, padding: 10, borderRadius: 8, border: '1px solid #ddd', background: '#fff', cursor: 'pointer', fontSize: 14 }}>{t.eventCancel}</button>
             <button type="submit" style={{ flex: 2, padding: 10, borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>{t.jobPost}</button>
@@ -6382,6 +6954,8 @@ function AdminPage({ lang, t }) {
   const [form, setForm] = useState({
     stripe_secret_key: '', stripe_pub_key: '', stripe_webhook_secret: '',
     stripe_price_pro_monthly: '', stripe_price_pro_yearly: '', stripe_price_boost: '',
+    pwd_min_length: '6', pwd_require_uppercase: '0', pwd_require_lowercase: '0',
+    pwd_require_numbers: '0', pwd_require_symbols: '0',
   })
   const [status, setStatus] = useState('idle') // idle | saving | saved
   const [stats, setStats] = useState(null)
@@ -6426,6 +7000,9 @@ function AdminPage({ lang, t }) {
         </button>
         <button className={`p-filter-tab${adminTab === 'stripe' ? ' active' : ''}`} onClick={() => setAdminTab('stripe')}>
           💳 {t.adminStripeTitle}
+        </button>
+        <button className={`p-filter-tab${adminTab === 'security' ? ' active' : ''}`} onClick={() => setAdminTab('security')}>
+          🔒 {lang === 'da' ? 'Sikkerhed' : 'Security'}
         </button>
       </div>
 
@@ -6520,6 +7097,53 @@ function AdminPage({ lang, t }) {
                     autoComplete="off"
                   />
                 </div>
+              ))}
+            </div>
+            <div style={{ marginTop: 20 }}>
+              <button
+                type="submit"
+                disabled={status === 'saving'}
+                style={{ padding: '10px 24px', borderRadius: 8, border: 'none', background: status === 'saved' ? '#40916C' : '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}
+              >
+                {status === 'saving' ? t.adminSaving : status === 'saved' ? t.adminSaved : t.adminSave}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {adminTab === 'security' && (
+        <div className="p-card" style={{ marginBottom: 20, padding: '20px 24px' }}>
+          <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700 }}>🔒 {lang === 'da' ? 'Adgangskodepolitik' : 'Password policy'}</h3>
+          <p style={{ margin: '0 0 20px', fontSize: 13, color: '#666' }}>
+            {lang === 'da' ? 'Krav der gælder ved oprettelse, nulstilling og skift af adgangskode.' : 'Requirements enforced on registration, reset, and password change.'}
+          </p>
+          <form onSubmit={handleSave}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={lS}>{lang === 'da' ? 'Minimumslængde' : 'Minimum length'}</label>
+                <input
+                  style={{ ...fS, width: 120 }}
+                  type="number" min="4" max="64"
+                  value={form.pwd_min_length || '6'}
+                  onChange={e => setForm(prev => ({ ...prev, pwd_min_length: e.target.value }))}
+                />
+              </div>
+              {[
+                { key: 'pwd_require_uppercase', da: 'Kræv stort bogstav (A–Z)', en: 'Require uppercase letter (A–Z)' },
+                { key: 'pwd_require_lowercase', da: 'Kræv lille bogstav (a–z)', en: 'Require lowercase letter (a–z)' },
+                { key: 'pwd_require_numbers',   da: 'Kræv tal (0–9)',           en: 'Require number (0–9)' },
+                { key: 'pwd_require_symbols',   da: 'Kræv specialtegn (!@#$…)', en: 'Require symbol (!@#$…)' },
+              ].map(({ key, da, en }) => (
+                <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
+                  <input
+                    type="checkbox"
+                    checked={form[key] === '1'}
+                    onChange={e => setForm(prev => ({ ...prev, [key]: e.target.checked ? '1' : '0' }))}
+                    style={{ width: 16, height: 16, accentColor: '#2D6A4F', cursor: 'pointer' }}
+                  />
+                  {lang === 'da' ? da : en}
+                </label>
               ))}
             </div>
             <div style={{ marginTop: 20 }}>

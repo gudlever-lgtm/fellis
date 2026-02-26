@@ -22,6 +22,12 @@ server/.env
 
 # Uploaded media files
 server/uploads/
+uploads/
+
+# Server runtime / deployment files
+node
+some-eu-app*
+server/ecosystem.config.cjs
 
 # Editor directories and files
 .vscode/*

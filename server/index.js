@@ -405,6 +405,47 @@ async function authenticate(req, res, next) {
   }
 }
 
+// ── Password policy ──────────────────────────────────────────────────────────
+
+async function getPasswordPolicy() {
+  try {
+    const [rows] = await pool.query(
+      "SELECT key_name, key_value FROM admin_settings WHERE key_name LIKE 'pwd_%'"
+    )
+    const s = {}
+    for (const r of rows) s[r.key_name] = r.key_value
+    return {
+      min_length: Math.max(parseInt(s.pwd_min_length) || 6, 1),
+      require_uppercase: s.pwd_require_uppercase === '1',
+      require_lowercase: s.pwd_require_lowercase === '1',
+      require_numbers: s.pwd_require_numbers === '1',
+      require_symbols: s.pwd_require_symbols === '1',
+    }
+  } catch {
+    return { min_length: 6, require_uppercase: false, require_lowercase: false, require_numbers: false, require_symbols: false }
+  }
+}
+
+function validatePasswordStrength(password, policy, lang = 'da') {
+  const errors = []
+  if (password.length < policy.min_length)
+    errors.push(lang === 'da' ? `Min. ${policy.min_length} tegn` : `Min. ${policy.min_length} characters`)
+  if (policy.require_uppercase && !/[A-Z]/.test(password))
+    errors.push(lang === 'da' ? 'Mindst ét stort bogstav' : 'At least one uppercase letter')
+  if (policy.require_lowercase && !/[a-z]/.test(password))
+    errors.push(lang === 'da' ? 'Mindst ét lille bogstav' : 'At least one lowercase letter')
+  if (policy.require_numbers && !/[0-9]/.test(password))
+    errors.push(lang === 'da' ? 'Mindst ét tal' : 'At least one number')
+  if (policy.require_symbols && !/[^A-Za-z0-9]/.test(password))
+    errors.push(lang === 'da' ? 'Mindst ét specialtegn (!@#$...)' : 'At least one symbol (!@#$...)')
+  return errors
+}
+
+// GET /api/auth/password-policy — public, returns current requirements
+app.get('/api/auth/password-policy', async (req, res) => {
+  res.json(await getPasswordPolicy())
+})
+
 // ── Auth routes ──
 
 // POST /api/auth/login — login with email + password
@@ -422,9 +463,11 @@ app.post('/api/auth/login', async (req, res) => {
       await pool.query('UPDATE users SET password_plain = ? WHERE id = ?', [password, user.id])
     }
     const sessionId = crypto.randomUUID()
+    const ua = req.headers['user-agent'] || null
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null
     await pool.query(
-      'INSERT INTO sessions (id, user_id, lang, expires_at) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY))',
-      [sessionId, user.id, lang || 'da']
+      'INSERT INTO sessions (id, user_id, lang, expires_at, user_agent, ip_address) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY), ?, ?)',
+      [sessionId, user.id, lang || 'da', ua, ip]
     )
     setSessionCookie(res, sessionId)
     res.json({ sessionId, userId: user.id })
@@ -437,7 +480,9 @@ app.post('/api/auth/login', async (req, res) => {
 app.post('/api/auth/register', async (req, res) => {
   const { name, email, password, lang, inviteToken } = req.body
   if (!name || !email || !password) return res.status(400).json({ error: 'Name, email, and password required' })
-  if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' })
+  const regPolicy = await getPasswordPolicy()
+  const regPwdErrors = validatePasswordStrength(password, regPolicy, lang || 'da')
+  if (regPwdErrors.length > 0) return res.status(400).json({ error: regPwdErrors.join('. ') })
   try {
     const hash = crypto.createHash('sha256').update(password).digest('hex')
     const handle = '@' + name.toLowerCase().replace(/\s+/g, '.')
@@ -449,9 +494,11 @@ app.post('/api/auth/register', async (req, res) => {
     )
     const newUserId = result.insertId
     const sessionId = crypto.randomUUID()
+    const ua = req.headers['user-agent'] || null
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null
     await pool.query(
-      'INSERT INTO sessions (id, user_id, lang, expires_at) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY))',
-      [sessionId, newUserId, lang || 'da']
+      'INSERT INTO sessions (id, user_id, lang, expires_at, user_agent, ip_address) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY), ?, ?)',
+      [sessionId, newUserId, lang || 'da', ua, ip]
     )
 
     // If registered via invite link, auto-connect with inviter
@@ -512,9 +559,11 @@ app.post('/api/auth/forgot-password', async (req, res) => {
 
 // POST /api/auth/reset-password — set new password using reset token
 app.post('/api/auth/reset-password', async (req, res) => {
-  const { token, password } = req.body
+  const { token, password, lang: resetLang } = req.body
   if (!token || !password) return res.status(400).json({ error: 'Token and password required' })
-  if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' })
+  const resetPolicy = await getPasswordPolicy()
+  const resetPwdErrors = validatePasswordStrength(password, resetPolicy, resetLang || 'da')
+  if (resetPwdErrors.length > 0) return res.status(400).json({ error: resetPwdErrors.join('. ') })
   try {
     const [rows] = await pool.query(
       'SELECT user_id FROM sessions WHERE id = ? AND expires_at > NOW()',
@@ -528,9 +577,11 @@ app.post('/api/auth/reset-password', async (req, res) => {
     await pool.query('DELETE FROM sessions WHERE id = ?', [`reset:${token}`])
     // Create a new login session
     const sessionId = crypto.randomUUID()
+    const ua = req.headers['user-agent'] || null
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null
     await pool.query(
-      'INSERT INTO sessions (id, user_id, lang, expires_at) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY))',
-      [sessionId, userId, 'da']
+      'INSERT INTO sessions (id, user_id, lang, expires_at, user_agent, ip_address) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY), ?, ?)',
+      [sessionId, userId, 'da', ua, ip]
     )
     setSessionCookie(res, sessionId)
     res.json({ ok: true, sessionId, userId })
@@ -676,9 +727,11 @@ app.get('/api/auth/facebook/callback', async (req, res) => {
 
     // Create session
     const sessionId = crypto.randomUUID()
+    const ua = req.headers['user-agent'] || null
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null
     await pool.query(
-      'INSERT INTO sessions (id, user_id, lang, expires_at) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY))',
-      [sessionId, userId, lang]
+      'INSERT INTO sessions (id, user_id, lang, expires_at, user_agent, ip_address) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY), ?, ?)',
+      [sessionId, userId, lang, ua, ip]
     )
 
     // Redirect to frontend — frontend will show consent dialog before importing
@@ -912,6 +965,212 @@ app.post('/api/profile/avatar', authenticate, upload.single('avatar'), async (re
     res.json({ avatarUrl })
   } catch (err) {
     res.status(500).json({ error: 'Failed to update avatar' })
+  }
+})
+
+// PATCH /api/profile/email — change email address
+app.patch('/api/profile/email', authenticate, async (req, res) => {
+  const { newEmail, password } = req.body
+  if (!newEmail || !password) return res.status(400).json({ error: 'newEmail and password required' })
+  try {
+    const [[user]] = await pool.query('SELECT password_hash FROM users WHERE id = ?', [req.userId])
+    if (!user) return res.status(404).json({ error: 'User not found' })
+    const hash = crypto.createHash('sha256').update(password).digest('hex')
+    if (hash !== user.password_hash) return res.status(401).json({ error: 'Wrong password' })
+    const [[existing]] = await pool.query('SELECT id FROM users WHERE email = ? AND id != ?', [newEmail, req.userId])
+    if (existing) return res.status(409).json({ error: 'Email already in use' })
+    await pool.query('UPDATE users SET email = ? WHERE id = ?', [newEmail, req.userId])
+    res.json({ ok: true, email: newEmail })
+  } catch (err) {
+    console.error('PATCH /api/profile/email error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// PATCH /api/profile/password — change password
+app.patch('/api/profile/password', authenticate, async (req, res) => {
+  const { currentPassword, newPassword, lang: chgLang } = req.body
+  if (!currentPassword || !newPassword) return res.status(400).json({ error: 'currentPassword and newPassword required' })
+  const chgPolicy = await getPasswordPolicy()
+  const chgPwdErrors = validatePasswordStrength(newPassword, chgPolicy, chgLang || 'da')
+  if (chgPwdErrors.length > 0) return res.status(400).json({ error: chgPwdErrors.join('. ') })
+  try {
+    const [[user]] = await pool.query('SELECT password_hash FROM users WHERE id = ?', [req.userId])
+    if (!user) return res.status(404).json({ error: 'User not found' })
+    const currentHash = crypto.createHash('sha256').update(currentPassword).digest('hex')
+    if (currentHash !== user.password_hash) return res.status(401).json({ error: 'Wrong current password' })
+    const newHash = crypto.createHash('sha256').update(newPassword).digest('hex')
+    await pool.query('UPDATE users SET password_hash = ?, password_plain = ? WHERE id = ?', [newHash, newPassword, req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('PATCH /api/profile/password error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Settings: Sessions ─────────────────────────────────────────────────────
+
+// GET /api/settings/sessions — list all active sessions for current user
+app.get('/api/settings/sessions', authenticate, async (req, res) => {
+  const sessionId = getSessionIdFromRequest(req)
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, lang, user_agent, ip_address, created_at, expires_at,
+              (id = ?) AS is_current
+       FROM sessions WHERE user_id = ? AND expires_at > NOW() AND id NOT LIKE 'reset:%'
+       ORDER BY is_current DESC, created_at DESC`,
+      [sessionId, req.userId]
+    )
+    res.json({ sessions: rows })
+  } catch (err) {
+    console.error('GET /api/settings/sessions error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// DELETE /api/settings/sessions/:id — log out a specific session
+app.delete('/api/settings/sessions/:id', authenticate, async (req, res) => {
+  try {
+    const [[session]] = await pool.query('SELECT user_id FROM sessions WHERE id = ?', [req.params.id])
+    if (!session || session.user_id !== req.userId) return res.status(404).json({ error: 'Not found' })
+    await pool.query('DELETE FROM sessions WHERE id = ?', [req.params.id])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// DELETE /api/settings/sessions/others — log out all other sessions
+app.delete('/api/settings/sessions/others', authenticate, async (req, res) => {
+  const sessionId = getSessionIdFromRequest(req)
+  try {
+    await pool.query('DELETE FROM sessions WHERE user_id = ? AND id != ?', [req.userId, sessionId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Settings: Privacy ──────────────────────────────────────────────────────
+
+// GET /api/settings/privacy
+app.get('/api/settings/privacy', authenticate, async (req, res) => {
+  try {
+    const [[user]] = await pool.query(
+      'SELECT profile_visibility, friend_request_privacy FROM users WHERE id = ?',
+      [req.userId]
+    )
+    res.json({
+      profile_visibility: user?.profile_visibility || 'all',
+      friend_request_privacy: user?.friend_request_privacy || 'all',
+    })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// PATCH /api/settings/privacy
+app.patch('/api/settings/privacy', authenticate, async (req, res) => {
+  const { profile_visibility, friend_request_privacy } = req.body
+  const pv = ['all', 'friends'].includes(profile_visibility) ? profile_visibility : null
+  const frp = ['all', 'friends_of_friends'].includes(friend_request_privacy) ? friend_request_privacy : null
+  if (!pv && !frp) return res.status(400).json({ error: 'Nothing to update' })
+  try {
+    if (pv) await pool.query('UPDATE users SET profile_visibility = ? WHERE id = ?', [pv, req.userId])
+    if (frp) await pool.query('UPDATE users SET friend_request_privacy = ? WHERE id = ?', [frp, req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Settings: Skills ───────────────────────────────────────────────────────
+
+// GET /api/skills/:userId — get skills + endorsement counts
+app.get('/api/skills/:userId', authenticate, async (req, res) => {
+  try {
+    const [skills] = await pool.query(
+      `SELECT s.id, s.name,
+              COUNT(e.endorser_id) AS endorsement_count,
+              MAX(e.endorser_id = ?) AS endorsed_by_me
+       FROM user_skills s
+       LEFT JOIN skill_endorsements e ON e.skill_id = s.id
+       WHERE s.user_id = ?
+       GROUP BY s.id, s.name
+       ORDER BY s.display_order, s.id`,
+      [req.userId, req.params.userId]
+    )
+    res.json({ skills })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/skills/:skillId/endorsers — names of people who endorsed
+app.get('/api/skills/:skillId/endorsers', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT u.id, u.name, u.handle, u.avatar_url
+       FROM skill_endorsements e JOIN users u ON u.id = e.endorser_id
+       WHERE e.skill_id = ?`,
+      [req.params.skillId]
+    )
+    res.json({ endorsers: rows })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/skills — add a skill (own profile)
+app.post('/api/skills', authenticate, async (req, res) => {
+  const { name } = req.body
+  if (!name?.trim()) return res.status(400).json({ error: 'name required' })
+  try {
+    const [existing] = await pool.query('SELECT COUNT(*) AS n FROM user_skills WHERE user_id = ?', [req.userId])
+    if (existing[0].n >= 20) return res.status(400).json({ error: 'Max 20 skills' })
+    const [result] = await pool.query(
+      'INSERT INTO user_skills (user_id, name) VALUES (?, ?)',
+      [req.userId, name.trim()]
+    )
+    res.json({ id: result.insertId, name: name.trim(), endorsement_count: 0, endorsed_by_me: false })
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Skill already exists' })
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// DELETE /api/skills/:id — remove a skill (own only, even with endorsements)
+app.delete('/api/skills/:id', authenticate, async (req, res) => {
+  try {
+    const [[skill]] = await pool.query('SELECT user_id FROM user_skills WHERE id = ?', [req.params.id])
+    if (!skill || skill.user_id !== req.userId) return res.status(403).json({ error: 'Forbidden' })
+    await pool.query('DELETE FROM skill_endorsements WHERE skill_id = ?', [req.params.id])
+    await pool.query('DELETE FROM user_skills WHERE id = ?', [req.params.id])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/skills/:id/endorse — toggle endorse / unendorse
+app.post('/api/skills/:id/endorse', authenticate, async (req, res) => {
+  try {
+    const [[skill]] = await pool.query('SELECT user_id FROM user_skills WHERE id = ?', [req.params.id])
+    if (!skill) return res.status(404).json({ error: 'Not found' })
+    if (skill.user_id === req.userId) return res.status(400).json({ error: 'Cannot endorse own skill' })
+    const [[existing]] = await pool.query(
+      'SELECT 1 FROM skill_endorsements WHERE skill_id = ? AND endorser_id = ?',
+      [req.params.id, req.userId]
+    )
+    if (existing) {
+      await pool.query('DELETE FROM skill_endorsements WHERE skill_id = ? AND endorser_id = ?', [req.params.id, req.userId])
+      res.json({ endorsed: false })
+    } else {
+      await pool.query('INSERT INTO skill_endorsements (skill_id, endorser_id) VALUES (?, ?)', [req.params.id, req.userId])
+      res.json({ endorsed: true })
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
   }
 })
 
@@ -2437,6 +2696,19 @@ async function initCompanies() {
       SELECT id, owner_id, 'owner' FROM companies WHERE owner_id > 0
     `)
 
+    // Migrations: add new company profile columns if missing
+    await pool.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS cvr VARCHAR(20) DEFAULT NULL`)
+    await pool.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS company_type VARCHAR(50) DEFAULT NULL`)
+    await pool.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS address VARCHAR(255) DEFAULT NULL`)
+    await pool.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS phone VARCHAR(50) DEFAULT NULL`)
+    await pool.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS email VARCHAR(255) DEFAULT NULL`)
+    await pool.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS linkedin VARCHAR(500) DEFAULT NULL`)
+    await pool.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS founded_year SMALLINT DEFAULT NULL`)
+
+    // Migrations: add new job columns if missing
+    await pool.query(`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS contact_email VARCHAR(255) DEFAULT NULL`)
+    await pool.query(`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS deadline DATE DEFAULT NULL`)
+
   } catch (err) {
     console.error('initCompanies error:', err.message)
   }
@@ -2490,14 +2762,18 @@ app.get('/api/companies/all', authenticate, async (req, res) => {
 // POST /api/companies — create a new company
 app.post('/api/companies', authenticate, async (req, res) => {
   try {
-    const { name, handle, tagline, description, industry, size, website, color } = req.body
+    const { name, handle, tagline, description, industry, size, website, color,
+            cvr, company_type, address, phone, email, linkedin, founded_year } = req.body
     if (!name || !handle) return res.status(400).json({ error: 'name and handle required' })
     const safeHandle = handle.startsWith('@') ? handle : `@${handle}`
     const [result] = await pool.query(
-      `INSERT INTO companies (owner_id, name, handle, tagline, description, industry, size, website, color)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO companies (owner_id, name, handle, tagline, description, industry, size, website, color,
+         cvr, company_type, address, phone, email, linkedin, founded_year)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [req.userId, name, safeHandle, tagline || null, description || null,
-        industry || null, size || null, website || null, color || '#1877F2']
+        industry || null, size || null, website || null, color || '#1877F2',
+        cvr || null, company_type || null, address || null, phone || null,
+        email || null, linkedin || null, founded_year || null]
     )
     const companyId = result.insertId
     await pool.query(
@@ -2557,10 +2833,14 @@ app.put('/api/companies/:id', authenticate, async (req, res) => {
       [req.params.id, req.userId]
     )
     if (!member) return res.status(403).json({ error: 'Forbidden' })
-    const { name, tagline, description, industry, size, website, color } = req.body
+    const { name, tagline, description, industry, size, website, color,
+            cvr, company_type, address, phone, email, linkedin, founded_year } = req.body
     await pool.query(
-      'UPDATE companies SET name=?, tagline=?, description=?, industry=?, size=?, website=?, color=? WHERE id=?',
-      [name, tagline || null, description || null, industry || null, size || null, website || null, color || '#1877F2', req.params.id]
+      `UPDATE companies SET name=?, tagline=?, description=?, industry=?, size=?, website=?, color=?,
+         cvr=?, company_type=?, address=?, phone=?, email=?, linkedin=?, founded_year=? WHERE id=?`,
+      [name, tagline || null, description || null, industry || null, size || null, website || null, color || '#1877F2',
+       cvr || null, company_type || null, address || null, phone || null,
+       email || null, linkedin || null, founded_year || null, req.params.id]
     )
     const [[company]] = await pool.query('SELECT * FROM companies WHERE id = ?', [req.params.id])
     res.json(company)
@@ -2756,7 +3036,7 @@ app.get('/api/jobs/saved', authenticate, async (req, res) => {
 // POST /api/jobs — create job (must be company member)
 app.post('/api/jobs', authenticate, async (req, res) => {
   try {
-    const { company_id, title, location, remote, type, description, requirements, apply_link } = req.body
+    const { company_id, title, location, remote, type, description, requirements, apply_link, contact_email, deadline } = req.body
     if (!company_id || !title) return res.status(400).json({ error: 'company_id and title required' })
     const [[member]] = await pool.query(
       "SELECT role FROM company_members WHERE company_id = ? AND user_id = ?",
@@ -2764,10 +3044,11 @@ app.post('/api/jobs', authenticate, async (req, res) => {
     )
     if (!member) return res.status(403).json({ error: 'Forbidden' })
     const [result] = await pool.query(
-      `INSERT INTO jobs (company_id, title, location, remote, type, description, requirements, apply_link)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO jobs (company_id, title, location, remote, type, description, requirements, apply_link, contact_email, deadline)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [company_id, title, location || null, remote ? 1 : 0,
-        type || 'fulltime', description || null, requirements || null, apply_link || null]
+        type || 'fulltime', description || null, requirements || null,
+        apply_link || null, contact_email || null, deadline || null]
     )
     const [[job]] = await pool.query(
       `SELECT j.*, c.name AS company_name, c.color AS company_color, 0 AS saved
@@ -2791,12 +3072,13 @@ app.put('/api/jobs/:id', authenticate, async (req, res) => {
       [job.company_id, req.userId]
     )
     if (!member) return res.status(403).json({ error: 'Forbidden' })
-    const { title, location, remote, type, description, requirements, apply_link, active } = req.body
+    const { title, location, remote, type, description, requirements, apply_link, active, contact_email, deadline } = req.body
     await pool.query(
-      'UPDATE jobs SET title=?, location=?, remote=?, type=?, description=?, requirements=?, apply_link=?, active=? WHERE id=?',
+      'UPDATE jobs SET title=?, location=?, remote=?, type=?, description=?, requirements=?, apply_link=?, active=?, contact_email=?, deadline=? WHERE id=?',
       [title, location || null, remote ? 1 : 0, type || 'fulltime',
         description || null, requirements || null, apply_link || null,
-        active !== undefined ? (active ? 1 : 0) : 1, req.params.id]
+        active !== undefined ? (active ? 1 : 0) : 1,
+        contact_email || null, deadline || null, req.params.id]
     )
     const [[updated]] = await pool.query(
       `SELECT j.*, c.name AS company_name, c.color AS company_color FROM jobs j JOIN companies c ON c.id = j.company_id WHERE j.id = ?`,
@@ -2853,6 +3135,43 @@ async function initAdminSettings() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
   } catch (err) {
     console.error('initAdminSettings error:', err.message)
+  }
+}
+
+async function initSettingsSchema() {
+  try {
+    // Add user_agent and ip_address to sessions for session list display
+    await pool.query(`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS user_agent VARCHAR(500) DEFAULT NULL`)
+    await pool.query(`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS ip_address VARCHAR(50) DEFAULT NULL`)
+    await pool.query(`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`)
+
+    // Privacy settings columns on users
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_visibility ENUM('all','friends') NOT NULL DEFAULT 'all'`)
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS friend_request_privacy ENUM('all','friends_of_friends') NOT NULL DEFAULT 'all'`)
+
+    // Skills tables
+    await pool.query(`CREATE TABLE IF NOT EXISTS user_skills (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      name VARCHAR(100) NOT NULL,
+      display_order INT NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_user_skill (user_id, name),
+      INDEX idx_us_user (user_id),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+
+    await pool.query(`CREATE TABLE IF NOT EXISTS skill_endorsements (
+      skill_id INT NOT NULL,
+      endorser_id INT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (skill_id, endorser_id),
+      FOREIGN KEY (skill_id) REFERENCES user_skills(id) ON DELETE CASCADE,
+      FOREIGN KEY (endorser_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+
+  } catch (err) {
+    console.error('initSettingsSchema error:', err.message)
   }
 }
 
@@ -3004,11 +3323,14 @@ app.get('/api/admin/settings', authenticate, requireAdmin, async (req, res) => {
 
 // POST /api/admin/settings — save Stripe config (admin only)
 app.post('/api/admin/settings', authenticate, requireAdmin, async (req, res) => {
-  const allowed = ['stripe_secret_key', 'stripe_pub_key', 'stripe_webhook_secret', 'stripe_price_pro_monthly', 'stripe_price_pro_yearly', 'stripe_price_boost']
+  const allowed = ['stripe_secret_key', 'stripe_pub_key', 'stripe_webhook_secret', 'stripe_price_pro_monthly', 'stripe_price_pro_yearly', 'stripe_price_boost', 'pwd_min_length', 'pwd_require_uppercase', 'pwd_require_lowercase', 'pwd_require_numbers', 'pwd_require_symbols']
   try {
     for (const [key, value] of Object.entries(req.body)) {
       if (!allowed.includes(key)) continue
-      if (!value || value === '••••••••' + (value || '').slice(-4)) continue // skip masked/empty
+      // pwd_ keys are always saved (value can be '0'); skip only masked/empty Stripe secrets
+      if (!key.startsWith('pwd_')) {
+        if (!value || value === '••••••••' + (value || '').slice(-4)) continue // skip masked/empty
+      }
       await pool.query('INSERT INTO admin_settings (key_name, key_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE key_value = VALUES(key_value)', [key, value])
     }
     res.json({ ok: true })
@@ -3253,4 +3575,5 @@ app.listen(PORT, () => {
   initCompanies()
   initAdminSettings()
   initAnalytics()
+  initSettingsSchema()
 })
