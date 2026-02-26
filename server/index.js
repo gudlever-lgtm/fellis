@@ -3130,6 +3130,100 @@ app.put('/api/events/:id/rsvp', authenticate, async (req, res) => {
   }
 })
 
+// ── User settings ──
+
+// GET /api/me/sessions — list active sessions for the current user
+app.get('/api/me/sessions', authenticate, async (req, res) => {
+  const currentSessionId = getSessionIdFromRequest(req)
+  try {
+    const [sessions] = await pool.query(
+      'SELECT id, created_at, expires_at FROM sessions WHERE user_id = ? ORDER BY created_at DESC',
+      [req.userId]
+    )
+    res.json(sessions.map(s => ({
+      id: s.id,
+      isCurrent: s.id === currentSessionId,
+      createdAt: s.created_at,
+      expiresAt: s.expires_at,
+    })))
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch sessions' })
+  }
+})
+
+// DELETE /api/me/sessions/others — revoke all sessions except current
+app.delete('/api/me/sessions/others', authenticate, async (req, res) => {
+  const currentSessionId = getSessionIdFromRequest(req)
+  try {
+    await pool.query('DELETE FROM sessions WHERE user_id = ? AND id != ?', [req.userId, currentSessionId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to revoke sessions' })
+  }
+})
+
+// DELETE /api/me/sessions/:id — revoke a specific session
+app.delete('/api/me/sessions/:id', authenticate, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM sessions WHERE id = ? AND user_id = ?', [req.params.id, req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to revoke session' })
+  }
+})
+
+// POST /api/me/email — change email address
+app.post('/api/me/email', authenticate, async (req, res) => {
+  const { email } = req.body
+  if (!email || !email.includes('@')) return res.status(400).json({ error: 'Valid email required' })
+  try {
+    await pool.query('UPDATE users SET email = ? WHERE id = ?', [email.trim().toLowerCase(), req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Email already in use' })
+    res.status(500).json({ error: 'Failed to update email' })
+  }
+})
+
+// GET /api/me/privacy — get privacy settings
+app.get('/api/me/privacy', authenticate, async (req, res) => {
+  try {
+    const [users] = await pool.query(
+      'SELECT profile_visibility, friend_requests_from FROM users WHERE id = ?',
+      [req.userId]
+    )
+    if (!users.length) return res.status(404).json({ error: 'User not found' })
+    res.json({
+      profile_visibility: users[0].profile_visibility || 'all',
+      friend_requests_from: users[0].friend_requests_from || 'all',
+    })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch privacy settings' })
+  }
+})
+
+// PATCH /api/me/privacy — update privacy settings
+app.patch('/api/me/privacy', authenticate, async (req, res) => {
+  const { profile_visibility, friend_requests_from } = req.body
+  const validVis = ['all', 'friends']
+  const validReq = ['all', 'fof']
+  if (profile_visibility && !validVis.includes(profile_visibility)) return res.status(400).json({ error: 'Invalid visibility' })
+  if (friend_requests_from && !validReq.includes(friend_requests_from)) return res.status(400).json({ error: 'Invalid friend_requests_from' })
+  try {
+    const updates = []
+    const vals = []
+    if (profile_visibility) { updates.push('profile_visibility = ?'); vals.push(profile_visibility) }
+    if (friend_requests_from) { updates.push('friend_requests_from = ?'); vals.push(friend_requests_from) }
+    if (updates.length) {
+      vals.push(req.userId)
+      await pool.query(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, vals)
+    }
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update privacy settings' })
+  }
+})
+
 // Multer error handler
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
