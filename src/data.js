@@ -14,6 +14,14 @@ export function getInitials(name) {
   return name.split(' ').map(n => n[0]).join('')
 }
 
+// Detect the first music URL (Spotify, YouTube, SoundCloud, Apple Music, Bandcamp, Tidal) in a text string
+export function detectMusicUrl(text) {
+  if (!text) return null
+  const MUSIC_RE = /https?:\/\/(?:open\.spotify\.com|(?:www\.)?youtube\.com\/watch|youtu\.be|(?:www\.)?soundcloud\.com|music\.apple\.com|[a-zA-Z0-9-]+\.bandcamp\.com|(?:www\.)?tidal\.com)[^\s)>\]"']*/i
+  const match = text.match(MUSIC_RE)
+  return match ? match[0] : null
+}
+
 // Current user
 export const CURRENT_USER = {
   name: 'Sofie Nielsen',
@@ -411,8 +419,6 @@ export const PT = {
     companyCancel: 'Annuller',
     companySearchPlaceholder: 'Søg virksomheder...',
     companyFeedLabel: 'Virksomhedsside',
-    companyMembers: 'Medarbejdere',
-    companyNoMembers: 'Ingen medarbejdere endnu.',
     // Jobs (business mode)
     jobs: 'Job',
     jobsTitle: 'Jobopslag',
@@ -506,41 +512,10 @@ export const PT = {
     adminSaved: '✓ Gemt!',
     adminSaving: 'Gemmer...',
     adminNoStripe: 'Stripe er ikke konfigureret endnu.',
-    // Indstillinger
-    settingsTitle: 'Indstillinger',
-    settingsAccount: 'Konto',
-    settingsPrivacy: 'Privatliv',
-    settingsSessions: 'Sessioner',
-    settingsLangMode: 'Sprog & Tilstand',
-    settingsChangePassword: 'Skift adgangskode',
-    settingsCurrentPassword: 'Nuværende adgangskode',
-    settingsNewPassword: 'Ny adgangskode',
-    settingsConfirmPassword: 'Bekræft ny adgangskode',
-    settingsPasswordSaved: 'Adgangskode opdateret',
-    settingsPasswordMismatch: 'Adgangskoderne stemmer ikke overens',
-    settingsPasswordTooShort: 'Mindst 6 tegn kræves',
-    settingsPasswordWrong: 'Nuværende adgangskode er forkert',
-    settingsChangeEmail: 'Skift e-mail',
-    settingsNewEmail: 'Ny e-mail',
-    settingsEmailSaved: 'E-mail opdateret',
-    settingsEmailInUse: 'E-mail er allerede i brug',
-    settingsSave: 'Gem',
-    settingsSaving: 'Gemmer...',
-    settingsSaved: '✓ Gemt',
-    settingsActiveSessions: 'Aktive sessioner',
-    settingsCurrentSession: 'Denne enhed',
-    settingsRevokeSession: 'Log ud',
-    settingsRevokeAllOthers: 'Log ud af alle andre enheder',
-    settingsSessionRevoked: 'Session afsluttet',
-    settingsLanguageLabel: 'Sprog',
-    settingsModeLabel: 'Kontotype',
-    settingsWhoCanSeeProfile: 'Hvem kan se din profil?',
-    settingsWhoCanSeeProfileAll: 'Alle',
-    settingsWhoCanSeeProfileFriends: 'Kun venner',
-    settingsWhoCanSendRequests: 'Hvem kan sende venneanmodninger?',
-    settingsWhoCanSendRequestsAll: 'Alle',
-    settingsWhoCanSendRequestsFOF: 'Venners venner',
-    settingsPrivacySaved: 'Privatlivsindstillinger gemt',
+    // Parachord integration
+    parachordBtn: '▶ Åbn i Parachord',
+    parachordToggleLabel: 'Vis "Åbn i Parachord"-knap på musikopslag',
+    parachordSettingsTitle: 'Musik-integration',
   },
   en: {
     feed: 'Feed',
@@ -823,8 +798,6 @@ export const PT = {
     companyCancel: 'Cancel',
     companySearchPlaceholder: 'Search companies...',
     companyFeedLabel: 'Company page',
-    companyMembers: 'Employees',
-    companyNoMembers: 'No employees yet.',
     // Jobs (business mode)
     jobs: 'Jobs',
     jobsTitle: 'Job listings',
@@ -918,41 +891,10 @@ export const PT = {
     adminSaved: '✓ Saved!',
     adminSaving: 'Saving...',
     adminNoStripe: 'Stripe is not configured yet.',
-    // Settings
-    settingsTitle: 'Settings',
-    settingsAccount: 'Account',
-    settingsPrivacy: 'Privacy',
-    settingsSessions: 'Sessions',
-    settingsLangMode: 'Language & Mode',
-    settingsChangePassword: 'Change password',
-    settingsCurrentPassword: 'Current password',
-    settingsNewPassword: 'New password',
-    settingsConfirmPassword: 'Confirm new password',
-    settingsPasswordSaved: 'Password updated',
-    settingsPasswordMismatch: 'Passwords do not match',
-    settingsPasswordTooShort: 'At least 6 characters required',
-    settingsPasswordWrong: 'Current password is incorrect',
-    settingsChangeEmail: 'Change email',
-    settingsNewEmail: 'New email',
-    settingsEmailSaved: 'Email updated',
-    settingsEmailInUse: 'Email already in use',
-    settingsSave: 'Save',
-    settingsSaving: 'Saving...',
-    settingsSaved: '✓ Saved',
-    settingsActiveSessions: 'Active sessions',
-    settingsCurrentSession: 'This device',
-    settingsRevokeSession: 'Sign out',
-    settingsRevokeAllOthers: 'Sign out of all other devices',
-    settingsSessionRevoked: 'Session ended',
-    settingsLanguageLabel: 'Language',
-    settingsModeLabel: 'Account type',
-    settingsWhoCanSeeProfile: 'Who can see your profile?',
-    settingsWhoCanSeeProfileAll: 'Everyone',
-    settingsWhoCanSeeProfileFriends: 'Friends only',
-    settingsWhoCanSendRequests: 'Who can send friend requests?',
-    settingsWhoCanSendRequestsAll: 'Everyone',
-    settingsWhoCanSendRequestsFOF: 'Friends of friends',
-    settingsPrivacySaved: 'Privacy settings saved',
+    // Parachord integration
+    parachordBtn: '▶ Open in Parachord',
+    parachordToggleLabel: 'Show "Open in Parachord" button on music posts',
+    parachordSettingsTitle: 'Music integration',
   },
 }
 
