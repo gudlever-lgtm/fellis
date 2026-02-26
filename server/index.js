@@ -422,9 +422,11 @@ app.post('/api/auth/login', async (req, res) => {
       await pool.query('UPDATE users SET password_plain = ? WHERE id = ?', [password, user.id])
     }
     const sessionId = crypto.randomUUID()
+    const ua = req.headers['user-agent'] || null
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null
     await pool.query(
-      'INSERT INTO sessions (id, user_id, lang, expires_at) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY))',
-      [sessionId, user.id, lang || 'da']
+      'INSERT INTO sessions (id, user_id, lang, expires_at, user_agent, ip_address) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY), ?, ?)',
+      [sessionId, user.id, lang || 'da', ua, ip]
     )
     setSessionCookie(res, sessionId)
     res.json({ sessionId, userId: user.id })
@@ -449,9 +451,11 @@ app.post('/api/auth/register', async (req, res) => {
     )
     const newUserId = result.insertId
     const sessionId = crypto.randomUUID()
+    const ua = req.headers['user-agent'] || null
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null
     await pool.query(
-      'INSERT INTO sessions (id, user_id, lang, expires_at) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY))',
-      [sessionId, newUserId, lang || 'da']
+      'INSERT INTO sessions (id, user_id, lang, expires_at, user_agent, ip_address) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY), ?, ?)',
+      [sessionId, newUserId, lang || 'da', ua, ip]
     )
 
     // If registered via invite link, auto-connect with inviter
@@ -528,9 +532,11 @@ app.post('/api/auth/reset-password', async (req, res) => {
     await pool.query('DELETE FROM sessions WHERE id = ?', [`reset:${token}`])
     // Create a new login session
     const sessionId = crypto.randomUUID()
+    const ua = req.headers['user-agent'] || null
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null
     await pool.query(
-      'INSERT INTO sessions (id, user_id, lang, expires_at) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY))',
-      [sessionId, userId, 'da']
+      'INSERT INTO sessions (id, user_id, lang, expires_at, user_agent, ip_address) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY), ?, ?)',
+      [sessionId, userId, 'da', ua, ip]
     )
     setSessionCookie(res, sessionId)
     res.json({ ok: true, sessionId, userId })
@@ -658,9 +664,11 @@ app.get('/api/auth/facebook/callback', async (req, res) => {
 
     // Create session
     const sessionId = crypto.randomUUID()
+    const ua = req.headers['user-agent'] || null
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null
     await pool.query(
-      'INSERT INTO sessions (id, user_id, lang, expires_at) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY))',
-      [sessionId, userId, lang]
+      'INSERT INTO sessions (id, user_id, lang, expires_at, user_agent, ip_address) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY), ?, ?)',
+      [sessionId, userId, lang, ua, ip]
     )
 
     // Redirect to frontend — frontend will show consent dialog before importing
@@ -931,6 +939,172 @@ app.patch('/api/profile/password', authenticate, async (req, res) => {
     res.json({ ok: true })
   } catch (err) {
     console.error('PATCH /api/profile/password error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Settings: Sessions ─────────────────────────────────────────────────────
+
+// GET /api/settings/sessions — list all active sessions for current user
+app.get('/api/settings/sessions', authenticate, async (req, res) => {
+  const sessionId = getSessionIdFromRequest(req)
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, lang, user_agent, ip_address, created_at, expires_at,
+              (id = ?) AS is_current
+       FROM sessions WHERE user_id = ? AND expires_at > NOW() AND id NOT LIKE 'reset:%'
+       ORDER BY is_current DESC, created_at DESC`,
+      [sessionId, req.userId]
+    )
+    res.json({ sessions: rows })
+  } catch (err) {
+    console.error('GET /api/settings/sessions error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// DELETE /api/settings/sessions/:id — log out a specific session
+app.delete('/api/settings/sessions/:id', authenticate, async (req, res) => {
+  try {
+    const [[session]] = await pool.query('SELECT user_id FROM sessions WHERE id = ?', [req.params.id])
+    if (!session || session.user_id !== req.userId) return res.status(404).json({ error: 'Not found' })
+    await pool.query('DELETE FROM sessions WHERE id = ?', [req.params.id])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// DELETE /api/settings/sessions/others — log out all other sessions
+app.delete('/api/settings/sessions/others', authenticate, async (req, res) => {
+  const sessionId = getSessionIdFromRequest(req)
+  try {
+    await pool.query('DELETE FROM sessions WHERE user_id = ? AND id != ?', [req.userId, sessionId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Settings: Privacy ──────────────────────────────────────────────────────
+
+// GET /api/settings/privacy
+app.get('/api/settings/privacy', authenticate, async (req, res) => {
+  try {
+    const [[user]] = await pool.query(
+      'SELECT profile_visibility, friend_request_privacy FROM users WHERE id = ?',
+      [req.userId]
+    )
+    res.json({
+      profile_visibility: user?.profile_visibility || 'all',
+      friend_request_privacy: user?.friend_request_privacy || 'all',
+    })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// PATCH /api/settings/privacy
+app.patch('/api/settings/privacy', authenticate, async (req, res) => {
+  const { profile_visibility, friend_request_privacy } = req.body
+  const pv = ['all', 'friends'].includes(profile_visibility) ? profile_visibility : null
+  const frp = ['all', 'friends_of_friends'].includes(friend_request_privacy) ? friend_request_privacy : null
+  if (!pv && !frp) return res.status(400).json({ error: 'Nothing to update' })
+  try {
+    if (pv) await pool.query('UPDATE users SET profile_visibility = ? WHERE id = ?', [pv, req.userId])
+    if (frp) await pool.query('UPDATE users SET friend_request_privacy = ? WHERE id = ?', [frp, req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Settings: Skills ───────────────────────────────────────────────────────
+
+// GET /api/skills/:userId — get skills + endorsement counts
+app.get('/api/skills/:userId', authenticate, async (req, res) => {
+  try {
+    const [skills] = await pool.query(
+      `SELECT s.id, s.name,
+              COUNT(e.endorser_id) AS endorsement_count,
+              MAX(e.endorser_id = ?) AS endorsed_by_me
+       FROM user_skills s
+       LEFT JOIN skill_endorsements e ON e.skill_id = s.id
+       WHERE s.user_id = ?
+       GROUP BY s.id, s.name
+       ORDER BY s.display_order, s.id`,
+      [req.userId, req.params.userId]
+    )
+    res.json({ skills })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/skills/:skillId/endorsers — names of people who endorsed
+app.get('/api/skills/:skillId/endorsers', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT u.id, u.name, u.handle, u.avatar_url
+       FROM skill_endorsements e JOIN users u ON u.id = e.endorser_id
+       WHERE e.skill_id = ?`,
+      [req.params.skillId]
+    )
+    res.json({ endorsers: rows })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/skills — add a skill (own profile)
+app.post('/api/skills', authenticate, async (req, res) => {
+  const { name } = req.body
+  if (!name?.trim()) return res.status(400).json({ error: 'name required' })
+  try {
+    const [existing] = await pool.query('SELECT COUNT(*) AS n FROM user_skills WHERE user_id = ?', [req.userId])
+    if (existing[0].n >= 20) return res.status(400).json({ error: 'Max 20 skills' })
+    const [result] = await pool.query(
+      'INSERT INTO user_skills (user_id, name) VALUES (?, ?)',
+      [req.userId, name.trim()]
+    )
+    res.json({ id: result.insertId, name: name.trim(), endorsement_count: 0, endorsed_by_me: false })
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Skill already exists' })
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// DELETE /api/skills/:id — remove a skill (own only, even with endorsements)
+app.delete('/api/skills/:id', authenticate, async (req, res) => {
+  try {
+    const [[skill]] = await pool.query('SELECT user_id FROM user_skills WHERE id = ?', [req.params.id])
+    if (!skill || skill.user_id !== req.userId) return res.status(403).json({ error: 'Forbidden' })
+    await pool.query('DELETE FROM skill_endorsements WHERE skill_id = ?', [req.params.id])
+    await pool.query('DELETE FROM user_skills WHERE id = ?', [req.params.id])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/skills/:id/endorse — toggle endorse / unendorse
+app.post('/api/skills/:id/endorse', authenticate, async (req, res) => {
+  try {
+    const [[skill]] = await pool.query('SELECT user_id FROM user_skills WHERE id = ?', [req.params.id])
+    if (!skill) return res.status(404).json({ error: 'Not found' })
+    if (skill.user_id === req.userId) return res.status(400).json({ error: 'Cannot endorse own skill' })
+    const [[existing]] = await pool.query(
+      'SELECT 1 FROM skill_endorsements WHERE skill_id = ? AND endorser_id = ?',
+      [req.params.id, req.userId]
+    )
+    if (existing) {
+      await pool.query('DELETE FROM skill_endorsements WHERE skill_id = ? AND endorser_id = ?', [req.params.id, req.userId])
+      res.json({ endorsed: false })
+    } else {
+      await pool.query('INSERT INTO skill_endorsements (skill_id, endorser_id) VALUES (?, ?)', [req.params.id, req.userId])
+      res.json({ endorsed: true })
+    }
+  } catch (err) {
     res.status(500).json({ error: 'Server error' })
   }
 })
@@ -2899,6 +3073,43 @@ async function initAdminSettings() {
   }
 }
 
+async function initSettingsSchema() {
+  try {
+    // Add user_agent and ip_address to sessions for session list display
+    await pool.query(`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS user_agent VARCHAR(500) DEFAULT NULL`)
+    await pool.query(`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS ip_address VARCHAR(50) DEFAULT NULL`)
+    await pool.query(`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`)
+
+    // Privacy settings columns on users
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_visibility ENUM('all','friends') NOT NULL DEFAULT 'all'`)
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS friend_request_privacy ENUM('all','friends_of_friends') NOT NULL DEFAULT 'all'`)
+
+    // Skills tables
+    await pool.query(`CREATE TABLE IF NOT EXISTS user_skills (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      name VARCHAR(100) NOT NULL,
+      display_order INT NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_user_skill (user_id, name),
+      INDEX idx_us_user (user_id),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+
+    await pool.query(`CREATE TABLE IF NOT EXISTS skill_endorsements (
+      skill_id INT NOT NULL,
+      endorser_id INT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (skill_id, endorser_id),
+      FOREIGN KEY (skill_id) REFERENCES user_skills(id) ON DELETE CASCADE,
+      FOREIGN KEY (endorser_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+
+  } catch (err) {
+    console.error('initSettingsSchema error:', err.message)
+  }
+}
+
 async function initAnalytics() {
   try {
     await pool.query(`CREATE TABLE IF NOT EXISTS profile_views (
@@ -3202,4 +3413,5 @@ app.listen(PORT, () => {
   initCompanies()
   initAdminSettings()
   initAnalytics()
+  initSettingsSchema()
 })

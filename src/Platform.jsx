@@ -144,12 +144,14 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
   const menuT = lang === 'da' ? {
     viewProfile: 'Se profil',
     editProfile: 'Rediger profil',
+    settings: 'Indstillinger',
     analytics: 'Analyser',
     privacy: 'Privatliv & Data',
     logout: 'Log ud',
   } : {
     viewProfile: 'View profile',
     editProfile: 'Edit profile',
+    settings: 'Settings',
     analytics: 'Analytics',
     privacy: 'Privacy & Data',
     logout: 'Log out',
@@ -252,8 +254,8 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
                 <button className="avatar-dropdown-item" onClick={() => navigateTo('edit-profile')}>
                   <span>✏️</span> {menuT.editProfile}
                 </button>
-                <button className="avatar-dropdown-item" onClick={() => { setShowAvatarMenu(false); setShowModeModal(true) }}>
-                  <span>{mode === 'business' ? (plan === 'business_pro' ? '🚀' : '💼') : '🏠'}</span> {t.modeSwitch}
+                <button className="avatar-dropdown-item" onClick={() => navigateTo('settings')}>
+                  <span>⚙️</span> {menuT.settings}
                 </button>
                 <button className="avatar-dropdown-item" onClick={() => navigateTo('privacy')}>
                   <span>🔒</span> {menuT.privacy}
@@ -306,6 +308,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
         {page === 'jobs' && <JobsPage lang={lang} t={t} currentUser={currentUser} mode={mode} />}
         {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} initialCompanyId={navParam?.companyId} />}
         {page === 'analytics' && <AnalyticsPage lang={lang} t={t} currentUser={currentUser} plan={plan} onUpgrade={() => setShowUpgradeModal(true)} />}
+        {page === 'settings' && <SettingsPage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onLogout={onLogout} onOpenModeModal={() => setShowModeModal(true)} />}
         {page === 'privacy' && <PrivacySection lang={lang} onLogout={onLogout} />}
         {page === 'admin' && currentUser.is_admin && <AdminPage lang={lang} t={t} />}
         {page === 'search' && (
@@ -1909,72 +1912,11 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
   const [profile, setProfile] = useState({ ...currentUser })
   const avatarInputRef = useRef(null)
 
-  // Login info state
-  const [newEmail, setNewEmail] = useState('')
-  const [emailPassword, setEmailPassword] = useState('')
-  const [emailMsg, setEmailMsg] = useState(null)
-  const [emailLoading, setEmailLoading] = useState(false)
-
-  const [currentPassword, setCurrentPassword] = useState('')
-  const [newPassword, setNewPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [passwordMsg, setPasswordMsg] = useState(null)
-  const [passwordLoading, setPasswordLoading] = useState(false)
-  const [showCurrent, setShowCurrent] = useState(false)
-  const [showNew, setShowNew] = useState(false)
-
   useEffect(() => {
     apiFetchProfile().then(data => {
-      if (data) { setProfile(data); setNewEmail(data.email || '') }
+      if (data) setProfile(data)
     })
   }, [])
-
-  const handleChangeEmail = async (e) => {
-    e.preventDefault()
-    if (!newEmail.trim() || !emailPassword) return
-    setEmailLoading(true)
-    setEmailMsg(null)
-    try {
-      const res = await fetch('/api/profile/email', {
-        method: 'PATCH', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ newEmail: newEmail.trim(), password: emailPassword }),
-      })
-      const data = await res.json()
-      if (!res.ok) { setEmailMsg({ ok: false, text: data.error }); return }
-      setProfile(p => ({ ...p, email: data.email }))
-      setEmailPassword('')
-      setEmailMsg({ ok: true, text: lang === 'da' ? 'E-mail opdateret!' : 'Email updated!' })
-    } catch { setEmailMsg({ ok: false, text: lang === 'da' ? 'Netværksfejl' : 'Network error' }) }
-    finally { setEmailLoading(false) }
-  }
-
-  const handleChangePassword = async (e) => {
-    e.preventDefault()
-    if (!currentPassword || !newPassword || !confirmPassword) return
-    if (newPassword !== confirmPassword) {
-      setPasswordMsg({ ok: false, text: lang === 'da' ? 'Adgangskoderne stemmer ikke overens' : 'Passwords do not match' })
-      return
-    }
-    if (newPassword.length < 6) {
-      setPasswordMsg({ ok: false, text: lang === 'da' ? 'Min. 6 tegn' : 'Min. 6 characters' })
-      return
-    }
-    setPasswordLoading(true)
-    setPasswordMsg(null)
-    try {
-      const res = await fetch('/api/profile/password', {
-        method: 'PATCH', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currentPassword, newPassword }),
-      })
-      const data = await res.json()
-      if (!res.ok) { setPasswordMsg({ ok: false, text: data.error }); return }
-      setCurrentPassword(''); setNewPassword(''); setConfirmPassword('')
-      setPasswordMsg({ ok: true, text: lang === 'da' ? 'Adgangskode ændret!' : 'Password changed!' })
-    } catch { setPasswordMsg({ ok: false, text: lang === 'da' ? 'Netværksfejl' : 'Network error' }) }
-    finally { setPasswordLoading(false) }
-  }
 
   const handleAvatarUpload = useCallback(async (e) => {
     const file = e.target.files?.[0]
@@ -2004,20 +1946,8 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
     bioLabel: 'Bio',
     locationLabel: 'Lokation',
     back: 'Tilbage til profil',
-    loginSection: 'Loginoplysninger',
-    emailLabel: 'E-mail',
-    emailPasswordLabel: 'Bekræft med adgangskode',
-    saveEmail: 'Gem e-mail',
-    passwordSection: 'Skift adgangskode',
-    currentPasswordLabel: 'Nuværende adgangskode',
-    newPasswordLabel: 'Ny adgangskode',
-    confirmPasswordLabel: 'Gentag ny adgangskode',
-    savePassword: 'Skift adgangskode',
-    loginMethodLabel: 'Loginmetode',
-    accountCreatedLabel: 'Konto oprettet',
-    loginMethodFacebook: 'Facebook',
-    loginMethodEmail: 'E-mail & adgangskode',
-    facebookLoginNote: 'Du er logget ind via Facebook. Adgangskode kan ikke ændres.',
+    skillsSection: 'Kompetencer',
+    settingsHint: '⚙️ E-mail og adgangskode ændres under Indstillinger',
   } : {
     title: 'Edit profile',
     avatarLabel: 'Profile picture',
@@ -2026,20 +1956,8 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
     bioLabel: 'Bio',
     locationLabel: 'Location',
     back: 'Back to profile',
-    loginSection: 'Login information',
-    emailLabel: 'Email',
-    emailPasswordLabel: 'Confirm with password',
-    saveEmail: 'Save email',
-    passwordSection: 'Change password',
-    currentPasswordLabel: 'Current password',
-    newPasswordLabel: 'New password',
-    confirmPasswordLabel: 'Repeat new password',
-    savePassword: 'Change password',
-    loginMethodLabel: 'Login method',
-    accountCreatedLabel: 'Account created',
-    loginMethodFacebook: 'Facebook',
-    loginMethodEmail: 'Email & password',
-    facebookLoginNote: 'You are logged in via Facebook. Password cannot be changed.',
+    skillsSection: 'Skills',
+    settingsHint: '⚙️ Edit email and password under Settings',
   }
 
   const fieldStyle = { display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box' }
@@ -2129,69 +2047,333 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
           </>
         )}
 
-        {/* Login info section */}
-        <div style={{ margin: '28px 0 0', borderTop: '2px solid #eee', paddingTop: 20 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: '#2D6A4F', marginBottom: 16 }}>🔐 {editT.loginSection}</div>
-
-          {/* Login method + created */}
-          <div style={{ fontSize: 13, color: '#888', marginBottom: 16, display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-            <span>{editT.loginMethodLabel}: <strong style={{ color: '#444' }}>{profile.loginMethod === 'facebook' ? editT.loginMethodFacebook : editT.loginMethodEmail}</strong></span>
-            {profile.createdAt && (
-              <span>{editT.accountCreatedLabel}: <strong style={{ color: '#444' }}>{new Date(profile.createdAt).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</strong></span>
-            )}
+        {/* Skills management */}
+        {mode === 'business' && (
+          <div style={{ margin: '28px 0 0', borderTop: '2px solid #eee', paddingTop: 20 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#2D6A4F', marginBottom: 12 }}>🏅 {editT.skillsSection}</div>
+            <SkillsSection profile={profile} t={t} lang={lang} isOwn={true} />
           </div>
+        )}
 
-          {/* Change email */}
-          <form onSubmit={handleChangeEmail} style={{ marginBottom: 24 }}>
-            <label style={labelStyle}>{editT.emailLabel}</label>
-            <input style={fieldStyle} type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} required />
-            <label style={labelStyle}>{editT.emailPasswordLabel}</label>
-            <input style={fieldStyle} type="password" value={emailPassword} onChange={e => setEmailPassword(e.target.value)} required placeholder="••••••••" />
-            {emailMsg && (
-              <div style={{ marginTop: 8, fontSize: 13, color: emailMsg.ok ? '#2D6A4F' : '#c0392b', fontWeight: 600 }}>
-                {emailMsg.ok ? '✓' : '✗'} {emailMsg.text}
-              </div>
-            )}
-            <button type="submit" disabled={emailLoading} style={{ marginTop: 10, padding: '8px 18px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, opacity: emailLoading ? 0.7 : 1 }}>
-              {editT.saveEmail}
-            </button>
-          </form>
-
-          {/* Change password */}
-          {profile.loginMethod === 'facebook' ? (
-            <div style={{ fontSize: 13, color: '#888', fontStyle: 'italic' }}>{editT.facebookLoginNote}</div>
-          ) : (
-            <form onSubmit={handleChangePassword}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: '#555', marginBottom: 8 }}>{editT.passwordSection}</div>
-              <label style={labelStyle}>{editT.currentPasswordLabel}</label>
-              <div style={{ position: 'relative' }}>
-                <input style={{ ...fieldStyle, paddingRight: 48 }} type={showCurrent ? 'text' : 'password'} value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} required placeholder="••••••••" />
-                <button type="button" onClick={() => setShowCurrent(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#888' }}>{showCurrent ? '🙈' : '👁️'}</button>
-              </div>
-              <label style={labelStyle}>{editT.newPasswordLabel}</label>
-              <div style={{ position: 'relative' }}>
-                <input style={{ ...fieldStyle, paddingRight: 48 }} type={showNew ? 'text' : 'password'} value={newPassword} onChange={e => setNewPassword(e.target.value)} required placeholder="••••••••" />
-                <button type="button" onClick={() => setShowNew(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#888' }}>{showNew ? '🙈' : '👁️'}</button>
-              </div>
-              <label style={labelStyle}>{editT.confirmPasswordLabel}</label>
-              <input style={fieldStyle} type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required placeholder="••••••••" />
-              {passwordMsg && (
-                <div style={{ marginTop: 8, fontSize: 13, color: passwordMsg.ok ? '#2D6A4F' : '#c0392b', fontWeight: 600 }}>
-                  {passwordMsg.ok ? '✓' : '✗'} {passwordMsg.text}
-                </div>
-              )}
-              <button type="submit" disabled={passwordLoading} style={{ marginTop: 10, padding: '8px 18px', borderRadius: 8, border: 'none', background: '#444', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, opacity: passwordLoading ? 0.7 : 1 }}>
-                {editT.savePassword}
-              </button>
-            </form>
-          )}
+        {/* Hint to Settings for email/password */}
+        <div style={{ marginTop: 20, padding: '10px 14px', background: '#F8F9FA', borderRadius: 8, fontSize: 13, color: '#666' }}>
+          {editT.settingsHint}
         </div>
 
         <button
-          style={{ marginTop: 28, padding: '10px 20px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
+          style={{ marginTop: 20, padding: '10px 20px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
           onClick={() => onNavigate('profile')}
         >
           {editT.back}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Settings Page ─────────────────────────────────────────────────────────────
+function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onLogout, onOpenModeModal }) {
+  const [tab, setTab] = useState('konto')
+
+  const fS = { display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box', fontFamily: 'inherit' }
+  const lS = { display: 'block', fontSize: 13, fontWeight: 600, color: '#555', marginBottom: 4, marginTop: 14 }
+  const tabLabels = { konto: t.settingsKonto, privatliv: t.settingsPrivatliv, sessions: t.settingsSessions, sprog: t.settingsSprog }
+
+  return (
+    <div className="p-events" style={{ maxWidth: 600 }}>
+      <h2 className="p-section-title" style={{ margin: '0 0 16px' }}>⚙️ {t.settings}</h2>
+      <div className="p-filter-tabs" style={{ marginBottom: 20 }}>
+        {Object.entries(tabLabels).map(([key, label]) => (
+          <button key={key} className={`p-filter-tab${tab === key ? ' active' : ''}`} onClick={() => setTab(key)}>{label}</button>
+        ))}
+      </div>
+
+      {tab === 'konto' && <SettingsKonto lang={lang} t={t} currentUser={currentUser} fS={fS} lS={lS} />}
+      {tab === 'privatliv' && <SettingsPrivatliv lang={lang} t={t} fS={fS} lS={lS} />}
+      {tab === 'sessions' && <SettingsSessions lang={lang} t={t} onLogout={onLogout} />}
+      {tab === 'sprog' && <SettingsSprog lang={lang} t={t} mode={mode} onOpenModeModal={onOpenModeModal} />}
+    </div>
+  )
+}
+
+function SettingsKonto({ lang, t, currentUser, fS, lS }) {
+  const [profile, setProfile] = useState(null)
+  const [newEmail, setNewEmail] = useState(currentUser?.email || '')
+  const [emailPassword, setEmailPassword] = useState('')
+  const [emailMsg, setEmailMsg] = useState(null)
+  const [emailLoading, setEmailLoading] = useState(false)
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordMsg, setPasswordMsg] = useState(null)
+  const [passwordLoading, setPasswordLoading] = useState(false)
+  const [showCurrent, setShowCurrent] = useState(false)
+  const [showNew, setShowNew] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/profile', { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => { setProfile(data); setNewEmail(data.email || '') })
+      .catch(() => {})
+  }, [])
+
+  const handleChangeEmail = async (e) => {
+    e.preventDefault()
+    if (!newEmail.trim() || !emailPassword) return
+    setEmailLoading(true); setEmailMsg(null)
+    try {
+      const res = await fetch('/api/profile/email', {
+        method: 'PATCH', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newEmail: newEmail.trim(), password: emailPassword }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setEmailMsg({ ok: false, text: data.error }); return }
+      setEmailPassword('')
+      setEmailMsg({ ok: true, text: t.settingsSaved })
+    } catch { setEmailMsg({ ok: false, text: lang === 'da' ? 'Netværksfejl' : 'Network error' }) }
+    finally { setEmailLoading(false) }
+  }
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault()
+    if (!currentPassword || !newPassword || !confirmPassword) return
+    if (newPassword !== confirmPassword) {
+      setPasswordMsg({ ok: false, text: lang === 'da' ? 'Adgangskoderne stemmer ikke overens' : 'Passwords do not match' })
+      return
+    }
+    if (newPassword.length < 6) {
+      setPasswordMsg({ ok: false, text: lang === 'da' ? 'Min. 6 tegn' : 'Min. 6 characters' })
+      return
+    }
+    setPasswordLoading(true); setPasswordMsg(null)
+    try {
+      const res = await fetch('/api/profile/password', {
+        method: 'PATCH', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setPasswordMsg({ ok: false, text: data.error }); return }
+      setCurrentPassword(''); setNewPassword(''); setConfirmPassword('')
+      setPasswordMsg({ ok: true, text: t.settingsSaved })
+    } catch { setPasswordMsg({ ok: false, text: lang === 'da' ? 'Netværksfejl' : 'Network error' }) }
+    finally { setPasswordLoading(false) }
+  }
+
+  const isFacebook = profile?.loginMethod === 'facebook'
+
+  return (
+    <div className="p-card" style={{ padding: 24 }}>
+      {profile && (
+        <div style={{ fontSize: 12, color: '#888', marginBottom: 20, display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+          <span>{lang === 'da' ? 'Loginmetode' : 'Login method'}: <strong style={{ color: '#444' }}>{isFacebook ? 'Facebook' : (lang === 'da' ? 'E-mail & adgangskode' : 'Email & password')}</strong></span>
+          {profile.createdAt && <span>{lang === 'da' ? 'Konto oprettet' : 'Account created'}: <strong style={{ color: '#444' }}>{new Date(profile.createdAt).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</strong></span>}
+        </div>
+      )}
+
+      {/* Change email */}
+      <form onSubmit={handleChangeEmail} style={{ marginBottom: 28 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: '#333', marginBottom: 4 }}>{lang === 'da' ? 'E-mail' : 'Email'}</div>
+        <label style={lS}>{lang === 'da' ? 'Ny e-mail' : 'New email'}</label>
+        <input style={fS} type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} required />
+        <label style={lS}>{t.settingsEmailConfirm}</label>
+        <input style={fS} type="password" value={emailPassword} onChange={e => setEmailPassword(e.target.value)} required placeholder="••••••••" />
+        {emailMsg && <div style={{ marginTop: 8, fontSize: 13, color: emailMsg.ok ? '#2D6A4F' : '#c0392b', fontWeight: 600 }}>{emailMsg.ok ? '✓' : '✗'} {emailMsg.text}</div>}
+        <button type="submit" disabled={emailLoading} style={{ marginTop: 12, padding: '9px 20px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, opacity: emailLoading ? 0.7 : 1 }}>
+          {t.settingsSaveEmail}
+        </button>
+      </form>
+
+      <div style={{ borderTop: '1px solid #eee', paddingTop: 20 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: '#333', marginBottom: 4 }}>{lang === 'da' ? 'Adgangskode' : 'Password'}</div>
+        {isFacebook ? (
+          <p style={{ fontSize: 13, color: '#888', fontStyle: 'italic', margin: '8px 0 0' }}>{t.settingsFacebookNote}</p>
+        ) : (
+          <form onSubmit={handleChangePassword}>
+            <label style={lS}>{t.settingsCurrentPassword}</label>
+            <div style={{ position: 'relative' }}>
+              <input style={{ ...fS, paddingRight: 44 }} type={showCurrent ? 'text' : 'password'} value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} required placeholder="••••••••" />
+              <button type="button" onClick={() => setShowCurrent(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#888' }}>{showCurrent ? '🙈' : '👁️'}</button>
+            </div>
+            <label style={lS}>{t.settingsNewPassword}</label>
+            <div style={{ position: 'relative' }}>
+              <input style={{ ...fS, paddingRight: 44 }} type={showNew ? 'text' : 'password'} value={newPassword} onChange={e => setNewPassword(e.target.value)} required placeholder="••••••••" />
+              <button type="button" onClick={() => setShowNew(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#888' }}>{showNew ? '🙈' : '👁️'}</button>
+            </div>
+            <label style={lS}>{t.settingsConfirmPassword}</label>
+            <input style={fS} type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required placeholder="••••••••" />
+            {passwordMsg && <div style={{ marginTop: 8, fontSize: 13, color: passwordMsg.ok ? '#2D6A4F' : '#c0392b', fontWeight: 600 }}>{passwordMsg.ok ? '✓' : '✗'} {passwordMsg.text}</div>}
+            <button type="submit" disabled={passwordLoading} style={{ marginTop: 12, padding: '9px 20px', borderRadius: 8, border: 'none', background: '#444', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, opacity: passwordLoading ? 0.7 : 1 }}>
+              {t.settingsSavePassword}
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function SettingsPrivatliv({ lang, t, fS, lS }) {
+  const [profileVis, setProfileVis] = useState('all')
+  const [friendReqPrivacy, setFriendReqPrivacy] = useState('all')
+  const [loading, setLoading] = useState(true)
+  const [msg, setMsg] = useState(null)
+
+  useEffect(() => {
+    fetch('/api/settings/privacy', { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => { setProfileVis(data.profile_visibility || 'all'); setFriendReqPrivacy(data.friend_request_privacy || 'all'); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [])
+
+  const save = async () => {
+    setMsg(null)
+    try {
+      const res = await fetch('/api/settings/privacy', {
+        method: 'PATCH', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile_visibility: profileVis, friend_request_privacy: friendReqPrivacy }),
+      })
+      if (!res.ok) throw new Error()
+      setMsg({ ok: true, text: t.settingsSaved })
+    } catch { setMsg({ ok: false, text: lang === 'da' ? 'Fejl' : 'Error' }) }
+  }
+
+  if (loading) return <div className="p-card" style={{ padding: 24, textAlign: 'center', color: '#888' }}>⏳</div>
+
+  const radioStyle = { display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, cursor: 'pointer', padding: '8px 0' }
+
+  return (
+    <div className="p-card" style={{ padding: 24 }}>
+      <div style={{ fontSize: 14, fontWeight: 700, color: '#333', marginBottom: 12 }}>{t.settingsProfileVisibility}</div>
+      {[['all', t.settingsVisAll], ['friends', t.settingsVisFriends]].map(([val, label]) => (
+        <label key={val} style={radioStyle}>
+          <input type="radio" name="pv" value={val} checked={profileVis === val} onChange={() => setProfileVis(val)} />
+          {label}
+        </label>
+      ))}
+
+      <div style={{ fontSize: 14, fontWeight: 700, color: '#333', marginTop: 20, marginBottom: 12 }}>{t.settingsFriendReqPrivacy}</div>
+      {[['all', t.settingsReqAll], ['friends_of_friends', t.settingsReqFriends]].map(([val, label]) => (
+        <label key={val} style={radioStyle}>
+          <input type="radio" name="frp" value={val} checked={friendReqPrivacy === val} onChange={() => setFriendReqPrivacy(val)} />
+          {label}
+        </label>
+      ))}
+
+      {msg && <div style={{ marginTop: 12, fontSize: 13, color: msg.ok ? '#2D6A4F' : '#c0392b', fontWeight: 600 }}>{msg.ok ? '✓' : '✗'} {msg.text}</div>}
+      <button onClick={save} style={{ marginTop: 20, padding: '9px 22px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+        {lang === 'da' ? 'Gem indstillinger' : 'Save settings'}
+      </button>
+    </div>
+  )
+}
+
+function SettingsSessions({ lang, t, onLogout }) {
+  const [sessions, setSessions] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  const load = () => {
+    setLoading(true)
+    fetch('/api/settings/sessions', { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => { setSessions(data.sessions || []); setLoading(false) })
+      .catch(() => setLoading(false))
+  }
+  useEffect(() => { load() }, [])
+
+  const deleteSession = (id) => {
+    fetch(`/api/settings/sessions/${id}`, { method: 'DELETE', credentials: 'include' })
+      .then(() => load())
+      .catch(() => {})
+  }
+
+  const deleteOthers = () => {
+    fetch('/api/settings/sessions/others', { method: 'DELETE', credentials: 'include' })
+      .then(() => load())
+      .catch(() => {})
+  }
+
+  const parseUA = (ua) => {
+    if (!ua) return lang === 'da' ? 'Ukendt enhed' : 'Unknown device'
+    if (/iPhone|iPad|iPod/.test(ua)) return 'iOS'
+    if (/Android/.test(ua)) return 'Android'
+    if (/Windows/.test(ua)) return 'Windows'
+    if (/Macintosh|Mac OS/.test(ua)) return 'Mac'
+    if (/Linux/.test(ua)) return 'Linux'
+    return ua.slice(0, 40)
+  }
+
+  const others = sessions.filter(s => !s.is_current)
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {loading ? (
+        <div className="p-card" style={{ padding: 24, textAlign: 'center', color: '#888' }}>⏳</div>
+      ) : sessions.map(s => (
+        <div key={s.id} className="p-card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ fontSize: 22 }}>{/iPhone|iPad|iPod|Android/.test(s.user_agent || '') ? '📱' : '🖥️'}</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 600, fontSize: 14 }}>
+              {parseUA(s.user_agent)}
+              {!!s.is_current && <span style={{ marginLeft: 8, fontSize: 11, background: '#F0FAF4', color: '#2D6A4F', padding: '2px 8px', borderRadius: 20, fontWeight: 700 }}>{t.settingsSessionsCurrent}</span>}
+            </div>
+            <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
+              {s.ip_address && <span>{s.ip_address} · </span>}
+              {s.created_at ? new Date(s.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}
+            </div>
+          </div>
+          {!s.is_current && (
+            <button onClick={() => deleteSession(s.id)} style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid #e74c3c', background: '#fff', color: '#e74c3c', fontSize: 13, fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>
+              {t.settingsSessionsLogoutOne}
+            </button>
+          )}
+        </div>
+      ))}
+      {others.length > 0 && (
+        <button onClick={deleteOthers} style={{ padding: '10px 0', borderRadius: 8, border: '1px solid #e74c3c', background: '#fff', color: '#e74c3c', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+          {t.settingsSessionsLogoutOthers}
+        </button>
+      )}
+      {!loading && sessions.length === 0 && (
+        <div className="p-card" style={{ padding: 24, textAlign: 'center', color: '#888' }}>{t.settingsSessionsEmpty}</div>
+      )}
+    </div>
+  )
+}
+
+function SettingsSprog({ lang, t, mode, onOpenModeModal }) {
+  const switchLang = (newLang) => {
+    fetch('/api/me/lang', {
+      method: 'PATCH', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lang: newLang }),
+    }).catch(() => {})
+    // Reload to apply language change
+    window.location.reload()
+  }
+
+  const radioStyle = { display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, cursor: 'pointer', padding: '8px 0' }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="p-card" style={{ padding: 24 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: '#333', marginBottom: 12 }}>🌐 {t.settingsLanguage}</div>
+        {[['da', '🇩🇰 Dansk'], ['en', '🇬🇧 English']].map(([val, label]) => (
+          <label key={val} style={radioStyle}>
+            <input type="radio" name="lang" value={val} checked={lang === val} onChange={() => { if (lang !== val) switchLang(val) }} />
+            {label}
+          </label>
+        ))}
+      </div>
+      <div className="p-card" style={{ padding: 24 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: '#333', marginBottom: 8 }}>💼 {t.settingsMode}</div>
+        <div style={{ fontSize: 13, color: '#666', marginBottom: 12 }}>
+          {lang === 'da' ? `Nuværende: ${mode === 'business' ? 'Erhverv' : 'Privat'}` : `Current: ${mode === 'business' ? 'Business' : 'Personal'}`}
+        </div>
+        <button onClick={onOpenModeModal} style={{ padding: '9px 20px', borderRadius: 8, border: '1px solid #2D6A4F', background: '#fff', color: '#2D6A4F', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+          {t.modeSwitch}
         </button>
       </div>
     </div>
@@ -4482,39 +4664,62 @@ function CreateEventModal({ t, lang, mode, currentUser, onClose, onCreate }) {
 }
 
 // ── Skills & Endorsements ──
-const MOCK_SKILL_ENDORSEMENTS = {
-  'UX Design': ['Magnus Jensen', 'Freja Andersen', 'Emil Larsen'],
-  'Figma': ['Clara Johansen', 'Astrid Poulsen'],
-  'React': ['Viktor Mortensen', 'Noah Rasmussen', 'Magnus Jensen', 'Emil Larsen'],
-}
-
 function SkillsSection({ profile, t, lang, isOwn }) {
-  const [skills, setSkills] = useState(() => {
-    const raw = profile.skills || 'UX Design, Figma, React'
-    return raw.split(',').map(s => s.trim()).filter(Boolean)
-  })
-  const [endorsements, setEndorsements] = useState(MOCK_SKILL_ENDORSEMENTS)
-  const [myEndorsed, setMyEndorsed] = useState(new Set())
+  const [skills, setSkills] = useState([])
+  const [loading, setLoading] = useState(true)
   const [newSkill, setNewSkill] = useState('')
   const [showAdd, setShowAdd] = useState(false)
+  const [endorsersPopup, setEndorsersPopup] = useState(null) // { skillId, names }
+  const [endorsersLoading, setEndorsersLoading] = useState(false)
 
-  const endorse = (skill) => {
-    if (myEndorsed.has(skill)) return
-    setMyEndorsed(prev => new Set([...prev, skill]))
-    setEndorsements(prev => ({
-      ...prev,
-      [skill]: [...(prev[skill] || []), lang === 'da' ? 'Dig' : 'You'],
-    }))
+  useEffect(() => {
+    if (!profile?.id) return
+    fetch(`/api/skills/${profile.id}`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => { setSkills(data.skills || []); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [profile?.id])
+
+  const endorse = (skillId) => {
+    fetch(`/api/skills/${skillId}/endorse`, { method: 'POST', credentials: 'include' })
+      .then(r => r.json())
+      .then(data => {
+        setSkills(prev => prev.map(s => s.id === skillId
+          ? { ...s, endorsed_by_me: data.endorsed ? 1 : 0, endorsement_count: s.endorsement_count + (data.endorsed ? 1 : -1) }
+          : s))
+      })
+      .catch(() => {})
   }
 
   const addSkill = () => {
-    const s = newSkill.trim()
-    if (!s || skills.includes(s) || skills.length >= 20) return
-    setSkills(prev => [...prev, s])
-    setNewSkill('')
-    setShowAdd(false)
+    const name = newSkill.trim()
+    if (!name || skills.length >= 20) return
+    fetch('/api/skills', {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    })
+      .then(r => r.json())
+      .then(skill => { setSkills(prev => [...prev, skill]); setNewSkill(''); setShowAdd(false) })
+      .catch(() => {})
   }
 
+  const removeSkill = (skillId) => {
+    fetch(`/api/skills/${skillId}`, { method: 'DELETE', credentials: 'include' })
+      .then(() => setSkills(prev => prev.filter(s => s.id !== skillId)))
+      .catch(() => {})
+  }
+
+  const showEndorsers = (skillId) => {
+    if (endorsersPopup?.skillId === skillId) { setEndorsersPopup(null); return }
+    setEndorsersLoading(true)
+    fetch(`/api/skills/${skillId}/endorsers`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => { setEndorsersPopup({ skillId, endorsers: data.endorsers || [] }); setEndorsersLoading(false) })
+      .catch(() => setEndorsersLoading(false))
+  }
+
+  if (loading) return <div style={{ margin: '12px 0', color: '#888', fontSize: 13 }}>⏳</div>
   if (skills.length === 0 && !isOwn) return null
 
   return (
@@ -4522,26 +4727,51 @@ function SkillsSection({ profile, t, lang, isOwn }) {
       <div style={{ fontSize: 13, fontWeight: 700, color: '#555', marginBottom: 8 }}>{t.skills}</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {skills.map(skill => {
-          const count = (endorsements[skill] || []).length
-          const myEndorsement = myEndorsed.has(skill)
+          const count = Number(skill.endorsement_count) || 0
+          const myEndorsement = !!skill.endorsed_by_me
+          const showPopup = endorsersPopup?.skillId === skill.id
           return (
-            <div key={skill} className="p-skill-row">
-              <div style={{ flex: 1 }}>
-                <span style={{ fontSize: 13, fontWeight: 600 }}>{skill}</span>
-                {count > 0 && (
-                  <span style={{ fontSize: 12, color: '#888', marginLeft: 8 }}>
-                    {count} {t.endorsements}
-                  </span>
+            <div key={skill.id}>
+              <div className="p-skill-row">
+                <div style={{ flex: 1 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600 }}>{skill.name}</span>
+                  {count > 0 && (
+                    <button
+                      onClick={() => showEndorsers(skill.id)}
+                      style={{ fontSize: 12, color: '#2D6A4F', marginLeft: 8, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 600 }}
+                    >
+                      {count} {t.endorsements}
+                    </button>
+                  )}
+                </div>
+                {!isOwn && (
+                  <button
+                    className={`p-endorse-btn${myEndorsement ? ' endorsed' : ''}`}
+                    onClick={() => endorse(skill.id)}
+                  >
+                    {myEndorsement ? `✓ ${t.endorsed}` : t.endorse}
+                  </button>
+                )}
+                {isOwn && (
+                  <button
+                    onClick={() => removeSkill(skill.id)}
+                    title={t.removeSkill}
+                    style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #ddd', background: '#fff', color: '#c0392b', fontSize: 12, cursor: 'pointer', lineHeight: 1 }}
+                  >✕</button>
                 )}
               </div>
-              {!isOwn && (
-                <button
-                  className={`p-endorse-btn${myEndorsement ? ' endorsed' : ''}`}
-                  onClick={() => endorse(skill)}
-                  disabled={myEndorsement}
-                >
-                  {myEndorsement ? `✓ ${t.endorsed}` : t.endorse}
-                </button>
+              {showPopup && (
+                <div style={{ marginTop: 4, padding: '10px 14px', background: '#F8F9FA', borderRadius: 8, fontSize: 12, color: '#555' }}>
+                  <div style={{ fontWeight: 600, marginBottom: 6 }}>{t.skillEndorsersTitle}:</div>
+                  {endorsersLoading ? '⏳' : (endorsersPopup.endorsers.length === 0
+                    ? (lang === 'da' ? 'Ingen endnu' : 'None yet')
+                    : endorsersPopup.endorsers.map(e => (
+                        <span key={e.id} style={{ display: 'inline-block', marginRight: 8, marginBottom: 4, background: '#fff', border: '1px solid #eee', borderRadius: 20, padding: '2px 10px' }}>
+                          {e.name}
+                        </span>
+                      ))
+                  )}
+                </div>
               )}
             </div>
           )
