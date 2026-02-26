@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { PT, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateMode } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateMode, apiChangePassword, apiGetSessions, apiRevokeSession, apiRevokeAllOtherSessions, apiChangeEmail, apiGetPrivacySettings, apiUpdatePrivacySettings } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -136,12 +136,14 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
     editProfile: 'Rediger profil',
     analytics: 'Analyser',
     privacy: 'Privatliv & Data',
+    settings: 'Indstillinger',
     logout: 'Log ud',
   } : {
     viewProfile: 'View profile',
     editProfile: 'Edit profile',
     analytics: 'Analytics',
     privacy: 'Privacy & Data',
+    settings: 'Settings',
     logout: 'Log out',
   }
 
@@ -249,6 +251,9 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
                     <span>🏢</span> {t.companies}
                   </button>
                 )}
+                <button className="avatar-dropdown-item" onClick={() => navigateTo('settings')}>
+                  <span>⚙️</span> {menuT.settings}
+                </button>
                 <button className="avatar-dropdown-item" onClick={() => navigateTo('privacy')}>
                   <span>🔒</span> {menuT.privacy}
                 </button>
@@ -301,6 +306,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
         {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} initialCompanyId={navParam?.companyId} />}
         {page === 'analytics' && <AnalyticsPage lang={lang} t={t} currentUser={currentUser} plan={plan} onUpgrade={() => setShowUpgradeModal(true)} />}
         {page === 'privacy' && <PrivacySection lang={lang} onLogout={onLogout} />}
+        {page === 'settings' && <SettingsPage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onSwitchMode={() => setShowModeModal(true)} onToggleLang={toggleLang} onLogout={onLogout} />}
         {page === 'admin' && currentUser.is_admin && <AdminPage lang={lang} t={t} />}
         {page === 'search' && (
           <SearchPage
@@ -6464,6 +6470,298 @@ function AdminPage({ lang, t }) {
           </form>
         </div>
       )}
+    </div>
+  )
+}
+
+// ── Settings Page ──────────────────────────────────────────────────────────────
+function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onSwitchMode, onToggleLang, onLogout }) {
+  const [tab, setTab] = useState('account')
+
+  const s = {
+    wrap: { maxWidth: 700, margin: '0 auto', padding: '24px 16px' },
+    title: { fontSize: 22, fontWeight: 700, marginBottom: 24 },
+    tabs: { display: 'flex', gap: 4, marginBottom: 28, borderBottom: '1px solid #e8e8e8', paddingBottom: 0 },
+    tab: (active) => ({
+      padding: '8px 18px', border: 'none', background: 'none', cursor: 'pointer',
+      fontWeight: active ? 700 : 400, color: active ? '#2D6A4F' : '#555',
+      borderBottom: active ? '2px solid #2D6A4F' : '2px solid transparent',
+      fontSize: 14, marginBottom: -1,
+    }),
+    section: { background: '#fff', borderRadius: 10, border: '1px solid #e8e8e8', padding: '20px 22px', marginBottom: 18 },
+    sectionTitle: { fontSize: 15, fontWeight: 700, marginBottom: 16 },
+    label: { display: 'block', fontSize: 13, fontWeight: 600, color: '#444', marginBottom: 5 },
+    input: { width: '100%', padding: '9px 12px', border: '1px solid #ddd', borderRadius: 7, fontSize: 14, boxSizing: 'border-box', outline: 'none' },
+    btnPrimary: { padding: '9px 22px', background: '#2D6A4F', color: '#fff', border: 'none', borderRadius: 7, fontWeight: 700, fontSize: 14, cursor: 'pointer' },
+    btnDanger: { padding: '8px 18px', background: '#fff', color: '#c00', border: '1px solid #f5c6cb', borderRadius: 7, fontSize: 13, cursor: 'pointer' },
+    btnSecondary: { padding: '8px 18px', background: '#f5f5f5', color: '#333', border: '1px solid #ddd', borderRadius: 7, fontSize: 13, cursor: 'pointer' },
+    msg: (ok) => ({ fontSize: 13, marginTop: 8, color: ok ? '#2D6A4F' : '#c00', fontWeight: 600 }),
+    row: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #f0f0f0' },
+    radioGroup: { display: 'flex', flexDirection: 'column', gap: 8, marginTop: 6 },
+    radioLabel: { display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, cursor: 'pointer' },
+  }
+
+  const TABS = [
+    { key: 'account', label: t.settingsAccount },
+    { key: 'privacy', label: t.settingsPrivacy },
+    { key: 'sessions', label: t.settingsSessions },
+    { key: 'langmode', label: t.settingsLangMode },
+  ]
+
+  return (
+    <div style={s.wrap}>
+      <h2 style={s.title}>{t.settingsTitle}</h2>
+      <div style={s.tabs}>
+        {TABS.map(tb => (
+          <button key={tb.key} style={s.tab(tab === tb.key)} onClick={() => setTab(tb.key)}>{tb.label}</button>
+        ))}
+      </div>
+
+      {tab === 'account' && <SettingsAccount t={t} currentUser={currentUser} onUserUpdate={onUserUpdate} s={s} />}
+      {tab === 'privacy' && <SettingsPrivacy t={t} s={s} />}
+      {tab === 'sessions' && <SettingsSessions t={t} s={s} />}
+      {tab === 'langmode' && <SettingsLangMode t={t} lang={lang} mode={mode} onToggleLang={onToggleLang} onSwitchMode={onSwitchMode} s={s} />}
+    </div>
+  )
+}
+
+function SettingsAccount({ t, currentUser, onUserUpdate, s }) {
+  const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' })
+  const [pwMsg, setPwMsg] = useState(null)
+  const [pwOk, setPwOk] = useState(false)
+  const [pwSaving, setPwSaving] = useState(false)
+
+  const [email, setEmail] = useState(currentUser.email || '')
+  const [emailMsg, setEmailMsg] = useState(null)
+  const [emailOk, setEmailOk] = useState(false)
+  const [emailSaving, setEmailSaving] = useState(false)
+
+  const isFacebook = !currentUser.password_hash && currentUser.facebook_id
+
+  async function handlePasswordSubmit(e) {
+    e.preventDefault()
+    setPwMsg(null)
+    if (pwForm.next !== pwForm.confirm) { setPwMsg(t.settingsPasswordMismatch); setPwOk(false); return }
+    if (pwForm.next.length < 6) { setPwMsg(t.settingsPasswordTooShort); setPwOk(false); return }
+    setPwSaving(true)
+    try {
+      await apiChangePassword(pwForm.current, pwForm.next)
+      setPwMsg(t.settingsPasswordSaved)
+      setPwOk(true)
+      setPwForm({ current: '', next: '', confirm: '' })
+    } catch (err) {
+      setPwMsg(err.message?.includes('incorrect') ? t.settingsPasswordWrong : err.message)
+      setPwOk(false)
+    } finally {
+      setPwSaving(false)
+    }
+  }
+
+  async function handleEmailSubmit(e) {
+    e.preventDefault()
+    setEmailMsg(null)
+    if (!email || !email.includes('@')) return
+    setEmailSaving(true)
+    try {
+      await apiChangeEmail(email)
+      setEmailMsg(t.settingsEmailSaved)
+      setEmailOk(true)
+      onUserUpdate(prev => ({ ...prev, email }))
+    } catch (err) {
+      setEmailMsg(err.message?.includes('use') ? t.settingsEmailInUse : err.message)
+      setEmailOk(false)
+    } finally {
+      setEmailSaving(false)
+    }
+  }
+
+  return (
+    <>
+      <div style={s.section}>
+        <div style={s.sectionTitle}>{t.settingsChangeEmail}</div>
+        <form onSubmit={handleEmailSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <label style={s.label}>{t.settingsNewEmail}</label>
+            <input style={s.input} type="email" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" />
+          </div>
+          <div>
+            <button type="submit" style={s.btnPrimary} disabled={emailSaving}>
+              {emailSaving ? t.settingsSaving : t.settingsSave}
+            </button>
+            {emailMsg && <div style={s.msg(emailOk)}>{emailMsg}</div>}
+          </div>
+        </form>
+      </div>
+
+      <div style={s.section}>
+        <div style={s.sectionTitle}>{t.settingsChangePassword}</div>
+        {isFacebook ? (
+          <p style={{ fontSize: 13, color: '#888', margin: 0 }}>{t.passwordNotSet}</p>
+        ) : (
+          <form onSubmit={handlePasswordSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div>
+              <label style={s.label}>{t.settingsCurrentPassword}</label>
+              <input style={s.input} type="password" value={pwForm.current} onChange={e => setPwForm(p => ({ ...p, current: e.target.value }))} autoComplete="current-password" />
+            </div>
+            <div>
+              <label style={s.label}>{t.settingsNewPassword}</label>
+              <input style={s.input} type="password" value={pwForm.next} onChange={e => setPwForm(p => ({ ...p, next: e.target.value }))} autoComplete="new-password" />
+            </div>
+            <div>
+              <label style={s.label}>{t.settingsConfirmPassword}</label>
+              <input style={s.input} type="password" value={pwForm.confirm} onChange={e => setPwForm(p => ({ ...p, confirm: e.target.value }))} autoComplete="new-password" />
+            </div>
+            <div>
+              <button type="submit" style={s.btnPrimary} disabled={pwSaving}>
+                {pwSaving ? t.settingsSaving : t.settingsSave}
+              </button>
+              {pwMsg && <div style={s.msg(pwOk)}>{pwMsg}</div>}
+            </div>
+          </form>
+        )}
+      </div>
+    </>
+  )
+}
+
+function SettingsPrivacy({ t, s }) {
+  const [settings, setSettings] = useState({ profile_visibility: 'all', friend_requests_from: 'all' })
+  const [msg, setMsg] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    apiGetPrivacySettings().then(data => {
+      if (data) setSettings(data)
+      setLoaded(true)
+    })
+  }, [])
+
+  async function handleSave() {
+    setSaving(true)
+    setMsg(null)
+    try {
+      await apiUpdatePrivacySettings(settings)
+      setMsg(t.settingsPrivacySaved)
+    } catch {
+      setMsg('Fejl')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (!loaded) return <div style={{ padding: 20, color: '#888', fontSize: 14 }}>…</div>
+
+  return (
+    <div style={s.section}>
+      <div style={s.sectionTitle}>{t.settingsPrivacy}</div>
+
+      <div style={{ marginBottom: 20 }}>
+        <label style={s.label}>{t.settingsWhoCanSeeProfile}</label>
+        <div style={s.radioGroup}>
+          {[['all', t.settingsWhoCanSeeProfileAll], ['friends', t.settingsWhoCanSeeProfileFriends]].map(([val, lbl]) => (
+            <label key={val} style={s.radioLabel}>
+              <input type="radio" name="profile_visibility" value={val} checked={settings.profile_visibility === val} onChange={() => setSettings(p => ({ ...p, profile_visibility: val }))} />
+              {lbl}
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 20 }}>
+        <label style={s.label}>{t.settingsWhoCanSendRequests}</label>
+        <div style={s.radioGroup}>
+          {[['all', t.settingsWhoCanSendRequestsAll], ['fof', t.settingsWhoCanSendRequestsFOF]].map(([val, lbl]) => (
+            <label key={val} style={s.radioLabel}>
+              <input type="radio" name="friend_requests_from" value={val} checked={settings.friend_requests_from === val} onChange={() => setSettings(p => ({ ...p, friend_requests_from: val }))} />
+              {lbl}
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <button style={s.btnPrimary} onClick={handleSave} disabled={saving}>
+        {saving ? t.settingsSaving : t.settingsSave}
+      </button>
+      {msg && <div style={s.msg(true)}>{msg}</div>}
+    </div>
+  )
+}
+
+function SettingsSessions({ t, s }) {
+  const [sessions, setSessions] = useState(null)
+  const [revokedAll, setRevokedAll] = useState(false)
+
+  useEffect(() => {
+    apiGetSessions().then(data => setSessions(data || []))
+  }, [])
+
+  async function handleRevoke(id) {
+    await apiRevokeSession(id)
+    setSessions(prev => prev.filter(sess => sess.id !== id))
+  }
+
+  async function handleRevokeAll() {
+    await apiRevokeAllOtherSessions()
+    setSessions(prev => prev.filter(sess => sess.isCurrent))
+    setRevokedAll(true)
+  }
+
+  function fmtDate(dt) {
+    if (!dt) return ''
+    return new Date(dt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+  }
+
+  return (
+    <div style={s.section}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div style={s.sectionTitle}>{t.settingsActiveSessions}</div>
+        {sessions && sessions.length > 1 && (
+          <button style={s.btnDanger} onClick={handleRevokeAll} disabled={revokedAll}>
+            {t.settingsRevokeAllOthers}
+          </button>
+        )}
+      </div>
+      {sessions === null && <div style={{ fontSize: 13, color: '#888' }}>…</div>}
+      {sessions && sessions.map(sess => (
+        <div key={sess.id} style={s.row}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: sess.isCurrent ? 700 : 400 }}>
+              {sess.isCurrent ? `${t.settingsCurrentSession} ✓` : fmtDate(sess.createdAt)}
+            </div>
+            {!sess.isCurrent && <div style={{ fontSize: 11, color: '#aaa' }}>{fmtDate(sess.createdAt)}</div>}
+          </div>
+          {!sess.isCurrent && (
+            <button style={s.btnDanger} onClick={() => handleRevoke(sess.id)}>{t.settingsRevokeSession}</button>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function SettingsLangMode({ t, lang, mode, onToggleLang, onSwitchMode, s }) {
+  return (
+    <div style={s.section}>
+      <div style={s.sectionTitle}>{t.settingsLangMode}</div>
+
+      <div style={s.row}>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 600 }}>{t.settingsLanguageLabel}</div>
+          <div style={{ fontSize: 12, color: '#888' }}>{lang === 'da' ? 'Dansk' : 'English'}</div>
+        </div>
+        <button style={s.btnSecondary} onClick={onToggleLang}>
+          {lang === 'da' ? 'Switch to English' : 'Skift til dansk'}
+        </button>
+      </div>
+
+      <div style={{ ...s.row, borderBottom: 'none' }}>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 600 }}>{t.settingsModeLabel}</div>
+          <div style={{ fontSize: 12, color: '#888' }}>{mode === 'privat' ? t.modeCommon : t.modeBusiness}</div>
+        </div>
+        <button style={s.btnSecondary} onClick={onSwitchMode}>{t.modeSwitch}</button>
+      </div>
     </div>
   )
 }

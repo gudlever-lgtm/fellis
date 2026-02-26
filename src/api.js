@@ -470,3 +470,36 @@ export async function apiGetAnalytics(days = 30) {
 export async function apiUpdateMode(mode) {
   return await request('/api/me/mode', { method: 'PATCH', body: JSON.stringify({ mode }) })
 }
+
+// Settings — sessions
+export async function apiGetSessions() {
+  return await request('/api/me/sessions')
+}
+
+export async function apiRevokeSession(sessionId) {
+  return await request(`/api/me/sessions/${sessionId}`, { method: 'DELETE' })
+}
+
+export async function apiRevokeAllOtherSessions() {
+  return await request('/api/me/sessions/others', { method: 'DELETE' })
+}
+
+// Settings — email
+export async function apiChangeEmail(email) {
+  return await request('/api/me/email', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  })
+}
+
+// Settings — privacy
+export async function apiGetPrivacySettings() {
+  return await request('/api/me/privacy')
+}
+
+export async function apiUpdatePrivacySettings(settings) {
+  return await request('/api/me/privacy', {
+    method: 'PATCH',
+    body: JSON.stringify(settings),
+  })
+}
