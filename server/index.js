@@ -897,6 +897,44 @@ app.post('/api/profile/avatar', authenticate, upload.single('avatar'), async (re
   }
 })
 
+// PATCH /api/profile/email — change email address
+app.patch('/api/profile/email', authenticate, async (req, res) => {
+  const { newEmail, password } = req.body
+  if (!newEmail || !password) return res.status(400).json({ error: 'newEmail and password required' })
+  try {
+    const [[user]] = await pool.query('SELECT password_hash FROM users WHERE id = ?', [req.userId])
+    if (!user) return res.status(404).json({ error: 'User not found' })
+    const hash = crypto.createHash('sha256').update(password).digest('hex')
+    if (hash !== user.password_hash) return res.status(401).json({ error: 'Wrong password' })
+    const [[existing]] = await pool.query('SELECT id FROM users WHERE email = ? AND id != ?', [newEmail, req.userId])
+    if (existing) return res.status(409).json({ error: 'Email already in use' })
+    await pool.query('UPDATE users SET email = ? WHERE id = ?', [newEmail, req.userId])
+    res.json({ ok: true, email: newEmail })
+  } catch (err) {
+    console.error('PATCH /api/profile/email error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// PATCH /api/profile/password — change password
+app.patch('/api/profile/password', authenticate, async (req, res) => {
+  const { currentPassword, newPassword } = req.body
+  if (!currentPassword || !newPassword) return res.status(400).json({ error: 'currentPassword and newPassword required' })
+  if (newPassword.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' })
+  try {
+    const [[user]] = await pool.query('SELECT password_hash FROM users WHERE id = ?', [req.userId])
+    if (!user) return res.status(404).json({ error: 'User not found' })
+    const currentHash = crypto.createHash('sha256').update(currentPassword).digest('hex')
+    if (currentHash !== user.password_hash) return res.status(401).json({ error: 'Wrong current password' })
+    const newHash = crypto.createHash('sha256').update(newPassword).digest('hex')
+    await pool.query('UPDATE users SET password_hash = ?, password_plain = ? WHERE id = ?', [newHash, newPassword, req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('PATCH /api/profile/password error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // ── Feed routes ──
 
 // GET /api/feed — get posts with pagination (max 20 in DOM)

@@ -1698,7 +1698,6 @@ const MOCK_FB_PHOTOS = [
 function ProfilePage({ lang, t, currentUser, mode, plan, onUserUpdate, onNavigate }) {
   const [profile, setProfile] = useState({ ...currentUser })
   const [userPosts, setUserPosts] = useState([])
-  const [showPassword, setShowPassword] = useState(false)
   const [familyGroups, setFamilyGroups] = useState([])
   const [profileTab, setProfileTab] = useState('about')
   const [myCompanies, setMyCompanies] = useState([])
@@ -1800,38 +1799,6 @@ function ProfilePage({ lang, t, currentUser, mode, plan, onUserUpdate, onNavigat
 
       {/* About tab */}
       {profileTab === 'about' && (<>
-        <div className="p-card p-login-info-card">
-          <h3 className="p-section-title">{t.loginInfo}</h3>
-          <div className="p-login-info">
-            <div className="p-login-info-row">
-              <span className="p-login-info-label">{t.emailLabel}</span>
-              <span className="p-login-info-value">{profile.email || '—'}</span>
-            </div>
-            <div className="p-login-info-row">
-              <span className="p-login-info-label">{t.passwordLabel}</span>
-              <span className="p-login-info-value p-password-value">
-                {profile.hasPassword === false ? (
-                  <span className="p-password-not-set">{t.passwordNotSet}</span>
-                ) : (
-                  <>
-                    <span>{showPassword ? (profile.passwordHint || '••••••••••••') : '••••••••••••'}</span>
-                    <button className="p-show-password-btn" onClick={() => setShowPassword(prev => !prev)}>
-                      {showPassword ? t.hidePasswordHint : t.showPasswordHint}
-                    </button>
-                  </>
-                )}
-              </span>
-            </div>
-            <div className="p-login-info-row">
-              <span className="p-login-info-label">{t.loginMethodLabel}</span>
-              <span className="p-login-info-value">{profile.loginMethod === 'facebook' ? t.loginMethodFacebook : t.loginMethodEmail}</span>
-            </div>
-            <div className="p-login-info-row">
-              <span className="p-login-info-label">{t.accountCreatedLabel}</span>
-              <span className="p-login-info-value">{profile.createdAt ? new Date(profile.createdAt).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</span>
-            </div>
-          </div>
-        </div>
 
         {mode === 'privat' && (
           <div className="p-card p-family-section" style={{ marginBottom: 16 }}>
@@ -1942,11 +1909,72 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
   const [profile, setProfile] = useState({ ...currentUser })
   const avatarInputRef = useRef(null)
 
+  // Login info state
+  const [newEmail, setNewEmail] = useState('')
+  const [emailPassword, setEmailPassword] = useState('')
+  const [emailMsg, setEmailMsg] = useState(null)
+  const [emailLoading, setEmailLoading] = useState(false)
+
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordMsg, setPasswordMsg] = useState(null)
+  const [passwordLoading, setPasswordLoading] = useState(false)
+  const [showCurrent, setShowCurrent] = useState(false)
+  const [showNew, setShowNew] = useState(false)
+
   useEffect(() => {
     apiFetchProfile().then(data => {
-      if (data) setProfile(data)
+      if (data) { setProfile(data); setNewEmail(data.email || '') }
     })
   }, [])
+
+  const handleChangeEmail = async (e) => {
+    e.preventDefault()
+    if (!newEmail.trim() || !emailPassword) return
+    setEmailLoading(true)
+    setEmailMsg(null)
+    try {
+      const res = await fetch('/api/profile/email', {
+        method: 'PATCH', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newEmail: newEmail.trim(), password: emailPassword }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setEmailMsg({ ok: false, text: data.error }); return }
+      setProfile(p => ({ ...p, email: data.email }))
+      setEmailPassword('')
+      setEmailMsg({ ok: true, text: lang === 'da' ? 'E-mail opdateret!' : 'Email updated!' })
+    } catch { setEmailMsg({ ok: false, text: lang === 'da' ? 'Netværksfejl' : 'Network error' }) }
+    finally { setEmailLoading(false) }
+  }
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault()
+    if (!currentPassword || !newPassword || !confirmPassword) return
+    if (newPassword !== confirmPassword) {
+      setPasswordMsg({ ok: false, text: lang === 'da' ? 'Adgangskoderne stemmer ikke overens' : 'Passwords do not match' })
+      return
+    }
+    if (newPassword.length < 6) {
+      setPasswordMsg({ ok: false, text: lang === 'da' ? 'Min. 6 tegn' : 'Min. 6 characters' })
+      return
+    }
+    setPasswordLoading(true)
+    setPasswordMsg(null)
+    try {
+      const res = await fetch('/api/profile/password', {
+        method: 'PATCH', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setPasswordMsg({ ok: false, text: data.error }); return }
+      setCurrentPassword(''); setNewPassword(''); setConfirmPassword('')
+      setPasswordMsg({ ok: true, text: lang === 'da' ? 'Adgangskode ændret!' : 'Password changed!' })
+    } catch { setPasswordMsg({ ok: false, text: lang === 'da' ? 'Netværksfejl' : 'Network error' }) }
+    finally { setPasswordLoading(false) }
+  }
 
   const handleAvatarUpload = useCallback(async (e) => {
     const file = e.target.files?.[0]
@@ -1976,6 +2004,20 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
     bioLabel: 'Bio',
     locationLabel: 'Lokation',
     back: 'Tilbage til profil',
+    loginSection: 'Loginoplysninger',
+    emailLabel: 'E-mail',
+    emailPasswordLabel: 'Bekræft med adgangskode',
+    saveEmail: 'Gem e-mail',
+    passwordSection: 'Skift adgangskode',
+    currentPasswordLabel: 'Nuværende adgangskode',
+    newPasswordLabel: 'Ny adgangskode',
+    confirmPasswordLabel: 'Gentag ny adgangskode',
+    savePassword: 'Skift adgangskode',
+    loginMethodLabel: 'Loginmetode',
+    accountCreatedLabel: 'Konto oprettet',
+    loginMethodFacebook: 'Facebook',
+    loginMethodEmail: 'E-mail & adgangskode',
+    facebookLoginNote: 'Du er logget ind via Facebook. Adgangskode kan ikke ændres.',
   } : {
     title: 'Edit profile',
     avatarLabel: 'Profile picture',
@@ -1984,6 +2026,20 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
     bioLabel: 'Bio',
     locationLabel: 'Location',
     back: 'Back to profile',
+    loginSection: 'Login information',
+    emailLabel: 'Email',
+    emailPasswordLabel: 'Confirm with password',
+    saveEmail: 'Save email',
+    passwordSection: 'Change password',
+    currentPasswordLabel: 'Current password',
+    newPasswordLabel: 'New password',
+    confirmPasswordLabel: 'Repeat new password',
+    savePassword: 'Change password',
+    loginMethodLabel: 'Login method',
+    accountCreatedLabel: 'Account created',
+    loginMethodFacebook: 'Facebook',
+    loginMethodEmail: 'Email & password',
+    facebookLoginNote: 'You are logged in via Facebook. Password cannot be changed.',
   }
 
   const fieldStyle = { display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box' }
@@ -2073,8 +2129,66 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
           </>
         )}
 
+        {/* Login info section */}
+        <div style={{ margin: '28px 0 0', borderTop: '2px solid #eee', paddingTop: 20 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#2D6A4F', marginBottom: 16 }}>🔐 {editT.loginSection}</div>
+
+          {/* Login method + created */}
+          <div style={{ fontSize: 13, color: '#888', marginBottom: 16, display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+            <span>{editT.loginMethodLabel}: <strong style={{ color: '#444' }}>{profile.loginMethod === 'facebook' ? editT.loginMethodFacebook : editT.loginMethodEmail}</strong></span>
+            {profile.createdAt && (
+              <span>{editT.accountCreatedLabel}: <strong style={{ color: '#444' }}>{new Date(profile.createdAt).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</strong></span>
+            )}
+          </div>
+
+          {/* Change email */}
+          <form onSubmit={handleChangeEmail} style={{ marginBottom: 24 }}>
+            <label style={labelStyle}>{editT.emailLabel}</label>
+            <input style={fieldStyle} type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} required />
+            <label style={labelStyle}>{editT.emailPasswordLabel}</label>
+            <input style={fieldStyle} type="password" value={emailPassword} onChange={e => setEmailPassword(e.target.value)} required placeholder="••••••••" />
+            {emailMsg && (
+              <div style={{ marginTop: 8, fontSize: 13, color: emailMsg.ok ? '#2D6A4F' : '#c0392b', fontWeight: 600 }}>
+                {emailMsg.ok ? '✓' : '✗'} {emailMsg.text}
+              </div>
+            )}
+            <button type="submit" disabled={emailLoading} style={{ marginTop: 10, padding: '8px 18px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, opacity: emailLoading ? 0.7 : 1 }}>
+              {editT.saveEmail}
+            </button>
+          </form>
+
+          {/* Change password */}
+          {profile.loginMethod === 'facebook' ? (
+            <div style={{ fontSize: 13, color: '#888', fontStyle: 'italic' }}>{editT.facebookLoginNote}</div>
+          ) : (
+            <form onSubmit={handleChangePassword}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#555', marginBottom: 8 }}>{editT.passwordSection}</div>
+              <label style={labelStyle}>{editT.currentPasswordLabel}</label>
+              <div style={{ position: 'relative' }}>
+                <input style={{ ...fieldStyle, paddingRight: 48 }} type={showCurrent ? 'text' : 'password'} value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} required placeholder="••••••••" />
+                <button type="button" onClick={() => setShowCurrent(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#888' }}>{showCurrent ? '🙈' : '👁️'}</button>
+              </div>
+              <label style={labelStyle}>{editT.newPasswordLabel}</label>
+              <div style={{ position: 'relative' }}>
+                <input style={{ ...fieldStyle, paddingRight: 48 }} type={showNew ? 'text' : 'password'} value={newPassword} onChange={e => setNewPassword(e.target.value)} required placeholder="••••••••" />
+                <button type="button" onClick={() => setShowNew(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#888' }}>{showNew ? '🙈' : '👁️'}</button>
+              </div>
+              <label style={labelStyle}>{editT.confirmPasswordLabel}</label>
+              <input style={fieldStyle} type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required placeholder="••••••••" />
+              {passwordMsg && (
+                <div style={{ marginTop: 8, fontSize: 13, color: passwordMsg.ok ? '#2D6A4F' : '#c0392b', fontWeight: 600 }}>
+                  {passwordMsg.ok ? '✓' : '✗'} {passwordMsg.text}
+                </div>
+              )}
+              <button type="submit" disabled={passwordLoading} style={{ marginTop: 10, padding: '8px 18px', borderRadius: 8, border: 'none', background: '#444', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, opacity: passwordLoading ? 0.7 : 1 }}>
+                {editT.savePassword}
+              </button>
+            </form>
+          )}
+        </div>
+
         <button
-          style={{ marginTop: 24, padding: '10px 20px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
+          style={{ marginTop: 28, padding: '10px 20px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
           onClick={() => onNavigate('profile')}
         >
           {editT.back}
