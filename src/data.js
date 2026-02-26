@@ -14,6 +14,14 @@ export function getInitials(name) {
   return name.split(' ').map(n => n[0]).join('')
 }
 
+// Detect the first music URL (Spotify, YouTube, SoundCloud, Apple Music, Bandcamp, Tidal) in a text string
+export function detectMusicUrl(text) {
+  if (!text) return null
+  const MUSIC_RE = /https?:\/\/(?:open\.spotify\.com|(?:www\.)?youtube\.com\/watch|youtu\.be|(?:www\.)?soundcloud\.com|music\.apple\.com|[a-zA-Z0-9-]+\.bandcamp\.com|(?:www\.)?tidal\.com)[^\s)>\]"']*/i
+  const match = text.match(MUSIC_RE)
+  return match ? match[0] : null
+}
+
 // Current user
 export const CURRENT_USER = {
   name: 'Sofie Nielsen',
@@ -504,6 +512,10 @@ export const PT = {
     adminSaved: '✓ Gemt!',
     adminSaving: 'Gemmer...',
     adminNoStripe: 'Stripe er ikke konfigureret endnu.',
+    // Parachord integration
+    parachordBtn: '▶ Åbn i Parachord',
+    parachordToggleLabel: 'Vis "Åbn i Parachord"-knap på musikopslag',
+    parachordSettingsTitle: 'Musik-integration',
   },
   en: {
     feed: 'Feed',
@@ -879,6 +891,10 @@ export const PT = {
     adminSaved: '✓ Saved!',
     adminSaving: 'Saving...',
     adminNoStripe: 'Stripe is not configured yet.',
+    // Parachord integration
+    parachordBtn: '▶ Open in Parachord',
+    parachordToggleLabel: 'Show "Open in Parachord" button on music posts',
+    parachordSettingsTitle: 'Music integration',
   },
 }
 

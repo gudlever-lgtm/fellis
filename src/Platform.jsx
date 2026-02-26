@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { PT, nameToColor, getInitials } from './data.js'
+import { PT, nameToColor, getInitials, detectMusicUrl } from './data.js'
 import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateMode } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
@@ -674,6 +674,8 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
   const [mediaPopup, setMediaPopup] = useState(false)
   const [postMenu, setPostMenu] = useState(null)       // postId with open options menu
   const [hiddenPosts, setHiddenPosts] = useState(new Set()) // locally hidden post ids
+  const [parachordEnabled] = useState(() => localStorage.getItem('fellis_parachord_enabled') !== 'false')
+  const [hiddenParachord, setHiddenParachord] = useState(new Set()) // post ids where button was hidden after 404/500
   const fileInputRef = useRef(null)
   const textareaRef = useRef(null)
   const feedMention = useMention(sharePopupFriends || [])
@@ -719,6 +721,28 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
     setFeedRsvpMap(prev => ({ ...prev, [eventId]: newStatus }))
     if (feedDbEventIds.has(eventId)) apiRsvpEvent(eventId, newStatus, {}).catch(() => {})
   }
+
+  const handleOpenParachord = useCallback(async (postId, musicUrl) => {
+    try {
+      const res = await fetch('http://127.0.0.1:9876/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: 'From Fellis', tracks: [{ title: musicUrl, artist: '', url: musicUrl }] }),
+      })
+      if (res.status === 404 || res.status === 500) {
+        setHiddenParachord(prev => new Set([...prev, postId]))
+      }
+    } catch {
+      // Parachord not reachable locally — fall back to custom URL scheme
+      try {
+        const a = document.createElement('a')
+        a.href = `parachord://play?url=${encodeURIComponent(musicUrl)}`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+      } catch {}
+    }
+  }, [])
 
   // Fetch a page of posts — stable callback (empty deps), guards via ref
   const fetchPage = useCallback(async (newOffset, direction) => {
@@ -1546,6 +1570,20 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
                   </>
                 )}
               </div>
+              {(() => {
+                if (!parachordEnabled || hiddenParachord.has(post.id)) return null
+                const musicUrl = detectMusicUrl([post.text?.da, post.text?.en].filter(Boolean).join(' '))
+                if (!musicUrl) return null
+                return (
+                  <button
+                    className="p-action-btn"
+                    style={{ fontSize: 12, color: '#52B788' }}
+                    onClick={() => handleOpenParachord(post.id, musicUrl)}
+                  >
+                    {t.parachordBtn}
+                  </button>
+                )
+              })()}
               {mode === 'business' && post.author === currentUser.name && (
                 <button className="p-action-btn p-action-btn-insights" onClick={() => setInsightsPostId(p => p === post.id ? null : post.id)}>
                   📊 {t.analyticsPostInsights}
@@ -1695,6 +1733,13 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
   const [familyGroups, setFamilyGroups] = useState([])
   const [profileTab, setProfileTab] = useState('about')
   const [myCompanies, setMyCompanies] = useState([])
+  const [parachordEnabled, setParachordEnabled] = useState(() => localStorage.getItem('fellis_parachord_enabled') !== 'false')
+
+  const handleParachordToggle = () => {
+    const next = !parachordEnabled
+    setParachordEnabled(next)
+    localStorage.setItem('fellis_parachord_enabled', next ? 'true' : 'false')
+  }
 
   useEffect(() => {
     apiFetchProfile().then(data => {
@@ -1824,6 +1869,31 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
             <div className="p-login-info-row">
               <span className="p-login-info-label">{t.accountCreatedLabel}</span>
               <span className="p-login-info-value">{profile.createdAt ? new Date(profile.createdAt).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-card p-login-info-card" style={{ marginBottom: 16 }}>
+          <h3 className="p-section-title">🎵 {t.parachordSettingsTitle}</h3>
+          <div className="p-login-info">
+            <div className="p-login-info-row" style={{ alignItems: 'center' }}>
+              <span className="p-login-info-label" style={{ flex: 1 }}>{t.parachordToggleLabel}</span>
+              <button
+                onClick={handleParachordToggle}
+                style={{
+                  position: 'relative', width: 40, height: 22, borderRadius: 11,
+                  background: parachordEnabled ? '#52B788' : '#ccc',
+                  border: 'none', cursor: 'pointer', flexShrink: 0,
+                  transition: 'background 0.2s',
+                }}
+                title={t.parachordToggleLabel}
+              >
+                <span style={{
+                  position: 'absolute', top: 3, left: parachordEnabled ? 20 : 3,
+                  width: 16, height: 16, borderRadius: '50%', background: '#fff',
+                  transition: 'left 0.2s',
+                }} />
+              </button>
             </div>
           </div>
         </div>
