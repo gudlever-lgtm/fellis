@@ -488,6 +488,10 @@ export const PT = {
     settingsSessionsEmpty: 'Ingen andre aktive sessioner.',
     settingsLanguage: 'Sprog',
     settingsMode: 'Kontotype',
+    // Password policy
+    adminSecurityTab: 'Sikkerhed',
+    adminPwdPolicy: 'Adgangskodepolitik',
+    adminPwdMinLength: 'Minimumslængde',
     // Marketplace
     marketplace: 'Marked',
     marketplaceTitle: 'Lokalt marked',
@@ -907,6 +911,10 @@ export const PT = {
     settingsSessionsEmpty: 'No other active sessions.',
     settingsLanguage: 'Language',
     settingsMode: 'Account type',
+    // Password policy
+    adminSecurityTab: 'Security',
+    adminPwdPolicy: 'Password policy',
+    adminPwdMinLength: 'Minimum length',
     // Marketplace
     marketplace: 'Marketplace',
     marketplaceTitle: 'Local Marketplace',

@@ -405,6 +405,47 @@ async function authenticate(req, res, next) {
   }
 }
 
+// ── Password policy ──────────────────────────────────────────────────────────
+
+async function getPasswordPolicy() {
+  try {
+    const [rows] = await pool.query(
+      "SELECT key_name, key_value FROM admin_settings WHERE key_name LIKE 'pwd_%'"
+    )
+    const s = {}
+    for (const r of rows) s[r.key_name] = r.key_value
+    return {
+      min_length: Math.max(parseInt(s.pwd_min_length) || 6, 1),
+      require_uppercase: s.pwd_require_uppercase === '1',
+      require_lowercase: s.pwd_require_lowercase === '1',
+      require_numbers: s.pwd_require_numbers === '1',
+      require_symbols: s.pwd_require_symbols === '1',
+    }
+  } catch {
+    return { min_length: 6, require_uppercase: false, require_lowercase: false, require_numbers: false, require_symbols: false }
+  }
+}
+
+function validatePasswordStrength(password, policy, lang = 'da') {
+  const errors = []
+  if (password.length < policy.min_length)
+    errors.push(lang === 'da' ? `Min. ${policy.min_length} tegn` : `Min. ${policy.min_length} characters`)
+  if (policy.require_uppercase && !/[A-Z]/.test(password))
+    errors.push(lang === 'da' ? 'Mindst ét stort bogstav' : 'At least one uppercase letter')
+  if (policy.require_lowercase && !/[a-z]/.test(password))
+    errors.push(lang === 'da' ? 'Mindst ét lille bogstav' : 'At least one lowercase letter')
+  if (policy.require_numbers && !/[0-9]/.test(password))
+    errors.push(lang === 'da' ? 'Mindst ét tal' : 'At least one number')
+  if (policy.require_symbols && !/[^A-Za-z0-9]/.test(password))
+    errors.push(lang === 'da' ? 'Mindst ét specialtegn (!@#$...)' : 'At least one symbol (!@#$...)')
+  return errors
+}
+
+// GET /api/auth/password-policy — public, returns current requirements
+app.get('/api/auth/password-policy', async (req, res) => {
+  res.json(await getPasswordPolicy())
+})
+
 // ── Auth routes ──
 
 // POST /api/auth/login — login with email + password
@@ -439,7 +480,9 @@ app.post('/api/auth/login', async (req, res) => {
 app.post('/api/auth/register', async (req, res) => {
   const { name, email, password, lang, inviteToken } = req.body
   if (!name || !email || !password) return res.status(400).json({ error: 'Name, email, and password required' })
-  if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' })
+  const regPolicy = await getPasswordPolicy()
+  const regPwdErrors = validatePasswordStrength(password, regPolicy, lang || 'da')
+  if (regPwdErrors.length > 0) return res.status(400).json({ error: regPwdErrors.join('. ') })
   try {
     const hash = crypto.createHash('sha256').update(password).digest('hex')
     const handle = '@' + name.toLowerCase().replace(/\s+/g, '.')
@@ -516,9 +559,11 @@ app.post('/api/auth/forgot-password', async (req, res) => {
 
 // POST /api/auth/reset-password — set new password using reset token
 app.post('/api/auth/reset-password', async (req, res) => {
-  const { token, password } = req.body
+  const { token, password, lang: resetLang } = req.body
   if (!token || !password) return res.status(400).json({ error: 'Token and password required' })
-  if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' })
+  const resetPolicy = await getPasswordPolicy()
+  const resetPwdErrors = validatePasswordStrength(password, resetPolicy, resetLang || 'da')
+  if (resetPwdErrors.length > 0) return res.status(400).json({ error: resetPwdErrors.join('. ') })
   try {
     const [rows] = await pool.query(
       'SELECT user_id FROM sessions WHERE id = ? AND expires_at > NOW()',
@@ -926,9 +971,11 @@ app.patch('/api/profile/email', authenticate, async (req, res) => {
 
 // PATCH /api/profile/password — change password
 app.patch('/api/profile/password', authenticate, async (req, res) => {
-  const { currentPassword, newPassword } = req.body
+  const { currentPassword, newPassword, lang: chgLang } = req.body
   if (!currentPassword || !newPassword) return res.status(400).json({ error: 'currentPassword and newPassword required' })
-  if (newPassword.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' })
+  const chgPolicy = await getPasswordPolicy()
+  const chgPwdErrors = validatePasswordStrength(newPassword, chgPolicy, chgLang || 'da')
+  if (chgPwdErrors.length > 0) return res.status(400).json({ error: chgPwdErrors.join('. ') })
   try {
     const [[user]] = await pool.query('SELECT password_hash FROM users WHERE id = ?', [req.userId])
     if (!user) return res.status(404).json({ error: 'User not found' })
@@ -3258,11 +3305,14 @@ app.get('/api/admin/settings', authenticate, requireAdmin, async (req, res) => {
 
 // POST /api/admin/settings — save Stripe config (admin only)
 app.post('/api/admin/settings', authenticate, requireAdmin, async (req, res) => {
-  const allowed = ['stripe_secret_key', 'stripe_pub_key', 'stripe_webhook_secret', 'stripe_price_pro_monthly', 'stripe_price_pro_yearly', 'stripe_price_boost']
+  const allowed = ['stripe_secret_key', 'stripe_pub_key', 'stripe_webhook_secret', 'stripe_price_pro_monthly', 'stripe_price_pro_yearly', 'stripe_price_boost', 'pwd_min_length', 'pwd_require_uppercase', 'pwd_require_lowercase', 'pwd_require_numbers', 'pwd_require_symbols']
   try {
     for (const [key, value] of Object.entries(req.body)) {
       if (!allowed.includes(key)) continue
-      if (!value || value === '••••••••' + (value || '').slice(-4)) continue // skip masked/empty
+      // pwd_ keys are always saved (value can be '0'); skip only masked/empty Stripe secrets
+      if (!key.startsWith('pwd_')) {
+        if (!value || value === '••••••••' + (value || '').slice(-4)) continue // skip masked/empty
+      }
       await pool.query('INSERT INTO admin_settings (key_name, key_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE key_value = VALUES(key_value)', [key, value])
     }
     res.json({ ok: true })

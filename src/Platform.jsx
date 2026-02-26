@@ -2096,6 +2096,38 @@ function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, on
   )
 }
 
+function PasswordStrengthIndicator({ password, lang }) {
+  const [policy, setPolicy] = useState(null)
+  useEffect(() => {
+    fetch('/api/auth/password-policy').then(r => r.ok ? r.json() : null).then(p => { if (p) setPolicy(p) }).catch(() => {})
+  }, [])
+
+  if (!policy || !password) return null
+
+  const checks = [
+    { ok: password.length >= policy.min_length, da: `Min. ${policy.min_length} tegn`, en: `Min. ${policy.min_length} characters` },
+    ...(policy.require_uppercase ? [{ ok: /[A-Z]/.test(password), da: 'Stort bogstav (A–Z)', en: 'Uppercase letter (A–Z)' }] : []),
+    ...(policy.require_lowercase ? [{ ok: /[a-z]/.test(password), da: 'Lille bogstav (a–z)', en: 'Lowercase letter (a–z)' }] : []),
+    ...(policy.require_numbers   ? [{ ok: /[0-9]/.test(password), da: 'Tal (0–9)', en: 'Number (0–9)' }] : []),
+    ...(policy.require_symbols   ? [{ ok: /[^A-Za-z0-9]/.test(password), da: 'Specialtegn (!@#$…)', en: 'Symbol (!@#$…)' }] : []),
+  ]
+
+  // Only show when there's something to show
+  const hasRequirements = checks.length > 1 || (checks.length === 1 && !checks[0].ok)
+  if (!hasRequirements) return null
+
+  return (
+    <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 3 }}>
+      {checks.map((c, i) => (
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: c.ok ? '#2D6A4F' : '#888' }}>
+          <span style={{ fontSize: 11 }}>{c.ok ? '✓' : '○'}</span>
+          <span>{lang === 'da' ? c.da : c.en}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function SettingsKonto({ lang, t, currentUser, fS, lS }) {
   const [profile, setProfile] = useState(null)
   const [newEmail, setNewEmail] = useState(currentUser?.email || '')
@@ -2142,16 +2174,12 @@ function SettingsKonto({ lang, t, currentUser, fS, lS }) {
       setPasswordMsg({ ok: false, text: lang === 'da' ? 'Adgangskoderne stemmer ikke overens' : 'Passwords do not match' })
       return
     }
-    if (newPassword.length < 6) {
-      setPasswordMsg({ ok: false, text: lang === 'da' ? 'Min. 6 tegn' : 'Min. 6 characters' })
-      return
-    }
     setPasswordLoading(true); setPasswordMsg(null)
     try {
       const res = await fetch('/api/profile/password', {
         method: 'PATCH', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currentPassword, newPassword }),
+        body: JSON.stringify({ currentPassword, newPassword, lang }),
       })
       const data = await res.json()
       if (!res.ok) { setPasswordMsg({ ok: false, text: data.error }); return }
@@ -2201,6 +2229,7 @@ function SettingsKonto({ lang, t, currentUser, fS, lS }) {
               <input style={{ ...fS, paddingRight: 44 }} type={showNew ? 'text' : 'password'} value={newPassword} onChange={e => setNewPassword(e.target.value)} required placeholder="••••••••" />
               <button type="button" onClick={() => setShowNew(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#888' }}>{showNew ? '🙈' : '👁️'}</button>
             </div>
+            <PasswordStrengthIndicator password={newPassword} lang={lang} />
             <label style={lS}>{t.settingsConfirmPassword}</label>
             <input style={fS} type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required placeholder="••••••••" />
             {passwordMsg && <div style={{ marginTop: 8, fontSize: 13, color: passwordMsg.ok ? '#2D6A4F' : '#c0392b', fontWeight: 600 }}>{passwordMsg.ok ? '✓' : '✗'} {passwordMsg.text}</div>}
@@ -6925,6 +6954,8 @@ function AdminPage({ lang, t }) {
   const [form, setForm] = useState({
     stripe_secret_key: '', stripe_pub_key: '', stripe_webhook_secret: '',
     stripe_price_pro_monthly: '', stripe_price_pro_yearly: '', stripe_price_boost: '',
+    pwd_min_length: '6', pwd_require_uppercase: '0', pwd_require_lowercase: '0',
+    pwd_require_numbers: '0', pwd_require_symbols: '0',
   })
   const [status, setStatus] = useState('idle') // idle | saving | saved
   const [stats, setStats] = useState(null)
@@ -6969,6 +7000,9 @@ function AdminPage({ lang, t }) {
         </button>
         <button className={`p-filter-tab${adminTab === 'stripe' ? ' active' : ''}`} onClick={() => setAdminTab('stripe')}>
           💳 {t.adminStripeTitle}
+        </button>
+        <button className={`p-filter-tab${adminTab === 'security' ? ' active' : ''}`} onClick={() => setAdminTab('security')}>
+          🔒 {lang === 'da' ? 'Sikkerhed' : 'Security'}
         </button>
       </div>
 
@@ -7063,6 +7097,53 @@ function AdminPage({ lang, t }) {
                     autoComplete="off"
                   />
                 </div>
+              ))}
+            </div>
+            <div style={{ marginTop: 20 }}>
+              <button
+                type="submit"
+                disabled={status === 'saving'}
+                style={{ padding: '10px 24px', borderRadius: 8, border: 'none', background: status === 'saved' ? '#40916C' : '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}
+              >
+                {status === 'saving' ? t.adminSaving : status === 'saved' ? t.adminSaved : t.adminSave}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {adminTab === 'security' && (
+        <div className="p-card" style={{ marginBottom: 20, padding: '20px 24px' }}>
+          <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700 }}>🔒 {lang === 'da' ? 'Adgangskodepolitik' : 'Password policy'}</h3>
+          <p style={{ margin: '0 0 20px', fontSize: 13, color: '#666' }}>
+            {lang === 'da' ? 'Krav der gælder ved oprettelse, nulstilling og skift af adgangskode.' : 'Requirements enforced on registration, reset, and password change.'}
+          </p>
+          <form onSubmit={handleSave}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={lS}>{lang === 'da' ? 'Minimumslængde' : 'Minimum length'}</label>
+                <input
+                  style={{ ...fS, width: 120 }}
+                  type="number" min="4" max="64"
+                  value={form.pwd_min_length || '6'}
+                  onChange={e => setForm(prev => ({ ...prev, pwd_min_length: e.target.value }))}
+                />
+              </div>
+              {[
+                { key: 'pwd_require_uppercase', da: 'Kræv stort bogstav (A–Z)', en: 'Require uppercase letter (A–Z)' },
+                { key: 'pwd_require_lowercase', da: 'Kræv lille bogstav (a–z)', en: 'Require lowercase letter (a–z)' },
+                { key: 'pwd_require_numbers',   da: 'Kræv tal (0–9)',           en: 'Require number (0–9)' },
+                { key: 'pwd_require_symbols',   da: 'Kræv specialtegn (!@#$…)', en: 'Require symbol (!@#$…)' },
+              ].map(({ key, da, en }) => (
+                <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
+                  <input
+                    type="checkbox"
+                    checked={form[key] === '1'}
+                    onChange={e => setForm(prev => ({ ...prev, [key]: e.target.checked ? '1' : '0' }))}
+                    style={{ width: 16, height: 16, accentColor: '#2D6A4F', cursor: 'pointer' }}
+                  />
+                  {lang === 'da' ? da : en}
+                </label>
               ))}
             </div>
             <div style={{ marginTop: 20 }}>
