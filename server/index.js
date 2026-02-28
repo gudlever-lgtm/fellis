@@ -1281,8 +1281,9 @@ app.get('/api/feed', authenticate, async (req, res) => {
     const offset = Math.max(parseInt(req.query.offset) || 0, 0)
 
     // Fetch user interests, family friends, and algorithm weights in parallel
+    // Both DB queries use .catch() so missing columns (pre-migration) never crash the feed
     const [[userRows], [familyRows], weights] = await Promise.all([
-      pool.query('SELECT interests FROM users WHERE id = ?', [req.userId]),
+      pool.query('SELECT interests FROM users WHERE id = ?', [req.userId]).catch(() => [[{}]]),
       pool.query('SELECT friend_id FROM friendships WHERE user_id = ? AND is_family = 1', [req.userId]).catch(() => [[]]),
       getFeedWeights(),
     ])
