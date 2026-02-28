@@ -1106,7 +1106,7 @@ app.get('/api/profile', authenticate, async (req, res) => {
     const [users] = await pool.query(
       `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url,
         u.email, u.facebook_id, u.password_hash, u.password_plain, u.created_at,
-        u.profile_public, u.reputation_score, u.referral_count,
+        u.profile_public, u.reputation_score, u.referral_count, u.interests,
         (SELECT COUNT(*) FROM friendships WHERE user_id = u.id) as friend_count,
         (SELECT COUNT(*) FROM posts WHERE author_id = u.id) as post_count
        FROM users u WHERE u.id = ?`,
@@ -1114,6 +1114,8 @@ app.get('/api/profile', authenticate, async (req, res) => {
     )
     if (users.length === 0) return res.status(404).json({ error: 'User not found' })
     const u = users[0]
+    let interests = []
+    try { interests = typeof u.interests === 'string' ? JSON.parse(u.interests) : (u.interests || []) } catch {}
     res.json({
       id: u.id, name: u.name, handle: u.handle, initials: u.initials,
       bio: { da: u.bio_da || '', en: u.bio_en || '' },
@@ -1128,6 +1130,7 @@ app.get('/api/profile', authenticate, async (req, res) => {
       profile_public: !!u.profile_public,
       reputationScore: Number(u.reputation_score || 0),
       referralCount: Number(u.referral_count || 0),
+      interests,
     })
   } catch (err) {
     res.status(500).json({ error: 'Failed to load profile' })
