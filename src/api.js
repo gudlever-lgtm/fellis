@@ -170,6 +170,14 @@ export async function apiDeletePost(postId) {
   return await request(`/api/feed/${postId}`, { method: 'DELETE' })
 }
 
+export async function apiEditPost(postId, text) {
+  return await request(`/api/feed/${postId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  })
+}
+
 // Profile
 export async function apiFetchProfile(userId) {
   if (userId) return await request(`/api/profile/${userId}`)

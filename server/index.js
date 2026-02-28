@@ -387,7 +387,50 @@ app.use('/uploads', (req, res, next) => {
   extensions: false,        // No extension guessing
 }))
 
+// ── Browser / OS parsing ──────────────────────────────────────────────────
+function parseBrowser(ua) {
+  if (!ua) return { browser: 'Unknown', os: 'Unknown' }
+  let browser = 'Other'
+  if (/Edg\/|Edge\//.test(ua)) browser = 'Edge'
+  else if (/OPR\/|Opera\//.test(ua)) browser = 'Opera'
+  else if (/Chrome\//.test(ua) && !/Chromium/.test(ua)) browser = 'Chrome'
+  else if (/Firefox\//.test(ua)) browser = 'Firefox'
+  else if (/Safari\//.test(ua) && !/Chrome/.test(ua)) browser = 'Safari'
+  else if (/MSIE|Trident/.test(ua)) browser = 'IE'
+  let os = 'Other'
+  if (/Windows/.test(ua)) os = 'Windows'
+  else if (/iPhone|iPad|iPod/.test(ua)) os = 'iOS'
+  else if (/Android/.test(ua)) os = 'Android'
+  else if (/Macintosh|Mac OS/.test(ua)) os = 'macOS'
+  else if (/Linux/.test(ua)) os = 'Linux'
+  return { browser, os }
+}
+
+// ── Geo IP lookup (ip-api.com, free tier, cached) ───────────────────────
+const geoCache = new Map()
+async function getGeoForIp(ip) {
+  if (!ip) return { country: null, country_code: null, city: null }
+  const clean = ip.replace(/^::ffff:/, '')
+  if (clean === '127.0.0.1' || clean === '::1' || clean.startsWith('192.168.') || clean.startsWith('10.') || clean.startsWith('172.'))
+    return { country: 'Lokal', country_code: 'XX', city: 'Lokal' }
+  if (geoCache.has(clean)) return geoCache.get(clean)
+  try {
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => ctrl.abort(), 3000)
+    const r = await fetch(`http://ip-api.com/json/${clean}?fields=status,country,countryCode,city`, { signal: ctrl.signal })
+    clearTimeout(timer)
+    const d = await r.json()
+    if (d.status === 'success') {
+      const result = { country: d.country, country_code: d.countryCode, city: d.city }
+      geoCache.set(clean, result)
+      return result
+    }
+  } catch {}
+  return { country: null, country_code: null, city: null }
+}
+
 // ── Auth middleware ──
+const visitedSessions = new Set() // in-memory: sessions tracked this server process day
 async function authenticate(req, res, next) {
   const sessionId = getSessionIdFromRequest(req)
   if (!sessionId) return res.status(401).json({ error: 'Not authenticated' })
@@ -399,6 +442,24 @@ async function authenticate(req, res, next) {
     if (rows.length === 0) return res.status(401).json({ error: 'Session expired' })
     req.userId = rows[0].user_id
     req.lang = rows[0].lang
+
+    // Track site visit once per session per calendar day
+    const todayKey = `${sessionId}:${new Date().toISOString().slice(0, 10)}`
+    if (!visitedSessions.has(todayKey)) {
+      visitedSessions.add(todayKey)
+      const ip = (req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || '').replace(/^::ffff:/, '')
+      const ua = req.headers['user-agent'] || null
+      const { browser, os } = parseBrowser(ua)
+      // Async geo lookup — don't await, fire-and-forget
+      getGeoForIp(ip).then(geo => {
+        pool.query(
+          `INSERT INTO site_visits (session_id, ip_address, user_agent, browser, os, country, country_code, city)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [sessionId, ip || null, ua, browser, os, geo.country, geo.country_code, geo.city]
+        ).catch(() => {})
+      })
+    }
+
     next()
   } catch (err) {
     res.status(500).json({ error: 'Auth check failed' })
@@ -1172,7 +1233,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
     const total = countResult[0].total
 
     const [posts] = await pool.query(
-      `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.created_at
+      `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.created_at, p.edited_at
        FROM posts p JOIN users u ON p.author_id = u.id
        WHERE p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?)
        ORDER BY p.created_at DESC
@@ -1257,6 +1318,8 @@ app.get('/api/feed', authenticate, async (req, res) => {
         reactions: reactionsByPost[p.id] || [],
         media,
         comments: commentsByPost[p.id] || [],
+        createdAtRaw: p.created_at,
+        edited: !!p.edited_at,
       }
     })
     res.json({ posts: result, total, offset, limit })
@@ -1428,6 +1491,60 @@ app.delete('/api/feed/:id', authenticate, async (req, res) => {
     res.json({ ok: true })
   } catch (err) {
     res.status(500).json({ error: 'Failed to delete post' })
+  }
+})
+
+// PATCH /api/feed/:id — edit own post (within 1 hour of creation)
+app.patch('/api/feed/:id', authenticate, async (req, res) => {
+  const { text } = req.body
+  if (!text?.trim()) return res.status(400).json({ error: 'Text required' })
+  try {
+    const postId = parseInt(req.params.id)
+    const [[post]] = await pool.query(
+      'SELECT id, author_id, created_at FROM posts WHERE id = ?', [postId]
+    )
+    if (!post) return res.status(404).json({ error: 'Post not found' })
+    if (post.author_id !== req.userId) return res.status(403).json({ error: 'Not your post' })
+    const ageMs = Date.now() - new Date(post.created_at).getTime()
+    if (ageMs > 60 * 60 * 1000) return res.status(403).json({ error: 'Edit window expired (1 hour)' })
+    await pool.query(
+      'UPDATE posts SET text_da = ?, text_en = ?, edited_at = NOW() WHERE id = ?',
+      [text.trim(), text.trim(), postId]
+    )
+    res.json({ ok: true, text: text.trim() })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to edit post' })
+  }
+})
+
+// GET /api/visitor-stats — aggregated visitor statistics (authenticated users)
+app.get('/api/visitor-stats', authenticate, async (req, res) => {
+  try {
+    const [browsers] = await pool.query(
+      `SELECT browser, COUNT(*) AS count FROM site_visits
+       WHERE visited_at >= DATE_SUB(NOW(), INTERVAL 90 DAY) AND browser != 'Unknown'
+       GROUP BY browser ORDER BY count DESC`
+    )
+    const [oses] = await pool.query(
+      `SELECT os, COUNT(*) AS count FROM site_visits
+       WHERE visited_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)
+       GROUP BY os ORDER BY count DESC`
+    )
+    const [countries] = await pool.query(
+      `SELECT country, country_code, COUNT(*) AS count FROM site_visits
+       WHERE visited_at >= DATE_SUB(NOW(), INTERVAL 90 DAY) AND country_code IS NOT NULL AND country_code != 'XX'
+       GROUP BY country_code, country ORDER BY count DESC LIMIT 30`
+    )
+    const [daily] = await pool.query(
+      `SELECT DATE(visited_at) AS date, COUNT(*) AS count FROM site_visits
+       WHERE visited_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+       GROUP BY DATE(visited_at) ORDER BY date ASC`
+    )
+    const [[{ total }]] = await pool.query('SELECT COUNT(*) AS total FROM site_visits')
+    res.json({ browsers, oses, countries, daily, total })
+  } catch (err) {
+    console.error('GET /api/visitor-stats error:', err.message)
+    res.status(500).json({ error: 'Server error' })
   }
 })
 
@@ -2872,6 +2989,23 @@ app.get('/api/companies/:id/members', authenticate, async (req, res) => {
   }
 })
 
+// GET /api/companies/:id/followers — list of users following this company
+app.get('/api/companies/:id/followers', authenticate, async (req, res) => {
+  try {
+    const [followers] = await pool.query(
+      `SELECT u.id, u.name, u.handle, u.avatar_url
+       FROM company_follows cf JOIN users u ON u.id = cf.user_id
+       WHERE cf.company_id = ?
+       ORDER BY u.name ASC LIMIT 100`,
+      [req.params.id]
+    )
+    res.json({ followers })
+  } catch (err) {
+    console.error('GET /api/companies/:id/followers error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // GET /api/companies/:id/posts — paginated posts
 app.get('/api/companies/:id/posts', authenticate, async (req, res) => {
   try {
@@ -3154,6 +3288,30 @@ async function initSettingsSchema() {
 
   } catch (err) {
     console.error('initSettingsSchema error:', err.message)
+  }
+}
+
+async function initSiteVisits() {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS site_visits (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      session_id VARCHAR(100) NOT NULL,
+      ip_address VARCHAR(50) DEFAULT NULL,
+      user_agent VARCHAR(500) DEFAULT NULL,
+      browser VARCHAR(50) DEFAULT NULL,
+      os VARCHAR(50) DEFAULT NULL,
+      country VARCHAR(100) DEFAULT NULL,
+      country_code VARCHAR(2) DEFAULT NULL,
+      city VARCHAR(100) DEFAULT NULL,
+      visited_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_sv_visited (visited_at),
+      INDEX idx_sv_country (country_code),
+      INDEX idx_sv_session (session_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    // Add edited_at column to posts if not present
+    await pool.query('ALTER TABLE posts ADD COLUMN IF NOT EXISTS edited_at TIMESTAMP NULL DEFAULT NULL')
+  } catch (err) {
+    console.error('initSiteVisits error:', err.message)
   }
 }
 
@@ -3464,4 +3622,5 @@ app.listen(PORT, () => {
   initAdminSettings()
   initAnalytics()
   initSettingsSchema()
+  initSiteVisits()
 })
