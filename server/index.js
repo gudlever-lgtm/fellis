@@ -1011,6 +1011,23 @@ app.patch('/api/me/plan', authenticate, async (req, res) => {
   }
 })
 
+// PATCH /api/me/interests — save user interest categories (min 3)
+app.patch('/api/me/interests', authenticate, async (req, res) => {
+  const { interests } = req.body
+  if (!Array.isArray(interests) || interests.length < 3) {
+    return res.status(400).json({ error: 'At least 3 interests required' })
+  }
+  const VALID = ['musik','videnskab','nyheder','sport','teknologi','kunst','mad','rejser','film','politik','natur','gaming','sundhed','boger','humor','diy','okonomi','mode']
+  const clean = interests.filter(i => VALID.includes(i))
+  if (clean.length < 3) return res.status(400).json({ error: 'Invalid interest categories' })
+  try {
+    await pool.query('UPDATE users SET interests = ? WHERE id = ?', [JSON.stringify(clean), req.userId])
+    res.json({ ok: true, interests: clean })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update interests' })
+  }
+})
+
 // POST /api/profile/avatar — upload profile picture
 app.post('/api/profile/avatar', authenticate, upload.single('avatar'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' })
@@ -3374,6 +3391,26 @@ async function initAnalytics() {
   }
 }
 
+let _feedWeightsCache = null
+let _feedWeightsCacheTime = 0
+async function getFeedWeights() {
+  if (_feedWeightsCache && Date.now() - _feedWeightsCacheTime < 5 * 60 * 1000) return _feedWeightsCache
+  try {
+    const [rows] = await pool.query(
+      "SELECT key_name, key_value FROM admin_settings WHERE key_name IN ('feed_weight_family','feed_weight_interest','feed_weight_recency')"
+    )
+    const w = { family: 1000, interest: 100, recency: 50 }
+    for (const r of rows) {
+      const k = r.key_name.replace('feed_weight_', '')
+      const v = parseFloat(r.key_value)
+      if (!isNaN(v) && v >= 0) w[k] = v
+    }
+    _feedWeightsCache = w
+    _feedWeightsCacheTime = Date.now()
+    return w
+  } catch { return { family: 1000, interest: 100, recency: 50 } }
+}
+
 function requireAdmin(req, res, next) {
   if (!req.userId) return res.status(401).json({ error: 'Not authenticated' })
   if (req.userId !== 1) return res.status(403).json({ error: 'Admin only' })
@@ -3542,6 +3579,52 @@ app.get('/api/admin/stats', authenticate, requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('GET /api/admin/stats error:', err.message)
     res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/admin/feed-weights — get current feed algorithm weights
+app.get('/api/admin/feed-weights', authenticate, requireAdmin, async (req, res) => {
+  const weights = await getFeedWeights()
+  res.json({ weights })
+})
+
+// POST /api/admin/feed-weights — update feed algorithm weights
+app.post('/api/admin/feed-weights', authenticate, requireAdmin, async (req, res) => {
+  const { family, interest, recency } = req.body
+  const entries = [['feed_weight_family', family], ['feed_weight_interest', interest], ['feed_weight_recency', recency]]
+  try {
+    for (const [key, value] of entries) {
+      if (typeof value !== 'number' || value < 0) continue
+      await pool.query(
+        'INSERT INTO admin_settings (key_name, key_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE key_value = VALUES(key_value)',
+        [key, String(value)]
+      )
+    }
+    _feedWeightsCache = null
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to save feed weights' })
+  }
+})
+
+// GET /api/admin/interest-stats — interest adoption statistics
+app.get('/api/admin/interest-stats', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT interests FROM users WHERE interests IS NOT NULL')
+    let withInterests = 0
+    const counts = {}
+    for (const row of rows) {
+      let interests = []
+      try { interests = typeof row.interests === 'string' ? JSON.parse(row.interests) : (row.interests || []) } catch {}
+      if (interests.length >= 3) withInterests++
+      for (const i of interests) counts[i] = (counts[i] || 0) + 1
+    }
+    const topInterests = Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([id, count]) => ({ id, count }))
+    res.json({ withInterests, total: rows.length, topInterests })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to load interest stats' })
   }
 })
 
