@@ -478,3 +478,15 @@ export async function apiUpdateInterests(interests) {
 export async function apiToggleFamilyFriend(friendId, isFamily) {
   return await request(`/api/friends/${friendId}/family`, { method: 'PATCH', body: JSON.stringify({ isFamily }) })
 }
+
+export async function apiGetFeedWeights() {
+  return await request('/api/admin/feed-weights')
+}
+
+export async function apiSaveFeedWeights(weights) {
+  return await request('/api/admin/feed-weights', { method: 'POST', body: JSON.stringify(weights) })
+}
+
+export async function apiGetInterestStats() {
+  return await request('/api/admin/interest-stats')
+}
