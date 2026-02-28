@@ -4650,3 +4650,181 @@
   .p-analytics-stat-card { min-width: unset; }
   .p-analytics-header { flex-direction: column; }
 }
+
+/* ══════════════════════════════════
+   DARK MODE (body.dark)
+   ══════════════════════════════════ */
+
+body.dark {
+  background: #141416;
+  color: #E8E4DF;
+}
+
+body.dark .platform {
+  background: #141416;
+}
+
+/* Nav */
+body.dark .p-nav {
+  background: #1C1C20;
+  border-bottom-color: #333338;
+}
+body.dark .p-nav-tab {
+  color: #9B9590;
+}
+body.dark .p-nav-tab:hover {
+  background: #252A28;
+  color: #52B788;
+}
+body.dark .p-nav-tab.active {
+  background: #2D6A4F;
+  color: #fff;
+}
+
+/* Avatar dropdown */
+body.dark .avatar-dropdown {
+  background: #1C1C20;
+  border-color: #333338;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+body.dark .avatar-dropdown-item {
+  color: #C0BCB8;
+}
+body.dark .avatar-dropdown-item:hover {
+  background: #2A2A2E;
+}
+body.dark .avatar-dropdown-divider {
+  background: #333338;
+}
+body.dark .avatar-dropdown-danger:hover {
+  background: #2A1A1A;
+}
+
+/* Cards */
+body.dark .p-card {
+  background: #1C1C20;
+  border-color: #333338;
+  color: #E8E4DF;
+}
+
+/* Filter tabs */
+body.dark .p-filter-tabs {
+  border-bottom-color: #333338;
+}
+body.dark .p-filter-tab {
+  color: #9B9590;
+}
+body.dark .p-filter-tab.active {
+  background: #2D6A4F;
+  color: #fff;
+  border-color: #2D6A4F;
+}
+body.dark .p-filter-tab:hover:not(.active) {
+  background: #252A28;
+  color: #52B788;
+}
+
+/* Section titles */
+body.dark .p-section-title {
+  color: #E8E4DF;
+}
+
+/* Forms */
+body.dark input[type="text"],
+body.dark input[type="email"],
+body.dark input[type="password"],
+body.dark input[type="number"],
+body.dark input[type="search"],
+body.dark input[type="url"],
+body.dark input[type="tel"],
+body.dark textarea,
+body.dark select {
+  background: #28282C;
+  border-color: #444448 !important;
+  color: #E8E4DF;
+}
+body.dark input::placeholder,
+body.dark textarea::placeholder {
+  color: #6B6560;
+}
+body.dark input:focus,
+body.dark textarea:focus,
+body.dark select:focus {
+  border-color: #52B788 !important;
+  outline: none;
+}
+
+/* Notif panel */
+body.dark .p-notif-panel {
+  background: #1C1C20;
+  border-color: #333338;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+body.dark .p-notif-item {
+  border-bottom-color: #333338;
+}
+body.dark .p-notif-item:hover {
+  background: #28282C;
+}
+
+/* Post composer */
+body.dark .p-composer-input {
+  background: #28282C;
+  color: #E8E4DF;
+}
+
+/* Post actions / meta */
+body.dark .p-post-action {
+  color: #9B9590;
+}
+body.dark .p-post-action:hover {
+  color: #52B788;
+  background: #252A28;
+}
+
+/* Modal overlay */
+body.dark .modal-overlay,
+body.dark .p-modal-overlay {
+  background: rgba(0,0,0,0.7);
+}
+body.dark .modal-content,
+body.dark .p-modal {
+  background: #1C1C20;
+  border-color: #333338;
+  color: #E8E4DF;
+}
+
+/* Dark mode toggle button */
+.dark-mode-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  padding: 10px 0;
+}
+.dark-mode-toggle-track {
+  width: 44px;
+  height: 24px;
+  border-radius: 12px;
+  background: #D0CBC5;
+  position: relative;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+.dark-mode-toggle-track.on {
+  background: #2D6A4F;
+}
+.dark-mode-toggle-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: left 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.dark-mode-toggle-track.on .dark-mode-toggle-thumb {
+  left: 22px;
+}

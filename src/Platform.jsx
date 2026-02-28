@@ -50,9 +50,15 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
   const [showModeModal, setShowModeModal] = useState(false)
   const [plan, setPlan] = useState('business') // set from server session; 'business_pro' = paid tier
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('fellis_dark') === '1')
   const avatarMenuRef = useRef(null)
   const notifRef = useRef(null)
   const t = PT[lang]
+
+  useEffect(() => {
+    document.body.classList.toggle('dark', darkMode)
+    localStorage.setItem('fellis_dark', darkMode ? '1' : '0')
+  }, [darkMode])
 
   const unreadCount = notifs.filter(n => !n.read).length
 
@@ -311,7 +317,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
         {page === 'jobs' && <JobsPage lang={lang} t={t} currentUser={currentUser} mode={mode} />}
         {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} initialCompanyId={navParam?.companyId} />}
         {page === 'analytics' && <AnalyticsPage lang={lang} t={t} currentUser={currentUser} plan={plan} onUpgrade={() => setShowUpgradeModal(true)} />}
-        {page === 'settings' && <SettingsPage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onLogout={onLogout} onOpenModeModal={() => setShowModeModal(true)} />}
+        {page === 'settings' && <SettingsPage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onLogout={onLogout} onOpenModeModal={() => setShowModeModal(true)} darkMode={darkMode} onToggleDark={() => setDarkMode(d => !d)} />}
         {page === 'privacy' && <PrivacySection lang={lang} onLogout={onLogout} />}
         {page === 'visitors' && <VisitorStatsPage lang={lang} />}
         {page === 'admin' && currentUser.is_admin && <AdminPage lang={lang} t={t} />}
@@ -2285,11 +2291,11 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
 }
 
 // ── Settings Page ─────────────────────────────────────────────────────────────
-function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onLogout, onOpenModeModal }) {
+function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onLogout, onOpenModeModal, darkMode, onToggleDark }) {
   const [tab, setTab] = useState('konto')
 
   const fS = { display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box', fontFamily: 'inherit' }
-  const lS = { display: 'block', fontSize: 13, fontWeight: 600, color: '#555', marginBottom: 4, marginTop: 14 }
+  const lS = { display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4, marginTop: 14 }
   const tabLabels = { konto: t.settingsKonto, privatliv: t.settingsPrivatliv, sessions: t.settingsSessions, sprog: t.settingsSprog }
 
   return (
@@ -2304,7 +2310,7 @@ function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, on
       {tab === 'konto' && <SettingsKonto lang={lang} t={t} currentUser={currentUser} mode={mode} fS={fS} lS={lS} onNavigate={onNavigate} onOpenModeModal={onOpenModeModal} />}
       {tab === 'privatliv' && <SettingsPrivatliv lang={lang} t={t} fS={fS} lS={lS} />}
       {tab === 'sessions' && <SettingsSessions lang={lang} t={t} onLogout={onLogout} />}
-      {tab === 'sprog' && <SettingsSprog lang={lang} t={t} />}
+      {tab === 'sprog' && <SettingsSprog lang={lang} t={t} darkMode={darkMode} onToggleDark={onToggleDark} />}
     </div>
   )
 }
@@ -2594,7 +2600,7 @@ function SettingsSessions({ lang, t, onLogout }) {
   )
 }
 
-function SettingsSprog({ lang, t }) {
+function SettingsSprog({ lang, t, darkMode, onToggleDark }) {
   const switchLang = (newLang) => {
     fetch('/api/me/lang', {
       method: 'PATCH', credentials: 'include',
@@ -2609,13 +2615,21 @@ function SettingsSprog({ lang, t }) {
 
   return (
     <div className="p-card" style={{ padding: 24 }}>
-      <div style={{ fontSize: 14, fontWeight: 700, color: '#333', marginBottom: 12 }}>🌐 {t.settingsLanguage}</div>
+      <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>🌐 {t.settingsLanguage}</div>
       {[['da', '🇩🇰 Dansk'], ['en', '🇬🇧 English']].map(([val, label]) => (
         <label key={val} style={radioStyle}>
           <input type="radio" name="lang" value={val} checked={lang === val} onChange={() => { if (lang !== val) switchLang(val) }} />
           {label}
         </label>
       ))}
+
+      <div style={{ fontSize: 14, fontWeight: 700, marginTop: 24, marginBottom: 12 }}>🌙 {t.settingsDarkMode}</div>
+      <div className="dark-mode-toggle" onClick={onToggleDark}>
+        <div className={`dark-mode-toggle-track${darkMode ? ' on' : ''}`}>
+          <div className="dark-mode-toggle-thumb" />
+        </div>
+        <span style={{ fontSize: 14 }}>{darkMode ? (lang === 'da' ? 'Aktiveret' : 'Enabled') : (lang === 'da' ? 'Deaktiveret' : 'Disabled')}</span>
+      </div>
     </div>
   )
 }

@@ -986,6 +986,19 @@ app.patch('/api/me/mode', authenticate, async (req, res) => {
   }
 })
 
+// PATCH /api/me/lang — update current session language
+app.patch('/api/me/lang', authenticate, async (req, res) => {
+  const { lang } = req.body
+  if (!['da', 'en'].includes(lang)) return res.status(400).json({ error: 'Invalid lang' })
+  const sessionId = getSessionIdFromRequest(req)
+  try {
+    await pool.query('UPDATE sessions SET lang = ? WHERE id = ?', [lang, sessionId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update lang' })
+  }
+})
+
 // PATCH /api/me/plan — update user plan (business / business_pro)
 app.patch('/api/me/plan', authenticate, async (req, res) => {
   const { plan } = req.body
@@ -1087,23 +1100,24 @@ app.get('/api/settings/sessions', authenticate, async (req, res) => {
   }
 })
 
-// DELETE /api/settings/sessions/:id — log out a specific session
-app.delete('/api/settings/sessions/:id', authenticate, async (req, res) => {
+// DELETE /api/settings/sessions/others — log out all other sessions
+// NOTE: must be defined BEFORE /:id to prevent "others" being caught as an id param
+app.delete('/api/settings/sessions/others', authenticate, async (req, res) => {
+  const sessionId = getSessionIdFromRequest(req)
   try {
-    const [[session]] = await pool.query('SELECT user_id FROM sessions WHERE id = ?', [req.params.id])
-    if (!session || session.user_id !== req.userId) return res.status(404).json({ error: 'Not found' })
-    await pool.query('DELETE FROM sessions WHERE id = ?', [req.params.id])
+    await pool.query('DELETE FROM sessions WHERE user_id = ? AND id != ?', [req.userId, sessionId])
     res.json({ ok: true })
   } catch (err) {
     res.status(500).json({ error: 'Server error' })
   }
 })
 
-// DELETE /api/settings/sessions/others — log out all other sessions
-app.delete('/api/settings/sessions/others', authenticate, async (req, res) => {
-  const sessionId = getSessionIdFromRequest(req)
+// DELETE /api/settings/sessions/:id — log out a specific session
+app.delete('/api/settings/sessions/:id', authenticate, async (req, res) => {
   try {
-    await pool.query('DELETE FROM sessions WHERE user_id = ? AND id != ?', [req.userId, sessionId])
+    const [[session]] = await pool.query('SELECT user_id FROM sessions WHERE id = ?', [req.params.id])
+    if (!session || session.user_id !== req.userId) return res.status(404).json({ error: 'Not found' })
+    await pool.query('DELETE FROM sessions WHERE id = ?', [req.params.id])
     res.json({ ok: true })
   } catch (err) {
     res.status(500).json({ error: 'Server error' })
