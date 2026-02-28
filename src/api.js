@@ -479,3 +479,19 @@ export async function apiUpdateMode(mode) {
 export async function apiUpdatePlan(plan) {
   return await request('/api/me/plan', { method: 'PATCH', body: JSON.stringify({ plan }) })
 }
+
+export async function apiUpdateInterests(interests) {
+  return await request('/api/me/interests', { method: 'PATCH', body: JSON.stringify({ interests }) })
+}
+
+export async function apiGetFeedWeights() {
+  return await request('/api/admin/feed-weights')
+}
+
+export async function apiSaveFeedWeights(weights) {
+  return await request('/api/admin/feed-weights', { method: 'POST', body: JSON.stringify(weights) })
+}
+
+export async function apiGetInterestStats() {
+  return await request('/api/admin/interest-stats')
+}
