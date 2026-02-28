@@ -1293,11 +1293,7 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
                 <div><div className="p-post-author">{post.author}</div><div className="p-post-time">{post.time?.[lang]}</div></div>
               </div>
               <div className="p-post-text">{post.text[lang]}</div>
-              {post.media?.length > 0 && (
-                <div className={`p-post-media p-post-media-${Math.min(post.media.length, 4)}`}>
-                  {post.media.slice(0, 4).map((m, mi) => <MediaItem key={mi} item={m} />)}
-                </div>
-              )}
+              {post.media?.length > 0 && <PostMedia media={post.media} />}
             </div>
           </div>
         )
@@ -1993,11 +1989,10 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
   const [passwordLoading, setPasswordLoading] = useState(false)
   const [showCurrent, setShowCurrent] = useState(false)
   const [showNew, setShowNew] = useState(false)
-  const [loginMethod, setLoginMethod] = useState(null)
 
   useEffect(() => {
     apiFetchProfile().then(data => {
-      if (data) { setProfile(data); setLoginMethod(data.loginMethod) }
+      if (data) { setProfile(data) }
     })
   }, [])
 
@@ -2057,7 +2052,6 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
     newPwd: 'Ny adgangskode',
     confirmPwd: 'Bekræft ny adgangskode',
     savePwd: 'Gem adgangskode',
-    facebookNote: 'Du logger ind via Facebook – adgangskode er ikke tilgængeligt.',
   } : {
     title: 'Edit profile',
     avatarLabel: 'Profile picture',
@@ -2072,7 +2066,6 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
     newPwd: 'New password',
     confirmPwd: 'Confirm new password',
     savePwd: 'Save password',
-    facebookNote: 'You log in via Facebook – password is not available.',
   }
 
   const fieldStyle = { display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box' }
@@ -2173,10 +2166,7 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
         {/* Password change section */}
         <div style={{ marginTop: 28, borderTop: '2px solid #eee', paddingTop: 20 }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: '#333', marginBottom: 12 }}>🔑 {editT.passwordTitle}</div>
-          {loginMethod === 'facebook' ? (
-            <p style={{ fontSize: 13, color: '#888', fontStyle: 'italic', margin: 0 }}>{editT.facebookNote}</p>
-          ) : (
-            <form onSubmit={handleChangePassword}>
+          <form onSubmit={handleChangePassword}>
               <label style={labelStyle}>{editT.currentPwd}</label>
               <div style={{ position: 'relative' }}>
                 <input style={{ ...fieldStyle, paddingRight: 44 }} type={showCurrent ? 'text' : 'password'} value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} required placeholder="••••••••" />
@@ -2195,7 +2185,6 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
                 {editT.savePwd}
               </button>
             </form>
-          )}
         </div>
 
         <button
@@ -2298,14 +2287,11 @@ function SettingsKonto({ lang, t, currentUser, fS, lS, onNavigate }) {
     finally { setEmailLoading(false) }
   }
 
-  const isFacebook = profile?.loginMethod === 'facebook'
-
   return (
     <div className="p-card" style={{ padding: 24 }}>
-      {profile && (
-        <div style={{ fontSize: 12, color: '#888', marginBottom: 20, display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-          <span>{lang === 'da' ? 'Loginmetode' : 'Login method'}: <strong style={{ color: '#444' }}>{isFacebook ? 'Facebook' : (lang === 'da' ? 'E-mail & adgangskode' : 'Email & password')}</strong></span>
-          {profile.createdAt && <span>{lang === 'da' ? 'Konto oprettet' : 'Account created'}: <strong style={{ color: '#444' }}>{new Date(profile.createdAt).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</strong></span>}
+      {profile?.createdAt && (
+        <div style={{ fontSize: 12, color: '#888', marginBottom: 20 }}>
+          {lang === 'da' ? 'Konto oprettet' : 'Account created'}: <strong style={{ color: '#444' }}>{new Date(profile.createdAt).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</strong>
         </div>
       )}
 
@@ -4804,14 +4790,18 @@ function EventDetailModal({ event, t, lang, mode, myRsvp, extras, onRsvp, onExtr
   }, [onClose])
 
   const typeLabel = event.eventType ? eventTypeLabel(event.eventType) : null
+  const isExpired = new Date(event.date) < new Date()
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="p-event-detail-modal" onClick={e => e.stopPropagation()}>
+      <div className="p-event-detail-modal" onClick={e => e.stopPropagation()} style={isExpired ? { opacity: 0.75 } : {}}>
         <button className="lightbox-close" style={{ position: 'absolute', top: 12, right: 16 }} onClick={onClose}>✕</button>
 
         {typeLabel && <div className="p-event-type-badge" style={{ marginBottom: 8 }}>{typeLabel}</div>}
-        <h2 style={{ margin: '0 0 8px', fontSize: 22, fontWeight: 700 }}>{getTitle(event)}</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
+          <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>{getTitle(event)}</h2>
+          {isExpired && <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 12, background: '#f5e6e6', color: '#c0392b' }}>{lang === 'da' ? 'Udløbet' : 'Expired'}</span>}
+        </div>
 
         <div className="p-event-meta" style={{ marginBottom: 12 }}>
           <span>📅 {formatDate(event.date)}</span>
@@ -4824,7 +4814,7 @@ function EventDetailModal({ event, t, lang, mode, myRsvp, extras, onRsvp, onExtr
         <p style={{ fontSize: 14, color: '#444', lineHeight: 1.6, marginBottom: 20 }}>{getDesc(event)}</p>
 
         {/* RSVP */}
-        <div className="p-event-detail-rsvp">
+        <div className="p-event-detail-rsvp" style={isExpired ? { pointerEvents: 'none' } : {}}>
           {['going', 'maybe', 'notGoing'].map(s => {
             const label = t[`event${s.charAt(0).toUpperCase() + s.slice(1)}`]
             const icon = s === 'going' ? '✅' : s === 'maybe' ? '❓' : '❌'
@@ -4833,6 +4823,7 @@ function EventDetailModal({ event, t, lang, mode, myRsvp, extras, onRsvp, onExtr
                 key={s}
                 className={`p-event-rsvp-full-btn${myRsvp === s ? ' active' : ''}`}
                 onClick={() => onRsvp(s)}
+                disabled={isExpired}
               >
                 {icon} {label}
               </button>
@@ -4849,9 +4840,10 @@ function EventDetailModal({ event, t, lang, mode, myRsvp, extras, onRsvp, onExtr
               placeholder={lang === 'da' ? 'f.eks. vegetar, nøddeallergi...' : 'e.g. vegetarian, nut allergy...'}
               value={extras.dietary || ''}
               onChange={e => onExtrasChange({ ...extras, dietary: e.target.value })}
+              readOnly={isExpired}
             />
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
-              <input type="checkbox" checked={!!extras.plusOne} onChange={e => onExtrasChange({ ...extras, plusOne: e.target.checked })} />
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: isExpired ? 'default' : 'pointer' }}>
+              <input type="checkbox" checked={!!extras.plusOne} onChange={e => onExtrasChange({ ...extras, plusOne: e.target.checked })} disabled={isExpired} />
               {t.eventPlusOne}
             </label>
           </div>
@@ -5275,7 +5267,7 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
                       <button
                         onClick={e => { e.stopPropagation(); toggleFollow(company.id) }}
                         className={company.is_following ? 'p-friend-msg-btn' : 'p-friend-add-btn p-friend-msg-btn'}
-                        style={{ padding: '7px 16px', borderRadius: 8, fontSize: 13, flexShrink: 0 }}
+                        style={{ padding: '7px 16px', borderRadius: 8, fontSize: 13, flexShrink: 0, width: 'auto' }}
                       >
                         {company.is_following ? `✓ ${t.companyUnfollow}` : t.companyFollow}
                       </button>
@@ -5318,7 +5310,7 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
                   <button
                     onClick={e => { e.stopPropagation(); toggleFollow(company.id) }}
                     className="p-friend-msg-btn"
-                    style={{ padding: '7px 16px', borderRadius: 8, fontSize: 13, flexShrink: 0 }}
+                    style={{ padding: '7px 16px', borderRadius: 8, fontSize: 13, flexShrink: 0, width: 'auto' }}
                   >
                     ✓ {t.companyUnfollow}
                   </button>
