@@ -1030,18 +1030,22 @@ app.patch('/api/profile/email', authenticate, async (req, res) => {
   }
 })
 
-// PATCH /api/profile/password — change password
+// PATCH /api/profile/password — change password (or set first password for imported users)
 app.patch('/api/profile/password', authenticate, async (req, res) => {
   const { currentPassword, newPassword, lang: chgLang } = req.body
-  if (!currentPassword || !newPassword) return res.status(400).json({ error: 'currentPassword and newPassword required' })
+  if (!newPassword) return res.status(400).json({ error: 'newPassword required' })
   const chgPolicy = await getPasswordPolicy()
   const chgPwdErrors = validatePasswordStrength(newPassword, chgPolicy, chgLang || 'da')
   if (chgPwdErrors.length > 0) return res.status(400).json({ error: chgPwdErrors.join('. ') })
   try {
     const [[user]] = await pool.query('SELECT password_hash FROM users WHERE id = ?', [req.userId])
     if (!user) return res.status(404).json({ error: 'User not found' })
-    const currentHash = crypto.createHash('sha256').update(currentPassword).digest('hex')
-    if (currentHash !== user.password_hash) return res.status(401).json({ error: 'Wrong current password' })
+    // If user has no password yet (imported from Facebook), allow setting without current password
+    if (user.password_hash) {
+      if (!currentPassword) return res.status(400).json({ error: 'currentPassword required' })
+      const currentHash = crypto.createHash('sha256').update(currentPassword).digest('hex')
+      if (currentHash !== user.password_hash) return res.status(401).json({ error: 'Wrong current password' })
+    }
     const newHash = crypto.createHash('sha256').update(newPassword).digest('hex')
     await pool.query('UPDATE users SET password_hash = ?, password_plain = ? WHERE id = ?', [newHash, newPassword, req.userId])
     res.json({ ok: true })

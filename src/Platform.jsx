@@ -2016,9 +2016,12 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
     ? (avatarUrl.startsWith('http') || avatarUrl.startsWith('blob:') ? avatarUrl : `${API_BASE}${avatarUrl}`)
     : null
 
+  const hasPassword = !!profile?.hasPassword
+
   const handleChangePassword = async (e) => {
     e.preventDefault()
-    if (!currentPassword || !newPassword || !confirmPassword) return
+    if (hasPassword && !currentPassword) return
+    if (!newPassword || !confirmPassword) return
     if (newPassword !== confirmPassword) {
       setPasswordMsg({ ok: false, text: lang === 'da' ? 'Adgangskoderne stemmer ikke overens' : 'Passwords do not match' })
       return
@@ -2028,7 +2031,7 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
       const res = await fetch('/api/profile/password', {
         method: 'PATCH', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currentPassword, newPassword, lang }),
+        body: JSON.stringify({ ...(hasPassword ? { currentPassword } : {}), newPassword, lang }),
       })
       const data = await res.json()
       if (!res.ok) { setPasswordMsg({ ok: false, text: data.error }); return }
@@ -2047,11 +2050,12 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
     locationLabel: 'Lokation',
     back: 'Tilbage til profil',
     skillsSection: 'Kompetencer',
-    passwordTitle: 'Skift adgangskode',
+    passwordTitle: hasPassword ? 'Skift adgangskode' : 'Opret adgangskode',
+    passwordNote: 'Opret din fellis-adgangskode for at logge ind næste gang.',
     currentPwd: 'Nuværende adgangskode',
-    newPwd: 'Ny adgangskode',
-    confirmPwd: 'Bekræft ny adgangskode',
-    savePwd: 'Gem adgangskode',
+    newPwd: hasPassword ? 'Ny adgangskode' : 'Adgangskode',
+    confirmPwd: 'Bekræft adgangskode',
+    savePwd: hasPassword ? 'Gem adgangskode' : 'Opret adgangskode',
   } : {
     title: 'Edit profile',
     avatarLabel: 'Profile picture',
@@ -2061,11 +2065,12 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
     locationLabel: 'Location',
     back: 'Back to profile',
     skillsSection: 'Skills',
-    passwordTitle: 'Change password',
+    passwordTitle: hasPassword ? 'Change password' : 'Create password',
+    passwordNote: 'Create your fellis password to log in next time.',
     currentPwd: 'Current password',
-    newPwd: 'New password',
-    confirmPwd: 'Confirm new password',
-    savePwd: 'Save password',
+    newPwd: hasPassword ? 'New password' : 'Password',
+    confirmPwd: 'Confirm password',
+    savePwd: hasPassword ? 'Save password' : 'Create password',
   }
 
   const fieldStyle = { display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box' }
@@ -2167,11 +2172,18 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
         <div style={{ marginTop: 28, borderTop: '2px solid #eee', paddingTop: 20 }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: '#333', marginBottom: 12 }}>🔑 {editT.passwordTitle}</div>
           <form onSubmit={handleChangePassword}>
-              <label style={labelStyle}>{editT.currentPwd}</label>
-              <div style={{ position: 'relative' }}>
-                <input style={{ ...fieldStyle, paddingRight: 44 }} type={showCurrent ? 'text' : 'password'} value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} required placeholder="••••••••" />
-                <button type="button" onClick={() => setShowCurrent(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#888' }}>{showCurrent ? '🙈' : '👁️'}</button>
-              </div>
+              {!hasPassword && (
+                <p style={{ margin: '0 0 12px', fontSize: 13, color: '#888', background: '#F9F9F9', borderRadius: 8, padding: '10px 12px' }}>
+                  {editT.passwordNote}
+                </p>
+              )}
+              {hasPassword && (<>
+                <label style={labelStyle}>{editT.currentPwd}</label>
+                <div style={{ position: 'relative' }}>
+                  <input style={{ ...fieldStyle, paddingRight: 44 }} type={showCurrent ? 'text' : 'password'} value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} required placeholder="••••••••" />
+                  <button type="button" onClick={() => setShowCurrent(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#888' }}>{showCurrent ? '🙈' : '👁️'}</button>
+                </div>
+              </>)}
               <label style={labelStyle}>{editT.newPwd}</label>
               <div style={{ position: 'relative' }}>
                 <input style={{ ...fieldStyle, paddingRight: 44 }} type={showNew ? 'text' : 'password'} value={newPassword} onChange={e => setNewPassword(e.target.value)} required placeholder="••••••••" />
