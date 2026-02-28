@@ -1795,6 +1795,9 @@ function ProfilePage({ lang, t, currentUser, mode, plan, onUserUpdate, onNavigat
   const [familyFriends, setFamilyFriends] = useState([])
   const [profileTab, setProfileTab] = useState('about')
   const [myCompanies, setMyCompanies] = useState([])
+  const [interests, setInterests] = useState([])
+  const [interestsSaving, setInterestsSaving] = useState(false)
+  const [interestsSavedMsg, setInterestsSavedMsg] = useState('')
   const { rels } = useContactRelationships()
 
   useEffect(() => {
@@ -2106,6 +2109,7 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
   const [passwordLoading, setPasswordLoading] = useState(false)
   const [showCurrent, setShowCurrent] = useState(false)
   const [showNew, setShowNew] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
 
   useEffect(() => {
     apiFetchProfile().then(data => {
@@ -2325,7 +2329,10 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
               </div>
               <PasswordStrengthIndicator password={newPassword} lang={lang} />
               <label style={labelStyle}>{editT.confirmPwd}</label>
-              <input style={fieldStyle} type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required placeholder="••••••••" />
+              <div style={{ position: 'relative' }}>
+                <input style={{ ...fieldStyle, paddingRight: 44 }} type={showConfirm ? 'text' : 'password'} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required placeholder="••••••••" />
+                <button type="button" onClick={() => setShowConfirm(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#888' }}>{showConfirm ? '🙈' : '👁️'}</button>
+              </div>
               {confirmPassword.length > 0 && (
                 <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: newPassword === confirmPassword ? '#2D6A4F' : '#c0392b' }}>
                   <span style={{ fontSize: 13 }}>{newPassword === confirmPassword ? '✓' : '✗'}</span>
@@ -2425,6 +2432,7 @@ function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenM
   const [profile, setProfile] = useState(null)
   const [newEmail, setNewEmail] = useState(currentUser?.email || '')
   const [emailPassword, setEmailPassword] = useState('')
+  const [showEmailPw, setShowEmailPw] = useState(false)
   const [emailMsg, setEmailMsg] = useState(null)
   const [emailLoading, setEmailLoading] = useState(false)
 
@@ -2467,7 +2475,10 @@ function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenM
         <label style={lS}>{lang === 'da' ? 'Ny e-mail' : 'New email'}</label>
         <input style={fS} type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} required />
         <label style={lS}>{t.settingsEmailConfirm}</label>
-        <input style={fS} type="password" value={emailPassword} onChange={e => setEmailPassword(e.target.value)} required placeholder="••••••••" />
+        <div style={{ position: 'relative' }}>
+          <input style={{ ...fS, paddingRight: 44 }} type={showEmailPw ? 'text' : 'password'} value={emailPassword} onChange={e => setEmailPassword(e.target.value)} required placeholder="••••••••" />
+          <button type="button" onClick={() => setShowEmailPw(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#888' }}>{showEmailPw ? '🙈' : '👁️'}</button>
+        </div>
         {emailMsg && <div style={{ marginTop: 8, fontSize: 13, color: emailMsg.ok ? '#2D6A4F' : '#c0392b', fontWeight: 600 }}>{emailMsg.ok ? '✓' : '✗'} {emailMsg.text}</div>}
         <button type="submit" disabled={emailLoading} style={{ marginTop: 12, padding: '9px 20px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, opacity: emailLoading ? 0.7 : 1 }}>
           {t.settingsSaveEmail}
