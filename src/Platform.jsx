@@ -2192,6 +2192,12 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
               <PasswordStrengthIndicator password={newPassword} lang={lang} />
               <label style={labelStyle}>{editT.confirmPwd}</label>
               <input style={fieldStyle} type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required placeholder="••••••••" />
+              {confirmPassword.length > 0 && (
+                <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: newPassword === confirmPassword ? '#2D6A4F' : '#c0392b' }}>
+                  <span style={{ fontSize: 13 }}>{newPassword === confirmPassword ? '✓' : '✗'}</span>
+                  <span>{lang === 'da' ? (newPassword === confirmPassword ? 'Adgangskoderne stemmer overens' : 'Adgangskoderne stemmer ikke overens') : (newPassword === confirmPassword ? 'Passwords match' : 'Passwords do not match')}</span>
+                </div>
+              )}
               {passwordMsg && <div style={{ marginTop: 8, fontSize: 13, color: passwordMsg.ok ? '#2D6A4F' : '#c0392b', fontWeight: 600 }}>{passwordMsg.ok ? '✓' : '✗'} {passwordMsg.text}</div>}
               <button type="submit" disabled={passwordLoading} style={{ marginTop: 12, padding: '9px 20px', borderRadius: 8, border: 'none', background: '#444', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, opacity: passwordLoading ? 0.7 : 1 }}>
                 {editT.savePwd}
@@ -2241,28 +2247,42 @@ function PasswordStrengthIndicator({ password, lang }) {
     fetch('/api/auth/password-policy').then(r => r.ok ? r.json() : null).then(p => { if (p) setPolicy(p) }).catch(() => {})
   }, [])
 
-  if (!policy || !password) return null
+  if (!password) return null
 
+  const minLen = policy?.min_length || 8
   const checks = [
-    { ok: password.length >= policy.min_length, da: `Min. ${policy.min_length} tegn`, en: `Min. ${policy.min_length} characters` },
-    ...(policy.require_uppercase ? [{ ok: /[A-Z]/.test(password), da: 'Stort bogstav (A–Z)', en: 'Uppercase letter (A–Z)' }] : []),
-    ...(policy.require_lowercase ? [{ ok: /[a-z]/.test(password), da: 'Lille bogstav (a–z)', en: 'Lowercase letter (a–z)' }] : []),
-    ...(policy.require_numbers   ? [{ ok: /[0-9]/.test(password), da: 'Tal (0–9)', en: 'Number (0–9)' }] : []),
-    ...(policy.require_symbols   ? [{ ok: /[^A-Za-z0-9]/.test(password), da: 'Specialtegn (!@#$…)', en: 'Symbol (!@#$…)' }] : []),
+    { ok: password.length >= minLen, da: `Min. ${minLen} tegn`, en: `Min. ${minLen} characters` },
+    ...(policy?.require_uppercase ? [{ ok: /[A-Z]/.test(password), da: 'Stort bogstav (A–Z)', en: 'Uppercase (A–Z)' }] : [{ ok: /[A-Z]/.test(password), da: 'Stort bogstav (A–Z)', en: 'Uppercase (A–Z)' }]),
+    ...(policy?.require_lowercase !== false ? [{ ok: /[a-z]/.test(password), da: 'Lille bogstav (a–z)', en: 'Lowercase (a–z)' }] : []),
+    ...(policy?.require_numbers !== false   ? [{ ok: /[0-9]/.test(password), da: 'Tal (0–9)', en: 'Number (0–9)' }] : []),
+    ...(policy?.require_symbols ? [{ ok: /[^A-Za-z0-9]/.test(password), da: 'Specialtegn (!@#…)', en: 'Symbol (!@#…)' }] : []),
   ]
 
-  // Only show when there's something to show
-  const hasRequirements = checks.length > 1 || (checks.length === 1 && !checks[0].ok)
-  if (!hasRequirements) return null
+  const passed = checks.filter(c => c.ok).length
+  const ratio = checks.length ? passed / checks.length : 0
+  const barColor = ratio < 0.4 ? '#e74c3c' : ratio < 0.75 ? '#f39c12' : '#2D6A4F'
+  const barLabel = ratio < 0.4
+    ? (lang === 'da' ? 'Svag' : 'Weak')
+    : ratio < 0.75
+    ? (lang === 'da' ? 'Middel' : 'Fair')
+    : (lang === 'da' ? 'Stærk' : 'Strong')
 
   return (
-    <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 3 }}>
-      {checks.map((c, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: c.ok ? '#2D6A4F' : '#888' }}>
-          <span style={{ fontSize: 11 }}>{c.ok ? '✓' : '○'}</span>
-          <span>{lang === 'da' ? c.da : c.en}</span>
+    <div style={{ marginTop: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <div style={{ flex: 1, height: 5, borderRadius: 3, background: '#eee', overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: `${ratio * 100}%`, background: barColor, borderRadius: 3, transition: 'width 0.25s, background 0.25s' }} />
         </div>
-      ))}
+        <span style={{ fontSize: 11, fontWeight: 700, color: barColor, minWidth: 36 }}>{barLabel}</span>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        {checks.map((c, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: c.ok ? '#2D6A4F' : '#999' }}>
+            <span style={{ fontSize: 13, width: 16, textAlign: 'center', lineHeight: 1 }}>{c.ok ? '✓' : '○'}</span>
+            <span>{lang === 'da' ? c.da : c.en}</span>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
