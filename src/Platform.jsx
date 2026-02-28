@@ -5480,13 +5480,13 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
       <div className="p-card" style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
           <div className="p-company-logo" style={{ background: company.color, width: 72, height: 72, fontSize: 30, borderRadius: 16 }}>{company.name[0]}</div>
-          <div style={{ flex: 1, minWidth: 200 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <h2 style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 800 }}>{company.name}</h2>
             <div style={{ fontSize: 14, color: '#666', marginBottom: 8 }}>{company.tagline}</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, fontSize: 13, color: '#888', marginBottom: 12 }}>
-              <span>🏭 {company.industry}</span>
-              <span>👥 {company.size} {lang === 'da' ? 'medarbejdere' : 'employees'}</span>
-              <span>🌐 <a href={company.website} target="_blank" rel="noopener noreferrer" style={{ color: '#1877F2' }}>{company.website.replace('https://', '')}</a></span>
+              {company.industry && <span>🏭 {company.industry}</span>}
+              {company.size && <span>👥 {company.size} {lang === 'da' ? 'medarbejdere' : 'employees'}</span>}
+              {company.website && <span>🌐 <a href={company.website} target="_blank" rel="noopener noreferrer" style={{ color: '#1877F2' }}>{company.website.replace('https://', '').replace('http://', '')}</a></span>}
               <button
                 onClick={() => {
                   setShowFollowersPopup(true)
@@ -5497,7 +5497,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
                       .catch(() => setFollowers([]))
                   }
                 }}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'inherit', fontSize: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'inherit', fontSize: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 4, fontFamily: 'inherit' }}
                 title={lang === 'da' ? 'Se følgere' : 'View followers'}
               >
                 ❤️ {(company.followers_count || 0).toLocaleString()} {t.companyFollowers}

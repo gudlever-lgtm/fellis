@@ -3065,7 +3065,7 @@
     font-size: 20px;
   }
   .p-content {
-    padding: 16px 10px 60px;
+    padding: 16px 10px 80px;
   }
   .p-card {
     padding: 14px;
@@ -3341,6 +3341,91 @@
   [style*="grid-template-columns: 1fr 1fr"] {
     grid-template-columns: 1fr !important;
   }
+
+  /* ── Two-row nav for Samsung S21 / small phones ── */
+  .p-nav {
+    flex-wrap: wrap;
+    height: auto;
+    padding: 0;
+    min-height: unset;
+  }
+  .p-nav-left {
+    order: 1;
+    flex: 1;
+    padding: 0 6px 0 12px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+  }
+  .p-nav-right {
+    order: 2;
+    flex: 0;
+    height: 48px;
+    padding: 0 8px 0 0;
+    gap: 6px;
+  }
+  .p-nav-tabs {
+    order: 3;
+    width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    padding: 4px 8px 6px;
+    border-top: 1px solid #E8E4DF;
+    gap: 2px;
+    justify-content: flex-start;
+    height: auto;
+    flex-wrap: nowrap;
+  }
+  .p-nav-tabs::-webkit-scrollbar { display: none; }
+  .p-nav-tab {
+    flex-shrink: 0;
+    padding: 6px 10px;
+    border-radius: 16px;
+  }
+  .p-nav-tab-icon { font-size: 20px; }
+
+  /* ── Content ── */
+  .p-content {
+    padding: 10px 8px 80px;
+  }
+  .p-card { padding: 12px; }
+
+  /* ── Filter tabs (scrollable on small screens) ── */
+  .p-filter-tabs {
+    overflow-x: auto;
+    scrollbar-width: none;
+    flex-wrap: nowrap;
+    padding-bottom: 2px;
+    gap: 6px;
+  }
+  .p-filter-tabs::-webkit-scrollbar { display: none; }
+  .p-filter-tab {
+    flex-shrink: 0;
+    padding: 7px 12px;
+    white-space: nowrap;
+  }
+
+  /* ── Right-side controls ── */
+  .lang-toggle { font-size: 11px; padding: 3px 8px; }
+  .p-nav-notif-btn { padding: 4px 6px; font-size: 18px; }
+  .p-nav-search-btn { padding: 4px 6px; font-size: 18px; }
+  .p-nav-avatar, .p-nav-avatar-img { width: 30px; height: 30px; font-size: 12px; }
+
+  /* ── Notification panel smaller ── */
+  .notif-panel { width: calc(100vw - 16px); right: -8px; }
+
+  /* ── Messaging ── */
+  .p-msg-sidebar { width: 48px; }
+
+  /* ── Friends grid single column ── */
+  .p-friends-grid { grid-template-columns: 1fr 1fr; }
+
+  /* ── Company header ── */
+  .p-company-card { gap: 10px; }
+
+  /* ── Prevent horizontal overflow ── */
+  .p-events, .p-jobs-page, .p-search-page { max-width: 100%; }
 }
 
 @media print {
