@@ -516,6 +516,16 @@ export const PT = {
     parachordBtn: '▶ Åbn i Parachord',
     parachordToggleLabel: 'Vis "Åbn i Parachord"-knap på musikopslag',
     parachordSettingsTitle: 'Musik-integration',
+    // Interests
+    interestsSectionTitle: 'Dine interesser',
+    interestsSectionDesc: 'Vælg mindst 3 interesseområder. Dit feed tilpasses automatisk, og familie-opslag prioriteres altid.',
+    interestsSave: 'Gem interesser',
+    interestsSaved: 'Interesser gemt!',
+    interestsMin3: 'Vælg mindst 3 interesser',
+    interestsFamilyLabel: 'Familie-ven',
+    familyFriendToggle: 'Markér som familie',
+    familyFriendOn: 'Familie ✓',
+    feedFamilyBadge: '🏡 Familie',
   },
   en: {
     feed: 'Feed',
@@ -895,8 +905,40 @@ export const PT = {
     parachordBtn: '▶ Open in Parachord',
     parachordToggleLabel: 'Show "Open in Parachord" button on music posts',
     parachordSettingsTitle: 'Music integration',
+    // Interests
+    interestsSectionTitle: 'Your interests',
+    interestsSectionDesc: 'Select at least 3 interest areas. Your feed adapts automatically, and family posts are always prioritised.',
+    interestsSave: 'Save interests',
+    interestsSaved: 'Interests saved!',
+    interestsMin3: 'Select at least 3 interests',
+    interestsFamilyLabel: 'Family friend',
+    familyFriendToggle: 'Mark as family',
+    familyFriendOn: 'Family ✓',
+    feedFamilyBadge: '🏡 Family',
   },
 }
+
+// Interest categories (bilingual) used in ProfilePage and feed algorithm
+export const INTEREST_CATEGORIES = [
+  { id: 'musik',     da: 'Musik',        en: 'Music',       icon: '🎵' },
+  { id: 'videnskab', da: 'Videnskab',    en: 'Science',     icon: '🔬' },
+  { id: 'nyheder',   da: 'Nyheder',      en: 'News',        icon: '📰' },
+  { id: 'sport',     da: 'Sport',        en: 'Sports',      icon: '⚽' },
+  { id: 'teknologi', da: 'Teknologi',    en: 'Technology',  icon: '💻' },
+  { id: 'kunst',     da: 'Kunst',        en: 'Art',         icon: '🎨' },
+  { id: 'mad',       da: 'Mad',          en: 'Food',        icon: '🍕' },
+  { id: 'rejser',    da: 'Rejser',       en: 'Travel',      icon: '✈️' },
+  { id: 'film',      da: 'Film & TV',    en: 'Film & TV',   icon: '🎬' },
+  { id: 'politik',   da: 'Politik',      en: 'Politics',    icon: '🏛️' },
+  { id: 'natur',     da: 'Natur',        en: 'Nature',      icon: '🌿' },
+  { id: 'gaming',    da: 'Gaming',       en: 'Gaming',      icon: '🎮' },
+  { id: 'sundhed',   da: 'Sundhed',      en: 'Health',      icon: '💪' },
+  { id: 'boger',     da: 'Bøger',        en: 'Books',       icon: '📚' },
+  { id: 'humor',     da: 'Humor',        en: 'Humor',       icon: '😄' },
+  { id: 'diy',       da: 'Gør-det-selv', en: 'DIY',         icon: '🔨' },
+  { id: 'okonomi',   da: 'Økonomi',      en: 'Finance',     icon: '💰' },
+  { id: 'mode',      da: 'Mode',         en: 'Fashion',     icon: '👗' },
+]
 
 // Fake message threads
 export const MESSAGE_THREADS = [

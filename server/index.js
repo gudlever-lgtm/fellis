@@ -853,7 +853,7 @@ app.get('/api/profile', authenticate, async (req, res) => {
   try {
     const [users] = await pool.query(
       `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url,
-        u.email, u.facebook_id, u.password_hash, u.password_plain, u.created_at,
+        u.email, u.facebook_id, u.password_hash, u.password_plain, u.created_at, u.interests,
         (SELECT COUNT(*) FROM friendships WHERE user_id = u.id) as friend_count,
         (SELECT COUNT(*) FROM posts WHERE author_id = u.id) as post_count
        FROM users u WHERE u.id = ?`,
@@ -861,6 +861,8 @@ app.get('/api/profile', authenticate, async (req, res) => {
     )
     if (users.length === 0) return res.status(404).json({ error: 'User not found' })
     const u = users[0]
+    let interests = []
+    try { interests = u.interests ? (typeof u.interests === 'string' ? JSON.parse(u.interests) : u.interests) : [] } catch {}
     res.json({
       id: u.id, name: u.name, handle: u.handle, initials: u.initials,
       bio: { da: u.bio_da || '', en: u.bio_en || '' },
@@ -872,6 +874,7 @@ app.get('/api/profile', authenticate, async (req, res) => {
       hasPassword: !!u.password_hash,
       passwordHint: u.password_plain ? (u.password_plain[0] + '*'.repeat(Math.max(u.password_plain.length - 2, 0)) + (u.password_plain.length > 1 ? u.password_plain[u.password_plain.length - 1] : '')) : null,
       createdAt: u.created_at || u.join_date || null,
+      interests,
     })
   } catch (err) {
     res.status(500).json({ error: 'Failed to load profile' })
@@ -887,6 +890,40 @@ app.patch('/api/me/mode', authenticate, async (req, res) => {
     res.json({ ok: true })
   } catch (err) {
     res.status(500).json({ error: 'Failed to update mode' })
+  }
+})
+
+// PATCH /api/me/interests — save user interest categories (min 3)
+app.patch('/api/me/interests', authenticate, async (req, res) => {
+  const { interests } = req.body
+  if (!Array.isArray(interests) || interests.length < 3) {
+    return res.status(400).json({ error: 'At least 3 interests required' })
+  }
+  const VALID = ['musik','videnskab','nyheder','sport','teknologi','kunst','mad','rejser','film','politik','natur','gaming','sundhed','boger','humor','diy','okonomi','mode']
+  const clean = interests.filter(i => VALID.includes(i))
+  if (clean.length < 3) return res.status(400).json({ error: 'Invalid interest categories' })
+  try {
+    await pool.query('UPDATE users SET interests = ? WHERE id = ?', [JSON.stringify(clean), req.userId])
+    res.json({ ok: true, interests: clean })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update interests' })
+  }
+})
+
+// PATCH /api/friends/:id/family — mark/unmark a friend as family
+app.patch('/api/friends/:id/family', authenticate, async (req, res) => {
+  const friendId = parseInt(req.params.id)
+  const { isFamily } = req.body
+  if (typeof isFamily !== 'boolean') return res.status(400).json({ error: 'isFamily must be boolean' })
+  try {
+    // Update both directions of the bidirectional friendship
+    await pool.query(
+      'UPDATE friendships SET is_family = ? WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)',
+      [isFamily ? 1 : 0, req.userId, friendId, friendId, req.userId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update family status' })
   }
 })
 
@@ -917,11 +954,61 @@ app.post('/api/profile/avatar', authenticate, upload.single('avatar'), async (re
 
 // ── Feed routes ──
 
+// Interest keyword map used for feed scoring
+const INTEREST_KEYWORDS = {
+  musik:      ['musik','sang','melodi','koncert','album','music','song','concert','spotify','artist','playliste','playlist'],
+  videnskab:  ['videnskab','forskning','studie','science','research','experiment','eksperiment','studie','analyse'],
+  nyheder:    ['nyheder','breaking','nyhed','news','aktuelt','headline','avis'],
+  sport:      ['sport','fodbold','basket','tennis','løb','gym','træning','football','basketball','running','workout','kamp','turnering'],
+  teknologi:  ['teknologi','tech','app','software','hardware','ai','computer','programmering','kode','code','robot','digitalt'],
+  kunst:      ['kunst','maleri','udstilling','art','painting','exhibition','galleri','skulptur','tegning','design'],
+  mad:        ['mad','opskrift','restaurant','food','recipe','cooking','dinner','aftensmad','morgenmad','bagning','baking'],
+  rejser:     ['rejse','ferie','tur','travel','holiday','vacation','abroad','udland','flyver','hotel','destination'],
+  film:       ['film','biograf','serie','movie','cinema','netflix','tv-serie','episode','premiere','streaming'],
+  politik:    ['politik','valg','regering','politics','election','government','debat','ministeriet','parti'],
+  natur:      ['natur','skov','strand','have','nature','forest','beach','garden','outdoor','vandring','hike'],
+  gaming:     ['gaming','spil','game','playstation','xbox','nintendo','esport','streamer','twitch'],
+  sundhed:    ['sundhed','helse','kost','motion','health','fitness','wellness','yoga','meditation','løber'],
+  boger:      ['bog','bøger','læse','roman','book','books','reading','novel','bibliotek','forfatter','author'],
+  humor:      ['sjov','griner','humor','funny','joke','lol','komedi','comedy','meme'],
+  diy:        ['gør-det-selv','projekt','bygge','lave','diy','project','build','craft','håndværk','kreativt'],
+  okonomi:    ['økonomi','aktier','investering','pension','finance','investment','stocks','budget','opsparing'],
+  mode:       ['mode','tøj','stil','fashion','clothes','outfit','style','look','trends'],
+}
+
+function scorePost(post, userInterests, familySet) {
+  let score = 0
+  // Family posts get highest priority
+  if (familySet.has(post.author_id)) score += 1000
+  // Own posts always visible but not boosted
+  // Interest keyword matching on bilingual text
+  if (userInterests.length > 0) {
+    const postText = ((post.text_da || '') + ' ' + (post.text_en || '')).toLowerCase()
+    for (const interest of userInterests) {
+      const keywords = INTEREST_KEYWORDS[interest] || []
+      if (keywords.some(kw => postText.includes(kw))) score += 100
+    }
+  }
+  // Recency score: decay over 48 hours (keeps fresh posts competitive)
+  const ageHours = (Date.now() - new Date(post.created_at).getTime()) / 3600000
+  score += Math.max(0, 50 - ageHours * 0.5)
+  return score
+}
+
 // GET /api/feed — get posts with pagination (max 20 in DOM)
 app.get('/api/feed', authenticate, async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 20, 50)
     const offset = Math.max(parseInt(req.query.offset) || 0, 0)
+
+    // Fetch user interests and family friends in parallel
+    const [[userRows], [familyRows]] = await Promise.all([
+      pool.query('SELECT interests FROM users WHERE id = ?', [req.userId]),
+      pool.query('SELECT friend_id FROM friendships WHERE user_id = ? AND is_family = 1', [req.userId]).catch(() => [[]]),
+    ])
+    let userInterests = []
+    try { userInterests = userRows[0]?.interests ? (typeof userRows[0].interests === 'string' ? JSON.parse(userRows[0].interests) : userRows[0].interests) : [] } catch {}
+    const familySet = new Set(familyRows.map(r => r.friend_id))
 
     const [countResult] = await pool.query(
       `SELECT COUNT(*) as total FROM posts p
@@ -930,15 +1017,22 @@ app.get('/api/feed', authenticate, async (req, res) => {
     )
     const total = countResult[0].total
 
+    // Fetch a larger window to allow interest-based reordering, then slice
+    const fetchLimit = Math.min(limit * 3, 150)
     const [posts] = await pool.query(
       `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.created_at
        FROM posts p JOIN users u ON p.author_id = u.id
        WHERE p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?)
        ORDER BY p.created_at DESC
        LIMIT ? OFFSET ?`,
-      [req.userId, req.userId, limit, offset]
+      [req.userId, req.userId, fetchLimit, offset]
     )
-    const postIds = posts.map(p => p.id)
+    // Re-sort by interest score when user has interests set
+    if (userInterests.length > 0 || familySet.size > 0) {
+      posts.sort((a, b) => scorePost(b, userInterests, familySet) - scorePost(a, userInterests, familySet))
+    }
+    const pagedPosts = posts.slice(0, limit)
+    const postIds = pagedPosts.map(p => p.id)
     let comments = []
     if (postIds.length > 0) {
       try {
@@ -999,7 +1093,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
       if (c.media) { try { cMedia = typeof c.media === 'string' ? JSON.parse(c.media) : c.media } catch {} }
       commentsByPost[c.post_id].push({ author: c.author, text: { da: c.text_da, en: c.text_en }, media: cMedia })
     }
-    const result = posts.map(p => {
+    const result = pagedPosts.map(p => {
       let media = null
       if (p.media) {
         try { media = typeof p.media === 'string' ? JSON.parse(p.media) : p.media } catch {}
@@ -1008,6 +1102,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
         id: p.id,
         author: p.author,
         authorId: p.author_id,
+        isFamily: familySet.has(p.author_id),
         time: { da: formatPostTime(p.created_at, 'da'), en: formatPostTime(p.created_at, 'en') },
         text: { da: p.text_da, en: p.text_en },
         likes: p.likes,

@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { PT, nameToColor, getInitials, detectMusicUrl } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateMode } from './api.js'
+import { PT, INTEREST_CATEGORIES, nameToColor, getInitials, detectMusicUrl } from './data.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateMode, apiUpdateInterests, apiToggleFamilyFriend } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -1444,13 +1444,15 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
                   >{post.author}</div>
                   {(() => {
                     const relType = !isOwn && post.authorId && rels[String(post.authorId)]
-                    if (!relType) return null
-                    if (mode === 'business' && relType === 'family') return null
-                    const label = { family: t.relFamily, colleague: t.relColleague, close: t.relCloseFriend, neighbor: t.relNeighbor }[relType]
+                    // Use server-supplied isFamily if local rels don't reflect it yet
+                    const effectiveRelType = relType || (!isOwn && post.isFamily ? 'family' : null)
+                    if (!effectiveRelType) return null
+                    if (mode === 'business' && effectiveRelType === 'family') return null
+                    const label = { family: t.relFamily, colleague: t.relColleague, close: t.relCloseFriend, neighbor: t.relNeighbor }[effectiveRelType]
                     if (!label) return null
                     const color = mode === 'business'
-                      ? { colleague: '#1877F2', close: '#2D6A4F', neighbor: '#7C6F64' }[relType] || '#888'
-                      : { family: '#E07B39', colleague: '#1877F2', close: '#2D6A4F', neighbor: '#7C6F64' }[relType] || '#888'
+                      ? { colleague: '#1877F2', close: '#2D6A4F', neighbor: '#7C6F64' }[effectiveRelType] || '#888'
+                      : { family: '#E07B39', colleague: '#1877F2', close: '#2D6A4F', neighbor: '#7C6F64' }[effectiveRelType] || '#888'
                     return <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 10, background: color + '18', color, letterSpacing: '0.02em', flexShrink: 0 }}>{label}</span>
                   })()}
                 </div>
@@ -1734,6 +1736,9 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
   const [profileTab, setProfileTab] = useState('about')
   const [myCompanies, setMyCompanies] = useState([])
   const [parachordEnabled, setParachordEnabled] = useState(() => localStorage.getItem('fellis_parachord_enabled') !== 'false')
+  const [interests, setInterests] = useState([])
+  const [interestsSaving, setInterestsSaving] = useState(false)
+  const [interestsSavedMsg, setInterestsSavedMsg] = useState('')
 
   const handleParachordToggle = () => {
     const next = !parachordEnabled
@@ -1745,6 +1750,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
     apiFetchProfile().then(data => {
       if (data) {
         setProfile(data)
+        if (data.interests?.length) setInterests(data.interests)
         if (data.avatar_url || data.avatarUrl) {
           onUserUpdate(prev => ({ ...prev, avatar_url: data.avatarUrl || data.avatar_url }))
         }
@@ -1896,6 +1902,63 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
               </button>
             </div>
           </div>
+        </div>
+
+        {/* Interests card */}
+        <div className="p-card p-login-info-card" style={{ marginBottom: 16 }}>
+          <h3 className="p-section-title">🎯 {t.interestsSectionTitle}</h3>
+          <p style={{ fontSize: 13, color: '#666', margin: '0 0 12px' }}>{t.interestsSectionDesc}</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+            {INTEREST_CATEGORIES.map(cat => {
+              const selected = interests.includes(cat.id)
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => {
+                    setInterestsSavedMsg('')
+                    setInterests(prev => selected ? prev.filter(i => i !== cat.id) : [...prev, cat.id])
+                  }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    padding: '5px 12px', borderRadius: 20, fontSize: 13, cursor: 'pointer',
+                    border: selected ? '2px solid #2D6A4F' : '2px solid #ddd',
+                    background: selected ? '#F0FAF4' : '#fafafa',
+                    color: selected ? '#2D6A4F' : '#555',
+                    fontWeight: selected ? 700 : 400,
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <span>{cat.icon}</span>
+                  <span>{cat[lang] || cat.da}</span>
+                </button>
+              )
+            })}
+          </div>
+          {interestsSavedMsg ? (
+            <div style={{ fontSize: 13, color: '#2D6A4F', fontWeight: 600, marginBottom: 4 }}>{interestsSavedMsg}</div>
+          ) : interests.length < 3 ? (
+            <div style={{ fontSize: 12, color: '#e53935', marginBottom: 4 }}>{t.interestsMin3}</div>
+          ) : null}
+          <button
+            disabled={interestsSaving || interests.length < 3}
+            onClick={async () => {
+              setInterestsSaving(true)
+              setInterestsSavedMsg('')
+              const res = await apiUpdateInterests(interests)
+              setInterestsSaving(false)
+              if (res?.ok) {
+                setInterestsSavedMsg(t.interestsSaved)
+                setTimeout(() => setInterestsSavedMsg(''), 3000)
+              }
+            }}
+            style={{
+              padding: '7px 20px', borderRadius: 8, fontSize: 13, fontWeight: 700,
+              background: interests.length >= 3 ? '#2D6A4F' : '#ccc',
+              color: '#fff', border: 'none', cursor: interests.length >= 3 ? 'pointer' : 'not-allowed',
+            }}
+          >
+            {interestsSaving ? '...' : t.interestsSave}
+          </button>
         </div>
 
         {mode === 'privat' && (
@@ -3102,7 +3165,12 @@ function FriendsPage({ lang, t, mode, onMessage }) {
                         </span>
                         <select
                           value={rels[String(friend.id)] || ''}
-                          onChange={e => setRel(friend.id, e.target.value || null)}
+                          onChange={e => {
+                            const val = e.target.value || null
+                            setRel(friend.id, val)
+                            // Sync family status to server for feed algorithm
+                            apiToggleFamilyFriend(friend.id, val === 'family').catch(() => {})
+                          }}
                           style={{ width: '100%', fontSize: 12, padding: '4px 6px', borderRadius: 6, border: '1px solid #e0e0e0', background: '#fafafa' }}
                         >
                           <option value="">{t.relNone}</option>

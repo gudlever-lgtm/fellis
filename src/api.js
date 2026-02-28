@@ -470,3 +470,11 @@ export async function apiGetAnalytics(days = 30) {
 export async function apiUpdateMode(mode) {
   return await request('/api/me/mode', { method: 'PATCH', body: JSON.stringify({ mode }) })
 }
+
+export async function apiUpdateInterests(interests) {
+  return await request('/api/me/interests', { method: 'PATCH', body: JSON.stringify({ interests }) })
+}
+
+export async function apiToggleFamilyFriend(friendId, isFamily) {
+  return await request(`/api/friends/${friendId}/family`, { method: 'PATCH', body: JSON.stringify({ isFamily }) })
+}
