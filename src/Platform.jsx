@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect } from 'react'
 import { PT, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateMode, apiUpdatePlan } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateMode, apiUpdatePlan } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -2301,10 +2301,10 @@ function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, on
         ))}
       </div>
 
-      {tab === 'konto' && <SettingsKonto lang={lang} t={t} currentUser={currentUser} fS={fS} lS={lS} onNavigate={onNavigate} />}
+      {tab === 'konto' && <SettingsKonto lang={lang} t={t} currentUser={currentUser} mode={mode} fS={fS} lS={lS} onNavigate={onNavigate} onOpenModeModal={onOpenModeModal} />}
       {tab === 'privatliv' && <SettingsPrivatliv lang={lang} t={t} fS={fS} lS={lS} />}
       {tab === 'sessions' && <SettingsSessions lang={lang} t={t} onLogout={onLogout} />}
-      {tab === 'sprog' && <SettingsSprog lang={lang} t={t} mode={mode} onOpenModeModal={onOpenModeModal} />}
+      {tab === 'sprog' && <SettingsSprog lang={lang} t={t} />}
     </div>
   )
 }
@@ -2355,7 +2355,7 @@ function PasswordStrengthIndicator({ password, lang }) {
   )
 }
 
-function SettingsKonto({ lang, t, currentUser, fS, lS, onNavigate }) {
+function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenModeModal }) {
   const [profile, setProfile] = useState(null)
   const [newEmail, setNewEmail] = useState(currentUser?.email || '')
   const [emailPassword, setEmailPassword] = useState('')
@@ -2421,6 +2421,22 @@ function SettingsKonto({ lang, t, currentUser, fS, lS, onNavigate }) {
           style={{ padding: '8px 18px', borderRadius: 8, border: '1px solid #2D6A4F', background: '#fff', color: '#2D6A4F', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
         >
           ✏️ {lang === 'da' ? 'Gå til Rediger profil' : 'Go to Edit profile'}
+        </button>
+      </div>
+
+      {/* Account type / mode switch */}
+      <div style={{ borderTop: '1px solid #eee', paddingTop: 20, marginTop: 20 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: '#333', marginBottom: 4 }}>💼 {lang === 'da' ? 'Kontotype' : 'Account type'}</div>
+        <div style={{ fontSize: 13, color: '#666', marginBottom: 12 }}>
+          {lang === 'da'
+            ? `Nuværende kontotype: ${mode === 'business' ? 'Erhverv' : 'Privat'}. Skift for at tilpasse oplevelsen til dit behov.`
+            : `Current account type: ${mode === 'business' ? 'Business' : 'Personal'}. Switch to tailor the experience to your needs.`}
+        </div>
+        <button
+          onClick={onOpenModeModal}
+          style={{ padding: '9px 20px', borderRadius: 8, border: '1px solid #2D6A4F', background: '#fff', color: '#2D6A4F', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
+        >
+          {t.modeSwitch}
         </button>
       </div>
     </div>
@@ -2578,7 +2594,7 @@ function SettingsSessions({ lang, t, onLogout }) {
   )
 }
 
-function SettingsSprog({ lang, t, mode, onOpenModeModal }) {
+function SettingsSprog({ lang, t }) {
   const switchLang = (newLang) => {
     fetch('/api/me/lang', {
       method: 'PATCH', credentials: 'include',
@@ -2592,25 +2608,14 @@ function SettingsSprog({ lang, t, mode, onOpenModeModal }) {
   const radioStyle = { display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, cursor: 'pointer', padding: '8px 0' }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div className="p-card" style={{ padding: 24 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: '#333', marginBottom: 12 }}>🌐 {t.settingsLanguage}</div>
-        {[['da', '🇩🇰 Dansk'], ['en', '🇬🇧 English']].map(([val, label]) => (
-          <label key={val} style={radioStyle}>
-            <input type="radio" name="lang" value={val} checked={lang === val} onChange={() => { if (lang !== val) switchLang(val) }} />
-            {label}
-          </label>
-        ))}
-      </div>
-      <div className="p-card" style={{ padding: 24 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: '#333', marginBottom: 8 }}>💼 {t.settingsMode}</div>
-        <div style={{ fontSize: 13, color: '#666', marginBottom: 12 }}>
-          {lang === 'da' ? `Nuværende: ${mode === 'business' ? 'Erhverv' : 'Privat'}` : `Current: ${mode === 'business' ? 'Business' : 'Personal'}`}
-        </div>
-        <button onClick={onOpenModeModal} style={{ padding: '9px 20px', borderRadius: 8, border: '1px solid #2D6A4F', background: '#fff', color: '#2D6A4F', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
-          {t.modeSwitch}
-        </button>
-      </div>
+    <div className="p-card" style={{ padding: 24 }}>
+      <div style={{ fontSize: 14, fontWeight: 700, color: '#333', marginBottom: 12 }}>🌐 {t.settingsLanguage}</div>
+      {[['da', '🇩🇰 Dansk'], ['en', '🇬🇧 English']].map(([val, label]) => (
+        <label key={val} style={radioStyle}>
+          <input type="radio" name="lang" value={val} checked={lang === val} onChange={() => { if (lang !== val) switchLang(val) }} />
+          {label}
+        </label>
+      ))}
     </div>
   )
 }
@@ -6429,6 +6434,13 @@ function MarketplacePage({ lang, t, currentUser, onContactSeller }) {
     setMyListings(prev => prev.map(l => l.id === id ? { ...l, sold: true } : l))
   }
 
+  const handleRelist = async (id) => {
+    await apiRelistListing(id)
+    const today = new Date().toISOString().slice(0, 10)
+    setListings(prev => prev.map(l => l.id === id ? { ...l, sold: false, postedAt: today } : l))
+    setMyListings(prev => prev.map(l => l.id === id ? { ...l, sold: false, postedAt: today } : l))
+  }
+
   const handleDelete = async (id) => {
     await apiDeleteListing(id)
     setListings(prev => prev.filter(l => l.id !== id))
@@ -6570,6 +6582,11 @@ function MarketplacePage({ lang, t, currentUser, onContactSeller }) {
                     {!listing.sold && (
                       <button className="p-listing-action-btn" onClick={() => handleMarkSold(listing.id)}>
                         ✓ {t.marketplaceMarkSold}
+                      </button>
+                    )}
+                    {listing.sold && (
+                      <button className="p-listing-action-btn" style={{ color: '#2D6A4F', borderColor: '#2D6A4F' }} onClick={() => handleRelist(listing.id)}>
+                        ↺ {lang === 'da' ? 'Genopslå' : 'Relist'}
                       </button>
                     )}
                     <button className="p-listing-action-btn" onClick={() => { setEditListing(listing); setFormError(null); setShowForm(true) }}>

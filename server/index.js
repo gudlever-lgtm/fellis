@@ -2702,6 +2702,18 @@ app.post('/api/marketplace/:id/sold', authenticate, async (req, res) => {
   }
 })
 
+app.post('/api/marketplace/:id/relist', authenticate, async (req, res) => {
+  try {
+    const [[existing]] = await pool.query('SELECT user_id FROM marketplace_listings WHERE id = ?', [req.params.id])
+    if (!existing) return res.status(404).json({ error: 'Not found' })
+    if (existing.user_id !== req.userId) return res.status(403).json({ error: 'Forbidden' })
+    await pool.query('UPDATE marketplace_listings SET sold = 0, created_at = NOW() WHERE id = ?', [req.params.id])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // ── Companies & Jobs ──────────────────────────────────────────────────────────
 
 async function initCompanies() {
