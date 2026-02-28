@@ -234,3 +234,73 @@ The `Platform.jsx` component renders these pages (controlled by `page` state):
 Development follows a `claude/` branch naming convention:
 - Feature branches: `claude/<description>-<session-id>`
 - Push with: `git push -u origin <branch-name>`
+
+---
+
+## Deploying from GitHub to the Production Server
+
+### First-time clone (on the server)
+```bash
+git clone https://github.com/<org>/fellis.git /var/www/fellis.eu
+cd /var/www/fellis.eu
+```
+
+### Pull latest changes from main
+```bash
+cd /var/www/fellis.eu
+git fetch origin
+git pull origin main
+```
+
+### Fetch and check out a specific feature branch (e.g. to test a Claude branch)
+```bash
+git fetch origin claude/<branch-name>
+git checkout claude/<branch-name>
+```
+
+### Return to main after testing
+```bash
+git checkout main
+git pull origin main
+```
+
+### Full deploy sequence (pull → install deps → build → restart)
+```bash
+cd /var/www/fellis.eu
+
+# 1. Pull latest code
+git pull origin main
+
+# 2. Install/update frontend dependencies
+npm install
+
+# 3. Build frontend (runs API route check, then Vite build)
+npm run build
+
+# 4. Install/update backend dependencies
+cd server && npm install && cd ..
+
+# 5. Restart the backend (assuming PM2)
+pm2 restart fellis-server
+# or: pm2 reload fellis-server   # zero-downtime reload
+```
+
+### Run pending database migrations after a pull
+```bash
+# Check for new migrate-*.sql files in the pull, then apply each:
+mysql -u root fellis_eu < server/migrate-add-media.sql
+mysql -u root fellis_eu < server/migrate-add-comment-media.sql
+# ... apply any new migrate-*.sql files in order
+```
+
+### Useful status checks on the server
+```bash
+git log --oneline -10          # recent commits on current branch
+git status                     # any local changes that would block a pull
+git stash                      # temporarily shelve local changes before pull
+git stash pop                  # re-apply shelved changes after pull
+pm2 status                     # check if the backend process is running
+pm2 logs fellis-server --lines 50   # tail recent server logs
+```
+
+> **Note:** Never commit directly on the production server. All changes go through GitHub (feature branch → PR → merge to `main`) and are deployed with `git pull`.
