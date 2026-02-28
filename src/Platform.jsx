@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect } from 'react'
 import { PT, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateMode } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateMode, apiUpdatePlan } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -86,18 +86,21 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
 
   const toggleLang = useCallback(() => setLang(p => p === 'da' ? 'en' : 'da'), [])
 
-  // Load current user from session + sync mode to server
+  // Load current user from session — mode and plan are authoritative from server
   useEffect(() => {
     apiCheckSession().then(data => {
       if (data?.user) {
         setCurrentUser(prev => ({ ...prev, ...data.user }))
-        // Read plan from the server-authoritative user object (not localStorage)
         if (data.user.plan) setPlan(data.user.plan)
-        // Sync current localStorage mode to server (for admin stats)
-        const serverMode = mode === 'business' ? 'business' : 'privat'
-        apiUpdateMode(serverMode).catch(() => {})
+        // Mode from server is authoritative — sync to localStorage
+        if (data.user.mode) {
+          setMode(data.user.mode)
+          localStorage.setItem('fellis_mode', data.user.mode)
+        } else {
+          // Fallback: sync localStorage → server
+          apiUpdateMode(mode === 'business' ? 'business' : 'privat').catch(() => {})
+        }
       } else {
-        // Session expired — log out
         onLogout()
       }
     }).catch(() => {
@@ -326,7 +329,16 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
 
       {/* Mode switch modal */}
       {showUpgradeModal && (
-        <UpgradeModal lang={lang} t={t} onUpgrade={() => { setPlan('business_pro'); setShowUpgradeModal(false) }} onClose={() => setShowUpgradeModal(false)} />
+        <UpgradeModal lang={lang} t={t} onUpgrade={() => {
+          setPlan('business_pro')
+          setShowUpgradeModal(false)
+          setMode('business')
+          localStorage.setItem('fellis_mode', 'business')
+          const savedReadIds = new Set(JSON.parse(localStorage.getItem('fellis_notifs_read') || '[]'))
+          setNotifs(makeMockNotifs('business').map(n => savedReadIds.has(n.id) ? { ...n, read: true } : n))
+          apiUpdateMode('business').catch(() => {})
+          apiUpdatePlan('business_pro').catch(() => {})
+        }} onClose={() => setShowUpgradeModal(false)} />
       )}
       {showModeModal && (() => {
         const currentTier = mode === 'privat' ? 'privat' : plan === 'business_pro' ? 'business_pro' : 'business'
@@ -1772,8 +1784,10 @@ function ProfilePage({ lang, t, currentUser, mode, plan, onUserUpdate, onNavigat
   const [profile, setProfile] = useState({ ...currentUser })
   const [userPosts, setUserPosts] = useState([])
   const [familyGroups, setFamilyGroups] = useState([])
+  const [familyFriends, setFamilyFriends] = useState([])
   const [profileTab, setProfileTab] = useState('about')
   const [myCompanies, setMyCompanies] = useState([])
+  const { rels } = useContactRelationships()
 
   useEffect(() => {
     apiFetchProfile().then(data => {
@@ -1791,6 +1805,9 @@ function ProfilePage({ lang, t, currentUser, mode, plan, onUserUpdate, onNavigat
     if (mode === 'privat') {
       apiFetchConversations().then(convs => {
         if (convs) setFamilyGroups(convs.filter(c => c.isFamilyGroup))
+      })
+      apiFetchFriends().then(data => {
+        if (data) setFamilyFriends((data.friends || data || []).filter(f => rels[String(f.id)] === 'family'))
       })
     }
     fetch('/api/companies', { credentials: 'include' })
@@ -1877,23 +1894,56 @@ function ProfilePage({ lang, t, currentUser, mode, plan, onUserUpdate, onNavigat
           <div className="p-card p-family-section" style={{ marginBottom: 16 }}>
             <h3 className="p-section-title" style={{ margin: '0 0 4px' }}>🏡 {t.familySection}</h3>
             <p className="p-family-section-desc">{t.familySectionDesc}</p>
-            {familyGroups.length === 0 ? (
-              <div className="p-family-empty">{t.familyNoGroups}</div>
+            {familyFriends.length === 0 && familyGroups.length === 0 ? (
+              <div className="p-family-empty">{lang === 'da' ? 'Ingen familiemedlemmer endnu. Mærk venner som Familie i din venneliste.' : 'No family members yet. Tag friends as Family in your friends list.'}</div>
             ) : (
-              familyGroups.map(g => (
-                <div key={g.id} className="p-family-group-row">
-                  <div className="p-family-group-icon">🏡</div>
-                  <div className="p-family-group-info">
-                    <span className="p-family-group-name">{g.name || t.familyGroup}</span>
-                    <span className="p-family-group-meta">{g.participants.length} {t.participants}</span>
+              <>
+                {familyFriends.length > 0 && (
+                  <div style={{ marginBottom: familyGroups.length > 0 ? 12 : 0 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
+                      {lang === 'da' ? 'Familiemedlemmer' : 'Family members'}
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                      {familyFriends.map(f => {
+                        const friendAvatarSrc = f.avatarUrl || f.avatar_url
+                          ? (f.avatarUrl || f.avatar_url).startsWith('http') ? (f.avatarUrl || f.avatar_url) : `${API_BASE}${f.avatarUrl || f.avatar_url}`
+                          : null
+                        return (
+                          <div key={f.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, minWidth: 56 }}>
+                            {friendAvatarSrc ? (
+                              <img src={friendAvatarSrc} alt="" style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', border: '2px solid #e8f5e9' }} />
+                            ) : (
+                              <div style={{ width: 44, height: 44, borderRadius: '50%', background: nameToColor(f.name), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, color: '#fff', border: '2px solid #e8f5e9' }}>
+                                {getInitials(f.name)}
+                              </div>
+                            )}
+                            <span style={{ fontSize: 11, color: '#444', textAlign: 'center', maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name.split(' ')[0]}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
                   </div>
-                  <div className="p-family-group-avatars">
-                    {g.participants.slice(0, 4).map(p => (
-                      <div key={p.id} className="p-avatar-xs p-family-avatar" style={{ background: nameToColor(p.name) }}>{getInitials(p.name)}</div>
+                )}
+                {familyGroups.length > 0 && (
+                  <div>
+                    {familyFriends.length > 0 && <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 1, margin: '12px 0 8px' }}>{lang === 'da' ? 'Familiegrupper' : 'Family groups'}</div>}
+                    {familyGroups.map(g => (
+                      <div key={g.id} className="p-family-group-row">
+                        <div className="p-family-group-icon">🏡</div>
+                        <div className="p-family-group-info">
+                          <span className="p-family-group-name">{g.name || t.familyGroup}</span>
+                          <span className="p-family-group-meta">{g.participants.length} {t.participants}</span>
+                        </div>
+                        <div className="p-family-group-avatars">
+                          {g.participants.slice(0, 4).map(p => (
+                            <div key={p.id} className="p-avatar-xs p-family-avatar" style={{ background: nameToColor(p.name) }}>{getInitials(p.name)}</div>
+                          ))}
+                        </div>
+                      </div>
                     ))}
                   </div>
-                </div>
-              ))
+                )}
+              </>
             )}
           </div>
         )}
@@ -1986,6 +2036,7 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [passwordMsg, setPasswordMsg] = useState(null)
+  const [currentPwdError, setCurrentPwdError] = useState(null)
   const [passwordLoading, setPasswordLoading] = useState(false)
   const [showCurrent, setShowCurrent] = useState(false)
   const [showNew, setShowNew] = useState(false)
@@ -2020,13 +2071,13 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
 
   const handleChangePassword = async (e) => {
     e.preventDefault()
-    if (hasPassword && !currentPassword) return
-    if (!newPassword || !confirmPassword) return
-    if (newPassword !== confirmPassword) {
-      setPasswordMsg({ ok: false, text: lang === 'da' ? 'Adgangskoderne stemmer ikke overens' : 'Passwords do not match' })
+    if (hasPassword && !currentPassword) {
+      setCurrentPwdError(lang === 'da' ? 'Indtast din nuværende adgangskode' : 'Enter your current password')
       return
     }
-    setPasswordLoading(true); setPasswordMsg(null)
+    if (!newPassword || !confirmPassword) return
+    if (newPassword !== confirmPassword) return // inline match indicator already shows the error
+    setPasswordLoading(true); setPasswordMsg(null); setCurrentPwdError(null)
     try {
       const res = await fetch('/api/profile/password', {
         method: 'PATCH', credentials: 'include',
@@ -2034,8 +2085,16 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
         body: JSON.stringify({ ...(hasPassword ? { currentPassword } : {}), newPassword, lang }),
       })
       const data = await res.json()
-      if (!res.ok) { setPasswordMsg({ ok: false, text: data.error }); return }
+      if (!res.ok) {
+        if (res.status === 401) {
+          setCurrentPwdError(lang === 'da' ? 'Forkert adgangskode' : 'Wrong password')
+        } else {
+          setPasswordMsg({ ok: false, text: data.error })
+        }
+        return
+      }
       setCurrentPassword(''); setNewPassword(''); setConfirmPassword('')
+      setCurrentPwdError(null)
       setPasswordMsg({ ok: true, text: t.settingsSaved })
     } catch { setPasswordMsg({ ok: false, text: lang === 'da' ? 'Netværksfejl' : 'Network error' }) }
     finally { setPasswordLoading(false) }
@@ -2180,9 +2239,18 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
               {hasPassword && (<>
                 <label style={labelStyle}>{editT.currentPwd}</label>
                 <div style={{ position: 'relative' }}>
-                  <input style={{ ...fieldStyle, paddingRight: 44 }} type={showCurrent ? 'text' : 'password'} value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} required placeholder="••••••••" />
+                  <input
+                    style={{ ...fieldStyle, paddingRight: 44, borderColor: currentPwdError ? '#c0392b' : undefined }}
+                    type={showCurrent ? 'text' : 'password'}
+                    value={currentPassword}
+                    onChange={e => { setCurrentPassword(e.target.value); if (currentPwdError) setCurrentPwdError(null) }}
+                    onBlur={() => { if (!currentPassword) setCurrentPwdError(lang === 'da' ? 'Påkrævet' : 'Required') }}
+                    required
+                    placeholder="••••••••"
+                  />
                   <button type="button" onClick={() => setShowCurrent(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#888' }}>{showCurrent ? '🙈' : '👁️'}</button>
                 </div>
+                {currentPwdError && <div style={{ marginTop: 4, fontSize: 12, fontWeight: 600, color: '#c0392b' }}>✗ {currentPwdError}</div>}
               </>)}
               <label style={labelStyle}>{editT.newPwd}</label>
               <div style={{ position: 'relative' }}>

@@ -471,3 +471,7 @@ export async function apiGetAnalytics(days = 30) {
 export async function apiUpdateMode(mode) {
   return await request('/api/me/mode', { method: 'PATCH', body: JSON.stringify({ mode }) })
 }
+
+export async function apiUpdatePlan(plan) {
+  return await request('/api/me/plan', { method: 'PATCH', body: JSON.stringify({ plan }) })
+}

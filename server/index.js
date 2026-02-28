@@ -662,9 +662,9 @@ app.post('/api/auth/logout', authenticate, async (req, res) => {
 // GET /api/auth/session — check if session is valid
 app.get('/api/auth/session', authenticate, async (req, res) => {
   try {
-    const [users] = await pool.query('SELECT id, name, handle, initials, avatar_url, plan FROM users WHERE id = ?', [req.userId])
+    const [users] = await pool.query('SELECT id, name, handle, initials, avatar_url, plan, mode FROM users WHERE id = ?', [req.userId])
     if (users.length === 0) return res.status(404).json({ error: 'User not found' })
-    const user = { ...users[0], plan: users[0].plan || 'business', is_admin: users[0].id === 1 }
+    const user = { ...users[0], plan: users[0].plan || 'business', mode: users[0].mode || 'privat', is_admin: users[0].id === 1 }
     res.json({ user, lang: req.lang })
   } catch (err) {
     res.status(500).json({ error: 'Session check failed' })
@@ -983,6 +983,18 @@ app.patch('/api/me/mode', authenticate, async (req, res) => {
     res.json({ ok: true })
   } catch (err) {
     res.status(500).json({ error: 'Failed to update mode' })
+  }
+})
+
+// PATCH /api/me/plan — update user plan (business / business_pro)
+app.patch('/api/me/plan', authenticate, async (req, res) => {
+  const { plan } = req.body
+  if (!['business', 'business_pro'].includes(plan)) return res.status(400).json({ error: 'Invalid plan' })
+  try {
+    await pool.query('UPDATE users SET plan = ? WHERE id = ?', [plan, req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update plan' })
   }
 })
 
