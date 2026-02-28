@@ -5,9 +5,10 @@ import { resolve } from 'path'
 export default defineConfig({
   plugins: [react()],
   root: 'src',
+  publicDir: 'public',
   build: {
-    outDir: resolve(__dirname),
-    emptyOutDir: false,
+    outDir: resolve(__dirname, process.env.BUILD_TARGET === 'mobile' ? 'dist' : '.'),
+    emptyOutDir: process.env.BUILD_TARGET === 'mobile',
     rollupOptions: {
       input: resolve(__dirname, 'src/index.html'),
       output: {
