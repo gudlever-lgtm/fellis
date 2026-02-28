@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect } from 'react'
 import { PT, INTEREST_CATEGORIES, nameToColor, getInitials, detectMusicUrl } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -7804,6 +7804,331 @@ function AnalyticsPage({ lang, t, currentUser, plan, onUpgrade }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // ── Admin Page ───────────────────────────────────────────────────────────────
 
+// ── Admin: Viral Growth Stats ──
+function AdminViralStats({ viralStats, viralDays, setViralDays, lang }) {
+  const da = lang === 'da'
+  const vs = viralStats
+  const sCard = { background: '#fff', border: '1px solid #e8e8e8', borderRadius: 12, padding: '16px 12px', textAlign: 'center' }
+  const sNum = { fontSize: 26, fontWeight: 700, lineHeight: 1.1 }
+  const sLabel = { fontSize: 12, color: '#666', marginTop: 4 }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Period selector */}
+      <div className="p-card" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: '#555' }}>{da ? 'Periode:' : 'Period:'}</span>
+        {[7, 30, 90].map(d => (
+          <button key={d} onClick={() => setViralDays(d)}
+            style={{ padding: '5px 14px', borderRadius: 20, border: `1.5px solid ${viralDays === d ? '#1877F2' : '#ddd'}`,
+              background: viralDays === d ? '#EBF4FF' : '#fff', color: viralDays === d ? '#1877F2' : '#555',
+              fontWeight: viralDays === d ? 700 : 400, fontSize: 13, cursor: 'pointer' }}>
+            {d} {da ? 'dage' : 'days'}
+          </button>
+        ))}
+      </div>
+
+      {!vs ? (
+        <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>
+          {da ? 'Henter viral statistik…' : 'Loading viral statistics…'}
+        </div>
+      ) : (
+        <>
+          {/* Core KPIs */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12 }}>
+            {[
+              { icon: '📨', num: vs.invitesSent,        label: da ? 'Invitationer sendt'     : 'Invitations sent',    color: '#1877F2' },
+              { icon: '✅', num: vs.invitesAccepted,    label: da ? 'Accepteret'             : 'Accepted',            color: '#40916C' },
+              { icon: `${vs.conversionRate}%`, num: null, label: da ? 'Konverteringsrate'   : 'Conversion rate',     color: '#E07A5F', big: true },
+              { icon: '🔁', num: vs.viralCoefficient,  label: da ? 'Viral koefficient (K)' : 'Viral coefficient (K)', color: '#6C63FF' },
+              { icon: '🔗', num: vs.sharesTracked,      label: da ? 'Deling sporet'          : 'Shares tracked',      color: '#3D405B' },
+              { icon: '🆕', num: vs.newUsers,           label: da ? 'Nye brugere'            : 'New users',           color: '#2D6A4F' },
+            ].map((item, i) => (
+              <div key={i} style={sCard}>
+                <div style={{ ...sNum, color: item.color }}>{item.big ? item.icon : (item.num ?? '—')}</div>
+                {item.big && <div style={{ fontSize: 11, color: item.color, fontWeight: 700 }}>{da ? 'konvertering' : 'conversion'}</div>}
+                <div style={sLabel}>{item.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Viral coefficient explanation */}
+          <div className="p-card" style={{ background: Number(vs.viralCoefficient) >= 1 ? '#F0FAF4' : '#FFFBEB', border: `1px solid ${Number(vs.viralCoefficient) >= 1 ? '#b7dfca' : '#fde68a'}` }}>
+            <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8 }}>
+              {Number(vs.viralCoefficient) >= 1 ? '🚀' : '📈'} {da ? 'Viral koefficient (K-faktor)' : 'Viral coefficient (K-factor)'}
+              <span style={{ marginLeft: 10, fontSize: 22, fontWeight: 800, color: Number(vs.viralCoefficient) >= 1 ? '#40916C' : '#d97706' }}>
+                K = {vs.viralCoefficient}
+              </span>
+            </div>
+            <p style={{ fontSize: 13, color: '#555', margin: 0, lineHeight: 1.6 }}>
+              {da
+                ? `K-faktoren måler, hvor mange nye brugere hver eksisterende bruger i gennemsnit bringer med sig. K ≥ 1 betyder eksponentiel vækst — platformen vokser af sig selv. K = ${vs.viralCoefficient} i de seneste ${vs.days} dage.`
+                : `The K-factor measures how many new users each existing user recruits on average. K ≥ 1 means exponential growth — the platform grows on its own. K = ${vs.viralCoefficient} over the last ${vs.days} days.`}
+            </p>
+          </div>
+
+          {/* Top inviters */}
+          {vs.topInviters?.length > 0 && (
+            <div className="p-card">
+              <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700 }}>🏆 {da ? 'Top-inviters (perioden)' : 'Top inviters (period)'}</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {vs.topInviters.map((u, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 8px', borderRadius: 8, background: i === 0 ? '#FFFBEB' : 'transparent' }}>
+                    <span style={{ fontSize: 16, width: 24, textAlign: 'center' }}>{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600, fontSize: 13 }}>{u.name}</div>
+                      <div style={{ fontSize: 11, color: '#999' }}>{u.handle}</div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#1877F2' }}>{u.period} {da ? 'denne periode' : 'this period'}</div>
+                      <div style={{ fontSize: 11, color: '#aaa' }}>{u.total} {da ? 'i alt' : 'total'}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Share platform breakdown */}
+          {vs.sharePlatforms?.length > 0 && (
+            <div className="p-card">
+              <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700 }}>📡 {da ? 'Deling pr. platform' : 'Shares by platform'}</h3>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                {vs.sharePlatforms.map((p, i) => {
+                  const icons = { facebook: '📘', twitter: '🐦', linkedin: '🔵', whatsapp: '💬', unknown: '🔗' }
+                  const total = vs.sharePlatforms.reduce((a, b) => a + b.count, 0)
+                  const pct = Math.round((p.count / total) * 100)
+                  return (
+                    <div key={i} style={{ padding: '8px 16px', borderRadius: 10, background: '#f5f5f5', textAlign: 'center', minWidth: 80 }}>
+                      <div style={{ fontSize: 20 }}>{icons[p.platform] || '🔗'}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700 }}>{p.count}</div>
+                      <div style={{ fontSize: 11, color: '#888' }}>{p.platform} ({pct}%)</div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+// ── Admin: Security & GDPR Tab ──
+function AdminSecurityGdpr({ viralStats, lang }) {
+  const da = lang === 'da'
+
+  const section = (icon, title, children) => (
+    <div className="p-card" style={{ marginBottom: 16 }}>
+      <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700 }}>{icon} {title}</h3>
+      {children}
+    </div>
+  )
+
+  const row = (label, value, color) => (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '8px 0', borderBottom: '1px solid #f0f0f0', gap: 12 }}>
+      <span style={{ fontSize: 13, color: '#555', fontWeight: 500, flex: '0 0 auto', maxWidth: '50%' }}>{label}</span>
+      <span style={{ fontSize: 13, color: color || '#1a1a1a', fontWeight: color ? 600 : 400, textAlign: 'right' }}>{value}</span>
+    </div>
+  )
+
+  const badge = (text, ok) => (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 12,
+      background: ok ? '#F0FAF4' : '#FFF5F5', color: ok ? '#2D6A4F' : '#C0392B',
+      border: `1px solid ${ok ? '#b7dfca' : '#f5b7b1'}`, fontSize: 12, fontWeight: 600, marginRight: 6, marginBottom: 4 }}>
+      {ok ? '✓' : '✗'} {text}
+    </span>
+  )
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+
+      {/* GDPR Compliance status */}
+      {section('🇪🇺', da ? 'GDPR-overholdelse' : 'GDPR Compliance', (
+        <div>
+          <p style={{ fontSize: 13, color: '#555', marginBottom: 12, lineHeight: 1.6 }}>
+            {da
+              ? 'Det virale vækst-system er designet med GDPR som fundament (Forordning 2016/679). Nedenfor er en oversigt over, hvordan persondata behandles og beskyttes.'
+              : 'The viral growth system is designed with GDPR as its foundation (Regulation 2016/679). Below is an overview of how personal data is processed and protected.'}
+          </p>
+          <div style={{ marginBottom: 10 }}>
+            {badge(da ? 'Dataminimering (Art. 5)' : 'Data minimisation (Art. 5)', true)}
+            {badge(da ? 'Formålsbegrænsning (Art. 5)' : 'Purpose limitation (Art. 5)', true)}
+            {badge(da ? 'Opbevaringsbegrænsning (Art. 5)' : 'Storage limitation (Art. 5)', true)}
+            {badge(da ? 'Integritet & fortrolighed (Art. 32)' : 'Integrity & confidentiality (Art. 32)', true)}
+            {badge(da ? 'Ret til sletning (Art. 17)' : 'Right to erasure (Art. 17)', true)}
+            {badge(da ? 'Ret til dataportabilitet (Art. 20)' : 'Right to portability (Art. 20)', true)}
+            {badge(da ? 'ON DELETE CASCADE' : 'ON DELETE CASCADE', true)}
+          </div>
+          <p style={{ fontSize: 12, color: '#888', margin: 0 }}>
+            {da
+              ? 'Al data slettes automatisk via CASCADE-constraints, når en bruger sletter sin konto (GDPR Art. 17 — ret til sletning).'
+              : 'All data is automatically deleted via CASCADE constraints when a user deletes their account (GDPR Art. 17 — right to erasure).'}
+          </p>
+        </div>
+      ))}
+
+      {/* Data inventory */}
+      {section('🗃️', da ? 'Datakatalog — virale vækst-tabeller' : 'Data inventory — viral growth tables', (
+        <div>
+          {[
+            {
+              table: 'referrals',
+              purpose: da ? 'Sporingsrekord: hvem inviterede hvem' : 'Tracking: who invited whom',
+              fields: da ? 'referrer_id, referred_id, invite_source, utm_source, converted_at' : 'referrer_id, referred_id, invite_source, utm_source, converted_at',
+              retention: da ? 'Livslangt (konto) — slettes ved konto-sletning' : 'Account lifetime — deleted on account deletion',
+              lawful: da ? 'Legitim interesse (Art. 6(1)(f)) — viral vækst' : 'Legitimate interest (Art. 6(1)(f)) — viral growth',
+            },
+            {
+              table: 'user_badges',
+              purpose: da ? 'Optjente gamification-badges pr. bruger' : 'Gamification badges earned per user',
+              fields: 'user_id, reward_type, earned_at',
+              retention: da ? 'Livslangt (konto) — slettes ved konto-sletning' : 'Account lifetime — deleted on account deletion',
+              lawful: da ? 'Kontrakt (Art. 6(1)(b)) — del af platformsservice' : 'Contract (Art. 6(1)(b)) — part of platform service',
+            },
+            {
+              table: 'share_events',
+              purpose: da ? 'Anonym aggregeret tracking af ekstern deling' : 'Anonymous aggregated tracking of external shares',
+              fields: da ? 'user_id (nullable), share_type, platform, utm_campaign, created_at' : 'user_id (nullable), share_type, platform, utm_campaign, created_at',
+              retention: da ? 'Permanent (aggregeret) — user_id = NULL ved konto-sletning' : 'Permanent (aggregated) — user_id = NULL on account deletion',
+              lawful: da ? 'Legitim interesse (Art. 6(1)(f)) — analytics' : 'Legitimate interest (Art. 6(1)(f)) — analytics',
+            },
+            {
+              table: 'rewards',
+              purpose: da ? 'Badge-katalog (ikke persondata)' : 'Badge catalog (not personal data)',
+              fields: 'type, title, description, icon, threshold, reward_points',
+              retention: da ? 'Permanent — systemdata, ingen personoplysninger' : 'Permanent — system data, no personal info',
+              lawful: da ? 'Ikke persondata — GDPR finder ikke anvendelse' : 'Not personal data — GDPR does not apply',
+            },
+          ].map((item, i) => (
+            <div key={i} style={{ marginBottom: 16, padding: 14, background: '#f9f9f9', borderRadius: 10, border: '1px solid #ebebeb' }}>
+              <div style={{ fontWeight: 700, fontSize: 13, fontFamily: 'monospace', color: '#1877F2', marginBottom: 8 }}>📋 {item.table}</div>
+              {row(da ? 'Formål' : 'Purpose', item.purpose)}
+              {row(da ? 'Felter' : 'Fields', item.fields, '#555')}
+              {row(da ? 'Opbevaringstid' : 'Retention', item.retention)}
+              {row(da ? 'Retsgrundlag' : 'Legal basis', item.lawful, '#2D6A4F')}
+            </div>
+          ))}
+        </div>
+      ))}
+
+      {/* Security controls */}
+      {section('🛡️', da ? 'Tekniske sikkerhedsforanstaltninger' : 'Technical security controls', (
+        <div>
+          {[
+            {
+              control: da ? 'Rate limiting — invitationer' : 'Rate limiting — invitations',
+              detail: da ? 'Maks. 20 invitationer pr. 15 min pr. bruger (in-memory). Forhindrer spam og misbrug. HTTP 429 returneres ved overskridelse.' : 'Max 20 invitations per 15 min per user (in-memory). Prevents spam and abuse. HTTP 429 returned on violation.',
+              status: true,
+            },
+            {
+              control: da ? 'Engangstoken for invitationer' : 'One-time invitation tokens',
+              detail: da ? 'Hvert e-mail-invitations-token er et kryptografisk tilfældigt 32-byte hex-token. Markeres som "accepted" ved første brug og kan ikke genbruges.' : 'Each email invitation token is a cryptographically random 32-byte hex token. Marked as "accepted" on first use and cannot be reused.',
+              status: true,
+            },
+            {
+              control: da ? 'Offentlige opslag: share_token' : 'Public posts: share_token',
+              detail: da ? 'Del-links er 16-byte kryptografisk tilfældige tokens (128-bit entropi). Kan tilbagekaldes af forfatteren via DELETE /api/posts/:id/share-token, som sætter is_public = 0.' : 'Share links are 16-byte cryptographically random tokens (128-bit entropy). Can be revoked by the author via DELETE /api/posts/:id/share-token, setting is_public = 0.',
+              status: true,
+            },
+            {
+              control: da ? 'Offentlig profil: eksplicit samtykke' : 'Public profile: explicit consent',
+              detail: da ? 'Profiler er private som standard (profile_public = 0). Brugeren skal aktivt slå offentlig profil til. Kan deaktiveres igen til enhver tid.' : 'Profiles are private by default (profile_public = 0). User must actively enable public profile. Can be disabled again at any time.',
+              status: true,
+            },
+            {
+              control: da ? 'share_events.user_id er nullable' : 'share_events.user_id is nullable',
+              detail: da ? 'Delings-events bevares til aggregeret analytics, men user_id sættes til NULL ved konto-sletning (ON DELETE SET NULL). Data er dermed anonym efter sletning.' : 'Share events are retained for aggregated analytics, but user_id is set to NULL on account deletion (ON DELETE SET NULL). Data is anonymous after deletion.',
+              status: true,
+            },
+            {
+              control: da ? 'Autorisering på alle write-endpoints' : 'Authorization on all write endpoints',
+              detail: da ? 'Alle POST/PATCH/DELETE-endpoints kræver gyldig session (authenticate middleware). Ejerskab valideres eksplicit: share-token og profil-toggle kan kun ændres af den pågældende bruger.' : 'All POST/PATCH/DELETE endpoints require a valid session (authenticate middleware). Ownership is explicitly validated: share tokens and profile toggle can only be changed by the owning user.',
+              status: true,
+            },
+            {
+              control: da ? 'UTM-parametre: ingen PII' : 'UTM parameters: no PII',
+              detail: da ? 'UTM-felter (utm_source, utm_campaign) gemmes som tekst og må ikke indeholde personoplysninger. Dette håndhæves ikke teknisk — det er en operationel instruks.' : 'UTM fields (utm_source, utm_campaign) are stored as text and must not contain personal information. This is not technically enforced — it is an operational instruction.',
+              status: false,
+            },
+          ].map((item, i) => (
+            <div key={i} style={{ padding: '10px 12px', borderRadius: 8, marginBottom: 10, background: item.status ? '#F0FAF4' : '#FFFBEB', border: `1px solid ${item.status ? '#b7dfca' : '#fde68a'}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <span style={{ fontSize: 16 }}>{item.status ? '✅' : '⚠️'}</span>
+                <span style={{ fontWeight: 700, fontSize: 13, color: item.status ? '#2D6A4F' : '#92400e' }}>{item.control}</span>
+              </div>
+              <p style={{ margin: 0, fontSize: 12, color: '#555', lineHeight: 1.6 }}>{item.detail}</p>
+            </div>
+          ))}
+        </div>
+      ))}
+
+      {/* Viral stats summary in security context */}
+      {viralStats && section('📊', da ? 'Aktuel datamængde (viral vækst)' : 'Current data volume (viral growth)', (
+        <div>
+          <p style={{ fontSize: 13, color: '#666', marginBottom: 12 }}>
+            {da
+              ? `Nedenstående data er indsamlet i de seneste ${viralStats.days} dage og udgør grundlaget for det virale vækst-system.`
+              : `The data below was collected over the last ${viralStats.days} days and forms the basis of the viral growth system.`}
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
+            {[
+              { label: da ? 'Invitationer sendt' : 'Invitations sent', value: viralStats.invitesSent },
+              { label: da ? 'Konverterede referrals' : 'Converted referrals', value: viralStats.referralsConverted },
+              { label: da ? 'Share-events sporet' : 'Share events tracked', value: viralStats.sharesTracked },
+              { label: da ? 'Nye brugere' : 'New users', value: viralStats.newUsers },
+            ].map((item, i) => (
+              <div key={i} style={{ textAlign: 'center', padding: '12px 10px', background: '#f5f5f5', borderRadius: 8 }}>
+                <div style={{ fontSize: 22, fontWeight: 800, color: '#1877F2' }}>{item.value ?? '—'}</div>
+                <div style={{ fontSize: 11, color: '#666', marginTop: 3 }}>{item.label}</div>
+              </div>
+            ))}
+          </div>
+          <p style={{ fontSize: 12, color: '#999', marginTop: 12, margin: '12px 0 0' }}>
+            {da
+              ? '⚖️ Retsgrundlag: Legitim interesse (GDPR Art. 6(1)(f)) — optimering af platformsvækst. Alle data behandles i EU og er underlagt dansk lovgivning.'
+              : '⚖️ Legal basis: Legitimate interest (GDPR Art. 6(1)(f)) — platform growth optimisation. All data is processed in the EU and subject to Danish law.'}
+          </p>
+        </div>
+      ))}
+
+      {/* Brugerrettigheder */}
+      {section('👤', da ? 'Brugerrettigheder & udøvelse' : 'User rights & exercise', (
+        <div>
+          <p style={{ fontSize: 13, color: '#555', marginBottom: 12, lineHeight: 1.6 }}>
+            {da
+              ? 'Brugere kan til enhver tid udøve følgende rettigheder — tilgængelige direkte i platformen under Profil → Privatliv & data:'
+              : 'Users can exercise the following rights at any time — available directly in the platform under Profile → Privacy & data:'}
+          </p>
+          {[
+            { right: da ? '📥 Ret til indsigt (Art. 15)' : '📥 Right of access (Art. 15)', how: da ? 'Profil → Eksportér data (JSON)' : 'Profile → Export data (JSON)', endpoint: 'GET /api/gdpr/export' },
+            { right: da ? '🗑️ Ret til sletning (Art. 17)' : '🗑️ Right to erasure (Art. 17)', how: da ? 'Profil → Slet konto — sletter ALT inkl. referrals, badges, share_events' : 'Profile → Delete account — deletes ALL incl. referrals, badges, share_events', endpoint: 'DELETE /api/gdpr/account' },
+            { right: da ? '🔒 Ret til begrænsning (Art. 18)' : '🔒 Right to restrict (Art. 18)', how: da ? 'Deaktiver offentlig profil / tilbagekald del-links' : 'Disable public profile / revoke share links', endpoint: 'PATCH /api/profile/public' },
+            { right: da ? '📤 Dataportabilitet (Art. 20)' : '📤 Data portability (Art. 20)', how: da ? 'Eksport i JSON-format via Profil → Data & privatliv' : 'Export in JSON format via Profile → Data & privacy', endpoint: 'GET /api/gdpr/export' },
+            { right: da ? '↩️ Tilbagetræk samtykke (Art. 7)' : '↩️ Withdraw consent (Art. 7)', how: da ? 'Profil → Administrér samtykker' : 'Profile → Manage consents', endpoint: 'POST /api/gdpr/consent/withdraw' },
+          ].map((item, i) => (
+            <div key={i} style={{ padding: '8px 12px', borderRadius: 8, marginBottom: 8, background: '#f9f9f9', border: '1px solid #ebebeb' }}>
+              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 2 }}>{item.right}</div>
+              <div style={{ fontSize: 12, color: '#555' }}>{item.how}</div>
+              <div style={{ fontSize: 11, fontFamily: 'monospace', color: '#888', marginTop: 2 }}>{item.endpoint}</div>
+            </div>
+          ))}
+        </div>
+      ))}
+
+      {/* DPO contact */}
+      <div className="p-card" style={{ background: '#F0F7FF', border: '1px solid #BDD8F9' }}>
+        <div style={{ fontSize: 13, color: '#2C4A6E', lineHeight: 1.7 }}>
+          <strong>ℹ️ {da ? 'Databeskyttelsesansvarlig (DPO)' : 'Data Protection Officer (DPO)'}</strong><br />
+          {da
+            ? 'Hvis en bruger ønsker at udøve sine rettigheder eller har spørgsmål til databehandlingen, skal de kontakte platformen via de GDPR-endpoints, der er eksponeret i appen. Platformen er forpligtet til at svare inden 30 dage (GDPR Art. 12).'
+            : 'If a user wishes to exercise their rights or has questions about data processing, they should contact the platform via the GDPR endpoints exposed in the app. The platform is obligated to respond within 30 days (GDPR Art. 12).'}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function AdminPage({ lang, t }) {
   const STRIPE_FIELDS = [
     { key: 'stripe_secret_key', label: t.adminStripeSecretKey, type: 'password', placeholder: 'sk_live_...' },
@@ -7826,6 +8151,8 @@ function AdminPage({ lang, t }) {
   const [weights, setWeights] = useState({ family: 1000, interest: 100, recency: 50 })
   const [weightStatus, setWeightStatus] = useState('idle')
   const [interestStats, setInterestStats] = useState(null)
+  const [viralStats, setViralStats] = useState(null)
+  const [viralDays, setViralDays] = useState(30)
 
   useEffect(() => {
     apiGetAdminSettings().then(data => {
@@ -7835,6 +8162,12 @@ function AdminPage({ lang, t }) {
     apiGetFeedWeights().then(data => { if (data?.weights) setWeights(data.weights) })
     apiGetInterestStats().then(data => { if (data) setInterestStats(data) })
   }, [])
+
+  useEffect(() => {
+    if (adminTab === 'viral' || adminTab === 'security') {
+      apiGetAdminViralStats(viralDays).then(data => { if (data) setViralStats(data) })
+    }
+  }, [adminTab, viralDays])
 
   const handleSave = async (e) => {
     e.preventDefault()
@@ -7870,11 +8203,14 @@ function AdminPage({ lang, t }) {
         <button className={`p-filter-tab${adminTab === 'feed' ? ' active' : ''}`} onClick={() => setAdminTab('feed')}>
           🎯 {t.adminFeedTab}
         </button>
+        <button className={`p-filter-tab${adminTab === 'viral' ? ' active' : ''}`} onClick={() => setAdminTab('viral')}>
+          🚀 {lang === 'da' ? 'Viral vækst' : 'Viral growth'}
+        </button>
         <button className={`p-filter-tab${adminTab === 'stripe' ? ' active' : ''}`} onClick={() => setAdminTab('stripe')}>
           💳 {t.adminStripeTitle}
         </button>
         <button className={`p-filter-tab${adminTab === 'security' ? ' active' : ''}`} onClick={() => setAdminTab('security')}>
-          🔒 {lang === 'da' ? 'Sikkerhed' : 'Security'}
+          🔒 {lang === 'da' ? 'Sikkerhed & GDPR' : 'Security & GDPR'}
         </button>
       </div>
 
@@ -8040,6 +8376,14 @@ function AdminPage({ lang, t }) {
             )}
           </div>
         </div>
+      )}
+
+      {adminTab === 'viral' && (
+        <AdminViralStats viralStats={viralStats} viralDays={viralDays} setViralDays={setViralDays} lang={lang} />
+      )}
+
+      {adminTab === 'security' && (
+        <AdminSecurityGdpr viralStats={viralStats} lang={lang} />
       )}
 
       {adminTab === 'stripe' && (
