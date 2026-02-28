@@ -470,3 +470,63 @@ export async function apiGetAnalytics(days = 30) {
 export async function apiUpdateMode(mode) {
   return await request('/api/me/mode', { method: 'PATCH', body: JSON.stringify({ mode }) })
 }
+
+// ── Viral Growth ──
+
+export async function apiGetReferralDashboard() {
+  return await request('/api/referrals/dashboard')
+}
+
+export async function apiGetLeaderboard() {
+  return await request('/api/referrals/leaderboard')
+}
+
+export async function apiGetBadges() {
+  return await request('/api/badges')
+}
+
+export async function apiGetPublicProfile(handle) {
+  try {
+    const res = await fetch(`${API_BASE}/api/public/profile/${encodeURIComponent(handle)}`)
+    if (!res.ok) return null
+    return await res.json()
+  } catch {
+    return null
+  }
+}
+
+export async function apiGetPublicPost(shareToken) {
+  try {
+    const res = await fetch(`${API_BASE}/api/public/post/${shareToken}`)
+    if (!res.ok) return null
+    return await res.json()
+  } catch {
+    return null
+  }
+}
+
+export async function apiGeneratePostShareToken(postId) {
+  return await request(`/api/posts/${postId}/share-token`, { method: 'POST' })
+}
+
+export async function apiRevokePostShareToken(postId) {
+  return await request(`/api/posts/${postId}/share-token`, { method: 'DELETE' })
+}
+
+export async function apiToggleProfilePublic(isPublic) {
+  return await request('/api/profile/public', {
+    method: 'PATCH',
+    body: JSON.stringify({ isPublic }),
+  })
+}
+
+export async function apiTrackShare(shareType, targetId, platform) {
+  return await request('/api/share/track', {
+    method: 'POST',
+    body: JSON.stringify({ shareType, targetId, platform }),
+  })
+}
+
+export async function apiGetAdminViralStats(days = 30) {
+  return await request(`/api/admin/viral-stats?days=${days}`)
+}

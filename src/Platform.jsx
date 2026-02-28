@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { PT, nameToColor, getInitials, detectMusicUrl } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateMode } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateMode, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -1734,6 +1734,8 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
   const [profileTab, setProfileTab] = useState('about')
   const [myCompanies, setMyCompanies] = useState([])
   const [parachordEnabled, setParachordEnabled] = useState(() => localStorage.getItem('fellis_parachord_enabled') !== 'false')
+  const [profilePublic, setProfilePublic] = useState(false)
+  const [profilePublicSaving, setProfilePublicSaving] = useState(false)
 
   const handleParachordToggle = () => {
     const next = !parachordEnabled
@@ -1745,6 +1747,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
     apiFetchProfile().then(data => {
       if (data) {
         setProfile(data)
+        if (data.profile_public !== undefined) setProfilePublic(!!data.profile_public)
         if (data.avatar_url || data.avatarUrl) {
           onUserUpdate(prev => ({ ...prev, avatar_url: data.avatarUrl || data.avatar_url }))
         }
@@ -1871,6 +1874,45 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
               <span className="p-login-info-value">{profile.createdAt ? new Date(profile.createdAt).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</span>
             </div>
           </div>
+        </div>
+
+        <div className="p-card p-login-info-card" style={{ marginBottom: 16 }}>
+          <h3 className="p-section-title">🌐 {t.referralDashPublicProfile}</h3>
+          <p style={{ fontSize: 13, color: '#666', marginBottom: 12 }}>{t.referralDashPublicProfileDesc}</p>
+          <div className="p-login-info-row" style={{ alignItems: 'center', display: 'flex', gap: 12 }}>
+            <span className="p-login-info-label" style={{ flex: 1 }}>
+              {profilePublic ? `✅ ${t.referralDashPublicOn}` : `🔒 ${t.referralDashPublicOff}`}
+            </span>
+            <button
+              onClick={async () => {
+                if (profilePublicSaving) return
+                setProfilePublicSaving(true)
+                const next = !profilePublic
+                const res = await apiToggleProfilePublic(next)
+                if (res?.ok !== false) setProfilePublic(next)
+                setProfilePublicSaving(false)
+              }}
+              style={{
+                position: 'relative', width: 40, height: 22, borderRadius: 11,
+                background: profilePublic ? '#52B788' : '#ccc',
+                border: 'none', cursor: profilePublicSaving ? 'wait' : 'pointer', flexShrink: 0,
+                transition: 'background 0.2s',
+              }}
+              title={t.referralDashPublicProfile}
+            >
+              <span style={{
+                position: 'absolute', top: 3, left: profilePublic ? 20 : 3,
+                width: 16, height: 16, borderRadius: '50%', background: '#fff',
+                transition: 'left 0.2s',
+              }} />
+            </button>
+          </div>
+          {profilePublic && (
+            <div style={{ marginTop: 10, padding: '8px 10px', background: '#f0faf5', borderRadius: 8, fontSize: 12, color: '#40916C' }}>
+              🔗 {lang === 'da' ? 'Din offentlige profil: ' : 'Your public profile: '}
+              <strong>{window.location.origin}/profil/{(profile.handle || '').replace('@', '')}</strong>
+            </div>
+          )}
         </div>
 
         <div className="p-card p-login-info-card" style={{ marginBottom: 16 }}>
@@ -2666,6 +2708,204 @@ function FriendProfileModal({ userId, lang, t, onClose, onMessage }) {
   )
 }
 
+// ── Referral Dashboard (Viral Growth) ──
+function ReferralDashboard({ t, lang, referralData, badges, leaderboard, inviteLink }) {
+  const [copiedShareLink, setCopiedShareLink] = useState(null)
+  const siteUrl = (typeof window !== 'undefined' ? window.location.origin : 'https://fellis.eu')
+
+  const copyLink = (link) => {
+    navigator.clipboard.writeText(link).catch(() => {})
+    setCopiedShareLink(link)
+    setTimeout(() => setCopiedShareLink(null), 2000)
+  }
+
+  const shareOn = (platform, url, text) => {
+    const encoded = encodeURIComponent(url)
+    const encodedText = encodeURIComponent(text || '')
+    let shareUrl = ''
+    if (platform === 'facebook') shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encoded}`
+    else if (platform === 'twitter') shareUrl = `https://twitter.com/intent/tweet?url=${encoded}&text=${encodedText}`
+    else if (platform === 'linkedin') shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encoded}`
+    else if (platform === 'whatsapp') shareUrl = `https://wa.me/?text=${encodedText}%20${encoded}`
+    if (shareUrl) window.open(shareUrl, '_blank', 'width=600,height=400,noopener,noreferrer')
+    apiTrackShare('invite', null, platform).catch(() => {})
+  }
+
+  const s = {
+    wrap: { display: 'flex', flexDirection: 'column', gap: 16 },
+    statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12 },
+    statCard: { background: '#fff', border: '1px solid #e8e8e8', borderRadius: 12, padding: '16px 12px', textAlign: 'center' },
+    statNum: { fontSize: 28, fontWeight: 700, color: '#1877F2', lineHeight: 1.1 },
+    statLabel: { fontSize: 12, color: '#666', marginTop: 4 },
+    card: { background: '#fff', border: '1px solid #e8e8e8', borderRadius: 12, padding: 16 },
+    cardTitle: { fontWeight: 700, fontSize: 15, marginBottom: 12, color: '#1a1a1a' },
+    badgeGrid: { display: 'flex', flexWrap: 'wrap', gap: 10 },
+    badge: (earned) => ({ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '12px 16px', borderRadius: 12, border: `2px solid ${earned ? '#1877F2' : '#e0e0e0'}`, background: earned ? '#EBF4FF' : '#f8f8f8', opacity: earned ? 1 : 0.55, minWidth: 90, textAlign: 'center' }),
+    badgeIcon: { fontSize: 28 },
+    badgeTitle: (earned) => ({ fontSize: 11, fontWeight: 700, color: earned ? '#1877F2' : '#888' }),
+    badgeProgress: { fontSize: 10, color: '#999' },
+    progressBar: (pct) => ({ height: 6, borderRadius: 3, background: '#e0e0e0', overflow: 'hidden', position: 'relative', marginTop: 4 }),
+    progressFill: (pct) => ({ position: 'absolute', left: 0, top: 0, height: '100%', width: `${Math.min(pct, 100)}%`, background: '#1877F2', borderRadius: 3 }),
+    leaderRow: (isMe) => ({ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid #f0f0f0', background: isMe ? '#EBF4FF' : 'transparent', borderRadius: isMe ? 8 : 0, paddingLeft: isMe ? 8 : 0 }),
+    rank: { width: 26, textAlign: 'center', fontWeight: 700, color: '#888', fontSize: 13 },
+    rankTop: (n) => ({ color: n === 1 ? '#f5a623' : n === 2 ? '#aaa' : n === 3 ? '#cd7f32' : '#888' }),
+    shareRow: { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 },
+    shareBtn: (color) => ({ padding: '7px 14px', borderRadius: 8, border: 'none', background: color, color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }),
+    recentRow: { display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderBottom: '1px solid #f5f5f5' },
+  }
+
+  const rd = referralData
+  const conversionPct = rd ? rd.conversionRate : 0
+
+  return (
+    <div style={s.wrap}>
+
+      {/* Stats overview */}
+      <div className="p-card">
+        <div style={s.cardTitle}>📊 {t.referralDashStats}</div>
+        <div style={s.statsGrid}>
+          <div style={s.statCard}>
+            <div style={s.statNum}>{rd ? rd.totalInvited : '—'}</div>
+            <div style={s.statLabel}>{t.referralDashInvited}</div>
+          </div>
+          <div style={s.statCard}>
+            <div style={s.statNum}>{rd ? rd.totalAccepted : '—'}</div>
+            <div style={s.statLabel}>{t.referralDashAccepted}</div>
+          </div>
+          <div style={s.statCard}>
+            <div style={s.statNum}>{rd ? `${conversionPct}%` : '—'}</div>
+            <div style={s.statLabel}>{t.referralDashConversion}</div>
+          </div>
+          <div style={s.statCard}>
+            <div style={s.statNum}>{rd ? rd.reputationScore : '—'}</div>
+            <div style={s.statLabel}>{t.referralDashReputation}</div>
+          </div>
+        </div>
+
+        {/* Next milestone progress */}
+        {rd?.nextMilestone && (
+          <div style={{ marginTop: 16 }}>
+            <div style={{ fontSize: 13, color: '#555', marginBottom: 6 }}>
+              🎯 {t.referralDashNextMilestone}: <strong>{rd.nextMilestone.current}</strong> / {rd.nextMilestone.target} {t.referralDashAccepted.toLowerCase()} ({rd.nextMilestone.remaining} {lang === 'da' ? 'mangler' : 'remaining'})
+            </div>
+            <div style={s.progressBar()}>
+              <div style={s.progressFill(Math.round((rd.nextMilestone.current / rd.nextMilestone.target) * 100))} />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Share invite link */}
+      <div className="p-card">
+        <div style={s.cardTitle}>🔗 {t.inviteLinkTitle || t.referralDashShareLink}</div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <input readOnly value={inviteLink || `${siteUrl}/?invite=…`} style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, color: '#444', background: '#fafafa' }} />
+          <button className="p-btn-primary" onClick={() => copyLink(inviteLink)} style={{ whiteSpace: 'nowrap', padding: '8px 14px', fontSize: 13 }}>
+            {copiedShareLink === inviteLink ? t.referralDashShareCopied : t.referralDashShareCopy}
+          </button>
+        </div>
+        <div style={s.shareRow}>
+          <button style={s.shareBtn('#1877F2')} onClick={() => shareOn('facebook', inviteLink, lang === 'da' ? 'Kom med på fellis.eu — Danmarks private sociale netværk!' : 'Join me on fellis.eu — Denmark\'s privacy-first social network!')}>
+            f {t.referralDashShareFb}
+          </button>
+          <button style={s.shareBtn('#000')} onClick={() => shareOn('twitter', inviteLink, lang === 'da' ? 'Tilmeld dig fellis.eu med mit link!' : 'Join fellis.eu with my invite link!')}>
+            𝕏 {t.referralDashShareTwitter}
+          </button>
+          <button style={s.shareBtn('#0A66C2')} onClick={() => shareOn('linkedin', inviteLink, '')}>
+            in {t.referralDashShareLinkedIn}
+          </button>
+          <button style={s.shareBtn('#25D366')} onClick={() => shareOn('whatsapp', inviteLink, lang === 'da' ? 'Kom med på fellis.eu!' : 'Join me on fellis.eu!')}>
+            💬 {t.referralDashShareWhatsApp}
+          </button>
+        </div>
+      </div>
+
+      {/* Badges */}
+      <div className="p-card">
+        <div style={s.cardTitle}>🏅 {t.referralDashBadgesTitle}</div>
+        {!badges ? (
+          <div style={{ color: '#888', fontSize: 13 }}>{lang === 'da' ? 'Indlæser…' : 'Loading…'}</div>
+        ) : (
+          <div style={s.badgeGrid}>
+            {badges.map(b => (
+              <div key={b.type} style={s.badge(b.earned)} title={b.description}>
+                <span style={s.badgeIcon}>{b.icon}</span>
+                <span style={s.badgeTitle(b.earned)}>{b.title}</span>
+                {!b.earned && (
+                  <>
+                    <span style={s.badgeProgress}>{b.progress} {t.referralDashProgress} {b.threshold}</span>
+                    <div style={s.progressBar()}>
+                      <div style={s.progressFill(Math.round((b.progress / b.threshold) * 100))} />
+                    </div>
+                  </>
+                )}
+                {b.earned && <span style={{ fontSize: 10, color: '#40916C', fontWeight: 700 }}>+{b.points} pt</span>}
+              </div>
+            ))}
+          </div>
+        )}
+        {badges && badges.length === 0 && (
+          <p style={{ color: '#888', fontSize: 13 }}>{t.referralDashNoBadges}</p>
+        )}
+      </div>
+
+      {/* Recent referrals */}
+      <div className="p-card">
+        <div style={s.cardTitle}>👥 {t.referralDashRecentTitle}</div>
+        {!rd ? (
+          <div style={{ color: '#888', fontSize: 13 }}>{lang === 'da' ? 'Indlæser…' : 'Loading…'}</div>
+        ) : rd.recentReferrals.length === 0 ? (
+          <p style={{ color: '#888', fontSize: 13 }}>{t.referralDashNoRecent}</p>
+        ) : (
+          rd.recentReferrals.map((r, i) => (
+            <div key={i} style={s.recentRow}>
+              <div className="p-avatar-sm" style={{ background: nameToColor(r.name) }}>{getInitials(r.name)}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 600, fontSize: 13 }}>{r.name}</div>
+                <div style={{ fontSize: 11, color: '#999' }}>{r.handle}</div>
+              </div>
+              <div style={{ fontSize: 11, color: '#aaa' }}>
+                {new Date(r.joinedAt).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short' })}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Leaderboard */}
+      <div className="p-card">
+        <div style={s.cardTitle}>🏆 {t.referralDashLeaderboard}</div>
+        <div style={{ fontSize: 12, color: '#888', marginBottom: 10 }}>{t.referralDashLeaderboardDesc}</div>
+        {!leaderboard ? (
+          <div style={{ color: '#888', fontSize: 13 }}>{lang === 'da' ? 'Indlæser…' : 'Loading…'}</div>
+        ) : leaderboard.length === 0 ? (
+          <p style={{ color: '#888', fontSize: 13 }}>{lang === 'da' ? 'Endnu ingen på leaderboardet.' : 'No one on the leaderboard yet.'}</p>
+        ) : (
+          leaderboard.map(entry => (
+            <div key={entry.id} style={s.leaderRow(entry.isMe)}>
+              <div style={{ ...s.rank, ...s.rankTop(entry.rank) }}>
+                {entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : entry.rank === 3 ? '🥉' : `#${entry.rank}`}
+              </div>
+              <div className="p-avatar-sm" style={{ background: nameToColor(entry.name) }}>{getInitials(entry.name)}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: entry.isMe ? 700 : 500, fontSize: 13 }}>
+                  {entry.name} {entry.isMe && <span style={{ fontSize: 11, color: '#1877F2' }}>{t.referralDashYou}</span>}
+                </div>
+                <div style={{ fontSize: 11, color: '#999' }}>{entry.handle}</div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontWeight: 700, color: '#1877F2', fontSize: 14 }}>{entry.referralCount}</div>
+                {entry.topBadge && <span style={{ fontSize: 16 }}>{entry.topBadge.icon}</span>}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+    </div>
+  )
+}
+
 // ── Friends ──
 function FriendsPage({ lang, t, mode, onMessage }) {
   const [filter, setFilter] = useState('all')
@@ -2683,6 +2923,9 @@ function FriendsPage({ lang, t, mode, onMessage }) {
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteEmailSending, setInviteEmailSending] = useState(false)
   const [inviteEmailSentOk, setInviteEmailSentOk] = useState(false)
+  const [referralData, setReferralData] = useState(null)
+  const [badges, setBadges] = useState(null)
+  const [leaderboard, setLeaderboard] = useState(null)
   const searchTimerRef = useRef(null)
   const { rels, setRel } = useContactRelationships()
   const REL_OPTS = [
@@ -2757,7 +3000,7 @@ function FriendsPage({ lang, t, mode, onMessage }) {
     refreshAll()
   }, [unfriendTarget, refreshAll])
 
-  const filtered = filter === 'invites' ? [] : friends.filter(f => filter === 'all' || f.online)
+  const filtered = (filter === 'invites' || filter === 'viral') ? [] : friends.filter(f => filter === 'all' || f.online)
 
   const handleCopyInvite = useCallback(() => {
     navigator.clipboard.writeText(inviteLink).catch(() => {})
@@ -2810,6 +3053,14 @@ function FriendsPage({ lang, t, mode, onMessage }) {
       })
       .catch(() => setInvites([]))
   }, [invites])
+
+  // Load referral dashboard when viral tab is opened
+  useEffect(() => {
+    if (filter !== 'viral') return
+    if (!referralData) apiGetReferralDashboard().then(d => { if (d) setReferralData(d) })
+    if (!badges) apiGetBadges().then(d => { if (d) setBadges(d) })
+    if (!leaderboard) apiGetLeaderboard().then(d => { if (d) setLeaderboard(d) })
+  }, [filter, referralData, badges, leaderboard])
 
   const isSearching = search.trim().length >= 2
   const outgoingTargetIds = new Set(requests.outgoing.map(r => r.to_id))
@@ -2942,6 +3193,9 @@ function FriendsPage({ lang, t, mode, onMessage }) {
             <button className={`p-filter-tab${filter === 'invites' ? ' active' : ''}`} onClick={() => setFilter('invites')}>
               ✉️ {t.invitesTab}{invites !== null && invites.length > 0 ? ` (${invites.length})` : ''}
             </button>
+            <button className={`p-filter-tab${filter === 'viral' ? ' active' : ''}`} onClick={() => setFilter('viral')}>
+              🚀 {t.referralDashViralTitle}
+            </button>
           </div>
         )}
       </div>
@@ -3061,6 +3315,8 @@ function FriendsPage({ lang, t, mode, onMessage }) {
             })()}
           </div>
         </div>
+      ) : filter === 'viral' ? (
+        <ReferralDashboard t={t} lang={lang} referralData={referralData} badges={badges} leaderboard={leaderboard} inviteLink={inviteLink} />
       ) : (
         <div className="p-friends-grid">
           {filtered.map((friend) => (
