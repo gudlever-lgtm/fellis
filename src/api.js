@@ -81,13 +81,6 @@ export async function apiResetPassword(token, password) {
   return data
 }
 
-export async function apiChangePassword(currentPassword, newPassword) {
-  return await request('/api/auth/change-password', {
-    method: 'POST',
-    body: JSON.stringify({ currentPassword, newPassword }),
-  })
-}
-
 export async function apiCheckSession() {
   // Try session check even without localStorage — cookie may carry the session
   return await request('/api/auth/session')
@@ -175,6 +168,14 @@ export async function apiAddComment(postId, text, mediaFile) {
 
 export async function apiDeletePost(postId) {
   return await request(`/api/feed/${postId}`, { method: 'DELETE' })
+}
+
+export async function apiEditPost(postId, text) {
+  return await request(`/api/feed/${postId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  })
 }
 
 // Profile
@@ -447,6 +448,10 @@ export async function apiBoostListing(id) {
   return await request(`/api/marketplace/${id}/boost`, { method: 'POST' })
 }
 
+export async function apiRelistListing(id) {
+  return await request(`/api/marketplace/${id}/relist`, { method: 'POST' })
+}
+
 // ── Admin ──
 export async function apiGetAdminSettings() {
   return await request('/api/admin/settings')
@@ -471,35 +476,6 @@ export async function apiUpdateMode(mode) {
   return await request('/api/me/mode', { method: 'PATCH', body: JSON.stringify({ mode }) })
 }
 
-// Settings — sessions
-export async function apiGetSessions() {
-  return await request('/api/me/sessions')
-}
-
-export async function apiRevokeSession(sessionId) {
-  return await request(`/api/me/sessions/${sessionId}`, { method: 'DELETE' })
-}
-
-export async function apiRevokeAllOtherSessions() {
-  return await request('/api/me/sessions/others', { method: 'DELETE' })
-}
-
-// Settings — email
-export async function apiChangeEmail(email) {
-  return await request('/api/me/email', {
-    method: 'POST',
-    body: JSON.stringify({ email }),
-  })
-}
-
-// Settings — privacy
-export async function apiGetPrivacySettings() {
-  return await request('/api/me/privacy')
-}
-
-export async function apiUpdatePrivacySettings(settings) {
-  return await request('/api/me/privacy', {
-    method: 'PATCH',
-    body: JSON.stringify(settings),
-  })
+export async function apiUpdatePlan(plan) {
+  return await request('/api/me/plan', { method: 'PATCH', body: JSON.stringify({ plan }) })
 }

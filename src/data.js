@@ -487,6 +487,7 @@ export const PT = {
     settingsSessionsLogoutOthersConfirm: 'Logger ud alle andre sessioner...',
     settingsSessionsEmpty: 'Ingen andre aktive sessioner.',
     settingsLanguage: 'Sprog',
+    settingsDarkMode: 'Mørkt tema',
     settingsMode: 'Kontotype',
     // Password policy
     adminSecurityTab: 'Sikkerhed',
@@ -910,6 +911,7 @@ export const PT = {
     settingsSessionsLogoutOthersConfirm: 'Logging out all other sessions...',
     settingsSessionsEmpty: 'No other active sessions.',
     settingsLanguage: 'Language',
+    settingsDarkMode: 'Dark mode',
     settingsMode: 'Account type',
     // Password policy
     adminSecurityTab: 'Security',

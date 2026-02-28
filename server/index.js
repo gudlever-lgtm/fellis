@@ -387,7 +387,50 @@ app.use('/uploads', (req, res, next) => {
   extensions: false,        // No extension guessing
 }))
 
+// ── Browser / OS parsing ──────────────────────────────────────────────────
+function parseBrowser(ua) {
+  if (!ua) return { browser: 'Unknown', os: 'Unknown' }
+  let browser = 'Other'
+  if (/Edg\/|Edge\//.test(ua)) browser = 'Edge'
+  else if (/OPR\/|Opera\//.test(ua)) browser = 'Opera'
+  else if (/Chrome\//.test(ua) && !/Chromium/.test(ua)) browser = 'Chrome'
+  else if (/Firefox\//.test(ua)) browser = 'Firefox'
+  else if (/Safari\//.test(ua) && !/Chrome/.test(ua)) browser = 'Safari'
+  else if (/MSIE|Trident/.test(ua)) browser = 'IE'
+  let os = 'Other'
+  if (/Windows/.test(ua)) os = 'Windows'
+  else if (/iPhone|iPad|iPod/.test(ua)) os = 'iOS'
+  else if (/Android/.test(ua)) os = 'Android'
+  else if (/Macintosh|Mac OS/.test(ua)) os = 'macOS'
+  else if (/Linux/.test(ua)) os = 'Linux'
+  return { browser, os }
+}
+
+// ── Geo IP lookup (ip-api.com, free tier, cached) ───────────────────────
+const geoCache = new Map()
+async function getGeoForIp(ip) {
+  if (!ip) return { country: null, country_code: null, city: null }
+  const clean = ip.replace(/^::ffff:/, '')
+  if (clean === '127.0.0.1' || clean === '::1' || clean.startsWith('192.168.') || clean.startsWith('10.') || clean.startsWith('172.'))
+    return { country: 'Lokal', country_code: 'XX', city: 'Lokal' }
+  if (geoCache.has(clean)) return geoCache.get(clean)
+  try {
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => ctrl.abort(), 3000)
+    const r = await fetch(`http://ip-api.com/json/${clean}?fields=status,country,countryCode,city`, { signal: ctrl.signal })
+    clearTimeout(timer)
+    const d = await r.json()
+    if (d.status === 'success') {
+      const result = { country: d.country, country_code: d.countryCode, city: d.city }
+      geoCache.set(clean, result)
+      return result
+    }
+  } catch {}
+  return { country: null, country_code: null, city: null }
+}
+
 // ── Auth middleware ──
+const visitedSessions = new Set() // in-memory: sessions tracked this server process day
 async function authenticate(req, res, next) {
   const sessionId = getSessionIdFromRequest(req)
   if (!sessionId) return res.status(401).json({ error: 'Not authenticated' })
@@ -399,6 +442,24 @@ async function authenticate(req, res, next) {
     if (rows.length === 0) return res.status(401).json({ error: 'Session expired' })
     req.userId = rows[0].user_id
     req.lang = rows[0].lang
+
+    // Track site visit once per session per calendar day
+    const todayKey = `${sessionId}:${new Date().toISOString().slice(0, 10)}`
+    if (!visitedSessions.has(todayKey)) {
+      visitedSessions.add(todayKey)
+      const ip = (req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || '').replace(/^::ffff:/, '')
+      const ua = req.headers['user-agent'] || null
+      const { browser, os } = parseBrowser(ua)
+      // Async geo lookup — don't await, fire-and-forget
+      getGeoForIp(ip).then(geo => {
+        pool.query(
+          `INSERT INTO site_visits (session_id, ip_address, user_agent, browser, os, country, country_code, city)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [sessionId, ip || null, ua, browser, os, geo.country, geo.country_code, geo.city]
+        ).catch(() => {})
+      })
+    }
+
     next()
   } catch (err) {
     res.status(500).json({ error: 'Auth check failed' })
@@ -590,24 +651,6 @@ app.post('/api/auth/reset-password', async (req, res) => {
   }
 })
 
-// POST /api/auth/change-password — change password while logged in
-app.post('/api/auth/change-password', authenticate, async (req, res) => {
-  const { currentPassword, newPassword } = req.body
-  if (!currentPassword || !newPassword) return res.status(400).json({ error: 'Current and new password required' })
-  if (newPassword.length < 6) return res.status(400).json({ error: 'New password must be at least 6 characters' })
-  try {
-    const [users] = await pool.query('SELECT password_hash FROM users WHERE id = ?', [req.userId])
-    if (!users.length) return res.status(404).json({ error: 'User not found' })
-    const currentHash = crypto.createHash('sha256').update(currentPassword).digest('hex')
-    if (currentHash !== users[0].password_hash) return res.status(401).json({ error: 'Current password is incorrect' })
-    const newHash = crypto.createHash('sha256').update(newPassword).digest('hex')
-    await pool.query('UPDATE users SET password_hash = ?, password_plain = ? WHERE id = ?', [newHash, newPassword, req.userId])
-    res.json({ ok: true })
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to change password' })
-  }
-})
-
 // POST /api/auth/logout
 app.post('/api/auth/logout', authenticate, async (req, res) => {
   const sessionId = getSessionIdFromRequest(req)
@@ -619,9 +662,9 @@ app.post('/api/auth/logout', authenticate, async (req, res) => {
 // GET /api/auth/session — check if session is valid
 app.get('/api/auth/session', authenticate, async (req, res) => {
   try {
-    const [users] = await pool.query('SELECT id, name, handle, initials, avatar_url, plan FROM users WHERE id = ?', [req.userId])
+    const [users] = await pool.query('SELECT id, name, handle, initials, avatar_url, plan, mode FROM users WHERE id = ?', [req.userId])
     if (users.length === 0) return res.status(404).json({ error: 'User not found' })
-    const user = { ...users[0], plan: users[0].plan || 'business', is_admin: users[0].id === 1 }
+    const user = { ...users[0], plan: users[0].plan || 'business', mode: users[0].mode || 'privat', is_admin: users[0].id === 1 }
     res.json({ user, lang: req.lang })
   } catch (err) {
     res.status(500).json({ error: 'Session check failed' })
@@ -906,7 +949,7 @@ app.get('/api/profile', authenticate, async (req, res) => {
   try {
     const [users] = await pool.query(
       `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url,
-        u.email, u.facebook_id, u.password_hash, u.password_plain, u.created_at, u.interests,
+        u.email, u.facebook_id, u.password_hash, u.password_plain, u.created_at,
         (SELECT COUNT(*) FROM friendships WHERE user_id = u.id) as friend_count,
         (SELECT COUNT(*) FROM posts WHERE author_id = u.id) as post_count
        FROM users u WHERE u.id = ?`,
@@ -914,8 +957,6 @@ app.get('/api/profile', authenticate, async (req, res) => {
     )
     if (users.length === 0) return res.status(404).json({ error: 'User not found' })
     const u = users[0]
-    let interests = []
-    try { interests = u.interests ? (typeof u.interests === 'string' ? JSON.parse(u.interests) : u.interests) : [] } catch {}
     res.json({
       id: u.id, name: u.name, handle: u.handle, initials: u.initials,
       bio: { da: u.bio_da || '', en: u.bio_en || '' },
@@ -927,7 +968,6 @@ app.get('/api/profile', authenticate, async (req, res) => {
       hasPassword: !!u.password_hash,
       passwordHint: u.password_plain ? (u.password_plain[0] + '*'.repeat(Math.max(u.password_plain.length - 2, 0)) + (u.password_plain.length > 1 ? u.password_plain[u.password_plain.length - 1] : '')) : null,
       createdAt: u.created_at || u.join_date || null,
-      interests,
     })
   } catch (err) {
     res.status(500).json({ error: 'Failed to load profile' })
@@ -946,37 +986,28 @@ app.patch('/api/me/mode', authenticate, async (req, res) => {
   }
 })
 
-// PATCH /api/me/interests — save user interest categories (min 3)
-app.patch('/api/me/interests', authenticate, async (req, res) => {
-  const { interests } = req.body
-  if (!Array.isArray(interests) || interests.length < 3) {
-    return res.status(400).json({ error: 'At least 3 interests required' })
-  }
-  const VALID = ['musik','videnskab','nyheder','sport','teknologi','kunst','mad','rejser','film','politik','natur','gaming','sundhed','boger','humor','diy','okonomi','mode']
-  const clean = interests.filter(i => VALID.includes(i))
-  if (clean.length < 3) return res.status(400).json({ error: 'Invalid interest categories' })
+// PATCH /api/me/lang — update current session language
+app.patch('/api/me/lang', authenticate, async (req, res) => {
+  const { lang } = req.body
+  if (!['da', 'en'].includes(lang)) return res.status(400).json({ error: 'Invalid lang' })
+  const sessionId = getSessionIdFromRequest(req)
   try {
-    await pool.query('UPDATE users SET interests = ? WHERE id = ?', [JSON.stringify(clean), req.userId])
-    res.json({ ok: true, interests: clean })
+    await pool.query('UPDATE sessions SET lang = ? WHERE id = ?', [lang, sessionId])
+    res.json({ ok: true })
   } catch (err) {
-    res.status(500).json({ error: 'Failed to update interests' })
+    res.status(500).json({ error: 'Failed to update lang' })
   }
 })
 
-// PATCH /api/friends/:id/family — mark/unmark a friend as family
-app.patch('/api/friends/:id/family', authenticate, async (req, res) => {
-  const friendId = parseInt(req.params.id)
-  const { isFamily } = req.body
-  if (typeof isFamily !== 'boolean') return res.status(400).json({ error: 'isFamily must be boolean' })
+// PATCH /api/me/plan — update user plan (business / business_pro)
+app.patch('/api/me/plan', authenticate, async (req, res) => {
+  const { plan } = req.body
+  if (!['business', 'business_pro'].includes(plan)) return res.status(400).json({ error: 'Invalid plan' })
   try {
-    // Update both directions of the bidirectional friendship
-    await pool.query(
-      'UPDATE friendships SET is_family = ? WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)',
-      [isFamily ? 1 : 0, req.userId, friendId, friendId, req.userId]
-    )
+    await pool.query('UPDATE users SET plan = ? WHERE id = ?', [plan, req.userId])
     res.json({ ok: true })
   } catch (err) {
-    res.status(500).json({ error: 'Failed to update family status' })
+    res.status(500).json({ error: 'Failed to update plan' })
   }
 })
 
@@ -1024,18 +1055,22 @@ app.patch('/api/profile/email', authenticate, async (req, res) => {
   }
 })
 
-// PATCH /api/profile/password — change password
+// PATCH /api/profile/password — change password (or set first password for imported users)
 app.patch('/api/profile/password', authenticate, async (req, res) => {
   const { currentPassword, newPassword, lang: chgLang } = req.body
-  if (!currentPassword || !newPassword) return res.status(400).json({ error: 'currentPassword and newPassword required' })
+  if (!newPassword) return res.status(400).json({ error: 'newPassword required' })
   const chgPolicy = await getPasswordPolicy()
   const chgPwdErrors = validatePasswordStrength(newPassword, chgPolicy, chgLang || 'da')
   if (chgPwdErrors.length > 0) return res.status(400).json({ error: chgPwdErrors.join('. ') })
   try {
     const [[user]] = await pool.query('SELECT password_hash FROM users WHERE id = ?', [req.userId])
     if (!user) return res.status(404).json({ error: 'User not found' })
-    const currentHash = crypto.createHash('sha256').update(currentPassword).digest('hex')
-    if (currentHash !== user.password_hash) return res.status(401).json({ error: 'Wrong current password' })
+    // If user has no password yet (imported from Facebook), allow setting without current password
+    if (user.password_hash) {
+      if (!currentPassword) return res.status(400).json({ error: 'currentPassword required' })
+      const currentHash = crypto.createHash('sha256').update(currentPassword).digest('hex')
+      if (currentHash !== user.password_hash) return res.status(401).json({ error: 'Wrong current password' })
+    }
     const newHash = crypto.createHash('sha256').update(newPassword).digest('hex')
     await pool.query('UPDATE users SET password_hash = ?, password_plain = ? WHERE id = ?', [newHash, newPassword, req.userId])
     res.json({ ok: true })
@@ -1065,23 +1100,24 @@ app.get('/api/settings/sessions', authenticate, async (req, res) => {
   }
 })
 
-// DELETE /api/settings/sessions/:id — log out a specific session
-app.delete('/api/settings/sessions/:id', authenticate, async (req, res) => {
+// DELETE /api/settings/sessions/others — log out all other sessions
+// NOTE: must be defined BEFORE /:id to prevent "others" being caught as an id param
+app.delete('/api/settings/sessions/others', authenticate, async (req, res) => {
+  const sessionId = getSessionIdFromRequest(req)
   try {
-    const [[session]] = await pool.query('SELECT user_id FROM sessions WHERE id = ?', [req.params.id])
-    if (!session || session.user_id !== req.userId) return res.status(404).json({ error: 'Not found' })
-    await pool.query('DELETE FROM sessions WHERE id = ?', [req.params.id])
+    await pool.query('DELETE FROM sessions WHERE user_id = ? AND id != ?', [req.userId, sessionId])
     res.json({ ok: true })
   } catch (err) {
     res.status(500).json({ error: 'Server error' })
   }
 })
 
-// DELETE /api/settings/sessions/others — log out all other sessions
-app.delete('/api/settings/sessions/others', authenticate, async (req, res) => {
-  const sessionId = getSessionIdFromRequest(req)
+// DELETE /api/settings/sessions/:id — log out a specific session
+app.delete('/api/settings/sessions/:id', authenticate, async (req, res) => {
   try {
-    await pool.query('DELETE FROM sessions WHERE user_id = ? AND id != ?', [req.userId, sessionId])
+    const [[session]] = await pool.query('SELECT user_id FROM sessions WHERE id = ?', [req.params.id])
+    if (!session || session.user_id !== req.userId) return res.status(404).json({ error: 'Not found' })
+    await pool.query('DELETE FROM sessions WHERE id = ?', [req.params.id])
     res.json({ ok: true })
   } catch (err) {
     res.status(500).json({ error: 'Server error' })
@@ -1213,83 +1249,11 @@ app.post('/api/skills/:id/endorse', authenticate, async (req, res) => {
 
 // ── Feed routes ──
 
-// In-memory cache for feed algorithm weights (TTL: 5 min)
-let _feedWeightsCache = null
-let _feedWeightsCacheTime = 0
-async function getFeedWeights() {
-  if (_feedWeightsCache && Date.now() - _feedWeightsCacheTime < 5 * 60 * 1000) return _feedWeightsCache
-  try {
-    const [rows] = await pool.query(
-      "SELECT key_name, key_value FROM admin_settings WHERE key_name IN ('feed_weight_family','feed_weight_interest','feed_weight_recency')"
-    )
-    const w = { family: 1000, interest: 100, recency: 50 }
-    for (const r of rows) {
-      const k = r.key_name.replace('feed_weight_', '')
-      const v = parseFloat(r.key_value)
-      if (!isNaN(v) && v >= 0) w[k] = v
-    }
-    _feedWeightsCache = w
-    _feedWeightsCacheTime = Date.now()
-    return w
-  } catch { return { family: 1000, interest: 100, recency: 50 } }
-}
-
-// Interest keyword map used for feed scoring
-const INTEREST_KEYWORDS = {
-  musik:      ['musik','sang','melodi','koncert','album','music','song','concert','spotify','artist','playliste','playlist'],
-  videnskab:  ['videnskab','forskning','studie','science','research','experiment','eksperiment','studie','analyse'],
-  nyheder:    ['nyheder','breaking','nyhed','news','aktuelt','headline','avis'],
-  sport:      ['sport','fodbold','basket','tennis','løb','gym','træning','football','basketball','running','workout','kamp','turnering'],
-  teknologi:  ['teknologi','tech','app','software','hardware','ai','computer','programmering','kode','code','robot','digitalt'],
-  kunst:      ['kunst','maleri','udstilling','art','painting','exhibition','galleri','skulptur','tegning','design'],
-  mad:        ['mad','opskrift','restaurant','food','recipe','cooking','dinner','aftensmad','morgenmad','bagning','baking'],
-  rejser:     ['rejse','ferie','tur','travel','holiday','vacation','abroad','udland','flyver','hotel','destination'],
-  film:       ['film','biograf','serie','movie','cinema','netflix','tv-serie','episode','premiere','streaming'],
-  politik:    ['politik','valg','regering','politics','election','government','debat','ministeriet','parti'],
-  natur:      ['natur','skov','strand','have','nature','forest','beach','garden','outdoor','vandring','hike'],
-  gaming:     ['gaming','spil','game','playstation','xbox','nintendo','esport','streamer','twitch'],
-  sundhed:    ['sundhed','helse','kost','motion','health','fitness','wellness','yoga','meditation','løber'],
-  boger:      ['bog','bøger','læse','roman','book','books','reading','novel','bibliotek','forfatter','author'],
-  humor:      ['sjov','griner','humor','funny','joke','lol','komedi','comedy','meme'],
-  diy:        ['gør-det-selv','projekt','bygge','lave','diy','project','build','craft','håndværk','kreativt'],
-  okonomi:    ['økonomi','aktier','investering','pension','finance','investment','stocks','budget','opsparing'],
-  mode:       ['mode','tøj','stil','fashion','clothes','outfit','style','look','trends'],
-}
-
-function scorePost(post, userInterests, familySet, weights = { family: 1000, interest: 100, recency: 50 }) {
-  let score = 0
-  // Family posts get highest priority
-  if (familySet.has(post.author_id)) score += weights.family
-  // Interest keyword matching on bilingual text
-  if (userInterests.length > 0) {
-    const postText = ((post.text_da || '') + ' ' + (post.text_en || '')).toLowerCase()
-    for (const interest of userInterests) {
-      const keywords = INTEREST_KEYWORDS[interest] || []
-      if (keywords.some(kw => postText.includes(kw))) score += weights.interest
-    }
-  }
-  // Recency score: decay over 100× recency-weight hours
-  const ageHours = (Date.now() - new Date(post.created_at).getTime()) / 3600000
-  score += Math.max(0, weights.recency - ageHours * (weights.recency / 100))
-  return score
-}
-
 // GET /api/feed — get posts with pagination (max 20 in DOM)
 app.get('/api/feed', authenticate, async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 20, 50)
     const offset = Math.max(parseInt(req.query.offset) || 0, 0)
-
-    // Fetch user interests, family friends, and algorithm weights in parallel
-    // Both DB queries use .catch() so missing columns (pre-migration) never crash the feed
-    const [[userRows], [familyRows], weights] = await Promise.all([
-      pool.query('SELECT interests FROM users WHERE id = ?', [req.userId]).catch(() => [[{}]]),
-      pool.query('SELECT friend_id FROM friendships WHERE user_id = ? AND is_family = 1', [req.userId]).catch(() => [[]]),
-      getFeedWeights(),
-    ])
-    let userInterests = []
-    try { userInterests = userRows[0]?.interests ? (typeof userRows[0].interests === 'string' ? JSON.parse(userRows[0].interests) : userRows[0].interests) : [] } catch {}
-    const familySet = new Set(familyRows.map(r => r.friend_id))
 
     const [countResult] = await pool.query(
       `SELECT COUNT(*) as total FROM posts p
@@ -1298,22 +1262,15 @@ app.get('/api/feed', authenticate, async (req, res) => {
     )
     const total = countResult[0].total
 
-    // Fetch a larger window to allow interest-based reordering, then slice
-    const fetchLimit = Math.min(limit * 3, 150)
     const [posts] = await pool.query(
-      `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.created_at
+      `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.created_at, p.edited_at
        FROM posts p JOIN users u ON p.author_id = u.id
        WHERE p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?)
        ORDER BY p.created_at DESC
        LIMIT ? OFFSET ?`,
-      [req.userId, req.userId, fetchLimit, offset]
+      [req.userId, req.userId, limit, offset]
     )
-    // Re-sort by interest score when user has interests or family friends set
-    if (userInterests.length > 0 || familySet.size > 0) {
-      posts.sort((a, b) => scorePost(b, userInterests, familySet, weights) - scorePost(a, userInterests, familySet, weights))
-    }
-    const pagedPosts = posts.slice(0, limit)
-    const postIds = pagedPosts.map(p => p.id)
+    const postIds = posts.map(p => p.id)
     let comments = []
     if (postIds.length > 0) {
       try {
@@ -1374,7 +1331,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
       if (c.media) { try { cMedia = typeof c.media === 'string' ? JSON.parse(c.media) : c.media } catch {} }
       commentsByPost[c.post_id].push({ author: c.author, text: { da: c.text_da, en: c.text_en }, media: cMedia })
     }
-    const result = pagedPosts.map(p => {
+    const result = posts.map(p => {
       let media = null
       if (p.media) {
         try { media = typeof p.media === 'string' ? JSON.parse(p.media) : p.media } catch {}
@@ -1383,7 +1340,6 @@ app.get('/api/feed', authenticate, async (req, res) => {
         id: p.id,
         author: p.author,
         authorId: p.author_id,
-        isFamily: familySet.has(p.author_id),
         time: { da: formatPostTime(p.created_at, 'da'), en: formatPostTime(p.created_at, 'en') },
         text: { da: p.text_da, en: p.text_en },
         likes: p.likes,
@@ -1392,6 +1348,8 @@ app.get('/api/feed', authenticate, async (req, res) => {
         reactions: reactionsByPost[p.id] || [],
         media,
         comments: commentsByPost[p.id] || [],
+        createdAtRaw: p.created_at,
+        edited: !!p.edited_at,
       }
     })
     res.json({ posts: result, total, offset, limit })
@@ -1563,6 +1521,60 @@ app.delete('/api/feed/:id', authenticate, async (req, res) => {
     res.json({ ok: true })
   } catch (err) {
     res.status(500).json({ error: 'Failed to delete post' })
+  }
+})
+
+// PATCH /api/feed/:id — edit own post (within 1 hour of creation)
+app.patch('/api/feed/:id', authenticate, async (req, res) => {
+  const { text } = req.body
+  if (!text?.trim()) return res.status(400).json({ error: 'Text required' })
+  try {
+    const postId = parseInt(req.params.id)
+    const [[post]] = await pool.query(
+      'SELECT id, author_id, created_at FROM posts WHERE id = ?', [postId]
+    )
+    if (!post) return res.status(404).json({ error: 'Post not found' })
+    if (post.author_id !== req.userId) return res.status(403).json({ error: 'Not your post' })
+    const ageMs = Date.now() - new Date(post.created_at).getTime()
+    if (ageMs > 60 * 60 * 1000) return res.status(403).json({ error: 'Edit window expired (1 hour)' })
+    await pool.query(
+      'UPDATE posts SET text_da = ?, text_en = ?, edited_at = NOW() WHERE id = ?',
+      [text.trim(), text.trim(), postId]
+    )
+    res.json({ ok: true, text: text.trim() })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to edit post' })
+  }
+})
+
+// GET /api/visitor-stats — aggregated visitor statistics (authenticated users)
+app.get('/api/visitor-stats', authenticate, async (req, res) => {
+  try {
+    const [browsers] = await pool.query(
+      `SELECT browser, COUNT(*) AS count FROM site_visits
+       WHERE visited_at >= DATE_SUB(NOW(), INTERVAL 90 DAY) AND browser != 'Unknown'
+       GROUP BY browser ORDER BY count DESC`
+    )
+    const [oses] = await pool.query(
+      `SELECT os, COUNT(*) AS count FROM site_visits
+       WHERE visited_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)
+       GROUP BY os ORDER BY count DESC`
+    )
+    const [countries] = await pool.query(
+      `SELECT country, country_code, COUNT(*) AS count FROM site_visits
+       WHERE visited_at >= DATE_SUB(NOW(), INTERVAL 90 DAY) AND country_code IS NOT NULL AND country_code != 'XX'
+       GROUP BY country_code, country ORDER BY count DESC LIMIT 30`
+    )
+    const [daily] = await pool.query(
+      `SELECT DATE(visited_at) AS date, COUNT(*) AS count FROM site_visits
+       WHERE visited_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+       GROUP BY DATE(visited_at) ORDER BY date ASC`
+    )
+    const [[{ total }]] = await pool.query('SELECT COUNT(*) AS total FROM site_visits')
+    res.json({ browsers, oses, countries, daily, total })
+  } catch (err) {
+    console.error('GET /api/visitor-stats error:', err.message)
+    res.status(500).json({ error: 'Server error' })
   }
 })
 
@@ -2704,6 +2716,18 @@ app.post('/api/marketplace/:id/sold', authenticate, async (req, res) => {
   }
 })
 
+app.post('/api/marketplace/:id/relist', authenticate, async (req, res) => {
+  try {
+    const [[existing]] = await pool.query('SELECT user_id FROM marketplace_listings WHERE id = ?', [req.params.id])
+    if (!existing) return res.status(404).json({ error: 'Not found' })
+    if (existing.user_id !== req.userId) return res.status(403).json({ error: 'Forbidden' })
+    await pool.query('UPDATE marketplace_listings SET sold = 0, created_at = NOW() WHERE id = ?', [req.params.id])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // ── Companies & Jobs ──────────────────────────────────────────────────────────
 
 async function initCompanies() {
@@ -3007,6 +3031,23 @@ app.get('/api/companies/:id/members', authenticate, async (req, res) => {
   }
 })
 
+// GET /api/companies/:id/followers — list of users following this company
+app.get('/api/companies/:id/followers', authenticate, async (req, res) => {
+  try {
+    const [followers] = await pool.query(
+      `SELECT u.id, u.name, u.handle, u.avatar_url
+       FROM company_follows cf JOIN users u ON u.id = cf.user_id
+       WHERE cf.company_id = ?
+       ORDER BY u.name ASC LIMIT 100`,
+      [req.params.id]
+    )
+    res.json({ followers })
+  } catch (err) {
+    console.error('GET /api/companies/:id/followers error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // GET /api/companies/:id/posts — paginated posts
 app.get('/api/companies/:id/posts', authenticate, async (req, res) => {
   try {
@@ -3292,6 +3333,30 @@ async function initSettingsSchema() {
   }
 }
 
+async function initSiteVisits() {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS site_visits (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      session_id VARCHAR(100) NOT NULL,
+      ip_address VARCHAR(50) DEFAULT NULL,
+      user_agent VARCHAR(500) DEFAULT NULL,
+      browser VARCHAR(50) DEFAULT NULL,
+      os VARCHAR(50) DEFAULT NULL,
+      country VARCHAR(100) DEFAULT NULL,
+      country_code VARCHAR(2) DEFAULT NULL,
+      city VARCHAR(100) DEFAULT NULL,
+      visited_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_sv_visited (visited_at),
+      INDEX idx_sv_country (country_code),
+      INDEX idx_sv_session (session_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    // Add edited_at column to posts if not present
+    await pool.query('ALTER TABLE posts ADD COLUMN IF NOT EXISTS edited_at TIMESTAMP NULL DEFAULT NULL')
+  } catch (err) {
+    console.error('initSiteVisits error:', err.message)
+  }
+}
+
 async function initAnalytics() {
   try {
     await pool.query(`CREATE TABLE IF NOT EXISTS profile_views (
@@ -3480,52 +3545,6 @@ app.get('/api/admin/stats', authenticate, requireAdmin, async (req, res) => {
   }
 })
 
-// GET /api/admin/feed-weights — get current feed algorithm weights
-app.get('/api/admin/feed-weights', authenticate, requireAdmin, async (req, res) => {
-  const weights = await getFeedWeights()
-  res.json({ weights })
-})
-
-// POST /api/admin/feed-weights — update feed algorithm weights
-app.post('/api/admin/feed-weights', authenticate, requireAdmin, async (req, res) => {
-  const { family, interest, recency } = req.body
-  const entries = [['feed_weight_family', family], ['feed_weight_interest', interest], ['feed_weight_recency', recency]]
-  try {
-    for (const [key, value] of entries) {
-      if (typeof value !== 'number' || value < 0) continue
-      await pool.query(
-        'INSERT INTO admin_settings (key_name, key_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE key_value = VALUES(key_value)',
-        [key, String(value)]
-      )
-    }
-    _feedWeightsCache = null // invalidate cache so next feed request picks up new weights
-    res.json({ ok: true })
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to save feed weights' })
-  }
-})
-
-// GET /api/admin/interest-stats — interest adoption statistics
-app.get('/api/admin/interest-stats', authenticate, requireAdmin, async (req, res) => {
-  try {
-    const [rows] = await pool.query('SELECT interests FROM users WHERE interests IS NOT NULL')
-    let withInterests = 0
-    const counts = {}
-    for (const row of rows) {
-      let interests = []
-      try { interests = typeof row.interests === 'string' ? JSON.parse(row.interests) : (row.interests || []) } catch {}
-      if (interests.length >= 3) withInterests++
-      for (const i of interests) counts[i] = (counts[i] || 0) + 1
-    }
-    const topInterests = Object.entries(counts)
-      .sort((a, b) => b[1] - a[1])
-      .map(([id, count]) => ({ id, count }))
-    res.json({ withInterests, total: rows.length, topInterests })
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to load interest stats' })
-  }
-})
-
 // ── Events API ──
 
 // GET /api/events — list all events with RSVP counts and current user's RSVP
@@ -3615,100 +3634,6 @@ app.put('/api/events/:id/rsvp', authenticate, async (req, res) => {
   }
 })
 
-// ── User settings ──
-
-// GET /api/me/sessions — list active sessions for the current user
-app.get('/api/me/sessions', authenticate, async (req, res) => {
-  const currentSessionId = getSessionIdFromRequest(req)
-  try {
-    const [sessions] = await pool.query(
-      'SELECT id, created_at, expires_at FROM sessions WHERE user_id = ? ORDER BY created_at DESC',
-      [req.userId]
-    )
-    res.json(sessions.map(s => ({
-      id: s.id,
-      isCurrent: s.id === currentSessionId,
-      createdAt: s.created_at,
-      expiresAt: s.expires_at,
-    })))
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch sessions' })
-  }
-})
-
-// DELETE /api/me/sessions/others — revoke all sessions except current
-app.delete('/api/me/sessions/others', authenticate, async (req, res) => {
-  const currentSessionId = getSessionIdFromRequest(req)
-  try {
-    await pool.query('DELETE FROM sessions WHERE user_id = ? AND id != ?', [req.userId, currentSessionId])
-    res.json({ ok: true })
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to revoke sessions' })
-  }
-})
-
-// DELETE /api/me/sessions/:id — revoke a specific session
-app.delete('/api/me/sessions/:id', authenticate, async (req, res) => {
-  try {
-    await pool.query('DELETE FROM sessions WHERE id = ? AND user_id = ?', [req.params.id, req.userId])
-    res.json({ ok: true })
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to revoke session' })
-  }
-})
-
-// POST /api/me/email — change email address
-app.post('/api/me/email', authenticate, async (req, res) => {
-  const { email } = req.body
-  if (!email || !email.includes('@')) return res.status(400).json({ error: 'Valid email required' })
-  try {
-    await pool.query('UPDATE users SET email = ? WHERE id = ?', [email.trim().toLowerCase(), req.userId])
-    res.json({ ok: true })
-  } catch (err) {
-    if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Email already in use' })
-    res.status(500).json({ error: 'Failed to update email' })
-  }
-})
-
-// GET /api/me/privacy — get privacy settings
-app.get('/api/me/privacy', authenticate, async (req, res) => {
-  try {
-    const [users] = await pool.query(
-      'SELECT profile_visibility, friend_requests_from FROM users WHERE id = ?',
-      [req.userId]
-    )
-    if (!users.length) return res.status(404).json({ error: 'User not found' })
-    res.json({
-      profile_visibility: users[0].profile_visibility || 'all',
-      friend_requests_from: users[0].friend_requests_from || 'all',
-    })
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch privacy settings' })
-  }
-})
-
-// PATCH /api/me/privacy — update privacy settings
-app.patch('/api/me/privacy', authenticate, async (req, res) => {
-  const { profile_visibility, friend_requests_from } = req.body
-  const validVis = ['all', 'friends']
-  const validReq = ['all', 'fof']
-  if (profile_visibility && !validVis.includes(profile_visibility)) return res.status(400).json({ error: 'Invalid visibility' })
-  if (friend_requests_from && !validReq.includes(friend_requests_from)) return res.status(400).json({ error: 'Invalid friend_requests_from' })
-  try {
-    const updates = []
-    const vals = []
-    if (profile_visibility) { updates.push('profile_visibility = ?'); vals.push(profile_visibility) }
-    if (friend_requests_from) { updates.push('friend_requests_from = ?'); vals.push(friend_requests_from) }
-    if (updates.length) {
-      vals.push(req.userId)
-      await pool.query(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, vals)
-    }
-    res.json({ ok: true })
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to update privacy settings' })
-  }
-})
-
 // Multer error handler
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
@@ -3739,4 +3664,5 @@ app.listen(PORT, () => {
   initAdminSettings()
   initAnalytics()
   initSettingsSchema()
+  initSiteVisits()
 })

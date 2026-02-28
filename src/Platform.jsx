@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect } from 'react'
 import { PT, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateMode } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateMode, apiUpdatePlan } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -50,9 +50,15 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
   const [showModeModal, setShowModeModal] = useState(false)
   const [plan, setPlan] = useState('business') // set from server session; 'business_pro' = paid tier
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('fellis_dark') === '1')
   const avatarMenuRef = useRef(null)
   const notifRef = useRef(null)
   const t = PT[lang]
+
+  useEffect(() => {
+    document.body.classList.toggle('dark', darkMode)
+    localStorage.setItem('fellis_dark', darkMode ? '1' : '0')
+  }, [darkMode])
 
   const unreadCount = notifs.filter(n => !n.read).length
 
@@ -86,18 +92,21 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
 
   const toggleLang = useCallback(() => setLang(p => p === 'da' ? 'en' : 'da'), [])
 
-  // Load current user from session + sync mode to server
+  // Load current user from session — mode and plan are authoritative from server
   useEffect(() => {
     apiCheckSession().then(data => {
       if (data?.user) {
         setCurrentUser(prev => ({ ...prev, ...data.user }))
-        // Read plan from the server-authoritative user object (not localStorage)
         if (data.user.plan) setPlan(data.user.plan)
-        // Sync current localStorage mode to server (for admin stats)
-        const serverMode = mode === 'business' ? 'business' : 'privat'
-        apiUpdateMode(serverMode).catch(() => {})
+        // Mode from server is authoritative — sync to localStorage
+        if (data.user.mode) {
+          setMode(data.user.mode)
+          localStorage.setItem('fellis_mode', data.user.mode)
+        } else {
+          // Fallback: sync localStorage → server
+          apiUpdateMode(mode === 'business' ? 'business' : 'privat').catch(() => {})
+        }
       } else {
-        // Session expired — log out
         onLogout()
       }
     }).catch(() => {
@@ -308,8 +317,9 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
         {page === 'jobs' && <JobsPage lang={lang} t={t} currentUser={currentUser} mode={mode} />}
         {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} initialCompanyId={navParam?.companyId} />}
         {page === 'analytics' && <AnalyticsPage lang={lang} t={t} currentUser={currentUser} plan={plan} onUpgrade={() => setShowUpgradeModal(true)} />}
-        {page === 'settings' && <SettingsPage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onLogout={onLogout} onOpenModeModal={() => setShowModeModal(true)} />}
+        {page === 'settings' && <SettingsPage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onLogout={onLogout} onOpenModeModal={() => setShowModeModal(true)} darkMode={darkMode} onToggleDark={() => setDarkMode(d => !d)} />}
         {page === 'privacy' && <PrivacySection lang={lang} onLogout={onLogout} />}
+        {page === 'visitors' && <VisitorStatsPage lang={lang} />}
         {page === 'admin' && currentUser.is_admin && <AdminPage lang={lang} t={t} />}
         {page === 'search' && (
           <SearchPage
@@ -325,7 +335,16 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
 
       {/* Mode switch modal */}
       {showUpgradeModal && (
-        <UpgradeModal lang={lang} t={t} onUpgrade={() => { setPlan('business_pro'); setShowUpgradeModal(false) }} onClose={() => setShowUpgradeModal(false)} />
+        <UpgradeModal lang={lang} t={t} onUpgrade={() => {
+          setPlan('business_pro')
+          setShowUpgradeModal(false)
+          setMode('business')
+          localStorage.setItem('fellis_mode', 'business')
+          const savedReadIds = new Set(JSON.parse(localStorage.getItem('fellis_notifs_read') || '[]'))
+          setNotifs(makeMockNotifs('business').map(n => savedReadIds.has(n.id) ? { ...n, read: true } : n))
+          apiUpdateMode('business').catch(() => {})
+          apiUpdatePlan('business_pro').catch(() => {})
+        }} onClose={() => setShowUpgradeModal(false)} />
       )}
       {showModeModal && (() => {
         const currentTier = mode === 'privat' ? 'privat' : plan === 'business_pro' ? 'business_pro' : 'business'
@@ -362,6 +381,25 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
           </div>
         )
       })()}
+
+      {/* Fixed status bar at bottom */}
+      <div style={{
+        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 200,
+        background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(8px)',
+        borderTop: '1px solid #E8E4DF',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 20,
+        padding: '0 24px', height: 36, fontSize: 12, color: '#888',
+      }}>
+        <button
+          onClick={() => navigateTo('visitors')}
+          title={lang === 'da' ? 'Besøgsstatistik' : 'Visitor statistics'}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: '2px 4px', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 6, color: '#2D6A4F' }}
+        >
+          🌍 <span style={{ fontSize: 11, fontWeight: 600 }}>{lang === 'da' ? 'Besøgende' : 'Visitors'}</span>
+        </button>
+        <span style={{ color: '#ccc' }}>|</span>
+        <span>© {new Date().getFullYear()} fellis.eu — {lang === 'da' ? 'Privat. EU-hostet. GDPR-klar.' : 'Private. EU-hosted. GDPR-ready.'}</span>
+      </div>
     </div>
   )
 }
@@ -722,6 +760,8 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
   const [cpFeedCommentLists, setCpFeedCommentLists] = useState({})
   const [feedEvents, setFeedEvents] = useState([])
   const feedDbEventIds = new Set(feedEvents.map(e => e.id))
+  const [editingPostId, setEditingPostId] = useState(null)
+  const [editPostText, setEditPostText] = useState('')
 
   const handleFeedRsvp = (eventId, status) => {
     const newStatus = feedRsvpMap[eventId] === status ? null : status
@@ -1008,6 +1048,24 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
     setPosts(prev => prev.filter(p => p.id !== postId))
   }, [])
 
+  const handleStartEditPost = useCallback((post) => {
+    setPostMenu(null)
+    setEditingPostId(post.id)
+    setEditPostText(post.text?.[lang] || post.text?.da || '')
+  }, [lang])
+
+  const handleSaveEditPost = useCallback(async (postId) => {
+    if (!editPostText.trim()) return
+    const data = await apiEditPost(postId, editPostText.trim()).catch(() => null)
+    if (data?.ok) {
+      setPosts(prev => prev.map(p => p.id === postId
+        ? { ...p, text: { da: data.text, en: data.text }, edited: true }
+        : p))
+    }
+    setEditingPostId(null)
+    setEditPostText('')
+  }, [editPostText])
+
   const handleHidePost = useCallback((postId) => {
     setHiddenPosts(prev => new Set([...prev, postId]))
     setPostMenu(null)
@@ -1253,18 +1311,14 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
                 <div><div className="p-post-author">{post.author}</div><div className="p-post-time">{post.time?.[lang]}</div></div>
               </div>
               <div className="p-post-text">{post.text[lang]}</div>
-              {post.media?.length > 0 && (
-                <div className={`p-post-media p-post-media-${Math.min(post.media.length, 4)}`}>
-                  {post.media.slice(0, 4).map((m, mi) => <MediaItem key={mi} item={m} />)}
-                </div>
-              )}
+              {post.media?.length > 0 && <PostMedia media={post.media} />}
             </div>
           </div>
         )
       })()}
 
-      {/* Company posts feed items — real data from followed companies */}
-      {offset === 0 && cpFeedPosts.map(post => {
+      {/* Company posts feed items — shown chronologically within the feed */}
+      {cpFeedPosts.map(post => {
         const cp = post.company
         const liked = !!post.liked
         const showComments = cpFeedExpanded.has(post.id)
@@ -1353,8 +1407,8 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
         )
       })}
 
-      {/* Event activity feed items — shown when at top of feed, using real DB events */}
-      {offset === 0 && feedEvents.slice(0, 2).map((ev, idx) => {
+      {/* Event activity feed items — upcoming events only (not expired) */}
+      {offset === 0 && feedEvents.filter(ev => new Date(ev.date) > new Date()).slice(0, 2).map((ev, idx) => {
         const item = { id: `ea${idx}`, event: ev, verb: idx === 0 ? 'going' : 'created',
           actor: ev.going?.[0] || ev.organizer,
           time: { da: 'For nylig', en: 'Recently' } }
@@ -1455,9 +1509,21 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
                     <div style={{ position: 'fixed', inset: 0, zIndex: 99 }} onClick={() => setPostMenu(null)} />
                     <div style={{ position: 'absolute', right: 0, top: '110%', background: '#fff', border: '1px solid #E8E4DF', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 100, minWidth: 180, overflow: 'hidden' }}>
                       {isOwn ? (
-                        <button className="p-post-menu-item danger" onClick={() => handleDeletePost(post.id)}>
-                          🗑️ {lang === 'da' ? 'Slet opslag' : 'Delete post'}
-                        </button>
+                        <>
+                          {(() => {
+                            const canEdit = post.createdAtRaw
+                              ? (Date.now() - new Date(post.createdAtRaw).getTime() < 60 * 60 * 1000)
+                              : false
+                            return canEdit ? (
+                              <button className="p-post-menu-item" onClick={() => handleStartEditPost(post)}>
+                                ✏️ {lang === 'da' ? 'Rediger opslag' : 'Edit post'}
+                              </button>
+                            ) : null
+                          })()}
+                          <button className="p-post-menu-item danger" onClick={() => handleDeletePost(post.id)}>
+                            🗑️ {lang === 'da' ? 'Slet opslag' : 'Delete post'}
+                          </button>
+                        </>
                       ) : (
                         <>
                           <button className="p-post-menu-item" onClick={() => handleHidePost(post.id)}>
@@ -1475,7 +1541,29 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
                 )}
               </div>
             </div>
-            <PostText text={post.text} lang={lang} />
+            {editingPostId === post.id ? (
+              <div style={{ marginTop: 8 }}>
+                <textarea
+                  value={editPostText}
+                  onChange={e => setEditPostText(e.target.value)}
+                  style={{ width: '100%', minHeight: 80, padding: '10px 12px', borderRadius: 8, border: '1px solid #2D6A4F', fontSize: 14, fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' }}
+                  autoFocus
+                />
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  <button onClick={() => handleSaveEditPost(post.id)} style={{ padding: '7px 18px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+                    {lang === 'da' ? 'Gem' : 'Save'}
+                  </button>
+                  <button onClick={() => { setEditingPostId(null); setEditPostText('') }} style={{ padding: '7px 18px', borderRadius: 8, border: '1px solid #ccc', background: '#fff', color: '#444', cursor: 'pointer', fontSize: 13 }}>
+                    {lang === 'da' ? 'Annuller' : 'Cancel'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <PostText text={post.text} lang={lang} />
+                {post.edited && <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>{lang === 'da' ? '(redigeret)' : '(edited)'}</div>}
+              </>
+            )}
             {post.media && <PostMedia media={post.media} />}
             <div className="p-post-stats">
               <span className="p-reaction-summary" onClick={() => openLikersModal(post.id)} style={{ cursor: 'pointer' }}>
@@ -1704,8 +1792,10 @@ function ProfilePage({ lang, t, currentUser, mode, plan, onUserUpdate, onNavigat
   const [profile, setProfile] = useState({ ...currentUser })
   const [userPosts, setUserPosts] = useState([])
   const [familyGroups, setFamilyGroups] = useState([])
+  const [familyFriends, setFamilyFriends] = useState([])
   const [profileTab, setProfileTab] = useState('about')
   const [myCompanies, setMyCompanies] = useState([])
+  const { rels } = useContactRelationships()
 
   useEffect(() => {
     apiFetchProfile().then(data => {
@@ -1724,6 +1814,9 @@ function ProfilePage({ lang, t, currentUser, mode, plan, onUserUpdate, onNavigat
     if (mode === 'privat') {
       apiFetchConversations().then(convs => {
         if (convs) setFamilyGroups(convs.filter(c => c.isFamilyGroup))
+      })
+      apiFetchFriends().then(data => {
+        if (data) setFamilyFriends((data.friends || data || []).filter(f => rels[String(f.id)] === 'family'))
       })
     }
     fetch('/api/companies', { credentials: 'include' })
@@ -1867,23 +1960,56 @@ function ProfilePage({ lang, t, currentUser, mode, plan, onUserUpdate, onNavigat
           <div className="p-card p-family-section" style={{ marginBottom: 16 }}>
             <h3 className="p-section-title" style={{ margin: '0 0 4px' }}>🏡 {t.familySection}</h3>
             <p className="p-family-section-desc">{t.familySectionDesc}</p>
-            {familyGroups.length === 0 ? (
-              <div className="p-family-empty">{t.familyNoGroups}</div>
+            {familyFriends.length === 0 && familyGroups.length === 0 ? (
+              <div className="p-family-empty">{lang === 'da' ? 'Ingen familiemedlemmer endnu. Mærk venner som Familie i din venneliste.' : 'No family members yet. Tag friends as Family in your friends list.'}</div>
             ) : (
-              familyGroups.map(g => (
-                <div key={g.id} className="p-family-group-row">
-                  <div className="p-family-group-icon">🏡</div>
-                  <div className="p-family-group-info">
-                    <span className="p-family-group-name">{g.name || t.familyGroup}</span>
-                    <span className="p-family-group-meta">{g.participants.length} {t.participants}</span>
+              <>
+                {familyFriends.length > 0 && (
+                  <div style={{ marginBottom: familyGroups.length > 0 ? 12 : 0 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
+                      {lang === 'da' ? 'Familiemedlemmer' : 'Family members'}
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                      {familyFriends.map(f => {
+                        const friendAvatarSrc = f.avatarUrl || f.avatar_url
+                          ? (f.avatarUrl || f.avatar_url).startsWith('http') ? (f.avatarUrl || f.avatar_url) : `${API_BASE}${f.avatarUrl || f.avatar_url}`
+                          : null
+                        return (
+                          <div key={f.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, minWidth: 56 }}>
+                            {friendAvatarSrc ? (
+                              <img src={friendAvatarSrc} alt="" style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', border: '2px solid #e8f5e9' }} />
+                            ) : (
+                              <div style={{ width: 44, height: 44, borderRadius: '50%', background: nameToColor(f.name), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, color: '#fff', border: '2px solid #e8f5e9' }}>
+                                {getInitials(f.name)}
+                              </div>
+                            )}
+                            <span style={{ fontSize: 11, color: '#444', textAlign: 'center', maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name.split(' ')[0]}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
                   </div>
-                  <div className="p-family-group-avatars">
-                    {g.participants.slice(0, 4).map(p => (
-                      <div key={p.id} className="p-avatar-xs p-family-avatar" style={{ background: nameToColor(p.name) }}>{getInitials(p.name)}</div>
+                )}
+                {familyGroups.length > 0 && (
+                  <div>
+                    {familyFriends.length > 0 && <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 1, margin: '12px 0 8px' }}>{lang === 'da' ? 'Familiegrupper' : 'Family groups'}</div>}
+                    {familyGroups.map(g => (
+                      <div key={g.id} className="p-family-group-row">
+                        <div className="p-family-group-icon">🏡</div>
+                        <div className="p-family-group-info">
+                          <span className="p-family-group-name">{g.name || t.familyGroup}</span>
+                          <span className="p-family-group-meta">{g.participants.length} {t.participants}</span>
+                        </div>
+                        <div className="p-family-group-avatars">
+                          {g.participants.slice(0, 4).map(p => (
+                            <div key={p.id} className="p-avatar-xs p-family-avatar" style={{ background: nameToColor(p.name) }}>{getInitials(p.name)}</div>
+                          ))}
+                        </div>
+                      </div>
                     ))}
                   </div>
-                </div>
-              ))
+                )}
+              </>
             )}
           </div>
         )}
@@ -1971,10 +2097,19 @@ function ProfilePage({ lang, t, currentUser, mode, plan, onUserUpdate, onNavigat
 function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
   const [profile, setProfile] = useState({ ...currentUser })
   const avatarInputRef = useRef(null)
+  // Password change state
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordMsg, setPasswordMsg] = useState(null)
+  const [currentPwdError, setCurrentPwdError] = useState(null)
+  const [passwordLoading, setPasswordLoading] = useState(false)
+  const [showCurrent, setShowCurrent] = useState(false)
+  const [showNew, setShowNew] = useState(false)
 
   useEffect(() => {
     apiFetchProfile().then(data => {
-      if (data) setProfile(data)
+      if (data) { setProfile(data) }
     })
   }, [])
 
@@ -1998,6 +2133,39 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
     ? (avatarUrl.startsWith('http') || avatarUrl.startsWith('blob:') ? avatarUrl : `${API_BASE}${avatarUrl}`)
     : null
 
+  const hasPassword = !!profile?.hasPassword
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault()
+    if (hasPassword && !currentPassword) {
+      setCurrentPwdError(lang === 'da' ? 'Indtast din nuværende adgangskode' : 'Enter your current password')
+      return
+    }
+    if (!newPassword || !confirmPassword) return
+    if (newPassword !== confirmPassword) return // inline match indicator already shows the error
+    setPasswordLoading(true); setPasswordMsg(null); setCurrentPwdError(null)
+    try {
+      const res = await fetch('/api/profile/password', {
+        method: 'PATCH', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...(hasPassword ? { currentPassword } : {}), newPassword, lang }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        if (res.status === 401) {
+          setCurrentPwdError(lang === 'da' ? 'Forkert adgangskode' : 'Wrong password')
+        } else {
+          setPasswordMsg({ ok: false, text: data.error })
+        }
+        return
+      }
+      setCurrentPassword(''); setNewPassword(''); setConfirmPassword('')
+      setCurrentPwdError(null)
+      setPasswordMsg({ ok: true, text: t.settingsSaved })
+    } catch { setPasswordMsg({ ok: false, text: lang === 'da' ? 'Netværksfejl' : 'Network error' }) }
+    finally { setPasswordLoading(false) }
+  }
+
   const editT = lang === 'da' ? {
     title: 'Rediger profil',
     avatarLabel: 'Profilbillede',
@@ -2007,7 +2175,12 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
     locationLabel: 'Lokation',
     back: 'Tilbage til profil',
     skillsSection: 'Kompetencer',
-    settingsHint: '⚙️ E-mail og adgangskode ændres under Indstillinger',
+    passwordTitle: hasPassword ? 'Skift adgangskode' : 'Opret adgangskode',
+    passwordNote: 'Opret din fellis-adgangskode for at logge ind næste gang.',
+    currentPwd: 'Nuværende adgangskode',
+    newPwd: hasPassword ? 'Ny adgangskode' : 'Adgangskode',
+    confirmPwd: 'Bekræft adgangskode',
+    savePwd: hasPassword ? 'Gem adgangskode' : 'Opret adgangskode',
   } : {
     title: 'Edit profile',
     avatarLabel: 'Profile picture',
@@ -2017,7 +2190,12 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
     locationLabel: 'Location',
     back: 'Back to profile',
     skillsSection: 'Skills',
-    settingsHint: '⚙️ Edit email and password under Settings',
+    passwordTitle: hasPassword ? 'Change password' : 'Create password',
+    passwordNote: 'Create your fellis password to log in next time.',
+    currentPwd: 'Current password',
+    newPwd: hasPassword ? 'New password' : 'Password',
+    confirmPwd: 'Confirm password',
+    savePwd: hasPassword ? 'Save password' : 'Create password',
   }
 
   const fieldStyle = { display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box' }
@@ -2115,13 +2293,54 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
           </div>
         )}
 
-        {/* Hint to Settings for email/password */}
-        <div style={{ marginTop: 20, padding: '10px 14px', background: '#F8F9FA', borderRadius: 8, fontSize: 13, color: '#666' }}>
-          {editT.settingsHint}
+        {/* Password change section */}
+        <div style={{ marginTop: 28, borderTop: '2px solid #eee', paddingTop: 20 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#333', marginBottom: 12 }}>🔑 {editT.passwordTitle}</div>
+          <form onSubmit={handleChangePassword}>
+              {!hasPassword && (
+                <p style={{ margin: '0 0 12px', fontSize: 13, color: '#888', background: '#F9F9F9', borderRadius: 8, padding: '10px 12px' }}>
+                  {editT.passwordNote}
+                </p>
+              )}
+              {hasPassword && (<>
+                <label style={labelStyle}>{editT.currentPwd}</label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    style={{ ...fieldStyle, paddingRight: 44, borderColor: currentPwdError ? '#c0392b' : undefined }}
+                    type={showCurrent ? 'text' : 'password'}
+                    value={currentPassword}
+                    onChange={e => { setCurrentPassword(e.target.value); if (currentPwdError) setCurrentPwdError(null) }}
+                    onBlur={() => { if (!currentPassword) setCurrentPwdError(lang === 'da' ? 'Påkrævet' : 'Required') }}
+                    required
+                    placeholder="••••••••"
+                  />
+                  <button type="button" onClick={() => setShowCurrent(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#888' }}>{showCurrent ? '🙈' : '👁️'}</button>
+                </div>
+                {currentPwdError && <div style={{ marginTop: 4, fontSize: 12, fontWeight: 600, color: '#c0392b' }}>✗ {currentPwdError}</div>}
+              </>)}
+              <label style={labelStyle}>{editT.newPwd}</label>
+              <div style={{ position: 'relative' }}>
+                <input style={{ ...fieldStyle, paddingRight: 44 }} type={showNew ? 'text' : 'password'} value={newPassword} onChange={e => setNewPassword(e.target.value)} required placeholder="••••••••" />
+                <button type="button" onClick={() => setShowNew(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#888' }}>{showNew ? '🙈' : '👁️'}</button>
+              </div>
+              <PasswordStrengthIndicator password={newPassword} lang={lang} />
+              <label style={labelStyle}>{editT.confirmPwd}</label>
+              <input style={fieldStyle} type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required placeholder="••••••••" />
+              {confirmPassword.length > 0 && (
+                <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: newPassword === confirmPassword ? '#2D6A4F' : '#c0392b' }}>
+                  <span style={{ fontSize: 13 }}>{newPassword === confirmPassword ? '✓' : '✗'}</span>
+                  <span>{lang === 'da' ? (newPassword === confirmPassword ? 'Adgangskoderne stemmer overens' : 'Adgangskoderne stemmer ikke overens') : (newPassword === confirmPassword ? 'Passwords match' : 'Passwords do not match')}</span>
+                </div>
+              )}
+              {passwordMsg && <div style={{ marginTop: 8, fontSize: 13, color: passwordMsg.ok ? '#2D6A4F' : '#c0392b', fontWeight: 600 }}>{passwordMsg.ok ? '✓' : '✗'} {passwordMsg.text}</div>}
+              <button type="submit" disabled={passwordLoading} style={{ marginTop: 12, padding: '9px 20px', borderRadius: 8, border: 'none', background: '#444', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, opacity: passwordLoading ? 0.7 : 1 }}>
+                {editT.savePwd}
+              </button>
+            </form>
         </div>
 
         <button
-          style={{ marginTop: 20, padding: '10px 20px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
+          style={{ marginTop: 24, padding: '10px 20px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
           onClick={() => onNavigate('profile')}
         >
           {editT.back}
@@ -2132,11 +2351,11 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
 }
 
 // ── Settings Page ─────────────────────────────────────────────────────────────
-function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onLogout, onOpenModeModal }) {
+function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onLogout, onOpenModeModal, darkMode, onToggleDark }) {
   const [tab, setTab] = useState('konto')
 
   const fS = { display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box', fontFamily: 'inherit' }
-  const lS = { display: 'block', fontSize: 13, fontWeight: 600, color: '#555', marginBottom: 4, marginTop: 14 }
+  const lS = { display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4, marginTop: 14 }
   const tabLabels = { konto: t.settingsKonto, privatliv: t.settingsPrivatliv, sessions: t.settingsSessions, sprog: t.settingsSprog }
 
   return (
@@ -2148,10 +2367,10 @@ function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, on
         ))}
       </div>
 
-      {tab === 'konto' && <SettingsKonto lang={lang} t={t} currentUser={currentUser} fS={fS} lS={lS} />}
+      {tab === 'konto' && <SettingsKonto lang={lang} t={t} currentUser={currentUser} mode={mode} fS={fS} lS={lS} onNavigate={onNavigate} onOpenModeModal={onOpenModeModal} />}
       {tab === 'privatliv' && <SettingsPrivatliv lang={lang} t={t} fS={fS} lS={lS} />}
       {tab === 'sessions' && <SettingsSessions lang={lang} t={t} onLogout={onLogout} />}
-      {tab === 'sprog' && <SettingsSprog lang={lang} t={t} mode={mode} onOpenModeModal={onOpenModeModal} />}
+      {tab === 'sprog' && <SettingsSprog lang={lang} t={t} darkMode={darkMode} onToggleDark={onToggleDark} />}
     </div>
   )
 }
@@ -2162,45 +2381,52 @@ function PasswordStrengthIndicator({ password, lang }) {
     fetch('/api/auth/password-policy').then(r => r.ok ? r.json() : null).then(p => { if (p) setPolicy(p) }).catch(() => {})
   }, [])
 
-  if (!policy || !password) return null
+  if (!password) return null
 
+  const minLen = policy?.min_length || 8
   const checks = [
-    { ok: password.length >= policy.min_length, da: `Min. ${policy.min_length} tegn`, en: `Min. ${policy.min_length} characters` },
-    ...(policy.require_uppercase ? [{ ok: /[A-Z]/.test(password), da: 'Stort bogstav (A–Z)', en: 'Uppercase letter (A–Z)' }] : []),
-    ...(policy.require_lowercase ? [{ ok: /[a-z]/.test(password), da: 'Lille bogstav (a–z)', en: 'Lowercase letter (a–z)' }] : []),
-    ...(policy.require_numbers   ? [{ ok: /[0-9]/.test(password), da: 'Tal (0–9)', en: 'Number (0–9)' }] : []),
-    ...(policy.require_symbols   ? [{ ok: /[^A-Za-z0-9]/.test(password), da: 'Specialtegn (!@#$…)', en: 'Symbol (!@#$…)' }] : []),
+    { ok: password.length >= minLen, da: `Min. ${minLen} tegn`, en: `Min. ${minLen} characters` },
+    ...(policy?.require_uppercase ? [{ ok: /[A-Z]/.test(password), da: 'Stort bogstav (A–Z)', en: 'Uppercase (A–Z)' }] : [{ ok: /[A-Z]/.test(password), da: 'Stort bogstav (A–Z)', en: 'Uppercase (A–Z)' }]),
+    ...(policy?.require_lowercase !== false ? [{ ok: /[a-z]/.test(password), da: 'Lille bogstav (a–z)', en: 'Lowercase (a–z)' }] : []),
+    ...(policy?.require_numbers !== false   ? [{ ok: /[0-9]/.test(password), da: 'Tal (0–9)', en: 'Number (0–9)' }] : []),
+    ...(policy?.require_symbols ? [{ ok: /[^A-Za-z0-9]/.test(password), da: 'Specialtegn (!@#…)', en: 'Symbol (!@#…)' }] : []),
   ]
 
-  // Only show when there's something to show
-  const hasRequirements = checks.length > 1 || (checks.length === 1 && !checks[0].ok)
-  if (!hasRequirements) return null
+  const passed = checks.filter(c => c.ok).length
+  const ratio = checks.length ? passed / checks.length : 0
+  const barColor = ratio < 0.4 ? '#e74c3c' : ratio < 0.75 ? '#f39c12' : '#2D6A4F'
+  const barLabel = ratio < 0.4
+    ? (lang === 'da' ? 'Svag' : 'Weak')
+    : ratio < 0.75
+    ? (lang === 'da' ? 'Middel' : 'Fair')
+    : (lang === 'da' ? 'Stærk' : 'Strong')
 
   return (
-    <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 3 }}>
-      {checks.map((c, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: c.ok ? '#2D6A4F' : '#888' }}>
-          <span style={{ fontSize: 11 }}>{c.ok ? '✓' : '○'}</span>
-          <span>{lang === 'da' ? c.da : c.en}</span>
+    <div style={{ marginTop: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <div style={{ flex: 1, height: 5, borderRadius: 3, background: '#eee', overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: `${ratio * 100}%`, background: barColor, borderRadius: 3, transition: 'width 0.25s, background 0.25s' }} />
         </div>
-      ))}
+        <span style={{ fontSize: 11, fontWeight: 700, color: barColor, minWidth: 36 }}>{barLabel}</span>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        {checks.map((c, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: c.ok ? '#2D6A4F' : '#999' }}>
+            <span style={{ fontSize: 13, width: 16, textAlign: 'center', lineHeight: 1 }}>{c.ok ? '✓' : '○'}</span>
+            <span>{lang === 'da' ? c.da : c.en}</span>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
 
-function SettingsKonto({ lang, t, currentUser, fS, lS }) {
+function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenModeModal }) {
   const [profile, setProfile] = useState(null)
   const [newEmail, setNewEmail] = useState(currentUser?.email || '')
   const [emailPassword, setEmailPassword] = useState('')
   const [emailMsg, setEmailMsg] = useState(null)
   const [emailLoading, setEmailLoading] = useState(false)
-  const [currentPassword, setCurrentPassword] = useState('')
-  const [newPassword, setNewPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [passwordMsg, setPasswordMsg] = useState(null)
-  const [passwordLoading, setPasswordLoading] = useState(false)
-  const [showCurrent, setShowCurrent] = useState(false)
-  const [showNew, setShowNew] = useState(false)
 
   useEffect(() => {
     fetch('/api/profile', { credentials: 'include' })
@@ -2227,36 +2453,11 @@ function SettingsKonto({ lang, t, currentUser, fS, lS }) {
     finally { setEmailLoading(false) }
   }
 
-  const handleChangePassword = async (e) => {
-    e.preventDefault()
-    if (!currentPassword || !newPassword || !confirmPassword) return
-    if (newPassword !== confirmPassword) {
-      setPasswordMsg({ ok: false, text: lang === 'da' ? 'Adgangskoderne stemmer ikke overens' : 'Passwords do not match' })
-      return
-    }
-    setPasswordLoading(true); setPasswordMsg(null)
-    try {
-      const res = await fetch('/api/profile/password', {
-        method: 'PATCH', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currentPassword, newPassword, lang }),
-      })
-      const data = await res.json()
-      if (!res.ok) { setPasswordMsg({ ok: false, text: data.error }); return }
-      setCurrentPassword(''); setNewPassword(''); setConfirmPassword('')
-      setPasswordMsg({ ok: true, text: t.settingsSaved })
-    } catch { setPasswordMsg({ ok: false, text: lang === 'da' ? 'Netværksfejl' : 'Network error' }) }
-    finally { setPasswordLoading(false) }
-  }
-
-  const isFacebook = profile?.loginMethod === 'facebook'
-
   return (
     <div className="p-card" style={{ padding: 24 }}>
-      {profile && (
-        <div style={{ fontSize: 12, color: '#888', marginBottom: 20, display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-          <span>{lang === 'da' ? 'Loginmetode' : 'Login method'}: <strong style={{ color: '#444' }}>{isFacebook ? 'Facebook' : (lang === 'da' ? 'E-mail & adgangskode' : 'Email & password')}</strong></span>
-          {profile.createdAt && <span>{lang === 'da' ? 'Konto oprettet' : 'Account created'}: <strong style={{ color: '#444' }}>{new Date(profile.createdAt).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</strong></span>}
+      {profile?.createdAt && (
+        <div style={{ fontSize: 12, color: '#888', marginBottom: 20 }}>
+          {lang === 'da' ? 'Konto oprettet' : 'Account created'}: <strong style={{ color: '#444' }}>{new Date(profile.createdAt).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</strong>
         </div>
       )}
 
@@ -2273,31 +2474,36 @@ function SettingsKonto({ lang, t, currentUser, fS, lS }) {
         </button>
       </form>
 
+      {/* Password — link to Edit Profile */}
       <div style={{ borderTop: '1px solid #eee', paddingTop: 20 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: '#333', marginBottom: 4 }}>{lang === 'da' ? 'Adgangskode' : 'Password'}</div>
-        {isFacebook ? (
-          <p style={{ fontSize: 13, color: '#888', fontStyle: 'italic', margin: '8px 0 0' }}>{t.settingsFacebookNote}</p>
-        ) : (
-          <form onSubmit={handleChangePassword}>
-            <label style={lS}>{t.settingsCurrentPassword}</label>
-            <div style={{ position: 'relative' }}>
-              <input style={{ ...fS, paddingRight: 44 }} type={showCurrent ? 'text' : 'password'} value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} required placeholder="••••••••" />
-              <button type="button" onClick={() => setShowCurrent(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#888' }}>{showCurrent ? '🙈' : '👁️'}</button>
-            </div>
-            <label style={lS}>{t.settingsNewPassword}</label>
-            <div style={{ position: 'relative' }}>
-              <input style={{ ...fS, paddingRight: 44 }} type={showNew ? 'text' : 'password'} value={newPassword} onChange={e => setNewPassword(e.target.value)} required placeholder="••••••••" />
-              <button type="button" onClick={() => setShowNew(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#888' }}>{showNew ? '🙈' : '👁️'}</button>
-            </div>
-            <PasswordStrengthIndicator password={newPassword} lang={lang} />
-            <label style={lS}>{t.settingsConfirmPassword}</label>
-            <input style={fS} type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required placeholder="••••••••" />
-            {passwordMsg && <div style={{ marginTop: 8, fontSize: 13, color: passwordMsg.ok ? '#2D6A4F' : '#c0392b', fontWeight: 600 }}>{passwordMsg.ok ? '✓' : '✗'} {passwordMsg.text}</div>}
-            <button type="submit" disabled={passwordLoading} style={{ marginTop: 12, padding: '9px 20px', borderRadius: 8, border: 'none', background: '#444', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, opacity: passwordLoading ? 0.7 : 1 }}>
-              {t.settingsSavePassword}
-            </button>
-          </form>
-        )}
+        <div style={{ fontSize: 14, fontWeight: 700, color: '#333', marginBottom: 8 }}>{lang === 'da' ? 'Adgangskode' : 'Password'}</div>
+        <div style={{ fontSize: 13, color: '#666', marginBottom: 12 }}>
+          {lang === 'da'
+            ? 'Skift adgangskode under din profilredigering.'
+            : 'Change your password under profile editing.'}
+        </div>
+        <button
+          onClick={() => onNavigate('edit-profile')}
+          style={{ padding: '8px 18px', borderRadius: 8, border: '1px solid #2D6A4F', background: '#fff', color: '#2D6A4F', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
+        >
+          ✏️ {lang === 'da' ? 'Gå til Rediger profil' : 'Go to Edit profile'}
+        </button>
+      </div>
+
+      {/* Account type / mode switch */}
+      <div style={{ borderTop: '1px solid #eee', paddingTop: 20, marginTop: 20 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: '#333', marginBottom: 4 }}>💼 {lang === 'da' ? 'Kontotype' : 'Account type'}</div>
+        <div style={{ fontSize: 13, color: '#666', marginBottom: 12 }}>
+          {lang === 'da'
+            ? `Nuværende kontotype: ${mode === 'business' ? 'Erhverv' : 'Privat'}. Skift for at tilpasse oplevelsen til dit behov.`
+            : `Current account type: ${mode === 'business' ? 'Business' : 'Personal'}. Switch to tailor the experience to your needs.`}
+        </div>
+        <button
+          onClick={onOpenModeModal}
+          style={{ padding: '9px 20px', borderRadius: 8, border: '1px solid #2D6A4F', background: '#fff', color: '#2D6A4F', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
+        >
+          {t.modeSwitch}
+        </button>
       </div>
     </div>
   )
@@ -2384,14 +2590,27 @@ function SettingsSessions({ lang, t, onLogout }) {
       .catch(() => {})
   }
 
-  const parseUA = (ua) => {
-    if (!ua) return lang === 'da' ? 'Ukendt enhed' : 'Unknown device'
-    if (/iPhone|iPad|iPod/.test(ua)) return 'iOS'
-    if (/Android/.test(ua)) return 'Android'
-    if (/Windows/.test(ua)) return 'Windows'
-    if (/Macintosh|Mac OS/.test(ua)) return 'Mac'
-    if (/Linux/.test(ua)) return 'Linux'
-    return ua.slice(0, 40)
+  const parseBrowserFromUA = (ua) => {
+    if (!ua) return { browser: lang === 'da' ? 'Ukendt' : 'Unknown', os: '' }
+    let browser = 'Other'
+    if (/Edg\/|Edge\//.test(ua)) browser = 'Edge'
+    else if (/OPR\/|Opera\//.test(ua)) browser = 'Opera'
+    else if (/Chrome\//.test(ua) && !/Chromium/.test(ua)) browser = 'Chrome'
+    else if (/Firefox\//.test(ua)) browser = 'Firefox'
+    else if (/Safari\//.test(ua) && !/Chrome/.test(ua)) browser = 'Safari'
+    let os = ''
+    if (/iPhone|iPad|iPod/.test(ua)) os = 'iOS'
+    else if (/Android/.test(ua)) os = 'Android'
+    else if (/Windows/.test(ua)) os = 'Windows'
+    else if (/Macintosh|Mac OS/.test(ua)) os = 'macOS'
+    else if (/Linux/.test(ua)) os = 'Linux'
+    return { browser, os }
+  }
+
+  const deviceIcon = (ua) => {
+    if (/iPhone|iPad|iPod|Android/.test(ua || '')) return '📱'
+    if (/Macintosh|Mac OS/.test(ua || '')) return '💻'
+    return '🖥️'
   }
 
   const others = sessions.filter(s => !s.is_current)
@@ -2400,17 +2619,25 @@ function SettingsSessions({ lang, t, onLogout }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {loading ? (
         <div className="p-card" style={{ padding: 24, textAlign: 'center', color: '#888' }}>⏳</div>
-      ) : sessions.map(s => (
-        <div key={s.id} className="p-card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ fontSize: 22 }}>{/iPhone|iPad|iPod|Android/.test(s.user_agent || '') ? '📱' : '🖥️'}</div>
+      ) : sessions.map(s => {
+        const { browser, os } = parseBrowserFromUA(s.user_agent)
+        const createdDate = s.created_at ? new Date(s.created_at) : null
+        const expiresDate = s.expires_at ? new Date(s.expires_at) : null
+        const locale = lang === 'da' ? 'da-DK' : 'en-US'
+        const fmtDate = (d) => d ? d.toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''
+        return (
+        <div key={s.id} className="p-card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+          <div style={{ fontSize: 24, flexShrink: 0 }}>{deviceIcon(s.user_agent)}</div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontWeight: 600, fontSize: 14 }}>
-              {parseUA(s.user_agent)}
-              {!!s.is_current && <span style={{ marginLeft: 8, fontSize: 11, background: '#F0FAF4', color: '#2D6A4F', padding: '2px 8px', borderRadius: 20, fontWeight: 700 }}>{t.settingsSessionsCurrent}</span>}
+            <div style={{ fontWeight: 600, fontSize: 14, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span>{browser}{os ? ` · ${os}` : ''}</span>
+              {!!s.is_current && <span style={{ fontSize: 11, background: '#F0FAF4', color: '#2D6A4F', padding: '2px 8px', borderRadius: 20, fontWeight: 700 }}>{t.settingsSessionsCurrent}</span>}
             </div>
-            <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
-              {s.ip_address && <span>{s.ip_address} · </span>}
-              {s.created_at ? new Date(s.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}
+            <div style={{ fontSize: 12, color: '#888', marginTop: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {s.ip_address && <span>🌐 {s.ip_address}</span>}
+              {createdDate && <span>🕐 {lang === 'da' ? 'Oprettet' : 'Created'}: {fmtDate(createdDate)}</span>}
+              {expiresDate && <span>⏳ {lang === 'da' ? 'Udløber' : 'Expires'}: {fmtDate(expiresDate)}</span>}
+              {s.lang && <span>🗣️ {s.lang === 'da' ? 'Dansk' : 'English'}</span>}
             </div>
           </div>
           {!s.is_current && (
@@ -2419,7 +2646,8 @@ function SettingsSessions({ lang, t, onLogout }) {
             </button>
           )}
         </div>
-      ))}
+        )
+      })}
       {others.length > 0 && (
         <button onClick={deleteOthers} style={{ padding: '10px 0', borderRadius: 8, border: '1px solid #e74c3c', background: '#fff', color: '#e74c3c', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
           {t.settingsSessionsLogoutOthers}
@@ -2432,7 +2660,7 @@ function SettingsSessions({ lang, t, onLogout }) {
   )
 }
 
-function SettingsSprog({ lang, t, mode, onOpenModeModal }) {
+function SettingsSprog({ lang, t, darkMode, onToggleDark }) {
   const switchLang = (newLang) => {
     fetch('/api/me/lang', {
       method: 'PATCH', credentials: 'include',
@@ -2446,25 +2674,195 @@ function SettingsSprog({ lang, t, mode, onOpenModeModal }) {
   const radioStyle = { display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, cursor: 'pointer', padding: '8px 0' }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div className="p-card" style={{ padding: 24 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: '#333', marginBottom: 12 }}>🌐 {t.settingsLanguage}</div>
-        {[['da', '🇩🇰 Dansk'], ['en', '🇬🇧 English']].map(([val, label]) => (
-          <label key={val} style={radioStyle}>
-            <input type="radio" name="lang" value={val} checked={lang === val} onChange={() => { if (lang !== val) switchLang(val) }} />
-            {label}
-          </label>
-        ))}
-      </div>
-      <div className="p-card" style={{ padding: 24 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: '#333', marginBottom: 8 }}>💼 {t.settingsMode}</div>
-        <div style={{ fontSize: 13, color: '#666', marginBottom: 12 }}>
-          {lang === 'da' ? `Nuværende: ${mode === 'business' ? 'Erhverv' : 'Privat'}` : `Current: ${mode === 'business' ? 'Business' : 'Personal'}`}
+    <div className="p-card" style={{ padding: 24 }}>
+      <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>🌐 {t.settingsLanguage}</div>
+      {[['da', '🇩🇰 Dansk'], ['en', '🇬🇧 English']].map(([val, label]) => (
+        <label key={val} style={radioStyle}>
+          <input type="radio" name="lang" value={val} checked={lang === val} onChange={() => { if (lang !== val) switchLang(val) }} />
+          {label}
+        </label>
+      ))}
+
+      <div style={{ fontSize: 14, fontWeight: 700, marginTop: 24, marginBottom: 12 }}>🌙 {t.settingsDarkMode}</div>
+      <div className="dark-mode-toggle" onClick={onToggleDark}>
+        <div className={`dark-mode-toggle-track${darkMode ? ' on' : ''}`}>
+          <div className="dark-mode-toggle-thumb" />
         </div>
-        <button onClick={onOpenModeModal} style={{ padding: '9px 20px', borderRadius: 8, border: '1px solid #2D6A4F', background: '#fff', color: '#2D6A4F', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
-          {t.modeSwitch}
-        </button>
+        <span style={{ fontSize: 14 }}>{darkMode ? (lang === 'da' ? 'Aktiveret' : 'Enabled') : (lang === 'da' ? 'Deaktiveret' : 'Disabled')}</span>
       </div>
+    </div>
+  )
+}
+
+// ── Visitor Statistics Page ─────────────────────────────────────────────────
+const COUNTRY_CENTROIDS = {
+  'DK':[56.3,9.5],'DE':[51.2,10.5],'US':[37.1,-95.7],'GB':[55.4,-3.4],
+  'FR':[46.2,2.2],'SE':[62.0,15.0],'NO':[65.0,13.0],'FI':[64.0,26.0],
+  'NL':[52.3,5.3],'PL':[51.9,19.1],'IT':[41.9,12.6],'ES':[40.5,-3.7],
+  'JP':[36.2,138.3],'CN':[35.9,104.2],'AU':[-25.3,133.8],'BR':[-14.2,-51.9],
+  'IN':[20.6,78.9],'RU':[61.5,105.3],'CA':[56.1,-106.4],'MX':[23.6,-102.6],
+  'AR':[-38.4,-63.6],'ZA':[-30.6,22.9],'EG':[26.8,30.8],'NG':[9.1,8.7],
+  'KR':[35.9,127.8],'SG':[1.3,103.8],'AE':[23.4,53.8],'TR':[38.9,35.2],
+  'SA':[23.9,45.1],'ID':[-0.8,113.9],'TH':[15.9,100.9],'PH':[12.9,121.8],
+  'UA':[48.4,31.2],'PT':[39.4,-8.2],'BE':[50.5,4.5],'CH':[46.8,8.2],
+  'AT':[47.5,14.6],'CZ':[49.8,15.5],'HU':[47.2,19.5],'RO':[45.9,24.9],
+  'GR':[39.1,21.8],'IL':[31.5,34.8],'PK':[30.4,69.3],'BD':[23.7,90.4],
+  'VN':[14.1,108.3],'MY':[4.2,101.9],'NZ':[-40.9,172.7],'IR':[32.4,53.7],
+  'IQ':[33.2,43.7],'KE':[-0.0,37.9],'MA':[31.8,-7.1],'TN':[34.0,9.0],
+  'SK':[48.7,19.7],'HR':[45.1,15.2],'RS':[44.0,21.0],'BG':[42.7,25.5],
+}
+
+function MiniWorldMap({ countries }) {
+  const W = 800, H = 380
+  const toXY = (lat, lng) => [((lng + 180) / 360) * W, ((90 - lat) / 180) * H]
+  const maxCount = Math.max(1, ...countries.map(c => c.count))
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', borderRadius: 10, border: '1px solid #E8E4DF' }}>
+      <rect width={W} height={H} fill="#C8DFF4" />
+      <g fill="#D4E6B5" stroke="#B5C99A" strokeWidth="0.6">
+        <path d="M80,58 L120,38 L180,33 L240,48 L270,78 L262,128 L242,160 L222,190 L200,220 L178,240 L158,230 L138,210 L128,180 L98,158 L78,138 L68,108 Z" />
+        <path d="M148,222 L180,210 L212,222 L232,252 L242,292 L232,332 L210,372 L190,384 L168,370 L154,338 L138,298 L138,258 Z" />
+        <path d="M338,58 L382,48 L422,54 L442,80 L432,112 L410,122 L388,116 L368,112 L348,120 L338,110 L328,90 Z" />
+        <path d="M328,128 L362,118 L402,124 L432,140 L452,172 L462,212 L452,262 L432,312 L400,346 L370,356 L340,340 L320,300 L310,260 L310,212 L320,170 Z" />
+        <path d="M432,48 L502,38 L582,33 L652,38 L722,48 L762,78 L772,118 L752,158 L722,178 L682,190 L642,184 L602,190 L562,200 L532,190 L502,170 L472,150 L452,128 L440,98 Z" />
+        <path d="M418,28 L502,22 L602,18 L702,24 L782,40 L792,70 L762,80 L700,68 L650,63 L580,58 L500,53 L440,53 Z" />
+        <path d="M548,152 L592,158 L622,172 L652,182 L672,192 L660,212 L630,222 L600,216 L568,200 L548,184 Z" />
+        <path d="M598,258 L650,248 L712,254 L742,276 L752,312 L740,342 L710,358 L670,362 L630,352 L598,330 L583,298 L583,273 Z" />
+        <path d="M192,18 L252,13 L282,24 L288,50 L270,70 L238,80 L208,74 L192,54 Z" />
+        <path d="M728,78 L746,73 L756,88 L752,106 L734,112 L722,94 Z" />
+        <path d="M332,63 L346,58 L352,70 L346,82 L334,82 L328,72 Z" />
+        <path d="M362,33 L386,23 L402,30 L408,52 L396,66 L380,70 L362,58 Z" />
+        <path d="M742,328 L756,322 L762,338 L756,352 L744,350 L740,336 Z" />
+        <path d="M446,293 L454,283 L462,294 L460,316 L452,320 L444,310 Z" />
+      </g>
+      {countries.map(d => {
+        const coords = COUNTRY_CENTROIDS[d.country_code]
+        if (!coords) return null
+        const [x, y] = toXY(coords[0], coords[1])
+        const r = Math.max(5, Math.min(22, 5 + (d.count / maxCount) * 17))
+        return (
+          <g key={d.country_code}>
+            <circle cx={x} cy={y} r={r} fill="rgba(45,106,79,0.70)" stroke="#fff" strokeWidth={1.5} />
+            {d.count > 1 && <text x={x} y={y + 1} textAnchor="middle" dominantBaseline="middle" fill="#fff" fontSize={r > 11 ? 9 : 7} fontWeight="700">{d.count}</text>}
+          </g>
+        )
+      })}
+    </svg>
+  )
+}
+
+function VisitorStatsPage({ lang }) {
+  const [stats, setStats] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/visitor-stats', { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => { setStats(data); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [])
+
+  const t = lang === 'da' ? {
+    title: 'Besøgende',
+    subtitle: 'Oversigt over besøg på platformen',
+    totalVisits: 'Besøg i alt',
+    browsers: 'Browsere',
+    os: 'Operativsystemer',
+    countries: 'Lande',
+    map: 'Besøgende på verdenskortet',
+    daily: 'Daglige besøg (30 dage)',
+    noData: 'Ingen data endnu',
+  } : {
+    title: 'Visitors',
+    subtitle: 'Platform visit overview',
+    totalVisits: 'Total visits',
+    browsers: 'Browsers',
+    os: 'Operating systems',
+    countries: 'Countries',
+    map: 'Visitors on world map',
+    daily: 'Daily visits (30 days)',
+    noData: 'No data yet',
+  }
+
+  const BarChart = ({ data, label }) => {
+    const maxVal = Math.max(1, ...data.map(d => d.count))
+    return (
+      <div className="p-card" style={{ padding: 20, marginBottom: 16 }}>
+        <div style={{ fontWeight: 700, fontSize: 14, color: '#333', marginBottom: 14 }}>{label}</div>
+        {data.length === 0
+          ? <div style={{ fontSize: 13, color: '#aaa' }}>{t.noData}</div>
+          : data.map(d => (
+            <div key={d.browser || d.os || d.country} style={{ marginBottom: 10 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
+                <span style={{ fontWeight: 500 }}>{d.browser || d.os || d.country}</span>
+                <span style={{ color: '#888', fontWeight: 600 }}>{d.count}</span>
+              </div>
+              <div style={{ height: 8, background: '#EEE', borderRadius: 4, overflow: 'hidden' }}>
+                <div style={{ height: '100%', background: '#2D6A4F', borderRadius: 4, width: `${(d.count / maxVal) * 100}%`, transition: 'width 0.5s' }} />
+              </div>
+            </div>
+          ))
+        }
+      </div>
+    )
+  }
+
+  if (loading) return <div className="p-card" style={{ padding: 40, textAlign: 'center', color: '#888' }}>⏳</div>
+
+  const dailyMax = Math.max(1, ...(stats?.daily || []).map(d => d.count))
+
+  return (
+    <div className="p-events" style={{ maxWidth: 720 }}>
+      <div style={{ marginBottom: 20 }}>
+        <h2 className="p-section-title" style={{ margin: '0 0 4px' }}>🌍 {t.title}</h2>
+        <div style={{ fontSize: 13, color: '#888' }}>{t.subtitle}</div>
+      </div>
+
+      {/* Total */}
+      <div className="p-card" style={{ padding: 20, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 20 }}>
+        <div style={{ fontSize: 36, lineHeight: 1 }}>👁️</div>
+        <div>
+          <div style={{ fontSize: 13, color: '#888', fontWeight: 500 }}>{t.totalVisits}</div>
+          <div style={{ fontSize: 32, fontWeight: 800, color: '#2D6A4F' }}>{stats?.total ?? 0}</div>
+        </div>
+      </div>
+
+      {/* Daily chart */}
+      <div className="p-card" style={{ padding: 20, marginBottom: 16 }}>
+        <div style={{ fontWeight: 700, fontSize: 14, color: '#333', marginBottom: 14 }}>📅 {t.daily}</div>
+        {!stats?.daily?.length
+          ? <div style={{ fontSize: 13, color: '#aaa' }}>{t.noData}</div>
+          : (
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 80 }}>
+              {stats.daily.map(d => (
+                <div key={d.date} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                  <div style={{ width: '100%', background: '#2D6A4F', borderRadius: '3px 3px 0 0', height: `${Math.max(2, (d.count / dailyMax) * 70)}px` }} title={`${d.date}: ${d.count}`} />
+                </div>
+              ))}
+            </div>
+          )
+        }
+      </div>
+
+      {/* Map */}
+      <div className="p-card" style={{ padding: 20, marginBottom: 16 }}>
+        <div style={{ fontWeight: 700, fontSize: 14, color: '#333', marginBottom: 14 }}>🗺️ {t.map}</div>
+        {!stats?.countries?.length
+          ? <div style={{ fontSize: 13, color: '#aaa' }}>{t.noData}</div>
+          : <MiniWorldMap countries={stats.countries} />
+        }
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <BarChart data={stats?.browsers || []} label={`🌐 ${t.browsers}`} />
+        <BarChart data={stats?.oses || []} label={`💻 ${t.os}`} />
+      </div>
+
+      {/* Country table */}
+      <BarChart
+        data={(stats?.countries || []).slice(0, 15).map(c => ({ ...c, browser: `${c.country || c.country_code}` }))}
+        label={`🌍 ${t.countries}`}
+      />
     </div>
   )
 }
@@ -4402,8 +4800,9 @@ function EventsPage({ lang, t, currentUser, mode }) {
           {displayEvents.map(ev => {
             const myRsvp = rsvpMap[ev.id]
             const typeLabel = ev.eventType ? eventTypeLabel(ev.eventType) : null
+            const isExpired = new Date(ev.date) < new Date()
             return (
-              <div key={ev.id} className="p-card p-event-card" onClick={() => setSelectedEvent(ev)}>
+              <div key={ev.id} className="p-card p-event-card" onClick={() => setSelectedEvent(ev)} style={isExpired ? { opacity: 0.65 } : {}}>
                 <div className="p-event-card-body">
                   <div className="p-event-date-col">
                     <div className="p-event-month">{new Date(ev.date).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { month: 'short' }).toUpperCase()}</div>
@@ -4413,6 +4812,7 @@ function EventsPage({ lang, t, currentUser, mode }) {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <h3 className="p-event-title">{getEventTitle(ev)}</h3>
                       {typeLabel && <span className="p-event-type-badge">{typeLabel}</span>}
+                      {isExpired && <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 10, background: '#f5e6e6', color: '#c0392b' }}>{lang === 'da' ? 'Udløbet' : 'Expired'}</span>}
                     </div>
                     <div className="p-event-meta">
                       <span>📍 {getEventLocation(ev)}</span>
@@ -4425,7 +4825,7 @@ function EventsPage({ lang, t, currentUser, mode }) {
                     </div>
                   </div>
                   <div className="p-event-rsvp-col" onClick={e => e.stopPropagation()}>
-                    {[
+                    {!isExpired && [
                       { key: 'going', label: t.eventGoing, icon: '✓' },
                       { key: 'maybe', label: t.eventMaybe, icon: '~' },
                       { key: 'notGoing', label: t.eventNotGoing, icon: '✗' },
@@ -4437,12 +4837,12 @@ function EventsPage({ lang, t, currentUser, mode }) {
                         title={label}
                       >{icon}</button>
                     ))}
-                    <button
+                    {!isExpired && <button
                       className="p-event-rsvp-btn"
                       title={t.eventShareWith}
                       onClick={e => { e.stopPropagation(); setShareEventId(ev.id) }}
                       style={{ fontSize: 12 }}
-                    >📤</button>
+                    >📤</button>}
                   </div>
                 </div>
               </div>
@@ -4574,14 +4974,18 @@ function EventDetailModal({ event, t, lang, mode, myRsvp, extras, onRsvp, onExtr
   }, [onClose])
 
   const typeLabel = event.eventType ? eventTypeLabel(event.eventType) : null
+  const isExpired = new Date(event.date) < new Date()
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="p-event-detail-modal" onClick={e => e.stopPropagation()}>
+      <div className="p-event-detail-modal" onClick={e => e.stopPropagation()} style={isExpired ? { opacity: 0.75 } : {}}>
         <button className="lightbox-close" style={{ position: 'absolute', top: 12, right: 16 }} onClick={onClose}>✕</button>
 
         {typeLabel && <div className="p-event-type-badge" style={{ marginBottom: 8 }}>{typeLabel}</div>}
-        <h2 style={{ margin: '0 0 8px', fontSize: 22, fontWeight: 700 }}>{getTitle(event)}</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
+          <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>{getTitle(event)}</h2>
+          {isExpired && <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 12, background: '#f5e6e6', color: '#c0392b' }}>{lang === 'da' ? 'Udløbet' : 'Expired'}</span>}
+        </div>
 
         <div className="p-event-meta" style={{ marginBottom: 12 }}>
           <span>📅 {formatDate(event.date)}</span>
@@ -4594,7 +4998,7 @@ function EventDetailModal({ event, t, lang, mode, myRsvp, extras, onRsvp, onExtr
         <p style={{ fontSize: 14, color: '#444', lineHeight: 1.6, marginBottom: 20 }}>{getDesc(event)}</p>
 
         {/* RSVP */}
-        <div className="p-event-detail-rsvp">
+        <div className="p-event-detail-rsvp" style={isExpired ? { pointerEvents: 'none' } : {}}>
           {['going', 'maybe', 'notGoing'].map(s => {
             const label = t[`event${s.charAt(0).toUpperCase() + s.slice(1)}`]
             const icon = s === 'going' ? '✅' : s === 'maybe' ? '❓' : '❌'
@@ -4603,6 +5007,7 @@ function EventDetailModal({ event, t, lang, mode, myRsvp, extras, onRsvp, onExtr
                 key={s}
                 className={`p-event-rsvp-full-btn${myRsvp === s ? ' active' : ''}`}
                 onClick={() => onRsvp(s)}
+                disabled={isExpired}
               >
                 {icon} {label}
               </button>
@@ -4619,9 +5024,10 @@ function EventDetailModal({ event, t, lang, mode, myRsvp, extras, onRsvp, onExtr
               placeholder={lang === 'da' ? 'f.eks. vegetar, nøddeallergi...' : 'e.g. vegetarian, nut allergy...'}
               value={extras.dietary || ''}
               onChange={e => onExtrasChange({ ...extras, dietary: e.target.value })}
+              readOnly={isExpired}
             />
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
-              <input type="checkbox" checked={!!extras.plusOne} onChange={e => onExtrasChange({ ...extras, plusOne: e.target.checked })} />
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: isExpired ? 'default' : 'pointer' }}>
+              <input type="checkbox" checked={!!extras.plusOne} onChange={e => onExtrasChange({ ...extras, plusOne: e.target.checked })} disabled={isExpired} />
               {t.eventPlusOne}
             </label>
           </div>
@@ -5045,7 +5451,7 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
                       <button
                         onClick={e => { e.stopPropagation(); toggleFollow(company.id) }}
                         className={company.is_following ? 'p-friend-msg-btn' : 'p-friend-add-btn p-friend-msg-btn'}
-                        style={{ padding: '7px 16px', borderRadius: 8, fontSize: 13, flexShrink: 0 }}
+                        style={{ padding: '7px 16px', borderRadius: 8, fontSize: 13, flexShrink: 0, width: 'auto' }}
                       >
                         {company.is_following ? `✓ ${t.companyUnfollow}` : t.companyFollow}
                       </button>
@@ -5088,7 +5494,7 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
                   <button
                     onClick={e => { e.stopPropagation(); toggleFollow(company.id) }}
                     className="p-friend-msg-btn"
-                    style={{ padding: '7px 16px', borderRadius: 8, fontSize: 13, flexShrink: 0 }}
+                    style={{ padding: '7px 16px', borderRadius: 8, fontSize: 13, flexShrink: 0, width: 'auto' }}
                   >
                     ✓ {t.companyUnfollow}
                   </button>
@@ -5128,6 +5534,9 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
   const [companyMembers, setCompanyMembers] = useState([])
   const [membersLoading, setMembersLoading] = useState(false)
   const [memberConnectState, setMemberConnectState] = useState({}) // userId → 'sent'|'friend'
+  const [showCreateJobModal, setShowCreateJobModal] = useState(false)
+  const [showFollowersPopup, setShowFollowersPopup] = useState(false)
+  const [followers, setFollowers] = useState(null)
 
   useEffect(() => {
     setPostsLoading(true)
@@ -5247,14 +5656,28 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
       <div className="p-card" style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
           <div className="p-company-logo" style={{ background: company.color, width: 72, height: 72, fontSize: 30, borderRadius: 16 }}>{company.name[0]}</div>
-          <div style={{ flex: 1, minWidth: 200 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <h2 style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 800 }}>{company.name}</h2>
             <div style={{ fontSize: 14, color: '#666', marginBottom: 8 }}>{company.tagline}</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, fontSize: 13, color: '#888', marginBottom: 12 }}>
-              <span>🏭 {company.industry}</span>
-              <span>👥 {company.size} {lang === 'da' ? 'medarbejdere' : 'employees'}</span>
-              <span>🌐 <a href={company.website} target="_blank" rel="noopener noreferrer" style={{ color: '#1877F2' }}>{company.website.replace('https://', '')}</a></span>
-              <span>❤️ {(company.followers_count || 0).toLocaleString()} {t.companyFollowers}</span>
+              {company.industry && <span>🏭 {company.industry}</span>}
+              {company.size && <span>👥 {company.size} {lang === 'da' ? 'medarbejdere' : 'employees'}</span>}
+              {company.website && <span>🌐 <a href={company.website} target="_blank" rel="noopener noreferrer" style={{ color: '#1877F2' }}>{company.website.replace('https://', '').replace('http://', '')}</a></span>}
+              <button
+                onClick={() => {
+                  setShowFollowersPopup(true)
+                  if (!followers) {
+                    fetch(`/api/companies/${company.id}/followers`, { credentials: 'include' })
+                      .then(r => r.json())
+                      .then(d => setFollowers(d.followers || []))
+                      .catch(() => setFollowers([]))
+                  }
+                }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'inherit', fontSize: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 4, fontFamily: 'inherit' }}
+                title={lang === 'da' ? 'Se følgere' : 'View followers'}
+              >
+                ❤️ {(company.followers_count || 0).toLocaleString()} {t.companyFollowers}
+              </button>
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
               {!isOwner && (
@@ -5502,6 +5925,14 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
 
       {tab === 'jobs' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {isOwner && (
+            <button
+              onClick={() => setShowCreateJobModal(true)}
+              style={{ padding: '10px 20px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 600, alignSelf: 'flex-start' }}
+            >
+              + {t.createJob}
+            </button>
+          )}
           {postsLoading ? (
             <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>⏳</div>
           ) : companyJobs.length === 0 ? (
@@ -5510,6 +5941,45 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
             <JobCard key={job.id} job={{ ...job, companyName: company.name, companyColor: company.color, company_name: company.name, company_color: company.color }} t={t} lang={lang}
               onSaveToggle={(id, saved) => setCompanyJobs(prev => prev.map(j => j.id === id ? { ...j, saved } : j))} />
           ))}
+        </div>
+      )}
+
+      {/* Create Job Modal from Company Page */}
+      {showCreateJobModal && (
+        <CreateJobModal
+          t={t}
+          lang={lang}
+          companies={[{ id: company.id, name: company.name }]}
+          onClose={() => setShowCreateJobModal(false)}
+          onCreate={(job) => {
+            setCompanyJobs(prev => [{ ...job, company_name: company.name, company_color: company.color }, ...prev])
+            setShowCreateJobModal(false)
+          }}
+        />
+      )}
+
+      {/* Followers Popup */}
+      {showFollowersPopup && (
+        <div className="modal-backdrop" onClick={() => setShowFollowersPopup(false)}>
+          <div className="p-card" onClick={e => e.stopPropagation()} style={{ padding: 24, maxWidth: 400, width: '90%', maxHeight: '70vh', overflowY: 'auto', borderRadius: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>❤️ {lang === 'da' ? 'Følgere' : 'Followers'} ({company.followers_count || 0})</h3>
+              <button onClick={() => setShowFollowersPopup(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#888' }}>✕</button>
+            </div>
+            {!followers ? (
+              <div style={{ textAlign: 'center', color: '#888', padding: 20 }}>⏳</div>
+            ) : followers.length === 0 ? (
+              <div style={{ textAlign: 'center', color: '#888', padding: 20 }}>{lang === 'da' ? 'Ingen følgere endnu' : 'No followers yet'}</div>
+            ) : followers.map(f => (
+              <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid #F0EDE9' }}>
+                <div className="p-avatar-sm" style={{ background: nameToColor(f.name), flexShrink: 0 }}>{getInitials(f.name)}</div>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>{f.name}</div>
+                  {f.handle && <div style={{ fontSize: 12, color: '#888' }}>{f.handle}</div>}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -6043,6 +6513,13 @@ function MarketplacePage({ lang, t, currentUser, onContactSeller }) {
     setMyListings(prev => prev.map(l => l.id === id ? { ...l, sold: true } : l))
   }
 
+  const handleRelist = async (id) => {
+    await apiRelistListing(id)
+    const today = new Date().toISOString().slice(0, 10)
+    setListings(prev => prev.map(l => l.id === id ? { ...l, sold: false, postedAt: today } : l))
+    setMyListings(prev => prev.map(l => l.id === id ? { ...l, sold: false, postedAt: today } : l))
+  }
+
   const handleDelete = async (id) => {
     await apiDeleteListing(id)
     setListings(prev => prev.filter(l => l.id !== id))
@@ -6184,6 +6661,11 @@ function MarketplacePage({ lang, t, currentUser, onContactSeller }) {
                     {!listing.sold && (
                       <button className="p-listing-action-btn" onClick={() => handleMarkSold(listing.id)}>
                         ✓ {t.marketplaceMarkSold}
+                      </button>
+                    )}
+                    {listing.sold && (
+                      <button className="p-listing-action-btn" style={{ color: '#2D6A4F', borderColor: '#2D6A4F' }} onClick={() => handleRelist(listing.id)}>
+                        ↺ {lang === 'da' ? 'Genopslå' : 'Relist'}
                       </button>
                     )}
                     <button className="p-listing-action-btn" onClick={() => { setEditListing(listing); setFormError(null); setShowForm(true) }}>
