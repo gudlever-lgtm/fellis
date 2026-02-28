@@ -978,6 +978,28 @@ export const PT = {
   },
 }
 
+// Interest categories (bilingual) used in ProfilePage and feed algorithm
+export const INTEREST_CATEGORIES = [
+  { id: 'musik',     da: 'Musik',        en: 'Music',       icon: '🎵' },
+  { id: 'videnskab', da: 'Videnskab',    en: 'Science',     icon: '🔬' },
+  { id: 'nyheder',   da: 'Nyheder',      en: 'News',        icon: '📰' },
+  { id: 'sport',     da: 'Sport',        en: 'Sports',      icon: '⚽' },
+  { id: 'teknologi', da: 'Teknologi',    en: 'Technology',  icon: '💻' },
+  { id: 'kunst',     da: 'Kunst',        en: 'Art',         icon: '🎨' },
+  { id: 'mad',       da: 'Mad',          en: 'Food',        icon: '🍕' },
+  { id: 'rejser',    da: 'Rejser',       en: 'Travel',      icon: '✈️' },
+  { id: 'film',      da: 'Film & TV',    en: 'Film & TV',   icon: '🎬' },
+  { id: 'politik',   da: 'Politik',      en: 'Politics',    icon: '🏛️' },
+  { id: 'natur',     da: 'Natur',        en: 'Nature',      icon: '🌿' },
+  { id: 'gaming',    da: 'Gaming',       en: 'Gaming',      icon: '🎮' },
+  { id: 'sundhed',   da: 'Sundhed',      en: 'Health',      icon: '💪' },
+  { id: 'boger',     da: 'Bøger',        en: 'Books',       icon: '📚' },
+  { id: 'humor',     da: 'Humor',        en: 'Humor',       icon: '😄' },
+  { id: 'diy',       da: 'Gør-det-selv', en: 'DIY',         icon: '🔨' },
+  { id: 'okonomi',   da: 'Økonomi',      en: 'Finance',     icon: '💰' },
+  { id: 'mode',      da: 'Mode',         en: 'Fashion',     icon: '👗' },
+]
+
 // Fake message threads
 export const MESSAGE_THREADS = [
   {
