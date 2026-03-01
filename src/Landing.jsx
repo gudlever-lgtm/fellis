@@ -749,19 +749,20 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
           <form className="register-form" onSubmit={handleRegister}>
             <h3 className="register-title">{t.registerTitle}</h3>
             <input
-              type="text"
-              placeholder={t.registerName}
-              value={regName}
-              onChange={e => setRegName(e.target.value)}
-              className="register-input"
-              required
-            />
-            <input
               type="email"
               placeholder={t.registerEmail}
               value={regEmail}
               onChange={e => setRegEmail(e.target.value)}
               className="register-input"
+              required
+            />
+            <input
+              type="text"
+              placeholder={t.registerName}
+              value={regName}
+              onChange={e => setRegName(e.target.value)}
+              className="register-input"
+              autoFocus
               required
             />
             <input
@@ -773,6 +774,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
               minLength={6}
               required
             />
+            <PasswordStrengthIndicator password={regPassword} lang={lang} />
             {regError && <div className="fb-error">{regError}</div>}
             <button type="submit" className="btn-primary" style={{ width: '100%' }} disabled={regLoading}>
               {regLoading ? '...' : t.registerSubmit}
@@ -841,6 +843,52 @@ function ProgressBar({ step, t }) {
           </div>
         )
       })}
+    </div>
+  )
+}
+
+function PasswordStrengthIndicator({ password, lang }) {
+  const [policy, setPolicy] = useState(null)
+  useEffect(() => {
+    fetch('/api/auth/password-policy').then(r => r.ok ? r.json() : null).then(p => { if (p) setPolicy(p) }).catch(() => {})
+  }, [])
+
+  if (!password) return null
+
+  const minLen = policy?.min_length || 6
+  const checks = [
+    { ok: password.length >= minLen, da: `Min. ${minLen} tegn`, en: `Min. ${minLen} characters` },
+    ...(policy?.require_uppercase ? [{ ok: /[A-Z]/.test(password), da: 'Stort bogstav (A–Z)', en: 'Uppercase (A–Z)' }] : [{ ok: /[A-Z]/.test(password), da: 'Stort bogstav (A–Z)', en: 'Uppercase (A–Z)' }]),
+    ...(policy?.require_lowercase !== false ? [{ ok: /[a-z]/.test(password), da: 'Lille bogstav (a–z)', en: 'Lowercase (a–z)' }] : []),
+    ...(policy?.require_numbers !== false   ? [{ ok: /[0-9]/.test(password), da: 'Tal (0–9)', en: 'Number (0–9)' }] : []),
+    ...(policy?.require_symbols ? [{ ok: /[^A-Za-z0-9]/.test(password), da: 'Specialtegn (!@#…)', en: 'Symbol (!@#…)' }] : []),
+  ]
+
+  const passed = checks.filter(c => c.ok).length
+  const ratio = checks.length ? passed / checks.length : 0
+  const barColor = ratio < 0.4 ? '#e74c3c' : ratio < 0.75 ? '#f39c12' : '#2D6A4F'
+  const barLabel = ratio < 0.4
+    ? (lang === 'da' ? 'Svag' : 'Weak')
+    : ratio < 0.75
+    ? (lang === 'da' ? 'Middel' : 'Fair')
+    : (lang === 'da' ? 'Stærk' : 'Strong')
+
+  return (
+    <div style={{ marginTop: 8, marginBottom: 4 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <div style={{ flex: 1, height: 5, borderRadius: 3, background: '#eee', overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: `${ratio * 100}%`, background: barColor, borderRadius: 3, transition: 'width 0.25s, background 0.25s' }} />
+        </div>
+        <span style={{ fontSize: 11, fontWeight: 700, color: barColor, minWidth: 36 }}>{barLabel}</span>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        {checks.map((c, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: c.ok ? '#2D6A4F' : '#999' }}>
+            <span style={{ fontSize: 13, width: 16, textAlign: 'center', lineHeight: 1 }}>{c.ok ? '✓' : '○'}</span>
+            <span>{lang === 'da' ? c.da : c.en}</span>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
