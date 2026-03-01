@@ -14,6 +14,16 @@ export function getInitials(name) {
   return name.split(' ').map(n => n[0]).join('')
 }
 
+// Shared reaction emojis (used by posts and reels)
+export const REACTIONS = [
+  { emoji: '👍', label: { da: 'Synes godt om', en: 'Like' } },
+  { emoji: '❤️', label: { da: 'Elsker', en: 'Love' } },
+  { emoji: '😄', label: { da: 'Haha', en: 'Haha' } },
+  { emoji: '😮', label: { da: 'Wow', en: 'Wow' } },
+  { emoji: '😢', label: { da: 'Trist', en: 'Sad' } },
+  { emoji: '😡', label: { da: 'Vred', en: 'Angry' } },
+]
+
 // Current user
 export const CURRENT_USER = {
   name: 'Sofie Nielsen',
@@ -396,6 +406,11 @@ export const PT = {
     eventTicketUrl: 'Tilmeldingslink / billetter',
     eventCap: 'Max. antal deltagere',
     eventCapPlaceholder: 'Ingen begrænsning',
+    eventEdit: 'Rediger begivenhed',
+    eventDelete: 'Slet begivenhed',
+    eventDeleteConfirm: 'Er du sikker på, du vil slette denne begivenhed?',
+    eventRepost: 'Genopslå',
+    eventSave: 'Gem ændringer',
     // Feed event card
     eventFeedLabel: 'Begivenhed',
     eventFeedRsvpd: 'deltager',
@@ -923,6 +938,11 @@ export const PT = {
     eventTicketUrl: 'Registration link / tickets',
     eventCap: 'Max. attendees',
     eventCapPlaceholder: 'No limit',
+    eventEdit: 'Edit event',
+    eventDelete: 'Delete event',
+    eventDeleteConfirm: 'Are you sure you want to delete this event?',
+    eventRepost: 'Repost',
+    eventSave: 'Save changes',
     // Feed event card
     eventFeedLabel: 'Event',
     eventFeedRsvpd: 'is going',

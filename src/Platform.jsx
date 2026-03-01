@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect } from 'react'
-import { PT, INTEREST_CATEGORIES, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiUploadReel, apiToggleReelLike, apiFetchReelComments, apiAddReelComment, apiDeleteReel, apiFetchCalendarEvents, apiUpdateBirthday } from './api.js'
+import { PT, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE } from './api.js'
 import ReelsPage from './Reels.jsx'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
@@ -628,15 +628,7 @@ function openCamera(onFile) {
   inp.click()
 }
 
-// ── Reaction emojis ──
-const REACTIONS = [
-  { emoji: '👍', label: { da: 'Synes godt om', en: 'Like' } },
-  { emoji: '❤️', label: { da: 'Elsker', en: 'Love' } },
-  { emoji: '😄', label: { da: 'Haha', en: 'Haha' } },
-  { emoji: '😮', label: { da: 'Wow', en: 'Wow' } },
-  { emoji: '😢', label: { da: 'Trist', en: 'Sad' } },
-  { emoji: '😡', label: { da: 'Vred', en: 'Angry' } },
-]
+// REACTIONS imported from data.js
 
 // ── Feed ──
 const PAGE_SIZE = 20
@@ -1286,8 +1278,6 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
           </div>
         </div>
       )}
-      {/* Reels strip */}
-      <ReelsStrip lang={lang} t={t} onNavigate={onNavigate} />
       {/* New post */}
       <div className="p-card p-new-post">
         {/* Hidden file input — gallery only */}
@@ -1420,6 +1410,9 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
           </>
         )}
       </div>
+
+      {/* Reels strip */}
+      <ReelsStrip lang={lang} t={t} onNavigate={onNavigate} />
 
       {/* Top sentinel — triggers loading previous page */}
       {offset > 0 && (
@@ -3946,6 +3939,7 @@ function FriendsPage({ lang, t, mode, onMessage }) {
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteEmailSending, setInviteEmailSending] = useState(false)
   const [inviteEmailSentOk, setInviteEmailSentOk] = useState(false)
+  const [noSmtpInviteUrl, setNoSmtpInviteUrl] = useState(null) // fallback link when SMTP missing
   const [referralData, setReferralData] = useState(null)
   const [badges, setBadges] = useState(null)
   const [leaderboard, setLeaderboard] = useState(null)
@@ -4040,28 +4034,40 @@ function FriendsPage({ lang, t, mode, onMessage }) {
     e.preventDefault()
     if (!inviteEmail.trim()) return
     setInviteEmailSending(true)
-    await apiSendInvites([inviteEmail.trim()]).catch(() => {})
-    // Optimistically add to outgoing list
+    const result = await apiSendInvites([inviteEmail.trim()]).catch(() => null)
+    // Add to outgoing list (use real DB id if available)
+    const newInv = result?.invitations?.[0]
     setInvites(prev => {
       const list = prev || []
-      return [{ id: `local-${Date.now()}`, email: inviteEmail.trim(), sentAt: new Date().toISOString(), status: 'pending' }, ...list]
+      return [{ id: newInv?.id || `local-${Date.now()}`, email: inviteEmail.trim(), sentAt: new Date().toISOString(), status: 'pending' }, ...list]
     })
+    // Increment referral dashboard invited count
+    setReferralData(prev => prev ? { ...prev, totalInvited: (prev.totalInvited || 0) + 1 } : prev)
     setInviteEmail('')
     setInviteEmailSending(false)
-    setInviteEmailSentOk(true)
-    setTimeout(() => setInviteEmailSentOk(false), 3000)
-  }, [inviteEmail])
+    // Warn if no SMTP configured (email not actually sent) — show fallback link
+    if (result && result.emailSent === false) {
+      const url = result.invitations?.[0]?.inviteUrl || null
+      setNoSmtpInviteUrl(url)
+      setInviteEmailSentOk('nomail')
+    } else {
+      setNoSmtpInviteUrl(null)
+      setInviteEmailSentOk(true)
+      setTimeout(() => setInviteEmailSentOk(false), 4000)
+    }
+  }, [inviteEmail]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCancelInvite = useCallback(async (invId, lang) => {
     const msg = lang === 'da' ? 'Trække invitationen tilbage?' : 'Withdraw this invitation?'
     if (!window.confirm(msg)) return
-    // Optimistic removal
+    // Optimistic removal from list + decrement referral dashboard count
     setInvites(prev => (prev || []).filter(inv => inv.id !== invId))
+    setReferralData(prev => prev ? { ...prev, totalInvited: Math.max(0, (prev.totalInvited || 0) - 1) } : prev)
     // If it's a real DB id (number), call the API
     if (typeof invId === 'number' || (typeof invId === 'string' && !invId.startsWith('mock-') && !invId.startsWith('local-'))) {
       await apiCancelInvite(invId).catch(() => {})
     }
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load invites on mount so the count is visible in the tab label
   useEffect(() => {
@@ -4154,7 +4160,31 @@ function FriendsPage({ lang, t, mode, onMessage }) {
             {inviteEmailSending ? t.invitesSending : t.invitesSendBtn}
           </button>
         </form>
-        {inviteEmailSentOk && <div className="p-invite-sent-ok">✓ {t.invitesSentOk}</div>}
+        {inviteEmailSentOk === true && <div className="p-invite-sent-ok">✓ {t.invitesSentOk}</div>}
+        {inviteEmailSentOk === 'nomail' && (
+          <div style={{ background: '#fff3cd', border: '1px solid #ffe082', borderRadius: 8, padding: '10px 14px', marginBottom: 8, fontSize: 13 }}>
+            <div style={{ color: '#856404', fontWeight: 600, marginBottom: noSmtpInviteUrl ? 8 : 0 }}>
+              ⚠️ {lang === 'da' ? 'E-mail ikke sendt – SMTP er ikke konfigureret på serveren.' : 'Email not sent – SMTP is not configured on the server.'}
+            </div>
+            {noSmtpInviteUrl && (
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input
+                  style={{ flex: 1, padding: '6px 10px', borderRadius: 6, border: '1px solid #ffe082', fontSize: 12, background: '#fffde7', color: '#333' }}
+                  value={noSmtpInviteUrl}
+                  readOnly
+                  onClick={e => e.target.select()}
+                />
+                <button
+                  className="p-invite-copy-btn"
+                  onClick={() => { navigator.clipboard.writeText(noSmtpInviteUrl).catch(() => {}); setNoSmtpInviteUrl(null); setInviteEmailSentOk(false) }}
+                  style={{ whiteSpace: 'nowrap', padding: '6px 12px', fontSize: 12 }}
+                >
+                  {lang === 'da' ? 'Kopiér link' : 'Copy link'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
         <div className="p-invite-link-row" style={{ marginBottom: 8 }}>
           <input
             className="p-invite-link-input"
@@ -4813,7 +4843,31 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened }) 
   useEffect(() => {
     apiFetchConversations().then(data => { if (data) setConversations(data) })
     apiFetchFriends().then(data => { if (data) setFriends(data) })
-  }, [])
+
+    // SSE: receive real-time messages from other users
+    let es
+    try {
+      es = openSSE()
+      es.onmessage = (e) => {
+        try {
+          const payload = JSON.parse(e.data)
+          if (payload.type === 'message') {
+            setConversations(prev => prev.map(c => {
+              if (c.id !== payload.convId) return c
+              const msgs = [...c.messages, payload.msg]
+              return {
+                ...c,
+                messages: msgs.length > MSG_PAGE_SIZE ? msgs.slice(-MSG_PAGE_SIZE) : msgs,
+                totalMessages: (c.totalMessages || c.messages.length) + 1,
+                unread: (c.unread || 0) + 1,
+              }
+            }))
+          }
+        } catch {}
+      }
+    } catch {}
+    return () => { try { es?.close() } catch {} }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Open a specific conversation when navigated from elsewhere (search, contact seller, etc.)
   useEffect(() => {
@@ -5293,6 +5347,9 @@ function EventsPage({ lang, t, currentUser, mode }) {
   const [events, setEvents] = useState(MOCK_EVENTS)
   const [selectedEvent, setSelectedEvent] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
+  const [editEvent, setEditEvent] = useState(null)   // event to edit
+  const [repostEvent, setRepostEvent] = useState(null) // event to repost (cleared date)
+  const [eventMenuId, setEventMenuId] = useState(null) // id of event with open "..." menu
   const [rsvpMap, setRsvpMap] = useState({})
   const [rsvpExtras, setRsvpExtras] = useState({}) // { [eventId]: { dietary, plusOne } }
   const [shareEventId, setShareEventId] = useState(null)
@@ -5302,19 +5359,44 @@ function EventsPage({ lang, t, currentUser, mode }) {
     apiFetchFriends().then(data => { if (data) setFriends(data) })
     apiFetchEvents().then(data => {
       if (data?.events) {
-        // Use only real DB events (no mock placeholders) so count matches admin stats
         setEvents(data.events.length ? data.events : MOCK_EVENTS)
         const map = {}
         data.events.forEach(e => { if (e.myRsvp) map[e.id] = e.myRsvp })
         setRsvpMap(prev => ({ ...prev, ...map }))
       }
     })
+    const closeMenu = () => setEventMenuId(null)
+    document.addEventListener('click', closeMenu)
+    return () => document.removeEventListener('click', closeMenu)
   }, [])
 
   const handleRsvp = (eventId, status) => {
     const newStatus = rsvpMap[eventId] === status ? null : status
     setRsvpMap(prev => ({ ...prev, [eventId]: newStatus }))
     apiRsvpEvent(eventId, newStatus, rsvpExtras[eventId] || {}).catch(() => {})
+  }
+
+  const handleDeleteEvent = async (ev) => {
+    if (!window.confirm(t.eventDeleteConfirm)) return
+    setEventMenuId(null)
+    const result = await apiDeleteEvent(ev.id).catch(() => null)
+    if (result?.ok) setEvents(prev => prev.filter(e => e.id !== ev.id))
+  }
+
+  const handleSaveEvent = async (updated) => {
+    const ev = editEvent
+    setEditEvent(null)
+    const payload = {
+      title: typeof updated.title === 'string' ? updated.title : (updated.title?.da || ''),
+      description: typeof updated.description === 'string' ? updated.description : (updated.description?.da || ''),
+      date: updated.date,
+      location: typeof updated.location === 'string' ? updated.location : (updated.location?.da || ''),
+      eventType: updated.eventType || null,
+      ticketUrl: updated.ticketUrl || null,
+      cap: updated.cap || null,
+    }
+    await apiUpdateEvent(ev.id, payload).catch(() => null)
+    setEvents(prev => prev.map(e => e.id === ev.id ? { ...e, ...payload, title: payload.title, description: payload.description, location: payload.location } : e))
   }
 
   const getEventTitle = (e) => typeof e.title === 'string' ? e.title : (e.title[lang] || e.title.da)
@@ -5366,6 +5448,7 @@ function EventsPage({ lang, t, currentUser, mode }) {
             const myRsvp = rsvpMap[ev.id]
             const typeLabel = ev.eventType ? eventTypeLabel(ev.eventType) : null
             const isExpired = new Date(ev.date) < new Date()
+            const isOrganizer = ev.organizer === currentUser.name || ev.organizerId === currentUser.id
             return (
               <div key={ev.id} className="p-card p-event-card" onClick={() => setSelectedEvent(ev)} style={isExpired ? { opacity: 0.65 } : {}}>
                 <div className="p-event-card-body">
@@ -5408,6 +5491,35 @@ function EventsPage({ lang, t, currentUser, mode }) {
                       onClick={e => { e.stopPropagation(); setShareEventId(ev.id) }}
                       style={{ fontSize: 12 }}
                     >📤</button>}
+                    {isOrganizer && (
+                      <div style={{ position: 'relative' }}>
+                        <button
+                          className="p-event-rsvp-btn"
+                          title="..."
+                          onClick={e => { e.stopPropagation(); setEventMenuId(eventMenuId === ev.id ? null : ev.id) }}
+                          style={{ fontWeight: 700, fontSize: 15, letterSpacing: 1 }}
+                        >···</button>
+                        {eventMenuId === ev.id && (
+                          <div
+                            style={{ position: 'absolute', right: 0, top: '100%', background: '#fff', border: '1px solid #e0e0e0', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 100, minWidth: 160, padding: '4px 0' }}
+                            onClick={e => e.stopPropagation()}
+                          >
+                            <button style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13 }}
+                              onClick={() => { setEventMenuId(null); setEditEvent(ev) }}>
+                              ✏️ {t.eventEdit}
+                            </button>
+                            <button style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13 }}
+                              onClick={() => { setEventMenuId(null); setRepostEvent(ev) }}>
+                              🔁 {t.eventRepost}
+                            </button>
+                            <button style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#c0392b' }}
+                              onClick={() => handleDeleteEvent(ev)}>
+                              🗑️ {t.eventDelete}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -5445,7 +5557,7 @@ function EventsPage({ lang, t, currentUser, mode }) {
           currentUser={currentUser}
           onClose={() => setShowCreate(false)}
           onCreate={async (ev) => {
-            const saved = await apiCreateEvent({
+            await apiCreateEvent({
               title: typeof ev.title === 'string' ? ev.title : (ev.title?.da || ev.title?.en || ''),
               description: typeof ev.description === 'string' ? ev.description : (ev.description?.da || ''),
               date: ev.date,
@@ -5454,8 +5566,61 @@ function EventsPage({ lang, t, currentUser, mode }) {
               ticketUrl: ev.ticketUrl || null,
               cap: ev.cap || null,
             }).catch(() => null)
-            setEvents(prev => [saved || ev, ...prev])
+            apiFetchEvents().then(data => {
+              if (data?.events) {
+                setEvents(data.events.length ? data.events : MOCK_EVENTS)
+                const map = {}
+                data.events.forEach(e => { if (e.myRsvp) map[e.id] = e.myRsvp })
+                setRsvpMap(prev => ({ ...prev, ...map }))
+              }
+            })
             setShowCreate(false)
+          }}
+        />
+      )}
+
+      {/* Edit event modal */}
+      {editEvent && (
+        <CreateEventModal
+          t={t}
+          lang={lang}
+          mode={mode}
+          currentUser={currentUser}
+          initialEvent={editEvent}
+          isEdit={true}
+          onClose={() => setEditEvent(null)}
+          onCreate={handleSaveEvent}
+        />
+      )}
+
+      {/* Repost event modal (pre-filled, cleared date) */}
+      {repostEvent && (
+        <CreateEventModal
+          t={t}
+          lang={lang}
+          mode={mode}
+          currentUser={currentUser}
+          initialEvent={{ ...repostEvent, date: '' }}
+          onClose={() => setRepostEvent(null)}
+          onCreate={async (ev) => {
+            await apiCreateEvent({
+              title: typeof ev.title === 'string' ? ev.title : (ev.title?.da || ev.title?.en || ''),
+              description: typeof ev.description === 'string' ? ev.description : (ev.description?.da || ''),
+              date: ev.date,
+              location: typeof ev.location === 'string' ? ev.location : (ev.location?.da || ''),
+              eventType: ev.eventType || null,
+              ticketUrl: ev.ticketUrl || null,
+              cap: ev.cap || null,
+            }).catch(() => null)
+            apiFetchEvents().then(data => {
+              if (data?.events) {
+                setEvents(data.events.length ? data.events : MOCK_EVENTS)
+                const map = {}
+                data.events.forEach(e => { if (e.myRsvp) map[e.id] = e.myRsvp })
+                setRsvpMap(prev => ({ ...prev, ...map }))
+              }
+            })
+            setRepostEvent(null)
           }}
         />
       )}
@@ -5632,14 +5797,21 @@ function EventDetailModal({ event, t, lang, mode, myRsvp, extras, onRsvp, onExtr
   )
 }
 
-function CreateEventModal({ t, lang, mode, currentUser, onClose, onCreate }) {
-  const [title, setTitle] = useState('')
-  const [date, setDate] = useState('')
-  const [location, setLocation] = useState('')
-  const [description, setDescription] = useState('')
-  const [eventType, setEventType] = useState('')
-  const [ticketUrl, setTicketUrl] = useState('')
-  const [cap, setCap] = useState('')
+function CreateEventModal({ t, lang, mode, currentUser, onClose, onCreate, initialEvent = null, isEdit = false }) {
+  const getStr = (v) => typeof v === 'string' ? v : (v?.[lang] || v?.da || '')
+  const toDateTimeLocal = (iso) => {
+    if (!iso) return ''
+    // Convert ISO/DB datetime to datetime-local format (YYYY-MM-DDTHH:mm)
+    return iso.slice(0, 16)
+  }
+
+  const [title, setTitle] = useState(() => initialEvent ? getStr(initialEvent.title) : '')
+  const [date, setDate] = useState(() => initialEvent ? toDateTimeLocal(initialEvent.date) : '')
+  const [location, setLocation] = useState(() => initialEvent ? getStr(initialEvent.location) : '')
+  const [description, setDescription] = useState(() => initialEvent ? getStr(initialEvent.description) : '')
+  const [eventType, setEventType] = useState(() => initialEvent?.eventType || '')
+  const [ticketUrl, setTicketUrl] = useState(() => initialEvent?.ticketUrl || '')
+  const [cap, setCap] = useState(() => initialEvent?.cap ? String(initialEvent.cap) : '')
 
   useEffect(() => {
     const h = (e) => { if (e.key === 'Escape') onClose() }
@@ -5654,15 +5826,15 @@ function CreateEventModal({ t, lang, mode, currentUser, onClose, onCreate }) {
     e.preventDefault()
     if (!title.trim() || !date || !location.trim()) return
     const newEvent = {
-      id: Date.now(),
+      id: initialEvent?.id || Date.now(),
       title: { da: title, en: title },
       date,
       location,
       description: { da: description, en: description },
       organizer: currentUser.name,
       cover: null,
-      going: [currentUser.name],
-      maybe: [],
+      going: initialEvent?.going || [currentUser.name],
+      maybe: initialEvent?.maybe || [],
       eventType: eventType || null,
       ticketUrl,
       cap: cap ? parseInt(cap) : null,
@@ -5673,7 +5845,9 @@ function CreateEventModal({ t, lang, mode, currentUser, onClose, onCreate }) {
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="p-event-create-modal" onClick={e => e.stopPropagation()}>
-        <h3 style={{ margin: '0 0 20px', fontSize: 18, fontWeight: 700 }}>{t.createEvent}</h3>
+        <h3 style={{ margin: '0 0 20px', fontSize: 18, fontWeight: 700 }}>
+          {isEdit ? t.eventEdit : t.createEvent}
+        </h3>
         <form onSubmit={handleSubmit}>
           <label style={labelStyle}>{t.eventTitle} *</label>
           <input style={fieldStyle} value={title} onChange={e => setTitle(e.target.value)} required
@@ -5719,7 +5893,7 @@ function CreateEventModal({ t, lang, mode, currentUser, onClose, onCreate }) {
             </button>
             <button type="submit"
               style={{ flex: 2, padding: '10px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>
-              {t.eventCreate}
+              {isEdit ? t.eventSave : t.eventCreate}
             </button>
           </div>
         </form>

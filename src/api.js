@@ -343,6 +343,21 @@ export async function apiRsvpEvent(eventId, status, extras = {}) {
   })
 }
 
+export async function apiUpdateEvent(eventId, data) {
+  return await request(`/api/events/${eventId}`, { method: 'PATCH', body: JSON.stringify(data) })
+}
+
+export async function apiDeleteEvent(eventId) {
+  return await request(`/api/events/${eventId}`, { method: 'DELETE' })
+}
+
+// SSE — Server-Sent Events for real-time updates (returns EventSource)
+export function openSSE() {
+  const sid = getSessionId()
+  const url = `${API_BASE}/api/sse${sid ? `?sid=${encodeURIComponent(sid)}` : ''}`
+  return new EventSource(url)
+}
+
 // Link preview
 export async function apiLinkPreview(url) {
   return await request(`/api/link-preview?url=${encodeURIComponent(url)}`)
@@ -593,8 +608,8 @@ export async function apiUploadReel(videoFile, caption) {
   }
 }
 
-export async function apiToggleReelLike(id) {
-  return await request(`/api/reels/${id}/like`, { method: 'POST' })
+export async function apiToggleReelLike(id, reaction = '❤️') {
+  return await request(`/api/reels/${id}/like`, { method: 'POST', body: JSON.stringify({ reaction }) })
 }
 
 export async function apiFetchReelComments(id) {

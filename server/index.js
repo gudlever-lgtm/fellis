@@ -380,6 +380,26 @@ const FB_DATA_RETENTION_DAYS = parseInt(process.env.FB_DATA_RETENTION_DAYS || '9
 const app = express()
 app.use(express.json())
 
+// ── SSE: real-time push to connected clients ──────────────────────────────
+// Map<userId, Set<res>> — one user may have multiple tabs open
+const sseClients = new Map()
+
+function sseAdd(userId, res) {
+  if (!sseClients.has(userId)) sseClients.set(userId, new Set())
+  sseClients.get(userId).add(res)
+}
+function sseRemove(userId, res) {
+  sseClients.get(userId)?.delete(res)
+}
+function sseBroadcast(userId, data) {
+  const clients = sseClients.get(userId)
+  if (!clients || clients.size === 0) return
+  const payload = `data: ${JSON.stringify(data)}\n\n`
+  for (const res of clients) {
+    try { res.write(payload) } catch { sseRemove(userId, res) }
+  }
+}
+
 // ── Cookie helpers for persistent login ──
 const COOKIE_NAME = 'fellis_sid'
 const COOKIE_MAX_AGE = 30 * 24 * 60 * 60 * 1000 // 30 days
@@ -399,16 +419,21 @@ function clearSessionCookie(res) {
 }
 
 function getSessionIdFromRequest(req) {
-  // Header takes priority, then cookie.
+  // Header takes priority, then cookie, then query param (for SSE/EventSource).
   // Guard against the literal strings "null"/"undefined" that JS sends when the
   // client calls fetch with headers: { 'X-Session-Id': null }.
   const fromHeader = req.headers['x-session-id']
   if (fromHeader && fromHeader !== 'null' && fromHeader !== 'undefined') return fromHeader
   // Parse cookie manually
   const cookies = req.headers.cookie
-  if (!cookies) return null
-  const match = cookies.split(';').map(c => c.trim()).find(c => c.startsWith(COOKIE_NAME + '='))
-  return match ? match.split('=')[1] : null
+  if (cookies) {
+    const match = cookies.split(';').map(c => c.trim()).find(c => c.startsWith(COOKIE_NAME + '='))
+    if (match) return match.split('=')[1]
+  }
+  // Query param fallback — used by EventSource (cannot set custom headers)
+  const fromQuery = req.query.sid
+  if (fromQuery && fromQuery !== 'null' && fromQuery !== 'undefined') return fromQuery
+  return null
 }
 
 // ── Upload security ──
@@ -508,6 +533,16 @@ pool.query('ALTER TABLE posts ADD COLUMN IF NOT EXISTS is_public TINYINT(1) NOT 
   .catch(err => console.error('Migration (posts.is_public):', err.message))
 pool.query('ALTER TABLE posts ADD COLUMN IF NOT EXISTS share_count INT(11) NOT NULL DEFAULT 0')
   .catch(err => console.error('Migration (posts.share_count):', err.message))
+
+// ── Group suggestions auto-migrations ──
+pool.query('ALTER TABLE conversations ADD COLUMN IF NOT EXISTS is_public TINYINT(1) NOT NULL DEFAULT 0')
+  .catch(err => console.error('Migration (conversations.is_public):', err.message))
+pool.query('ALTER TABLE conversations ADD COLUMN IF NOT EXISTS category VARCHAR(100) DEFAULT NULL')
+  .catch(err => console.error('Migration (conversations.category):', err.message))
+pool.query('ALTER TABLE conversations ADD COLUMN IF NOT EXISTS description_da TEXT DEFAULT NULL')
+  .catch(err => console.error('Migration (conversations.description_da):', err.message))
+pool.query('ALTER TABLE conversations ADD COLUMN IF NOT EXISTS description_en TEXT DEFAULT NULL')
+  .catch(err => console.error('Migration (conversations.description_en):', err.message))
 
 // Serve uploads with security headers (no script execution, no sniffing)
 app.use('/uploads', (req, res, next) => {
@@ -1834,7 +1869,7 @@ app.post('/api/invites', authenticate, async (req, res) => {
           html: `<p>Hej!</p><p><strong>${inviter.name || 'En ven'}</strong> vil gerne forbindes med dig på <strong>Fellis</strong>.</p><p><a href="${inviteUrl}" style="background:#2D6A4F;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:bold">Opret konto og forbind</a></p><p style="color:#888;font-size:12px">Eller kopier dette link: ${inviteUrl}</p>`,
         }).catch(err => console.error('Mail send error:', err.message))
       }
-      created.push({ name: name || email, email, token })
+      created.push({ name: name || email, email, token, inviteUrl })
     }
     res.json({ invitations: created, count: created.length, emailSent: !!(mailer) })
   } catch (err) {
@@ -2122,6 +2157,27 @@ app.post('/api/conversations', authenticate, async (req, res) => {
   }
 })
 
+// GET /api/sse — Server-Sent Events stream for real-time updates
+app.get('/api/sse', authenticate, (req, res) => {
+  res.set({
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'X-Accel-Buffering': 'no', // disable nginx buffering
+  })
+  res.flushHeaders()
+  res.write(': connected\n\n')
+  sseAdd(req.userId, res)
+  // Heartbeat every 25 s to keep the connection alive
+  const hb = setInterval(() => {
+    try { res.write(': ping\n\n') } catch { clearInterval(hb) }
+  }, 25_000)
+  req.on('close', () => {
+    clearInterval(hb)
+    sseRemove(req.userId, res)
+  })
+})
+
 // POST /api/conversations/:id/messages — send a message
 app.post('/api/conversations/:id/messages', authenticate, async (req, res) => {
   const convId = parseInt(req.params.id)
@@ -2133,15 +2189,19 @@ app.post('/api/conversations/:id/messages', authenticate, async (req, res) => {
     if (!check.length) return res.status(403).json({ error: 'Not a participant' })
     const now = new Date()
     const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
-    const [others] = await pool.query(
-      'SELECT user_id FROM conversation_participants WHERE conversation_id = ? AND user_id != ? LIMIT 1',
-      [convId, req.userId])
-    const receiverId = others.length ? others[0].user_id : req.userId
+    const [participants] = await pool.query(
+      'SELECT user_id FROM conversation_participants WHERE conversation_id = ?', [convId])
+    const receiverId = participants.find(p => p.user_id !== req.userId)?.user_id ?? req.userId
     await pool.query(
       'INSERT INTO messages (conversation_id, sender_id, receiver_id, text_da, text_en, time) VALUES (?, ?, ?, ?, ?, ?)',
       [convId, req.userId, receiverId, text, text, time])
     const [[user]] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
-    res.json({ from: user.name, text: { da: text, en: text }, time: formatMsgTime(now) })
+    const msg = { from: user.name, text: { da: text, en: text }, time: formatMsgTime(now) }
+    // Push the new message to all other participants via SSE
+    for (const { user_id } of participants) {
+      if (user_id !== req.userId) sseBroadcast(user_id, { type: 'message', convId, msg })
+    }
+    res.json(msg)
   } catch (err) {
     res.status(500).json({ error: 'Failed to send message' })
   }
@@ -3881,6 +3941,39 @@ app.put('/api/events/:id/rsvp', authenticate, async (req, res) => {
   }
 })
 
+// PATCH /api/events/:id — edit event (organizer only)
+app.patch('/api/events/:id', authenticate, async (req, res) => {
+  try {
+    const [[event]] = await pool.query('SELECT organizer_id FROM events WHERE id = ?', [req.params.id])
+    if (!event) return res.status(404).json({ error: 'Event not found' })
+    if (event.organizer_id !== req.userId) return res.status(403).json({ error: 'Forbidden' })
+    const { title, description, date, location, eventType, ticketUrl, cap } = req.body
+    if (!title || !date) return res.status(400).json({ error: 'Title and date required' })
+    await pool.query(
+      `UPDATE events SET title=?, description=?, date=?, location=?, event_type=?, ticket_url=?, cap=? WHERE id=?`,
+      [title, description || null, date, location || null, eventType || null, ticketUrl || null, cap || null, req.params.id]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('PATCH /api/events/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// DELETE /api/events/:id — delete event (organizer only)
+app.delete('/api/events/:id', authenticate, async (req, res) => {
+  try {
+    const [[event]] = await pool.query('SELECT organizer_id FROM events WHERE id = ?', [req.params.id])
+    if (!event) return res.status(404).json({ error: 'Event not found' })
+    if (event.organizer_id !== req.userId) return res.status(403).json({ error: 'Forbidden' })
+    await pool.query('DELETE FROM events WHERE id = ?', [req.params.id])
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/events/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // PATCH /api/profile/birthday — set or clear user's birthday
 app.patch('/api/profile/birthday', authenticate, async (req, res) => {
   try {
@@ -3980,10 +4073,12 @@ async function initReels() {
     await pool.query(`CREATE TABLE IF NOT EXISTS reel_likes (
       reel_id INT NOT NULL,
       user_id INT NOT NULL,
+      reaction VARCHAR(10) DEFAULT '❤️',
       PRIMARY KEY (reel_id, user_id),
       FOREIGN KEY (reel_id) REFERENCES reels(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    await pool.query(`ALTER TABLE reel_likes ADD COLUMN IF NOT EXISTS reaction VARCHAR(10) DEFAULT '❤️'`).catch(() => {})
     await pool.query(`CREATE TABLE IF NOT EXISTS reel_comments (
       id INT AUTO_INCREMENT PRIMARY KEY,
       reel_id INT NOT NULL,
@@ -4008,6 +4103,7 @@ app.get('/api/reels', authenticate, async (req, res) => {
               u.id AS user_id, u.name AS author_name, u.handle AS author_handle, u.avatar_url AS author_avatar,
               COUNT(DISTINCT rl.user_id) AS likes_count,
               EXISTS(SELECT 1 FROM reel_likes WHERE reel_id = r.id AND user_id = ?) AS liked_by_me,
+              (SELECT reaction FROM reel_likes WHERE reel_id = r.id AND user_id = ?) AS my_reaction,
               COUNT(DISTINCT rc.id) AS comments_count
        FROM reels r
        JOIN users u ON r.user_id = u.id
@@ -4016,9 +4112,9 @@ app.get('/api/reels', authenticate, async (req, res) => {
        GROUP BY r.id
        ORDER BY r.created_at DESC
        LIMIT ? OFFSET ?`,
-      [req.userId, limit, offset]
+      [req.userId, req.userId, limit, offset]
     )
-    res.json({ reels: rows.map(r => ({ ...r, liked_by_me: !!r.liked_by_me })) })
+    res.json({ reels: rows.map(r => ({ ...r, liked_by_me: !!r.liked_by_me, my_reaction: r.my_reaction || null })) })
   } catch (err) {
     console.error('GET /api/reels error:', err.message)
     res.status(500).json({ error: 'Server error' })
@@ -4049,23 +4145,33 @@ app.post('/api/reels', authenticate, reelUpload.single('video'), async (req, res
   }
 })
 
-// POST /api/reels/:id/like — toggle like
+// POST /api/reels/:id/like — toggle like (supports reaction emoji)
 app.post('/api/reels/:id/like', authenticate, async (req, res) => {
   try {
     const reelId = parseInt(req.params.id)
+    const reaction = (req.body?.reaction || '❤️').slice(0, 10)
     const [[existing]] = await pool.query(
-      'SELECT 1 FROM reel_likes WHERE reel_id = ? AND user_id = ?',
+      'SELECT reaction FROM reel_likes WHERE reel_id = ? AND user_id = ?',
       [reelId, req.userId]
     )
     if (existing) {
-      await pool.query('DELETE FROM reel_likes WHERE reel_id = ? AND user_id = ?', [reelId, req.userId])
+      if (existing.reaction === reaction) {
+        // Same reaction → unlike
+        await pool.query('DELETE FROM reel_likes WHERE reel_id = ? AND user_id = ?', [reelId, req.userId])
+        const [[{ likes_count }]] = await pool.query(
+          'SELECT COUNT(*) AS likes_count FROM reel_likes WHERE reel_id = ?', [reelId])
+        return res.json({ liked: false, likes_count, reaction: null })
+      } else {
+        // Different reaction → update
+        await pool.query('UPDATE reel_likes SET reaction=? WHERE reel_id=? AND user_id=?', [reaction, reelId, req.userId])
+      }
     } else {
-      await pool.query('INSERT IGNORE INTO reel_likes (reel_id, user_id) VALUES (?, ?)', [reelId, req.userId])
+      await pool.query('INSERT INTO reel_likes (reel_id, user_id, reaction) VALUES (?, ?, ?)', [reelId, req.userId, reaction])
     }
     const [[{ likes_count }]] = await pool.query(
       'SELECT COUNT(*) AS likes_count FROM reel_likes WHERE reel_id = ?', [reelId]
     )
-    res.json({ liked: !existing, likes_count })
+    res.json({ liked: true, likes_count, reaction })
   } catch (err) {
     console.error('POST /api/reels/:id/like error:', err.message)
     res.status(500).json({ error: 'Server error' })
