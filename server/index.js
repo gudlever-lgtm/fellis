@@ -1105,7 +1105,7 @@ app.get('/api/profile', authenticate, async (req, res) => {
   try {
     const [users] = await pool.query(
       `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url,
-        u.email, u.facebook_id, u.password_hash, u.password_plain, u.created_at,
+        u.email, u.facebook_id, u.password_hash, u.password_plain, u.created_at, u.birthday,
         u.profile_public, u.reputation_score, u.referral_count, u.interests,
         (SELECT COUNT(*) FROM friendships WHERE user_id = u.id) as friend_count,
         (SELECT COUNT(*) FROM posts WHERE author_id = u.id) as post_count
@@ -1127,6 +1127,7 @@ app.get('/api/profile', authenticate, async (req, res) => {
       hasPassword: !!u.password_hash,
       passwordHint: u.password_plain ? (u.password_plain[0] + '*'.repeat(Math.max(u.password_plain.length - 2, 0)) + (u.password_plain.length > 1 ? u.password_plain[u.password_plain.length - 1] : '')) : null,
       createdAt: u.created_at || u.join_date || null,
+      birthday: u.birthday || null,
       profile_public: !!u.profile_public,
       reputationScore: Number(u.reputation_score || 0),
       referralCount: Number(u.referral_count || 0),
@@ -3879,6 +3880,74 @@ app.put('/api/events/:id/rsvp', authenticate, async (req, res) => {
     res.status(500).json({ error: 'Server error' })
   }
 })
+
+// PATCH /api/profile/birthday — set or clear user's birthday
+app.patch('/api/profile/birthday', authenticate, async (req, res) => {
+  try {
+    const { birthday } = req.body
+    // Accepts ISO date string 'YYYY-MM-DD' or null to clear
+    const value = birthday ? birthday : null
+    if (value && !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      return res.status(400).json({ error: 'Invalid date format, use YYYY-MM-DD' })
+    }
+    await pool.query('UPDATE users SET birthday = ? WHERE id = ?', [value, req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('PATCH /api/profile/birthday error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Settings: Sessions ─────────────────────────────────────────────────────
+
+// GET /api/calendar/events — fetch calendar data: friend birthdays + platform events
+app.get('/api/calendar/events', authenticate, async (req, res) => {
+  try {
+    // Get birthday of friends + the current user
+    const [birthdayRows] = await pool.query(
+      `SELECT u.id, u.name, u.initials, u.avatar_url, u.birthday
+       FROM users u
+       WHERE u.birthday IS NOT NULL
+         AND (
+           u.id = ?
+           OR u.id IN (
+             SELECT CASE WHEN user_id_1 = ? THEN user_id_2 ELSE user_id_1 END
+             FROM friendships WHERE user_id_1 = ? OR user_id_2 = ?
+           )
+         )`,
+      [req.userId, req.userId, req.userId, req.userId]
+    )
+    const birthdays = birthdayRows.map(u => ({
+      userId: u.id,
+      name: u.name,
+      initials: u.initials,
+      avatarUrl: u.avatar_url,
+      date: u.birthday, // full YYYY-MM-DD stored, client uses MM-DD for yearly repeat
+    }))
+
+    // Get platform events
+    const [eventRows] = await pool.query(
+      `SELECT e.id, e.title, e.date, e.location, e.event_type,
+        (SELECT r.status FROM event_rsvps r WHERE r.event_id = e.id AND r.user_id = ?) AS my_rsvp
+       FROM events e ORDER BY e.date ASC`,
+      [req.userId]
+    )
+    const events = eventRows.map(e => ({
+      id: e.id,
+      title: e.title,
+      date: e.date,
+      location: e.location,
+      eventType: e.event_type,
+      myRsvp: e.my_rsvp || null,
+    }))
+
+    res.json({ birthdays, events })
+  } catch (err) {
+    console.error('GET /api/calendar/events error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 
 // ── Reels ──────────────────────────────────────────────────────────────────
 
