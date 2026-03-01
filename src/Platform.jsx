@@ -7500,7 +7500,9 @@ function ListingDetailModal({ listing, t, lang, currentUser, catLabel, catIcon, 
     return () => document.removeEventListener('keydown', handler)
   }, [onClose])
 
-  const isOwn = listing.seller === currentUser?.name || listing.sellerId === currentUser?.id
+  const isOwn = (typeof listing.sellerId === 'number' && listing.sellerId > 0)
+    ? listing.sellerId === currentUser?.id
+    : listing.seller === currentUser?.name
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -7572,29 +7574,33 @@ function ListingDetailModal({ listing, t, lang, currentUser, catLabel, catIcon, 
             </div>
           )}
 
-          {/* Contact section for other users */}
-          {!isOwn && !listing.sold && (
+          {/* Contact section */}
+          {!listing.sold && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
-              {/* Primary: Fellis messages — always default for public listings */}
-              {typeof listing.sellerId === 'number' && listing.sellerId > 0 ? (
-                <button
-                  className="p-marketplace-create-btn"
-                  style={{ width: '100%', justifyContent: 'center' }}
-                  onClick={() => { onContactSeller(listing.sellerId); onClose() }}
-                >
-                  💬 {t.marketplaceContactSeller}
-                </button>
-              ) : (
-                <div style={{ textAlign: 'center', color: '#aaa', fontSize: 13, padding: '4px 0' }}>
-                  {lang === 'da' ? 'Sælgeren er ikke på Fellis' : 'Seller is not on Fellis'}
-                </div>
-              )}
-              {/* Additional contact options */}
-              {(listing.mobilepay || listing.contact_phone || listing.contact_email) && (
-                <div style={{ borderTop: '1px solid #f0ebe5', paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <div style={{ fontSize: 11, color: '#aaa', textAlign: 'center', marginBottom: 2 }}>
-                    {lang === 'da' ? 'Andre kontaktmuligheder' : 'Other contact options'}
+              {/* Send message button — only for other users */}
+              {!isOwn && (
+                typeof listing.sellerId === 'number' && listing.sellerId > 0 ? (
+                  <button
+                    className="p-marketplace-create-btn"
+                    style={{ width: '100%', justifyContent: 'center' }}
+                    onClick={() => { onContactSeller(listing.sellerId); onClose() }}
+                  >
+                    💬 {t.marketplaceContactSeller}
+                  </button>
+                ) : (
+                  <div style={{ textAlign: 'center', color: '#aaa', fontSize: 13, padding: '4px 0' }}>
+                    {lang === 'da' ? 'Sælgeren er ikke på Fellis' : 'Seller is not on Fellis'}
                   </div>
+                )
+              )}
+              {/* Contact info — shown for everyone when populated */}
+              {(listing.mobilepay || listing.contact_phone || listing.contact_email) && (
+                <div style={{ borderTop: isOwn ? 'none' : '1px solid #f0ebe5', paddingTop: isOwn ? 0 : 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {isOwn && (
+                    <div style={{ fontSize: 11, color: '#aaa', marginBottom: 2 }}>
+                      {lang === 'da' ? 'Din kontaktinfo på opslaget:' : 'Your contact info on this listing:'}
+                    </div>
+                  )}
                   {listing.mobilepay && (
                     <a href={`mobilepay://send?phone=${listing.mobilepay}`}
                       style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 16px', borderRadius: 8, border: '2px solid #5A78FF', color: '#5A78FF', fontWeight: 700, fontSize: 14, textDecoration: 'none', background: '#fff' }}>
