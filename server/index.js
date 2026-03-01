@@ -1015,8 +1015,9 @@ app.get('/api/auth/facebook/callback', async (req, res) => {
     )
 
     // Redirect to frontend — frontend will show consent dialog before importing
+    const isNewUser = existing.length === 0
     setSessionCookie(res, sessionId)
-    res.redirect(`/?fb_session=${sessionId}&fb_lang=${lang}&fb_needs_consent=true`)
+    res.redirect(`/?fb_session=${sessionId}&fb_lang=${lang}&fb_needs_consent=true${isNewUser ? '&fb_new_user=1' : ''}`)
   } catch (err) {
     console.error('Facebook callback error:', err)
     res.redirect('/?fb_error=server')

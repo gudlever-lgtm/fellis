@@ -269,6 +269,7 @@ function App() {
     const fbSession = params.get('fb_session')
     const fbLang = params.get('fb_lang')
     const fbNeedsConsent = params.get('fb_needs_consent')
+    const fbNewUser = params.get('fb_new_user')
 
     if (fbSession) {
       // Returning from Facebook OAuth — store session
@@ -277,6 +278,15 @@ function App() {
       if (fbLang) {
         localStorage.setItem('fellis_lang', fbLang)
         setLang(fbLang)
+      }
+      // New FB user: trigger onboarding tour + store inviter name if known
+      if (fbNewUser === '1') {
+        localStorage.setItem('fellis_onboarding', '1')
+        const storedInviter = localStorage.getItem('fellis_invite_info_name')
+        if (storedInviter) {
+          localStorage.setItem('fellis_onboarding_inviter', storedInviter)
+          localStorage.removeItem('fellis_invite_info_name')
+        }
       }
       // GDPR: Show consent dialog before importing data
       if (fbNeedsConsent === 'true') {
@@ -294,7 +304,11 @@ function App() {
       setInviteToken(invite)
       localStorage.setItem('fellis_invite_token', invite)
       apiGetInviteInfo(invite).then(data => {
-        if (data?.inviter?.name) setInviterName(data.inviter.name)
+        if (data?.inviter?.name) {
+          setInviterName(data.inviter.name)
+          // Store for onboarding if user goes via Facebook (loses state after redirect)
+          localStorage.setItem('fellis_invite_info_name', data.inviter.name)
+        }
         if (data?.invitee_email) setInviterEmail(data.invitee_email)
       })
       window.history.replaceState({}, '', window.location.pathname)

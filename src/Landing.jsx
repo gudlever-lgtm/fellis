@@ -384,6 +384,9 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
     setRegError('')
     try {
       await apiRegister(regName.trim(), regEmail.trim(), regPassword.trim(), lang, inviteToken || undefined)
+      // Flag for onboarding tour (only for new registrations)
+      localStorage.setItem('fellis_onboarding', '1')
+      if (inviterName) localStorage.setItem('fellis_onboarding_inviter', inviterName)
       // Show mode selector before entering platform
       setPendingEnter(true)
       setStep(5)

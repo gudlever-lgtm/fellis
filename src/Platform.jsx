@@ -52,6 +52,8 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
   const [plan, setPlan] = useState('business') // set from server session; 'business_pro' = paid tier
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('fellis_dark') === '1')
+  const [showOnboarding, setShowOnboarding] = useState(() => localStorage.getItem('fellis_onboarding') === '1')
+  const [onboardingInviterName] = useState(() => localStorage.getItem('fellis_onboarding_inviter') || null)
   const avatarMenuRef = useRef(null)
   const notifRef = useRef(null)
   const t = PT[lang]
@@ -335,6 +337,19 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
           />
         )}
       </div>
+
+      {/* Onboarding welcome tour — shown only once for new accounts */}
+      {showOnboarding && (
+        <WelcomeOnboardingModal
+          lang={lang}
+          inviterName={onboardingInviterName}
+          onDone={() => {
+            setShowOnboarding(false)
+            localStorage.removeItem('fellis_onboarding')
+            localStorage.removeItem('fellis_onboarding_inviter')
+          }}
+        />
+      )}
 
       {/* Mode switch modal */}
       {showUpgradeModal && (
@@ -7963,6 +7978,161 @@ function PlanGate({ plan, required = 'business_pro', t, onUpgrade, children }) {
 // ─────────────────────────────────────────────
 // ── UpgradeModal ──────────────────────────────
 // ─────────────────────────────────────────────
+
+// ── Welcome onboarding tour (shown once to new users) ──
+const ONBOARDING_STEPS = [
+  {
+    icon: '🏠',
+    title: { da: 'Feed', en: 'Feed' },
+    desc: {
+      da: 'Del hvad der sker i dit liv, og se hvad dine venner og bekendte laver. Post tekst, billeder og links.',
+      en: 'Share what\'s happening in your life and see what your friends are up to. Post text, photos and links.',
+    },
+  },
+  {
+    icon: '👥',
+    title: { da: 'Venner', en: 'Friends' },
+    desc: {
+      da: 'Find og forbind med venner og bekendte. Under fanen Invitationer kan du acceptere venneanmodninger.',
+      en: 'Find and connect with friends. Under the Invitations tab you can accept friend requests.',
+    },
+  },
+  {
+    icon: '💬',
+    title: { da: 'Beskeder', en: 'Messages' },
+    desc: {
+      da: 'Chat privat med en ven eller opret en gruppebesked. Dine samtaler er private og krypterede.',
+      en: 'Chat privately with a friend or create a group chat. Your conversations are private and encrypted.',
+    },
+  },
+  {
+    icon: '🛍️',
+    title: { da: 'Marked', en: 'Marketplace' },
+    desc: {
+      da: 'Køb og sælg brugte ting lokalt. Opret et opslag med pris, billeder og kontaktinfo på få sekunder.',
+      en: 'Buy and sell second-hand items locally. Create a listing with price, photos and contact info in seconds.',
+    },
+  },
+  {
+    icon: '📅',
+    title: { da: 'Events', en: 'Events' },
+    desc: {
+      da: 'Find begivenheder i dit område eller opret dit eget — fødselsdagsfest, netværksmøde, loppemarked…',
+      en: 'Find events near you or create your own — birthday party, networking meetup, flea market…',
+    },
+  },
+]
+
+function WelcomeOnboardingModal({ lang, inviterName, onDone }) {
+  const da = lang === 'da'
+  // step -1 = welcome, 0..4 = feature steps, 5 = benefits
+  const [step, setStep] = useState(-1)
+  const totalFeatureSteps = ONBOARDING_STEPS.length
+  const isWelcome = step === -1
+  const isBenefits = step === totalFeatureSteps
+  const isLastFeature = step === totalFeatureSteps - 1
+  const cur = step >= 0 && !isBenefits ? ONBOARDING_STEPS[step] : null
+
+  const next = () => setStep(s => s + 1)
+
+  return (
+    <div className="modal-backdrop" style={{ zIndex: 3000 }} onClick={e => e.stopPropagation()}>
+      <div style={{ background: '#fff', borderRadius: 18, maxWidth: 440, width: '90%', padding: '32px 28px 24px', position: 'relative', boxShadow: '0 8px 40px rgba(0,0,0,0.18)', textAlign: 'center' }}>
+        {/* Skip / close */}
+        <button
+          onClick={onDone}
+          style={{ position: 'absolute', top: 14, right: 16, background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#bbb', lineHeight: 1 }}
+          aria-label="Luk"
+        >✕</button>
+
+        {isWelcome && (
+          <>
+            <div style={{ fontSize: 56, marginBottom: 12 }}>🎉</div>
+            <h2 style={{ margin: '0 0 8px', fontSize: 22, fontWeight: 800, color: '#1A1A1A' }}>
+              {da ? 'Velkommen til Fellis.eu!' : 'Welcome to Fellis.eu!'}
+            </h2>
+            {inviterName && (
+              <div style={{ margin: '0 0 12px', padding: '10px 16px', background: '#F0FAF4', borderRadius: 10, fontSize: 14, color: '#2D6A4F', fontWeight: 600 }}>
+                🤝 {da ? `Du er inviteret af ${inviterName} — I er nu forbundet!` : `You were invited by ${inviterName} — you are now connected!`}
+              </div>
+            )}
+            <p style={{ margin: '0 0 24px', fontSize: 14, color: '#666', lineHeight: 1.6 }}>
+              {da
+                ? 'Fellis er den danske, private platform uden annoncører. Lad os vise dig rundt på få sekunder.'
+                : 'Fellis is the Danish, private platform without advertisers. Let us show you around in a few seconds.'}
+            </p>
+            <button
+              className="p-btn-primary"
+              style={{ width: '100%', padding: '12px 0', fontSize: 15, borderRadius: 10 }}
+              onClick={next}
+            >
+              {da ? 'Kom i gang →' : 'Get started →'}
+            </button>
+          </>
+        )}
+
+        {cur && (
+          <>
+            {/* Progress dots */}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginBottom: 20 }}>
+              {ONBOARDING_STEPS.map((_, i) => (
+                <div key={i} style={{ width: 7, height: 7, borderRadius: '50%', background: i === step ? '#2D6A4F' : '#E8E4DF', transition: 'background 0.2s' }} />
+              ))}
+            </div>
+            <div style={{ fontSize: 52, marginBottom: 12 }}>{cur.icon}</div>
+            <h3 style={{ margin: '0 0 10px', fontSize: 20, fontWeight: 700, color: '#1A1A1A' }}>{cur.title[lang] || cur.title.da}</h3>
+            <p style={{ margin: '0 0 28px', fontSize: 14, color: '#666', lineHeight: 1.6 }}>{cur.desc[lang] || cur.desc.da}</p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => setStep(s => s - 1)}
+                style={{ flex: 1, padding: '11px 0', borderRadius: 10, border: '1.5px solid #E8E4DF', background: '#fff', fontSize: 14, cursor: 'pointer', color: '#555', fontWeight: 600 }}
+              >
+                ← {da ? 'Forrige' : 'Back'}
+              </button>
+              <button
+                className="p-btn-primary"
+                style={{ flex: 2, padding: '11px 0', fontSize: 15, borderRadius: 10 }}
+                onClick={next}
+              >
+                {isLastFeature ? (da ? 'Se fordele →' : 'See benefits →') : (da ? 'Næste →' : 'Next →')}
+              </button>
+            </div>
+          </>
+        )}
+
+        {isBenefits && (
+          <>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>✨</div>
+            <h3 style={{ margin: '0 0 16px', fontSize: 20, fontWeight: 800, color: '#1A1A1A' }}>
+              {da ? 'Hvorfor Fellis.eu?' : 'Why Fellis.eu?'}
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24, textAlign: 'left' }}>
+              {[
+                { icon: '🔒', da: 'Privat by design — dine data sælges aldrig', en: 'Private by design — your data is never sold' },
+                { icon: '🇪🇺', da: 'Hostet i EU — GDPR-godkendt fra dag ét', en: 'Hosted in the EU — GDPR-compliant from day one' },
+                { icon: '🚫', da: 'Ingen annoncører eller algoritme-manipulation', en: 'No advertisers or algorithmic manipulation' },
+                { icon: '🌱', da: 'Dansk platform bygget til fællesskab', en: 'Danish platform built for community' },
+                { icon: '🗑️', da: 'Slet alt dine data med ét klik til enhver tid', en: 'Delete all your data with one click at any time' },
+              ].map(({ icon, da: textDa, en: textEn }) => (
+                <div key={icon} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '8px 12px', background: '#F7F5F2', borderRadius: 8, fontSize: 13, color: '#333' }}>
+                  <span style={{ fontSize: 18, flexShrink: 0 }}>{icon}</span>
+                  <span>{da ? textDa : textEn}</span>
+                </div>
+              ))}
+            </div>
+            <button
+              className="p-btn-primary"
+              style={{ width: '100%', padding: '13px 0', fontSize: 15, borderRadius: 10 }}
+              onClick={onDone}
+            >
+              {da ? '🚀 Kom i gang!' : '🚀 Let\'s go!'}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
 
 function UpgradeModal({ lang, t, onUpgrade, onClose }) {
   const features = lang === 'da'
