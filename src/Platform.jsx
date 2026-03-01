@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect } from 'react'
 import { PT, INTEREST_CATEGORIES, nameToColor, getInitials, detectMusicUrl } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -762,6 +762,14 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
   const feedDbEventIds = new Set(feedEvents.map(e => e.id))
   const [editingPostId, setEditingPostId] = useState(null)
   const [editPostText, setEditPostText] = useState('')
+  const [groupSuggestions, setGroupSuggestions] = useState([])
+  const [joinedGroupIds, setJoinedGroupIds] = useState(new Set())
+  const [dismissedGroupIds, setDismissedGroupIds] = useState(new Set())
+
+  const handleJoinGroup = async (groupId) => {
+    setJoinedGroupIds(prev => new Set([...prev, groupId]))
+    await apiJoinGroup(groupId).catch(() => {})
+  }
 
   const handleFeedRsvp = (eventId, status) => {
     const newStatus = feedRsvpMap[eventId] === status ? null : status
@@ -824,6 +832,11 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
         setFeedRsvpMap(map)
       }
     })
+    // Load dynamic group suggestions
+    apiGetGroupSuggestions().then(data => {
+      if (data?.suggestions?.length) setGroupSuggestions(data.suggestions)
+    })
+
     // Load recent company posts from followed companies
     fetch('/api/companies', { credentials: 'include' })
       .then(r => r.json())
@@ -1458,6 +1471,63 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
           </div>
         )
       })}
+
+      {/* Dynamic group suggestion card — shown on first page when suggestions exist */}
+      {offset === 0 && (() => {
+        const visible = groupSuggestions.filter(g => !dismissedGroupIds.has(g.id) && !joinedGroupIds.has(g.id))
+        if (!visible.length) return null
+        return (
+          <div className="p-card p-post" style={{ background: 'linear-gradient(135deg, #f0faf4 0%, #fff 100%)', border: '1.5px solid #d4edda' }}>
+            <div className="p-post-header">
+              <div className="p-avatar-sm" style={{ background: '#2D6A4F', fontSize: 13, fontWeight: 900, letterSpacing: '-0.5px', flexShrink: 0 }}>
+                f
+              </div>
+              <div style={{ flex: 1 }}>
+                <div className="p-post-author">fellis.eu</div>
+                <div className="p-post-time">{t.groupSuggestionsSubtitle}</div>
+              </div>
+              <span style={{ fontSize: 11, color: '#2D6A4F', fontWeight: 700, background: '#d4edda', padding: '3px 8px', borderRadius: 20 }}>
+                💡 {lang === 'da' ? 'Forslag' : 'Suggested'}
+              </span>
+            </div>
+            <div style={{ marginTop: 10 }}>
+              {visible.slice(0, 3).map((group, idx) => (
+                <div key={group.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderTop: idx > 0 ? '1px solid #eef5f0' : 'none' }}>
+                  <div style={{ flex: 1, minWidth: 0, paddingRight: 10 }}>
+                    <div style={{ fontWeight: 600, fontSize: 14, color: '#1a1a1a' }}>
+                      👥 {group.name}
+                    </div>
+                    <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
+                      {Number(group.shared_members) > 0 ? t.groupSuggestionFriendsBased : t.groupSuggestionPopular}
+                      {' · '}
+                      {group.member_count} {Number(group.member_count) === 1 ? t.groupMember : t.groupMembers}
+                    </div>
+                    {(lang === 'da' ? group.description_da : group.description_en) && (
+                      <div style={{ fontSize: 12, color: '#555', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {lang === 'da' ? group.description_da : group.description_en}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                    <button
+                      onClick={() => setDismissedGroupIds(prev => new Set([...prev, group.id]))}
+                      style={{ background: 'none', border: '1px solid #ddd', borderRadius: 8, fontSize: 12, padding: '5px 10px', cursor: 'pointer', color: '#888' }}
+                    >
+                      {t.groupSuggestionDismiss}
+                    </button>
+                    <button
+                      onClick={() => handleJoinGroup(group.id)}
+                      style={{ background: '#2D6A4F', color: '#fff', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, padding: '5px 12px', cursor: 'pointer' }}
+                    >
+                      {t.groupJoin}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Posts — max PAGE_SIZE in DOM */}
       {posts.filter(post => !hiddenPosts.has(post.id)).map(post => {

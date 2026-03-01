@@ -555,3 +555,13 @@ export async function apiTrackShare(shareType, targetId, platform) {
 export async function apiGetAdminViralStats(days = 30) {
   return await request(`/api/admin/viral-stats?days=${days}`)
 }
+
+// ── Group Suggestions ──
+
+export async function apiGetGroupSuggestions() {
+  return await request('/api/groups/suggestions')
+}
+
+export async function apiJoinGroup(groupId) {
+  return await request(`/api/groups/${groupId}/join`, { method: 'POST' })
+}

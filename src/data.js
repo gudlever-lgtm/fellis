@@ -259,6 +259,16 @@ export const PT = {
     invitesSentOk: 'Invitation sendt!',
     invitesCancelBtn: 'Annuller',
     invitesIncomingEmpty: 'Ingen indkommende anmodninger',
+    // Group suggestions
+    groupSuggestionsTitle: 'fellis.eu foreslår',
+    groupSuggestionsSubtitle: 'Grupper du måske vil synes om',
+    groupJoin: 'Bliv medlem',
+    groupJoined: 'Tilmeldt ✓',
+    groupMembers: 'medlemmer',
+    groupMember: 'medlem',
+    groupSuggestionDismiss: 'Skjul',
+    groupSuggestionFriendsBased: 'Baseret på dine grupper',
+    groupSuggestionPopular: 'Populær gruppe',
     // Analytics
     analyticsNav: 'Analyse',
     analyticsTitle: 'Analysedashboard',
@@ -736,6 +746,16 @@ export const PT = {
     invitesSentOk: 'Invitation sent!',
     invitesCancelBtn: 'Cancel',
     invitesIncomingEmpty: 'No incoming requests',
+    // Group suggestions
+    groupSuggestionsTitle: 'fellis.eu suggests',
+    groupSuggestionsSubtitle: 'Groups you might like',
+    groupJoin: 'Join',
+    groupJoined: 'Joined ✓',
+    groupMembers: 'members',
+    groupMember: 'member',
+    groupSuggestionDismiss: 'Hide',
+    groupSuggestionFriendsBased: 'Based on your groups',
+    groupSuggestionPopular: 'Popular group',
     // Analytics
     analyticsNav: 'Analytics',
     analyticsTitle: 'Analytics Dashboard',
