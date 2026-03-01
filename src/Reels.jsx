@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { nameToColor, getInitials } from './data.js'
+import { nameToColor, getInitials, REACTIONS } from './data.js'
 import { apiFetchReels, apiUploadReel, apiToggleReelLike, apiFetchReelComments, apiAddReelComment, apiDeleteReel } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
@@ -7,13 +7,20 @@ const API_BASE = import.meta.env.VITE_API_URL || ''
 // ── Single Reel Card ──────────────────────────────────────────────────────────
 function ReelCard({ reel, t, currentUser, onDelete }) {
   const [liked, setLiked] = useState(reel.liked_by_me)
+  const [myReaction, setMyReaction] = useState(reel.my_reaction || '❤️')
   const [likesCount, setLikesCount] = useState(Number(reel.likes_count))
   const [showComments, setShowComments] = useState(false)
+  const [showReactionPicker, setShowReactionPicker] = useState(false)
   const [comments, setComments] = useState(null)
   const [commentText, setCommentText] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [muted, setMuted] = useState(true)
+  const [progress, setProgress] = useState(0)      // 0–1
+  const [duration, setDuration] = useState(0)
+  const [seeking, setSeeking] = useState(false)
   const videoRef = useRef(null)
+  const progressRef = useRef(null)
+  const reactionTimerRef = useRef(null)
 
   const isOwn = currentUser?.id && reel.user_id === currentUser.id
 
@@ -35,18 +42,79 @@ function ReelCard({ reel, t, currentUser, onDelete }) {
     return () => observer.disconnect()
   }, [])
 
-  const toggleLike = async () => {
-    const prev = liked
-    setLiked(!prev)
-    setLikesCount(c => prev ? c - 1 : c + 1)
-    const data = await apiToggleReelLike(reel.id)
+  // Track video progress for the timeline bar
+  useEffect(() => {
+    const el = videoRef.current
+    if (!el) return
+    const onTime = () => { if (!seeking && el.duration) setProgress(el.currentTime / el.duration) }
+    const onMeta = () => setDuration(el.duration || 0)
+    el.addEventListener('timeupdate', onTime)
+    el.addEventListener('loadedmetadata', onMeta)
+    return () => { el.removeEventListener('timeupdate', onTime); el.removeEventListener('loadedmetadata', onMeta) }
+  }, [seeking])
+
+  // Seek on progress bar click/drag
+  const handleSeek = useCallback((e) => {
+    const bar = progressRef.current
+    const el = videoRef.current
+    if (!bar || !el || !el.duration) return
+    const rect = bar.getBoundingClientRect()
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
+    el.currentTime = ratio * el.duration
+    setProgress(ratio)
+  }, [])
+
+  useEffect(() => {
+    const bar = progressRef.current
+    if (!bar) return
+    const onMove = (e) => { if (seeking) handleSeek(e) }
+    const onUp = () => setSeeking(false)
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    window.addEventListener('touchmove', onMove, { passive: true })
+    window.addEventListener('touchend', onUp)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      window.removeEventListener('touchmove', onMove)
+      window.removeEventListener('touchend', onUp)
+    }
+  }, [seeking, handleSeek])
+
+  const pickReaction = async (emoji) => {
+    setShowReactionPicker(false)
+    const prevLiked = liked
+    const prevReaction = myReaction
+    const isUnlike = liked && emoji === myReaction
+    setLiked(!isUnlike)
+    if (!isUnlike) setMyReaction(emoji)
+    setLikesCount(c => isUnlike ? c - 1 : (prevLiked ? c : c + 1))
+    const data = await apiToggleReelLike(reel.id, emoji)
     if (data) {
       setLiked(data.liked)
       setLikesCount(data.likes_count)
+      if (data.reaction) setMyReaction(data.reaction)
     } else {
-      setLiked(prev)
-      setLikesCount(c => prev ? c + 1 : c - 1)
+      setLiked(prevLiked); setMyReaction(prevReaction)
+      setLikesCount(c => isUnlike ? c + 1 : (prevLiked ? c : c - 1))
     }
+  }
+
+  const toggleLike = () => {
+    if (liked) {
+      pickReaction(myReaction) // unlike
+    } else {
+      // Short press = like with last/default reaction; long press shows picker
+      pickReaction(myReaction)
+    }
+  }
+
+  const handleLikePointerDown = () => {
+    reactionTimerRef.current = setTimeout(() => setShowReactionPicker(true), 500)
+  }
+  const handleLikePointerUp = () => {
+    if (reactionTimerRef.current) clearTimeout(reactionTimerRef.current)
   }
 
   const openComments = async () => {
@@ -248,7 +316,7 @@ function ReelCard({ reel, t, currentUser, onDelete }) {
           loop
           muted={muted}
           playsInline
-          onClick={() => setMuted(v => !v)}
+          onClick={() => { setMuted(v => !v); setShowReactionPicker(false) }}
         />
         <button style={s.muteBtn} onClick={() => setMuted(v => !v)} title={muted ? 'Slå lyd til' : 'Slå lyd fra'}>
           {muted ? '🔇' : '🔊'}
@@ -271,11 +339,56 @@ function ReelCard({ reel, t, currentUser, onDelete }) {
           </div>
           {reel.caption && <div style={s.caption}>{reel.caption}</div>}
         </div>
+
+        {/* ── Timeline progress bar ── */}
+        <div
+          ref={progressRef}
+          style={{
+            position: 'absolute', bottom: 0, left: 0, right: 0,
+            height: 20, cursor: 'pointer', display: 'flex', alignItems: 'flex-end',
+          }}
+          onMouseDown={e => { setSeeking(true); handleSeek(e) }}
+          onTouchStart={e => { setSeeking(true); handleSeek(e) }}
+        >
+          <div style={{ width: '100%', height: 3, background: 'rgba(255,255,255,0.3)', position: 'relative' }}>
+            <div style={{ width: `${progress * 100}%`, height: '100%', background: '#fff', borderRadius: 2 }} />
+            <div style={{
+              position: 'absolute', top: '50%', left: `${progress * 100}%`,
+              transform: 'translate(-50%,-50%)',
+              width: 10, height: 10, borderRadius: '50%', background: '#fff',
+              boxShadow: '0 0 4px rgba(0,0,0,0.4)',
+            }} />
+          </div>
+        </div>
       </div>
 
-      <div style={s.actions}>
-        <button style={s.actionBtn} onClick={toggleLike}>
-          <span style={{ fontSize: 20 }}>{liked ? '❤️' : '🤍'}</span>
+      <div style={{ ...s.actions, position: 'relative' }}>
+        {/* Reaction picker popup */}
+        {showReactionPicker && (
+          <div style={{
+            position: 'absolute', bottom: '100%', left: 0,
+            background: '#1a1a1a', borderRadius: 30, padding: '8px 12px',
+            display: 'flex', gap: 8, boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+            zIndex: 10,
+          }}>
+            {REACTIONS.map(r => (
+              <button key={r.emoji} title={r.label.da}
+                style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', padding: '2px 4px', borderRadius: 6, transition: 'transform 0.1s' }}
+                onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.3)' }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)' }}
+                onClick={() => pickReaction(r.emoji)}
+              >{r.emoji}</button>
+            ))}
+          </div>
+        )}
+        <button
+          style={s.actionBtn}
+          onClick={toggleLike}
+          onPointerDown={handleLikePointerDown}
+          onPointerUp={handleLikePointerUp}
+          onPointerLeave={handleLikePointerUp}
+        >
+          <span style={{ fontSize: 20 }}>{liked ? myReaction : '🤍'}</span>
           <span>{likesCount} {t.reelsLikes}</span>
         </button>
         <button style={s.actionBtn} onClick={openComments}>
