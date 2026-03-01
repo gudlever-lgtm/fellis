@@ -745,8 +745,11 @@ app.post('/api/auth/register', async (req, res) => {
         const [inviter] = await pool.query('SELECT id FROM users WHERE invite_token = ?', [inviteToken])
         if (inviter.length > 0) {
           referrerId = inviter[0].id
-          await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [newUserId, referrerId])
-          await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [referrerId, newUserId])
+          // Send a pending friend request so the invitee can see and accept it
+          await pool.query(
+            'INSERT IGNORE INTO friend_requests (from_user_id, to_user_id, status) VALUES (?, ?, ?)',
+            [referrerId, newUserId, 'pending']
+          )
         }
 
         // Check per-email invitation token
@@ -759,8 +762,11 @@ app.post('/api/auth/register', async (req, res) => {
           invitationId = invitation[0].id
           inviteSource = invitation[0].invite_source || 'email'
           await pool.query('UPDATE invitations SET status = ?, accepted_by = ? WHERE id = ?', ['accepted', newUserId, invitationId])
-          await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [newUserId, referrerId])
-          await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [referrerId, newUserId])
+          // Send a pending friend request so the invitee can see and accept it
+          await pool.query(
+            'INSERT IGNORE INTO friend_requests (from_user_id, to_user_id, status) VALUES (?, ?, ?)',
+            [referrerId, newUserId, 'pending']
+          )
         }
 
         // Record referral and award badges to inviter
@@ -1900,16 +1906,17 @@ app.get('/api/invites', authenticate, async (req, res) => {
               u.name as accepted_by_name
        FROM invitations i
        LEFT JOIN users u ON i.accepted_by = u.id
-       WHERE i.inviter_id = ? AND i.status != 'accepted' AND (i.invitee_name IS NOT NULL OR i.invitee_email IS NOT NULL)
+       WHERE i.inviter_id = ? AND (i.invitee_name IS NOT NULL OR i.invitee_email IS NOT NULL)
        ORDER BY i.created_at DESC`,
       [req.userId]
     )
     res.json(invitations.map(i => ({
       id: i.id,
-      name: i.invitee_name || i.invitee_email || null,
+      name: i.accepted_by_name || i.invitee_name || i.invitee_email || null,
       email: i.invitee_email || null,
       sentAt: i.created_at,
       status: i.status,
+      acceptedByName: i.accepted_by_name || null,
     })))
   } catch (err) {
     res.status(500).json({ error: 'Failed to load invitations' })
@@ -2835,7 +2842,7 @@ function parseListingPhotos(row) {
 app.get('/api/marketplace', authenticate, async (req, res) => {
   try {
     const { q, category, location } = req.query
-    let sql = `SELECT l.*, u.name AS seller_name, u.handle AS seller_handle, u.avatar_url AS seller_avatar
+    let sql = `SELECT l.*, u.id AS sellerId, u.name AS seller, u.handle AS seller_handle, u.avatar_url AS seller_avatar
                FROM marketplace_listings l JOIN users u ON l.user_id = u.id`
     const params = []
     const where = []
@@ -2855,7 +2862,7 @@ app.get('/api/marketplace', authenticate, async (req, res) => {
 app.get('/api/marketplace/mine', authenticate, async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT l.*, u.name AS seller_name, u.handle AS seller_handle, u.avatar_url AS seller_avatar
+      `SELECT l.*, u.id AS sellerId, u.name AS seller, u.handle AS seller_handle, u.avatar_url AS seller_avatar
        FROM marketplace_listings l JOIN users u ON l.user_id = u.id
        WHERE l.user_id = ? ORDER BY l.created_at DESC`, [req.userId])
     res.json({ listings: rows.map(parseListingPhotos) })
@@ -2875,7 +2882,7 @@ app.post('/api/marketplace', authenticate, upload.array('photos', 10), async (re
       [req.userId, title, price || null, priceNegotiable === 'true' ? 1 : 0, category, location || null, description || null, mobilepay || null, contact_phone || null, contact_email || null, photos.length ? JSON.stringify(photos) : null]
     )
     const [[listing]] = await pool.query(
-      `SELECT l.*, u.name AS seller_name, u.handle AS seller_handle FROM marketplace_listings l JOIN users u ON l.user_id = u.id WHERE l.id = ?`,
+      `SELECT l.*, u.id AS sellerId, u.name AS seller, u.handle AS seller_handle FROM marketplace_listings l JOIN users u ON l.user_id = u.id WHERE l.id = ?`,
       [result.insertId]
     )
     res.json(parseListingPhotos(listing))
@@ -2909,7 +2916,7 @@ app.put('/api/marketplace/:id', authenticate, upload.array('photos', 10), async 
       [title, price || null, priceNegotiable === 'true' ? 1 : 0, category, location || null, description || null, mobilepay || null, contact_phone || null, contact_email || null, photosJson, req.params.id]
     )
     const [[listing]] = await pool.query(
-      `SELECT l.*, u.name AS seller_name FROM marketplace_listings l JOIN users u ON l.user_id = u.id WHERE l.id = ?`,
+      `SELECT l.*, u.id AS sellerId, u.name AS seller, u.handle AS seller_handle FROM marketplace_listings l JOIN users u ON l.user_id = u.id WHERE l.id = ?`,
       [req.params.id]
     )
     res.json(parseListingPhotos(listing))

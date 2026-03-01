@@ -316,7 +316,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
             if (data?.id) setOpenConvId(data.id)
           }
           navigateTo('messages')
-        }} />}
+        }} onViewProfile={(uid) => { setViewUserId(uid); navigateTo('view-profile') }} />}
         {page === 'jobs' && <JobsPage lang={lang} t={t} currentUser={currentUser} mode={mode} />}
         {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} initialCompanyId={navParam?.companyId} />}
         {page === 'analytics' && <AnalyticsPage lang={lang} t={t} currentUser={currentUser} plan={plan} onUpgrade={() => setShowUpgradeModal(true)} />}
@@ -4244,7 +4244,7 @@ function FriendsPage({ lang, t, mode, onMessage }) {
               <span className="p-filter-online-dot" /> {t.onlineFriends} ({friends.filter(f => f.online).length})
             </button>
             <button className={`p-filter-tab${filter === 'invites' ? ' active' : ''}`} onClick={() => setFilter('invites')}>
-              ✉️ {t.invitesTab}{invites !== null && invites.length > 0 ? ` (${invites.length})` : ''}
+              ✉️ {t.invitesTab}{invites !== null && invites.filter(i => i.status === 'pending').length > 0 ? ` (${invites.filter(i => i.status === 'pending').length})` : ''}
             </button>
             <button className={`p-filter-tab${filter === 'viral' ? ' active' : ''}`} onClick={() => setFilter('viral')}>
               🚀 {t.referralDashViralTitle}
@@ -4341,12 +4341,13 @@ function FriendsPage({ lang, t, mode, onMessage }) {
           <div className="p-card p-invites-section">
             <h3 className="p-invites-section-title">{t.invitesSentTitle}</h3>
             {(() => {
-              const pending = (invites || []).filter(inv => inv.status !== 'joined' && inv.status !== 'accepted')
               if (invites === null) return <div className="p-invites-empty">…</div>
-              if (pending.length === 0) return <div className="p-invites-empty">✉️ {t.invitesNoSent}</div>
+              if ((invites || []).length === 0) return <div className="p-invites-empty">✉️ {t.invitesNoSent}</div>
               return (
               <div className="p-invites-list">
-                {pending.map((inv, i) => (
+                {(invites || []).map((inv, i) => {
+                  const isAccepted = inv.status === 'accepted' || inv.status === 'joined'
+                  return (
                   <div key={inv.id || i} className="p-invite-row">
                     <div className="p-avatar-sm" style={{ background: nameToColor(inv.name || inv.email || '?') }}>
                       {(inv.name || inv.email || '?')[0].toUpperCase()}
@@ -4358,11 +4359,20 @@ function FriendsPage({ lang, t, mode, onMessage }) {
                       )}
                     </div>
                     <div className="p-invite-row-actions">
-                      <span className="p-invite-status-badge">{t.invitesPending}</span>
-                      <button className="p-invite-cancel-btn" onClick={() => handleCancelInvite(inv.id || i, lang)} title={t.invitesCancelBtn}>✕</button>
+                      {isAccepted ? (
+                        <span className="p-invite-status-badge" style={{ background: '#e8f5e9', color: '#2D6A4F', border: '1px solid #b2dfdb' }}>
+                          ✅ {lang === 'da' ? 'Tilsluttet' : 'Joined'}
+                        </span>
+                      ) : (
+                        <>
+                          <span className="p-invite-status-badge">{t.invitesPending}</span>
+                          <button className="p-invite-cancel-btn" onClick={() => handleCancelInvite(inv.id || i, lang)} title={t.invitesCancelBtn}>✕</button>
+                        </>
+                      )}
                     </div>
                   </div>
-                ))}
+                  )
+                })}
               </div>
               )
             })()}
@@ -7178,7 +7188,7 @@ const MOCK_LISTINGS = [
   { id: 6, title: { da: 'Weber kuglegrill — 57 cm', en: 'Weber kettle grill — 57 cm' }, price: 600, priceNegotiable: true, description: { da: 'Weber One-Touch 57 cm. Brugt 2 sæsoner, ellers i perfekt stand.', en: 'Weber One-Touch 57cm. Used 2 seasons, otherwise in perfect condition.' }, category: 'garden', location: 'Hellerup', photos: [], seller: 'Liam Madsen', sellerId: 'mock-liam', postedAt: '2026-02-12', sold: false },
 ]
 
-function MarketplacePage({ lang, t, currentUser, onContactSeller }) {
+function MarketplacePage({ lang, t, currentUser, onContactSeller, onViewProfile }) {
   const [tab, setTab] = useState('browse')
   const [listings, setListings] = useState(MOCK_LISTINGS)
   const [myListings, setMyListings] = useState([])
@@ -7453,6 +7463,7 @@ function MarketplacePage({ lang, t, currentUser, onContactSeller }) {
           listingDesc={listingDesc}
           onClose={() => setSelectedListing(null)}
           onContactSeller={onContactSeller}
+          onViewProfile={onViewProfile}
           onEdit={() => {
             setEditListing(selectedListing)
             setFormError(null)
@@ -7482,7 +7493,7 @@ function MarketplacePage({ lang, t, currentUser, onContactSeller }) {
   )
 }
 
-function ListingDetailModal({ listing, t, lang, currentUser, catLabel, catIcon, listingTitle, listingDesc, onClose, onContactSeller, onEdit, onMarkSold }) {
+function ListingDetailModal({ listing, t, lang, currentUser, catLabel, catIcon, listingTitle, listingDesc, onClose, onContactSeller, onViewProfile, onEdit, onMarkSold }) {
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', handler)
@@ -7520,7 +7531,10 @@ function ListingDetailModal({ listing, t, lang, currentUser, catLabel, catIcon, 
             {listing.postedAt && <span>📅 {listing.postedAt}</span>}
           </div>
           {/* Seller info */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: '#F7F5F2', borderRadius: 10, marginTop: 10 }}>
+          <div
+            style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: '#F7F5F2', borderRadius: 10, marginTop: 10, cursor: (!isOwn && typeof listing.sellerId === 'number' && listing.sellerId > 0 && onViewProfile) ? 'pointer' : 'default' }}
+            onClick={() => { if (!isOwn && typeof listing.sellerId === 'number' && listing.sellerId > 0 && onViewProfile) onViewProfile(listing.sellerId) }}
+          >
             <div style={{ width: 38, height: 38, borderRadius: '50%', background: '#2D6A4F', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 16, flexShrink: 0 }}>
               {listing.seller?.[0]?.toUpperCase() || '?'}
             </div>
@@ -7528,6 +7542,11 @@ function ListingDetailModal({ listing, t, lang, currentUser, catLabel, catIcon, 
               <div style={{ fontWeight: 600, fontSize: 14, color: '#1A1A1A' }}>{listing.seller}</div>
               <div style={{ fontSize: 12, color: '#aaa' }}>{lang === 'da' ? 'Sælger' : 'Seller'}{listing.postedAt ? ` · ${listing.postedAt}` : ''}</div>
             </div>
+            {!isOwn && typeof listing.sellerId === 'number' && listing.sellerId > 0 && onViewProfile && (
+              <span style={{ fontSize: 12, color: '#1877F2', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                {lang === 'da' ? 'Se profil →' : 'View profile →'}
+              </span>
+            )}
           </div>
           {listingDesc(listing) && <p className="p-listing-detail-desc">{listingDesc(listing)}</p>}
 
