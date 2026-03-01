@@ -1856,7 +1856,7 @@ app.post('/api/invites', authenticate, async (req, res) => {
         'INSERT INTO invitations (inviter_id, invite_token, invitee_name, invitee_email) VALUES (?, ?, ?, ?)',
         [req.userId, token, name || email, email]
       )
-      const inviteUrl = `${siteBase}/?invite=${inviter.invite_token || token}`
+      const inviteUrl = `${siteBase}/?invite=${token}`
       // Send email if SMTP is configured and we have a recipient address
       if (mailer && email) {
         const fromName = inviter.name || 'Fellis'
