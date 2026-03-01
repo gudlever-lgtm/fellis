@@ -262,8 +262,10 @@ export async function apiRenameConversation(conversationId, name) {
 }
 
 // Facebook OAuth
-export function getFacebookAuthUrl(lang) {
-  return `${API_BASE}/api/auth/facebook?lang=${lang}`
+export function getFacebookAuthUrl(lang, inviteToken) {
+  const params = new URLSearchParams({ lang })
+  if (inviteToken) params.set('invite_token', inviteToken)
+  return `${API_BASE}/api/auth/facebook?${params}`
 }
 
 // GDPR Compliance endpoints

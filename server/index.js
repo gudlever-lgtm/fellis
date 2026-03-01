@@ -886,14 +886,15 @@ const oauthStateTokens = new Map()
 app.get('/api/auth/facebook', (req, res) => {
   if (!FB_APP_ID) return res.status(500).json({ error: 'Facebook integration not configured' })
   const lang = req.query.lang || 'da'
+  const inviteToken = req.query.invite_token || ''
   // Security: CSRF protection — generate a cryptographic state token and verify on callback
   const stateToken = crypto.randomUUID()
-  oauthStateTokens.set(stateToken, { lang, created: Date.now() })
+  oauthStateTokens.set(stateToken, { lang, inviteToken, created: Date.now() })
   // Clean up stale tokens (older than 10 minutes)
   for (const [key, val] of oauthStateTokens) {
     if (Date.now() - val.created > 600000) oauthStateTokens.delete(key)
   }
-  const state = stateToken + ':' + lang
+  const state = stateToken + ':' + lang + ':' + inviteToken
   const url = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${FB_APP_ID}&redirect_uri=${encodeURIComponent(FB_REDIRECT_URI)}&scope=${FB_SCOPES}&state=${state}&response_type=code`
   res.redirect(url)
 })
@@ -906,8 +907,10 @@ app.get('/api/auth/facebook/callback', async (req, res) => {
   if (!code) return res.redirect('/?fb_error=denied')
 
   // Security: Validate CSRF state token
-  const stateToken = state?.split(':')?.[0]
-  const lang = state?.split(':')?.[1] || 'da'
+  const stateParts = state?.split(':') || []
+  const stateToken = stateParts[0]
+  const lang = stateParts[1] || 'da'
+  const fbInviteToken = stateParts[2] || ''
   if (!stateToken || !oauthStateTokens.has(stateToken)) {
     console.error('OAuth CSRF validation failed: invalid state token')
     return res.redirect('/?fb_error=csrf')
@@ -960,6 +963,43 @@ app.get('/api/auth/facebook/callback', async (req, res) => {
     // Audit log: Facebook authentication (no data import yet — that requires consent)
     const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress
     await auditLog(userId, 'fb_auth_success', { facebook_id: fbProfile.id }, clientIp)
+
+    // If arrived via invite link, send a pending friend request from inviter to this user
+    if (fbInviteToken) {
+      try {
+        let referrerId = null
+        let invitationId = null
+        let inviteSource = 'facebook'
+
+        const [inviter] = await pool.query('SELECT id FROM users WHERE invite_token = ?', [fbInviteToken])
+        if (inviter.length > 0) {
+          referrerId = inviter[0].id
+        }
+        const [invitation] = await pool.query(
+          'SELECT id, inviter_id FROM invitations WHERE invite_token = ? AND status = ?',
+          [fbInviteToken, 'pending']
+        )
+        if (invitation.length > 0) {
+          referrerId = invitation[0].inviter_id
+          invitationId = invitation[0].id
+          await pool.query('UPDATE invitations SET status = ?, accepted_by = ? WHERE id = ?', ['accepted', userId, invitationId])
+        }
+        if (referrerId && referrerId !== userId) {
+          await pool.query(
+            'INSERT IGNORE INTO friend_requests (from_user_id, to_user_id, status) VALUES (?, ?, ?)',
+            [referrerId, userId, 'pending']
+          )
+          await pool.query(
+            'INSERT IGNORE INTO referrals (referrer_id, referred_id, invitation_id, invite_source) VALUES (?, ?, ?, ?)',
+            [referrerId, userId, invitationId, inviteSource]
+          )
+          await pool.query('UPDATE users SET referral_count = referral_count + 1 WHERE id = ?', [referrerId])
+          await checkAndAwardBadges(referrerId)
+        }
+      } catch (err) {
+        console.error('FB invite auto-connect error:', err)
+      }
+    }
 
     // GDPR CHANGE: Do NOT import Facebook data here.
     // Data import is deferred until user gives explicit consent via POST /api/gdpr/consent.
@@ -1814,13 +1854,16 @@ app.get('/api/invite/:token', async (req, res) => {
       return res.json({ inviter: { name: users[0].name, avatarUrl: users[0].avatar_url } })
     }
     const [invitations] = await pool.query(
-      `SELECT u.name, u.avatar_url FROM invitations i
+      `SELECT u.name, u.avatar_url, i.invitee_email FROM invitations i
        JOIN users u ON i.inviter_id = u.id
        WHERE i.invite_token = ? AND i.status = 'pending'`,
       [token]
     )
     if (invitations.length > 0) {
-      return res.json({ inviter: { name: invitations[0].name, avatarUrl: invitations[0].avatar_url } })
+      return res.json({
+        inviter: { name: invitations[0].name, avatarUrl: invitations[0].avatar_url },
+        invitee_email: invitations[0].invitee_email || null,
+      })
     }
     res.status(404).json({ error: 'Invite not found' })
   } catch (err) {

@@ -255,6 +255,7 @@ function App() {
   const [showConsent, setShowConsent] = useState(false)
   const [inviteToken, setInviteToken] = useState(null)
   const [inviterName, setInviterName] = useState(null)
+  const [inviterEmail, setInviterEmail] = useState(null)
   const [initialPostId, setInitialPostId] = useState(null)
 
   // On mount: check for Facebook OAuth callback, invite links, or validate existing session
@@ -293,9 +294,8 @@ function App() {
       setInviteToken(invite)
       localStorage.setItem('fellis_invite_token', invite)
       apiGetInviteInfo(invite).then(data => {
-        if (data?.inviter?.name) {
-          setInviterName(data.inviter.name)
-        }
+        if (data?.inviter?.name) setInviterName(data.inviter.name)
+        if (data?.invitee_email) setInviterEmail(data.invitee_email)
       })
       window.history.replaceState({}, '', window.location.pathname)
     } else {
@@ -366,7 +366,7 @@ function App() {
     )
   }
 
-  return <Landing onEnterPlatform={handleEnterPlatform} inviteToken={inviteToken} inviterName={inviterName} />
+  return <Landing onEnterPlatform={handleEnterPlatform} inviteToken={inviteToken} inviterName={inviterName} inviterEmail={inviterEmail} />
 }
 
 function AppRoot() {

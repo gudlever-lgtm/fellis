@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { nameToColor, getInitials } from './data.js'
 
 // Placeholder friends for the invite step (migration wizard only)
@@ -237,7 +237,7 @@ const T = {
   },
 }
 
-export default function Landing({ onEnterPlatform, inviteToken, inviterName }) {
+export default function Landing({ onEnterPlatform, inviteToken, inviterName, inviterEmail }) {
   const [lang, setLang] = useState('da')
   const [step, setStep] = useState(0)
   const [showLoginModal, setShowLoginModal] = useState(false)
@@ -270,14 +270,19 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName }) {
   // Mode selection (step 5)
   const [pendingEnter, setPendingEnter] = useState(false)
 
-  // Register state (step 4)
+  // Register state (step 4) — pre-fill email from email invite if available
   const [regName, setRegName] = useState('')
-  const [regEmail, setRegEmail] = useState('')
+  const [regEmail, setRegEmail] = useState(inviterEmail || '')
   const [regPassword, setRegPassword] = useState('')
   const [regError, setRegError] = useState('')
   const [regLoading, setRegLoading] = useState(false)
 
   const t = T[lang]
+
+  // Pre-fill email when invite info arrives asynchronously
+  useEffect(() => {
+    if (inviterEmail && !regEmail) setRegEmail(inviterEmail)
+  }, [inviterEmail]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleLang = useCallback(() => setLang(p => p === 'da' ? 'en' : 'da'), [])
 
@@ -388,10 +393,10 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName }) {
     }
   }, [regName, regEmail, regPassword, lang, t, inviteToken])
 
-  // Redirect to real Facebook OAuth
+  // Redirect to real Facebook OAuth — carry invite token so callback can auto-connect
   const handleFbClick = useCallback(() => {
-    window.location.href = getFacebookAuthUrl(lang)
-  }, [lang])
+    window.location.href = getFacebookAuthUrl(lang, inviteToken)
+  }, [lang, inviteToken])
 
   const handleContentNext = useCallback(() => {
     setImportLoading(true)
