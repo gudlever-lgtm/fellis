@@ -1869,7 +1869,7 @@ app.post('/api/invites', authenticate, async (req, res) => {
           html: `<p>Hej!</p><p><strong>${inviter.name || 'En ven'}</strong> vil gerne forbindes med dig på <strong>Fellis</strong>.</p><p><a href="${inviteUrl}" style="background:#2D6A4F;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:bold">Opret konto og forbind</a></p><p style="color:#888;font-size:12px">Eller kopier dette link: ${inviteUrl}</p>`,
         }).catch(err => console.error('Mail send error:', err.message))
       }
-      created.push({ name: name || email, email, token })
+      created.push({ name: name || email, email, token, inviteUrl })
     }
     res.json({ invitations: created, count: created.length, emailSent: !!(mailer) })
   } catch (err) {

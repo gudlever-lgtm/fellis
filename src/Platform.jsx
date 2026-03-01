@@ -3939,6 +3939,7 @@ function FriendsPage({ lang, t, mode, onMessage }) {
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteEmailSending, setInviteEmailSending] = useState(false)
   const [inviteEmailSentOk, setInviteEmailSentOk] = useState(false)
+  const [noSmtpInviteUrl, setNoSmtpInviteUrl] = useState(null) // fallback link when SMTP missing
   const [referralData, setReferralData] = useState(null)
   const [badges, setBadges] = useState(null)
   const [leaderboard, setLeaderboard] = useState(null)
@@ -4044,13 +4045,16 @@ function FriendsPage({ lang, t, mode, onMessage }) {
     setReferralData(prev => prev ? { ...prev, totalInvited: (prev.totalInvited || 0) + 1 } : prev)
     setInviteEmail('')
     setInviteEmailSending(false)
-    // Warn if no SMTP configured (email not actually sent)
+    // Warn if no SMTP configured (email not actually sent) — show fallback link
     if (result && result.emailSent === false) {
+      const url = result.invitations?.[0]?.inviteUrl || null
+      setNoSmtpInviteUrl(url)
       setInviteEmailSentOk('nomail')
     } else {
+      setNoSmtpInviteUrl(null)
       setInviteEmailSentOk(true)
+      setTimeout(() => setInviteEmailSentOk(false), 4000)
     }
-    setTimeout(() => setInviteEmailSentOk(false), 4000)
   }, [inviteEmail]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCancelInvite = useCallback(async (invId, lang) => {
@@ -4157,7 +4161,30 @@ function FriendsPage({ lang, t, mode, onMessage }) {
           </button>
         </form>
         {inviteEmailSentOk === true && <div className="p-invite-sent-ok">✓ {t.invitesSentOk}</div>}
-        {inviteEmailSentOk === 'nomail' && <div className="p-invite-sent-ok" style={{ background: '#fff3cd', color: '#856404' }}>⚠️ {lang === 'da' ? 'Invitation gemt – men e-mail ikke sendt (SMTP ikke konfigureret)' : 'Invitation saved – but email not sent (SMTP not configured)'}</div>}
+        {inviteEmailSentOk === 'nomail' && (
+          <div style={{ background: '#fff3cd', border: '1px solid #ffe082', borderRadius: 8, padding: '10px 14px', marginBottom: 8, fontSize: 13 }}>
+            <div style={{ color: '#856404', fontWeight: 600, marginBottom: noSmtpInviteUrl ? 8 : 0 }}>
+              ⚠️ {lang === 'da' ? 'E-mail ikke sendt – SMTP er ikke konfigureret på serveren.' : 'Email not sent – SMTP is not configured on the server.'}
+            </div>
+            {noSmtpInviteUrl && (
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input
+                  style={{ flex: 1, padding: '6px 10px', borderRadius: 6, border: '1px solid #ffe082', fontSize: 12, background: '#fffde7', color: '#333' }}
+                  value={noSmtpInviteUrl}
+                  readOnly
+                  onClick={e => e.target.select()}
+                />
+                <button
+                  className="p-invite-copy-btn"
+                  onClick={() => { navigator.clipboard.writeText(noSmtpInviteUrl).catch(() => {}); setNoSmtpInviteUrl(null); setInviteEmailSentOk(false) }}
+                  style={{ whiteSpace: 'nowrap', padding: '6px 12px', fontSize: 12 }}
+                >
+                  {lang === 'da' ? 'Kopiér link' : 'Copy link'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
         <div className="p-invite-link-row" style={{ marginBottom: 8 }}>
           <input
             className="p-invite-link-input"
