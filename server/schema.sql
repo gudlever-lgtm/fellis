@@ -97,10 +97,16 @@ CREATE TABLE IF NOT EXISTS conversations (
   id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(200) DEFAULT NULL,
   is_group TINYINT(1) DEFAULT 0,
+  is_public TINYINT(1) NOT NULL DEFAULT 0,
+  category VARCHAR(100) DEFAULT NULL,
+  description_da TEXT DEFAULT NULL,
+  description_en TEXT DEFAULT NULL,
   created_by INT(11) DEFAULT NULL,
   created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
   FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+
+-- Migration for existing installations (run migrate-group-suggestions.sql):
 
 -- Conversation participants with per-user mute support
 CREATE TABLE IF NOT EXISTS conversation_participants (

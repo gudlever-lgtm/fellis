@@ -479,3 +479,12 @@ export async function apiUpdateMode(mode) {
 export async function apiUpdatePlan(plan) {
   return await request('/api/me/plan', { method: 'PATCH', body: JSON.stringify({ plan }) })
 }
+
+// Group suggestions
+export async function apiGetGroupSuggestions() {
+  return await request('/api/groups/suggestions')
+}
+
+export async function apiJoinGroup(groupId) {
+  return await request(`/api/groups/${groupId}/join`, { method: 'POST' })
+}
