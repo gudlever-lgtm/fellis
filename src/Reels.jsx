@@ -76,7 +76,9 @@ function ReelCard({ reel, t, currentUser, onDelete }) {
     if (data?.ok) onDelete(reel.id)
   }
 
-  const avatarUrl = reel.author_avatar ? `${API_BASE}/uploads/${reel.author_avatar}` : null
+  const avatarUrl = reel.author_avatar
+    ? (reel.author_avatar.startsWith('http') ? reel.author_avatar : `${API_BASE}${reel.author_avatar}`)
+    : null
 
   const s = {
     card: {
