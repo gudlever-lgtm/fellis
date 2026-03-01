@@ -293,7 +293,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
             onNavigate={navigateTo}
           />
         </div>
-        {page === 'reels' && <ReelsPage t={t} currentUser={currentUser} />}
+        {page === 'reels' && <ReelsPage t={t} currentUser={currentUser} initialReelId={navParam?.reelId} />}
         {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} plan={plan} onUserUpdate={setCurrentUser} onNavigate={navigateTo} />}
         {page === 'view-profile' && viewUserId && <FriendProfilePage userId={viewUserId} lang={lang} t={t} currentUser={currentUser} onBack={() => navigateTo('feed')} onMessage={async (prof) => { const data = await apiCreateConversation([prof.id], null, false, false).catch(() => null); if (data?.id) setOpenConvId(data.id); navigateTo('messages') }} />}
         {page === 'edit-profile' && <EditProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} />}
@@ -793,7 +793,7 @@ function ReelsStrip({ lang, t, onNavigate }) {
       </div>
       <div style={s.row}>
         {reels.map(reel => (
-          <div key={reel.id} style={s.card} onClick={() => onNavigate('reels')} title={reel.caption || reel.author_name}>
+          <div key={reel.id} style={s.card} onClick={() => onNavigate('reels', { reelId: reel.id })} title={reel.caption || reel.author_name}>
             <video
               src={`${API_BASE}${reel.video_url}`}
               style={s.video}

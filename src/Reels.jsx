@@ -476,7 +476,7 @@ function UploadModal({ t, onClose, onUploaded }) {
 }
 
 // ── Main ReelsPage ────────────────────────────────────────────────────────────
-export default function ReelsPage({ t, currentUser }) {
+export default function ReelsPage({ t, currentUser, initialReelId }) {
   const [reels, setReels] = useState([])
   const [loading, setLoading] = useState(true)
   const [offset, setOffset] = useState(0)
@@ -496,6 +496,12 @@ export default function ReelsPage({ t, currentUser }) {
   }, [])
 
   useEffect(() => { loadReels(0) }, [loadReels])
+
+  useEffect(() => {
+    if (!initialReelId || loading || reels.length === 0) return
+    const el = document.getElementById(`reel-${initialReelId}`)
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [initialReelId, loading, reels])
 
   const handleUploaded = (reel) => {
     setReels(prev => [reel, ...prev])
@@ -572,13 +578,14 @@ export default function ReelsPage({ t, currentUser }) {
       )}
 
       {reels.map(reel => (
-        <ReelCard
-          key={reel.id}
-          reel={reel}
-          t={t}
-          currentUser={currentUser}
-          onDelete={handleDelete}
-        />
+        <div key={reel.id} id={`reel-${reel.id}`}>
+          <ReelCard
+            reel={reel}
+            t={t}
+            currentUser={currentUser}
+            onDelete={handleDelete}
+          />
+        </div>
       ))}
 
       {loading && <div style={s.loader}>⏳</div>}
