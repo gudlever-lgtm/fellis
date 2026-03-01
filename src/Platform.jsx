@@ -2344,6 +2344,7 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
   const [interests, setInterests] = useState([])
   const [interestsSaving, setInterestsSaving] = useState(false)
   const [interestsSavedMsg, setInterestsSavedMsg] = useState('')
+  const [interestsSaveOk, setInterestsSaveOk] = useState(true)
   const [birthday, setBirthday] = useState(currentUser.birthday || '')
   const [birthdaySaveStatus, setBirthdaySaveStatus] = useState(null) // null | 'saving' | 'saved' | 'error'
 
@@ -2652,7 +2653,7 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
             })}
           </div>
           {interestsSavedMsg ? (
-            <div style={{ fontSize: 13, color: '#2D6A4F', fontWeight: 600, marginBottom: 4 }}>{interestsSavedMsg}</div>
+            <div style={{ fontSize: 13, color: interestsSaveOk ? '#2D6A4F' : '#e53935', fontWeight: 600, marginBottom: 4 }}>{interestsSavedMsg}</div>
           ) : interests.length < 3 ? (
             <div style={{ fontSize: 12, color: '#e53935', marginBottom: 4 }}>{t.interestsMin3}</div>
           ) : null}
@@ -2662,9 +2663,22 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
             onClick={async () => {
               setInterestsSaving(true)
               setInterestsSavedMsg('')
-              const res = await apiUpdateInterests(interests)
-              setInterestsSaving(false)
-              if (res?.ok) { setInterestsSavedMsg(t.interestsSaved); setTimeout(() => setInterestsSavedMsg(''), 3000) }
+              try {
+                const res = await apiUpdateInterests(interests)
+                if (res?.ok) {
+                  setInterestsSaveOk(true)
+                  setInterestsSavedMsg(t.interestsSaved)
+                  setTimeout(() => setInterestsSavedMsg(''), 3000)
+                } else {
+                  setInterestsSaveOk(false)
+                  setInterestsSavedMsg(lang === 'da' ? 'Kunne ikke gemme – prøv igen' : 'Could not save – try again')
+                }
+              } catch {
+                setInterestsSaveOk(false)
+                setInterestsSavedMsg(lang === 'da' ? 'Kunne ikke gemme – prøv igen' : 'Could not save – try again')
+              } finally {
+                setInterestsSaving(false)
+              }
             }}
             style={{ padding: '7px 20px', borderRadius: 8, fontSize: 13, fontWeight: 700, background: interests.length >= 3 ? '#2D6A4F' : '#ccc', color: '#fff', border: 'none', cursor: interests.length >= 3 ? 'pointer' : 'not-allowed' }}
           >
