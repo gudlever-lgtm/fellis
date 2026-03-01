@@ -3634,6 +3634,183 @@ app.put('/api/events/:id/rsvp', authenticate, async (req, res) => {
   }
 })
 
+// ── Reels ──────────────────────────────────────────────────────────────────
+
+const reelUpload = multer({
+  storage,
+  limits: { fileSize: 200 * 1024 * 1024, files: 1 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = new Set(['video/mp4', 'video/webm', 'video/quicktime'])
+    if (!allowed.has(file.mimetype)) return cb(new Error('Only video files are allowed'))
+    if (file.originalname.includes('..') || file.originalname.includes('/') || file.originalname.includes('\\')) {
+      return cb(new Error('Invalid filename'))
+    }
+    cb(null, true)
+  },
+})
+
+async function initReels() {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS reels (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      video_url VARCHAR(500) NOT NULL,
+      caption TEXT DEFAULT NULL,
+      views_count INT NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_user_id (user_id),
+      INDEX idx_created_at (created_at),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    await pool.query(`CREATE TABLE IF NOT EXISTS reel_likes (
+      reel_id INT NOT NULL,
+      user_id INT NOT NULL,
+      PRIMARY KEY (reel_id, user_id),
+      FOREIGN KEY (reel_id) REFERENCES reels(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    await pool.query(`CREATE TABLE IF NOT EXISTS reel_comments (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      reel_id INT NOT NULL,
+      user_id INT NOT NULL,
+      text TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (reel_id) REFERENCES reels(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+  } catch (err) {
+    console.error('initReels error:', err.message)
+  }
+}
+
+// GET /api/reels — paginated feed
+app.get('/api/reels', authenticate, async (req, res) => {
+  try {
+    const offset = parseInt(req.query.offset) || 0
+    const limit = Math.min(parseInt(req.query.limit) || 10, 50)
+    const [rows] = await pool.query(
+      `SELECT r.id, r.video_url, r.caption, r.views_count, r.created_at,
+              u.id AS user_id, u.name AS author_name, u.handle AS author_handle, u.avatar_url AS author_avatar,
+              COUNT(DISTINCT rl.user_id) AS likes_count,
+              EXISTS(SELECT 1 FROM reel_likes WHERE reel_id = r.id AND user_id = ?) AS liked_by_me,
+              COUNT(DISTINCT rc.id) AS comments_count
+       FROM reels r
+       JOIN users u ON r.user_id = u.id
+       LEFT JOIN reel_likes rl ON rl.reel_id = r.id
+       LEFT JOIN reel_comments rc ON rc.reel_id = r.id
+       GROUP BY r.id
+       ORDER BY r.created_at DESC
+       LIMIT ? OFFSET ?`,
+      [req.userId, limit, offset]
+    )
+    res.json({ reels: rows.map(r => ({ ...r, liked_by_me: !!r.liked_by_me })) })
+  } catch (err) {
+    console.error('GET /api/reels error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/reels — upload a reel
+app.post('/api/reels', authenticate, reelUpload.single('video'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No video file provided' })
+    const caption = (req.body.caption || '').trim().slice(0, 2000) || null
+    const videoUrl = `/uploads/${req.file.filename}`
+    const [result] = await pool.query(
+      'INSERT INTO reels (user_id, video_url, caption) VALUES (?, ?, ?)',
+      [req.userId, videoUrl, caption]
+    )
+    const [[reel]] = await pool.query(
+      `SELECT r.id, r.video_url, r.caption, r.views_count, r.created_at,
+              u.id AS user_id, u.name AS author_name, u.handle AS author_handle, u.avatar_url AS author_avatar,
+              0 AS likes_count, 0 AS liked_by_me, 0 AS comments_count
+       FROM reels r JOIN users u ON r.user_id = u.id WHERE r.id = ?`,
+      [result.insertId]
+    )
+    res.status(201).json({ reel })
+  } catch (err) {
+    console.error('POST /api/reels error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/reels/:id/like — toggle like
+app.post('/api/reels/:id/like', authenticate, async (req, res) => {
+  try {
+    const reelId = parseInt(req.params.id)
+    const [[existing]] = await pool.query(
+      'SELECT 1 FROM reel_likes WHERE reel_id = ? AND user_id = ?',
+      [reelId, req.userId]
+    )
+    if (existing) {
+      await pool.query('DELETE FROM reel_likes WHERE reel_id = ? AND user_id = ?', [reelId, req.userId])
+    } else {
+      await pool.query('INSERT IGNORE INTO reel_likes (reel_id, user_id) VALUES (?, ?)', [reelId, req.userId])
+    }
+    const [[{ likes_count }]] = await pool.query(
+      'SELECT COUNT(*) AS likes_count FROM reel_likes WHERE reel_id = ?', [reelId]
+    )
+    res.json({ liked: !existing, likes_count })
+  } catch (err) {
+    console.error('POST /api/reels/:id/like error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/reels/:id/comments
+app.get('/api/reels/:id/comments', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT rc.id, rc.text, rc.created_at,
+              u.name AS author_name, u.handle AS author_handle, u.avatar_url AS author_avatar
+       FROM reel_comments rc JOIN users u ON rc.user_id = u.id
+       WHERE rc.reel_id = ?
+       ORDER BY rc.created_at ASC`,
+      [req.params.id]
+    )
+    res.json({ comments: rows })
+  } catch (err) {
+    console.error('GET /api/reels/:id/comments error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/reels/:id/comments
+app.post('/api/reels/:id/comments', authenticate, async (req, res) => {
+  try {
+    const text = (req.body.text || '').trim()
+    if (!text) return res.status(400).json({ error: 'Comment cannot be empty' })
+    const [result] = await pool.query(
+      'INSERT INTO reel_comments (reel_id, user_id, text) VALUES (?, ?, ?)',
+      [req.params.id, req.userId, text.slice(0, 2000)]
+    )
+    const [[comment]] = await pool.query(
+      `SELECT rc.id, rc.text, rc.created_at,
+              u.name AS author_name, u.handle AS author_handle, u.avatar_url AS author_avatar
+       FROM reel_comments rc JOIN users u ON rc.user_id = u.id WHERE rc.id = ?`,
+      [result.insertId]
+    )
+    res.status(201).json({ comment })
+  } catch (err) {
+    console.error('POST /api/reels/:id/comments error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// DELETE /api/reels/:id
+app.delete('/api/reels/:id', authenticate, async (req, res) => {
+  try {
+    const [[reel]] = await pool.query('SELECT user_id FROM reels WHERE id = ?', [req.params.id])
+    if (!reel) return res.status(404).json({ error: 'Reel not found' })
+    if (reel.user_id !== req.userId) return res.status(403).json({ error: 'Forbidden' })
+    await pool.query('DELETE FROM reels WHERE id = ?', [req.params.id])
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/reels/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // Multer error handler
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
@@ -3665,4 +3842,5 @@ app.listen(PORT, () => {
   initAnalytics()
   initSettingsSchema()
   initSiteVisits()
+  initReels()
 })
