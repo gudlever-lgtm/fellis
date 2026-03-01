@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect } from 'react'
 import { PT, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateMode, apiUpdatePlan } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateMode, apiUpdatePlan, apiFetchReels } from './api.js'
 import ReelsPage from './Reels.jsx'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
@@ -695,6 +695,122 @@ function MentionDropdown({ filtered, selIdx, onSelect }) {
   )
 }
 
+// ── Reels strip shown at top of feed ──────────────────────────────────────────
+function ReelsStrip({ lang, t, onNavigate }) {
+  const [reels, setReels] = useState([])
+
+  useEffect(() => {
+    apiFetchReels(0, 3).then(data => { if (data?.reels?.length) setReels(data.reels) })
+  }, [])
+
+  if (!reels.length) return null
+
+  const API_BASE = import.meta.env.VITE_API_URL || ''
+
+  const s = {
+    wrap: {
+      padding: '12px 0 4px',
+      marginBottom: 8,
+    },
+    header: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 10,
+      padding: '0 2px',
+    },
+    label: { fontSize: 14, fontWeight: 700, color: 'var(--text-primary, #111)' },
+    seeAll: {
+      background: 'none',
+      border: 'none',
+      color: '#1877F2',
+      fontSize: 13,
+      cursor: 'pointer',
+      fontWeight: 600,
+      padding: 0,
+    },
+    row: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(3, 1fr)',
+      gap: 8,
+    },
+    card: {
+      position: 'relative',
+      borderRadius: 12,
+      overflow: 'hidden',
+      aspectRatio: '9/16',
+      background: '#111',
+      cursor: 'pointer',
+    },
+    video: {
+      width: '100%',
+      height: '100%',
+      objectFit: 'cover',
+      display: 'block',
+      pointerEvents: 'none',
+    },
+    playIcon: {
+      position: 'absolute',
+      top: '50%',
+      left: '50%',
+      transform: 'translate(-50%, -50%)',
+      width: 32,
+      height: 32,
+      borderRadius: '50%',
+      background: 'rgba(255,255,255,0.25)',
+      backdropFilter: 'blur(4px)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: 14,
+      pointerEvents: 'none',
+    },
+    overlay: {
+      position: 'absolute',
+      bottom: 0, left: 0, right: 0,
+      padding: '20px 6px 6px',
+      background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)',
+      pointerEvents: 'none',
+    },
+    author: {
+      fontSize: 11,
+      fontWeight: 600,
+      color: '#fff',
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+    },
+  }
+
+  return (
+    <div style={s.wrap}>
+      <div style={s.header}>
+        <span style={s.label}>{t.reels}</span>
+        <button style={s.seeAll} onClick={() => onNavigate('reels')}>
+          {lang === 'da' ? 'Se alle' : 'See all'} →
+        </button>
+      </div>
+      <div style={s.row}>
+        {reels.map(reel => (
+          <div key={reel.id} style={s.card} onClick={() => onNavigate('reels')} title={reel.caption || reel.author_name}>
+            <video
+              src={`${API_BASE}${reel.video_url}`}
+              style={s.video}
+              muted
+              preload="metadata"
+              playsInline
+            />
+            <div style={s.playIcon}>▶</div>
+            <div style={s.overlay}>
+              <div style={s.author}>{reel.author_name}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onNavigate }) {
   const [posts, setPosts] = useState([])
   const [pinnedPost, setPinnedPost] = useState(null)
@@ -1156,6 +1272,8 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
           </div>
         </div>
       )}
+      {/* Reels strip */}
+      <ReelsStrip lang={lang} t={t} onNavigate={onNavigate} />
       {/* New post */}
       <div className="p-card p-new-post">
         {/* Hidden file input — gallery only */}
