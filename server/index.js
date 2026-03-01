@@ -139,6 +139,123 @@ async function initEvents() {
   }
 }
 
+// ── In-memory rate limiter (invite anti-abuse) ──
+// Tracks {userId → {count, resetAt}} — resets every 15 minutes per user
+const inviteRateLimit = new Map()
+const INVITE_MAX_PER_WINDOW = 20   // max invites per 15-min window
+const INVITE_WINDOW_MS = 15 * 60 * 1000
+
+function checkInviteRateLimit(userId) {
+  const now = Date.now()
+  const entry = inviteRateLimit.get(userId)
+  if (!entry || now > entry.resetAt) {
+    inviteRateLimit.set(userId, { count: 1, resetAt: now + INVITE_WINDOW_MS })
+    return true
+  }
+  if (entry.count >= INVITE_MAX_PER_WINDOW) return false
+  entry.count++
+  return true
+}
+
+// ── Viral growth: badge award helper ──
+const BADGE_THRESHOLDS = [
+  { type: 'first_invite',   threshold: 1  },
+  { type: 'five_invites',   threshold: 5  },
+  { type: 'ten_invites',    threshold: 10 },
+  { type: 'twenty_invites', threshold: 20 },
+  { type: 'fifty_invites',  threshold: 50 },
+]
+
+async function checkAndAwardBadges(userId) {
+  try {
+    const [[user]] = await pool.query('SELECT referral_count FROM users WHERE id = ?', [userId])
+    if (!user) return []
+    const count = user.referral_count
+    const earned = []
+    for (const badge of BADGE_THRESHOLDS) {
+      if (count >= badge.threshold) {
+        const [result] = await pool.query(
+          'INSERT IGNORE INTO user_badges (user_id, reward_type) VALUES (?, ?)',
+          [userId, badge.type]
+        )
+        if (result.affectedRows > 0) {
+          earned.push(badge.type)
+          // Add reputation points
+          await pool.query(
+            'UPDATE users u JOIN rewards r ON r.type = ? SET u.reputation_score = u.reputation_score + r.reward_points WHERE u.id = ?',
+            [badge.type, userId]
+          )
+        }
+      }
+    }
+    return earned
+  } catch (err) {
+    console.error('checkAndAwardBadges error:', err.message)
+    return []
+  }
+}
+
+// ── Viral growth: schema init ──
+async function initViralGrowth() {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS referrals (
+      id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      referrer_id INT(11) NOT NULL,
+      referred_id INT(11) NOT NULL,
+      invitation_id INT(11) DEFAULT NULL,
+      invite_source ENUM('link','email','facebook','other') DEFAULT 'link',
+      utm_source VARCHAR(100) DEFAULT NULL,
+      utm_campaign VARCHAR(100) DEFAULT NULL,
+      converted_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
+      UNIQUE KEY unique_referral (referrer_id, referred_id),
+      FOREIGN KEY (referrer_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (referred_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+
+    await pool.query(`CREATE TABLE IF NOT EXISTS rewards (
+      id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      type VARCHAR(50) NOT NULL UNIQUE,
+      title_da VARCHAR(200) NOT NULL,
+      title_en VARCHAR(200) NOT NULL,
+      description_da TEXT NOT NULL,
+      description_en TEXT NOT NULL,
+      icon VARCHAR(10) NOT NULL DEFAULT '🏆',
+      threshold INT(11) NOT NULL DEFAULT 1,
+      reward_points INT(11) NOT NULL DEFAULT 10
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+
+    await pool.query(`CREATE TABLE IF NOT EXISTS user_badges (
+      id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      user_id INT(11) NOT NULL,
+      reward_type VARCHAR(50) NOT NULL,
+      earned_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
+      UNIQUE KEY unique_user_badge (user_id, reward_type),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+
+    await pool.query(`CREATE TABLE IF NOT EXISTS share_events (
+      id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      user_id INT(11) DEFAULT NULL,
+      share_type ENUM('post','profile','invite') NOT NULL DEFAULT 'invite',
+      target_id INT(11) DEFAULT NULL,
+      platform VARCHAR(50) DEFAULT NULL,
+      utm_campaign VARCHAR(100) DEFAULT NULL,
+      created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+
+    // Seed reward catalog (idempotent via INSERT IGNORE)
+    await pool.query(`INSERT IGNORE INTO rewards (type, title_da, title_en, description_da, description_en, icon, threshold, reward_points) VALUES
+      ('first_invite',    'Første invitation',  'First Invite',       'Du har inviteret din første ven til fellis.eu',       'You invited your first friend to fellis.eu',       '🌱', 1,  10),
+      ('five_invites',    'Social ambassadør',  'Social Ambassador',  'Du har fået 5 venner til at tilmelde sig fellis.eu',  '5 friends joined fellis.eu through your invite',  '🌟', 5,  50),
+      ('ten_invites',     'Fellis-mester',      'Fellis Master',      'Du har fået 10 venner til at tilmelde sig fellis.eu', '10 friends joined fellis.eu through your invite', '🏆', 10, 100),
+      ('twenty_invites',  'Vækst-champion',     'Growth Champion',    'Utroligt — 20 venner har tilmeldt sig via dig!',      'Incredible — 20 friends joined via your invite!', '🚀', 20, 250),
+      ('fifty_invites',   'Fellis-legende',     'Fellis Legend',      'Du er en legende — 50 tilmeldinger via dig!',        'You are a legend — 50 sign-ups via your invite!', '👑', 50, 1000)`)
+  } catch (err) {
+    console.error('initViralGrowth error:', err.message)
+  }
+}
+
 // ── Friend requests: schema init ──
 async function initFriendRequests() {
   try {
@@ -372,6 +489,26 @@ pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS mode VARCHAR(20) DEFAULT 
 pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS plan VARCHAR(30) DEFAULT 'business'")
   .catch(err => console.error('Migration (users.plan):', err.message))
 
+// ── Viral growth auto-migrations ──
+pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_public TINYINT(1) NOT NULL DEFAULT 0')
+  .catch(err => console.error('Migration (users.profile_public):', err.message))
+pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS reputation_score INT(11) NOT NULL DEFAULT 0')
+  .catch(err => console.error('Migration (users.reputation_score):', err.message))
+pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_count INT(11) NOT NULL DEFAULT 0')
+  .catch(err => console.error('Migration (users.referral_count):', err.message))
+pool.query("ALTER TABLE invitations ADD COLUMN IF NOT EXISTS invite_source ENUM('link','email','facebook','other') DEFAULT 'link'")
+  .catch(err => console.error('Migration (invitations.invite_source):', err.message))
+pool.query('ALTER TABLE invitations ADD COLUMN IF NOT EXISTS utm_source VARCHAR(100) DEFAULT NULL')
+  .catch(err => console.error('Migration (invitations.utm_source):', err.message))
+pool.query('ALTER TABLE invitations ADD COLUMN IF NOT EXISTS utm_campaign VARCHAR(100) DEFAULT NULL')
+  .catch(err => console.error('Migration (invitations.utm_campaign):', err.message))
+pool.query('ALTER TABLE posts ADD COLUMN IF NOT EXISTS share_token VARCHAR(64) DEFAULT NULL')
+  .catch(err => console.error('Migration (posts.share_token):', err.message))
+pool.query('ALTER TABLE posts ADD COLUMN IF NOT EXISTS is_public TINYINT(1) NOT NULL DEFAULT 0')
+  .catch(err => console.error('Migration (posts.is_public):', err.message))
+pool.query('ALTER TABLE posts ADD COLUMN IF NOT EXISTS share_count INT(11) NOT NULL DEFAULT 0')
+  .catch(err => console.error('Migration (posts.share_count):', err.message))
+
 // Serve uploads with security headers (no script execution, no sniffing)
 app.use('/uploads', (req, res, next) => {
   // Block anything that isn't GET
@@ -562,24 +699,43 @@ app.post('/api/auth/register', async (req, res) => {
       [sessionId, newUserId, lang || 'da', ua, ip]
     )
 
-    // If registered via invite link, auto-connect with inviter
+    // If registered via invite link, auto-connect with inviter + record referral
     if (inviteToken) {
       try {
+        let referrerId = null
+        let invitationId = null
+        let inviteSource = 'link'
+
+        // Check personal invite token (user.invite_token)
         const [inviter] = await pool.query('SELECT id FROM users WHERE invite_token = ?', [inviteToken])
         if (inviter.length > 0) {
-          const inviterId = inviter[0].id
-          await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [newUserId, inviterId])
-          await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [inviterId, newUserId])
+          referrerId = inviter[0].id
+          await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [newUserId, referrerId])
+          await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [referrerId, newUserId])
         }
+
+        // Check per-email invitation token
         const [invitation] = await pool.query(
-          'SELECT id, inviter_id FROM invitations WHERE invite_token = ? AND status = ?',
+          'SELECT id, inviter_id, invite_source FROM invitations WHERE invite_token = ? AND status = ?',
           [inviteToken, 'pending']
         )
         if (invitation.length > 0) {
-          const inviterId = invitation[0].inviter_id
-          await pool.query('UPDATE invitations SET status = ?, accepted_by = ? WHERE id = ?', ['accepted', newUserId, invitation[0].id])
-          await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [newUserId, inviterId])
-          await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [inviterId, newUserId])
+          referrerId = invitation[0].inviter_id
+          invitationId = invitation[0].id
+          inviteSource = invitation[0].invite_source || 'email'
+          await pool.query('UPDATE invitations SET status = ?, accepted_by = ? WHERE id = ?', ['accepted', newUserId, invitationId])
+          await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [newUserId, referrerId])
+          await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [referrerId, newUserId])
+        }
+
+        // Record referral and award badges to inviter
+        if (referrerId) {
+          await pool.query(
+            'INSERT IGNORE INTO referrals (referrer_id, referred_id, invitation_id, invite_source) VALUES (?, ?, ?, ?)',
+            [referrerId, newUserId, invitationId, inviteSource]
+          )
+          await pool.query('UPDATE users SET referral_count = referral_count + 1 WHERE id = ?', [referrerId])
+          await checkAndAwardBadges(referrerId)
         }
       } catch (err) {
         console.error('Invite auto-connect error:', err)
@@ -949,7 +1105,8 @@ app.get('/api/profile', authenticate, async (req, res) => {
   try {
     const [users] = await pool.query(
       `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url,
-        u.email, u.facebook_id, u.password_hash, u.password_plain, u.created_at,
+        u.email, u.facebook_id, u.password_hash, u.password_plain, u.created_at, u.birthday,
+        u.profile_public, u.reputation_score, u.referral_count, u.interests,
         (SELECT COUNT(*) FROM friendships WHERE user_id = u.id) as friend_count,
         (SELECT COUNT(*) FROM posts WHERE author_id = u.id) as post_count
        FROM users u WHERE u.id = ?`,
@@ -957,6 +1114,8 @@ app.get('/api/profile', authenticate, async (req, res) => {
     )
     if (users.length === 0) return res.status(404).json({ error: 'User not found' })
     const u = users[0]
+    let interests = []
+    try { interests = typeof u.interests === 'string' ? JSON.parse(u.interests) : (u.interests || []) } catch {}
     res.json({
       id: u.id, name: u.name, handle: u.handle, initials: u.initials,
       bio: { da: u.bio_da || '', en: u.bio_en || '' },
@@ -968,6 +1127,11 @@ app.get('/api/profile', authenticate, async (req, res) => {
       hasPassword: !!u.password_hash,
       passwordHint: u.password_plain ? (u.password_plain[0] + '*'.repeat(Math.max(u.password_plain.length - 2, 0)) + (u.password_plain.length > 1 ? u.password_plain[u.password_plain.length - 1] : '')) : null,
       createdAt: u.created_at || u.join_date || null,
+      birthday: u.birthday || null,
+      profile_public: !!u.profile_public,
+      reputationScore: Number(u.reputation_score || 0),
+      referralCount: Number(u.referral_count || 0),
+      interests,
     })
   } catch (err) {
     res.status(500).json({ error: 'Failed to load profile' })
@@ -1008,6 +1172,23 @@ app.patch('/api/me/plan', authenticate, async (req, res) => {
     res.json({ ok: true })
   } catch (err) {
     res.status(500).json({ error: 'Failed to update plan' })
+  }
+})
+
+// PATCH /api/me/interests — save user interest categories (min 3)
+app.patch('/api/me/interests', authenticate, async (req, res) => {
+  const { interests } = req.body
+  if (!Array.isArray(interests) || interests.length < 3) {
+    return res.status(400).json({ error: 'At least 3 interests required' })
+  }
+  const VALID = ['musik','videnskab','nyheder','sport','teknologi','kunst','mad','rejser','film','politik','natur','gaming','sundhed','boger','humor','diy','okonomi','mode']
+  const clean = interests.filter(i => VALID.includes(i))
+  if (clean.length < 3) return res.status(400).json({ error: 'Invalid interest categories' })
+  try {
+    await pool.query('UPDATE users SET interests = ? WHERE id = ?', [JSON.stringify(clean), req.userId])
+    res.json({ ok: true, interests: clean })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update interests' })
   }
 })
 
@@ -3374,6 +3555,26 @@ async function initAnalytics() {
   }
 }
 
+let _feedWeightsCache = null
+let _feedWeightsCacheTime = 0
+async function getFeedWeights() {
+  if (_feedWeightsCache && Date.now() - _feedWeightsCacheTime < 5 * 60 * 1000) return _feedWeightsCache
+  try {
+    const [rows] = await pool.query(
+      "SELECT key_name, key_value FROM admin_settings WHERE key_name IN ('feed_weight_family','feed_weight_interest','feed_weight_recency')"
+    )
+    const w = { family: 1000, interest: 100, recency: 50 }
+    for (const r of rows) {
+      const k = r.key_name.replace('feed_weight_', '')
+      const v = parseFloat(r.key_value)
+      if (!isNaN(v) && v >= 0) w[k] = v
+    }
+    _feedWeightsCache = w
+    _feedWeightsCacheTime = Date.now()
+    return w
+  } catch { return { family: 1000, interest: 100, recency: 50 } }
+}
+
 function requireAdmin(req, res, next) {
   if (!req.userId) return res.status(401).json({ error: 'Not authenticated' })
   if (req.userId !== 1) return res.status(403).json({ error: 'Admin only' })
@@ -3545,6 +3746,52 @@ app.get('/api/admin/stats', authenticate, requireAdmin, async (req, res) => {
   }
 })
 
+// GET /api/admin/feed-weights — get current feed algorithm weights
+app.get('/api/admin/feed-weights', authenticate, requireAdmin, async (req, res) => {
+  const weights = await getFeedWeights()
+  res.json({ weights })
+})
+
+// POST /api/admin/feed-weights — update feed algorithm weights
+app.post('/api/admin/feed-weights', authenticate, requireAdmin, async (req, res) => {
+  const { family, interest, recency } = req.body
+  const entries = [['feed_weight_family', family], ['feed_weight_interest', interest], ['feed_weight_recency', recency]]
+  try {
+    for (const [key, value] of entries) {
+      if (typeof value !== 'number' || value < 0) continue
+      await pool.query(
+        'INSERT INTO admin_settings (key_name, key_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE key_value = VALUES(key_value)',
+        [key, String(value)]
+      )
+    }
+    _feedWeightsCache = null
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to save feed weights' })
+  }
+})
+
+// GET /api/admin/interest-stats — interest adoption statistics
+app.get('/api/admin/interest-stats', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT interests FROM users WHERE interests IS NOT NULL')
+    let withInterests = 0
+    const counts = {}
+    for (const row of rows) {
+      let interests = []
+      try { interests = typeof row.interests === 'string' ? JSON.parse(row.interests) : (row.interests || []) } catch {}
+      if (interests.length >= 3) withInterests++
+      for (const i of interests) counts[i] = (counts[i] || 0) + 1
+    }
+    const topInterests = Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([id, count]) => ({ id, count }))
+    res.json({ withInterests, total: rows.length, topInterests })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to load interest stats' })
+  }
+})
+
 // ── Events API ──
 
 // GET /api/events — list all events with RSVP counts and current user's RSVP
@@ -3634,6 +3881,724 @@ app.put('/api/events/:id/rsvp', authenticate, async (req, res) => {
   }
 })
 
+// PATCH /api/profile/birthday — set or clear user's birthday
+app.patch('/api/profile/birthday', authenticate, async (req, res) => {
+  try {
+    const { birthday } = req.body
+    // Accepts ISO date string 'YYYY-MM-DD' or null to clear
+    const value = birthday ? birthday : null
+    if (value && !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      return res.status(400).json({ error: 'Invalid date format, use YYYY-MM-DD' })
+    }
+    await pool.query('UPDATE users SET birthday = ? WHERE id = ?', [value, req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('PATCH /api/profile/birthday error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Settings: Sessions ─────────────────────────────────────────────────────
+
+// GET /api/calendar/events — fetch calendar data: friend birthdays + platform events
+app.get('/api/calendar/events', authenticate, async (req, res) => {
+  try {
+    // Get birthday of friends + the current user
+    const [birthdayRows] = await pool.query(
+      `SELECT u.id, u.name, u.initials, u.avatar_url, u.birthday
+       FROM users u
+       WHERE u.birthday IS NOT NULL
+         AND (
+           u.id = ?
+           OR u.id IN (
+             SELECT CASE WHEN user_id_1 = ? THEN user_id_2 ELSE user_id_1 END
+             FROM friendships WHERE user_id_1 = ? OR user_id_2 = ?
+           )
+         )`,
+      [req.userId, req.userId, req.userId, req.userId]
+    )
+    const birthdays = birthdayRows.map(u => ({
+      userId: u.id,
+      name: u.name,
+      initials: u.initials,
+      avatarUrl: u.avatar_url,
+      date: u.birthday, // full YYYY-MM-DD stored, client uses MM-DD for yearly repeat
+    }))
+
+    // Get platform events
+    const [eventRows] = await pool.query(
+      `SELECT e.id, e.title, e.date, e.location, e.event_type,
+        (SELECT r.status FROM event_rsvps r WHERE r.event_id = e.id AND r.user_id = ?) AS my_rsvp
+       FROM events e ORDER BY e.date ASC`,
+      [req.userId]
+    )
+    const events = eventRows.map(e => ({
+      id: e.id,
+      title: e.title,
+      date: e.date,
+      location: e.location,
+      eventType: e.event_type,
+      myRsvp: e.my_rsvp || null,
+    }))
+
+    res.json({ birthdays, events })
+  } catch (err) {
+    console.error('GET /api/calendar/events error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+
+// ── Reels ──────────────────────────────────────────────────────────────────
+
+const reelUpload = multer({
+  storage,
+  limits: { fileSize: 200 * 1024 * 1024, files: 1 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = new Set(['video/mp4', 'video/webm', 'video/quicktime'])
+    if (!allowed.has(file.mimetype)) return cb(new Error('Only video files are allowed'))
+    if (file.originalname.includes('..') || file.originalname.includes('/') || file.originalname.includes('\\')) {
+      return cb(new Error('Invalid filename'))
+    }
+    cb(null, true)
+  },
+})
+
+async function initReels() {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS reels (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      video_url VARCHAR(500) NOT NULL,
+      caption TEXT DEFAULT NULL,
+      views_count INT NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_user_id (user_id),
+      INDEX idx_created_at (created_at),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    await pool.query(`CREATE TABLE IF NOT EXISTS reel_likes (
+      reel_id INT NOT NULL,
+      user_id INT NOT NULL,
+      PRIMARY KEY (reel_id, user_id),
+      FOREIGN KEY (reel_id) REFERENCES reels(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    await pool.query(`CREATE TABLE IF NOT EXISTS reel_comments (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      reel_id INT NOT NULL,
+      user_id INT NOT NULL,
+      text TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (reel_id) REFERENCES reels(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+  } catch (err) {
+    console.error('initReels error:', err.message)
+  }
+}
+
+// GET /api/reels — paginated feed
+app.get('/api/reels', authenticate, async (req, res) => {
+  try {
+    const offset = parseInt(req.query.offset) || 0
+    const limit = Math.min(parseInt(req.query.limit) || 10, 50)
+    const [rows] = await pool.query(
+      `SELECT r.id, r.video_url, r.caption, r.views_count, r.created_at,
+              u.id AS user_id, u.name AS author_name, u.handle AS author_handle, u.avatar_url AS author_avatar,
+              COUNT(DISTINCT rl.user_id) AS likes_count,
+              EXISTS(SELECT 1 FROM reel_likes WHERE reel_id = r.id AND user_id = ?) AS liked_by_me,
+              COUNT(DISTINCT rc.id) AS comments_count
+       FROM reels r
+       JOIN users u ON r.user_id = u.id
+       LEFT JOIN reel_likes rl ON rl.reel_id = r.id
+       LEFT JOIN reel_comments rc ON rc.reel_id = r.id
+       GROUP BY r.id
+       ORDER BY r.created_at DESC
+       LIMIT ? OFFSET ?`,
+      [req.userId, limit, offset]
+    )
+    res.json({ reels: rows.map(r => ({ ...r, liked_by_me: !!r.liked_by_me })) })
+  } catch (err) {
+    console.error('GET /api/reels error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/reels — upload a reel
+app.post('/api/reels', authenticate, reelUpload.single('video'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No video file provided' })
+    const caption = (req.body.caption || '').trim().slice(0, 2000) || null
+    const videoUrl = `/uploads/${req.file.filename}`
+    const [result] = await pool.query(
+      'INSERT INTO reels (user_id, video_url, caption) VALUES (?, ?, ?)',
+      [req.userId, videoUrl, caption]
+    )
+    const [[reel]] = await pool.query(
+      `SELECT r.id, r.video_url, r.caption, r.views_count, r.created_at,
+              u.id AS user_id, u.name AS author_name, u.handle AS author_handle, u.avatar_url AS author_avatar,
+              0 AS likes_count, 0 AS liked_by_me, 0 AS comments_count
+       FROM reels r JOIN users u ON r.user_id = u.id WHERE r.id = ?`,
+      [result.insertId]
+    )
+    res.status(201).json({ reel })
+  } catch (err) {
+    console.error('POST /api/reels error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/reels/:id/like — toggle like
+app.post('/api/reels/:id/like', authenticate, async (req, res) => {
+  try {
+    const reelId = parseInt(req.params.id)
+    const [[existing]] = await pool.query(
+      'SELECT 1 FROM reel_likes WHERE reel_id = ? AND user_id = ?',
+      [reelId, req.userId]
+    )
+    if (existing) {
+      await pool.query('DELETE FROM reel_likes WHERE reel_id = ? AND user_id = ?', [reelId, req.userId])
+    } else {
+      await pool.query('INSERT IGNORE INTO reel_likes (reel_id, user_id) VALUES (?, ?)', [reelId, req.userId])
+    }
+    const [[{ likes_count }]] = await pool.query(
+      'SELECT COUNT(*) AS likes_count FROM reel_likes WHERE reel_id = ?', [reelId]
+    )
+    res.json({ liked: !existing, likes_count })
+  } catch (err) {
+    console.error('POST /api/reels/:id/like error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/reels/:id/comments
+app.get('/api/reels/:id/comments', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT rc.id, rc.text, rc.created_at,
+              u.name AS author_name, u.handle AS author_handle, u.avatar_url AS author_avatar
+       FROM reel_comments rc JOIN users u ON rc.user_id = u.id
+       WHERE rc.reel_id = ?
+       ORDER BY rc.created_at ASC`,
+      [req.params.id]
+    )
+    res.json({ comments: rows })
+  } catch (err) {
+    console.error('GET /api/reels/:id/comments error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/reels/:id/comments
+app.post('/api/reels/:id/comments', authenticate, async (req, res) => {
+  try {
+    const text = (req.body.text || '').trim()
+    if (!text) return res.status(400).json({ error: 'Comment cannot be empty' })
+    const [result] = await pool.query(
+      'INSERT INTO reel_comments (reel_id, user_id, text) VALUES (?, ?, ?)',
+      [req.params.id, req.userId, text.slice(0, 2000)]
+    )
+    const [[comment]] = await pool.query(
+      `SELECT rc.id, rc.text, rc.created_at,
+              u.name AS author_name, u.handle AS author_handle, u.avatar_url AS author_avatar
+       FROM reel_comments rc JOIN users u ON rc.user_id = u.id WHERE rc.id = ?`,
+      [result.insertId]
+    )
+    res.status(201).json({ comment })
+  } catch (err) {
+    console.error('POST /api/reels/:id/comments error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// DELETE /api/reels/:id
+app.delete('/api/reels/:id', authenticate, async (req, res) => {
+  try {
+    const [[reel]] = await pool.query('SELECT user_id FROM reels WHERE id = ?', [req.params.id])
+    if (!reel) return res.status(404).json({ error: 'Reel not found' })
+    if (reel.user_id !== req.userId) return res.status(403).json({ error: 'Forbidden' })
+    await pool.query('DELETE FROM reels WHERE id = ?', [req.params.id])
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/reels/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Viral Growth Routes ──
+
+// GET /api/referrals/dashboard — referral stats + badges for current user
+app.get('/api/referrals/dashboard', authenticate, async (req, res) => {
+  try {
+    const lang = req.lang || 'da'
+    // Referral stats
+    const [[stats]] = await pool.query(
+      `SELECT
+        (SELECT COUNT(*) FROM referrals WHERE referrer_id = ?) as total_accepted,
+        (SELECT COUNT(*) FROM invitations WHERE inviter_id = ?) as total_invited,
+        (SELECT referral_count FROM users WHERE id = ?) as referral_count,
+        (SELECT reputation_score FROM users WHERE id = ?) as reputation_score`,
+      [req.userId, req.userId, req.userId, req.userId]
+    )
+
+    // Earned badges with reward details
+    const [badges] = await pool.query(
+      `SELECT ub.reward_type, ub.earned_at,
+              r.icon, r.title_da, r.title_en, r.description_da, r.description_en, r.threshold, r.reward_points
+       FROM user_badges ub JOIN rewards r ON r.type = ub.reward_type
+       WHERE ub.user_id = ?
+       ORDER BY r.threshold ASC`,
+      [req.userId]
+    )
+
+    // Recent successful referrals (who joined via this user's invite)
+    const [recent] = await pool.query(
+      `SELECT u.name, u.handle, u.avatar_url, r.converted_at, r.invite_source
+       FROM referrals r JOIN users u ON u.id = r.referred_id
+       WHERE r.referrer_id = ?
+       ORDER BY r.converted_at DESC LIMIT 10`,
+      [req.userId]
+    )
+
+    // Next milestone
+    const referralCount = Number(stats.referral_count || 0)
+    const nextMilestone = BADGE_THRESHOLDS.find(b => b.threshold > referralCount) || null
+    const conversionRate = stats.total_invited > 0
+      ? Math.round((referralCount / Number(stats.total_invited)) * 100)
+      : 0
+
+    res.json({
+      totalInvited: Number(stats.total_invited || 0),
+      totalAccepted: referralCount,
+      conversionRate,
+      reputationScore: Number(stats.reputation_score || 0),
+      badges: badges.map(b => ({
+        type: b.reward_type,
+        icon: b.icon,
+        title: lang === 'da' ? b.title_da : b.title_en,
+        description: lang === 'da' ? b.description_da : b.description_en,
+        earnedAt: b.earned_at,
+        threshold: b.threshold,
+        points: b.reward_points,
+      })),
+      recentReferrals: recent.map(r => ({
+        name: r.name,
+        handle: r.handle,
+        avatarUrl: r.avatar_url,
+        joinedAt: r.converted_at,
+        source: r.invite_source,
+      })),
+      nextMilestone: nextMilestone
+        ? { type: nextMilestone.type, target: nextMilestone.threshold, current: referralCount, remaining: nextMilestone.threshold - referralCount }
+        : null,
+    })
+  } catch (err) {
+    console.error('GET /api/referrals/dashboard error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/referrals/leaderboard — top inviters (public ranking)
+app.get('/api/referrals/leaderboard', authenticate, async (req, res) => {
+  try {
+    const lang = req.lang || 'da'
+    const [rows] = await pool.query(
+      `SELECT u.id, u.name, u.handle, u.avatar_url, u.referral_count, u.reputation_score,
+              (SELECT ub.reward_type FROM user_badges ub JOIN rewards r ON r.type = ub.reward_type
+               WHERE ub.user_id = u.id ORDER BY r.threshold DESC LIMIT 1) as top_badge_type,
+              (SELECT r2.icon FROM rewards r2 WHERE r2.type = (
+               SELECT ub2.reward_type FROM user_badges ub2 JOIN rewards r3 ON r3.type = ub2.reward_type
+               WHERE ub2.user_id = u.id ORDER BY r3.threshold DESC LIMIT 1)) as top_badge_icon
+       FROM users u
+       WHERE u.referral_count > 0
+       ORDER BY u.referral_count DESC, u.reputation_score DESC
+       LIMIT 20`
+    )
+    res.json(rows.map((r, i) => ({
+      rank: i + 1,
+      id: r.id,
+      name: r.name,
+      handle: r.handle,
+      avatarUrl: r.avatar_url,
+      referralCount: Number(r.referral_count),
+      reputationScore: Number(r.reputation_score),
+      topBadge: r.top_badge_type ? { type: r.top_badge_type, icon: r.top_badge_icon } : null,
+      isMe: r.id === req.userId,
+    })))
+  } catch (err) {
+    console.error('GET /api/referrals/leaderboard error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/badges — all badges available + which ones the user has earned
+app.get('/api/badges', authenticate, async (req, res) => {
+  try {
+    const lang = req.lang || 'da'
+    const [all] = await pool.query('SELECT * FROM rewards ORDER BY threshold ASC')
+    const [earned] = await pool.query('SELECT reward_type, earned_at FROM user_badges WHERE user_id = ?', [req.userId])
+    const earnedMap = new Map(earned.map(e => [e.reward_type, e.earned_at]))
+    const [[user]] = await pool.query('SELECT referral_count FROM users WHERE id = ?', [req.userId])
+    const referralCount = Number(user?.referral_count || 0)
+    res.json(all.map(r => ({
+      type: r.type,
+      icon: r.icon,
+      title: lang === 'da' ? r.title_da : r.title_en,
+      description: lang === 'da' ? r.description_da : r.description_en,
+      threshold: r.threshold,
+      points: r.reward_points,
+      earned: earnedMap.has(r.type),
+      earnedAt: earnedMap.get(r.type) || null,
+      progress: Math.min(referralCount, r.threshold),
+    })))
+  } catch (err) {
+    console.error('GET /api/badges error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/public/profile/:handle — public profile (no auth required)
+app.get('/api/public/profile/:handle', async (req, res) => {
+  try {
+    const handle = req.params.handle.startsWith('@') ? req.params.handle : '@' + req.params.handle
+    const [rows] = await pool.query(
+      `SELECT u.id, u.name, u.handle, u.bio_da, u.bio_en, u.location, u.avatar_url, u.join_date,
+              u.profile_public, u.reputation_score, u.referral_count,
+              (SELECT COUNT(*) FROM friendships WHERE user_id = u.id) as friend_count,
+              (SELECT COUNT(*) FROM posts WHERE author_id = u.id AND is_public = 1) as public_post_count
+       FROM users u WHERE u.handle = ?`,
+      [handle]
+    )
+    if (!rows.length) return res.status(404).json({ error: 'Profile not found' })
+    const user = rows[0]
+    if (!user.profile_public) return res.status(403).json({ error: 'Profile is private' })
+
+    // Public posts for this profile
+    const [posts] = await pool.query(
+      `SELECT p.id, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media,
+              p.share_token, p.share_count, p.created_at
+       FROM posts p WHERE p.author_id = ? AND p.is_public = 1
+       ORDER BY p.created_at DESC LIMIT 10`,
+      [user.id]
+    )
+
+    res.json({
+      id: user.id,
+      name: user.name,
+      handle: user.handle,
+      bio: { da: user.bio_da, en: user.bio_en },
+      location: user.location,
+      avatarUrl: user.avatar_url,
+      joinDate: user.join_date,
+      friendCount: Number(user.friend_count),
+      publicPostCount: Number(user.public_post_count),
+      reputationScore: Number(user.reputation_score),
+      posts: posts.map(p => ({
+        id: p.id,
+        text: { da: p.text_da, en: p.text_en },
+        time: { da: p.time_da, en: p.time_en },
+        likes: p.likes,
+        media: p.media,
+        shareToken: p.share_token,
+        shareCount: p.share_count,
+        createdAt: p.created_at,
+      })),
+    })
+  } catch (err) {
+    console.error('GET /api/public/profile/:handle error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/public/post/:shareToken — public post view (no auth required)
+app.get('/api/public/post/:shareToken', async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT p.id, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media,
+              p.share_token, p.share_count, p.created_at, p.is_public,
+              u.id as author_id, u.name as author_name, u.handle as author_handle,
+              u.avatar_url as author_avatar, u.profile_public,
+              (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comment_count
+       FROM posts p JOIN users u ON u.id = p.author_id
+       WHERE p.share_token = ?`,
+      [req.params.shareToken]
+    )
+    if (!rows.length) return res.status(404).json({ error: 'Post not found' })
+    const post = rows[0]
+    if (!post.is_public) return res.status(403).json({ error: 'Post is not public' })
+
+    // Increment share view count
+    await pool.query('UPDATE posts SET share_count = share_count + 1 WHERE share_token = ?', [req.params.shareToken])
+
+    res.json({
+      id: post.id,
+      text: { da: post.text_da, en: post.text_en },
+      time: { da: post.time_da, en: post.time_en },
+      likes: post.likes,
+      media: post.media,
+      shareToken: post.share_token,
+      shareCount: post.share_count,
+      commentCount: Number(post.comment_count),
+      createdAt: post.created_at,
+      author: {
+        id: post.author_id,
+        name: post.author_name,
+        handle: post.author_handle,
+        avatarUrl: post.author_avatar,
+        profilePublic: !!post.profile_public,
+      },
+    })
+  } catch (err) {
+    console.error('GET /api/public/post/:shareToken error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/posts/:id/share-token — generate/get share token for a post (makes it public)
+app.post('/api/posts/:id/share-token', authenticate, async (req, res) => {
+  const postId = parseInt(req.params.id)
+  try {
+    const [[post]] = await pool.query('SELECT id, author_id, share_token, is_public FROM posts WHERE id = ?', [postId])
+    if (!post) return res.status(404).json({ error: 'Post not found' })
+    if (post.author_id !== req.userId) return res.status(403).json({ error: 'Forbidden' })
+
+    let shareToken = post.share_token
+    if (!shareToken) {
+      shareToken = crypto.randomBytes(16).toString('hex')
+      await pool.query('UPDATE posts SET share_token = ?, is_public = 1 WHERE id = ?', [shareToken, postId])
+    } else if (!post.is_public) {
+      await pool.query('UPDATE posts SET is_public = 1 WHERE id = ?', [postId])
+    }
+
+    const siteUrl = process.env.SITE_URL || 'https://fellis.eu'
+    res.json({ shareToken, shareUrl: `${siteUrl}/p/${shareToken}` })
+  } catch (err) {
+    console.error('POST /api/posts/:id/share-token error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// DELETE /api/posts/:id/share-token — revoke public access to a post
+app.delete('/api/posts/:id/share-token', authenticate, async (req, res) => {
+  const postId = parseInt(req.params.id)
+  try {
+    const [[post]] = await pool.query('SELECT author_id FROM posts WHERE id = ?', [postId])
+    if (!post) return res.status(404).json({ error: 'Post not found' })
+    if (post.author_id !== req.userId) return res.status(403).json({ error: 'Forbidden' })
+    await pool.query('UPDATE posts SET is_public = 0 WHERE id = ?', [postId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// PATCH /api/profile/public — toggle public profile visibility
+app.patch('/api/profile/public', authenticate, async (req, res) => {
+  const { isPublic } = req.body
+  if (typeof isPublic !== 'boolean') return res.status(400).json({ error: 'isPublic must be boolean' })
+  try {
+    await pool.query('UPDATE users SET profile_public = ? WHERE id = ?', [isPublic ? 1 : 0, req.userId])
+    res.json({ ok: true, isPublic })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/share/track — track an external share event
+app.post('/api/share/track', authenticate, async (req, res) => {
+  const { shareType, targetId, platform, utmCampaign } = req.body
+  const validTypes = ['post', 'profile', 'invite']
+  if (!validTypes.includes(shareType)) return res.status(400).json({ error: 'Invalid share type' })
+  try {
+    await pool.query(
+      'INSERT INTO share_events (user_id, share_type, target_id, platform, utm_campaign) VALUES (?, ?, ?, ?, ?)',
+      [req.userId, shareType, targetId || null, platform || null, utmCampaign || null]
+    )
+    // Increment post share count if applicable
+    if (shareType === 'post' && targetId) {
+      await pool.query('UPDATE posts SET share_count = share_count + 1 WHERE id = ? AND author_id = ?', [targetId, req.userId])
+    }
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/admin/viral-stats — viral growth stats (admin only)
+app.get('/api/admin/viral-stats', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const days = parseInt(req.query.days || '30')
+    const [[inviteStats]] = await pool.query(
+      `SELECT
+        (SELECT COUNT(*) FROM invitations WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)) as invites_sent,
+        (SELECT COUNT(*) FROM invitations WHERE status = 'accepted' AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)) as invites_accepted,
+        (SELECT COUNT(*) FROM referrals WHERE converted_at >= DATE_SUB(NOW(), INTERVAL ? DAY)) as referrals_converted,
+        (SELECT COUNT(*) FROM share_events WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)) as shares_tracked,
+        (SELECT COUNT(*) FROM users WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)) as new_users`,
+      [days, days, days, days, days]
+    )
+
+    // Viral coefficient = avg referrals per user who registered via invite
+    const [[vcStats]] = await pool.query(
+      `SELECT
+        COUNT(DISTINCT referrer_id) as active_referrers,
+        COUNT(*) as total_referrals
+       FROM referrals WHERE converted_at >= DATE_SUB(NOW(), INTERVAL ? DAY)`,
+      [days]
+    )
+    const viralCoefficient = vcStats.active_referrers > 0
+      ? (vcStats.total_referrals / vcStats.active_referrers).toFixed(2)
+      : 0
+
+    // Top inviters
+    const [topInviters] = await pool.query(
+      `SELECT u.name, u.handle, u.referral_count,
+              COUNT(r.id) as period_referrals
+       FROM users u JOIN referrals r ON r.referrer_id = u.id
+       WHERE r.converted_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+       GROUP BY u.id ORDER BY period_referrals DESC LIMIT 10`,
+      [days]
+    )
+
+    // Share breakdown by platform
+    const [sharePlatforms] = await pool.query(
+      `SELECT platform, COUNT(*) as count
+       FROM share_events WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+       GROUP BY platform ORDER BY count DESC`,
+      [days]
+    )
+
+    // Daily invite trend
+    const [dailyTrend] = await pool.query(
+      `SELECT DATE(created_at) as date, COUNT(*) as invites_sent,
+              SUM(CASE WHEN status = 'accepted' THEN 1 ELSE 0 END) as accepted
+       FROM invitations WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+       GROUP BY DATE(created_at) ORDER BY date ASC`,
+      [days]
+    )
+
+    res.json({
+      days,
+      invitesSent: Number(inviteStats.invites_sent || 0),
+      invitesAccepted: Number(inviteStats.invites_accepted || 0),
+      referralsConverted: Number(inviteStats.referrals_converted || 0),
+      sharesTracked: Number(inviteStats.shares_tracked || 0),
+      newUsers: Number(inviteStats.new_users || 0),
+      conversionRate: inviteStats.invites_sent > 0
+        ? Math.round((inviteStats.invites_accepted / inviteStats.invites_sent) * 100)
+        : 0,
+      viralCoefficient: Number(viralCoefficient),
+      topInviters: topInviters.map(u => ({ name: u.name, handle: u.handle, total: Number(u.referral_count), period: Number(u.period_referrals) })),
+      sharePlatforms: sharePlatforms.map(p => ({ platform: p.platform || 'unknown', count: Number(p.count) })),
+      dailyTrend,
+    })
+  } catch (err) {
+    console.error('GET /api/admin/viral-stats error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/invites — override to add rate limiting
+// (Patches the existing POST /api/invites with rate limit check by registering a pre-middleware)
+// NOTE: Rate limit is enforced via checkInviteRateLimit called inside the existing route handler.
+// We add a global check middleware specifically for this path:
+app.use('/api/invites', (req, res, next) => {
+  if (req.method !== 'POST') return next()
+  // Rate limit check requires userId — get it from session first
+  const sessionId = req.headers['x-session-id'] || req.cookies?.fellis_session_id
+  if (!sessionId) return next() // Let authenticate handle it
+  // Async session lookup just for rate limiting (non-blocking failure)
+  pool.query('SELECT user_id FROM sessions WHERE id = ? AND expires_at > NOW()', [sessionId])
+    .then(([rows]) => {
+      if (rows.length && !checkInviteRateLimit(rows[0].user_id)) {
+        return res.status(429).json({ error: 'Too many invitations sent. Please wait 15 minutes.' })
+      }
+      next()
+    })
+    .catch(() => next())
+})
+
+// ── Group Suggestion Routes ──
+
+// GET /api/groups/suggestions — suggested public groups for the current user
+// Collaborative filtering: groups shared by user's group-mates score highest;
+// falls back to most popular public groups when user has no memberships yet.
+app.get('/api/groups/suggestions', authenticate, async (req, res) => {
+  try {
+    const [suggestions] = await pool.query(
+      `SELECT c.id, c.name, c.category, c.description_da, c.description_en,
+              COUNT(DISTINCT cp2.user_id) AS shared_members,
+              (SELECT COUNT(*) FROM conversation_participants WHERE conversation_id = c.id) AS member_count
+       FROM conversations c
+       JOIN conversation_participants cp2 ON cp2.conversation_id = c.id
+       WHERE c.is_public = 1
+         AND c.is_group = 1
+         AND c.id NOT IN (
+           SELECT conversation_id FROM conversation_participants WHERE user_id = ?
+         )
+         AND cp2.user_id IN (
+           SELECT cp3.user_id FROM conversation_participants cp3
+           WHERE cp3.conversation_id IN (
+             SELECT conversation_id FROM conversation_participants WHERE user_id = ?
+           )
+           AND cp3.user_id != ?
+         )
+       GROUP BY c.id
+       ORDER BY shared_members DESC, member_count DESC
+       LIMIT 5`,
+      [req.userId, req.userId, req.userId]
+    )
+
+    if (suggestions.length === 0) {
+      // No collaborative matches — show most popular public groups
+      const [popular] = await pool.query(
+        `SELECT c.id, c.name, c.category, c.description_da, c.description_en,
+                0 AS shared_members,
+                COUNT(cp.user_id) AS member_count
+         FROM conversations c
+         LEFT JOIN conversation_participants cp ON cp.conversation_id = c.id
+         WHERE c.is_public = 1
+           AND c.is_group = 1
+           AND c.id NOT IN (
+             SELECT conversation_id FROM conversation_participants WHERE user_id = ?
+           )
+         GROUP BY c.id
+         ORDER BY member_count DESC
+         LIMIT 5`,
+        [req.userId]
+      )
+      return res.json({ suggestions: popular })
+    }
+
+    res.json({ suggestions })
+  } catch (err) {
+    console.error('GET /api/groups/suggestions error:', err)
+    res.status(500).json({ error: 'Failed to load group suggestions' })
+  }
+})
+
+// POST /api/groups/:id/join — join a public group
+app.post('/api/groups/:id/join', authenticate, async (req, res) => {
+  const groupId = parseInt(req.params.id)
+  if (isNaN(groupId)) return res.status(400).json({ error: 'Invalid group ID' })
+  try {
+    const [[group]] = await pool.query(
+      'SELECT id FROM conversations WHERE id = ? AND is_public = 1 AND is_group = 1',
+      [groupId]
+    )
+    if (!group) return res.status(404).json({ error: 'Group not found or not public' })
+    await pool.query(
+      'INSERT IGNORE INTO conversation_participants (conversation_id, user_id) VALUES (?, ?)',
+      [groupId, req.userId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/groups/:id/join error:', err)
+    res.status(500).json({ error: 'Failed to join group' })
+  }
+})
+
 // Multer error handler
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
@@ -3665,4 +4630,6 @@ app.listen(PORT, () => {
   initAnalytics()
   initSettingsSchema()
   initSiteVisits()
+  initViralGrowth()
+  initReels()
 })

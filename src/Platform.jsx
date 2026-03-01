@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect } from 'react'
-import { PT, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateMode, apiUpdatePlan } from './api.js'
+import { PT, INTEREST_CATEGORIES, nameToColor, getInitials } from './data.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiUploadReel, apiToggleReelLike, apiFetchReelComments, apiAddReelComment, apiDeleteReel, apiFetchCalendarEvents, apiUpdateBirthday } from './api.js'
+import ReelsPage from './Reels.jsx'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -177,14 +178,14 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
           </div>
         </div>
         <div className="p-nav-tabs">
-          {['feed', 'friends', 'messages', 'events', 'marketplace', ...(mode === 'business' ? ['jobs', 'analytics'] : []), 'company'].map(p => (
+          {['feed', 'reels', 'friends', 'messages', 'events', 'calendar', 'marketplace', ...(mode === 'business' ? ['jobs', 'analytics'] : []), 'company'].map(p => (
             <button
               key={p}
               className={`p-nav-tab${page === p ? ' active' : ''}`}
               onClick={() => navigateTo(p)}
             >
               <span className="p-nav-tab-icon">
-                {p === 'feed' ? '🏠' : p === 'friends' ? '👥' : p === 'messages' ? '💬' : p === 'events' ? '📅' : p === 'marketplace' ? '🛍️' : p === 'analytics' ? '📊' : p === 'company' ? '🏢' : p === 'admin' ? '⚙️' : '💼'}
+                {p === 'feed' ? '🏠' : p === 'reels' ? '🎬' : p === 'friends' ? '👥' : p === 'messages' ? '💬' : p === 'events' ? '📅' : p === 'calendar' ? '🗓️' : p === 'marketplace' ? '🛍️' : p === 'analytics' ? '📊' : p === 'company' ? '🏢' : p === 'admin' ? '⚙️' : '💼'}
               </span>
               <span className="p-nav-tab-label">
                 {p === 'friends'
@@ -292,6 +293,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
             onNavigate={navigateTo}
           />
         </div>
+        {page === 'reels' && <ReelsPage t={t} currentUser={currentUser} initialReelId={navParam?.reelId} />}
         {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} plan={plan} onUserUpdate={setCurrentUser} onNavigate={navigateTo} />}
         {page === 'view-profile' && viewUserId && <FriendProfilePage userId={viewUserId} lang={lang} t={t} currentUser={currentUser} onBack={() => navigateTo('feed')} onMessage={async (prof) => { const data = await apiCreateConversation([prof.id], null, false, false).catch(() => null); if (data?.id) setOpenConvId(data.id); navigateTo('messages') }} />}
         {page === 'edit-profile' && <EditProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} />}
@@ -306,6 +308,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
           <MessagesPage lang={lang} t={t} currentUser={currentUser} mode={mode} openConvId={openConvId} onConvOpened={() => setOpenConvId(null)} />
         </div>
         {page === 'events' && <EventsPage lang={lang} t={t} currentUser={currentUser} mode={mode} />}
+        {page === 'calendar' && <CalendarPage lang={lang} t={t} currentUser={currentUser} />}
         {page === 'marketplace' && <MarketplacePage lang={lang} t={t} currentUser={currentUser} onContactSeller={async (sellerId) => {
           const numId = parseInt(sellerId)
           if (numId > 0 && !isNaN(numId) && numId !== currentUser.id) {
@@ -693,6 +696,122 @@ function MentionDropdown({ filtered, selIdx, onSelect }) {
   )
 }
 
+// ── Reels strip shown at top of feed ──────────────────────────────────────────
+function ReelsStrip({ lang, t, onNavigate }) {
+  const [reels, setReels] = useState([])
+
+  useEffect(() => {
+    apiFetchReels(0, 3).then(data => { if (data?.reels?.length) setReels(data.reels) })
+  }, [])
+
+  if (!reels.length) return null
+
+  const API_BASE = import.meta.env.VITE_API_URL || ''
+
+  const s = {
+    wrap: {
+      padding: '12px 0 4px',
+      marginBottom: 8,
+    },
+    header: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 10,
+      padding: '0 2px',
+    },
+    label: { fontSize: 14, fontWeight: 700, color: 'var(--text-primary, #111)' },
+    seeAll: {
+      background: 'none',
+      border: 'none',
+      color: '#1877F2',
+      fontSize: 13,
+      cursor: 'pointer',
+      fontWeight: 600,
+      padding: 0,
+    },
+    row: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(3, 1fr)',
+      gap: 8,
+    },
+    card: {
+      position: 'relative',
+      borderRadius: 12,
+      overflow: 'hidden',
+      aspectRatio: '9/16',
+      background: '#111',
+      cursor: 'pointer',
+    },
+    video: {
+      width: '100%',
+      height: '100%',
+      objectFit: 'cover',
+      display: 'block',
+      pointerEvents: 'none',
+    },
+    playIcon: {
+      position: 'absolute',
+      top: '50%',
+      left: '50%',
+      transform: 'translate(-50%, -50%)',
+      width: 32,
+      height: 32,
+      borderRadius: '50%',
+      background: 'rgba(255,255,255,0.25)',
+      backdropFilter: 'blur(4px)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: 14,
+      pointerEvents: 'none',
+    },
+    overlay: {
+      position: 'absolute',
+      bottom: 0, left: 0, right: 0,
+      padding: '20px 6px 6px',
+      background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)',
+      pointerEvents: 'none',
+    },
+    author: {
+      fontSize: 11,
+      fontWeight: 600,
+      color: '#fff',
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+    },
+  }
+
+  return (
+    <div style={s.wrap}>
+      <div style={s.header}>
+        <span style={s.label}>{t.reels}</span>
+        <button style={s.seeAll} onClick={() => onNavigate('reels')}>
+          {lang === 'da' ? 'Se alle' : 'See all'} →
+        </button>
+      </div>
+      <div style={s.row}>
+        {reels.map(reel => (
+          <div key={reel.id} style={s.card} onClick={() => onNavigate('reels', { reelId: reel.id })} title={reel.caption || reel.author_name}>
+            <video
+              src={`${API_BASE}${reel.video_url}`}
+              style={s.video}
+              muted
+              preload="metadata"
+              playsInline
+            />
+            <div style={s.playIcon}>▶</div>
+            <div style={s.overlay}>
+              <div style={s.author}>{reel.author_name}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onNavigate }) {
   const [posts, setPosts] = useState([])
   const [pinnedPost, setPinnedPost] = useState(null)
@@ -762,6 +881,14 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
   const feedDbEventIds = new Set(feedEvents.map(e => e.id))
   const [editingPostId, setEditingPostId] = useState(null)
   const [editPostText, setEditPostText] = useState('')
+  const [groupSuggestions, setGroupSuggestions] = useState([])
+  const [joinedGroupIds, setJoinedGroupIds] = useState(new Set())
+  const [dismissedGroupIds, setDismissedGroupIds] = useState(new Set())
+
+  const handleJoinGroup = async (groupId) => {
+    setJoinedGroupIds(prev => new Set([...prev, groupId]))
+    await apiJoinGroup(groupId).catch(() => {})
+  }
 
   const handleFeedRsvp = (eventId, status) => {
     const newStatus = feedRsvpMap[eventId] === status ? null : status
@@ -824,6 +951,11 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
         setFeedRsvpMap(map)
       }
     })
+    // Load dynamic group suggestions
+    apiGetGroupSuggestions().then(data => {
+      if (data?.suggestions?.length) setGroupSuggestions(data.suggestions)
+    })
+
     // Load recent company posts from followed companies
     fetch('/api/companies', { credentials: 'include' })
       .then(r => r.json())
@@ -1154,6 +1286,8 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
           </div>
         </div>
       )}
+      {/* Reels strip */}
+      <ReelsStrip lang={lang} t={t} onNavigate={onNavigate} />
       {/* New post */}
       <div className="p-card p-new-post">
         {/* Hidden file input — gallery only */}
@@ -1458,6 +1592,63 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
           </div>
         )
       })}
+
+      {/* Dynamic group suggestion card — shown on first page when suggestions exist */}
+      {offset === 0 && (() => {
+        const visible = groupSuggestions.filter(g => !dismissedGroupIds.has(g.id) && !joinedGroupIds.has(g.id))
+        if (!visible.length) return null
+        return (
+          <div className="p-card p-post" style={{ background: 'linear-gradient(135deg, #f0faf4 0%, #fff 100%)', border: '1.5px solid #d4edda' }}>
+            <div className="p-post-header">
+              <div className="p-avatar-sm" style={{ background: '#2D6A4F', fontSize: 13, fontWeight: 900, letterSpacing: '-0.5px', flexShrink: 0 }}>
+                f
+              </div>
+              <div style={{ flex: 1 }}>
+                <div className="p-post-author">fellis.eu</div>
+                <div className="p-post-time">{t.groupSuggestionsSubtitle}</div>
+              </div>
+              <span style={{ fontSize: 11, color: '#2D6A4F', fontWeight: 700, background: '#d4edda', padding: '3px 8px', borderRadius: 20 }}>
+                💡 {lang === 'da' ? 'Forslag' : 'Suggested'}
+              </span>
+            </div>
+            <div style={{ marginTop: 10 }}>
+              {visible.slice(0, 3).map((group, idx) => (
+                <div key={group.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderTop: idx > 0 ? '1px solid #eef5f0' : 'none' }}>
+                  <div style={{ flex: 1, minWidth: 0, paddingRight: 10 }}>
+                    <div style={{ fontWeight: 600, fontSize: 14, color: '#1a1a1a' }}>
+                      👥 {group.name}
+                    </div>
+                    <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
+                      {Number(group.shared_members) > 0 ? t.groupSuggestionFriendsBased : t.groupSuggestionPopular}
+                      {' · '}
+                      {group.member_count} {Number(group.member_count) === 1 ? t.groupMember : t.groupMembers}
+                    </div>
+                    {(lang === 'da' ? group.description_da : group.description_en) && (
+                      <div style={{ fontSize: 12, color: '#555', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {lang === 'da' ? group.description_da : group.description_en}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                    <button
+                      onClick={() => setDismissedGroupIds(prev => new Set([...prev, group.id]))}
+                      style={{ background: 'none', border: '1px solid #ddd', borderRadius: 8, fontSize: 12, padding: '5px 10px', cursor: 'pointer', color: '#888' }}
+                    >
+                      {t.groupSuggestionDismiss}
+                    </button>
+                    <button
+                      onClick={() => handleJoinGroup(group.id)}
+                      style={{ background: '#2D6A4F', color: '#fff', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, padding: '5px 12px', cursor: 'pointer' }}
+                    >
+                      {t.groupJoin}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Posts — max PAGE_SIZE in DOM */}
       {posts.filter(post => !hiddenPosts.has(post.id)).map(post => {
@@ -1795,13 +1986,26 @@ function ProfilePage({ lang, t, currentUser, mode, plan, onUserUpdate, onNavigat
   const [familyFriends, setFamilyFriends] = useState([])
   const [profileTab, setProfileTab] = useState('about')
   const [myCompanies, setMyCompanies] = useState([])
+  const [interests, setInterests] = useState([])
+  const [interestsSaving, setInterestsSaving] = useState(false)
+  const [interestsSavedMsg, setInterestsSavedMsg] = useState('')
+  const [parachordEnabled, setParachordEnabled] = useState(() => localStorage.getItem('fellis_parachord_enabled') !== 'false')
+  const [profilePublic, setProfilePublic] = useState(false)
+  const [profilePublicSaving, setProfilePublicSaving] = useState(false)
   const { rels } = useContactRelationships()
+
+  const handleParachordToggle = () => {
+    const next = !parachordEnabled
+    setParachordEnabled(next)
+    localStorage.setItem('fellis_parachord_enabled', next ? 'true' : 'false')
+  }
 
   useEffect(() => {
     apiFetchProfile().then(data => {
       if (data) {
         setProfile(data)
         if (data.interests?.length) setInterests(data.interests)
+        if (data.profile_public !== undefined) setProfilePublic(!!data.profile_public)
         if (data.avatar_url || data.avatarUrl) {
           onUserUpdate(prev => ({ ...prev, avatar_url: data.avatarUrl || data.avatar_url }))
         }
@@ -1902,58 +2106,87 @@ function ProfilePage({ lang, t, currentUser, mode, plan, onUserUpdate, onNavigat
         {/* Interests card */}
         <div className="p-card p-login-info-card" style={{ marginBottom: 16 }}>
           <h3 className="p-section-title">🎯 {t.interestsSectionTitle}</h3>
-          <p style={{ fontSize: 13, color: '#666', margin: '0 0 12px' }}>{t.interestsSectionDesc}</p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
-            {INTEREST_CATEGORIES.map(cat => {
-              const selected = interests.includes(cat.id)
-              return (
-                <button
-                  key={cat.id}
-                  onClick={() => {
-                    setInterestsSavedMsg('')
-                    setInterests(prev => selected ? prev.filter(i => i !== cat.id) : [...prev, cat.id])
-                  }}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 5,
-                    padding: '5px 12px', borderRadius: 20, fontSize: 13, cursor: 'pointer',
-                    border: selected ? '2px solid #2D6A4F' : '2px solid #ddd',
-                    background: selected ? '#F0FAF4' : '#fafafa',
-                    color: selected ? '#2D6A4F' : '#555',
-                    fontWeight: selected ? 700 : 400,
-                    transition: 'all 0.15s',
-                  }}
-                >
-                  <span>{cat.icon}</span>
-                  <span>{cat[lang] || cat.da}</span>
-                </button>
-              )
-            })}
-          </div>
-          {interestsSavedMsg ? (
-            <div style={{ fontSize: 13, color: '#2D6A4F', fontWeight: 600, marginBottom: 4 }}>{interestsSavedMsg}</div>
-          ) : interests.length < 3 ? (
-            <div style={{ fontSize: 12, color: '#e53935', marginBottom: 4 }}>{t.interestsMin3}</div>
-          ) : null}
-          <button
-            disabled={interestsSaving || interests.length < 3}
-            onClick={async () => {
-              setInterestsSaving(true)
-              setInterestsSavedMsg('')
-              const res = await apiUpdateInterests(interests)
-              setInterestsSaving(false)
-              if (res?.ok) {
-                setInterestsSavedMsg(t.interestsSaved)
-                setTimeout(() => setInterestsSavedMsg(''), 3000)
-              }
-            }}
-            style={{
-              padding: '7px 20px', borderRadius: 8, fontSize: 13, fontWeight: 700,
-              background: interests.length >= 3 ? '#2D6A4F' : '#ccc',
-              color: '#fff', border: 'none', cursor: interests.length >= 3 ? 'pointer' : 'not-allowed',
-            }}
-          >
-            {interestsSaving ? '...' : t.interestsSave}
+          {interests.length > 0 ? (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {interests.map(id => {
+                const cat = INTEREST_CATEGORIES.find(c => c.id === id)
+                return cat ? (
+                  <span key={id} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 20, fontSize: 13, background: '#F0FAF4', color: '#2D6A4F', border: '2px solid #2D6A4F', fontWeight: 600 }}>
+                    <span>{cat.icon}</span><span>{cat[lang] || cat.da}</span>
+                  </span>
+                ) : null
+              })}
+            </div>
+          ) : (
+            <p style={{ fontSize: 13, color: '#888', margin: 0 }}>{lang === 'da' ? 'Ingen interesser valgt endnu.' : 'No interests selected yet.'}</p>
+          )}
+          <button onClick={() => onNavigate('edit-profile')} style={{ marginTop: 12, padding: '6px 16px', borderRadius: 8, border: '1px solid #2D6A4F', background: '#fff', color: '#2D6A4F', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+            ✏️ {lang === 'da' ? 'Rediger interesser' : 'Edit interests'}
           </button>
+        </div>
+
+        <div className="p-card p-login-info-card" style={{ marginBottom: 16 }}>
+          <h3 className="p-section-title">🌐 {t.referralDashPublicProfile}</h3>
+          <p style={{ fontSize: 13, color: '#666', marginBottom: 12 }}>{t.referralDashPublicProfileDesc}</p>
+          <div className="p-login-info-row" style={{ alignItems: 'center', display: 'flex', gap: 12 }}>
+            <span className="p-login-info-label" style={{ flex: 1 }}>
+              {profilePublic ? `✅ ${t.referralDashPublicOn}` : `🔒 ${t.referralDashPublicOff}`}
+            </span>
+            <button
+              onClick={async () => {
+                if (profilePublicSaving) return
+                setProfilePublicSaving(true)
+                const next = !profilePublic
+                const res = await apiToggleProfilePublic(next)
+                if (res?.ok !== false) setProfilePublic(next)
+                setProfilePublicSaving(false)
+              }}
+              style={{
+                position: 'relative', width: 40, height: 22, borderRadius: 11,
+                background: profilePublic ? '#52B788' : '#ccc',
+                border: 'none', cursor: profilePublicSaving ? 'wait' : 'pointer', flexShrink: 0,
+                transition: 'background 0.2s',
+              }}
+              title={t.referralDashPublicProfile}
+            >
+              <span style={{
+                position: 'absolute', top: 3, left: profilePublic ? 20 : 3,
+                width: 16, height: 16, borderRadius: '50%', background: '#fff',
+                transition: 'left 0.2s',
+              }} />
+            </button>
+          </div>
+          {profilePublic && (
+            <div style={{ marginTop: 10, padding: '8px 10px', background: '#f0faf5', borderRadius: 8, fontSize: 12, color: '#40916C' }}>
+              🔗 {lang === 'da' ? 'Din offentlige profil: ' : 'Your public profile: '}
+              <strong>{window.location.origin}/profil/{(profile.handle || '').replace('@', '')}</strong>
+            </div>
+          )}
+        </div>
+
+        <div className="p-card p-login-info-card" style={{ marginBottom: 16 }}>
+          <h3 className="p-section-title">🎵 {t.parachordSettingsTitle}</h3>
+          <div className="p-login-info">
+            <div className="p-login-info-row" style={{ alignItems: 'center' }}>
+              <span className="p-login-info-label" style={{ flex: 1 }}>{t.parachordToggleLabel}</span>
+              <button
+                onClick={handleParachordToggle}
+                style={{
+                  position: 'relative', width: 40, height: 22, borderRadius: 11,
+                  background: parachordEnabled ? '#52B788' : '#ccc',
+                  border: 'none', cursor: 'pointer', flexShrink: 0,
+                  transition: 'background 0.2s',
+                }}
+                title={t.parachordToggleLabel}
+              >
+                <span style={{
+                  position: 'absolute', top: 3, left: parachordEnabled ? 20 : 3,
+                  width: 16, height: 16, borderRadius: '50%', background: '#fff',
+                  transition: 'left 0.2s',
+                }} />
+              </button>
+            </div>
+          </div>
         </div>
 
         {mode === 'privat' && (
@@ -2106,12 +2339,36 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
   const [passwordLoading, setPasswordLoading] = useState(false)
   const [showCurrent, setShowCurrent] = useState(false)
   const [showNew, setShowNew] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
+  // Interests state
+  const [interests, setInterests] = useState([])
+  const [interestsSaving, setInterestsSaving] = useState(false)
+  const [interestsSavedMsg, setInterestsSavedMsg] = useState('')
+  const [interestsSaveOk, setInterestsSaveOk] = useState(true)
+  const [birthday, setBirthday] = useState(currentUser.birthday || '')
+  const [birthdaySaveStatus, setBirthdaySaveStatus] = useState(null) // null | 'saving' | 'saved' | 'error'
 
   useEffect(() => {
     apiFetchProfile().then(data => {
-      if (data) { setProfile(data) }
+      if (data) {
+        setProfile(data)
+        if (data.interests?.length) setInterests(data.interests)
+        setBirthday(data.birthday || '')
+      }
     })
   }, [])
+
+  const handleSaveBirthday = async () => {
+    setBirthdaySaveStatus('saving')
+    const val = birthday.trim() || null
+    const res = await apiUpdateBirthday(val)
+    if (res?.ok) {
+      setBirthdaySaveStatus('saved')
+      setTimeout(() => setBirthdaySaveStatus(null), 2000)
+    } else {
+      setBirthdaySaveStatus('error')
+    }
+  }
 
   const handleAvatarUpload = useCallback(async (e) => {
     const file = e.target.files?.[0]
@@ -2248,6 +2505,34 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
         <label style={labelStyle}>{editT.locationLabel}</label>
         <input style={fieldStyle} value={profile.location || ''} readOnly />
 
+        {/* Birthday */}
+        <label style={labelStyle}>{t.birthdayLabel}</label>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <input
+            style={{ ...fieldStyle, flex: 1 }}
+            type="date"
+            value={birthday}
+            onChange={e => { setBirthday(e.target.value); setBirthdaySaveStatus(null) }}
+            max={new Date().toISOString().slice(0, 10)}
+          />
+          <button
+            type="button"
+            onClick={handleSaveBirthday}
+            disabled={birthdaySaveStatus === 'saving'}
+            style={{ padding: '10px 16px', borderRadius: 8, border: 'none', background: birthdaySaveStatus === 'saved' ? '#40916C' : '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}
+          >
+            {birthdaySaveStatus === 'saving' ? '…' : birthdaySaveStatus === 'saved' ? t.birthdaySaved : t.birthdaySave}
+          </button>
+          {birthday && (
+            <button
+              type="button"
+              onClick={() => { setBirthday(''); setBirthdaySaveStatus(null) }}
+              style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', background: 'none', fontSize: 13, cursor: 'pointer', color: '#888' }}
+              title={t.birthdayClear}
+            >✕</button>
+          )}
+        </div>
+
         {/* Business-only fields */}
         {mode === 'business' && (
           <>
@@ -2325,7 +2610,10 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
               </div>
               <PasswordStrengthIndicator password={newPassword} lang={lang} />
               <label style={labelStyle}>{editT.confirmPwd}</label>
-              <input style={fieldStyle} type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required placeholder="••••••••" />
+              <div style={{ position: 'relative' }}>
+                <input style={{ ...fieldStyle, paddingRight: 44 }} type={showConfirm ? 'text' : 'password'} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required placeholder="••••••••" />
+                <button type="button" onClick={() => setShowConfirm(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#888' }}>{showConfirm ? '🙈' : '👁️'}</button>
+              </div>
               {confirmPassword.length > 0 && (
                 <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: newPassword === confirmPassword ? '#2D6A4F' : '#c0392b' }}>
                   <span style={{ fontSize: 13 }}>{newPassword === confirmPassword ? '✓' : '✗'}</span>
@@ -2337,6 +2625,65 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
                 {editT.savePwd}
               </button>
             </form>
+        </div>
+
+        {/* Interests picker */}
+        <div className="p-card" style={{ marginBottom: 16 }}>
+          <h3 style={{ margin: '0 0 6px', fontSize: 16, fontWeight: 700 }}>🎯 {t.interestsSectionTitle}</h3>
+          <p style={{ fontSize: 13, color: '#666', margin: '0 0 12px' }}>{t.interestsSectionDesc}</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+            {INTEREST_CATEGORIES.map(cat => {
+              const selected = interests.includes(cat.id)
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => { setInterestsSavedMsg(''); setInterests(prev => selected ? prev.filter(i => i !== cat.id) : [...prev, cat.id]) }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    padding: '5px 12px', borderRadius: 20, fontSize: 13, cursor: 'pointer',
+                    border: selected ? '2px solid #2D6A4F' : '2px solid #ddd',
+                    background: selected ? '#F0FAF4' : '#fafafa',
+                    color: selected ? '#2D6A4F' : '#555', fontWeight: selected ? 700 : 400,
+                  }}
+                >
+                  <span>{cat.icon}</span><span>{cat[lang] || cat.da}</span>
+                </button>
+              )
+            })}
+          </div>
+          {interestsSavedMsg ? (
+            <div style={{ fontSize: 13, color: interestsSaveOk ? '#2D6A4F' : '#e53935', fontWeight: 600, marginBottom: 4 }}>{interestsSavedMsg}</div>
+          ) : interests.length < 3 ? (
+            <div style={{ fontSize: 12, color: '#e53935', marginBottom: 4 }}>{t.interestsMin3}</div>
+          ) : null}
+          <button
+            type="button"
+            disabled={interestsSaving || interests.length < 3}
+            onClick={async () => {
+              setInterestsSaving(true)
+              setInterestsSavedMsg('')
+              try {
+                const res = await apiUpdateInterests(interests)
+                if (res?.ok) {
+                  setInterestsSaveOk(true)
+                  setInterestsSavedMsg(t.interestsSaved)
+                  setTimeout(() => setInterestsSavedMsg(''), 3000)
+                } else {
+                  setInterestsSaveOk(false)
+                  setInterestsSavedMsg(lang === 'da' ? 'Kunne ikke gemme – prøv igen' : 'Could not save – try again')
+                }
+              } catch {
+                setInterestsSaveOk(false)
+                setInterestsSavedMsg(lang === 'da' ? 'Kunne ikke gemme – prøv igen' : 'Could not save – try again')
+              } finally {
+                setInterestsSaving(false)
+              }
+            }}
+            style={{ padding: '7px 20px', borderRadius: 8, fontSize: 13, fontWeight: 700, background: interests.length >= 3 ? '#2D6A4F' : '#ccc', color: '#fff', border: 'none', cursor: interests.length >= 3 ? 'pointer' : 'not-allowed' }}
+          >
+            {interestsSaving ? '...' : t.interestsSave}
+          </button>
         </div>
 
         <button
@@ -2425,6 +2772,7 @@ function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenM
   const [profile, setProfile] = useState(null)
   const [newEmail, setNewEmail] = useState(currentUser?.email || '')
   const [emailPassword, setEmailPassword] = useState('')
+  const [showEmailPw, setShowEmailPw] = useState(false)
   const [emailMsg, setEmailMsg] = useState(null)
   const [emailLoading, setEmailLoading] = useState(false)
 
@@ -2467,7 +2815,10 @@ function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenM
         <label style={lS}>{lang === 'da' ? 'Ny e-mail' : 'New email'}</label>
         <input style={fS} type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} required />
         <label style={lS}>{t.settingsEmailConfirm}</label>
-        <input style={fS} type="password" value={emailPassword} onChange={e => setEmailPassword(e.target.value)} required placeholder="••••••••" />
+        <div style={{ position: 'relative' }}>
+          <input style={{ ...fS, paddingRight: 44 }} type={showEmailPw ? 'text' : 'password'} value={emailPassword} onChange={e => setEmailPassword(e.target.value)} required placeholder="••••••••" />
+          <button type="button" onClick={() => setShowEmailPw(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#888' }}>{showEmailPw ? '🙈' : '👁️'}</button>
+        </div>
         {emailMsg && <div style={{ marginTop: 8, fontSize: 13, color: emailMsg.ok ? '#2D6A4F' : '#c0392b', fontWeight: 600 }}>{emailMsg.ok ? '✓' : '✗'} {emailMsg.text}</div>}
         <button type="submit" disabled={emailLoading} style={{ marginTop: 12, padding: '9px 20px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, opacity: emailLoading ? 0.7 : 1 }}>
           {t.settingsSaveEmail}
@@ -3380,6 +3731,204 @@ function FriendProfileModal({ userId, lang, t, onClose, onMessage }) {
   )
 }
 
+// ── Referral Dashboard (Viral Growth) ──
+function ReferralDashboard({ t, lang, referralData, badges, leaderboard, inviteLink }) {
+  const [copiedShareLink, setCopiedShareLink] = useState(null)
+  const siteUrl = (typeof window !== 'undefined' ? window.location.origin : 'https://fellis.eu')
+
+  const copyLink = (link) => {
+    navigator.clipboard.writeText(link).catch(() => {})
+    setCopiedShareLink(link)
+    setTimeout(() => setCopiedShareLink(null), 2000)
+  }
+
+  const shareOn = (platform, url, text) => {
+    const encoded = encodeURIComponent(url)
+    const encodedText = encodeURIComponent(text || '')
+    let shareUrl = ''
+    if (platform === 'facebook') shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encoded}`
+    else if (platform === 'twitter') shareUrl = `https://twitter.com/intent/tweet?url=${encoded}&text=${encodedText}`
+    else if (platform === 'linkedin') shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encoded}`
+    else if (platform === 'whatsapp') shareUrl = `https://wa.me/?text=${encodedText}%20${encoded}`
+    if (shareUrl) window.open(shareUrl, '_blank', 'width=600,height=400,noopener,noreferrer')
+    apiTrackShare('invite', null, platform).catch(() => {})
+  }
+
+  const s = {
+    wrap: { display: 'flex', flexDirection: 'column', gap: 16 },
+    statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12 },
+    statCard: { background: '#fff', border: '1px solid #e8e8e8', borderRadius: 12, padding: '16px 12px', textAlign: 'center' },
+    statNum: { fontSize: 28, fontWeight: 700, color: '#1877F2', lineHeight: 1.1 },
+    statLabel: { fontSize: 12, color: '#666', marginTop: 4 },
+    card: { background: '#fff', border: '1px solid #e8e8e8', borderRadius: 12, padding: 16 },
+    cardTitle: { fontWeight: 700, fontSize: 15, marginBottom: 12, color: '#1a1a1a' },
+    badgeGrid: { display: 'flex', flexWrap: 'wrap', gap: 10 },
+    badge: (earned) => ({ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '12px 16px', borderRadius: 12, border: `2px solid ${earned ? '#1877F2' : '#e0e0e0'}`, background: earned ? '#EBF4FF' : '#f8f8f8', opacity: earned ? 1 : 0.55, minWidth: 90, textAlign: 'center' }),
+    badgeIcon: { fontSize: 28 },
+    badgeTitle: (earned) => ({ fontSize: 11, fontWeight: 700, color: earned ? '#1877F2' : '#888' }),
+    badgeProgress: { fontSize: 10, color: '#999' },
+    progressBar: (pct) => ({ height: 6, borderRadius: 3, background: '#e0e0e0', overflow: 'hidden', position: 'relative', marginTop: 4 }),
+    progressFill: (pct) => ({ position: 'absolute', left: 0, top: 0, height: '100%', width: `${Math.min(pct, 100)}%`, background: '#1877F2', borderRadius: 3 }),
+    leaderRow: (isMe) => ({ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid #f0f0f0', background: isMe ? '#EBF4FF' : 'transparent', borderRadius: isMe ? 8 : 0, paddingLeft: isMe ? 8 : 0 }),
+    rank: { width: 26, textAlign: 'center', fontWeight: 700, color: '#888', fontSize: 13 },
+    rankTop: (n) => ({ color: n === 1 ? '#f5a623' : n === 2 ? '#aaa' : n === 3 ? '#cd7f32' : '#888' }),
+    shareRow: { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 },
+    shareBtn: (color) => ({ padding: '7px 14px', borderRadius: 8, border: 'none', background: color, color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }),
+    recentRow: { display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderBottom: '1px solid #f5f5f5' },
+  }
+
+  const rd = referralData
+  const conversionPct = rd ? rd.conversionRate : 0
+
+  return (
+    <div style={s.wrap}>
+
+      {/* Stats overview */}
+      <div className="p-card">
+        <div style={s.cardTitle}>📊 {t.referralDashStats}</div>
+        <div style={s.statsGrid}>
+          <div style={s.statCard}>
+            <div style={s.statNum}>{rd ? rd.totalInvited : '—'}</div>
+            <div style={s.statLabel}>{t.referralDashInvited}</div>
+          </div>
+          <div style={s.statCard}>
+            <div style={s.statNum}>{rd ? rd.totalAccepted : '—'}</div>
+            <div style={s.statLabel}>{t.referralDashAccepted}</div>
+          </div>
+          <div style={s.statCard}>
+            <div style={s.statNum}>{rd ? `${conversionPct}%` : '—'}</div>
+            <div style={s.statLabel}>{t.referralDashConversion}</div>
+          </div>
+          <div style={s.statCard}>
+            <div style={s.statNum}>{rd ? rd.reputationScore : '—'}</div>
+            <div style={s.statLabel}>{t.referralDashReputation}</div>
+          </div>
+        </div>
+
+        {/* Next milestone progress */}
+        {rd?.nextMilestone && (
+          <div style={{ marginTop: 16 }}>
+            <div style={{ fontSize: 13, color: '#555', marginBottom: 6 }}>
+              🎯 {t.referralDashNextMilestone}: <strong>{rd.nextMilestone.current}</strong> / {rd.nextMilestone.target} {t.referralDashAccepted.toLowerCase()} ({rd.nextMilestone.remaining} {lang === 'da' ? 'mangler' : 'remaining'})
+            </div>
+            <div style={s.progressBar()}>
+              <div style={s.progressFill(Math.round((rd.nextMilestone.current / rd.nextMilestone.target) * 100))} />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Share invite link */}
+      <div className="p-card">
+        <div style={s.cardTitle}>🔗 {t.inviteLinkTitle || t.referralDashShareLink}</div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <input readOnly value={inviteLink || `${siteUrl}/?invite=…`} style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, color: '#444', background: '#fafafa' }} />
+          <button className="p-btn-primary" onClick={() => copyLink(inviteLink)} style={{ whiteSpace: 'nowrap', padding: '8px 14px', fontSize: 13 }}>
+            {copiedShareLink === inviteLink ? t.referralDashShareCopied : t.referralDashShareCopy}
+          </button>
+        </div>
+        <div style={s.shareRow}>
+          <button style={s.shareBtn('#1877F2')} onClick={() => shareOn('facebook', inviteLink, lang === 'da' ? 'Kom med på fellis.eu — Danmarks private sociale netværk!' : 'Join me on fellis.eu — Denmark\'s privacy-first social network!')}>
+            f {t.referralDashShareFb}
+          </button>
+          <button style={s.shareBtn('#000')} onClick={() => shareOn('twitter', inviteLink, lang === 'da' ? 'Tilmeld dig fellis.eu med mit link!' : 'Join fellis.eu with my invite link!')}>
+            𝕏 {t.referralDashShareTwitter}
+          </button>
+          <button style={s.shareBtn('#0A66C2')} onClick={() => shareOn('linkedin', inviteLink, '')}>
+            in {t.referralDashShareLinkedIn}
+          </button>
+          <button style={s.shareBtn('#25D366')} onClick={() => shareOn('whatsapp', inviteLink, lang === 'da' ? 'Kom med på fellis.eu!' : 'Join me on fellis.eu!')}>
+            💬 {t.referralDashShareWhatsApp}
+          </button>
+        </div>
+      </div>
+
+      {/* Badges */}
+      <div className="p-card">
+        <div style={s.cardTitle}>🏅 {t.referralDashBadgesTitle}</div>
+        {!badges ? (
+          <div style={{ color: '#888', fontSize: 13 }}>{lang === 'da' ? 'Indlæser…' : 'Loading…'}</div>
+        ) : (
+          <div style={s.badgeGrid}>
+            {badges.map(b => (
+              <div key={b.type} style={s.badge(b.earned)} title={b.description}>
+                <span style={s.badgeIcon}>{b.icon}</span>
+                <span style={s.badgeTitle(b.earned)}>{b.title}</span>
+                {!b.earned && (
+                  <>
+                    <span style={s.badgeProgress}>{b.progress} {t.referralDashProgress} {b.threshold}</span>
+                    <div style={s.progressBar()}>
+                      <div style={s.progressFill(Math.round((b.progress / b.threshold) * 100))} />
+                    </div>
+                  </>
+                )}
+                {b.earned && <span style={{ fontSize: 10, color: '#40916C', fontWeight: 700 }}>+{b.points} pt</span>}
+              </div>
+            ))}
+          </div>
+        )}
+        {badges && badges.length === 0 && (
+          <p style={{ color: '#888', fontSize: 13 }}>{t.referralDashNoBadges}</p>
+        )}
+      </div>
+
+      {/* Recent referrals */}
+      <div className="p-card">
+        <div style={s.cardTitle}>👥 {t.referralDashRecentTitle}</div>
+        {!rd ? (
+          <div style={{ color: '#888', fontSize: 13 }}>{lang === 'da' ? 'Indlæser…' : 'Loading…'}</div>
+        ) : rd.recentReferrals.length === 0 ? (
+          <p style={{ color: '#888', fontSize: 13 }}>{t.referralDashNoRecent}</p>
+        ) : (
+          rd.recentReferrals.map((r, i) => (
+            <div key={i} style={s.recentRow}>
+              <div className="p-avatar-sm" style={{ background: nameToColor(r.name) }}>{getInitials(r.name)}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 600, fontSize: 13 }}>{r.name}</div>
+                <div style={{ fontSize: 11, color: '#999' }}>{r.handle}</div>
+              </div>
+              <div style={{ fontSize: 11, color: '#aaa' }}>
+                {new Date(r.joinedAt).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short' })}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Leaderboard */}
+      <div className="p-card">
+        <div style={s.cardTitle}>🏆 {t.referralDashLeaderboard}</div>
+        <div style={{ fontSize: 12, color: '#888', marginBottom: 10 }}>{t.referralDashLeaderboardDesc}</div>
+        {!leaderboard ? (
+          <div style={{ color: '#888', fontSize: 13 }}>{lang === 'da' ? 'Indlæser…' : 'Loading…'}</div>
+        ) : leaderboard.length === 0 ? (
+          <p style={{ color: '#888', fontSize: 13 }}>{lang === 'da' ? 'Endnu ingen på leaderboardet.' : 'No one on the leaderboard yet.'}</p>
+        ) : (
+          leaderboard.map(entry => (
+            <div key={entry.id} style={s.leaderRow(entry.isMe)}>
+              <div style={{ ...s.rank, ...s.rankTop(entry.rank) }}>
+                {entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : entry.rank === 3 ? '🥉' : `#${entry.rank}`}
+              </div>
+              <div className="p-avatar-sm" style={{ background: nameToColor(entry.name) }}>{getInitials(entry.name)}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: entry.isMe ? 700 : 500, fontSize: 13 }}>
+                  {entry.name} {entry.isMe && <span style={{ fontSize: 11, color: '#1877F2' }}>{t.referralDashYou}</span>}
+                </div>
+                <div style={{ fontSize: 11, color: '#999' }}>{entry.handle}</div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontWeight: 700, color: '#1877F2', fontSize: 14 }}>{entry.referralCount}</div>
+                {entry.topBadge && <span style={{ fontSize: 16 }}>{entry.topBadge.icon}</span>}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+    </div>
+  )
+}
+
 // ── Friends ──
 function FriendsPage({ lang, t, mode, onMessage }) {
   const [filter, setFilter] = useState('all')
@@ -3397,6 +3946,9 @@ function FriendsPage({ lang, t, mode, onMessage }) {
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteEmailSending, setInviteEmailSending] = useState(false)
   const [inviteEmailSentOk, setInviteEmailSentOk] = useState(false)
+  const [referralData, setReferralData] = useState(null)
+  const [badges, setBadges] = useState(null)
+  const [leaderboard, setLeaderboard] = useState(null)
   const searchTimerRef = useRef(null)
   const { rels, setRel } = useContactRelationships()
   const REL_OPTS = [
@@ -3471,7 +4023,7 @@ function FriendsPage({ lang, t, mode, onMessage }) {
     refreshAll()
   }, [unfriendTarget, refreshAll])
 
-  const filtered = filter === 'invites' ? [] : friends.filter(f => filter === 'all' || f.online)
+  const filtered = (filter === 'invites' || filter === 'viral') ? [] : friends.filter(f => filter === 'all' || f.online)
 
   const handleCopyInvite = useCallback(() => {
     navigator.clipboard.writeText(inviteLink).catch(() => {})
@@ -3524,6 +4076,14 @@ function FriendsPage({ lang, t, mode, onMessage }) {
       })
       .catch(() => setInvites([]))
   }, [invites])
+
+  // Load referral dashboard when viral tab is opened
+  useEffect(() => {
+    if (filter !== 'viral') return
+    if (!referralData) apiGetReferralDashboard().then(d => { if (d) setReferralData(d) })
+    if (!badges) apiGetBadges().then(d => { if (d) setBadges(d) })
+    if (!leaderboard) apiGetLeaderboard().then(d => { if (d) setLeaderboard(d) })
+  }, [filter, referralData, badges, leaderboard])
 
   const isSearching = search.trim().length >= 2
   const outgoingTargetIds = new Set(requests.outgoing.map(r => r.to_id))
@@ -3656,6 +4216,9 @@ function FriendsPage({ lang, t, mode, onMessage }) {
             <button className={`p-filter-tab${filter === 'invites' ? ' active' : ''}`} onClick={() => setFilter('invites')}>
               ✉️ {t.invitesTab}{invites !== null && invites.length > 0 ? ` (${invites.length})` : ''}
             </button>
+            <button className={`p-filter-tab${filter === 'viral' ? ' active' : ''}`} onClick={() => setFilter('viral')}>
+              🚀 {t.referralDashViralTitle}
+            </button>
           </div>
         )}
       </div>
@@ -3775,6 +4338,8 @@ function FriendsPage({ lang, t, mode, onMessage }) {
             })()}
           </div>
         </div>
+      ) : filter === 'viral' ? (
+        <ReferralDashboard t={t} lang={lang} referralData={referralData} badges={badges} leaderboard={leaderboard} inviteLink={inviteLink} />
       ) : (
         <div className="p-friends-grid">
           {filtered.map((friend) => (
@@ -7487,6 +8052,602 @@ function AnalyticsPage({ lang, t, currentUser, plan, onUpgrade }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // ── Admin Page ───────────────────────────────────────────────────────────────
 
+// ── Calendar helpers ──────────────────────────────────────────────────────────
+
+function computeEaster(year) {
+  const a = year % 19
+  const b = Math.floor(year / 100)
+  const c = year % 100
+  const d = Math.floor(b / 4)
+  const e = b % 4
+  const f = Math.floor((b + 8) / 25)
+  const g = Math.floor((b - f + 1) / 3)
+  const h = (19 * a + b - d - g + 15) % 30
+  const i = Math.floor(c / 4)
+  const k = c % 4
+  const l = (32 + 2 * e + 2 * i - h - k) % 7
+  const m = Math.floor((a + 11 * h + 22 * l) / 451)
+  const month = Math.floor((h + l - 7 * m + 114) / 31)
+  const day = ((h + l - 7 * m + 114) % 31) + 1
+  return new Date(year, month - 1, day)
+}
+
+function addDays(date, n) {
+  const d = new Date(date)
+  d.setDate(d.getDate() + n)
+  return d
+}
+
+function lastSundayOf(year, month0) {
+  const d = new Date(year, month0 + 1, 0)
+  while (d.getDay() !== 0) d.setDate(d.getDate() - 1)
+  return d
+}
+
+function isoDate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function getDanishHolidays(year, lang) {
+  const easter = computeEaster(year)
+  const holidays = []
+  const add = (d, da, en) => holidays.push({ date: isoDate(d), label: { da, en } })
+
+  add(new Date(year, 0, 1), 'Nytårsdag', "New Year's Day")
+  add(addDays(easter, -3), 'Skærtorsdag', 'Maundy Thursday')
+  add(addDays(easter, -2), 'Langfredag', 'Good Friday')
+  add(easter, 'Påskedag', 'Easter Sunday')
+  add(addDays(easter, 1), '2. Påskedag', 'Easter Monday')
+  add(new Date(year, 4, 1), '1. maj', 'Workers Day')
+  add(addDays(easter, 39), 'Kristi Himmelfartsdag', 'Ascension Day')
+  add(addDays(easter, 49), 'Pinsedag', 'Whit Sunday')
+  add(addDays(easter, 50), '2. Pinsedag', 'Whit Monday')
+  add(new Date(year, 5, 5), 'Grundlovsdag', 'Constitution Day')
+  add(new Date(year, 11, 24), 'Juleaften', 'Christmas Eve')
+  add(new Date(year, 11, 25), '1. juledag', 'Christmas Day')
+  add(new Date(year, 11, 26), '2. juledag', 'Boxing Day')
+
+  // DST changes (separate from public holidays)
+  const dstSpring = lastSundayOf(year, 2) // last Sunday in March
+  const dstFall = lastSundayOf(year, 9)   // last Sunday in October
+  holidays.push({ date: isoDate(dstSpring), label: { da: 'Sommertid — ur frem 1 time', en: 'Summer time — clocks forward 1 hour' }, dst: 'spring' })
+  holidays.push({ date: isoDate(dstFall), label: { da: 'Vintertid — ur tilbage 1 time', en: 'Winter time — clocks back 1 hour' }, dst: 'fall' })
+
+  return holidays
+}
+
+function CalendarPage({ lang, t, currentUser }) {
+  const today = new Date()
+  const [year, setYear] = useState(today.getFullYear())
+  const [month, setMonth] = useState(today.getMonth())
+  const [selectedDay, setSelectedDay] = useState(null)
+  const [calData, setCalData] = useState({ birthdays: [], events: [] })
+
+  useEffect(() => {
+    apiFetchCalendarEvents().then(data => { if (data) setCalData(data) })
+  }, [])
+
+  const holidays = getDanishHolidays(year, lang)
+
+  // Build lookup maps keyed by 'YYYY-MM-DD'
+  const holidayMap = {}
+  holidays.forEach(h => {
+    if (!holidayMap[h.date]) holidayMap[h.date] = []
+    holidayMap[h.date].push(h)
+  })
+
+  const birthdayMap = {}
+  calData.birthdays.forEach(b => {
+    // b.date is 'YYYY-MM-DD' from DB — match only MM-DD for current year
+    const mmdd = b.date ? b.date.slice(5) : null
+    if (!mmdd) return
+    const key = `${year}-${mmdd}`
+    if (!birthdayMap[key]) birthdayMap[key] = []
+    birthdayMap[key].push(b)
+  })
+
+  const eventMap = {}
+  calData.events.forEach(e => {
+    if (!e.date) return
+    const key = e.date.slice(0, 10)
+    if (!eventMap[key]) eventMap[key] = []
+    eventMap[key].push(e)
+  })
+
+  // Calendar grid: weeks start on Monday
+  const firstOfMonth = new Date(year, month, 1)
+  const dowFirst = (firstOfMonth.getDay() + 6) % 7 // Mon=0 … Sun=6
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const totalCells = Math.ceil((dowFirst + daysInMonth) / 7) * 7
+  const cells = []
+  for (let i = 0; i < totalCells; i++) {
+    const dayNum = i - dowFirst + 1
+    cells.push(dayNum >= 1 && dayNum <= daysInMonth ? dayNum : null)
+  }
+
+  const prevMonth = () => { if (month === 0) { setYear(y => y - 1); setMonth(11) } else setMonth(m => m - 1); setSelectedDay(null) }
+  const nextMonth = () => { if (month === 11) { setYear(y => y + 1); setMonth(0) } else setMonth(m => m + 1); setSelectedDay(null) }
+  const goToday = () => { setYear(today.getFullYear()); setMonth(today.getMonth()); setSelectedDay(today.getDate()) }
+
+  const selectedDateKey = selectedDay ? `${year}-${String(month + 1).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}` : null
+  const selectedHolidays = selectedDateKey ? (holidayMap[selectedDateKey] || []) : []
+  const selectedBirthdays = selectedDateKey ? (birthdayMap[selectedDateKey] || []) : []
+  const selectedEvents = selectedDateKey ? (eventMap[selectedDateKey] || []) : []
+  const hasSelected = selectedHolidays.length > 0 || selectedBirthdays.length > 0 || selectedEvents.length > 0
+
+  const s = {
+    page: { maxWidth: 700, margin: '0 auto', padding: '24px 16px' },
+    header: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
+    title: { fontSize: 22, fontWeight: 700, margin: 0 },
+    navBtn: { background: 'none', border: '1px solid var(--border, #ddd)', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 18, color: 'var(--text, #111)' },
+    todayBtn: { background: 'none', border: '1px solid var(--border, #ddd)', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: 'var(--text, #111)', marginLeft: 8 },
+    monthLabel: { fontSize: 18, fontWeight: 700, minWidth: 180, textAlign: 'center' },
+    grid: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 },
+    dayHeader: { textAlign: 'center', fontSize: 12, fontWeight: 700, color: 'var(--text-muted, #888)', padding: '4px 0', textTransform: 'uppercase' },
+    dayCell: (isToday, isSelected, isOtherMonth) => ({
+      minHeight: 64,
+      borderRadius: 8,
+      padding: '6px 4px 4px',
+      cursor: isOtherMonth ? 'default' : 'pointer',
+      background: isSelected ? '#1877F2' : isToday ? '#e8f0fe' : 'var(--card-bg, #fff)',
+      border: isToday && !isSelected ? '2px solid #1877F2' : '1px solid var(--border, #eee)',
+      transition: 'background 0.15s',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: 2,
+    }),
+    dayNum: (isSelected) => ({ fontSize: 14, fontWeight: 700, color: isSelected ? '#fff' : 'inherit', lineHeight: 1 }),
+    dots: { display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'center' },
+    dot: (color) => ({ width: 6, height: 6, borderRadius: '50%', background: color, flexShrink: 0 }),
+    panel: { marginTop: 20, background: 'var(--card-bg, #fff)', border: '1px solid var(--border, #eee)', borderRadius: 12, padding: '16px 20px' },
+    panelTitle: { fontSize: 15, fontWeight: 700, marginBottom: 12, color: 'var(--text, #111)' },
+    item: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 },
+    itemDot: (color) => ({ width: 10, height: 10, borderRadius: '50%', background: color, flexShrink: 0 }),
+    itemLabel: { fontSize: 14, color: 'var(--text, #111)' },
+    avatar: (color) => ({ width: 28, height: 28, borderRadius: '50%', background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff', flexShrink: 0 }),
+    legend: { display: 'flex', gap: 16, marginTop: 16, flexWrap: 'wrap' },
+    legendItem: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-muted, #888)' },
+  }
+
+  const HOLIDAY_COLOR = '#1877F2'
+  const DST_COLOR = '#F59E0B'
+  const BIRTHDAY_COLOR = '#E07A5F'
+  const EVENT_COLOR = '#6C63FF'
+
+  return (
+    <div style={s.page}>
+      <div style={s.header}>
+        <h2 style={s.title}>{t.calendarTitle}</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <button style={s.navBtn} onClick={prevMonth} title="Forrige måned">‹</button>
+          <span style={s.monthLabel}>{t.calendarMonths[month]} {year}</span>
+          <button style={s.navBtn} onClick={nextMonth} title="Næste måned">›</button>
+          <button style={s.todayBtn} onClick={goToday}>{t.calendarToday}</button>
+        </div>
+      </div>
+
+      {/* Weekday headers */}
+      <div style={s.grid}>
+        {t.calendarWeekdays.map(d => (
+          <div key={d} style={s.dayHeader}>{d}</div>
+        ))}
+
+        {/* Day cells */}
+        {cells.map((dayNum, i) => {
+          if (!dayNum) return <div key={i} />
+          const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`
+          const isToday = year === today.getFullYear() && month === today.getMonth() && dayNum === today.getDate()
+          const isSelected = selectedDay === dayNum
+          const hols = holidayMap[dateKey] || []
+          const bdays = birthdayMap[dateKey] || []
+          const evts = eventMap[dateKey] || []
+
+          return (
+            <div
+              key={i}
+              style={s.dayCell(isToday, isSelected, false)}
+              onClick={() => setSelectedDay(isSelected ? null : dayNum)}
+            >
+              <span style={s.dayNum(isSelected)}>{dayNum}</span>
+              <div style={s.dots}>
+                {hols.map((h, j) => (
+                  <span key={j} style={s.dot(h.dst ? DST_COLOR : HOLIDAY_COLOR)} title={h.label[lang]} />
+                ))}
+                {bdays.map((b, j) => (
+                  <span key={j} style={s.dot(BIRTHDAY_COLOR)} title={b.name} />
+                ))}
+                {evts.map((e, j) => (
+                  <span key={j} style={s.dot(EVENT_COLOR)} title={typeof e.title === 'string' ? e.title : (e.title[lang] || e.title.da)} />
+                ))}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Legend */}
+      <div style={s.legend}>
+        <div style={s.legendItem}><span style={{ ...s.dot(HOLIDAY_COLOR), width: 10, height: 10 }} />{t.calendarHolidays}</div>
+        <div style={s.legendItem}><span style={{ ...s.dot(DST_COLOR), width: 10, height: 10 }} />Sommer-/vintertid</div>
+        <div style={s.legendItem}><span style={{ ...s.dot(BIRTHDAY_COLOR), width: 10, height: 10 }} />{t.calendarBirthdays}</div>
+        <div style={s.legendItem}><span style={{ ...s.dot(EVENT_COLOR), width: 10, height: 10 }} />{t.calendarEvents}</div>
+      </div>
+
+      {/* Day detail panel */}
+      {selectedDay && (
+        <div style={s.panel}>
+          <div style={s.panelTitle}>
+            {selectedDateKey && new Date(selectedDateKey + 'T12:00:00').toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+          </div>
+          {!hasSelected && (
+            <p style={{ color: 'var(--text-muted, #888)', fontSize: 14, margin: 0 }}>{t.calendarNothingToday}</p>
+          )}
+          {selectedHolidays.map((h, i) => (
+            <div key={i} style={s.item}>
+              <span style={s.itemDot(h.dst ? DST_COLOR : HOLIDAY_COLOR)} />
+              <span style={s.itemLabel}>{h.label[lang]}</span>
+            </div>
+          ))}
+          {selectedBirthdays.map((b, i) => {
+            const color = nameToColor(b.name)
+            const age = b.date ? year - parseInt(b.date.slice(0, 4)) : null
+            return (
+              <div key={i} style={s.item}>
+                {b.avatarUrl
+                  ? <img src={b.avatarUrl.startsWith('http') ? b.avatarUrl : `${API_BASE}${b.avatarUrl}`} alt={b.name} style={{ ...s.avatar(color), objectFit: 'cover' }} />
+                  : <div style={s.avatar(color)}>{b.initials}</div>
+                }
+                <span style={s.itemLabel}>
+                  {b.userId === currentUser.id ? t.calendarBirthdayMe : b.name}
+                  {age !== null && age > 0 ? ` — ${age} ${lang === 'da' ? 'år' : 'years old'}` : ''}
+                </span>
+              </div>
+            )
+          })}
+          {selectedEvents.map((e, i) => {
+            const title = typeof e.title === 'string' ? e.title : (e.title?.[lang] || e.title?.da || '')
+            return (
+              <div key={i} style={s.item}>
+                <span style={s.itemDot(EVENT_COLOR)} />
+                <span style={s.itemLabel}>{title}{e.location ? ` — ${e.location}` : ''}</span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ── Admin Page ───────────────────────────────────────────────────────────────
+
+// ── Admin: Viral Growth Stats ──
+function AdminViralStats({ viralStats, viralDays, setViralDays, lang }) {
+  const da = lang === 'da'
+  const vs = viralStats
+  const sCard = { background: '#fff', border: '1px solid #e8e8e8', borderRadius: 12, padding: '16px 12px', textAlign: 'center' }
+  const sNum = { fontSize: 26, fontWeight: 700, lineHeight: 1.1 }
+  const sLabel = { fontSize: 12, color: '#666', marginTop: 4 }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Period selector */}
+      <div className="p-card" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: '#555' }}>{da ? 'Periode:' : 'Period:'}</span>
+        {[7, 30, 90].map(d => (
+          <button key={d} onClick={() => setViralDays(d)}
+            style={{ padding: '5px 14px', borderRadius: 20, border: `1.5px solid ${viralDays === d ? '#1877F2' : '#ddd'}`,
+              background: viralDays === d ? '#EBF4FF' : '#fff', color: viralDays === d ? '#1877F2' : '#555',
+              fontWeight: viralDays === d ? 700 : 400, fontSize: 13, cursor: 'pointer' }}>
+            {d} {da ? 'dage' : 'days'}
+          </button>
+        ))}
+      </div>
+
+      {!vs ? (
+        <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>
+          {da ? 'Henter viral statistik…' : 'Loading viral statistics…'}
+        </div>
+      ) : (
+        <>
+          {/* Core KPIs */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12 }}>
+            {[
+              { icon: '📨', num: vs.invitesSent,        label: da ? 'Invitationer sendt'     : 'Invitations sent',    color: '#1877F2' },
+              { icon: '✅', num: vs.invitesAccepted,    label: da ? 'Accepteret'             : 'Accepted',            color: '#40916C' },
+              { icon: `${vs.conversionRate}%`, num: null, label: da ? 'Konverteringsrate'   : 'Conversion rate',     color: '#E07A5F', big: true },
+              { icon: '🔁', num: vs.viralCoefficient,  label: da ? 'Viral koefficient (K)' : 'Viral coefficient (K)', color: '#6C63FF' },
+              { icon: '🔗', num: vs.sharesTracked,      label: da ? 'Deling sporet'          : 'Shares tracked',      color: '#3D405B' },
+              { icon: '🆕', num: vs.newUsers,           label: da ? 'Nye brugere'            : 'New users',           color: '#2D6A4F' },
+            ].map((item, i) => (
+              <div key={i} style={sCard}>
+                <div style={{ ...sNum, color: item.color }}>{item.big ? item.icon : (item.num ?? '—')}</div>
+                {item.big && <div style={{ fontSize: 11, color: item.color, fontWeight: 700 }}>{da ? 'konvertering' : 'conversion'}</div>}
+                <div style={sLabel}>{item.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Viral coefficient explanation */}
+          <div className="p-card" style={{ background: Number(vs.viralCoefficient) >= 1 ? '#F0FAF4' : '#FFFBEB', border: `1px solid ${Number(vs.viralCoefficient) >= 1 ? '#b7dfca' : '#fde68a'}` }}>
+            <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8 }}>
+              {Number(vs.viralCoefficient) >= 1 ? '🚀' : '📈'} {da ? 'Viral koefficient (K-faktor)' : 'Viral coefficient (K-factor)'}
+              <span style={{ marginLeft: 10, fontSize: 22, fontWeight: 800, color: Number(vs.viralCoefficient) >= 1 ? '#40916C' : '#d97706' }}>
+                K = {vs.viralCoefficient}
+              </span>
+            </div>
+            <p style={{ fontSize: 13, color: '#555', margin: 0, lineHeight: 1.6 }}>
+              {da
+                ? `K-faktoren måler, hvor mange nye brugere hver eksisterende bruger i gennemsnit bringer med sig. K ≥ 1 betyder eksponentiel vækst — platformen vokser af sig selv. K = ${vs.viralCoefficient} i de seneste ${vs.days} dage.`
+                : `The K-factor measures how many new users each existing user recruits on average. K ≥ 1 means exponential growth — the platform grows on its own. K = ${vs.viralCoefficient} over the last ${vs.days} days.`}
+            </p>
+          </div>
+
+          {/* Top inviters */}
+          {vs.topInviters?.length > 0 && (
+            <div className="p-card">
+              <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700 }}>🏆 {da ? 'Top-inviters (perioden)' : 'Top inviters (period)'}</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {vs.topInviters.map((u, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 8px', borderRadius: 8, background: i === 0 ? '#FFFBEB' : 'transparent' }}>
+                    <span style={{ fontSize: 16, width: 24, textAlign: 'center' }}>{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600, fontSize: 13 }}>{u.name}</div>
+                      <div style={{ fontSize: 11, color: '#999' }}>{u.handle}</div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#1877F2' }}>{u.period} {da ? 'denne periode' : 'this period'}</div>
+                      <div style={{ fontSize: 11, color: '#aaa' }}>{u.total} {da ? 'i alt' : 'total'}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Share platform breakdown */}
+          {vs.sharePlatforms?.length > 0 && (
+            <div className="p-card">
+              <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700 }}>📡 {da ? 'Deling pr. platform' : 'Shares by platform'}</h3>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                {vs.sharePlatforms.map((p, i) => {
+                  const icons = { facebook: '📘', twitter: '🐦', linkedin: '🔵', whatsapp: '💬', unknown: '🔗' }
+                  const total = vs.sharePlatforms.reduce((a, b) => a + b.count, 0)
+                  const pct = Math.round((p.count / total) * 100)
+                  return (
+                    <div key={i} style={{ padding: '8px 16px', borderRadius: 10, background: '#f5f5f5', textAlign: 'center', minWidth: 80 }}>
+                      <div style={{ fontSize: 20 }}>{icons[p.platform] || '🔗'}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700 }}>{p.count}</div>
+                      <div style={{ fontSize: 11, color: '#888' }}>{p.platform} ({pct}%)</div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+// ── Admin: Security & GDPR Tab ──
+function AdminSecurityGdpr({ viralStats, lang }) {
+  const da = lang === 'da'
+
+  const section = (icon, title, children) => (
+    <div className="p-card" style={{ marginBottom: 16 }}>
+      <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700 }}>{icon} {title}</h3>
+      {children}
+    </div>
+  )
+
+  const row = (label, value, color) => (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '8px 0', borderBottom: '1px solid #f0f0f0', gap: 12 }}>
+      <span style={{ fontSize: 13, color: '#555', fontWeight: 500, flex: '0 0 auto', maxWidth: '50%' }}>{label}</span>
+      <span style={{ fontSize: 13, color: color || '#1a1a1a', fontWeight: color ? 600 : 400, textAlign: 'right' }}>{value}</span>
+    </div>
+  )
+
+  const badge = (text, ok) => (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 12,
+      background: ok ? '#F0FAF4' : '#FFF5F5', color: ok ? '#2D6A4F' : '#C0392B',
+      border: `1px solid ${ok ? '#b7dfca' : '#f5b7b1'}`, fontSize: 12, fontWeight: 600, marginRight: 6, marginBottom: 4 }}>
+      {ok ? '✓' : '✗'} {text}
+    </span>
+  )
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+
+      {/* GDPR Compliance status */}
+      {section('🇪🇺', da ? 'GDPR-overholdelse' : 'GDPR Compliance', (
+        <div>
+          <p style={{ fontSize: 13, color: '#555', marginBottom: 12, lineHeight: 1.6 }}>
+            {da
+              ? 'Det virale vækst-system er designet med GDPR som fundament (Forordning 2016/679). Nedenfor er en oversigt over, hvordan persondata behandles og beskyttes.'
+              : 'The viral growth system is designed with GDPR as its foundation (Regulation 2016/679). Below is an overview of how personal data is processed and protected.'}
+          </p>
+          <div style={{ marginBottom: 10 }}>
+            {badge(da ? 'Dataminimering (Art. 5)' : 'Data minimisation (Art. 5)', true)}
+            {badge(da ? 'Formålsbegrænsning (Art. 5)' : 'Purpose limitation (Art. 5)', true)}
+            {badge(da ? 'Opbevaringsbegrænsning (Art. 5)' : 'Storage limitation (Art. 5)', true)}
+            {badge(da ? 'Integritet & fortrolighed (Art. 32)' : 'Integrity & confidentiality (Art. 32)', true)}
+            {badge(da ? 'Ret til sletning (Art. 17)' : 'Right to erasure (Art. 17)', true)}
+            {badge(da ? 'Ret til dataportabilitet (Art. 20)' : 'Right to portability (Art. 20)', true)}
+            {badge(da ? 'ON DELETE CASCADE' : 'ON DELETE CASCADE', true)}
+          </div>
+          <p style={{ fontSize: 12, color: '#888', margin: 0 }}>
+            {da
+              ? 'Al data slettes automatisk via CASCADE-constraints, når en bruger sletter sin konto (GDPR Art. 17 — ret til sletning).'
+              : 'All data is automatically deleted via CASCADE constraints when a user deletes their account (GDPR Art. 17 — right to erasure).'}
+          </p>
+        </div>
+      ))}
+
+      {/* Data inventory */}
+      {section('🗃️', da ? 'Datakatalog — virale vækst-tabeller' : 'Data inventory — viral growth tables', (
+        <div>
+          {[
+            {
+              table: 'referrals',
+              purpose: da ? 'Sporingsrekord: hvem inviterede hvem' : 'Tracking: who invited whom',
+              fields: da ? 'referrer_id, referred_id, invite_source, utm_source, converted_at' : 'referrer_id, referred_id, invite_source, utm_source, converted_at',
+              retention: da ? 'Livslangt (konto) — slettes ved konto-sletning' : 'Account lifetime — deleted on account deletion',
+              lawful: da ? 'Legitim interesse (Art. 6(1)(f)) — viral vækst' : 'Legitimate interest (Art. 6(1)(f)) — viral growth',
+            },
+            {
+              table: 'user_badges',
+              purpose: da ? 'Optjente gamification-badges pr. bruger' : 'Gamification badges earned per user',
+              fields: 'user_id, reward_type, earned_at',
+              retention: da ? 'Livslangt (konto) — slettes ved konto-sletning' : 'Account lifetime — deleted on account deletion',
+              lawful: da ? 'Kontrakt (Art. 6(1)(b)) — del af platformsservice' : 'Contract (Art. 6(1)(b)) — part of platform service',
+            },
+            {
+              table: 'share_events',
+              purpose: da ? 'Anonym aggregeret tracking af ekstern deling' : 'Anonymous aggregated tracking of external shares',
+              fields: da ? 'user_id (nullable), share_type, platform, utm_campaign, created_at' : 'user_id (nullable), share_type, platform, utm_campaign, created_at',
+              retention: da ? 'Permanent (aggregeret) — user_id = NULL ved konto-sletning' : 'Permanent (aggregated) — user_id = NULL on account deletion',
+              lawful: da ? 'Legitim interesse (Art. 6(1)(f)) — analytics' : 'Legitimate interest (Art. 6(1)(f)) — analytics',
+            },
+            {
+              table: 'rewards',
+              purpose: da ? 'Badge-katalog (ikke persondata)' : 'Badge catalog (not personal data)',
+              fields: 'type, title, description, icon, threshold, reward_points',
+              retention: da ? 'Permanent — systemdata, ingen personoplysninger' : 'Permanent — system data, no personal info',
+              lawful: da ? 'Ikke persondata — GDPR finder ikke anvendelse' : 'Not personal data — GDPR does not apply',
+            },
+          ].map((item, i) => (
+            <div key={i} style={{ marginBottom: 16, padding: 14, background: '#f9f9f9', borderRadius: 10, border: '1px solid #ebebeb' }}>
+              <div style={{ fontWeight: 700, fontSize: 13, fontFamily: 'monospace', color: '#1877F2', marginBottom: 8 }}>📋 {item.table}</div>
+              {row(da ? 'Formål' : 'Purpose', item.purpose)}
+              {row(da ? 'Felter' : 'Fields', item.fields, '#555')}
+              {row(da ? 'Opbevaringstid' : 'Retention', item.retention)}
+              {row(da ? 'Retsgrundlag' : 'Legal basis', item.lawful, '#2D6A4F')}
+            </div>
+          ))}
+        </div>
+      ))}
+
+      {/* Security controls */}
+      {section('🛡️', da ? 'Tekniske sikkerhedsforanstaltninger' : 'Technical security controls', (
+        <div>
+          {[
+            {
+              control: da ? 'Rate limiting — invitationer' : 'Rate limiting — invitations',
+              detail: da ? 'Maks. 20 invitationer pr. 15 min pr. bruger (in-memory). Forhindrer spam og misbrug. HTTP 429 returneres ved overskridelse.' : 'Max 20 invitations per 15 min per user (in-memory). Prevents spam and abuse. HTTP 429 returned on violation.',
+              status: true,
+            },
+            {
+              control: da ? 'Engangstoken for invitationer' : 'One-time invitation tokens',
+              detail: da ? 'Hvert e-mail-invitations-token er et kryptografisk tilfældigt 32-byte hex-token. Markeres som "accepted" ved første brug og kan ikke genbruges.' : 'Each email invitation token is a cryptographically random 32-byte hex token. Marked as "accepted" on first use and cannot be reused.',
+              status: true,
+            },
+            {
+              control: da ? 'Offentlige opslag: share_token' : 'Public posts: share_token',
+              detail: da ? 'Del-links er 16-byte kryptografisk tilfældige tokens (128-bit entropi). Kan tilbagekaldes af forfatteren via DELETE /api/posts/:id/share-token, som sætter is_public = 0.' : 'Share links are 16-byte cryptographically random tokens (128-bit entropy). Can be revoked by the author via DELETE /api/posts/:id/share-token, setting is_public = 0.',
+              status: true,
+            },
+            {
+              control: da ? 'Offentlig profil: eksplicit samtykke' : 'Public profile: explicit consent',
+              detail: da ? 'Profiler er private som standard (profile_public = 0). Brugeren skal aktivt slå offentlig profil til. Kan deaktiveres igen til enhver tid.' : 'Profiles are private by default (profile_public = 0). User must actively enable public profile. Can be disabled again at any time.',
+              status: true,
+            },
+            {
+              control: da ? 'share_events.user_id er nullable' : 'share_events.user_id is nullable',
+              detail: da ? 'Delings-events bevares til aggregeret analytics, men user_id sættes til NULL ved konto-sletning (ON DELETE SET NULL). Data er dermed anonym efter sletning.' : 'Share events are retained for aggregated analytics, but user_id is set to NULL on account deletion (ON DELETE SET NULL). Data is anonymous after deletion.',
+              status: true,
+            },
+            {
+              control: da ? 'Autorisering på alle write-endpoints' : 'Authorization on all write endpoints',
+              detail: da ? 'Alle POST/PATCH/DELETE-endpoints kræver gyldig session (authenticate middleware). Ejerskab valideres eksplicit: share-token og profil-toggle kan kun ændres af den pågældende bruger.' : 'All POST/PATCH/DELETE endpoints require a valid session (authenticate middleware). Ownership is explicitly validated: share tokens and profile toggle can only be changed by the owning user.',
+              status: true,
+            },
+            {
+              control: da ? 'UTM-parametre: ingen PII' : 'UTM parameters: no PII',
+              detail: da ? 'UTM-felter (utm_source, utm_campaign) gemmes som tekst og må ikke indeholde personoplysninger. Dette håndhæves ikke teknisk — det er en operationel instruks.' : 'UTM fields (utm_source, utm_campaign) are stored as text and must not contain personal information. This is not technically enforced — it is an operational instruction.',
+              status: false,
+            },
+          ].map((item, i) => (
+            <div key={i} style={{ padding: '10px 12px', borderRadius: 8, marginBottom: 10, background: item.status ? '#F0FAF4' : '#FFFBEB', border: `1px solid ${item.status ? '#b7dfca' : '#fde68a'}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <span style={{ fontSize: 16 }}>{item.status ? '✅' : '⚠️'}</span>
+                <span style={{ fontWeight: 700, fontSize: 13, color: item.status ? '#2D6A4F' : '#92400e' }}>{item.control}</span>
+              </div>
+              <p style={{ margin: 0, fontSize: 12, color: '#555', lineHeight: 1.6 }}>{item.detail}</p>
+            </div>
+          ))}
+        </div>
+      ))}
+
+      {/* Viral stats summary in security context */}
+      {viralStats && section('📊', da ? 'Aktuel datamængde (viral vækst)' : 'Current data volume (viral growth)', (
+        <div>
+          <p style={{ fontSize: 13, color: '#666', marginBottom: 12 }}>
+            {da
+              ? `Nedenstående data er indsamlet i de seneste ${viralStats.days} dage og udgør grundlaget for det virale vækst-system.`
+              : `The data below was collected over the last ${viralStats.days} days and forms the basis of the viral growth system.`}
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
+            {[
+              { label: da ? 'Invitationer sendt' : 'Invitations sent', value: viralStats.invitesSent },
+              { label: da ? 'Konverterede referrals' : 'Converted referrals', value: viralStats.referralsConverted },
+              { label: da ? 'Share-events sporet' : 'Share events tracked', value: viralStats.sharesTracked },
+              { label: da ? 'Nye brugere' : 'New users', value: viralStats.newUsers },
+            ].map((item, i) => (
+              <div key={i} style={{ textAlign: 'center', padding: '12px 10px', background: '#f5f5f5', borderRadius: 8 }}>
+                <div style={{ fontSize: 22, fontWeight: 800, color: '#1877F2' }}>{item.value ?? '—'}</div>
+                <div style={{ fontSize: 11, color: '#666', marginTop: 3 }}>{item.label}</div>
+              </div>
+            ))}
+          </div>
+          <p style={{ fontSize: 12, color: '#999', marginTop: 12, margin: '12px 0 0' }}>
+            {da
+              ? '⚖️ Retsgrundlag: Legitim interesse (GDPR Art. 6(1)(f)) — optimering af platformsvækst. Alle data behandles i EU og er underlagt dansk lovgivning.'
+              : '⚖️ Legal basis: Legitimate interest (GDPR Art. 6(1)(f)) — platform growth optimisation. All data is processed in the EU and subject to Danish law.'}
+          </p>
+        </div>
+      ))}
+
+      {/* Brugerrettigheder */}
+      {section('👤', da ? 'Brugerrettigheder & udøvelse' : 'User rights & exercise', (
+        <div>
+          <p style={{ fontSize: 13, color: '#555', marginBottom: 12, lineHeight: 1.6 }}>
+            {da
+              ? 'Brugere kan til enhver tid udøve følgende rettigheder — tilgængelige direkte i platformen under Profil → Privatliv & data:'
+              : 'Users can exercise the following rights at any time — available directly in the platform under Profile → Privacy & data:'}
+          </p>
+          {[
+            { right: da ? '📥 Ret til indsigt (Art. 15)' : '📥 Right of access (Art. 15)', how: da ? 'Profil → Eksportér data (JSON)' : 'Profile → Export data (JSON)', endpoint: 'GET /api/gdpr/export' },
+            { right: da ? '🗑️ Ret til sletning (Art. 17)' : '🗑️ Right to erasure (Art. 17)', how: da ? 'Profil → Slet konto — sletter ALT inkl. referrals, badges, share_events' : 'Profile → Delete account — deletes ALL incl. referrals, badges, share_events', endpoint: 'DELETE /api/gdpr/account' },
+            { right: da ? '🔒 Ret til begrænsning (Art. 18)' : '🔒 Right to restrict (Art. 18)', how: da ? 'Deaktiver offentlig profil / tilbagekald del-links' : 'Disable public profile / revoke share links', endpoint: 'PATCH /api/profile/public' },
+            { right: da ? '📤 Dataportabilitet (Art. 20)' : '📤 Data portability (Art. 20)', how: da ? 'Eksport i JSON-format via Profil → Data & privatliv' : 'Export in JSON format via Profile → Data & privacy', endpoint: 'GET /api/gdpr/export' },
+            { right: da ? '↩️ Tilbagetræk samtykke (Art. 7)' : '↩️ Withdraw consent (Art. 7)', how: da ? 'Profil → Administrér samtykker' : 'Profile → Manage consents', endpoint: 'POST /api/gdpr/consent/withdraw' },
+          ].map((item, i) => (
+            <div key={i} style={{ padding: '8px 12px', borderRadius: 8, marginBottom: 8, background: '#f9f9f9', border: '1px solid #ebebeb' }}>
+              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 2 }}>{item.right}</div>
+              <div style={{ fontSize: 12, color: '#555' }}>{item.how}</div>
+              <div style={{ fontSize: 11, fontFamily: 'monospace', color: '#888', marginTop: 2 }}>{item.endpoint}</div>
+            </div>
+          ))}
+        </div>
+      ))}
+
+      {/* DPO contact */}
+      <div className="p-card" style={{ background: '#F0F7FF', border: '1px solid #BDD8F9' }}>
+        <div style={{ fontSize: 13, color: '#2C4A6E', lineHeight: 1.7 }}>
+          <strong>ℹ️ {da ? 'Databeskyttelsesansvarlig (DPO)' : 'Data Protection Officer (DPO)'}</strong><br />
+          {da
+            ? 'Hvis en bruger ønsker at udøve sine rettigheder eller har spørgsmål til databehandlingen, skal de kontakte platformen via de GDPR-endpoints, der er eksponeret i appen. Platformen er forpligtet til at svare inden 30 dage (GDPR Art. 12).'
+            : 'If a user wishes to exercise their rights or has questions about data processing, they should contact the platform via the GDPR endpoints exposed in the app. The platform is obligated to respond within 30 days (GDPR Art. 12).'}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function AdminPage({ lang, t }) {
   const STRIPE_FIELDS = [
     { key: 'stripe_secret_key', label: t.adminStripeSecretKey, type: 'password', placeholder: 'sk_live_...' },
@@ -7509,6 +8670,8 @@ function AdminPage({ lang, t }) {
   const [weights, setWeights] = useState({ family: 1000, interest: 100, recency: 50 })
   const [weightStatus, setWeightStatus] = useState('idle')
   const [interestStats, setInterestStats] = useState(null)
+  const [viralStats, setViralStats] = useState(null)
+  const [viralDays, setViralDays] = useState(30)
 
   useEffect(() => {
     apiGetAdminSettings().then(data => {
@@ -7518,6 +8681,12 @@ function AdminPage({ lang, t }) {
     apiGetFeedWeights().then(data => { if (data?.weights) setWeights(data.weights) })
     apiGetInterestStats().then(data => { if (data) setInterestStats(data) })
   }, [])
+
+  useEffect(() => {
+    if (adminTab === 'viral' || adminTab === 'security') {
+      apiGetAdminViralStats(viralDays).then(data => { if (data) setViralStats(data) })
+    }
+  }, [adminTab, viralDays])
 
   const handleSave = async (e) => {
     e.preventDefault()
@@ -7553,11 +8722,14 @@ function AdminPage({ lang, t }) {
         <button className={`p-filter-tab${adminTab === 'feed' ? ' active' : ''}`} onClick={() => setAdminTab('feed')}>
           🎯 {t.adminFeedTab}
         </button>
+        <button className={`p-filter-tab${adminTab === 'viral' ? ' active' : ''}`} onClick={() => setAdminTab('viral')}>
+          🚀 {lang === 'da' ? 'Viral vækst' : 'Viral growth'}
+        </button>
         <button className={`p-filter-tab${adminTab === 'stripe' ? ' active' : ''}`} onClick={() => setAdminTab('stripe')}>
           💳 {t.adminStripeTitle}
         </button>
         <button className={`p-filter-tab${adminTab === 'security' ? ' active' : ''}`} onClick={() => setAdminTab('security')}>
-          🔒 {lang === 'da' ? 'Sikkerhed' : 'Security'}
+          🔒 {lang === 'da' ? 'Sikkerhed & GDPR' : 'Security & GDPR'}
         </button>
       </div>
 
@@ -7723,6 +8895,14 @@ function AdminPage({ lang, t }) {
             )}
           </div>
         </div>
+      )}
+
+      {adminTab === 'viral' && (
+        <AdminViralStats viralStats={viralStats} viralDays={viralDays} setViralDays={setViralDays} lang={lang} />
+      )}
+
+      {adminTab === 'security' && (
+        <AdminSecurityGdpr viralStats={viralStats} lang={lang} />
       )}
 
       {adminTab === 'stripe' && (

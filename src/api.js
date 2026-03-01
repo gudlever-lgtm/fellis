@@ -479,3 +479,145 @@ export async function apiUpdateMode(mode) {
 export async function apiUpdatePlan(plan) {
   return await request('/api/me/plan', { method: 'PATCH', body: JSON.stringify({ plan }) })
 }
+
+export async function apiUpdateInterests(interests) {
+  return await request('/api/me/interests', { method: 'PATCH', body: JSON.stringify({ interests }) })
+}
+
+export async function apiGetFeedWeights() {
+  return await request('/api/admin/feed-weights')
+}
+
+export async function apiSaveFeedWeights(weights) {
+  return await request('/api/admin/feed-weights', { method: 'POST', body: JSON.stringify(weights) })
+}
+
+export async function apiGetInterestStats() {
+  return await request('/api/admin/interest-stats')
+}
+
+// ── Viral Growth ──
+
+export async function apiGetReferralDashboard() {
+  return await request('/api/referrals/dashboard')
+}
+
+export async function apiGetLeaderboard() {
+  return await request('/api/referrals/leaderboard')
+}
+
+export async function apiGetBadges() {
+  return await request('/api/badges')
+}
+
+export async function apiGetPublicProfile(handle) {
+  try {
+    const res = await fetch(`${API_BASE}/api/public/profile/${encodeURIComponent(handle)}`)
+    if (!res.ok) return null
+    return await res.json()
+  } catch {
+    return null
+  }
+}
+
+export async function apiGetPublicPost(shareToken) {
+  try {
+    const res = await fetch(`${API_BASE}/api/public/post/${shareToken}`)
+    if (!res.ok) return null
+    return await res.json()
+  } catch {
+    return null
+  }
+}
+
+export async function apiGeneratePostShareToken(postId) {
+  return await request(`/api/posts/${postId}/share-token`, { method: 'POST' })
+}
+
+export async function apiRevokePostShareToken(postId) {
+  return await request(`/api/posts/${postId}/share-token`, { method: 'DELETE' })
+}
+
+export async function apiToggleProfilePublic(isPublic) {
+  return await request('/api/profile/public', {
+    method: 'PATCH',
+    body: JSON.stringify({ isPublic }),
+  })
+}
+
+export async function apiTrackShare(shareType, targetId, platform) {
+  return await request('/api/share/track', {
+    method: 'POST',
+    body: JSON.stringify({ shareType, targetId, platform }),
+  })
+}
+
+export async function apiGetAdminViralStats(days = 30) {
+  return await request(`/api/admin/viral-stats?days=${days}`)
+}
+
+// ── Group Suggestions ──
+
+export async function apiGetGroupSuggestions() {
+  return await request('/api/groups/suggestions')
+}
+
+export async function apiJoinGroup(groupId) {
+  return await request(`/api/groups/${groupId}/join`, { method: 'POST' })
+}
+
+// ── Reels ──
+export async function apiFetchReels(offset = 0, limit = 10) {
+  return await request(`/api/reels?offset=${offset}&limit=${limit}`)
+}
+
+export async function apiUploadReel(videoFile, caption) {
+  const form = new FormData()
+  form.append('video', videoFile)
+  if (caption) form.append('caption', caption)
+  try {
+    const res = await fetch(`${API_BASE}/api/reels`, {
+      method: 'POST',
+      headers: formHeaders(),
+      credentials: 'same-origin',
+      body: form,
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.error || `HTTP ${res.status}`)
+    }
+    return await res.json()
+  } catch (err) {
+    if (err.message === 'Failed to fetch') return null
+    throw err
+  }
+}
+
+export async function apiToggleReelLike(id) {
+  return await request(`/api/reels/${id}/like`, { method: 'POST' })
+}
+
+export async function apiFetchReelComments(id) {
+  return await request(`/api/reels/${id}/comments`)
+}
+
+export async function apiAddReelComment(id, text) {
+  return await request(`/api/reels/${id}/comments`, {
+    method: 'POST',
+    body: JSON.stringify({ text }),
+  })
+}
+
+export async function apiDeleteReel(id) {
+  return await request(`/api/reels/${id}`, { method: 'DELETE' })
+}
+
+// ── Calendar ──
+
+export async function apiFetchCalendarEvents() {
+  return await request('/api/calendar/events')
+}
+
+export async function apiUpdateBirthday(birthday) {
+  return await request('/api/profile/birthday', { method: 'PATCH', body: JSON.stringify({ birthday }) })
+}
