@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect } from 'react'
 import { PT, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateMode, apiUpdatePlan } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateMode, apiUpdatePlan, apiFetchCalendarEvents, apiUpdateBirthday } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -177,14 +177,14 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
           </div>
         </div>
         <div className="p-nav-tabs">
-          {['feed', 'friends', 'messages', 'events', 'marketplace', ...(mode === 'business' ? ['jobs', 'analytics'] : []), 'company'].map(p => (
+          {['feed', 'friends', 'messages', 'events', 'calendar', 'marketplace', ...(mode === 'business' ? ['jobs', 'analytics'] : []), 'company'].map(p => (
             <button
               key={p}
               className={`p-nav-tab${page === p ? ' active' : ''}`}
               onClick={() => navigateTo(p)}
             >
               <span className="p-nav-tab-icon">
-                {p === 'feed' ? '🏠' : p === 'friends' ? '👥' : p === 'messages' ? '💬' : p === 'events' ? '📅' : p === 'marketplace' ? '🛍️' : p === 'analytics' ? '📊' : p === 'company' ? '🏢' : p === 'admin' ? '⚙️' : '💼'}
+                {p === 'feed' ? '🏠' : p === 'friends' ? '👥' : p === 'messages' ? '💬' : p === 'events' ? '📅' : p === 'calendar' ? '🗓️' : p === 'marketplace' ? '🛍️' : p === 'analytics' ? '📊' : p === 'company' ? '🏢' : p === 'admin' ? '⚙️' : '💼'}
               </span>
               <span className="p-nav-tab-label">
                 {p === 'friends'
@@ -306,6 +306,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
           <MessagesPage lang={lang} t={t} currentUser={currentUser} mode={mode} openConvId={openConvId} onConvOpened={() => setOpenConvId(null)} />
         </div>
         {page === 'events' && <EventsPage lang={lang} t={t} currentUser={currentUser} mode={mode} />}
+        {page === 'calendar' && <CalendarPage lang={lang} t={t} currentUser={currentUser} />}
         {page === 'marketplace' && <MarketplacePage lang={lang} t={t} currentUser={currentUser} onContactSeller={async (sellerId) => {
           const numId = parseInt(sellerId)
           if (numId > 0 && !isNaN(numId) && numId !== currentUser.id) {
@@ -2106,12 +2107,26 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
   const [passwordLoading, setPasswordLoading] = useState(false)
   const [showCurrent, setShowCurrent] = useState(false)
   const [showNew, setShowNew] = useState(false)
+  const [birthday, setBirthday] = useState(currentUser.birthday || '')
+  const [birthdaySaveStatus, setBirthdaySaveStatus] = useState(null) // null | 'saving' | 'saved' | 'error'
 
   useEffect(() => {
     apiFetchProfile().then(data => {
-      if (data) { setProfile(data) }
+      if (data) { setProfile(data); setBirthday(data.birthday || '') }
     })
   }, [])
+
+  const handleSaveBirthday = async () => {
+    setBirthdaySaveStatus('saving')
+    const val = birthday.trim() || null
+    const res = await apiUpdateBirthday(val)
+    if (res?.ok) {
+      setBirthdaySaveStatus('saved')
+      setTimeout(() => setBirthdaySaveStatus(null), 2000)
+    } else {
+      setBirthdaySaveStatus('error')
+    }
+  }
 
   const handleAvatarUpload = useCallback(async (e) => {
     const file = e.target.files?.[0]
@@ -2247,6 +2262,34 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
         {/* Location */}
         <label style={labelStyle}>{editT.locationLabel}</label>
         <input style={fieldStyle} value={profile.location || ''} readOnly />
+
+        {/* Birthday */}
+        <label style={labelStyle}>{t.birthdayLabel}</label>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <input
+            style={{ ...fieldStyle, flex: 1 }}
+            type="date"
+            value={birthday}
+            onChange={e => { setBirthday(e.target.value); setBirthdaySaveStatus(null) }}
+            max={new Date().toISOString().slice(0, 10)}
+          />
+          <button
+            type="button"
+            onClick={handleSaveBirthday}
+            disabled={birthdaySaveStatus === 'saving'}
+            style={{ padding: '10px 16px', borderRadius: 8, border: 'none', background: birthdaySaveStatus === 'saved' ? '#40916C' : '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}
+          >
+            {birthdaySaveStatus === 'saving' ? '…' : birthdaySaveStatus === 'saved' ? t.birthdaySaved : t.birthdaySave}
+          </button>
+          {birthday && (
+            <button
+              type="button"
+              onClick={() => { setBirthday(''); setBirthdaySaveStatus(null) }}
+              style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', background: 'none', fontSize: 13, cursor: 'pointer', color: '#888' }}
+              title={t.birthdayClear}
+            >✕</button>
+          )}
+        </div>
 
         {/* Business-only fields */}
         {mode === 'business' && (
@@ -7486,6 +7529,274 @@ function AnalyticsPage({ lang, t, currentUser, plan, onUpgrade }) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ── Admin Page ───────────────────────────────────────────────────────────────
+
+// ── Calendar helpers ──────────────────────────────────────────────────────────
+
+function computeEaster(year) {
+  const a = year % 19
+  const b = Math.floor(year / 100)
+  const c = year % 100
+  const d = Math.floor(b / 4)
+  const e = b % 4
+  const f = Math.floor((b + 8) / 25)
+  const g = Math.floor((b - f + 1) / 3)
+  const h = (19 * a + b - d - g + 15) % 30
+  const i = Math.floor(c / 4)
+  const k = c % 4
+  const l = (32 + 2 * e + 2 * i - h - k) % 7
+  const m = Math.floor((a + 11 * h + 22 * l) / 451)
+  const month = Math.floor((h + l - 7 * m + 114) / 31)
+  const day = ((h + l - 7 * m + 114) % 31) + 1
+  return new Date(year, month - 1, day)
+}
+
+function addDays(date, n) {
+  const d = new Date(date)
+  d.setDate(d.getDate() + n)
+  return d
+}
+
+function lastSundayOf(year, month0) {
+  const d = new Date(year, month0 + 1, 0)
+  while (d.getDay() !== 0) d.setDate(d.getDate() - 1)
+  return d
+}
+
+function isoDate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function getDanishHolidays(year, lang) {
+  const easter = computeEaster(year)
+  const holidays = []
+  const add = (d, da, en) => holidays.push({ date: isoDate(d), label: { da, en } })
+
+  add(new Date(year, 0, 1), 'Nytårsdag', "New Year's Day")
+  add(addDays(easter, -3), 'Skærtorsdag', 'Maundy Thursday')
+  add(addDays(easter, -2), 'Langfredag', 'Good Friday')
+  add(easter, 'Påskedag', 'Easter Sunday')
+  add(addDays(easter, 1), '2. Påskedag', 'Easter Monday')
+  add(new Date(year, 4, 1), '1. maj', 'Workers Day')
+  add(addDays(easter, 39), 'Kristi Himmelfartsdag', 'Ascension Day')
+  add(addDays(easter, 49), 'Pinsedag', 'Whit Sunday')
+  add(addDays(easter, 50), '2. Pinsedag', 'Whit Monday')
+  add(new Date(year, 5, 5), 'Grundlovsdag', 'Constitution Day')
+  add(new Date(year, 11, 24), 'Juleaften', 'Christmas Eve')
+  add(new Date(year, 11, 25), '1. juledag', 'Christmas Day')
+  add(new Date(year, 11, 26), '2. juledag', 'Boxing Day')
+
+  // DST changes (separate from public holidays)
+  const dstSpring = lastSundayOf(year, 2) // last Sunday in March
+  const dstFall = lastSundayOf(year, 9)   // last Sunday in October
+  holidays.push({ date: isoDate(dstSpring), label: { da: 'Sommertid — ur frem 1 time', en: 'Summer time — clocks forward 1 hour' }, dst: 'spring' })
+  holidays.push({ date: isoDate(dstFall), label: { da: 'Vintertid — ur tilbage 1 time', en: 'Winter time — clocks back 1 hour' }, dst: 'fall' })
+
+  return holidays
+}
+
+function CalendarPage({ lang, t, currentUser }) {
+  const today = new Date()
+  const [year, setYear] = useState(today.getFullYear())
+  const [month, setMonth] = useState(today.getMonth())
+  const [selectedDay, setSelectedDay] = useState(null)
+  const [calData, setCalData] = useState({ birthdays: [], events: [] })
+
+  useEffect(() => {
+    apiFetchCalendarEvents().then(data => { if (data) setCalData(data) })
+  }, [])
+
+  const holidays = getDanishHolidays(year, lang)
+
+  // Build lookup maps keyed by 'YYYY-MM-DD'
+  const holidayMap = {}
+  holidays.forEach(h => {
+    if (!holidayMap[h.date]) holidayMap[h.date] = []
+    holidayMap[h.date].push(h)
+  })
+
+  const birthdayMap = {}
+  calData.birthdays.forEach(b => {
+    // b.date is 'YYYY-MM-DD' from DB — match only MM-DD for current year
+    const mmdd = b.date ? b.date.slice(5) : null
+    if (!mmdd) return
+    const key = `${year}-${mmdd}`
+    if (!birthdayMap[key]) birthdayMap[key] = []
+    birthdayMap[key].push(b)
+  })
+
+  const eventMap = {}
+  calData.events.forEach(e => {
+    if (!e.date) return
+    const key = e.date.slice(0, 10)
+    if (!eventMap[key]) eventMap[key] = []
+    eventMap[key].push(e)
+  })
+
+  // Calendar grid: weeks start on Monday
+  const firstOfMonth = new Date(year, month, 1)
+  const dowFirst = (firstOfMonth.getDay() + 6) % 7 // Mon=0 … Sun=6
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const totalCells = Math.ceil((dowFirst + daysInMonth) / 7) * 7
+  const cells = []
+  for (let i = 0; i < totalCells; i++) {
+    const dayNum = i - dowFirst + 1
+    cells.push(dayNum >= 1 && dayNum <= daysInMonth ? dayNum : null)
+  }
+
+  const prevMonth = () => { if (month === 0) { setYear(y => y - 1); setMonth(11) } else setMonth(m => m - 1); setSelectedDay(null) }
+  const nextMonth = () => { if (month === 11) { setYear(y => y + 1); setMonth(0) } else setMonth(m => m + 1); setSelectedDay(null) }
+  const goToday = () => { setYear(today.getFullYear()); setMonth(today.getMonth()); setSelectedDay(today.getDate()) }
+
+  const selectedDateKey = selectedDay ? `${year}-${String(month + 1).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}` : null
+  const selectedHolidays = selectedDateKey ? (holidayMap[selectedDateKey] || []) : []
+  const selectedBirthdays = selectedDateKey ? (birthdayMap[selectedDateKey] || []) : []
+  const selectedEvents = selectedDateKey ? (eventMap[selectedDateKey] || []) : []
+  const hasSelected = selectedHolidays.length > 0 || selectedBirthdays.length > 0 || selectedEvents.length > 0
+
+  const s = {
+    page: { maxWidth: 700, margin: '0 auto', padding: '24px 16px' },
+    header: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
+    title: { fontSize: 22, fontWeight: 700, margin: 0 },
+    navBtn: { background: 'none', border: '1px solid var(--border, #ddd)', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 18, color: 'var(--text, #111)' },
+    todayBtn: { background: 'none', border: '1px solid var(--border, #ddd)', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: 'var(--text, #111)', marginLeft: 8 },
+    monthLabel: { fontSize: 18, fontWeight: 700, minWidth: 180, textAlign: 'center' },
+    grid: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 },
+    dayHeader: { textAlign: 'center', fontSize: 12, fontWeight: 700, color: 'var(--text-muted, #888)', padding: '4px 0', textTransform: 'uppercase' },
+    dayCell: (isToday, isSelected, isOtherMonth) => ({
+      minHeight: 64,
+      borderRadius: 8,
+      padding: '6px 4px 4px',
+      cursor: isOtherMonth ? 'default' : 'pointer',
+      background: isSelected ? '#1877F2' : isToday ? '#e8f0fe' : 'var(--card-bg, #fff)',
+      border: isToday && !isSelected ? '2px solid #1877F2' : '1px solid var(--border, #eee)',
+      transition: 'background 0.15s',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: 2,
+    }),
+    dayNum: (isSelected) => ({ fontSize: 14, fontWeight: 700, color: isSelected ? '#fff' : 'inherit', lineHeight: 1 }),
+    dots: { display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'center' },
+    dot: (color) => ({ width: 6, height: 6, borderRadius: '50%', background: color, flexShrink: 0 }),
+    panel: { marginTop: 20, background: 'var(--card-bg, #fff)', border: '1px solid var(--border, #eee)', borderRadius: 12, padding: '16px 20px' },
+    panelTitle: { fontSize: 15, fontWeight: 700, marginBottom: 12, color: 'var(--text, #111)' },
+    item: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 },
+    itemDot: (color) => ({ width: 10, height: 10, borderRadius: '50%', background: color, flexShrink: 0 }),
+    itemLabel: { fontSize: 14, color: 'var(--text, #111)' },
+    avatar: (color) => ({ width: 28, height: 28, borderRadius: '50%', background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff', flexShrink: 0 }),
+    legend: { display: 'flex', gap: 16, marginTop: 16, flexWrap: 'wrap' },
+    legendItem: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-muted, #888)' },
+  }
+
+  const HOLIDAY_COLOR = '#1877F2'
+  const DST_COLOR = '#F59E0B'
+  const BIRTHDAY_COLOR = '#E07A5F'
+  const EVENT_COLOR = '#6C63FF'
+
+  return (
+    <div style={s.page}>
+      <div style={s.header}>
+        <h2 style={s.title}>{t.calendarTitle}</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <button style={s.navBtn} onClick={prevMonth} title="Forrige måned">‹</button>
+          <span style={s.monthLabel}>{t.calendarMonths[month]} {year}</span>
+          <button style={s.navBtn} onClick={nextMonth} title="Næste måned">›</button>
+          <button style={s.todayBtn} onClick={goToday}>{t.calendarToday}</button>
+        </div>
+      </div>
+
+      {/* Weekday headers */}
+      <div style={s.grid}>
+        {t.calendarWeekdays.map(d => (
+          <div key={d} style={s.dayHeader}>{d}</div>
+        ))}
+
+        {/* Day cells */}
+        {cells.map((dayNum, i) => {
+          if (!dayNum) return <div key={i} />
+          const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`
+          const isToday = year === today.getFullYear() && month === today.getMonth() && dayNum === today.getDate()
+          const isSelected = selectedDay === dayNum
+          const hols = holidayMap[dateKey] || []
+          const bdays = birthdayMap[dateKey] || []
+          const evts = eventMap[dateKey] || []
+
+          return (
+            <div
+              key={i}
+              style={s.dayCell(isToday, isSelected, false)}
+              onClick={() => setSelectedDay(isSelected ? null : dayNum)}
+            >
+              <span style={s.dayNum(isSelected)}>{dayNum}</span>
+              <div style={s.dots}>
+                {hols.map((h, j) => (
+                  <span key={j} style={s.dot(h.dst ? DST_COLOR : HOLIDAY_COLOR)} title={h.label[lang]} />
+                ))}
+                {bdays.map((b, j) => (
+                  <span key={j} style={s.dot(BIRTHDAY_COLOR)} title={b.name} />
+                ))}
+                {evts.map((e, j) => (
+                  <span key={j} style={s.dot(EVENT_COLOR)} title={typeof e.title === 'string' ? e.title : (e.title[lang] || e.title.da)} />
+                ))}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Legend */}
+      <div style={s.legend}>
+        <div style={s.legendItem}><span style={{ ...s.dot(HOLIDAY_COLOR), width: 10, height: 10 }} />{t.calendarHolidays}</div>
+        <div style={s.legendItem}><span style={{ ...s.dot(DST_COLOR), width: 10, height: 10 }} />Sommer-/vintertid</div>
+        <div style={s.legendItem}><span style={{ ...s.dot(BIRTHDAY_COLOR), width: 10, height: 10 }} />{t.calendarBirthdays}</div>
+        <div style={s.legendItem}><span style={{ ...s.dot(EVENT_COLOR), width: 10, height: 10 }} />{t.calendarEvents}</div>
+      </div>
+
+      {/* Day detail panel */}
+      {selectedDay && (
+        <div style={s.panel}>
+          <div style={s.panelTitle}>
+            {selectedDateKey && new Date(selectedDateKey + 'T12:00:00').toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+          </div>
+          {!hasSelected && (
+            <p style={{ color: 'var(--text-muted, #888)', fontSize: 14, margin: 0 }}>{t.calendarNothingToday}</p>
+          )}
+          {selectedHolidays.map((h, i) => (
+            <div key={i} style={s.item}>
+              <span style={s.itemDot(h.dst ? DST_COLOR : HOLIDAY_COLOR)} />
+              <span style={s.itemLabel}>{h.label[lang]}</span>
+            </div>
+          ))}
+          {selectedBirthdays.map((b, i) => {
+            const color = nameToColor(b.name)
+            const age = b.date ? year - parseInt(b.date.slice(0, 4)) : null
+            return (
+              <div key={i} style={s.item}>
+                {b.avatarUrl
+                  ? <img src={b.avatarUrl.startsWith('http') ? b.avatarUrl : `${API_BASE}${b.avatarUrl}`} alt={b.name} style={{ ...s.avatar(color), objectFit: 'cover' }} />
+                  : <div style={s.avatar(color)}>{b.initials}</div>
+                }
+                <span style={s.itemLabel}>
+                  {b.userId === currentUser.id ? t.calendarBirthdayMe : b.name}
+                  {age !== null && age > 0 ? ` — ${age} ${lang === 'da' ? 'år' : 'years old'}` : ''}
+                </span>
+              </div>
+            )
+          })}
+          {selectedEvents.map((e, i) => {
+            const title = typeof e.title === 'string' ? e.title : (e.title?.[lang] || e.title?.da || '')
+            return (
+              <div key={i} style={s.item}>
+                <span style={s.itemDot(EVENT_COLOR)} />
+                <span style={s.itemLabel}>{title}{e.location ? ` — ${e.location}` : ''}</span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
 
 function AdminPage({ lang, t }) {
   const STRIPE_FIELDS = [

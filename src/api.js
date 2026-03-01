@@ -479,3 +479,11 @@ export async function apiUpdateMode(mode) {
 export async function apiUpdatePlan(plan) {
   return await request('/api/me/plan', { method: 'PATCH', body: JSON.stringify({ plan }) })
 }
+
+export async function apiFetchCalendarEvents() {
+  return await request('/api/calendar/events')
+}
+
+export async function apiUpdateBirthday(birthday) {
+  return await request('/api/profile/birthday', { method: 'PATCH', body: JSON.stringify({ birthday }) })
+}
