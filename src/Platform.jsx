@@ -1286,8 +1286,6 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
           </div>
         </div>
       )}
-      {/* Reels strip */}
-      <ReelsStrip lang={lang} t={t} onNavigate={onNavigate} />
       {/* New post */}
       <div className="p-card p-new-post">
         {/* Hidden file input — gallery only */}
@@ -1420,6 +1418,9 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
           </>
         )}
       </div>
+
+      {/* Reels strip */}
+      <ReelsStrip lang={lang} t={t} onNavigate={onNavigate} />
 
       {/* Top sentinel — triggers loading previous page */}
       {offset > 0 && (
@@ -5445,7 +5446,7 @@ function EventsPage({ lang, t, currentUser, mode }) {
           currentUser={currentUser}
           onClose={() => setShowCreate(false)}
           onCreate={async (ev) => {
-            const saved = await apiCreateEvent({
+            await apiCreateEvent({
               title: typeof ev.title === 'string' ? ev.title : (ev.title?.da || ev.title?.en || ''),
               description: typeof ev.description === 'string' ? ev.description : (ev.description?.da || ''),
               date: ev.date,
@@ -5454,7 +5455,14 @@ function EventsPage({ lang, t, currentUser, mode }) {
               ticketUrl: ev.ticketUrl || null,
               cap: ev.cap || null,
             }).catch(() => null)
-            setEvents(prev => [saved || ev, ...prev])
+            apiFetchEvents().then(data => {
+              if (data?.events) {
+                setEvents(data.events.length ? data.events : MOCK_EVENTS)
+                const map = {}
+                data.events.forEach(e => { if (e.myRsvp) map[e.id] = e.myRsvp })
+                setRsvpMap(prev => ({ ...prev, ...map }))
+              }
+            })
             setShowCreate(false)
           }}
         />
