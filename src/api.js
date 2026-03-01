@@ -565,3 +565,49 @@ export async function apiGetGroupSuggestions() {
 export async function apiJoinGroup(groupId) {
   return await request(`/api/groups/${groupId}/join`, { method: 'POST' })
 }
+
+// ── Reels ──
+export async function apiFetchReels(offset = 0, limit = 10) {
+  return await request(`/api/reels?offset=${offset}&limit=${limit}`)
+}
+
+export async function apiUploadReel(videoFile, caption) {
+  const form = new FormData()
+  form.append('video', videoFile)
+  if (caption) form.append('caption', caption)
+  try {
+    const res = await fetch(`${API_BASE}/api/reels`, {
+      method: 'POST',
+      headers: formHeaders(),
+      credentials: 'same-origin',
+      body: form,
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.error || `HTTP ${res.status}`)
+    }
+    return await res.json()
+  } catch (err) {
+    if (err.message === 'Failed to fetch') return null
+    throw err
+  }
+}
+
+export async function apiToggleReelLike(id) {
+  return await request(`/api/reels/${id}/like`, { method: 'POST' })
+}
+
+export async function apiFetchReelComments(id) {
+  return await request(`/api/reels/${id}/comments`)
+}
+
+export async function apiAddReelComment(id, text) {
+  return await request(`/api/reels/${id}/comments`, {
+    method: 'POST',
+    body: JSON.stringify({ text }),
+  })
+}
+
+export async function apiDeleteReel(id) {
+  return await request(`/api/reels/${id}`, { method: 'DELETE' })
+}
