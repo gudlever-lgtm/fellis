@@ -884,7 +884,7 @@ const oauthStateTokens = new Map()
 // Step 1: Redirect user to Facebook login
 // GDPR Note: No data is collected at this step — user is simply redirected to Facebook.
 app.get('/api/auth/facebook', (req, res) => {
-  if (!FB_APP_ID) return res.status(500).json({ error: 'Facebook integration not configured' })
+  if (!FB_APP_ID) return res.redirect('/?fb_error=not_configured')
   const lang = req.query.lang || 'da'
   const inviteToken = req.query.invite_token || ''
   // Security: CSRF protection — generate a cryptographic state token and verify on callback
@@ -1642,7 +1642,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
 // POST /api/feed — create a new post (with optional media)
 app.post('/api/feed', authenticate, upload.array('media', 4), async (req, res) => {
   const { text } = req.body
-  if (!text) return res.status(400).json({ error: 'Post text required' })
+  if (!text?.trim() && !req.files?.length) return res.status(400).json({ error: 'Post text or media required' })
 
   // Validate magic bytes for each uploaded file
   const mediaUrls = []
@@ -1665,9 +1665,10 @@ app.post('/api/feed', authenticate, upload.array('media', 4), async (req, res) =
 
   try {
     const mediaJson = mediaUrls.length > 0 ? JSON.stringify(mediaUrls) : null
+    const postText = text?.trim() || ''
     const [result] = await pool.query(
       'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media) VALUES (?, ?, ?, ?, ?, ?)',
-      [req.userId, text, text, 'Lige nu', 'Just now', mediaJson]
+      [req.userId, postText, postText, 'Lige nu', 'Just now', mediaJson]
     )
     const [users] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
     const now = new Date()
@@ -1675,7 +1676,7 @@ app.post('/api/feed', authenticate, upload.array('media', 4), async (req, res) =
       id: result.insertId,
       author: users[0].name,
       time: { da: formatPostTime(now, 'da'), en: formatPostTime(now, 'en') },
-      text: { da: text, en: text },
+      text: { da: postText, en: postText },
       likes: 0, liked: false, comments: [],
       media: mediaUrls.length > 0 ? mediaUrls : null,
     })
