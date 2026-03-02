@@ -82,8 +82,8 @@ export async function apiResetPassword(token, password) {
 }
 
 export async function apiCheckSession() {
-  // Try session check even without localStorage — cookie may carry the session
-  // Return null for 401 (not authenticated) the same as offline/server-not-running
+  // Skip the round-trip if there is no stored session — server would 401 anyway
+  if (!getSessionId()) return null
   try {
     return await request('/api/auth/session')
   } catch {
