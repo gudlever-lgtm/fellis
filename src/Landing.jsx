@@ -620,7 +620,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
               </div>
               <h3>{t.fbCardTitle}</h3>
               <p>{t.fbCardDesc}</p>
-              <button className="landing-card-btn landing-card-btn-fb" onClick={() => setStep(2)}>{t.fbCardBtn}</button>
+              <button className="landing-card-btn landing-card-btn-fb" onClick={() => setStep(1)}>{t.fbCardBtn}</button>
             </div>
             {/* Create account card */}
             <div className="landing-card landing-card-create">
@@ -640,37 +640,24 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
         </div>
       )}
 
-      {step >= 2 && !directSignup && <ProgressBar step={step} t={t} />}
+      {step >= 1 && !directSignup && <ProgressBar step={step} t={t} />}
 
-      {/* Step 1 — Connect Facebook or Create Account */}
+      {/* Step 1 — Connect Facebook */}
       {step === 1 && (
         <div className="step-container">
           <h2>{t.connectTitle}</h2>
           <p className="step-subtitle">{t.connectSubtitle}</p>
-          <div className="step1-options">
-            <div className="step1-card">
-              <div className="step1-card-icon" style={{ background: '#EBF4FF' }}>f</div>
-              <h4>{t.connectBtn}</h4>
-              <p className="step1-card-desc">{lang === 'da'
-                ? 'Importer dine data fra Facebook automatisk.'
-                : 'Automatically import your data from Facebook.'
-              }</p>
-              <button className="fb-btn" onClick={handleFbClick}>
-                <span className="fb-icon">f</span>
-                {t.connectBtn}
-              </button>
-            </div>
-            <div className="step1-divider">
-              <span>{t.orDivider}</span>
-            </div>
-            <div className="step1-card">
-              <div className="step1-card-icon" style={{ background: '#F0FAF4' }}>✉</div>
-              <h4>{t.createAccountTitle}</h4>
-              <p className="step1-card-desc">{t.createAccountDesc}</p>
-              <button className="btn-primary" style={{ width: '100%' }} onClick={() => { setDirectSignup(true); setStep(4) }}>
-                {t.createAccountBtn}
-              </button>
-            </div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, marginTop: 24 }}>
+            <div className="step1-card-icon" style={{ background: '#EBF4FF', width: 64, height: 64, borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 700, color: '#1877F2' }}>f</div>
+            <p style={{ color: '#5C5C5C', textAlign: 'center', maxWidth: 320 }}>{lang === 'da'
+              ? 'Importer dine data fra Facebook automatisk.'
+              : 'Automatically import your data from Facebook.'
+            }</p>
+            <button className="fb-btn" onClick={handleFbClick}>
+              <span className="fb-icon">f</span>
+              {t.connectBtn}
+            </button>
+            <button className="btn-secondary" style={{ marginTop: 8 }} onClick={() => setStep(0)}>{t.back}</button>
           </div>
         </div>
       )}
@@ -690,7 +677,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
                 <ContentCard icon="📸" title={t.postsPhotos} desc={t.postsPhotosDesc} selected={selectedContent.posts} onToggle={() => setSelectedContent(s => ({ ...s, posts: !s.posts }))} />
               </div>
               <div className="btn-row">
-                <button className="btn-secondary" onClick={() => setStep(0)}>{t.back}</button>
+                <button className="btn-secondary" onClick={() => setStep(1)}>{t.back}</button>
                 <button className="btn-primary" onClick={handleContentNext}>{t.next}</button>
               </div>
             </>
@@ -924,17 +911,16 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
 }
 
 function ProgressBar({ step, t }) {
-  const steps = [t.step2, t.step3, t.step4]
-  const s = step - 1  // maps step 2→1, 3→2, 4→3
+  const steps = [t.step1, t.step2, t.step3, t.step4]
   return (
     <div className="progress-bar">
       {steps.map((label, i) => {
         const num = i + 1
         return (
           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {i > 0 && <div className="progress-connector" style={{ background: s > num ? '#40916C' : s >= num ? '#2D6A4F' : '#E8E4DF' }} />}
-            <div className={`progress-step${s > num ? ' completed' : ''}${s === num ? ' active' : ''}`}>
-              <div className="progress-dot">{s > num ? '✓' : num}</div>
+            {i > 0 && <div className="progress-connector" style={{ background: step > num ? '#40916C' : step >= num ? '#2D6A4F' : '#E8E4DF' }} />}
+            <div className={`progress-step${step > num ? ' completed' : ''}${step === num ? ' active' : ''}`}>
+              <div className="progress-dot">{step > num ? '✓' : num}</div>
               <span>{label}</span>
             </div>
           </div>
