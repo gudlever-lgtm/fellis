@@ -257,6 +257,7 @@ function App() {
   const [inviterName, setInviterName] = useState(null)
   const [inviterEmail, setInviterEmail] = useState(null)
   const [initialPostId, setInitialPostId] = useState(null)
+  const [fbError, setFbError] = useState(null)
 
   // On mount: check for Facebook OAuth callback, invite links, or validate existing session
   useEffect(() => {
@@ -317,8 +318,9 @@ function App() {
       if (storedInvite) setInviteToken(storedInvite)
     }
 
-    const fbError = params.get('fb_error')
-    if (fbError) {
+    const fbErrorParam = params.get('fb_error')
+    if (fbErrorParam) {
+      setFbError(fbErrorParam)
       window.history.replaceState({}, '', window.location.pathname)
     }
 
@@ -380,7 +382,7 @@ function App() {
     )
   }
 
-  return <Landing onEnterPlatform={handleEnterPlatform} inviteToken={inviteToken} inviterName={inviterName} inviterEmail={inviterEmail} />
+  return <Landing onEnterPlatform={handleEnterPlatform} inviteToken={inviteToken} inviterName={inviterName} inviterEmail={inviterEmail} fbError={fbError} />
 }
 
 function AppRoot() {

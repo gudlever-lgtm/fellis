@@ -249,7 +249,7 @@ const T = {
   },
 }
 
-export default function Landing({ onEnterPlatform, inviteToken, inviterName, inviterEmail }) {
+export default function Landing({ onEnterPlatform, inviteToken, inviterName, inviterEmail, fbError }) {
   const [lang, setLang] = useState('da')
   const [step, setStep] = useState(0)
   const [showLoginModal, setShowLoginModal] = useState(false)
@@ -309,6 +309,11 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
   useEffect(() => {
     if (inviterEmail && !regEmail) setRegEmail(inviterEmail)
   }, [inviterEmail]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // If Facebook OAuth failed or is not configured, go straight to email signup
+  useEffect(() => {
+    if (fbError) { setDirectSignup(true); setStep(4) }
+  }, [fbError])
 
   // Smart focus: when step 4 becomes active, focus email (if empty) or name (if email pre-filled)
   useEffect(() => {
@@ -657,7 +662,9 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
               <span className="fb-icon">f</span>
               {t.connectBtn}
             </button>
-            <button className="btn-secondary" style={{ marginTop: 8 }} onClick={() => setStep(0)}>{t.back}</button>
+            <div style={{ color: '#aaa', fontSize: 13, margin: '4px 0' }}>{t.orDivider}</div>
+            <button className="btn-secondary" onClick={() => { setDirectSignup(true); setStep(4) }}>{t.createAccountBtn}</button>
+            <button className="btn-secondary" style={{ marginTop: 4 }} onClick={() => setStep(0)}>{t.back}</button>
           </div>
         </div>
       )}
