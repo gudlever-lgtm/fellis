@@ -878,6 +878,11 @@ const FB_GRAPH_URL = 'https://graph.facebook.com/v21.0'
 // Scopes: basic profile only — no extended permissions required, app can go Live without App Review
 const FB_SCOPES = 'public_profile,email'
 
+// Public config endpoint — tells the frontend which optional features are available
+app.get('/api/config', (req, res) => {
+  res.json({ facebookEnabled: !!FB_APP_ID })
+})
+
 // GDPR/Security: In-memory store for OAuth CSRF state tokens (short-lived)
 const oauthStateTokens = new Map()
 

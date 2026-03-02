@@ -7,7 +7,7 @@ const INVITE_FRIENDS = [
   { name: 'Ven 2', mutual: 3, online: true },
   { name: 'Ven 3', mutual: 8, online: false },
 ]
-import { apiLogin, apiRegister, apiForgotPassword, apiResetPassword, getFacebookAuthUrl, apiSendInvites, apiGetInviteLink } from './api.js'
+import { apiLogin, apiRegister, apiForgotPassword, apiResetPassword, getFacebookAuthUrl, apiSendInvites, apiGetInviteLink, apiGetConfig } from './api.js'
 
 // ── Landing translations ──
 const T = {
@@ -278,6 +278,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
 
   // Direct signup (skipping Facebook migration)
   const [directSignup, setDirectSignup] = useState(false)
+  const [facebookEnabled, setFacebookEnabled] = useState(true) // optimistic; updated from /api/config
 
   // Mode selection (step 5)
   const [pendingEnter, setPendingEnter] = useState(false)
@@ -309,6 +310,11 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
   useEffect(() => {
     if (inviterEmail && !regEmail) setRegEmail(inviterEmail)
   }, [inviterEmail]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch server config to check if Facebook OAuth is available
+  useEffect(() => {
+    apiGetConfig().then(cfg => { if (cfg) setFacebookEnabled(cfg.facebookEnabled) })
+  }, [])
 
   // If Facebook OAuth failed or is not configured, go straight to email signup
   useEffect(() => {
@@ -614,19 +620,21 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
           <h1>{t.headline}</h1>
           <p className="landing-subtitle">{t.subtitle}</p>
           <div className="landing-cards">
-            {/* Facebook migration card */}
-            <div className="landing-card landing-card-fb">
-              <div className="landing-card-visual">
-                <div className="brand-box brand-fb" style={{ width: 56, height: 56, fontSize: 22 }}>f</div>
-                <div className="dots-container" style={{ gap: 6 }}>
-                  <div className="dot" /><div className="dot" /><div className="dot" />
+            {/* Facebook migration card — only shown when FB OAuth is configured on the server */}
+            {facebookEnabled && (
+              <div className="landing-card landing-card-fb">
+                <div className="landing-card-visual">
+                  <div className="brand-box brand-fb" style={{ width: 56, height: 56, fontSize: 22 }}>f</div>
+                  <div className="dots-container" style={{ gap: 6 }}>
+                    <div className="dot" /><div className="dot" /><div className="dot" />
+                  </div>
+                  <div className="brand-box brand-some" style={{ width: 56, height: 56, fontSize: 22 }}>F</div>
                 </div>
-                <div className="brand-box brand-some" style={{ width: 56, height: 56, fontSize: 22 }}>F</div>
+                <h3>{t.fbCardTitle}</h3>
+                <p>{t.fbCardDesc}</p>
+                <button className="landing-card-btn landing-card-btn-fb" onClick={() => setStep(1)}>{t.fbCardBtn}</button>
               </div>
-              <h3>{t.fbCardTitle}</h3>
-              <p>{t.fbCardDesc}</p>
-              <button className="landing-card-btn landing-card-btn-fb" onClick={() => setStep(1)}>{t.fbCardBtn}</button>
-            </div>
+            )}
             {/* Create account card */}
             <div className="landing-card landing-card-create">
               <div className="landing-card-visual">

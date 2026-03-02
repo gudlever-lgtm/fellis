@@ -266,6 +266,11 @@ export async function apiRenameConversation(conversationId, name) {
   })
 }
 
+// Platform config (feature availability)
+export async function apiGetConfig() {
+  return request('/api/config')
+}
+
 // Facebook OAuth
 export function getFacebookAuthUrl(lang, inviteToken) {
   const params = new URLSearchParams({ lang })
