@@ -489,6 +489,29 @@ export async function apiGetAnalytics(days = 30) {
   return await request(`/api/analytics?days=${days}`)
 }
 
+export async function apiGetVisitorStats() {
+  return await request('/api/visitor-stats')
+}
+
+export async function apiGetNotifications() {
+  return await request('/api/notifications')
+}
+
+export async function apiMarkNotificationRead(id) {
+  return await request(`/api/notifications/${id}/read`, { method: 'POST' })
+}
+
+export async function apiMarkAllNotificationsRead() {
+  return await request('/api/notifications/read-all', { method: 'POST' })
+}
+
+export async function apiUpdateProfile(data) {
+  return await request('/api/profile', {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+}
+
 export async function apiUpdateMode(mode) {
   return await request('/api/me/mode', { method: 'PATCH', body: JSON.stringify({ mode }) })
 }

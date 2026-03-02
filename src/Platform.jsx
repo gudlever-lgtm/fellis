@@ -1,27 +1,33 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect } from 'react'
 import { PT, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiGetVisitorStats, apiGetNotifications, apiMarkNotificationRead, apiMarkAllNotificationsRead, apiUpdateProfile } from './api.js'
 import ReelsPage from './Reels.jsx'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
-// ── Mock notifications ──
-function makeMockNotifs(mode) {
-  const isBiz = mode === 'business'
-  const base = [
-    { id: 1, type: 'friend_request', actor: 'Liam Madsen', time: '2 min', read: false, targetPage: 'friends' },
-    { id: 2, type: 'like', actor: 'Clara Johansen', time: '15 min', read: false, targetPage: 'feed', postId: 1 },
-    { id: 3, type: 'comment', actor: 'Magnus Jensen', time: '1 t', read: false, targetPage: 'feed', postId: 2 },
-    { id: 4, type: 'accepted', actor: 'Astrid Poulsen', time: '3 t', read: true, targetPage: 'friends' },
-    { id: 5, type: 'group_post', actor: 'Emil Larsen', group: 'Designere i KBH', time: '5 t', read: true, targetPage: 'feed', postId: 3 },
-  ]
-  if (isBiz) {
-    base.push(
-      { id: 6, type: 'profile_view', actor: 'Freja Andersen', time: '8 t', read: true, targetPage: 'profile' },
-      { id: 7, type: 'endorsement', actor: 'Noah Rasmussen', time: '1 d', read: true, targetPage: 'profile' },
-    )
+// ── Notification helpers ──
+function relativeTime(created_at, lang) {
+  const diff = Date.now() - new Date(created_at).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return lang === 'da' ? 'Nu' : 'Now'
+  if (mins < 60) return `${mins} min`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return lang === 'da' ? `${hours} t` : `${hours} h`
+  const days = Math.floor(hours / 24)
+  return `${days} d`
+}
+
+function normaliseNotif(n, lang) {
+  const targetPage = (n.type === 'friend_request' || n.type === 'accepted') ? 'friends' : 'feed'
+  return {
+    id: n.id,
+    type: n.type,
+    actor: n.actor_name,
+    time: relativeTime(n.created_at, lang),
+    read: !!n.is_read,
+    targetPage,
+    postId: n.post_id || null,
   }
-  return base
 }
 
 export default function Platform({ lang: initialLang, onLogout, initialPostId }) {
@@ -43,11 +49,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
     return stored
   })
   const [showNotifPanel, setShowNotifPanel] = useState(false)
-  const [notifs, setNotifs] = useState(() => {
-    const storedMode = localStorage.getItem('fellis_mode') || 'privat'
-    const readIds = new Set(JSON.parse(localStorage.getItem('fellis_notifs_read') || '[]'))
-    return makeMockNotifs(storedMode === 'common' ? 'privat' : storedMode).map(n => readIds.has(n.id) ? { ...n, read: true } : n)
-  })
+  const [notifs, setNotifs] = useState([])
   const [showModeModal, setShowModeModal] = useState(false)
   const [plan, setPlan] = useState('business') // set from server session; 'business_pro' = paid tier
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
@@ -77,8 +79,6 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
     }
     setMode(newMode)
     localStorage.setItem('fellis_mode', newMode)
-    const savedReadIds = new Set(JSON.parse(localStorage.getItem('fellis_notifs_read') || '[]'))
-    setNotifs(makeMockNotifs(newMode).map(n => savedReadIds.has(n.id) ? { ...n, read: true } : n))
     setShowModeModal(false)
     // Sync mode to server so admin stats can segment by mode
     const serverMode = newMode === 'business' ? 'business' : 'privat'
@@ -86,11 +86,8 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
   }
 
   const markAllRead = () => {
-    setNotifs(prev => {
-      const all = prev.map(n => ({ ...n, read: true }))
-      localStorage.setItem('fellis_notifs_read', JSON.stringify(all.map(n => n.id)))
-      return all
-    })
+    setNotifs(prev => prev.map(n => ({ ...n, read: true })))
+    apiMarkAllNotificationsRead().catch(() => {})
   }
 
   const toggleLang = useCallback(() => setLang(p => p === 'da' ? 'en' : 'da'), [])
@@ -116,6 +113,13 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
       onLogout()
     })
   }, [onLogout]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load notifications from server on mount
+  useEffect(() => {
+    apiGetNotifications().then(data => {
+      if (Array.isArray(data)) setNotifs(data.map(n => normaliseNotif(n, lang)))
+    }).catch(() => {})
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -226,11 +230,10 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
                 lang={lang}
                 mode={mode}
                 onMarkAllRead={markAllRead}
-                onMarkRead={(id) => setNotifs(prev => {
-                  const next = prev.map(n => n.id === id ? { ...n, read: true } : n)
-                  localStorage.setItem('fellis_notifs_read', JSON.stringify(next.filter(n => n.read).map(n => n.id)))
-                  return next
-                })}
+                onMarkRead={(id) => {
+                  setNotifs(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
+                  apiMarkNotificationRead(id).catch(() => {})
+                }}
                 onNavigate={(pg, postId) => {
                   if (postId) { setHighlightPostId(postId) }
                   navigateTo(pg)
@@ -358,8 +361,6 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
           setShowUpgradeModal(false)
           setMode('business')
           localStorage.setItem('fellis_mode', 'business')
-          const savedReadIds = new Set(JSON.parse(localStorage.getItem('fellis_notifs_read') || '[]'))
-          setNotifs(makeMockNotifs('business').map(n => savedReadIds.has(n.id) ? { ...n, read: true } : n))
           apiUpdateMode('business').catch(() => {})
           apiUpdatePlan('business_pro').catch(() => {})
         }} onClose={() => setShowUpgradeModal(false)} />
@@ -2355,6 +2356,7 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
   const [interestsSaveOk, setInterestsSaveOk] = useState(true)
   const [birthday, setBirthday] = useState(currentUser.birthday || '')
   const [birthdaySaveStatus, setBirthdaySaveStatus] = useState(null) // null | 'saving' | 'saved' | 'error'
+  const [bioSaveStatus, setBioSaveStatus] = useState(null) // null | 'saving' | 'saved' | 'error'
 
   useEffect(() => {
     apiFetchProfile().then(data => {
@@ -2438,6 +2440,8 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
     nameLabel: 'Navn',
     bioLabel: 'Bio',
     locationLabel: 'Lokation',
+    saveInfo: 'Gem',
+    savedInfo: 'Gemt!',
     back: 'Tilbage til profil',
     skillsSection: 'Kompetencer',
     passwordTitle: hasPassword ? 'Skift adgangskode' : 'Opret adgangskode',
@@ -2453,6 +2457,8 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
     nameLabel: 'Name',
     bioLabel: 'Bio',
     locationLabel: 'Location',
+    saveInfo: 'Save',
+    savedInfo: 'Saved!',
     back: 'Back to profile',
     skillsSection: 'Skills',
     passwordTitle: hasPassword ? 'Change password' : 'Create password',
@@ -2507,11 +2513,42 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
 
         {/* Bio */}
         <label style={labelStyle}>{editT.bioLabel}</label>
-        <textarea style={{ ...fieldStyle, minHeight: 80, resize: 'vertical' }} value={profile.bio?.[lang] || profile.bio?.da || ''} readOnly />
+        <textarea
+          style={{ ...fieldStyle, minHeight: 80, resize: 'vertical' }}
+          value={profile.bio?.[lang] || profile.bio?.da || ''}
+          onChange={e => setProfile(p => ({ ...p, bio: { ...(p.bio || {}), [lang]: e.target.value } }))}
+          placeholder={lang === 'da' ? 'Fortæl lidt om dig selv…' : 'Tell a little about yourself…'}
+        />
 
         {/* Location */}
         <label style={labelStyle}>{editT.locationLabel}</label>
-        <input style={fieldStyle} value={profile.location || ''} readOnly />
+        <input
+          style={fieldStyle}
+          value={profile.location || ''}
+          onChange={e => setProfile(p => ({ ...p, location: e.target.value }))}
+          placeholder={lang === 'da' ? 'By, land…' : 'City, country…'}
+        />
+
+        {/* Save bio + location */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
+          <button
+            type="button"
+            disabled={bioSaveStatus === 'saving'}
+            onClick={async () => {
+              setBioSaveStatus('saving')
+              const res = await apiUpdateProfile({
+                bio_da: profile.bio?.da || '',
+                bio_en: profile.bio?.en || '',
+                location: profile.location || '',
+              })
+              setBioSaveStatus(res?.ok ? 'saved' : 'error')
+              setTimeout(() => setBioSaveStatus(null), 2000)
+            }}
+            style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: bioSaveStatus === 'saved' ? '#40916C' : '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+          >
+            {bioSaveStatus === 'saving' ? '…' : bioSaveStatus === 'saved' ? editT.savedInfo : editT.saveInfo}
+          </button>
+        </div>
 
         {/* Birthday */}
         <label style={labelStyle}>{t.birthdayLabel}</label>
@@ -3115,9 +3152,8 @@ function VisitorStatsPage({ lang }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/visitor-stats', { credentials: 'include' })
-      .then(r => r.json())
-      .then(data => { setStats(data); setLoading(false) })
+    apiGetVisitorStats()
+      .then(data => { if (data) setStats(data); setLoading(false) })
       .catch(() => setLoading(false))
   }, [])
 

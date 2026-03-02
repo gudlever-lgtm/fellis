@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { nameToColor, getInitials } from './data.js'
 
 // Placeholder friends for the invite step (migration wizard only)
@@ -104,7 +104,13 @@ const T = {
     registerTitle: 'Opret din fellis.eu konto',
     registerName: 'Fulde navn',
     registerEmail: 'E-mail',
+    registerEmailRepeat: 'Gentag e-mail',
+    registerEmailMismatch: 'E-mail adresserne stemmer ikke overens',
     registerPassword: 'Vælg adgangskode (min. 6 tegn)',
+    registerPasswordRepeat: 'Gentag adgangskode',
+    registerPasswordMismatch: 'Adgangskoderne stemmer ikke overens',
+    registerMathChallenge: (a, b) => `Hvad er ${a} + ${b}?`,
+    registerMathError: 'Forkert svar — prøv igen',
     registerSubmit: 'Opret konto & gå til profil',
     registerError: 'Kunne ikke oprette konto',
     // Create account card (step 1)
@@ -216,7 +222,13 @@ const T = {
     registerTitle: 'Create your fellis.eu account',
     registerName: 'Full name',
     registerEmail: 'Email',
+    registerEmailRepeat: 'Repeat email',
+    registerEmailMismatch: 'Email addresses do not match',
     registerPassword: 'Choose a password (min. 6 characters)',
+    registerPasswordRepeat: 'Repeat password',
+    registerPasswordMismatch: 'Passwords do not match',
+    registerMathChallenge: (a, b) => `What is ${a} + ${b}?`,
+    registerMathError: 'Wrong answer — please try again',
     registerSubmit: 'Create account & go to profile',
     registerError: 'Could not create account',
     // Create account card (step 1)
@@ -273,9 +285,23 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
   // Register state (step 4) — pre-fill email from email invite if available
   const [regName, setRegName] = useState('')
   const [regEmail, setRegEmail] = useState(inviterEmail || '')
+  const [regEmailRepeat, setRegEmailRepeat] = useState('')
   const [regPassword, setRegPassword] = useState('')
+  const [regPasswordRepeat, setRegPasswordRepeat] = useState('')
   const [regError, setRegError] = useState('')
   const [regLoading, setRegLoading] = useState(false)
+  // Anti-bot: math challenge
+  const [mathChallenge] = useState(() => {
+    const a = Math.floor(Math.random() * 9) + 1
+    const b = Math.floor(Math.random() * 9) + 1
+    return { a, b, answer: a + b }
+  })
+  const [mathAnswer, setMathAnswer] = useState('')
+  // Anti-bot: honeypot field (must remain empty)
+  const [honeypot, setHoneypot] = useState('')
+  // Refs for smart focus
+  const emailRef = useRef(null)
+  const nameRef = useRef(null)
 
   const t = T[lang]
 
@@ -283,6 +309,16 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
   useEffect(() => {
     if (inviterEmail && !regEmail) setRegEmail(inviterEmail)
   }, [inviterEmail]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Smart focus: when step 4 becomes active, focus email (if empty) or name (if email pre-filled)
+  useEffect(() => {
+    if (step === 4) {
+      setTimeout(() => {
+        if (regEmail) nameRef.current?.focus()
+        else emailRef.current?.focus()
+      }, 50)
+    }
+  }, [step]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleLang = useCallback(() => setLang(p => p === 'da' ? 'en' : 'da'), [])
 
@@ -372,12 +408,26 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
   // ── Register handler (step 4 done) ──
   const handleRegister = useCallback(async (e) => {
     e.preventDefault()
+    // Anti-bot: honeypot must be empty
+    if (honeypot) return
     if (!regName.trim() || !regEmail.trim() || !regPassword.trim()) {
       setRegError(t.registerError)
       return
     }
+    if (regEmail.trim().toLowerCase() !== regEmailRepeat.trim().toLowerCase()) {
+      setRegError(t.registerEmailMismatch)
+      return
+    }
     if (regPassword.length < 6) {
       setRegError(lang === 'da' ? 'Adgangskode skal være mindst 6 tegn' : 'Password must be at least 6 characters')
+      return
+    }
+    if (regPassword !== regPasswordRepeat) {
+      setRegError(t.registerPasswordMismatch)
+      return
+    }
+    if (parseInt(mathAnswer, 10) !== mathChallenge.answer) {
+      setRegError(t.registerMathError)
       return
     }
     setRegLoading(true)
@@ -748,7 +798,19 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
           {/* Registration form */}
           <form className="register-form" onSubmit={handleRegister}>
             <h3 className="register-title">{t.registerTitle}</h3>
+            {/* Honeypot — hidden from users, filled only by bots */}
             <input
+              type="text"
+              name="website"
+              value={honeypot}
+              onChange={e => setHoneypot(e.target.value)}
+              tabIndex={-1}
+              aria-hidden="true"
+              style={{ position: 'absolute', left: '-9999px', opacity: 0, height: 0 }}
+              autoComplete="off"
+            />
+            <input
+              ref={emailRef}
               type="email"
               placeholder={t.registerEmail}
               value={regEmail}
@@ -757,12 +819,21 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
               required
             />
             <input
+              type="email"
+              placeholder={t.registerEmailRepeat}
+              value={regEmailRepeat}
+              onChange={e => setRegEmailRepeat(e.target.value)}
+              className="register-input"
+              required
+              onPaste={e => e.preventDefault()}
+            />
+            <input
+              ref={nameRef}
               type="text"
               placeholder={t.registerName}
               value={regName}
               onChange={e => setRegName(e.target.value)}
               className="register-input"
-              autoFocus
               required
             />
             <input
@@ -774,7 +845,32 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
               minLength={6}
               required
             />
+            <input
+              type="password"
+              placeholder={t.registerPasswordRepeat}
+              value={regPasswordRepeat}
+              onChange={e => setRegPasswordRepeat(e.target.value)}
+              className="register-input"
+              minLength={6}
+              required
+              onPaste={e => e.preventDefault()}
+            />
             <PasswordStrengthIndicator password={regPassword} lang={lang} />
+            {/* Math challenge — simple human verification */}
+            <div style={{ marginTop: 10, marginBottom: 4 }}>
+              <label style={{ display: 'block', fontSize: 13, color: '#555', marginBottom: 4 }}>
+                {t.registerMathChallenge(mathChallenge.a, mathChallenge.b)}
+              </label>
+              <input
+                type="number"
+                placeholder="?"
+                value={mathAnswer}
+                onChange={e => setMathAnswer(e.target.value)}
+                className="register-input"
+                required
+                style={{ marginTop: 0 }}
+              />
+            </div>
             {regError && <div className="fb-error">{regError}</div>}
             <button type="submit" className="btn-primary" style={{ width: '100%' }} disabled={regLoading}>
               {regLoading ? '...' : t.registerSubmit}

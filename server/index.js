@@ -1299,6 +1299,24 @@ app.post('/api/profile/avatar', authenticate, upload.single('avatar'), async (re
   }
 })
 
+// PATCH /api/profile — update bio and/or location
+app.patch('/api/profile', authenticate, async (req, res) => {
+  const { bio_da, bio_en, location } = req.body
+  try {
+    const fields = []
+    const vals = []
+    if (bio_da !== undefined) { fields.push('bio_da = ?'); vals.push(bio_da || null) }
+    if (bio_en !== undefined) { fields.push('bio_en = ?'); vals.push(bio_en || null) }
+    if (location !== undefined) { fields.push('location = ?'); vals.push(location || null) }
+    if (!fields.length) return res.status(400).json({ error: 'Nothing to update' })
+    vals.push(req.userId)
+    await pool.query(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`, vals)
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // PATCH /api/profile/email — change email address
 app.patch('/api/profile/email', authenticate, async (req, res) => {
   const { newEmail, password } = req.body
@@ -1713,6 +1731,10 @@ app.post('/api/feed/:id/like', authenticate, async (req, res) => {
         await pool.query('INSERT INTO post_likes (post_id, user_id) VALUES (?, ?)', [postId, req.userId])
       }
       await pool.query('UPDATE posts SET likes = likes + 1 WHERE id = ?', [postId])
+      // Notify post owner
+      const [[post]] = await pool.query('SELECT author_id FROM posts WHERE id = ?', [postId]).catch(() => [[null]])
+      const [[liker]] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId]).catch(() => [[null]])
+      if (post && liker) createNotification(post.author_id, 'like', req.userId, liker.name, postId)
       res.json({ liked: true, reaction })
     }
   } catch (err) {
@@ -1768,6 +1790,9 @@ app.post('/api/feed/:id/comment', authenticate, upload.single('media'), async (r
     }
     const [users] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
     const media = mediaJson ? JSON.parse(mediaJson) : null
+    // Notify post owner
+    const [[commentedPost]] = await pool.query('SELECT author_id FROM posts WHERE id = ?', [postId]).catch(() => [[null]])
+    if (commentedPost) createNotification(commentedPost.author_id, 'comment', req.userId, users[0].name, postId)
     res.json({ author: users[0].name, text: { da: text, en: text }, media })
   } catch (err) {
     res.status(500).json({ error: 'Failed to add comment' })
@@ -1837,6 +1862,43 @@ app.get('/api/visitor-stats', authenticate, async (req, res) => {
     res.json({ browsers, oses, countries, daily, total })
   } catch (err) {
     console.error('GET /api/visitor-stats error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Notification routes ──
+
+// GET /api/notifications — get notifications for current user (newest first, max 50)
+app.get('/api/notifications', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, type, actor_id, actor_name, post_id, is_read, created_at
+       FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 50`,
+      [req.userId]
+    )
+    res.json(rows)
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/notifications/read-all — mark all as read
+app.post('/api/notifications/read-all', authenticate, async (req, res) => {
+  try {
+    await pool.query('UPDATE notifications SET is_read = 1 WHERE user_id = ?', [req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/notifications/:id/read — mark one notification as read
+app.post('/api/notifications/:id/read', authenticate, async (req, res) => {
+  const notifId = parseInt(req.params.id)
+  try {
+    await pool.query('UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?', [notifId, req.userId])
+    res.json({ ok: true })
+  } catch (err) {
     res.status(500).json({ error: 'Server error' })
   }
 })
@@ -2001,6 +2063,9 @@ app.post('/api/friends/request/:userId', authenticate, async (req, res) => {
        ON DUPLICATE KEY UPDATE status = 'pending', created_at = CURRENT_TIMESTAMP()`,
       [req.userId, targetId]
     )
+    // Notify target user
+    const [[sender]] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId]).catch(() => [[null]])
+    if (sender) createNotification(targetId, 'friend_request', req.userId, sender.name, null)
     res.json({ ok: true })
   } catch (err) { res.status(500).json({ error: 'Failed to send request' }) }
 })
@@ -2038,6 +2103,9 @@ app.post('/api/friends/requests/:id/accept', authenticate, async (req, res) => {
     await pool.query(`UPDATE friend_requests SET status = 'accepted' WHERE id = ?`, [reqId])
     await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [req.userId, fromId])
     await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [fromId, req.userId])
+    // Notify the person who sent the request that it was accepted
+    const [[acceptor]] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId]).catch(() => [[null]])
+    if (acceptor) createNotification(fromId, 'accepted', req.userId, acceptor.name, null)
     res.json({ ok: true })
   } catch (err) { res.status(500).json({ error: 'Failed to accept request' }) }
 })
@@ -3661,9 +3729,32 @@ async function initAnalytics() {
       FOREIGN KEY (profile_id) REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY (viewer_id) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    await pool.query(`CREATE TABLE IF NOT EXISTS notifications (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      type VARCHAR(50) NOT NULL,
+      actor_id INT NOT NULL,
+      actor_name VARCHAR(255) NOT NULL,
+      post_id INT DEFAULT NULL,
+      is_read TINYINT(1) NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_notif_user (user_id, is_read, created_at),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (actor_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
   } catch (err) {
     console.error('initAnalytics error:', err.message)
   }
+}
+
+async function createNotification(userId, type, actorId, actorName, postId = null) {
+  if (userId === actorId) return // never notify yourself
+  try {
+    await pool.query(
+      'INSERT INTO notifications (user_id, type, actor_id, actor_name, post_id) VALUES (?, ?, ?, ?, ?)',
+      [userId, type, actorId, actorName, postId]
+    )
+  } catch { /* non-critical */ }
 }
 
 let _feedWeightsCache = null
