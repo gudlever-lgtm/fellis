@@ -522,6 +522,10 @@ export async function apiUpdateProfile(data) {
   })
 }
 
+export async function apiHeartbeat() {
+  return await request('/api/me/heartbeat', { method: 'POST' })
+}
+
 export async function apiUpdateMode(mode) {
   return await request('/api/me/mode', { method: 'PATCH', body: JSON.stringify({ mode }) })
 }

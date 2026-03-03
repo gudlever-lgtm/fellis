@@ -1279,6 +1279,16 @@ app.patch('/api/me/interests', authenticate, async (req, res) => {
   }
 })
 
+// POST /api/me/heartbeat — update last_active timestamp (used for online presence)
+app.post('/api/me/heartbeat', authenticate, async (req, res) => {
+  try {
+    await pool.query('UPDATE users SET last_active = NOW() WHERE id = ?', [req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update heartbeat' })
+  }
+})
+
 // POST /api/profile/avatar — upload profile picture
 app.post('/api/profile/avatar', authenticate, upload.single('avatar'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' })
@@ -2041,7 +2051,8 @@ app.get('/api/invites', authenticate, async (req, res) => {
 app.get('/api/friends', authenticate, async (req, res) => {
   try {
     const [friends] = await pool.query(
-      `SELECT u.id, u.name, f.mutual_count as mutual, f.is_online as online
+      `SELECT u.id, u.name, f.mutual_count as mutual,
+              (u.last_active IS NOT NULL AND u.last_active > DATE_SUB(NOW(), INTERVAL 5 MINUTE)) as online
        FROM friendships f JOIN users u ON f.friend_id = u.id
        WHERE f.user_id = ?
        ORDER BY u.name`,
@@ -2454,7 +2465,7 @@ app.get('/api/users/search', authenticate, async (req, res) => {
     const [users] = await pool.query(
       `SELECT u.id, u.name,
               CASE WHEN f.id IS NOT NULL THEN 1 ELSE 0 END as is_friend,
-              COALESCE(f.is_online, 0) as online,
+              (u.last_active IS NOT NULL AND u.last_active > DATE_SUB(NOW(), INTERVAL 5 MINUTE)) as online,
               COALESCE(f.mutual_count, 0) as mutual,
               (SELECT id FROM friend_requests WHERE from_user_id = ? AND to_user_id = u.id AND status = 'pending') as sent_request_id,
               (SELECT id FROM friend_requests WHERE from_user_id = u.id AND to_user_id = ? AND status = 'pending') as received_request_id
