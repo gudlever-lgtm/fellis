@@ -90,7 +90,11 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
     apiMarkAllNotificationsRead().catch(() => {})
   }
 
-  const toggleLang = useCallback(() => setLang(p => p === 'da' ? 'en' : 'da'), [])
+  const toggleLang = useCallback(() => setLang(p => {
+    const next = p === 'da' ? 'en' : 'da'
+    localStorage.setItem('fellis_lang', next)
+    return next
+  }), [])
 
   // Load current user from session — mode and plan are authoritative from server
   useEffect(() => {
