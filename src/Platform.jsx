@@ -855,6 +855,7 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
   const [mediaPopup, setMediaPopup] = useState(false)
   const [postMenu, setPostMenu] = useState(null)       // postId with open options menu
   const [hiddenPosts, setHiddenPosts] = useState(new Set()) // locally hidden post ids
+  const [feedCategoryFilter, setFeedCategoryFilter] = useState(null) // catId | null
   const [postCategories, setPostCategories] = useState(new Set())   // all selected category ids
   const [autoCategories, setAutoCategories] = useState(new Set())   // subset that came from auto-suggest
   const [showCategoryPicker, setShowCategoryPicker] = useState(false)
@@ -1779,8 +1780,22 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
         )
       })()}
 
+      {/* Active category filter indicator */}
+      {feedCategoryFilter && (() => {
+        const catInfo = INTEREST_CATEGORIES.find(c => c.id === feedCategoryFilter)
+        if (!catInfo) return null
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', background: '#eaf4ef', borderBottom: '1px solid #b7dfc9' }}>
+            <span style={{ fontSize: 13, color: '#2D6A4F' }}>{t.feedCategoryFilterLabel}: <strong>{catInfo.icon} {catInfo[lang]}</strong></span>
+            <button onClick={() => setFeedCategoryFilter(null)} style={{ marginLeft: 'auto', fontSize: 12, color: '#2D6A4F', background: 'none', border: '1px solid #b7dfc9', borderRadius: 20, padding: '2px 10px', cursor: 'pointer', fontFamily: 'inherit' }}>
+              {t.feedCategoryFilterClear}
+            </button>
+          </div>
+        )
+      })()}
+
       {/* Posts — max PAGE_SIZE in DOM */}
-      {posts.filter(post => !hiddenPosts.has(post.id)).map(post => {
+      {posts.filter(post => !hiddenPosts.has(post.id) && (!feedCategoryFilter || (Array.isArray(post.categories) && post.categories.includes(feedCategoryFilter)))).map(post => {
         const liked = likedPosts.has(post.id)
         const showComments = expandedComments.has(post.id)
         const isOwn = post.author === currentUser.name
@@ -1867,11 +1882,14 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
                 {post.categories.map(catId => {
                   const catInfo = INTEREST_CATEGORIES.find(c => c.id === catId)
                   if (!catInfo) return null
+                  const isActive = feedCategoryFilter === catId
                   return (
-                    <span key={catId} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: '#2D6A4F', background: '#eaf4ef', borderRadius: 20, padding: '2px 9px', border: '1px solid #b7dfc9' }}
-                      title={t.postCategoryBadgeTitle}>
+                    <button key={catId}
+                      onClick={() => setFeedCategoryFilter(isActive ? null : catId)}
+                      title={isActive ? t.feedCategoryFilterClear : t.feedCategoryFilterTitle}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: isActive ? '#fff' : '#2D6A4F', background: isActive ? '#2D6A4F' : '#eaf4ef', borderRadius: 20, padding: '2px 9px', border: `1px solid ${isActive ? '#2D6A4F' : '#b7dfc9'}`, cursor: 'pointer', fontFamily: 'inherit' }}>
                       {catInfo.icon} {catInfo[lang]}
-                    </span>
+                    </button>
                   )
                 })}
               </div>
