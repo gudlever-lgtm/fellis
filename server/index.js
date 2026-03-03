@@ -1284,10 +1284,10 @@ app.patch('/api/me/interests', authenticate, async (req, res) => {
 app.post('/api/me/heartbeat', authenticate, async (req, res) => {
   try {
     await pool.query('UPDATE users SET last_active = NOW() WHERE id = ?', [req.userId])
-    res.json({ ok: true })
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to update heartbeat' })
+  } catch {
+    // Column may not exist yet on older installs — not critical, ignore
   }
+  res.json({ ok: true })
 })
 
 // POST /api/profile/avatar — upload profile picture
@@ -4887,6 +4887,7 @@ app.listen(PORT, () => {
     console.warn('⚠️  WARNING: FB_TOKEN_ENCRYPTION_KEY not set. Facebook tokens will be stored unencrypted.')
     console.warn('   Generate a key with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"')
   }
+  pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS last_active TIMESTAMP NULL DEFAULT NULL').catch(() => {})
   initEvents()
   initFriendRequests()
   initConversations()
