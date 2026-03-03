@@ -1573,8 +1573,8 @@ const CATEGORY_KEYWORDS = {
 
 const VALID_CATEGORIES = new Set(Object.keys(CATEGORY_KEYWORDS))
 
-function suggestCategory(text) {
-  if (!text || text.trim().length < 5) return null
+function suggestCategories(text, max = 3) {
+  if (!text || text.trim().length < 5) return []
   const lower = text.toLowerCase()
   const scores = {}
   for (const [cat, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
@@ -1584,15 +1584,17 @@ function suggestCategory(text) {
     }
     if (score > 0) scores[cat] = score
   }
-  if (Object.keys(scores).length === 0) return null
-  return Object.entries(scores).sort((a, b) => b[1] - a[1])[0][0]
+  return Object.entries(scores)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, max)
+    .map(([cat]) => cat)
 }
 
-// GET /api/feed/suggest-category — keyword-based category suggestion from post text
+// GET /api/feed/suggest-category — keyword-based category suggestions from post text
 app.get('/api/feed/suggest-category', authenticate, (req, res) => {
   const text = (req.query.text || '').trim()
-  const category = suggestCategory(text)
-  res.json({ category })
+  const categories = suggestCategories(text)
+  res.json({ categories })
 })
 
 // GET /api/feed — get posts with pagination (max 20 in DOM)
@@ -1611,7 +1613,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
     let posts = []
     try {
       ;[posts] = await pool.query(
-        `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.category, p.created_at, p.edited_at
+        `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.categories, p.created_at, p.edited_at
          FROM posts p JOIN users u ON p.author_id = u.id
          WHERE p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?)
          ORDER BY p.created_at DESC
@@ -1619,7 +1621,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
         [req.userId, req.userId, limit, offset]
       )
     } catch {
-      // category column may not exist yet — fall back to query without it
+      // categories column may not exist yet — fall back to query without it
       ;[posts] = await pool.query(
         `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.created_at, p.edited_at
          FROM posts p JOIN users u ON p.author_id = u.id
@@ -1706,7 +1708,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
         userReaction: userReactionMap[p.id] || null,
         reactions: reactionsByPost[p.id] || [],
         media,
-        category: p.category || null,
+        categories: p.categories ? (typeof p.categories === 'string' ? JSON.parse(p.categories) : p.categories) : [],
         comments: commentsByPost[p.id] || [],
         createdAtRaw: p.created_at,
         edited: !!p.edited_at,
@@ -1721,8 +1723,10 @@ app.get('/api/feed', authenticate, async (req, res) => {
 // POST /api/feed — create a new post (with optional media)
 app.post('/api/feed', authenticate, upload.array('media', 4), async (req, res) => {
   const { text } = req.body
-  const rawCategory = req.body.category || null
-  const category = rawCategory && VALID_CATEGORIES.has(rawCategory) ? rawCategory : null
+  // Accept categories as JSON string array or comma-separated string
+  let rawCategories = []
+  try { rawCategories = JSON.parse(req.body.categories || '[]') } catch { rawCategories = [] }
+  const validCategories = Array.isArray(rawCategories) ? rawCategories.filter(c => VALID_CATEGORIES.has(c)) : []
   if (!text?.trim() && !req.files?.length) return res.status(400).json({ error: 'Post text or media required' })
 
   // Validate magic bytes for each uploaded file
@@ -1747,16 +1751,17 @@ app.post('/api/feed', authenticate, upload.array('media', 4), async (req, res) =
   try {
     const mediaJson = mediaUrls.length > 0 ? JSON.stringify(mediaUrls) : null
     const postText = text?.trim() || ''
-    const finalCategory = category || suggestCategory(postText)
+    const finalCategories = validCategories.length > 0 ? validCategories : suggestCategories(postText)
+    const categoriesJson = finalCategories.length > 0 ? JSON.stringify(finalCategories) : null
     let insertId
     try {
       const [result] = await pool.query(
-        'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media, category) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [req.userId, postText, postText, 'Lige nu', 'Just now', mediaJson, finalCategory]
+        'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media, categories) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [req.userId, postText, postText, 'Lige nu', 'Just now', mediaJson, categoriesJson]
       )
       insertId = result.insertId
     } catch {
-      // category column may not exist yet — insert without it
+      // categories column may not exist yet — insert without it
       const [result] = await pool.query(
         'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media) VALUES (?, ?, ?, ?, ?, ?)',
         [req.userId, postText, postText, 'Lige nu', 'Just now', mediaJson]
@@ -1772,7 +1777,7 @@ app.post('/api/feed', authenticate, upload.array('media', 4), async (req, res) =
       text: { da: postText, en: postText },
       likes: 0, liked: false, comments: [],
       media: mediaUrls.length > 0 ? mediaUrls : null,
-      category: finalCategory,
+      categories: finalCategories,
     })
   } catch (err) {
     res.status(500).json({ error: 'Failed to create post' })

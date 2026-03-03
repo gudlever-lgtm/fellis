@@ -855,8 +855,8 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
   const [mediaPopup, setMediaPopup] = useState(false)
   const [postMenu, setPostMenu] = useState(null)       // postId with open options menu
   const [hiddenPosts, setHiddenPosts] = useState(new Set()) // locally hidden post ids
-  const [postCategory, setPostCategory] = useState(null)       // manually or auto-selected category
-  const [suggestedCategory, setSuggestedCategory] = useState(null) // server auto-suggestion
+  const [postCategories, setPostCategories] = useState(new Set())   // all selected category ids
+  const [autoCategories, setAutoCategories] = useState(new Set())   // subset that came from auto-suggest
   const [showCategoryPicker, setShowCategoryPicker] = useState(false)
   const fileInputRef = useRef(null)
   const textareaRef = useRef(null)
@@ -1054,25 +1054,46 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
     })
   }, [])
 
-  // Debounced auto-suggest category from post text
+  // Debounced auto-suggest categories from post text
   useEffect(() => {
     const trimmed = newPostText.trim()
     const delay = trimmed.length < 5 ? 0 : 600
+    let cancelled = false
     const timer = setTimeout(() => {
-      if (trimmed.length < 5) { setSuggestedCategory(null); return }
+      if (cancelled) return
+      if (trimmed.length < 5) {
+        // Clear auto-suggested categories
+        setAutoCategories(prev => {
+          if (prev.size === 0) return prev
+          setPostCategories(cats => { const n = new Set(cats); prev.forEach(c => n.delete(c)); return n })
+          return new Set()
+        })
+        return
+      }
       apiSuggestCategory(trimmed).then(data => {
-        setSuggestedCategory(data?.category || null)
+        if (cancelled) return
+        const newSuggestions = Array.isArray(data?.categories) ? data.categories : []
+        setAutoCategories(prev => {
+          const oldAuto = prev
+          setPostCategories(cats => {
+            const n = new Set(cats)
+            oldAuto.forEach(c => n.delete(c))        // remove stale auto-suggestions
+            newSuggestions.forEach(c => n.add(c))    // add new ones
+            return n
+          })
+          return new Set(newSuggestions)
+        })
       }).catch(() => {})
     }, delay)
-    return () => clearTimeout(timer)
+    return () => { cancelled = true; clearTimeout(timer) }
   }, [newPostText])
 
   const handlePost = useCallback(() => {
     if (!newPostText.trim() && !mediaFiles.length) return
     const text = newPostText.trim()
     const files = mediaFiles.length > 0 ? mediaFiles : null
-    const category = postCategory || null
-    apiCreatePost(text, files, category).then(data => {
+    const categories = Array.from(postCategories)
+    apiCreatePost(text, files, categories).then(data => {
       if (data) {
         setPosts(prev => [data, ...prev].slice(0, PAGE_SIZE))
         setTotal(prev => prev + 1)
@@ -1095,12 +1116,12 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
     setMediaPreviews([])
     setPostExpanded(false)
     setMediaPopup(false)
-    setPostCategory(null)
-    setSuggestedCategory(null)
+    setPostCategories(new Set())
+    setAutoCategories(new Set())
     setShowCategoryPicker(false)
     if (fileInputRef.current) fileInputRef.current.value = ''
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
-  }, [newPostText, mediaFiles, mediaPreviews, postCategory, currentUser.name])
+  }, [newPostText, mediaFiles, mediaPreviews, postCategories, currentUser.name])
 
   const toggleLike = useCallback((id, emoji) => {
     const isLiked = likedPosts.has(id)
@@ -1414,49 +1435,61 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
               </div>
             )}
 
-            {/* Category row — shown when post has text or a suggestion exists */}
-            {(newPostText.trim().length >= 5 || postCategory) && (() => {
-              const activeCategory = postCategory || suggestedCategory
-              const catInfo = activeCategory ? INTEREST_CATEGORIES.find(c => c.id === activeCategory) : null
-              return (
-                <div style={{ padding: '6px 12px 0', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  {catInfo ? (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, color: '#2D6A4F', background: '#eaf4ef', borderRadius: 20, padding: '3px 10px', border: '1px solid #b7dfc9' }}>
-                      {catInfo.icon} {catInfo[lang]}
-                      {!postCategory && suggestedCategory && (
-                        <span style={{ fontSize: 10, fontWeight: 400, color: '#777', marginLeft: 2 }}>({t.postCategoryAuto})</span>
-                      )}
-                      <button
-                        onMouseDown={e => e.preventDefault()}
-                        onClick={() => { setPostCategory(null); setSuggestedCategory(null); setShowCategoryPicker(false) }}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', fontSize: 12, lineHeight: 1, padding: '0 0 0 2px' }}
-                        title={t.postCategoryNone}
-                      >✕</button>
-                    </span>
-                  ) : (
+            {/* Category row — shown when post has text or categories selected */}
+            {(newPostText.trim().length >= 5 || postCategories.size > 0) && (
+              <div style={{ padding: '6px 12px 0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  {postCategories.size === 0 && (
                     <span style={{ fontSize: 12, color: '#aaa' }}>{t.postCategoryNone}</span>
                   )}
+                  {[...postCategories].map(catId => {
+                    const catInfo = INTEREST_CATEGORIES.find(c => c.id === catId)
+                    if (!catInfo) return null
+                    const isAuto = autoCategories.has(catId)
+                    return (
+                      <span key={catId} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, color: '#2D6A4F', background: '#eaf4ef', borderRadius: 20, padding: '3px 10px', border: `1px solid ${isAuto ? '#b7dfc9' : '#2D6A4F'}` }}>
+                        {catInfo.icon} {catInfo[lang]}
+                        {isAuto && <span style={{ fontSize: 10, fontWeight: 400, color: '#777' }}>({t.postCategoryAuto})</span>}
+                        <button
+                          onMouseDown={e => e.preventDefault()}
+                          onClick={() => {
+                            setPostCategories(prev => { const n = new Set(prev); n.delete(catId); return n })
+                            setAutoCategories(prev => { const n = new Set(prev); n.delete(catId); return n })
+                          }}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', fontSize: 12, lineHeight: 1, padding: '0 0 0 2px' }}
+                          title={t.postCategoryNone}
+                        >✕</button>
+                      </span>
+                    )
+                  })}
                   <button
                     onMouseDown={e => e.preventDefault()}
                     onClick={() => setShowCategoryPicker(p => !p)}
                     style={{ fontSize: 12, color: '#2D6A4F', background: 'none', border: '1px solid #b7dfc9', borderRadius: 20, padding: '2px 10px', cursor: 'pointer', fontWeight: 600 }}
                   >
-                    {showCategoryPicker ? '▲' : '▼'} {t.postCategoryChange}
+                    {showCategoryPicker ? '▲' : '+'} {t.postCategoryChange}
                   </button>
                 </div>
-              )
-            })()}
+              </div>
+            )}
 
-            {/* Category picker — all 18 categories */}
+            {/* Category picker — all 18 categories, multiple allowed */}
             {showCategoryPicker && (
               <div style={{ padding: '8px 12px', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {INTEREST_CATEGORIES.map(cat => {
-                  const isActive = postCategory === cat.id
+                  const isActive = postCategories.has(cat.id)
                   return (
                     <button
                       key={cat.id}
                       onMouseDown={e => e.preventDefault()}
-                      onClick={() => { setPostCategory(isActive ? null : cat.id); setShowCategoryPicker(false) }}
+                      onClick={() => {
+                        setPostCategories(prev => {
+                          const n = new Set(prev)
+                          if (n.has(cat.id)) { n.delete(cat.id); setAutoCategories(a => { const b = new Set(a); b.delete(cat.id); return b }) }
+                          else n.add(cat.id)
+                          return n
+                        })
+                      }}
                       style={{
                         fontSize: 12, fontWeight: isActive ? 700 : 400,
                         color: isActive ? '#fff' : '#444',
@@ -1466,7 +1499,7 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
                         transition: 'all 0.12s',
                       }}
                     >
-                      {cat.icon} {cat[lang]}
+                      {isActive ? '✓ ' : ''}{cat.icon} {cat[lang]}
                     </button>
                   )
                 })}
@@ -1828,19 +1861,21 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
                 )}
               </div>
             </div>
-            {/* Category badge */}
-            {post.category && (() => {
-              const catInfo = INTEREST_CATEGORIES.find(c => c.id === post.category)
-              if (!catInfo) return null
-              return (
-                <div style={{ marginTop: 6 }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: '#2D6A4F', background: '#eaf4ef', borderRadius: 20, padding: '2px 9px', border: '1px solid #b7dfc9' }}
-                    title={t.postCategoryBadgeTitle}>
-                    {catInfo.icon} {catInfo[lang]}
-                  </span>
-                </div>
-              )
-            })()}
+            {/* Category badges */}
+            {Array.isArray(post.categories) && post.categories.length > 0 && (
+              <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                {post.categories.map(catId => {
+                  const catInfo = INTEREST_CATEGORIES.find(c => c.id === catId)
+                  if (!catInfo) return null
+                  return (
+                    <span key={catId} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: '#2D6A4F', background: '#eaf4ef', borderRadius: 20, padding: '2px 9px', border: '1px solid #b7dfc9' }}
+                      title={t.postCategoryBadgeTitle}>
+                      {catInfo.icon} {catInfo[lang]}
+                    </span>
+                  )
+                })}
+              </div>
+            )}
             {editingPostId === post.id ? (
               <div style={{ marginTop: 8 }}>
                 <textarea

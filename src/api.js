@@ -101,12 +101,13 @@ export async function apiFetchFeed(offset = 0, limit = 20) {
   return await request(`/api/feed?offset=${offset}&limit=${limit}`)
 }
 
-export async function apiCreatePost(text, mediaFiles, category) {
+export async function apiCreatePost(text, mediaFiles, categories) {
+  const cats = Array.isArray(categories) && categories.length > 0 ? categories : []
   if (mediaFiles?.length) {
     // Use FormData for multipart upload
     const form = new FormData()
     form.append('text', text)
-    if (category) form.append('category', category)
+    if (cats.length) form.append('categories', JSON.stringify(cats))
     for (const file of mediaFiles) {
       form.append('media', file)
     }
@@ -129,7 +130,7 @@ export async function apiCreatePost(text, mediaFiles, category) {
   }
   return await request('/api/feed', {
     method: 'POST',
-    body: JSON.stringify({ text, category: category || null }),
+    body: JSON.stringify({ text, categories: cats }),
   })
 }
 
