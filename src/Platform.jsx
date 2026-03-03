@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect } from 'react'
 import { PT, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiHeartbeat, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiGetVisitorStats, apiGetNotifications, apiMarkNotificationRead, apiMarkAllNotificationsRead, apiUpdateProfile } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiSuggestCategory, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiHeartbeat, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiGetVisitorStats, apiGetNotifications, apiMarkNotificationRead, apiMarkAllNotificationsRead, apiUpdateProfile } from './api.js'
 import ReelsPage from './Reels.jsx'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
@@ -855,6 +855,9 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
   const [mediaPopup, setMediaPopup] = useState(false)
   const [postMenu, setPostMenu] = useState(null)       // postId with open options menu
   const [hiddenPosts, setHiddenPosts] = useState(new Set()) // locally hidden post ids
+  const [postCategory, setPostCategory] = useState(null)       // manually or auto-selected category
+  const [suggestedCategory, setSuggestedCategory] = useState(null) // server auto-suggestion
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false)
   const fileInputRef = useRef(null)
   const textareaRef = useRef(null)
   const feedMention = useMention(sharePopupFriends || [])
@@ -1051,11 +1054,25 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
     })
   }, [])
 
+  // Debounced auto-suggest category from post text
+  useEffect(() => {
+    const trimmed = newPostText.trim()
+    const delay = trimmed.length < 5 ? 0 : 600
+    const timer = setTimeout(() => {
+      if (trimmed.length < 5) { setSuggestedCategory(null); return }
+      apiSuggestCategory(trimmed).then(data => {
+        setSuggestedCategory(data?.category || null)
+      }).catch(() => {})
+    }, delay)
+    return () => clearTimeout(timer)
+  }, [newPostText])
+
   const handlePost = useCallback(() => {
     if (!newPostText.trim() && !mediaFiles.length) return
     const text = newPostText.trim()
     const files = mediaFiles.length > 0 ? mediaFiles : null
-    apiCreatePost(text, files).then(data => {
+    const category = postCategory || null
+    apiCreatePost(text, files, category).then(data => {
       if (data) {
         setPosts(prev => [data, ...prev].slice(0, PAGE_SIZE))
         setTotal(prev => prev + 1)
@@ -1078,9 +1095,12 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
     setMediaPreviews([])
     setPostExpanded(false)
     setMediaPopup(false)
+    setPostCategory(null)
+    setSuggestedCategory(null)
+    setShowCategoryPicker(false)
     if (fileInputRef.current) fileInputRef.current.value = ''
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
-  }, [newPostText, mediaFiles, mediaPreviews, currentUser.name])
+  }, [newPostText, mediaFiles, mediaPreviews, postCategory, currentUser.name])
 
   const toggleLike = useCallback((id, emoji) => {
     const isLiked = likedPosts.has(id)
@@ -1393,6 +1413,66 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
                 ))}
               </div>
             )}
+
+            {/* Category row — shown when post has text or a suggestion exists */}
+            {(newPostText.trim().length >= 5 || postCategory) && (() => {
+              const activeCategory = postCategory || suggestedCategory
+              const catInfo = activeCategory ? INTEREST_CATEGORIES.find(c => c.id === activeCategory) : null
+              return (
+                <div style={{ padding: '6px 12px 0', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  {catInfo ? (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, color: '#2D6A4F', background: '#eaf4ef', borderRadius: 20, padding: '3px 10px', border: '1px solid #b7dfc9' }}>
+                      {catInfo.icon} {catInfo[lang]}
+                      {!postCategory && suggestedCategory && (
+                        <span style={{ fontSize: 10, fontWeight: 400, color: '#777', marginLeft: 2 }}>({t.postCategoryAuto})</span>
+                      )}
+                      <button
+                        onMouseDown={e => e.preventDefault()}
+                        onClick={() => { setPostCategory(null); setSuggestedCategory(null); setShowCategoryPicker(false) }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', fontSize: 12, lineHeight: 1, padding: '0 0 0 2px' }}
+                        title={t.postCategoryNone}
+                      >✕</button>
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: 12, color: '#aaa' }}>{t.postCategoryNone}</span>
+                  )}
+                  <button
+                    onMouseDown={e => e.preventDefault()}
+                    onClick={() => setShowCategoryPicker(p => !p)}
+                    style={{ fontSize: 12, color: '#2D6A4F', background: 'none', border: '1px solid #b7dfc9', borderRadius: 20, padding: '2px 10px', cursor: 'pointer', fontWeight: 600 }}
+                  >
+                    {showCategoryPicker ? '▲' : '▼'} {t.postCategoryChange}
+                  </button>
+                </div>
+              )
+            })()}
+
+            {/* Category picker — all 18 categories */}
+            {showCategoryPicker && (
+              <div style={{ padding: '8px 12px', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {INTEREST_CATEGORIES.map(cat => {
+                  const isActive = postCategory === cat.id
+                  return (
+                    <button
+                      key={cat.id}
+                      onMouseDown={e => e.preventDefault()}
+                      onClick={() => { setPostCategory(isActive ? null : cat.id); setShowCategoryPicker(false) }}
+                      style={{
+                        fontSize: 12, fontWeight: isActive ? 700 : 400,
+                        color: isActive ? '#fff' : '#444',
+                        background: isActive ? '#2D6A4F' : '#f4f4f4',
+                        border: `1.5px solid ${isActive ? '#2D6A4F' : '#e0e0e0'}`,
+                        borderRadius: 20, padding: '4px 12px', cursor: 'pointer',
+                        transition: 'all 0.12s',
+                      }}
+                    >
+                      {cat.icon} {cat[lang]}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+
             <div className="p-new-post-actions">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 {/* Media attachment popup */}
@@ -1748,6 +1828,19 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
                 )}
               </div>
             </div>
+            {/* Category badge */}
+            {post.category && (() => {
+              const catInfo = INTEREST_CATEGORIES.find(c => c.id === post.category)
+              if (!catInfo) return null
+              return (
+                <div style={{ marginTop: 6 }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: '#2D6A4F', background: '#eaf4ef', borderRadius: 20, padding: '2px 9px', border: '1px solid #b7dfc9' }}
+                    title={t.postCategoryBadgeTitle}>
+                    {catInfo.icon} {catInfo[lang]}
+                  </span>
+                </div>
+              )
+            })()}
             {editingPostId === post.id ? (
               <div style={{ marginTop: 8 }}>
                 <textarea

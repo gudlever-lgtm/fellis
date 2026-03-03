@@ -101,11 +101,12 @@ export async function apiFetchFeed(offset = 0, limit = 20) {
   return await request(`/api/feed?offset=${offset}&limit=${limit}`)
 }
 
-export async function apiCreatePost(text, mediaFiles) {
+export async function apiCreatePost(text, mediaFiles, category) {
   if (mediaFiles?.length) {
     // Use FormData for multipart upload
     const form = new FormData()
     form.append('text', text)
+    if (category) form.append('category', category)
     for (const file of mediaFiles) {
       form.append('media', file)
     }
@@ -128,8 +129,14 @@ export async function apiCreatePost(text, mediaFiles) {
   }
   return await request('/api/feed', {
     method: 'POST',
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ text, category: category || null }),
   })
+}
+
+export async function apiSuggestCategory(text) {
+  if (!text || text.trim().length < 5) return null
+  const encoded = encodeURIComponent(text.trim())
+  return await request(`/api/feed/suggest-category?text=${encoded}`)
 }
 
 export async function apiGetPostLikers(postId) {

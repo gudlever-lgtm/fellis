@@ -1549,6 +1549,52 @@ app.post('/api/skills/:id/endorse', authenticate, async (req, res) => {
 
 // ── Feed routes ──
 
+// Keyword-based category suggestion (no external AI — runs on server)
+const CATEGORY_KEYWORDS = {
+  musik:     ['musik', 'sang', 'sang', 'koncert', 'concert', 'album', 'melodi', 'guitar', 'piano', 'festival', 'song', 'music', 'band', 'artist', 'singer', 'rapper', 'dj', 'spotify', 'playlist', 'vinyl', 'beat', 'pop', 'rock', 'jazz', 'hip hop', 'rap', 'klassisk', 'classical', 'parachord', 'lydspor'],
+  sport:     ['fodbold', 'basketball', 'tennis', 'sport', 'træning', 'løb', 'cykling', 'svømning', 'gym', 'fitness', 'kamp', 'match', 'hold', 'league', 'vm', 'em', 'champions', 'football', 'soccer', 'marathon', 'workout', 'exercise', 'atletik', 'håndbold', 'sejlads', 'skiløb', 'badminton'],
+  teknologi: ['teknologi', 'computer', 'smartphone', 'app', 'software', 'hardware', 'ai', 'robot', 'kode', 'programmering', 'tech', 'internet', 'digital', 'javascript', 'python', 'cloud', 'server', 'netværk', 'startup', 'iphone', 'android', 'laptop', 'tablet', 'gadget', 'hack'],
+  mad:       ['mad', 'opskrift', 'restaurant', 'middag', 'aftensmad', 'frokost', 'morgenmad', 'bagt', 'grøntsager', 'vegetar', 'vegan', 'sushi', 'pasta', 'pizza', 'dessert', 'kage', 'kaffe', 'te', 'vin', 'øl', 'food', 'recipe', 'dinner', 'lunch', 'breakfast', 'cooking', 'baking', 'drink', 'smager', 'spiste', 'spiser', 'smagt'],
+  rejser:    ['rejse', 'ferie', 'rejst', 'tur', 'fly', 'hotel', 'strand', 'bjerg', 'udland', 'sightseeing', 'passport', 'travel', 'vacation', 'trip', 'flight', 'beach', 'mountain', 'camping', 'backpacking', 'airport', 'boarding', 'afsejling', 'destination', 'kuffert'],
+  film:      ['film', 'serie', 'biograf', 'streaming', 'netflix', 'disney', 'hbo', 'viaplay', 'skuespiller', 'oscar', 'movie', 'cinema', 'episode', 'sæson', 'season', 'trailer', 'premiere', 'anmeldelse', 'review', 'instruktør', 'director'],
+  politik:   ['politik', 'valg', 'regering', 'minister', 'parti', 'folketing', 'eu', 'demokrati', 'stemme', 'debat', 'politics', 'government', 'election', 'president', 'parliament', 'policy', 'vote', 'lov', 'lovforslag', 'venstre', 'socialdemokratiet', 'sf', 'radikale', 'konservative', 'df'],
+  natur:     ['natur', 'skov', 'park', 'have', 'blomster', 'dyr', 'fugle', 'klima', 'miljø', 'bæredygtig', 'grøn', 'ocean', 'hav', 'sø', 'flod', 'nature', 'forest', 'garden', 'wildlife', 'environment', 'climate', 'animals', 'hiking', 'vandring', 'planter', 'biodiversitet'],
+  gaming:    ['gaming', 'spil', 'playstation', 'xbox', 'nintendo', 'pc gaming', 'esport', 'gamer', 'streamer', 'twitch', 'multiplayer', 'fps', 'rpg', 'mmo', 'game', 'games', 'minecraft', 'fortnite', 'valorant', 'steam', 'level', 'boss', 'achievement', 'controller', 'headset'],
+  sundhed:   ['sundhed', 'helbred', 'sygdom', 'behandling', 'medicin', 'mental', 'velvære', 'yoga', 'meditation', 'kost', 'diet', 'health', 'wellness', 'mental health', 'therapy', 'doctor', 'hospital', 'søvn', 'stress', 'angst', 'depression', 'motion', 'vægt', 'vitamin', 'ernæring'],
+  boger:     ['bog', 'læser', 'læst', 'forfatter', 'roman', 'novelle', 'poesi', 'litteratur', 'book', 'reading', 'novel', 'author', 'library', 'bookstore', 'fiction', 'biography', 'poetry', 'kindle', 'bibliotek', 'anmeldelse', 'bogklub', 'kapitel', 'sidst'],
+  humor:     ['haha', 'sjov', 'griner', 'griner', 'joke', 'humor', 'komik', 'satire', 'meme', 'lol', 'funny', 'laugh', 'comedy', 'hilarious', 'wtf', 'omg', 'xd', 'ahahaha', 'grint', 'sjovt', 'lattervækkende', '😂', '🤣'],
+  diy:       ['diy', 'gør-det-selv', 'hjemmelavet', 'reparation', 'bygge', 'male', 'renovere', 'håndværk', 'workshop', 'handmade', 'craft', 'woodworking', 'sewing', 'knitting', 'upcycle', 'renovation', 'tools', 'projekt', 'hækling', 'syning', 'snedker', 'tømrer'],
+  okonomi:   ['økonomi', 'investering', 'aktier', 'bitcoin', 'krypto', 'bank', 'lån', 'pension', 'budget', 'penge', 'finans', 'finance', 'money', 'investment', 'stock', 'crypto', 'savings', 'economy', 'skat', 'income', 'boligmarked', 'rente', 'inflation', 'aktiekurs'],
+  mode:      ['mode', 'tøj', 'fashion', 'stil', 'outfit', 'brand', 'shopping', 'trends', 'designer', 'dress', 'shoes', 'accessories', 'style', 'wardrobe', 'clothes', 'kollektion', 'parfume', 'makeup', 'smykker', 'vintage', 'secondhand'],
+  kunst:     ['kunst', 'udstilling', 'museum', 'maleri', 'skulptur', 'fotografi', 'tegning', 'design', 'kreativ', 'art', 'exhibition', 'gallery', 'painting', 'sculpture', 'photography', 'drawing', 'illustration', 'keramik', 'grafik', 'kunstner', 'galleriet'],
+  videnskab: ['videnskab', 'forskning', 'studie', 'analyse', 'teori', 'experiment', 'resultat', 'akademisk', 'science', 'research', 'study', 'theory', 'discovery', 'publication', 'phd', 'uni', 'universitet', 'laboratorium', 'biologi', 'kemi', 'fysik', 'matematik', 'astronomi'],
+  nyheder:   ['nyheder', 'breaking', 'aktuelt', 'nyhed', 'rapport', 'avis', 'journalistik', 'news', 'breaking news', 'report', 'journalist', 'media', 'press', 'update', 'dr.dk', 'tv2', 'berlingske', 'politiken', 'jyllands-posten'],
+}
+
+const VALID_CATEGORIES = new Set(Object.keys(CATEGORY_KEYWORDS))
+
+function suggestCategory(text) {
+  if (!text || text.trim().length < 5) return null
+  const lower = text.toLowerCase()
+  const scores = {}
+  for (const [cat, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+    let score = 0
+    for (const kw of keywords) {
+      if (lower.includes(kw)) score++
+    }
+    if (score > 0) scores[cat] = score
+  }
+  if (Object.keys(scores).length === 0) return null
+  return Object.entries(scores).sort((a, b) => b[1] - a[1])[0][0]
+}
+
+// GET /api/feed/suggest-category — keyword-based category suggestion from post text
+app.get('/api/feed/suggest-category', authenticate, (req, res) => {
+  const text = (req.query.text || '').trim()
+  const category = suggestCategory(text)
+  res.json({ category })
+})
+
 // GET /api/feed — get posts with pagination (max 20 in DOM)
 app.get('/api/feed', authenticate, async (req, res) => {
   try {
@@ -1563,7 +1609,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
     const total = countResult[0].total
 
     const [posts] = await pool.query(
-      `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.created_at, p.edited_at
+      `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.category, p.created_at, p.edited_at
        FROM posts p JOIN users u ON p.author_id = u.id
        WHERE p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?)
        ORDER BY p.created_at DESC
@@ -1647,6 +1693,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
         userReaction: userReactionMap[p.id] || null,
         reactions: reactionsByPost[p.id] || [],
         media,
+        category: p.category || null,
         comments: commentsByPost[p.id] || [],
         createdAtRaw: p.created_at,
         edited: !!p.edited_at,
@@ -1661,6 +1708,8 @@ app.get('/api/feed', authenticate, async (req, res) => {
 // POST /api/feed — create a new post (with optional media)
 app.post('/api/feed', authenticate, upload.array('media', 4), async (req, res) => {
   const { text } = req.body
+  const rawCategory = req.body.category || null
+  const category = rawCategory && VALID_CATEGORIES.has(rawCategory) ? rawCategory : null
   if (!text?.trim() && !req.files?.length) return res.status(400).json({ error: 'Post text or media required' })
 
   // Validate magic bytes for each uploaded file
@@ -1685,9 +1734,10 @@ app.post('/api/feed', authenticate, upload.array('media', 4), async (req, res) =
   try {
     const mediaJson = mediaUrls.length > 0 ? JSON.stringify(mediaUrls) : null
     const postText = text?.trim() || ''
+    const finalCategory = category || suggestCategory(postText)
     const [result] = await pool.query(
-      'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media) VALUES (?, ?, ?, ?, ?, ?)',
-      [req.userId, postText, postText, 'Lige nu', 'Just now', mediaJson]
+      'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media, category) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [req.userId, postText, postText, 'Lige nu', 'Just now', mediaJson, finalCategory]
     )
     const [users] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
     const now = new Date()
@@ -1698,6 +1748,7 @@ app.post('/api/feed', authenticate, upload.array('media', 4), async (req, res) =
       text: { da: postText, en: postText },
       likes: 0, liked: false, comments: [],
       media: mediaUrls.length > 0 ? mediaUrls : null,
+      category: finalCategory,
     })
   } catch (err) {
     res.status(500).json({ error: 'Failed to create post' })
