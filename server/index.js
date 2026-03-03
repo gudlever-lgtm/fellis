@@ -1608,14 +1608,27 @@ app.get('/api/feed', authenticate, async (req, res) => {
     )
     const total = countResult[0].total
 
-    const [posts] = await pool.query(
-      `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.category, p.created_at, p.edited_at
-       FROM posts p JOIN users u ON p.author_id = u.id
-       WHERE p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?)
-       ORDER BY p.created_at DESC
-       LIMIT ? OFFSET ?`,
-      [req.userId, req.userId, limit, offset]
-    )
+    let posts = []
+    try {
+      ;[posts] = await pool.query(
+        `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.category, p.created_at, p.edited_at
+         FROM posts p JOIN users u ON p.author_id = u.id
+         WHERE p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?)
+         ORDER BY p.created_at DESC
+         LIMIT ? OFFSET ?`,
+        [req.userId, req.userId, limit, offset]
+      )
+    } catch {
+      // category column may not exist yet — fall back to query without it
+      ;[posts] = await pool.query(
+        `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.created_at, p.edited_at
+         FROM posts p JOIN users u ON p.author_id = u.id
+         WHERE p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?)
+         ORDER BY p.created_at DESC
+         LIMIT ? OFFSET ?`,
+        [req.userId, req.userId, limit, offset]
+      )
+    }
     const postIds = posts.map(p => p.id)
     let comments = []
     if (postIds.length > 0) {
@@ -1735,14 +1748,25 @@ app.post('/api/feed', authenticate, upload.array('media', 4), async (req, res) =
     const mediaJson = mediaUrls.length > 0 ? JSON.stringify(mediaUrls) : null
     const postText = text?.trim() || ''
     const finalCategory = category || suggestCategory(postText)
-    const [result] = await pool.query(
-      'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media, category) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [req.userId, postText, postText, 'Lige nu', 'Just now', mediaJson, finalCategory]
-    )
+    let insertId
+    try {
+      const [result] = await pool.query(
+        'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media, category) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [req.userId, postText, postText, 'Lige nu', 'Just now', mediaJson, finalCategory]
+      )
+      insertId = result.insertId
+    } catch {
+      // category column may not exist yet — insert without it
+      const [result] = await pool.query(
+        'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media) VALUES (?, ?, ?, ?, ?, ?)',
+        [req.userId, postText, postText, 'Lige nu', 'Just now', mediaJson]
+      )
+      insertId = result.insertId
+    }
     const [users] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
     const now = new Date()
     res.json({
-      id: result.insertId,
+      id: insertId,
       author: users[0].name,
       time: { da: formatPostTime(now, 'da'), en: formatPostTime(now, 'en') },
       text: { da: postText, en: postText },
