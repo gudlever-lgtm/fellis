@@ -511,6 +511,10 @@ export async function apiGetVisitorStats() {
   return await request('/api/visitor-stats')
 }
 
+export async function apiGetChangelog() {
+  return await request('/api/changelog')
+}
+
 export async function apiGetNotifications() {
   return await request('/api/notifications')
 }

@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'url'
 import path from 'path'
+import { execSync } from 'node:child_process'
 
 // Load .env file manually (avoids Node --env-file flag issues with PM2)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -1973,6 +1974,18 @@ app.get('/api/visitor-stats', authenticate, async (req, res) => {
   } catch (err) {
     console.error('GET /api/visitor-stats error:', err.message)
     res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/changelog — recent git commit headlines (no auth required — public info)
+app.get('/api/changelog', (_req, res) => {
+  try {
+    const repoRoot = path.join(__dirname, '..')
+    const out = execSync('git log --pretty=format:"%s" -n 30', { cwd: repoRoot, timeout: 5000 }).toString()
+    const entries = out.split('\n').map(s => s.trim()).filter(Boolean)
+    res.json({ entries })
+  } catch {
+    res.json({ entries: [] })
   }
 })
 

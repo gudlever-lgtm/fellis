@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect } from 'react'
 import { PT, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiSuggestCategory, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiHeartbeat, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiGetVisitorStats, apiGetNotifications, apiMarkNotificationRead, apiMarkAllNotificationsRead, apiUpdateProfile } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiSuggestCategory, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiHeartbeat, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiGetVisitorStats, apiGetChangelog, apiGetNotifications, apiMarkNotificationRead, apiMarkAllNotificationsRead, apiUpdateProfile } from './api.js'
 import ReelsPage from './Reels.jsx'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
@@ -3305,11 +3305,13 @@ function MiniWorldMap({ countries }) {
 function VisitorStatsPage({ lang }) {
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [changelog, setChangelog] = useState([])
 
   useEffect(() => {
     apiGetVisitorStats()
       .then(data => { if (data) setStats(data); setLoading(false) })
       .catch(() => setLoading(false))
+    apiGetChangelog().then(data => { if (data?.entries) setChangelog(data.entries) })
   }, [])
 
   const t = lang === 'da' ? {
@@ -3326,6 +3328,8 @@ function VisitorStatsPage({ lang }) {
     noData: 'Ingen data endnu',
     sectionPlatform: 'Fellis.eu — platform',
     sectionProfile: 'Din profil',
+    sectionChangelog: 'Implementerede tiltag',
+    changelogEmpty: 'Ingen poster endnu',
   } : {
     title: 'Visitors',
     subtitle: 'Overview of platform visits and your profile',
@@ -3340,6 +3344,8 @@ function VisitorStatsPage({ lang }) {
     noData: 'No data yet',
     sectionPlatform: 'Fellis.eu — platform',
     sectionProfile: 'Your profile',
+    sectionChangelog: 'Implemented features',
+    changelogEmpty: 'No entries yet',
   }
 
   const BarChart = ({ data, label }) => {
@@ -3456,6 +3462,22 @@ function VisitorStatsPage({ lang }) {
               ))}
             </div>
           )
+        }
+      </div>
+
+      {/* Changelog */}
+      <div style={{ fontWeight: 700, fontSize: 13, color: '#666', textTransform: 'uppercase', letterSpacing: 1, margin: '24px 0 10px' }}>
+        🛠️ {t.sectionChangelog}
+      </div>
+      <div className="p-card" style={{ padding: '4px 0', marginBottom: 16 }}>
+        {changelog.length === 0
+          ? <div style={{ padding: '16px 20px', fontSize: 13, color: '#aaa' }}>{t.changelogEmpty}</div>
+          : changelog.map((entry, i) => (
+            <div key={i} style={{ padding: '10px 20px', fontSize: 13, color: '#333', borderBottom: i < changelog.length - 1 ? '1px solid #f0f0f0' : 'none', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+              <span style={{ color: '#b7dfc9', fontWeight: 700, flexShrink: 0 }}>·</span>
+              {entry}
+            </div>
+          ))
         }
       </div>
     </div>
