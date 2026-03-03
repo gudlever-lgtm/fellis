@@ -1195,6 +1195,7 @@ app.get('/api/profile', authenticate, async (req, res) => {
       `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url,
         u.email, u.facebook_id, u.password_hash, u.password_plain, u.created_at, u.birthday,
         u.profile_public, u.reputation_score, u.referral_count, u.interests,
+        COALESCE(u.total_minutes, 0) as total_minutes, u.last_active,
         (SELECT COUNT(*) FROM friendships WHERE user_id = u.id) as friend_count,
         (SELECT COUNT(*) FROM posts WHERE author_id = u.id) as post_count
        FROM users u WHERE u.id = ?`,
@@ -1220,6 +1221,8 @@ app.get('/api/profile', authenticate, async (req, res) => {
       reputationScore: Number(u.reputation_score || 0),
       referralCount: Number(u.referral_count || 0),
       interests,
+      totalMinutes: Number(u.total_minutes || 0),
+      lastActive: u.last_active || null,
     })
   } catch (err) {
     res.status(500).json({ error: 'Failed to load profile' })
@@ -1283,7 +1286,7 @@ app.patch('/api/me/interests', authenticate, async (req, res) => {
 // POST /api/me/heartbeat — update last_active timestamp (used for online presence)
 app.post('/api/me/heartbeat', authenticate, async (req, res) => {
   try {
-    await pool.query('UPDATE users SET last_active = NOW() WHERE id = ?', [req.userId])
+    await pool.query('UPDATE users SET last_active = NOW(), total_minutes = COALESCE(total_minutes, 0) + 1 WHERE id = ?', [req.userId])
   } catch {
     // Column may not exist yet on older installs — not critical, ignore
   }
@@ -2190,7 +2193,9 @@ app.delete('/api/friends/:userId', authenticate, async (req, res) => {
 // Helper: fetch a full conversation object for the current user
 async function getConversationForUser(convId, userId, myName) {
   const [participants] = await pool.query(
-    `SELECT u.id, u.name FROM users u
+    `SELECT u.id, u.name,
+            (u.last_active IS NOT NULL AND u.last_active > DATE_SUB(NOW(), INTERVAL 5 MINUTE)) as online
+     FROM users u
      JOIN conversation_participants cp ON cp.user_id = u.id
      WHERE cp.conversation_id = ?`, [convId])
   const [msgs] = await pool.query(
@@ -2214,7 +2219,8 @@ async function getConversationForUser(convId, userId, myName) {
     name: displayName,
     isGroup: conv.is_group === 1,
     groupName: conv.name,
-    participants: participants.map(p => ({ id: p.id, name: p.name })),
+    participants: participants.map(p => ({ id: p.id, name: p.name, online: !!p.online })),
+    otherOnline: !conv.is_group && !!(participants.find(p => p.id !== userId)?.online),
     messages: msgs.map(m => ({ from: m.from_name, text: { da: m.text_da, en: m.text_en }, time: m.created_at ? formatMsgTime(m.created_at) : m.time })),
     totalMessages: total,
     unread,
@@ -2972,7 +2978,8 @@ function parseListingPhotos(row) {
 app.get('/api/marketplace', authenticate, async (req, res) => {
   try {
     const { q, category, location } = req.query
-    let sql = `SELECT l.*, u.id AS sellerId, u.name AS seller, u.handle AS seller_handle, u.avatar_url AS seller_avatar
+    let sql = `SELECT l.*, u.id AS sellerId, u.name AS seller, u.handle AS seller_handle, u.avatar_url AS seller_avatar,
+               (u.last_active IS NOT NULL AND u.last_active > DATE_SUB(NOW(), INTERVAL 5 MINUTE)) AS seller_online
                FROM marketplace_listings l JOIN users u ON l.user_id = u.id`
     const params = []
     const where = []
@@ -2992,7 +2999,8 @@ app.get('/api/marketplace', authenticate, async (req, res) => {
 app.get('/api/marketplace/mine', authenticate, async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT l.*, u.id AS sellerId, u.name AS seller, u.handle AS seller_handle, u.avatar_url AS seller_avatar
+      `SELECT l.*, u.id AS sellerId, u.name AS seller, u.handle AS seller_handle, u.avatar_url AS seller_avatar,
+              (u.last_active IS NOT NULL AND u.last_active > DATE_SUB(NOW(), INTERVAL 5 MINUTE)) AS seller_online
        FROM marketplace_listings l JOIN users u ON l.user_id = u.id
        WHERE l.user_id = ? ORDER BY l.created_at DESC`, [req.userId])
     res.json({ listings: rows.map(parseListingPhotos) })
@@ -4029,6 +4037,7 @@ app.get('/api/events', authenticate, async (req, res) => {
           WHERE r3.event_id = e.id AND r3.status = 'maybe') AS maybe_names,
         (SELECT r4.status FROM event_rsvps r4 WHERE r4.event_id = e.id AND r4.user_id = ?) AS my_rsvp
        FROM events e JOIN users u ON e.organizer_id = u.id
+       WHERE e.date >= NOW()
        ORDER BY e.date ASC`,
       [req.userId]
     )
@@ -4178,12 +4187,18 @@ app.get('/api/calendar/events', authenticate, async (req, res) => {
       date: u.birthday, // full YYYY-MM-DD stored, client uses MM-DD for yearly repeat
     }))
 
-    // Get platform events
+    // Get platform events — only events the user organises or has RSVP'd to
     const [eventRows] = await pool.query(
-      `SELECT e.id, e.title, e.date, e.location, e.event_type,
+      `SELECT e.id, e.title, e.date, e.location, e.event_type, e.organizer_id,
         (SELECT r.status FROM event_rsvps r WHERE r.event_id = e.id AND r.user_id = ?) AS my_rsvp
-       FROM events e ORDER BY e.date ASC`,
-      [req.userId]
+       FROM events e
+       WHERE e.organizer_id = ?
+          OR EXISTS (
+            SELECT 1 FROM event_rsvps r
+            WHERE r.event_id = e.id AND r.user_id = ? AND r.status IN ('going','maybe')
+          )
+       ORDER BY e.date ASC`,
+      [req.userId, req.userId, req.userId]
     )
     const events = eventRows.map(e => ({
       id: e.id,
@@ -4192,6 +4207,7 @@ app.get('/api/calendar/events', authenticate, async (req, res) => {
       location: e.location,
       eventType: e.event_type,
       myRsvp: e.my_rsvp || null,
+      isOrganizer: e.organizer_id === req.userId,
     }))
 
     res.json({ birthdays, events })
@@ -4888,6 +4904,7 @@ app.listen(PORT, () => {
     console.warn('   Generate a key with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"')
   }
   pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS last_active TIMESTAMP NULL DEFAULT NULL').catch(() => {})
+  pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS total_minutes INT DEFAULT 0').catch(() => {})
   initEvents()
   initFriendRequests()
   initConversations()

@@ -2083,6 +2083,8 @@ function ProfilePage({ lang, t, currentUser, mode, plan, onUserUpdate, onNavigat
             {mode === 'business' && profile.industry && <span>🏭 {profile.industry}</span>}
             {profile.location && <span>📍 {profile.location}</span>}
             <span>📅 {t.joined} {profile.joinDate ? new Date(profile.joinDate).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}</span>
+            {profile.totalMinutes > 0 && <span>⏱ {t.hoursOnline}: {Math.floor(profile.totalMinutes / 60) > 0 ? `${Math.floor(profile.totalMinutes / 60)}t ` : ''}{profile.totalMinutes % 60}min</span>}
+            {profile.lastActive && <span>🟢 {t.lastOnline}: {new Date(profile.lastActive).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>}
           </div>
           {mode === 'business' && (
             <SkillsSection profile={profile} t={t} lang={lang} isOwn={true} />
@@ -5145,8 +5147,11 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened }) 
                   ))}
                 </div>
               ) : (
-                <div className="p-avatar-sm" style={{ background: nameToColor(c.name), flexShrink: 0 }}>
-                  {getInitials(c.name)}
+                <div style={{ position: 'relative', flexShrink: 0 }}>
+                  <div className="p-avatar-sm" style={{ background: nameToColor(c.name) }}>
+                    {getInitials(c.name)}
+                  </div>
+                  {c.otherOnline && <div className="online-dot" style={{ position: 'absolute', bottom: 1, right: 1, width: 9, height: 9, borderRadius: '50%', background: '#22c55e', border: '2px solid var(--color-card, #fff)', zIndex: 1 }} />}
                 </div>
               )}
               <div className="p-msg-thread-info">
@@ -7460,7 +7465,10 @@ function MarketplacePage({ lang, t, currentUser, onContactSeller, onViewProfile 
                 <div className="p-listing-meta">
                   <span>{catLabel(listing.category)}</span>
                   <span>📍 {listing.location}</span>
-                  <span style={{ color: '#aaa' }}>👤 {listing.seller}</span>
+                  <span style={{ color: '#aaa', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    {listing.seller_online ? <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', display: 'inline-block', flexShrink: 0 }} /> : null}
+                    {listing.seller}
+                  </span>
                 </div>
                 {tab === 'mine' && (
                   <div className="p-listing-actions" onClick={e => e.stopPropagation()}>
@@ -8629,7 +8637,9 @@ function CalendarPage({ lang, t, currentUser }) {
   const HOLIDAY_COLOR = '#1877F2'
   const DST_COLOR = '#F59E0B'
   const BIRTHDAY_COLOR = '#E07A5F'
-  const EVENT_COLOR = '#6C63FF'
+  const EVENT_COLOR_ORGANIZER = '#6C63FF'   // oprettet af dig
+  const EVENT_COLOR_GOING = '#22c55e'       // du deltager
+  const EVENT_COLOR_MAYBE = '#f97316'       // måske
 
   return (
     <div style={s.page}>
@@ -8673,9 +8683,10 @@ function CalendarPage({ lang, t, currentUser }) {
                 {bdays.map((b, j) => (
                   <span key={j} style={s.dot(BIRTHDAY_COLOR)} title={b.name} />
                 ))}
-                {evts.map((e, j) => (
-                  <span key={j} style={s.dot(EVENT_COLOR)} title={typeof e.title === 'string' ? e.title : (e.title[lang] || e.title.da)} />
-                ))}
+                {evts.map((e, j) => {
+                  const evtColor = e.isOrganizer ? EVENT_COLOR_ORGANIZER : e.myRsvp === 'going' ? EVENT_COLOR_GOING : EVENT_COLOR_MAYBE
+                  return <span key={j} style={s.dot(evtColor)} title={typeof e.title === 'string' ? e.title : (e.title[lang] || e.title.da)} />
+                })}
               </div>
             </div>
           )
@@ -8687,7 +8698,9 @@ function CalendarPage({ lang, t, currentUser }) {
         <div style={s.legendItem}><span style={{ ...s.dot(HOLIDAY_COLOR), width: 10, height: 10 }} />{t.calendarHolidays}</div>
         <div style={s.legendItem}><span style={{ ...s.dot(DST_COLOR), width: 10, height: 10 }} />Sommer-/vintertid</div>
         <div style={s.legendItem}><span style={{ ...s.dot(BIRTHDAY_COLOR), width: 10, height: 10 }} />{t.calendarBirthdays}</div>
-        <div style={s.legendItem}><span style={{ ...s.dot(EVENT_COLOR), width: 10, height: 10 }} />{t.calendarEvents}</div>
+        <div style={s.legendItem}><span style={{ ...s.dot(EVENT_COLOR_ORGANIZER), width: 10, height: 10 }} />{lang === 'da' ? 'Oprettet af dig' : 'Created by you'}</div>
+        <div style={s.legendItem}><span style={{ ...s.dot(EVENT_COLOR_GOING), width: 10, height: 10 }} />{lang === 'da' ? 'Du deltager' : 'Attending'}</div>
+        <div style={s.legendItem}><span style={{ ...s.dot(EVENT_COLOR_MAYBE), width: 10, height: 10 }} />{lang === 'da' ? 'Måske' : 'Maybe'}</div>
       </div>
 
       {/* Day detail panel */}
@@ -8723,9 +8736,10 @@ function CalendarPage({ lang, t, currentUser }) {
           })}
           {selectedEvents.map((e, i) => {
             const title = typeof e.title === 'string' ? e.title : (e.title?.[lang] || e.title?.da || '')
+            const evtColor = e.isOrganizer ? EVENT_COLOR_ORGANIZER : e.myRsvp === 'going' ? EVENT_COLOR_GOING : EVENT_COLOR_MAYBE
             return (
               <div key={i} style={s.item}>
-                <span style={s.itemDot(EVENT_COLOR)} />
+                <span style={s.itemDot(evtColor)} />
                 <span style={s.itemLabel}>{title}{e.location ? ` — ${e.location}` : ''}</span>
               </div>
             )
