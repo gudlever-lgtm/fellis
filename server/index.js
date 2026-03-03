@@ -134,6 +134,7 @@ async function initEvents() {
     // Migrate: add columns that may be missing on existing installations
     await pool.query(`ALTER TABLE event_rsvps ADD COLUMN IF NOT EXISTS dietary VARCHAR(255) DEFAULT NULL`).catch(() => {})
     await pool.query(`ALTER TABLE event_rsvps ADD COLUMN IF NOT EXISTS plus_one TINYINT(1) DEFAULT 0`).catch(() => {})
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_active TIMESTAMP NULL DEFAULT NULL`).catch(() => {})
   } catch (err) {
     console.error('initEvents error:', err.message)
   }
