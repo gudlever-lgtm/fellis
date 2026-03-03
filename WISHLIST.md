@@ -4,6 +4,32 @@ Idéer og features til fremtidige releases.
 
 ---
 
+## Kode & Arkitektur
+
+### Oversættelser i separate sprogfiler
+Flytte `PT`-objektet i `src/data.js` fra ét stort inline-objekt til separate JSON-filer:
+
+```
+src/locales/
+  da.json
+  en.json
+```
+
+Importeres i `data.js` som:
+```js
+import da from './locales/da.json'
+import en from './locales/en.json'
+export const PT = { da, en }
+```
+
+Ingen ændringer i komponenter — kun flytning af indhold.
+
+**Fordele:** Nemmere for eksterne oversættere · Understøtter tooling (Weblate, POEditor m.fl.) · Gør det trivielt at tilføje et tredje sprog.
+
+**Hvornår:** Relevant hvis et tredje sprog ønskes, eller en ekstern oversætter involveres.
+
+---
+
 ## Integrationer
 
 ### Google Photos (eller lignende)
