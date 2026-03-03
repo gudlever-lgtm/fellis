@@ -1959,7 +1959,17 @@ app.get('/api/visitor-stats', authenticate, async (req, res) => {
        GROUP BY DATE(visited_at) ORDER BY date ASC`
     )
     const [[{ total }]] = await pool.query('SELECT COUNT(*) AS total FROM site_visits')
-    res.json({ browsers, oses, countries, daily, total })
+    const [[{ myProfileViews }]] = await pool.query(
+      'SELECT COUNT(*) AS myProfileViews FROM profile_views WHERE profile_id = ?',
+      [req.userId]
+    )
+    const [myProfileViewsDaily] = await pool.query(
+      `SELECT DATE(viewed_at) AS date, COUNT(*) AS count FROM profile_views
+       WHERE profile_id = ? AND viewed_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+       GROUP BY DATE(viewed_at) ORDER BY date ASC`,
+      [req.userId]
+    )
+    res.json({ browsers, oses, countries, daily, total, myProfileViews, myProfileViewsDaily })
   } catch (err) {
     console.error('GET /api/visitor-stats error:', err.message)
     res.status(500).json({ error: 'Server error' })

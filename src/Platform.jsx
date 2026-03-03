@@ -3314,24 +3314,32 @@ function VisitorStatsPage({ lang }) {
 
   const t = lang === 'da' ? {
     title: 'Besøgende',
-    subtitle: 'Oversigt over besøg på platformen',
-    totalVisits: 'Besøg i alt',
+    subtitle: 'Oversigt over besøg på platformen og din profil',
+    totalVisits: 'Besøg på Fellis.eu i alt',
+    myProfileViews: 'Besøg på min profil i alt',
     browsers: 'Browsere',
     os: 'Operativsystemer',
     countries: 'Lande',
     map: 'Besøgende på verdenskortet',
-    daily: 'Daglige besøg (30 dage)',
+    daily: 'Daglige platformbesøg (30 dage)',
+    myProfileViewsDaily: 'Daglige profilbesøg (30 dage)',
     noData: 'Ingen data endnu',
+    sectionPlatform: 'Fellis.eu — platform',
+    sectionProfile: 'Din profil',
   } : {
     title: 'Visitors',
-    subtitle: 'Platform visit overview',
-    totalVisits: 'Total visits',
+    subtitle: 'Overview of platform visits and your profile',
+    totalVisits: 'Total visits to Fellis.eu',
+    myProfileViews: 'Total visits to my profile',
     browsers: 'Browsers',
     os: 'Operating systems',
     countries: 'Countries',
     map: 'Visitors on world map',
-    daily: 'Daily visits (30 days)',
+    daily: 'Daily platform visits (30 days)',
+    myProfileViewsDaily: 'Daily profile visits (30 days)',
     noData: 'No data yet',
+    sectionPlatform: 'Fellis.eu — platform',
+    sectionProfile: 'Your profile',
   }
 
   const BarChart = ({ data, label }) => {
@@ -3361,6 +3369,8 @@ function VisitorStatsPage({ lang }) {
 
   const dailyMax = Math.max(1, ...(stats?.daily || []).map(d => d.count))
 
+  const profileDailyMax = Math.max(1, ...(stats?.myProfileViewsDaily || []).map(d => d.count))
+
   return (
     <div className="p-events" style={{ maxWidth: 720 }}>
       <div style={{ marginBottom: 20 }}>
@@ -3368,16 +3378,30 @@ function VisitorStatsPage({ lang }) {
         <div style={{ fontSize: 13, color: '#888' }}>{t.subtitle}</div>
       </div>
 
-      {/* Total */}
-      <div className="p-card" style={{ padding: 20, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 20 }}>
-        <div style={{ fontSize: 36, lineHeight: 1 }}>👁️</div>
-        <div>
-          <div style={{ fontSize: 13, color: '#888', fontWeight: 500 }}>{t.totalVisits}</div>
-          <div style={{ fontSize: 32, fontWeight: 800, color: '#2D6A4F' }}>{stats?.total ?? 0}</div>
+      {/* Two totals side-by-side */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+        <div className="p-card" style={{ padding: 20, display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{ fontSize: 30, lineHeight: 1 }}>🌍</div>
+          <div>
+            <div style={{ fontSize: 12, color: '#888', fontWeight: 500 }}>{t.totalVisits}</div>
+            <div style={{ fontSize: 28, fontWeight: 800, color: '#2D6A4F' }}>{stats?.total ?? 0}</div>
+          </div>
+        </div>
+        <div className="p-card" style={{ padding: 20, display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{ fontSize: 30, lineHeight: 1 }}>👤</div>
+          <div>
+            <div style={{ fontSize: 12, color: '#888', fontWeight: 500 }}>{t.myProfileViews}</div>
+            <div style={{ fontSize: 28, fontWeight: 800, color: '#2D6A4F' }}>{stats?.myProfileViews ?? 0}</div>
+          </div>
         </div>
       </div>
 
-      {/* Daily chart */}
+      {/* Section header: platform */}
+      <div style={{ fontWeight: 700, fontSize: 13, color: '#666', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>
+        🌍 {t.sectionPlatform}
+      </div>
+
+      {/* Daily platform chart */}
       <div className="p-card" style={{ padding: 20, marginBottom: 16 }}>
         <div style={{ fontWeight: 700, fontSize: 14, color: '#333', marginBottom: 14 }}>📅 {t.daily}</div>
         {!stats?.daily?.length
@@ -3403,16 +3427,37 @@ function VisitorStatsPage({ lang }) {
         }
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
         <BarChart data={stats?.browsers || []} label={`🌐 ${t.browsers}`} />
         <BarChart data={stats?.oses || []} label={`💻 ${t.os}`} />
       </div>
 
-      {/* Country table */}
       <BarChart
         data={(stats?.countries || []).slice(0, 15).map(c => ({ ...c, browser: `${c.country || c.country_code}` }))}
         label={`🌍 ${t.countries}`}
       />
+
+      {/* Section header: my profile */}
+      <div style={{ fontWeight: 700, fontSize: 13, color: '#666', textTransform: 'uppercase', letterSpacing: 1, margin: '24px 0 10px' }}>
+        👤 {t.sectionProfile}
+      </div>
+
+      {/* Daily profile views chart */}
+      <div className="p-card" style={{ padding: 20, marginBottom: 16 }}>
+        <div style={{ fontWeight: 700, fontSize: 14, color: '#333', marginBottom: 14 }}>📅 {t.myProfileViewsDaily}</div>
+        {!stats?.myProfileViewsDaily?.length
+          ? <div style={{ fontSize: 13, color: '#aaa' }}>{t.noData}</div>
+          : (
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 80 }}>
+              {stats.myProfileViewsDaily.map(d => (
+                <div key={d.date} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                  <div style={{ width: '100%', background: '#52b788', borderRadius: '3px 3px 0 0', height: `${Math.max(2, (d.count / profileDailyMax) * 70)}px` }} title={`${d.date}: ${d.count}`} />
+                </div>
+              ))}
+            </div>
+          )
+        }
+      </div>
     </div>
   )
 }
