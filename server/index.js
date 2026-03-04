@@ -877,12 +877,64 @@ const FB_APP_SECRET = process.env.FB_APP_SECRET
 const FB_REDIRECT_URI = process.env.FB_REDIRECT_URI || 'https://fellis.eu/api/auth/facebook/callback'
 const FB_GRAPH_URL = 'https://graph.facebook.com/v21.0'
 
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || null
+
 // Scopes: basic profile only — no extended permissions required, app can go Live without App Review
 const FB_SCOPES = 'public_profile,email'
 
 // Public config endpoint — tells the frontend which optional features are available
 app.get('/api/config', (req, res) => {
-  res.json({ facebookEnabled: !!FB_APP_ID })
+  res.json({ facebookEnabled: !!FB_APP_ID, googlePhotosClientId: GOOGLE_CLIENT_ID || null })
+})
+
+// ── Google Photos download proxy ──
+// Receives a Google access token + photo download URL from the browser-side Google Picker,
+// fetches the image server-side (so CORS is avoided), validates content, and stores locally.
+app.post('/api/providers/google-photos/download', authenticate, express.json(), async (req, res) => {
+  try {
+    const { accessToken, url: googleUrl, mimeType } = req.body || {}
+    if (!accessToken || !googleUrl) return res.status(400).json({ error: 'accessToken and url required' })
+
+    // Security: only allow fetching from Google's own CDN domains
+    let parsedUrl
+    try { parsedUrl = new URL(googleUrl) } catch { return res.status(400).json({ error: 'Invalid URL' }) }
+    const allowed = ['.googleusercontent.com', '.googleapis.com', '.google.com']
+    if (!allowed.some(d => parsedUrl.hostname === d.slice(1) || parsedUrl.hostname.endsWith(d))) {
+      return res.status(400).json({ error: 'URL not from an allowed Google domain' })
+    }
+
+    // Fetch image with the user's access token
+    const response = await fetch(googleUrl, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+    if (!response.ok) return res.status(502).json({ error: 'Failed to fetch from Google' })
+
+    const contentType = response.headers.get('content-type') || mimeType || ''
+    const GOOGLE_ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif']
+    const declaredMime = GOOGLE_ALLOWED_TYPES.find(t => contentType.startsWith(t))
+    if (!declaredMime) return res.status(400).json({ error: 'Unsupported file type' })
+
+    const arrayBuffer = await response.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+
+    // Limit size to 50 MB
+    if (buffer.length > 50 * 1024 * 1024) return res.status(413).json({ error: 'File too large' })
+
+    // Validate magic bytes (same function used for uploads)
+    if (!validateMagicBytes(buffer, declaredMime)) {
+      return res.status(400).json({ error: 'File content does not match declared type' })
+    }
+
+    const ext = declaredMime.split('/')[1].replace('jpeg', 'jpg')
+    const filename = crypto.randomUUID() + '.' + ext
+    const filepath = path.join(UPLOADS_DIR, filename)
+    fs.writeFileSync(filepath, buffer)
+
+    res.json({ url: '/uploads/' + filename, mimeType: declaredMime })
+  } catch (err) {
+    console.error('Google Photos download error:', err)
+    res.status(500).json({ error: 'Download failed' })
+  }
 })
 
 // GDPR/Security: In-memory store for OAuth CSRF state tokens (short-lived)
@@ -1728,7 +1780,27 @@ app.post('/api/feed', authenticate, upload.array('media', 4), async (req, res) =
   let rawCategories = []
   try { rawCategories = JSON.parse(req.body.categories || '[]') } catch { rawCategories = [] }
   const validCategories = Array.isArray(rawCategories) ? rawCategories.filter(c => VALID_CATEGORIES.has(c)) : []
-  if (!text?.trim() && !req.files?.length) return res.status(400).json({ error: 'Post text or media required' })
+
+  // Accept pre-uploaded provider media (e.g. from Google Photos download proxy)
+  // providerMedia is a JSON array of { url: '/uploads/xxx.jpg', mimeType: '...' }
+  let providerMedia = []
+  try {
+    const raw = req.body.providerMedia
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed)) {
+        providerMedia = parsed.filter(item => {
+          // Security: only allow paths that point to our own UPLOADS_DIR files
+          if (typeof item.url !== 'string') return false
+          const rel = item.url.startsWith('/uploads/') ? item.url.slice('/uploads/'.length) : null
+          if (!rel || rel.includes('..') || rel.includes('/')) return false
+          return fs.existsSync(path.join(UPLOADS_DIR, rel))
+        }).slice(0, 4)
+      }
+    }
+  } catch {}
+
+  if (!text?.trim() && !req.files?.length && !providerMedia.length) return res.status(400).json({ error: 'Post text or media required' })
 
   // Validate magic bytes for each uploaded file
   const mediaUrls = []
@@ -1747,6 +1819,14 @@ app.post('/api/feed', authenticate, upload.array('media', 4), async (req, res) =
       const type = file.mimetype.startsWith('video/') ? 'video' : 'image'
       mediaUrls.push({ url: `/uploads/${file.filename}`, type, mime: file.mimetype })
     }
+  }
+
+  // Append pre-uploaded provider media (already validated above)
+  for (const item of providerMedia) {
+    if (mediaUrls.length >= 4) break
+    const mimeType = item.mimeType || 'image/jpeg'
+    const type = mimeType.startsWith('video/') ? 'video' : 'image'
+    mediaUrls.push({ url: item.url, type, mime: mimeType })
   }
 
   try {

@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect } from 'react'
 import { PT, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiSuggestCategory, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiHeartbeat, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiGetVisitorStats, apiGetChangelog, apiGetNotifications, apiMarkNotificationRead, apiMarkAllNotificationsRead, apiUpdateProfile } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiSuggestCategory, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiHeartbeat, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiGetVisitorStats, apiGetChangelog, apiGetNotifications, apiMarkNotificationRead, apiMarkAllNotificationsRead, apiUpdateProfile, apiGetConfig, apiDownloadGooglePhoto } from './api.js'
 import ReelsPage from './Reels.jsx'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
@@ -837,6 +837,144 @@ function ReelsStrip({ lang, t, onNavigate }) {
   )
 }
 
+// ── Google Photos Picker ─────────────────────────────────────────────────────
+// Uses the Google Identity Services + Google Picker API (both loaded dynamically).
+// The user authorises via a popup, picks photos, and we proxy-download them server-side.
+function GooglePhotosPicker({ lang, clientId, onPhotosSelected, onClose }) {
+  const [status, setStatus] = useState('idle') // idle | loading | picking | downloading | done | error
+  const [errorMsg, setErrorMsg] = useState('')
+  const pickerApiLoaded = useRef(false)
+  const accessTokenRef = useRef(null)
+
+  const loadScript = (src) => new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) { resolve(); return }
+    const s = document.createElement('script')
+    s.src = src; s.onload = resolve; s.onerror = reject
+    document.head.appendChild(s)
+  })
+
+  const openPicker = (accessToken) => {
+    const picker = new window.google.picker.PickerBuilder()
+      .addView(new window.google.picker.PhotosView())
+      .addView(new window.google.picker.PhotoAlbumsView())
+      .setOAuthToken(accessToken)
+      .setDeveloperKey('') // API key optional when using OAuth token
+      .setCallback(async (data) => {
+        if (data.action !== window.google.picker.Action.PICKED) return
+        setStatus('downloading')
+        const docs = data.docs || []
+        const results = []
+        for (const doc of docs.slice(0, 4)) {
+          const url = doc.url || doc.thumbUrl
+          const mimeType = doc.mimeType || 'image/jpeg'
+          try {
+            const result = await apiDownloadGooglePhoto(accessToken, url, mimeType)
+            if (result?.url) results.push({ localUrl: result.url, mimeType: result.mimeType || mimeType })
+          } catch {}
+        }
+        if (results.length) { onPhotosSelected(results); onClose() }
+        else { setErrorMsg(lang === 'da' ? 'Kunne ikke hente billeder' : 'Could not fetch photos'); setStatus('error') }
+      })
+      .build()
+    picker.setVisible(true)
+    setStatus('picking')
+  }
+
+  const handleConnect = async () => {
+    setStatus('loading')
+    setErrorMsg('')
+    try {
+      await loadScript('https://accounts.google.com/gsi/client')
+      await loadScript('https://apis.google.com/js/api.js')
+      await new Promise((resolve) => window.gapi.load('picker', resolve))
+      pickerApiLoaded.current = true
+
+      const tokenClient = window.google.accounts.oauth2.initTokenClient({
+        client_id: clientId,
+        scope: 'https://www.googleapis.com/auth/photoslibrary.readonly https://www.googleapis.com/auth/drive.readonly',
+        callback: (resp) => {
+          if (resp.error) { setErrorMsg(resp.error); setStatus('error'); return }
+          accessTokenRef.current = resp.access_token
+          openPicker(resp.access_token)
+        },
+      })
+      tokenClient.requestAccessToken({ prompt: 'consent' })
+    } catch (err) {
+      setErrorMsg(lang === 'da' ? 'Fejl ved indlæsning af Google API' : 'Failed to load Google API')
+      setStatus('error')
+    }
+  }
+
+  const overlayStyle = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }
+  const modalStyle = { background: '#fff', borderRadius: 16, padding: '28px 28px 24px', maxWidth: 400, width: '90%', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }
+
+  return (
+    <div style={overlayStyle} onClick={onClose}>
+      <div style={modalStyle} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" fill="#4285F4"/>
+            <path d="M6.5 12A5.5 5.5 0 0 1 12 6.5V2C6.48 2 2 6.48 2 12h4.5z" fill="#34A853"/>
+            <path d="M12 17.5A5.5 5.5 0 0 1 6.5 12H2c0 5.52 4.48 10 10 10v-4.5z" fill="#FBBC05"/>
+            <path d="M17.5 12A5.5 5.5 0 0 1 12 17.5V22c5.52 0 10-4.48 10-10h-4.5z" fill="#EA4335"/>
+          </svg>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 16 }}>Google Fotos</div>
+            <div style={{ fontSize: 12, color: '#888' }}>
+              {lang === 'da' ? 'Vælg op til 4 billeder' : 'Select up to 4 photos'}
+            </div>
+          </div>
+          <button onClick={onClose} style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#888', lineHeight: 1 }}>✕</button>
+        </div>
+
+        {status === 'idle' && (
+          <>
+            <p style={{ fontSize: 13, color: '#555', margin: '0 0 18px' }}>
+              {lang === 'da'
+                ? 'Klik nedenfor for at logge ind med Google og vælge billeder fra dit Fotos-bibliotek. Adgang gives kun midlertidigt og gemmes ikke.'
+                : 'Click below to sign in with Google and pick photos from your Photos library. Access is granted temporarily and not stored.'}
+            </p>
+            <button
+              onClick={handleConnect}
+              style={{ width: '100%', padding: '11px 0', borderRadius: 8, border: '1px solid #ddd', background: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+              {lang === 'da' ? 'Fortsæt med Google' : 'Continue with Google'}
+            </button>
+          </>
+        )}
+
+        {status === 'loading' && (
+          <div style={{ textAlign: 'center', padding: '20px 0', color: '#888' }}>
+            ⏳ {lang === 'da' ? 'Indlæser Google API...' : 'Loading Google API...'}
+          </div>
+        )}
+
+        {status === 'picking' && (
+          <div style={{ textAlign: 'center', padding: '20px 0', color: '#555' }}>
+            {lang === 'da' ? 'Vælg billeder i Google-vinduet...' : 'Select photos in the Google window...'}
+          </div>
+        )}
+
+        {status === 'downloading' && (
+          <div style={{ textAlign: 'center', padding: '20px 0', color: '#555' }}>
+            ⬇️ {lang === 'da' ? 'Henter billeder...' : 'Downloading photos...'}
+          </div>
+        )}
+
+        {status === 'error' && (
+          <div style={{ color: '#c0392b', fontSize: 13, marginTop: 8 }}>
+            ✗ {errorMsg}
+            <button onClick={() => setStatus('idle')} style={{ display: 'block', marginTop: 10, padding: '8px 16px', borderRadius: 8, border: '1px solid #ddd', background: '#f5f5f5', cursor: 'pointer', fontSize: 13 }}>
+              {lang === 'da' ? 'Prøv igen' : 'Try again'}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onNavigate }) {
   const [posts, setPosts] = useState([])
   const [pinnedPost, setPinnedPost] = useState(null)
@@ -869,6 +1007,9 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
   const [postCategories, setPostCategories] = useState(new Set())   // all selected category ids
   const [autoCategories, setAutoCategories] = useState(new Set())   // subset that came from auto-suggest
   const [showCategoryPicker, setShowCategoryPicker] = useState(false)
+  const [googlePhotosClientId, setGooglePhotosClientId] = useState(null)
+  const [showGooglePicker, setShowGooglePicker] = useState(false)
+  const [providerMediaUrls, setProviderMediaUrls] = useState([]) // { url, mimeType }[] for server-side downloaded provider photos
   const fileInputRef = useRef(null)
   const textareaRef = useRef(null)
   const feedMention = useMention(sharePopupFriends || [])
@@ -963,6 +1104,7 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
 
   // Initial load
   useEffect(() => {
+    apiGetConfig().then(cfg => { if (cfg?.googlePhotosClientId) setGooglePhotosClientId(cfg.googlePhotosClientId) })
     apiFetchFeed(0, PAGE_SIZE).then(data => {
       if (data?.posts) {
         setPosts(data.posts)
@@ -1057,6 +1199,20 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
     setMediaPreviews(previews)
   }, [])
 
+  // Called by GooglePhotosPicker after server-side download completes.
+  // `photos` is an array of { localUrl, mimeType } from the server.
+  const handleGooglePhotosSelected = useCallback((photos) => {
+    const newPreviews = photos.map(p => ({
+      url: `${API_BASE}${p.localUrl}`,
+      type: 'image',
+      name: p.localUrl.split('/').pop(),
+    }))
+    setMediaFiles([])
+    setMediaPreviews(prev => [...prev, ...newPreviews].slice(0, 4))
+    setProviderMediaUrls(prev => [...prev, ...photos.map(p => ({ url: p.localUrl, mimeType: p.mimeType || 'image/jpeg' }))].slice(0, 4))
+    setPostExpanded(true)
+  }, [])
+
   const removeMedia = useCallback((idx) => {
     setMediaFiles(prev => prev.filter((_, i) => i !== idx))
     setMediaPreviews(prev => {
@@ -1100,11 +1256,12 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
   }, [newPostText])
 
   const handlePost = useCallback(() => {
-    if (!newPostText.trim() && !mediaFiles.length) return
+    if (!newPostText.trim() && !mediaFiles.length && !providerMediaUrls.length) return
     const text = newPostText.trim()
     const files = mediaFiles.length > 0 ? mediaFiles : null
     const categories = Array.from(postCategories)
-    apiCreatePost(text, files, categories).then(data => {
+    const pMedia = providerMediaUrls.length > 0 ? providerMediaUrls : undefined
+    apiCreatePost(text, files, categories, pMedia).then(data => {
       if (data) {
         setPosts(prev => [data, ...prev].slice(0, PAGE_SIZE))
         setTotal(prev => prev + 1)
@@ -1125,6 +1282,7 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
     setNewPostText('')
     setMediaFiles([])
     setMediaPreviews([])
+    setProviderMediaUrls([])
     setPostExpanded(false)
     setMediaPopup(false)
     setPostCategories(new Set())
@@ -1132,7 +1290,7 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
     setShowCategoryPicker(false)
     if (fileInputRef.current) fileInputRef.current.value = ''
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
-  }, [newPostText, mediaFiles, mediaPreviews, postCategories, currentUser.name])
+  }, [newPostText, mediaFiles, mediaPreviews, postCategories, providerMediaUrls, currentUser.name])
 
   const toggleLike = useCallback((id, emoji) => {
     const isLiked = likedPosts.has(id)
@@ -1541,6 +1699,19 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
                           <span className="p-media-popup-icon">📷</span>
                           {lang === 'da' ? 'Kamera' : 'Camera'}
                         </button>
+                        {googlePhotosClientId && (
+                          <button className="p-share-option" onMouseDown={e => e.preventDefault()} onClick={() => { setMediaPopup(false); setShowGooglePicker(true) }}>
+                            <span className="p-media-popup-icon" style={{ fontSize: 16 }}>
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={{ verticalAlign: 'middle' }}>
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" fill="#4285F4"/>
+                                <path d="M6.5 12A5.5 5.5 0 0 1 12 6.5V2C6.48 2 2 6.48 2 12h4.5z" fill="#34A853"/>
+                                <path d="M12 17.5A5.5 5.5 0 0 1 6.5 12H2c0 5.52 4.48 10 10 10v-4.5z" fill="#FBBC05"/>
+                                <path d="M17.5 12A5.5 5.5 0 0 1 12 17.5V22c5.52 0 10-4.48 10-10h-4.5z" fill="#EA4335"/>
+                              </svg>
+                            </span>
+                            Google Fotos
+                          </button>
+                        )}
                       </div>
                     </>
                   )}
@@ -1551,7 +1722,7 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
                   <span className="p-input-hint-icon">?</span>
                   <span className="p-input-hint-tooltip">{t.postInputHint}</span>
                 </span>
-                <button className="p-post-btn" onMouseDown={e => e.preventDefault()} onClick={handlePost} disabled={!newPostText.trim() && !mediaPreviews.length}>{t.post}</button>
+                <button className="p-post-btn" onMouseDown={e => e.preventDefault()} onClick={handlePost} disabled={!newPostText.trim() && !mediaPreviews.length && !providerMediaUrls.length}>{t.post}</button>
               </div>
             </div>
           </>
@@ -1560,6 +1731,16 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
 
       {/* Reels strip */}
       <ReelsStrip lang={lang} t={t} onNavigate={onNavigate} />
+
+      {/* Google Photos picker modal */}
+      {showGooglePicker && googlePhotosClientId && (
+        <GooglePhotosPicker
+          lang={lang}
+          clientId={googlePhotosClientId}
+          onPhotosSelected={handleGooglePhotosSelected}
+          onClose={() => setShowGooglePicker(false)}
+        />
+      )}
 
       {/* Top sentinel — triggers loading previous page */}
       {offset > 0 && (
@@ -2913,7 +3094,7 @@ function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, on
 
   const fS = { display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box', fontFamily: 'inherit' }
   const lS = { display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4, marginTop: 14 }
-  const tabLabels = { konto: t.settingsKonto, privatliv: t.settingsPrivatliv, sessions: t.settingsSessions, sprog: t.settingsSprog }
+  const tabLabels = { konto: t.settingsKonto, privatliv: t.settingsPrivatliv, sessions: t.settingsSessions, sprog: t.settingsSprog, leverandoerer: t.settingsLeverandoerer }
 
   return (
     <div className="p-events" style={{ maxWidth: 600 }}>
@@ -2928,6 +3109,120 @@ function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, on
       {tab === 'privatliv' && <SettingsPrivatliv lang={lang} t={t} fS={fS} lS={lS} />}
       {tab === 'sessions' && <SettingsSessions lang={lang} t={t} onLogout={onLogout} />}
       {tab === 'sprog' && <SettingsSprog lang={lang} t={t} darkMode={darkMode} onToggleDark={onToggleDark} />}
+      {tab === 'leverandoerer' && <SettingsLeverandoerer lang={lang} t={t} />}
+    </div>
+  )
+}
+
+function SettingsLeverandoerer({ lang, t }) {
+  const [config, setConfig] = useState(null)
+
+  useEffect(() => {
+    apiGetConfig().then(c => { if (c) setConfig(c) })
+  }, [])
+
+  const cardStyle = { background: '#fff', borderRadius: 12, border: '1px solid #e8e8e8', padding: '20px 22px', marginBottom: 16 }
+  const headerStyle = { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }
+  const logoStyle = { width: 36, height: 36, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }
+  const badgeStyle = (connected) => ({
+    display: 'inline-flex', alignItems: 'center', gap: 4,
+    fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
+    background: connected ? '#F0FAF4' : '#f5f5f5',
+    color: connected ? '#2D6A4F' : '#888',
+  })
+
+  const googleConfigured = config?.googlePhotosClientId
+
+  return (
+    <div>
+      <p style={{ fontSize: 13, color: '#666', marginTop: 0, marginBottom: 20 }}>{t.providersDesc}</p>
+
+      {/* Google Photos */}
+      <div style={cardStyle}>
+        <div style={headerStyle}>
+          <div style={{ ...logoStyle, background: '#fff', border: '1px solid #e8e8e8' }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" fill="#4285F4"/>
+              <path d="M6.5 12A5.5 5.5 0 0 1 12 6.5V2C6.48 2 2 6.48 2 12h4.5z" fill="#34A853"/>
+              <path d="M12 17.5A5.5 5.5 0 0 1 6.5 12H2c0 5.52 4.48 10 10 10v-4.5z" fill="#FBBC05"/>
+              <path d="M17.5 12A5.5 5.5 0 0 1 12 17.5V22c5.52 0 10-4.48 10-10h-4.5z" fill="#EA4335"/>
+            </svg>
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>Google Fotos</div>
+            <span style={badgeStyle(googleConfigured)}>
+              {googleConfigured ? '✓ ' + t.providerConnected : t.providerNotConnected}
+            </span>
+          </div>
+        </div>
+        <p style={{ fontSize: 13, color: '#555', margin: '0 0 14px' }}>{t.providerGooglePhotosDesc}</p>
+        {config === null ? (
+          <div style={{ fontSize: 13, color: '#aaa' }}>⏳</div>
+        ) : googleConfigured ? (
+          <div style={{ fontSize: 13, color: '#2D6A4F', fontWeight: 500 }}>
+            {lang === 'da'
+              ? 'Google Fotos er klar. Brug knappen i oprettelsesboksen til at vælge billeder.'
+              : 'Google Photos is ready. Use the button in the post creator to pick photos.'}
+          </div>
+        ) : (
+          <div style={{ fontSize: 12, color: '#e67e22', background: '#fff9f0', border: '1px solid #f0d9b5', borderRadius: 8, padding: '8px 12px' }}>
+            ⚠️ {t.providerNotConfigured} — <code>GOOGLE_CLIENT_ID</code>
+          </div>
+        )}
+      </div>
+
+      {/* Apple Photos */}
+      <div style={cardStyle}>
+        <div style={headerStyle}>
+          <div style={{ ...logoStyle, background: '#000', color: '#fff' }}>
+            <svg width="20" height="20" viewBox="0 0 814 1000" fill="white" xmlns="http://www.w3.org/2000/svg">
+              <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76.5 0-103.7 40.8-165.9 40.8s-105-37.5-155.5-127.4C46 790.8 0 663.5 0 541.8c0-207.9 135.5-317.7 269-317.7 70.9 0 130.4 44.7 174.4 44.7 42.8 0 110.3-47.1 191.9-47.1 30.9 0 111.2 2.6 170.9 96.1zM543.4 88.7C568.4 57.5 586 13.6 586 0s-.6-2.6-2.6-2.6c-4.5 0-57.1 23.3-87.5 56.6C470.9 81.3 450.9 128 450.9 172c0 3.8.6 6.4 3.2 6.4 4.5 0 56.5-25.1 89.3-89.7z"/>
+            </svg>
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>Apple Fotos</div>
+            <span style={badgeStyle(true)}>
+              {lang === 'da' ? 'Indbygget' : 'Built-in'}
+            </span>
+          </div>
+        </div>
+        <p style={{ fontSize: 13, color: '#555', margin: 0 }}>{t.providerApplePhotosDesc}</p>
+      </div>
+
+      {/* Dropbox */}
+      <div style={{ ...cardStyle, opacity: 0.6 }}>
+        <div style={headerStyle}>
+          <div style={{ ...logoStyle, background: '#0061ff', color: '#fff', fontSize: 18 }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+              <path d="M6 2L0 6l6 4-6 4 6 4 6-4-6-4 6-4L6 2zm12 0l-6 4 6 4-6 4 6 4 6-4-6-4 6-4-6-4zM6 16.5l6 4 6-4-6-4-6 4z"/>
+            </svg>
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>Dropbox</div>
+            <span style={badgeStyle(false)}>{t.providerComingSoon}</span>
+          </div>
+        </div>
+        <p style={{ fontSize: 13, color: '#555', margin: 0 }}>{t.providerDropboxDesc}</p>
+      </div>
+
+      {/* OneDrive */}
+      <div style={{ ...cardStyle, opacity: 0.6, marginBottom: 0 }}>
+        <div style={headerStyle}>
+          <div style={{ ...logoStyle, background: '#0078d4', color: '#fff', fontSize: 18 }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+              <path d="M10.5 13.5H20c2.2 0 4-1.8 4-4s-1.8-4-4-4c-.3 0-.5 0-.8.1C18.5 3.6 16.5 2 14 2c-2.3 0-4.2 1.4-5 3.4C7.3 5.1 5.6 5.8 4.4 7 3.3 8 2.7 9.3 2.7 10.8c0 1.5 1.2 2.7 2.7 2.7h5.1z"/>
+              <path d="M10.5 13.5H20c2.2 0 4-1.8 4-4s-1.8-4-4-4c-.3 0-.5 0-.8.1C18.5 3.6 16.5 2 14 2c-2.3 0-4.2 1.4-5 3.4C7.3 5.1 5.6 5.8 4.4 7 3.3 8 2.7 9.3 2.7 10.8c0 1.5 1.2 2.7 2.7 2.7h5.1zM4 15l3.5 6.5h13L24 15H4z"/>
+            </svg>
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>Microsoft OneDrive</div>
+            <span style={badgeStyle(false)}>{t.providerComingSoon}</span>
+          </div>
+        </div>
+        <p style={{ fontSize: 13, color: '#555', margin: 0 }}>
+          {lang === 'da' ? 'Upload filer direkte fra din OneDrive-konto.' : 'Upload files directly from your OneDrive account.'}
+        </p>
+      </div>
     </div>
   )
 }

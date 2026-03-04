@@ -101,16 +101,18 @@ export async function apiFetchFeed(offset = 0, limit = 20) {
   return await request(`/api/feed?offset=${offset}&limit=${limit}`)
 }
 
-export async function apiCreatePost(text, mediaFiles, categories) {
+// providerMedia: array of { url: '/uploads/xxx.jpg', mimeType } for photos already on the server (e.g. from Google Photos)
+export async function apiCreatePost(text, mediaFiles, categories, providerMedia) {
   const cats = Array.isArray(categories) && categories.length > 0 ? categories : []
   if (mediaFiles?.length) {
-    // Use FormData for multipart upload
+    // Use FormData for multipart upload; include providerMedia alongside new files
     const form = new FormData()
     form.append('text', text)
     if (cats.length) form.append('categories', JSON.stringify(cats))
     for (const file of mediaFiles) {
       form.append('media', file)
     }
+    if (providerMedia?.length) form.append('providerMedia', JSON.stringify(providerMedia))
     try {
       const res = await fetch(`${API_BASE}/api/feed`, {
         method: 'POST',
@@ -130,7 +132,7 @@ export async function apiCreatePost(text, mediaFiles, categories) {
   }
   return await request('/api/feed', {
     method: 'POST',
-    body: JSON.stringify({ text, categories: cats }),
+    body: JSON.stringify({ text, categories: cats, providerMedia: providerMedia || [] }),
   })
 }
 
@@ -277,6 +279,18 @@ export async function apiRenameConversation(conversationId, name) {
 // Platform config (feature availability)
 export async function apiGetConfig() {
   return request('/api/config')
+}
+
+// External providers — Google Photos
+// Downloads a Google-hosted photo server-side (bypassing CORS) and returns a local /uploads/ URL.
+// accessToken: Google OAuth2 access token obtained client-side via Google Identity Services.
+// googleUrl: The base URL of the Google Photos media item (e.g. item.getUrl()).
+// mimeType: The declared MIME type of the file.
+export async function apiDownloadGooglePhoto(accessToken, googleUrl, mimeType) {
+  return request('/api/providers/google-photos/download', {
+    method: 'POST',
+    body: JSON.stringify({ accessToken, url: googleUrl, mimeType }),
+  })
 }
 
 // Facebook OAuth
