@@ -174,6 +174,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
     settings: 'Indstillinger',
     analytics: 'Analyser',
     privacy: 'Privatliv & Data',
+    about: 'Om Fellis',
     logout: 'Log ud',
   } : {
     viewProfile: 'View profile',
@@ -181,6 +182,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
     settings: 'Settings',
     analytics: 'Analytics',
     privacy: 'Privacy & Data',
+    about: 'About Fellis',
     logout: 'Log out',
   }
 
@@ -286,6 +288,9 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
                 <button className="avatar-dropdown-item" onClick={() => navigateTo('privacy')}>
                   <span>🔒</span> {menuT.privacy}
                 </button>
+                <button className="avatar-dropdown-item" onClick={() => navigateTo('about')}>
+                  <span>💡</span> {menuT.about}
+                </button>
                 {currentUser.is_admin && (
                   <button className="avatar-dropdown-item" onClick={() => navigateTo('admin')}>
                     <span>⚙️</span> {t.adminTitle}
@@ -339,6 +344,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
         {page === 'settings' && <SettingsPage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onLogout={onLogout} onOpenModeModal={() => setShowModeModal(true)} darkMode={darkMode} onToggleDark={() => setDarkMode(d => !d)} />}
         {page === 'privacy' && <PrivacySection lang={lang} onLogout={onLogout} />}
         {page === 'visitors' && <VisitorStatsPage lang={lang} />}
+        {page === 'about' && <AboutPage lang={lang} />}
         {page === 'admin' && currentUser.is_admin && <AdminPage lang={lang} t={t} />}
         {page === 'search' && (
           <SearchPage
@@ -3306,16 +3312,110 @@ function MiniWorldMap({ countries }) {
   )
 }
 
+// ── Om Fellis / About Fellis ──
+// Philosophy, purpose, and implemented changelog
+function AboutPage({ lang }) {
+  const [changelog, setChangelog] = useState([])
+
+  useEffect(() => {
+    apiGetChangelog().then(data => { if (data?.entries) setChangelog(data.entries) })
+  }, [])
+
+  const t = lang === 'da' ? {
+    title: 'Om Fellis',
+    subtitle: 'Filosofi og formål med Fellis.eu',
+    philosophyTitle: 'Vores filosofi',
+    philosophyText: [
+      'Fellis.eu er skabt som et privat og trygt alternativ til de store sociale netværk. Vi tror på, at sociale medier skal tjene mennesker — ikke omvendt.',
+      'Platformen er bygget i Europa, drives efter europæisk lovgivning og respekterer din privatlivets fred. Vi sælger ikke data, vi viser ikke algoritmestyrede reklamer, og vi gemmer kun det, der er nødvendigt for at platformen fungerer.',
+      'Fællesskab, tillid og gennemsigtighed er kernen i alt, hvad vi gør.',
+    ],
+    purposeTitle: 'Formål',
+    purposes: [
+      'Skabe et dansk og europæisk fællesskab med fokus på tillid og privatliv',
+      'Give brugerne fuld kontrol over egne data (GDPR)',
+      'Tilbyde et reklamefrit og algoritmefrit socialt netværk',
+      'Støtte lokal og europæisk digital infrastruktur',
+      'Være åben og ærlig om, hvordan platformen fungerer og udvikles',
+    ],
+    changelogTitle: 'Implementerede tiltag',
+    changelogEmpty: 'Ingen poster endnu',
+  } : {
+    title: 'About Fellis',
+    subtitle: 'Philosophy and purpose of Fellis.eu',
+    philosophyTitle: 'Our philosophy',
+    philosophyText: [
+      'Fellis.eu was created as a private and safe alternative to the major social networks. We believe social media should serve people — not the other way around.',
+      'The platform is built in Europe, operates under European law, and respects your privacy. We do not sell data, we do not show algorithm-driven ads, and we only store what is necessary for the platform to function.',
+      'Community, trust and transparency are at the core of everything we do.',
+    ],
+    purposeTitle: 'Purpose',
+    purposes: [
+      'Create a Danish and European community focused on trust and privacy',
+      'Give users full control over their own data (GDPR)',
+      'Offer an ad-free and algorithm-free social network',
+      'Support local and European digital infrastructure',
+      'Be open and honest about how the platform works and evolves',
+    ],
+    changelogTitle: 'Implemented features',
+    changelogEmpty: 'No entries yet',
+  }
+
+  const s = {
+    section: { fontWeight: 700, fontSize: 13, color: '#666', textTransform: 'uppercase', letterSpacing: 1, margin: '24px 0 10px' },
+  }
+
+  return (
+    <div className="p-events" style={{ maxWidth: 720 }}>
+      <div style={{ marginBottom: 20 }}>
+        <h2 className="p-section-title" style={{ margin: '0 0 4px' }}>💡 {t.title}</h2>
+        <div style={{ fontSize: 13, color: '#888' }}>{t.subtitle}</div>
+      </div>
+
+      {/* Philosophy */}
+      <div style={s.section}>🌿 {t.philosophyTitle}</div>
+      <div className="p-card" style={{ padding: 20, marginBottom: 16 }}>
+        {t.philosophyText.map((para, i) => (
+          <p key={i} style={{ fontSize: 14, color: '#333', lineHeight: 1.65, margin: i < t.philosophyText.length - 1 ? '0 0 12px' : 0 }}>{para}</p>
+        ))}
+      </div>
+
+      {/* Purpose */}
+      <div style={s.section}>🎯 {t.purposeTitle}</div>
+      <div className="p-card" style={{ padding: '4px 0', marginBottom: 16 }}>
+        {t.purposes.map((item, i) => (
+          <div key={i} style={{ padding: '10px 20px', fontSize: 14, color: '#333', borderBottom: i < t.purposes.length - 1 ? '1px solid #f0f0f0' : 'none', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+            <span style={{ color: '#2D6A4F', fontWeight: 700, flexShrink: 0 }}>✓</span>
+            {item}
+          </div>
+        ))}
+      </div>
+
+      {/* Changelog */}
+      <div style={s.section}>🛠️ {t.changelogTitle}</div>
+      <div className="p-card" style={{ padding: '4px 0', marginBottom: 16 }}>
+        {changelog.length === 0
+          ? <div style={{ padding: '16px 20px', fontSize: 13, color: '#aaa' }}>{t.changelogEmpty}</div>
+          : changelog.map((entry, i) => (
+              <div key={i} style={{ padding: '10px 20px', fontSize: 13, color: '#333', borderBottom: i < changelog.length - 1 ? '1px solid #f0f0f0' : 'none', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                <span style={{ color: '#b7dfc9', fontWeight: 700, flexShrink: 0 }}>·</span>
+                {entry}
+              </div>
+            ))
+        }
+      </div>
+    </div>
+  )
+}
+
 function VisitorStatsPage({ lang }) {
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [changelog, setChangelog] = useState([])
 
   useEffect(() => {
     apiGetVisitorStats()
       .then(data => { if (data) setStats(data); setLoading(false) })
       .catch(() => setLoading(false))
-    apiGetChangelog().then(data => { if (data?.entries) setChangelog(data.entries) })
   }, [])
 
   const t = lang === 'da' ? {
@@ -3332,8 +3432,6 @@ function VisitorStatsPage({ lang }) {
     noData: 'Ingen data endnu',
     sectionPlatform: 'Fellis.eu — platform',
     sectionProfile: 'Din profil',
-    sectionChangelog: 'Implementerede tiltag',
-    changelogEmpty: 'Ingen poster endnu',
   } : {
     title: 'Visitors',
     subtitle: 'Overview of platform visits and your profile',
@@ -3348,8 +3446,6 @@ function VisitorStatsPage({ lang }) {
     noData: 'No data yet',
     sectionPlatform: 'Fellis.eu — platform',
     sectionProfile: 'Your profile',
-    sectionChangelog: 'Implemented features',
-    changelogEmpty: 'No entries yet',
   }
 
   const BarChart = ({ data, label }) => {
@@ -3469,21 +3565,6 @@ function VisitorStatsPage({ lang }) {
         }
       </div>
 
-      {/* Changelog */}
-      <div style={{ fontWeight: 700, fontSize: 13, color: '#666', textTransform: 'uppercase', letterSpacing: 1, margin: '24px 0 10px' }}>
-        🛠️ {t.sectionChangelog}
-      </div>
-      <div className="p-card" style={{ padding: '4px 0', marginBottom: 16 }}>
-        {changelog.length === 0
-          ? <div style={{ padding: '16px 20px', fontSize: 13, color: '#aaa' }}>{t.changelogEmpty}</div>
-          : changelog.map((entry, i) => (
-            <div key={i} style={{ padding: '10px 20px', fontSize: 13, color: '#333', borderBottom: i < changelog.length - 1 ? '1px solid #f0f0f0' : 'none', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-              <span style={{ color: '#b7dfc9', fontWeight: 700, flexShrink: 0 }}>·</span>
-              {entry}
-            </div>
-          ))
-        }
-      </div>
     </div>
   )
 }
