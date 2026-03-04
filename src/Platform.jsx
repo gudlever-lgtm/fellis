@@ -3518,6 +3518,7 @@ function SettingsSessions({ lang, t, onLogout }) {
 
 function SettingsSprog({ lang, t, darkMode, onToggleDark }) {
   const switchLang = (newLang) => {
+    localStorage.setItem('fellis_lang', newLang)
     fetch('/api/me/lang', {
       method: 'PATCH', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
