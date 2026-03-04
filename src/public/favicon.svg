@@ -1,22 +1,4 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#2D6A4F"/>
-      <stop offset="100%" stop-color="#1B4332"/>
-    </linearGradient>
-    <linearGradient id="glow" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.18"/>
-      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
-    </linearGradient>
-  </defs>
-  <rect width="400" height="400" rx="76" fill="url(#bg)"/>
-  <rect width="400" height="200" rx="76" fill="url(#glow)"/>
-  <line x1="200" y1="172" x2="135" y2="218" stroke="white" stroke-width="5" stroke-linecap="round" opacity="0.45"/>
-  <line x1="200" y1="172" x2="265" y2="218" stroke="white" stroke-width="5" stroke-linecap="round" opacity="0.45"/>
-  <line x1="149" y1="226" x2="251" y2="226" stroke="white" stroke-width="4" stroke-linecap="round" opacity="0.25"/>
-  <circle cx="200" cy="152" r="26" fill="white" opacity="0.97"/>
-  <circle cx="130" cy="226" r="19" fill="white" opacity="0.80"/>
-  <circle cx="270" cy="226" r="19" fill="white" opacity="0.80"/>
-  <text x="200" y="308" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="78" font-weight="bold" fill="white" letter-spacing="-3">fellis</text>
-  <text x="200" y="344" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="22" fill="white" opacity="0.60" letter-spacing="5">.eu</text>
+  <rect width="400" height="400" rx="76" fill="#2D6A4F"/>
+  <text x="200" y="290" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="260" font-weight="bold" fill="white">F</text>
 </svg>
