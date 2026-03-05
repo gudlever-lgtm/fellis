@@ -27,6 +27,7 @@ const T = {
     trustEncrypt: 'End-to-end krypteret',
     trustEU: 'Hostet i EU',
     trustDelete: 'Data slettet efter migrering',
+    privacyPolicy: 'Privatlivspolitik',
     step1: 'Forbind Facebook',
     step2: 'Vælg indhold',
     step3: 'Inviter venner',
@@ -139,6 +140,7 @@ const T = {
     trustEncrypt: 'End-to-end encrypted',
     trustEU: 'EU hosted',
     trustDelete: 'Data deleted after migration',
+    privacyPolicy: 'Privacy Policy',
     step1: 'Connect Facebook',
     step2: 'Select content',
     step3: 'Invite friends',
@@ -578,6 +580,9 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName }) {
             <div className="trust-item"><div className="trust-icon">🔒</div><span className="trust-label">{t.trustEncrypt}</span></div>
             <div className="trust-item"><div className="trust-icon">🇪🇺</div><a href="https://yggdrasilcloud.dk/" target="_blank" rel="noopener noreferrer" className="trust-label trust-link">{t.trustEU}</a></div>
             <div className="trust-item"><div className="trust-icon">🗑️</div><span className="trust-label">{t.trustDelete}</span></div>
+          </div>
+          <div style={{ textAlign: 'center', marginTop: 16, fontSize: 13, color: '#999' }}>
+            <a href="/privacy" style={{ color: '#2D6A4F', textDecoration: 'none' }}>{t.privacyPolicy}</a>
           </div>
         </div>
       )}
