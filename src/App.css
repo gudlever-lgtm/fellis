@@ -23,15 +23,10 @@
 .nav-logo-icon {
   width: 36px;
   height: 36px;
-  background: #2D6A4F;
   border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-weight: 700;
-  font-size: 18px;
-  font-family: 'Playfair Display', serif;
+  display: block;
+  flex-shrink: 0;
+  overflow: hidden;
 }
 .lang-toggle {
   background: #F0FAF4;
