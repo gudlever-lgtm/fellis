@@ -497,24 +497,59 @@ function NotificationsPanel({ notifs, t, lang, mode, onMarkAllRead, onMarkRead, 
 
 // ── Media display component ──
 // ── Lightbox modal ──
-function Lightbox({ src, type, mime, onClose }) {
+function Lightbox({ media, index: initialIndex, onClose }) {
+  const [index, setIndex] = useState(initialIndex)
+  const count = media.length
+  const touchStartX = useRef(null)
+
+  const prev = useCallback(() => setIndex(i => (i - 1 + count) % count), [count])
+  const next = useCallback(() => setIndex(i => (i + 1) % count), [count])
+
   useEffect(() => {
-    const handleKey = (e) => { if (e.key === 'Escape') onClose() }
+    const handleKey = (e) => {
+      if (e.key === 'Escape') onClose()
+      if (e.key === 'ArrowLeft') prev()
+      if (e.key === 'ArrowRight') next()
+    }
     document.addEventListener('keydown', handleKey)
     return () => document.removeEventListener('keydown', handleKey)
-  }, [onClose])
+  }, [onClose, prev, next])
+
+  const item = media[index]
   return (
-    <div className="lightbox-overlay" onClick={onClose}>
+    <div
+      className="lightbox-overlay"
+      onClick={onClose}
+      onTouchStart={e => { touchStartX.current = e.touches[0].clientX }}
+      onTouchEnd={e => {
+        if (touchStartX.current === null) return
+        const dx = e.changedTouches[0].clientX - touchStartX.current
+        if (dx > 50) prev()
+        else if (dx < -50) next()
+        touchStartX.current = null
+      }}
+    >
       <div className="lightbox-content" onClick={e => e.stopPropagation()}>
-        {type === 'video' ? (
+        {item.type === 'video' ? (
           <video className="lightbox-media" controls autoPlay playsInline>
-            <source src={src} type={mime} />
+            <source src={item.src} type={item.mime} />
           </video>
         ) : (
-          <img className="lightbox-media" src={src} alt="" />
+          <img className="lightbox-media" src={item.src} alt="" />
         )}
       </div>
       <button className="lightbox-close" onClick={onClose}>✕</button>
+      {count > 1 && (
+        <>
+          <button className="lightbox-nav lightbox-prev" onClick={e => { e.stopPropagation(); prev() }}>&#8249;</button>
+          <button className="lightbox-nav lightbox-next" onClick={e => { e.stopPropagation(); next() }}>&#8250;</button>
+          <div className="lightbox-dots">
+            {media.map((_, i) => (
+              <span key={i} className={`lightbox-dot${i === index ? ' active' : ''}`} onClick={e => { e.stopPropagation(); setIndex(i) }} />
+            ))}
+          </div>
+        </>
+      )}
     </div>
   )
 }
@@ -631,9 +666,14 @@ function PostText({ text, lang }) {
 }
 
 function PostMedia({ media }) {
-  const [lightbox, setLightbox] = useState(null)
+  const [lightboxIndex, setLightboxIndex] = useState(null)
   if (!media?.length) return null
   const count = media.length
+  const lightboxMedia = media.map(m => ({
+    src: m.url.startsWith('http') ? m.url : `${API_BASE}${m.url}`,
+    type: m.type === 'video' ? 'video' : 'image',
+    mime: m.mime,
+  }))
   return (
     <>
       <div className={`p-post-media p-post-media-${Math.min(count, 4)}`}>
@@ -642,16 +682,18 @@ function PostMedia({ media }) {
           if (m.type === 'video') {
             return (
               <video key={i} className="p-media-item" controls preload="metadata" playsInline
-                onClick={() => setLightbox({ src, type: 'video', mime: m.mime })}>
+                onClick={() => setLightboxIndex(i)}>
                 <source src={src} type={m.mime} />
               </video>
             )
           }
           return <img key={i} className="p-media-item p-media-clickable" src={src} alt="" loading="lazy"
-            onClick={() => setLightbox({ src, type: 'image' })} />
+            onClick={() => setLightboxIndex(i)} />
         })}
       </div>
-      {lightbox && <Lightbox {...lightbox} onClose={() => setLightbox(null)} />}
+      {lightboxIndex !== null && (
+        <Lightbox media={lightboxMedia} index={lightboxIndex} onClose={() => setLightboxIndex(null)} />
+      )}
     </>
   )
 }
