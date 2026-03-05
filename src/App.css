@@ -2715,6 +2715,21 @@
 }
 .p-nav-search-btn:hover,
 .p-nav-search-btn.active { background: #F0FAF4; color: #2D6A4F; }
+.p-nav-hamburger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  font-size: 22px;
+  cursor: pointer;
+  color: #6B6560;
+  padding: 6px 8px;
+  border-radius: 8px;
+  line-height: 1;
+  transition: background 0.15s, color 0.15s;
+}
+.p-nav-hamburger:hover { background: #F0FAF4; color: #2D6A4F; }
 .p-search-page {
   max-width: 680px;
   margin: 0 auto;
@@ -3342,48 +3357,53 @@
     grid-template-columns: 1fr !important;
   }
 
-  /* ── Two-row nav for Samsung S21 / small phones ── */
+  /* ── Hamburger nav for small phones ── */
   .p-nav {
-    flex-wrap: wrap;
-    height: auto;
-    padding: 0;
+    flex-wrap: nowrap;
+    height: 48px;
+    padding: 0 8px 0 12px;
     min-height: unset;
   }
   .p-nav-left {
-    order: 1;
     flex: 1;
-    padding: 0 6px 0 12px;
-    height: 48px;
     display: flex;
     align-items: center;
   }
   .p-nav-right {
-    order: 2;
     flex: 0;
     height: 48px;
-    padding: 0 8px 0 0;
-    gap: 6px;
+    padding: 0;
+    gap: 4px;
+  }
+  .p-nav-hamburger {
+    display: flex;
   }
   .p-nav-tabs {
-    order: 3;
-    width: 100%;
-    overflow-x: auto;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-    padding: 4px 8px 6px;
-    border-top: 1px solid #E8E4DF;
+    display: none;
+    position: absolute;
+    top: 48px;
+    left: 0;
+    right: 0;
+    z-index: 200;
+    background: #fff;
+    border-bottom: 1px solid #E8E4DF;
+    flex-direction: column;
     gap: 2px;
-    justify-content: flex-start;
-    height: auto;
-    flex-wrap: nowrap;
+    padding: 6px 0 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
   }
-  .p-nav-tabs::-webkit-scrollbar { display: none; }
+  .p-nav-tabs.open {
+    display: flex;
+  }
   .p-nav-tab {
-    flex-shrink: 0;
-    padding: 6px 10px;
-    border-radius: 16px;
+    width: 100%;
+    border-radius: 0;
+    padding: 11px 20px;
+    font-size: 15px;
+    gap: 12px;
   }
   .p-nav-tab-icon { font-size: 20px; }
+  .p-nav-tabs .p-nav-tab-label { display: inline; }
 
   /* ── Content ── */
   .p-content {
@@ -4679,6 +4699,13 @@ body.dark .p-nav-tab:hover {
 body.dark .p-nav-tab.active {
   background: #2D6A4F;
   color: #fff;
+}
+body.dark .p-nav-hamburger { color: #9B9590; }
+body.dark .p-nav-hamburger:hover { background: #252A28; color: #52B788; }
+body.dark .p-nav-tabs {
+  background: #1C1C20;
+  border-bottom-color: #333338;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
 }
 
 /* Avatar dropdown */

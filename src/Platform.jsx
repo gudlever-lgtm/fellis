@@ -35,6 +35,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
   const [page, setPage] = useState('feed')
   const [currentUser, setCurrentUser] = useState({ name: '', handle: '', initials: '' })
   const [showAvatarMenu, setShowAvatarMenu] = useState(false)
+  const [showMobileMenu, setShowMobileMenu] = useState(false)
   const [openConvId, setOpenConvId] = useState(null)
   const [highlightPostId, setHighlightPostId] = useState(null)
 
@@ -155,6 +156,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
     setPage(p)
     setNavParam(param)
     setShowAvatarMenu(false)
+    setShowMobileMenu(false)
   }, [])
 
   // Restore feed scroll position synchronously before paint (when returning to feed)
@@ -196,7 +198,14 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
             {t.navBrand}
           </div>
         </div>
-        <div className="p-nav-tabs">
+        <button
+          className="p-nav-hamburger"
+          onClick={() => setShowMobileMenu(v => !v)}
+          aria-label={showMobileMenu ? (lang === 'da' ? 'Luk menu' : 'Close menu') : (lang === 'da' ? 'Åbn menu' : 'Open menu')}
+        >
+          {showMobileMenu ? '✕' : '☰'}
+        </button>
+        <div className={`p-nav-tabs${showMobileMenu ? ' open' : ''}`}>
           {['feed', 'reels', 'friends', 'messages', 'events', 'calendar', 'marketplace', ...(mode === 'business' ? ['jobs', 'analytics'] : []), 'company'].map(p => (
             <button
               key={p}
