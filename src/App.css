@@ -1088,6 +1088,12 @@
 }
 
 /* ── New post ── */
+.p-new-post {
+  position: sticky;
+  top: 60px;
+  z-index: 50;
+}
+
 .p-new-post-row {
   display: flex;
   align-items: flex-start;
