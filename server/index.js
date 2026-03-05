@@ -477,11 +477,26 @@ const storage = multer.diskStorage({
   },
 })
 
+// Cache for media_max_files setting (refreshed every 60 s)
+let _mediaMaxFilesCache = null
+let _mediaMaxFilesCacheAt = 0
+async function getMediaMaxFiles() {
+  const now = Date.now()
+  if (_mediaMaxFilesCache !== null && now - _mediaMaxFilesCacheAt < 60_000) return _mediaMaxFilesCache
+  try {
+    const [[row]] = await pool.query("SELECT key_value FROM admin_settings WHERE key_name = 'media_max_files'")
+    const v = row ? parseInt(row.key_value, 10) : NaN
+    _mediaMaxFilesCache = (!isNaN(v) && v >= 1 && v <= 20) ? v : 4
+  } catch { _mediaMaxFilesCache = 4 }
+  _mediaMaxFilesCacheAt = now
+  return _mediaMaxFilesCache
+}
+
 const upload = multer({
   storage,
   limits: {
     fileSize: 50 * 1024 * 1024, // 50 MB max
-    files: 4,                    // max 4 files per post
+    files: 20,                   // upper bound; enforced dynamically per route
   },
   fileFilter: (_req, file, cb) => {
     if (!ALLOWED_MIME_TYPES.has(file.mimetype)) {
@@ -715,6 +730,13 @@ app.post('/api/auth/login', async (req, res) => {
 app.post('/api/auth/register', async (req, res) => {
   const { name, email, password, lang, inviteToken } = req.body
   if (!name || !email || !password) return res.status(400).json({ error: 'Name, email, and password required' })
+  // Check if registration is open (default: open)
+  try {
+    const [[regRow]] = await pool.query("SELECT key_value FROM admin_settings WHERE key_name = 'registration_open'")
+    if (regRow && regRow.key_value === '0' && !inviteToken) {
+      return res.status(403).json({ error: lang === 'da' ? 'Registrering er i øjeblikket lukket.' : 'Registration is currently closed.' })
+    }
+  } catch {}
   const regPolicy = await getPasswordPolicy()
   const regPwdErrors = validatePasswordStrength(password, regPolicy, lang || 'da')
   if (regPwdErrors.length > 0) return res.status(400).json({ error: regPwdErrors.join('. ') })
@@ -883,8 +905,9 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || null
 const FB_SCOPES = 'public_profile,email'
 
 // Public config endpoint — tells the frontend which optional features are available
-app.get('/api/config', (req, res) => {
-  res.json({ facebookEnabled: !!FB_APP_ID, googlePhotosClientId: GOOGLE_CLIENT_ID || null })
+app.get('/api/config', async (req, res) => {
+  const mediaMaxFiles = await getMediaMaxFiles()
+  res.json({ facebookEnabled: !!FB_APP_ID, googlePhotosClientId: GOOGLE_CLIENT_ID || null, mediaMaxFiles })
 })
 
 // ── Google Photos download proxy ──
@@ -1774,7 +1797,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
 })
 
 // POST /api/feed — create a new post (with optional media)
-app.post('/api/feed', authenticate, upload.array('media', 4), async (req, res) => {
+app.post('/api/feed', authenticate, upload.array('media', 20), async (req, res) => {
   const { text } = req.body
   // Accept categories as JSON string array or comma-separated string
   let rawCategories = []
@@ -1795,12 +1818,20 @@ app.post('/api/feed', authenticate, upload.array('media', 4), async (req, res) =
           const rel = item.url.startsWith('/uploads/') ? item.url.slice('/uploads/'.length) : null
           if (!rel || rel.includes('..') || rel.includes('/')) return false
           return fs.existsSync(path.join(UPLOADS_DIR, rel))
-        }).slice(0, 4)
+        }).slice(0, 20)
       }
     }
   } catch {}
 
   if (!text?.trim() && !req.files?.length && !providerMedia.length) return res.status(400).json({ error: 'Post text or media required' })
+
+  // Enforce dynamic media_max_files limit
+  const maxFiles = await getMediaMaxFiles()
+  if ((req.files?.length || 0) + providerMedia.length > maxFiles) {
+    // Delete any uploaded files
+    for (const f of (req.files || [])) { try { fs.unlinkSync(f.path) } catch {} }
+    return res.status(400).json({ error: `Too many files (max ${maxFiles})` })
+  }
 
   // Validate magic bytes for each uploaded file
   const mediaUrls = []
@@ -1823,7 +1854,7 @@ app.post('/api/feed', authenticate, upload.array('media', 4), async (req, res) =
 
   // Append pre-uploaded provider media (already validated above)
   for (const item of providerMedia) {
-    if (mediaUrls.length >= 4) break
+    if (mediaUrls.length >= maxFiles) break
     const mimeType = item.mimeType || 'image/jpeg'
     const type = mimeType.startsWith('video/') ? 'video' : 'image'
     mediaUrls.push({ url: item.url, type, mime: mimeType })
@@ -4117,16 +4148,17 @@ app.get('/api/admin/settings', authenticate, requireAdmin, async (req, res) => {
 
 // POST /api/admin/settings — save Stripe config (admin only)
 app.post('/api/admin/settings', authenticate, requireAdmin, async (req, res) => {
-  const allowed = ['stripe_secret_key', 'stripe_pub_key', 'stripe_webhook_secret', 'stripe_price_pro_monthly', 'stripe_price_pro_yearly', 'stripe_price_boost', 'pwd_min_length', 'pwd_require_uppercase', 'pwd_require_lowercase', 'pwd_require_numbers', 'pwd_require_symbols']
+  const allowed = ['stripe_secret_key', 'stripe_pub_key', 'stripe_webhook_secret', 'stripe_price_pro_monthly', 'stripe_price_pro_yearly', 'stripe_price_boost', 'pwd_min_length', 'pwd_require_uppercase', 'pwd_require_lowercase', 'pwd_require_numbers', 'pwd_require_symbols', 'media_max_files', 'registration_open']
   try {
     for (const [key, value] of Object.entries(req.body)) {
       if (!allowed.includes(key)) continue
-      // pwd_ keys are always saved (value can be '0'); skip only masked/empty Stripe secrets
-      if (!key.startsWith('pwd_')) {
+      // platform_ and pwd_ keys are always saved (value can be '0'); skip only masked/empty Stripe secrets
+      if (!key.startsWith('pwd_') && !key.startsWith('media_') && key !== 'registration_open') {
         if (!value || value === '••••••••' + (value || '').slice(-4)) continue // skip masked/empty
       }
       await pool.query('INSERT INTO admin_settings (key_name, key_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE key_value = VALUES(key_value)', [key, value])
     }
+    _mediaMaxFilesCache = null // invalidate cache so new limit takes effect immediately
     res.json({ ok: true })
   } catch (err) {
     res.status(500).json({ error: 'Failed to save settings' })
@@ -5069,7 +5101,7 @@ app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     console.error(`[multer error] ${req.method} ${req.path}: ${err.code} – ${err.message}`)
     if (err.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: 'File too large (max 50 MB)' })
-    if (err.code === 'LIMIT_FILE_COUNT') return res.status(400).json({ error: 'Too many files (max 4)' })
+    if (err.code === 'LIMIT_FILE_COUNT') return res.status(400).json({ error: 'Too many files' })
     return res.status(400).json({ error: err.message })
   }
   if (err) {

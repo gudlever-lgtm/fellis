@@ -891,7 +891,7 @@ function ReelsStrip({ lang, t, onNavigate }) {
 // ── Google Photos Picker ─────────────────────────────────────────────────────
 // Uses the Google Identity Services + Google Picker API (both loaded dynamically).
 // The user authorises via a popup, picks photos, and we proxy-download them server-side.
-function GooglePhotosPicker({ lang, clientId, onPhotosSelected, onClose }) {
+function GooglePhotosPicker({ lang, clientId, maxFiles = 4, onPhotosSelected, onClose }) {
   const [status, setStatus] = useState('idle') // idle | loading | picking | downloading | done | error
   const [errorMsg, setErrorMsg] = useState('')
   const pickerApiLoaded = useRef(false)
@@ -915,7 +915,7 @@ function GooglePhotosPicker({ lang, clientId, onPhotosSelected, onClose }) {
         setStatus('downloading')
         const docs = data.docs || []
         const results = []
-        for (const doc of docs.slice(0, 4)) {
+        for (const doc of docs.slice(0, maxFiles)) {
           const url = doc.url || doc.thumbUrl
           const mimeType = doc.mimeType || 'image/jpeg'
           try {
@@ -972,7 +972,7 @@ function GooglePhotosPicker({ lang, clientId, onPhotosSelected, onClose }) {
           <div>
             <div style={{ fontWeight: 700, fontSize: 16 }}>Google Fotos</div>
             <div style={{ fontSize: 12, color: '#888' }}>
-              {lang === 'da' ? 'Vælg op til 4 billeder' : 'Select up to 4 photos'}
+              {lang === 'da' ? `Vælg op til ${maxFiles} billeder` : `Select up to ${maxFiles} photos`}
             </div>
           </div>
           <button onClick={onClose} style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#888', lineHeight: 1 }}>✕</button>
@@ -1060,6 +1060,8 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
   const [showCategoryPicker, setShowCategoryPicker] = useState(false)
   const [googlePhotosClientId, setGooglePhotosClientId] = useState(null)
   const [showGooglePicker, setShowGooglePicker] = useState(false)
+  const [mediaMaxFiles, setMediaMaxFiles] = useState(4)
+  const mediaMaxFilesRef = useRef(4)
   const [providerMediaUrls, setProviderMediaUrls] = useState([]) // { url, mimeType }[] for server-side downloaded provider photos
   const fileInputRef = useRef(null)
   const textareaRef = useRef(null)
@@ -1155,7 +1157,10 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
 
   // Initial load
   useEffect(() => {
-    apiGetConfig().then(cfg => { if (cfg?.googlePhotosClientId) setGooglePhotosClientId(cfg.googlePhotosClientId) })
+    apiGetConfig().then(cfg => {
+      if (cfg?.googlePhotosClientId) setGooglePhotosClientId(cfg.googlePhotosClientId)
+      if (cfg?.mediaMaxFiles) { setMediaMaxFiles(cfg.mediaMaxFiles); mediaMaxFilesRef.current = cfg.mediaMaxFiles }
+    })
     apiFetchFeed(0, PAGE_SIZE).then(data => {
       if (data?.posts) {
         setPosts(data.posts)
@@ -1230,17 +1235,18 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
     const items = Array.from(e.clipboardData?.items || [])
     const imageItems = items.filter(item => item.type.startsWith('image/'))
     if (imageItems.length === 0) return
-    const files = imageItems.map(item => item.getAsFile()).filter(Boolean).slice(0, 4)
+    const max = mediaMaxFilesRef.current
+    const files = imageItems.map(item => item.getAsFile()).filter(Boolean).slice(0, max)
     if (files.length === 0) return
-    setMediaFiles(prev => [...prev, ...files].slice(0, 4))
+    setMediaFiles(prev => [...prev, ...files].slice(0, max))
     setMediaPreviews(prev => [...prev, ...files.map(f => ({
       url: URL.createObjectURL(f), type: 'image', name: f.name || 'image.png',
-    }))].slice(0, 4))
+    }))].slice(0, max))
     setPostExpanded(true)
   }, [])
 
   const handleFileSelect = useCallback((e) => {
-    const files = Array.from(e.target.files).slice(0, 4)
+    const files = Array.from(e.target.files).slice(0, mediaMaxFilesRef.current)
     setMediaFiles(files)
     const previews = files.map(f => ({
       url: URL.createObjectURL(f),
@@ -1258,9 +1264,10 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
       type: 'image',
       name: p.localUrl.split('/').pop(),
     }))
+    const max = mediaMaxFilesRef.current
     setMediaFiles([])
-    setMediaPreviews(prev => [...prev, ...newPreviews].slice(0, 4))
-    setProviderMediaUrls(prev => [...prev, ...photos.map(p => ({ url: p.localUrl, mimeType: p.mimeType || 'image/jpeg' }))].slice(0, 4))
+    setMediaPreviews(prev => [...prev, ...newPreviews].slice(0, max))
+    setProviderMediaUrls(prev => [...prev, ...photos.map(p => ({ url: p.localUrl, mimeType: p.mimeType || 'image/jpeg' }))].slice(0, max))
     setPostExpanded(true)
   }, [])
 
@@ -1788,6 +1795,7 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
         <GooglePhotosPicker
           lang={lang}
           clientId={googlePhotosClientId}
+          maxFiles={mediaMaxFiles}
           onPhotosSelected={handleGooglePhotosSelected}
           onClose={() => setShowGooglePicker(false)}
         />
@@ -9739,6 +9747,7 @@ function AdminPage({ lang, t }) {
     stripe_price_pro_monthly: '', stripe_price_pro_yearly: '', stripe_price_boost: '',
     pwd_min_length: '6', pwd_require_uppercase: '0', pwd_require_lowercase: '0',
     pwd_require_numbers: '0', pwd_require_symbols: '0',
+    media_max_files: '4', registration_open: '1',
   })
   const [status, setStatus] = useState('idle') // idle | saving | saved
   const [stats, setStats] = useState(null)
@@ -9805,6 +9814,9 @@ function AdminPage({ lang, t }) {
         </button>
         <button className={`p-filter-tab${adminTab === 'security' ? ' active' : ''}`} onClick={() => setAdminTab('security')}>
           🔒 {lang === 'da' ? 'Sikkerhed & GDPR' : 'Security & GDPR'}
+        </button>
+        <button className={`p-filter-tab${adminTab === 'platform' ? ' active' : ''}`} onClick={() => setAdminTab('platform')}>
+          🛠️ {lang === 'da' ? 'Indstillinger' : 'Settings'}
         </button>
       </div>
 
@@ -10060,6 +10072,94 @@ function AdminPage({ lang, t }) {
             </div>
           </form>
         </div>
+      )}
+
+      {adminTab === 'platform' && (
+        <form onSubmit={handleSave}>
+          {/* ── Media settings ── */}
+          <div className="p-card" style={{ marginBottom: 16, padding: '20px 24px' }}>
+            <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700 }}>🖼️ {lang === 'da' ? 'Medier' : 'Media'}</h3>
+            <p style={{ margin: '0 0 20px', fontSize: 13, color: '#666' }}>
+              {lang === 'da' ? 'Indstillinger for fil-uploads på opslag.' : 'Settings for file uploads on posts.'}
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={lS}>{lang === 'da' ? 'Max antal medier per opslag' : 'Max media files per post'}</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <input
+                    style={{ ...fS, width: 100 }}
+                    type="number" min="1" max="20"
+                    value={form.media_max_files || '4'}
+                    onChange={e => setForm(prev => ({ ...prev, media_max_files: e.target.value }))}
+                  />
+                  <span style={{ fontSize: 13, color: '#888' }}>{lang === 'da' ? '(1–20 filer)' : '(1–20 files)'}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Registration settings ── */}
+          <div className="p-card" style={{ marginBottom: 16, padding: '20px 24px' }}>
+            <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700 }}>🚪 {lang === 'da' ? 'Registrering' : 'Registration'}</h3>
+            <p style={{ margin: '0 0 20px', fontSize: 13, color: '#666' }}>
+              {lang === 'da' ? 'Styr om nye brugere kan oprette konto. Invitationslinks virker stadig selv om registrering er lukket.' : 'Control whether new users can register. Invite links still work even when registration is closed.'}
+            </p>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
+              <input
+                type="checkbox"
+                checked={form.registration_open !== '0'}
+                onChange={e => setForm(prev => ({ ...prev, registration_open: e.target.checked ? '1' : '0' }))}
+                style={{ width: 16, height: 16, accentColor: '#2D6A4F', cursor: 'pointer' }}
+              />
+              {lang === 'da' ? 'Åben registrering (tillad nye brugere)' : 'Open registration (allow new users)'}
+            </label>
+          </div>
+
+          {/* ── Password policy ── */}
+          <div className="p-card" style={{ marginBottom: 20, padding: '20px 24px' }}>
+            <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700 }}>🔑 {lang === 'da' ? 'Adgangskodepolitik' : 'Password policy'}</h3>
+            <p style={{ margin: '0 0 20px', fontSize: 13, color: '#666' }}>
+              {lang === 'da' ? 'Krav der gælder ved oprettelse, nulstilling og skift af adgangskode.' : 'Requirements enforced on registration, reset, and password change.'}
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={lS}>{lang === 'da' ? 'Minimumslængde' : 'Minimum length'}</label>
+                <input
+                  style={{ ...fS, width: 120 }}
+                  type="number" min="4" max="64"
+                  value={form.pwd_min_length || '6'}
+                  onChange={e => setForm(prev => ({ ...prev, pwd_min_length: e.target.value }))}
+                />
+              </div>
+              {[
+                { key: 'pwd_require_uppercase', da: 'Kræv stort bogstav (A–Z)', en: 'Require uppercase letter (A–Z)' },
+                { key: 'pwd_require_lowercase', da: 'Kræv lille bogstav (a–z)', en: 'Require lowercase letter (a–z)' },
+                { key: 'pwd_require_numbers',   da: 'Kræv tal (0–9)',           en: 'Require number (0–9)' },
+                { key: 'pwd_require_symbols',   da: 'Kræv specialtegn (!@#$…)', en: 'Require symbol (!@#$…)' },
+              ].map(({ key, da, en }) => (
+                <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
+                  <input
+                    type="checkbox"
+                    checked={form[key] === '1'}
+                    onChange={e => setForm(prev => ({ ...prev, [key]: e.target.checked ? '1' : '0' }))}
+                    style={{ width: 16, height: 16, accentColor: '#2D6A4F', cursor: 'pointer' }}
+                  />
+                  {lang === 'da' ? da : en}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <button
+              type="submit"
+              disabled={status === 'saving'}
+              style={{ padding: '10px 24px', borderRadius: 8, border: 'none', background: status === 'saved' ? '#40916C' : '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}
+            >
+              {status === 'saving' ? t.adminSaving : status === 'saved' ? t.adminSaved : t.adminSave}
+            </button>
+          </div>
+        </form>
       )}
     </div>
   )
