@@ -500,7 +500,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
     <div className="app">
       <nav className="nav">
         <div className="nav-logo">
-          <img src="/fellis-logo.svg" className="nav-logo-icon" alt="" />
+          <img src="/fellis-logo.jpg" className="nav-logo-icon" alt="" />
           {t.navBrand}
         </div>
         <div className="nav-right-group">
