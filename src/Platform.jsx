@@ -3803,7 +3803,7 @@ function AboutPage({ lang }) {
 }
 
 function _isoWeek(dateStr) {
-  const d = new Date(dateStr.split(' ')[0])
+  const d = new Date(dateStr.slice(0, 10))
   d.setHours(0, 0, 0, 0)
   d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7)
   const w1 = new Date(d.getFullYear(), 0, 4)
@@ -3811,7 +3811,7 @@ function _isoWeek(dateStr) {
 }
 
 function _fmtDay(dateStr) {
-  const [y, mo, dy] = dateStr.split(' ')[0].split('-')
+  const [y, mo, dy] = dateStr.slice(0, 10).split('-')
   return `${dy.padStart(2, '0')}-${mo.padStart(2, '0')}-${y}`
 }
 
@@ -3823,7 +3823,7 @@ function DailyBarChart({ data, color = '#2D6A4F', lang }) {
   const weekMap = {}
   data.forEach(d => {
     const wk = _isoWeek(d.date)
-    const yr = new Date(d.date.split(' ')[0]).getFullYear()
+    const yr = new Date(d.date.slice(0, 10)).getFullYear()
     const key = `${yr}-W${wk}`
     if (!weekMap[key]) { weekMap[key] = { week: wk, year: yr, days: [] }; weeks.push(weekMap[key]) }
     weekMap[key].days.push(d)
