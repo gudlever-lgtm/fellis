@@ -1,7 +1,7 @@
 -- fellis.eu MariaDB Database Schema
 -- Compatible with MariaDB 11.8+ / MySQL 8+
 
-CREATE DATABASE IF NOT EXISTS fellis_eu CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci;
+CREATE DATABASE IF NOT EXISTS fellis_eu CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE fellis_eu;
 
 -- Users table
@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS users (
   invite_token VARCHAR(64) DEFAULT NULL UNIQUE,
   last_active TIMESTAMP NULL DEFAULT NULL,
   created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Friendships (bidirectional)
 CREATE TABLE IF NOT EXISTS friendships (
@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS friendships (
   UNIQUE KEY unique_friendship (user_id, friend_id),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (friend_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Posts (with optional media attachments)
 CREATE TABLE IF NOT EXISTS posts (
@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS posts (
   categories JSON DEFAULT NULL,
   created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
   FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Migration for existing installations (run this if posts table already exists):
 -- ALTER TABLE posts ADD COLUMN media JSON DEFAULT NULL AFTER likes;
@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS comments (
   created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
   FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
   FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Post likes (track who liked what)
 CREATE TABLE IF NOT EXISTS post_likes (
@@ -79,7 +79,7 @@ CREATE TABLE IF NOT EXISTS post_likes (
   UNIQUE KEY unique_like (post_id, user_id),
   FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Messages
 CREATE TABLE IF NOT EXISTS messages (
@@ -93,7 +93,7 @@ CREATE TABLE IF NOT EXISTS messages (
   created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
   FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Group conversations
 CREATE TABLE IF NOT EXISTS conversations (
@@ -107,7 +107,7 @@ CREATE TABLE IF NOT EXISTS conversations (
   created_by INT(11) DEFAULT NULL,
   created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
   FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Migration for existing installations (run migrate-group-suggestions.sql):
 
@@ -120,7 +120,7 @@ CREATE TABLE IF NOT EXISTS conversation_participants (
   PRIMARY KEY (conversation_id, user_id),
   FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Migration for existing installations:
 -- ALTER TABLE messages ADD COLUMN conversation_id INT(11) DEFAULT NULL AFTER id;
@@ -136,7 +136,7 @@ CREATE TABLE IF NOT EXISTS friend_requests (
   UNIQUE KEY unique_request (from_user_id, to_user_id),
   FOREIGN KEY (from_user_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (to_user_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Invitations (invite links to bring friends to fellis.eu)
 CREATE TABLE IF NOT EXISTS invitations (
@@ -149,7 +149,7 @@ CREATE TABLE IF NOT EXISTS invitations (
   created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
   FOREIGN KEY (inviter_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (accepted_by) REFERENCES users(id) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Reels (vertikal videofeed)
 CREATE TABLE IF NOT EXISTS reels (
@@ -162,7 +162,7 @@ CREATE TABLE IF NOT EXISTS reels (
   INDEX idx_reel_user_id (user_id),
   INDEX idx_reel_created_at (created_at),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS reel_likes (
   reel_id INT NOT NULL,
@@ -170,7 +170,7 @@ CREATE TABLE IF NOT EXISTS reel_likes (
   PRIMARY KEY (reel_id, user_id),
   FOREIGN KEY (reel_id) REFERENCES reels(id) ON DELETE CASCADE,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS reel_comments (
   id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -180,7 +180,7 @@ CREATE TABLE IF NOT EXISTS reel_comments (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
   FOREIGN KEY (reel_id) REFERENCES reels(id) ON DELETE CASCADE,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Migration for existing installations: run migrate-reels.sql
 
@@ -192,4 +192,4 @@ CREATE TABLE IF NOT EXISTS sessions (
   created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
   expires_at TIMESTAMP NOT NULL,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

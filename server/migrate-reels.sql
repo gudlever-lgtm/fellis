@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS reels (
   INDEX idx_reel_user_id (user_id),
   INDEX idx_reel_created_at (created_at),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS reel_likes (
   reel_id INT NOT NULL,
@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS reel_likes (
   PRIMARY KEY (reel_id, user_id),
   FOREIGN KEY (reel_id) REFERENCES reels(id) ON DELETE CASCADE,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS reel_comments (
   id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -31,4 +31,4 @@ CREATE TABLE IF NOT EXISTS reel_comments (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
   FOREIGN KEY (reel_id) REFERENCES reels(id) ON DELETE CASCADE,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
