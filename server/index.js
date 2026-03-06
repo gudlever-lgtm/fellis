@@ -118,7 +118,7 @@ async function initEvents() {
       cap INT(11) DEFAULT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (organizer_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
     await pool.query(`CREATE TABLE IF NOT EXISTS event_rsvps (
       id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
       event_id INT(11) NOT NULL,
@@ -130,7 +130,7 @@ async function initEvents() {
       UNIQUE KEY uq_event_user (event_id, user_id),
       FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
     // Migrate: add columns that may be missing on existing installations
     await pool.query(`ALTER TABLE event_rsvps ADD COLUMN IF NOT EXISTS dietary VARCHAR(255) DEFAULT NULL`).catch(() => {})
     await pool.query(`ALTER TABLE event_rsvps ADD COLUMN IF NOT EXISTS plus_one TINYINT(1) DEFAULT 0`).catch(() => {})
@@ -210,7 +210,7 @@ async function initViralGrowth() {
       UNIQUE KEY unique_referral (referrer_id, referred_id),
       FOREIGN KEY (referrer_id) REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY (referred_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
 
     await pool.query(`CREATE TABLE IF NOT EXISTS rewards (
       id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -222,7 +222,7 @@ async function initViralGrowth() {
       icon VARCHAR(10) NOT NULL DEFAULT '🏆',
       threshold INT(11) NOT NULL DEFAULT 1,
       reward_points INT(11) NOT NULL DEFAULT 10
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
 
     await pool.query(`CREATE TABLE IF NOT EXISTS user_badges (
       id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -231,7 +231,7 @@ async function initViralGrowth() {
       earned_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
       UNIQUE KEY unique_user_badge (user_id, reward_type),
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
 
     await pool.query(`CREATE TABLE IF NOT EXISTS share_events (
       id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -242,7 +242,7 @@ async function initViralGrowth() {
       utm_campaign VARCHAR(100) DEFAULT NULL,
       created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
 
     // Seed reward catalog (idempotent via INSERT IGNORE)
     await pool.query(`INSERT IGNORE INTO rewards (type, title_da, title_en, description_da, description_en, icon, threshold, reward_points) VALUES
@@ -268,7 +268,7 @@ async function initFriendRequests() {
       UNIQUE KEY unique_request (from_user_id, to_user_id),
       FOREIGN KEY (from_user_id) REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY (to_user_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
     // Also add source column to friendships if missing (for Facebook tracking)
     await pool.query('ALTER TABLE friendships ADD COLUMN source VARCHAR(50) DEFAULT NULL').catch(() => {})
   } catch (err) {
@@ -286,7 +286,7 @@ async function initConversations() {
       created_by INT(11) DEFAULT NULL,
       created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
       FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
     await pool.query(`CREATE TABLE IF NOT EXISTS conversation_participants (
       conversation_id INT(11) NOT NULL,
       user_id INT(11) NOT NULL,
@@ -295,7 +295,7 @@ async function initConversations() {
       PRIMARY KEY (conversation_id, user_id),
       FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
     // Add conversation_id column (safe — fails silently if already present)
     await pool.query('ALTER TABLE messages ADD COLUMN conversation_id INT(11) DEFAULT NULL AFTER id').catch(() => {})
     await pool.query('ALTER TABLE messages ADD INDEX idx_msg_conv (conversation_id)').catch(() => {})
@@ -2816,7 +2816,7 @@ async function initMarketplace() {
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       INDEX idx_user_id (user_id),
       INDEX idx_category (category)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
   } catch (err) {
     console.error('initMarketplace error:', err.message)
   }
@@ -2989,7 +2989,7 @@ async function initCompanies() {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       INDEX idx_owner (owner_id),
       FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
 
     await pool.query(`CREATE TABLE IF NOT EXISTS company_members (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -3000,7 +3000,7 @@ async function initCompanies() {
       UNIQUE KEY uq_company_user (company_id, user_id),
       FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
 
     await pool.query(`CREATE TABLE IF NOT EXISTS company_follows (
       company_id INT NOT NULL,
@@ -3009,7 +3009,7 @@ async function initCompanies() {
       PRIMARY KEY (company_id, user_id),
       FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
 
     await pool.query(`CREATE TABLE IF NOT EXISTS company_posts (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -3022,7 +3022,7 @@ async function initCompanies() {
       INDEX idx_company (company_id),
       FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
       FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
 
     await pool.query(`CREATE TABLE IF NOT EXISTS company_post_likes (
       post_id INT NOT NULL,
@@ -3032,7 +3032,7 @@ async function initCompanies() {
       PRIMARY KEY (post_id, user_id),
       FOREIGN KEY (post_id) REFERENCES company_posts(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
 
     await pool.query(`CREATE TABLE IF NOT EXISTS company_post_comments (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -3043,7 +3043,7 @@ async function initCompanies() {
       INDEX idx_post (post_id),
       FOREIGN KEY (post_id) REFERENCES company_posts(id) ON DELETE CASCADE,
       FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
 
     await pool.query(`CREATE TABLE IF NOT EXISTS jobs (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -3060,7 +3060,7 @@ async function initCompanies() {
       INDEX idx_company (company_id),
       INDEX idx_active (active),
       FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
 
     await pool.query(`CREATE TABLE IF NOT EXISTS job_saves (
       job_id INT NOT NULL,
@@ -3069,7 +3069,7 @@ async function initCompanies() {
       PRIMARY KEY (job_id, user_id),
       FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
 
     // Repair: ensure all companies have their owner in company_members
     // (may be missing if company was created before this table existed)
@@ -3531,7 +3531,7 @@ async function initAdminSettings() {
       key_name VARCHAR(100) NOT NULL PRIMARY KEY,
       key_value TEXT DEFAULT NULL,
       updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP() ON UPDATE CURRENT_TIMESTAMP()
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
   } catch (err) {
     console.error('initAdminSettings error:', err.message)
   }
@@ -3558,7 +3558,7 @@ async function initSettingsSchema() {
       UNIQUE KEY uq_user_skill (user_id, name),
       INDEX idx_us_user (user_id),
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
 
     await pool.query(`CREATE TABLE IF NOT EXISTS skill_endorsements (
       skill_id INT NOT NULL,
@@ -3567,7 +3567,7 @@ async function initSettingsSchema() {
       PRIMARY KEY (skill_id, endorser_id),
       FOREIGN KEY (skill_id) REFERENCES user_skills(id) ON DELETE CASCADE,
       FOREIGN KEY (endorser_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
 
   } catch (err) {
     console.error('initSettingsSchema error:', err.message)
@@ -3590,7 +3590,7 @@ async function initSiteVisits() {
       INDEX idx_sv_visited (visited_at),
       INDEX idx_sv_country (country_code),
       INDEX idx_sv_session (session_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
     // Add edited_at column to posts if not present
     await pool.query('ALTER TABLE posts ADD COLUMN IF NOT EXISTS edited_at TIMESTAMP NULL DEFAULT NULL')
   } catch (err) {
@@ -3609,7 +3609,7 @@ async function initAnalytics() {
       INDEX idx_pv_viewer (viewer_id),
       FOREIGN KEY (profile_id) REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY (viewer_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
   } catch (err) {
     console.error('initAnalytics error:', err.message)
   }
@@ -4069,7 +4069,7 @@ async function initReels() {
       INDEX idx_user_id (user_id),
       INDEX idx_created_at (created_at),
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
     await pool.query(`CREATE TABLE IF NOT EXISTS reel_likes (
       reel_id INT NOT NULL,
       user_id INT NOT NULL,
@@ -4077,7 +4077,7 @@ async function initReels() {
       PRIMARY KEY (reel_id, user_id),
       FOREIGN KEY (reel_id) REFERENCES reels(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
     await pool.query(`ALTER TABLE reel_likes ADD COLUMN IF NOT EXISTS reaction VARCHAR(10) DEFAULT '❤️'`).catch(() => {})
     await pool.query(`CREATE TABLE IF NOT EXISTS reel_comments (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -4087,7 +4087,7 @@ async function initReels() {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (reel_id) REFERENCES reels(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
   } catch (err) {
     console.error('initReels error:', err.message)
   }
