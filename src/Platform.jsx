@@ -3628,42 +3628,113 @@ const COUNTRY_CENTROIDS = {
   'SK':[48.7,19.7],'HR':[45.1,15.2],'RS':[44.0,21.0],'BG':[42.7,25.5],
 }
 
-function MiniWorldMap({ countries }) {
+function MiniWorldMap({ countries, lang }) {
   const W = 800, H = 380
+  const [zoom, setZoom] = useState(1)
+  const [pan, setPan] = useState({ x: 0, y: 0 })
+  const dragRef = useRef(null)
+  const svgRef = useRef(null)
+
   const toXY = (lat, lng) => [((lng + 180) / 360) * W, ((90 - lat) / 180) * H]
   const maxCount = Math.max(1, ...countries.map(c => c.count))
+
+  const vW = W / zoom
+  const vH = H / zoom
+  const vX = Math.max(0, Math.min(W - vW, pan.x))
+  const vY = Math.max(0, Math.min(H - vH, pan.y))
+
+  const handleWheel = (e) => {
+    e.preventDefault()
+    const factor = e.deltaY > 0 ? -0.4 : 0.4
+    setZoom(z => {
+      const nz = Math.max(1, Math.min(8, z + factor))
+      // keep pan in bounds when zooming out
+      const nvW = W / nz, nvH = H / nz
+      setPan(p => ({ x: Math.max(0, Math.min(W - nvW, p.x)), y: Math.max(0, Math.min(H - nvH, p.y)) }))
+      return nz
+    })
+  }
+
+  const handleMouseDown = (e) => {
+    dragRef.current = { startX: e.clientX, startY: e.clientY, panX: pan.x, panY: pan.y }
+  }
+
+  const handleMouseMove = (e) => {
+    if (!dragRef.current) return
+    const rect = svgRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const scaleX = (W / zoom) / rect.width
+    const scaleY = (H / zoom) / rect.height
+    const dx = (e.clientX - dragRef.current.startX) * scaleX
+    const dy = (e.clientY - dragRef.current.startY) * scaleY
+    setPan({
+      x: Math.max(0, Math.min(W - W / zoom, dragRef.current.panX - dx)),
+      y: Math.max(0, Math.min(H - H / zoom, dragRef.current.panY - dy)),
+    })
+  }
+
+  const handleMouseUp = () => { dragRef.current = null }
+
+  const zBtn = {
+    width: 28, height: 28, borderRadius: 6, border: '1px solid #ddd',
+    background: '#fff', cursor: 'pointer', fontSize: 17, fontWeight: 700,
+    color: '#2D6A4F', display: 'flex', alignItems: 'center', justifyContent: 'center',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.12)', lineHeight: 1, padding: 0,
+  }
+
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', borderRadius: 10, border: '1px solid #E8E4DF' }}>
-      <rect width={W} height={H} fill="#C8DFF4" />
-      <g fill="#D4E6B5" stroke="#B5C99A" strokeWidth="0.6">
-        <path d="M80,58 L120,38 L180,33 L240,48 L270,78 L262,128 L242,160 L222,190 L200,220 L178,240 L158,230 L138,210 L128,180 L98,158 L78,138 L68,108 Z" />
-        <path d="M148,222 L180,210 L212,222 L232,252 L242,292 L232,332 L210,372 L190,384 L168,370 L154,338 L138,298 L138,258 Z" />
-        <path d="M338,58 L382,48 L422,54 L442,80 L432,112 L410,122 L388,116 L368,112 L348,120 L338,110 L328,90 Z" />
-        <path d="M328,128 L362,118 L402,124 L432,140 L452,172 L462,212 L452,262 L432,312 L400,346 L370,356 L340,340 L320,300 L310,260 L310,212 L320,170 Z" />
-        <path d="M432,48 L502,38 L582,33 L652,38 L722,48 L762,78 L772,118 L752,158 L722,178 L682,190 L642,184 L602,190 L562,200 L532,190 L502,170 L472,150 L452,128 L440,98 Z" />
-        <path d="M418,28 L502,22 L602,18 L702,24 L782,40 L792,70 L762,80 L700,68 L650,63 L580,58 L500,53 L440,53 Z" />
-        <path d="M548,152 L592,158 L622,172 L652,182 L672,192 L660,212 L630,222 L600,216 L568,200 L548,184 Z" />
-        <path d="M598,258 L650,248 L712,254 L742,276 L752,312 L740,342 L710,358 L670,362 L630,352 L598,330 L583,298 L583,273 Z" />
-        <path d="M192,18 L252,13 L282,24 L288,50 L270,70 L238,80 L208,74 L192,54 Z" />
-        <path d="M728,78 L746,73 L756,88 L752,106 L734,112 L722,94 Z" />
-        <path d="M332,63 L346,58 L352,70 L346,82 L334,82 L328,72 Z" />
-        <path d="M362,33 L386,23 L402,30 L408,52 L396,66 L380,70 L362,58 Z" />
-        <path d="M742,328 L756,322 L762,338 L756,352 L744,350 L740,336 Z" />
-        <path d="M446,293 L454,283 L462,294 L460,316 L452,320 L444,310 Z" />
-      </g>
-      {countries.map(d => {
-        const coords = COUNTRY_CENTROIDS[d.country_code]
-        if (!coords) return null
-        const [x, y] = toXY(coords[0], coords[1])
-        const r = Math.max(5, Math.min(22, 5 + (d.count / maxCount) * 17))
-        return (
-          <g key={d.country_code}>
-            <circle cx={x} cy={y} r={r} fill="rgba(45,106,79,0.70)" stroke="#fff" strokeWidth={1.5} />
-            {d.count > 1 && <text x={x} y={y + 1} textAnchor="middle" dominantBaseline="middle" fill="#fff" fontSize={r > 11 ? 9 : 7} fontWeight="700">{d.count}</text>}
-          </g>
-        )
-      })}
-    </svg>
+    <div style={{ position: 'relative', userSelect: 'none' }}>
+      <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <button onClick={() => setZoom(z => Math.min(8, z + 0.6))} style={zBtn} title={lang === 'da' ? 'Zoom ind' : 'Zoom in'}>+</button>
+        <button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }) }} style={{ ...zBtn, fontSize: 13 }} title={lang === 'da' ? 'Nulstil' : 'Reset'}>↺</button>
+        <button onClick={() => setZoom(z => Math.max(1, z - 0.6))} style={zBtn} title={lang === 'da' ? 'Zoom ud' : 'Zoom out'}>−</button>
+      </div>
+      <svg
+        ref={svgRef}
+        viewBox={`${vX} ${vY} ${vW} ${vH}`}
+        style={{ width: '100%', height: 'auto', borderRadius: 10, border: '1px solid #E8E4DF', cursor: zoom > 1 ? 'grab' : 'default', display: 'block' }}
+        onWheel={handleWheel}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+      >
+        <rect width={W} height={H} fill="#C8DFF4" />
+        <g fill="#D4E6B5" stroke="#B5C99A" strokeWidth="0.6">
+          <path d="M80,58 L120,38 L180,33 L240,48 L270,78 L262,128 L242,160 L222,190 L200,220 L178,240 L158,230 L138,210 L128,180 L98,158 L78,138 L68,108 Z" />
+          <path d="M148,222 L180,210 L212,222 L232,252 L242,292 L232,332 L210,372 L190,384 L168,370 L154,338 L138,298 L138,258 Z" />
+          <path d="M338,58 L382,48 L422,54 L442,80 L432,112 L410,122 L388,116 L368,112 L348,120 L338,110 L328,90 Z" />
+          <path d="M328,128 L362,118 L402,124 L432,140 L452,172 L462,212 L452,262 L432,312 L400,346 L370,356 L340,340 L320,300 L310,260 L310,212 L320,170 Z" />
+          <path d="M432,48 L502,38 L582,33 L652,38 L722,48 L762,78 L772,118 L752,158 L722,178 L682,190 L642,184 L602,190 L562,200 L532,190 L502,170 L472,150 L452,128 L440,98 Z" />
+          <path d="M418,28 L502,22 L602,18 L702,24 L782,40 L792,70 L762,80 L700,68 L650,63 L580,58 L500,53 L440,53 Z" />
+          <path d="M548,152 L592,158 L622,172 L652,182 L672,192 L660,212 L630,222 L600,216 L568,200 L548,184 Z" />
+          <path d="M598,258 L650,248 L712,254 L742,276 L752,312 L740,342 L710,358 L670,362 L630,352 L598,330 L583,298 L583,273 Z" />
+          <path d="M192,18 L252,13 L282,24 L288,50 L270,70 L238,80 L208,74 L192,54 Z" />
+          <path d="M728,78 L746,73 L756,88 L752,106 L734,112 L722,94 Z" />
+          <path d="M332,63 L346,58 L352,70 L346,82 L334,82 L328,72 Z" />
+          <path d="M362,33 L386,23 L402,30 L408,52 L396,66 L380,70 L362,58 Z" />
+          <path d="M742,328 L756,322 L762,338 L756,352 L744,350 L740,336 Z" />
+          <path d="M446,293 L454,283 L462,294 L460,316 L452,320 L444,310 Z" />
+        </g>
+        {countries.map(d => {
+          const coords = COUNTRY_CENTROIDS[d.country_code]
+          if (!coords) return null
+          const [x, y] = toXY(coords[0], coords[1])
+          const r = Math.max(5, Math.min(22, 5 + (d.count / maxCount) * 17))
+          return (
+            <g key={d.country_code}>
+              <circle cx={x} cy={y} r={r} fill="rgba(45,106,79,0.70)" stroke="#fff" strokeWidth={1.5} />
+              {d.count > 1 && <text x={x} y={y + 1} textAnchor="middle" dominantBaseline="middle" fill="#fff" fontSize={r > 11 ? 9 : 7} fontWeight="700">{d.count}</text>}
+            </g>
+          )
+        })}
+      </svg>
+      {zoom > 1 && (
+        <div style={{ textAlign: 'center', fontSize: 11, color: '#aaa', marginTop: 4 }}>
+          {lang === 'da' ? 'Scroll for at zoome · Træk for at panorere' : 'Scroll to zoom · Drag to pan'}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -3868,13 +3939,27 @@ function VisitorStatsPage({ lang }) {
         {!stats?.daily?.length
           ? <div style={{ fontSize: 13, color: '#aaa' }}>{t.noData}</div>
           : (
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 80 }}>
-              {stats.daily.map(d => (
-                <div key={d.date} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                  <div style={{ width: '100%', background: '#2D6A4F', borderRadius: '3px 3px 0 0', height: `${Math.max(2, (d.count / dailyMax) * 70)}px` }} title={`${d.date}: ${d.count}`} />
-                </div>
-              ))}
-            </div>
+            <>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 80 }}>
+                {stats.daily.map(d => (
+                  <div key={d.date} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                    <div style={{ width: '100%', background: '#2D6A4F', borderRadius: '3px 3px 0 0', height: `${Math.max(2, (d.count / dailyMax) * 70)}px` }} title={`${d.date}: ${d.count}`} />
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: 3, marginTop: 4 }}>
+                {stats.daily.map((d, i) => {
+                  if (i % 7 !== 0) return <div key={d.date} style={{ flex: 1 }} />
+                  const [, month, day] = d.date.split('-')
+                  return (
+                    <div key={d.date} style={{ flex: 1, fontSize: 10, color: '#aaa', whiteSpace: 'nowrap' }}>
+                      {lang === 'da' ? `Uge ${Math.floor(i / 7) + 1}` : `Wk ${Math.floor(i / 7) + 1}`}
+                      <span style={{ display: 'block', fontSize: 9, color: '#ccc' }}>{parseInt(day)}/{parseInt(month)}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </>
           )
         }
       </div>
@@ -3884,7 +3969,7 @@ function VisitorStatsPage({ lang }) {
         <div style={{ fontWeight: 700, fontSize: 14, color: '#333', marginBottom: 14 }}>🗺️ {t.map}</div>
         {!stats?.countries?.length
           ? <div style={{ fontSize: 13, color: '#aaa' }}>{t.noData}</div>
-          : <MiniWorldMap countries={stats.countries} />
+          : <MiniWorldMap countries={stats.countries} lang={lang} />
         }
       </div>
 
