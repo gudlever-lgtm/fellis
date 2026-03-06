@@ -3802,6 +3802,119 @@ function AboutPage({ lang }) {
   )
 }
 
+function _isoWeek(dateStr) {
+  const d = new Date(dateStr.split(' ')[0])
+  d.setHours(0, 0, 0, 0)
+  d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7)
+  const w1 = new Date(d.getFullYear(), 0, 4)
+  return 1 + Math.round(((d - w1) / 86400000 - 3 + (w1.getDay() + 6) % 7) / 7)
+}
+
+function _fmtDay(dateStr) {
+  const [y, mo, dy] = dateStr.split(' ')[0].split('-')
+  return `${dy.padStart(2, '0')}-${mo.padStart(2, '0')}-${y}`
+}
+
+function DailyBarChart({ data, color = '#2D6A4F', lang }) {
+  const da = lang === 'da'
+
+  // Group by ISO week
+  const weeks = []
+  const weekMap = {}
+  data.forEach(d => {
+    const wk = _isoWeek(d.date)
+    const yr = new Date(d.date.split(' ')[0]).getFullYear()
+    const key = `${yr}-W${wk}`
+    if (!weekMap[key]) { weekMap[key] = { week: wk, year: yr, days: [] }; weeks.push(weekMap[key]) }
+    weekMap[key].days.push(d)
+  })
+
+  const [weekIdx, setWeekIdx] = useState(weeks.length - 1)
+  const [zoomedOut, setZoomedOut] = useState(false)
+
+  const currentWeek = weeks[Math.min(weekIdx, weeks.length - 1)]
+  const allMax = Math.max(1, ...data.map(d => d.count))
+  const weekMax = currentWeek ? Math.max(1, ...currentWeek.days.map(d => d.count)) : 1
+
+  const navBtn = (disabled, onClick, label) => (
+    <button onClick={onClick} disabled={disabled} style={{
+      fontSize: 18, lineHeight: 1, color: disabled ? '#ccc' : color,
+      background: 'none', border: 'none', cursor: disabled ? 'default' : 'pointer', padding: '0 8px'
+    }}>{label}</button>
+  )
+
+  if (zoomedOut) {
+    return (
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+          <button onClick={() => setZoomedOut(false)} style={{ fontSize: 11, color, background: 'none', border: `1px solid ${color}`, borderRadius: 4, padding: '2px 8px', cursor: 'pointer' }}>
+            {da ? '← Ugevisning' : '← Week view'}
+          </button>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 80 }}>
+          {data.map(d => (
+            <div key={d.date} style={{ flex: 1 }}>
+              <div style={{ width: '100%', background: color, borderRadius: '2px 2px 0 0', height: `${Math.max(2, (d.count / allMax) * 70)}px` }} title={`${_fmtDay(d.date)}: ${d.count}`} />
+            </div>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 2, marginTop: 4 }}>
+          {data.map((d, i) => {
+            const wk = _isoWeek(d.date)
+            const prevWk = i > 0 ? _isoWeek(data[i - 1].date) : null
+            if (i === 0 || wk !== prevWk) {
+              return (
+                <div key={d.date} style={{ flex: 1, fontSize: 8, color: '#888', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontWeight: 700 }}>{da ? `Uge ${wk}` : `Wk ${wk}`}</span>
+                  <span style={{ display: 'block', color: '#bbb', marginTop: 1 }}>{_fmtDay(d.date)}</span>
+                </div>
+              )
+            }
+            return <div key={d.date} style={{ flex: 1 }} />
+          })}
+        </div>
+      </div>
+    )
+  }
+
+  if (!currentWeek) return null
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        {navBtn(weekIdx === 0, () => setWeekIdx(i => Math.max(0, i - 1)), '‹')}
+        <div style={{ textAlign: 'center', fontSize: 13, fontWeight: 700, color: '#555' }}>
+          {da ? `Uge ${currentWeek.week}` : `Week ${currentWeek.week}`}
+          <span style={{ fontWeight: 400, fontSize: 11, color: '#aaa', marginLeft: 6 }}>
+            ({_fmtDay(currentWeek.days[0].date)}{currentWeek.days.length > 1 ? ` – ${_fmtDay(currentWeek.days[currentWeek.days.length - 1].date)}` : ''})
+          </span>
+        </div>
+        {navBtn(weekIdx >= weeks.length - 1, () => setWeekIdx(i => Math.min(weeks.length - 1, i + 1)), '›')}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 80 }}>
+        {currentWeek.days.map(d => (
+          <div key={d.date} style={{ flex: 1 }}>
+            <div style={{ width: '100%', background: color, borderRadius: '3px 3px 0 0', height: `${Math.max(2, (d.count / weekMax) * 70)}px` }} title={`${_fmtDay(d.date)}: ${d.count}`} />
+          </div>
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+        {currentWeek.days.map(d => (
+          <div key={d.date} style={{ flex: 1, fontSize: 8, color: '#888', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+            {_fmtDay(d.date)}
+          </div>
+        ))}
+      </div>
+      {weeks.length > 1 && (
+        <div style={{ textAlign: 'center', marginTop: 10 }}>
+          <button onClick={() => setZoomedOut(true)} style={{ fontSize: 11, color, background: 'none', border: `1px solid ${color}`, borderRadius: 4, padding: '2px 8px', cursor: 'pointer' }}>
+            {da ? '🔍 Vis alle uger' : '🔍 Show all weeks'}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function VisitorStatsPage({ lang }) {
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -3867,10 +3980,6 @@ function VisitorStatsPage({ lang }) {
 
   if (loading) return <div className="p-card" style={{ padding: 40, textAlign: 'center', color: '#888' }}>⏳</div>
 
-  const dailyMax = Math.max(1, ...(stats?.daily || []).map(d => d.count))
-
-  const profileDailyMax = Math.max(1, ...(stats?.myProfileViewsDaily || []).map(d => d.count))
-
   return (
     <div className="p-events" style={{ maxWidth: 720 }}>
       <div style={{ marginBottom: 20 }}>
@@ -3906,33 +4015,7 @@ function VisitorStatsPage({ lang }) {
         <div style={{ fontWeight: 700, fontSize: 14, color: '#333', marginBottom: 14 }}>📅 {t.daily}</div>
         {!stats?.daily?.length
           ? <div style={{ fontSize: 13, color: '#aaa' }}>{t.noData}</div>
-          : (
-            <>
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 80 }}>
-                {stats.daily.map(d => (
-                  <div key={d.date} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                    <div style={{ width: '100%', background: '#2D6A4F', borderRadius: '3px 3px 0 0', height: `${Math.max(2, (d.count / dailyMax) * 70)}px` }} title={`${d.date}: ${d.count}`} />
-                  </div>
-                ))}
-              </div>
-              <div style={{ display: 'flex', gap: 3, marginTop: 4 }}>
-                {stats.daily.map((d, i) => {
-                  if (i % 7 !== 0) return <div key={d.date} style={{ flex: 1 }} />
-                  const [datePart, timePart] = d.date.split(' ')
-                  const [y, mo, dy] = datePart.split('-')
-                  const formatted = `${dy.padStart(2,'0')}-${mo.padStart(2,'0')}-${y} ${timePart ? timePart.slice(0,5) : '00:00'}`
-                  return (
-                    <div key={d.date} style={{ flex: 1, fontSize: 9, color: '#aaa', whiteSpace: 'nowrap', overflow: 'hidden' }}>
-                      <span style={{ fontWeight: 600, color: '#888' }}>
-                        {lang === 'da' ? `Uge ${Math.floor(i / 7) + 1}` : `Wk ${Math.floor(i / 7) + 1}`}
-                      </span>
-                      <span style={{ display: 'block', fontSize: 8, color: '#bbb', marginTop: 1 }}>{formatted}</span>
-                    </div>
-                  )
-                })}
-              </div>
-            </>
-          )
+          : <DailyBarChart data={stats.daily} color="#2D6A4F" lang={lang} />
         }
       </div>
 
@@ -3965,15 +4048,7 @@ function VisitorStatsPage({ lang }) {
         <div style={{ fontWeight: 700, fontSize: 14, color: '#333', marginBottom: 14 }}>📅 {t.myProfileViewsDaily}</div>
         {!stats?.myProfileViewsDaily?.length
           ? <div style={{ fontSize: 13, color: '#aaa' }}>{t.noData}</div>
-          : (
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 80 }}>
-              {stats.myProfileViewsDaily.map(d => (
-                <div key={d.date} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                  <div style={{ width: '100%', background: '#52b788', borderRadius: '3px 3px 0 0', height: `${Math.max(2, (d.count / profileDailyMax) * 70)}px` }} title={`${d.date}: ${d.count}`} />
-                </div>
-              ))}
-            </div>
-          )
+          : <DailyBarChart data={stats.myProfileViewsDaily} color="#52b788" lang={lang} />
         }
       </div>
 
