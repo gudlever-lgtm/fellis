@@ -1238,11 +1238,9 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
 
   // Show scroll-to-top button when user has scrolled more than one viewport height
   useEffect(() => {
-    const container = feedContainerRef.current
-    if (!container) return
-    const onScroll = () => setShowScrollTop(container.scrollTop > window.innerHeight)
-    container.addEventListener('scroll', onScroll, { passive: true })
-    return () => container.removeEventListener('scroll', onScroll)
+    const onScroll = () => setShowScrollTop(window.scrollY > window.innerHeight)
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
   const handleFeedPaste = useCallback((e) => {
@@ -2390,7 +2388,7 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
       {showScrollTop && (
         <button
           title={lang === 'da' ? 'Gå til toppen' : 'Go to top'}
-          onClick={() => feedContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
           style={{
             position: 'fixed',
             bottom: 32,
