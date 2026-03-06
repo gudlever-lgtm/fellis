@@ -233,11 +233,26 @@ export async function apiMarkConversationRead(conversationId) {
   return await request(`/api/conversations/${conversationId}/read`, { method: 'POST' })
 }
 
-export async function apiSendConversationMessage(conversationId, text) {
+export async function apiSendConversationMessage(conversationId, text, media = null) {
   return await request(`/api/conversations/${conversationId}/messages`, {
     method: 'POST',
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ text, ...(media?.length ? { media } : {}) }),
   })
+}
+
+export async function apiUploadFile(file) {
+  const fd = new FormData()
+  fd.append('file', file)
+  try {
+    const res = await fetch(`${API_BASE}/api/upload`, {
+      method: 'POST',
+      headers: formHeaders(),
+      body: fd,
+      credentials: 'same-origin',
+    })
+    if (!res.ok) return null
+    return await res.json()
+  } catch { return null }
 }
 
 export async function apiFetchOlderConversationMessages(conversationId, offset = 0, limit = 20) {

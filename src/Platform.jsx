@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect } from 'react'
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { PT, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiSuggestCategory, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiHeartbeat, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiGetVisitorStats, apiGetChangelog, apiGetNotifications, apiMarkNotificationRead, apiMarkAllNotificationsRead, apiUpdateProfile, apiGetConfig, apiDownloadGooglePhoto } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiSuggestCategory, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiHeartbeat, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiGetVisitorStats, apiGetChangelog, apiGetNotifications, apiMarkNotificationRead, apiMarkAllNotificationsRead, apiUpdateProfile, apiGetConfig, apiDownloadGooglePhoto, apiUploadFile } from './api.js'
 import ReelsPage from './Reels.jsx'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
@@ -5688,6 +5688,8 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened }) 
   const [conversations, setConversations] = useState([])
   const [friends, setFriends] = useState([])
   const [newMsg, setNewMsg] = useState('')
+  const [msgMedia, setMsgMedia] = useState([]) // [{url, type, mime, preview}]
+  const [uploadingMedia, setUploadingMedia] = useState(false)
   const [loadingOlder, setLoadingOlder] = useState(false)
   const [modal, setModal] = useState(null) // null | 'new' | 'newGroup' | 'invite' | 'mute' | 'rename'
   const [showConvMenu, setShowConvMenu] = useState(false)
@@ -5695,6 +5697,7 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened }) 
   const messagesEndRef = useRef(null)
   const msgInputRef = useRef(null)
   const msgBodyRef = useRef(null)
+  const mediaInputRef = useRef(null)
   const msgMention = useMention(friends)
   const topMsgSentinelRef = useRef(null)
   const menuRef = useRef(null)
@@ -5790,19 +5793,35 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened }) 
   }, [newMsg])
 
   const handleSend = useCallback(() => {
-    if (!newMsg.trim()) return
     const text = newMsg.trim()
+    const media = msgMedia.length ? msgMedia.map(({ url, type, mime }) => ({ url, type, mime })) : null
+    if (!text && !media) return
     const conv = conversations[activeConv]
     const time = new Date().toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' })
     setConversations(prev => prev.map((c, i) => {
       if (i !== activeConv) return c
-      const msgs = [...c.messages, { from: currentUser.name, text: { da: text, en: text }, time }]
+      const msgs = [...c.messages, { from: currentUser.name, text: { da: text, en: text }, media, time }]
       return { ...c, messages: msgs.length > MSG_PAGE_SIZE ? msgs.slice(-MSG_PAGE_SIZE) : msgs,
         totalMessages: (c.totalMessages || c.messages.length) + 1, unread: 0 }
     }))
     setNewMsg('')
-    if (conv?.id) apiSendConversationMessage(conv.id, text).catch(() => {})
-  }, [newMsg, activeConv, conversations, currentUser.name])
+    setMsgMedia([])
+    if (conv?.id) apiSendConversationMessage(conv.id, text, media).catch(() => {})
+  }, [newMsg, msgMedia, activeConv, conversations, currentUser.name])
+
+  const handleMediaFiles = useCallback(async (files) => {
+    const allowed = Array.from(files).filter(f => f.type.startsWith('image/') || f.type.startsWith('video/'))
+    if (!allowed.length) return
+    setUploadingMedia(true)
+    const results = await Promise.all(allowed.map(async f => {
+      const preview = f.type.startsWith('image/') ? URL.createObjectURL(f) : null
+      const uploaded = await apiUploadFile(f)
+      if (!uploaded?.url) return null
+      return { url: uploaded.url, type: uploaded.type, mime: uploaded.mime || f.type, preview }
+    }))
+    setMsgMedia(prev => [...prev, ...results.filter(Boolean)])
+    setUploadingMedia(false)
+  }, [])
 
   const selectConv = useCallback((i) => {
     setActiveConv(i)
@@ -6039,13 +6058,26 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened }) 
                     {conv.isGroup && !isMe && (
                       <div className="p-msg-sender-name">{msg.from.split(' ')[0]}</div>
                     )}
-                    <div style={{ whiteSpace: 'pre-wrap' }}>{linkifyText(msg.text[lang] || '').map((p, pi) =>
-                      p.t === 'url'
-                        ? <a key={pi} href={p.v} target="_blank" rel="noopener noreferrer" className="post-link">{p.v}</a>
-                        : p.t === 'mention'
-                          ? <span key={pi} className="p-mention">{p.v}</span>
-                          : <span key={pi}>{p.v}</span>
-                    )}</div>
+                    {msg.text[lang] && (
+                      <div style={{ whiteSpace: 'pre-wrap' }}>{linkifyText(msg.text[lang]).map((p, pi) =>
+                        p.t === 'url'
+                          ? <a key={pi} href={p.v} target="_blank" rel="noopener noreferrer" className="post-link">{p.v}</a>
+                          : p.t === 'mention'
+                            ? <span key={pi} className="p-mention">{p.v}</span>
+                            : <span key={pi}>{p.v}</span>
+                      )}</div>
+                    )}
+                    {msg.media?.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: msg.text[lang] ? 6 : 0 }}>
+                        {msg.media.map((m, mi) => (
+                          m.type === 'video'
+                            ? <video key={mi} src={m.url} controls style={{ maxWidth: 200, maxHeight: 160, borderRadius: 6, display: 'block' }} />
+                            : <a key={mi} href={m.url} target="_blank" rel="noopener noreferrer">
+                                <img src={m.url} alt="" style={{ maxWidth: 200, maxHeight: 160, borderRadius: 6, display: 'block', objectFit: 'cover' }} />
+                              </a>
+                        ))}
+                      </div>
+                    )}
                     <div className="p-msg-time">{msg.time}</div>
                   </div>
                 </div>
@@ -6055,59 +6087,91 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened }) 
           </div>
 
           {/* Input */}
-          <div className="p-msg-input-row">
-            <span className="p-input-hint-wrap">
-              <span className="p-input-hint-icon">?</span>
-              <span className="p-input-hint-tooltip">{t.msgInputHint}</span>
-            </span>
-            <div style={{ position: 'relative', flex: 1 }}>
-              {msgMention.query !== null && (
-                <MentionDropdown
-                  filtered={msgMention.filtered}
-                  selIdx={msgMention.selIdx}
-                  onSelect={f => {
-                    const cursor = msgInputRef.current?.selectionStart ?? newMsg.length
-                    const { text, cursor: nc } = msgMention.buildText(newMsg, cursor, f)
-                    setNewMsg(text)
-                    setTimeout(() => {
-                      if (msgInputRef.current) {
-                        msgInputRef.current.focus()
-                        msgInputRef.current.setSelectionRange(nc, nc)
-                      }
-                    }, 0)
+          <div className="p-msg-input-row" style={{ flexDirection: 'column', gap: 0 }}>
+            {/* Media preview strip */}
+            {msgMedia.length > 0 && (
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '6px 8px 4px', borderBottom: '1px solid #f0f0f0' }}>
+                {msgMedia.map((m, i) => (
+                  <div key={i} style={{ position: 'relative', width: 56, height: 56, borderRadius: 6, overflow: 'hidden', border: '1px solid #ddd', flexShrink: 0 }}>
+                    {m.type === 'image'
+                      ? <img src={m.preview || m.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+                      : <div style={{ width: '100%', height: '100%', background: '#1a1a2e', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🎬</div>
+                    }
+                    <button onClick={() => setMsgMedia(prev => prev.filter((_, j) => j !== i))} style={{ position: 'absolute', top: 1, right: 1, width: 16, height: 16, borderRadius: '50%', background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 10, lineHeight: 1, padding: 0 }}>×</button>
+                  </div>
+                ))}
+                {uploadingMedia && <div style={{ width: 56, height: 56, borderRadius: 6, border: '1px dashed #ccc', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>⏳</div>}
+              </div>
+            )}
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 0, width: '100%' }}>
+              <span className="p-input-hint-wrap">
+                <span className="p-input-hint-icon">?</span>
+                <span className="p-input-hint-tooltip">{t.msgInputHint}</span>
+              </span>
+              {/* Attach button */}
+              <button
+                onClick={() => mediaInputRef.current?.click()}
+                title={lang === 'da' ? 'Vedhæft billede/video' : 'Attach image/video'}
+                style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, padding: '0 4px 0 2px', color: '#888', lineHeight: 1, alignSelf: 'flex-end', paddingBottom: 6 }}
+              >📎</button>
+              <input ref={mediaInputRef} type="file" accept="image/*,video/*" multiple style={{ display: 'none' }}
+                onChange={e => { handleMediaFiles(e.target.files); e.target.value = '' }} />
+              <div style={{ position: 'relative', flex: 1 }}>
+                {msgMention.query !== null && (
+                  <MentionDropdown
+                    filtered={msgMention.filtered}
+                    selIdx={msgMention.selIdx}
+                    onSelect={f => {
+                      const cursor = msgInputRef.current?.selectionStart ?? newMsg.length
+                      const { text, cursor: nc } = msgMention.buildText(newMsg, cursor, f)
+                      setNewMsg(text)
+                      setTimeout(() => {
+                        if (msgInputRef.current) {
+                          msgInputRef.current.focus()
+                          msgInputRef.current.setSelectionRange(nc, nc)
+                        }
+                      }, 0)
+                    }}
+                  />
+                )}
+                <textarea
+                  ref={msgInputRef}
+                  className="p-msg-input"
+                  placeholder={t.typeMessage}
+                  value={newMsg}
+                  rows={1}
+                  onChange={e => {
+                    setNewMsg(e.target.value)
+                    e.target.style.height = 'auto'
+                    e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'
+                    msgMention.detect(e.target.value, e.target.selectionStart)
                   }}
+                  onPaste={e => {
+                    const files = Array.from(e.clipboardData?.items || [])
+                      .filter(item => item.kind === 'file' && (item.type.startsWith('image/') || item.type.startsWith('video/')))
+                      .map(item => item.getAsFile())
+                      .filter(Boolean)
+                    if (files.length) { e.preventDefault(); handleMediaFiles(files) }
+                  }}
+                  onKeyDown={e => {
+                    if (msgMention.handleKey(e, f => {
+                      const cursor = msgInputRef.current?.selectionStart ?? newMsg.length
+                      const { text, cursor: nc } = msgMention.buildText(newMsg, cursor, f)
+                      setNewMsg(text)
+                      setTimeout(() => {
+                        if (msgInputRef.current) {
+                          msgInputRef.current.focus()
+                          msgInputRef.current.setSelectionRange(nc, nc)
+                        }
+                      }, 0)
+                    })) return
+                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
+                  }}
+                  onBlur={() => setTimeout(() => msgMention.close(), 150)}
                 />
-              )}
-              <textarea
-                ref={msgInputRef}
-                className="p-msg-input"
-                placeholder={t.typeMessage}
-                value={newMsg}
-                rows={1}
-                onChange={e => {
-                  setNewMsg(e.target.value)
-                  e.target.style.height = 'auto'
-                  e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'
-                  msgMention.detect(e.target.value, e.target.selectionStart)
-                }}
-                onKeyDown={e => {
-                  if (msgMention.handleKey(e, f => {
-                    const cursor = msgInputRef.current?.selectionStart ?? newMsg.length
-                    const { text, cursor: nc } = msgMention.buildText(newMsg, cursor, f)
-                    setNewMsg(text)
-                    setTimeout(() => {
-                      if (msgInputRef.current) {
-                        msgInputRef.current.focus()
-                        msgInputRef.current.setSelectionRange(nc, nc)
-                      }
-                    }, 0)
-                  })) return
-                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
-                }}
-                onBlur={() => setTimeout(() => msgMention.close(), 150)}
-              />
+              </div>
+              <button className="p-send-btn" onClick={handleSend}>{t.send}</button>
             </div>
-            <button className="p-send-btn" onClick={handleSend}>{t.send}</button>
           </div>
         </div>
       )}

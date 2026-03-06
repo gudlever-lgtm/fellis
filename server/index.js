@@ -2413,7 +2413,7 @@ async function getConversationForUser(convId, userId, myName) {
      JOIN conversation_participants cp ON cp.user_id = u.id
      WHERE cp.conversation_id = ?`, [convId])
   const [msgs] = await pool.query(
-    `SELECT u.name as from_name, m.text_da, m.text_en, m.time, m.is_read, m.created_at
+    `SELECT u.name as from_name, m.text_da, m.text_en, m.media, m.time, m.is_read, m.created_at
      FROM messages m JOIN users u ON m.sender_id = u.id
      WHERE m.conversation_id = ? ORDER BY m.created_at DESC LIMIT 20`, [convId])
   msgs.reverse()
@@ -2435,7 +2435,7 @@ async function getConversationForUser(convId, userId, myName) {
     groupName: conv.name,
     participants: participants.map(p => ({ id: p.id, name: p.name, online: !!p.online })),
     otherOnline: !conv.is_group && !!(participants.find(p => p.id !== userId)?.online),
-    messages: msgs.map(m => ({ from: m.from_name, text: { da: m.text_da, en: m.text_en }, time: m.created_at ? formatMsgTime(m.created_at) : m.time })),
+    messages: msgs.map(m => ({ from: m.from_name, text: { da: m.text_da, en: m.text_en }, media: m.media ? JSON.parse(m.media) : null, time: m.created_at ? formatMsgTime(m.created_at) : m.time })),
     totalMessages: total,
     unread,
     mutedUntil: conv.muted_until,
@@ -2472,12 +2472,12 @@ app.get('/api/conversations/:id/messages/older', authenticate, async (req, res) 
       'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, req.userId])
     if (!check.length) return res.status(403).json({ error: 'Not a participant' })
     const [msgs] = await pool.query(
-      `SELECT u.name as from_name, m.text_da, m.text_en, m.time, m.created_at
+      `SELECT u.name as from_name, m.text_da, m.text_en, m.media, m.time, m.created_at
        FROM messages m JOIN users u ON m.sender_id = u.id
        WHERE m.conversation_id = ? ORDER BY m.created_at DESC LIMIT ? OFFSET ?`,
       [convId, limit, offset])
     msgs.reverse()
-    res.json({ messages: msgs.map(m => ({ from: m.from_name, text: { da: m.text_da, en: m.text_en }, time: m.created_at ? formatMsgTime(m.created_at) : m.time })) })
+    res.json({ messages: msgs.map(m => ({ from: m.from_name, text: { da: m.text_da, en: m.text_en }, media: m.media ? JSON.parse(m.media) : null, time: m.created_at ? formatMsgTime(m.created_at) : m.time })) })
   } catch (err) {
     res.status(500).json({ error: 'Failed to load messages' })
   }
@@ -2536,11 +2536,18 @@ app.get('/api/sse', authenticate, (req, res) => {
   })
 })
 
-// POST /api/conversations/:id/messages — send a message
+// POST /api/conversations/:id/messages — send a message (with optional media)
 app.post('/api/conversations/:id/messages', authenticate, async (req, res) => {
   const convId = parseInt(req.params.id)
-  const { text } = req.body
-  if (!text) return res.status(400).json({ error: 'Message text required' })
+  const { text, media } = req.body
+  if (!text && !media?.length) return res.status(400).json({ error: 'Message text or media required' })
+  const safeText = text || ''
+  let mediaJson = null
+  if (Array.isArray(media) && media.length) {
+    // Validate each media item has a url under /uploads/
+    const valid = media.filter(m => typeof m.url === 'string' && m.url.startsWith('/uploads/'))
+    if (valid.length) mediaJson = JSON.stringify(valid)
+  }
   try {
     const [check] = await pool.query(
       'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, req.userId])
@@ -2551,10 +2558,11 @@ app.post('/api/conversations/:id/messages', authenticate, async (req, res) => {
       'SELECT user_id FROM conversation_participants WHERE conversation_id = ?', [convId])
     const receiverId = participants.find(p => p.user_id !== req.userId)?.user_id ?? req.userId
     await pool.query(
-      'INSERT INTO messages (conversation_id, sender_id, receiver_id, text_da, text_en, time) VALUES (?, ?, ?, ?, ?, ?)',
-      [convId, req.userId, receiverId, text, text, time])
+      'INSERT INTO messages (conversation_id, sender_id, receiver_id, text_da, text_en, media, time) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [convId, req.userId, receiverId, safeText, safeText, mediaJson, time])
     const [[user]] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
-    const msg = { from: user.name, text: { da: text, en: text }, time: formatMsgTime(now) }
+    const parsedMedia = mediaJson ? JSON.parse(mediaJson) : null
+    const msg = { from: user.name, text: { da: safeText, en: safeText }, media: parsedMedia, time: formatMsgTime(now) }
     // Push the new message to all other participants via SSE
     for (const { user_id } of participants) {
       if (user_id !== req.userId) sseBroadcast(user_id, { type: 'message', convId, msg })
