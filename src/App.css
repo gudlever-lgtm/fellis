@@ -16,9 +16,24 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  color: #2D6A4F;
+}
+.nav-logo-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.nav-logo-brand {
   font-weight: 700;
   font-size: 20px;
-  color: #2D6A4F;
+  line-height: 1.2;
+}
+.nav-logo-tagline {
+  font-size: 10px;
+  font-weight: 500;
+  color: #5a9e7a;
+  letter-spacing: 0.03em;
+  line-height: 1;
 }
 .nav-logo-icon {
   width: 36px;
@@ -3117,8 +3132,10 @@
     padding: 0 12px;
   }
   .nav-logo {
-    font-size: 0;
     gap: 0;
+  }
+  .nav-logo-text {
+    display: none;
   }
   .nav-logo-icon {
     font-size: 18px;

@@ -501,7 +501,10 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
       <nav className="nav">
         <div className="nav-logo">
           <img src="/fellis-logo.jpg" className="nav-logo-icon" alt="" />
-          {t.navBrand}
+          <div className="nav-logo-text">
+            <span className="nav-logo-brand">{t.navBrand}</span>
+            <span className="nav-logo-tagline">Connect. Share. Discover.</span>
+          </div>
         </div>
         <div className="nav-right-group">
           <button className="lang-toggle" onClick={toggleLang}>{t.langToggle}</button>

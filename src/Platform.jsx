@@ -196,7 +196,10 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
         <div className="p-nav-left">
           <div className="nav-logo" style={{ cursor: 'pointer' }} onClick={() => navigateTo('feed')}>
             <img src="/fellis-logo.jpg" className="nav-logo-icon" alt="" />
-            {t.navBrand}
+            <div className="nav-logo-text">
+              <span className="nav-logo-brand">{t.navBrand}</span>
+              <span className="nav-logo-tagline">Connect. Share. Discover.</span>
+            </div>
           </div>
         </div>
         <button
