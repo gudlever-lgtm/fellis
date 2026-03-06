@@ -207,7 +207,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
           {showMobileMenu ? '✕' : '☰'}
         </button>
         <div className={`p-nav-tabs${showMobileMenu ? ' open' : ''}`}>
-          {['feed', 'reels', 'friends', 'messages', 'events', 'calendar', 'marketplace', ...(mode === 'business' ? ['jobs', 'analytics'] : []), 'company'].map(p => (
+          {['feed', 'reels', 'friends', 'messages', 'events', 'calendar', 'marketplace', ...(mode === 'business' ? ['jobs', 'analytics', 'company'] : [])].map(p => (
             <button
               key={p}
               className={`p-nav-tab${page === p ? ' active' : ''}`}
