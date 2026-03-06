@@ -8099,6 +8099,53 @@ function JobsPage({ lang, t, currentUser, mode }) {
   )
 }
 
+const DK_OVERENSKOMSTER = [
+  { group: 'Industri & Håndværk', options: [
+    'CO-industri (generel industrioverenskomst)',
+    'Dansk Metal',
+    '3F Industri',
+    'BAT-kartellet (bygge & anlæg)',
+    'Malerforbundet',
+    'El-overenskomsten (TEKNIQ / Dansk El-Forbund)',
+    'VVS-overenskomsten (TEKNIQ / Blik- og Rørarbejderforbundet)',
+  ]},
+  { group: 'Kontor & Handel', options: [
+    'HK Privat',
+    'HK Handel',
+    'HK Kommunal',
+    'Funktionæroverenskomsten (DA/HK)',
+  ]},
+  { group: 'Transport & Lager', options: [
+    '3F Transport',
+    '3F Lager, Post og Service',
+    'Chaufføroverenskomsten',
+  ]},
+  { group: 'IT & Medier', options: [
+    'PROSA (IT-overenskomsten)',
+    'Dansk Journalistforbund',
+    'DM – Dansk Magisterforening',
+    'IDA (Ingeniørforeningen)',
+  ]},
+  { group: 'Finans & Forsikring', options: [
+    'Finansforbundet',
+    'Forsikringsforbundet',
+  ]},
+  { group: 'Offentlig sektor', options: [
+    'KL (kommuner)',
+    'RLTN (regioner)',
+    'Moderniseringsstyrelsen / Staten',
+    'FOA – Fag og Arbejde',
+    'DSR (Dansk Sygeplejeråd)',
+    'BUPL (pædagoger)',
+    'DLF (Danmarks Lærerforening)',
+    'Lederne i den offentlige sektor',
+  ]},
+  { group: 'Ledere & Akademikere', options: [
+    'Lederne',
+    'Akademikerne',
+  ]},
+]
+
 function CreateJobModal({ t, lang, companies, onClose, onCreate, editJob }) {
   const isEdit = !!editJob
   const [title, setTitle] = useState(editJob?.title || '')
@@ -8144,7 +8191,7 @@ function CreateJobModal({ t, lang, companies, onClose, onCreate, editJob }) {
       salary_max: salaryMax ? Number(salaryMax) : null,
       salary_currency: salaryCurrency,
       salary_period: salaryPeriod,
-      collective_agreement: collectiveAgreement.trim() || null,
+      collective_agreement: (collectiveAgreement && collectiveAgreement !== '__anden__') ? collectiveAgreement.trim() : null,
     }
     try {
       const url = isEdit ? `/api/jobs/${editJob.id}` : '/api/jobs'
@@ -8234,7 +8281,32 @@ function CreateJobModal({ t, lang, companies, onClose, onCreate, editJob }) {
             </div>
             <div>
               <label style={{ ...lS, marginTop: 10 }}>{t.jobCollectiveAgreement}</label>
-              <input style={fS} value={collectiveAgreement} onChange={e => setCollectiveAgreement(e.target.value)} placeholder={t.jobCollectiveAgreementPlaceholder} />
+              <select
+                style={fS}
+                value={DK_OVERENSKOMSTER.flatMap(g => g.options).includes(collectiveAgreement) ? collectiveAgreement : (collectiveAgreement === '' ? '' : '__anden__')}
+                onChange={e => {
+                  if (e.target.value === '__anden__') setCollectiveAgreement('__anden__')
+                  else setCollectiveAgreement(e.target.value)
+                }}
+              >
+                <option value="">{lang === 'da' ? '— Vælg overenskomst —' : '— Select agreement —'}</option>
+                <option value="Ingen overenskomst">{lang === 'da' ? 'Ingen overenskomst' : 'No collective agreement'}</option>
+                {DK_OVERENSKOMSTER.map(group => (
+                  <optgroup key={group.group} label={group.group}>
+                    {group.options.map(o => <option key={o} value={o}>{o}</option>)}
+                  </optgroup>
+                ))}
+                <option value="__anden__">{lang === 'da' ? 'Anden (skriv selv)' : 'Other (type manually)'}</option>
+              </select>
+              {(collectiveAgreement === '__anden__' || (!DK_OVERENSKOMSTER.flatMap(g => g.options).includes(collectiveAgreement) && collectiveAgreement !== '' && collectiveAgreement !== 'Ingen overenskomst')) && (
+                <input
+                  style={{ ...fS, marginTop: 6 }}
+                  value={collectiveAgreement === '__anden__' ? '' : collectiveAgreement}
+                  onChange={e => setCollectiveAgreement(e.target.value)}
+                  placeholder={lang === 'da' ? 'Skriv overenskomst...' : 'Type agreement name...'}
+                  autoFocus
+                />
+              )}
             </div>
           </div>
 
