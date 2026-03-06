@@ -5691,6 +5691,7 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened }) 
   const [msgMedia, setMsgMedia] = useState([]) // [{url, type, mime, preview}]
   const [uploadingMedia, setUploadingMedia] = useState(false)
   const [loadingOlder, setLoadingOlder] = useState(false)
+  const [msgMediaPopup, setMsgMediaPopup] = useState(false)
   const [modal, setModal] = useState(null) // null | 'new' | 'newGroup' | 'invite' | 'mute' | 'rename'
   const [showConvMenu, setShowConvMenu] = useState(false)
   const [deleteConvId, setDeleteConvId] = useState(null) // id to confirm delete
@@ -6109,11 +6110,31 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened }) 
                 <span className="p-input-hint-tooltip">{t.msgInputHint}</span>
               </span>
               {/* Attach button */}
-              <button
-                onClick={() => mediaInputRef.current?.click()}
-                title={lang === 'da' ? 'Vedhæft billede/video' : 'Attach image/video'}
-                style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, padding: '0 4px 0 2px', color: '#888', lineHeight: 1, alignSelf: 'flex-end', paddingBottom: 6 }}
-              >📎</button>
+              <div className="p-media-popup-wrap" style={{ alignSelf: 'flex-end', marginBottom: 4 }}>
+                <button
+                  className={`p-media-popup-btn${msgMediaPopup ? ' active' : ''}`}
+                  onMouseDown={e => e.preventDefault()}
+                  onClick={() => setMsgMediaPopup(p => !p)}
+                  title={lang === 'da' ? 'Tilføj medie' : 'Add media'}
+                >
+                  +
+                </button>
+                {msgMediaPopup && (
+                  <>
+                    <div className="p-share-backdrop" onClick={() => setMsgMediaPopup(false)} />
+                    <div className="p-share-popup p-media-popup p-media-popup-right">
+                      <button className="p-share-option" onMouseDown={e => e.preventDefault()} onClick={() => { mediaInputRef.current?.click(); setMsgMediaPopup(false) }}>
+                        <span className="p-media-popup-icon">🖼️</span>
+                        {lang === 'da' ? 'Galleri' : 'Gallery'}
+                      </button>
+                      <button className="p-share-option" onMouseDown={e => e.preventDefault()} onClick={() => { setMsgMediaPopup(false); openCamera(e => handleMediaFiles(e.target.files)) }}>
+                        <span className="p-media-popup-icon">📷</span>
+                        {lang === 'da' ? 'Kamera' : 'Camera'}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
               <input ref={mediaInputRef} type="file" accept="image/*,video/*" multiple style={{ display: 'none' }}
                 onChange={e => { handleMediaFiles(e.target.files); e.target.value = '' }} />
               <div style={{ position: 'relative', flex: 1 }}>
