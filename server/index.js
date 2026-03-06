@@ -2520,7 +2520,8 @@ app.get('/api/sse', authenticate, (req, res) => {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
     'Connection': 'keep-alive',
-    'X-Accel-Buffering': 'no', // disable nginx buffering
+    'X-Accel-Buffering': 'no',       // disable nginx buffering
+    'X-Lighttpd-Send-Tempfile': 'no', // disable lighttpd buffering
   })
   res.flushHeaders()
   res.write(': connected\n\n')
