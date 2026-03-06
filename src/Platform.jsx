@@ -1111,6 +1111,7 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
   const [groupSuggestions, setGroupSuggestions] = useState([])
   const [joinedGroupIds, setJoinedGroupIds] = useState(new Set())
   const [dismissedGroupIds, setDismissedGroupIds] = useState(new Set())
+  const [showScrollTop, setShowScrollTop] = useState(false)
 
   const handleJoinGroup = async (groupId) => {
     setJoinedGroupIds(prev => new Set([...prev, groupId]))
@@ -1234,6 +1235,15 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
     observer.observe(el)
     return () => observer.disconnect()
   }, [offset, fetchPage]) // offset: sentinel mounts/unmounts; fetchPage: stable
+
+  // Show scroll-to-top button when user has scrolled more than one viewport height
+  useEffect(() => {
+    const container = feedContainerRef.current
+    if (!container) return
+    const onScroll = () => setShowScrollTop(container.scrollTop > window.innerHeight)
+    container.addEventListener('scroll', onScroll, { passive: true })
+    return () => container.removeEventListener('scroll', onScroll)
+  }, [])
 
   const handleFeedPaste = useCallback((e) => {
     const items = Array.from(e.clipboardData?.items || [])
@@ -2377,6 +2387,36 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
           />
         )
       })()}
+      {showScrollTop && (
+        <button
+          title={lang === 'da' ? 'Gå til toppen' : 'Go to top'}
+          onClick={() => feedContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
+          style={{
+            position: 'fixed',
+            bottom: 32,
+            right: 32,
+            width: 44,
+            height: 44,
+            borderRadius: '50%',
+            border: 'none',
+            background: 'rgba(0,0,0,0.45)',
+            color: '#fff',
+            fontSize: 20,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+            opacity: 0.75,
+            transition: 'opacity 0.2s',
+            zIndex: 900,
+          }}
+          onMouseEnter={e => e.currentTarget.style.opacity = '1'}
+          onMouseLeave={e => e.currentTarget.style.opacity = '0.75'}
+        >
+          ↑
+        </button>
+      )}
     </div>
   )
 }
