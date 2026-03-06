@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect } from 'react'
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { PT, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiSuggestCategory, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiHeartbeat, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiGetVisitorStats, apiGetChangelog, apiGetNotifications, apiMarkNotificationRead, apiMarkAllNotificationsRead, apiUpdateProfile, apiGetConfig, apiDownloadGooglePhoto, apiUploadFile } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiSuggestCategory, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiHeartbeat, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiGetVisitorStats, apiGetChangelog, apiGetNotifications, apiMarkNotificationRead, apiMarkAllNotificationsRead, apiUpdateProfile, apiGetConfig, apiDownloadGooglePhoto, apiUploadFile, apiGetMyJobs } from './api.js'
 import ReelsPage from './Reels.jsx'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
@@ -7829,6 +7829,11 @@ function JobCard({ job, t, lang, onSaveToggle }) {
             <span className="p-event-type-badge">{typeLabels[job.type] || job.type}</span>
             <span style={{ fontSize: 12, color: '#999' }}>{postedDate}</span>
           </div>
+          {(job.salary_min || job.salary_max) && (
+            <div style={{ fontSize: 13, color: '#2D6A4F', fontWeight: 600, marginBottom: 8 }}>
+              💰 {job.salary_min ? job.salary_min.toLocaleString() : '?'} – {job.salary_max ? job.salary_max.toLocaleString() : '?'} {job.salary_currency || 'DKK'} / {job.salary_period === 'annual' ? (lang === 'da' ? 'år' : 'year') : (lang === 'da' ? 'md.' : 'mo.')}
+            </div>
+          )}
           <p style={{ fontSize: 13, color: '#555', lineHeight: 1.5, margin: '0 0 10px' }}>{desc.slice(0, 200)}{desc.length > 200 ? '…' : ''}</p>
           {reqs && (
             <details style={{ marginBottom: 12 }}>
@@ -7879,12 +7884,14 @@ function JobCard({ job, t, lang, onSaveToggle }) {
 function JobsPage({ lang, t, currentUser, mode }) {
   const [jobs, setJobs] = useState([])
   const [savedJobs, setSavedJobs] = useState([])
+  const [myJobs, setMyJobs] = useState([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('all')
   const [filterType, setFilterType] = useState('')
   const [filterLocation, setFilterLocation] = useState('')
   const [filterKeyword, setFilterKeyword] = useState('')
   const [showCreate, setShowCreate] = useState(false)
+  const [editJob, setEditJob] = useState(null)
   const [myCompanies, setMyCompanies] = useState([])
 
   useEffect(() => {
@@ -7914,48 +7921,73 @@ function JobsPage({ lang, t, currentUser, mode }) {
       .catch(() => {})
   }, [])
 
+  useEffect(() => {
+    if (mode === 'business') {
+      apiGetMyJobs().then(data => setMyJobs(data?.jobs || []))
+    }
+  }, [mode])
+
+  const refreshMyJobs = () => apiGetMyJobs().then(data => setMyJobs(data?.jobs || []))
+
+  const handleToggleActive = (job) => {
+    fetch(`/api/jobs/${job.id}`, {
+      method: 'PUT', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...job, active: !job.active }),
+    })
+      .then(r => r.json())
+      .then(() => refreshMyJobs())
+      .catch(() => {})
+  }
+
   const displayJobs = tab === 'saved' ? savedJobs : jobs.filter(j => {
     if (filterLocation && !j.location?.toLowerCase().includes(filterLocation.toLowerCase()) && !j.remote) return false
     return true
   })
 
+  const typeLabels = { fulltime: t.jobTypeFullTime, parttime: t.jobTypePartTime, freelance: t.jobTypeFreelance, internship: t.jobTypeInternship }
+
   return (
     <div className="p-events" style={{ maxWidth: 720 }}>
       <div className="p-events-header">
         <h2 className="p-section-title" style={{ margin: 0 }}>💼 {t.jobsTitle}</h2>
-        <button className="p-events-create-btn" onClick={() => setShowCreate(true)}>
-          + {t.createJob}
-        </button>
+        {mode === 'business' && (
+          <button className="p-events-create-btn" onClick={() => setShowCreate(true)}>
+            + {t.createJob}
+          </button>
+        )}
       </div>
 
-      {/* Filters */}
-      <div className="p-card" style={{ marginBottom: 14, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        <input
-          className="p-search-input"
-          style={{ flex: 2, minWidth: 120 }}
-          placeholder={t.jobSearchKeyword}
-          value={filterKeyword}
-          onChange={e => setFilterKeyword(e.target.value)}
-        />
-        <input
-          className="p-search-input"
-          style={{ flex: 1, minWidth: 100 }}
-          placeholder={t.jobSearchLocation}
-          value={filterLocation}
-          onChange={e => setFilterLocation(e.target.value)}
-        />
-        <select
-          style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, fontFamily: 'inherit', color: '#444' }}
-          value={filterType}
-          onChange={e => setFilterType(e.target.value)}
-        >
-          <option value="">{t.jobSearchType}</option>
-          <option value="fulltime">{t.jobTypeFullTime}</option>
-          <option value="parttime">{t.jobTypePartTime}</option>
-          <option value="freelance">{t.jobTypeFreelance}</option>
-          <option value="internship">{t.jobTypeInternship}</option>
-        </select>
-      </div>
+      {/* Filters — only shown on browse tabs */}
+      {tab !== 'mine' && (
+        <div className="p-card" style={{ marginBottom: 14, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <input
+            className="p-search-input"
+            style={{ flex: 2, minWidth: 120 }}
+            placeholder={t.jobSearchKeyword}
+            value={filterKeyword}
+            onChange={e => setFilterKeyword(e.target.value)}
+          />
+          <input
+            className="p-search-input"
+            style={{ flex: 1, minWidth: 100 }}
+            placeholder={t.jobSearchLocation}
+            value={filterLocation}
+            onChange={e => setFilterLocation(e.target.value)}
+          />
+          <select
+            style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, fontFamily: 'inherit', color: '#444' }}
+            value={filterType}
+            onChange={e => setFilterType(e.target.value)}
+          >
+            <option value="">{t.jobSearchType}</option>
+            <option value="fulltime">{t.jobTypeFullTime}</option>
+            <option value="parttime">{t.jobTypePartTime}</option>
+            <option value="freelance">{t.jobTypeFreelance}</option>
+            <option value="internship">{t.jobTypeInternship}</option>
+          </select>
+        </div>
+      )}
 
       <div className="p-filter-tabs" style={{ marginBottom: 16 }}>
         <button className={`p-filter-tab${tab === 'all' ? ' active' : ''}`} onClick={() => setTab('all')}>
@@ -7964,9 +7996,61 @@ function JobsPage({ lang, t, currentUser, mode }) {
         <button className={`p-filter-tab${tab === 'saved' ? ' active' : ''}`} onClick={() => setTab('saved')}>
           {t.savedJobs} ({savedJobs.length})
         </button>
+        {mode === 'business' && (
+          <button className={`p-filter-tab${tab === 'mine' ? ' active' : ''}`} onClick={() => setTab('mine')}>
+            {t.jobMyListings} ({myJobs.length})
+          </button>
+        )}
       </div>
 
-      {loading ? (
+      {/* Mine Opslag — business management tab */}
+      {tab === 'mine' ? (
+        myJobs.length === 0 ? (
+          <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>{t.jobNoJobs}</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {myJobs.map(job => (
+              <div key={job.id} className="p-card" style={{ opacity: job.active ? 1 : 0.55 }}>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 8, background: job.company_color || '#1877F2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 18, flexShrink: 0 }}>
+                    {(job.company_name || '?')[0]}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <span style={{ fontWeight: 700, fontSize: 15 }}>{job.title}</span>
+                      <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: job.active ? '#F0FAF4' : '#f5f5f5', color: job.active ? '#2D6A4F' : '#888', fontWeight: 600 }}>
+                        {job.active ? t.jobStatusActive : t.jobStatusClosed}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 13, color: '#666', marginTop: 2 }}>
+                      {job.company_name} · {job.location || '—'}{job.remote ? ` · ${t.jobRemote}` : ''} · {typeLabels[job.type] || job.type}
+                    </div>
+                    {(job.salary_min || job.salary_max) && (
+                      <div style={{ fontSize: 13, color: '#2D6A4F', fontWeight: 600, marginTop: 4 }}>
+                        💰 {job.salary_min ? job.salary_min.toLocaleString() : '?'} – {job.salary_max ? job.salary_max.toLocaleString() : '?'} {job.salary_currency || 'DKK'} / {job.salary_period === 'annual' ? (lang === 'da' ? 'år' : 'year') : (lang === 'da' ? 'md.' : 'mo.')}
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                      <button
+                        onClick={() => setEditJob(job)}
+                        style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', fontSize: 13, cursor: 'pointer', fontWeight: 600 }}
+                      >
+                        ✏️ {t.jobEdit}
+                      </button>
+                      <button
+                        onClick={() => handleToggleActive(job)}
+                        style={{ padding: '6px 14px', borderRadius: 8, border: `1px solid ${job.active ? '#e74c3c' : '#2D6A4F'}`, background: job.active ? '#fff5f5' : '#F0FAF4', color: job.active ? '#e74c3c' : '#2D6A4F', fontSize: 13, cursor: 'pointer', fontWeight: 600 }}
+                      >
+                        {job.active ? `🚫 ${t.jobClose}` : `✅ ${t.jobReopen}`}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      ) : loading ? (
         <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>⏳</div>
       ) : displayJobs.length === 0 ? (
         <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>{t.jobNoJobs}</div>
@@ -7993,24 +8077,39 @@ function JobsPage({ lang, t, currentUser, mode }) {
           lang={lang}
           companies={myCompanies}
           onClose={() => setShowCreate(false)}
-          onCreate={(job) => { setJobs(prev => [job, ...prev]); setShowCreate(false) }}
+          onCreate={(job) => { setJobs(prev => [job, ...prev]); setShowCreate(false); refreshMyJobs() }}
+        />
+      )}
+      {editJob && (
+        <CreateJobModal
+          t={t}
+          lang={lang}
+          companies={myCompanies}
+          editJob={editJob}
+          onClose={() => setEditJob(null)}
+          onCreate={() => { setEditJob(null); refreshMyJobs() }}
         />
       )}
     </div>
   )
 }
 
-function CreateJobModal({ t, lang, companies, onClose, onCreate }) {
-  const [title, setTitle] = useState('')
-  const [companyId, setCompanyId] = useState(companies[0]?.id || '')
-  const [location, setLocation] = useState('')
-  const [remote, setRemote] = useState(false)
-  const [type, setType] = useState('fulltime')
-  const [description, setDescription] = useState('')
-  const [requirements, setRequirements] = useState('')
-  const [applyLink, setApplyLink] = useState('')
-  const [contactEmail, setContactEmail] = useState('')
-  const [deadline, setDeadline] = useState('')
+function CreateJobModal({ t, lang, companies, onClose, onCreate, editJob }) {
+  const isEdit = !!editJob
+  const [title, setTitle] = useState(editJob?.title || '')
+  const [companyId, setCompanyId] = useState(editJob?.company_id || companies[0]?.id || '')
+  const [location, setLocation] = useState(editJob?.location || '')
+  const [remote, setRemote] = useState(!!editJob?.remote)
+  const [type, setType] = useState(editJob?.type || 'fulltime')
+  const [description, setDescription] = useState(editJob?.description || '')
+  const [requirements, setRequirements] = useState(editJob?.requirements || '')
+  const [applyLink, setApplyLink] = useState(editJob?.apply_link || '')
+  const [contactEmail, setContactEmail] = useState(editJob?.contact_email || '')
+  const [deadline, setDeadline] = useState(editJob?.deadline ? editJob.deadline.split('T')[0] : '')
+  const [salaryMin, setSalaryMin] = useState(editJob?.salary_min || '')
+  const [salaryMax, setSalaryMax] = useState(editJob?.salary_max || '')
+  const [salaryCurrency, setSalaryCurrency] = useState(editJob?.salary_currency || 'DKK')
+  const [salaryPeriod, setSalaryPeriod] = useState(editJob?.salary_period || 'monthly')
 
   useEffect(() => {
     const h = (e) => { if (e.key === 'Escape') onClose() }
@@ -8024,24 +8123,30 @@ function CreateJobModal({ t, lang, companies, onClose, onCreate }) {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!title.trim()) return
+    const payload = {
+      company_id: Number(companyId) || companies[0]?.id,
+      title: title.trim(),
+      location: location.trim() || null,
+      remote,
+      type,
+      description: description.trim() || null,
+      requirements: requirements.trim() || null,
+      apply_link: applyLink.trim() || null,
+      contact_email: contactEmail.trim() || null,
+      deadline: deadline || null,
+      salary_min: salaryMin ? Number(salaryMin) : null,
+      salary_max: salaryMax ? Number(salaryMax) : null,
+      salary_currency: salaryCurrency,
+      salary_period: salaryPeriod,
+    }
     try {
-      const res = await fetch('/api/jobs', {
-        method: 'POST', credentials: 'include',
+      const url = isEdit ? `/api/jobs/${editJob.id}` : '/api/jobs'
+      const res = await fetch(url, {
+        method: isEdit ? 'PUT' : 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          company_id: Number(companyId) || companies[0]?.id,
-          title: title.trim(),
-          location: location.trim() || null,
-          remote,
-          type,
-          description: description.trim() || null,
-          requirements: requirements.trim() || null,
-          apply_link: applyLink.trim() || null,
-          contact_email: contactEmail.trim() || null,
-          deadline: deadline || null,
-        }),
+        body: JSON.stringify(payload),
       })
-      if (!res.ok) { const e = await res.json(); alert(e.error || 'Fejl'); return }
+      if (!res.ok) { const err = await res.json(); alert(err.error || 'Fejl'); return }
       const job = await res.json()
       onCreate(job)
     } catch { alert(lang === 'da' ? 'Netværksfejl' : 'Network error') }
@@ -8049,10 +8154,12 @@ function CreateJobModal({ t, lang, companies, onClose, onCreate }) {
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="p-event-create-modal" onClick={e => e.stopPropagation()}>
-        <h3 style={{ margin: '0 0 20px', fontSize: 18, fontWeight: 700 }}>💼 {t.createJob}</h3>
+      <div className="p-event-create-modal" onClick={e => e.stopPropagation()} style={{ maxHeight: '90vh', overflowY: 'auto' }}>
+        <h3 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 700 }}>
+          💼 {isEdit ? (lang === 'da' ? 'Rediger jobopslag' : 'Edit job listing') : t.createJob}
+        </h3>
         <form onSubmit={handleSubmit}>
-          {companies.length > 0 && (
+          {!isEdit && companies.length > 0 && (
             <>
               <label style={lS}>{t.companies}</label>
               <select style={fS} value={companyId} onChange={e => setCompanyId(e.target.value)}>
@@ -8079,6 +8186,47 @@ function CreateJobModal({ t, lang, companies, onClose, onCreate }) {
           <textarea style={{ ...fS, minHeight: 80, resize: 'vertical' }} value={description} onChange={e => setDescription(e.target.value)} placeholder={lang === 'da' ? 'Beskriv stillingen...' : 'Describe the position...'} />
           <label style={lS}>{t.jobRequirements}</label>
           <textarea style={{ ...fS, minHeight: 60, resize: 'vertical' }} value={requirements} onChange={e => setRequirements(e.target.value)} placeholder={lang === 'da' ? 'Krav til ansøgeren...' : 'Requirements for applicants...'} />
+
+          {/* EU Pay Transparency — Salary fields */}
+          <div style={{ marginTop: 18, padding: '12px 14px', borderRadius: 8, background: '#F0FAF4', border: '1px solid #b7dfc8' }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#2D6A4F', marginBottom: 6 }}>
+              💶 {t.jobSalaryRange}
+            </div>
+            <div style={{ fontSize: 12, color: '#4a7c62', marginBottom: 10, lineHeight: 1.5 }}>
+              ℹ️ {t.jobSalaryNote}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+              <div>
+                <label style={{ ...lS, marginTop: 0 }}>{t.jobSalaryMin}</label>
+                <input style={fS} type="number" min="0" value={salaryMin} onChange={e => setSalaryMin(e.target.value)} placeholder="50000" />
+              </div>
+              <div>
+                <label style={{ ...lS, marginTop: 0 }}>{t.jobSalaryMax}</label>
+                <input style={fS} type="number" min="0" value={salaryMax} onChange={e => setSalaryMax(e.target.value)} placeholder="70000" />
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div>
+                <label style={{ ...lS, marginTop: 0 }}>{t.jobSalaryCurrency}</label>
+                <select style={fS} value={salaryCurrency} onChange={e => setSalaryCurrency(e.target.value)}>
+                  <option value="DKK">DKK</option>
+                  <option value="EUR">EUR</option>
+                  <option value="SEK">SEK</option>
+                  <option value="NOK">NOK</option>
+                  <option value="GBP">GBP</option>
+                  <option value="USD">USD</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ ...lS, marginTop: 0 }}>{t.jobSalaryPeriod}</label>
+                <select style={fS} value={salaryPeriod} onChange={e => setSalaryPeriod(e.target.value)}>
+                  <option value="monthly">{t.jobSalaryMonthly}</option>
+                  <option value="annual">{t.jobSalaryAnnual}</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
           <label style={lS}>{t.jobApplyLink}</label>
           <input style={fS} value={applyLink} onChange={e => setApplyLink(e.target.value)} placeholder="https://..." />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -8093,7 +8241,9 @@ function CreateJobModal({ t, lang, companies, onClose, onCreate }) {
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
             <button type="button" onClick={onClose} style={{ flex: 1, padding: 10, borderRadius: 8, border: '1px solid #ddd', background: '#fff', cursor: 'pointer', fontSize: 14 }}>{t.eventCancel}</button>
-            <button type="submit" style={{ flex: 2, padding: 10, borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>{t.jobPost}</button>
+            <button type="submit" style={{ flex: 2, padding: 10, borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>
+              {isEdit ? (lang === 'da' ? 'Gem ændringer' : 'Save changes') : t.jobPost}
+            </button>
           </div>
         </form>
       </div>

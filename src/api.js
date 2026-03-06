@@ -716,3 +716,9 @@ export async function apiFetchCalendarEvents() {
 export async function apiUpdateBirthday(birthday) {
   return await request('/api/profile/birthday', { method: 'PATCH', body: JSON.stringify({ birthday }) })
 }
+
+// ── Jobs ──
+
+export async function apiGetMyJobs() {
+  return await request('/api/jobs/mine')
+}
