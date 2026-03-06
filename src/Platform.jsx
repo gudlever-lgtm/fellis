@@ -7843,6 +7843,11 @@ function JobCard({ job, t, lang, onSaveToggle }) {
               <pre style={{ fontSize: 12, color: '#555', whiteSpace: 'pre-wrap', marginTop: 8, fontFamily: 'inherit', lineHeight: 1.6 }}>{reqs}</pre>
             </details>
           )}
+          {job.collective_agreement && (
+            <div style={{ fontSize: 12, color: '#555', marginBottom: 6 }}>
+              📋 {t.jobCollectiveAgreement}: <strong>{job.collective_agreement}</strong>
+            </div>
+          )}
           {job.deadline && (
             <div style={{ fontSize: 12, color: '#c0392b', fontWeight: 600, marginBottom: 8 }}>
               ⏳ {t.jobDeadline}: {new Date(job.deadline).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
@@ -8110,6 +8115,7 @@ function CreateJobModal({ t, lang, companies, onClose, onCreate, editJob }) {
   const [salaryMax, setSalaryMax] = useState(editJob?.salary_max || '')
   const [salaryCurrency, setSalaryCurrency] = useState(editJob?.salary_currency || 'DKK')
   const [salaryPeriod, setSalaryPeriod] = useState(editJob?.salary_period || 'monthly')
+  const [collectiveAgreement, setCollectiveAgreement] = useState(editJob?.collective_agreement || '')
 
   useEffect(() => {
     const h = (e) => { if (e.key === 'Escape') onClose() }
@@ -8138,6 +8144,7 @@ function CreateJobModal({ t, lang, companies, onClose, onCreate, editJob }) {
       salary_max: salaryMax ? Number(salaryMax) : null,
       salary_currency: salaryCurrency,
       salary_period: salaryPeriod,
+      collective_agreement: collectiveAgreement.trim() || null,
     }
     try {
       const url = isEdit ? `/api/jobs/${editJob.id}` : '/api/jobs'
@@ -8224,6 +8231,10 @@ function CreateJobModal({ t, lang, companies, onClose, onCreate, editJob }) {
                   <option value="annual">{t.jobSalaryAnnual}</option>
                 </select>
               </div>
+            </div>
+            <div>
+              <label style={{ ...lS, marginTop: 10 }}>{t.jobCollectiveAgreement}</label>
+              <input style={fS} value={collectiveAgreement} onChange={e => setCollectiveAgreement(e.target.value)} placeholder={t.jobCollectiveAgreementPlaceholder} />
             </div>
           </div>
 

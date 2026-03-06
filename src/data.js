@@ -522,6 +522,8 @@ export const PT = {
     jobStatusActive: 'Aktiv',
     jobStatusClosed: 'Lukket',
     jobSalaryNote: 'Løninterval skal angives i jobopslaget eller oplyses inden første samtale (EU-direktiv 2023/970 om løngennemsigtighed – gælder fra juni 2026)',
+    jobCollectiveAgreement: 'Overenskomst',
+    jobCollectiveAgreementPlaceholder: 'f.eks. HK Overenskomst, Dansk Metal, ingen',
     // Endorsements (business mode)
     skills: 'Kompetencer',
     addSkill: 'Tilføj kompetence',
@@ -1092,6 +1094,8 @@ export const PT = {
     jobStatusActive: 'Active',
     jobStatusClosed: 'Closed',
     jobSalaryNote: 'Salary range must be included in the job posting or disclosed before the first interview (EU Directive 2023/970 on pay transparency – effective June 2026)',
+    jobCollectiveAgreement: 'Collective agreement',
+    jobCollectiveAgreementPlaceholder: 'e.g. HK Agreement, Danish Metal, none',
     // Endorsements (business mode)
     skills: 'Skills',
     addSkill: 'Add skill',

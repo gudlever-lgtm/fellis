@@ -3463,6 +3463,7 @@ async function initCompanies() {
     await pool.query(`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS salary_max INT DEFAULT NULL`)
     await pool.query(`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS salary_currency VARCHAR(10) DEFAULT 'DKK'`)
     await pool.query(`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS salary_period ENUM('monthly','annual') DEFAULT 'monthly'`)
+    await pool.query(`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS collective_agreement VARCHAR(500) DEFAULT NULL`)
 
   } catch (err) {
     console.error('initCompanies error:', err.message)
@@ -3826,7 +3827,7 @@ app.get('/api/jobs/mine', authenticate, async (req, res) => {
 // POST /api/jobs — create job (must be company member)
 app.post('/api/jobs', authenticate, async (req, res) => {
   try {
-    const { company_id, title, location, remote, type, description, requirements, apply_link, contact_email, deadline, salary_min, salary_max, salary_currency, salary_period } = req.body
+    const { company_id, title, location, remote, type, description, requirements, apply_link, contact_email, deadline, salary_min, salary_max, salary_currency, salary_period, collective_agreement } = req.body
     if (!company_id || !title) return res.status(400).json({ error: 'company_id and title required' })
     const [[member]] = await pool.query(
       "SELECT role FROM company_members WHERE company_id = ? AND user_id = ?",
@@ -3834,12 +3835,13 @@ app.post('/api/jobs', authenticate, async (req, res) => {
     )
     if (!member) return res.status(403).json({ error: 'Forbidden' })
     const [result] = await pool.query(
-      `INSERT INTO jobs (company_id, title, location, remote, type, description, requirements, apply_link, contact_email, deadline, salary_min, salary_max, salary_currency, salary_period)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO jobs (company_id, title, location, remote, type, description, requirements, apply_link, contact_email, deadline, salary_min, salary_max, salary_currency, salary_period, collective_agreement)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [company_id, title, location || null, remote ? 1 : 0,
         type || 'fulltime', description || null, requirements || null,
         apply_link || null, contact_email || null, deadline || null,
-        salary_min || null, salary_max || null, salary_currency || 'DKK', salary_period || 'monthly']
+        salary_min || null, salary_max || null, salary_currency || 'DKK', salary_period || 'monthly',
+        collective_agreement || null]
     )
     const [[job]] = await pool.query(
       `SELECT j.*, c.name AS company_name, c.color AS company_color, 0 AS saved
@@ -3863,15 +3865,15 @@ app.put('/api/jobs/:id', authenticate, async (req, res) => {
       [job.company_id, req.userId]
     )
     if (!member) return res.status(403).json({ error: 'Forbidden' })
-    const { title, location, remote, type, description, requirements, apply_link, active, contact_email, deadline, salary_min, salary_max, salary_currency, salary_period } = req.body
+    const { title, location, remote, type, description, requirements, apply_link, active, contact_email, deadline, salary_min, salary_max, salary_currency, salary_period, collective_agreement } = req.body
     await pool.query(
-      'UPDATE jobs SET title=?, location=?, remote=?, type=?, description=?, requirements=?, apply_link=?, active=?, contact_email=?, deadline=?, salary_min=?, salary_max=?, salary_currency=?, salary_period=? WHERE id=?',
+      'UPDATE jobs SET title=?, location=?, remote=?, type=?, description=?, requirements=?, apply_link=?, active=?, contact_email=?, deadline=?, salary_min=?, salary_max=?, salary_currency=?, salary_period=?, collective_agreement=? WHERE id=?',
       [title, location || null, remote ? 1 : 0, type || 'fulltime',
         description || null, requirements || null, apply_link || null,
         active !== undefined ? (active ? 1 : 0) : 1,
         contact_email || null, deadline || null,
         salary_min || null, salary_max || null, salary_currency || 'DKK', salary_period || 'monthly',
-        req.params.id]
+        collective_agreement || null, req.params.id]
     )
     const [[updated]] = await pool.query(
       `SELECT j.*, c.name AS company_name, c.color AS company_color FROM jobs j JOIN companies c ON c.id = j.company_id WHERE j.id = ?`,
