@@ -6069,14 +6069,8 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened }) 
                       )}</div>
                     )}
                     {msg.media?.length > 0 && (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: msg.text[lang] ? 6 : 0 }}>
-                        {msg.media.map((m, mi) => (
-                          m.type === 'video'
-                            ? <video key={mi} src={m.url} controls style={{ maxWidth: 200, maxHeight: 160, borderRadius: 6, display: 'block' }} />
-                            : <a key={mi} href={m.url} target="_blank" rel="noopener noreferrer">
-                                <img src={m.url} alt="" style={{ maxWidth: 200, maxHeight: 160, borderRadius: 6, display: 'block', objectFit: 'cover' }} />
-                              </a>
-                        ))}
+                      <div style={{ marginTop: msg.text[lang] ? 6 : 0, maxWidth: 260 }}>
+                        <PostMedia media={msg.media} />
                       </div>
                     )}
                     <div className="p-msg-time">{msg.time}</div>
