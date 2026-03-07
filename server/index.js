@@ -1611,7 +1611,7 @@ app.post('/api/feed/preflight', authenticate, (req, res) => {
 // POST /api/feed — create a new post (with optional media)
 app.post('/api/feed', authenticate, upload.array('media', 4), async (req, res) => {
   const { text } = req.body
-  if (!text) return res.status(400).json({ error: 'Post text required' })
+  if (!text && !req.files?.length) return res.status(400).json({ error: 'Post text or media required' })
 
   // Keyword filter check
   const kw = checkKeywords(text)
