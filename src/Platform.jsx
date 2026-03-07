@@ -1443,14 +1443,21 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
 
   const handleSaveEditPost = useCallback(async (postId) => {
     if (!editPostText.trim()) return
-    const data = await apiEditPost(postId, editPostText.trim()).catch(() => null)
+    const text = editPostText.trim()
+    const check = await apiPreflightPost(text)
+    if (check?.blocked) return
+    if (check?.flagged) {
+      setKeywordWarning({ keyword: check.keyword, text, files: null })
+      return
+    }
+    const data = await apiEditPost(postId, text).catch(() => null)
     if (data?.ok) {
       setPosts(prev => prev.map(p => p.id === postId
         ? { ...p, text: { da: data.text, en: data.text }, edited: true }
         : p))
+      setEditingPostId(null)
+      setEditPostText('')
     }
-    setEditingPostId(null)
-    setEditPostText('')
   }, [editPostText])
 
   const handleHidePost = useCallback((postId) => {
