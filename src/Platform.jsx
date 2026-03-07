@@ -7,6 +7,8 @@ import ReelsPage from './Reels.jsx'
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
 // ── Notification helpers ──
+function showGooglePicker() { console.warn('Google Picker not configured') }
+
 function relativeTime(created_at, lang) {
   const diff = Date.now() - new Date(created_at).getTime()
   const mins = Math.floor(diff / 60000)
