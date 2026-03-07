@@ -10420,6 +10420,7 @@ function AdminPage({ lang, t }) {
         </button>
         <button className={`p-filter-tab${adminTab === 'platform' ? ' active' : ''}`} onClick={() => setAdminTab('platform')}>
           🛠️ {lang === 'da' ? 'Indstillinger' : 'Settings'}
+        </button>
         <button className={`p-filter-tab${adminTab === 'moderation' ? ' active' : ''}`} onClick={() => setAdminTab('moderation')}>
           🛡️ {t.adminModerationTab}
         </button>
@@ -10765,6 +10766,8 @@ function AdminPage({ lang, t }) {
             </button>
           </div>
         </form>
+      )}
+
       {adminTab === 'moderation' && (
         <div>
           {modToast && (

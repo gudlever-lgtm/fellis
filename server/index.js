@@ -3779,6 +3779,11 @@ app.get('/api/analytics', authenticate, async (req, res) => {
   }
 })
 
+
+// GET /api/analytics/visitor-stats — stub
+app.get('/api/analytics/visitor-stats', authenticate, async (req, res) => {
+  res.json({ visitors: [] })
+})
 // GET /api/admin/settings — get Stripe config (admin only)
 app.get('/api/admin/settings', authenticate, requireAdmin, async (req, res) => {
   try {

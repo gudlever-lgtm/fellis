@@ -778,3 +778,7 @@ export async function apiDeleteKeywordFilter(id) {
 export async function apiGetModerationActions() {
   return await request('/api/admin/moderation/actions')
 }
+
+export async function apiGetVisitorStats(days = 30) {
+  return await request(`/api/analytics/visitor-stats?days=${days}`)
+}
