@@ -5,6 +5,9 @@ import ReelsPage from './Reels.jsx'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
+// ── Google Picker stub (full integration handled server-side via apiDownloadGooglePhoto) ──
+function showGooglePicker() { console.warn('Google Picker not configured') }
+
 // ── Mock notifications ──
 function makeMockNotifs(mode) {
   const isBiz = mode === 'business'
