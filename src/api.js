@@ -82,13 +82,8 @@ export async function apiResetPassword(token, password) {
 }
 
 export async function apiCheckSession() {
-  // Skip the round-trip if there is no stored session — server would 401 anyway
-  if (!getSessionId()) return null
-  try {
-    return await request('/api/auth/session')
-  } catch {
-    return null
-  }
+  // Try session check even without localStorage — cookie may carry the session
+  return await request('/api/auth/session')
 }
 
 export async function apiLogout() {
@@ -101,18 +96,14 @@ export async function apiFetchFeed(offset = 0, limit = 20) {
   return await request(`/api/feed?offset=${offset}&limit=${limit}`)
 }
 
-// providerMedia: array of { url: '/uploads/xxx.jpg', mimeType } for photos already on the server (e.g. from Google Photos)
-export async function apiCreatePost(text, mediaFiles, categories, providerMedia) {
-  const cats = Array.isArray(categories) && categories.length > 0 ? categories : []
+export async function apiCreatePost(text, mediaFiles) {
   if (mediaFiles?.length) {
-    // Use FormData for multipart upload; include providerMedia alongside new files
+    // Use FormData for multipart upload
     const form = new FormData()
     form.append('text', text)
-    if (cats.length) form.append('categories', JSON.stringify(cats))
     for (const file of mediaFiles) {
       form.append('media', file)
     }
-    if (providerMedia?.length) form.append('providerMedia', JSON.stringify(providerMedia))
     try {
       const res = await fetch(`${API_BASE}/api/feed`, {
         method: 'POST',
@@ -132,14 +123,8 @@ export async function apiCreatePost(text, mediaFiles, categories, providerMedia)
   }
   return await request('/api/feed', {
     method: 'POST',
-    body: JSON.stringify({ text, categories: cats, providerMedia: providerMedia || [] }),
+    body: JSON.stringify({ text }),
   })
-}
-
-export async function apiSuggestCategory(text) {
-  if (!text || text.trim().length < 5) return null
-  const encoded = encodeURIComponent(text.trim())
-  return await request(`/api/feed/suggest-category?text=${encoded}`)
 }
 
 export async function apiGetPostLikers(postId) {
@@ -233,26 +218,11 @@ export async function apiMarkConversationRead(conversationId) {
   return await request(`/api/conversations/${conversationId}/read`, { method: 'POST' })
 }
 
-export async function apiSendConversationMessage(conversationId, text, media = null) {
+export async function apiSendConversationMessage(conversationId, text) {
   return await request(`/api/conversations/${conversationId}/messages`, {
     method: 'POST',
-    body: JSON.stringify({ text, ...(media?.length ? { media } : {}) }),
+    body: JSON.stringify({ text }),
   })
-}
-
-export async function apiUploadFile(file) {
-  const fd = new FormData()
-  fd.append('file', file)
-  try {
-    const res = await fetch(`${API_BASE}/api/upload`, {
-      method: 'POST',
-      headers: formHeaders(),
-      body: fd,
-      credentials: 'same-origin',
-    })
-    if (!res.ok) return null
-    return await res.json()
-  } catch { return null }
 }
 
 export async function apiFetchOlderConversationMessages(conversationId, offset = 0, limit = 20) {
@@ -291,28 +261,9 @@ export async function apiRenameConversation(conversationId, name) {
   })
 }
 
-// Platform config (feature availability)
-export async function apiGetConfig() {
-  return request('/api/config')
-}
-
-// External providers — Google Photos
-// Downloads a Google-hosted photo server-side (bypassing CORS) and returns a local /uploads/ URL.
-// accessToken: Google OAuth2 access token obtained client-side via Google Identity Services.
-// googleUrl: The base URL of the Google Photos media item (e.g. item.getUrl()).
-// mimeType: The declared MIME type of the file.
-export async function apiDownloadGooglePhoto(accessToken, googleUrl, mimeType) {
-  return request('/api/providers/google-photos/download', {
-    method: 'POST',
-    body: JSON.stringify({ accessToken, url: googleUrl, mimeType }),
-  })
-}
-
 // Facebook OAuth
-export function getFacebookAuthUrl(lang, inviteToken) {
-  const params = new URLSearchParams({ lang })
-  if (inviteToken) params.set('invite_token', inviteToken)
-  return `${API_BASE}/api/auth/facebook?${params}`
+export function getFacebookAuthUrl(lang) {
+  return `${API_BASE}/api/auth/facebook?lang=${lang}`
 }
 
 // GDPR Compliance endpoints
@@ -534,37 +485,6 @@ export async function apiGetAdminStats() {
 
 export async function apiGetAnalytics(days = 30) {
   return await request(`/api/analytics?days=${days}`)
-}
-
-export async function apiGetVisitorStats() {
-  return await request('/api/visitor-stats')
-}
-
-export async function apiGetChangelog() {
-  return await request('/api/changelog')
-}
-
-export async function apiGetNotifications() {
-  return await request('/api/notifications')
-}
-
-export async function apiMarkNotificationRead(id) {
-  return await request(`/api/notifications/${id}/read`, { method: 'POST' })
-}
-
-export async function apiMarkAllNotificationsRead() {
-  return await request('/api/notifications/read-all', { method: 'POST' })
-}
-
-export async function apiUpdateProfile(data) {
-  return await request('/api/profile', {
-    method: 'PATCH',
-    body: JSON.stringify(data),
-  })
-}
-
-export async function apiHeartbeat() {
-  return await request('/api/me/heartbeat', { method: 'POST' })
 }
 
 export async function apiUpdateMode(mode) {
