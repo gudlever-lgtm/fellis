@@ -5280,6 +5280,9 @@ app.use((err, req, res, next) => {
   next()
 })
 
+// Wildcard stub for client-only/unimplemented endpoints
+app.all('/api/stub/:fn', authenticate, (req, res) => res.json({ ok: true }))
+
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
   console.log(`fellis.eu API running on http://localhost:${PORT}`)
