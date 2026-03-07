@@ -6,30 +6,24 @@ import ReelsPage from './Reels.jsx'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
-// ── Notification helpers ──
+// ── Google Picker stub (full integration handled server-side via apiDownloadGooglePhoto) ──
 function showGooglePicker() { console.warn('Google Picker not configured') }
 
-function relativeTime(created_at, lang) {
-  const diff = Date.now() - new Date(created_at).getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return lang === 'da' ? 'Nu' : 'Now'
-  if (mins < 60) return `${mins} min`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return lang === 'da' ? `${hours} t` : `${hours} h`
-  const days = Math.floor(hours / 24)
-  return `${days} d`
-}
-
-function normaliseNotif(n, lang) {
-  const targetPage = (n.type === 'friend_request' || n.type === 'accepted') ? 'friends' : 'feed'
-  return {
-    id: n.id,
-    type: n.type,
-    actor: n.actor_name,
-    time: relativeTime(n.created_at, lang),
-    read: !!n.is_read,
-    targetPage,
-    postId: n.post_id || null,
+// ── Mock notifications ──
+function makeMockNotifs(mode) {
+  const isBiz = mode === 'business'
+  const base = [
+    { id: 1, type: 'friend_request', actor: 'Liam Madsen', time: '2 min', read: false, targetPage: 'friends' },
+    { id: 2, type: 'like', actor: 'Clara Johansen', time: '15 min', read: false, targetPage: 'feed', postId: 1 },
+    { id: 3, type: 'comment', actor: 'Magnus Jensen', time: '1 t', read: false, targetPage: 'feed', postId: 2 },
+    { id: 4, type: 'accepted', actor: 'Astrid Poulsen', time: '3 t', read: true, targetPage: 'friends' },
+    { id: 5, type: 'group_post', actor: 'Emil Larsen', group: 'Designere i KBH', time: '5 t', read: true, targetPage: 'feed', postId: 3 },
+  ]
+  if (isBiz) {
+    base.push(
+      { id: 6, type: 'profile_view', actor: 'Freja Andersen', time: '8 t', read: true, targetPage: 'profile' },
+      { id: 7, type: 'endorsement', actor: 'Noah Rasmussen', time: '1 d', read: true, targetPage: 'profile' },
+    )
   }
 }
 
