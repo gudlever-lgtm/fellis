@@ -772,10 +772,10 @@ export async function apiGetKeywordFilters() {
   return await request('/api/admin/moderation/keywords')
 }
 
-export async function apiAddKeywordFilter(keyword, action = 'flag') {
+export async function apiAddKeywordFilter(keyword, action = 'flag', category = 'other', notes = '') {
   return await request('/api/admin/moderation/keywords', {
     method: 'POST',
-    body: JSON.stringify({ keyword, action }),
+    body: JSON.stringify({ keyword, action, category, notes: notes || undefined }),
   })
 }
 

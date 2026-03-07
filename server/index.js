@@ -1605,7 +1605,7 @@ app.post('/api/feed/preflight', authenticate, (req, res) => {
   if (!text) return res.json({ ok: true })
   const kw = checkKeywords(text)
   if (!kw) return res.json({ ok: true })
-  res.json({ ok: kw.action !== 'block', flagged: kw.action === 'flag', blocked: kw.action === 'block', keyword: kw.keyword })
+  res.json({ ok: kw.action !== 'block', flagged: kw.action === 'flag', blocked: kw.action === 'block', keyword: kw.keyword, category: kw.category || null, notes: kw.notes || null })
 })
 
 // POST /api/feed — create a new post (with optional media)
@@ -4910,7 +4910,7 @@ app.get('/api/posts/:id/insights', authenticate, async (req, res) => {
 let keywordFilterCache = []
 async function reloadKeywordFilters() {
   try {
-    const [rows] = await pool.query('SELECT keyword, action FROM keyword_filters')
+    const [rows] = await pool.query('SELECT keyword, action, category, notes FROM keyword_filters')
     keywordFilterCache = rows
   } catch { keywordFilterCache = [] }
 }
@@ -5233,7 +5233,7 @@ app.get('/api/admin/moderation/users', authenticate, requireAdmin, async (req, r
 // GET /api/admin/moderation/keywords — list keyword filters
 app.get('/api/admin/moderation/keywords', authenticate, requireAdmin, async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT id, keyword, action, created_at FROM keyword_filters ORDER BY created_at DESC')
+    const [rows] = await pool.query('SELECT id, keyword, action, category, notes, created_at FROM keyword_filters ORDER BY created_at DESC')
     res.json({ keywords: rows })
   } catch (err) {
     console.error('GET /api/admin/moderation/keywords error:', err)
@@ -5243,12 +5243,14 @@ app.get('/api/admin/moderation/keywords', authenticate, requireAdmin, async (req
 
 // POST /api/admin/moderation/keywords — add a keyword filter
 app.post('/api/admin/moderation/keywords', authenticate, requireAdmin, async (req, res) => {
-  const { keyword, action = 'flag' } = req.body
-  if (!keyword || !['flag', 'block'].includes(action)) return res.status(400).json({ error: 'keyword and valid action required' })
+  const { keyword, action = 'flag', category = 'other', notes } = req.body
+  const validActions = ['flag', 'block']
+  const validCategories = ['profanity', 'hate_speech', 'sexual', 'violence', 'drugs', 'harassment', 'spam', 'other']
+  if (!keyword || !validActions.includes(action) || !validCategories.includes(category)) return res.status(400).json({ error: 'keyword, valid action, and valid category required' })
   try {
     await pool.query(
-      'INSERT INTO keyword_filters (keyword, action, created_by) VALUES (?, ?, ?)',
-      [keyword.trim().toLowerCase(), action, req.userId]
+      'INSERT INTO keyword_filters (keyword, action, category, notes, created_by) VALUES (?, ?, ?, ?, ?)',
+      [keyword.trim().toLowerCase(), action, category, notes?.trim() || null, req.userId]
     )
     await reloadKeywordFilters()
     res.json({ ok: true })

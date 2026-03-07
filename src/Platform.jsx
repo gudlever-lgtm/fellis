@@ -1311,7 +1311,7 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
     const check = await apiPreflightPost(text)
     if (check?.blocked) return // server will also block — just in case
     if (check?.flagged) {
-      setKeywordWarning({ keyword: check.keyword, text, files })
+      setKeywordWarning({ keyword: check.keyword, category: check.category, notes: check.notes, text, files })
       return
     }
     doCreatePost(text, files)
@@ -1447,7 +1447,7 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
     const check = await apiPreflightPost(text)
     if (check?.blocked) return
     if (check?.flagged) {
-      setKeywordWarning({ keyword: check.keyword, text, files: null })
+      setKeywordWarning({ keyword: check.keyword, category: check.category, notes: check.notes, text, files: null })
       return
     }
     const data = await apiEditPost(postId, text).catch(() => null)
@@ -1569,9 +1569,21 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
           <div style={{ background: '#fff', borderRadius: 12, padding: '28px 28px 24px', maxWidth: 420, width: '90%', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
             <div style={{ fontSize: 22, marginBottom: 10 }}>⚠️</div>
             <h3 style={{ margin: '0 0 10px', fontSize: 16, fontWeight: 700 }}>{t.keywordWarnTitle}</h3>
-            <p style={{ margin: '0 0 20px', fontSize: 14, color: '#555', lineHeight: 1.5 }}>
+            {keywordWarning.category && (
+              <div style={{ marginBottom: 10 }}>
+                <span style={{ background: '#F4C26A', color: '#5a3e00', borderRadius: 6, padding: '3px 10px', fontSize: 12, fontWeight: 700 }}>
+                  {t.kwCategories?.[keywordWarning.category] || keywordWarning.category}
+                </span>
+              </div>
+            )}
+            <p style={{ margin: '0 0 12px', fontSize: 14, color: '#555', lineHeight: 1.5 }}>
               {t.keywordWarnBody.replace('{kw}', keywordWarning.keyword)}
             </p>
+            {keywordWarning.notes && (
+              <p style={{ margin: '0 0 16px', fontSize: 13, color: '#8B4513', background: '#FFF8F0', border: '1px solid #F4C26A', borderRadius: 8, padding: '10px 14px', lineHeight: 1.5 }}>
+                {keywordWarning.notes}
+              </p>
+            )}
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               <button
                 onClick={() => setKeywordWarning(null)}
@@ -10350,6 +10362,8 @@ function AdminPage({ lang, t }) {
   const [modSuspendDays, setModSuspendDays] = useState({}) // userId → days
   const [newKeyword, setNewKeyword] = useState('')
   const [newKeywordAction, setNewKeywordAction] = useState('flag')
+  const [newKeywordCategory, setNewKeywordCategory] = useState('profanity')
+  const [newKeywordNotes, setNewKeywordNotes] = useState('')
   const [modToast, setModToast] = useState(null)
 
   function showModToast(msg) { setModToast(msg); setTimeout(() => setModToast(null), 3000) }
@@ -10952,7 +10966,7 @@ function AdminPage({ lang, t }) {
           {modSubTab === 'keywords' && (
             <div>
               <div className="p-card" style={{ marginBottom: 12, padding: '16px 20px' }}>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
                   <input
                     placeholder={t.adminModKeywordPlaceholder}
                     value={newKeyword}
@@ -10964,13 +10978,28 @@ function AdminPage({ lang, t }) {
                     <option value="flag">{t.adminModKeywordActionFlag}</option>
                     <option value="block">{t.adminModKeywordActionBlock}</option>
                   </select>
+                  <select value={newKeywordCategory} onChange={e => setNewKeywordCategory(e.target.value)}
+                    style={{ padding: '8px 10px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 13, fontFamily: 'inherit' }}>
+                    {Object.entries(t.kwCategories || {}).map(([val, label]) => (
+                      <option key={val} value={val}>{label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <input
+                    placeholder={t.adminModKeywordNotesPlaceholder}
+                    value={newKeywordNotes}
+                    onChange={e => setNewKeywordNotes(e.target.value)}
+                    style={{ flex: 1, padding: '8px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', color: '#555' }}
+                  />
                   <button
-                    style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+                    style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}
                     onClick={async () => {
                       if (!newKeyword.trim()) return
-                      const data = await apiAddKeywordFilter(newKeyword.trim(), newKeywordAction).catch(() => null)
+                      const data = await apiAddKeywordFilter(newKeyword.trim(), newKeywordAction, newKeywordCategory, newKeywordNotes).catch(() => null)
                       if (data?.ok) {
                         setNewKeyword('')
+                        setNewKeywordNotes('')
                         apiGetKeywordFilters().then(d => { if (d) setModKeywords(d.keywords) })
                         showModToast('✓ Keyword added')
                       }
@@ -10985,19 +11014,29 @@ function AdminPage({ lang, t }) {
               ) : modKeywords.length === 0 ? (
                 <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>{lang === 'da' ? 'Ingen nøgleordsfiltre endnu' : 'No keyword filters yet'}</div>
               ) : modKeywords.map(kw => (
-                <div key={kw.id} className="p-card" style={{ marginBottom: 8, padding: '12px 18px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontFamily: 'monospace', fontWeight: 700, flex: 1 }}>{kw.keyword}</span>
-                  <span style={{ background: kw.action === 'block' ? '#C0392B' : '#F4C26A', color: kw.action === 'block' ? '#fff' : '#5a3e00', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>
-                    {kw.action === 'block' ? t.adminModKeywordActionBlock : t.adminModKeywordActionFlag}
-                  </span>
-                  <button style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #E8E4DF', fontSize: 12, cursor: 'pointer', color: '#C0392B' }}
-                    onClick={async () => {
-                      await apiDeleteKeywordFilter(kw.id)
-                      apiGetKeywordFilters().then(d => { if (d) setModKeywords(d.keywords) })
-                      showModToast('✓ Deleted')
-                    }}>
-                    {t.adminModKeywordDelete}
-                  </button>
+                <div key={kw.id} className="p-card" style={{ marginBottom: 8, padding: '12px 18px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontFamily: 'monospace', fontWeight: 700, flex: 1 }}>{kw.keyword}</span>
+                    {kw.category && (
+                      <span style={{ background: '#EEF0F2', color: '#444', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 600 }}>
+                        {t.kwCategories?.[kw.category] || kw.category}
+                      </span>
+                    )}
+                    <span style={{ background: kw.action === 'block' ? '#C0392B' : '#F4C26A', color: kw.action === 'block' ? '#fff' : '#5a3e00', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>
+                      {kw.action === 'block' ? t.adminModKeywordActionBlock : t.adminModKeywordActionFlag}
+                    </span>
+                    <button style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #E8E4DF', fontSize: 12, cursor: 'pointer', color: '#C0392B' }}
+                      onClick={async () => {
+                        await apiDeleteKeywordFilter(kw.id)
+                        apiGetKeywordFilters().then(d => { if (d) setModKeywords(d.keywords) })
+                        showModToast('✓ Deleted')
+                      }}>
+                      {t.adminModKeywordDelete}
+                    </button>
+                  </div>
+                  {kw.notes && (
+                    <div style={{ fontSize: 12, color: '#777', marginTop: 5, paddingLeft: 2 }}>{kw.notes}</div>
+                  )}
                 </div>
               ))}
             </div>

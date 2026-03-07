@@ -11,8 +11,8 @@ import { createPool } from 'mysql2/promise'
 const DRY_RUN = process.argv.includes('--dry-run')
 
 const LISTS = [
-  { lang: 'da', url: 'https://raw.githubusercontent.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words/master/da' },
-  { lang: 'en', url: 'https://raw.githubusercontent.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words/master/en' },
+  { lang: 'da', url: 'https://raw.githubusercontent.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words/master/da', category: 'profanity', notes: 'LDNOOBW open-source ordliste (dansk)' },
+  { lang: 'en', url: 'https://raw.githubusercontent.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words/master/en', category: 'profanity', notes: 'LDNOOBW open-source word list (English)' },
 ]
 
 async function fetchWords(url) {
@@ -34,21 +34,21 @@ async function main() {
   let totalInserted = 0
   let totalSkipped  = 0
 
-  for (const { lang, url } of LISTS) {
+  for (const { lang, url, category, notes } of LISTS) {
     console.log(`\nFetching ${lang.toUpperCase()} list from LDNOOBW…`)
     const words = await fetchWords(url)
     console.log(`  ${words.length} words found`)
 
     for (const word of words) {
       if (DRY_RUN) {
-        console.log(`  [dry-run] would insert: "${word}" (flag)`)
+        console.log(`  [dry-run] would insert: "${word}" (flag, ${category})`)
         totalInserted++
         continue
       }
       try {
         const [result] = await pool.query(
-          'INSERT INTO keyword_filters (keyword, action) VALUES (?, ?) ON DUPLICATE KEY UPDATE keyword=keyword',
-          [word, 'flag']
+          'INSERT INTO keyword_filters (keyword, action, category, notes) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE keyword=keyword',
+          [word, 'flag', category, notes]
         )
         if (result.affectedRows > 0 && result.warningStatus === 0) totalInserted++
         else totalSkipped++
