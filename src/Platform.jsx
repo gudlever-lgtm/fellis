@@ -810,6 +810,7 @@ function ReelsStrip({ lang, t, onNavigate }) {
 
 function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onNavigate }) {
   const [posts, setPosts] = useState([])
+  const [feedCategoryFilter, setFeedCategoryFilter] = useState(null)
   const [pinnedPost, setPinnedPost] = useState(null)
   const pinnedRef = useRef(null)
   const [insightsPostId, setInsightsPostId] = useState(null)
