@@ -9023,6 +9023,9 @@ function AdminPage({ lang, t }) {
         <button className={`p-filter-tab${adminTab === 'security' ? ' active' : ''}`} onClick={() => setAdminTab('security')}>
           🔒 {lang === 'da' ? 'Sikkerhed & GDPR' : 'Security & GDPR'}
         </button>
+        <button className={`p-filter-tab${adminTab === 'platform' ? ' active' : ''}`} onClick={() => setAdminTab('platform')}>
+          🛠️ {lang === 'da' ? 'Indstillinger' : 'Settings'}
+        </button>
         <button className={`p-filter-tab${adminTab === 'moderation' ? ' active' : ''}`} onClick={() => setAdminTab('moderation')}>
           🛡️ {t.adminModerationTab}
         </button>
@@ -9235,7 +9238,7 @@ function AdminPage({ lang, t }) {
         </div>
       )}
 
-      {adminTab === 'security' && (
+      {adminTab === 'platform' && (
         <div className="p-card" style={{ marginBottom: 20, padding: '20px 24px' }}>
           <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700 }}>🔒 {lang === 'da' ? 'Adgangskodepolitik' : 'Password policy'}</h3>
           <p style={{ margin: '0 0 20px', fontSize: 13, color: '#666' }}>
