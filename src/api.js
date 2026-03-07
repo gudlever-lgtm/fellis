@@ -779,6 +779,13 @@ export async function apiAddKeywordFilter(keyword, action = 'flag', category = '
   })
 }
 
+export async function apiUpdateKeywordFilter(id, keyword, action, category, notes = '') {
+  return await request(`/api/admin/moderation/keywords/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ keyword, action, category, notes: notes || undefined }),
+  })
+}
+
 export async function apiDeleteKeywordFilter(id) {
   return await request(`/api/admin/moderation/keywords/${id}`, { method: 'DELETE' })
 }

@@ -5261,6 +5261,27 @@ app.post('/api/admin/moderation/keywords', authenticate, requireAdmin, async (re
   }
 })
 
+// PATCH /api/admin/moderation/keywords/:id — update a keyword filter
+app.patch('/api/admin/moderation/keywords/:id', authenticate, requireAdmin, async (req, res) => {
+  const id = parseInt(req.params.id)
+  if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' })
+  const { keyword, action, category, notes } = req.body
+  const validActions = ['flag', 'block']
+  const validCategories = ['profanity', 'hate_speech', 'sexual', 'violence', 'drugs', 'harassment', 'spam', 'other']
+  if (!keyword || !validActions.includes(action) || !validCategories.includes(category)) return res.status(400).json({ error: 'keyword, valid action, and valid category required' })
+  try {
+    await pool.query(
+      'UPDATE keyword_filters SET keyword = ?, action = ?, category = ?, notes = ? WHERE id = ?',
+      [keyword.trim().toLowerCase(), action, category, notes?.trim() || null, id]
+    )
+    await reloadKeywordFilters()
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('PATCH /api/admin/moderation/keywords/:id error:', err)
+    res.status(500).json({ error: 'Failed to update keyword filter' })
+  }
+})
+
 // DELETE /api/admin/moderation/keywords/:id — remove a keyword filter
 app.delete('/api/admin/moderation/keywords/:id', authenticate, requireAdmin, async (req, res) => {
   const id = parseInt(req.params.id)

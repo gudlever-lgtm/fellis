@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect } from 'react'
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { PT, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile } from './api.js'
 import ReelsPage from './Reels.jsx'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
@@ -10364,6 +10364,9 @@ function AdminPage({ lang, t }) {
   const [newKeywordAction, setNewKeywordAction] = useState('flag')
   const [newKeywordCategory, setNewKeywordCategory] = useState('profanity')
   const [newKeywordNotes, setNewKeywordNotes] = useState('')
+  const [editingKwId, setEditingKwId] = useState(null)
+  const [editKw, setEditKw] = useState({ keyword: '', action: 'flag', category: 'profanity', notes: '' })
+  const [showKwGuide, setShowKwGuide] = useState(false)
   const [modToast, setModToast] = useState(null)
 
   function showModToast(msg) { setModToast(msg); setTimeout(() => setModToast(null), 3000) }
@@ -10378,12 +10381,19 @@ function AdminPage({ lang, t }) {
   }, [])
 
   useEffect(() => {
+    if (adminTab !== 'moderation') return
+    const timer = setTimeout(() => {
+      apiGetModerationUsers(modUserSearch).then(d => { if (d) setModUsers(d.users) })
+    }, modUserSearch ? 300 : 0)
+    return () => clearTimeout(timer)
+  }, [modUserSearch, adminTab])
+
+  useEffect(() => {
     if (adminTab === 'viral' || adminTab === 'security') {
       apiGetAdminViralStats(viralDays).then(data => { if (data) setViralStats(data) })
     }
     if (adminTab === 'moderation') {
       apiGetModerationQueue().then(data => { if (data) setModQueue(data.reports) })
-      apiGetModerationUsers().then(data => { if (data) setModUsers(data.users) })
       apiGetKeywordFilters().then(data => { if (data) setModKeywords(data.keywords) })
       apiGetModerationActions().then(data => { if (data) setModActions(data.actions) })
     }
@@ -10897,7 +10907,6 @@ function AdminPage({ lang, t }) {
                 placeholder={t.adminModSearchUsers}
                 value={modUserSearch}
                 onChange={e => setModUserSearch(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') apiGetModerationUsers(modUserSearch).then(d => { if (d) setModUsers(d.users) }) }}
                 style={{ width: '100%', padding: '9px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', marginBottom: 12, boxSizing: 'border-box' }}
               />
               {!modUsers ? (
@@ -11009,36 +11018,113 @@ function AdminPage({ lang, t }) {
                   </button>
                 </div>
               </div>
+              {/* Category guide (collapsible) */}
+              <div className="p-card" style={{ marginBottom: 12, padding: '10px 18px' }}>
+                <button
+                  onClick={() => setShowKwGuide(v => !v)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 13, color: '#2D6A4F', padding: 0, display: 'flex', alignItems: 'center', gap: 6 }}
+                >
+                  {showKwGuide ? '▾' : '▸'} {t.adminModKeywordCategoryGuide}
+                </button>
+                {showKwGuide && (
+                  <div style={{ marginTop: 10, display: 'grid', gap: 6 }}>
+                    {Object.entries(t.kwCategoryDesc || {}).map(([key, desc]) => (
+                      <div key={key} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 13 }}>
+                        <span style={{ background: '#EEF0F2', color: '#444', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap', marginTop: 1 }}>
+                          {t.kwCategories?.[key] || key}
+                        </span>
+                        <span style={{ color: '#555', lineHeight: 1.45 }}>{desc}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {!modKeywords ? (
                 <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>{lang === 'da' ? 'Henter…' : 'Loading…'}</div>
               ) : modKeywords.length === 0 ? (
                 <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>{lang === 'da' ? 'Ingen nøgleordsfiltre endnu' : 'No keyword filters yet'}</div>
-              ) : modKeywords.map(kw => (
-                <div key={kw.id} className="p-card" style={{ marginBottom: 8, padding: '12px 18px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontFamily: 'monospace', fontWeight: 700, flex: 1 }}>{kw.keyword}</span>
-                    {kw.category && (
-                      <span style={{ background: '#EEF0F2', color: '#444', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 600 }}>
-                        {t.kwCategories?.[kw.category] || kw.category}
-                      </span>
+              ) : modKeywords.map(kw => {
+                const isEditing = editingKwId === kw.id
+                return (
+                  <div key={kw.id} className="p-card" style={{ marginBottom: 8, padding: '12px 18px' }}>
+                    {isEditing ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                          <input
+                            value={editKw.keyword}
+                            onChange={e => setEditKw(v => ({ ...v, keyword: e.target.value }))}
+                            style={{ flex: 1, minWidth: 100, padding: '6px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, fontFamily: 'monospace', fontWeight: 700 }}
+                          />
+                          <select value={editKw.action} onChange={e => setEditKw(v => ({ ...v, action: e.target.value }))}
+                            style={{ padding: '6px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 12, fontFamily: 'inherit' }}>
+                            <option value="flag">{t.adminModKeywordActionFlag}</option>
+                            <option value="block">{t.adminModKeywordActionBlock}</option>
+                          </select>
+                          <select value={editKw.category} onChange={e => setEditKw(v => ({ ...v, category: e.target.value }))}
+                            style={{ padding: '6px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 12, fontFamily: 'inherit' }}>
+                            {Object.entries(t.kwCategories || {}).map(([val, label]) => (
+                              <option key={val} value={val}>{label}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <input
+                          value={editKw.notes}
+                          onChange={e => setEditKw(v => ({ ...v, notes: e.target.value }))}
+                          placeholder={t.adminModKeywordNotesPlaceholder}
+                          style={{ padding: '6px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 12, fontFamily: 'inherit', color: '#555' }}
+                        />
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button
+                            style={{ padding: '5px 14px', borderRadius: 6, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+                            onClick={async () => {
+                              const data = await apiUpdateKeywordFilter(kw.id, editKw.keyword, editKw.action, editKw.category, editKw.notes).catch(() => null)
+                              if (data?.ok) {
+                                setEditingKwId(null)
+                                apiGetKeywordFilters().then(d => { if (d) setModKeywords(d.keywords) })
+                                showModToast('✓ Saved')
+                              }
+                            }}
+                          >{t.adminModKeywordSave}</button>
+                          <button
+                            style={{ padding: '5px 14px', borderRadius: 6, border: '1px solid #ddd', background: '#f5f5f5', fontSize: 12, cursor: 'pointer' }}
+                            onClick={() => setEditingKwId(null)}
+                          >{t.adminModKeywordCancel}</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <span style={{ fontFamily: 'monospace', fontWeight: 700, flex: 1 }}>{kw.keyword}</span>
+                          {kw.category && (
+                            <span style={{ background: '#EEF0F2', color: '#444', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 600 }}>
+                              {t.kwCategories?.[kw.category] || kw.category}
+                            </span>
+                          )}
+                          <span style={{ background: kw.action === 'block' ? '#C0392B' : '#F4C26A', color: kw.action === 'block' ? '#fff' : '#5a3e00', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>
+                            {kw.action === 'block' ? t.adminModKeywordActionBlock : t.adminModKeywordActionFlag}
+                          </span>
+                          <button style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #E8E4DF', fontSize: 12, cursor: 'pointer' }}
+                            onClick={() => { setEditingKwId(kw.id); setEditKw({ keyword: kw.keyword, action: kw.action, category: kw.category || 'other', notes: kw.notes || '' }) }}>
+                            {t.adminModKeywordEdit}
+                          </button>
+                          <button style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #E8E4DF', fontSize: 12, cursor: 'pointer', color: '#C0392B' }}
+                            onClick={async () => {
+                              await apiDeleteKeywordFilter(kw.id)
+                              apiGetKeywordFilters().then(d => { if (d) setModKeywords(d.keywords) })
+                              showModToast('✓ Deleted')
+                            }}>
+                            {t.adminModKeywordDelete}
+                          </button>
+                        </div>
+                        {kw.notes && (
+                          <div style={{ fontSize: 12, color: '#777', marginTop: 5, paddingLeft: 2 }}>{kw.notes}</div>
+                        )}
+                      </>
                     )}
-                    <span style={{ background: kw.action === 'block' ? '#C0392B' : '#F4C26A', color: kw.action === 'block' ? '#fff' : '#5a3e00', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>
-                      {kw.action === 'block' ? t.adminModKeywordActionBlock : t.adminModKeywordActionFlag}
-                    </span>
-                    <button style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #E8E4DF', fontSize: 12, cursor: 'pointer', color: '#C0392B' }}
-                      onClick={async () => {
-                        await apiDeleteKeywordFilter(kw.id)
-                        apiGetKeywordFilters().then(d => { if (d) setModKeywords(d.keywords) })
-                        showModToast('✓ Deleted')
-                      }}>
-                      {t.adminModKeywordDelete}
-                    </button>
                   </div>
-                  {kw.notes && (
-                    <div style={{ fontSize: 12, color: '#777', marginTop: 5, paddingLeft: 2 }}>{kw.notes}</div>
-                  )}
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
 
