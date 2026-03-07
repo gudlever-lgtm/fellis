@@ -487,6 +487,10 @@ export async function apiGetAnalytics(days = 30) {
   return await request(`/api/analytics?days=${days}`)
 }
 
+export async function apiGetVisitorStats(days = 30) {
+  return await request(`/api/analytics/visitor-stats?days=${days}`)
+}
+
 export async function apiUpdateMode(mode) {
   return await request('/api/me/mode', { method: 'PATCH', body: JSON.stringify({ mode }) })
 }

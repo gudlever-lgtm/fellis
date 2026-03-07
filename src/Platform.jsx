@@ -10633,7 +10633,7 @@ function AdminPage({ lang, t }) {
         </div>
       )}
 
-      {adminTab === 'security' && (
+      {adminTab === 'platform' && (
         <div className="p-card" style={{ marginBottom: 20, padding: '20px 24px' }}>
           <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700 }}>🔒 {lang === 'da' ? 'Adgangskodepolitik' : 'Password policy'}</h3>
           <p style={{ margin: '0 0 20px', fontSize: 13, color: '#666' }}>
