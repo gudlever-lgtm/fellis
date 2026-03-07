@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import Landing from './Landing.jsx'
 import Platform from './Platform.jsx'
-import { apiCheckSession, apiLogout, apiGiveConsent, apiGetInviteInfo } from './api.js'
+import { apiCheckSession, apiLogout, apiGiveConsent, apiGetInviteInfo, apiTrackVisit } from './api.js'
 import './App.css'
 
 // ── Public Privacy Policy Page (/privacy) ──
@@ -399,6 +399,7 @@ function App() {
 
   // On mount: check for Facebook OAuth callback, invite links, or validate existing session
   useEffect(() => {
+    apiTrackVisit()
     const params = new URLSearchParams(window.location.search)
     const postId = params.get('post')
     if (postId) {

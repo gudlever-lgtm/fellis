@@ -653,6 +653,33 @@ async function authenticate(req, res, next) {
   }
 }
 
+// ── Public visit tracking ─────────────────────────────────────────────────────
+// Tracks visits from all users (including unauthenticated) once per IP per day.
+// Called by the frontend on app load so the visitors dashboard always has data.
+const visitedAnonIps = new Set() // in-memory: anonymous IPs tracked this server process day
+app.post('/api/visit', async (req, res) => {
+  try {
+    const ip = (req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || '').replace(/^::ffff:/, '')
+    const today = new Date().toISOString().slice(0, 10)
+    const key = `${ip}:${today}`
+    if (ip && !visitedAnonIps.has(key)) {
+      visitedAnonIps.add(key)
+      const ua = req.headers['user-agent'] || null
+      const { browser, os } = parseBrowser(ua)
+      const sessionId = getSessionIdFromRequest(req) || `anon:${ip}`
+      getGeoForIp(ip).then(geo => {
+        pool.query(
+          `INSERT INTO site_visits (session_id, ip_address, user_agent, browser, os, country, country_code, city) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [sessionId, ip || null, ua, browser, os, geo.country, geo.country_code, geo.city]
+        ).catch(() => {})
+      })
+    }
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // ── Password policy ──────────────────────────────────────────────────────────
 
 async function getPasswordPolicy() {
@@ -3807,9 +3834,50 @@ app.get('/api/analytics', authenticate, async (req, res) => {
   }
 })
 
-// GET /api/analytics/visitor-stats — stub for geographic visitor analytics
+// GET /api/analytics/visitor-stats — aggregated visitor statistics with date range
 app.get('/api/analytics/visitor-stats', authenticate, async (req, res) => {
-  res.json({ visitors: [] })
+  try {
+    const days = Math.min(Math.max(parseInt(req.query.days) || 30, 7), 90)
+    const [browsers] = await pool.query(
+      `SELECT browser, COUNT(*) AS count FROM site_visits
+       WHERE visited_at >= DATE_SUB(NOW(), INTERVAL ? DAY) AND browser != 'Unknown'
+       GROUP BY browser ORDER BY count DESC`,
+      [days]
+    )
+    const [oses] = await pool.query(
+      `SELECT os, COUNT(*) AS count FROM site_visits
+       WHERE visited_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+       GROUP BY os ORDER BY count DESC`,
+      [days]
+    )
+    const [countries] = await pool.query(
+      `SELECT country, country_code, COUNT(*) AS count FROM site_visits
+       WHERE visited_at >= DATE_SUB(NOW(), INTERVAL ? DAY) AND country_code IS NOT NULL AND country_code != 'XX'
+       GROUP BY country_code, country ORDER BY count DESC LIMIT 30`,
+      [days]
+    )
+    const [daily] = await pool.query(
+      `SELECT DATE(visited_at) AS date, COUNT(*) AS count FROM site_visits
+       WHERE visited_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+       GROUP BY DATE(visited_at) ORDER BY date ASC`,
+      [days]
+    )
+    const [[{ total }]] = await pool.query('SELECT COUNT(*) AS total FROM site_visits')
+    const [[{ myProfileViews }]] = await pool.query(
+      'SELECT COUNT(*) AS myProfileViews FROM profile_views WHERE profile_id = ?',
+      [req.userId]
+    )
+    const [myProfileViewsDaily] = await pool.query(
+      `SELECT DATE(viewed_at) AS date, COUNT(*) AS count FROM profile_views
+       WHERE profile_id = ? AND viewed_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+       GROUP BY DATE(viewed_at) ORDER BY date ASC`,
+      [req.userId, days]
+    )
+    res.json({ browsers, oses, countries, daily, total, myProfileViews, myProfileViewsDaily })
+  } catch (err) {
+    console.error('GET /api/analytics/visitor-stats error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
 })
 
 // GET /api/admin/settings — get Stripe config (admin only)
