@@ -721,4 +721,89 @@ export async function apiUpdateBirthday(birthday) {
 
 export async function apiGetMyJobs() {
   return await request('/api/jobs/mine')
+// ── Moderation ──
+
+export async function apiBlockUser(userId) {
+  return await request(`/api/users/${userId}/block`, { method: 'POST' })
+}
+
+export async function apiUnblockUser(userId) {
+  return await request(`/api/users/${userId}/block`, { method: 'DELETE' })
+}
+
+export async function apiGetMyBlocks() {
+  return await request('/api/me/blocks')
+}
+
+export async function apiReportContent(targetType, targetId, reason, details = '') {
+  return await request('/api/reports', {
+    method: 'POST',
+    body: JSON.stringify({ target_type: targetType, target_id: targetId, reason, details }),
+  })
+}
+
+export async function apiGetModerationQueue() {
+  return await request('/api/admin/moderation/queue')
+}
+
+export async function apiDismissReport(reportId, reason = '') {
+  return await request(`/api/admin/moderation/reports/${reportId}/dismiss`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  })
+}
+
+export async function apiModerateRemoveContent(type, targetId, reportId = null, reason = '') {
+  return await request('/api/admin/moderation/content/remove', {
+    method: 'POST',
+    body: JSON.stringify({ type, target_id: targetId, report_id: reportId, reason }),
+  })
+}
+
+export async function apiWarnUser(userId, reason = '', reportId = null) {
+  return await request(`/api/admin/moderation/users/${userId}/warn`, {
+    method: 'POST',
+    body: JSON.stringify({ reason, report_id: reportId }),
+  })
+}
+
+export async function apiSuspendUser(userId, days = 7, reason = '', reportId = null) {
+  return await request(`/api/admin/moderation/users/${userId}/suspend`, {
+    method: 'POST',
+    body: JSON.stringify({ days, reason, report_id: reportId }),
+  })
+}
+
+export async function apiBanUser(userId, reason = '', reportId = null) {
+  return await request(`/api/admin/moderation/users/${userId}/ban`, {
+    method: 'POST',
+    body: JSON.stringify({ reason, report_id: reportId }),
+  })
+}
+
+export async function apiUnbanUser(userId) {
+  return await request(`/api/admin/moderation/users/${userId}/unban`, { method: 'POST' })
+}
+
+export async function apiGetModerationUsers(q = '') {
+  return await request(`/api/admin/moderation/users${q ? `?q=${encodeURIComponent(q)}` : ''}`)
+}
+
+export async function apiGetKeywordFilters() {
+  return await request('/api/admin/moderation/keywords')
+}
+
+export async function apiAddKeywordFilter(keyword, action = 'flag') {
+  return await request('/api/admin/moderation/keywords', {
+    method: 'POST',
+    body: JSON.stringify({ keyword, action }),
+  })
+}
+
+export async function apiDeleteKeywordFilter(id) {
+  return await request(`/api/admin/moderation/keywords/${id}`, { method: 'DELETE' })
+}
+
+export async function apiGetModerationActions() {
+  return await request('/api/admin/moderation/actions')
 }

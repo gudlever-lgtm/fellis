@@ -614,6 +614,21 @@ async function authenticate(req, res, next) {
     if (rows.length === 0) return res.status(401).json({ error: 'Session expired' })
     req.userId = rows[0].user_id
     req.lang = rows[0].lang
+    // Check if account is banned or suspended
+    const [statusRows] = await pool.query(
+      'SELECT status, suspended_until FROM users WHERE id = ?', [req.userId]
+    )
+    if (statusRows.length > 0) {
+      const { status: userStatus, suspended_until } = statusRows[0]
+      if (userStatus === 'banned') return res.status(403).json({ error: 'Account banned' })
+      if (userStatus === 'suspended' && suspended_until && new Date(suspended_until) > new Date()) {
+        return res.status(403).json({ error: 'Account suspended', suspended_until })
+      }
+      // Auto-lift expired suspensions
+      if (userStatus === 'suspended' && (!suspended_until || new Date(suspended_until) <= new Date())) {
+        pool.query('UPDATE users SET status = "active", suspended_until = NULL WHERE id = ?', [req.userId]).catch(() => {})
+      }
+    }
 
     // Track site visit once per session per calendar day
     const todayKey = `${sessionId}:${new Date().toISOString().slice(0, 10)}`
@@ -1579,6 +1594,10 @@ app.post('/api/feed', authenticate, upload.array('media', 4), async (req, res) =
   const { text } = req.body
   if (!text) return res.status(400).json({ error: 'Post text required' })
 
+  // Keyword filter check
+  const kw = checkKeywords(text)
+  if (kw?.action === 'block') return res.status(400).json({ error: 'Post indeholder forbudt indhold / Post contains prohibited content' })
+
   // Validate magic bytes for each uploaded file
   const mediaUrls = []
   if (req.files?.length) {
@@ -1693,6 +1712,9 @@ app.post('/api/feed/:id/comment', authenticate, upload.single('media'), async (r
   const text = (req.body.text || '').trim()
   if (!text && !req.file) return res.status(400).json({ error: 'Comment text or media required' })
   const postId = parseInt(req.params.id)
+  // Keyword filter check
+  const kwc = checkKeywords(text)
+  if (kwc?.action === 'block') return res.status(400).json({ error: 'Kommentar indeholder forbudt indhold / Comment contains prohibited content' })
   let mediaJson = null
   if (req.file) {
     const header = Buffer.alloc(16)
@@ -4702,6 +4724,395 @@ app.post('/api/groups/:id/join', authenticate, async (req, res) => {
   } catch (err) {
     console.error('POST /api/groups/:id/join error:', err)
     res.status(500).json({ error: 'Failed to join group' })
+  }
+})
+
+// ── Moderation ────────────────────────────────────────────────────────────────
+
+// In-memory keyword filter cache (reloaded on change)
+let keywordFilterCache = []
+async function reloadKeywordFilters() {
+  try {
+    const [rows] = await pool.query('SELECT keyword, action FROM keyword_filters')
+    keywordFilterCache = rows
+  } catch { keywordFilterCache = [] }
+}
+reloadKeywordFilters()
+
+function checkKeywords(text) {
+  if (!text) return null
+  const lower = text.toLowerCase()
+  for (const f of keywordFilterCache) {
+    if (lower.includes(f.keyword.toLowerCase())) return f
+  }
+  return null
+}
+
+// POST /api/users/:id/block — block a user
+app.post('/api/users/:id/block', authenticate, async (req, res) => {
+  const blockedId = parseInt(req.params.id)
+  if (isNaN(blockedId) || blockedId === req.userId) return res.status(400).json({ error: 'Invalid user' })
+  try {
+    await pool.query(
+      'INSERT IGNORE INTO user_blocks (blocker_id, blocked_id) VALUES (?, ?)',
+      [req.userId, blockedId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/users/:id/block error:', err)
+    res.status(500).json({ error: 'Failed to block user' })
+  }
+})
+
+// DELETE /api/users/:id/block — unblock a user
+app.delete('/api/users/:id/block', authenticate, async (req, res) => {
+  const blockedId = parseInt(req.params.id)
+  if (isNaN(blockedId)) return res.status(400).json({ error: 'Invalid user' })
+  try {
+    await pool.query(
+      'DELETE FROM user_blocks WHERE blocker_id = ? AND blocked_id = ?',
+      [req.userId, blockedId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/users/:id/block error:', err)
+    res.status(500).json({ error: 'Failed to unblock user' })
+  }
+})
+
+// GET /api/me/blocks — get list of users I have blocked
+app.get('/api/me/blocks', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT u.id, u.name, u.handle, u.avatar_url, ub.created_at AS blocked_at
+       FROM user_blocks ub
+       JOIN users u ON u.id = ub.blocked_id
+       WHERE ub.blocker_id = ?
+       ORDER BY ub.created_at DESC`,
+      [req.userId]
+    )
+    res.json({ blocks: rows })
+  } catch (err) {
+    console.error('GET /api/me/blocks error:', err)
+    res.status(500).json({ error: 'Failed to load blocks' })
+  }
+})
+
+// POST /api/reports — submit a report
+app.post('/api/reports', authenticate, async (req, res) => {
+  const { target_type, target_id, reason, details } = req.body
+  if (!['post', 'comment', 'user'].includes(target_type)) return res.status(400).json({ error: 'Invalid target_type' })
+  if (!target_id || !reason) return res.status(400).json({ error: 'target_id and reason required' })
+  try {
+    // Prevent duplicate reports from same user on same target
+    const [existing] = await pool.query(
+      'SELECT id FROM reports WHERE reporter_id = ? AND target_type = ? AND target_id = ? AND status = "pending"',
+      [req.userId, target_type, target_id]
+    )
+    if (existing.length > 0) return res.json({ ok: true, duplicate: true })
+    await pool.query(
+      'INSERT INTO reports (reporter_id, target_type, target_id, reason, details) VALUES (?, ?, ?, ?, ?)',
+      [req.userId, target_type, target_id, reason, details || null]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/reports error:', err)
+    res.status(500).json({ error: 'Failed to submit report' })
+  }
+})
+
+// GET /api/admin/moderation/queue — get pending reports (admin only)
+app.get('/api/admin/moderation/queue', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT r.id, r.target_type, r.target_id, r.reason, r.details, r.status, r.created_at,
+              u.name AS reporter_name, u.handle AS reporter_handle
+       FROM reports r
+       JOIN users u ON u.id = r.reporter_id
+       WHERE r.status = 'pending'
+       ORDER BY r.created_at ASC
+       LIMIT 100`
+    )
+    // For each report, fetch a preview of the target
+    const enriched = await Promise.all(rows.map(async (r) => {
+      let preview = null
+      try {
+        if (r.target_type === 'post') {
+          const [[p]] = await pool.query('SELECT p.text_da, p.text_en, u.name AS author FROM posts p JOIN users u ON u.id = p.author_id WHERE p.id = ?', [r.target_id])
+          preview = p || null
+        } else if (r.target_type === 'comment') {
+          const [[c]] = await pool.query('SELECT c.text_da, c.text_en, u.name AS author, c.post_id FROM comments c JOIN users u ON u.id = c.author_id WHERE c.id = ?', [r.target_id])
+          preview = c || null
+        } else if (r.target_type === 'user') {
+          const [[u]] = await pool.query('SELECT name, handle, status, strike_count FROM users WHERE id = ?', [r.target_id])
+          preview = u || null
+        }
+      } catch { /* ignore */ }
+      return { ...r, preview }
+    }))
+    res.json({ reports: enriched })
+  } catch (err) {
+    console.error('GET /api/admin/moderation/queue error:', err)
+    res.status(500).json({ error: 'Failed to load moderation queue' })
+  }
+})
+
+// POST /api/admin/moderation/reports/:id/dismiss — dismiss a report
+app.post('/api/admin/moderation/reports/:id/dismiss', authenticate, requireAdmin, async (req, res) => {
+  const reportId = parseInt(req.params.id)
+  if (isNaN(reportId)) return res.status(400).json({ error: 'Invalid report ID' })
+  try {
+    await pool.query(
+      'UPDATE reports SET status = "dismissed", reviewed_by = ?, reviewed_at = NOW() WHERE id = ?',
+      [req.userId, reportId]
+    )
+    await pool.query(
+      'INSERT INTO moderation_actions (admin_id, action_type, target_id, reason) VALUES (?, "dismiss_report", ?, ?)',
+      [req.userId, reportId, req.body.reason || null]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/admin/moderation/reports/:id/dismiss error:', err)
+    res.status(500).json({ error: 'Failed to dismiss report' })
+  }
+})
+
+// POST /api/admin/moderation/content/remove — remove a post or comment
+app.post('/api/admin/moderation/content/remove', authenticate, requireAdmin, async (req, res) => {
+  const { type, target_id, report_id, reason } = req.body
+  if (!['post', 'comment'].includes(type) || !target_id) return res.status(400).json({ error: 'Invalid type or target_id' })
+  try {
+    const table = type === 'post' ? 'posts' : 'comments'
+    await pool.query(`DELETE FROM ${table} WHERE id = ?`, [target_id])
+    if (report_id) {
+      await pool.query(
+        'UPDATE reports SET status = "actioned", reviewed_by = ?, reviewed_at = NOW() WHERE id = ?',
+        [req.userId, report_id]
+      )
+    }
+    await pool.query(
+      'INSERT INTO moderation_actions (admin_id, action_type, target_type, target_id, reason) VALUES (?, "remove_content", ?, ?, ?)',
+      [req.userId, type, target_id, reason || null]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/admin/moderation/content/remove error:', err)
+    res.status(500).json({ error: 'Failed to remove content' })
+  }
+})
+
+// POST /api/admin/moderation/users/:id/warn — issue a warning (strike)
+app.post('/api/admin/moderation/users/:id/warn', authenticate, requireAdmin, async (req, res) => {
+  const targetId = parseInt(req.params.id)
+  if (isNaN(targetId)) return res.status(400).json({ error: 'Invalid user ID' })
+  const { reason, report_id } = req.body
+  try {
+    await pool.query(
+      'UPDATE users SET strike_count = strike_count + 1, last_strike_at = NOW() WHERE id = ?',
+      [targetId]
+    )
+    if (report_id) {
+      await pool.query(
+        'UPDATE reports SET status = "actioned", reviewed_by = ?, reviewed_at = NOW() WHERE id = ?',
+        [req.userId, report_id]
+      )
+    }
+    await pool.query(
+      'INSERT INTO moderation_actions (admin_id, target_user_id, action_type, reason) VALUES (?, ?, "warn", ?)',
+      [req.userId, targetId, reason || null]
+    )
+    // Send warning email if mailer is configured
+    if (mailer) {
+      const [[u]] = await pool.query('SELECT email, name FROM users WHERE id = ?', [targetId]).catch(() => [[null]])
+      if (u?.email) {
+        mailer.sendMail({
+          to: u.email,
+          subject: 'Advarsel fra fellis.eu / Warning from fellis.eu',
+          text: `Hej ${u.name},\n\nDu har modtaget en advarsel på fellis.eu.\nÅrsag: ${reason || 'Brud på fællesskabsreglerne'}\n\nVenlig hilsen,\nfellis.eu\n\n---\n\nHi ${u.name},\n\nYou have received a warning on fellis.eu.\nReason: ${reason || 'Community guidelines violation'}\n\nBest regards,\nfellis.eu`,
+        }).catch(() => {})
+      }
+    }
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/admin/moderation/users/:id/warn error:', err)
+    res.status(500).json({ error: 'Failed to warn user' })
+  }
+})
+
+// POST /api/admin/moderation/users/:id/suspend — suspend a user temporarily
+app.post('/api/admin/moderation/users/:id/suspend', authenticate, requireAdmin, async (req, res) => {
+  const targetId = parseInt(req.params.id)
+  if (isNaN(targetId)) return res.status(400).json({ error: 'Invalid user ID' })
+  const { days = 7, reason, report_id } = req.body
+  const suspendedUntil = new Date(Date.now() + days * 86400_000)
+  try {
+    await pool.query(
+      'UPDATE users SET status = "suspended", suspended_until = ?, strike_count = strike_count + 1, last_strike_at = NOW() WHERE id = ?',
+      [suspendedUntil, targetId]
+    )
+    // Invalidate all sessions for this user
+    await pool.query('DELETE FROM sessions WHERE user_id = ?', [targetId])
+    if (report_id) {
+      await pool.query(
+        'UPDATE reports SET status = "actioned", reviewed_by = ?, reviewed_at = NOW() WHERE id = ?',
+        [req.userId, report_id]
+      )
+    }
+    await pool.query(
+      'INSERT INTO moderation_actions (admin_id, target_user_id, action_type, reason) VALUES (?, ?, "suspend", ?)',
+      [req.userId, targetId, reason || null]
+    )
+    if (mailer) {
+      const [[u]] = await pool.query('SELECT email, name FROM users WHERE id = ?', [targetId]).catch(() => [[null]])
+      if (u?.email) {
+        mailer.sendMail({
+          to: u.email,
+          subject: 'Konto suspenderet / Account suspended — fellis.eu',
+          text: `Hej ${u.name},\n\nDin konto er blevet suspenderet i ${days} dage.\nÅrsag: ${reason || 'Brud på fællesskabsreglerne'}\n\nVenlig hilsen,\nfellis.eu\n\n---\n\nHi ${u.name},\n\nYour account has been suspended for ${days} days.\nReason: ${reason || 'Community guidelines violation'}\n\nBest regards,\nfellis.eu`,
+        }).catch(() => {})
+      }
+    }
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/admin/moderation/users/:id/suspend error:', err)
+    res.status(500).json({ error: 'Failed to suspend user' })
+  }
+})
+
+// POST /api/admin/moderation/users/:id/ban — permanently ban a user
+app.post('/api/admin/moderation/users/:id/ban', authenticate, requireAdmin, async (req, res) => {
+  const targetId = parseInt(req.params.id)
+  if (isNaN(targetId) || targetId === req.userId) return res.status(400).json({ error: 'Invalid user ID' })
+  const { reason, report_id } = req.body
+  try {
+    await pool.query('UPDATE users SET status = "banned" WHERE id = ?', [targetId])
+    await pool.query('DELETE FROM sessions WHERE user_id = ?', [targetId])
+    if (report_id) {
+      await pool.query(
+        'UPDATE reports SET status = "actioned", reviewed_by = ?, reviewed_at = NOW() WHERE id = ?',
+        [req.userId, report_id]
+      )
+    }
+    await pool.query(
+      'INSERT INTO moderation_actions (admin_id, target_user_id, action_type, reason) VALUES (?, ?, "ban", ?)',
+      [req.userId, targetId, reason || null]
+    )
+    if (mailer) {
+      const [[u]] = await pool.query('SELECT email, name FROM users WHERE id = ?', [targetId]).catch(() => [[null]])
+      if (u?.email) {
+        mailer.sendMail({
+          to: u.email,
+          subject: 'Konto lukket / Account banned — fellis.eu',
+          text: `Hej ${u.name},\n\nDin konto er blevet permanent lukket.\nÅrsag: ${reason || 'Brud på fællesskabsreglerne'}\n\nVenlig hilsen,\nfellis.eu\n\n---\n\nHi ${u.name},\n\nYour account has been permanently banned.\nReason: ${reason || 'Community guidelines violation'}\n\nBest regards,\nfellis.eu`,
+        }).catch(() => {})
+      }
+    }
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/admin/moderation/users/:id/ban error:', err)
+    res.status(500).json({ error: 'Failed to ban user' })
+  }
+})
+
+// POST /api/admin/moderation/users/:id/unban — lift a suspension or ban
+app.post('/api/admin/moderation/users/:id/unban', authenticate, requireAdmin, async (req, res) => {
+  const targetId = parseInt(req.params.id)
+  if (isNaN(targetId)) return res.status(400).json({ error: 'Invalid user ID' })
+  try {
+    await pool.query(
+      'UPDATE users SET status = "active", suspended_until = NULL WHERE id = ?',
+      [targetId]
+    )
+    await pool.query(
+      'INSERT INTO moderation_actions (admin_id, target_user_id, action_type) VALUES (?, ?, "unban")',
+      [req.userId, targetId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/admin/moderation/users/:id/unban error:', err)
+    res.status(500).json({ error: 'Failed to unban user' })
+  }
+})
+
+// GET /api/admin/moderation/users — list users with moderation info
+app.get('/api/admin/moderation/users', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const q = req.query.q ? `%${req.query.q}%` : '%'
+    const [rows] = await pool.query(
+      `SELECT id, name, handle, email, status, strike_count, suspended_until, last_strike_at, created_at
+       FROM users
+       WHERE (name LIKE ? OR handle LIKE ? OR email LIKE ?)
+       ORDER BY strike_count DESC, created_at DESC
+       LIMIT 100`,
+      [q, q, q]
+    )
+    res.json({ users: rows })
+  } catch (err) {
+    console.error('GET /api/admin/moderation/users error:', err)
+    res.status(500).json({ error: 'Failed to load users' })
+  }
+})
+
+// GET /api/admin/moderation/keywords — list keyword filters
+app.get('/api/admin/moderation/keywords', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT id, keyword, action, created_at FROM keyword_filters ORDER BY created_at DESC')
+    res.json({ keywords: rows })
+  } catch (err) {
+    console.error('GET /api/admin/moderation/keywords error:', err)
+    res.status(500).json({ error: 'Failed to load keyword filters' })
+  }
+})
+
+// POST /api/admin/moderation/keywords — add a keyword filter
+app.post('/api/admin/moderation/keywords', authenticate, requireAdmin, async (req, res) => {
+  const { keyword, action = 'flag' } = req.body
+  if (!keyword || !['flag', 'block'].includes(action)) return res.status(400).json({ error: 'keyword and valid action required' })
+  try {
+    await pool.query(
+      'INSERT INTO keyword_filters (keyword, action, created_by) VALUES (?, ?, ?)',
+      [keyword.trim().toLowerCase(), action, req.userId]
+    )
+    await reloadKeywordFilters()
+    res.json({ ok: true })
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Keyword already exists' })
+    console.error('POST /api/admin/moderation/keywords error:', err)
+    res.status(500).json({ error: 'Failed to add keyword filter' })
+  }
+})
+
+// DELETE /api/admin/moderation/keywords/:id — remove a keyword filter
+app.delete('/api/admin/moderation/keywords/:id', authenticate, requireAdmin, async (req, res) => {
+  const id = parseInt(req.params.id)
+  if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' })
+  try {
+    await pool.query('DELETE FROM keyword_filters WHERE id = ?', [id])
+    await reloadKeywordFilters()
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/admin/moderation/keywords/:id error:', err)
+    res.status(500).json({ error: 'Failed to delete keyword filter' })
+  }
+})
+
+// GET /api/admin/moderation/actions — recent moderation audit log
+app.get('/api/admin/moderation/actions', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT ma.id, ma.action_type, ma.target_type, ma.target_id, ma.reason, ma.created_at,
+              a.name AS admin_name,
+              tu.name AS target_user_name, tu.handle AS target_user_handle
+       FROM moderation_actions ma
+       JOIN users a ON a.id = ma.admin_id
+       LEFT JOIN users tu ON tu.id = ma.target_user_id
+       ORDER BY ma.created_at DESC
+       LIMIT 200`
+    )
+    res.json({ actions: rows })
+  } catch (err) {
+    console.error('GET /api/admin/moderation/actions error:', err)
+    res.status(500).json({ error: 'Failed to load audit log' })
   }
 })
 

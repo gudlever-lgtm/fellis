@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect } from 'react'
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { PT, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiSuggestCategory, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiHeartbeat, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiGetVisitorStats, apiGetChangelog, apiGetNotifications, apiMarkNotificationRead, apiMarkAllNotificationsRead, apiUpdateProfile, apiGetConfig, apiDownloadGooglePhoto, apiUploadFile, apiGetMyJobs } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiSuggestCategory, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiHeartbeat, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiGetVisitorStats, apiGetChangelog, apiGetNotifications, apiMarkNotificationRead, apiMarkAllNotificationsRead, apiUpdateProfile, apiGetConfig, apiDownloadGooglePhoto, apiUploadFile, apiGetMyJobs, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions } from './api.js'
 import ReelsPage from './Reels.jsx'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
@@ -1067,6 +1067,8 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
   const [mediaMaxFiles, setMediaMaxFiles] = useState(4)
   const mediaMaxFilesRef = useRef(4)
   const [providerMediaUrls, setProviderMediaUrls] = useState([]) // { url, mimeType }[] for server-side downloaded provider photos
+  const [reportModal, setReportModal] = useState(null) // { targetType, targetId } | null
+  const [blockToast, setBlockToast] = useState(null)   // message string | null
   const fileInputRef = useRef(null)
   const textareaRef = useRef(null)
   const feedMention = useMention(sharePopupFriends || [])
@@ -1579,6 +1581,21 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
               }
             </div>
           </div>
+        </div>
+      )}
+      {/* Report modal */}
+      {reportModal && (
+        <ReportModal
+          t={t}
+          targetType={reportModal.targetType}
+          targetId={reportModal.targetId}
+          onClose={() => setReportModal(null)}
+        />
+      )}
+      {/* Block toast */}
+      {blockToast && (
+        <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: '#333', color: '#fff', borderRadius: 8, padding: '10px 20px', fontSize: 14, fontWeight: 600, zIndex: 2000 }}>
+          {blockToast}
         </div>
       )}
       {/* New post */}
@@ -2126,10 +2143,25 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
                           <button className="p-post-menu-item" onClick={() => handleHidePost(post.id)}>
                             🙈 {lang === 'da' ? 'Skjul opslag' : 'Hide post'}
                           </button>
+                          <button className="p-post-menu-item" onClick={() => { setPostMenu(null); setReportModal({ targetType: 'post', targetId: post.id }) }}>
+                            🚩 {t.reportPost}
+                          </button>
                           {post.authorId && (
-                            <button className="p-post-menu-item danger" onClick={() => handleUnfriendFromPost(post)}>
-                              👋 {lang === 'da' ? `Ophæv venskab med ${post.author.split(' ')[0]}` : `Unfriend ${post.author.split(' ')[0]}`}
-                            </button>
+                            <>
+                              <button className="p-post-menu-item danger" onClick={() => handleUnfriendFromPost(post)}>
+                                👋 {lang === 'da' ? `Ophæv venskab med ${post.author.split(' ')[0]}` : `Unfriend ${post.author.split(' ')[0]}`}
+                              </button>
+                              <button className="p-post-menu-item danger" onClick={async () => {
+                                setPostMenu(null)
+                                if (!window.confirm(t.blockConfirm)) return
+                                await apiBlockUser(post.authorId).catch(() => {})
+                                setPosts(prev => prev.filter(p => p.authorId !== post.authorId))
+                                setBlockToast(t.blockDone)
+                                setTimeout(() => setBlockToast(null), 3000)
+                              }}>
+                                🚫 {t.blockUser}
+                              </button>
+                            </>
                           )}
                         </>
                       )}
@@ -10216,6 +10248,71 @@ function AdminSecurityGdpr({ viralStats, lang }) {
   )
 }
 
+// ── ReportModal ──────────────────────────────────────────────────────────────
+function ReportModal({ t, targetType, targetId, onClose }) {
+  const [reason, setReason] = useState('')
+  const [details, setDetails] = useState('')
+  const [status, setStatus] = useState('idle') // idle | submitting | done | duplicate
+
+  const reasons = [
+    { key: 'spam', label: t.reportReasonSpam },
+    { key: 'hate', label: t.reportReasonHate },
+    { key: 'harassment', label: t.reportReasonHarassment },
+    { key: 'misinformation', label: t.reportReasonMisinformation },
+    { key: 'violence', label: t.reportReasonViolence },
+    { key: 'nudity', label: t.reportReasonNudity },
+    { key: 'other', label: t.reportReasonOther },
+  ]
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!reason) return
+    setStatus('submitting')
+    const data = await apiReportContent(targetType, targetId, reason, details).catch(() => null)
+    if (data?.duplicate) { setStatus('duplicate'); return }
+    setStatus('done')
+    setTimeout(onClose, 1800)
+  }
+
+  const s = {
+    backdrop: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+    modal: { background: '#fff', borderRadius: 14, padding: '24px 28px', width: '100%', maxWidth: 400, boxShadow: '0 8px 32px rgba(0,0,0,0.18)' },
+    title: { margin: '0 0 16px', fontSize: 17, fontWeight: 700 },
+    label: { fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 },
+    select: { width: '100%', padding: '9px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', marginBottom: 12 },
+    textarea: { width: '100%', padding: '9px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', minHeight: 70, resize: 'vertical', boxSizing: 'border-box', marginBottom: 14 },
+    btn: { padding: '10px 22px', borderRadius: 8, border: 'none', background: '#E07A5F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' },
+    cancelBtn: { padding: '10px 16px', borderRadius: 8, border: '1px solid #E8E4DF', background: 'none', fontSize: 14, cursor: 'pointer', marginLeft: 8 },
+  }
+
+  return (
+    <div style={s.backdrop} onClick={onClose}>
+      <div style={s.modal} onClick={e => e.stopPropagation()}>
+        <h3 style={s.title}>🚩 {t.reportTitle}</h3>
+        {status === 'done' && <div style={{ color: '#2D6A4F', fontWeight: 600, marginBottom: 12 }}>✓ {t.reportDone}</div>}
+        {status === 'duplicate' && <div style={{ color: '#888', marginBottom: 12 }}>{t.reportDuplicate}</div>}
+        {status !== 'done' && (
+          <form onSubmit={handleSubmit}>
+            <label style={s.label}>{t.reportReasonLabel}</label>
+            <select style={s.select} value={reason} onChange={e => setReason(e.target.value)} required>
+              <option value="">—</option>
+              {reasons.map(r => <option key={r.key} value={r.key}>{r.label}</option>)}
+            </select>
+            <label style={s.label}>{t.reportDetailsLabel}</label>
+            <textarea style={s.textarea} value={details} onChange={e => setDetails(e.target.value)} placeholder={t.reportDetailsPlaceholder} />
+            <div>
+              <button type="submit" style={s.btn} disabled={!reason || status === 'submitting'}>
+                {status === 'submitting' ? '…' : t.reportSubmit}
+              </button>
+              <button type="button" style={s.cancelBtn} onClick={onClose}>{t.cancel || 'Annuller'}</button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function AdminPage({ lang, t }) {
   const STRIPE_FIELDS = [
     { key: 'stripe_secret_key', label: t.adminStripeSecretKey, type: 'password', placeholder: 'sk_live_...' },
@@ -10241,6 +10338,20 @@ function AdminPage({ lang, t }) {
   const [interestStats, setInterestStats] = useState(null)
   const [viralStats, setViralStats] = useState(null)
   const [viralDays, setViralDays] = useState(30)
+  // Moderation state
+  const [modQueue, setModQueue] = useState(null)
+  const [modUsers, setModUsers] = useState(null)
+  const [modUserSearch, setModUserSearch] = useState('')
+  const [modKeywords, setModKeywords] = useState(null)
+  const [modActions, setModActions] = useState(null)
+  const [modSubTab, setModSubTab] = useState('queue')
+  const [modReason, setModReason] = useState({}) // reportId → reason string
+  const [modSuspendDays, setModSuspendDays] = useState({}) // userId → days
+  const [newKeyword, setNewKeyword] = useState('')
+  const [newKeywordAction, setNewKeywordAction] = useState('flag')
+  const [modToast, setModToast] = useState(null)
+
+  function showModToast(msg) { setModToast(msg); setTimeout(() => setModToast(null), 3000) }
 
   useEffect(() => {
     apiGetAdminSettings().then(data => {
@@ -10254,6 +10365,12 @@ function AdminPage({ lang, t }) {
   useEffect(() => {
     if (adminTab === 'viral' || adminTab === 'security') {
       apiGetAdminViralStats(viralDays).then(data => { if (data) setViralStats(data) })
+    }
+    if (adminTab === 'moderation') {
+      apiGetModerationQueue().then(data => { if (data) setModQueue(data.reports) })
+      apiGetModerationUsers().then(data => { if (data) setModUsers(data.users) })
+      apiGetKeywordFilters().then(data => { if (data) setModKeywords(data.keywords) })
+      apiGetModerationActions().then(data => { if (data) setModActions(data.actions) })
     }
   }, [adminTab, viralDays])
 
@@ -10302,6 +10419,8 @@ function AdminPage({ lang, t }) {
         </button>
         <button className={`p-filter-tab${adminTab === 'platform' ? ' active' : ''}`} onClick={() => setAdminTab('platform')}>
           🛠️ {lang === 'da' ? 'Indstillinger' : 'Settings'}
+        <button className={`p-filter-tab${adminTab === 'moderation' ? ' active' : ''}`} onClick={() => setAdminTab('moderation')}>
+          🛡️ {t.adminModerationTab}
         </button>
       </div>
 
@@ -10645,6 +10764,263 @@ function AdminPage({ lang, t }) {
             </button>
           </div>
         </form>
+      {adminTab === 'moderation' && (
+        <div>
+          {modToast && (
+            <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: '#333', color: '#fff', borderRadius: 8, padding: '10px 20px', fontSize: 14, fontWeight: 600, zIndex: 2000 }}>
+              {modToast}
+            </div>
+          )}
+
+          {/* Sub-tabs */}
+          <div className="p-filter-tabs" style={{ marginBottom: 16 }}>
+            {[
+              { key: 'queue', label: `🚩 ${t.adminModQueueTitle}` },
+              { key: 'users', label: `👥 ${t.adminModUsersTitle}` },
+              { key: 'keywords', label: `🔤 ${t.adminModKeywordsTitle}` },
+              { key: 'log', label: `📋 ${t.adminModActionsTitle}` },
+            ].map(({ key, label }) => (
+              <button key={key} className={`p-filter-tab${modSubTab === key ? ' active' : ''}`} onClick={() => setModSubTab(key)}>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* ── Reports queue ── */}
+          {modSubTab === 'queue' && (
+            <div>
+              {!modQueue ? (
+                <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>
+                  {lang === 'da' ? 'Henter…' : 'Loading…'}
+                </div>
+              ) : modQueue.length === 0 ? (
+                <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>
+                  ✅ {t.adminModQueueEmpty}
+                </div>
+              ) : modQueue.map(report => {
+                const reason = modReason[report.id] || ''
+                const setReason = v => setModReason(prev => ({ ...prev, [report.id]: v }))
+                const refresh = () => apiGetModerationQueue().then(d => { if (d) setModQueue(d.reports) })
+                return (
+                  <div key={report.id} className="p-card" style={{ marginBottom: 12, padding: '16px 20px' }}>
+                    <div style={{ display: 'flex', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
+                      <span style={{ background: '#FFF3CD', color: '#856404', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>
+                        {report.target_type.toUpperCase()}
+                      </span>
+                      <span style={{ fontSize: 12, color: '#888' }}>
+                        #{report.id} · {report.reason} · {lang === 'da' ? 'Anmeldt af' : 'Reported by'} {report.reporter_name}
+                      </span>
+                    </div>
+                    {report.preview && (
+                      <div style={{ background: '#f9f7f5', borderRadius: 8, padding: '10px 14px', fontSize: 13, marginBottom: 10, color: '#444' }}>
+                        {report.target_type === 'user' ? (
+                          <><strong>{report.preview.name}</strong> ({report.preview.handle}) — {report.preview.status}, {report.preview.strike_count} {t.adminModStrikes}</>
+                        ) : (
+                          <><strong>{report.preview.author}:</strong> {(report.preview.text_da || '').slice(0, 200)}</>
+                        )}
+                      </div>
+                    )}
+                    <input
+                      placeholder={t.adminModReasonPlaceholder}
+                      value={reason}
+                      onChange={e => setReason(e.target.value)}
+                      style={{ width: '100%', padding: '7px 10px', border: '1px solid #E8E4DF', borderRadius: 7, fontSize: 13, fontFamily: 'inherit', marginBottom: 10, boxSizing: 'border-box' }}
+                    />
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <button style={{ padding: '6px 12px', borderRadius: 7, border: '1px solid #E8E4DF', fontSize: 13, cursor: 'pointer', background: '#fff' }}
+                        onClick={async () => { await apiDismissReport(report.id, reason); await refresh(); showModToast('✓ Dismissed') }}>
+                        {t.adminModDismiss}
+                      </button>
+                      {report.target_type !== 'user' && (
+                        <button style={{ padding: '6px 12px', borderRadius: 7, border: 'none', fontSize: 13, cursor: 'pointer', background: '#E07A5F', color: '#fff', fontWeight: 600 }}
+                          onClick={async () => {
+                            await apiModerateRemoveContent(report.target_type, report.target_id, report.id, reason)
+                            await refresh(); showModToast('✓ Content removed')
+                          }}>
+                          {t.adminModRemoveContent}
+                        </button>
+                      )}
+                      {report.target_type === 'user' && report.preview && (
+                        <>
+                          <button style={{ padding: '6px 12px', borderRadius: 7, border: 'none', fontSize: 13, cursor: 'pointer', background: '#F4C26A', color: '#5a3e00', fontWeight: 600 }}
+                            onClick={async () => { await apiWarnUser(report.target_id, reason, report.id); await refresh(); showModToast('✓ Warning issued') }}>
+                            {t.adminModWarn}
+                          </button>
+                          <button style={{ padding: '6px 12px', borderRadius: 7, border: 'none', fontSize: 13, cursor: 'pointer', background: '#E07A5F', color: '#fff', fontWeight: 600 }}
+                            onClick={async () => {
+                              const days = parseInt(window.prompt(`${t.adminModSuspendDays}:`, '7') || '7')
+                              if (!days) return
+                              await apiSuspendUser(report.target_id, days, reason, report.id)
+                              await refresh(); showModToast(`✓ Suspended ${days}d`)
+                            }}>
+                            {t.adminModSuspend}
+                          </button>
+                          <button style={{ padding: '6px 12px', borderRadius: 7, border: 'none', fontSize: 13, cursor: 'pointer', background: '#C0392B', color: '#fff', fontWeight: 700 }}
+                            onClick={async () => {
+                              if (!window.confirm(t.adminModConfirmBan)) return
+                              await apiBanUser(report.target_id, reason, report.id)
+                              await refresh(); showModToast('✓ User banned')
+                            }}>
+                            {t.adminModBan}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* ── User management ── */}
+          {modSubTab === 'users' && (
+            <div>
+              <input
+                placeholder={t.adminModSearchUsers}
+                value={modUserSearch}
+                onChange={e => setModUserSearch(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') apiGetModerationUsers(modUserSearch).then(d => { if (d) setModUsers(d.users) }) }}
+                style={{ width: '100%', padding: '9px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', marginBottom: 12, boxSizing: 'border-box' }}
+              />
+              {!modUsers ? (
+                <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>{lang === 'da' ? 'Henter…' : 'Loading…'}</div>
+              ) : modUsers.length === 0 ? (
+                <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>{t.adminModNoUsers}</div>
+              ) : modUsers.map(u => {
+                const statusColor = u.status === 'banned' ? '#C0392B' : u.status === 'suspended' ? '#E07A5F' : '#2D6A4F'
+                const statusLabel = u.status === 'banned' ? t.adminModStatusBanned : u.status === 'suspended' ? t.adminModStatusSuspended : t.adminModStatusActive
+                const refreshUsers = () => apiGetModerationUsers(modUserSearch).then(d => { if (d) setModUsers(d.users) })
+                const days = modSuspendDays[u.id] || 7
+                return (
+                  <div key={u.id} className="p-card" style={{ marginBottom: 10, padding: '14px 18px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
+                      <div className="p-avatar-sm" style={{ background: nameToColor(u.name) }}>{getInitials(u.name)}</div>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 14 }}>{u.name}</div>
+                        <div style={{ fontSize: 12, color: '#888' }}>{u.handle} · {u.email}</div>
+                      </div>
+                      <span style={{ marginLeft: 'auto', background: statusColor, color: '#fff', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>
+                        {statusLabel}
+                      </span>
+                      {u.strike_count > 0 && (
+                        <span style={{ background: '#FFF3CD', color: '#856404', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>
+                          ⚠️ {u.strike_count} {t.adminModStrikes}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                      <button style={{ padding: '5px 10px', borderRadius: 7, border: 'none', fontSize: 12, cursor: 'pointer', background: '#F4C26A', color: '#5a3e00', fontWeight: 600 }}
+                        onClick={async () => { await apiWarnUser(u.id); await refreshUsers(); showModToast('✓ Warning issued') }}>
+                        {t.adminModWarn}
+                      </button>
+                      <input type="number" min="1" max="365" value={days}
+                        onChange={e => setModSuspendDays(prev => ({ ...prev, [u.id]: parseInt(e.target.value) || 7 }))}
+                        style={{ width: 52, padding: '4px 6px', border: '1px solid #E8E4DF', borderRadius: 6, fontSize: 12, textAlign: 'center' }}
+                      />
+                      <span style={{ fontSize: 12, color: '#888' }}>{t.adminModSuspendDays}</span>
+                      <button style={{ padding: '5px 10px', borderRadius: 7, border: 'none', fontSize: 12, cursor: 'pointer', background: '#E07A5F', color: '#fff', fontWeight: 600 }}
+                        onClick={async () => { await apiSuspendUser(u.id, days); await refreshUsers(); showModToast(`✓ Suspended ${days}d`) }}>
+                        {t.adminModSuspend}
+                      </button>
+                      {u.status !== 'banned' ? (
+                        <button style={{ padding: '5px 10px', borderRadius: 7, border: 'none', fontSize: 12, cursor: 'pointer', background: '#C0392B', color: '#fff', fontWeight: 700 }}
+                          onClick={async () => {
+                            if (!window.confirm(t.adminModConfirmBan)) return
+                            await apiBanUser(u.id)
+                            await refreshUsers(); showModToast('✓ User banned')
+                          }}>
+                          {t.adminModBan}
+                        </button>
+                      ) : (
+                        <button style={{ padding: '5px 10px', borderRadius: 7, border: 'none', fontSize: 12, cursor: 'pointer', background: '#2D6A4F', color: '#fff', fontWeight: 600 }}
+                          onClick={async () => { await apiUnbanUser(u.id); await refreshUsers(); showModToast('✓ Unbanned') }}>
+                          {t.adminModUnban}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* ── Keyword filters ── */}
+          {modSubTab === 'keywords' && (
+            <div>
+              <div className="p-card" style={{ marginBottom: 12, padding: '16px 20px' }}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <input
+                    placeholder={t.adminModKeywordPlaceholder}
+                    value={newKeyword}
+                    onChange={e => setNewKeyword(e.target.value)}
+                    style={{ flex: 1, minWidth: 120, padding: '8px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 14, fontFamily: 'inherit' }}
+                  />
+                  <select value={newKeywordAction} onChange={e => setNewKeywordAction(e.target.value)}
+                    style={{ padding: '8px 10px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 13, fontFamily: 'inherit' }}>
+                    <option value="flag">{t.adminModKeywordActionFlag}</option>
+                    <option value="block">{t.adminModKeywordActionBlock}</option>
+                  </select>
+                  <button
+                    style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+                    onClick={async () => {
+                      if (!newKeyword.trim()) return
+                      const data = await apiAddKeywordFilter(newKeyword.trim(), newKeywordAction).catch(() => null)
+                      if (data?.ok) {
+                        setNewKeyword('')
+                        apiGetKeywordFilters().then(d => { if (d) setModKeywords(d.keywords) })
+                        showModToast('✓ Keyword added')
+                      }
+                    }}
+                  >
+                    {t.adminModKeywordAdd}
+                  </button>
+                </div>
+              </div>
+              {!modKeywords ? (
+                <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>{lang === 'da' ? 'Henter…' : 'Loading…'}</div>
+              ) : modKeywords.length === 0 ? (
+                <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>{lang === 'da' ? 'Ingen nøgleordsfiltre endnu' : 'No keyword filters yet'}</div>
+              ) : modKeywords.map(kw => (
+                <div key={kw.id} className="p-card" style={{ marginBottom: 8, padding: '12px 18px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontFamily: 'monospace', fontWeight: 700, flex: 1 }}>{kw.keyword}</span>
+                  <span style={{ background: kw.action === 'block' ? '#C0392B' : '#F4C26A', color: kw.action === 'block' ? '#fff' : '#5a3e00', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>
+                    {kw.action === 'block' ? t.adminModKeywordActionBlock : t.adminModKeywordActionFlag}
+                  </span>
+                  <button style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #E8E4DF', fontSize: 12, cursor: 'pointer', color: '#C0392B' }}
+                    onClick={async () => {
+                      await apiDeleteKeywordFilter(kw.id)
+                      apiGetKeywordFilters().then(d => { if (d) setModKeywords(d.keywords) })
+                      showModToast('✓ Deleted')
+                    }}>
+                    {t.adminModKeywordDelete}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* ── Audit log ── */}
+          {modSubTab === 'log' && (
+            <div>
+              {!modActions ? (
+                <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>{lang === 'da' ? 'Henter…' : 'Loading…'}</div>
+              ) : modActions.length === 0 ? (
+                <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>{t.adminModActionsEmpty}</div>
+              ) : modActions.map(a => (
+                <div key={a.id} className="p-card" style={{ marginBottom: 8, padding: '12px 18px' }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: 700, fontSize: 13 }}>{a.action_type.replace('_', ' ').toUpperCase()}</span>
+                    {a.target_user_name && <span style={{ fontSize: 13, color: '#555' }}>→ {a.target_user_name} ({a.target_user_handle})</span>}
+                    {a.target_type && <span style={{ fontSize: 12, color: '#888' }}>{a.target_type} #{a.target_id}</span>}
+                    <span style={{ marginLeft: 'auto', fontSize: 12, color: '#aaa' }}>{new Date(a.created_at).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US')}</span>
+                  </div>
+                  {a.reason && <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>{a.reason}</div>}
+                  <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>{lang === 'da' ? 'Af' : 'By'} {a.admin_name}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
     </div>
   )
