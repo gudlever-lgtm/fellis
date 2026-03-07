@@ -1599,6 +1599,15 @@ app.get('/api/feed', authenticate, async (req, res) => {
   }
 })
 
+// POST /api/feed/preflight — check text against keyword filters without posting
+app.post('/api/feed/preflight', authenticate, (req, res) => {
+  const { text } = req.body
+  if (!text) return res.json({ ok: true })
+  const kw = checkKeywords(text)
+  if (!kw) return res.json({ ok: true })
+  res.json({ ok: kw.action !== 'block', flagged: kw.action === 'flag', blocked: kw.action === 'block', keyword: kw.keyword })
+})
+
 // POST /api/feed — create a new post (with optional media)
 app.post('/api/feed', authenticate, upload.array('media', 4), async (req, res) => {
   const { text } = req.body

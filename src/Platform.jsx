@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect } from 'react'
 import { PT, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetPostInsights } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetPostInsights, apiPreflightPost } from './api.js'
 import ReelsPage from './Reels.jsx'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
@@ -832,8 +832,9 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
   const [mediaPopup, setMediaPopup] = useState(false)
   const [postMenu, setPostMenu] = useState(null)       // postId with open options menu
   const [hiddenPosts, setHiddenPosts] = useState(new Set()) // locally hidden post ids
-  const [reportModal, setReportModal] = useState(null) // { targetType, targetId } | null
-  const [blockToast, setBlockToast] = useState(null)   // message string | null
+  const [reportModal, setReportModal] = useState(null)   // { targetType, targetId } | null
+  const [blockToast, setBlockToast] = useState(null)    // message string | null
+  const [keywordWarning, setKeywordWarning] = useState(null) // { keyword, text, files } | null
   const fileInputRef = useRef(null)
   const textareaRef = useRef(null)
   const feedMention = useMention(sharePopupFriends || [])
@@ -1030,10 +1031,7 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
     })
   }, [])
 
-  const handlePost = useCallback(() => {
-    if (!newPostText.trim() && !mediaFiles.length) return
-    const text = newPostText.trim()
-    const files = mediaFiles.length > 0 ? mediaFiles : null
+  const doCreatePost = useCallback((text, files) => {
     apiCreatePost(text, files).then(data => {
       if (data) {
         setPosts(prev => [data, ...prev].slice(0, PAGE_SIZE))
@@ -1059,7 +1057,25 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
     setMediaPopup(false)
     if (fileInputRef.current) fileInputRef.current.value = ''
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
-  }, [newPostText, mediaFiles, mediaPreviews, currentUser.name])
+  }, [mediaPreviews, currentUser.name])
+
+  const handlePost = useCallback(async () => {
+    if (!newPostText.trim() && !mediaFiles.length) return
+    const text = newPostText.trim()
+    const files = mediaFiles.length > 0 ? mediaFiles : null
+    const check = await apiPreflightPost(text)
+    if (check?.blocked) return // server will also block — just in case
+    if (check?.flagged) {
+      setKeywordWarning({ keyword: check.keyword, text, files })
+      return
+    }
+    doCreatePost(text, files)
+    setNewPostText('')
+    setMediaFiles([])
+    setMediaPreviews([])
+    setPostExpanded(false)
+    setMediaPopup(false)
+  }, [newPostText, mediaFiles, doCreatePost])
 
   const toggleLike = useCallback((id, emoji) => {
     const isLiked = likedPosts.has(id)
@@ -1293,6 +1309,41 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
       {blockToast && (
         <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: '#333', color: '#fff', borderRadius: 8, padding: '10px 20px', fontSize: 14, fontWeight: 600, zIndex: 2000 }}>
           {blockToast}
+        </div>
+      )}
+      {/* Keyword warning modal */}
+      {keywordWarning && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000 }}>
+          <div style={{ background: '#fff', borderRadius: 12, padding: '28px 28px 24px', maxWidth: 420, width: '90%', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
+            <div style={{ fontSize: 22, marginBottom: 10 }}>⚠️</div>
+            <h3 style={{ margin: '0 0 10px', fontSize: 16, fontWeight: 700 }}>{t.keywordWarnTitle}</h3>
+            <p style={{ margin: '0 0 20px', fontSize: 14, color: '#555', lineHeight: 1.5 }}>
+              {t.keywordWarnBody.replace('{kw}', keywordWarning.keyword)}
+            </p>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setKeywordWarning(null)}
+                style={{ padding: '9px 18px', borderRadius: 8, border: '1px solid #ddd', background: '#f5f5f5', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}
+              >
+                {t.keywordWarnEdit}
+              </button>
+              <button
+                onClick={() => {
+                  const { text, files } = keywordWarning
+                  setKeywordWarning(null)
+                  doCreatePost(text, files)
+                  setNewPostText('')
+                  setMediaFiles([])
+                  setMediaPreviews([])
+                  setPostExpanded(false)
+                  setMediaPopup(false)
+                }}
+                style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: '#c0392b', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}
+              >
+                {t.keywordWarnContinue}
+              </button>
+            </div>
+          </div>
         </div>
       )}
       {/* New post */}

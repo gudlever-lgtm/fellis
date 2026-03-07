@@ -720,6 +720,10 @@ export const PT = {
     adminModSearchUsers: 'Søg brugere...',
     adminModNoUsers: 'Ingen brugere fundet',
     adminModConfirmBan: 'Er du sikker? Dette kan ikke fortrydes.',
+    keywordWarnTitle: 'Dit opslag indeholder markeret indhold',
+    keywordWarnBody: 'Ordet "{kw}" er markeret til moderator-gennemgang. Moderatorer kan tage følgende tiltag: advarsel, suspension eller sletning af indhold.',
+    keywordWarnContinue: 'Fortsæt alligevel',
+    keywordWarnEdit: 'Rediger tekst',
     adminModActionsEmpty: 'Ingen handlinger endnu',
   },
   en: {
@@ -1303,6 +1307,10 @@ export const PT = {
     adminModNoUsers: 'No users found',
     adminModConfirmBan: 'Are you sure? This cannot be undone.',
     adminModActionsEmpty: 'No actions yet',
+    keywordWarnTitle: 'Your post contains flagged content',
+    keywordWarnBody: 'The word "{kw}" has been flagged for moderator review. Moderators may warn, suspend, or remove your content.',
+    keywordWarnContinue: 'Post anyway',
+    keywordWarnEdit: 'Edit text',
   },
 }
 
