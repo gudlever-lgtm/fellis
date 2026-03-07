@@ -644,7 +644,7 @@ async function authenticate(req, res, next) {
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
           [sessionId, ip || null, ua, browser, os, geo.country, geo.country_code, geo.city]
         ).catch(() => {})
-      })
+      }).catch(() => {})
     }
 
     next()
@@ -672,7 +672,7 @@ app.post('/api/visit', async (req, res) => {
           `INSERT INTO site_visits (session_id, ip_address, user_agent, browser, os, country, country_code, city) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
           [sessionId, ip || null, ua, browser, os, geo.country, geo.country_code, geo.city]
         ).catch(() => {})
-      })
+      }).catch(() => {})
     }
     res.json({ ok: true })
   } catch (err) {
@@ -3838,41 +3838,56 @@ app.get('/api/analytics', authenticate, async (req, res) => {
 app.get('/api/analytics/visitor-stats', authenticate, async (req, res) => {
   try {
     const days = Math.min(Math.max(parseInt(req.query.days) || 30, 7), 90)
-    const [browsers] = await pool.query(
-      `SELECT browser, COUNT(*) AS count FROM site_visits
-       WHERE visited_at >= DATE_SUB(NOW(), INTERVAL ? DAY) AND browser != 'Unknown'
-       GROUP BY browser ORDER BY count DESC`,
-      [days]
-    )
-    const [oses] = await pool.query(
-      `SELECT os, COUNT(*) AS count FROM site_visits
-       WHERE visited_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
-       GROUP BY os ORDER BY count DESC`,
-      [days]
-    )
-    const [countries] = await pool.query(
-      `SELECT country, country_code, COUNT(*) AS count FROM site_visits
-       WHERE visited_at >= DATE_SUB(NOW(), INTERVAL ? DAY) AND country_code IS NOT NULL AND country_code != 'XX'
-       GROUP BY country_code, country ORDER BY count DESC LIMIT 30`,
-      [days]
-    )
-    const [daily] = await pool.query(
-      `SELECT DATE(visited_at) AS date, COUNT(*) AS count FROM site_visits
-       WHERE visited_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
-       GROUP BY DATE(visited_at) ORDER BY date ASC`,
-      [days]
-    )
-    const [[{ total }]] = await pool.query('SELECT COUNT(*) AS total FROM site_visits')
-    const [[{ myProfileViews }]] = await pool.query(
-      'SELECT COUNT(*) AS myProfileViews FROM profile_views WHERE profile_id = ?',
-      [req.userId]
-    )
-    const [myProfileViewsDaily] = await pool.query(
-      `SELECT DATE(viewed_at) AS date, COUNT(*) AS count FROM profile_views
-       WHERE profile_id = ? AND viewed_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
-       GROUP BY DATE(viewed_at) ORDER BY date ASC`,
-      [req.userId, days]
-    )
+
+    // site_visits queries — may fail if table not yet created (race on startup)
+    let browsers = [], oses = [], countries = [], daily = [], total = 0
+    try {
+      ;[browsers] = await pool.query(
+        `SELECT browser, COUNT(*) AS count FROM site_visits
+         WHERE visited_at >= DATE_SUB(NOW(), INTERVAL ? DAY) AND browser != 'Unknown'
+         GROUP BY browser ORDER BY count DESC`,
+        [days]
+      )
+      ;[oses] = await pool.query(
+        `SELECT os, COUNT(*) AS count FROM site_visits
+         WHERE visited_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+         GROUP BY os ORDER BY count DESC`,
+        [days]
+      )
+      ;[countries] = await pool.query(
+        `SELECT country, country_code, COUNT(*) AS count FROM site_visits
+         WHERE visited_at >= DATE_SUB(NOW(), INTERVAL ? DAY) AND country_code IS NOT NULL AND country_code != 'XX'
+         GROUP BY country_code, country ORDER BY count DESC LIMIT 30`,
+        [days]
+      )
+      ;[daily] = await pool.query(
+        `SELECT DATE(visited_at) AS date, COUNT(*) AS count FROM site_visits
+         WHERE visited_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+         GROUP BY DATE(visited_at) ORDER BY date ASC`,
+        [days]
+      )
+      ;[[{ total }]] = await pool.query('SELECT COUNT(*) AS total FROM site_visits')
+    } catch (e) {
+      console.error('visitor-stats site_visits query error:', e.message)
+    }
+
+    // profile_views queries — separate try/catch so site stats still work if table missing
+    let myProfileViews = 0, myProfileViewsDaily = []
+    try {
+      ;[[{ myProfileViews }]] = await pool.query(
+        'SELECT COUNT(*) AS myProfileViews FROM profile_views WHERE profile_id = ?',
+        [req.userId]
+      )
+      ;[myProfileViewsDaily] = await pool.query(
+        `SELECT DATE(viewed_at) AS date, COUNT(*) AS count FROM profile_views
+         WHERE profile_id = ? AND viewed_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+         GROUP BY DATE(viewed_at) ORDER BY date ASC`,
+        [req.userId, days]
+      )
+    } catch (e) {
+      console.error('visitor-stats profile_views query error:', e.message)
+    }
+
     res.json({ browsers, oses, countries, daily, total, myProfileViews, myProfileViewsDaily })
   } catch (err) {
     console.error('GET /api/analytics/visitor-stats error:', err.message)
