@@ -837,6 +837,10 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
   const [reportModal, setReportModal] = useState(null)   // { targetType, targetId } | null
   const [blockToast, setBlockToast] = useState(null)    // message string | null
   const [keywordWarning, setKeywordWarning] = useState(null) // { keyword, text, files } | null
+  const [postCategories, setPostCategories] = useState(new Set())
+  const [autoCategories, setAutoCategories] = useState(new Set())
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false)
+  const [providerMediaUrls, setProviderMediaUrls] = useState([])
   const fileInputRef = useRef(null)
   const textareaRef = useRef(null)
   const feedMention = useMention(sharePopupFriends || [])
