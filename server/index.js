@@ -1607,6 +1607,8 @@ app.post('/api/feed', authenticate, upload.array('media', 4), async (req, res) =
   // Keyword filter check
   const kw = checkKeywords(text)
   if (kw?.action === 'block') return res.status(400).json({ error: 'Post indeholder forbudt indhold / Post contains prohibited content' })
+  // flag: allow post but auto-create a report for admin review
+  const autoFlagKeyword = kw?.action === 'flag' ? kw.keyword : null
 
   // Validate magic bytes for each uploaded file
   const mediaUrls = []
@@ -1635,8 +1637,16 @@ app.post('/api/feed', authenticate, upload.array('media', 4), async (req, res) =
     )
     const [users] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
     const now = new Date()
+    const postId = result.insertId
+    // Auto-flag: create a pending report for admin review
+    if (autoFlagKeyword) {
+      pool.query(
+        'INSERT INTO reports (reporter_id, target_type, target_id, reason, details) VALUES (?, ?, ?, ?, ?)',
+        [req.userId, 'post', postId, 'keyword_flag', `Auto-flagged: keyword "${autoFlagKeyword}"`]
+      ).catch(() => {})
+    }
     res.json({
-      id: result.insertId,
+      id: postId,
       author: users[0].name,
       time: { da: formatPostTime(now, 'da'), en: formatPostTime(now, 'en') },
       text: { da: text, en: text },
@@ -1725,6 +1735,7 @@ app.post('/api/feed/:id/comment', authenticate, upload.single('media'), async (r
   // Keyword filter check
   const kwc = checkKeywords(text)
   if (kwc?.action === 'block') return res.status(400).json({ error: 'Kommentar indeholder forbudt indhold / Comment contains prohibited content' })
+  const autoFlagKeywordComment = kwc?.action === 'flag' ? kwc.keyword : null
   let mediaJson = null
   if (req.file) {
     const header = Buffer.alloc(16)
@@ -1750,6 +1761,14 @@ app.post('/api/feed/:id/comment', authenticate, upload.single('media'), async (r
         'INSERT INTO comments (post_id, author_id, text_da, text_en) VALUES (?, ?, ?, ?)',
         [postId, req.userId, text, text]
       )
+    }
+    const [rows2] = await pool.query('SELECT LAST_INSERT_ID() as id')
+    const commentId = rows2[0].id
+    if (autoFlagKeywordComment) {
+      pool.query(
+        'INSERT INTO reports (reporter_id, target_type, target_id, reason, details) VALUES (?, ?, ?, ?, ?)',
+        [req.userId, 'comment', commentId, 'keyword_flag', `Auto-flagged: keyword "${autoFlagKeywordComment}"`]
+      ).catch(() => {})
     }
     const [users] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
     const media = mediaJson ? JSON.parse(mediaJson) : null
