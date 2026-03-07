@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS gdpr_consent (
   withdrawn_at TIMESTAMP NULL DEFAULT NULL,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   INDEX idx_consent_user (user_id, consent_type)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ══════════════════════════════════════════════════════════════
 -- 2. AUDIT LOG TABLE (GDPR Art. 30 — Records of processing activities)
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
   INDEX idx_audit_user (user_id),
   INDEX idx_audit_action (action),
   INDEX idx_audit_date (created_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ══════════════════════════════════════════════════════════════
 -- 3. DATA SOURCE TRACKING (GDPR Art. 5 — data minimization & purpose limitation)

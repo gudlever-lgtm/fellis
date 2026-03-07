@@ -140,6 +140,144 @@ function PublicPrivacyPage() {
   )
 }
 
+// ── Public Terms of Service Page (/terms) ──
+// Accessible without login — used as the Google/Facebook app terms of service URL
+function PublicTermsPage() {
+  const [lang, setLang] = useState(() => {
+    const stored = localStorage.getItem('fellis_lang')
+    if (stored) return stored
+    return navigator.language?.startsWith('da') ? 'da' : 'en'
+  })
+  const da = lang === 'da'
+
+  const s = {
+    page: { fontFamily: "'DM Sans', sans-serif", maxWidth: 720, margin: '0 auto', padding: '32px 20px 64px', color: '#2D3436' },
+    nav: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 40 },
+    brand: { fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: '#2D6A4F', textDecoration: 'none' },
+    langBtn: { background: 'none', border: '1px solid #ccc', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 13 },
+    h1: { fontSize: 28, fontWeight: 700, marginBottom: 8 },
+    sub: { fontSize: 15, color: '#666', marginBottom: 36 },
+    section: { background: '#fff', border: '1px solid #E8E4DF', borderRadius: 12, padding: 24, marginBottom: 20 },
+    h2: { fontSize: 17, fontWeight: 700, marginBottom: 10, color: '#2D3436' },
+    p: { fontSize: 14, color: '#555', lineHeight: 1.7, marginBottom: 8 },
+    ul: { fontSize: 14, color: '#555', lineHeight: 1.8, paddingLeft: 22, marginTop: 8 },
+    email: { color: '#2D6A4F', fontWeight: 600 },
+    footer: { textAlign: 'center', fontSize: 13, color: '#999', marginTop: 40 },
+  }
+
+  return (
+    <div style={s.page}>
+      <nav style={s.nav}>
+        <a href="/" style={s.brand}>fellis.eu</a>
+        <button style={s.langBtn} onClick={() => setLang(da ? 'en' : 'da')}>{da ? 'EN' : 'DA'}</button>
+      </nav>
+
+      <h1 style={s.h1}>{da ? 'Servicevilkår' : 'Terms of Service'}</h1>
+      <p style={s.sub}>{da ? 'Sidst opdateret: marts 2026' : 'Last updated: March 2026'}</p>
+
+      <div style={s.section}>
+        <h2 style={s.h2}>{da ? 'Om fellis.eu' : 'About fellis.eu'}</h2>
+        <p style={s.p}>{da
+          ? 'fellis.eu er en dansk social platform hostet i EU. Ved at oprette en konto eller bruge platformen accepterer du disse servicevilkår. Platformen drives af fellis.eu og er målrettet brugere i Danmark og EU.'
+          : 'fellis.eu is a Danish social platform hosted in the EU. By creating an account or using the platform, you agree to these Terms of Service. The platform is operated by fellis.eu and is intended for users in Denmark and the EU.'
+        }</p>
+      </div>
+
+      <div style={s.section}>
+        <h2 style={s.h2}>{da ? 'Brug af platformen' : 'Use of the platform'}</h2>
+        <p style={s.p}>{da ? 'Du må bruge fellis.eu til at:' : 'You may use fellis.eu to:'}</p>
+        <ul style={s.ul}>
+          {da ? <>
+            <li>Oprette og administrere en personlig eller erhvervsmæssig profil</li>
+            <li>Dele opslag, fotos og indhold med venner og følgere</li>
+            <li>Kommunikere med andre brugere via beskeder</li>
+            <li>Opdage begivenheder og markedspladsannoncer</li>
+          </> : <>
+            <li>Create and manage a personal or business profile</li>
+            <li>Share posts, photos and content with friends and followers</li>
+            <li>Communicate with other users via messages</li>
+            <li>Discover events and marketplace listings</li>
+          </>}
+        </ul>
+      </div>
+
+      <div style={s.section}>
+        <h2 style={s.h2}>{da ? 'Forbudt adfærd' : 'Prohibited conduct'}</h2>
+        <p style={s.p}>{da ? 'Det er ikke tilladt at:' : 'You may not:'}</p>
+        <ul style={s.ul}>
+          {da ? <>
+            <li>Dele ulovligt, stødende eller skadeligt indhold</li>
+            <li>Chikanere, true eller mobbe andre brugere</li>
+            <li>Oprette falske profiler eller udgive dig for at være andre</li>
+            <li>Sprede spam, malware eller phishing-indhold</li>
+            <li>Forsøge at tilgå andre brugeres konti eller platformens systemer uden tilladelse</li>
+          </> : <>
+            <li>Share illegal, offensive or harmful content</li>
+            <li>Harass, threaten or bully other users</li>
+            <li>Create fake profiles or impersonate others</li>
+            <li>Spread spam, malware or phishing content</li>
+            <li>Attempt to access other users&apos; accounts or platform systems without authorisation</li>
+          </>}
+        </ul>
+      </div>
+
+      <div style={s.section}>
+        <h2 style={s.h2}>{da ? 'Dit indhold' : 'Your content'}</h2>
+        <p style={s.p}>{da
+          ? 'Du bevarer ejerskabet af det indhold, du deler på fellis.eu. Ved at uploade indhold giver du fellis.eu en ikke-eksklusiv, vederlagsfri licens til at vise og distribuere det til andre brugere på platformen. Vi sælger eller deler ikke dit indhold med tredjeparter til kommercielle formål.'
+          : 'You retain ownership of content you share on fellis.eu. By uploading content you grant fellis.eu a non-exclusive, royalty-free licence to display and distribute it to other users on the platform. We do not sell or share your content with third parties for commercial purposes.'
+        }</p>
+      </div>
+
+      <div style={s.section}>
+        <h2 style={s.h2}>{da ? 'Facebook-integration' : 'Facebook integration'}</h2>
+        <p style={s.p}>{da
+          ? 'fellis.eu tilbyder login via Facebook. Brug af denne funktion er underlagt både disse vilkår og Facebooks egne servicevilkår. Vi anmoder kun om de nødvendige tilladelser (public_profile og email) og behandler dine Facebook-data i overensstemmelse med vores privatlivspolitik og GDPR.'
+          : 'fellis.eu offers login via Facebook. Use of this feature is subject to both these Terms and Facebook\'s own Terms of Service. We only request necessary permissions (public_profile and email) and handle your Facebook data in accordance with our Privacy Policy and GDPR.'
+        }</p>
+      </div>
+
+      <div style={s.section}>
+        <h2 style={s.h2}>{da ? 'Kontosuspension og sletning' : 'Account suspension and deletion'}</h2>
+        <p style={s.p}>{da
+          ? 'Vi forbeholder os retten til at suspendere eller slette konti, der overtræder disse vilkår. Du kan selv slette din konto og alle tilknyttede data til enhver tid via profilindstillingerne.'
+          : 'We reserve the right to suspend or delete accounts that violate these Terms. You can delete your own account and all associated data at any time via profile settings.'
+        }</p>
+      </div>
+
+      <div style={s.section}>
+        <h2 style={s.h2}>{da ? 'Ansvarsfraskrivelse' : 'Disclaimer'}</h2>
+        <p style={s.p}>{da
+          ? 'fellis.eu leveres "som det er". Vi bestræber os på at holde platformen tilgængelig og sikker, men garanterer ikke uafbrudt drift. Vi er ikke ansvarlige for tab opstået som følge af brug af platformen eller indhold delt af andre brugere.'
+          : 'fellis.eu is provided "as is". We strive to keep the platform available and secure but do not guarantee uninterrupted operation. We are not liable for losses arising from use of the platform or content shared by other users.'
+        }</p>
+      </div>
+
+      <div style={s.section}>
+        <h2 style={s.h2}>{da ? 'Lovvalg' : 'Governing law'}</h2>
+        <p style={s.p}>{da
+          ? 'Disse vilkår er underlagt dansk ret. Eventuelle tvister afgøres ved de danske domstole.'
+          : 'These Terms are governed by Danish law. Any disputes shall be resolved by the Danish courts.'
+        }</p>
+      </div>
+
+      <div style={s.section}>
+        <h2 style={s.h2}>{da ? 'Kontakt' : 'Contact'}</h2>
+        <p style={s.p}>{da
+          ? 'Har du spørgsmål om disse servicevilkår, kan du kontakte os på:'
+          : 'If you have questions about these Terms of Service, contact us at:'
+        }</p>
+        <p style={{ ...s.p, ...s.email }}>privacy@fellis.eu</p>
+      </div>
+
+      <div style={s.footer}>
+        <p>fellis.eu — {da ? 'Dansk social platform hostet i EU' : 'Danish social platform hosted in the EU'}</p>
+        <a href="/" style={{ color: '#2D6A4F', textDecoration: 'none' }}>{da ? '← Gå til fellis.eu' : '← Go to fellis.eu'}</a>
+      </div>
+    </div>
+  )
+}
+
 // GDPR Consent Dialog translations
 const CONSENT_T = {
   da: {
@@ -255,7 +393,9 @@ function App() {
   const [showConsent, setShowConsent] = useState(false)
   const [inviteToken, setInviteToken] = useState(null)
   const [inviterName, setInviterName] = useState(null)
+  const [inviterEmail, setInviterEmail] = useState(null)
   const [initialPostId, setInitialPostId] = useState(null)
+  const [fbError, setFbError] = useState(null)
 
   // On mount: check for Facebook OAuth callback, invite links, or validate existing session
   useEffect(() => {
@@ -268,6 +408,7 @@ function App() {
     const fbSession = params.get('fb_session')
     const fbLang = params.get('fb_lang')
     const fbNeedsConsent = params.get('fb_needs_consent')
+    const fbNewUser = params.get('fb_new_user')
 
     if (fbSession) {
       // Returning from Facebook OAuth — store session
@@ -276,6 +417,15 @@ function App() {
       if (fbLang) {
         localStorage.setItem('fellis_lang', fbLang)
         setLang(fbLang)
+      }
+      // New FB user: trigger onboarding tour + store inviter name if known
+      if (fbNewUser === '1') {
+        localStorage.setItem('fellis_onboarding', '1')
+        const storedInviter = localStorage.getItem('fellis_invite_info_name')
+        if (storedInviter) {
+          localStorage.setItem('fellis_onboarding_inviter', storedInviter)
+          localStorage.removeItem('fellis_invite_info_name')
+        }
       }
       // GDPR: Show consent dialog before importing data
       if (fbNeedsConsent === 'true') {
@@ -295,7 +445,10 @@ function App() {
       apiGetInviteInfo(invite).then(data => {
         if (data?.inviter?.name) {
           setInviterName(data.inviter.name)
+          // Store for onboarding if user goes via Facebook (loses state after redirect)
+          localStorage.setItem('fellis_invite_info_name', data.inviter.name)
         }
+        if (data?.invitee_email) setInviterEmail(data.invitee_email)
       })
       window.history.replaceState({}, '', window.location.pathname)
     } else {
@@ -303,8 +456,9 @@ function App() {
       if (storedInvite) setInviteToken(storedInvite)
     }
 
-    const fbError = params.get('fb_error')
-    if (fbError) {
+    const fbErrorParam = params.get('fb_error')
+    if (fbErrorParam) {
+      setFbError(fbErrorParam)
       window.history.replaceState({}, '', window.location.pathname)
     }
 
@@ -366,11 +520,12 @@ function App() {
     )
   }
 
-  return <Landing onEnterPlatform={handleEnterPlatform} inviteToken={inviteToken} inviterName={inviterName} />
+  return <Landing onEnterPlatform={handleEnterPlatform} inviteToken={inviteToken} inviterName={inviterName} inviterEmail={inviterEmail} fbError={fbError} />
 }
 
 function AppRoot() {
   if (window.location.pathname === '/privacy') return <PublicPrivacyPage />
+  if (window.location.pathname === '/terms') return <PublicTermsPage />
   return <App />
 }
 

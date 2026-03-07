@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS referrals (
   FOREIGN KEY (referrer_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (referred_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (invitation_id) REFERENCES invitations(id) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ── 5. rewards table ──
 -- Catalog of available rewards/badges
@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS rewards (
   icon VARCHAR(10) NOT NULL DEFAULT '🏆',
   threshold INT(11) NOT NULL DEFAULT 1,
   reward_points INT(11) NOT NULL DEFAULT 10
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ── 6. user_badges table ──
 -- Badges earned by each user
@@ -67,7 +67,7 @@ CREATE TABLE IF NOT EXISTS user_badges (
   earned_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
   UNIQUE KEY unique_user_badge (user_id, reward_type),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ── 7. share_events table ──
 -- Track every external share for analytics
@@ -80,7 +80,7 @@ CREATE TABLE IF NOT EXISTS share_events (
   utm_campaign VARCHAR(100) DEFAULT NULL,
   created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ── 8. Seed reward catalog ──
 INSERT IGNORE INTO rewards (type, title_da, title_en, description_da, description_en, icon, threshold, reward_points) VALUES

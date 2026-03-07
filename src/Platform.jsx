@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect } from 'react'
+import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { PT, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
 import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetPostInsights, apiPreflightPost } from './api.js'
 import ReelsPage from './Reels.jsx'
@@ -22,7 +23,6 @@ function makeMockNotifs(mode) {
       { id: 7, type: 'endorsement', actor: 'Noah Rasmussen', time: '1 d', read: true, targetPage: 'profile' },
     )
   }
-  return base
 }
 
 export default function Platform({ lang: initialLang, onLogout, initialPostId }) {
@@ -30,6 +30,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
   const [page, setPage] = useState('feed')
   const [currentUser, setCurrentUser] = useState({ name: '', handle: '', initials: '' })
   const [showAvatarMenu, setShowAvatarMenu] = useState(false)
+  const [showMobileMenu, setShowMobileMenu] = useState(false)
   const [openConvId, setOpenConvId] = useState(null)
   const [highlightPostId, setHighlightPostId] = useState(null)
 
@@ -44,15 +45,13 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
     return stored
   })
   const [showNotifPanel, setShowNotifPanel] = useState(false)
-  const [notifs, setNotifs] = useState(() => {
-    const storedMode = localStorage.getItem('fellis_mode') || 'privat'
-    const readIds = new Set(JSON.parse(localStorage.getItem('fellis_notifs_read') || '[]'))
-    return makeMockNotifs(storedMode === 'common' ? 'privat' : storedMode).map(n => readIds.has(n.id) ? { ...n, read: true } : n)
-  })
+  const [notifs, setNotifs] = useState([])
   const [showModeModal, setShowModeModal] = useState(false)
   const [plan, setPlan] = useState('business') // set from server session; 'business_pro' = paid tier
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('fellis_dark') === '1')
+  const [showOnboarding, setShowOnboarding] = useState(() => localStorage.getItem('fellis_onboarding') === '1')
+  const [onboardingInviterName] = useState(() => localStorage.getItem('fellis_onboarding_inviter') || null)
   const avatarMenuRef = useRef(null)
   const notifRef = useRef(null)
   const t = PT[lang]
@@ -76,8 +75,6 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
     }
     setMode(newMode)
     localStorage.setItem('fellis_mode', newMode)
-    const savedReadIds = new Set(JSON.parse(localStorage.getItem('fellis_notifs_read') || '[]'))
-    setNotifs(makeMockNotifs(newMode).map(n => savedReadIds.has(n.id) ? { ...n, read: true } : n))
     setShowModeModal(false)
     // Sync mode to server so admin stats can segment by mode
     const serverMode = newMode === 'business' ? 'business' : 'privat'
@@ -85,14 +82,15 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
   }
 
   const markAllRead = () => {
-    setNotifs(prev => {
-      const all = prev.map(n => ({ ...n, read: true }))
-      localStorage.setItem('fellis_notifs_read', JSON.stringify(all.map(n => n.id)))
-      return all
-    })
+    setNotifs(prev => prev.map(n => ({ ...n, read: true })))
+    apiMarkAllNotificationsRead().catch(() => {})
   }
 
-  const toggleLang = useCallback(() => setLang(p => p === 'da' ? 'en' : 'da'), [])
+  const toggleLang = useCallback(() => setLang(p => {
+    const next = p === 'da' ? 'en' : 'da'
+    localStorage.setItem('fellis_lang', next)
+    return next
+  }), [])
 
   // Load current user from session — mode and plan are authoritative from server
   useEffect(() => {
@@ -115,6 +113,20 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
       onLogout()
     })
   }, [onLogout]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Heartbeat: update last_active every 60s so friends see us as online
+  useEffect(() => {
+    apiHeartbeat().catch(() => {})
+    const interval = setInterval(() => apiHeartbeat().catch(() => {}), 60000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Load notifications from server on mount
+  useEffect(() => {
+    apiGetNotifications().then(data => {
+      if (Array.isArray(data)) setNotifs(data.map(n => normaliseNotif(n, lang)))
+    }).catch(() => {})
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -139,6 +151,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
     setPage(p)
     setNavParam(param)
     setShowAvatarMenu(false)
+    setShowMobileMenu(false)
   }, [])
 
   // Restore feed scroll position synchronously before paint (when returning to feed)
@@ -158,6 +171,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
     settings: 'Indstillinger',
     analytics: 'Analyser',
     privacy: 'Privatliv & Data',
+    about: 'Om Fellis',
     logout: 'Log ud',
   } : {
     viewProfile: 'View profile',
@@ -165,6 +179,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
     settings: 'Settings',
     analytics: 'Analytics',
     privacy: 'Privacy & Data',
+    about: 'About Fellis',
     logout: 'Log out',
   }
 
@@ -174,12 +189,22 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
       <nav className="p-nav">
         <div className="p-nav-left">
           <div className="nav-logo" style={{ cursor: 'pointer' }} onClick={() => navigateTo('feed')}>
-            <div className="nav-logo-icon">F</div>
-            {t.navBrand}
+            <img src="/fellis-logo.jpg" className="nav-logo-icon" alt="" />
+            <div className="nav-logo-text">
+              <span className="nav-logo-brand">{t.navBrand}</span>
+              <span className="nav-logo-tagline">Connect. Share. Discover.</span>
+            </div>
           </div>
         </div>
-        <div className="p-nav-tabs">
-          {['feed', 'reels', 'friends', 'messages', 'events', 'calendar', 'marketplace', ...(mode === 'business' ? ['jobs', 'analytics'] : []), 'company'].map(p => (
+        <button
+          className="p-nav-hamburger"
+          onClick={() => setShowMobileMenu(v => !v)}
+          aria-label={showMobileMenu ? (lang === 'da' ? 'Luk menu' : 'Close menu') : (lang === 'da' ? 'Åbn menu' : 'Open menu')}
+        >
+          {showMobileMenu ? '✕' : '☰'}
+        </button>
+        <div className={`p-nav-tabs${showMobileMenu ? ' open' : ''}`}>
+          {['feed', 'reels', 'friends', 'messages', 'events', 'calendar', 'marketplace', ...(mode === 'business' ? ['jobs', 'analytics', 'company'] : [])].map(p => (
             <button
               key={p}
               className={`p-nav-tab${page === p ? ' active' : ''}`}
@@ -225,11 +250,10 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
                 lang={lang}
                 mode={mode}
                 onMarkAllRead={markAllRead}
-                onMarkRead={(id) => setNotifs(prev => {
-                  const next = prev.map(n => n.id === id ? { ...n, read: true } : n)
-                  localStorage.setItem('fellis_notifs_read', JSON.stringify(next.filter(n => n.read).map(n => n.id)))
-                  return next
-                })}
+                onMarkRead={(id) => {
+                  setNotifs(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
+                  apiMarkNotificationRead(id).catch(() => {})
+                }}
                 onNavigate={(pg, postId) => {
                   if (postId) { setHighlightPostId(postId) }
                   navigateTo(pg)
@@ -270,6 +294,9 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
                 </button>
                 <button className="avatar-dropdown-item" onClick={() => navigateTo('privacy')}>
                   <span>🔒</span> {menuT.privacy}
+                </button>
+                <button className="avatar-dropdown-item" onClick={() => navigateTo('about')}>
+                  <span>💡</span> {menuT.about}
                 </button>
                 {currentUser.is_admin && (
                   <button className="avatar-dropdown-item" onClick={() => navigateTo('admin')}>
@@ -317,13 +344,14 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
             if (data?.id) setOpenConvId(data.id)
           }
           navigateTo('messages')
-        }} />}
+        }} onViewProfile={(uid) => { setViewUserId(uid); navigateTo('view-profile') }} />}
         {page === 'jobs' && <JobsPage lang={lang} t={t} currentUser={currentUser} mode={mode} />}
         {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} initialCompanyId={navParam?.companyId} />}
         {page === 'analytics' && <AnalyticsPage lang={lang} t={t} currentUser={currentUser} plan={plan} onUpgrade={() => setShowUpgradeModal(true)} />}
         {page === 'settings' && <SettingsPage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onLogout={onLogout} onOpenModeModal={() => setShowModeModal(true)} darkMode={darkMode} onToggleDark={() => setDarkMode(d => !d)} />}
         {page === 'privacy' && <PrivacySection lang={lang} onLogout={onLogout} />}
         {page === 'visitors' && <VisitorStatsPage lang={lang} />}
+        {page === 'about' && <AboutPage lang={lang} />}
         {page === 'admin' && currentUser.is_admin && <AdminPage lang={lang} t={t} />}
         {page === 'search' && (
           <SearchPage
@@ -337,6 +365,19 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
         )}
       </div>
 
+      {/* Onboarding welcome tour — shown only once for new accounts */}
+      {showOnboarding && (
+        <WelcomeOnboardingModal
+          lang={lang}
+          inviterName={onboardingInviterName}
+          onDone={() => {
+            setShowOnboarding(false)
+            localStorage.removeItem('fellis_onboarding')
+            localStorage.removeItem('fellis_onboarding_inviter')
+          }}
+        />
+      )}
+
       {/* Mode switch modal */}
       {showUpgradeModal && (
         <UpgradeModal lang={lang} t={t} onUpgrade={() => {
@@ -344,8 +385,6 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
           setShowUpgradeModal(false)
           setMode('business')
           localStorage.setItem('fellis_mode', 'business')
-          const savedReadIds = new Set(JSON.parse(localStorage.getItem('fellis_notifs_read') || '[]'))
-          setNotifs(makeMockNotifs('business').map(n => savedReadIds.has(n.id) ? { ...n, read: true } : n))
           apiUpdateMode('business').catch(() => {})
           apiUpdatePlan('business_pro').catch(() => {})
         }} onClose={() => setShowUpgradeModal(false)} />
@@ -456,24 +495,59 @@ function NotificationsPanel({ notifs, t, lang, mode, onMarkAllRead, onMarkRead, 
 
 // ── Media display component ──
 // ── Lightbox modal ──
-function Lightbox({ src, type, mime, onClose }) {
+function Lightbox({ media, index: initialIndex, onClose }) {
+  const [index, setIndex] = useState(initialIndex)
+  const count = media.length
+  const touchStartX = useRef(null)
+
+  const prev = useCallback(() => setIndex(i => (i - 1 + count) % count), [count])
+  const next = useCallback(() => setIndex(i => (i + 1) % count), [count])
+
   useEffect(() => {
-    const handleKey = (e) => { if (e.key === 'Escape') onClose() }
+    const handleKey = (e) => {
+      if (e.key === 'Escape') onClose()
+      if (e.key === 'ArrowLeft') prev()
+      if (e.key === 'ArrowRight') next()
+    }
     document.addEventListener('keydown', handleKey)
     return () => document.removeEventListener('keydown', handleKey)
-  }, [onClose])
+  }, [onClose, prev, next])
+
+  const item = media[index]
   return (
-    <div className="lightbox-overlay" onClick={onClose}>
+    <div
+      className="lightbox-overlay"
+      onClick={onClose}
+      onTouchStart={e => { touchStartX.current = e.touches[0].clientX }}
+      onTouchEnd={e => {
+        if (touchStartX.current === null) return
+        const dx = e.changedTouches[0].clientX - touchStartX.current
+        if (dx > 50) prev()
+        else if (dx < -50) next()
+        touchStartX.current = null
+      }}
+    >
       <div className="lightbox-content" onClick={e => e.stopPropagation()}>
-        {type === 'video' ? (
+        {item.type === 'video' ? (
           <video className="lightbox-media" controls autoPlay playsInline>
-            <source src={src} type={mime} />
+            <source src={item.src} type={item.mime} />
           </video>
         ) : (
-          <img className="lightbox-media" src={src} alt="" />
+          <img className="lightbox-media" src={item.src} alt="" />
         )}
       </div>
       <button className="lightbox-close" onClick={onClose}>✕</button>
+      {count > 1 && (
+        <>
+          <button className="lightbox-nav lightbox-prev" onClick={e => { e.stopPropagation(); prev() }}>&#8249;</button>
+          <button className="lightbox-nav lightbox-next" onClick={e => { e.stopPropagation(); next() }}>&#8250;</button>
+          <div className="lightbox-dots">
+            {media.map((_, i) => (
+              <span key={i} className={`lightbox-dot${i === index ? ' active' : ''}`} onClick={e => { e.stopPropagation(); setIndex(i) }} />
+            ))}
+          </div>
+        </>
+      )}
     </div>
   )
 }
@@ -590,9 +664,14 @@ function PostText({ text, lang }) {
 }
 
 function PostMedia({ media }) {
-  const [lightbox, setLightbox] = useState(null)
+  const [lightboxIndex, setLightboxIndex] = useState(null)
   if (!media?.length) return null
   const count = media.length
+  const lightboxMedia = media.map(m => ({
+    src: m.url.startsWith('http') ? m.url : `${API_BASE}${m.url}`,
+    type: m.type === 'video' ? 'video' : 'image',
+    mime: m.mime,
+  }))
   return (
     <>
       <div className={`p-post-media p-post-media-${Math.min(count, 4)}`}>
@@ -601,16 +680,18 @@ function PostMedia({ media }) {
           if (m.type === 'video') {
             return (
               <video key={i} className="p-media-item" controls preload="metadata" playsInline
-                onClick={() => setLightbox({ src, type: 'video', mime: m.mime })}>
+                onClick={() => setLightboxIndex(i)}>
                 <source src={src} type={m.mime} />
               </video>
             )
           }
           return <img key={i} className="p-media-item p-media-clickable" src={src} alt="" loading="lazy"
-            onClick={() => setLightbox({ src, type: 'image' })} />
+            onClick={() => setLightboxIndex(i)} />
         })}
       </div>
-      {lightbox && <Lightbox {...lightbox} onClose={() => setLightbox(null)} />}
+      {lightboxIndex !== null && (
+        <Lightbox media={lightboxMedia} index={lightboxIndex} onClose={() => setLightboxIndex(null)} />
+      )}
     </>
   )
 }
@@ -805,6 +886,144 @@ function ReelsStrip({ lang, t, onNavigate }) {
   )
 }
 
+// ── Google Photos Picker ─────────────────────────────────────────────────────
+// Uses the Google Identity Services + Google Picker API (both loaded dynamically).
+// The user authorises via a popup, picks photos, and we proxy-download them server-side.
+function GooglePhotosPicker({ lang, clientId, maxFiles = 4, onPhotosSelected, onClose }) {
+  const [status, setStatus] = useState('idle') // idle | loading | picking | downloading | done | error
+  const [errorMsg, setErrorMsg] = useState('')
+  const pickerApiLoaded = useRef(false)
+  const accessTokenRef = useRef(null)
+
+  const loadScript = (src) => new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) { resolve(); return }
+    const s = document.createElement('script')
+    s.src = src; s.onload = resolve; s.onerror = reject
+    document.head.appendChild(s)
+  })
+
+  const openPicker = (accessToken) => {
+    const picker = new window.google.picker.PickerBuilder()
+      .addView(new window.google.picker.PhotosView())
+      .addView(new window.google.picker.PhotoAlbumsView())
+      .setOAuthToken(accessToken)
+      .setDeveloperKey('') // API key optional when using OAuth token
+      .setCallback(async (data) => {
+        if (data.action !== window.google.picker.Action.PICKED) return
+        setStatus('downloading')
+        const docs = data.docs || []
+        const results = []
+        for (const doc of docs.slice(0, maxFiles)) {
+          const url = doc.url || doc.thumbUrl
+          const mimeType = doc.mimeType || 'image/jpeg'
+          try {
+            const result = await apiDownloadGooglePhoto(accessToken, url, mimeType)
+            if (result?.url) results.push({ localUrl: result.url, mimeType: result.mimeType || mimeType })
+          } catch {}
+        }
+        if (results.length) { onPhotosSelected(results); onClose() }
+        else { setErrorMsg(lang === 'da' ? 'Kunne ikke hente billeder' : 'Could not fetch photos'); setStatus('error') }
+      })
+      .build()
+    picker.setVisible(true)
+    setStatus('picking')
+  }
+
+  const handleConnect = async () => {
+    setStatus('loading')
+    setErrorMsg('')
+    try {
+      await loadScript('https://accounts.google.com/gsi/client')
+      await loadScript('https://apis.google.com/js/api.js')
+      await new Promise((resolve) => window.gapi.load('picker', resolve))
+      pickerApiLoaded.current = true
+
+      const tokenClient = window.google.accounts.oauth2.initTokenClient({
+        client_id: clientId,
+        scope: 'https://www.googleapis.com/auth/photoslibrary.readonly https://www.googleapis.com/auth/drive.readonly',
+        callback: (resp) => {
+          if (resp.error) { setErrorMsg(resp.error); setStatus('error'); return }
+          accessTokenRef.current = resp.access_token
+          openPicker(resp.access_token)
+        },
+      })
+      tokenClient.requestAccessToken({ prompt: 'consent' })
+    } catch (err) {
+      setErrorMsg(lang === 'da' ? 'Fejl ved indlæsning af Google API' : 'Failed to load Google API')
+      setStatus('error')
+    }
+  }
+
+  const overlayStyle = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }
+  const modalStyle = { background: '#fff', borderRadius: 16, padding: '28px 28px 24px', maxWidth: 400, width: '90%', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }
+
+  return (
+    <div style={overlayStyle} onClick={onClose}>
+      <div style={modalStyle} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" fill="#4285F4"/>
+            <path d="M6.5 12A5.5 5.5 0 0 1 12 6.5V2C6.48 2 2 6.48 2 12h4.5z" fill="#34A853"/>
+            <path d="M12 17.5A5.5 5.5 0 0 1 6.5 12H2c0 5.52 4.48 10 10 10v-4.5z" fill="#FBBC05"/>
+            <path d="M17.5 12A5.5 5.5 0 0 1 12 17.5V22c5.52 0 10-4.48 10-10h-4.5z" fill="#EA4335"/>
+          </svg>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 16 }}>Google Fotos</div>
+            <div style={{ fontSize: 12, color: '#888' }}>
+              {lang === 'da' ? `Vælg op til ${maxFiles} billeder` : `Select up to ${maxFiles} photos`}
+            </div>
+          </div>
+          <button onClick={onClose} style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#888', lineHeight: 1 }}>✕</button>
+        </div>
+
+        {status === 'idle' && (
+          <>
+            <p style={{ fontSize: 13, color: '#555', margin: '0 0 18px' }}>
+              {lang === 'da'
+                ? 'Klik nedenfor for at logge ind med Google og vælge billeder fra dit Fotos-bibliotek. Adgang gives kun midlertidigt og gemmes ikke.'
+                : 'Click below to sign in with Google and pick photos from your Photos library. Access is granted temporarily and not stored.'}
+            </p>
+            <button
+              onClick={handleConnect}
+              style={{ width: '100%', padding: '11px 0', borderRadius: 8, border: '1px solid #ddd', background: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+              {lang === 'da' ? 'Fortsæt med Google' : 'Continue with Google'}
+            </button>
+          </>
+        )}
+
+        {status === 'loading' && (
+          <div style={{ textAlign: 'center', padding: '20px 0', color: '#888' }}>
+            ⏳ {lang === 'da' ? 'Indlæser Google API...' : 'Loading Google API...'}
+          </div>
+        )}
+
+        {status === 'picking' && (
+          <div style={{ textAlign: 'center', padding: '20px 0', color: '#555' }}>
+            {lang === 'da' ? 'Vælg billeder i Google-vinduet...' : 'Select photos in the Google window...'}
+          </div>
+        )}
+
+        {status === 'downloading' && (
+          <div style={{ textAlign: 'center', padding: '20px 0', color: '#555' }}>
+            ⬇️ {lang === 'da' ? 'Henter billeder...' : 'Downloading photos...'}
+          </div>
+        )}
+
+        {status === 'error' && (
+          <div style={{ color: '#c0392b', fontSize: 13, marginTop: 8 }}>
+            ✗ {errorMsg}
+            <button onClick={() => setStatus('idle')} style={{ display: 'block', marginTop: 10, padding: '8px 16px', borderRadius: 8, border: '1px solid #ddd', background: '#f5f5f5', cursor: 'pointer', fontSize: 13 }}>
+              {lang === 'da' ? 'Prøv igen' : 'Try again'}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onNavigate }) {
   const [posts, setPosts] = useState([])
   const [feedCategoryFilter, setFeedCategoryFilter] = useState(null)
@@ -885,6 +1104,7 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
   const [groupSuggestions, setGroupSuggestions] = useState([])
   const [joinedGroupIds, setJoinedGroupIds] = useState(new Set())
   const [dismissedGroupIds, setDismissedGroupIds] = useState(new Set())
+  const [showScrollTop, setShowScrollTop] = useState(false)
 
   const handleJoinGroup = async (groupId) => {
     setJoinedGroupIds(prev => new Set([...prev, groupId]))
@@ -935,6 +1155,10 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
 
   // Initial load
   useEffect(() => {
+    apiGetConfig().then(cfg => {
+      if (cfg?.googlePhotosClientId) setGooglePhotosClientId(cfg.googlePhotosClientId)
+      if (cfg?.mediaMaxFiles) { setMediaMaxFiles(cfg.mediaMaxFiles); mediaMaxFilesRef.current = cfg.mediaMaxFiles }
+    })
     apiFetchFeed(0, PAGE_SIZE).then(data => {
       if (data?.posts) {
         setPosts(data.posts)
@@ -1005,21 +1229,29 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
     return () => observer.disconnect()
   }, [offset, fetchPage]) // offset: sentinel mounts/unmounts; fetchPage: stable
 
+  // Show scroll-to-top button when user has scrolled more than one viewport height
+  useEffect(() => {
+    const onScroll = () => setShowScrollTop(window.scrollY > window.innerHeight)
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
   const handleFeedPaste = useCallback((e) => {
     const items = Array.from(e.clipboardData?.items || [])
     const imageItems = items.filter(item => item.type.startsWith('image/'))
     if (imageItems.length === 0) return
-    const files = imageItems.map(item => item.getAsFile()).filter(Boolean).slice(0, 4)
+    const max = mediaMaxFilesRef.current
+    const files = imageItems.map(item => item.getAsFile()).filter(Boolean).slice(0, max)
     if (files.length === 0) return
-    setMediaFiles(prev => [...prev, ...files].slice(0, 4))
+    setMediaFiles(prev => [...prev, ...files].slice(0, max))
     setMediaPreviews(prev => [...prev, ...files.map(f => ({
       url: URL.createObjectURL(f), type: 'image', name: f.name || 'image.png',
-    }))].slice(0, 4))
+    }))].slice(0, max))
     setPostExpanded(true)
   }, [])
 
   const handleFileSelect = useCallback((e) => {
-    const files = Array.from(e.target.files).slice(0, 4)
+    const files = Array.from(e.target.files).slice(0, mediaMaxFilesRef.current)
     setMediaFiles(files)
     const previews = files.map(f => ({
       url: URL.createObjectURL(f),
@@ -1027,6 +1259,21 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
       name: f.name,
     }))
     setMediaPreviews(previews)
+  }, [])
+
+  // Called by GooglePhotosPicker after server-side download completes.
+  // `photos` is an array of { localUrl, mimeType } from the server.
+  const handleGooglePhotosSelected = useCallback((photos) => {
+    const newPreviews = photos.map(p => ({
+      url: `${API_BASE}${p.localUrl}`,
+      type: 'image',
+      name: p.localUrl.split('/').pop(),
+    }))
+    const max = mediaMaxFilesRef.current
+    setMediaFiles([])
+    setMediaPreviews(prev => [...prev, ...newPreviews].slice(0, max))
+    setProviderMediaUrls(prev => [...prev, ...photos.map(p => ({ url: p.localUrl, mimeType: p.mimeType || 'image/jpeg' }))].slice(0, max))
+    setPostExpanded(true)
   }, [])
 
   const removeMedia = useCallback((idx) => {
@@ -1059,8 +1306,12 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
     setNewPostText('')
     setMediaFiles([])
     setMediaPreviews([])
+    setProviderMediaUrls([])
     setPostExpanded(false)
     setMediaPopup(false)
+    setPostCategories(new Set())
+    setAutoCategories(new Set())
+    setShowCategoryPicker(false)
     if (fileInputRef.current) fileInputRef.current.value = ''
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
   }, [mediaPreviews, currentUser.name])
@@ -1444,6 +1695,78 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
                 ))}
               </div>
             )}
+
+            {/* Category row — shown when post has text or categories selected */}
+            {(newPostText.trim().length >= 5 || postCategories.size > 0) && (
+              <div style={{ padding: '6px 12px 0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  {postCategories.size === 0 && (
+                    <span style={{ fontSize: 12, color: '#aaa' }}>{t.postCategoryNone}</span>
+                  )}
+                  {[...postCategories].map(catId => {
+                    const catInfo = INTEREST_CATEGORIES.find(c => c.id === catId)
+                    if (!catInfo) return null
+                    const isAuto = autoCategories.has(catId)
+                    return (
+                      <span key={catId} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, color: '#2D6A4F', background: '#eaf4ef', borderRadius: 20, padding: '3px 10px', border: `1px solid ${isAuto ? '#b7dfc9' : '#2D6A4F'}` }}>
+                        {catInfo.icon} {catInfo[lang]}
+                        {isAuto && <span style={{ fontSize: 10, fontWeight: 400, color: '#777' }}>({t.postCategoryAuto})</span>}
+                        <button
+                          onMouseDown={e => e.preventDefault()}
+                          onClick={() => {
+                            setPostCategories(prev => { const n = new Set(prev); n.delete(catId); return n })
+                            setAutoCategories(prev => { const n = new Set(prev); n.delete(catId); return n })
+                          }}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', fontSize: 12, lineHeight: 1, padding: '0 0 0 2px' }}
+                          title={t.postCategoryNone}
+                        >✕</button>
+                      </span>
+                    )
+                  })}
+                  <button
+                    onMouseDown={e => e.preventDefault()}
+                    onClick={() => setShowCategoryPicker(p => !p)}
+                    style={{ fontSize: 12, color: '#2D6A4F', background: 'none', border: '1px solid #b7dfc9', borderRadius: 20, padding: '2px 10px', cursor: 'pointer', fontWeight: 600 }}
+                  >
+                    {showCategoryPicker ? '▲' : '+'} {t.postCategoryChange}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Category picker — all 18 categories, multiple allowed */}
+            {showCategoryPicker && (
+              <div style={{ padding: '8px 12px', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {INTEREST_CATEGORIES.map(cat => {
+                  const isActive = postCategories.has(cat.id)
+                  return (
+                    <button
+                      key={cat.id}
+                      onMouseDown={e => e.preventDefault()}
+                      onClick={() => {
+                        setPostCategories(prev => {
+                          const n = new Set(prev)
+                          if (n.has(cat.id)) { n.delete(cat.id); setAutoCategories(a => { const b = new Set(a); b.delete(cat.id); return b }) }
+                          else n.add(cat.id)
+                          return n
+                        })
+                      }}
+                      style={{
+                        fontSize: 12, fontWeight: isActive ? 700 : 400,
+                        color: isActive ? '#fff' : '#444',
+                        background: isActive ? '#2D6A4F' : '#f4f4f4',
+                        border: `1.5px solid ${isActive ? '#2D6A4F' : '#e0e0e0'}`,
+                        borderRadius: 20, padding: '4px 12px', cursor: 'pointer',
+                        transition: 'all 0.12s',
+                      }}
+                    >
+                      {isActive ? '✓ ' : ''}{cat.icon} {cat[lang]}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+
             <div className="p-new-post-actions">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 {/* Media attachment popup */}
@@ -1468,6 +1791,19 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
                           <span className="p-media-popup-icon">📷</span>
                           {lang === 'da' ? 'Kamera' : 'Camera'}
                         </button>
+                        {googlePhotosClientId && (
+                          <button className="p-share-option" onMouseDown={e => e.preventDefault()} onClick={() => { setMediaPopup(false); setShowGooglePicker(true) }}>
+                            <span className="p-media-popup-icon" style={{ fontSize: 16 }}>
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={{ verticalAlign: 'middle' }}>
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" fill="#4285F4"/>
+                                <path d="M6.5 12A5.5 5.5 0 0 1 12 6.5V2C6.48 2 2 6.48 2 12h4.5z" fill="#34A853"/>
+                                <path d="M12 17.5A5.5 5.5 0 0 1 6.5 12H2c0 5.52 4.48 10 10 10v-4.5z" fill="#FBBC05"/>
+                                <path d="M17.5 12A5.5 5.5 0 0 1 12 17.5V22c5.52 0 10-4.48 10-10h-4.5z" fill="#EA4335"/>
+                              </svg>
+                            </span>
+                            Google Fotos
+                          </button>
+                        )}
                       </div>
                     </>
                   )}
@@ -1478,7 +1814,7 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
                   <span className="p-input-hint-icon">?</span>
                   <span className="p-input-hint-tooltip">{t.postInputHint}</span>
                 </span>
-                <button className="p-post-btn" onMouseDown={e => e.preventDefault()} onClick={handlePost} disabled={!newPostText.trim() && !mediaPreviews.length}>{t.post}</button>
+                <button className="p-post-btn" onMouseDown={e => e.preventDefault()} onClick={handlePost} disabled={!newPostText.trim() && !mediaPreviews.length && !providerMediaUrls.length}>{t.post}</button>
               </div>
             </div>
           </>
@@ -1487,6 +1823,17 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
 
       {/* Reels strip */}
       <ReelsStrip lang={lang} t={t} onNavigate={onNavigate} />
+
+      {/* Google Photos picker modal */}
+      {showGooglePicker && googlePhotosClientId && (
+        <GooglePhotosPicker
+          lang={lang}
+          clientId={googlePhotosClientId}
+          maxFiles={mediaMaxFiles}
+          onPhotosSelected={handleGooglePhotosSelected}
+          onClose={() => setShowGooglePicker(false)}
+        />
+      )}
 
       {/* Top sentinel — triggers loading previous page */}
       {offset > 0 && (
@@ -1717,8 +2064,22 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
         )
       })()}
 
+      {/* Active category filter indicator */}
+      {feedCategoryFilter && (() => {
+        const catInfo = INTEREST_CATEGORIES.find(c => c.id === feedCategoryFilter)
+        if (!catInfo) return null
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', background: '#eaf4ef', borderBottom: '1px solid #b7dfc9' }}>
+            <span style={{ fontSize: 13, color: '#2D6A4F' }}>{t.feedCategoryFilterLabel}: <strong>{catInfo.icon} {catInfo[lang]}</strong></span>
+            <button onClick={() => setFeedCategoryFilter(null)} style={{ marginLeft: 'auto', fontSize: 12, color: '#2D6A4F', background: 'none', border: '1px solid #b7dfc9', borderRadius: 20, padding: '2px 10px', cursor: 'pointer', fontFamily: 'inherit' }}>
+              {t.feedCategoryFilterClear}
+            </button>
+          </div>
+        )
+      })()}
+
       {/* Posts — max PAGE_SIZE in DOM */}
-      {posts.filter(post => !hiddenPosts.has(post.id)).map(post => {
+      {posts.filter(post => !hiddenPosts.has(post.id) && (!feedCategoryFilter || (Array.isArray(post.categories) && post.categories.includes(feedCategoryFilter)))).map(post => {
         const liked = likedPosts.has(post.id)
         const showComments = expandedComments.has(post.id)
         const isOwn = post.author === currentUser.name
@@ -1814,6 +2175,24 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
                 )}
               </div>
             </div>
+            {/* Category badges */}
+            {Array.isArray(post.categories) && post.categories.length > 0 && (
+              <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                {post.categories.map(catId => {
+                  const catInfo = INTEREST_CATEGORIES.find(c => c.id === catId)
+                  if (!catInfo) return null
+                  const isActive = feedCategoryFilter === catId
+                  return (
+                    <button key={catId}
+                      onClick={() => setFeedCategoryFilter(isActive ? null : catId)}
+                      title={isActive ? t.feedCategoryFilterClear : t.feedCategoryFilterTitle}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: isActive ? '#fff' : '#2D6A4F', background: isActive ? '#2D6A4F' : '#eaf4ef', borderRadius: 20, padding: '2px 9px', border: `1px solid ${isActive ? '#2D6A4F' : '#b7dfc9'}`, cursor: 'pointer', fontFamily: 'inherit' }}>
+                      {catInfo.icon} {catInfo[lang]}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
             {editingPostId === post.id ? (
               <div style={{ marginTop: 8 }}>
                 <textarea
@@ -2043,6 +2422,36 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
           />
         )
       })()}
+      {showScrollTop && (
+        <button
+          title={lang === 'da' ? 'Gå til toppen' : 'Go to top'}
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          style={{
+            position: 'fixed',
+            bottom: 32,
+            right: 32,
+            width: 44,
+            height: 44,
+            borderRadius: '50%',
+            border: 'none',
+            background: 'rgba(0,0,0,0.45)',
+            color: '#fff',
+            fontSize: 20,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+            opacity: 0.75,
+            transition: 'opacity 0.2s',
+            zIndex: 900,
+          }}
+          onMouseEnter={e => e.currentTarget.style.opacity = '1'}
+          onMouseLeave={e => e.currentTarget.style.opacity = '0.75'}
+        >
+          ↑
+        </button>
+      )}
     </div>
   )
 }
@@ -2149,6 +2558,8 @@ function ProfilePage({ lang, t, currentUser, mode, plan, onUserUpdate, onNavigat
             {mode === 'business' && profile.industry && <span>🏭 {profile.industry}</span>}
             {profile.location && <span>📍 {profile.location}</span>}
             <span>📅 {t.joined} {profile.joinDate ? new Date(profile.joinDate).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}</span>
+            {profile.totalMinutes > 0 && <span>⏱ {t.hoursOnline}: {Math.floor(profile.totalMinutes / 60) > 0 ? `${Math.floor(profile.totalMinutes / 60)}t ` : ''}{profile.totalMinutes % 60}min</span>}
+            {profile.lastActive && <span>🟢 {t.lastOnline}: {new Date(profile.lastActive).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>}
           </div>
           {mode === 'business' && (
             <SkillsSection profile={profile} t={t} lang={lang} isOwn={true} />
@@ -2429,6 +2840,7 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
   const [interestsSaveOk, setInterestsSaveOk] = useState(true)
   const [birthday, setBirthday] = useState(currentUser.birthday || '')
   const [birthdaySaveStatus, setBirthdaySaveStatus] = useState(null) // null | 'saving' | 'saved' | 'error'
+  const [bioSaveStatus, setBioSaveStatus] = useState(null) // null | 'saving' | 'saved' | 'error'
 
   useEffect(() => {
     apiFetchProfile().then(data => {
@@ -2512,6 +2924,8 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
     nameLabel: 'Navn',
     bioLabel: 'Bio',
     locationLabel: 'Lokation',
+    saveInfo: 'Gem',
+    savedInfo: 'Gemt!',
     back: 'Tilbage til profil',
     skillsSection: 'Kompetencer',
     passwordTitle: hasPassword ? 'Skift adgangskode' : 'Opret adgangskode',
@@ -2527,6 +2941,8 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
     nameLabel: 'Name',
     bioLabel: 'Bio',
     locationLabel: 'Location',
+    saveInfo: 'Save',
+    savedInfo: 'Saved!',
     back: 'Back to profile',
     skillsSection: 'Skills',
     passwordTitle: hasPassword ? 'Change password' : 'Create password',
@@ -2581,11 +2997,42 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
 
         {/* Bio */}
         <label style={labelStyle}>{editT.bioLabel}</label>
-        <textarea style={{ ...fieldStyle, minHeight: 80, resize: 'vertical' }} value={profile.bio?.[lang] || profile.bio?.da || ''} readOnly />
+        <textarea
+          style={{ ...fieldStyle, minHeight: 80, resize: 'vertical' }}
+          value={profile.bio?.[lang] || profile.bio?.da || ''}
+          onChange={e => setProfile(p => ({ ...p, bio: { ...(p.bio || {}), [lang]: e.target.value } }))}
+          placeholder={lang === 'da' ? 'Fortæl lidt om dig selv…' : 'Tell a little about yourself…'}
+        />
 
         {/* Location */}
         <label style={labelStyle}>{editT.locationLabel}</label>
-        <input style={fieldStyle} value={profile.location || ''} readOnly />
+        <input
+          style={fieldStyle}
+          value={profile.location || ''}
+          onChange={e => setProfile(p => ({ ...p, location: e.target.value }))}
+          placeholder={lang === 'da' ? 'By, land…' : 'City, country…'}
+        />
+
+        {/* Save bio + location */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
+          <button
+            type="button"
+            disabled={bioSaveStatus === 'saving'}
+            onClick={async () => {
+              setBioSaveStatus('saving')
+              const res = await apiUpdateProfile({
+                bio_da: profile.bio?.da || '',
+                bio_en: profile.bio?.en || '',
+                location: profile.location || '',
+              })
+              setBioSaveStatus(res?.ok ? 'saved' : 'error')
+              setTimeout(() => setBioSaveStatus(null), 2000)
+            }}
+            style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: bioSaveStatus === 'saved' ? '#40916C' : '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+          >
+            {bioSaveStatus === 'saving' ? '…' : bioSaveStatus === 'saved' ? editT.savedInfo : editT.saveInfo}
+          </button>
+        </div>
 
         {/* Birthday */}
         <label style={labelStyle}>{t.birthdayLabel}</label>
@@ -2785,7 +3232,7 @@ function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, on
 
   const fS = { display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box', fontFamily: 'inherit' }
   const lS = { display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4, marginTop: 14 }
-  const tabLabels = { konto: t.settingsKonto, privatliv: t.settingsPrivatliv, sessions: t.settingsSessions, sprog: t.settingsSprog }
+  const tabLabels = { konto: t.settingsKonto, privatliv: t.settingsPrivatliv, sessions: t.settingsSessions, sprog: t.settingsSprog, leverandoerer: t.settingsLeverandoerer }
 
   return (
     <div className="p-events" style={{ maxWidth: 600 }}>
@@ -2800,6 +3247,120 @@ function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, on
       {tab === 'privatliv' && <SettingsPrivatliv lang={lang} t={t} fS={fS} lS={lS} />}
       {tab === 'sessions' && <SettingsSessions lang={lang} t={t} onLogout={onLogout} />}
       {tab === 'sprog' && <SettingsSprog lang={lang} t={t} darkMode={darkMode} onToggleDark={onToggleDark} />}
+      {tab === 'leverandoerer' && <SettingsLeverandoerer lang={lang} t={t} />}
+    </div>
+  )
+}
+
+function SettingsLeverandoerer({ lang, t }) {
+  const [config, setConfig] = useState(null)
+
+  useEffect(() => {
+    apiGetConfig().then(c => { if (c) setConfig(c) })
+  }, [])
+
+  const cardStyle = { background: '#fff', borderRadius: 12, border: '1px solid #e8e8e8', padding: '20px 22px', marginBottom: 16 }
+  const headerStyle = { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }
+  const logoStyle = { width: 36, height: 36, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }
+  const badgeStyle = (connected) => ({
+    display: 'inline-flex', alignItems: 'center', gap: 4,
+    fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
+    background: connected ? '#F0FAF4' : '#f5f5f5',
+    color: connected ? '#2D6A4F' : '#888',
+  })
+
+  const googleConfigured = config?.googlePhotosClientId
+
+  return (
+    <div>
+      <p style={{ fontSize: 13, color: '#666', marginTop: 0, marginBottom: 20 }}>{t.providersDesc}</p>
+
+      {/* Google Photos */}
+      <div style={cardStyle}>
+        <div style={headerStyle}>
+          <div style={{ ...logoStyle, background: '#fff', border: '1px solid #e8e8e8' }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" fill="#4285F4"/>
+              <path d="M6.5 12A5.5 5.5 0 0 1 12 6.5V2C6.48 2 2 6.48 2 12h4.5z" fill="#34A853"/>
+              <path d="M12 17.5A5.5 5.5 0 0 1 6.5 12H2c0 5.52 4.48 10 10 10v-4.5z" fill="#FBBC05"/>
+              <path d="M17.5 12A5.5 5.5 0 0 1 12 17.5V22c5.52 0 10-4.48 10-10h-4.5z" fill="#EA4335"/>
+            </svg>
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>Google Fotos</div>
+            <span style={badgeStyle(googleConfigured)}>
+              {googleConfigured ? '✓ ' + t.providerConnected : t.providerNotConnected}
+            </span>
+          </div>
+        </div>
+        <p style={{ fontSize: 13, color: '#555', margin: '0 0 14px' }}>{t.providerGooglePhotosDesc}</p>
+        {config === null ? (
+          <div style={{ fontSize: 13, color: '#aaa' }}>⏳</div>
+        ) : googleConfigured ? (
+          <div style={{ fontSize: 13, color: '#2D6A4F', fontWeight: 500 }}>
+            {lang === 'da'
+              ? 'Google Fotos er klar. Brug knappen i oprettelsesboksen til at vælge billeder.'
+              : 'Google Photos is ready. Use the button in the post creator to pick photos.'}
+          </div>
+        ) : (
+          <div style={{ fontSize: 12, color: '#e67e22', background: '#fff9f0', border: '1px solid #f0d9b5', borderRadius: 8, padding: '8px 12px' }}>
+            ⚠️ {t.providerNotConfigured} — <code>GOOGLE_CLIENT_ID</code>
+          </div>
+        )}
+      </div>
+
+      {/* Apple Photos */}
+      <div style={cardStyle}>
+        <div style={headerStyle}>
+          <div style={{ ...logoStyle, background: '#000', color: '#fff' }}>
+            <svg width="20" height="20" viewBox="0 0 814 1000" fill="white" xmlns="http://www.w3.org/2000/svg">
+              <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76.5 0-103.7 40.8-165.9 40.8s-105-37.5-155.5-127.4C46 790.8 0 663.5 0 541.8c0-207.9 135.5-317.7 269-317.7 70.9 0 130.4 44.7 174.4 44.7 42.8 0 110.3-47.1 191.9-47.1 30.9 0 111.2 2.6 170.9 96.1zM543.4 88.7C568.4 57.5 586 13.6 586 0s-.6-2.6-2.6-2.6c-4.5 0-57.1 23.3-87.5 56.6C470.9 81.3 450.9 128 450.9 172c0 3.8.6 6.4 3.2 6.4 4.5 0 56.5-25.1 89.3-89.7z"/>
+            </svg>
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>Apple Fotos</div>
+            <span style={badgeStyle(true)}>
+              {lang === 'da' ? 'Indbygget' : 'Built-in'}
+            </span>
+          </div>
+        </div>
+        <p style={{ fontSize: 13, color: '#555', margin: 0 }}>{t.providerApplePhotosDesc}</p>
+      </div>
+
+      {/* Dropbox */}
+      <div style={{ ...cardStyle, opacity: 0.6 }}>
+        <div style={headerStyle}>
+          <div style={{ ...logoStyle, background: '#0061ff', color: '#fff', fontSize: 18 }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+              <path d="M6 2L0 6l6 4-6 4 6 4 6-4-6-4 6-4L6 2zm12 0l-6 4 6 4-6 4 6 4 6-4-6-4 6-4-6-4zM6 16.5l6 4 6-4-6-4-6 4z"/>
+            </svg>
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>Dropbox</div>
+            <span style={badgeStyle(false)}>{t.providerComingSoon}</span>
+          </div>
+        </div>
+        <p style={{ fontSize: 13, color: '#555', margin: 0 }}>{t.providerDropboxDesc}</p>
+      </div>
+
+      {/* OneDrive */}
+      <div style={{ ...cardStyle, opacity: 0.6, marginBottom: 0 }}>
+        <div style={headerStyle}>
+          <div style={{ ...logoStyle, background: '#0078d4', color: '#fff', fontSize: 18 }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+              <path d="M10.5 13.5H20c2.2 0 4-1.8 4-4s-1.8-4-4-4c-.3 0-.5 0-.8.1C18.5 3.6 16.5 2 14 2c-2.3 0-4.2 1.4-5 3.4C7.3 5.1 5.6 5.8 4.4 7 3.3 8 2.7 9.3 2.7 10.8c0 1.5 1.2 2.7 2.7 2.7h5.1z"/>
+              <path d="M10.5 13.5H20c2.2 0 4-1.8 4-4s-1.8-4-4-4c-.3 0-.5 0-.8.1C18.5 3.6 16.5 2 14 2c-2.3 0-4.2 1.4-5 3.4C7.3 5.1 5.6 5.8 4.4 7 3.3 8 2.7 9.3 2.7 10.8c0 1.5 1.2 2.7 2.7 2.7h5.1zM4 15l3.5 6.5h13L24 15H4z"/>
+            </svg>
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>Microsoft OneDrive</div>
+            <span style={badgeStyle(false)}>{t.providerComingSoon}</span>
+          </div>
+        </div>
+        <p style={{ fontSize: 13, color: '#555', margin: 0 }}>
+          {lang === 'da' ? 'Upload filer direkte fra din OneDrive-konto.' : 'Upload files directly from your OneDrive account.'}
+        </p>
+      </div>
     </div>
   )
 }
@@ -3095,6 +3656,7 @@ function SettingsSessions({ lang, t, onLogout }) {
 
 function SettingsSprog({ lang, t, darkMode, onToggleDark }) {
   const switchLang = (newLang) => {
+    localStorage.setItem('fellis_lang', newLang)
     fetch('/api/me/lang', {
       method: 'PATCH', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -3145,42 +3707,289 @@ const COUNTRY_CENTROIDS = {
   'SK':[48.7,19.7],'HR':[45.1,15.2],'RS':[44.0,21.0],'BG':[42.7,25.5],
 }
 
-function MiniWorldMap({ countries }) {
-  const W = 800, H = 380
-  const toXY = (lat, lng) => [((lng + 180) / 360) * W, ((90 - lat) / 180) * H]
+const GEO_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json'
+
+function MiniWorldMap({ countries, lang }) {
+  const [zoom, setZoom] = useState(1)
+  const [center, setCenter] = useState([10, 52]) // default: center on Europe
   const maxCount = Math.max(1, ...countries.map(c => c.count))
+
+  const handleMoveEnd = ({ coordinates, zoom: z }) => {
+    setCenter(coordinates)
+    setZoom(z)
+  }
+
+  const zBtn = {
+    width: 28, height: 28, borderRadius: 6, border: '1px solid #ddd',
+    background: '#fff', cursor: 'pointer', fontSize: 17, fontWeight: 700,
+    color: '#2D6A4F', display: 'flex', alignItems: 'center', justifyContent: 'center',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.12)', lineHeight: 1, padding: 0,
+  }
+
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', borderRadius: 10, border: '1px solid #E8E4DF' }}>
-      <rect width={W} height={H} fill="#C8DFF4" />
-      <g fill="#D4E6B5" stroke="#B5C99A" strokeWidth="0.6">
-        <path d="M80,58 L120,38 L180,33 L240,48 L270,78 L262,128 L242,160 L222,190 L200,220 L178,240 L158,230 L138,210 L128,180 L98,158 L78,138 L68,108 Z" />
-        <path d="M148,222 L180,210 L212,222 L232,252 L242,292 L232,332 L210,372 L190,384 L168,370 L154,338 L138,298 L138,258 Z" />
-        <path d="M338,58 L382,48 L422,54 L442,80 L432,112 L410,122 L388,116 L368,112 L348,120 L338,110 L328,90 Z" />
-        <path d="M328,128 L362,118 L402,124 L432,140 L452,172 L462,212 L452,262 L432,312 L400,346 L370,356 L340,340 L320,300 L310,260 L310,212 L320,170 Z" />
-        <path d="M432,48 L502,38 L582,33 L652,38 L722,48 L762,78 L772,118 L752,158 L722,178 L682,190 L642,184 L602,190 L562,200 L532,190 L502,170 L472,150 L452,128 L440,98 Z" />
-        <path d="M418,28 L502,22 L602,18 L702,24 L782,40 L792,70 L762,80 L700,68 L650,63 L580,58 L500,53 L440,53 Z" />
-        <path d="M548,152 L592,158 L622,172 L652,182 L672,192 L660,212 L630,222 L600,216 L568,200 L548,184 Z" />
-        <path d="M598,258 L650,248 L712,254 L742,276 L752,312 L740,342 L710,358 L670,362 L630,352 L598,330 L583,298 L583,273 Z" />
-        <path d="M192,18 L252,13 L282,24 L288,50 L270,70 L238,80 L208,74 L192,54 Z" />
-        <path d="M728,78 L746,73 L756,88 L752,106 L734,112 L722,94 Z" />
-        <path d="M332,63 L346,58 L352,70 L346,82 L334,82 L328,72 Z" />
-        <path d="M362,33 L386,23 L402,30 L408,52 L396,66 L380,70 L362,58 Z" />
-        <path d="M742,328 L756,322 L762,338 L756,352 L744,350 L740,336 Z" />
-        <path d="M446,293 L454,283 L462,294 L460,316 L452,320 L444,310 Z" />
-      </g>
-      {countries.map(d => {
-        const coords = COUNTRY_CENTROIDS[d.country_code]
-        if (!coords) return null
-        const [x, y] = toXY(coords[0], coords[1])
-        const r = Math.max(5, Math.min(22, 5 + (d.count / maxCount) * 17))
-        return (
-          <g key={d.country_code}>
-            <circle cx={x} cy={y} r={r} fill="rgba(45,106,79,0.70)" stroke="#fff" strokeWidth={1.5} />
-            {d.count > 1 && <text x={x} y={y + 1} textAnchor="middle" dominantBaseline="middle" fill="#fff" fontSize={r > 11 ? 9 : 7} fontWeight="700">{d.count}</text>}
-          </g>
-        )
-      })}
-    </svg>
+    <div style={{ position: 'relative', userSelect: 'none', borderRadius: 10, overflow: 'hidden', border: '1px solid #E8E4DF', background: '#C8DFF4' }}>
+      <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <button onClick={() => setZoom(z => Math.min(10, z * 1.6))} style={zBtn} title={lang === 'da' ? 'Zoom ind' : 'Zoom in'}>+</button>
+        <button onClick={() => { setZoom(1); setCenter([10, 52]) }} style={{ ...zBtn, fontSize: 13 }} title={lang === 'da' ? 'Nulstil' : 'Reset'}>↺</button>
+        <button onClick={() => setZoom(z => Math.max(1, z / 1.6))} style={zBtn} title={lang === 'da' ? 'Zoom ud' : 'Zoom out'}>−</button>
+      </div>
+      <ComposableMap
+        projection="geoNaturalEarth1"
+        projectionConfig={{ scale: 145, center: [0, 10] }}
+        style={{ width: '100%', height: 'auto', display: 'block' }}
+      >
+        <ZoomableGroup zoom={zoom} center={center} onMoveEnd={handleMoveEnd}>
+          <Geographies geography={GEO_URL}>
+            {({ geographies }) =>
+              geographies.map((geo) => (
+                <Geography
+                  key={geo.rsmKey}
+                  geography={geo}
+                  fill="#D4E6B5"
+                  stroke="#B5C99A"
+                  strokeWidth={0.4}
+                  style={{
+                    default: { outline: 'none' },
+                    hover: { fill: '#c0dba0', outline: 'none' },
+                    pressed: { outline: 'none' },
+                  }}
+                />
+              ))
+            }
+          </Geographies>
+          {countries.map(d => {
+            const coords = COUNTRY_CENTROIDS[d.country_code]
+            if (!coords) return null
+            const r = Math.max(4, Math.min(18, 4 + (d.count / maxCount) * 14)) / zoom
+            const fs = Math.max(5, 8 / zoom)
+            return (
+              <Marker key={d.country_code} coordinates={[coords[1], coords[0]]}>
+                <circle r={r} fill="rgba(45,106,79,0.75)" stroke="#fff" strokeWidth={1.2 / zoom} />
+                {d.count > 1 && (
+                  <text textAnchor="middle" dy={fs * 0.35} fill="#fff" fontSize={fs} fontWeight="700" style={{ pointerEvents: 'none' }}>
+                    {d.count}
+                  </text>
+                )}
+              </Marker>
+            )
+          })}
+        </ZoomableGroup>
+      </ComposableMap>
+      {zoom > 1 && (
+        <div style={{ textAlign: 'center', fontSize: 11, color: '#666', padding: '4px 0 6px', background: 'rgba(255,255,255,0.7)' }}>
+          {lang === 'da' ? 'Scroll for at zoome · Træk for at panorere' : 'Scroll to zoom · Drag to pan'}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Om Fellis / About Fellis ──
+// Philosophy, purpose, and implemented changelog
+function AboutPage({ lang }) {
+  const [changelog, setChangelog] = useState([])
+
+  useEffect(() => {
+    apiGetChangelog().then(data => { if (data?.entries) setChangelog(data.entries) })
+  }, [])
+
+  const t = lang === 'da' ? {
+    title: 'Om Fellis',
+    subtitle: 'Filosofi og formål med Fellis.eu',
+    philosophyTitle: 'Vores filosofi',
+    philosophyText: [
+      'Fellis.eu er skabt som et privat og trygt alternativ til de store sociale netværk. Vi tror på, at sociale medier skal tjene mennesker — ikke omvendt.',
+      'Platformen er bygget i Europa, drives efter europæisk lovgivning og respekterer din privatlivets fred. Vi sælger ikke data, vi viser ikke algoritmestyrede reklamer, og vi gemmer kun det, der er nødvendigt for at platformen fungerer.',
+      'Fællesskab, tillid og gennemsigtighed er kernen i alt, hvad vi gør.',
+    ],
+    purposeTitle: 'Formål',
+    purposes: [
+      'Skabe et dansk og europæisk fællesskab med fokus på tillid og privatliv',
+      'Give brugerne fuld kontrol over egne data (GDPR)',
+      'Tilbyde et reklamefrit og algoritmefrit socialt netværk',
+      'Støtte lokal og europæisk digital infrastruktur',
+      'Være åben og ærlig om, hvordan platformen fungerer og udvikles',
+    ],
+    changelogTitle: 'Implementerede tiltag',
+    changelogEmpty: 'Ingen poster endnu',
+  } : {
+    title: 'About Fellis',
+    subtitle: 'Philosophy and purpose of Fellis.eu',
+    philosophyTitle: 'Our philosophy',
+    philosophyText: [
+      'Fellis.eu was created as a private and safe alternative to the major social networks. We believe social media should serve people — not the other way around.',
+      'The platform is built in Europe, operates under European law, and respects your privacy. We do not sell data, we do not show algorithm-driven ads, and we only store what is necessary for the platform to function.',
+      'Community, trust and transparency are at the core of everything we do.',
+    ],
+    purposeTitle: 'Purpose',
+    purposes: [
+      'Create a Danish and European community focused on trust and privacy',
+      'Give users full control over their own data (GDPR)',
+      'Offer an ad-free and algorithm-free social network',
+      'Support local and European digital infrastructure',
+      'Be open and honest about how the platform works and evolves',
+    ],
+    changelogTitle: 'Implemented features',
+    changelogEmpty: 'No entries yet',
+  }
+
+  const s = {
+    section: { fontWeight: 700, fontSize: 13, color: '#666', textTransform: 'uppercase', letterSpacing: 1, margin: '24px 0 10px' },
+  }
+
+  return (
+    <div className="p-events" style={{ maxWidth: 720 }}>
+      <div style={{ marginBottom: 20 }}>
+        <h2 className="p-section-title" style={{ margin: '0 0 4px' }}>💡 {t.title}</h2>
+        <div style={{ fontSize: 13, color: '#888' }}>{t.subtitle}</div>
+      </div>
+
+      {/* Philosophy */}
+      <div style={s.section}>🌿 {t.philosophyTitle}</div>
+      <div className="p-card" style={{ padding: 20, marginBottom: 16 }}>
+        {t.philosophyText.map((para, i) => (
+          <p key={i} style={{ fontSize: 14, color: '#333', lineHeight: 1.65, margin: i < t.philosophyText.length - 1 ? '0 0 12px' : 0 }}>{para}</p>
+        ))}
+      </div>
+
+      {/* Purpose */}
+      <div style={s.section}>🎯 {t.purposeTitle}</div>
+      <div className="p-card" style={{ padding: '4px 0', marginBottom: 16 }}>
+        {t.purposes.map((item, i) => (
+          <div key={i} style={{ padding: '10px 20px', fontSize: 14, color: '#333', borderBottom: i < t.purposes.length - 1 ? '1px solid #f0f0f0' : 'none', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+            <span style={{ color: '#2D6A4F', fontWeight: 700, flexShrink: 0 }}>✓</span>
+            {item}
+          </div>
+        ))}
+      </div>
+
+      {/* Changelog */}
+      <div style={s.section}>🛠️ {t.changelogTitle}</div>
+      <div className="p-card" style={{ padding: '4px 0', marginBottom: 16 }}>
+        {changelog.length === 0
+          ? <div style={{ padding: '16px 20px', fontSize: 13, color: '#aaa' }}>{t.changelogEmpty}</div>
+          : changelog.map((entry, i) => (
+              <div key={i} style={{ padding: '10px 20px', fontSize: 13, color: '#333', borderBottom: i < changelog.length - 1 ? '1px solid #f0f0f0' : 'none', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                <span style={{ color: '#b7dfc9', fontWeight: 700, flexShrink: 0 }}>·</span>
+                {entry}
+              </div>
+            ))
+        }
+      </div>
+    </div>
+  )
+}
+
+function _isoWeek(dateStr) {
+  const d = new Date(dateStr.slice(0, 10))
+  d.setHours(0, 0, 0, 0)
+  d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7)
+  const w1 = new Date(d.getFullYear(), 0, 4)
+  return 1 + Math.round(((d - w1) / 86400000 - 3 + (w1.getDay() + 6) % 7) / 7)
+}
+
+function _fmtDay(dateStr) {
+  const [y, mo, dy] = dateStr.slice(0, 10).split('-')
+  return `${dy.padStart(2, '0')}-${mo.padStart(2, '0')}-${y}`
+}
+
+function DailyBarChart({ data, color = '#2D6A4F', lang }) {
+  const da = lang === 'da'
+
+  // Group by ISO week
+  const weeks = []
+  const weekMap = {}
+  data.forEach(d => {
+    const wk = _isoWeek(d.date)
+    const yr = new Date(d.date.slice(0, 10)).getFullYear()
+    const key = `${yr}-W${wk}`
+    if (!weekMap[key]) { weekMap[key] = { week: wk, year: yr, days: [] }; weeks.push(weekMap[key]) }
+    weekMap[key].days.push(d)
+  })
+
+  const [weekIdx, setWeekIdx] = useState(weeks.length - 1)
+  const [zoomedOut, setZoomedOut] = useState(false)
+
+  const currentWeek = weeks[Math.min(weekIdx, weeks.length - 1)]
+  const allMax = Math.max(1, ...data.map(d => d.count))
+  const weekMax = currentWeek ? Math.max(1, ...currentWeek.days.map(d => d.count)) : 1
+
+  const navBtn = (disabled, onClick, label) => (
+    <button onClick={onClick} disabled={disabled} style={{
+      fontSize: 18, lineHeight: 1, color: disabled ? '#ccc' : color,
+      background: 'none', border: 'none', cursor: disabled ? 'default' : 'pointer', padding: '0 8px'
+    }}>{label}</button>
+  )
+
+  if (zoomedOut) {
+    return (
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+          <button onClick={() => setZoomedOut(false)} style={{ fontSize: 11, color, background: 'none', border: `1px solid ${color}`, borderRadius: 4, padding: '2px 8px', cursor: 'pointer' }}>
+            {da ? '← Ugevisning' : '← Week view'}
+          </button>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 80 }}>
+          {data.map(d => (
+            <div key={d.date} style={{ flex: 1 }}>
+              <div style={{ width: '100%', background: color, borderRadius: '2px 2px 0 0', height: `${Math.max(2, (d.count / allMax) * 70)}px` }} title={`${_fmtDay(d.date)}: ${d.count}`} />
+            </div>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 2, marginTop: 4 }}>
+          {data.map((d, i) => {
+            const wk = _isoWeek(d.date)
+            const prevWk = i > 0 ? _isoWeek(data[i - 1].date) : null
+            if (i === 0 || wk !== prevWk) {
+              return (
+                <div key={d.date} style={{ flex: 1, fontSize: 8, color: '#888', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontWeight: 700 }}>{da ? `Uge ${wk}` : `Wk ${wk}`}</span>
+                  <span style={{ display: 'block', color: '#bbb', marginTop: 1 }}>{_fmtDay(d.date)}</span>
+                </div>
+              )
+            }
+            return <div key={d.date} style={{ flex: 1 }} />
+          })}
+        </div>
+      </div>
+    )
+  }
+
+  if (!currentWeek) return null
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        {navBtn(weekIdx === 0, () => setWeekIdx(i => Math.max(0, i - 1)), '‹')}
+        <div style={{ textAlign: 'center', fontSize: 13, fontWeight: 700, color: '#555' }}>
+          {da ? `Uge ${currentWeek.week}` : `Week ${currentWeek.week}`}
+          <span style={{ fontWeight: 400, fontSize: 11, color: '#aaa', marginLeft: 6 }}>
+            ({_fmtDay(currentWeek.days[0].date)}{currentWeek.days.length > 1 ? ` – ${_fmtDay(currentWeek.days[currentWeek.days.length - 1].date)}` : ''})
+          </span>
+        </div>
+        {navBtn(weekIdx >= weeks.length - 1, () => setWeekIdx(i => Math.min(weeks.length - 1, i + 1)), '›')}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 80 }}>
+        {currentWeek.days.map(d => (
+          <div key={d.date} style={{ flex: 1 }}>
+            <div style={{ width: '100%', background: color, borderRadius: '3px 3px 0 0', height: `${Math.max(2, (d.count / weekMax) * 70)}px` }} title={`${_fmtDay(d.date)}: ${d.count}`} />
+          </div>
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+        {currentWeek.days.map(d => (
+          <div key={d.date} style={{ flex: 1, fontSize: 8, color: '#888', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+            {_fmtDay(d.date)}
+          </div>
+        ))}
+      </div>
+      {weeks.length > 1 && (
+        <div style={{ textAlign: 'center', marginTop: 10 }}>
+          <button onClick={() => setZoomedOut(true)} style={{ fontSize: 11, color, background: 'none', border: `1px solid ${color}`, borderRadius: 4, padding: '2px 8px', cursor: 'pointer' }}>
+            {da ? '🔍 Vis alle uger' : '🔍 Show all weeks'}
+          </button>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -3189,32 +3998,39 @@ function VisitorStatsPage({ lang }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/visitor-stats', { credentials: 'include' })
-      .then(r => r.json())
-      .then(data => { setStats(data); setLoading(false) })
+    apiGetVisitorStats()
+      .then(data => { if (data) setStats(data); setLoading(false) })
       .catch(() => setLoading(false))
   }, [])
 
   const t = lang === 'da' ? {
     title: 'Besøgende',
-    subtitle: 'Oversigt over besøg på platformen',
-    totalVisits: 'Besøg i alt',
+    subtitle: 'Oversigt over besøg på platformen og din profil',
+    totalVisits: 'Besøg på Fellis.eu i alt',
+    myProfileViews: 'Besøg på min profil i alt',
     browsers: 'Browsere',
     os: 'Operativsystemer',
     countries: 'Lande',
     map: 'Besøgende på verdenskortet',
-    daily: 'Daglige besøg (30 dage)',
+    daily: 'Daglige platformbesøg (30 dage)',
+    myProfileViewsDaily: 'Daglige profilbesøg (30 dage)',
     noData: 'Ingen data endnu',
+    sectionPlatform: 'Fellis.eu — platform',
+    sectionProfile: 'Din profil',
   } : {
     title: 'Visitors',
-    subtitle: 'Platform visit overview',
-    totalVisits: 'Total visits',
+    subtitle: 'Overview of platform visits and your profile',
+    totalVisits: 'Total visits to Fellis.eu',
+    myProfileViews: 'Total visits to my profile',
     browsers: 'Browsers',
     os: 'Operating systems',
     countries: 'Countries',
     map: 'Visitors on world map',
-    daily: 'Daily visits (30 days)',
+    daily: 'Daily platform visits (30 days)',
+    myProfileViewsDaily: 'Daily profile visits (30 days)',
     noData: 'No data yet',
+    sectionPlatform: 'Fellis.eu — platform',
+    sectionProfile: 'Your profile',
   }
 
   const BarChart = ({ data, label }) => {
@@ -3242,8 +4058,6 @@ function VisitorStatsPage({ lang }) {
 
   if (loading) return <div className="p-card" style={{ padding: 40, textAlign: 'center', color: '#888' }}>⏳</div>
 
-  const dailyMax = Math.max(1, ...(stats?.daily || []).map(d => d.count))
-
   return (
     <div className="p-events" style={{ maxWidth: 720 }}>
       <div style={{ marginBottom: 20 }}>
@@ -3251,29 +4065,35 @@ function VisitorStatsPage({ lang }) {
         <div style={{ fontSize: 13, color: '#888' }}>{t.subtitle}</div>
       </div>
 
-      {/* Total */}
-      <div className="p-card" style={{ padding: 20, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 20 }}>
-        <div style={{ fontSize: 36, lineHeight: 1 }}>👁️</div>
-        <div>
-          <div style={{ fontSize: 13, color: '#888', fontWeight: 500 }}>{t.totalVisits}</div>
-          <div style={{ fontSize: 32, fontWeight: 800, color: '#2D6A4F' }}>{stats?.total ?? 0}</div>
+      {/* Two totals side-by-side */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+        <div className="p-card" style={{ padding: 20, display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{ fontSize: 30, lineHeight: 1 }}>🌍</div>
+          <div>
+            <div style={{ fontSize: 12, color: '#888', fontWeight: 500 }}>{t.totalVisits}</div>
+            <div style={{ fontSize: 28, fontWeight: 800, color: '#2D6A4F' }}>{stats?.total ?? 0}</div>
+          </div>
+        </div>
+        <div className="p-card" style={{ padding: 20, display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{ fontSize: 30, lineHeight: 1 }}>👤</div>
+          <div>
+            <div style={{ fontSize: 12, color: '#888', fontWeight: 500 }}>{t.myProfileViews}</div>
+            <div style={{ fontSize: 28, fontWeight: 800, color: '#2D6A4F' }}>{stats?.myProfileViews ?? 0}</div>
+          </div>
         </div>
       </div>
 
-      {/* Daily chart */}
+      {/* Section header: platform */}
+      <div style={{ fontWeight: 700, fontSize: 13, color: '#666', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>
+        🌍 {t.sectionPlatform}
+      </div>
+
+      {/* Daily platform chart */}
       <div className="p-card" style={{ padding: 20, marginBottom: 16 }}>
         <div style={{ fontWeight: 700, fontSize: 14, color: '#333', marginBottom: 14 }}>📅 {t.daily}</div>
         {!stats?.daily?.length
           ? <div style={{ fontSize: 13, color: '#aaa' }}>{t.noData}</div>
-          : (
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 80 }}>
-              {stats.daily.map(d => (
-                <div key={d.date} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                  <div style={{ width: '100%', background: '#2D6A4F', borderRadius: '3px 3px 0 0', height: `${Math.max(2, (d.count / dailyMax) * 70)}px` }} title={`${d.date}: ${d.count}`} />
-                </div>
-              ))}
-            </div>
-          )
+          : <DailyBarChart data={stats.daily} color="#2D6A4F" lang={lang} />
         }
       </div>
 
@@ -3282,20 +4102,34 @@ function VisitorStatsPage({ lang }) {
         <div style={{ fontWeight: 700, fontSize: 14, color: '#333', marginBottom: 14 }}>🗺️ {t.map}</div>
         {!stats?.countries?.length
           ? <div style={{ fontSize: 13, color: '#aaa' }}>{t.noData}</div>
-          : <MiniWorldMap countries={stats.countries} />
+          : <MiniWorldMap countries={stats.countries} lang={lang} />
         }
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
         <BarChart data={stats?.browsers || []} label={`🌐 ${t.browsers}`} />
         <BarChart data={stats?.oses || []} label={`💻 ${t.os}`} />
       </div>
 
-      {/* Country table */}
       <BarChart
         data={(stats?.countries || []).slice(0, 15).map(c => ({ ...c, browser: `${c.country || c.country_code}` }))}
         label={`🌍 ${t.countries}`}
       />
+
+      {/* Section header: my profile */}
+      <div style={{ fontWeight: 700, fontSize: 13, color: '#666', textTransform: 'uppercase', letterSpacing: 1, margin: '24px 0 10px' }}>
+        👤 {t.sectionProfile}
+      </div>
+
+      {/* Daily profile views chart */}
+      <div className="p-card" style={{ padding: 20, marginBottom: 16 }}>
+        <div style={{ fontWeight: 700, fontSize: 14, color: '#333', marginBottom: 14 }}>📅 {t.myProfileViewsDaily}</div>
+        {!stats?.myProfileViewsDaily?.length
+          ? <div style={{ fontSize: 13, color: '#aaa' }}>{t.noData}</div>
+          : <DailyBarChart data={stats.myProfileViewsDaily} color="#52b788" lang={lang} />
+        }
+      </div>
+
     </div>
   )
 }
@@ -4082,12 +4916,16 @@ function FriendsPage({ lang, t, mode, onMessage }) {
   }, [search])
 
   const handleSendRequest = useCallback(async (userId) => {
-    const res = await apiSendFriendRequest(userId)
-    if (res?.ok) {
-      setSentIds(prev => ({ ...prev, [userId]: 'sent' }))
-      apiFetchFriendRequests().then(data => { if (data) setRequests(data) })
+    try {
+      const res = await apiSendFriendRequest(userId)
+      if (res?.ok) {
+        setSentIds(prev => ({ ...prev, [userId]: 'sent' }))
+        apiFetchFriendRequests().then(data => { if (data) setRequests(data) })
+      }
+    } catch (err) {
+      if (err.message === 'Already friends') refreshAll()
     }
-  }, [])
+  }, [refreshAll])
 
   const handleAccept = useCallback(async (reqId) => {
     await apiAcceptFriendRequest(reqId)
@@ -4333,7 +5171,7 @@ function FriendsPage({ lang, t, mode, onMessage }) {
               <span className="p-filter-online-dot" /> {t.onlineFriends} ({friends.filter(f => f.online).length})
             </button>
             <button className={`p-filter-tab${filter === 'invites' ? ' active' : ''}`} onClick={() => setFilter('invites')}>
-              ✉️ {t.invitesTab}{invites !== null && invites.length > 0 ? ` (${invites.length})` : ''}
+              ✉️ {t.invitesTab}{invites !== null && invites.filter(i => i.status === 'pending').length > 0 ? ` (${invites.filter(i => i.status === 'pending').length})` : ''}
             </button>
             <button className={`p-filter-tab${filter === 'viral' ? ' active' : ''}`} onClick={() => setFilter('viral')}>
               🚀 {t.referralDashViralTitle}
@@ -4430,12 +5268,13 @@ function FriendsPage({ lang, t, mode, onMessage }) {
           <div className="p-card p-invites-section">
             <h3 className="p-invites-section-title">{t.invitesSentTitle}</h3>
             {(() => {
-              const pending = (invites || []).filter(inv => inv.status !== 'joined' && inv.status !== 'accepted')
               if (invites === null) return <div className="p-invites-empty">…</div>
-              if (pending.length === 0) return <div className="p-invites-empty">✉️ {t.invitesNoSent}</div>
+              if ((invites || []).length === 0) return <div className="p-invites-empty">✉️ {t.invitesNoSent}</div>
               return (
               <div className="p-invites-list">
-                {pending.map((inv, i) => (
+                {(invites || []).map((inv, i) => {
+                  const isAccepted = inv.status === 'accepted' || inv.status === 'joined'
+                  return (
                   <div key={inv.id || i} className="p-invite-row">
                     <div className="p-avatar-sm" style={{ background: nameToColor(inv.name || inv.email || '?') }}>
                       {(inv.name || inv.email || '?')[0].toUpperCase()}
@@ -4447,11 +5286,20 @@ function FriendsPage({ lang, t, mode, onMessage }) {
                       )}
                     </div>
                     <div className="p-invite-row-actions">
-                      <span className="p-invite-status-badge">{t.invitesPending}</span>
-                      <button className="p-invite-cancel-btn" onClick={() => handleCancelInvite(inv.id || i, lang)} title={t.invitesCancelBtn}>✕</button>
+                      {isAccepted ? (
+                        <span className="p-invite-status-badge" style={{ background: '#e8f5e9', color: '#2D6A4F', border: '1px solid #b2dfdb' }}>
+                          ✅ {lang === 'da' ? 'Tilsluttet' : 'Joined'}
+                        </span>
+                      ) : (
+                        <>
+                          <span className="p-invite-status-badge">{t.invitesPending}</span>
+                          <button className="p-invite-cancel-btn" onClick={() => handleCancelInvite(inv.id || i, lang)} title={t.invitesCancelBtn}>✕</button>
+                        </>
+                      )}
                     </div>
                   </div>
-                ))}
+                  )
+                })}
               </div>
               )
             })()}
@@ -4918,13 +5766,17 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened }) 
   const [conversations, setConversations] = useState([])
   const [friends, setFriends] = useState([])
   const [newMsg, setNewMsg] = useState('')
+  const [msgMedia, setMsgMedia] = useState([]) // [{url, type, mime, preview}]
+  const [uploadingMedia, setUploadingMedia] = useState(false)
   const [loadingOlder, setLoadingOlder] = useState(false)
+  const [msgMediaPopup, setMsgMediaPopup] = useState(false)
   const [modal, setModal] = useState(null) // null | 'new' | 'newGroup' | 'invite' | 'mute' | 'rename'
   const [showConvMenu, setShowConvMenu] = useState(false)
   const [deleteConvId, setDeleteConvId] = useState(null) // id to confirm delete
   const messagesEndRef = useRef(null)
   const msgInputRef = useRef(null)
   const msgBodyRef = useRef(null)
+  const mediaInputRef = useRef(null)
   const msgMention = useMention(friends)
   const topMsgSentinelRef = useRef(null)
   const menuRef = useRef(null)
@@ -5020,19 +5872,35 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened }) 
   }, [newMsg])
 
   const handleSend = useCallback(() => {
-    if (!newMsg.trim()) return
     const text = newMsg.trim()
+    const media = msgMedia.length ? msgMedia.map(({ url, type, mime }) => ({ url, type, mime })) : null
+    if (!text && !media) return
     const conv = conversations[activeConv]
     const time = new Date().toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' })
     setConversations(prev => prev.map((c, i) => {
       if (i !== activeConv) return c
-      const msgs = [...c.messages, { from: currentUser.name, text: { da: text, en: text }, time }]
+      const msgs = [...c.messages, { from: currentUser.name, text: { da: text, en: text }, media, time }]
       return { ...c, messages: msgs.length > MSG_PAGE_SIZE ? msgs.slice(-MSG_PAGE_SIZE) : msgs,
         totalMessages: (c.totalMessages || c.messages.length) + 1, unread: 0 }
     }))
     setNewMsg('')
-    if (conv?.id) apiSendConversationMessage(conv.id, text).catch(() => {})
-  }, [newMsg, activeConv, conversations, currentUser.name])
+    setMsgMedia([])
+    if (conv?.id) apiSendConversationMessage(conv.id, text, media).catch(() => {})
+  }, [newMsg, msgMedia, activeConv, conversations, currentUser.name])
+
+  const handleMediaFiles = useCallback(async (files) => {
+    const allowed = Array.from(files).filter(f => f.type.startsWith('image/') || f.type.startsWith('video/'))
+    if (!allowed.length) return
+    setUploadingMedia(true)
+    const results = await Promise.all(allowed.map(async f => {
+      const preview = f.type.startsWith('image/') ? URL.createObjectURL(f) : null
+      const uploaded = await apiUploadFile(f)
+      if (!uploaded?.url) return null
+      return { url: uploaded.url, type: uploaded.type, mime: uploaded.mime || f.type, preview }
+    }))
+    setMsgMedia(prev => [...prev, ...results.filter(Boolean)])
+    setUploadingMedia(false)
+  }, [])
 
   const selectConv = useCallback((i) => {
     setActiveConv(i)
@@ -5162,8 +6030,11 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened }) 
                   ))}
                 </div>
               ) : (
-                <div className="p-avatar-sm" style={{ background: nameToColor(c.name), flexShrink: 0 }}>
-                  {getInitials(c.name)}
+                <div style={{ position: 'relative', flexShrink: 0 }}>
+                  <div className="p-avatar-sm" style={{ background: nameToColor(c.name) }}>
+                    {getInitials(c.name)}
+                  </div>
+                  {c.otherOnline && <div className="online-dot" style={{ position: 'absolute', bottom: 1, right: 1, width: 9, height: 9, borderRadius: '50%', background: '#22c55e', border: '2px solid var(--color-card, #fff)', zIndex: 1 }} />}
                 </div>
               )}
               <div className="p-msg-thread-info">
@@ -5266,13 +6137,20 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened }) 
                     {conv.isGroup && !isMe && (
                       <div className="p-msg-sender-name">{msg.from.split(' ')[0]}</div>
                     )}
-                    <div style={{ whiteSpace: 'pre-wrap' }}>{linkifyText(msg.text[lang] || '').map((p, pi) =>
-                      p.t === 'url'
-                        ? <a key={pi} href={p.v} target="_blank" rel="noopener noreferrer" className="post-link">{p.v}</a>
-                        : p.t === 'mention'
-                          ? <span key={pi} className="p-mention">{p.v}</span>
-                          : <span key={pi}>{p.v}</span>
-                    )}</div>
+                    {msg.text[lang] && (
+                      <div style={{ whiteSpace: 'pre-wrap' }}>{linkifyText(msg.text[lang]).map((p, pi) =>
+                        p.t === 'url'
+                          ? <a key={pi} href={p.v} target="_blank" rel="noopener noreferrer" className="post-link">{p.v}</a>
+                          : p.t === 'mention'
+                            ? <span key={pi} className="p-mention">{p.v}</span>
+                            : <span key={pi}>{p.v}</span>
+                      )}</div>
+                    )}
+                    {msg.media?.length > 0 && (
+                      <div style={{ marginTop: msg.text[lang] ? 6 : 0, maxWidth: 260 }}>
+                        <PostMedia media={msg.media} />
+                      </div>
+                    )}
                     <div className="p-msg-time">{msg.time}</div>
                   </div>
                 </div>
@@ -5282,59 +6160,111 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened }) 
           </div>
 
           {/* Input */}
-          <div className="p-msg-input-row">
-            <span className="p-input-hint-wrap">
-              <span className="p-input-hint-icon">?</span>
-              <span className="p-input-hint-tooltip">{t.msgInputHint}</span>
-            </span>
-            <div style={{ position: 'relative', flex: 1 }}>
-              {msgMention.query !== null && (
-                <MentionDropdown
-                  filtered={msgMention.filtered}
-                  selIdx={msgMention.selIdx}
-                  onSelect={f => {
-                    const cursor = msgInputRef.current?.selectionStart ?? newMsg.length
-                    const { text, cursor: nc } = msgMention.buildText(newMsg, cursor, f)
-                    setNewMsg(text)
-                    setTimeout(() => {
-                      if (msgInputRef.current) {
-                        msgInputRef.current.focus()
-                        msgInputRef.current.setSelectionRange(nc, nc)
-                      }
-                    }, 0)
+          <div className="p-msg-input-row" style={{ flexDirection: 'column', gap: 0 }}>
+            {/* Media preview strip */}
+            {msgMedia.length > 0 && (
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '6px 8px 4px', borderBottom: '1px solid #f0f0f0' }}>
+                {msgMedia.map((m, i) => (
+                  <div key={i} style={{ position: 'relative', width: 56, height: 56, borderRadius: 6, overflow: 'hidden', border: '1px solid #ddd', flexShrink: 0 }}>
+                    {m.type === 'image'
+                      ? <img src={m.preview || m.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+                      : <div style={{ width: '100%', height: '100%', background: '#1a1a2e', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🎬</div>
+                    }
+                    <button onClick={() => setMsgMedia(prev => prev.filter((_, j) => j !== i))} style={{ position: 'absolute', top: 1, right: 1, width: 16, height: 16, borderRadius: '50%', background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 10, lineHeight: 1, padding: 0 }}>×</button>
+                  </div>
+                ))}
+                {uploadingMedia && <div style={{ width: 56, height: 56, borderRadius: 6, border: '1px dashed #ccc', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>⏳</div>}
+              </div>
+            )}
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 0, width: '100%' }}>
+              <span className="p-input-hint-wrap">
+                <span className="p-input-hint-icon">?</span>
+                <span className="p-input-hint-tooltip">{t.msgInputHint}</span>
+              </span>
+              {/* Attach button */}
+              <div className="p-media-popup-wrap" style={{ alignSelf: 'flex-end', marginBottom: 4 }}>
+                <button
+                  className={`p-media-popup-btn${msgMediaPopup ? ' active' : ''}`}
+                  onMouseDown={e => e.preventDefault()}
+                  onClick={() => setMsgMediaPopup(p => !p)}
+                  title={lang === 'da' ? 'Tilføj medie' : 'Add media'}
+                >
+                  +
+                </button>
+                {msgMediaPopup && (
+                  <>
+                    <div className="p-share-backdrop" onClick={() => setMsgMediaPopup(false)} />
+                    <div className="p-share-popup p-media-popup p-media-popup-right">
+                      <button className="p-share-option" onMouseDown={e => e.preventDefault()} onClick={() => { mediaInputRef.current?.click(); setMsgMediaPopup(false) }}>
+                        <span className="p-media-popup-icon">🖼️</span>
+                        {lang === 'da' ? 'Galleri' : 'Gallery'}
+                      </button>
+                      <button className="p-share-option" onMouseDown={e => e.preventDefault()} onClick={() => { setMsgMediaPopup(false); openCamera(e => handleMediaFiles(e.target.files)) }}>
+                        <span className="p-media-popup-icon">📷</span>
+                        {lang === 'da' ? 'Kamera' : 'Camera'}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+              <input ref={mediaInputRef} type="file" accept="image/*,video/*" multiple style={{ display: 'none' }}
+                onChange={e => { handleMediaFiles(e.target.files); e.target.value = '' }} />
+              <div style={{ position: 'relative', flex: 1 }}>
+                {msgMention.query !== null && (
+                  <MentionDropdown
+                    filtered={msgMention.filtered}
+                    selIdx={msgMention.selIdx}
+                    onSelect={f => {
+                      const cursor = msgInputRef.current?.selectionStart ?? newMsg.length
+                      const { text, cursor: nc } = msgMention.buildText(newMsg, cursor, f)
+                      setNewMsg(text)
+                      setTimeout(() => {
+                        if (msgInputRef.current) {
+                          msgInputRef.current.focus()
+                          msgInputRef.current.setSelectionRange(nc, nc)
+                        }
+                      }, 0)
+                    }}
+                  />
+                )}
+                <textarea
+                  ref={msgInputRef}
+                  className="p-msg-input"
+                  placeholder={t.typeMessage}
+                  value={newMsg}
+                  rows={1}
+                  onChange={e => {
+                    setNewMsg(e.target.value)
+                    e.target.style.height = 'auto'
+                    e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'
+                    msgMention.detect(e.target.value, e.target.selectionStart)
                   }}
+                  onPaste={e => {
+                    const files = Array.from(e.clipboardData?.items || [])
+                      .filter(item => item.kind === 'file' && (item.type.startsWith('image/') || item.type.startsWith('video/')))
+                      .map(item => item.getAsFile())
+                      .filter(Boolean)
+                    if (files.length) { e.preventDefault(); handleMediaFiles(files) }
+                  }}
+                  onKeyDown={e => {
+                    if (msgMention.handleKey(e, f => {
+                      const cursor = msgInputRef.current?.selectionStart ?? newMsg.length
+                      const { text, cursor: nc } = msgMention.buildText(newMsg, cursor, f)
+                      setNewMsg(text)
+                      setTimeout(() => {
+                        if (msgInputRef.current) {
+                          msgInputRef.current.focus()
+                          msgInputRef.current.setSelectionRange(nc, nc)
+                        }
+                      }, 0)
+                    })) return
+                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
+                  }}
+                  onBlur={() => setTimeout(() => msgMention.close(), 150)}
                 />
-              )}
-              <textarea
-                ref={msgInputRef}
-                className="p-msg-input"
-                placeholder={t.typeMessage}
-                value={newMsg}
-                rows={1}
-                onChange={e => {
-                  setNewMsg(e.target.value)
-                  e.target.style.height = 'auto'
-                  e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'
-                  msgMention.detect(e.target.value, e.target.selectionStart)
-                }}
-                onKeyDown={e => {
-                  if (msgMention.handleKey(e, f => {
-                    const cursor = msgInputRef.current?.selectionStart ?? newMsg.length
-                    const { text, cursor: nc } = msgMention.buildText(newMsg, cursor, f)
-                    setNewMsg(text)
-                    setTimeout(() => {
-                      if (msgInputRef.current) {
-                        msgInputRef.current.focus()
-                        msgInputRef.current.setSelectionRange(nc, nc)
-                      }
-                    }, 0)
-                  })) return
-                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
-                }}
-                onBlur={() => setTimeout(() => msgMention.close(), 150)}
-              />
+              </div>
+              <button className="p-send-btn" onClick={handleSend}>{t.send}</button>
             </div>
-            <button className="p-send-btn" onClick={handleSend}>{t.send}</button>
           </div>
         </div>
       )}
@@ -6974,6 +7904,11 @@ function JobCard({ job, t, lang, onSaveToggle }) {
             <span className="p-event-type-badge">{typeLabels[job.type] || job.type}</span>
             <span style={{ fontSize: 12, color: '#999' }}>{postedDate}</span>
           </div>
+          {(job.salary_min || job.salary_max) && (
+            <div style={{ fontSize: 13, color: '#2D6A4F', fontWeight: 600, marginBottom: 8 }}>
+              💰 {job.salary_min ? job.salary_min.toLocaleString() : '?'} – {job.salary_max ? job.salary_max.toLocaleString() : '?'} {job.salary_currency || 'DKK'} / {job.salary_period === 'annual' ? (lang === 'da' ? 'år' : 'year') : (lang === 'da' ? 'md.' : 'mo.')}
+            </div>
+          )}
           <p style={{ fontSize: 13, color: '#555', lineHeight: 1.5, margin: '0 0 10px' }}>{desc.slice(0, 200)}{desc.length > 200 ? '…' : ''}</p>
           {reqs && (
             <details style={{ marginBottom: 12 }}>
@@ -6982,6 +7917,11 @@ function JobCard({ job, t, lang, onSaveToggle }) {
               </summary>
               <pre style={{ fontSize: 12, color: '#555', whiteSpace: 'pre-wrap', marginTop: 8, fontFamily: 'inherit', lineHeight: 1.6 }}>{reqs}</pre>
             </details>
+          )}
+          {job.collective_agreement && (
+            <div style={{ fontSize: 12, color: '#555', marginBottom: 6 }}>
+              📋 {t.jobCollectiveAgreement}: <strong>{job.collective_agreement}</strong>
+            </div>
           )}
           {job.deadline && (
             <div style={{ fontSize: 12, color: '#c0392b', fontWeight: 600, marginBottom: 8 }}>
@@ -7024,12 +7964,14 @@ function JobCard({ job, t, lang, onSaveToggle }) {
 function JobsPage({ lang, t, currentUser, mode }) {
   const [jobs, setJobs] = useState([])
   const [savedJobs, setSavedJobs] = useState([])
+  const [myJobs, setMyJobs] = useState([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('all')
   const [filterType, setFilterType] = useState('')
   const [filterLocation, setFilterLocation] = useState('')
   const [filterKeyword, setFilterKeyword] = useState('')
   const [showCreate, setShowCreate] = useState(false)
+  const [editJob, setEditJob] = useState(null)
   const [myCompanies, setMyCompanies] = useState([])
 
   useEffect(() => {
@@ -7059,48 +8001,73 @@ function JobsPage({ lang, t, currentUser, mode }) {
       .catch(() => {})
   }, [])
 
+  useEffect(() => {
+    if (mode === 'business') {
+      apiGetMyJobs().then(data => setMyJobs(data?.jobs || []))
+    }
+  }, [mode])
+
+  const refreshMyJobs = () => apiGetMyJobs().then(data => setMyJobs(data?.jobs || []))
+
+  const handleToggleActive = (job) => {
+    fetch(`/api/jobs/${job.id}`, {
+      method: 'PUT', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...job, active: !job.active }),
+    })
+      .then(r => r.json())
+      .then(() => refreshMyJobs())
+      .catch(() => {})
+  }
+
   const displayJobs = tab === 'saved' ? savedJobs : jobs.filter(j => {
     if (filterLocation && !j.location?.toLowerCase().includes(filterLocation.toLowerCase()) && !j.remote) return false
     return true
   })
 
+  const typeLabels = { fulltime: t.jobTypeFullTime, parttime: t.jobTypePartTime, freelance: t.jobTypeFreelance, internship: t.jobTypeInternship }
+
   return (
     <div className="p-events" style={{ maxWidth: 720 }}>
       <div className="p-events-header">
         <h2 className="p-section-title" style={{ margin: 0 }}>💼 {t.jobsTitle}</h2>
-        <button className="p-events-create-btn" onClick={() => setShowCreate(true)}>
-          + {t.createJob}
-        </button>
+        {mode === 'business' && (
+          <button className="p-events-create-btn" onClick={() => setShowCreate(true)}>
+            + {t.createJob}
+          </button>
+        )}
       </div>
 
-      {/* Filters */}
-      <div className="p-card" style={{ marginBottom: 14, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        <input
-          className="p-search-input"
-          style={{ flex: 2, minWidth: 120 }}
-          placeholder={t.jobSearchKeyword}
-          value={filterKeyword}
-          onChange={e => setFilterKeyword(e.target.value)}
-        />
-        <input
-          className="p-search-input"
-          style={{ flex: 1, minWidth: 100 }}
-          placeholder={t.jobSearchLocation}
-          value={filterLocation}
-          onChange={e => setFilterLocation(e.target.value)}
-        />
-        <select
-          style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, fontFamily: 'inherit', color: '#444' }}
-          value={filterType}
-          onChange={e => setFilterType(e.target.value)}
-        >
-          <option value="">{t.jobSearchType}</option>
-          <option value="fulltime">{t.jobTypeFullTime}</option>
-          <option value="parttime">{t.jobTypePartTime}</option>
-          <option value="freelance">{t.jobTypeFreelance}</option>
-          <option value="internship">{t.jobTypeInternship}</option>
-        </select>
-      </div>
+      {/* Filters — only shown on browse tabs */}
+      {tab !== 'mine' && (
+        <div className="p-card" style={{ marginBottom: 14, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <input
+            className="p-search-input"
+            style={{ flex: 2, minWidth: 120 }}
+            placeholder={t.jobSearchKeyword}
+            value={filterKeyword}
+            onChange={e => setFilterKeyword(e.target.value)}
+          />
+          <input
+            className="p-search-input"
+            style={{ flex: 1, minWidth: 100 }}
+            placeholder={t.jobSearchLocation}
+            value={filterLocation}
+            onChange={e => setFilterLocation(e.target.value)}
+          />
+          <select
+            style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, fontFamily: 'inherit', color: '#444' }}
+            value={filterType}
+            onChange={e => setFilterType(e.target.value)}
+          >
+            <option value="">{t.jobSearchType}</option>
+            <option value="fulltime">{t.jobTypeFullTime}</option>
+            <option value="parttime">{t.jobTypePartTime}</option>
+            <option value="freelance">{t.jobTypeFreelance}</option>
+            <option value="internship">{t.jobTypeInternship}</option>
+          </select>
+        </div>
+      )}
 
       <div className="p-filter-tabs" style={{ marginBottom: 16 }}>
         <button className={`p-filter-tab${tab === 'all' ? ' active' : ''}`} onClick={() => setTab('all')}>
@@ -7109,9 +8076,61 @@ function JobsPage({ lang, t, currentUser, mode }) {
         <button className={`p-filter-tab${tab === 'saved' ? ' active' : ''}`} onClick={() => setTab('saved')}>
           {t.savedJobs} ({savedJobs.length})
         </button>
+        {mode === 'business' && (
+          <button className={`p-filter-tab${tab === 'mine' ? ' active' : ''}`} onClick={() => setTab('mine')}>
+            {t.jobMyListings} ({myJobs.length})
+          </button>
+        )}
       </div>
 
-      {loading ? (
+      {/* Mine Opslag — business management tab */}
+      {tab === 'mine' ? (
+        myJobs.length === 0 ? (
+          <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>{t.jobNoJobs}</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {myJobs.map(job => (
+              <div key={job.id} className="p-card" style={{ opacity: job.active ? 1 : 0.55 }}>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 8, background: job.company_color || '#1877F2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 18, flexShrink: 0 }}>
+                    {(job.company_name || '?')[0]}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <span style={{ fontWeight: 700, fontSize: 15 }}>{job.title}</span>
+                      <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: job.active ? '#F0FAF4' : '#f5f5f5', color: job.active ? '#2D6A4F' : '#888', fontWeight: 600 }}>
+                        {job.active ? t.jobStatusActive : t.jobStatusClosed}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 13, color: '#666', marginTop: 2 }}>
+                      {job.company_name} · {job.location || '—'}{job.remote ? ` · ${t.jobRemote}` : ''} · {typeLabels[job.type] || job.type}
+                    </div>
+                    {(job.salary_min || job.salary_max) && (
+                      <div style={{ fontSize: 13, color: '#2D6A4F', fontWeight: 600, marginTop: 4 }}>
+                        💰 {job.salary_min ? job.salary_min.toLocaleString() : '?'} – {job.salary_max ? job.salary_max.toLocaleString() : '?'} {job.salary_currency || 'DKK'} / {job.salary_period === 'annual' ? (lang === 'da' ? 'år' : 'year') : (lang === 'da' ? 'md.' : 'mo.')}
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                      <button
+                        onClick={() => setEditJob(job)}
+                        style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', fontSize: 13, cursor: 'pointer', fontWeight: 600 }}
+                      >
+                        ✏️ {t.jobEdit}
+                      </button>
+                      <button
+                        onClick={() => handleToggleActive(job)}
+                        style={{ padding: '6px 14px', borderRadius: 8, border: `1px solid ${job.active ? '#e74c3c' : '#2D6A4F'}`, background: job.active ? '#fff5f5' : '#F0FAF4', color: job.active ? '#e74c3c' : '#2D6A4F', fontSize: 13, cursor: 'pointer', fontWeight: 600 }}
+                      >
+                        {job.active ? `🚫 ${t.jobClose}` : `✅ ${t.jobReopen}`}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      ) : loading ? (
         <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>⏳</div>
       ) : displayJobs.length === 0 ? (
         <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>{t.jobNoJobs}</div>
@@ -7138,24 +8157,87 @@ function JobsPage({ lang, t, currentUser, mode }) {
           lang={lang}
           companies={myCompanies}
           onClose={() => setShowCreate(false)}
-          onCreate={(job) => { setJobs(prev => [job, ...prev]); setShowCreate(false) }}
+          onCreate={(job) => { setJobs(prev => [job, ...prev]); setShowCreate(false); refreshMyJobs() }}
+        />
+      )}
+      {editJob && (
+        <CreateJobModal
+          t={t}
+          lang={lang}
+          companies={myCompanies}
+          editJob={editJob}
+          onClose={() => setEditJob(null)}
+          onCreate={() => { setEditJob(null); refreshMyJobs() }}
         />
       )}
     </div>
   )
 }
 
-function CreateJobModal({ t, lang, companies, onClose, onCreate }) {
-  const [title, setTitle] = useState('')
-  const [companyId, setCompanyId] = useState(companies[0]?.id || '')
-  const [location, setLocation] = useState('')
-  const [remote, setRemote] = useState(false)
-  const [type, setType] = useState('fulltime')
-  const [description, setDescription] = useState('')
-  const [requirements, setRequirements] = useState('')
-  const [applyLink, setApplyLink] = useState('')
-  const [contactEmail, setContactEmail] = useState('')
-  const [deadline, setDeadline] = useState('')
+const DK_OVERENSKOMSTER = [
+  { group: 'Industri & Håndværk', options: [
+    'CO-industri (generel industrioverenskomst)',
+    'Dansk Metal',
+    '3F Industri',
+    'BAT-kartellet (bygge & anlæg)',
+    'Malerforbundet',
+    'El-overenskomsten (TEKNIQ / Dansk El-Forbund)',
+    'VVS-overenskomsten (TEKNIQ / Blik- og Rørarbejderforbundet)',
+  ]},
+  { group: 'Kontor & Handel', options: [
+    'HK Privat',
+    'HK Handel',
+    'HK Kommunal',
+    'Funktionæroverenskomsten (DA/HK)',
+  ]},
+  { group: 'Transport & Lager', options: [
+    '3F Transport',
+    '3F Lager, Post og Service',
+    'Chaufføroverenskomsten',
+  ]},
+  { group: 'IT & Medier', options: [
+    'PROSA (IT-overenskomsten)',
+    'Dansk Journalistforbund',
+    'DM – Dansk Magisterforening',
+    'IDA (Ingeniørforeningen)',
+  ]},
+  { group: 'Finans & Forsikring', options: [
+    'Finansforbundet',
+    'Forsikringsforbundet',
+  ]},
+  { group: 'Offentlig sektor', options: [
+    'KL (kommuner)',
+    'RLTN (regioner)',
+    'Moderniseringsstyrelsen / Staten',
+    'FOA – Fag og Arbejde',
+    'DSR (Dansk Sygeplejeråd)',
+    'BUPL (pædagoger)',
+    'DLF (Danmarks Lærerforening)',
+    'Lederne i den offentlige sektor',
+  ]},
+  { group: 'Ledere & Akademikere', options: [
+    'Lederne',
+    'Akademikerne',
+  ]},
+]
+
+function CreateJobModal({ t, lang, companies, onClose, onCreate, editJob }) {
+  const isEdit = !!editJob
+  const [title, setTitle] = useState(editJob?.title || '')
+  const [companyId, setCompanyId] = useState(editJob?.company_id || companies[0]?.id || '')
+  const [location, setLocation] = useState(editJob?.location || '')
+  const [remote, setRemote] = useState(!!editJob?.remote)
+  const [type, setType] = useState(editJob?.type || 'fulltime')
+  const [description, setDescription] = useState(editJob?.description || '')
+  const [requirements, setRequirements] = useState(editJob?.requirements || '')
+  const [applyLink, setApplyLink] = useState(editJob?.apply_link || '')
+  const [contactEmail, setContactEmail] = useState(editJob?.contact_email || '')
+  const [deadline, setDeadline] = useState(editJob?.deadline ? editJob.deadline.split('T')[0] : '')
+  const [salaryMin, setSalaryMin] = useState(editJob?.salary_min || '')
+  const [salaryMax, setSalaryMax] = useState(editJob?.salary_max || '')
+  const [salaryCurrency, setSalaryCurrency] = useState(editJob?.salary_currency || 'DKK')
+  const [salaryPeriod, setSalaryPeriod] = useState(editJob?.salary_period || 'monthly')
+  const [collectiveAgreement, setCollectiveAgreement] = useState(editJob?.collective_agreement || '')
 
   useEffect(() => {
     const h = (e) => { if (e.key === 'Escape') onClose() }
@@ -7169,24 +8251,31 @@ function CreateJobModal({ t, lang, companies, onClose, onCreate }) {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!title.trim()) return
+    const payload = {
+      company_id: Number(companyId) || companies[0]?.id,
+      title: title.trim(),
+      location: location.trim() || null,
+      remote,
+      type,
+      description: description.trim() || null,
+      requirements: requirements.trim() || null,
+      apply_link: applyLink.trim() || null,
+      contact_email: contactEmail.trim() || null,
+      deadline: deadline || null,
+      salary_min: salaryMin ? Number(salaryMin) : null,
+      salary_max: salaryMax ? Number(salaryMax) : null,
+      salary_currency: salaryCurrency,
+      salary_period: salaryPeriod,
+      collective_agreement: (collectiveAgreement && collectiveAgreement !== '__anden__') ? collectiveAgreement.trim() : null,
+    }
     try {
-      const res = await fetch('/api/jobs', {
-        method: 'POST', credentials: 'include',
+      const url = isEdit ? `/api/jobs/${editJob.id}` : '/api/jobs'
+      const res = await fetch(url, {
+        method: isEdit ? 'PUT' : 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          company_id: Number(companyId) || companies[0]?.id,
-          title: title.trim(),
-          location: location.trim() || null,
-          remote,
-          type,
-          description: description.trim() || null,
-          requirements: requirements.trim() || null,
-          apply_link: applyLink.trim() || null,
-          contact_email: contactEmail.trim() || null,
-          deadline: deadline || null,
-        }),
+        body: JSON.stringify(payload),
       })
-      if (!res.ok) { const e = await res.json(); alert(e.error || 'Fejl'); return }
+      if (!res.ok) { const err = await res.json(); alert(err.error || 'Fejl'); return }
       const job = await res.json()
       onCreate(job)
     } catch { alert(lang === 'da' ? 'Netværksfejl' : 'Network error') }
@@ -7194,10 +8283,12 @@ function CreateJobModal({ t, lang, companies, onClose, onCreate }) {
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="p-event-create-modal" onClick={e => e.stopPropagation()}>
-        <h3 style={{ margin: '0 0 20px', fontSize: 18, fontWeight: 700 }}>💼 {t.createJob}</h3>
+      <div className="p-event-create-modal" onClick={e => e.stopPropagation()} style={{ maxHeight: '90vh', overflowY: 'auto' }}>
+        <h3 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 700 }}>
+          💼 {isEdit ? (lang === 'da' ? 'Rediger jobopslag' : 'Edit job listing') : t.createJob}
+        </h3>
         <form onSubmit={handleSubmit}>
-          {companies.length > 0 && (
+          {!isEdit && companies.length > 0 && (
             <>
               <label style={lS}>{t.companies}</label>
               <select style={fS} value={companyId} onChange={e => setCompanyId(e.target.value)}>
@@ -7224,6 +8315,76 @@ function CreateJobModal({ t, lang, companies, onClose, onCreate }) {
           <textarea style={{ ...fS, minHeight: 80, resize: 'vertical' }} value={description} onChange={e => setDescription(e.target.value)} placeholder={lang === 'da' ? 'Beskriv stillingen...' : 'Describe the position...'} />
           <label style={lS}>{t.jobRequirements}</label>
           <textarea style={{ ...fS, minHeight: 60, resize: 'vertical' }} value={requirements} onChange={e => setRequirements(e.target.value)} placeholder={lang === 'da' ? 'Krav til ansøgeren...' : 'Requirements for applicants...'} />
+
+          {/* EU Pay Transparency — Salary fields */}
+          <div style={{ marginTop: 18, padding: '12px 14px', borderRadius: 8, background: '#F0FAF4', border: '1px solid #b7dfc8' }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#2D6A4F', marginBottom: 6 }}>
+              💶 {t.jobSalaryRange}
+            </div>
+            <div style={{ fontSize: 12, color: '#4a7c62', marginBottom: 10, lineHeight: 1.5 }}>
+              ℹ️ {t.jobSalaryNote}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+              <div>
+                <label style={{ ...lS, marginTop: 0 }}>{t.jobSalaryMin}</label>
+                <input style={fS} type="number" min="0" value={salaryMin} onChange={e => setSalaryMin(e.target.value)} placeholder="50000" />
+              </div>
+              <div>
+                <label style={{ ...lS, marginTop: 0 }}>{t.jobSalaryMax}</label>
+                <input style={fS} type="number" min="0" value={salaryMax} onChange={e => setSalaryMax(e.target.value)} placeholder="70000" />
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div>
+                <label style={{ ...lS, marginTop: 0 }}>{t.jobSalaryCurrency}</label>
+                <select style={fS} value={salaryCurrency} onChange={e => setSalaryCurrency(e.target.value)}>
+                  <option value="DKK">DKK</option>
+                  <option value="EUR">EUR</option>
+                  <option value="SEK">SEK</option>
+                  <option value="NOK">NOK</option>
+                  <option value="GBP">GBP</option>
+                  <option value="USD">USD</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ ...lS, marginTop: 0 }}>{t.jobSalaryPeriod}</label>
+                <select style={fS} value={salaryPeriod} onChange={e => setSalaryPeriod(e.target.value)}>
+                  <option value="monthly">{t.jobSalaryMonthly}</option>
+                  <option value="annual">{t.jobSalaryAnnual}</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label style={{ ...lS, marginTop: 10 }}>{t.jobCollectiveAgreement}</label>
+              <select
+                style={fS}
+                value={DK_OVERENSKOMSTER.flatMap(g => g.options).includes(collectiveAgreement) ? collectiveAgreement : (collectiveAgreement === '' ? '' : '__anden__')}
+                onChange={e => {
+                  if (e.target.value === '__anden__') setCollectiveAgreement('__anden__')
+                  else setCollectiveAgreement(e.target.value)
+                }}
+              >
+                <option value="">{lang === 'da' ? '— Vælg overenskomst —' : '— Select agreement —'}</option>
+                <option value="Ingen overenskomst">{lang === 'da' ? 'Ingen overenskomst' : 'No collective agreement'}</option>
+                {DK_OVERENSKOMSTER.map(group => (
+                  <optgroup key={group.group} label={group.group}>
+                    {group.options.map(o => <option key={o} value={o}>{o}</option>)}
+                  </optgroup>
+                ))}
+                <option value="__anden__">{lang === 'da' ? 'Anden (skriv selv)' : 'Other (type manually)'}</option>
+              </select>
+              {(collectiveAgreement === '__anden__' || (!DK_OVERENSKOMSTER.flatMap(g => g.options).includes(collectiveAgreement) && collectiveAgreement !== '' && collectiveAgreement !== 'Ingen overenskomst')) && (
+                <input
+                  style={{ ...fS, marginTop: 6 }}
+                  value={collectiveAgreement === '__anden__' ? '' : collectiveAgreement}
+                  onChange={e => setCollectiveAgreement(e.target.value)}
+                  placeholder={lang === 'da' ? 'Skriv overenskomst...' : 'Type agreement name...'}
+                  autoFocus
+                />
+              )}
+            </div>
+          </div>
+
           <label style={lS}>{t.jobApplyLink}</label>
           <input style={fS} value={applyLink} onChange={e => setApplyLink(e.target.value)} placeholder="https://..." />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -7238,7 +8399,9 @@ function CreateJobModal({ t, lang, companies, onClose, onCreate }) {
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
             <button type="button" onClick={onClose} style={{ flex: 1, padding: 10, borderRadius: 8, border: '1px solid #ddd', background: '#fff', cursor: 'pointer', fontSize: 14 }}>{t.eventCancel}</button>
-            <button type="submit" style={{ flex: 2, padding: 10, borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>{t.jobPost}</button>
+            <button type="submit" style={{ flex: 2, padding: 10, borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>
+              {isEdit ? (lang === 'da' ? 'Gem ændringer' : 'Save changes') : t.jobPost}
+            </button>
           </div>
         </form>
       </div>
@@ -7267,7 +8430,7 @@ const MOCK_LISTINGS = [
   { id: 6, title: { da: 'Weber kuglegrill — 57 cm', en: 'Weber kettle grill — 57 cm' }, price: 600, priceNegotiable: true, description: { da: 'Weber One-Touch 57 cm. Brugt 2 sæsoner, ellers i perfekt stand.', en: 'Weber One-Touch 57cm. Used 2 seasons, otherwise in perfect condition.' }, category: 'garden', location: 'Hellerup', photos: [], seller: 'Liam Madsen', sellerId: 'mock-liam', postedAt: '2026-02-12', sold: false },
 ]
 
-function MarketplacePage({ lang, t, currentUser, onContactSeller }) {
+function MarketplacePage({ lang, t, currentUser, onContactSeller, onViewProfile }) {
   const [tab, setTab] = useState('browse')
   const [listings, setListings] = useState(MOCK_LISTINGS)
   const [myListings, setMyListings] = useState([])
@@ -7477,7 +8640,10 @@ function MarketplacePage({ lang, t, currentUser, onContactSeller }) {
                 <div className="p-listing-meta">
                   <span>{catLabel(listing.category)}</span>
                   <span>📍 {listing.location}</span>
-                  <span style={{ color: '#aaa' }}>👤 {listing.seller}</span>
+                  <span style={{ color: '#aaa', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    {listing.seller_online ? <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', display: 'inline-block', flexShrink: 0 }} /> : null}
+                    {listing.seller}
+                  </span>
                 </div>
                 {tab === 'mine' && (
                   <div className="p-listing-actions" onClick={e => e.stopPropagation()}>
@@ -7542,6 +8708,7 @@ function MarketplacePage({ lang, t, currentUser, onContactSeller }) {
           listingDesc={listingDesc}
           onClose={() => setSelectedListing(null)}
           onContactSeller={onContactSeller}
+          onViewProfile={onViewProfile}
           onEdit={() => {
             setEditListing(selectedListing)
             setFormError(null)
@@ -7571,14 +8738,16 @@ function MarketplacePage({ lang, t, currentUser, onContactSeller }) {
   )
 }
 
-function ListingDetailModal({ listing, t, lang, currentUser, catLabel, catIcon, listingTitle, listingDesc, onClose, onContactSeller, onEdit, onMarkSold }) {
+function ListingDetailModal({ listing, t, lang, currentUser, catLabel, catIcon, listingTitle, listingDesc, onClose, onContactSeller, onViewProfile, onEdit, onMarkSold }) {
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
   }, [onClose])
 
-  const isOwn = listing.seller === currentUser?.name || listing.sellerId === currentUser?.id
+  const isOwn = (typeof listing.sellerId === 'number' && listing.sellerId > 0)
+    ? listing.sellerId === currentUser?.id
+    : listing.seller === currentUser?.name
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -7609,7 +8778,10 @@ function ListingDetailModal({ listing, t, lang, currentUser, catLabel, catIcon, 
             {listing.postedAt && <span>📅 {listing.postedAt}</span>}
           </div>
           {/* Seller info */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: '#F7F5F2', borderRadius: 10, marginTop: 10 }}>
+          <div
+            style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: '#F7F5F2', borderRadius: 10, marginTop: 10, cursor: (!isOwn && typeof listing.sellerId === 'number' && listing.sellerId > 0 && onViewProfile) ? 'pointer' : 'default' }}
+            onClick={() => { if (!isOwn && typeof listing.sellerId === 'number' && listing.sellerId > 0 && onViewProfile) onViewProfile(listing.sellerId) }}
+          >
             <div style={{ width: 38, height: 38, borderRadius: '50%', background: '#2D6A4F', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 16, flexShrink: 0 }}>
               {listing.seller?.[0]?.toUpperCase() || '?'}
             </div>
@@ -7617,6 +8789,11 @@ function ListingDetailModal({ listing, t, lang, currentUser, catLabel, catIcon, 
               <div style={{ fontWeight: 600, fontSize: 14, color: '#1A1A1A' }}>{listing.seller}</div>
               <div style={{ fontSize: 12, color: '#aaa' }}>{lang === 'da' ? 'Sælger' : 'Seller'}{listing.postedAt ? ` · ${listing.postedAt}` : ''}</div>
             </div>
+            {!isOwn && typeof listing.sellerId === 'number' && listing.sellerId > 0 && onViewProfile && (
+              <span style={{ fontSize: 12, color: '#1877F2', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                {lang === 'da' ? 'Se profil →' : 'View profile →'}
+              </span>
+            )}
           </div>
           {listingDesc(listing) && <p className="p-listing-detail-desc">{listingDesc(listing)}</p>}
 
@@ -7642,29 +8819,33 @@ function ListingDetailModal({ listing, t, lang, currentUser, catLabel, catIcon, 
             </div>
           )}
 
-          {/* Contact section for other users */}
-          {!isOwn && !listing.sold && (
+          {/* Contact section */}
+          {!listing.sold && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
-              {/* Primary: Fellis messages — always default for public listings */}
-              {typeof listing.sellerId === 'number' && listing.sellerId > 0 ? (
-                <button
-                  className="p-marketplace-create-btn"
-                  style={{ width: '100%', justifyContent: 'center' }}
-                  onClick={() => { onContactSeller(listing.sellerId); onClose() }}
-                >
-                  💬 {t.marketplaceContactSeller}
-                </button>
-              ) : (
-                <div style={{ textAlign: 'center', color: '#aaa', fontSize: 13, padding: '4px 0' }}>
-                  {lang === 'da' ? 'Sælgeren er ikke på Fellis' : 'Seller is not on Fellis'}
-                </div>
-              )}
-              {/* Additional contact options */}
-              {(listing.mobilepay || listing.contact_phone || listing.contact_email) && (
-                <div style={{ borderTop: '1px solid #f0ebe5', paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <div style={{ fontSize: 11, color: '#aaa', textAlign: 'center', marginBottom: 2 }}>
-                    {lang === 'da' ? 'Andre kontaktmuligheder' : 'Other contact options'}
+              {/* Send message button — only for other users */}
+              {!isOwn && (
+                typeof listing.sellerId === 'number' && listing.sellerId > 0 ? (
+                  <button
+                    className="p-marketplace-create-btn"
+                    style={{ width: '100%', justifyContent: 'center' }}
+                    onClick={() => { onContactSeller(listing.sellerId); onClose() }}
+                  >
+                    💬 {t.marketplaceContactSeller}
+                  </button>
+                ) : (
+                  <div style={{ textAlign: 'center', color: '#aaa', fontSize: 13, padding: '4px 0' }}>
+                    {lang === 'da' ? 'Sælgeren er ikke på Fellis' : 'Seller is not on Fellis'}
                   </div>
+                )
+              )}
+              {/* Contact info — shown for everyone when populated */}
+              {(listing.mobilepay || listing.contact_phone || listing.contact_email) && (
+                <div style={{ borderTop: isOwn ? 'none' : '1px solid #f0ebe5', paddingTop: isOwn ? 0 : 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {isOwn && (
+                    <div style={{ fontSize: 11, color: '#aaa', marginBottom: 2 }}>
+                      {lang === 'da' ? 'Din kontaktinfo på opslaget:' : 'Your contact info on this listing:'}
+                    </div>
+                  )}
                   {listing.mobilepay && (
                     <a href={`mobilepay://send?phone=${listing.mobilepay}`}
                       style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 16px', borderRadius: 8, border: '2px solid #5A78FF', color: '#5A78FF', fontWeight: 700, fontSize: 14, textDecoration: 'none', background: '#fff' }}>
@@ -8028,6 +9209,161 @@ function PlanGate({ plan, required = 'business_pro', t, onUpgrade, children }) {
 // ─────────────────────────────────────────────
 // ── UpgradeModal ──────────────────────────────
 // ─────────────────────────────────────────────
+
+// ── Welcome onboarding tour (shown once to new users) ──
+const ONBOARDING_STEPS = [
+  {
+    icon: '🏠',
+    title: { da: 'Feed', en: 'Feed' },
+    desc: {
+      da: 'Del hvad der sker i dit liv, og se hvad dine venner og bekendte laver. Post tekst, billeder og links.',
+      en: 'Share what\'s happening in your life and see what your friends are up to. Post text, photos and links.',
+    },
+  },
+  {
+    icon: '👥',
+    title: { da: 'Venner', en: 'Friends' },
+    desc: {
+      da: 'Find og forbind med venner og bekendte. Under fanen Invitationer kan du acceptere venneanmodninger.',
+      en: 'Find and connect with friends. Under the Invitations tab you can accept friend requests.',
+    },
+  },
+  {
+    icon: '💬',
+    title: { da: 'Beskeder', en: 'Messages' },
+    desc: {
+      da: 'Chat privat med en ven eller opret en gruppebesked. Dine samtaler er private og krypterede.',
+      en: 'Chat privately with a friend or create a group chat. Your conversations are private and encrypted.',
+    },
+  },
+  {
+    icon: '🛍️',
+    title: { da: 'Marked', en: 'Marketplace' },
+    desc: {
+      da: 'Køb og sælg brugte ting lokalt. Opret et opslag med pris, billeder og kontaktinfo på få sekunder.',
+      en: 'Buy and sell second-hand items locally. Create a listing with price, photos and contact info in seconds.',
+    },
+  },
+  {
+    icon: '📅',
+    title: { da: 'Events', en: 'Events' },
+    desc: {
+      da: 'Find begivenheder i dit område eller opret dit eget — fødselsdagsfest, netværksmøde, loppemarked…',
+      en: 'Find events near you or create your own — birthday party, networking meetup, flea market…',
+    },
+  },
+]
+
+function WelcomeOnboardingModal({ lang, inviterName, onDone }) {
+  const da = lang === 'da'
+  // step -1 = welcome, 0..4 = feature steps, 5 = benefits
+  const [step, setStep] = useState(-1)
+  const totalFeatureSteps = ONBOARDING_STEPS.length
+  const isWelcome = step === -1
+  const isBenefits = step === totalFeatureSteps
+  const isLastFeature = step === totalFeatureSteps - 1
+  const cur = step >= 0 && !isBenefits ? ONBOARDING_STEPS[step] : null
+
+  const next = () => setStep(s => s + 1)
+
+  return (
+    <div className="modal-backdrop" style={{ zIndex: 3000 }} onClick={e => e.stopPropagation()}>
+      <div style={{ background: '#fff', borderRadius: 18, maxWidth: 440, width: '90%', padding: '32px 28px 24px', position: 'relative', boxShadow: '0 8px 40px rgba(0,0,0,0.18)', textAlign: 'center' }}>
+        {/* Skip / close */}
+        <button
+          onClick={onDone}
+          style={{ position: 'absolute', top: 14, right: 16, background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#bbb', lineHeight: 1 }}
+          aria-label="Luk"
+        >✕</button>
+
+        {isWelcome && (
+          <>
+            <div style={{ fontSize: 56, marginBottom: 12 }}>🎉</div>
+            <h2 style={{ margin: '0 0 8px', fontSize: 22, fontWeight: 800, color: '#1A1A1A' }}>
+              {da ? 'Velkommen til Fellis.eu!' : 'Welcome to Fellis.eu!'}
+            </h2>
+            {inviterName && (
+              <div style={{ margin: '0 0 12px', padding: '10px 16px', background: '#F0FAF4', borderRadius: 10, fontSize: 14, color: '#2D6A4F', fontWeight: 600 }}>
+                🤝 {da ? `Du er inviteret af ${inviterName} — I er nu forbundet!` : `You were invited by ${inviterName} — you are now connected!`}
+              </div>
+            )}
+            <p style={{ margin: '0 0 24px', fontSize: 14, color: '#666', lineHeight: 1.6 }}>
+              {da
+                ? 'Fellis er den danske, private platform uden annoncører. Lad os vise dig rundt på få sekunder.'
+                : 'Fellis is the Danish, private platform without advertisers. Let us show you around in a few seconds.'}
+            </p>
+            <button
+              className="p-btn-primary"
+              style={{ width: '100%', padding: '12px 0', fontSize: 15, borderRadius: 10 }}
+              onClick={next}
+            >
+              {da ? 'Kom i gang →' : 'Get started →'}
+            </button>
+          </>
+        )}
+
+        {cur && (
+          <>
+            {/* Progress dots */}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginBottom: 20 }}>
+              {ONBOARDING_STEPS.map((_, i) => (
+                <div key={i} style={{ width: 7, height: 7, borderRadius: '50%', background: i === step ? '#2D6A4F' : '#E8E4DF', transition: 'background 0.2s' }} />
+              ))}
+            </div>
+            <div style={{ fontSize: 52, marginBottom: 12 }}>{cur.icon}</div>
+            <h3 style={{ margin: '0 0 10px', fontSize: 20, fontWeight: 700, color: '#1A1A1A' }}>{cur.title[lang] || cur.title.da}</h3>
+            <p style={{ margin: '0 0 28px', fontSize: 14, color: '#666', lineHeight: 1.6 }}>{cur.desc[lang] || cur.desc.da}</p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => setStep(s => s - 1)}
+                style={{ flex: 1, padding: '11px 0', borderRadius: 10, border: '1.5px solid #E8E4DF', background: '#fff', fontSize: 14, cursor: 'pointer', color: '#555', fontWeight: 600 }}
+              >
+                ← {da ? 'Forrige' : 'Back'}
+              </button>
+              <button
+                className="p-btn-primary"
+                style={{ flex: 2, padding: '11px 0', fontSize: 15, borderRadius: 10 }}
+                onClick={next}
+              >
+                {isLastFeature ? (da ? 'Se fordele →' : 'See benefits →') : (da ? 'Næste →' : 'Next →')}
+              </button>
+            </div>
+          </>
+        )}
+
+        {isBenefits && (
+          <>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>✨</div>
+            <h3 style={{ margin: '0 0 16px', fontSize: 20, fontWeight: 800, color: '#1A1A1A' }}>
+              {da ? 'Hvorfor Fellis.eu?' : 'Why Fellis.eu?'}
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24, textAlign: 'left' }}>
+              {[
+                { icon: '🔒', da: 'Privat by design — dine data sælges aldrig', en: 'Private by design — your data is never sold' },
+                { icon: '🇪🇺', da: 'Hostet i EU — GDPR-godkendt fra dag ét', en: 'Hosted in the EU — GDPR-compliant from day one' },
+                { icon: '🚫', da: 'Ingen annoncører eller algoritme-manipulation', en: 'No advertisers or algorithmic manipulation' },
+                { icon: '🌱', da: 'Dansk platform bygget til fællesskab', en: 'Danish platform built for community' },
+                { icon: '🗑️', da: 'Slet alt dine data med ét klik til enhver tid', en: 'Delete all your data with one click at any time' },
+              ].map(({ icon, da: textDa, en: textEn }) => (
+                <div key={icon} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '8px 12px', background: '#F7F5F2', borderRadius: 8, fontSize: 13, color: '#333' }}>
+                  <span style={{ fontSize: 18, flexShrink: 0 }}>{icon}</span>
+                  <span>{da ? textDa : textEn}</span>
+                </div>
+              ))}
+            </div>
+            <button
+              className="p-btn-primary"
+              style={{ width: '100%', padding: '13px 0', fontSize: 15, borderRadius: 10 }}
+              onClick={onDone}
+            >
+              {da ? '🚀 Kom i gang!' : '🚀 Let\'s go!'}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
 
 function UpgradeModal({ lang, t, onUpgrade, onClose }) {
   const features = lang === 'da'
@@ -8477,7 +9813,9 @@ function CalendarPage({ lang, t, currentUser }) {
   const HOLIDAY_COLOR = '#1877F2'
   const DST_COLOR = '#F59E0B'
   const BIRTHDAY_COLOR = '#E07A5F'
-  const EVENT_COLOR = '#6C63FF'
+  const EVENT_COLOR_ORGANIZER = '#6C63FF'   // oprettet af dig
+  const EVENT_COLOR_GOING = '#22c55e'       // du deltager
+  const EVENT_COLOR_MAYBE = '#f97316'       // måske
 
   return (
     <div style={s.page}>
@@ -8521,9 +9859,10 @@ function CalendarPage({ lang, t, currentUser }) {
                 {bdays.map((b, j) => (
                   <span key={j} style={s.dot(BIRTHDAY_COLOR)} title={b.name} />
                 ))}
-                {evts.map((e, j) => (
-                  <span key={j} style={s.dot(EVENT_COLOR)} title={typeof e.title === 'string' ? e.title : (e.title[lang] || e.title.da)} />
-                ))}
+                {evts.map((e, j) => {
+                  const evtColor = e.isOrganizer ? EVENT_COLOR_ORGANIZER : e.myRsvp === 'going' ? EVENT_COLOR_GOING : EVENT_COLOR_MAYBE
+                  return <span key={j} style={s.dot(evtColor)} title={typeof e.title === 'string' ? e.title : (e.title[lang] || e.title.da)} />
+                })}
               </div>
             </div>
           )
@@ -8535,7 +9874,9 @@ function CalendarPage({ lang, t, currentUser }) {
         <div style={s.legendItem}><span style={{ ...s.dot(HOLIDAY_COLOR), width: 10, height: 10 }} />{t.calendarHolidays}</div>
         <div style={s.legendItem}><span style={{ ...s.dot(DST_COLOR), width: 10, height: 10 }} />Sommer-/vintertid</div>
         <div style={s.legendItem}><span style={{ ...s.dot(BIRTHDAY_COLOR), width: 10, height: 10 }} />{t.calendarBirthdays}</div>
-        <div style={s.legendItem}><span style={{ ...s.dot(EVENT_COLOR), width: 10, height: 10 }} />{t.calendarEvents}</div>
+        <div style={s.legendItem}><span style={{ ...s.dot(EVENT_COLOR_ORGANIZER), width: 10, height: 10 }} />{lang === 'da' ? 'Oprettet af dig' : 'Created by you'}</div>
+        <div style={s.legendItem}><span style={{ ...s.dot(EVENT_COLOR_GOING), width: 10, height: 10 }} />{lang === 'da' ? 'Du deltager' : 'Attending'}</div>
+        <div style={s.legendItem}><span style={{ ...s.dot(EVENT_COLOR_MAYBE), width: 10, height: 10 }} />{lang === 'da' ? 'Måske' : 'Maybe'}</div>
       </div>
 
       {/* Day detail panel */}
@@ -8571,9 +9912,10 @@ function CalendarPage({ lang, t, currentUser }) {
           })}
           {selectedEvents.map((e, i) => {
             const title = typeof e.title === 'string' ? e.title : (e.title?.[lang] || e.title?.da || '')
+            const evtColor = e.isOrganizer ? EVENT_COLOR_ORGANIZER : e.myRsvp === 'going' ? EVENT_COLOR_GOING : EVENT_COLOR_MAYBE
             return (
               <div key={i} style={s.item}>
-                <span style={s.itemDot(EVENT_COLOR)} />
+                <span style={s.itemDot(evtColor)} />
                 <span style={s.itemLabel}>{title}{e.location ? ` — ${e.location}` : ''}</span>
               </div>
             )
@@ -8993,6 +10335,7 @@ function AdminPage({ lang, t }) {
     stripe_price_pro_monthly: '', stripe_price_pro_yearly: '', stripe_price_boost: '',
     pwd_min_length: '6', pwd_require_uppercase: '0', pwd_require_lowercase: '0',
     pwd_require_numbers: '0', pwd_require_symbols: '0',
+    media_max_files: '4', registration_open: '1',
   })
   const [status, setStatus] = useState('idle') // idle | saving | saved
   const [stats, setStats] = useState(null)
@@ -9340,6 +10683,94 @@ function AdminPage({ lang, t }) {
             </div>
           </form>
         </div>
+      )}
+
+      {adminTab === 'platform' && (
+        <form onSubmit={handleSave}>
+          {/* ── Media settings ── */}
+          <div className="p-card" style={{ marginBottom: 16, padding: '20px 24px' }}>
+            <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700 }}>🖼️ {lang === 'da' ? 'Medier' : 'Media'}</h3>
+            <p style={{ margin: '0 0 20px', fontSize: 13, color: '#666' }}>
+              {lang === 'da' ? 'Indstillinger for fil-uploads på opslag.' : 'Settings for file uploads on posts.'}
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={lS}>{lang === 'da' ? 'Max antal medier per opslag' : 'Max media files per post'}</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <input
+                    style={{ ...fS, width: 100 }}
+                    type="number" min="1" max="20"
+                    value={form.media_max_files || '4'}
+                    onChange={e => setForm(prev => ({ ...prev, media_max_files: e.target.value }))}
+                  />
+                  <span style={{ fontSize: 13, color: '#888' }}>{lang === 'da' ? '(1–20 filer)' : '(1–20 files)'}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Registration settings ── */}
+          <div className="p-card" style={{ marginBottom: 16, padding: '20px 24px' }}>
+            <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700 }}>🚪 {lang === 'da' ? 'Registrering' : 'Registration'}</h3>
+            <p style={{ margin: '0 0 20px', fontSize: 13, color: '#666' }}>
+              {lang === 'da' ? 'Styr om nye brugere kan oprette konto. Invitationslinks virker stadig selv om registrering er lukket.' : 'Control whether new users can register. Invite links still work even when registration is closed.'}
+            </p>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
+              <input
+                type="checkbox"
+                checked={form.registration_open !== '0'}
+                onChange={e => setForm(prev => ({ ...prev, registration_open: e.target.checked ? '1' : '0' }))}
+                style={{ width: 16, height: 16, accentColor: '#2D6A4F', cursor: 'pointer' }}
+              />
+              {lang === 'da' ? 'Åben registrering (tillad nye brugere)' : 'Open registration (allow new users)'}
+            </label>
+          </div>
+
+          {/* ── Password policy ── */}
+          <div className="p-card" style={{ marginBottom: 20, padding: '20px 24px' }}>
+            <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700 }}>🔑 {lang === 'da' ? 'Adgangskodepolitik' : 'Password policy'}</h3>
+            <p style={{ margin: '0 0 20px', fontSize: 13, color: '#666' }}>
+              {lang === 'da' ? 'Krav der gælder ved oprettelse, nulstilling og skift af adgangskode.' : 'Requirements enforced on registration, reset, and password change.'}
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={lS}>{lang === 'da' ? 'Minimumslængde' : 'Minimum length'}</label>
+                <input
+                  style={{ ...fS, width: 120 }}
+                  type="number" min="4" max="64"
+                  value={form.pwd_min_length || '6'}
+                  onChange={e => setForm(prev => ({ ...prev, pwd_min_length: e.target.value }))}
+                />
+              </div>
+              {[
+                { key: 'pwd_require_uppercase', da: 'Kræv stort bogstav (A–Z)', en: 'Require uppercase letter (A–Z)' },
+                { key: 'pwd_require_lowercase', da: 'Kræv lille bogstav (a–z)', en: 'Require lowercase letter (a–z)' },
+                { key: 'pwd_require_numbers',   da: 'Kræv tal (0–9)',           en: 'Require number (0–9)' },
+                { key: 'pwd_require_symbols',   da: 'Kræv specialtegn (!@#$…)', en: 'Require symbol (!@#$…)' },
+              ].map(({ key, da, en }) => (
+                <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
+                  <input
+                    type="checkbox"
+                    checked={form[key] === '1'}
+                    onChange={e => setForm(prev => ({ ...prev, [key]: e.target.checked ? '1' : '0' }))}
+                    style={{ width: 16, height: 16, accentColor: '#2D6A4F', cursor: 'pointer' }}
+                  />
+                  {lang === 'da' ? da : en}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <button
+              type="submit"
+              disabled={status === 'saving'}
+              style={{ padding: '10px 24px', borderRadius: 8, border: 'none', background: status === 'saved' ? '#40916C' : '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}
+            >
+              {status === 'saving' ? t.adminSaving : status === 'saved' ? t.adminSaved : t.adminSave}
+            </button>
+          </div>
+        </form>
       )}
 
       {adminTab === 'moderation' && (
