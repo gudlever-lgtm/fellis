@@ -5,20 +5,6 @@ import ReelsPage from './Reels.jsx'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
-// ── Google Picker / Google Photos (production integration stubs) ──
-const googlePhotosClientId = null
-const GEO_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json'
-const DK_OVERENSKOMSTER = []
-const ONBOARDING_STEPS = []
-const previewCache = {}
-function showGooglePicker() { console.warn('Google Picker not configured') }
-function GooglePhotosPicker() { return null }
-function AboutPage() { return null }
-function DailyBarChart() { return null }
-function SettingsLeverandoerer() { return null }
-function WelcomeOnboardingModal() { return null }
-function _fmtDay(d) { return String(d) }
-function _isoWeek() { return 1 }
 
 // ── Mock notifications ──
 function makeMockNotifs(mode) {
@@ -64,11 +50,6 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
     return makeMockNotifs(storedMode === 'common' ? 'privat' : storedMode).map(n => readIds.has(n.id) ? { ...n, read: true } : n)
   })
   const [showModeModal, setShowModeModal] = useState(false)
-  const [showMobileMenu, setShowMobileMenu] = useState(false)
-  const [showOnboarding, setShowOnboarding] = useState(false)
-  const [step, setStep] = useState(0)
-  const [config, setConfig] = useState({})
-  const [changelog, setChangelog] = useState([])
   const [plan, setPlan] = useState('business') // set from server session; 'business_pro' = paid tier
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('fellis_dark') === '1')
@@ -856,9 +837,6 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
   const [reportModal, setReportModal] = useState(null)   // { targetType, targetId } | null
   const [blockToast, setBlockToast] = useState(null)    // message string | null
   const [keywordWarning, setKeywordWarning] = useState(null) // { keyword, text, files } | null
-  const [showScrollTop, setShowScrollTop] = useState(false)
-  const [lightboxIndex, setLightboxIndex] = useState(0)
-  const [uploadingMedia, setUploadingMedia] = useState(false)
   const fileInputRef = useRef(null)
   const textareaRef = useRef(null)
   const feedMention = useMention(sharePopupFriends || [])
@@ -2092,8 +2070,6 @@ function ProfilePage({ lang, t, currentUser, mode, plan, onUserUpdate, onNavigat
   const [parachordEnabled, setParachordEnabled] = useState(() => localStorage.getItem('fellis_parachord_enabled') !== 'false')
   const [profilePublic, setProfilePublic] = useState(false)
   const [profilePublicSaving, setProfilePublicSaving] = useState(false)
-  const [bioSaveStatus, setBioSaveStatus] = useState('idle')
-  const [errorMsg, setErrorMsg] = useState('')
   const { rels } = useContactRelationships()
 
   const handleParachordToggle = () => {
@@ -3207,9 +3183,6 @@ function MiniWorldMap({ countries }) {
 function VisitorStatsPage({ lang }) {
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [zoom, setZoom] = useState(1)
-  const [zoomedOut, setZoomedOut] = useState(false)
-  const [center, setCenter] = useState([0, 20])
 
   useEffect(() => {
     fetch('/api/visitor-stats', { credentials: 'include' })
@@ -4945,8 +4918,6 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened }) 
   const [modal, setModal] = useState(null) // null | 'new' | 'newGroup' | 'invite' | 'mute' | 'rename'
   const [showConvMenu, setShowConvMenu] = useState(false)
   const [deleteConvId, setDeleteConvId] = useState(null) // id to confirm delete
-  const [msgMedia, setMsgMedia] = useState(null)
-  const [msgMediaPopup, setMsgMediaPopup] = useState(false)
   const messagesEndRef = useRef(null)
   const msgInputRef = useRef(null)
   const msgBodyRef = useRef(null)
@@ -7056,13 +7027,6 @@ function JobsPage({ lang, t, currentUser, mode }) {
   const [filterKeyword, setFilterKeyword] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [myCompanies, setMyCompanies] = useState([])
-  const [myJobs, setMyJobs] = useState([])
-  const [editJob, setEditJob] = useState(null)
-  const [collectiveAgreement, setCollectiveAgreement] = useState('')
-  const [salaryCurrency, setSalaryCurrency] = useState('DKK')
-  const [salaryMin, setSalaryMin] = useState('')
-  const [salaryMax, setSalaryMax] = useState('')
-  const [salaryPeriod, setSalaryPeriod] = useState('month')
 
   useEffect(() => {
     const params = new URLSearchParams()
@@ -8416,7 +8380,6 @@ function CalendarPage({ lang, t, currentUser }) {
   const today = new Date()
   const [year, setYear] = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth())
-  const [weekIdx, setWeekIdx] = useState(0)
   const [selectedDay, setSelectedDay] = useState(null)
   const [calData, setCalData] = useState({ birthdays: [], events: [] })
 
