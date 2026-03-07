@@ -1089,6 +1089,10 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
   const [joinedGroupIds, setJoinedGroupIds] = useState(new Set())
   const [dismissedGroupIds, setDismissedGroupIds] = useState(new Set())
   const [showScrollTop, setShowScrollTop] = useState(false)
+  const [showGooglePicker, setShowGooglePicker] = useState(false)
+  const [googlePhotosClientId, setGooglePhotosClientId] = useState(null)
+  const [mediaMaxFiles, setMediaMaxFiles] = useState(4)
+  const mediaMaxFilesRef = useRef(4)
 
   const handleJoinGroup = async (groupId) => {
     setJoinedGroupIds(prev => new Set([...prev, groupId]))
