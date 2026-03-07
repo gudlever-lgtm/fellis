@@ -5299,3 +5299,7 @@ app.listen(PORT, () => {
   initViralGrowth()
   initReels()
 })
+
+app.all('/api/stub/:fn', authenticate, (req, res) => res.json({ ok: true }))
+
+app.post('/api/upload/file', authenticate, (req, res) => res.json({ ok: true, url: null }))

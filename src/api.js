@@ -783,6 +783,18 @@ export async function apiGetModerationActions() {
   return await request('/api/admin/moderation/actions')
 }
 
-export async function apiGetVisitorStats(days = 30) {
-  return await request(`/api/analytics/visitor-stats?days=${days}`)
+export async function apiUploadFile(file, type = 'post') {
+  const form = new FormData()
+  form.append('file', file)
+  form.append('type', type)
+  try {
+    const res = await fetch(`${API_BASE}/api/upload/file`, {
+      method: 'POST',
+      headers: formHeaders(),
+      credentials: 'same-origin',
+      body: form,
+    })
+    if (!res.ok) return null
+    return await res.json()
+  } catch { return null }
 }
