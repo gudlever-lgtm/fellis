@@ -5782,28 +5782,25 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened }) 
     apiFetchFriends().then(data => { if (data) setFriends(data) })
 
     // SSE: receive real-time messages from other users
-    let es
-    try {
-      es = openSSE()
-      es.onmessage = (e) => {
-        try {
-          const payload = JSON.parse(e.data)
-          if (payload.type === 'message') {
-            setConversations(prev => prev.map(c => {
-              if (c.id !== payload.convId) return c
-              const msgs = [...c.messages, payload.msg]
-              return {
-                ...c,
-                messages: msgs.length > MSG_PAGE_SIZE ? msgs.slice(-MSG_PAGE_SIZE) : msgs,
-                totalMessages: (c.totalMessages || c.messages.length) + 1,
-                unread: (c.unread || 0) + 1,
-              }
-            }))
-          }
-        } catch {}
-      }
-    } catch {}
-    return () => { try { es?.close() } catch {} }
+    const es = openSSE()
+    es.onmessage = (e) => {
+      try {
+        const payload = JSON.parse(e.data)
+        if (payload.type === 'message') {
+          setConversations(prev => prev.map(c => {
+            if (c.id !== payload.convId) return c
+            const msgs = [...c.messages, payload.msg]
+            return {
+              ...c,
+              messages: msgs.length > MSG_PAGE_SIZE ? msgs.slice(-MSG_PAGE_SIZE) : msgs,
+              totalMessages: (c.totalMessages || c.messages.length) + 1,
+              unread: (c.unread || 0) + 1,
+            }
+          }))
+        }
+      } catch {}
+    }
+    return () => es.close()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Open a specific conversation when navigated from elsewhere (search, contact seller, etc.)

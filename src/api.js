@@ -355,11 +355,43 @@ export async function apiDeleteEvent(eventId) {
   return await request(`/api/events/${eventId}`, { method: 'DELETE' })
 }
 
-// SSE — Server-Sent Events for real-time updates (returns EventSource)
+// SSE — Server-Sent Events for real-time updates.
+// Returns a controller object with { onmessage, close } so callers can attach
+// a message handler and close the connection.  Internally uses exponential
+// backoff (max ~60 s) so a temporary server restart does not spam the browser
+// console with a "can't establish connection" error every 3 seconds.
 export function openSSE() {
-  const sid = getSessionId()
-  const url = `${API_BASE}/api/sse${sid ? `?sid=${encodeURIComponent(sid)}` : ''}`
-  return new EventSource(url)
+  let es = null
+  let closed = false
+  let delay = 2000
+  let timer = null
+  const ctrl = { onmessage: null }
+
+  function connect() {
+    if (closed) return
+    const sid = getSessionId()
+    if (!sid) return // not logged in — nothing to connect to
+    const url = `${API_BASE}/api/sse?sid=${encodeURIComponent(sid)}`
+    es = new EventSource(url)
+    es.onmessage = (e) => { if (ctrl.onmessage) ctrl.onmessage(e) }
+    es.onopen = () => { delay = 2000 } // reset backoff on successful connect
+    es.onerror = () => {
+      es.close()
+      es = null
+      if (!closed) {
+        timer = setTimeout(() => { delay = Math.min(delay * 2, 64000); connect() }, delay)
+      }
+    }
+  }
+
+  ctrl.close = () => {
+    closed = true
+    clearTimeout(timer)
+    es?.close()
+  }
+
+  connect()
+  return ctrl
 }
 
 // Link preview

@@ -5394,6 +5394,15 @@ app.use((err, req, res, next) => {
 // Wildcard stub for client-only/unimplemented endpoints
 app.all('/api/stub/:fn', authenticate, (req, res) => res.json({ ok: true }))
 
+// Prevent unhandled promise rejections from crashing the process (PM2 would
+// restart, dropping all live SSE connections in the process).
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled promise rejection (caught at process level):', reason)
+})
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception (caught at process level):', err)
+})
+
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
   console.log(`fellis.eu API running on http://localhost:${PORT}`)
