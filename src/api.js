@@ -96,6 +96,10 @@ export async function apiFetchFeed(offset = 0, limit = 20) {
   return await request(`/api/feed?offset=${offset}&limit=${limit}`)
 }
 
+export async function apiPreflightPost(text) {
+  return await request('/api/feed/preflight', { method: 'POST', body: JSON.stringify({ text }) })
+}
+
 export async function apiCreatePost(text, mediaFiles) {
   if (mediaFiles?.length) {
     // Use FormData for multipart upload
