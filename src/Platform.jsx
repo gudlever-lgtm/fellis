@@ -8,22 +8,6 @@ const API_BASE = import.meta.env.VITE_API_URL || ''
 
 
 // ── Mock notifications ──
-function makeMockNotifs(mode) {
-  const isBiz = mode === 'business'
-  const base = [
-    { id: 1, type: 'friend_request', actor: 'Liam Madsen', time: '2 min', read: false, targetPage: 'friends' },
-    { id: 2, type: 'like', actor: 'Clara Johansen', time: '15 min', read: false, targetPage: 'feed', postId: 1 },
-    { id: 3, type: 'comment', actor: 'Magnus Jensen', time: '1 t', read: false, targetPage: 'feed', postId: 2 },
-    { id: 4, type: 'accepted', actor: 'Astrid Poulsen', time: '3 t', read: true, targetPage: 'friends' },
-    { id: 5, type: 'group_post', actor: 'Emil Larsen', group: 'Designere i KBH', time: '5 t', read: true, targetPage: 'feed', postId: 3 },
-  ]
-  if (isBiz) {
-    base.push(
-      { id: 6, type: 'profile_view', actor: 'Freja Andersen', time: '8 t', read: true, targetPage: 'profile' },
-      { id: 7, type: 'endorsement', actor: 'Noah Rasmussen', time: '1 d', read: true, targetPage: 'profile' },
-    )
-  }
-}
 
 export default function Platform({ lang: initialLang, onLogout, initialPostId }) {
   const [lang, setLang] = useState(initialLang || 'da')
