@@ -1583,6 +1583,16 @@ app.get('/api/feed', authenticate, async (req, res) => {
         edited: !!p.edited_at,
       }
     })
+    // Track post views (fire-and-forget)
+    if (result.length && req.userId) {
+      const viewValues = result.map(p => [p.id, req.userId])
+      pool.query(
+        `INSERT INTO post_views (post_id, viewer_id, view_count)
+         VALUES ${viewValues.map(() => '(?,?,1)').join(',')}
+         ON DUPLICATE KEY UPDATE view_count = view_count + 1, last_viewed_at = NOW()`,
+        viewValues.flat()
+      ).catch(() => {})
+    }
     res.json({ posts: result, total, offset, limit })
   } catch (err) {
     res.status(500).json({ error: 'Failed to load feed' })
@@ -4724,6 +4734,140 @@ app.post('/api/groups/:id/join', authenticate, async (req, res) => {
   } catch (err) {
     console.error('POST /api/groups/:id/join error:', err)
     res.status(500).json({ error: 'Failed to join group' })
+  }
+})
+
+// ── Heartbeat (online presence) ──────────────────────────────────────────────
+app.post('/api/me/heartbeat', authenticate, async (req, res) => {
+  pool.query('UPDATE users SET last_active = NOW() WHERE id = ?', [req.userId]).catch(() => {})
+  res.json({ ok: true })
+})
+
+// ── Profile update ────────────────────────────────────────────────────────────
+app.patch('/api/profile', authenticate, async (req, res) => {
+  const { name, bio_da, bio_en, location } = req.body
+  try {
+    const fields = [], vals = []
+    if (name !== undefined)     { fields.push('name = ?');     vals.push(name.trim()) }
+    if (bio_da !== undefined)   { fields.push('bio_da = ?');   vals.push(bio_da) }
+    if (bio_en !== undefined)   { fields.push('bio_en = ?');   vals.push(bio_en) }
+    if (location !== undefined) { fields.push('location = ?'); vals.push(location) }
+    if (!fields.length) return res.status(400).json({ error: 'Nothing to update' })
+    vals.push(req.userId)
+    await pool.query(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`, vals)
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('PATCH /api/profile error:', err)
+    res.status(500).json({ error: 'Failed to update profile' })
+  }
+})
+
+// ── Config (public) ───────────────────────────────────────────────────────────
+app.get('/api/config', async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      "SELECT key_name, key_value FROM admin_settings WHERE key_name IN ('stripe_pub_key')"
+    )
+    const cfg = {}
+    for (const r of rows) cfg[r.key_name] = r.key_value
+    if (process.env.FB_APP_ID) {
+      cfg.fb_app_id = process.env.FB_APP_ID
+      cfg.facebookEnabled = true
+    }
+    res.json({ config: cfg, facebookEnabled: !!process.env.FB_APP_ID })
+  } catch { res.json({ config: {}, facebookEnabled: false }) }
+})
+
+// ── Changelog ─────────────────────────────────────────────────────────────────
+app.get('/api/changelog', authenticate, async (req, res) => {
+  res.json({ entries: [] })
+})
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+app.get('/api/notifications', authenticate, async (req, res) => {
+  res.json({ notifications: [] })
+})
+
+app.post('/api/notifications/:id/read', authenticate, async (req, res) => {
+  res.json({ ok: true })
+})
+
+app.post('/api/notifications/read-all', authenticate, async (req, res) => {
+  res.json({ ok: true })
+})
+
+// ── Feed category suggestion ──────────────────────────────────────────────────
+app.get('/api/feed/suggest-category', authenticate, async (req, res) => {
+  const text = (req.query.text || '').toLowerCase()
+  const MAP = [
+    { keywords: ['mad', 'opskrift', 'food', 'recipe', 'pizza', 'kaffe', 'coffee'], cat: 'mad' },
+    { keywords: ['musik', 'music', 'sang', 'song', 'band', 'concert', 'koncert'], cat: 'musik' },
+    { keywords: ['rejse', 'travel', 'ferie', 'vacation', 'hotel', 'fly', 'flight'], cat: 'rejser' },
+    { keywords: ['film', 'movie', 'serie', 'netflix', 'tv'], cat: 'film' },
+    { keywords: ['teknologi', 'tech', 'ai', 'software', 'computer', 'kode', 'code'], cat: 'teknologi' },
+    { keywords: ['sport', 'fodbold', 'football', 'løb', 'run', 'træning', 'workout'], cat: 'sundhed' },
+    { keywords: ['kunst', 'art', 'maleri', 'painting', 'design', 'foto', 'photo'], cat: 'kunst' },
+    { keywords: ['gaming', 'game', 'spil', 'playstation', 'xbox', 'pc'], cat: 'gaming' },
+    { keywords: ['politik', 'politics', 'valg', 'election', 'regering', 'government'], cat: 'politik' },
+    { keywords: ['natur', 'nature', 'skov', 'forest', 'dyr', 'animal', 'plante', 'plant'], cat: 'natur' },
+    { keywords: ['bog', 'book', 'læs', 'read', 'roman', 'novel'], cat: 'boger' },
+    { keywords: ['økonomi', 'finance', 'aktie', 'stock', 'invest', 'penge', 'money'], cat: 'okonomi' },
+    { keywords: ['humor', 'sjov', 'funny', 'joke', 'griner', 'laugh'], cat: 'humor' },
+    { keywords: ['mode', 'fashion', 'tøj', 'clothes', 'outfit', 'style'], cat: 'mode' },
+    { keywords: ['diy', 'gør-det-selv', 'byg', 'build', 'reparér', 'fix'], cat: 'diy' },
+  ]
+  const match = MAP.find(m => m.keywords.some(kw => text.includes(kw)))
+  res.json({ category: match ? match.cat : null })
+})
+
+// ── Jobs ──────────────────────────────────────────────────────────────────────
+app.get('/api/jobs/mine', authenticate, async (req, res) => {
+  res.json({ jobs: [] })
+})
+
+// ── Google Photos (stub) ──────────────────────────────────────────────────────
+app.post('/api/providers/google-photos/download', authenticate, async (req, res) => {
+  res.status(501).json({ error: 'Google Photos integration not configured on this server' })
+})
+
+// ── Post insights (real data) ─────────────────────────────────────────────────
+app.get('/api/posts/:id/insights', authenticate, async (req, res) => {
+  const postId = parseInt(req.params.id)
+  if (isNaN(postId)) return res.status(400).json({ error: 'Invalid post ID' })
+  try {
+    const [[post]] = await pool.query(
+      'SELECT id, likes FROM posts WHERE id = ? AND author_id = ?',
+      [postId, req.userId]
+    )
+    if (!post) return res.status(403).json({ error: 'Not your post' })
+
+    const [[views]] = await pool.query(
+      'SELECT COUNT(*) AS reach, COALESCE(SUM(view_count), 0) AS impressions FROM post_views WHERE post_id = ?',
+      [postId]
+    )
+    const [[cmt]] = await pool.query(
+      'SELECT COUNT(*) AS cnt FROM comments WHERE post_id = ?',
+      [postId]
+    )
+    let shares = 0
+    try {
+      const [[sh]] = await pool.query(
+        "SELECT COUNT(*) AS cnt FROM share_tracks WHERE target_id = ? AND share_type = 'post'",
+        [postId]
+      )
+      shares = Number(sh.cnt)
+    } catch { shares = 0 }
+
+    res.json({
+      reach: Number(views.reach),
+      impressions: Number(views.impressions),
+      likes: post.likes || 0,
+      comments: Number(cmt.cnt),
+      shares,
+    })
+  } catch (err) {
+    console.error('GET /api/posts/:id/insights error:', err)
+    res.status(500).json({ error: 'Failed to load insights' })
   }
 })
 

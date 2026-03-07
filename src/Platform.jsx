@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect } from 'react'
 import { PT, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetPostInsights } from './api.js'
 import ReelsPage from './Reels.jsx'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
@@ -7912,10 +7912,11 @@ function HeatmapGrid({ lang }) {
 // ─────────────────────────────────────────────
 
 function PostInsightsPanel({ t, post, onClose }) {
-  const r = seededRand((post.id || 1) * 7)
-  const reach = Math.round((post.likes || 1) * (12 + r() * 30))
-  const impressions = Math.round(reach * (1.4 + r() * 0.8))
-  const shares = post.comments?.length ? Math.round(post.comments.length * (0.5 + r() * 2)) : Math.round(r() * 8)
+  const [data, setData] = useState(null)
+  useEffect(() => {
+    apiGetPostInsights(post.id).then(d => { if (d) setData(d) })
+  }, [post.id])
+  const fmt = v => (v === null || v === undefined) ? '…' : Number(v).toLocaleString()
   return (
     <div className="p-post-insights-panel">
       <div className="p-post-insights-header">
@@ -7924,23 +7925,23 @@ function PostInsightsPanel({ t, post, onClose }) {
       </div>
       <div className="p-post-insights-stats">
         <div className="p-post-insights-stat">
-          <div className="p-post-insights-num">{reach.toLocaleString()}</div>
+          <div className="p-post-insights-num">{fmt(data?.reach)}</div>
           <div className="p-post-insights-lbl">{t.analyticsInsightReach}</div>
         </div>
         <div className="p-post-insights-stat">
-          <div className="p-post-insights-num">{impressions.toLocaleString()}</div>
+          <div className="p-post-insights-num">{fmt(data?.impressions)}</div>
           <div className="p-post-insights-lbl">{t.analyticsInsightImpressions}</div>
         </div>
         <div className="p-post-insights-stat">
-          <div className="p-post-insights-num">{post.likes || 0}</div>
+          <div className="p-post-insights-num">{fmt(data?.likes)}</div>
           <div className="p-post-insights-lbl">{t.analyticsInsightLikes}</div>
         </div>
         <div className="p-post-insights-stat">
-          <div className="p-post-insights-num">{post.comments?.length || 0}</div>
+          <div className="p-post-insights-num">{fmt(data?.comments)}</div>
           <div className="p-post-insights-lbl">{t.analyticsInsightComments}</div>
         </div>
         <div className="p-post-insights-stat">
-          <div className="p-post-insights-num">{shares}</div>
+          <div className="p-post-insights-num">{fmt(data?.shares)}</div>
           <div className="p-post-insights-lbl">{t.analyticsInsightShares}</div>
         </div>
       </div>

@@ -637,6 +637,61 @@ export async function apiUpdateBirthday(birthday) {
   return await request('/api/profile/birthday', { method: 'PATCH', body: JSON.stringify({ birthday }) })
 }
 
+// ── Misc platform ──
+
+export async function apiHeartbeat() {
+  return await request('/api/me/heartbeat', { method: 'POST' })
+}
+
+export async function apiUpdateProfile(data) {
+  return await request('/api/profile', { method: 'PATCH', body: JSON.stringify(data) })
+}
+
+export async function apiGetConfig() {
+  try {
+    const res = await fetch(`${API_BASE}/api/config`)
+    if (!res.ok) return null
+    return await res.json()
+  } catch { return null }
+}
+
+export async function apiGetChangelog() {
+  return await request('/api/changelog')
+}
+
+export async function apiGetNotifications() {
+  return await request('/api/notifications')
+}
+
+export async function apiMarkNotificationRead(id) {
+  return await request(`/api/notifications/${id}/read`, { method: 'POST' })
+}
+
+export async function apiMarkAllNotificationsRead() {
+  return await request('/api/notifications/read-all', { method: 'POST' })
+}
+
+export async function apiSuggestCategory(text) {
+  return await request(`/api/feed/suggest-category?text=${encodeURIComponent(text)}`)
+}
+
+export async function apiGetMyJobs() {
+  return await request('/api/jobs/mine')
+}
+
+export async function apiDownloadGooglePhoto(url) {
+  return await request('/api/providers/google-photos/download', {
+    method: 'POST',
+    body: JSON.stringify({ url }),
+  })
+}
+
+// ── Post insights ──
+
+export async function apiGetPostInsights(postId) {
+  return await request(`/api/posts/${postId}/insights`)
+}
+
 // ── Moderation ──
 
 export async function apiBlockUser(userId) {
