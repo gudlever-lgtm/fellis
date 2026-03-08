@@ -4152,8 +4152,8 @@ app.get('/api/calendar/events', authenticate, async (req, res) => {
          AND (
            u.id = ?
            OR u.id IN (
-             SELECT CASE WHEN user_id_1 = ? THEN user_id_2 ELSE user_id_1 END
-             FROM friendships WHERE user_id_1 = ? OR user_id_2 = ?
+             SELECT CASE WHEN user_id = ? THEN friend_id ELSE user_id END
+             FROM friendships WHERE user_id = ? OR friend_id = ?
            )
          )`,
       [req.userId, req.userId, req.userId, req.userId]
