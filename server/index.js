@@ -4907,15 +4907,46 @@ app.get('/api/changelog', authenticate, async (req, res) => {
 })
 
 // ── Notifications ─────────────────────────────────────────────────────────────
+async function initNotifications() {
+  await pool.query(`CREATE TABLE IF NOT EXISTS notifications (
+    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    message_da TEXT NOT NULL,
+    message_en TEXT NOT NULL,
+    link VARCHAR(500) DEFAULT NULL,
+    read_at DATETIME DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`).catch(() => {})
+}
+
+async function createNotification(userId, type, messageDa, messageEn, link = null) {
+  await pool.query(
+    'INSERT INTO notifications (user_id, type, message_da, message_en, link) VALUES (?, ?, ?, ?, ?)',
+    [userId, type, messageDa, messageEn, link]
+  ).catch(err => console.error('createNotification error:', err.message))
+}
+
 app.get('/api/notifications', authenticate, async (req, res) => {
-  res.json({ notifications: [] })
+  try {
+    const [rows] = await pool.query(
+      'SELECT id, type, message_da, message_en, link, read_at, created_at FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 50',
+      [req.userId]
+    )
+    res.json({ notifications: rows })
+  } catch {
+    res.json({ notifications: [] })
+  }
 })
 
 app.post('/api/notifications/:id/read', authenticate, async (req, res) => {
+  await pool.query('UPDATE notifications SET read_at = NOW() WHERE id = ? AND user_id = ?', [req.params.id, req.userId]).catch(() => {})
   res.json({ ok: true })
 })
 
 app.post('/api/notifications/read-all', authenticate, async (req, res) => {
+  await pool.query('UPDATE notifications SET read_at = NOW() WHERE user_id = ? AND read_at IS NULL', [req.userId]).catch(() => {})
   res.json({ ok: true })
 })
 
@@ -5404,13 +5435,26 @@ app.post('/api/admin/moderators/:userId/grant', authenticate, requireAdmin, asyn
   const targetId = parseInt(req.params.userId)
   if (!targetId || targetId === 1) return res.status(400).json({ error: 'Invalid target' })
   try {
-    const [[user]] = await pool.query('SELECT id, name FROM users WHERE id = ?', [targetId])
+    const [[user]] = await pool.query('SELECT id, name, email FROM users WHERE id = ?', [targetId])
     if (!user) return res.status(404).json({ error: 'User not found' })
     await pool.query('UPDATE users SET is_moderator = 1 WHERE id = ?', [targetId])
     await pool.query(
       'INSERT INTO moderation_actions (admin_id, target_user_id, action_type) VALUES (?, ?, "grant_moderator")',
       [req.userId, targetId]
     )
+    await createNotification(
+      targetId, 'moderator_granted',
+      'Du er nu moderator på fellis.eu 🛡️',
+      'You are now a moderator on fellis.eu 🛡️',
+      '/moderation'
+    )
+    if (mailer && user.email) {
+      mailer.sendMail({
+        to: user.email,
+        subject: 'Du er nu moderator på fellis.eu',
+        text: `Hej ${user.name},\n\nDu er nu moderator på fellis.eu.\n\nSom moderator kan du behandle rapporter, fjerne indhold og advare brugere. Log ind og find "Moderation" i menuen.\n\nVenlig hilsen,\nfellis.eu\n\n---\n\nHi ${user.name},\n\nYou are now a moderator on fellis.eu.\n\nAs a moderator you can handle reports, remove content, and warn users. Log in and find "Moderation" in the menu.\n\nBest regards,\nfellis.eu`,
+      }).catch(() => {})
+    }
     res.json({ ok: true })
   } catch (err) {
     console.error('POST /api/admin/moderators/:userId/grant error:', err.message)
@@ -5467,6 +5511,20 @@ app.post('/api/admin/moderator-requests/:id/approve', authenticate, requireAdmin
       'INSERT INTO moderation_actions (admin_id, target_user_id, action_type) VALUES (?, ?, "approve_mod_request")',
       [req.userId, modReq.user_id]
     )
+    await createNotification(
+      modReq.user_id, 'moderator_granted',
+      'Din ansøgning er godkendt — du er nu moderator på fellis.eu 🛡️',
+      'Your application was approved — you are now a moderator on fellis.eu 🛡️',
+      '/moderation'
+    )
+    const [[u]] = await pool.query('SELECT name, email FROM users WHERE id = ?', [modReq.user_id]).catch(() => [[null]])
+    if (mailer && u?.email) {
+      mailer.sendMail({
+        to: u.email,
+        subject: 'Din ansøgning om moderator-status er godkendt',
+        text: `Hej ${u.name},\n\nDin ansøgning om moderator-status på fellis.eu er blevet godkendt.\n\nSom moderator kan du behandle rapporter, fjerne indhold og advare brugere. Log ind og find "Moderation" i menuen.\n\nVenlig hilsen,\nfellis.eu\n\n---\n\nHi ${u.name},\n\nYour application for moderator status on fellis.eu has been approved.\n\nAs a moderator you can handle reports, remove content, and warn users. Log in and find "Moderation" in the menu.\n\nBest regards,\nfellis.eu`,
+      }).catch(() => {})
+    }
     res.json({ ok: true })
   } catch (err) {
     console.error('POST /api/admin/moderator-requests/:id/approve error:', err.message)
@@ -5583,6 +5641,7 @@ app.listen(PORT, () => {
     console.warn('⚠️  WARNING: FB_TOKEN_ENCRYPTION_KEY not set. Facebook tokens will be stored unencrypted.')
     console.warn('   Generate a key with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"')
   }
+  initNotifications()
   initEvents()
   initFriendRequests()
   initConversations()
