@@ -617,7 +617,7 @@ async function authenticate(req, res, next) {
     // Check if account is banned or suspended
     const [statusRows] = await pool.query(
       'SELECT status, suspended_until, is_moderator FROM users WHERE id = ?', [req.userId]
-    )
+    ).catch(() => pool.query('SELECT status, suspended_until FROM users WHERE id = ?', [req.userId]))
     if (statusRows.length > 0) {
       req.isModerator = Boolean(statusRows[0].is_moderator) || req.userId === 1
       const { status: userStatus, suspended_until } = statusRows[0]
