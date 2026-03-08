@@ -2415,7 +2415,7 @@ app.get('/api/users/search', authenticate, async (req, res) => {
   const like = `%${q.trim()}%`
   try {
     const [users] = await pool.query(
-      `SELECT u.id, u.name,
+      `SELECT u.id, u.name, u.handle, u.avatar_url,
               CASE WHEN f.id IS NOT NULL THEN 1 ELSE 0 END as is_friend,
               COALESCE(f.is_online, 0) as online,
               COALESCE(f.mutual_count, 0) as mutual,
