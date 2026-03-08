@@ -823,6 +823,37 @@ export async function apiGetModerationActions() {
   return await request('/api/admin/moderation/actions')
 }
 
+// ── Moderator management (admin) ──
+export async function apiGetModerators() {
+  return await request('/api/admin/moderators')
+}
+export async function apiGrantModerator(userId) {
+  return await request(`/api/admin/moderators/${userId}/grant`, { method: 'POST' })
+}
+export async function apiRevokeModerator(userId) {
+  return await request(`/api/admin/moderators/${userId}/revoke`, { method: 'POST' })
+}
+export async function apiGetModeratorRequests() {
+  return await request('/api/admin/moderator-requests')
+}
+export async function apiApproveModeratorRequest(requestId) {
+  return await request(`/api/admin/moderator-requests/${requestId}/approve`, { method: 'POST' })
+}
+export async function apiDenyModeratorRequest(requestId, reason = '') {
+  return await request(`/api/admin/moderator-requests/${requestId}/deny`, { method: 'POST', body: JSON.stringify({ reason }) })
+}
+
+// ── User moderator request ──
+export async function apiGetMyModeratorRequest() {
+  return await request('/api/me/moderator-request')
+}
+export async function apiRequestModeratorStatus(reason = '') {
+  return await request('/api/me/moderator-request', { method: 'POST', body: JSON.stringify({ reason }) })
+}
+export async function apiWithdrawModeratorRequest() {
+  return await request('/api/me/moderator-request', { method: 'DELETE' })
+}
+
 export async function apiUploadFile(file, type = 'post') {
   const form = new FormData()
   form.append('file', file)

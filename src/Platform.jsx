@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect } from 'react'
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { PT, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetPostInsights, apiPreflightPost } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetPostInsights, apiPreflightPost, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest } from './api.js'
 import ReelsPage from './Reels.jsx'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
@@ -298,6 +298,11 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
                 <button className="avatar-dropdown-item" onClick={() => navigateTo('about')}>
                   <span>💡</span> {menuT.about}
                 </button>
+                {(currentUser.is_moderator || currentUser.is_admin) && !currentUser.is_admin && (
+                  <button className="avatar-dropdown-item" onClick={() => navigateTo('moderation')}>
+                    <span>🛡️</span> {t.modPageTitle}
+                  </button>
+                )}
                 {currentUser.is_admin && (
                   <button className="avatar-dropdown-item" onClick={() => navigateTo('admin')}>
                     <span>⚙️</span> {t.adminTitle}
@@ -353,6 +358,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
         {page === 'visitors' && <VisitorStatsPage lang={lang} />}
         {page === 'about' && <AboutPage lang={lang} />}
         {page === 'admin' && currentUser.is_admin && <AdminPage lang={lang} t={t} />}
+        {page === 'moderation' && (currentUser.is_moderator || currentUser.is_admin) && <ModeratorPage lang={lang} t={t} currentUser={currentUser} />}
         {page === 'search' && (
           <SearchPage
             lang={lang}
@@ -3495,6 +3501,108 @@ function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenM
           {t.modeSwitch}
         </button>
       </div>
+
+      <ModeratorRequestCard lang={lang} t={t} currentUser={currentUser} />
+    </div>
+  )
+}
+
+function ModeratorRequestCard({ lang, t, currentUser }) {
+  const [modReqData, setModReqData] = useState(null)
+  const [reason, setReason] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [toast, setToast] = useState(null)
+
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2500) }
+
+  useEffect(() => {
+    apiGetMyModeratorRequest().then(d => { if (d) setModReqData(d) })
+  }, [])
+
+  if (!modReqData) return null
+  if (currentUser?.is_admin) return null // admins don't need to apply
+
+  const { request, isModerator } = modReqData
+  const cardStyle = { marginTop: 20, padding: '16px 20px', borderRadius: 12, border: '1px solid var(--border,#eee)', background: 'var(--card-bg,#fff)' }
+
+  return (
+    <div style={cardStyle}>
+      {toast && <div style={{ background: '#22c55e', color: '#fff', padding: '8px 16px', borderRadius: 8, marginBottom: 12, fontWeight: 700, fontSize: 14 }}>{toast}</div>}
+      <h3 style={{ margin: '0 0 6px', fontSize: 15, fontWeight: 700 }}>🛡️ {t.modRequestTitle}</h3>
+      <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--text-muted,#888)', lineHeight: 1.5 }}>{t.modRequestDescription}</p>
+
+      {isModerator && (
+        <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, padding: '10px 14px', color: '#16a34a', fontWeight: 700, fontSize: 14 }}>
+          ✓ {t.modRequestApproved}
+        </div>
+      )}
+
+      {!isModerator && !request && (
+        <>
+          <textarea
+            style={{ display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border,#ddd)', fontSize: 14, boxSizing: 'border-box', fontFamily: 'inherit', minHeight: 80, resize: 'vertical', marginBottom: 10 }}
+            placeholder={t.modRequestReason}
+            value={reason}
+            onChange={e => setReason(e.target.value)}
+          />
+          <button
+            style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: '#1877F2', color: '#fff', fontWeight: 700, cursor: loading ? 'default' : 'pointer', fontSize: 14, opacity: loading ? 0.7 : 1 }}
+            disabled={loading}
+            onClick={async () => {
+              setLoading(true)
+              const res = await apiRequestModeratorStatus(reason)
+              if (res?.ok) {
+                const d = await apiGetMyModeratorRequest()
+                if (d) setModReqData(d)
+                showToast('✓ ' + t.modRequestSubmit)
+              }
+              setLoading(false)
+            }}
+          >{t.modRequestSubmit}</button>
+        </>
+      )}
+
+      {!isModerator && request?.status === 'pending' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ background: '#fef9c3', border: '1px solid #fde047', borderRadius: 8, padding: '10px 14px', color: '#92400e', fontWeight: 600, fontSize: 14, flex: 1 }}>
+            ⏳ {t.modRequestPending}
+          </div>
+          <button
+            style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #ef4444', background: '#fff', color: '#ef4444', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}
+            onClick={async () => {
+              await apiWithdrawModeratorRequest()
+              setModReqData({ request: null, isModerator: false })
+              showToast('✓ ' + t.modRequestWithdraw)
+            }}
+          >{t.modRequestWithdraw}</button>
+        </div>
+      )}
+
+      {!isModerator && request?.status === 'denied' && (
+        <>
+          <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '10px 14px', color: '#991b1b', fontWeight: 600, fontSize: 14, marginBottom: 12 }}>
+            ✕ {t.modRequestDenied}
+          </div>
+          <textarea
+            style={{ display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border,#ddd)', fontSize: 14, boxSizing: 'border-box', fontFamily: 'inherit', minHeight: 80, resize: 'vertical', marginBottom: 10 }}
+            placeholder={t.modRequestReason}
+            value={reason}
+            onChange={e => setReason(e.target.value)}
+          />
+          <button
+            style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: '#1877F2', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}
+            onClick={async () => {
+              const res = await apiRequestModeratorStatus(reason)
+              if (res?.ok) {
+                const d = await apiGetMyModeratorRequest()
+                if (d) setModReqData(d)
+                setReason('')
+                showToast('✓ ' + t.modRequestSubmit)
+              }
+            }}
+          >{t.modRequestReapply}</button>
+        </>
+      )}
     </div>
   )
 }
@@ -9920,6 +10028,137 @@ function CalendarPage({ lang, t, currentUser }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ── Moderator Page ───────────────────────────────────────────────────────────
+
+function ModeratorPage({ lang, t, currentUser }) {
+  const [tab, setTab] = useState('queue')
+  const [queue, setQueue] = useState([])
+  const [users, setUsers] = useState([])
+  const [actions, setActions] = useState([])
+  const [userQ, setUserQ] = useState('')
+  const [toast, setToast] = useState(null)
+  const [reasons, setReasons] = useState({})
+
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2500) }
+
+  useEffect(() => {
+    if (tab === 'queue') apiGetModerationQueue().then(d => { if (d) setQueue(d.reports || []) })
+    if (tab === 'users') apiGetModerationUsers(userQ).then(d => { if (d) setUsers(d.users || []) })
+    if (tab === 'log') apiGetModerationActions().then(d => { if (d) setActions(d.actions || []) })
+  }, [tab])
+
+  useEffect(() => {
+    if (tab === 'users') apiGetModerationUsers(userQ).then(d => { if (d) setUsers(d.users || []) })
+  }, [userQ])
+
+  const refreshQueue = () => apiGetModerationQueue().then(d => { if (d) setQueue(d.reports || []) })
+
+  const s = {
+    page: { maxWidth: 900, margin: '0 auto', padding: '24px 16px' },
+    title: { fontSize: 22, fontWeight: 700, margin: '0 0 20px' },
+    tabs: { display: 'flex', gap: 8, marginBottom: 20 },
+    tab: (active) => ({ padding: '8px 18px', borderRadius: 8, border: '1px solid var(--border, #ddd)', background: active ? '#1877F2' : 'var(--card-bg, #fff)', color: active ? '#fff' : 'var(--text, #111)', fontWeight: 600, cursor: 'pointer', fontSize: 14 }),
+    card: { background: 'var(--card-bg, #fff)', border: '1px solid var(--border, #eee)', borderRadius: 12, padding: 16, marginBottom: 12 },
+    row: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
+    badge: (c) => ({ background: c, color: '#fff', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 700 }),
+    btn: (c = '#1877F2') => ({ padding: '6px 14px', borderRadius: 8, border: 'none', background: c, color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: 13 }),
+    input: { padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border, #ddd)', fontSize: 14, width: '100%', boxSizing: 'border-box', marginBottom: 12 },
+    toast: { position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: '#22c55e', color: '#fff', padding: '10px 24px', borderRadius: 10, fontWeight: 700, zIndex: 9999, fontSize: 14 },
+    empty: { color: 'var(--text-muted, #888)', fontSize: 14, textAlign: 'center', padding: '32px 0' },
+  }
+
+  const REPORT_COLORS = { pending: '#f97316', reviewed: '#22c55e', dismissed: '#888' }
+
+  return (
+    <div style={s.page}>
+      {toast && <div style={s.toast}>{toast}</div>}
+      <h2 style={s.title}>🛡️ {t.modPageTitle}</h2>
+      <div style={s.tabs}>
+        {[['queue', t.modTabQueue], ['users', t.modTabUsers], ['log', t.modTabLog]].map(([key, label]) => (
+          <button key={key} style={s.tab(tab === key)} onClick={() => setTab(key)}>{label}</button>
+        ))}
+      </div>
+
+      {tab === 'queue' && (
+        <div>
+          {queue.length === 0 && <div style={s.empty}>{t.adminModNoReports || 'Ingen rapporter'}</div>}
+          {queue.map(r => (
+            <div key={r.id} style={s.card}>
+              <div style={s.row}>
+                <span style={s.badge(REPORT_COLORS[r.status] || '#888')}>{r.status}</span>
+                <span style={{ fontWeight: 600, fontSize: 14 }}>{r.reason}</span>
+                <span style={{ color: 'var(--text-muted, #888)', fontSize: 13 }}>{r.reporter_name} → {r.target_type} #{r.target_id}</span>
+              </div>
+              <div style={{ ...s.row, marginTop: 10, gap: 8 }}>
+                <input
+                  style={{ ...s.input, marginBottom: 0, flex: 1 }}
+                  placeholder={t.adminModReason || 'Begrundelse...'}
+                  value={reasons[r.id] || ''}
+                  onChange={e => setReasons(p => ({ ...p, [r.id]: e.target.value }))}
+                />
+                <button style={s.btn('#22c55e')} onClick={async () => {
+                  await apiDismissReport(r.id, reasons[r.id] || '')
+                  await refreshQueue()
+                  showToast('✓ Afvist')
+                }}>{t.adminModDismiss || 'Afvis'}</button>
+                <button style={s.btn('#ef4444')} onClick={async () => {
+                  await apiModerateRemoveContent(r.target_type, r.target_id, r.id, reasons[r.id] || '')
+                  await refreshQueue()
+                  showToast('✓ Indhold fjernet')
+                }}>{t.adminModRemove || 'Fjern indhold'}</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {tab === 'users' && (
+        <div>
+          <input style={s.input} placeholder={t.adminModSearchUsers || 'Søg brugere...'} value={userQ} onChange={e => setUserQ(e.target.value)} />
+          {users.length === 0 && <div style={s.empty}>{t.adminModNoUsers || 'Ingen brugere fundet'}</div>}
+          {users.map(u => (
+            <div key={u.id} style={s.card}>
+              <div style={s.row}>
+                <span style={{ fontWeight: 700 }}>{u.name}</span>
+                <span style={{ color: 'var(--text-muted,#888)', fontSize: 13 }}>@{u.handle}</span>
+                <span style={s.badge(u.status === 'active' ? '#22c55e' : '#ef4444')}>{u.status}</span>
+                {u.strike_count > 0 && <span style={s.badge('#f97316')}>{u.strike_count} strike{u.strike_count !== 1 ? 's' : ''}</span>}
+              </div>
+              <div style={{ ...s.row, marginTop: 10 }}>
+                <button style={s.btn('#f97316')} onClick={async () => {
+                  const reason = prompt(t.adminModWarnReason || 'Advarsel — angiv grund:')
+                  if (reason === null) return
+                  await apiWarnUser(u.id, reason)
+                  apiGetModerationUsers(userQ).then(d => { if (d) setUsers(d.users || []) })
+                  showToast('✓ Advarsel sendt')
+                }}>{t.adminModWarn || 'Advar'}</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {tab === 'log' && (
+        <div>
+          {actions.length === 0 && <div style={s.empty}>{t.adminModActionsEmpty}</div>}
+          {actions.map(a => (
+            <div key={a.id} style={{ ...s.card, padding: '10px 16px' }}>
+              <div style={s.row}>
+                <span style={s.badge('#6C63FF')}>{a.action_type}</span>
+                <span style={{ fontWeight: 600, fontSize: 14 }}>{a.admin_name}</span>
+                {a.target_name && <span style={{ color: 'var(--text-muted,#888)', fontSize: 13 }}>→ {a.target_name}</span>}
+                {a.reason && <span style={{ color: 'var(--text-muted,#888)', fontSize: 13 }}>— {a.reason}</span>}
+                <span style={{ marginLeft: 'auto', color: 'var(--text-muted,#888)', fontSize: 12 }}>{new Date(a.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US')}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // ── Admin Page ───────────────────────────────────────────────────────────────
 
 // ── Admin: Viral Growth Stats ──
@@ -10349,6 +10588,12 @@ function AdminPage({ lang, t }) {
   const [newKeyword, setNewKeyword] = useState('')
   const [newKeywordAction, setNewKeywordAction] = useState('flag')
   const [modToast, setModToast] = useState(null)
+  // Moderator management state
+  const [modModerators, setModModerators] = useState([])
+  const [modRequests, setModRequests] = useState([])
+  const [modGrantSearch, setModGrantSearch] = useState('')
+  const [modGrantResults, setModGrantResults] = useState([])
+  const [modDenyReason, setModDenyReason] = useState({})
 
   function showModToast(msg) { setModToast(msg); setTimeout(() => setModToast(null), 3000) }
 
@@ -10370,6 +10615,10 @@ function AdminPage({ lang, t }) {
       apiGetModerationUsers().then(data => { if (data) setModUsers(data.users) })
       apiGetKeywordFilters().then(data => { if (data) setModKeywords(data.keywords) })
       apiGetModerationActions().then(data => { if (data) setModActions(data.actions) })
+    }
+    if (adminTab === 'moderators') {
+      apiGetModerators().then(data => { if (data) setModModerators(data.moderators || []) })
+      apiGetModeratorRequests().then(data => { if (data) setModRequests(data.requests || []) })
     }
   }, [adminTab, viralDays])
 
@@ -10421,6 +10670,9 @@ function AdminPage({ lang, t }) {
         </button>
         <button className={`p-filter-tab${adminTab === 'moderation' ? ' active' : ''}`} onClick={() => setAdminTab('moderation')}>
           🛡️ {t.adminModerationTab}
+        </button>
+        <button className={`p-filter-tab${adminTab === 'moderators' ? ' active' : ''}`} onClick={() => setAdminTab('moderators')}>
+          👮 {t.adminModModeratorsTab}
         </button>
       </div>
 
@@ -11022,6 +11274,118 @@ function AdminPage({ lang, t }) {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {adminTab === 'moderators' && (
+        <div>
+          {/* Current moderators */}
+          <div className="p-card" style={{ marginBottom: 20, padding: '20px 24px' }}>
+            <h3 style={{ margin: '0 0 14px', fontSize: 16, fontWeight: 700 }}>👮 {t.adminModModeratorsTab}</h3>
+            {modModerators.length === 0 ? (
+              <div style={{ color: 'var(--text-muted,#888)', fontSize: 14 }}>{t.adminModNoModerators}</div>
+            ) : modModerators.map(m => (
+              <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--border,#eee)' }}>
+                <div style={{ width: 36, height: 36, borderRadius: '50%', background: nameToColor(m.name), display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 14, flexShrink: 0 }}>
+                  {m.initials || getInitials(m.name)}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>{m.name}</div>
+                  <div style={{ color: 'var(--text-muted,#888)', fontSize: 12 }}>@{m.handle}</div>
+                </div>
+                <button
+                  style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: '#ef4444', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}
+                  onClick={async () => {
+                    if (!confirm(t.adminModRevokeConfirm)) return
+                    await apiRevokeModerator(m.id)
+                    apiGetModerators().then(d => { if (d) setModModerators(d.moderators || []) })
+                    showModToast('✓ Moderator fjernet')
+                  }}
+                >{t.adminModRevokeModerator}</button>
+              </div>
+            ))}
+
+            {/* Grant moderator by user search */}
+            <div style={{ marginTop: 16 }}>
+              <h4 style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 700 }}>{t.adminModGrantModerator}</h4>
+              <input
+                style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border,#ddd)', fontSize: 14, width: '100%', boxSizing: 'border-box', marginBottom: 8 }}
+                placeholder={t.adminModSearchPlaceholder}
+                value={modGrantSearch}
+                onChange={async e => {
+                  setModGrantSearch(e.target.value)
+                  if (e.target.value.length >= 2) {
+                    const data = await apiSearchUsers(e.target.value)
+                    setModGrantResults(data?.users || [])
+                  } else {
+                    setModGrantResults([])
+                  }
+                }}
+              />
+              {modGrantResults.map(u => (
+                <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0' }}>
+                  <span style={{ flex: 1, fontSize: 14 }}>{u.name} <span style={{ color: 'var(--text-muted,#888)' }}>@{u.handle}</span></span>
+                  <button
+                    style={{ padding: '5px 12px', borderRadius: 8, border: 'none', background: '#1877F2', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}
+                    onClick={async () => {
+                      await apiGrantModerator(u.id)
+                      setModGrantSearch('')
+                      setModGrantResults([])
+                      apiGetModerators().then(d => { if (d) setModModerators(d.moderators || []) })
+                      showModToast('✓ ' + t.adminModGrantSuccess)
+                    }}
+                  >{t.adminModGrantModerator}</button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Pending requests */}
+          <div className="p-card" style={{ padding: '20px 24px' }}>
+            <h3 style={{ margin: '0 0 14px', fontSize: 16, fontWeight: 700 }}>📋 {t.adminModRequests}</h3>
+            {modRequests.length === 0 ? (
+              <div style={{ color: 'var(--text-muted,#888)', fontSize: 14 }}>{t.adminModNoRequests}</div>
+            ) : modRequests.map(r => (
+              <div key={r.id} style={{ padding: '12px 0', borderBottom: '1px solid var(--border,#eee)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: nameToColor(r.name), display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>
+                    {r.initials || getInitials(r.name)}
+                  </div>
+                  <div>
+                    <span style={{ fontWeight: 700, fontSize: 14 }}>{r.name}</span>
+                    <span style={{ color: 'var(--text-muted,#888)', fontSize: 12, marginLeft: 6 }}>@{r.handle}</span>
+                  </div>
+                  <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted,#888)' }}>{new Date(r.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US')}</span>
+                </div>
+                {r.reason && <p style={{ margin: '0 0 10px', fontSize: 13, color: 'var(--text,#111)', lineHeight: 1.5 }}>{r.reason}</p>}
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <button
+                    style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: '#22c55e', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}
+                    onClick={async () => {
+                      await apiApproveModeratorRequest(r.id)
+                      apiGetModeratorRequests().then(d => { if (d) setModRequests(d.requests || []) })
+                      apiGetModerators().then(d => { if (d) setModModerators(d.moderators || []) })
+                      showModToast('✓ ' + t.adminModApprove)
+                    }}
+                  >{t.adminModApprove}</button>
+                  <input
+                    style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border,#ddd)', fontSize: 13, flex: 1, minWidth: 120 }}
+                    placeholder={lang === 'da' ? 'Begrundelse (valgfri)' : 'Reason (optional)'}
+                    value={modDenyReason[r.id] || ''}
+                    onChange={e => setModDenyReason(p => ({ ...p, [r.id]: e.target.value }))}
+                  />
+                  <button
+                    style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: '#ef4444', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}
+                    onClick={async () => {
+                      await apiDenyModeratorRequest(r.id, modDenyReason[r.id] || '')
+                      apiGetModeratorRequests().then(d => { if (d) setModRequests(d.requests || []) })
+                      showModToast('✓ ' + t.adminModDeny)
+                    }}
+                  >{t.adminModDeny}</button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

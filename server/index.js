@@ -616,9 +616,10 @@ async function authenticate(req, res, next) {
     req.lang = rows[0].lang
     // Check if account is banned or suspended
     const [statusRows] = await pool.query(
-      'SELECT status, suspended_until FROM users WHERE id = ?', [req.userId]
+      'SELECT status, suspended_until, is_moderator FROM users WHERE id = ?', [req.userId]
     )
     if (statusRows.length > 0) {
+      req.isModerator = Boolean(statusRows[0].is_moderator) || req.userId === 1
       const { status: userStatus, suspended_until } = statusRows[0]
       if (userStatus === 'banned') return res.status(403).json({ error: 'Account banned' })
       if (userStatus === 'suspended' && suspended_until && new Date(suspended_until) > new Date()) {
@@ -895,9 +896,9 @@ app.post('/api/auth/logout', authenticate, async (req, res) => {
 // GET /api/auth/session — check if session is valid
 app.get('/api/auth/session', authenticate, async (req, res) => {
   try {
-    const [users] = await pool.query('SELECT id, name, handle, initials, avatar_url, plan, mode FROM users WHERE id = ?', [req.userId])
+    const [users] = await pool.query('SELECT id, name, handle, initials, avatar_url, plan, mode, is_moderator FROM users WHERE id = ?', [req.userId])
     if (users.length === 0) return res.status(404).json({ error: 'User not found' })
-    const user = { ...users[0], plan: users[0].plan || 'business', mode: users[0].mode || 'privat', is_admin: users[0].id === 1 }
+    const user = { ...users[0], plan: users[0].plan || 'business', mode: users[0].mode || 'privat', is_admin: users[0].id === 1, is_moderator: Boolean(users[0].is_moderator) || users[0].id === 1 }
     res.json({ user, lang: req.lang })
   } catch (err) {
     res.status(500).json({ error: 'Session check failed' })
@@ -3728,6 +3729,12 @@ function requireAdmin(req, res, next) {
   next()
 }
 
+function requireModerator(req, res, next) {
+  if (!req.userId) return res.status(401).json({ error: 'Not authenticated' })
+  if (!req.isModerator) return res.status(403).json({ error: 'Moderator only' })
+  next()
+}
+
 // GET /api/analytics — per-user analytics (real data from DB)
 app.get('/api/analytics', authenticate, async (req, res) => {
   try {
@@ -5081,8 +5088,8 @@ app.post('/api/reports', authenticate, async (req, res) => {
   }
 })
 
-// GET /api/admin/moderation/queue — get pending reports (admin only)
-app.get('/api/admin/moderation/queue', authenticate, requireAdmin, async (req, res) => {
+// GET /api/admin/moderation/queue — get pending reports (moderator+)
+app.get('/api/admin/moderation/queue', authenticate, requireModerator, async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT r.id, r.target_type, r.target_id, r.reason, r.details, r.status, r.created_at,
@@ -5118,7 +5125,7 @@ app.get('/api/admin/moderation/queue', authenticate, requireAdmin, async (req, r
 })
 
 // POST /api/admin/moderation/reports/:id/dismiss — dismiss a report
-app.post('/api/admin/moderation/reports/:id/dismiss', authenticate, requireAdmin, async (req, res) => {
+app.post('/api/admin/moderation/reports/:id/dismiss', authenticate, requireModerator, async (req, res) => {
   const reportId = parseInt(req.params.id)
   if (isNaN(reportId)) return res.status(400).json({ error: 'Invalid report ID' })
   try {
@@ -5138,7 +5145,7 @@ app.post('/api/admin/moderation/reports/:id/dismiss', authenticate, requireAdmin
 })
 
 // POST /api/admin/moderation/content/remove — remove a post or comment
-app.post('/api/admin/moderation/content/remove', authenticate, requireAdmin, async (req, res) => {
+app.post('/api/admin/moderation/content/remove', authenticate, requireModerator, async (req, res) => {
   const { type, target_id, report_id, reason } = req.body
   if (!['post', 'comment'].includes(type) || !target_id) return res.status(400).json({ error: 'Invalid type or target_id' })
   try {
@@ -5162,7 +5169,7 @@ app.post('/api/admin/moderation/content/remove', authenticate, requireAdmin, asy
 })
 
 // POST /api/admin/moderation/users/:id/warn — issue a warning (strike)
-app.post('/api/admin/moderation/users/:id/warn', authenticate, requireAdmin, async (req, res) => {
+app.post('/api/admin/moderation/users/:id/warn', authenticate, requireModerator, async (req, res) => {
   const targetId = parseInt(req.params.id)
   if (isNaN(targetId)) return res.status(400).json({ error: 'Invalid user ID' })
   const { reason, report_id } = req.body
@@ -5294,8 +5301,8 @@ app.post('/api/admin/moderation/users/:id/unban', authenticate, requireAdmin, as
   }
 })
 
-// GET /api/admin/moderation/users — list users with moderation info
-app.get('/api/admin/moderation/users', authenticate, requireAdmin, async (req, res) => {
+// GET /api/admin/moderation/users — list users with moderation info (moderator+)
+app.get('/api/admin/moderation/users', authenticate, requireModerator, async (req, res) => {
   try {
     const q = req.query.q ? `%${req.query.q}%` : '%'
     const [rows] = await pool.query(
@@ -5356,8 +5363,8 @@ app.delete('/api/admin/moderation/keywords/:id', authenticate, requireAdmin, asy
   }
 })
 
-// GET /api/admin/moderation/actions — recent moderation audit log
-app.get('/api/admin/moderation/actions', authenticate, requireAdmin, async (req, res) => {
+// GET /api/admin/moderation/actions — recent moderation audit log (moderator+)
+app.get('/api/admin/moderation/actions', authenticate, requireModerator, async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT ma.id, ma.action_type, ma.target_type, ma.target_id, ma.reason, ma.created_at,
@@ -5373,6 +5380,172 @@ app.get('/api/admin/moderation/actions', authenticate, requireAdmin, async (req,
   } catch (err) {
     console.error('GET /api/admin/moderation/actions error:', err)
     res.status(500).json({ error: 'Failed to load audit log' })
+  }
+})
+
+// ── Moderator management (admin only) ────────────────────────────────────────
+
+// GET /api/admin/moderators — list all current moderators
+app.get('/api/admin/moderators', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, name, handle, initials, avatar_url, email, created_at
+       FROM users WHERE is_moderator = 1 ORDER BY name ASC`
+    )
+    res.json({ moderators: rows })
+  } catch (err) {
+    console.error('GET /api/admin/moderators error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/admin/moderators/:userId/grant — assign moderator status
+app.post('/api/admin/moderators/:userId/grant', authenticate, requireAdmin, async (req, res) => {
+  const targetId = parseInt(req.params.userId)
+  if (!targetId || targetId === 1) return res.status(400).json({ error: 'Invalid target' })
+  try {
+    const [[user]] = await pool.query('SELECT id, name FROM users WHERE id = ?', [targetId])
+    if (!user) return res.status(404).json({ error: 'User not found' })
+    await pool.query('UPDATE users SET is_moderator = 1 WHERE id = ?', [targetId])
+    await pool.query(
+      'INSERT INTO moderation_actions (admin_id, target_user_id, action_type) VALUES (?, ?, "grant_moderator")',
+      [req.userId, targetId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/admin/moderators/:userId/grant error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/admin/moderators/:userId/revoke — remove moderator status
+app.post('/api/admin/moderators/:userId/revoke', authenticate, requireAdmin, async (req, res) => {
+  const targetId = parseInt(req.params.userId)
+  if (!targetId) return res.status(400).json({ error: 'Invalid target' })
+  try {
+    await pool.query('UPDATE users SET is_moderator = 0 WHERE id = ?', [targetId])
+    await pool.query(
+      'INSERT INTO moderation_actions (admin_id, target_user_id, action_type) VALUES (?, ?, "revoke_moderator")',
+      [req.userId, targetId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/admin/moderators/:userId/revoke error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/admin/moderator-requests — list pending moderator requests
+app.get('/api/admin/moderator-requests', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT mr.id, mr.user_id, mr.reason, mr.status, mr.created_at,
+              u.name, u.handle, u.initials, u.avatar_url
+       FROM moderator_requests mr JOIN users u ON u.id = mr.user_id
+       WHERE mr.status = 'pending'
+       ORDER BY mr.created_at ASC`
+    )
+    res.json({ requests: rows })
+  } catch (err) {
+    console.error('GET /api/admin/moderator-requests error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/admin/moderator-requests/:id/approve — approve a request
+app.post('/api/admin/moderator-requests/:id/approve', authenticate, requireAdmin, async (req, res) => {
+  const reqId = parseInt(req.params.id)
+  try {
+    const [[modReq]] = await pool.query('SELECT user_id FROM moderator_requests WHERE id = ? AND status = "pending"', [reqId])
+    if (!modReq) return res.status(404).json({ error: 'Request not found' })
+    await pool.query('UPDATE users SET is_moderator = 1 WHERE id = ?', [modReq.user_id])
+    await pool.query(
+      'UPDATE moderator_requests SET status = "approved", reviewed_by = ?, reviewed_at = NOW() WHERE id = ?',
+      [req.userId, reqId]
+    )
+    await pool.query(
+      'INSERT INTO moderation_actions (admin_id, target_user_id, action_type) VALUES (?, ?, "approve_mod_request")',
+      [req.userId, modReq.user_id]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/admin/moderator-requests/:id/approve error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/admin/moderator-requests/:id/deny — deny a request
+app.post('/api/admin/moderator-requests/:id/deny', authenticate, requireAdmin, async (req, res) => {
+  const reqId = parseInt(req.params.id)
+  const { reason } = req.body || {}
+  try {
+    const [[modReq]] = await pool.query('SELECT user_id FROM moderator_requests WHERE id = ? AND status = "pending"', [reqId])
+    if (!modReq) return res.status(404).json({ error: 'Request not found' })
+    await pool.query(
+      'UPDATE moderator_requests SET status = "denied", reviewed_by = ?, reviewed_at = NOW() WHERE id = ?',
+      [req.userId, reqId]
+    )
+    await pool.query(
+      'INSERT INTO moderation_actions (admin_id, target_user_id, action_type, reason) VALUES (?, ?, "deny_mod_request", ?)',
+      [req.userId, modReq.user_id, reason || null]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/admin/moderator-requests/:id/deny error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── User moderator request ────────────────────────────────────────────────────
+
+// GET /api/me/moderator-request — get current user's request status
+app.get('/api/me/moderator-request', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT id, status, reason, reviewed_at, created_at FROM moderator_requests WHERE user_id = ? ORDER BY created_at DESC LIMIT 1',
+      [req.userId]
+    )
+    const [[user]] = await pool.query('SELECT is_moderator FROM users WHERE id = ?', [req.userId])
+    res.json({ request: rows[0] || null, isModerator: Boolean(user?.is_moderator) })
+  } catch (err) {
+    console.error('GET /api/me/moderator-request error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/me/moderator-request — submit a moderator request
+app.post('/api/me/moderator-request', authenticate, async (req, res) => {
+  const { reason } = req.body || {}
+  try {
+    const [[user]] = await pool.query('SELECT is_moderator FROM users WHERE id = ?', [req.userId])
+    if (user?.is_moderator) return res.status(400).json({ error: 'Already a moderator' })
+    const [existing] = await pool.query(
+      'SELECT id FROM moderator_requests WHERE user_id = ? AND status = "pending"',
+      [req.userId]
+    )
+    if (existing.length > 0) return res.status(400).json({ error: 'Request already pending' })
+    const [result] = await pool.query(
+      'INSERT INTO moderator_requests (user_id, reason) VALUES (?, ?)',
+      [req.userId, reason || null]
+    )
+    res.json({ ok: true, requestId: result.insertId })
+  } catch (err) {
+    console.error('POST /api/me/moderator-request error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// DELETE /api/me/moderator-request — withdraw pending request
+app.delete('/api/me/moderator-request', authenticate, async (req, res) => {
+  try {
+    await pool.query(
+      'DELETE FROM moderator_requests WHERE user_id = ? AND status = "pending"',
+      [req.userId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/me/moderator-request error:', err.message)
+    res.status(500).json({ error: 'Server error' })
   }
 })
 
