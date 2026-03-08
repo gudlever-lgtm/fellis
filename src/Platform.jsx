@@ -11316,7 +11316,7 @@ function AdminPage({ lang, t }) {
                   setModGrantSearch(e.target.value)
                   if (e.target.value.length >= 2) {
                     const data = await apiSearchUsers(e.target.value)
-                    setModGrantResults(data?.users || [])
+                    setModGrantResults(Array.isArray(data) ? data : [])
                   } else {
                     setModGrantResults([])
                   }
