@@ -5216,7 +5216,8 @@ app.get('/api/admin/moderation/users', authenticate, requireAdmin, async (req, r
   try {
     const q = req.query.q ? `%${req.query.q}%` : '%'
     const [rows] = await pool.query(
-      `SELECT id, name, handle, email, status, strike_count, suspended_until, last_strike_at, created_at
+      `SELECT id, name, handle, email, status, strike_count, suspended_until, last_strike_at, created_at,
+              moderator_candidate, moderator_candidate_note
        FROM users
        WHERE (name LIKE ? OR handle LIKE ? OR email LIKE ?)
        ORDER BY strike_count DESC, created_at DESC
@@ -5313,6 +5314,39 @@ app.get('/api/admin/moderation/actions', authenticate, requireAdmin, async (req,
   } catch (err) {
     console.error('GET /api/admin/moderation/actions error:', err)
     res.status(500).json({ error: 'Failed to load audit log' })
+  }
+})
+
+// GET /api/admin/moderation/candidates — list moderator candidates
+app.get('/api/admin/moderation/candidates', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, name, handle, email, status, strike_count, moderator_candidate_note, moderator_candidate_at, created_at
+       FROM users
+       WHERE moderator_candidate = 1
+       ORDER BY moderator_candidate_at DESC`
+    )
+    res.json({ candidates: rows })
+  } catch (err) {
+    console.error('GET /api/admin/moderation/candidates error:', err)
+    res.status(500).json({ error: 'Failed to load candidates' })
+  }
+})
+
+// PATCH /api/admin/moderation/users/:id/candidate — mark/unmark as moderator candidate
+app.patch('/api/admin/moderation/users/:id/candidate', authenticate, requireAdmin, async (req, res) => {
+  const id = parseInt(req.params.id)
+  if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' })
+  const { is_candidate, note } = req.body
+  try {
+    await pool.query(
+      `UPDATE users SET moderator_candidate = ?, moderator_candidate_note = ?, moderator_candidate_at = ? WHERE id = ?`,
+      [is_candidate ? 1 : 0, is_candidate ? (note || null) : null, is_candidate ? new Date() : null, id]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('PATCH /api/admin/moderation/users/:id/candidate error:', err)
+    res.status(500).json({ error: 'Failed to update candidate status' })
   }
 })
 

@@ -794,6 +794,17 @@ export async function apiGetModerationActions() {
   return await request('/api/admin/moderation/actions')
 }
 
+export async function apiGetModeratorCandidates() {
+  return await request('/api/admin/moderation/candidates')
+}
+
+export async function apiUpdateModeratorCandidate(id, isCandidate, note) {
+  return await request(`/api/admin/moderation/users/${id}/candidate`, {
+    method: 'PATCH',
+    body: JSON.stringify({ is_candidate: isCandidate, note }),
+  })
+}
+
 export async function apiUploadFile(file, type = 'post') {
   const form = new FormData()
   form.append('file', file)
