@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } from 'react'
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { PT, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdminAdSettings, apiSaveAdminAdSettings } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdminAdSettings, apiSaveAdminAdSettings } from './api.js'
 import ReelsPage from './Reels.jsx'
 import AdBanner from './AdBanner.jsx'
 
@@ -9,22 +9,6 @@ const API_BASE = import.meta.env.VITE_API_URL || ''
 
 
 // ── Mock notifications ──
-function makeMockNotifs(mode) {
-  const isBiz = mode === 'business'
-  const base = [
-    { id: 1, type: 'friend_request', actor: 'Liam Madsen', time: '2 min', read: false, targetPage: 'friends' },
-    { id: 2, type: 'like', actor: 'Clara Johansen', time: '15 min', read: false, targetPage: 'feed', postId: 1 },
-    { id: 3, type: 'comment', actor: 'Magnus Jensen', time: '1 t', read: false, targetPage: 'feed', postId: 2 },
-    { id: 4, type: 'accepted', actor: 'Astrid Poulsen', time: '3 t', read: true, targetPage: 'friends' },
-    { id: 5, type: 'group_post', actor: 'Emil Larsen', group: 'Designere i KBH', time: '5 t', read: true, targetPage: 'feed', postId: 3 },
-  ]
-  if (isBiz) {
-    base.push(
-      { id: 6, type: 'profile_view', actor: 'Freja Andersen', time: '8 t', read: true, targetPage: 'profile' },
-      { id: 7, type: 'endorsement', actor: 'Noah Rasmussen', time: '1 d', read: true, targetPage: 'profile' },
-    )
-  }
-}
 
 export default function Platform({ lang: initialLang, onLogout, initialPostId }) {
   const [lang, setLang] = useState(initialLang || 'da')
@@ -1044,6 +1028,10 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [reportModal, setReportModal] = useState(null)   // { targetType, targetId } | null
   const [blockToast, setBlockToast] = useState(null)    // message string | null
   const [keywordWarning, setKeywordWarning] = useState(null) // { keyword, text, files } | null
+  const [postCategories, setPostCategories] = useState(new Set())
+  const [autoCategories, setAutoCategories] = useState(new Set())
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false)
+  const [providerMediaUrls, setProviderMediaUrls] = useState([])
   const fileInputRef = useRef(null)
   const textareaRef = useRef(null)
   const feedMention = useMention(sharePopupFriends || [])
@@ -1089,6 +1077,10 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [joinedGroupIds, setJoinedGroupIds] = useState(new Set())
   const [dismissedGroupIds, setDismissedGroupIds] = useState(new Set())
   const [showScrollTop, setShowScrollTop] = useState(false)
+  const [showGooglePicker, setShowGooglePicker] = useState(false)
+  const [googlePhotosClientId, setGooglePhotosClientId] = useState(null)
+  const [mediaMaxFiles, setMediaMaxFiles] = useState(4)
+  const mediaMaxFilesRef = useRef(4)
 
   const handleJoinGroup = async (groupId) => {
     setJoinedGroupIds(prev => new Set([...prev, groupId]))
@@ -1307,7 +1299,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     const check = await apiPreflightPost(text)
     if (check?.blocked) return // server will also block — just in case
     if (check?.flagged) {
-      setKeywordWarning({ keyword: check.keyword, text, files })
+      setKeywordWarning({ keyword: check.keyword, category: check.category, notes: check.notes, text, files })
       return
     }
     doCreatePost(text, files)
@@ -1439,14 +1431,21 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
 
   const handleSaveEditPost = useCallback(async (postId) => {
     if (!editPostText.trim()) return
-    const data = await apiEditPost(postId, editPostText.trim()).catch(() => null)
+    const text = editPostText.trim()
+    const check = await apiPreflightPost(text)
+    if (check?.blocked) return
+    if (check?.flagged) {
+      setKeywordWarning({ keyword: check.keyword, category: check.category, notes: check.notes, text, files: null })
+      return
+    }
+    const data = await apiEditPost(postId, text).catch(() => null)
     if (data?.ok) {
       setPosts(prev => prev.map(p => p.id === postId
         ? { ...p, text: { da: data.text, en: data.text }, edited: true }
         : p))
+      setEditingPostId(null)
+      setEditPostText('')
     }
-    setEditingPostId(null)
-    setEditPostText('')
   }, [editPostText])
 
   const handleHidePost = useCallback((postId) => {
@@ -1558,9 +1557,21 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
           <div style={{ background: '#fff', borderRadius: 12, padding: '28px 28px 24px', maxWidth: 420, width: '90%', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
             <div style={{ fontSize: 22, marginBottom: 10 }}>⚠️</div>
             <h3 style={{ margin: '0 0 10px', fontSize: 16, fontWeight: 700 }}>{t.keywordWarnTitle}</h3>
-            <p style={{ margin: '0 0 20px', fontSize: 14, color: '#555', lineHeight: 1.5 }}>
+            {keywordWarning.category && (
+              <div style={{ marginBottom: 10 }}>
+                <span style={{ background: '#F4C26A', color: '#5a3e00', borderRadius: 6, padding: '3px 10px', fontSize: 12, fontWeight: 700 }}>
+                  {t.kwCategories?.[keywordWarning.category] || keywordWarning.category}
+                </span>
+              </div>
+            )}
+            <p style={{ margin: '0 0 12px', fontSize: 14, color: '#555', lineHeight: 1.5 }}>
               {t.keywordWarnBody.replace('{kw}', keywordWarning.keyword)}
             </p>
+            {keywordWarning.notes && (
+              <p style={{ margin: '0 0 16px', fontSize: 13, color: '#8B4513', background: '#FFF8F0', border: '1px solid #F4C26A', borderRadius: 8, padding: '10px 14px', lineHeight: 1.5 }}>
+                {keywordWarning.notes}
+              </p>
+            )}
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               <button
                 onClick={() => setKeywordWarning(null)}
@@ -10811,8 +10822,17 @@ function AdminPage({ lang, t }) {
   const [modSubTab, setModSubTab] = useState('queue')
   const [modReason, setModReason] = useState({}) // reportId → reason string
   const [modSuspendDays, setModSuspendDays] = useState({}) // userId → days
+  const [modCandidates, setModCandidates] = useState(null)
+  const [candidateNote, setCandidateNote] = useState({}) // userId → note string
+  const [candidatePending, setCandidatePending] = useState({}) // userId → editing note
+  const [modModerators, setModModerators] = useState(null)
   const [newKeyword, setNewKeyword] = useState('')
   const [newKeywordAction, setNewKeywordAction] = useState('flag')
+  const [newKeywordCategory, setNewKeywordCategory] = useState('profanity')
+  const [newKeywordNotes, setNewKeywordNotes] = useState('')
+  const [editingKwId, setEditingKwId] = useState(null)
+  const [editKw, setEditKw] = useState({ keyword: '', action: 'flag', category: 'profanity', notes: '' })
+  const [showKwGuide, setShowKwGuide] = useState(false)
   const [modToast, setModToast] = useState(null)
   // Moderator management state
   const [modModerators, setModModerators] = useState([])
@@ -10833,14 +10853,23 @@ function AdminPage({ lang, t }) {
   }, [])
 
   useEffect(() => {
+    if (adminTab !== 'moderation') return
+    const timer = setTimeout(() => {
+      apiGetModerationUsers(modUserSearch).then(d => { if (d) setModUsers(d.users) })
+    }, modUserSearch ? 300 : 0)
+    return () => clearTimeout(timer)
+  }, [modUserSearch, adminTab])
+
+  useEffect(() => {
     if (adminTab === 'viral' || adminTab === 'security') {
       apiGetAdminViralStats(viralDays).then(data => { if (data) setViralStats(data) })
     }
     if (adminTab === 'moderation') {
       apiGetModerationQueue().then(data => { if (data) setModQueue(data.reports) })
-      apiGetModerationUsers().then(data => { if (data) setModUsers(data.users) })
       apiGetKeywordFilters().then(data => { if (data) setModKeywords(data.keywords) })
       apiGetModerationActions().then(data => { if (data) setModActions(data.actions) })
+      apiGetModeratorCandidates().then(data => { if (data) setModCandidates(data.candidates) })
+      apiGetModerators().then(data => { if (data) setModModerators(data.moderators) })
     }
     if (adminTab === 'moderators') {
       apiGetModerators().then(data => { if (data) setModModerators(data.moderators || []) })
@@ -11264,6 +11293,8 @@ function AdminPage({ lang, t }) {
               { key: 'users', label: `👥 ${t.adminModUsersTitle}` },
               { key: 'keywords', label: `🔤 ${t.adminModKeywordsTitle}` },
               { key: 'log', label: `📋 ${t.adminModActionsTitle}` },
+              { key: 'candidates', label: `⭐ ${t.adminModCandidatesTitle}` },
+              { key: 'moderators', label: `🛡️ ${t.adminModModeratorsTab}` },
             ].map(({ key, label }) => (
               <button key={key} className={`p-filter-tab${modSubTab === key ? ' active' : ''}`} onClick={() => setModSubTab(key)}>
                 {label}
@@ -11364,7 +11395,6 @@ function AdminPage({ lang, t }) {
                 placeholder={t.adminModSearchUsers}
                 value={modUserSearch}
                 onChange={e => setModUserSearch(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') apiGetModerationUsers(modUserSearch).then(d => { if (d) setModUsers(d.users) }) }}
                 style={{ width: '100%', padding: '9px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', marginBottom: 12, boxSizing: 'border-box' }}
               />
               {!modUsers ? (
@@ -11375,6 +11405,7 @@ function AdminPage({ lang, t }) {
                 const statusColor = u.status === 'banned' ? '#C0392B' : u.status === 'suspended' ? '#E07A5F' : '#2D6A4F'
                 const statusLabel = u.status === 'banned' ? t.adminModStatusBanned : u.status === 'suspended' ? t.adminModStatusSuspended : t.adminModStatusActive
                 const refreshUsers = () => apiGetModerationUsers(modUserSearch).then(d => { if (d) setModUsers(d.users) })
+                const candidateNoteVal = candidateNote[u.id] !== undefined ? candidateNote[u.id] : ''
                 const days = modSuspendDays[u.id] || 7
                 return (
                   <div key={u.id} className="p-card" style={{ marginBottom: 10, padding: '14px 18px' }}>
@@ -11392,6 +11423,11 @@ function AdminPage({ lang, t }) {
                           ⚠️ {u.strike_count} {t.adminModStrikes}
                         </span>
                       )}
+                      {u.moderator_candidate ? (
+                        <span style={{ background: '#E8F5E9', color: '#2D6A4F', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>
+                          ⭐ {t.adminModCandidatesTitle}
+                        </span>
+                      ) : null}
                     </div>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                       <button style={{ padding: '5px 10px', borderRadius: 7, border: 'none', fontSize: 12, cursor: 'pointer', background: '#F4C26A', color: '#5a3e00', fontWeight: 600 }}
@@ -11422,6 +11458,29 @@ function AdminPage({ lang, t }) {
                           {t.adminModUnban}
                         </button>
                       )}
+                      {u.moderator_candidate ? (
+                        <button style={{ padding: '5px 10px', borderRadius: 7, border: '1px solid #B7DDD0', background: '#F0F7F4', color: '#2D6A4F', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}
+                          onClick={async () => {
+                            await apiUpdateModeratorCandidate(u.id, false)
+                            await refreshUsers()
+                            apiGetModeratorCandidates().then(d => { if (d) setModCandidates(d.candidates) })
+                            showModToast('✓ Removed from candidates')
+                          }}>
+                          {t.adminModUnmarkCandidate}
+                        </button>
+                      ) : (
+                        <button style={{ padding: '5px 10px', borderRadius: 7, border: '1px solid #B7DDD0', background: '#F0F7F4', color: '#2D6A4F', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}
+                          onClick={async () => {
+                            const note = window.prompt(t.adminModCandidateNotePlaceholder, '') ?? ''
+                            await apiUpdateModeratorCandidate(u.id, true, note)
+                            setCandidateNote(prev => ({ ...prev, [u.id]: note }))
+                            await refreshUsers()
+                            apiGetModeratorCandidates().then(d => { if (d) setModCandidates(d.candidates) })
+                            showModToast('✓ Marked as candidate')
+                          }}>
+                          ⭐ {t.adminModMarkCandidate}
+                        </button>
+                      )}
                     </div>
                   </div>
                 )
@@ -11433,7 +11492,7 @@ function AdminPage({ lang, t }) {
           {modSubTab === 'keywords' && (
             <div>
               <div className="p-card" style={{ marginBottom: 12, padding: '16px 20px' }}>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
                   <input
                     placeholder={t.adminModKeywordPlaceholder}
                     value={newKeyword}
@@ -11445,13 +11504,28 @@ function AdminPage({ lang, t }) {
                     <option value="flag">{t.adminModKeywordActionFlag}</option>
                     <option value="block">{t.adminModKeywordActionBlock}</option>
                   </select>
+                  <select value={newKeywordCategory} onChange={e => setNewKeywordCategory(e.target.value)}
+                    style={{ padding: '8px 10px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 13, fontFamily: 'inherit' }}>
+                    {Object.entries(t.kwCategories || {}).map(([val, label]) => (
+                      <option key={val} value={val}>{label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <input
+                    placeholder={t.adminModKeywordNotesPlaceholder}
+                    value={newKeywordNotes}
+                    onChange={e => setNewKeywordNotes(e.target.value)}
+                    style={{ flex: 1, padding: '8px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', color: '#555' }}
+                  />
                   <button
-                    style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+                    style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}
                     onClick={async () => {
                       if (!newKeyword.trim()) return
-                      const data = await apiAddKeywordFilter(newKeyword.trim(), newKeywordAction).catch(() => null)
+                      const data = await apiAddKeywordFilter(newKeyword.trim(), newKeywordAction, newKeywordCategory, newKeywordNotes).catch(() => null)
                       if (data?.ok) {
                         setNewKeyword('')
+                        setNewKeywordNotes('')
                         apiGetKeywordFilters().then(d => { if (d) setModKeywords(d.keywords) })
                         showModToast('✓ Keyword added')
                       }
@@ -11461,23 +11535,239 @@ function AdminPage({ lang, t }) {
                   </button>
                 </div>
               </div>
+              {/* Category guide (collapsible) */}
+              <div className="p-card" style={{ marginBottom: 12, padding: '10px 18px' }}>
+                <button
+                  onClick={() => setShowKwGuide(v => !v)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 13, color: '#2D6A4F', padding: 0, display: 'flex', alignItems: 'center', gap: 6 }}
+                >
+                  {showKwGuide ? '▾' : '▸'} {t.adminModKeywordCategoryGuide}
+                </button>
+                {showKwGuide && (
+                  <div style={{ marginTop: 10, display: 'grid', gap: 6 }}>
+                    {Object.entries(t.kwCategoryDesc || {}).map(([key, desc]) => (
+                      <div key={key} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 13 }}>
+                        <span style={{ background: '#EEF0F2', color: '#444', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap', marginTop: 1 }}>
+                          {t.kwCategories?.[key] || key}
+                        </span>
+                        <span style={{ color: '#555', lineHeight: 1.45 }}>{desc}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {!modKeywords ? (
                 <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>{lang === 'da' ? 'Henter…' : 'Loading…'}</div>
               ) : modKeywords.length === 0 ? (
                 <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>{lang === 'da' ? 'Ingen nøgleordsfiltre endnu' : 'No keyword filters yet'}</div>
-              ) : modKeywords.map(kw => (
-                <div key={kw.id} className="p-card" style={{ marginBottom: 8, padding: '12px 18px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontFamily: 'monospace', fontWeight: 700, flex: 1 }}>{kw.keyword}</span>
-                  <span style={{ background: kw.action === 'block' ? '#C0392B' : '#F4C26A', color: kw.action === 'block' ? '#fff' : '#5a3e00', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>
-                    {kw.action === 'block' ? t.adminModKeywordActionBlock : t.adminModKeywordActionFlag}
-                  </span>
-                  <button style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #E8E4DF', fontSize: 12, cursor: 'pointer', color: '#C0392B' }}
+              ) : modKeywords.map(kw => {
+                const isEditing = editingKwId === kw.id
+                return (
+                  <div key={kw.id} className="p-card" style={{ marginBottom: 8, padding: '12px 18px' }}>
+                    {isEditing ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                          <input
+                            value={editKw.keyword}
+                            onChange={e => setEditKw(v => ({ ...v, keyword: e.target.value }))}
+                            style={{ flex: 1, minWidth: 100, padding: '6px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, fontFamily: 'monospace', fontWeight: 700 }}
+                          />
+                          <select value={editKw.action} onChange={e => setEditKw(v => ({ ...v, action: e.target.value }))}
+                            style={{ padding: '6px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 12, fontFamily: 'inherit' }}>
+                            <option value="flag">{t.adminModKeywordActionFlag}</option>
+                            <option value="block">{t.adminModKeywordActionBlock}</option>
+                          </select>
+                          <select value={editKw.category} onChange={e => setEditKw(v => ({ ...v, category: e.target.value }))}
+                            style={{ padding: '6px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 12, fontFamily: 'inherit' }}>
+                            {Object.entries(t.kwCategories || {}).map(([val, label]) => (
+                              <option key={val} value={val}>{label}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <input
+                          value={editKw.notes}
+                          onChange={e => setEditKw(v => ({ ...v, notes: e.target.value }))}
+                          placeholder={t.adminModKeywordNotesPlaceholder}
+                          style={{ padding: '6px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 12, fontFamily: 'inherit', color: '#555' }}
+                        />
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button
+                            style={{ padding: '5px 14px', borderRadius: 6, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+                            onClick={async () => {
+                              const data = await apiUpdateKeywordFilter(kw.id, editKw.keyword, editKw.action, editKw.category, editKw.notes).catch(() => null)
+                              if (data?.ok) {
+                                setEditingKwId(null)
+                                apiGetKeywordFilters().then(d => { if (d) setModKeywords(d.keywords) })
+                                showModToast('✓ Saved')
+                              }
+                            }}
+                          >{t.adminModKeywordSave}</button>
+                          <button
+                            style={{ padding: '5px 14px', borderRadius: 6, border: '1px solid #ddd', background: '#f5f5f5', fontSize: 12, cursor: 'pointer' }}
+                            onClick={() => setEditingKwId(null)}
+                          >{t.adminModKeywordCancel}</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <span style={{ fontFamily: 'monospace', fontWeight: 700, flex: 1 }}>{kw.keyword}</span>
+                          {kw.category && (
+                            <span style={{ background: '#EEF0F2', color: '#444', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 600 }}>
+                              {t.kwCategories?.[kw.category] || kw.category}
+                            </span>
+                          )}
+                          <span style={{ background: kw.action === 'block' ? '#C0392B' : '#F4C26A', color: kw.action === 'block' ? '#fff' : '#5a3e00', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>
+                            {kw.action === 'block' ? t.adminModKeywordActionBlock : t.adminModKeywordActionFlag}
+                          </span>
+                          <button style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #E8E4DF', fontSize: 12, cursor: 'pointer' }}
+                            onClick={() => { setEditingKwId(kw.id); setEditKw({ keyword: kw.keyword, action: kw.action, category: kw.category || 'other', notes: kw.notes || '' }) }}>
+                            {t.adminModKeywordEdit}
+                          </button>
+                          <button style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #E8E4DF', fontSize: 12, cursor: 'pointer', color: '#C0392B' }}
+                            onClick={async () => {
+                              await apiDeleteKeywordFilter(kw.id)
+                              apiGetKeywordFilters().then(d => { if (d) setModKeywords(d.keywords) })
+                              showModToast('✓ Deleted')
+                            }}>
+                            {t.adminModKeywordDelete}
+                          </button>
+                        </div>
+                        {kw.notes && (
+                          <div style={{ fontSize: 12, color: '#777', marginTop: 5, paddingLeft: 2 }}>{kw.notes}</div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* ── Moderator candidates (invite-only, admin-managed) ── */}
+          {modSubTab === 'candidates' && (
+            <div>
+              <div className="p-card" style={{ marginBottom: 16, padding: '14px 18px', background: '#F0F7F4', border: '1px solid #B7DDD0' }}>
+                <div style={{ fontSize: 13, color: '#2D6A4F', fontWeight: 600, marginBottom: 4 }}>
+                  🔒 {lang === 'da' ? 'Invite only — brugere kan ikke ansøge om at blive moderator' : 'Invite only — users cannot apply for moderator status'}
+                </div>
+                <div style={{ fontSize: 12, color: '#555' }}>
+                  {lang === 'da'
+                    ? 'Markér brugere som kandidater via Brugerstyring-fanen. Kun admin kan se og administrere denne liste.'
+                    : 'Mark users as candidates from the User management tab. Only admin can view and manage this list.'}
+                </div>
+              </div>
+              {!modCandidates ? (
+                <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>{lang === 'da' ? 'Henter…' : 'Loading…'}</div>
+              ) : modCandidates.length === 0 ? (
+                <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>{t.adminModCandidatesEmpty}</div>
+              ) : modCandidates.map(u => {
+                const note = candidatePending[u.id] !== undefined ? candidatePending[u.id] : (u.moderator_candidate_note || '')
+                const isEditing = candidatePending[u.id] !== undefined
+                return (
+                  <div key={u.id} className="p-card" style={{ marginBottom: 10, padding: '14px 18px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
+                      <div className="p-avatar-sm" style={{ background: nameToColor(u.name) }}>{getInitials(u.name)}</div>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 14 }}>{u.name}</div>
+                        <div style={{ fontSize: 12, color: '#888' }}>{u.handle} · {u.email}</div>
+                      </div>
+                      <span style={{ marginLeft: 'auto', fontSize: 11, color: '#aaa' }}>
+                        {u.moderator_candidate_at ? new Date(u.moderator_candidate_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US') : ''}
+                      </span>
+                    </div>
+                    {u.moderator_candidate_note && !isEditing && (
+                      <div style={{ fontSize: 12, color: '#555', background: '#f9f7f5', borderRadius: 6, padding: '6px 10px', marginBottom: 8 }}>
+                        {u.moderator_candidate_note}
+                      </div>
+                    )}
+                    {isEditing ? (
+                      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                        <input
+                          value={note}
+                          onChange={e => setCandidatePending(prev => ({ ...prev, [u.id]: e.target.value }))}
+                          placeholder={t.adminModCandidateNotePlaceholder}
+                          style={{ flex: 1, padding: '6px 10px', border: '1px solid #E8E4DF', borderRadius: 7, fontSize: 13, fontFamily: 'inherit' }}
+                        />
+                        <button style={{ padding: '6px 12px', borderRadius: 7, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
+                          onClick={async () => {
+                            await apiUpdateModeratorCandidate(u.id, true, note)
+                            setCandidatePending(prev => { const n = { ...prev }; delete n[u.id]; return n })
+                            apiGetModeratorCandidates().then(d => { if (d) setModCandidates(d.candidates) })
+                            showModToast('✓ Note saved')
+                          }}>
+                          {t.adminModCandidateSave}
+                        </button>
+                        <button style={{ padding: '6px 10px', borderRadius: 7, border: '1px solid #E8E4DF', background: '#fff', fontSize: 12, cursor: 'pointer' }}
+                          onClick={() => setCandidatePending(prev => { const n = { ...prev }; delete n[u.id]; return n })}>
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <button style={{ padding: '5px 10px', borderRadius: 7, border: '1px solid #E8E4DF', background: '#fff', fontSize: 12, cursor: 'pointer' }}
+                          onClick={() => setCandidatePending(prev => ({ ...prev, [u.id]: u.moderator_candidate_note || '' }))}>
+                          ✏️ {lang === 'da' ? 'Rediger note' : 'Edit note'}
+                        </button>
+                        <button style={{ padding: '5px 10px', borderRadius: 7, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+                          onClick={async () => {
+                            if (!window.confirm(`${t.adminModGrantModerator}?`)) return
+                            await apiGrantModerator(u.id)
+                            apiGetModeratorCandidates().then(d => { if (d) setModCandidates(d.candidates) })
+                            apiGetModerators().then(d => { if (d) setModModerators(d.moderators) })
+                            showModToast(`✓ ${t.adminModGrantSuccess}`)
+                          }}>
+                          🛡️ {t.adminModGrantModerator}
+                        </button>
+                        <button style={{ padding: '5px 10px', borderRadius: 7, border: 'none', background: '#C0392B', color: '#fff', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
+                          onClick={async () => {
+                            await apiUpdateModeratorCandidate(u.id, false)
+                            apiGetModeratorCandidates().then(d => { if (d) setModCandidates(d.candidates) })
+                            showModToast('✓ Removed from candidates')
+                          }}>
+                          {t.adminModUnmarkCandidate}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* ── Moderators (invite-only) ── */}
+          {modSubTab === 'moderators' && (
+            <div>
+              <div className="p-card" style={{ marginBottom: 16, padding: '14px 18px', background: '#F0F7F4', border: '1px solid #B7DDD0' }}>
+                <div style={{ fontSize: 13, color: '#2D6A4F', fontWeight: 600, marginBottom: 4 }}>
+                  🔒 {lang === 'da' ? 'Invite only — tildel moderatorstatus direkte til brugere' : 'Invite only — grant moderator status directly to users'}
+                </div>
+                <div style={{ fontSize: 12, color: '#555' }}>
+                  {lang === 'da'
+                    ? 'Brug Kandidater-fanen til at identificere emner, og giv derefter moderatorstatus herfra.'
+                    : 'Use the Candidates tab to identify prospects, then grant moderator status here.'}
+                </div>
+              </div>
+              {!modModerators ? (
+                <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>{lang === 'da' ? 'Henter…' : 'Loading…'}</div>
+              ) : modModerators.length === 0 ? (
+                <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>{t.adminModNoModerators}</div>
+              ) : modModerators.map(u => (
+                <div key={u.id} className="p-card" style={{ marginBottom: 10, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <div className="p-avatar-sm" style={{ background: nameToColor(u.name) }}>{getInitials(u.name)}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14 }}>{u.name}</div>
+                    <div style={{ fontSize: 12, color: '#888' }}>{u.handle} · {u.email}</div>
+                  </div>
+                  <button style={{ padding: '5px 10px', borderRadius: 7, border: 'none', background: '#C0392B', color: '#fff', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
                     onClick={async () => {
-                      await apiDeleteKeywordFilter(kw.id)
-                      apiGetKeywordFilters().then(d => { if (d) setModKeywords(d.keywords) })
-                      showModToast('✓ Deleted')
+                      if (!window.confirm(t.adminModRevokeConfirm)) return
+                      await apiRevokeModerator(u.id)
+                      apiGetModerators().then(d => { if (d) setModModerators(d.moderators) })
+                      showModToast('✓ Revoked')
                     }}>
-                    {t.adminModKeywordDelete}
+                    {t.adminModRevokeModerator}
                   </button>
                 </div>
               ))}

@@ -808,10 +808,17 @@ export async function apiGetKeywordFilters() {
   return await request('/api/admin/moderation/keywords')
 }
 
-export async function apiAddKeywordFilter(keyword, action = 'flag') {
+export async function apiAddKeywordFilter(keyword, action = 'flag', category = 'other', notes = '') {
   return await request('/api/admin/moderation/keywords', {
     method: 'POST',
-    body: JSON.stringify({ keyword, action }),
+    body: JSON.stringify({ keyword, action, category, notes: notes || undefined }),
+  })
+}
+
+export async function apiUpdateKeywordFilter(id, keyword, action, category, notes = '') {
+  return await request(`/api/admin/moderation/keywords/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ keyword, action, category, notes: notes || undefined }),
   })
 }
 
@@ -823,6 +830,17 @@ export async function apiGetModerationActions() {
   return await request('/api/admin/moderation/actions')
 }
 
+export async function apiGetModeratorCandidates() {
+  return await request('/api/admin/moderation/candidates')
+}
+
+export async function apiUpdateModeratorCandidate(id, isCandidate, note) {
+  return await request(`/api/admin/moderation/users/${id}/candidate`, {
+    method: 'PATCH',
+    body: JSON.stringify({ is_candidate: isCandidate, note }),
+  })
+}
+
 // ── Moderator management (admin) ──
 export async function apiGetModerators() {
   return await request('/api/admin/moderators')
@@ -832,26 +850,6 @@ export async function apiGrantModerator(userId) {
 }
 export async function apiRevokeModerator(userId) {
   return await request(`/api/admin/moderators/${userId}/revoke`, { method: 'POST' })
-}
-export async function apiGetModeratorRequests() {
-  return await request('/api/admin/moderator-requests')
-}
-export async function apiApproveModeratorRequest(requestId) {
-  return await request(`/api/admin/moderator-requests/${requestId}/approve`, { method: 'POST' })
-}
-export async function apiDenyModeratorRequest(requestId, reason = '') {
-  return await request(`/api/admin/moderator-requests/${requestId}/deny`, { method: 'POST', body: JSON.stringify({ reason }) })
-}
-
-// ── User moderator request ──
-export async function apiGetMyModeratorRequest() {
-  return await request('/api/me/moderator-request')
-}
-export async function apiRequestModeratorStatus(reason = '') {
-  return await request('/api/me/moderator-request', { method: 'POST', body: JSON.stringify({ reason }) })
-}
-export async function apiWithdrawModeratorRequest() {
-  return await request('/api/me/moderator-request', { method: 'DELETE' })
 }
 
 // ── Ads ──────────────────────────────────────────────────────────────────────

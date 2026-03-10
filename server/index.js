@@ -1639,7 +1639,7 @@ app.post('/api/feed/preflight', authenticate, (req, res) => {
   if (!text) return res.json({ ok: true })
   const kw = checkKeywords(text)
   if (!kw) return res.json({ ok: true })
-  res.json({ ok: kw.action !== 'block', flagged: kw.action === 'flag', blocked: kw.action === 'block', keyword: kw.keyword })
+  res.json({ ok: kw.action !== 'block', flagged: kw.action === 'flag', blocked: kw.action === 'block', keyword: kw.keyword, category: kw.category || null, notes: kw.notes || null })
 })
 
 // POST /api/feed — create a new post (with optional media)
@@ -5389,7 +5389,7 @@ app.get('/api/posts/:id/insights', authenticate, async (req, res) => {
 let keywordFilterCache = []
 async function reloadKeywordFilters() {
   try {
-    const [rows] = await pool.query('SELECT keyword, action FROM keyword_filters')
+    const [rows] = await pool.query('SELECT keyword, action, category, notes FROM keyword_filters')
     keywordFilterCache = rows
   } catch { keywordFilterCache = [] }
 }
@@ -5695,7 +5695,8 @@ app.get('/api/admin/moderation/users', authenticate, requireModerator, async (re
   try {
     const q = req.query.q ? `%${req.query.q}%` : '%'
     const [rows] = await pool.query(
-      `SELECT id, name, handle, email, status, strike_count, suspended_until, last_strike_at, created_at
+      `SELECT id, name, handle, email, status, strike_count, suspended_until, last_strike_at, created_at,
+              moderator_candidate, moderator_candidate_note
        FROM users
        WHERE (name LIKE ? OR handle LIKE ? OR email LIKE ?)
        ORDER BY strike_count DESC, created_at DESC
@@ -5712,7 +5713,7 @@ app.get('/api/admin/moderation/users', authenticate, requireModerator, async (re
 // GET /api/admin/moderation/keywords — list keyword filters
 app.get('/api/admin/moderation/keywords', authenticate, requireAdmin, async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT id, keyword, action, created_at FROM keyword_filters ORDER BY created_at DESC')
+    const [rows] = await pool.query('SELECT id, keyword, action, category, notes, created_at FROM keyword_filters ORDER BY created_at DESC')
     res.json({ keywords: rows })
   } catch (err) {
     console.error('GET /api/admin/moderation/keywords error:', err)
@@ -5722,12 +5723,14 @@ app.get('/api/admin/moderation/keywords', authenticate, requireAdmin, async (req
 
 // POST /api/admin/moderation/keywords — add a keyword filter
 app.post('/api/admin/moderation/keywords', authenticate, requireAdmin, async (req, res) => {
-  const { keyword, action = 'flag' } = req.body
-  if (!keyword || !['flag', 'block'].includes(action)) return res.status(400).json({ error: 'keyword and valid action required' })
+  const { keyword, action = 'flag', category = 'other', notes } = req.body
+  const validActions = ['flag', 'block']
+  const validCategories = ['profanity', 'hate_speech', 'sexual', 'violence', 'drugs', 'harassment', 'spam', 'other']
+  if (!keyword || !validActions.includes(action) || !validCategories.includes(category)) return res.status(400).json({ error: 'keyword, valid action, and valid category required' })
   try {
     await pool.query(
-      'INSERT INTO keyword_filters (keyword, action, created_by) VALUES (?, ?, ?)',
-      [keyword.trim().toLowerCase(), action, req.userId]
+      'INSERT INTO keyword_filters (keyword, action, category, notes, created_by) VALUES (?, ?, ?, ?, ?)',
+      [keyword.trim().toLowerCase(), action, category, notes?.trim() || null, req.userId]
     )
     await reloadKeywordFilters()
     res.json({ ok: true })
@@ -5735,6 +5738,27 @@ app.post('/api/admin/moderation/keywords', authenticate, requireAdmin, async (re
     if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Keyword already exists' })
     console.error('POST /api/admin/moderation/keywords error:', err)
     res.status(500).json({ error: 'Failed to add keyword filter' })
+  }
+})
+
+// PATCH /api/admin/moderation/keywords/:id — update a keyword filter
+app.patch('/api/admin/moderation/keywords/:id', authenticate, requireAdmin, async (req, res) => {
+  const id = parseInt(req.params.id)
+  if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' })
+  const { keyword, action, category, notes } = req.body
+  const validActions = ['flag', 'block']
+  const validCategories = ['profanity', 'hate_speech', 'sexual', 'violence', 'drugs', 'harassment', 'spam', 'other']
+  if (!keyword || !validActions.includes(action) || !validCategories.includes(category)) return res.status(400).json({ error: 'keyword, valid action, and valid category required' })
+  try {
+    await pool.query(
+      'UPDATE keyword_filters SET keyword = ?, action = ?, category = ?, notes = ? WHERE id = ?',
+      [keyword.trim().toLowerCase(), action, category, notes?.trim() || null, id]
+    )
+    await reloadKeywordFilters()
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('PATCH /api/admin/moderation/keywords/:id error:', err)
+    res.status(500).json({ error: 'Failed to update keyword filter' })
   }
 })
 
@@ -5772,14 +5796,46 @@ app.get('/api/admin/moderation/actions', authenticate, requireModerator, async (
   }
 })
 
-// ── Moderator management (admin only) ────────────────────────────────────────
+// GET /api/admin/moderation/candidates — list moderator candidates
+app.get('/api/admin/moderation/candidates', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, name, handle, email, status, strike_count, moderator_candidate_note, moderator_candidate_at, created_at
+       FROM users
+       WHERE moderator_candidate = 1
+       ORDER BY moderator_candidate_at DESC`
+    )
+    res.json({ candidates: rows })
+  } catch (err) {
+    console.error('GET /api/admin/moderation/candidates error:', err)
+    res.status(500).json({ error: 'Failed to load candidates' })
+  }
+})
 
-// GET /api/admin/moderators — list all current moderators
+// PATCH /api/admin/moderation/users/:id/candidate — mark/unmark as moderator candidate
+app.patch('/api/admin/moderation/users/:id/candidate', authenticate, requireAdmin, async (req, res) => {
+  const id = parseInt(req.params.id)
+  if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' })
+  const { is_candidate, note } = req.body
+  try {
+    await pool.query(
+      `UPDATE users SET moderator_candidate = ?, moderator_candidate_note = ?, moderator_candidate_at = ? WHERE id = ?`,
+      [is_candidate ? 1 : 0, is_candidate ? (note || null) : null, is_candidate ? new Date() : null, id]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('PATCH /api/admin/moderation/users/:id/candidate error:', err)
+    res.status(500).json({ error: 'Failed to update candidate status' })
+  }
+})
+
+// ── Moderator management (admin, invite-only) ────────────────────────────────
+
+// GET /api/admin/moderators — list current moderators
 app.get('/api/admin/moderators', authenticate, requireAdmin, async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, name, handle, initials, avatar_url, email, created_at
-       FROM users WHERE is_moderator = 1 ORDER BY name ASC`
+      `SELECT id, name, handle, email, created_at FROM users WHERE is_moderator = 1 ORDER BY name ASC`
     )
     res.json({ moderators: rows })
   } catch (err) {
@@ -5788,14 +5844,14 @@ app.get('/api/admin/moderators', authenticate, requireAdmin, async (req, res) =>
   }
 })
 
-// POST /api/admin/moderators/:userId/grant — assign moderator status
+// POST /api/admin/moderators/:userId/grant — assign moderator status (invite)
 app.post('/api/admin/moderators/:userId/grant', authenticate, requireAdmin, async (req, res) => {
   const targetId = parseInt(req.params.userId)
   if (!targetId || targetId === 1) return res.status(400).json({ error: 'Invalid target' })
   try {
     const [[user]] = await pool.query('SELECT id, name, email FROM users WHERE id = ?', [targetId])
     if (!user) return res.status(404).json({ error: 'User not found' })
-    await pool.query('UPDATE users SET is_moderator = 1 WHERE id = ?', [targetId])
+    await pool.query('UPDATE users SET is_moderator = 1, moderator_candidate = 0 WHERE id = ?', [targetId])
     await pool.query(
       'INSERT INTO moderation_actions (admin_id, target_user_id, action_type) VALUES (?, ?, "grant_moderator")',
       [req.userId, targetId]
@@ -5833,134 +5889,6 @@ app.post('/api/admin/moderators/:userId/revoke', authenticate, requireAdmin, asy
     res.json({ ok: true })
   } catch (err) {
     console.error('POST /api/admin/moderators/:userId/revoke error:', err.message)
-    res.status(500).json({ error: 'Server error' })
-  }
-})
-
-// GET /api/admin/moderator-requests — list pending moderator requests
-app.get('/api/admin/moderator-requests', authenticate, requireAdmin, async (req, res) => {
-  try {
-    const [rows] = await pool.query(
-      `SELECT mr.id, mr.user_id, mr.reason, mr.status, mr.created_at,
-              u.name, u.handle, u.initials, u.avatar_url
-       FROM moderator_requests mr JOIN users u ON u.id = mr.user_id
-       WHERE mr.status = 'pending'
-       ORDER BY mr.created_at ASC`
-    )
-    res.json({ requests: rows })
-  } catch (err) {
-    console.error('GET /api/admin/moderator-requests error:', err.message)
-    res.status(500).json({ error: 'Server error' })
-  }
-})
-
-// POST /api/admin/moderator-requests/:id/approve — approve a request
-app.post('/api/admin/moderator-requests/:id/approve', authenticate, requireAdmin, async (req, res) => {
-  const reqId = parseInt(req.params.id)
-  try {
-    const [[modReq]] = await pool.query('SELECT user_id FROM moderator_requests WHERE id = ? AND status = "pending"', [reqId])
-    if (!modReq) return res.status(404).json({ error: 'Request not found' })
-    await pool.query('UPDATE users SET is_moderator = 1 WHERE id = ?', [modReq.user_id])
-    await pool.query(
-      'UPDATE moderator_requests SET status = "approved", reviewed_by = ?, reviewed_at = NOW() WHERE id = ?',
-      [req.userId, reqId]
-    )
-    await pool.query(
-      'INSERT INTO moderation_actions (admin_id, target_user_id, action_type) VALUES (?, ?, "approve_mod_request")',
-      [req.userId, modReq.user_id]
-    )
-    await createNotification(
-      modReq.user_id, 'moderator_granted',
-      'Din ansøgning er godkendt — du er nu moderator på fellis.eu 🛡️',
-      'Your application was approved — you are now a moderator on fellis.eu 🛡️',
-      '/moderation'
-    )
-    const [[u]] = await pool.query('SELECT name, email FROM users WHERE id = ?', [modReq.user_id]).catch(() => [[null]])
-    if (mailer && u?.email) {
-      mailer.sendMail({
-        to: u.email,
-        subject: 'Din ansøgning om moderator-status er godkendt',
-        text: `Hej ${u.name},\n\nDin ansøgning om moderator-status på fellis.eu er blevet godkendt.\n\nSom moderator kan du behandle rapporter, fjerne indhold og advare brugere. Log ind og find "Moderation" i menuen.\n\nVenlig hilsen,\nfellis.eu\n\n---\n\nHi ${u.name},\n\nYour application for moderator status on fellis.eu has been approved.\n\nAs a moderator you can handle reports, remove content, and warn users. Log in and find "Moderation" in the menu.\n\nBest regards,\nfellis.eu`,
-      }).catch(() => {})
-    }
-    res.json({ ok: true })
-  } catch (err) {
-    console.error('POST /api/admin/moderator-requests/:id/approve error:', err.message)
-    res.status(500).json({ error: 'Server error' })
-  }
-})
-
-// POST /api/admin/moderator-requests/:id/deny — deny a request
-app.post('/api/admin/moderator-requests/:id/deny', authenticate, requireAdmin, async (req, res) => {
-  const reqId = parseInt(req.params.id)
-  const { reason } = req.body || {}
-  try {
-    const [[modReq]] = await pool.query('SELECT user_id FROM moderator_requests WHERE id = ? AND status = "pending"', [reqId])
-    if (!modReq) return res.status(404).json({ error: 'Request not found' })
-    await pool.query(
-      'UPDATE moderator_requests SET status = "denied", reviewed_by = ?, reviewed_at = NOW() WHERE id = ?',
-      [req.userId, reqId]
-    )
-    await pool.query(
-      'INSERT INTO moderation_actions (admin_id, target_user_id, action_type, reason) VALUES (?, ?, "deny_mod_request", ?)',
-      [req.userId, modReq.user_id, reason || null]
-    )
-    res.json({ ok: true })
-  } catch (err) {
-    console.error('POST /api/admin/moderator-requests/:id/deny error:', err.message)
-    res.status(500).json({ error: 'Server error' })
-  }
-})
-
-// ── User moderator request ────────────────────────────────────────────────────
-
-// GET /api/me/moderator-request — get current user's request status
-app.get('/api/me/moderator-request', authenticate, async (req, res) => {
-  try {
-    const [rows] = await pool.query(
-      'SELECT id, status, reason, reviewed_at, created_at FROM moderator_requests WHERE user_id = ? ORDER BY created_at DESC LIMIT 1',
-      [req.userId]
-    )
-    const [[user]] = await pool.query('SELECT is_moderator FROM users WHERE id = ?', [req.userId])
-    res.json({ request: rows[0] || null, isModerator: Boolean(user?.is_moderator) })
-  } catch (err) {
-    console.error('GET /api/me/moderator-request error:', err.message)
-    res.status(500).json({ error: 'Server error' })
-  }
-})
-
-// POST /api/me/moderator-request — submit a moderator request
-app.post('/api/me/moderator-request', authenticate, async (req, res) => {
-  const { reason } = req.body || {}
-  try {
-    const [[user]] = await pool.query('SELECT is_moderator FROM users WHERE id = ?', [req.userId])
-    if (user?.is_moderator) return res.status(400).json({ error: 'Already a moderator' })
-    const [existing] = await pool.query(
-      'SELECT id FROM moderator_requests WHERE user_id = ? AND status = "pending"',
-      [req.userId]
-    )
-    if (existing.length > 0) return res.status(400).json({ error: 'Request already pending' })
-    const [result] = await pool.query(
-      'INSERT INTO moderator_requests (user_id, reason) VALUES (?, ?)',
-      [req.userId, reason || null]
-    )
-    res.json({ ok: true, requestId: result.insertId })
-  } catch (err) {
-    console.error('POST /api/me/moderator-request error:', err.message)
-    res.status(500).json({ error: 'Server error' })
-  }
-})
-
-// DELETE /api/me/moderator-request — withdraw pending request
-app.delete('/api/me/moderator-request', authenticate, async (req, res) => {
-  try {
-    await pool.query(
-      'DELETE FROM moderator_requests WHERE user_id = ? AND status = "pending"',
-      [req.userId]
-    )
-    res.json({ ok: true })
-  } catch (err) {
-    console.error('DELETE /api/me/moderator-request error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })
