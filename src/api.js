@@ -96,6 +96,10 @@ export async function apiFetchFeed(offset = 0, limit = 20) {
   return await request(`/api/feed?offset=${offset}&limit=${limit}`)
 }
 
+export async function apiPreflightPost(text) {
+  return await request('/api/feed/preflight', { method: 'POST', body: JSON.stringify({ text }) })
+}
+
 export async function apiCreatePost(text, mediaFiles) {
   if (mediaFiles?.length) {
     // Use FormData for multipart upload
@@ -351,11 +355,43 @@ export async function apiDeleteEvent(eventId) {
   return await request(`/api/events/${eventId}`, { method: 'DELETE' })
 }
 
-// SSE — Server-Sent Events for real-time updates (returns EventSource)
+// SSE — Server-Sent Events for real-time updates.
+// Returns a controller object with { onmessage, close } so callers can attach
+// a message handler and close the connection.  Internally uses exponential
+// backoff (max ~60 s) so a temporary server restart does not spam the browser
+// console with a "can't establish connection" error every 3 seconds.
 export function openSSE() {
-  const sid = getSessionId()
-  const url = `${API_BASE}/api/sse${sid ? `?sid=${encodeURIComponent(sid)}` : ''}`
-  return new EventSource(url)
+  let es = null
+  let closed = false
+  let delay = 2000
+  let timer = null
+  const ctrl = { onmessage: null }
+
+  function connect() {
+    if (closed) return
+    const sid = getSessionId()
+    if (!sid) return // not logged in — nothing to connect to
+    const url = `${API_BASE}/api/sse?sid=${encodeURIComponent(sid)}`
+    es = new EventSource(url)
+    es.onmessage = (e) => { if (ctrl.onmessage) ctrl.onmessage(e) }
+    es.onopen = () => { delay = 2000 } // reset backoff on successful connect
+    es.onerror = () => {
+      es.close()
+      es = null
+      if (!closed) {
+        timer = setTimeout(() => { delay = Math.min(delay * 2, 64000); connect() }, delay)
+      }
+    }
+  }
+
+  ctrl.close = () => {
+    closed = true
+    clearTimeout(timer)
+    es?.close()
+  }
+
+  connect()
+  return ctrl
 }
 
 // Link preview
@@ -485,6 +521,14 @@ export async function apiGetAdminStats() {
 
 export async function apiGetAnalytics(days = 30) {
   return await request(`/api/analytics?days=${days}`)
+}
+
+export async function apiGetVisitorStats(days = 30) {
+  return await request(`/api/analytics/visitor-stats?days=${days}`)
+}
+
+export async function apiTrackVisit() {
+  return await request('/api/visit', { method: 'POST' })
 }
 
 export async function apiUpdateMode(mode) {
@@ -635,4 +679,233 @@ export async function apiFetchCalendarEvents() {
 
 export async function apiUpdateBirthday(birthday) {
   return await request('/api/profile/birthday', { method: 'PATCH', body: JSON.stringify({ birthday }) })
+}
+
+// ── Misc platform ──
+
+export async function apiHeartbeat() {
+  return await request('/api/me/heartbeat', { method: 'POST' })
+}
+
+export async function apiUpdateProfile(data) {
+  return await request('/api/profile', { method: 'PATCH', body: JSON.stringify(data) })
+}
+
+export async function apiGetConfig() {
+  try {
+    const res = await fetch(`${API_BASE}/api/config`)
+    if (!res.ok) return null
+    return await res.json()
+  } catch { return null }
+}
+
+export async function apiGetChangelog() {
+  return await request('/api/changelog')
+}
+
+export async function apiGetNotifications() {
+  return await request('/api/notifications')
+}
+
+export async function apiMarkNotificationRead(id) {
+  return await request(`/api/notifications/${id}/read`, { method: 'POST' })
+}
+
+export async function apiMarkAllNotificationsRead() {
+  return await request('/api/notifications/read-all', { method: 'POST' })
+}
+
+export async function apiSuggestCategory(text) {
+  return await request(`/api/feed/suggest-category?text=${encodeURIComponent(text)}`)
+}
+
+export async function apiGetMyJobs() {
+  return await request('/api/jobs/mine')
+}
+
+export async function apiDownloadGooglePhoto(url) {
+  return await request('/api/providers/google-photos/download', {
+    method: 'POST',
+    body: JSON.stringify({ url }),
+  })
+}
+
+// ── Post insights ──
+
+export async function apiGetPostInsights(postId) {
+  return await request(`/api/posts/${postId}/insights`)
+}
+
+// ── Moderation ──
+
+export async function apiBlockUser(userId) {
+  return await request(`/api/users/${userId}/block`, { method: 'POST' })
+}
+
+export async function apiUnblockUser(userId) {
+  return await request(`/api/users/${userId}/block`, { method: 'DELETE' })
+}
+
+export async function apiGetMyBlocks() {
+  return await request('/api/me/blocks')
+}
+
+export async function apiReportContent(targetType, targetId, reason, details = '') {
+  return await request('/api/reports', {
+    method: 'POST',
+    body: JSON.stringify({ target_type: targetType, target_id: targetId, reason, details }),
+  })
+}
+
+export async function apiGetModerationQueue() {
+  return await request('/api/admin/moderation/queue')
+}
+
+export async function apiDismissReport(reportId, reason = '') {
+  return await request(`/api/admin/moderation/reports/${reportId}/dismiss`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  })
+}
+
+export async function apiModerateRemoveContent(type, targetId, reportId = null, reason = '') {
+  return await request('/api/admin/moderation/content/remove', {
+    method: 'POST',
+    body: JSON.stringify({ type, target_id: targetId, report_id: reportId, reason }),
+  })
+}
+
+export async function apiWarnUser(userId, reason = '', reportId = null) {
+  return await request(`/api/admin/moderation/users/${userId}/warn`, {
+    method: 'POST',
+    body: JSON.stringify({ reason, report_id: reportId }),
+  })
+}
+
+export async function apiSuspendUser(userId, days = 7, reason = '', reportId = null) {
+  return await request(`/api/admin/moderation/users/${userId}/suspend`, {
+    method: 'POST',
+    body: JSON.stringify({ days, reason, report_id: reportId }),
+  })
+}
+
+export async function apiBanUser(userId, reason = '', reportId = null) {
+  return await request(`/api/admin/moderation/users/${userId}/ban`, {
+    method: 'POST',
+    body: JSON.stringify({ reason, report_id: reportId }),
+  })
+}
+
+export async function apiUnbanUser(userId) {
+  return await request(`/api/admin/moderation/users/${userId}/unban`, { method: 'POST' })
+}
+
+export async function apiGetModerationUsers(q = '') {
+  return await request(`/api/admin/moderation/users${q ? `?q=${encodeURIComponent(q)}` : ''}`)
+}
+
+export async function apiGetKeywordFilters() {
+  return await request('/api/admin/moderation/keywords')
+}
+
+export async function apiAddKeywordFilter(keyword, action = 'flag', category = 'other', notes = '') {
+  return await request('/api/admin/moderation/keywords', {
+    method: 'POST',
+    body: JSON.stringify({ keyword, action, category, notes: notes || undefined }),
+  })
+}
+
+export async function apiUpdateKeywordFilter(id, keyword, action, category, notes = '') {
+  return await request(`/api/admin/moderation/keywords/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ keyword, action, category, notes: notes || undefined }),
+  })
+}
+
+export async function apiDeleteKeywordFilter(id) {
+  return await request(`/api/admin/moderation/keywords/${id}`, { method: 'DELETE' })
+}
+
+export async function apiGetModerationActions() {
+  return await request('/api/admin/moderation/actions')
+}
+
+export async function apiGetModeratorCandidates() {
+  return await request('/api/admin/moderation/candidates')
+}
+
+export async function apiUpdateModeratorCandidate(id, isCandidate, note) {
+  return await request(`/api/admin/moderation/users/${id}/candidate`, {
+    method: 'PATCH',
+    body: JSON.stringify({ is_candidate: isCandidate, note }),
+  })
+}
+
+// ── Moderator management (admin) ──
+export async function apiGetModerators() {
+  return await request('/api/admin/moderators')
+}
+export async function apiGrantModerator(userId) {
+  return await request(`/api/admin/moderators/${userId}/grant`, { method: 'POST' })
+}
+export async function apiRevokeModerator(userId) {
+  return await request(`/api/admin/moderators/${userId}/revoke`, { method: 'POST' })
+}
+
+// ── Ads ──────────────────────────────────────────────────────────────────────
+export async function apiCreateAd(data) {
+  return await request('/api/ads', { method: 'POST', body: JSON.stringify(data) })
+}
+export async function apiGetMyAds() {
+  return await request('/api/ads')
+}
+export async function apiGetAd(id) {
+  return await request(`/api/ads/${id}`)
+}
+export async function apiUpdateAd(id, data) {
+  return await request(`/api/ads/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+}
+export async function apiDeleteAd(id) {
+  return await request(`/api/ads/${id}`, { method: 'DELETE' })
+}
+export async function apiRecordAdImpression(id) {
+  return await request(`/api/ads/${id}/impression`, { method: 'POST' })
+}
+export async function apiRecordAdClick(id) {
+  return await request(`/api/ads/${id}/click`, { method: 'POST' })
+}
+export async function apiServeAds(placement) {
+  return await request(`/api/ads?serve=1&placement=${placement}`)
+}
+
+// ── Ads-free subscription (Stripe) ───────────────────────────────────────────
+export async function apiGetSubscription() {
+  return await request('/api/me/subscription')
+}
+export async function apiCreateAdFreeCheckout() {
+  return await request('/api/stripe/checkout/adfree', { method: 'POST' })
+}
+
+// ── Admin ad settings ─────────────────────────────────────────────────────────
+export async function apiGetAdminAdSettings() {
+  return await request('/api/admin/ad-settings')
+}
+export async function apiSaveAdminAdSettings(settings) {
+  return await request('/api/admin/ad-settings', { method: 'PUT', body: JSON.stringify(settings) })
+}
+
+export async function apiUploadFile(file, type = 'post') {
+  const form = new FormData()
+  form.append('file', file)
+  form.append('type', type)
+  try {
+    const res = await fetch(`${API_BASE}/api/upload/file`, {
+      method: 'POST',
+      headers: formHeaders(),
+      credentials: 'same-origin',
+      body: form,
+    })
+    if (!res.ok) return null
+    return await res.json()
+  } catch { return null }
 }

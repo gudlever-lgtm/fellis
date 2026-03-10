@@ -118,7 +118,7 @@ async function initEvents() {
       cap INT(11) DEFAULT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (organizer_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
     await pool.query(`CREATE TABLE IF NOT EXISTS event_rsvps (
       id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
       event_id INT(11) NOT NULL,
@@ -130,7 +130,7 @@ async function initEvents() {
       UNIQUE KEY uq_event_user (event_id, user_id),
       FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
     // Migrate: add columns that may be missing on existing installations
     await pool.query(`ALTER TABLE event_rsvps ADD COLUMN IF NOT EXISTS dietary VARCHAR(255) DEFAULT NULL`).catch(() => {})
     await pool.query(`ALTER TABLE event_rsvps ADD COLUMN IF NOT EXISTS plus_one TINYINT(1) DEFAULT 0`).catch(() => {})
@@ -210,7 +210,7 @@ async function initViralGrowth() {
       UNIQUE KEY unique_referral (referrer_id, referred_id),
       FOREIGN KEY (referrer_id) REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY (referred_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
 
     await pool.query(`CREATE TABLE IF NOT EXISTS rewards (
       id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -222,7 +222,7 @@ async function initViralGrowth() {
       icon VARCHAR(10) NOT NULL DEFAULT '🏆',
       threshold INT(11) NOT NULL DEFAULT 1,
       reward_points INT(11) NOT NULL DEFAULT 10
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
 
     await pool.query(`CREATE TABLE IF NOT EXISTS user_badges (
       id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -231,7 +231,7 @@ async function initViralGrowth() {
       earned_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
       UNIQUE KEY unique_user_badge (user_id, reward_type),
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
 
     await pool.query(`CREATE TABLE IF NOT EXISTS share_events (
       id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -242,7 +242,7 @@ async function initViralGrowth() {
       utm_campaign VARCHAR(100) DEFAULT NULL,
       created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
 
     // Seed reward catalog (idempotent via INSERT IGNORE)
     await pool.query(`INSERT IGNORE INTO rewards (type, title_da, title_en, description_da, description_en, icon, threshold, reward_points) VALUES
@@ -268,7 +268,7 @@ async function initFriendRequests() {
       UNIQUE KEY unique_request (from_user_id, to_user_id),
       FOREIGN KEY (from_user_id) REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY (to_user_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
     // Also add source column to friendships if missing (for Facebook tracking)
     await pool.query('ALTER TABLE friendships ADD COLUMN source VARCHAR(50) DEFAULT NULL').catch(() => {})
   } catch (err) {
@@ -286,7 +286,7 @@ async function initConversations() {
       created_by INT(11) DEFAULT NULL,
       created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
       FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
     await pool.query(`CREATE TABLE IF NOT EXISTS conversation_participants (
       conversation_id INT(11) NOT NULL,
       user_id INT(11) NOT NULL,
@@ -295,7 +295,7 @@ async function initConversations() {
       PRIMARY KEY (conversation_id, user_id),
       FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
     // Add conversation_id column (safe — fails silently if already present)
     await pool.query('ALTER TABLE messages ADD COLUMN conversation_id INT(11) DEFAULT NULL AFTER id').catch(() => {})
     await pool.query('ALTER TABLE messages ADD INDEX idx_msg_conv (conversation_id)').catch(() => {})
@@ -513,6 +513,12 @@ pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS mode VARCHAR(20) DEFAULT 
   .catch(err => console.error('Migration (users.mode):', err.message))
 pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS plan VARCHAR(30) DEFAULT 'business'")
   .catch(err => console.error('Migration (users.plan):', err.message))
+pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS ads_free TINYINT(1) NOT NULL DEFAULT 0")
+  .catch(err => console.error('Migration (users.ads_free):', err.message))
+pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id VARCHAR(100) DEFAULT NULL")
+  .catch(err => console.error('Migration (users.stripe_customer_id):', err.message))
+pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS ads_free_sub_id VARCHAR(200) DEFAULT NULL")
+  .catch(err => console.error('Migration (users.ads_free_sub_id):', err.message))
 
 // ── Viral growth auto-migrations ──
 pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_public TINYINT(1) NOT NULL DEFAULT 0')
@@ -614,6 +620,22 @@ async function authenticate(req, res, next) {
     if (rows.length === 0) return res.status(401).json({ error: 'Session expired' })
     req.userId = rows[0].user_id
     req.lang = rows[0].lang
+    // Check if account is banned or suspended
+    const [statusRows] = await pool.query(
+      'SELECT status, suspended_until, is_moderator FROM users WHERE id = ?', [req.userId]
+    ).catch(() => pool.query('SELECT status, suspended_until FROM users WHERE id = ?', [req.userId]))
+    if (statusRows.length > 0) {
+      req.isModerator = Boolean(statusRows[0].is_moderator) || req.userId === 1
+      const { status: userStatus, suspended_until } = statusRows[0]
+      if (userStatus === 'banned') return res.status(403).json({ error: 'Account banned' })
+      if (userStatus === 'suspended' && suspended_until && new Date(suspended_until) > new Date()) {
+        return res.status(403).json({ error: 'Account suspended', suspended_until })
+      }
+      // Auto-lift expired suspensions
+      if (userStatus === 'suspended' && (!suspended_until || new Date(suspended_until) <= new Date())) {
+        pool.query('UPDATE users SET status = "active", suspended_until = NULL WHERE id = ?', [req.userId]).catch(() => {})
+      }
+    }
 
     // Track site visit once per session per calendar day
     const todayKey = `${sessionId}:${new Date().toISOString().slice(0, 10)}`
@@ -629,7 +651,7 @@ async function authenticate(req, res, next) {
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
           [sessionId, ip || null, ua, browser, os, geo.country, geo.country_code, geo.city]
         ).catch(() => {})
-      })
+      }).catch(() => {})
     }
 
     next()
@@ -637,6 +659,33 @@ async function authenticate(req, res, next) {
     res.status(500).json({ error: 'Auth check failed' })
   }
 }
+
+// ── Public visit tracking ─────────────────────────────────────────────────────
+// Tracks visits from all users (including unauthenticated) once per IP per day.
+// Called by the frontend on app load so the visitors dashboard always has data.
+const visitedAnonIps = new Set() // in-memory: anonymous IPs tracked this server process day
+app.post('/api/visit', async (req, res) => {
+  try {
+    const ip = (req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || '').replace(/^::ffff:/, '')
+    const today = new Date().toISOString().slice(0, 10)
+    const key = `${ip}:${today}`
+    if (ip && !visitedAnonIps.has(key)) {
+      visitedAnonIps.add(key)
+      const ua = req.headers['user-agent'] || null
+      const { browser, os } = parseBrowser(ua)
+      const sessionId = getSessionIdFromRequest(req) || `anon:${ip}`
+      getGeoForIp(ip).then(geo => {
+        pool.query(
+          `INSERT INTO site_visits (session_id, ip_address, user_agent, browser, os, country, country_code, city) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [sessionId, ip || null, ua, browser, os, geo.country, geo.country_code, geo.city]
+        ).catch(() => {})
+      }).catch(() => {})
+    }
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
 
 // ── Password policy ──────────────────────────────────────────────────────────
 
@@ -853,9 +902,9 @@ app.post('/api/auth/logout', authenticate, async (req, res) => {
 // GET /api/auth/session — check if session is valid
 app.get('/api/auth/session', authenticate, async (req, res) => {
   try {
-    const [users] = await pool.query('SELECT id, name, handle, initials, avatar_url, plan, mode FROM users WHERE id = ?', [req.userId])
+    const [users] = await pool.query('SELECT id, name, handle, initials, avatar_url, plan, mode, ads_free, is_moderator FROM users WHERE id = ?', [req.userId])
     if (users.length === 0) return res.status(404).json({ error: 'User not found' })
-    const user = { ...users[0], plan: users[0].plan || 'business', mode: users[0].mode || 'privat', is_admin: users[0].id === 1 }
+    const user = { ...users[0], plan: users[0].plan || 'business', mode: users[0].mode || 'privat', ads_free: Boolean(users[0].ads_free), is_admin: users[0].id === 1, is_moderator: Boolean(users[0].is_moderator) || users[0].id === 1 }
     res.json({ user, lang: req.lang })
   } catch (err) {
     res.status(500).json({ error: 'Session check failed' })
@@ -1198,10 +1247,10 @@ app.patch('/api/me/lang', authenticate, async (req, res) => {
   }
 })
 
-// PATCH /api/me/plan — update user plan (business / business_pro)
+// PATCH /api/me/plan — update user plan (business only — business_pro removed)
 app.patch('/api/me/plan', authenticate, async (req, res) => {
   const { plan } = req.body
-  if (!['business', 'business_pro'].includes(plan)) return res.status(400).json({ error: 'Invalid plan' })
+  if (!['business'].includes(plan)) return res.status(400).json({ error: 'Invalid plan' })
   try {
     await pool.query('UPDATE users SET plan = ? WHERE id = ?', [plan, req.userId])
     res.json({ ok: true })
@@ -1568,16 +1617,41 @@ app.get('/api/feed', authenticate, async (req, res) => {
         edited: !!p.edited_at,
       }
     })
+    // Track post views (fire-and-forget)
+    if (result.length && req.userId) {
+      const viewValues = result.map(p => [p.id, req.userId])
+      pool.query(
+        `INSERT INTO post_views (post_id, viewer_id, view_count)
+         VALUES ${viewValues.map(() => '(?,?,1)').join(',')}
+         ON DUPLICATE KEY UPDATE view_count = view_count + 1, last_viewed_at = NOW()`,
+        viewValues.flat()
+      ).catch(() => {})
+    }
     res.json({ posts: result, total, offset, limit })
   } catch (err) {
     res.status(500).json({ error: 'Failed to load feed' })
   }
 })
 
+// POST /api/feed/preflight — check text against keyword filters without posting
+app.post('/api/feed/preflight', authenticate, (req, res) => {
+  const { text } = req.body
+  if (!text) return res.json({ ok: true })
+  const kw = checkKeywords(text)
+  if (!kw) return res.json({ ok: true })
+  res.json({ ok: kw.action !== 'block', flagged: kw.action === 'flag', blocked: kw.action === 'block', keyword: kw.keyword, category: kw.category || null, notes: kw.notes || null })
+})
+
 // POST /api/feed — create a new post (with optional media)
 app.post('/api/feed', authenticate, upload.array('media', 4), async (req, res) => {
   const { text } = req.body
-  if (!text) return res.status(400).json({ error: 'Post text required' })
+  if (!text && !req.files?.length) return res.status(400).json({ error: 'Post text or media required' })
+
+  // Keyword filter check
+  const kw = checkKeywords(text)
+  if (kw?.action === 'block') return res.status(400).json({ error: 'Post indeholder forbudt indhold / Post contains prohibited content' })
+  // flag: allow post but auto-create a report for admin review
+  const autoFlagKeyword = kw?.action === 'flag' ? kw.keyword : null
 
   // Validate magic bytes for each uploaded file
   const mediaUrls = []
@@ -1606,8 +1680,16 @@ app.post('/api/feed', authenticate, upload.array('media', 4), async (req, res) =
     )
     const [users] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
     const now = new Date()
+    const postId = result.insertId
+    // Auto-flag: create a pending report for admin review
+    if (autoFlagKeyword) {
+      pool.query(
+        'INSERT INTO reports (reporter_id, target_type, target_id, reason, details) VALUES (?, ?, ?, ?, ?)',
+        [req.userId, 'post', postId, 'keyword_flag', `Auto-flagged: keyword "${autoFlagKeyword}"`]
+      ).catch(() => {})
+    }
     res.json({
-      id: result.insertId,
+      id: postId,
       author: users[0].name,
       time: { da: formatPostTime(now, 'da'), en: formatPostTime(now, 'en') },
       text: { da: text, en: text },
@@ -1693,6 +1775,10 @@ app.post('/api/feed/:id/comment', authenticate, upload.single('media'), async (r
   const text = (req.body.text || '').trim()
   if (!text && !req.file) return res.status(400).json({ error: 'Comment text or media required' })
   const postId = parseInt(req.params.id)
+  // Keyword filter check
+  const kwc = checkKeywords(text)
+  if (kwc?.action === 'block') return res.status(400).json({ error: 'Kommentar indeholder forbudt indhold / Comment contains prohibited content' })
+  const autoFlagKeywordComment = kwc?.action === 'flag' ? kwc.keyword : null
   let mediaJson = null
   if (req.file) {
     const header = Buffer.alloc(16)
@@ -1718,6 +1804,14 @@ app.post('/api/feed/:id/comment', authenticate, upload.single('media'), async (r
         'INSERT INTO comments (post_id, author_id, text_da, text_en) VALUES (?, ?, ?, ?)',
         [postId, req.userId, text, text]
       )
+    }
+    const [rows2] = await pool.query('SELECT LAST_INSERT_ID() as id')
+    const commentId = rows2[0].id
+    if (autoFlagKeywordComment) {
+      pool.query(
+        'INSERT INTO reports (reporter_id, target_type, target_id, reason, details) VALUES (?, ?, ?, ?, ?)',
+        [req.userId, 'comment', commentId, 'keyword_flag', `Auto-flagged: keyword "${autoFlagKeywordComment}"`]
+      ).catch(() => {})
     }
     const [users] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
     const media = mediaJson ? JSON.parse(mediaJson) : null
@@ -2327,7 +2421,7 @@ app.get('/api/users/search', authenticate, async (req, res) => {
   const like = `%${q.trim()}%`
   try {
     const [users] = await pool.query(
-      `SELECT u.id, u.name,
+      `SELECT u.id, u.name, u.handle, u.avatar_url,
               CASE WHEN f.id IS NOT NULL THEN 1 ELSE 0 END as is_friend,
               COALESCE(f.is_online, 0) as online,
               COALESCE(f.mutual_count, 0) as mutual,
@@ -2816,7 +2910,7 @@ async function initMarketplace() {
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       INDEX idx_user_id (user_id),
       INDEX idx_category (category)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
   } catch (err) {
     console.error('initMarketplace error:', err.message)
   }
@@ -2989,7 +3083,7 @@ async function initCompanies() {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       INDEX idx_owner (owner_id),
       FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
 
     await pool.query(`CREATE TABLE IF NOT EXISTS company_members (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -3000,7 +3094,7 @@ async function initCompanies() {
       UNIQUE KEY uq_company_user (company_id, user_id),
       FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
 
     await pool.query(`CREATE TABLE IF NOT EXISTS company_follows (
       company_id INT NOT NULL,
@@ -3009,7 +3103,7 @@ async function initCompanies() {
       PRIMARY KEY (company_id, user_id),
       FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
 
     await pool.query(`CREATE TABLE IF NOT EXISTS company_posts (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -3022,7 +3116,7 @@ async function initCompanies() {
       INDEX idx_company (company_id),
       FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
       FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
 
     await pool.query(`CREATE TABLE IF NOT EXISTS company_post_likes (
       post_id INT NOT NULL,
@@ -3032,7 +3126,7 @@ async function initCompanies() {
       PRIMARY KEY (post_id, user_id),
       FOREIGN KEY (post_id) REFERENCES company_posts(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
 
     await pool.query(`CREATE TABLE IF NOT EXISTS company_post_comments (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -3043,7 +3137,7 @@ async function initCompanies() {
       INDEX idx_post (post_id),
       FOREIGN KEY (post_id) REFERENCES company_posts(id) ON DELETE CASCADE,
       FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
 
     await pool.query(`CREATE TABLE IF NOT EXISTS jobs (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -3060,7 +3154,7 @@ async function initCompanies() {
       INDEX idx_company (company_id),
       INDEX idx_active (active),
       FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
 
     await pool.query(`CREATE TABLE IF NOT EXISTS job_saves (
       job_id INT NOT NULL,
@@ -3069,7 +3163,7 @@ async function initCompanies() {
       PRIMARY KEY (job_id, user_id),
       FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
 
     // Repair: ensure all companies have their owner in company_members
     // (may be missing if company was created before this table existed)
@@ -3523,6 +3617,358 @@ app.post('/api/jobs/:id/save', authenticate, async (req, res) => {
   }
 })
 
+// ── Ads ──────────────────────────────────────────────────────────────────────
+
+async function initAds() {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS ads (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      advertiser_id INT NOT NULL,
+      title VARCHAR(255) NOT NULL,
+      body TEXT DEFAULT NULL,
+      image_url VARCHAR(500) DEFAULT NULL,
+      target_url VARCHAR(500) NOT NULL,
+      status ENUM('draft','active','paused','archived') NOT NULL DEFAULT 'draft',
+      placement ENUM('feed','sidebar','stories') NOT NULL DEFAULT 'feed',
+      impressions INT NOT NULL DEFAULT 0,
+      clicks INT NOT NULL DEFAULT 0,
+      start_date DATE DEFAULT NULL,
+      end_date DATE DEFAULT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_ads_advertiser (advertiser_id),
+      INDEX idx_ads_status_placement (status, placement),
+      FOREIGN KEY (advertiser_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+  } catch (err) {
+    console.error('initAds error:', err.message)
+  }
+}
+
+async function initAdminAdSettings() {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS admin_ad_settings (
+      id INT NOT NULL DEFAULT 1 PRIMARY KEY,
+      adfree_price_private DECIMAL(10,2) NOT NULL DEFAULT 29.00,
+      adfree_price_business DECIMAL(10,2) NOT NULL DEFAULT 49.00,
+      ad_price_cpm DECIMAL(10,2) NOT NULL DEFAULT 50.00,
+      currency VARCHAR(10) NOT NULL DEFAULT 'DKK',
+      max_ads_feed INT NOT NULL DEFAULT 3,
+      max_ads_sidebar INT NOT NULL DEFAULT 2,
+      max_ads_stories INT NOT NULL DEFAULT 1,
+      refresh_interval_seconds INT NOT NULL DEFAULT 300,
+      ads_enabled TINYINT(1) NOT NULL DEFAULT 1,
+      stripe_price_adfree_private VARCHAR(100) DEFAULT NULL,
+      stripe_price_adfree_business VARCHAR(100) DEFAULT NULL,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      updated_by INT DEFAULT NULL,
+      FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+    // Ensure a default row always exists
+    await pool.query(`INSERT IGNORE INTO admin_ad_settings (id) VALUES (1)`)
+  } catch (err) {
+    console.error('initAdminAdSettings error:', err.message)
+  }
+}
+
+// Require business mode helper
+function requireBusiness(req, res, next) {
+  if (!req.userMode || req.userMode !== 'business') {
+    return res.status(403).json({ error: 'Business account required' })
+  }
+  next()
+}
+
+// Middleware to attach userMode to req
+async function attachUserMode(req, res, next) {
+  try {
+    if (req.userId) {
+      const [[user]] = await pool.query('SELECT mode FROM users WHERE id = ?', [req.userId])
+      req.userMode = user?.mode || 'privat'
+    }
+  } catch {}
+  next()
+}
+
+// POST /api/ads — create ad (business only)
+app.post('/api/ads', authenticate, attachUserMode, requireBusiness, async (req, res) => {
+  const { title, body, image_url, target_url, placement = 'feed', start_date, end_date } = req.body
+  if (!title || !target_url) return res.status(400).json({ error: 'title and target_url required' })
+  try {
+    const [result] = await pool.query(
+      'INSERT INTO ads (advertiser_id, title, body, image_url, target_url, placement, start_date, end_date) VALUES (?,?,?,?,?,?,?,?)',
+      [req.userId, title, body || null, image_url || null, target_url, placement, start_date || null, end_date || null]
+    )
+    const [[ad]] = await pool.query('SELECT * FROM ads WHERE id = ?', [result.insertId])
+    res.status(201).json({ ad })
+  } catch (err) {
+    console.error('POST /api/ads error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/ads — list own ads (business) or all active ads (admin)
+app.get('/api/ads', authenticate, async (req, res) => {
+  try {
+    let rows
+    if (req.query.admin === '1') {
+      // Admin listing — requires admin
+      const [[user]] = await pool.query('SELECT id FROM users WHERE id = ?', [req.userId])
+      if (!user || req.userId !== 1) return res.status(403).json({ error: 'Admin only' })
+      ;[rows] = await pool.query(
+        `SELECT a.*, u.name AS advertiser_name FROM ads a JOIN users u ON u.id = a.advertiser_id ORDER BY a.created_at DESC`
+      )
+    } else if (req.query.serve === '1') {
+      // Serve ads — fetch enabled ad for placement (respects ads_enabled setting)
+      const [[settings]] = await pool.query('SELECT ads_enabled, max_ads_feed, max_ads_sidebar, max_ads_stories, refresh_interval_seconds FROM admin_ad_settings WHERE id = 1').catch(() => [[null]])
+      if (!settings || !settings.ads_enabled) return res.json({ ads: [] })
+      // Check if user is ads_free
+      const [[userRow]] = await pool.query('SELECT ads_free FROM users WHERE id = ?', [req.userId])
+      if (userRow?.ads_free) return res.json({ ads: [], ads_free: true })
+      const placement = req.query.placement || 'feed'
+      const limitMap = { feed: settings.max_ads_feed, sidebar: settings.max_ads_sidebar, stories: settings.max_ads_stories }
+      const limit = limitMap[placement] || 1
+      ;[rows] = await pool.query(
+        `SELECT * FROM ads WHERE status = 'active' AND placement = ? AND (start_date IS NULL OR start_date <= CURDATE()) AND (end_date IS NULL OR end_date >= CURDATE()) ORDER BY RAND() LIMIT ?`,
+        [placement, limit]
+      )
+      return res.json({ ads: rows, refresh_interval: settings.refresh_interval_seconds })
+    } else {
+      // Business user's own ads
+      ;[rows] = await pool.query('SELECT * FROM ads WHERE advertiser_id = ? ORDER BY created_at DESC', [req.userId])
+    }
+    res.json({ ads: rows })
+  } catch (err) {
+    console.error('GET /api/ads error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/ads/:id — get single ad
+app.get('/api/ads/:id', authenticate, async (req, res) => {
+  try {
+    const [[ad]] = await pool.query('SELECT * FROM ads WHERE id = ?', [req.params.id])
+    if (!ad) return res.status(404).json({ error: 'Ad not found' })
+    if (ad.advertiser_id !== req.userId && req.userId !== 1) return res.status(403).json({ error: 'Forbidden' })
+    res.json({ ad })
+  } catch (err) {
+    console.error('GET /api/ads/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// PUT /api/ads/:id — update ad
+app.put('/api/ads/:id', authenticate, async (req, res) => {
+  try {
+    const [[ad]] = await pool.query('SELECT * FROM ads WHERE id = ?', [req.params.id])
+    if (!ad) return res.status(404).json({ error: 'Ad not found' })
+    if (ad.advertiser_id !== req.userId && req.userId !== 1) return res.status(403).json({ error: 'Forbidden' })
+    const { title, body, image_url, target_url, status, placement, start_date, end_date } = req.body
+    const VALID_STATUS = ['draft', 'active', 'paused', 'archived']
+    const VALID_PLACEMENT = ['feed', 'sidebar', 'stories']
+    if (status && !VALID_STATUS.includes(status)) return res.status(400).json({ error: 'Invalid status' })
+    if (placement && !VALID_PLACEMENT.includes(placement)) return res.status(400).json({ error: 'Invalid placement' })
+    await pool.query(
+      'UPDATE ads SET title=COALESCE(?,title), body=COALESCE(?,body), image_url=COALESCE(?,image_url), target_url=COALESCE(?,target_url), status=COALESCE(?,status), placement=COALESCE(?,placement), start_date=COALESCE(?,start_date), end_date=COALESCE(?,end_date) WHERE id=?',
+      [title||null, body||null, image_url||null, target_url||null, status||null, placement||null, start_date||null, end_date||null, req.params.id]
+    )
+    const [[updated]] = await pool.query('SELECT * FROM ads WHERE id = ?', [req.params.id])
+    res.json({ ad: updated })
+  } catch (err) {
+    console.error('PUT /api/ads/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// DELETE /api/ads/:id — archive ad
+app.delete('/api/ads/:id', authenticate, async (req, res) => {
+  try {
+    const [[ad]] = await pool.query('SELECT * FROM ads WHERE id = ?', [req.params.id])
+    if (!ad) return res.status(404).json({ error: 'Ad not found' })
+    if (ad.advertiser_id !== req.userId && req.userId !== 1) return res.status(403).json({ error: 'Forbidden' })
+    await pool.query("UPDATE ads SET status = 'archived' WHERE id = ?", [req.params.id])
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/ads/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/ads/:id/impression — record impression
+app.post('/api/ads/:id/impression', authenticate, async (req, res) => {
+  try {
+    const [[ad]] = await pool.query('SELECT id FROM ads WHERE id = ?', [req.params.id])
+    if (!ad) return res.status(404).json({ error: 'Ad not found' })
+    await pool.query('UPDATE ads SET impressions = impressions + 1 WHERE id = ?', [req.params.id])
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/ads/:id/impression error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/ads/:id/click — record click
+app.post('/api/ads/:id/click', authenticate, async (req, res) => {
+  try {
+    const [[ad]] = await pool.query('SELECT id FROM ads WHERE id = ?', [req.params.id])
+    if (!ad) return res.status(404).json({ error: 'Ad not found' })
+    await pool.query('UPDATE ads SET clicks = clicks + 1 WHERE id = ?', [req.params.id])
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/ads/:id/click error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Admin ad settings ─────────────────────────────────────────────────────────
+
+// GET /api/admin/ad-settings — fetch ad pricing & display settings (admin only)
+app.get('/api/admin/ad-settings', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [[row]] = await pool.query('SELECT * FROM admin_ad_settings WHERE id = 1')
+    if (!row) return res.status(404).json({ error: 'Settings not found' })
+    res.json({ settings: row })
+  } catch (err) {
+    console.error('GET /api/admin/ad-settings error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// PUT /api/admin/ad-settings — update ad pricing & display settings (admin only)
+app.put('/api/admin/ad-settings', authenticate, requireAdmin, async (req, res) => {
+  const allowed = ['adfree_price_private', 'adfree_price_business', 'ad_price_cpm', 'currency', 'max_ads_feed', 'max_ads_sidebar', 'max_ads_stories', 'refresh_interval_seconds', 'ads_enabled', 'stripe_price_adfree_private', 'stripe_price_adfree_business']
+  const updates = {}
+  for (const key of allowed) {
+    if (key in req.body) updates[key] = req.body[key]
+  }
+  if (!Object.keys(updates).length) return res.status(400).json({ error: 'No valid fields' })
+  try {
+    const [[existing]] = await pool.query('SELECT id FROM admin_ad_settings WHERE id = 1')
+    if (!existing) return res.status(404).json({ error: 'Settings not found' })
+    const setClauses = Object.keys(updates).map(k => `${k} = ?`).join(', ')
+    await pool.query(
+      `UPDATE admin_ad_settings SET ${setClauses}, updated_by = ? WHERE id = 1`,
+      [...Object.values(updates), req.userId]
+    )
+    const [[row]] = await pool.query('SELECT * FROM admin_ad_settings WHERE id = 1')
+    res.json({ settings: row })
+  } catch (err) {
+    console.error('PUT /api/admin/ad-settings error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Stripe — ads_free subscription ───────────────────────────────────────────
+
+async function getStripe() {
+  try {
+    const [[row]] = await pool.query("SELECT key_value FROM admin_settings WHERE key_name = 'stripe_secret_key'")
+    if (!row?.key_value || row.key_value.startsWith('••')) return null
+    const { default: Stripe } = await import('stripe')
+    return new Stripe(row.key_value, { apiVersion: '2024-06-20' })
+  } catch { return null }
+}
+
+// POST /api/stripe/checkout/adfree — create Stripe checkout for ads_free sub
+app.post('/api/stripe/checkout/adfree', authenticate, async (req, res) => {
+  try {
+    const stripe = await getStripe()
+    if (!stripe) return res.status(503).json({ error: 'Stripe not configured' })
+
+    const [[user]] = await pool.query('SELECT name, email, mode, ads_free, stripe_customer_id FROM users WHERE id = ?', [req.userId])
+    if (!user) return res.status(404).json({ error: 'User not found' })
+    if (user.ads_free) return res.status(400).json({ error: 'Already ad-free' })
+
+    const [[adSettings]] = await pool.query('SELECT adfree_price_private, adfree_price_business, currency, stripe_price_adfree_private, stripe_price_adfree_business FROM admin_ad_settings WHERE id = 1').catch(() => [[null]])
+
+    const isBusinessMode = user.mode === 'business'
+    const priceId = isBusinessMode ? adSettings?.stripe_price_adfree_business : adSettings?.stripe_price_adfree_private
+
+    if (!priceId) return res.status(503).json({ error: 'Ad-free price not configured in admin panel' })
+
+    // Get or create Stripe customer
+    let customerId = user.stripe_customer_id
+    if (!customerId) {
+      const customer = await stripe.customers.create({ email: user.email, name: user.name })
+      customerId = customer.id
+      await pool.query('UPDATE users SET stripe_customer_id = ? WHERE id = ?', [customerId, req.userId])
+    }
+
+    const origin = req.headers.origin || 'https://fellis.eu'
+    const session = await stripe.checkout.sessions.create({
+      customer: customerId,
+      mode: 'subscription',
+      line_items: [{ price: priceId, quantity: 1 }],
+      success_url: `${origin}/?adfree=success`,
+      cancel_url: `${origin}/?adfree=cancel`,
+      metadata: { user_id: String(req.userId), type: 'adfree' },
+    })
+
+    res.json({ url: session.url })
+  } catch (err) {
+    console.error('POST /api/stripe/checkout/adfree error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/stripe/webhook — Stripe webhook handler (raw body needed)
+app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  try {
+    const stripe = await getStripe()
+    if (!stripe) return res.status(200).send('ok')
+
+    const [[secretRow]] = await pool.query("SELECT key_value FROM admin_settings WHERE key_name = 'stripe_webhook_secret'").catch(() => [[null]])
+    const sig = req.headers['stripe-signature']
+
+    let event
+    if (secretRow?.key_value && sig) {
+      try {
+        event = stripe.webhooks.constructEvent(req.body, sig, secretRow.key_value)
+      } catch (err) {
+        return res.status(400).send(`Webhook Error: ${err.message}`)
+      }
+    } else {
+      event = JSON.parse(req.body.toString())
+    }
+
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object
+      if (session.metadata?.type === 'adfree' && session.metadata?.user_id) {
+        const subId = session.subscription
+        await pool.query(
+          'UPDATE users SET ads_free = 1, ads_free_sub_id = ? WHERE id = ?',
+          [subId, parseInt(session.metadata.user_id)]
+        )
+      }
+    }
+
+    if (event.type === 'customer.subscription.deleted') {
+      const sub = event.data.object
+      // Cancel ads_free when subscription ends
+      await pool.query('UPDATE users SET ads_free = 0, ads_free_sub_id = NULL WHERE ads_free_sub_id = ?', [sub.id])
+    }
+
+    res.json({ received: true })
+  } catch (err) {
+    console.error('POST /api/stripe/webhook error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/me/subscription — get current user's ads_free status
+app.get('/api/me/subscription', authenticate, async (req, res) => {
+  try {
+    const [[user]] = await pool.query('SELECT ads_free, mode FROM users WHERE id = ?', [req.userId])
+    if (!user) return res.status(404).json({ error: 'User not found' })
+    const [[adSettings]] = await pool.query('SELECT adfree_price_private, adfree_price_business, currency, ads_enabled FROM admin_ad_settings WHERE id = 1').catch(() => [[{ adfree_price_private: 29, adfree_price_business: 49, currency: 'DKK', ads_enabled: 1 }]])
+    const price = user.mode === 'business' ? adSettings?.adfree_price_business : adSettings?.adfree_price_private
+    res.json({ ads_free: Boolean(user.ads_free), price: price || 29, currency: adSettings?.currency || 'DKK', ads_enabled: Boolean(adSettings?.ads_enabled) })
+  } catch (err) {
+    console.error('GET /api/me/subscription error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // ── Admin settings ──────────────────────────────────────────────────────────
 
 async function initAdminSettings() {
@@ -3531,7 +3977,7 @@ async function initAdminSettings() {
       key_name VARCHAR(100) NOT NULL PRIMARY KEY,
       key_value TEXT DEFAULT NULL,
       updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP() ON UPDATE CURRENT_TIMESTAMP()
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
   } catch (err) {
     console.error('initAdminSettings error:', err.message)
   }
@@ -3558,7 +4004,7 @@ async function initSettingsSchema() {
       UNIQUE KEY uq_user_skill (user_id, name),
       INDEX idx_us_user (user_id),
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
 
     await pool.query(`CREATE TABLE IF NOT EXISTS skill_endorsements (
       skill_id INT NOT NULL,
@@ -3567,7 +4013,7 @@ async function initSettingsSchema() {
       PRIMARY KEY (skill_id, endorser_id),
       FOREIGN KEY (skill_id) REFERENCES user_skills(id) ON DELETE CASCADE,
       FOREIGN KEY (endorser_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
 
   } catch (err) {
     console.error('initSettingsSchema error:', err.message)
@@ -3590,7 +4036,7 @@ async function initSiteVisits() {
       INDEX idx_sv_visited (visited_at),
       INDEX idx_sv_country (country_code),
       INDEX idx_sv_session (session_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
     // Add edited_at column to posts if not present
     await pool.query('ALTER TABLE posts ADD COLUMN IF NOT EXISTS edited_at TIMESTAMP NULL DEFAULT NULL')
   } catch (err) {
@@ -3609,7 +4055,7 @@ async function initAnalytics() {
       INDEX idx_pv_viewer (viewer_id),
       FOREIGN KEY (profile_id) REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY (viewer_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
   } catch (err) {
     console.error('initAnalytics error:', err.message)
   }
@@ -3638,6 +4084,12 @@ async function getFeedWeights() {
 function requireAdmin(req, res, next) {
   if (!req.userId) return res.status(401).json({ error: 'Not authenticated' })
   if (req.userId !== 1) return res.status(403).json({ error: 'Admin only' })
+  next()
+}
+
+function requireModerator(req, res, next) {
+  if (!req.userId) return res.status(401).json({ error: 'Not authenticated' })
+  if (!req.isModerator) return res.status(403).json({ error: 'Moderator only' })
   next()
 }
 
@@ -3743,6 +4195,67 @@ app.get('/api/analytics', authenticate, async (req, res) => {
     })
   } catch (err) {
     console.error('GET /api/analytics error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/analytics/visitor-stats — aggregated visitor statistics with date range
+app.get('/api/analytics/visitor-stats', authenticate, async (req, res) => {
+  try {
+    const days = Math.min(Math.max(parseInt(req.query.days) || 30, 7), 90)
+
+    // site_visits queries — may fail if table not yet created (race on startup)
+    let browsers = [], oses = [], countries = [], daily = [], total = 0
+    try {
+      ;[browsers] = await pool.query(
+        `SELECT browser, COUNT(*) AS count FROM site_visits
+         WHERE visited_at >= DATE_SUB(NOW(), INTERVAL ? DAY) AND browser != 'Unknown'
+         GROUP BY browser ORDER BY count DESC`,
+        [days]
+      )
+      ;[oses] = await pool.query(
+        `SELECT os, COUNT(*) AS count FROM site_visits
+         WHERE visited_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+         GROUP BY os ORDER BY count DESC`,
+        [days]
+      )
+      ;[countries] = await pool.query(
+        `SELECT country, country_code, COUNT(*) AS count FROM site_visits
+         WHERE visited_at >= DATE_SUB(NOW(), INTERVAL ? DAY) AND country_code IS NOT NULL AND country_code != 'XX'
+         GROUP BY country_code, country ORDER BY count DESC LIMIT 30`,
+        [days]
+      )
+      ;[daily] = await pool.query(
+        `SELECT DATE(visited_at) AS date, COUNT(*) AS count FROM site_visits
+         WHERE visited_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+         GROUP BY DATE(visited_at) ORDER BY date ASC`,
+        [days]
+      )
+      ;[[{ total }]] = await pool.query('SELECT COUNT(*) AS total FROM site_visits')
+    } catch (e) {
+      console.error('visitor-stats site_visits query error:', e.message)
+    }
+
+    // profile_views queries — separate try/catch so site stats still work if table missing
+    let myProfileViews = 0, myProfileViewsDaily = []
+    try {
+      ;[[{ myProfileViews }]] = await pool.query(
+        'SELECT COUNT(*) AS myProfileViews FROM profile_views WHERE profile_id = ?',
+        [req.userId]
+      )
+      ;[myProfileViewsDaily] = await pool.query(
+        `SELECT DATE(viewed_at) AS date, COUNT(*) AS count FROM profile_views
+         WHERE profile_id = ? AND viewed_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+         GROUP BY DATE(viewed_at) ORDER BY date ASC`,
+        [req.userId, days]
+      )
+    } catch (e) {
+      console.error('visitor-stats profile_views query error:', e.message)
+    }
+
+    res.json({ browsers, oses, countries, daily, total, myProfileViews, myProfileViewsDaily })
+  } catch (err) {
+    console.error('GET /api/analytics/visitor-stats error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })
@@ -4004,8 +4517,8 @@ app.get('/api/calendar/events', authenticate, async (req, res) => {
          AND (
            u.id = ?
            OR u.id IN (
-             SELECT CASE WHEN user_id_1 = ? THEN user_id_2 ELSE user_id_1 END
-             FROM friendships WHERE user_id_1 = ? OR user_id_2 = ?
+             SELECT CASE WHEN user_id = ? THEN friend_id ELSE user_id END
+             FROM friendships WHERE user_id = ? OR friend_id = ?
            )
          )`,
       [req.userId, req.userId, req.userId, req.userId]
@@ -4069,7 +4582,7 @@ async function initReels() {
       INDEX idx_user_id (user_id),
       INDEX idx_created_at (created_at),
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
     await pool.query(`CREATE TABLE IF NOT EXISTS reel_likes (
       reel_id INT NOT NULL,
       user_id INT NOT NULL,
@@ -4077,7 +4590,7 @@ async function initReels() {
       PRIMARY KEY (reel_id, user_id),
       FOREIGN KEY (reel_id) REFERENCES reels(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
     await pool.query(`ALTER TABLE reel_likes ADD COLUMN IF NOT EXISTS reaction VARCHAR(10) DEFAULT '❤️'`).catch(() => {})
     await pool.query(`CREATE TABLE IF NOT EXISTS reel_comments (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -4087,7 +4600,7 @@ async function initReels() {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (reel_id) REFERENCES reels(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
   } catch (err) {
     console.error('initReels error:', err.message)
   }
@@ -4705,6 +5218,681 @@ app.post('/api/groups/:id/join', authenticate, async (req, res) => {
   }
 })
 
+// ── Heartbeat (online presence) ──────────────────────────────────────────────
+app.post('/api/me/heartbeat', authenticate, async (req, res) => {
+  pool.query('UPDATE users SET last_active = NOW() WHERE id = ?', [req.userId]).catch(() => {})
+  res.json({ ok: true })
+})
+
+// ── Profile update ────────────────────────────────────────────────────────────
+app.patch('/api/profile', authenticate, async (req, res) => {
+  const { name, bio_da, bio_en, location } = req.body
+  try {
+    const fields = [], vals = []
+    if (name !== undefined)     { fields.push('name = ?');     vals.push(name.trim()) }
+    if (bio_da !== undefined)   { fields.push('bio_da = ?');   vals.push(bio_da) }
+    if (bio_en !== undefined)   { fields.push('bio_en = ?');   vals.push(bio_en) }
+    if (location !== undefined) { fields.push('location = ?'); vals.push(location) }
+    if (!fields.length) return res.status(400).json({ error: 'Nothing to update' })
+    vals.push(req.userId)
+    await pool.query(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`, vals)
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('PATCH /api/profile error:', err)
+    res.status(500).json({ error: 'Failed to update profile' })
+  }
+})
+
+// ── Config (public) ───────────────────────────────────────────────────────────
+app.get('/api/config', async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      "SELECT key_name, key_value FROM admin_settings WHERE key_name IN ('stripe_pub_key')"
+    )
+    const cfg = {}
+    for (const r of rows) cfg[r.key_name] = r.key_value
+    if (process.env.FB_APP_ID) {
+      cfg.fb_app_id = process.env.FB_APP_ID
+      cfg.facebookEnabled = true
+    }
+    res.json({ config: cfg, facebookEnabled: !!process.env.FB_APP_ID })
+  } catch { res.json({ config: {}, facebookEnabled: false }) }
+})
+
+// ── Changelog ─────────────────────────────────────────────────────────────────
+app.get('/api/changelog', authenticate, async (req, res) => {
+  res.json({ entries: [] })
+})
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+async function initNotifications() {
+  await pool.query(`CREATE TABLE IF NOT EXISTS notifications (
+    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    message_da TEXT NOT NULL,
+    message_en TEXT NOT NULL,
+    link VARCHAR(500) DEFAULT NULL,
+    read_at DATETIME DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`).catch(() => {})
+}
+
+async function createNotification(userId, type, messageDa, messageEn, link = null) {
+  await pool.query(
+    'INSERT INTO notifications (user_id, type, message_da, message_en, link) VALUES (?, ?, ?, ?, ?)',
+    [userId, type, messageDa, messageEn, link]
+  ).catch(err => console.error('createNotification error:', err.message))
+}
+
+app.get('/api/notifications', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT id, type, message_da, message_en, link, read_at, created_at FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 50',
+      [req.userId]
+    )
+    res.json({ notifications: rows })
+  } catch {
+    res.json({ notifications: [] })
+  }
+})
+
+app.post('/api/notifications/:id/read', authenticate, async (req, res) => {
+  await pool.query('UPDATE notifications SET read_at = NOW() WHERE id = ? AND user_id = ?', [req.params.id, req.userId]).catch(() => {})
+  res.json({ ok: true })
+})
+
+app.post('/api/notifications/read-all', authenticate, async (req, res) => {
+  await pool.query('UPDATE notifications SET read_at = NOW() WHERE user_id = ? AND read_at IS NULL', [req.userId]).catch(() => {})
+  res.json({ ok: true })
+})
+
+// ── Feed category suggestion ──────────────────────────────────────────────────
+app.get('/api/feed/suggest-category', authenticate, async (req, res) => {
+  const text = (req.query.text || '').toLowerCase()
+  const MAP = [
+    { keywords: ['mad', 'opskrift', 'food', 'recipe', 'pizza', 'kaffe', 'coffee'], cat: 'mad' },
+    { keywords: ['musik', 'music', 'sang', 'song', 'band', 'concert', 'koncert'], cat: 'musik' },
+    { keywords: ['rejse', 'travel', 'ferie', 'vacation', 'hotel', 'fly', 'flight'], cat: 'rejser' },
+    { keywords: ['film', 'movie', 'serie', 'netflix', 'tv'], cat: 'film' },
+    { keywords: ['teknologi', 'tech', 'ai', 'software', 'computer', 'kode', 'code'], cat: 'teknologi' },
+    { keywords: ['sport', 'fodbold', 'football', 'løb', 'run', 'træning', 'workout'], cat: 'sundhed' },
+    { keywords: ['kunst', 'art', 'maleri', 'painting', 'design', 'foto', 'photo'], cat: 'kunst' },
+    { keywords: ['gaming', 'game', 'spil', 'playstation', 'xbox', 'pc'], cat: 'gaming' },
+    { keywords: ['politik', 'politics', 'valg', 'election', 'regering', 'government'], cat: 'politik' },
+    { keywords: ['natur', 'nature', 'skov', 'forest', 'dyr', 'animal', 'plante', 'plant'], cat: 'natur' },
+    { keywords: ['bog', 'book', 'læs', 'read', 'roman', 'novel'], cat: 'boger' },
+    { keywords: ['økonomi', 'finance', 'aktie', 'stock', 'invest', 'penge', 'money'], cat: 'okonomi' },
+    { keywords: ['humor', 'sjov', 'funny', 'joke', 'griner', 'laugh'], cat: 'humor' },
+    { keywords: ['mode', 'fashion', 'tøj', 'clothes', 'outfit', 'style'], cat: 'mode' },
+    { keywords: ['diy', 'gør-det-selv', 'byg', 'build', 'reparér', 'fix'], cat: 'diy' },
+  ]
+  const match = MAP.find(m => m.keywords.some(kw => text.includes(kw)))
+  res.json({ category: match ? match.cat : null })
+})
+
+// ── Jobs ──────────────────────────────────────────────────────────────────────
+app.get('/api/jobs/mine', authenticate, async (req, res) => {
+  res.json({ jobs: [] })
+})
+
+// ── Google Photos (stub) ──────────────────────────────────────────────────────
+app.post('/api/providers/google-photos/download', authenticate, async (req, res) => {
+  res.status(501).json({ error: 'Google Photos integration not configured on this server' })
+})
+
+// ── Post insights (real data) ─────────────────────────────────────────────────
+app.get('/api/posts/:id/insights', authenticate, async (req, res) => {
+  const postId = parseInt(req.params.id)
+  if (isNaN(postId)) return res.status(400).json({ error: 'Invalid post ID' })
+  try {
+    const [[post]] = await pool.query(
+      'SELECT id, likes FROM posts WHERE id = ? AND author_id = ?',
+      [postId, req.userId]
+    )
+    if (!post) return res.status(403).json({ error: 'Not your post' })
+
+    const [[views]] = await pool.query(
+      'SELECT COUNT(*) AS reach, COALESCE(SUM(view_count), 0) AS impressions FROM post_views WHERE post_id = ?',
+      [postId]
+    )
+    const [[cmt]] = await pool.query(
+      'SELECT COUNT(*) AS cnt FROM comments WHERE post_id = ?',
+      [postId]
+    )
+    let shares = 0
+    try {
+      const [[sh]] = await pool.query(
+        "SELECT COUNT(*) AS cnt FROM share_tracks WHERE target_id = ? AND share_type = 'post'",
+        [postId]
+      )
+      shares = Number(sh.cnt)
+    } catch { shares = 0 }
+
+    res.json({
+      reach: Number(views.reach),
+      impressions: Number(views.impressions),
+      likes: post.likes || 0,
+      comments: Number(cmt.cnt),
+      shares,
+    })
+  } catch (err) {
+    console.error('GET /api/posts/:id/insights error:', err)
+    res.status(500).json({ error: 'Failed to load insights' })
+  }
+})
+
+// ── Moderation ────────────────────────────────────────────────────────────────
+
+// In-memory keyword filter cache (reloaded on change)
+let keywordFilterCache = []
+async function reloadKeywordFilters() {
+  try {
+    const [rows] = await pool.query('SELECT keyword, action, category, notes FROM keyword_filters')
+    keywordFilterCache = rows
+  } catch { keywordFilterCache = [] }
+}
+reloadKeywordFilters()
+
+function checkKeywords(text) {
+  if (!text) return null
+  const lower = text.toLowerCase()
+  for (const f of keywordFilterCache) {
+    if (lower.includes(f.keyword.toLowerCase())) return f
+  }
+  return null
+}
+
+// POST /api/users/:id/block — block a user
+app.post('/api/users/:id/block', authenticate, async (req, res) => {
+  const blockedId = parseInt(req.params.id)
+  if (isNaN(blockedId) || blockedId === req.userId) return res.status(400).json({ error: 'Invalid user' })
+  try {
+    await pool.query(
+      'INSERT IGNORE INTO user_blocks (blocker_id, blocked_id) VALUES (?, ?)',
+      [req.userId, blockedId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/users/:id/block error:', err)
+    res.status(500).json({ error: 'Failed to block user' })
+  }
+})
+
+// DELETE /api/users/:id/block — unblock a user
+app.delete('/api/users/:id/block', authenticate, async (req, res) => {
+  const blockedId = parseInt(req.params.id)
+  if (isNaN(blockedId)) return res.status(400).json({ error: 'Invalid user' })
+  try {
+    await pool.query(
+      'DELETE FROM user_blocks WHERE blocker_id = ? AND blocked_id = ?',
+      [req.userId, blockedId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/users/:id/block error:', err)
+    res.status(500).json({ error: 'Failed to unblock user' })
+  }
+})
+
+// GET /api/me/blocks — get list of users I have blocked
+app.get('/api/me/blocks', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT u.id, u.name, u.handle, u.avatar_url, ub.created_at AS blocked_at
+       FROM user_blocks ub
+       JOIN users u ON u.id = ub.blocked_id
+       WHERE ub.blocker_id = ?
+       ORDER BY ub.created_at DESC`,
+      [req.userId]
+    )
+    res.json({ blocks: rows })
+  } catch (err) {
+    console.error('GET /api/me/blocks error:', err)
+    res.status(500).json({ error: 'Failed to load blocks' })
+  }
+})
+
+// POST /api/reports — submit a report
+app.post('/api/reports', authenticate, async (req, res) => {
+  const { target_type, target_id, reason, details } = req.body
+  if (!['post', 'comment', 'user'].includes(target_type)) return res.status(400).json({ error: 'Invalid target_type' })
+  if (!target_id || !reason) return res.status(400).json({ error: 'target_id and reason required' })
+  try {
+    // Prevent duplicate reports from same user on same target
+    const [existing] = await pool.query(
+      'SELECT id FROM reports WHERE reporter_id = ? AND target_type = ? AND target_id = ? AND status = "pending"',
+      [req.userId, target_type, target_id]
+    )
+    if (existing.length > 0) return res.json({ ok: true, duplicate: true })
+    await pool.query(
+      'INSERT INTO reports (reporter_id, target_type, target_id, reason, details) VALUES (?, ?, ?, ?, ?)',
+      [req.userId, target_type, target_id, reason, details || null]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/reports error:', err)
+    res.status(500).json({ error: 'Failed to submit report' })
+  }
+})
+
+// GET /api/admin/moderation/queue — get pending reports (moderator+)
+app.get('/api/admin/moderation/queue', authenticate, requireModerator, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT r.id, r.target_type, r.target_id, r.reason, r.details, r.status, r.created_at,
+              u.name AS reporter_name, u.handle AS reporter_handle
+       FROM reports r
+       JOIN users u ON u.id = r.reporter_id
+       WHERE r.status = 'pending'
+       ORDER BY r.created_at ASC
+       LIMIT 100`
+    )
+    // For each report, fetch a preview of the target
+    const enriched = await Promise.all(rows.map(async (r) => {
+      let preview = null
+      try {
+        if (r.target_type === 'post') {
+          const [[p]] = await pool.query('SELECT p.text_da, p.text_en, u.name AS author FROM posts p JOIN users u ON u.id = p.author_id WHERE p.id = ?', [r.target_id])
+          preview = p || null
+        } else if (r.target_type === 'comment') {
+          const [[c]] = await pool.query('SELECT c.text_da, c.text_en, u.name AS author, c.post_id FROM comments c JOIN users u ON u.id = c.author_id WHERE c.id = ?', [r.target_id])
+          preview = c || null
+        } else if (r.target_type === 'user') {
+          const [[u]] = await pool.query('SELECT name, handle, status, strike_count FROM users WHERE id = ?', [r.target_id])
+          preview = u || null
+        }
+      } catch { /* ignore */ }
+      return { ...r, preview }
+    }))
+    res.json({ reports: enriched })
+  } catch (err) {
+    console.error('GET /api/admin/moderation/queue error:', err)
+    res.status(500).json({ error: 'Failed to load moderation queue' })
+  }
+})
+
+// POST /api/admin/moderation/reports/:id/dismiss — dismiss a report
+app.post('/api/admin/moderation/reports/:id/dismiss', authenticate, requireModerator, async (req, res) => {
+  const reportId = parseInt(req.params.id)
+  if (isNaN(reportId)) return res.status(400).json({ error: 'Invalid report ID' })
+  try {
+    await pool.query(
+      'UPDATE reports SET status = "dismissed", reviewed_by = ?, reviewed_at = NOW() WHERE id = ?',
+      [req.userId, reportId]
+    )
+    await pool.query(
+      'INSERT INTO moderation_actions (admin_id, action_type, target_id, reason) VALUES (?, "dismiss_report", ?, ?)',
+      [req.userId, reportId, req.body.reason || null]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/admin/moderation/reports/:id/dismiss error:', err)
+    res.status(500).json({ error: 'Failed to dismiss report' })
+  }
+})
+
+// POST /api/admin/moderation/content/remove — remove a post or comment
+app.post('/api/admin/moderation/content/remove', authenticate, requireModerator, async (req, res) => {
+  const { type, target_id, report_id, reason } = req.body
+  if (!['post', 'comment'].includes(type) || !target_id) return res.status(400).json({ error: 'Invalid type or target_id' })
+  try {
+    const table = type === 'post' ? 'posts' : 'comments'
+    await pool.query(`DELETE FROM ${table} WHERE id = ?`, [target_id])
+    if (report_id) {
+      await pool.query(
+        'UPDATE reports SET status = "actioned", reviewed_by = ?, reviewed_at = NOW() WHERE id = ?',
+        [req.userId, report_id]
+      )
+    }
+    await pool.query(
+      'INSERT INTO moderation_actions (admin_id, action_type, target_type, target_id, reason) VALUES (?, "remove_content", ?, ?, ?)',
+      [req.userId, type, target_id, reason || null]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/admin/moderation/content/remove error:', err)
+    res.status(500).json({ error: 'Failed to remove content' })
+  }
+})
+
+// POST /api/admin/moderation/users/:id/warn — issue a warning (strike)
+app.post('/api/admin/moderation/users/:id/warn', authenticate, requireModerator, async (req, res) => {
+  const targetId = parseInt(req.params.id)
+  if (isNaN(targetId)) return res.status(400).json({ error: 'Invalid user ID' })
+  const { reason, report_id } = req.body
+  try {
+    await pool.query(
+      'UPDATE users SET strike_count = strike_count + 1, last_strike_at = NOW() WHERE id = ?',
+      [targetId]
+    )
+    if (report_id) {
+      await pool.query(
+        'UPDATE reports SET status = "actioned", reviewed_by = ?, reviewed_at = NOW() WHERE id = ?',
+        [req.userId, report_id]
+      )
+    }
+    await pool.query(
+      'INSERT INTO moderation_actions (admin_id, target_user_id, action_type, reason) VALUES (?, ?, "warn", ?)',
+      [req.userId, targetId, reason || null]
+    )
+    // Send warning email if mailer is configured
+    if (mailer) {
+      const [[u]] = await pool.query('SELECT email, name FROM users WHERE id = ?', [targetId]).catch(() => [[null]])
+      if (u?.email) {
+        mailer.sendMail({
+          to: u.email,
+          subject: 'Advarsel fra fellis.eu / Warning from fellis.eu',
+          text: `Hej ${u.name},\n\nDu har modtaget en advarsel på fellis.eu.\nÅrsag: ${reason || 'Brud på fællesskabsreglerne'}\n\nVenlig hilsen,\nfellis.eu\n\n---\n\nHi ${u.name},\n\nYou have received a warning on fellis.eu.\nReason: ${reason || 'Community guidelines violation'}\n\nBest regards,\nfellis.eu`,
+        }).catch(() => {})
+      }
+    }
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/admin/moderation/users/:id/warn error:', err)
+    res.status(500).json({ error: 'Failed to warn user' })
+  }
+})
+
+// POST /api/admin/moderation/users/:id/suspend — suspend a user temporarily
+app.post('/api/admin/moderation/users/:id/suspend', authenticate, requireAdmin, async (req, res) => {
+  const targetId = parseInt(req.params.id)
+  if (isNaN(targetId)) return res.status(400).json({ error: 'Invalid user ID' })
+  const { days = 7, reason, report_id } = req.body
+  const suspendedUntil = new Date(Date.now() + days * 86400_000)
+  try {
+    await pool.query(
+      'UPDATE users SET status = "suspended", suspended_until = ?, strike_count = strike_count + 1, last_strike_at = NOW() WHERE id = ?',
+      [suspendedUntil, targetId]
+    )
+    // Invalidate all sessions for this user
+    await pool.query('DELETE FROM sessions WHERE user_id = ?', [targetId])
+    if (report_id) {
+      await pool.query(
+        'UPDATE reports SET status = "actioned", reviewed_by = ?, reviewed_at = NOW() WHERE id = ?',
+        [req.userId, report_id]
+      )
+    }
+    await pool.query(
+      'INSERT INTO moderation_actions (admin_id, target_user_id, action_type, reason) VALUES (?, ?, "suspend", ?)',
+      [req.userId, targetId, reason || null]
+    )
+    if (mailer) {
+      const [[u]] = await pool.query('SELECT email, name FROM users WHERE id = ?', [targetId]).catch(() => [[null]])
+      if (u?.email) {
+        mailer.sendMail({
+          to: u.email,
+          subject: 'Konto suspenderet / Account suspended — fellis.eu',
+          text: `Hej ${u.name},\n\nDin konto er blevet suspenderet i ${days} dage.\nÅrsag: ${reason || 'Brud på fællesskabsreglerne'}\n\nVenlig hilsen,\nfellis.eu\n\n---\n\nHi ${u.name},\n\nYour account has been suspended for ${days} days.\nReason: ${reason || 'Community guidelines violation'}\n\nBest regards,\nfellis.eu`,
+        }).catch(() => {})
+      }
+    }
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/admin/moderation/users/:id/suspend error:', err)
+    res.status(500).json({ error: 'Failed to suspend user' })
+  }
+})
+
+// POST /api/admin/moderation/users/:id/ban — permanently ban a user
+app.post('/api/admin/moderation/users/:id/ban', authenticate, requireAdmin, async (req, res) => {
+  const targetId = parseInt(req.params.id)
+  if (isNaN(targetId) || targetId === req.userId) return res.status(400).json({ error: 'Invalid user ID' })
+  const { reason, report_id } = req.body
+  try {
+    await pool.query('UPDATE users SET status = "banned" WHERE id = ?', [targetId])
+    await pool.query('DELETE FROM sessions WHERE user_id = ?', [targetId])
+    if (report_id) {
+      await pool.query(
+        'UPDATE reports SET status = "actioned", reviewed_by = ?, reviewed_at = NOW() WHERE id = ?',
+        [req.userId, report_id]
+      )
+    }
+    await pool.query(
+      'INSERT INTO moderation_actions (admin_id, target_user_id, action_type, reason) VALUES (?, ?, "ban", ?)',
+      [req.userId, targetId, reason || null]
+    )
+    if (mailer) {
+      const [[u]] = await pool.query('SELECT email, name FROM users WHERE id = ?', [targetId]).catch(() => [[null]])
+      if (u?.email) {
+        mailer.sendMail({
+          to: u.email,
+          subject: 'Konto lukket / Account banned — fellis.eu',
+          text: `Hej ${u.name},\n\nDin konto er blevet permanent lukket.\nÅrsag: ${reason || 'Brud på fællesskabsreglerne'}\n\nVenlig hilsen,\nfellis.eu\n\n---\n\nHi ${u.name},\n\nYour account has been permanently banned.\nReason: ${reason || 'Community guidelines violation'}\n\nBest regards,\nfellis.eu`,
+        }).catch(() => {})
+      }
+    }
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/admin/moderation/users/:id/ban error:', err)
+    res.status(500).json({ error: 'Failed to ban user' })
+  }
+})
+
+// POST /api/admin/moderation/users/:id/unban — lift a suspension or ban
+app.post('/api/admin/moderation/users/:id/unban', authenticate, requireAdmin, async (req, res) => {
+  const targetId = parseInt(req.params.id)
+  if (isNaN(targetId)) return res.status(400).json({ error: 'Invalid user ID' })
+  try {
+    await pool.query(
+      'UPDATE users SET status = "active", suspended_until = NULL WHERE id = ?',
+      [targetId]
+    )
+    await pool.query(
+      'INSERT INTO moderation_actions (admin_id, target_user_id, action_type) VALUES (?, ?, "unban")',
+      [req.userId, targetId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/admin/moderation/users/:id/unban error:', err)
+    res.status(500).json({ error: 'Failed to unban user' })
+  }
+})
+
+// GET /api/admin/moderation/users — list users with moderation info (moderator+)
+app.get('/api/admin/moderation/users', authenticate, requireModerator, async (req, res) => {
+  try {
+    const q = req.query.q ? `%${req.query.q}%` : '%'
+    const [rows] = await pool.query(
+      `SELECT id, name, handle, email, status, strike_count, suspended_until, last_strike_at, created_at,
+              moderator_candidate, moderator_candidate_note
+       FROM users
+       WHERE (name LIKE ? OR handle LIKE ? OR email LIKE ?)
+       ORDER BY strike_count DESC, created_at DESC
+       LIMIT 100`,
+      [q, q, q]
+    )
+    res.json({ users: rows })
+  } catch (err) {
+    console.error('GET /api/admin/moderation/users error:', err)
+    res.status(500).json({ error: 'Failed to load users' })
+  }
+})
+
+// GET /api/admin/moderation/keywords — list keyword filters
+app.get('/api/admin/moderation/keywords', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT id, keyword, action, category, notes, created_at FROM keyword_filters ORDER BY created_at DESC')
+    res.json({ keywords: rows })
+  } catch (err) {
+    console.error('GET /api/admin/moderation/keywords error:', err)
+    res.status(500).json({ error: 'Failed to load keyword filters' })
+  }
+})
+
+// POST /api/admin/moderation/keywords — add a keyword filter
+app.post('/api/admin/moderation/keywords', authenticate, requireAdmin, async (req, res) => {
+  const { keyword, action = 'flag', category = 'other', notes } = req.body
+  const validActions = ['flag', 'block']
+  const validCategories = ['profanity', 'hate_speech', 'sexual', 'violence', 'drugs', 'harassment', 'spam', 'other']
+  if (!keyword || !validActions.includes(action) || !validCategories.includes(category)) return res.status(400).json({ error: 'keyword, valid action, and valid category required' })
+  try {
+    await pool.query(
+      'INSERT INTO keyword_filters (keyword, action, category, notes, created_by) VALUES (?, ?, ?, ?, ?)',
+      [keyword.trim().toLowerCase(), action, category, notes?.trim() || null, req.userId]
+    )
+    await reloadKeywordFilters()
+    res.json({ ok: true })
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Keyword already exists' })
+    console.error('POST /api/admin/moderation/keywords error:', err)
+    res.status(500).json({ error: 'Failed to add keyword filter' })
+  }
+})
+
+// PATCH /api/admin/moderation/keywords/:id — update a keyword filter
+app.patch('/api/admin/moderation/keywords/:id', authenticate, requireAdmin, async (req, res) => {
+  const id = parseInt(req.params.id)
+  if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' })
+  const { keyword, action, category, notes } = req.body
+  const validActions = ['flag', 'block']
+  const validCategories = ['profanity', 'hate_speech', 'sexual', 'violence', 'drugs', 'harassment', 'spam', 'other']
+  if (!keyword || !validActions.includes(action) || !validCategories.includes(category)) return res.status(400).json({ error: 'keyword, valid action, and valid category required' })
+  try {
+    await pool.query(
+      'UPDATE keyword_filters SET keyword = ?, action = ?, category = ?, notes = ? WHERE id = ?',
+      [keyword.trim().toLowerCase(), action, category, notes?.trim() || null, id]
+    )
+    await reloadKeywordFilters()
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('PATCH /api/admin/moderation/keywords/:id error:', err)
+    res.status(500).json({ error: 'Failed to update keyword filter' })
+  }
+})
+
+// DELETE /api/admin/moderation/keywords/:id — remove a keyword filter
+app.delete('/api/admin/moderation/keywords/:id', authenticate, requireAdmin, async (req, res) => {
+  const id = parseInt(req.params.id)
+  if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' })
+  try {
+    await pool.query('DELETE FROM keyword_filters WHERE id = ?', [id])
+    await reloadKeywordFilters()
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/admin/moderation/keywords/:id error:', err)
+    res.status(500).json({ error: 'Failed to delete keyword filter' })
+  }
+})
+
+// GET /api/admin/moderation/actions — recent moderation audit log (moderator+)
+app.get('/api/admin/moderation/actions', authenticate, requireModerator, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT ma.id, ma.action_type, ma.target_type, ma.target_id, ma.reason, ma.created_at,
+              a.name AS admin_name,
+              tu.name AS target_user_name, tu.handle AS target_user_handle
+       FROM moderation_actions ma
+       JOIN users a ON a.id = ma.admin_id
+       LEFT JOIN users tu ON tu.id = ma.target_user_id
+       ORDER BY ma.created_at DESC
+       LIMIT 200`
+    )
+    res.json({ actions: rows })
+  } catch (err) {
+    console.error('GET /api/admin/moderation/actions error:', err)
+    res.status(500).json({ error: 'Failed to load audit log' })
+  }
+})
+
+// GET /api/admin/moderation/candidates — list moderator candidates
+app.get('/api/admin/moderation/candidates', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, name, handle, email, status, strike_count, moderator_candidate_note, moderator_candidate_at, created_at
+       FROM users
+       WHERE moderator_candidate = 1
+       ORDER BY moderator_candidate_at DESC`
+    )
+    res.json({ candidates: rows })
+  } catch (err) {
+    console.error('GET /api/admin/moderation/candidates error:', err)
+    res.status(500).json({ error: 'Failed to load candidates' })
+  }
+})
+
+// PATCH /api/admin/moderation/users/:id/candidate — mark/unmark as moderator candidate
+app.patch('/api/admin/moderation/users/:id/candidate', authenticate, requireAdmin, async (req, res) => {
+  const id = parseInt(req.params.id)
+  if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' })
+  const { is_candidate, note } = req.body
+  try {
+    await pool.query(
+      `UPDATE users SET moderator_candidate = ?, moderator_candidate_note = ?, moderator_candidate_at = ? WHERE id = ?`,
+      [is_candidate ? 1 : 0, is_candidate ? (note || null) : null, is_candidate ? new Date() : null, id]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('PATCH /api/admin/moderation/users/:id/candidate error:', err)
+    res.status(500).json({ error: 'Failed to update candidate status' })
+  }
+})
+
+// ── Moderator management (admin, invite-only) ────────────────────────────────
+
+// GET /api/admin/moderators — list current moderators
+app.get('/api/admin/moderators', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, name, handle, email, created_at FROM users WHERE is_moderator = 1 ORDER BY name ASC`
+    )
+    res.json({ moderators: rows })
+  } catch (err) {
+    console.error('GET /api/admin/moderators error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/admin/moderators/:userId/grant — assign moderator status (invite)
+app.post('/api/admin/moderators/:userId/grant', authenticate, requireAdmin, async (req, res) => {
+  const targetId = parseInt(req.params.userId)
+  if (!targetId || targetId === 1) return res.status(400).json({ error: 'Invalid target' })
+  try {
+    const [[user]] = await pool.query('SELECT id, name, email FROM users WHERE id = ?', [targetId])
+    if (!user) return res.status(404).json({ error: 'User not found' })
+    await pool.query('UPDATE users SET is_moderator = 1, moderator_candidate = 0 WHERE id = ?', [targetId])
+    await pool.query(
+      'INSERT INTO moderation_actions (admin_id, target_user_id, action_type) VALUES (?, ?, "grant_moderator")',
+      [req.userId, targetId]
+    )
+    await createNotification(
+      targetId, 'moderator_granted',
+      'Du er nu moderator på fellis.eu 🛡️',
+      'You are now a moderator on fellis.eu 🛡️',
+      '/moderation'
+    )
+    if (mailer && user.email) {
+      mailer.sendMail({
+        to: user.email,
+        subject: 'Du er nu moderator på fellis.eu',
+        text: `Hej ${user.name},\n\nDu er nu moderator på fellis.eu.\n\nSom moderator kan du behandle rapporter, fjerne indhold og advare brugere. Log ind og find "Moderation" i menuen.\n\nVenlig hilsen,\nfellis.eu\n\n---\n\nHi ${user.name},\n\nYou are now a moderator on fellis.eu.\n\nAs a moderator you can handle reports, remove content, and warn users. Log in and find "Moderation" in the menu.\n\nBest regards,\nfellis.eu`,
+      }).catch(() => {})
+    }
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/admin/moderators/:userId/grant error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/admin/moderators/:userId/revoke — remove moderator status
+app.post('/api/admin/moderators/:userId/revoke', authenticate, requireAdmin, async (req, res) => {
+  const targetId = parseInt(req.params.userId)
+  if (!targetId) return res.status(400).json({ error: 'Invalid target' })
+  try {
+    await pool.query('UPDATE users SET is_moderator = 0 WHERE id = ?', [targetId])
+    await pool.query(
+      'INSERT INTO moderation_actions (admin_id, target_user_id, action_type) VALUES (?, ?, "revoke_moderator")',
+      [req.userId, targetId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/admin/moderators/:userId/revoke error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // Multer error handler
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
@@ -4720,6 +5908,18 @@ app.use((err, req, res, next) => {
   next()
 })
 
+// Wildcard stub for client-only/unimplemented endpoints
+app.all('/api/stub/:fn', authenticate, (req, res) => res.json({ ok: true }))
+
+// Prevent unhandled promise rejections from crashing the process (PM2 would
+// restart, dropping all live SSE connections in the process).
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled promise rejection (caught at process level):', reason)
+})
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception (caught at process level):', err)
+})
+
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
   console.log(`fellis.eu API running on http://localhost:${PORT}`)
@@ -4727,6 +5927,7 @@ app.listen(PORT, () => {
     console.warn('⚠️  WARNING: FB_TOKEN_ENCRYPTION_KEY not set. Facebook tokens will be stored unencrypted.')
     console.warn('   Generate a key with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"')
   }
+  initNotifications()
   initEvents()
   initFriendRequests()
   initConversations()
@@ -4738,4 +5939,10 @@ app.listen(PORT, () => {
   initSiteVisits()
   initViralGrowth()
   initReels()
+  initAds()
+  initAdminAdSettings()
 })
+
+app.all('/api/stub/:fn', authenticate, (req, res) => res.json({ ok: true }))
+
+app.post('/api/upload/file', authenticate, (req, res) => res.json({ ok: true, url: null }))
