@@ -1,8 +1,9 @@
-import { useState, useCallback, useRef, useEffect, useLayoutEffect } from 'react'
+import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } from 'react'
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { PT, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdminAdSettings, apiSaveAdminAdSettings } from './api.js'
 import ReelsPage from './Reels.jsx'
+import AdBanner from './AdBanner.jsx'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -47,8 +48,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
   const [showNotifPanel, setShowNotifPanel] = useState(false)
   const [notifs, setNotifs] = useState([])
   const [showModeModal, setShowModeModal] = useState(false)
-  const [plan, setPlan] = useState('business') // set from server session; 'business_pro' = paid tier
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+  const [adsFree, setAdsFree] = useState(false)
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('fellis_dark') === '1')
   const [showOnboarding, setShowOnboarding] = useState(() => localStorage.getItem('fellis_onboarding') === '1')
   const [onboardingInviterName] = useState(() => localStorage.getItem('fellis_onboarding_inviter') || null)
@@ -64,15 +64,6 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
   const unreadCount = notifs.filter(n => !n.read).length
 
   const switchMode = (newMode) => {
-    // 'business_pro' is a UI-only tier key: mode=business + plan=business_pro
-    if (newMode === 'business_pro') {
-      if (plan !== 'business_pro') {
-        setShowModeModal(false)
-        setShowUpgradeModal(true)
-        return
-      }
-      newMode = 'business' // already pro, just ensure mode is business
-    }
     setMode(newMode)
     localStorage.setItem('fellis_mode', newMode)
     setShowModeModal(false)
@@ -97,7 +88,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
     apiCheckSession().then(data => {
       if (data?.user) {
         setCurrentUser(prev => ({ ...prev, ...data.user }))
-        if (data.user.plan) setPlan(data.user.plan)
+        if (data.user.ads_free !== undefined) setAdsFree(Boolean(data.user.ads_free))
         // Mode from server is authoritative — sync to localStorage
         if (data.user.mode) {
           setMode(data.user.mode)
@@ -204,14 +195,14 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
           {showMobileMenu ? '✕' : '☰'}
         </button>
         <div className={`p-nav-tabs${showMobileMenu ? ' open' : ''}`}>
-          {['feed', 'reels', 'friends', 'messages', 'events', 'calendar', 'marketplace', ...(mode === 'business' ? ['jobs', 'analytics', 'company'] : [])].map(p => (
+          {['feed', 'reels', 'friends', 'messages', 'events', 'calendar', 'marketplace', ...(mode === 'business' ? ['jobs', 'analytics', 'company', 'ads'] : [])].map(p => (
             <button
               key={p}
               className={`p-nav-tab${page === p ? ' active' : ''}`}
               onClick={() => navigateTo(p)}
             >
               <span className="p-nav-tab-icon">
-                {p === 'feed' ? '🏠' : p === 'reels' ? '🎬' : p === 'friends' ? '👥' : p === 'messages' ? '💬' : p === 'events' ? '📅' : p === 'calendar' ? '🗓️' : p === 'marketplace' ? '🛍️' : p === 'analytics' ? '📊' : p === 'company' ? '🏢' : p === 'admin' ? '⚙️' : '💼'}
+                {p === 'feed' ? '🏠' : p === 'reels' ? '🎬' : p === 'friends' ? '👥' : p === 'messages' ? '💬' : p === 'events' ? '📅' : p === 'calendar' ? '🗓️' : p === 'marketplace' ? '🛍️' : p === 'analytics' ? '📊' : p === 'company' ? '🏢' : p === 'admin' ? '⚙️' : p === 'ads' ? '📢' : '💼'}
               </span>
               <span className="p-nav-tab-label">
                 {p === 'friends'
@@ -219,6 +210,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
                   : p === 'analytics' ? t.analyticsNav
                   : p === 'company' ? t.companies
                   : p === 'admin' ? t.adminTitle
+                  : p === 'ads' ? t.adsTitle
                   : (t[p] || p)}
               </span>
             </button>
@@ -279,7 +271,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
                   <strong>{currentUser.name}</strong>
                   <span style={{ fontSize: 12, color: '#888' }}>{currentUser.handle}</span>
                   <span style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>
-                    {mode === 'privat' ? t.modeCommonTag : plan === 'business_pro' ? t.modeBusinessProTag : t.modeBusinessTag}
+                    {mode === 'privat' ? t.modeCommonTag : t.modeBusinessTag}{adsFree ? ' · ✓ Ad-free' : ''}
                   </span>
                 </div>
                 <div className="avatar-dropdown-divider" />
@@ -320,14 +312,14 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
 
       <div className="p-content">
         <div style={{ display: page === 'feed' ? '' : 'none' }}>
-          <FeedPage lang={lang} t={t} currentUser={currentUser} mode={mode} highlightPostId={highlightPostId} onHighlightCleared={() => setHighlightPostId(null)}
+          <FeedPage lang={lang} t={t} currentUser={currentUser} mode={mode} adsFree={adsFree} highlightPostId={highlightPostId} onHighlightCleared={() => setHighlightPostId(null)}
             onViewProfile={(uid) => { setViewUserId(uid); navigateTo('view-profile') }}
             onViewOwnProfile={() => navigateTo('profile')}
             onNavigate={navigateTo}
           />
         </div>
         {page === 'reels' && <ReelsPage t={t} currentUser={currentUser} initialReelId={navParam?.reelId} />}
-        {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} plan={plan} onUserUpdate={setCurrentUser} onNavigate={navigateTo} />}
+        {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} />}
         {page === 'view-profile' && viewUserId && <FriendProfilePage userId={viewUserId} lang={lang} t={t} currentUser={currentUser} onBack={() => navigateTo('feed')} onMessage={async (prof) => { const data = await apiCreateConversation([prof.id], null, false, false).catch(() => null); if (data?.id) setOpenConvId(data.id); navigateTo('messages') }} />}
         {page === 'edit-profile' && <EditProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} />}
         {page === 'friends' && <FriendsPage lang={lang} t={t} mode={mode} onMessage={async (friend) => {
@@ -351,9 +343,10 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
           navigateTo('messages')
         }} onViewProfile={(uid) => { setViewUserId(uid); navigateTo('view-profile') }} />}
         {page === 'jobs' && <JobsPage lang={lang} t={t} currentUser={currentUser} mode={mode} />}
+        {page === 'ads' && mode === 'business' && <AdsManagementPage lang={lang} t={t} />}
         {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} initialCompanyId={navParam?.companyId} />}
-        {page === 'analytics' && <AnalyticsPage lang={lang} t={t} currentUser={currentUser} plan={plan} onUpgrade={() => setShowUpgradeModal(true)} />}
-        {page === 'settings' && <SettingsPage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onLogout={onLogout} onOpenModeModal={() => setShowModeModal(true)} darkMode={darkMode} onToggleDark={() => setDarkMode(d => !d)} />}
+        {page === 'analytics' && <AnalyticsPage lang={lang} t={t} currentUser={currentUser} />}
+        {page === 'settings' && <SettingsPage lang={lang} t={t} currentUser={currentUser} mode={mode} adsFree={adsFree} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onLogout={onLogout} onOpenModeModal={() => setShowModeModal(true)} darkMode={darkMode} onToggleDark={() => setDarkMode(d => !d)} />}
         {page === 'privacy' && <PrivacySection lang={lang} onLogout={onLogout} />}
         {page === 'visitors' && <VisitorStatsPage lang={lang} />}
         {page === 'about' && <AboutPage lang={lang} />}
@@ -385,29 +378,18 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
       )}
 
       {/* Mode switch modal */}
-      {showUpgradeModal && (
-        <UpgradeModal lang={lang} t={t} onUpgrade={() => {
-          setPlan('business_pro')
-          setShowUpgradeModal(false)
-          setMode('business')
-          localStorage.setItem('fellis_mode', 'business')
-          apiUpdateMode('business').catch(() => {})
-          apiUpdatePlan('business_pro').catch(() => {})
-        }} onClose={() => setShowUpgradeModal(false)} />
-      )}
       {showModeModal && (() => {
-        const currentTier = mode === 'privat' ? 'privat' : plan === 'business_pro' ? 'business_pro' : 'business'
-        const currentLabel = currentTier === 'privat' ? t.modeCommon : currentTier === 'business_pro' ? t.modeBusinessPro : t.modeBusiness
+        const currentTier = mode === 'privat' ? 'privat' : 'business'
+        const currentLabel = currentTier === 'privat' ? t.modeCommon : t.modeBusiness
         return (
           <div className="modal-backdrop" onClick={() => setShowModeModal(false)}>
-            <div className="mode-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
+            <div className="mode-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
               <h3 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 700 }}>{t.modeTitle}</h3>
               <p style={{ margin: '0 0 20px', fontSize: 13, color: '#888' }}>{t.modeCurrentLabel}: <strong>{currentLabel}</strong></p>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 {[
                   { key: 'privat', label: t.modeCommon, icon: '🏠', desc: t.modeCommonDesc, badge: null },
                   { key: 'business', label: t.modeBusiness, icon: '💼', desc: t.modeBusinessDesc, badge: lang === 'da' ? 'Gratis' : 'Free' },
-                  { key: 'business_pro', label: t.modeBusinessPro, icon: '🚀', desc: t.modeBusinessProDesc, badge: lang === 'da' ? 'Betalt' : 'Paid' },
                 ].map(({ key, label, icon, desc, badge }) => {
                   const isActive = key === currentTier
                   return (
@@ -419,7 +401,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
                     >
                       <span style={{ fontSize: 28 }}>{icon}</span>
                       <strong style={{ fontSize: 14 }}>{label}</strong>
-                      {badge && <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 10, background: key === 'business_pro' ? '#2D6A4F' : '#e8f5ee', color: key === 'business_pro' ? '#fff' : '#2D6A4F', fontWeight: 700 }}>{badge}</span>}
+                      {badge && <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 10, background: '#e8f5ee', color: '#2D6A4F', fontWeight: 700 }}>{badge}</span>}
                       <span style={{ fontSize: 11, color: '#777', lineHeight: 1.4 }}>{desc}</span>
                       {isActive && <span className="mode-card-check">✓</span>}
                     </button>
@@ -1030,7 +1012,7 @@ function GooglePhotosPicker({ lang, clientId, maxFiles = 4, onPhotosSelected, on
   )
 }
 
-function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onNavigate }) {
+function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onNavigate }) {
   const [posts, setPosts] = useState([])
   const [feedCategoryFilter, setFeedCategoryFilter] = useState(null)
   const [pinnedPost, setPinnedPost] = useState(null)
@@ -2081,13 +2063,15 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
       })()}
 
       {/* Posts — max PAGE_SIZE in DOM */}
-      {posts.filter(post => !hiddenPosts.has(post.id) && (!feedCategoryFilter || (Array.isArray(post.categories) && post.categories.includes(feedCategoryFilter)))).map(post => {
+      {posts.filter(post => !hiddenPosts.has(post.id) && (!feedCategoryFilter || (Array.isArray(post.categories) && post.categories.includes(feedCategoryFilter)))).map((post, postIdx) => {
         const liked = likedPosts.has(post.id)
         const showComments = expandedComments.has(post.id)
         const isOwn = post.author === currentUser.name
         const menuOpen = postMenu === post.id
         return (
-          <div key={post.id} className="p-card p-post">
+          <Fragment key={post.id}>
+            {postIdx > 0 && postIdx % 4 === 0 && <AdBanner placement="feed" adsFree={adsFree} />}
+          <div className="p-card p-post">
             <div className="p-post-header">
               <div
                 className="p-avatar-sm"
@@ -2381,6 +2365,7 @@ function FeedPage({ lang, t, currentUser, mode, highlightPostId, onHighlightClea
               </div>
             )}
           </div>
+          </Fragment>
         )
       })}
 
@@ -2472,7 +2457,7 @@ const MOCK_FB_PHOTOS = [
 ]
 
 // ── Profile (clean — read-only view) ──
-function ProfilePage({ lang, t, currentUser, mode, plan, onUserUpdate, onNavigate }) {
+function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
   const [profile, setProfile] = useState({ ...currentUser })
   const [userPosts, setUserPosts] = useState([])
   const [familyGroups, setFamilyGroups] = useState([])
@@ -2545,13 +2530,8 @@ function ProfilePage({ lang, t, currentUser, mode, plan, onUserUpdate, onNavigat
             <h2 className="p-profile-name" style={{ margin: 0 }}>{profile.name}</h2>
             {mode === 'business' && <span style={{
               fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 10,
-              background: plan === 'business_pro' ? '#2D6A4F' : '#F0FAF4',
-              color: plan === 'business_pro' ? '#fff' : '#2D6A4F',
-              border: plan === 'business_pro' ? 'none' : '1px solid #2D6A4F',
-              flexShrink: 0,
-            }}>
-              {plan === 'business_pro' ? 'Business Pro ⚡' : 'Business'}
-            </span>}
+              background: '#F0FAF4', color: '#2D6A4F', border: '1px solid #2D6A4F', flexShrink: 0,
+            }}>Business</span>}
           </div>
           <p className="p-profile-handle">{profile.handle}</p>
           <p className="p-profile-bio">{profile.bio?.[lang] || profile.bio?.da || ''}</p>
@@ -3234,7 +3214,8 @@ function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, on
 
   const fS = { display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box', fontFamily: 'inherit' }
   const lS = { display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4, marginTop: 14 }
-  const tabLabels = { konto: t.settingsKonto, privatliv: t.settingsPrivatliv, sessions: t.settingsSessions, sprog: t.settingsSprog, leverandoerer: t.settingsLeverandoerer }
+  const billingLabel = lang === 'da' ? 'Abonnement' : 'Billing'
+  const tabLabels = { konto: t.settingsKonto, billing: billingLabel, privatliv: t.settingsPrivatliv, sessions: t.settingsSessions, sprog: t.settingsSprog, leverandoerer: t.settingsLeverandoerer }
 
   return (
     <div className="p-events" style={{ maxWidth: 600 }}>
@@ -3246,10 +3227,75 @@ function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, on
       </div>
 
       {tab === 'konto' && <SettingsKonto lang={lang} t={t} currentUser={currentUser} mode={mode} fS={fS} lS={lS} onNavigate={onNavigate} onOpenModeModal={onOpenModeModal} />}
+      {tab === 'billing' && <BillingSettings lang={lang} t={t} />}
       {tab === 'privatliv' && <SettingsPrivatliv lang={lang} t={t} fS={fS} lS={lS} />}
       {tab === 'sessions' && <SettingsSessions lang={lang} t={t} onLogout={onLogout} />}
       {tab === 'sprog' && <SettingsSprog lang={lang} t={t} darkMode={darkMode} onToggleDark={onToggleDark} />}
       {tab === 'leverandoerer' && <SettingsLeverandoerer lang={lang} t={t} />}
+    </div>
+  )
+}
+
+function BillingSettings({ lang, t }) {
+  const [sub, setSub] = useState(null)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    apiGetSubscription().then(data => { if (data) setSub(data) }).catch(() => {})
+  }, [])
+
+  const handleCheckout = async () => {
+    setLoading(true)
+    const data = await apiCreateAdFreeCheckout().catch(() => null)
+    setLoading(false)
+    if (data?.url) {
+      window.location.href = data.url
+    } else if (data?.error) {
+      alert(data.error)
+    }
+  }
+
+  if (!sub) return <div style={{ padding: 20, color: '#888', textAlign: 'center' }}>{lang === 'da' ? 'Henter…' : 'Loading…'}</div>
+
+  const currency = sub.currency || 'DKK'
+  const price = sub.price || 29
+
+  return (
+    <div>
+      <div className="p-card" style={{ padding: 24, marginBottom: 16 }}>
+        <h3 style={{ margin: '0 0 8px', fontSize: 16, fontWeight: 700 }}>🚫 {t.adFreeTitle}</h3>
+        <p style={{ margin: '0 0 16px', fontSize: 14, color: '#555', lineHeight: 1.6 }}>{t.adFreeDesc}</p>
+
+        {sub.ads_free ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: '#F0FAF4', borderRadius: 10, border: '1px solid #c3e6cb' }}>
+            <span style={{ fontSize: 20 }}>✅</span>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 14, color: '#2D6A4F' }}>{t.adFreeActiveLabel}</div>
+              <div style={{ fontSize: 12, color: '#555', marginTop: 2 }}>{lang === 'da' ? 'Abonnementet fornyes automatisk.' : 'Your subscription renews automatically.'}</div>
+            </div>
+          </div>
+        ) : (
+          <>
+            {!sub.ads_enabled && (
+              <div style={{ fontSize: 13, color: '#888', marginBottom: 12 }}>
+                {lang === 'da' ? 'Annoncer er i øjeblikket deaktiveret på platformen.' : 'Ads are currently disabled on the platform.'}
+              </div>
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+              <span style={{ fontSize: 13, color: '#555' }}>{t.adFreePrice}:</span>
+              <span style={{ fontSize: 22, fontWeight: 800, color: '#1a1a1a' }}>{price} {currency}</span>
+              <span style={{ fontSize: 13, color: '#888' }}>{t.adFreeMonth}</span>
+            </div>
+            <button
+              onClick={handleCheckout}
+              disabled={loading}
+              style={{ width: '100%', padding: '12px 0', borderRadius: 10, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 15, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}
+            >
+              {loading ? t.adFreeLoading : t.adFreeBtn}
+            </button>
+          </>
+        )}
+      </div>
     </div>
   )
 }
@@ -9289,27 +9335,217 @@ function PostInsightsPanel({ t, post, onClose }) {
 }
 
 // ─────────────────────────────────────────────
-// ── PlanGate ─────────────────────────────────
+// ── AdsManagementPage (business users) ───────
 // ─────────────────────────────────────────────
 
-function PlanGate({ plan, required = 'business_pro', t, onUpgrade, children }) {
-  const locked = plan !== required
-  if (!locked) return children
+function AdsManagementPage({ lang, t }) {
+  const [ads, setAds] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [showCreate, setShowCreate] = useState(false)
+  const [editAd, setEditAd] = useState(null)
+  const [form, setForm] = useState({ title: '', body: '', image_url: '', target_url: '', placement: 'feed', start_date: '', end_date: '' })
+  const [saving, setSaving] = useState(false)
+
+  const reload = () => {
+    setLoading(true)
+    apiGetMyAds().then(data => { setAds(data?.ads || []); setLoading(false) }).catch(() => setLoading(false))
+  }
+
+  useEffect(() => { reload() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const statusLabel = (s) => ({ draft: t.adsStatusDraft, active: t.adsStatusActive, paused: t.adsStatusPaused, archived: t.adsStatusArchived }[s] || s)
+  const placementLabel = (p) => ({ feed: t.adsFeed, sidebar: t.adsSidebar, stories: t.adsStories }[p] || p)
+  const ctr = (imp, cl) => imp > 0 ? ((cl / imp) * 100).toFixed(2) + '%' : '–'
+
+  const openCreate = () => { setForm({ title: '', body: '', image_url: '', target_url: '', placement: 'feed', start_date: '', end_date: '' }); setEditAd(null); setShowCreate(true) }
+  const openEdit = (ad) => { setForm({ title: ad.title, body: ad.body || '', image_url: ad.image_url || '', target_url: ad.target_url, placement: ad.placement, start_date: ad.start_date ? ad.start_date.slice(0,10) : '', end_date: ad.end_date ? ad.end_date.slice(0,10) : '' }); setEditAd(ad); setShowCreate(true) }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setSaving(true)
+    const payload = { ...form }
+    if (!payload.start_date) delete payload.start_date
+    if (!payload.end_date) delete payload.end_date
+    if (editAd) {
+      await apiUpdateAd(editAd.id, payload).catch(() => {})
+    } else {
+      await apiCreateAd(payload).catch(() => {})
+    }
+    setSaving(false); setShowCreate(false); reload()
+  }
+
+  const handleStatus = async (ad, status) => {
+    await apiUpdateAd(ad.id, { status }).catch(() => {})
+    reload()
+  }
+
+  const handleDelete = async (ad) => {
+    if (!window.confirm(lang === 'da' ? 'Arkivér denne annonce?' : 'Archive this ad?')) return
+    await apiDeleteAd(ad.id).catch(() => {})
+    reload()
+  }
+
+  const fieldStyle = { width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }
+  const labelStyle = { fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 4, marginTop: 12 }
+
   return (
-    <div className="p-plan-gate">
-      <div className="p-plan-gate-blur">{children}</div>
-      <div className="p-plan-gate-overlay">
-        <div className="p-plan-gate-lock">🔒</div>
-        <div className="p-plan-gate-msg">{t.analyticsLockedMsg}</div>
-        <button className="p-plan-gate-btn" onClick={onUpgrade}>{t.analyticsLockedBtn}</button>
+    <div style={{ maxWidth: 800, margin: '0 auto', padding: '0 16px 80px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '20px 0 16px' }}>
+        <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>📢 {t.adsTitle}</h2>
+        <button onClick={openCreate} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>+ {t.adsCreate}</button>
       </div>
+
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 40, color: '#888' }}>{lang === 'da' ? 'Henter…' : 'Loading…'}</div>
+      ) : ads.length === 0 ? (
+        <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>{t.adsNoAds}</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {ads.map(ad => (
+            <div key={ad.id} className="p-card" style={{ padding: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{ad.title}</div>
+                  {ad.body && <div style={{ fontSize: 13, color: '#555', marginBottom: 6 }}>{ad.body}</div>}
+                  <div style={{ display: 'flex', gap: 16, fontSize: 12, color: '#888', flexWrap: 'wrap' }}>
+                    <span>{t.adsPlacement}: <strong>{placementLabel(ad.placement)}</strong></span>
+                    <span>{t.adsStatus}: <strong style={{ color: ad.status === 'active' ? '#2D6A4F' : ad.status === 'paused' ? '#e67e22' : '#aaa' }}>{statusLabel(ad.status)}</strong></span>
+                    <span>{t.adsImpressions}: <strong>{ad.impressions}</strong></span>
+                    <span>{t.adsClicks}: <strong>{ad.clicks}</strong></span>
+                    <span>{t.adsCTR}: <strong>{ctr(ad.impressions, ad.clicks)}</strong></span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                  {ad.status === 'draft' && <button onClick={() => handleStatus(ad, 'active')} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, border: '1px solid #2D6A4F', color: '#2D6A4F', background: 'none', cursor: 'pointer' }}>{t.adsActivate}</button>}
+                  {ad.status === 'active' && <button onClick={() => handleStatus(ad, 'paused')} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, border: '1px solid #e67e22', color: '#e67e22', background: 'none', cursor: 'pointer' }}>{t.adsPause}</button>}
+                  {ad.status === 'paused' && <button onClick={() => handleStatus(ad, 'active')} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, border: '1px solid #2D6A4F', color: '#2D6A4F', background: 'none', cursor: 'pointer' }}>{t.adsActivate}</button>}
+                  <button onClick={() => openEdit(ad)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, border: '1px solid #999', background: 'none', cursor: 'pointer' }}>{t.adsEdit}</button>
+                  <button onClick={() => handleDelete(ad)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, border: '1px solid #e74c3c', color: '#e74c3c', background: 'none', cursor: 'pointer' }}>{t.adsDelete}</button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showCreate && (
+        <div className="modal-backdrop" onClick={() => setShowCreate(false)}>
+          <div className="p-card" style={{ width: '100%', maxWidth: 500, padding: 24 }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 700 }}>{editAd ? t.adsEdit : t.adsCreate}</h3>
+            <form onSubmit={handleSubmit}>
+              <label style={labelStyle}>{t.adsAdTitle} *</label>
+              <input required style={fieldStyle} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
+              <label style={labelStyle}>{t.adsAdBody}</label>
+              <textarea style={{ ...fieldStyle, minHeight: 60 }} value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))} />
+              <label style={labelStyle}>{t.adsAdImage}</label>
+              <input style={fieldStyle} value={form.image_url} onChange={e => setForm(f => ({ ...f, image_url: e.target.value }))} placeholder="https://..." />
+              <label style={labelStyle}>{t.adsAdTarget} *</label>
+              <input required style={fieldStyle} value={form.target_url} onChange={e => setForm(f => ({ ...f, target_url: e.target.value }))} placeholder="https://..." />
+              <label style={labelStyle}>{t.adsPlacement}</label>
+              <select style={fieldStyle} value={form.placement} onChange={e => setForm(f => ({ ...f, placement: e.target.value }))}>
+                <option value="feed">{t.adsFeed}</option>
+                <option value="sidebar">{t.adsSidebar}</option>
+                <option value="stories">{t.adsStories}</option>
+              </select>
+              <label style={labelStyle}>{t.adsAdStartDate}</label>
+              <input type="date" style={fieldStyle} value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} />
+              <label style={labelStyle}>{t.adsAdEndDate}</label>
+              <input type="date" style={fieldStyle} value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} />
+              <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+                <button type="submit" disabled={saving} style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>{saving ? '…' : t.adsSave}</button>
+                <button type="button" onClick={() => setShowCreate(false)} style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: '1px solid #ddd', background: 'none', fontSize: 14, cursor: 'pointer' }}>{t.adsCancel}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
 // ─────────────────────────────────────────────
-// ── UpgradeModal ──────────────────────────────
+// ── AdminAdSettingsPanel ──────────────────────
 // ─────────────────────────────────────────────
+
+function AdminAdSettingsPanel({ lang, t }) {
+  const [settings, setSettings] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    apiGetAdminAdSettings().then(data => { if (data?.settings) setSettings(data.settings) }).catch(() => {})
+  }, [])
+
+  const handle = (key, val) => setSettings(s => ({ ...s, [key]: val }))
+
+  const handleSave = async (e) => {
+    e.preventDefault()
+    setSaving(true)
+    await apiSaveAdminAdSettings({
+      adfree_price_private: parseFloat(settings.adfree_price_private),
+      adfree_price_business: parseFloat(settings.adfree_price_business),
+      ad_price_cpm: parseFloat(settings.ad_price_cpm),
+      currency: settings.currency,
+      max_ads_feed: parseInt(settings.max_ads_feed),
+      max_ads_sidebar: parseInt(settings.max_ads_sidebar),
+      max_ads_stories: parseInt(settings.max_ads_stories),
+      refresh_interval_seconds: parseInt(settings.refresh_interval_seconds),
+      ads_enabled: settings.ads_enabled ? 1 : 0,
+      stripe_price_adfree_private: settings.stripe_price_adfree_private || '',
+      stripe_price_adfree_business: settings.stripe_price_adfree_business || '',
+    }).catch(() => {})
+    setSaving(false); setSaved(true)
+    setTimeout(() => setSaved(false), 2500)
+  }
+
+  const lS = { fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 4, marginTop: 14 }
+  const iS = { width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }
+
+  if (!settings) return <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>{lang === 'da' ? 'Henter…' : 'Loading…'}</div>
+
+  return (
+    <div className="p-card" style={{ marginBottom: 20 }}>
+      <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 700 }}>📢 {t.adminAdsTitle}</h3>
+      <form onSubmit={handleSave}>
+        {/* Master switch */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', background: '#F0FAF4', borderRadius: 8, marginBottom: 20 }}>
+          <input type="checkbox" id="ads_enabled" checked={Boolean(parseInt(settings.ads_enabled))} onChange={e => handle('ads_enabled', e.target.checked ? 1 : 0)} style={{ width: 18, height: 18, cursor: 'pointer' }} />
+          <label htmlFor="ads_enabled" style={{ fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>{t.adminAdsEnabled}</label>
+        </div>
+
+        <div style={{ fontWeight: 700, fontSize: 13, color: '#2D6A4F', marginTop: 4, paddingBottom: 6, borderBottom: '1px solid #eee' }}>{t.adminAdsPricingTitle}</div>
+        <label style={lS}>{t.adminAdsPricePrivate}</label>
+        <input type="number" step="0.01" style={iS} value={settings.adfree_price_private || ''} onChange={e => handle('adfree_price_private', e.target.value)} />
+        <label style={lS}>{t.adminAdsPriceBusiness}</label>
+        <input type="number" step="0.01" style={iS} value={settings.adfree_price_business || ''} onChange={e => handle('adfree_price_business', e.target.value)} />
+        <label style={lS}>{t.adminAdsCPM}</label>
+        <input type="number" step="0.01" style={iS} value={settings.ad_price_cpm || ''} onChange={e => handle('ad_price_cpm', e.target.value)} />
+        <label style={lS}>{t.adminAdsCurrency}</label>
+        <input style={{ ...iS, maxWidth: 120 }} value={settings.currency || 'DKK'} onChange={e => handle('currency', e.target.value)} />
+
+        <div style={{ fontWeight: 700, fontSize: 13, color: '#2D6A4F', marginTop: 20, paddingBottom: 6, borderBottom: '1px solid #eee' }}>{t.adminAdsDisplayTitle}</div>
+        <label style={lS}>{t.adminAdsMaxFeed}</label>
+        <input type="number" min="0" max="20" style={{ ...iS, maxWidth: 100 }} value={settings.max_ads_feed || ''} onChange={e => handle('max_ads_feed', e.target.value)} />
+        <label style={lS}>{t.adminAdsMaxSidebar}</label>
+        <input type="number" min="0" max="10" style={{ ...iS, maxWidth: 100 }} value={settings.max_ads_sidebar || ''} onChange={e => handle('max_ads_sidebar', e.target.value)} />
+        <label style={lS}>{t.adminAdsMaxStories}</label>
+        <input type="number" min="0" max="10" style={{ ...iS, maxWidth: 100 }} value={settings.max_ads_stories || ''} onChange={e => handle('max_ads_stories', e.target.value)} />
+        <label style={lS}>{t.adminAdsRefresh}</label>
+        <input type="number" min="30" style={{ ...iS, maxWidth: 120 }} value={settings.refresh_interval_seconds || ''} onChange={e => handle('refresh_interval_seconds', e.target.value)} />
+
+        <div style={{ fontWeight: 700, fontSize: 13, color: '#2D6A4F', marginTop: 20, paddingBottom: 6, borderBottom: '1px solid #eee' }}>Stripe Price IDs</div>
+        <label style={lS}>{t.adminAdsStripePricePrivate}</label>
+        <input style={iS} placeholder="price_..." value={settings.stripe_price_adfree_private || ''} onChange={e => handle('stripe_price_adfree_private', e.target.value)} />
+        <label style={lS}>{t.adminAdsStripePriceBusiness}</label>
+        <input style={iS} placeholder="price_..." value={settings.stripe_price_adfree_business || ''} onChange={e => handle('stripe_price_adfree_business', e.target.value)} />
+
+        <button type="submit" disabled={saving} style={{ marginTop: 20, padding: '10px 24px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+          {saved ? t.adminAdsSaved : saving ? t.adminAdsSaving : t.adminAdsSave}
+        </button>
+      </form>
+    </div>
+  )
+}
 
 // ── Welcome onboarding tour (shown once to new users) ──
 const ONBOARDING_STEPS = [
@@ -9495,7 +9731,7 @@ function UpgradeModal({ lang, t, onUpgrade, onClose }) {
 
 const ANALYTICS_RANGES = [7, 30, 90]
 
-function AnalyticsPage({ lang, t, currentUser, plan, onUpgrade }) {
+function AnalyticsPage({ lang, t, currentUser }) {
   const [range, setRange] = useState(30)
   const [analytics, setAnalytics] = useState(null)
 
@@ -9628,19 +9864,11 @@ function AnalyticsPage({ lang, t, currentUser, plan, onUpgrade }) {
               </button>
             ))}
           </div>
-          {plan === 'business_pro' && (
-            <div className="p-analytics-export-btns">
-              <button className="p-analytics-export-btn" onClick={exportCSV}>{t.analyticsExportCSV}</button>
-            </div>
-          )}
+          <div className="p-analytics-export-btns">
+            <button className="p-analytics-export-btn" onClick={exportCSV}>{t.analyticsExportCSV}</button>
+          </div>
         </div>
       </div>
-
-      {plan === 'business_pro' && (
-        <div className="p-plan-badge-bar">
-          <span className="p-upgrade-plan-badge">{t.analyticsPlanBadge} ✓</span>
-        </div>
-      )}
 
       {/* ── Free tier ── */}
       <div className="p-analytics-section">
@@ -9660,8 +9888,8 @@ function AnalyticsPage({ lang, t, currentUser, plan, onUpgrade }) {
         <HBarChart items={topPosts} color="#1877F2" />
       </div>
 
-      {/* ── Paid tier ── */}
-      <PlanGate plan={plan} t={t} onUpgrade={onUpgrade}>
+      {/* ── Advanced analytics — available for all business users ── */}
+      <div>
         <div className="p-analytics-section">
           <div className="p-analytics-section-title">{t.analyticsAudienceTitle} <span style={{ fontSize: 11, color: '#aaa', fontWeight: 400 }}>{lang === 'da' ? '(estimeret)' : '(estimated)'}</span></div>
           <div className="p-analytics-subsection-grid">
@@ -9745,7 +9973,7 @@ function AnalyticsPage({ lang, t, currentUser, plan, onUpgrade }) {
             <MiniLineChart data={connViews.some(v => v > 0) ? connViews : genViews(range, 1, 555)} color="#2D6A4F" height={80} />
           </div>
         </div>
-      </PlanGate>
+      </div>
     </div>
   )
 }
@@ -10556,15 +10784,13 @@ function AdminPage({ lang, t }) {
     { key: 'stripe_secret_key', label: t.adminStripeSecretKey, type: 'password', placeholder: 'sk_live_...' },
     { key: 'stripe_pub_key', label: t.adminStripePubKey, type: 'text', placeholder: 'pk_live_...' },
     { key: 'stripe_webhook_secret', label: t.adminStripeWebhookSecret, type: 'password', placeholder: 'whsec_...' },
-    { key: 'stripe_price_pro_monthly', label: t.adminStripePriceProMonthly, type: 'text', placeholder: 'price_...' },
-    { key: 'stripe_price_pro_yearly', label: t.adminStripePriceProYearly, type: 'text', placeholder: 'price_...' },
     { key: 'stripe_price_boost', label: t.adminStripePriceBoost, type: 'text', placeholder: 'price_...' },
   ]
 
   const [adminTab, setAdminTab] = useState('stats')
   const [form, setForm] = useState({
     stripe_secret_key: '', stripe_pub_key: '', stripe_webhook_secret: '',
-    stripe_price_pro_monthly: '', stripe_price_pro_yearly: '', stripe_price_boost: '',
+    stripe_price_boost: '',
     pwd_min_length: '6', pwd_require_uppercase: '0', pwd_require_lowercase: '0',
     pwd_require_numbers: '0', pwd_require_symbols: '0',
     media_max_files: '4', registration_open: '1',
@@ -10658,6 +10884,9 @@ function AdminPage({ lang, t }) {
         </button>
         <button className={`p-filter-tab${adminTab === 'viral' ? ' active' : ''}`} onClick={() => setAdminTab('viral')}>
           🚀 {lang === 'da' ? 'Viral vækst' : 'Viral growth'}
+        </button>
+        <button className={`p-filter-tab${adminTab === 'ads' ? ' active' : ''}`} onClick={() => setAdminTab('ads')}>
+          📢 {t.adminAdsTitle}
         </button>
         <button className={`p-filter-tab${adminTab === 'stripe' ? ' active' : ''}`} onClick={() => setAdminTab('stripe')}>
           💳 {t.adminStripeTitle}
@@ -10847,6 +11076,8 @@ function AdminPage({ lang, t }) {
       {adminTab === 'security' && (
         <AdminSecurityGdpr viralStats={viralStats} lang={lang} />
       )}
+
+      {adminTab === 'ads' && <AdminAdSettingsPanel lang={lang} t={t} />}
 
       {adminTab === 'stripe' && (
         <div className="p-card" style={{ marginBottom: 20 }}>

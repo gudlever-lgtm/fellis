@@ -513,6 +513,12 @@ pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS mode VARCHAR(20) DEFAULT 
   .catch(err => console.error('Migration (users.mode):', err.message))
 pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS plan VARCHAR(30) DEFAULT 'business'")
   .catch(err => console.error('Migration (users.plan):', err.message))
+pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS ads_free TINYINT(1) NOT NULL DEFAULT 0")
+  .catch(err => console.error('Migration (users.ads_free):', err.message))
+pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id VARCHAR(100) DEFAULT NULL")
+  .catch(err => console.error('Migration (users.stripe_customer_id):', err.message))
+pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS ads_free_sub_id VARCHAR(200) DEFAULT NULL")
+  .catch(err => console.error('Migration (users.ads_free_sub_id):', err.message))
 
 // ── Viral growth auto-migrations ──
 pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_public TINYINT(1) NOT NULL DEFAULT 0')
@@ -896,9 +902,9 @@ app.post('/api/auth/logout', authenticate, async (req, res) => {
 // GET /api/auth/session — check if session is valid
 app.get('/api/auth/session', authenticate, async (req, res) => {
   try {
-    const [users] = await pool.query('SELECT id, name, handle, initials, avatar_url, plan, mode, is_moderator FROM users WHERE id = ?', [req.userId])
+    const [users] = await pool.query('SELECT id, name, handle, initials, avatar_url, plan, mode, ads_free, is_moderator FROM users WHERE id = ?', [req.userId])
     if (users.length === 0) return res.status(404).json({ error: 'User not found' })
-    const user = { ...users[0], plan: users[0].plan || 'business', mode: users[0].mode || 'privat', is_admin: users[0].id === 1, is_moderator: Boolean(users[0].is_moderator) || users[0].id === 1 }
+    const user = { ...users[0], plan: users[0].plan || 'business', mode: users[0].mode || 'privat', ads_free: Boolean(users[0].ads_free), is_admin: users[0].id === 1, is_moderator: Boolean(users[0].is_moderator) || users[0].id === 1 }
     res.json({ user, lang: req.lang })
   } catch (err) {
     res.status(500).json({ error: 'Session check failed' })
@@ -1241,10 +1247,10 @@ app.patch('/api/me/lang', authenticate, async (req, res) => {
   }
 })
 
-// PATCH /api/me/plan — update user plan (business / business_pro)
+// PATCH /api/me/plan — update user plan (business only — business_pro removed)
 app.patch('/api/me/plan', authenticate, async (req, res) => {
   const { plan } = req.body
-  if (!['business', 'business_pro'].includes(plan)) return res.status(400).json({ error: 'Invalid plan' })
+  if (!['business'].includes(plan)) return res.status(400).json({ error: 'Invalid plan' })
   try {
     await pool.query('UPDATE users SET plan = ? WHERE id = ?', [plan, req.userId])
     res.json({ ok: true })
@@ -3611,6 +3617,358 @@ app.post('/api/jobs/:id/save', authenticate, async (req, res) => {
   }
 })
 
+// ── Ads ──────────────────────────────────────────────────────────────────────
+
+async function initAds() {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS ads (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      advertiser_id INT NOT NULL,
+      title VARCHAR(255) NOT NULL,
+      body TEXT DEFAULT NULL,
+      image_url VARCHAR(500) DEFAULT NULL,
+      target_url VARCHAR(500) NOT NULL,
+      status ENUM('draft','active','paused','archived') NOT NULL DEFAULT 'draft',
+      placement ENUM('feed','sidebar','stories') NOT NULL DEFAULT 'feed',
+      impressions INT NOT NULL DEFAULT 0,
+      clicks INT NOT NULL DEFAULT 0,
+      start_date DATE DEFAULT NULL,
+      end_date DATE DEFAULT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_ads_advertiser (advertiser_id),
+      INDEX idx_ads_status_placement (status, placement),
+      FOREIGN KEY (advertiser_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+  } catch (err) {
+    console.error('initAds error:', err.message)
+  }
+}
+
+async function initAdminAdSettings() {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS admin_ad_settings (
+      id INT NOT NULL DEFAULT 1 PRIMARY KEY,
+      adfree_price_private DECIMAL(10,2) NOT NULL DEFAULT 29.00,
+      adfree_price_business DECIMAL(10,2) NOT NULL DEFAULT 49.00,
+      ad_price_cpm DECIMAL(10,2) NOT NULL DEFAULT 50.00,
+      currency VARCHAR(10) NOT NULL DEFAULT 'DKK',
+      max_ads_feed INT NOT NULL DEFAULT 3,
+      max_ads_sidebar INT NOT NULL DEFAULT 2,
+      max_ads_stories INT NOT NULL DEFAULT 1,
+      refresh_interval_seconds INT NOT NULL DEFAULT 300,
+      ads_enabled TINYINT(1) NOT NULL DEFAULT 1,
+      stripe_price_adfree_private VARCHAR(100) DEFAULT NULL,
+      stripe_price_adfree_business VARCHAR(100) DEFAULT NULL,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      updated_by INT DEFAULT NULL,
+      FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+    // Ensure a default row always exists
+    await pool.query(`INSERT IGNORE INTO admin_ad_settings (id) VALUES (1)`)
+  } catch (err) {
+    console.error('initAdminAdSettings error:', err.message)
+  }
+}
+
+// Require business mode helper
+function requireBusiness(req, res, next) {
+  if (!req.userMode || req.userMode !== 'business') {
+    return res.status(403).json({ error: 'Business account required' })
+  }
+  next()
+}
+
+// Middleware to attach userMode to req
+async function attachUserMode(req, res, next) {
+  try {
+    if (req.userId) {
+      const [[user]] = await pool.query('SELECT mode FROM users WHERE id = ?', [req.userId])
+      req.userMode = user?.mode || 'privat'
+    }
+  } catch {}
+  next()
+}
+
+// POST /api/ads — create ad (business only)
+app.post('/api/ads', authenticate, attachUserMode, requireBusiness, async (req, res) => {
+  const { title, body, image_url, target_url, placement = 'feed', start_date, end_date } = req.body
+  if (!title || !target_url) return res.status(400).json({ error: 'title and target_url required' })
+  try {
+    const [result] = await pool.query(
+      'INSERT INTO ads (advertiser_id, title, body, image_url, target_url, placement, start_date, end_date) VALUES (?,?,?,?,?,?,?,?)',
+      [req.userId, title, body || null, image_url || null, target_url, placement, start_date || null, end_date || null]
+    )
+    const [[ad]] = await pool.query('SELECT * FROM ads WHERE id = ?', [result.insertId])
+    res.status(201).json({ ad })
+  } catch (err) {
+    console.error('POST /api/ads error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/ads — list own ads (business) or all active ads (admin)
+app.get('/api/ads', authenticate, async (req, res) => {
+  try {
+    let rows
+    if (req.query.admin === '1') {
+      // Admin listing — requires admin
+      const [[user]] = await pool.query('SELECT id FROM users WHERE id = ?', [req.userId])
+      if (!user || req.userId !== 1) return res.status(403).json({ error: 'Admin only' })
+      ;[rows] = await pool.query(
+        `SELECT a.*, u.name AS advertiser_name FROM ads a JOIN users u ON u.id = a.advertiser_id ORDER BY a.created_at DESC`
+      )
+    } else if (req.query.serve === '1') {
+      // Serve ads — fetch enabled ad for placement (respects ads_enabled setting)
+      const [[settings]] = await pool.query('SELECT ads_enabled, max_ads_feed, max_ads_sidebar, max_ads_stories, refresh_interval_seconds FROM admin_ad_settings WHERE id = 1').catch(() => [[null]])
+      if (!settings || !settings.ads_enabled) return res.json({ ads: [] })
+      // Check if user is ads_free
+      const [[userRow]] = await pool.query('SELECT ads_free FROM users WHERE id = ?', [req.userId])
+      if (userRow?.ads_free) return res.json({ ads: [], ads_free: true })
+      const placement = req.query.placement || 'feed'
+      const limitMap = { feed: settings.max_ads_feed, sidebar: settings.max_ads_sidebar, stories: settings.max_ads_stories }
+      const limit = limitMap[placement] || 1
+      ;[rows] = await pool.query(
+        `SELECT * FROM ads WHERE status = 'active' AND placement = ? AND (start_date IS NULL OR start_date <= CURDATE()) AND (end_date IS NULL OR end_date >= CURDATE()) ORDER BY RAND() LIMIT ?`,
+        [placement, limit]
+      )
+      return res.json({ ads: rows, refresh_interval: settings.refresh_interval_seconds })
+    } else {
+      // Business user's own ads
+      ;[rows] = await pool.query('SELECT * FROM ads WHERE advertiser_id = ? ORDER BY created_at DESC', [req.userId])
+    }
+    res.json({ ads: rows })
+  } catch (err) {
+    console.error('GET /api/ads error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/ads/:id — get single ad
+app.get('/api/ads/:id', authenticate, async (req, res) => {
+  try {
+    const [[ad]] = await pool.query('SELECT * FROM ads WHERE id = ?', [req.params.id])
+    if (!ad) return res.status(404).json({ error: 'Ad not found' })
+    if (ad.advertiser_id !== req.userId && req.userId !== 1) return res.status(403).json({ error: 'Forbidden' })
+    res.json({ ad })
+  } catch (err) {
+    console.error('GET /api/ads/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// PUT /api/ads/:id — update ad
+app.put('/api/ads/:id', authenticate, async (req, res) => {
+  try {
+    const [[ad]] = await pool.query('SELECT * FROM ads WHERE id = ?', [req.params.id])
+    if (!ad) return res.status(404).json({ error: 'Ad not found' })
+    if (ad.advertiser_id !== req.userId && req.userId !== 1) return res.status(403).json({ error: 'Forbidden' })
+    const { title, body, image_url, target_url, status, placement, start_date, end_date } = req.body
+    const VALID_STATUS = ['draft', 'active', 'paused', 'archived']
+    const VALID_PLACEMENT = ['feed', 'sidebar', 'stories']
+    if (status && !VALID_STATUS.includes(status)) return res.status(400).json({ error: 'Invalid status' })
+    if (placement && !VALID_PLACEMENT.includes(placement)) return res.status(400).json({ error: 'Invalid placement' })
+    await pool.query(
+      'UPDATE ads SET title=COALESCE(?,title), body=COALESCE(?,body), image_url=COALESCE(?,image_url), target_url=COALESCE(?,target_url), status=COALESCE(?,status), placement=COALESCE(?,placement), start_date=COALESCE(?,start_date), end_date=COALESCE(?,end_date) WHERE id=?',
+      [title||null, body||null, image_url||null, target_url||null, status||null, placement||null, start_date||null, end_date||null, req.params.id]
+    )
+    const [[updated]] = await pool.query('SELECT * FROM ads WHERE id = ?', [req.params.id])
+    res.json({ ad: updated })
+  } catch (err) {
+    console.error('PUT /api/ads/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// DELETE /api/ads/:id — archive ad
+app.delete('/api/ads/:id', authenticate, async (req, res) => {
+  try {
+    const [[ad]] = await pool.query('SELECT * FROM ads WHERE id = ?', [req.params.id])
+    if (!ad) return res.status(404).json({ error: 'Ad not found' })
+    if (ad.advertiser_id !== req.userId && req.userId !== 1) return res.status(403).json({ error: 'Forbidden' })
+    await pool.query("UPDATE ads SET status = 'archived' WHERE id = ?", [req.params.id])
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/ads/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/ads/:id/impression — record impression
+app.post('/api/ads/:id/impression', authenticate, async (req, res) => {
+  try {
+    const [[ad]] = await pool.query('SELECT id FROM ads WHERE id = ?', [req.params.id])
+    if (!ad) return res.status(404).json({ error: 'Ad not found' })
+    await pool.query('UPDATE ads SET impressions = impressions + 1 WHERE id = ?', [req.params.id])
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/ads/:id/impression error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/ads/:id/click — record click
+app.post('/api/ads/:id/click', authenticate, async (req, res) => {
+  try {
+    const [[ad]] = await pool.query('SELECT id FROM ads WHERE id = ?', [req.params.id])
+    if (!ad) return res.status(404).json({ error: 'Ad not found' })
+    await pool.query('UPDATE ads SET clicks = clicks + 1 WHERE id = ?', [req.params.id])
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/ads/:id/click error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Admin ad settings ─────────────────────────────────────────────────────────
+
+// GET /api/admin/ad-settings — fetch ad pricing & display settings (admin only)
+app.get('/api/admin/ad-settings', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [[row]] = await pool.query('SELECT * FROM admin_ad_settings WHERE id = 1')
+    if (!row) return res.status(404).json({ error: 'Settings not found' })
+    res.json({ settings: row })
+  } catch (err) {
+    console.error('GET /api/admin/ad-settings error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// PUT /api/admin/ad-settings — update ad pricing & display settings (admin only)
+app.put('/api/admin/ad-settings', authenticate, requireAdmin, async (req, res) => {
+  const allowed = ['adfree_price_private', 'adfree_price_business', 'ad_price_cpm', 'currency', 'max_ads_feed', 'max_ads_sidebar', 'max_ads_stories', 'refresh_interval_seconds', 'ads_enabled', 'stripe_price_adfree_private', 'stripe_price_adfree_business']
+  const updates = {}
+  for (const key of allowed) {
+    if (key in req.body) updates[key] = req.body[key]
+  }
+  if (!Object.keys(updates).length) return res.status(400).json({ error: 'No valid fields' })
+  try {
+    const [[existing]] = await pool.query('SELECT id FROM admin_ad_settings WHERE id = 1')
+    if (!existing) return res.status(404).json({ error: 'Settings not found' })
+    const setClauses = Object.keys(updates).map(k => `${k} = ?`).join(', ')
+    await pool.query(
+      `UPDATE admin_ad_settings SET ${setClauses}, updated_by = ? WHERE id = 1`,
+      [...Object.values(updates), req.userId]
+    )
+    const [[row]] = await pool.query('SELECT * FROM admin_ad_settings WHERE id = 1')
+    res.json({ settings: row })
+  } catch (err) {
+    console.error('PUT /api/admin/ad-settings error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Stripe — ads_free subscription ───────────────────────────────────────────
+
+async function getStripe() {
+  try {
+    const [[row]] = await pool.query("SELECT key_value FROM admin_settings WHERE key_name = 'stripe_secret_key'")
+    if (!row?.key_value || row.key_value.startsWith('••')) return null
+    const { default: Stripe } = await import('stripe')
+    return new Stripe(row.key_value, { apiVersion: '2024-06-20' })
+  } catch { return null }
+}
+
+// POST /api/stripe/checkout/adfree — create Stripe checkout for ads_free sub
+app.post('/api/stripe/checkout/adfree', authenticate, async (req, res) => {
+  try {
+    const stripe = await getStripe()
+    if (!stripe) return res.status(503).json({ error: 'Stripe not configured' })
+
+    const [[user]] = await pool.query('SELECT name, email, mode, ads_free, stripe_customer_id FROM users WHERE id = ?', [req.userId])
+    if (!user) return res.status(404).json({ error: 'User not found' })
+    if (user.ads_free) return res.status(400).json({ error: 'Already ad-free' })
+
+    const [[adSettings]] = await pool.query('SELECT adfree_price_private, adfree_price_business, currency, stripe_price_adfree_private, stripe_price_adfree_business FROM admin_ad_settings WHERE id = 1').catch(() => [[null]])
+
+    const isBusinessMode = user.mode === 'business'
+    const priceId = isBusinessMode ? adSettings?.stripe_price_adfree_business : adSettings?.stripe_price_adfree_private
+
+    if (!priceId) return res.status(503).json({ error: 'Ad-free price not configured in admin panel' })
+
+    // Get or create Stripe customer
+    let customerId = user.stripe_customer_id
+    if (!customerId) {
+      const customer = await stripe.customers.create({ email: user.email, name: user.name })
+      customerId = customer.id
+      await pool.query('UPDATE users SET stripe_customer_id = ? WHERE id = ?', [customerId, req.userId])
+    }
+
+    const origin = req.headers.origin || 'https://fellis.eu'
+    const session = await stripe.checkout.sessions.create({
+      customer: customerId,
+      mode: 'subscription',
+      line_items: [{ price: priceId, quantity: 1 }],
+      success_url: `${origin}/?adfree=success`,
+      cancel_url: `${origin}/?adfree=cancel`,
+      metadata: { user_id: String(req.userId), type: 'adfree' },
+    })
+
+    res.json({ url: session.url })
+  } catch (err) {
+    console.error('POST /api/stripe/checkout/adfree error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/stripe/webhook — Stripe webhook handler (raw body needed)
+app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  try {
+    const stripe = await getStripe()
+    if (!stripe) return res.status(200).send('ok')
+
+    const [[secretRow]] = await pool.query("SELECT key_value FROM admin_settings WHERE key_name = 'stripe_webhook_secret'").catch(() => [[null]])
+    const sig = req.headers['stripe-signature']
+
+    let event
+    if (secretRow?.key_value && sig) {
+      try {
+        event = stripe.webhooks.constructEvent(req.body, sig, secretRow.key_value)
+      } catch (err) {
+        return res.status(400).send(`Webhook Error: ${err.message}`)
+      }
+    } else {
+      event = JSON.parse(req.body.toString())
+    }
+
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object
+      if (session.metadata?.type === 'adfree' && session.metadata?.user_id) {
+        const subId = session.subscription
+        await pool.query(
+          'UPDATE users SET ads_free = 1, ads_free_sub_id = ? WHERE id = ?',
+          [subId, parseInt(session.metadata.user_id)]
+        )
+      }
+    }
+
+    if (event.type === 'customer.subscription.deleted') {
+      const sub = event.data.object
+      // Cancel ads_free when subscription ends
+      await pool.query('UPDATE users SET ads_free = 0, ads_free_sub_id = NULL WHERE ads_free_sub_id = ?', [sub.id])
+    }
+
+    res.json({ received: true })
+  } catch (err) {
+    console.error('POST /api/stripe/webhook error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/me/subscription — get current user's ads_free status
+app.get('/api/me/subscription', authenticate, async (req, res) => {
+  try {
+    const [[user]] = await pool.query('SELECT ads_free, mode FROM users WHERE id = ?', [req.userId])
+    if (!user) return res.status(404).json({ error: 'User not found' })
+    const [[adSettings]] = await pool.query('SELECT adfree_price_private, adfree_price_business, currency, ads_enabled FROM admin_ad_settings WHERE id = 1').catch(() => [[{ adfree_price_private: 29, adfree_price_business: 49, currency: 'DKK', ads_enabled: 1 }]])
+    const price = user.mode === 'business' ? adSettings?.adfree_price_business : adSettings?.adfree_price_private
+    res.json({ ads_free: Boolean(user.ads_free), price: price || 29, currency: adSettings?.currency || 'DKK', ads_enabled: Boolean(adSettings?.ads_enabled) })
+  } catch (err) {
+    console.error('GET /api/me/subscription error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // ── Admin settings ──────────────────────────────────────────────────────────
 
 async function initAdminSettings() {
@@ -5653,6 +6011,8 @@ app.listen(PORT, () => {
   initSiteVisits()
   initViralGrowth()
   initReels()
+  initAds()
+  initAdminAdSettings()
 })
 
 app.all('/api/stub/:fn', authenticate, (req, res) => res.json({ ok: true }))

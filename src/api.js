@@ -854,6 +854,48 @@ export async function apiWithdrawModeratorRequest() {
   return await request('/api/me/moderator-request', { method: 'DELETE' })
 }
 
+// ── Ads ──────────────────────────────────────────────────────────────────────
+export async function apiCreateAd(data) {
+  return await request('/api/ads', { method: 'POST', body: JSON.stringify(data) })
+}
+export async function apiGetMyAds() {
+  return await request('/api/ads')
+}
+export async function apiGetAd(id) {
+  return await request(`/api/ads/${id}`)
+}
+export async function apiUpdateAd(id, data) {
+  return await request(`/api/ads/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+}
+export async function apiDeleteAd(id) {
+  return await request(`/api/ads/${id}`, { method: 'DELETE' })
+}
+export async function apiRecordAdImpression(id) {
+  return await request(`/api/ads/${id}/impression`, { method: 'POST' })
+}
+export async function apiRecordAdClick(id) {
+  return await request(`/api/ads/${id}/click`, { method: 'POST' })
+}
+export async function apiServeAds(placement) {
+  return await request(`/api/ads?serve=1&placement=${placement}`)
+}
+
+// ── Ads-free subscription (Stripe) ───────────────────────────────────────────
+export async function apiGetSubscription() {
+  return await request('/api/me/subscription')
+}
+export async function apiCreateAdFreeCheckout() {
+  return await request('/api/stripe/checkout/adfree', { method: 'POST' })
+}
+
+// ── Admin ad settings ─────────────────────────────────────────────────────────
+export async function apiGetAdminAdSettings() {
+  return await request('/api/admin/ad-settings')
+}
+export async function apiSaveAdminAdSettings(settings) {
+  return await request('/api/admin/ad-settings', { method: 'PUT', body: JSON.stringify(settings) })
+}
+
 export async function apiUploadFile(file, type = 'post') {
   const form = new FormData()
   form.append('file', file)
