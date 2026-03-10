@@ -2832,6 +2832,9 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
   const [interestsSavedMsg, setInterestsSavedMsg] = useState('')
   const [interestsSaveOk, setInterestsSaveOk] = useState(true)
   const [birthday, setBirthday] = useState(currentUser.birthday || '')
+  const [bdDay, setBdDay] = useState(currentUser.birthday ? Number(currentUser.birthday.slice(8, 10)) : '')
+  const [bdMonth, setBdMonth] = useState(currentUser.birthday ? Number(currentUser.birthday.slice(5, 7)) : '')
+  const [bdYear, setBdYear] = useState(currentUser.birthday ? currentUser.birthday.slice(0, 4) : '')
   const [birthdaySaveStatus, setBirthdaySaveStatus] = useState(null) // null | 'saving' | 'saved' | 'error'
   const [bioSaveStatus, setBioSaveStatus] = useState(null) // null | 'saving' | 'saved' | 'error'
 
@@ -2841,6 +2844,9 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
         setProfile(data)
         if (data.interests?.length) setInterests(data.interests)
         setBirthday(data.birthday || '')
+        setBdYear(data.birthday ? data.birthday.slice(0, 4) : '')
+        setBdMonth(data.birthday ? Number(data.birthday.slice(5, 7)) : '')
+        setBdDay(data.birthday ? Number(data.birthday.slice(8, 10)) : '')
       }
     })
   }, [])
@@ -3029,14 +3035,52 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
 
         {/* Birthday */}
         <label style={labelStyle}>{t.birthdayLabel}</label>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <input
-            style={{ ...fieldStyle, flex: 1 }}
-            type="date"
-            value={birthday}
-            onChange={e => { setBirthday(e.target.value); setBirthdaySaveStatus(null) }}
-            max={new Date().toISOString().slice(0, 10)}
-          />
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <select
+            style={{ ...fieldStyle, width: 72 }}
+            value={bdDay}
+            onChange={e => {
+              const d = e.target.value ? Number(e.target.value) : ''
+              setBdDay(d)
+              const y = bdYear; const m = bdMonth
+              setBirthday(y && m && d ? `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}` : '')
+              setBirthdaySaveStatus(null)
+            }}
+          >
+            <option value="">{lang === 'da' ? 'Dag' : 'Day'}</option>
+            {Array.from({ length: 31 }, (_, i) => i + 1).map(d => <option key={d} value={d}>{d}</option>)}
+          </select>
+          <select
+            style={{ ...fieldStyle, flex: 1, minWidth: 110 }}
+            value={bdMonth}
+            onChange={e => {
+              const m = e.target.value ? Number(e.target.value) : ''
+              setBdMonth(m)
+              const y = bdYear; const d = bdDay
+              setBirthday(y && m && d ? `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}` : '')
+              setBirthdaySaveStatus(null)
+            }}
+          >
+            <option value="">{lang === 'da' ? 'Måned' : 'Month'}</option>
+            {(lang === 'da'
+              ? ['Januar','Februar','Marts','April','Maj','Juni','Juli','August','September','Oktober','November','December']
+              : ['January','February','March','April','May','June','July','August','September','October','November','December']
+            ).map((name, i) => <option key={i+1} value={i+1}>{name}</option>)}
+          </select>
+          <select
+            style={{ ...fieldStyle, width: 90 }}
+            value={bdYear}
+            onChange={e => {
+              const y = e.target.value || ''
+              setBdYear(y)
+              const m = bdMonth; const d = bdDay
+              setBirthday(y && m && d ? `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}` : '')
+              setBirthdaySaveStatus(null)
+            }}
+          >
+            <option value="">{lang === 'da' ? 'År' : 'Year'}</option>
+            {Array.from({ length: new Date().getFullYear() - 1899 }, (_, i) => new Date().getFullYear() - i).map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
           <button
             type="button"
             onClick={handleSaveBirthday}
@@ -3045,10 +3089,10 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
           >
             {birthdaySaveStatus === 'saving' ? '…' : birthdaySaveStatus === 'saved' ? t.birthdaySaved : t.birthdaySave}
           </button>
-          {birthday && (
+          {(bdDay || bdMonth || bdYear) && (
             <button
               type="button"
-              onClick={() => { setBirthday(''); setBirthdaySaveStatus(null) }}
+              onClick={() => { setBirthday(''); setBdDay(''); setBdMonth(''); setBdYear(''); setBirthdaySaveStatus(null) }}
               style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', background: 'none', fontSize: 13, cursor: 'pointer', color: '#888' }}
               title={t.birthdayClear}
             >✕</button>
