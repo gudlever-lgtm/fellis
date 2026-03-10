@@ -9469,12 +9469,6 @@ function AdminAdSettingsPanel({ lang, t }) {
         <label style={lS}>{t.adminAdsRefresh}</label>
         <input type="number" min="30" style={{ ...iS, maxWidth: 120 }} value={settings.refresh_interval_seconds || ''} onChange={e => handle('refresh_interval_seconds', e.target.value)} />
 
-        <div style={{ fontWeight: 700, fontSize: 13, color: '#2D6A4F', marginTop: 20, paddingBottom: 6, borderBottom: '1px solid #eee' }}>Stripe Price IDs</div>
-        <label style={lS}>{t.adminAdsStripePricePrivate}</label>
-        <input style={iS} placeholder="price_..." value={settings.stripe_price_adfree_private || ''} onChange={e => handle('stripe_price_adfree_private', e.target.value)} />
-        <label style={lS}>{t.adminAdsStripePriceBusiness}</label>
-        <input style={iS} placeholder="price_..." value={settings.stripe_price_adfree_business || ''} onChange={e => handle('stripe_price_adfree_business', e.target.value)} />
-
         <button type="submit" disabled={saving} style={{ marginTop: 20, padding: '10px 24px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
           {saved ? t.adminAdsSaved : saving ? t.adminAdsSaving : t.adminAdsSave}
         </button>
@@ -10464,6 +10458,13 @@ function AdminSecurityGdpr({ viralStats, lang }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
 
+      {/* Info card */}
+      <div style={{ background: '#F0F7FF', border: '1px solid #BDD8F9', borderRadius: 8, padding: '12px 14px', marginBottom: 16, fontSize: 13, lineHeight: 1.6, color: '#2C4A6E' }}>
+        ℹ️ {da
+          ? 'Denne sektion er til platformsadministration — adgangskodepolitik og dokumentation af platformens GDPR-overholdelse. Brugernes egne GDPR-rettigheder (dataeksport, sletning, samtykkeoversigt) finder du under Privatliv og data i brugerens profilindstillinger.'
+          : 'This section is for platform administration — password policy and documentation of the platform\'s GDPR compliance. Users\' own GDPR rights (data export, deletion, consent overview) are found under Privacy & data in the user\'s profile settings.'}
+      </div>
+
       {/* GDPR Compliance status */}
       {section('🇪🇺', da ? 'GDPR-overholdelse' : 'GDPR Compliance', (
         <div>
@@ -10721,12 +10722,14 @@ function AdminPage({ lang, t }) {
     { key: 'stripe_pub_key', label: t.adminStripePubKey, type: 'text', placeholder: 'pk_live_...' },
     { key: 'stripe_webhook_secret', label: t.adminStripeWebhookSecret, type: 'password', placeholder: 'whsec_...' },
     { key: 'stripe_price_boost', label: t.adminStripePriceBoost, type: 'text', placeholder: 'price_...' },
+    { key: 'stripe_price_adfree_private', label: t.adminStripePriceAdfreePrivate, type: 'text', placeholder: 'price_...' },
+    { key: 'stripe_price_adfree_business', label: t.adminStripePriceAdfreeBusinessVal, type: 'text', placeholder: 'price_...' },
   ]
 
   const [adminTab, setAdminTab] = useState('stats')
   const [form, setForm] = useState({
     stripe_secret_key: '', stripe_pub_key: '', stripe_webhook_secret: '',
-    stripe_price_boost: '',
+    stripe_price_boost: '', stripe_price_adfree_private: '', stripe_price_adfree_business: '',
     pwd_min_length: '6', pwd_require_uppercase: '0', pwd_require_lowercase: '0',
     pwd_require_numbers: '0', pwd_require_symbols: '0',
     media_max_files: '4', registration_open: '1',

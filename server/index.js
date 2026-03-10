@@ -4279,7 +4279,7 @@ app.get('/api/admin/settings', authenticate, requireAdmin, async (req, res) => {
 
 // POST /api/admin/settings — save Stripe config (admin only)
 app.post('/api/admin/settings', authenticate, requireAdmin, async (req, res) => {
-  const allowed = ['stripe_secret_key', 'stripe_pub_key', 'stripe_webhook_secret', 'stripe_price_pro_monthly', 'stripe_price_pro_yearly', 'stripe_price_boost', 'pwd_min_length', 'pwd_require_uppercase', 'pwd_require_lowercase', 'pwd_require_numbers', 'pwd_require_symbols']
+  const allowed = ['stripe_secret_key', 'stripe_pub_key', 'stripe_webhook_secret', 'stripe_price_pro_monthly', 'stripe_price_pro_yearly', 'stripe_price_boost', 'stripe_price_adfree_private', 'stripe_price_adfree_business', 'pwd_min_length', 'pwd_require_uppercase', 'pwd_require_lowercase', 'pwd_require_numbers', 'pwd_require_symbols']
   try {
     for (const [key, value] of Object.entries(req.body)) {
       if (!allowed.includes(key)) continue
@@ -4288,6 +4288,10 @@ app.post('/api/admin/settings', authenticate, requireAdmin, async (req, res) => 
         if (!value || value === '••••••••' + (value || '').slice(-4)) continue // skip masked/empty
       }
       await pool.query('INSERT INTO admin_settings (key_name, key_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE key_value = VALUES(key_value)', [key, value])
+      // Sync adfree price IDs to admin_ad_settings so the checkout flow can use them
+      if (key === 'stripe_price_adfree_private' || key === 'stripe_price_adfree_business') {
+        await pool.query(`UPDATE admin_ad_settings SET ${key} = ? WHERE id = 1`, [value]).catch(() => {})
+      }
     }
     res.json({ ok: true })
   } catch (err) {
