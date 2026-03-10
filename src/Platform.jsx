@@ -9274,6 +9274,22 @@ function AdsManagementPage({ lang, t }) {
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
   const [imageUploading, setImageUploading] = useState(false)
+  const [reactivatingId, setReactivatingId] = useState(null)
+  const [reactivateDate, setReactivateDate] = useState('')
+
+  const isExpired = (ad) => {
+    if (!ad.end_date) return false
+    const today = new Date().toISOString().slice(0, 10)
+    return ad.end_date.slice(0, 10) < today
+  }
+
+  const handleReactivate = async (ad) => {
+    if (!reactivateDate) return
+    await apiUpdateAd(ad.id, { end_date: reactivateDate, status: 'active' }).catch(() => {})
+    setReactivatingId(null)
+    setReactivateDate('')
+    reload()
+  }
 
   const reload = () => {
     setLoading(true)
@@ -9365,17 +9381,44 @@ function AdsManagementPage({ lang, t }) {
                     <div style={{ fontWeight: 700, fontSize: 15 }}>{ad.title}</div>
                   </div>
                   {ad.body && <div style={{ fontSize: 13, color: '#555', marginBottom: 6 }}>{ad.body}</div>}
-                  <div style={{ display: 'flex', gap: 16, fontSize: 12, color: '#888', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: 16, fontSize: 12, color: '#888', flexWrap: 'wrap', alignItems: 'center' }}>
                     <span>{t.adsStatus}: <strong style={{ color: ad.status === 'active' ? '#2D6A4F' : ad.status === 'paused' ? '#e67e22' : '#aaa' }}>{statusLabel(ad.status)}</strong></span>
+                    {isExpired(ad) && (
+                      <span style={{ background: '#FFF0ED', color: '#C0392B', fontWeight: 700, fontSize: 11, padding: '2px 8px', borderRadius: 20, border: '1px solid #F5C6BC' }}>⚠️ {t.adsExpiredBadge}</span>
+                    )}
                     <span>{t.adsImpressions}: <strong>{ad.impressions}</strong></span>
                     <span>{t.adsClicks}: <strong>{ad.clicks}</strong></span>
                     <span>{t.adsCTR}: <strong>{ctr(ad.impressions, ad.clicks)}</strong></span>
                   </div>
+                  {isExpired(ad) && reactivatingId === ad.id && (
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 10, flexWrap: 'wrap' }}>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: '#555' }}>{t.adsReactivateLabel}:</label>
+                      <input
+                        type="date"
+                        value={reactivateDate}
+                        min={new Date().toISOString().slice(0, 10)}
+                        onChange={e => setReactivateDate(e.target.value)}
+                        style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid #ddd' }}
+                      />
+                      <button
+                        onClick={() => handleReactivate(ad)}
+                        disabled={!reactivateDate}
+                        style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontWeight: 600 }}
+                      >{t.adsReactivateConfirm}</button>
+                      <button
+                        onClick={() => { setReactivatingId(null); setReactivateDate('') }}
+                        style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, border: '1px solid #ddd', background: 'none', cursor: 'pointer' }}
+                      >{t.adsReactivateCancel}</button>
+                    </div>
+                  )}
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                  {isExpired(ad) && reactivatingId !== ad.id && (
+                    <button onClick={() => { setReactivatingId(ad.id); setReactivateDate('') }} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, border: '1px solid #2D6A4F', color: '#2D6A4F', background: '#F0FAF4', cursor: 'pointer', fontWeight: 600 }}>{t.adsReactivate}</button>
+                  )}
                   {ad.status === 'draft' && <button onClick={() => handleStatus(ad, 'active')} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, border: '1px solid #2D6A4F', color: '#2D6A4F', background: 'none', cursor: 'pointer' }}>{t.adsActivate}</button>}
-                  {ad.status === 'active' && <button onClick={() => handleStatus(ad, 'paused')} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, border: '1px solid #e67e22', color: '#e67e22', background: 'none', cursor: 'pointer' }}>{t.adsPause}</button>}
-                  {ad.status === 'paused' && <button onClick={() => handleStatus(ad, 'active')} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, border: '1px solid #2D6A4F', color: '#2D6A4F', background: 'none', cursor: 'pointer' }}>{t.adsActivate}</button>}
+                  {ad.status === 'active' && !isExpired(ad) && <button onClick={() => handleStatus(ad, 'paused')} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, border: '1px solid #e67e22', color: '#e67e22', background: 'none', cursor: 'pointer' }}>{t.adsPause}</button>}
+                  {ad.status === 'paused' && !isExpired(ad) && <button onClick={() => handleStatus(ad, 'active')} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, border: '1px solid #2D6A4F', color: '#2D6A4F', background: 'none', cursor: 'pointer' }}>{t.adsActivate}</button>}
                   <button onClick={() => openEdit(ad)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, border: '1px solid #999', background: 'none', cursor: 'pointer' }}>{t.adsEdit}</button>
                   <button onClick={() => handleDelete(ad)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, border: '1px solid #e74c3c', color: '#e74c3c', background: 'none', cursor: 'pointer' }}>{t.adsDelete}</button>
                 </div>

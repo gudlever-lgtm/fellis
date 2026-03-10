@@ -383,6 +383,11 @@ export const PT = {
     adsDelete: 'Slet / arkivér',
     adsActivate: 'Aktivér',
     adsPause: 'Sæt på pause',
+    adsExpiredBadge: 'Udløbet',
+    adsReactivate: 'Reaktivér',
+    adsReactivateLabel: 'Ny slutdato',
+    adsReactivateConfirm: 'Gem ny dato',
+    adsReactivateCancel: 'Annullér',
     // Admin ads settings
     adminAdsTitle: 'Annoncestyring',
     adminAdsEnabled: 'Annoncer aktiveret globalt',
@@ -1100,6 +1105,11 @@ export const PT = {
     adsDelete: 'Delete / archive',
     adsActivate: 'Activate',
     adsPause: 'Pause',
+    adsExpiredBadge: 'Expired',
+    adsReactivate: 'Reactivate',
+    adsReactivateLabel: 'New end date',
+    adsReactivateConfirm: 'Save new date',
+    adsReactivateCancel: 'Cancel',
     // Admin ads settings
     adminAdsTitle: 'Ad management',
     adminAdsEnabled: 'Ads globally enabled',
