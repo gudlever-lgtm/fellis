@@ -3948,11 +3948,6 @@ function MiniWorldMap({ countries, lang }) {
 // ── Om Fellis / About Fellis ──
 // Philosophy, purpose, and implemented changelog
 function AboutPage({ lang }) {
-  const [changelog, setChangelog] = useState([])
-
-  useEffect(() => {
-    apiGetChangelog().then(data => { if (data?.entries) setChangelog(data.entries) })
-  }, [])
 
   const t = lang === 'da' ? {
     title: 'Om Fellis',
@@ -4024,19 +4019,6 @@ function AboutPage({ lang }) {
         ))}
       </div>
 
-      {/* Changelog */}
-      <div style={s.section}>🛠️ {t.changelogTitle}</div>
-      <div className="p-card" style={{ padding: '4px 0', marginBottom: 16 }}>
-        {changelog.length === 0
-          ? <div style={{ padding: '16px 20px', fontSize: 13, color: '#aaa' }}>{t.changelogEmpty}</div>
-          : changelog.map((entry, i) => (
-              <div key={i} style={{ padding: '10px 20px', fontSize: 13, color: '#333', borderBottom: i < changelog.length - 1 ? '1px solid #f0f0f0' : 'none', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                <span style={{ color: '#b7dfc9', fontWeight: 700, flexShrink: 0 }}>·</span>
-                {entry}
-              </div>
-            ))
-        }
-      </div>
     </div>
   )
 }
