@@ -3690,14 +3690,20 @@ async function attachUserMode(req, res, next) {
   next()
 }
 
+// POST /api/ads/upload-image — upload an ad image, returns { url }
+app.post('/api/ads/upload-image', authenticate, upload.single('image'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No image provided' })
+  res.json({ url: `/uploads/${req.file.filename}` })
+})
+
 // POST /api/ads — create ad (business only)
 app.post('/api/ads', authenticate, attachUserMode, requireBusiness, async (req, res) => {
-  const { title, body, image_url, target_url, placement = 'feed', start_date, end_date } = req.body
+  const { title, body, image_url, image_display_width, image_display_height, target_url, placement = 'feed', start_date, end_date } = req.body
   if (!title || !target_url) return res.status(400).json({ error: 'title and target_url required' })
   try {
     const [result] = await pool.query(
-      'INSERT INTO ads (advertiser_id, title, body, image_url, target_url, placement, start_date, end_date) VALUES (?,?,?,?,?,?,?,?)',
-      [req.userId, title, body || null, image_url || null, target_url, placement, start_date || null, end_date || null]
+      'INSERT INTO ads (advertiser_id, title, body, image_url, image_display_width, image_display_height, target_url, placement, start_date, end_date) VALUES (?,?,?,?,?,?,?,?,?,?)',
+      [req.userId, title, body || null, image_url || null, image_display_width || null, image_display_height || null, target_url, placement, start_date || null, end_date || null]
     )
     const [[ad]] = await pool.query('SELECT * FROM ads WHERE id = ?', [result.insertId])
     res.status(201).json({ ad })
@@ -3763,14 +3769,14 @@ app.put('/api/ads/:id', authenticate, async (req, res) => {
     const [[ad]] = await pool.query('SELECT * FROM ads WHERE id = ?', [req.params.id])
     if (!ad) return res.status(404).json({ error: 'Ad not found' })
     if (ad.advertiser_id !== req.userId && req.userId !== 1) return res.status(403).json({ error: 'Forbidden' })
-    const { title, body, image_url, target_url, status, placement, start_date, end_date } = req.body
+    const { title, body, image_url, image_display_width, image_display_height, target_url, status, placement, start_date, end_date } = req.body
     const VALID_STATUS = ['draft', 'active', 'paused', 'archived']
     const VALID_PLACEMENT = ['feed', 'sidebar', 'stories']
     if (status && !VALID_STATUS.includes(status)) return res.status(400).json({ error: 'Invalid status' })
     if (placement && !VALID_PLACEMENT.includes(placement)) return res.status(400).json({ error: 'Invalid placement' })
     await pool.query(
-      'UPDATE ads SET title=COALESCE(?,title), body=COALESCE(?,body), image_url=COALESCE(?,image_url), target_url=COALESCE(?,target_url), status=COALESCE(?,status), placement=COALESCE(?,placement), start_date=COALESCE(?,start_date), end_date=COALESCE(?,end_date) WHERE id=?',
-      [title||null, body||null, image_url||null, target_url||null, status||null, placement||null, start_date||null, end_date||null, req.params.id]
+      'UPDATE ads SET title=COALESCE(?,title), body=COALESCE(?,body), image_url=COALESCE(?,image_url), image_display_width=?, image_display_height=?, target_url=COALESCE(?,target_url), status=COALESCE(?,status), placement=COALESCE(?,placement), start_date=COALESCE(?,start_date), end_date=COALESCE(?,end_date) WHERE id=?',
+      [title||null, body||null, image_url||null, image_display_width||null, image_display_height||null, target_url||null, status||null, placement||null, start_date||null, end_date||null, req.params.id]
     )
     const [[updated]] = await pool.query('SELECT * FROM ads WHERE id = ?', [req.params.id])
     res.json({ ad: updated })

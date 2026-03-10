@@ -868,6 +868,13 @@ export async function apiUpdateAd(id, data) {
 export async function apiDeleteAd(id) {
   return await request(`/api/ads/${id}`, { method: 'DELETE' })
 }
+export async function apiUploadAdImage(file) {
+  const fd = new FormData()
+  fd.append('image', file)
+  const res = await fetch(`${API_BASE}/api/ads/upload-image`, { method: 'POST', headers: formHeaders(), body: fd })
+  if (!res.ok) return null
+  return res.json()
+}
 export async function apiRecordAdImpression(id) {
   return await request(`/api/ads/${id}/impression`, { method: 'POST' })
 }

@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } from 'react'
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { PT, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdminAdSettings, apiSaveAdminAdSettings } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiUploadAdImage, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdminAdSettings, apiSaveAdminAdSettings } from './api.js'
 import ReelsPage from './Reels.jsx'
 import AdBanner from './AdBanner.jsx'
 
@@ -9275,12 +9275,15 @@ function PostInsightsPanel({ t, post, onClose }) {
 // ─────────────────────────────────────────────
 
 function AdsManagementPage({ lang, t }) {
+  const da = lang === 'da'
   const [ads, setAds] = useState([])
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
   const [editAd, setEditAd] = useState(null)
-  const [form, setForm] = useState({ title: '', body: '', image_url: '', target_url: '', placement: 'feed', start_date: '', end_date: '' })
+  const emptyForm = { title: '', body: '', image_url: '', image_display_width: 100, image_display_height: '', target_url: '', placement: 'feed', start_date: '', end_date: '' }
+  const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
+  const [imageUploading, setImageUploading] = useState(false)
 
   const reload = () => {
     setLoading(true)
@@ -9290,11 +9293,20 @@ function AdsManagementPage({ lang, t }) {
   useEffect(() => { reload() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const statusLabel = (s) => ({ draft: t.adsStatusDraft, active: t.adsStatusActive, paused: t.adsStatusPaused, archived: t.adsStatusArchived }[s] || s)
-  const placementLabel = (p) => ({ feed: t.adsFeed, sidebar: t.adsSidebar, stories: t.adsStories }[p] || p)
   const ctr = (imp, cl) => imp > 0 ? ((cl / imp) * 100).toFixed(2) + '%' : '–'
 
-  const openCreate = () => { setForm({ title: '', body: '', image_url: '', target_url: '', placement: 'feed', start_date: '', end_date: '' }); setEditAd(null); setShowCreate(true) }
-  const openEdit = (ad) => { setForm({ title: ad.title, body: ad.body || '', image_url: ad.image_url || '', target_url: ad.target_url, placement: ad.placement, start_date: ad.start_date ? ad.start_date.slice(0,10) : '', end_date: ad.end_date ? ad.end_date.slice(0,10) : '' }); setEditAd(ad); setShowCreate(true) }
+  const openCreate = () => { setForm(emptyForm); setEditAd(null); setShowCreate(true) }
+  const openEdit = (ad) => {
+    setForm({
+      title: ad.title, body: ad.body || '', image_url: ad.image_url || '',
+      image_display_width: ad.image_display_width ?? 100,
+      image_display_height: ad.image_display_height ?? '',
+      target_url: ad.target_url, placement: ad.placement,
+      start_date: ad.start_date ? ad.start_date.slice(0,10) : '',
+      end_date: ad.end_date ? ad.end_date.slice(0,10) : '',
+    })
+    setEditAd(ad); setShowCreate(true)
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -9302,6 +9314,7 @@ function AdsManagementPage({ lang, t }) {
     const payload = { ...form }
     if (!payload.start_date) delete payload.start_date
     if (!payload.end_date) delete payload.end_date
+    if (!payload.image_display_height) delete payload.image_display_height
     if (editAd) {
       await apiUpdateAd(editAd.id, payload).catch(() => {})
     } else {
@@ -9316,13 +9329,29 @@ function AdsManagementPage({ lang, t }) {
   }
 
   const handleDelete = async (ad) => {
-    if (!window.confirm(lang === 'da' ? 'Arkivér denne annonce?' : 'Archive this ad?')) return
+    if (!window.confirm(da ? 'Arkivér denne annonce?' : 'Archive this ad?')) return
     await apiDeleteAd(ad.id).catch(() => {})
     reload()
   }
 
-  const fieldStyle = { width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }
-  const labelStyle = { fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 4, marginTop: 12 }
+  const handleImagePaste = async (e) => {
+    const items = e.clipboardData?.items
+    if (!items) return
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault()
+        const file = item.getAsFile()
+        setImageUploading(true)
+        const res = await apiUploadAdImage(file).catch(() => null)
+        setImageUploading(false)
+        if (res?.url) setForm(f => ({ ...f, image_url: res.url }))
+        break
+      }
+    }
+  }
+
+  const fS = { width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }
+  const lS = { fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 4, marginTop: 12 }
 
   return (
     <div style={{ maxWidth: 800, margin: '0 auto', padding: '0 16px 80px' }}>
@@ -9332,7 +9361,7 @@ function AdsManagementPage({ lang, t }) {
       </div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 40, color: '#888' }}>{lang === 'da' ? 'Henter…' : 'Loading…'}</div>
+        <div style={{ textAlign: 'center', padding: 40, color: '#888' }}>{da ? 'Henter…' : 'Loading…'}</div>
       ) : ads.length === 0 ? (
         <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>{t.adsNoAds}</div>
       ) : (
@@ -9341,10 +9370,12 @@ function AdsManagementPage({ lang, t }) {
             <div key={ad.id} className="p-card" style={{ padding: 16 }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{ad.title}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                    {ad.image_url && <img src={ad.image_url} alt="" style={{ width: 40, height: 30, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} />}
+                    <div style={{ fontWeight: 700, fontSize: 15 }}>{ad.title}</div>
+                  </div>
                   {ad.body && <div style={{ fontSize: 13, color: '#555', marginBottom: 6 }}>{ad.body}</div>}
                   <div style={{ display: 'flex', gap: 16, fontSize: 12, color: '#888', flexWrap: 'wrap' }}>
-                    <span>{t.adsPlacement}: <strong>{placementLabel(ad.placement)}</strong></span>
                     <span>{t.adsStatus}: <strong style={{ color: ad.status === 'active' ? '#2D6A4F' : ad.status === 'paused' ? '#e67e22' : '#aaa' }}>{statusLabel(ad.status)}</strong></span>
                     <span>{t.adsImpressions}: <strong>{ad.impressions}</strong></span>
                     <span>{t.adsClicks}: <strong>{ad.clicks}</strong></span>
@@ -9366,27 +9397,63 @@ function AdsManagementPage({ lang, t }) {
 
       {showCreate && (
         <div className="modal-backdrop" onClick={() => setShowCreate(false)}>
-          <div className="p-card" style={{ width: '100%', maxWidth: 500, padding: 24 }} onClick={e => e.stopPropagation()}>
+          <div className="p-card" style={{ width: '100%', maxWidth: 520, padding: 24, maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
             <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 700 }}>{editAd ? t.adsEdit : t.adsCreate}</h3>
             <form onSubmit={handleSubmit}>
-              <label style={labelStyle}>{t.adsAdTitle} *</label>
-              <input required style={fieldStyle} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
-              <label style={labelStyle}>{t.adsAdBody}</label>
-              <textarea style={{ ...fieldStyle, minHeight: 60 }} value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))} />
-              <label style={labelStyle}>{t.adsAdImage}</label>
-              <input style={fieldStyle} value={form.image_url} onChange={e => setForm(f => ({ ...f, image_url: e.target.value }))} placeholder="https://..." />
-              <label style={labelStyle}>{t.adsAdTarget} *</label>
-              <input required style={fieldStyle} value={form.target_url} onChange={e => setForm(f => ({ ...f, target_url: e.target.value }))} placeholder="https://..." />
-              <label style={labelStyle}>{t.adsPlacement}</label>
-              <select style={fieldStyle} value={form.placement} onChange={e => setForm(f => ({ ...f, placement: e.target.value }))}>
+              <label style={lS}>{t.adsAdTitle} *</label>
+              <input required style={fS} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
+
+              <label style={lS}>{t.adsAdBody}</label>
+              <textarea style={{ ...fS, minHeight: 60 }} value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))} />
+
+              <label style={lS}>{t.adsAdImage}</label>
+              <input style={fS} value={form.image_url} onChange={e => setForm(f => ({ ...f, image_url: e.target.value }))} placeholder="https://..." />
+              <div
+                style={{ marginTop: 6, border: '2px dashed #ddd', borderRadius: 6, padding: '10px 14px', fontSize: 12, color: '#aaa', textAlign: 'center', cursor: 'text', background: '#fafafa', outline: 'none' }}
+                tabIndex={0}
+                onPaste={handleImagePaste}
+              >
+                {imageUploading ? (da ? 'Uploader billede…' : 'Uploading image…') : (da ? 'Klik her og tryk Ctrl+V for at indsætte et billede' : 'Click here and press Ctrl+V to paste an image')}
+              </div>
+
+              {form.image_url && (
+                <div style={{ marginTop: 10, padding: 10, background: '#f8f8f8', borderRadius: 8, border: '1px solid #eee' }}>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 10 }}>
+                    <img src={form.image_url} alt="" style={{ width: 60, height: 45, objectFit: 'cover', borderRadius: 6, border: '1px solid #ddd', flexShrink: 0 }} />
+                    <div style={{ fontSize: 12, color: '#555', alignSelf: 'center' }}>{da ? 'Forhåndsvisning' : 'Preview'}</div>
+                  </div>
+                  <label style={{ ...lS, marginTop: 4 }}>{da ? `Bredde: ${form.image_display_width}% af annoncen` : `Width: ${form.image_display_width}% of the ad`}</label>
+                  <input
+                    type="range" min={20} max={100} step={5}
+                    value={form.image_display_width}
+                    onChange={e => setForm(f => ({ ...f, image_display_width: Number(e.target.value) }))}
+                    style={{ width: '100%' }}
+                  />
+                  <label style={{ ...lS, marginTop: 8 }}>{da ? 'Højde (px) — tom = automatisk' : 'Height (px) — empty = automatic'}</label>
+                  <input
+                    type="number" min={40} max={400} step={10}
+                    style={{ ...fS, width: 120 }}
+                    value={form.image_display_height}
+                    onChange={e => setForm(f => ({ ...f, image_display_height: e.target.value ? Number(e.target.value) : '' }))}
+                    placeholder={da ? 'Auto' : 'Auto'}
+                  />
+                </div>
+              )}
+
+              <label style={lS}>{t.adsAdTarget} *</label>
+              <input required style={fS} value={form.target_url} onChange={e => setForm(f => ({ ...f, target_url: e.target.value }))} placeholder="https://..." />
+
+              <label style={lS}>{t.adsPlacement}</label>
+              <select style={fS} value={form.placement} onChange={e => setForm(f => ({ ...f, placement: e.target.value }))}>
                 <option value="feed">{t.adsFeed}</option>
-                <option value="sidebar">{t.adsSidebar}</option>
-                <option value="stories">{t.adsStories}</option>
               </select>
-              <label style={labelStyle}>{t.adsAdStartDate}</label>
-              <input type="date" style={fieldStyle} value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} />
-              <label style={labelStyle}>{t.adsAdEndDate}</label>
-              <input type="date" style={fieldStyle} value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} />
+              <div style={{ fontSize: 11, color: '#aaa', marginTop: 4 }}>{da ? 'Sidebar og Stories er endnu ikke aktiveret på platformen.' : 'Sidebar and Stories are not yet active on the platform.'}</div>
+
+              <label style={lS}>{t.adsAdStartDate}</label>
+              <input type="date" style={fS} value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} />
+              <label style={lS}>{t.adsAdEndDate}</label>
+              <input type="date" style={fS} value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} />
+
               <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
                 <button type="submit" disabled={saving} style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>{saving ? '…' : t.adsSave}</button>
                 <button type="button" onClick={() => setShowCreate(false)} style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: '1px solid #ddd', background: 'none', fontSize: 14, cursor: 'pointer' }}>{t.adsCancel}</button>
@@ -9469,9 +9536,11 @@ function AdminAdSettingsPanel({ lang, t }) {
         <label style={lS}>{t.adminAdsRefresh}</label>
         <input type="number" min="30" style={{ ...iS, maxWidth: 120 }} value={settings.refresh_interval_seconds || ''} onChange={e => handle('refresh_interval_seconds', e.target.value)} />
 
-        <button type="submit" disabled={saving} style={{ marginTop: 20, padding: '10px 24px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
-          {saved ? t.adminAdsSaved : saving ? t.adminAdsSaving : t.adminAdsSave}
-        </button>
+        <div style={{ marginTop: 20 }}>
+          <button type="submit" disabled={saving} style={{ padding: '10px 24px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+            {saved ? t.adminAdsSaved : saving ? t.adminAdsSaving : t.adminAdsSave}
+          </button>
+        </div>
       </form>
     </div>
   )
