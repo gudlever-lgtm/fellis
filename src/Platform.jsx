@@ -747,7 +747,7 @@ function ReelsStrip({ lang, t, onNavigate }) {
   const [reels, setReels] = useState([])
 
   useEffect(() => {
-    apiFetchReels(0, 3).then(data => { if (data?.reels?.length) setReels(data.reels) })
+    apiFetchReels(0, 9).then(data => { if (data?.reels?.length) setReels(data.reels) })
   }, [])
 
   if (!reels.length) return null
