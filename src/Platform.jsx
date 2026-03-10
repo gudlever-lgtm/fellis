@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } from 'react'
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { PT, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiUploadAdImage, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdminAdSettings, apiSaveAdminAdSettings } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiUploadAdImage, apiGetSubscription, apiCreateAdFreeCheckout, apiCreateAdCampaignCheckout, apiGetAdminAdSettings, apiSaveAdminAdSettings } from './api.js'
 import ReelsPage from './Reels.jsx'
 import AdBanner from './AdBanner.jsx'
 
@@ -9274,8 +9274,8 @@ function AdsManagementPage({ lang, t }) {
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
   const [imageUploading, setImageUploading] = useState(false)
-  const [reactivatingId, setReactivatingId] = useState(null)
-  const [reactivateDate, setReactivateDate] = useState('')
+  const [checkingOut, setCheckingOut] = useState(null)
+  const [successBanner, setSuccessBanner] = useState(false)
 
   const isExpired = (ad) => {
     if (!ad.end_date) return false
@@ -9283,12 +9283,12 @@ function AdsManagementPage({ lang, t }) {
     return ad.end_date.slice(0, 10) < today
   }
 
-  const handleReactivate = async (ad) => {
-    if (!reactivateDate) return
-    await apiUpdateAd(ad.id, { end_date: reactivateDate, status: 'active' }).catch(() => {})
-    setReactivatingId(null)
-    setReactivateDate('')
-    reload()
+  const handlePayAndActivate = async (ad) => {
+    setCheckingOut(ad.id)
+    const res = await apiCreateAdCampaignCheckout(ad.id).catch(() => null)
+    setCheckingOut(null)
+    if (res?.activated) { reload(); return }
+    if (res?.url) { window.location.href = res.url; return }
   }
 
   const reload = () => {
@@ -9296,7 +9296,18 @@ function AdsManagementPage({ lang, t }) {
     apiGetMyAds().then(data => { setAds(data?.ads || []); setLoading(false) }).catch(() => setLoading(false))
   }
 
-  useEffect(() => { reload() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    reload()
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('ad_payment') === 'success') {
+      setSuccessBanner(true)
+      setTimeout(() => setSuccessBanner(false), 6000)
+      const url = new URL(window.location)
+      url.searchParams.delete('ad_payment')
+      url.searchParams.delete('ad_id')
+      window.history.replaceState({}, '', url)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const statusLabel = (s) => ({ draft: t.adsStatusDraft, active: t.adsStatusActive, paused: t.adsStatusPaused, archived: t.adsStatusArchived }[s] || s)
   const ctr = (imp, cl) => imp > 0 ? ((cl / imp) * 100).toFixed(2) + '%' : '–'
@@ -9365,6 +9376,11 @@ function AdsManagementPage({ lang, t }) {
         <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>📢 {t.adsTitle}</h2>
         <button onClick={openCreate} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>+ {t.adsCreate}</button>
       </div>
+      {successBanner && (
+        <div style={{ background: '#F0FAF4', border: '1px solid #b7dfc9', borderRadius: 8, padding: '12px 16px', marginBottom: 16, color: '#1a5c38', fontWeight: 600, fontSize: 14 }}>
+          ✅ {t.adsPaymentSuccess}
+        </div>
+      )}
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: 40, color: '#888' }}>{da ? 'Henter…' : 'Loading…'}</div>
@@ -9386,37 +9402,25 @@ function AdsManagementPage({ lang, t }) {
                     {isExpired(ad) && (
                       <span style={{ background: '#FFF0ED', color: '#C0392B', fontWeight: 700, fontSize: 11, padding: '2px 8px', borderRadius: 20, border: '1px solid #F5C6BC' }}>⚠️ {t.adsExpiredBadge}</span>
                     )}
+                    {ad.payment_status === 'paid' && !isExpired(ad) && (
+                      <span style={{ background: '#F0FAF4', color: '#2D6A4F', fontWeight: 700, fontSize: 11, padding: '2px 8px', borderRadius: 20, border: '1px solid #b7dfc9' }}>✓ {t.adsPaymentPaid}</span>
+                    )}
+                    {ad.payment_status === 'paid' && ad.end_date && (
+                      <span style={{ fontSize: 11, color: '#888' }}>{t.adsPaidUntil}: <strong>{ad.end_date.slice(0, 10)}</strong></span>
+                    )}
                     <span>{t.adsImpressions}: <strong>{ad.impressions}</strong></span>
                     <span>{t.adsClicks}: <strong>{ad.clicks}</strong></span>
                     <span>{t.adsCTR}: <strong>{ctr(ad.impressions, ad.clicks)}</strong></span>
                   </div>
-                  {isExpired(ad) && reactivatingId === ad.id && (
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 10, flexWrap: 'wrap' }}>
-                      <label style={{ fontSize: 12, fontWeight: 600, color: '#555' }}>{t.adsReactivateLabel}:</label>
-                      <input
-                        type="date"
-                        value={reactivateDate}
-                        min={new Date().toISOString().slice(0, 10)}
-                        onChange={e => setReactivateDate(e.target.value)}
-                        style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid #ddd' }}
-                      />
-                      <button
-                        onClick={() => handleReactivate(ad)}
-                        disabled={!reactivateDate}
-                        style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontWeight: 600 }}
-                      >{t.adsReactivateConfirm}</button>
-                      <button
-                        onClick={() => { setReactivatingId(null); setReactivateDate('') }}
-                        style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, border: '1px solid #ddd', background: 'none', cursor: 'pointer' }}
-                      >{t.adsReactivateCancel}</button>
-                    </div>
-                  )}
                 </div>
-                <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                  {isExpired(ad) && reactivatingId !== ad.id && (
-                    <button onClick={() => { setReactivatingId(ad.id); setReactivateDate('') }} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, border: '1px solid #2D6A4F', color: '#2D6A4F', background: '#F0FAF4', cursor: 'pointer', fontWeight: 600 }}>{t.adsReactivate}</button>
+                <div style={{ display: 'flex', gap: 8, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                  {(ad.status === 'draft' || isExpired(ad)) && (
+                    <button
+                      onClick={() => handlePayAndActivate(ad)}
+                      disabled={checkingOut === ad.id}
+                      style={{ fontSize: 12, padding: '5px 12px', borderRadius: 6, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontWeight: 700 }}
+                    >{checkingOut === ad.id ? '…' : isExpired(ad) ? t.adsReactivate : t.adsPayAndActivate}</button>
                   )}
-                  {ad.status === 'draft' && <button onClick={() => handleStatus(ad, 'active')} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, border: '1px solid #2D6A4F', color: '#2D6A4F', background: 'none', cursor: 'pointer' }}>{t.adsActivate}</button>}
                   {ad.status === 'active' && !isExpired(ad) && <button onClick={() => handleStatus(ad, 'paused')} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, border: '1px solid #e67e22', color: '#e67e22', background: 'none', cursor: 'pointer' }}>{t.adsPause}</button>}
                   {ad.status === 'paused' && !isExpired(ad) && <button onClick={() => handleStatus(ad, 'active')} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, border: '1px solid #2D6A4F', color: '#2D6A4F', background: 'none', cursor: 'pointer' }}>{t.adsActivate}</button>}
                   <button onClick={() => openEdit(ad)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, border: '1px solid #999', background: 'none', cursor: 'pointer' }}>{t.adsEdit}</button>
@@ -9521,6 +9525,8 @@ function AdminAdSettingsPanel({ lang, t }) {
       adfree_price_private: parseFloat(settings.adfree_price_private),
       adfree_price_business: parseFloat(settings.adfree_price_business),
       ad_price_cpm: parseFloat(settings.ad_price_cpm),
+      ad_price_period: parseFloat(settings.ad_price_period),
+      ad_period_days: parseInt(settings.ad_period_days),
       currency: settings.currency,
       max_ads_feed: parseInt(settings.max_ads_feed),
       max_ads_sidebar: parseInt(settings.max_ads_sidebar),
@@ -9556,6 +9562,10 @@ function AdminAdSettingsPanel({ lang, t }) {
         <input type="number" step="0.01" style={iS} value={settings.adfree_price_business || ''} onChange={e => handle('adfree_price_business', e.target.value)} />
         <label style={lS}>{t.adminAdsCPM}</label>
         <input type="number" step="0.01" style={iS} value={settings.ad_price_cpm || ''} onChange={e => handle('ad_price_cpm', e.target.value)} />
+        <label style={lS}>{t.adminAdsPeriodPrice}</label>
+        <input type="number" step="0.01" style={{ ...iS, maxWidth: 160 }} value={settings.ad_price_period ?? ''} onChange={e => handle('ad_price_period', e.target.value)} />
+        <label style={lS}>{t.adminAdsPeriodDays}</label>
+        <input type="number" min="1" max="365" style={{ ...iS, maxWidth: 100 }} value={settings.ad_period_days ?? ''} onChange={e => handle('ad_period_days', e.target.value)} />
         <label style={lS}>{t.adminAdsCurrency}</label>
         <input style={{ ...iS, maxWidth: 120 }} value={settings.currency || 'DKK'} onChange={e => handle('currency', e.target.value)} />
 

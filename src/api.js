@@ -892,6 +892,9 @@ export async function apiGetSubscription() {
 export async function apiCreateAdFreeCheckout() {
   return await request('/api/stripe/checkout/adfree', { method: 'POST' })
 }
+export async function apiCreateAdCampaignCheckout(adId) {
+  return await request('/api/stripe/checkout/ad-campaign', { method: 'POST', body: JSON.stringify({ ad_id: adId }) })
+}
 
 // ── Admin ad settings ─────────────────────────────────────────────────────────
 export async function apiGetAdminAdSettings() {

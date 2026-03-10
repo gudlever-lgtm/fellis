@@ -3634,12 +3634,21 @@ async function initAds() {
       clicks INT NOT NULL DEFAULT 0,
       start_date DATE DEFAULT NULL,
       end_date DATE DEFAULT NULL,
+      payment_status ENUM('unpaid','paid') NOT NULL DEFAULT 'unpaid',
+      stripe_session_id VARCHAR(200) DEFAULT NULL,
+      paid_at DATETIME DEFAULT NULL,
+      paid_amount DECIMAL(10,2) DEFAULT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       INDEX idx_ads_advertiser (advertiser_id),
       INDEX idx_ads_status_placement (status, placement),
       FOREIGN KEY (advertiser_id) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+    // Migrate existing installs
+    await pool.query(`ALTER TABLE ads ADD COLUMN IF NOT EXISTS payment_status ENUM('unpaid','paid') NOT NULL DEFAULT 'unpaid'`).catch(() => {})
+    await pool.query(`ALTER TABLE ads ADD COLUMN IF NOT EXISTS stripe_session_id VARCHAR(200) DEFAULT NULL`).catch(() => {})
+    await pool.query(`ALTER TABLE ads ADD COLUMN IF NOT EXISTS paid_at DATETIME DEFAULT NULL`).catch(() => {})
+    await pool.query(`ALTER TABLE ads ADD COLUMN IF NOT EXISTS paid_amount DECIMAL(10,2) DEFAULT NULL`).catch(() => {})
   } catch (err) {
     console.error('initAds error:', err.message)
   }
@@ -3652,6 +3661,8 @@ async function initAdminAdSettings() {
       adfree_price_private DECIMAL(10,2) NOT NULL DEFAULT 29.00,
       adfree_price_business DECIMAL(10,2) NOT NULL DEFAULT 49.00,
       ad_price_cpm DECIMAL(10,2) NOT NULL DEFAULT 50.00,
+      ad_price_period DECIMAL(10,2) NOT NULL DEFAULT 200.00,
+      ad_period_days INT NOT NULL DEFAULT 30,
       currency VARCHAR(10) NOT NULL DEFAULT 'DKK',
       max_ads_feed INT NOT NULL DEFAULT 3,
       max_ads_sidebar INT NOT NULL DEFAULT 2,
@@ -3666,6 +3677,9 @@ async function initAdminAdSettings() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
     // Ensure a default row always exists
     await pool.query(`INSERT IGNORE INTO admin_ad_settings (id) VALUES (1)`)
+    // Migrate existing installs
+    await pool.query(`ALTER TABLE admin_ad_settings ADD COLUMN IF NOT EXISTS ad_price_period DECIMAL(10,2) NOT NULL DEFAULT 200.00`).catch(() => {})
+    await pool.query(`ALTER TABLE admin_ad_settings ADD COLUMN IF NOT EXISTS ad_period_days INT NOT NULL DEFAULT 30`).catch(() => {})
   } catch (err) {
     console.error('initAdminAdSettings error:', err.message)
   }
@@ -3842,7 +3856,7 @@ app.get('/api/admin/ad-settings', authenticate, requireAdmin, async (req, res) =
 
 // PUT /api/admin/ad-settings — update ad pricing & display settings (admin only)
 app.put('/api/admin/ad-settings', authenticate, requireAdmin, async (req, res) => {
-  const allowed = ['adfree_price_private', 'adfree_price_business', 'ad_price_cpm', 'currency', 'max_ads_feed', 'max_ads_sidebar', 'max_ads_stories', 'refresh_interval_seconds', 'ads_enabled', 'stripe_price_adfree_private', 'stripe_price_adfree_business']
+  const allowed = ['adfree_price_private', 'adfree_price_business', 'ad_price_cpm', 'ad_price_period', 'ad_period_days', 'currency', 'max_ads_feed', 'max_ads_sidebar', 'max_ads_stories', 'refresh_interval_seconds', 'ads_enabled', 'stripe_price_adfree_private', 'stripe_price_adfree_business']
   const updates = {}
   for (const key of allowed) {
     if (key in req.body) updates[key] = req.body[key]
@@ -3917,6 +3931,65 @@ app.post('/api/stripe/checkout/adfree', authenticate, async (req, res) => {
   }
 })
 
+// POST /api/stripe/checkout/ad-campaign — one-time payment to activate an ad for a period
+app.post('/api/stripe/checkout/ad-campaign', authenticate, attachUserMode, requireBusiness, async (req, res) => {
+  try {
+    const { ad_id } = req.body
+    if (!ad_id) return res.status(400).json({ error: 'ad_id required' })
+
+    const [[ad]] = await pool.query('SELECT id, title, advertiser_id FROM ads WHERE id = ?', [ad_id])
+    if (!ad) return res.status(404).json({ error: 'Ad not found' })
+    if (ad.advertiser_id !== req.userId) return res.status(403).json({ error: 'Not your ad' })
+
+    const [[adSettings]] = await pool.query('SELECT ad_price_period, ad_period_days, currency FROM admin_ad_settings WHERE id = 1').catch(() => [[null]])
+    const price = parseFloat(adSettings?.ad_price_period ?? 200)
+    const days = parseInt(adSettings?.ad_period_days ?? 30)
+    const currency = (adSettings?.currency || 'DKK').toLowerCase()
+
+    const stripe = await getStripe()
+    if (!stripe) {
+      // Stripe not configured — activate directly (dev/demo mode)
+      const startDate = new Date().toISOString().slice(0, 10)
+      const endDate = new Date(Date.now() + days * 86400000).toISOString().slice(0, 10)
+      await pool.query(
+        `UPDATE ads SET status = 'active', payment_status = 'paid', paid_at = NOW(), paid_amount = ?, start_date = ?, end_date = ? WHERE id = ?`,
+        [price, startDate, endDate, ad_id]
+      )
+      return res.json({ activated: true })
+    }
+
+    const [[user]] = await pool.query('SELECT name, email, stripe_customer_id FROM users WHERE id = ?', [req.userId])
+    let customerId = user.stripe_customer_id
+    if (!customerId) {
+      const customer = await stripe.customers.create({ email: user.email, name: user.name })
+      customerId = customer.id
+      await pool.query('UPDATE users SET stripe_customer_id = ? WHERE id = ?', [customerId, req.userId])
+    }
+
+    const origin = req.headers.origin || 'https://fellis.eu'
+    const session = await stripe.checkout.sessions.create({
+      customer: customerId,
+      mode: 'payment',
+      line_items: [{
+        quantity: 1,
+        price_data: {
+          currency,
+          unit_amount: Math.round(price * 100),
+          product_data: { name: `Annonce: ${ad.title} (${days} dage)` },
+        },
+      }],
+      success_url: `${origin}/?ad_payment=success&ad_id=${ad_id}`,
+      cancel_url: `${origin}/?ad_payment=cancel&ad_id=${ad_id}`,
+      metadata: { user_id: String(req.userId), type: 'ad-campaign', ad_id: String(ad_id), period_days: String(days), paid_amount: String(price) },
+    })
+
+    res.json({ url: session.url })
+  } catch (err) {
+    console.error('POST /api/stripe/checkout/ad-campaign error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // POST /api/stripe/webhook — Stripe webhook handler (raw body needed)
 app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
   try {
@@ -3944,6 +4017,17 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
         await pool.query(
           'UPDATE users SET ads_free = 1, ads_free_sub_id = ? WHERE id = ?',
           [subId, parseInt(session.metadata.user_id)]
+        )
+      }
+      if (session.metadata?.type === 'ad-campaign' && session.metadata?.ad_id) {
+        const adId = parseInt(session.metadata.ad_id)
+        const days = parseInt(session.metadata.period_days || '30')
+        const paidAmount = parseFloat(session.metadata.paid_amount || '0')
+        const startDate = new Date().toISOString().slice(0, 10)
+        const endDate = new Date(Date.now() + days * 86400000).toISOString().slice(0, 10)
+        await pool.query(
+          `UPDATE ads SET status = 'active', payment_status = 'paid', paid_at = NOW(), paid_amount = ?, stripe_session_id = ?, start_date = ?, end_date = ? WHERE id = ?`,
+          [paidAmount, session.id, startDate, endDate, adId]
         )
       }
     }
