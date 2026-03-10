@@ -924,6 +924,13 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
           </div>
         </div>
       )}
+
+      <footer style={{ textAlign: 'center', padding: '24px 16px', fontSize: 12, color: '#aaa', borderTop: '1px solid #eee', marginTop: 40 }}>
+        © {new Date().getFullYear()} fellis.eu &nbsp;·&nbsp;
+        <a href="/privacy" style={{ color: '#2D6A4F', textDecoration: 'underline' }}>
+          {lang === 'da' ? 'Privatlivspolitik' : 'Privacy Policy'}
+        </a>
+      </footer>
     </div>
   )
 }
