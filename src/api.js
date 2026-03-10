@@ -805,6 +805,17 @@ export async function apiUpdateModeratorCandidate(id, isCandidate, note) {
   })
 }
 
+// ── Moderator management (admin, invite-only) ──
+export async function apiGetModerators() {
+  return await request('/api/admin/moderators')
+}
+export async function apiGrantModerator(userId) {
+  return await request(`/api/admin/moderators/${userId}/grant`, { method: 'POST' })
+}
+export async function apiRevokeModerator(userId) {
+  return await request(`/api/admin/moderators/${userId}/revoke`, { method: 'POST' })
+}
+
 export async function apiUploadFile(file, type = 'post') {
   const form = new FormData()
   form.append('file', file)

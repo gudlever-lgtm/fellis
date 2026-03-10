@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect } from 'react'
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { PT, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile } from './api.js'
 import ReelsPage from './Reels.jsx'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
@@ -10363,6 +10363,7 @@ function AdminPage({ lang, t }) {
   const [modCandidates, setModCandidates] = useState(null)
   const [candidateNote, setCandidateNote] = useState({}) // userId → note string
   const [candidatePending, setCandidatePending] = useState({}) // userId → editing note
+  const [modModerators, setModModerators] = useState(null)
   const [newKeyword, setNewKeyword] = useState('')
   const [newKeywordAction, setNewKeywordAction] = useState('flag')
   const [newKeywordCategory, setNewKeywordCategory] = useState('profanity')
@@ -10400,6 +10401,7 @@ function AdminPage({ lang, t }) {
       apiGetKeywordFilters().then(data => { if (data) setModKeywords(data.keywords) })
       apiGetModerationActions().then(data => { if (data) setModActions(data.actions) })
       apiGetModeratorCandidates().then(data => { if (data) setModCandidates(data.candidates) })
+      apiGetModerators().then(data => { if (data) setModModerators(data.moderators) })
     }
   }, [adminTab, viralDays])
 
@@ -10812,6 +10814,7 @@ function AdminPage({ lang, t }) {
               { key: 'keywords', label: `🔤 ${t.adminModKeywordsTitle}` },
               { key: 'log', label: `📋 ${t.adminModActionsTitle}` },
               { key: 'candidates', label: `⭐ ${t.adminModCandidatesTitle}` },
+              { key: 'moderators', label: `🛡️ ${t.adminModModeratorsTab}` },
             ].map(({ key, label }) => (
               <button key={key} className={`p-filter-tab${modSubTab === key ? ' active' : ''}`} onClick={() => setModSubTab(key)}>
                 {label}
@@ -11227,6 +11230,16 @@ function AdminPage({ lang, t }) {
                           onClick={() => setCandidatePending(prev => ({ ...prev, [u.id]: u.moderator_candidate_note || '' }))}>
                           ✏️ {lang === 'da' ? 'Rediger note' : 'Edit note'}
                         </button>
+                        <button style={{ padding: '5px 10px', borderRadius: 7, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+                          onClick={async () => {
+                            if (!window.confirm(`${t.adminModGrantModerator}?`)) return
+                            await apiGrantModerator(u.id)
+                            apiGetModeratorCandidates().then(d => { if (d) setModCandidates(d.candidates) })
+                            apiGetModerators().then(d => { if (d) setModModerators(d.moderators) })
+                            showModToast(`✓ ${t.adminModGrantSuccess}`)
+                          }}>
+                          🛡️ {t.adminModGrantModerator}
+                        </button>
                         <button style={{ padding: '5px 10px', borderRadius: 7, border: 'none', background: '#C0392B', color: '#fff', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
                           onClick={async () => {
                             await apiUpdateModeratorCandidate(u.id, false)
@@ -11240,6 +11253,44 @@ function AdminPage({ lang, t }) {
                   </div>
                 )
               })}
+            </div>
+          )}
+
+          {/* ── Moderators (invite-only) ── */}
+          {modSubTab === 'moderators' && (
+            <div>
+              <div className="p-card" style={{ marginBottom: 16, padding: '14px 18px', background: '#F0F7F4', border: '1px solid #B7DDD0' }}>
+                <div style={{ fontSize: 13, color: '#2D6A4F', fontWeight: 600, marginBottom: 4 }}>
+                  🔒 {lang === 'da' ? 'Invite only — tildel moderatorstatus direkte til brugere' : 'Invite only — grant moderator status directly to users'}
+                </div>
+                <div style={{ fontSize: 12, color: '#555' }}>
+                  {lang === 'da'
+                    ? 'Brug Kandidater-fanen til at identificere emner, og giv derefter moderatorstatus herfra.'
+                    : 'Use the Candidates tab to identify prospects, then grant moderator status here.'}
+                </div>
+              </div>
+              {!modModerators ? (
+                <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>{lang === 'da' ? 'Henter…' : 'Loading…'}</div>
+              ) : modModerators.length === 0 ? (
+                <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>{t.adminModNoModerators}</div>
+              ) : modModerators.map(u => (
+                <div key={u.id} className="p-card" style={{ marginBottom: 10, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <div className="p-avatar-sm" style={{ background: nameToColor(u.name) }}>{getInitials(u.name)}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14 }}>{u.name}</div>
+                    <div style={{ fontSize: 12, color: '#888' }}>{u.handle} · {u.email}</div>
+                  </div>
+                  <button style={{ padding: '5px 10px', borderRadius: 7, border: 'none', background: '#C0392B', color: '#fff', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
+                    onClick={async () => {
+                      if (!window.confirm(t.adminModRevokeConfirm)) return
+                      await apiRevokeModerator(u.id)
+                      apiGetModerators().then(d => { if (d) setModModerators(d.moderators) })
+                      showModToast('✓ Revoked')
+                    }}>
+                    {t.adminModRevokeModerator}
+                  </button>
+                </div>
+              ))}
             </div>
           )}
 

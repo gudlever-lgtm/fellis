@@ -798,6 +798,12 @@ export const PT = {
     adminModKeywordEdit: 'Rediger',
     adminModKeywordSave: 'Gem',
     adminModKeywordCancel: 'Annuller',
+    adminModModeratorsTab: 'Moderatorer',
+    adminModGrantModerator: 'Giv moderatorstatus',
+    adminModRevokeModerator: 'Fjern moderatorstatus',
+    adminModRevokeConfirm: 'Fjern moderatorstatus fra denne bruger?',
+    adminModNoModerators: 'Ingen moderatorer endnu',
+    adminModGrantSuccess: 'Moderatorstatus tildelt',
   },
   en: {
     feed: 'Feed',
@@ -1457,6 +1463,12 @@ export const PT = {
     adminModKeywordEdit: 'Edit',
     adminModKeywordSave: 'Save',
     adminModKeywordCancel: 'Cancel',
+    adminModModeratorsTab: 'Moderators',
+    adminModGrantModerator: 'Grant moderator status',
+    adminModRevokeModerator: 'Revoke moderator status',
+    adminModRevokeConfirm: 'Remove moderator status from this user?',
+    adminModNoModerators: 'No moderators yet',
+    adminModGrantSuccess: 'Moderator status granted',
   },
 }
 

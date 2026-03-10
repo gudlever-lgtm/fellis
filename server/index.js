@@ -5350,6 +5350,70 @@ app.patch('/api/admin/moderation/users/:id/candidate', authenticate, requireAdmi
   }
 })
 
+// ── Moderator management (admin, invite-only) ────────────────────────────────
+
+// GET /api/admin/moderators — list current moderators
+app.get('/api/admin/moderators', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, name, handle, email, created_at FROM users WHERE is_moderator = 1 ORDER BY name ASC`
+    )
+    res.json({ moderators: rows })
+  } catch (err) {
+    console.error('GET /api/admin/moderators error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/admin/moderators/:userId/grant — assign moderator status (invite)
+app.post('/api/admin/moderators/:userId/grant', authenticate, requireAdmin, async (req, res) => {
+  const targetId = parseInt(req.params.userId)
+  if (!targetId || targetId === 1) return res.status(400).json({ error: 'Invalid target' })
+  try {
+    const [[user]] = await pool.query('SELECT id, name, email FROM users WHERE id = ?', [targetId])
+    if (!user) return res.status(404).json({ error: 'User not found' })
+    await pool.query('UPDATE users SET is_moderator = 1, moderator_candidate = 0 WHERE id = ?', [targetId])
+    await pool.query(
+      'INSERT INTO moderation_actions (admin_id, target_user_id, action_type) VALUES (?, ?, "grant_moderator")',
+      [req.userId, targetId]
+    )
+    await createNotification(
+      targetId, 'moderator_granted',
+      'Du er nu moderator på fellis.eu 🛡️',
+      'You are now a moderator on fellis.eu 🛡️',
+      '/moderation'
+    )
+    if (mailer && user.email) {
+      mailer.sendMail({
+        to: user.email,
+        subject: 'Du er nu moderator på fellis.eu',
+        text: `Hej ${user.name},\n\nDu er nu moderator på fellis.eu. Log ind og find "Moderation" i menuen.\n\nVenlig hilsen,\nfellis.eu`,
+      }).catch(() => {})
+    }
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/admin/moderators/:userId/grant error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/admin/moderators/:userId/revoke — remove moderator status
+app.post('/api/admin/moderators/:userId/revoke', authenticate, requireAdmin, async (req, res) => {
+  const targetId = parseInt(req.params.userId)
+  if (!targetId) return res.status(400).json({ error: 'Invalid target' })
+  try {
+    await pool.query('UPDATE users SET is_moderator = 0 WHERE id = ?', [targetId])
+    await pool.query(
+      'INSERT INTO moderation_actions (admin_id, target_user_id, action_type) VALUES (?, ?, "revoke_moderator")',
+      [req.userId, targetId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/admin/moderators/:userId/revoke error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // Multer error handler
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
