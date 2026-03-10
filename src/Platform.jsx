@@ -747,7 +747,7 @@ function ReelsStrip({ lang, t, onNavigate }) {
   const [reels, setReels] = useState([])
 
   useEffect(() => {
-    apiFetchReels(0, 9).then(data => { if (data?.reels?.length) setReels(data.reels) })
+    apiFetchReels(0, 3).then(data => { if (data?.reels?.length) setReels(data.reels) })
   }, [])
 
   if (!reels.length) return null
@@ -838,7 +838,7 @@ function ReelsStrip({ lang, t, onNavigate }) {
         </button>
       </div>
       <div style={s.row}>
-        {reels.map(reel => (
+        {reels.slice(0, 3).map(reel => (
           <div key={reel.id} style={s.card} onClick={() => onNavigate('reels', { reelId: reel.id })} title={reel.caption || reel.author_name}>
             <video
               src={`${API_BASE}${reel.video_url}`}
