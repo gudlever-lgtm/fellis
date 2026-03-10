@@ -10751,9 +10751,6 @@ function AdminPage({ lang, t }) {
       apiGetModeratorCandidates().then(data => { if (data) setModCandidates(data.candidates) })
       apiGetModerators().then(data => { if (data) setModModerators(data.moderators) })
     }
-    if (adminTab === 'moderators') {
-      apiGetModerators().then(data => { if (data) setModModerators(data.moderators || []) })
-    }
   }, [adminTab, viralDays])
 
   const handleSave = async (e) => {
@@ -10807,9 +10804,6 @@ function AdminPage({ lang, t }) {
         </button>
         <button className={`p-filter-tab${adminTab === 'moderation' ? ' active' : ''}`} onClick={() => setAdminTab('moderation')}>
           🛡️ {t.adminModerationTab}
-        </button>
-        <button className={`p-filter-tab${adminTab === 'moderators' ? ' active' : ''}`} onClick={() => setAdminTab('moderators')}>
-          👮 {t.adminModModeratorsTab}
         </button>
       </div>
 
@@ -11677,71 +11671,6 @@ function AdminPage({ lang, t }) {
         </div>
       )}
 
-      {adminTab === 'moderators' && (
-        <div>
-          {/* Current moderators */}
-          <div className="p-card" style={{ marginBottom: 20, padding: '20px 24px' }}>
-            <h3 style={{ margin: '0 0 14px', fontSize: 16, fontWeight: 700 }}>👮 {t.adminModModeratorsTab}</h3>
-            {modModerators.length === 0 ? (
-              <div style={{ color: 'var(--text-muted,#888)', fontSize: 14 }}>{t.adminModNoModerators}</div>
-            ) : modModerators.map(m => (
-              <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--border,#eee)' }}>
-                <div style={{ width: 36, height: 36, borderRadius: '50%', background: nameToColor(m.name), display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 14, flexShrink: 0 }}>
-                  {m.initials || getInitials(m.name)}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, fontSize: 14 }}>{m.name}</div>
-                  <div style={{ color: 'var(--text-muted,#888)', fontSize: 12 }}>@{m.handle}</div>
-                </div>
-                <button
-                  style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: '#ef4444', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}
-                  onClick={async () => {
-                    if (!confirm(t.adminModRevokeConfirm)) return
-                    await apiRevokeModerator(m.id)
-                    apiGetModerators().then(d => { if (d) setModModerators(d.moderators || []) })
-                    showModToast('✓ Moderator fjernet')
-                  }}
-                >{t.adminModRevokeModerator}</button>
-              </div>
-            ))}
-
-            {/* Grant moderator by user search */}
-            <div style={{ marginTop: 16 }}>
-              <h4 style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 700 }}>{t.adminModGrantModerator}</h4>
-              <input
-                style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border,#ddd)', fontSize: 14, width: '100%', boxSizing: 'border-box', marginBottom: 8 }}
-                placeholder={t.adminModSearchPlaceholder}
-                value={modGrantSearch}
-                onChange={async e => {
-                  setModGrantSearch(e.target.value)
-                  if (e.target.value.length >= 2) {
-                    const data = await apiSearchUsers(e.target.value)
-                    setModGrantResults(Array.isArray(data) ? data : [])
-                  } else {
-                    setModGrantResults([])
-                  }
-                }}
-              />
-              {modGrantResults.map(u => (
-                <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0' }}>
-                  <span style={{ flex: 1, fontSize: 14 }}>{u.name} <span style={{ color: 'var(--text-muted,#888)' }}>@{u.handle}</span></span>
-                  <button
-                    style={{ padding: '5px 12px', borderRadius: 8, border: 'none', background: '#1877F2', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}
-                    onClick={async () => {
-                      await apiGrantModerator(u.id)
-                      setModGrantSearch('')
-                      setModGrantResults([])
-                      apiGetModerators().then(d => { if (d) setModModerators(d.moderators || []) })
-                      showModToast('✓ ' + t.adminModGrantSuccess)
-                    }}
-                  >{t.adminModGrantModerator}</button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-        </div>
-      )}
     </div>
   )
 }
