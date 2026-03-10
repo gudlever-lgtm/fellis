@@ -3559,107 +3559,6 @@ function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenM
         </button>
       </div>
 
-      <ModeratorRequestCard lang={lang} t={t} currentUser={currentUser} />
-    </div>
-  )
-}
-
-function ModeratorRequestCard({ lang, t, currentUser }) {
-  const [modReqData, setModReqData] = useState(null)
-  const [reason, setReason] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [toast, setToast] = useState(null)
-
-  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2500) }
-
-  useEffect(() => {
-    apiGetMyModeratorRequest().then(d => { if (d) setModReqData(d) })
-  }, [])
-
-  if (!modReqData) return null
-  if (currentUser?.is_admin) return null // admins don't need to apply
-
-  const { request, isModerator } = modReqData
-  const cardStyle = { marginTop: 20, padding: '16px 20px', borderRadius: 12, border: '1px solid var(--border,#eee)', background: 'var(--card-bg,#fff)' }
-
-  return (
-    <div style={cardStyle}>
-      {toast && <div style={{ background: '#22c55e', color: '#fff', padding: '8px 16px', borderRadius: 8, marginBottom: 12, fontWeight: 700, fontSize: 14 }}>{toast}</div>}
-      <h3 style={{ margin: '0 0 6px', fontSize: 15, fontWeight: 700 }}>🛡️ {t.modRequestTitle}</h3>
-      <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--text-muted,#888)', lineHeight: 1.5 }}>{t.modRequestDescription}</p>
-
-      {isModerator && (
-        <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, padding: '10px 14px', color: '#16a34a', fontWeight: 700, fontSize: 14 }}>
-          ✓ {t.modRequestApproved}
-        </div>
-      )}
-
-      {!isModerator && !request && (
-        <>
-          <textarea
-            style={{ display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border,#ddd)', fontSize: 14, boxSizing: 'border-box', fontFamily: 'inherit', minHeight: 80, resize: 'vertical', marginBottom: 10 }}
-            placeholder={t.modRequestReason}
-            value={reason}
-            onChange={e => setReason(e.target.value)}
-          />
-          <button
-            style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: '#1877F2', color: '#fff', fontWeight: 700, cursor: loading ? 'default' : 'pointer', fontSize: 14, opacity: loading ? 0.7 : 1 }}
-            disabled={loading}
-            onClick={async () => {
-              setLoading(true)
-              const res = await apiRequestModeratorStatus(reason)
-              if (res?.ok) {
-                const d = await apiGetMyModeratorRequest()
-                if (d) setModReqData(d)
-                showToast('✓ ' + t.modRequestSubmit)
-              }
-              setLoading(false)
-            }}
-          >{t.modRequestSubmit}</button>
-        </>
-      )}
-
-      {!isModerator && request?.status === 'pending' && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <div style={{ background: '#fef9c3', border: '1px solid #fde047', borderRadius: 8, padding: '10px 14px', color: '#92400e', fontWeight: 600, fontSize: 14, flex: 1 }}>
-            ⏳ {t.modRequestPending}
-          </div>
-          <button
-            style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #ef4444', background: '#fff', color: '#ef4444', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}
-            onClick={async () => {
-              await apiWithdrawModeratorRequest()
-              setModReqData({ request: null, isModerator: false })
-              showToast('✓ ' + t.modRequestWithdraw)
-            }}
-          >{t.modRequestWithdraw}</button>
-        </div>
-      )}
-
-      {!isModerator && request?.status === 'denied' && (
-        <>
-          <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '10px 14px', color: '#991b1b', fontWeight: 600, fontSize: 14, marginBottom: 12 }}>
-            ✕ {t.modRequestDenied}
-          </div>
-          <textarea
-            style={{ display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border,#ddd)', fontSize: 14, boxSizing: 'border-box', fontFamily: 'inherit', minHeight: 80, resize: 'vertical', marginBottom: 10 }}
-            placeholder={t.modRequestReason}
-            value={reason}
-            onChange={e => setReason(e.target.value)}
-          />
-          <button
-            style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: '#1877F2', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}
-            onClick={async () => {
-              const res = await apiRequestModeratorStatus(reason)
-              if (res?.ok) {
-                const d = await apiGetMyModeratorRequest()
-                if (d) setModReqData(d)
-                setReason('')
-                showToast('✓ ' + t.modRequestSubmit)
-              }
-            }}
-          >{t.modRequestReapply}</button>
-        </>
-      )}
     </div>
   )
 }
@@ -10854,7 +10753,6 @@ function AdminPage({ lang, t }) {
     }
     if (adminTab === 'moderators') {
       apiGetModerators().then(data => { if (data) setModModerators(data.moderators || []) })
-      apiGetModeratorRequests().then(data => { if (data) setModRequests(data.requests || []) })
     }
   }, [adminTab, viralDays])
 
@@ -11842,52 +11740,6 @@ function AdminPage({ lang, t }) {
             </div>
           </div>
 
-          {/* Pending requests */}
-          <div className="p-card" style={{ padding: '20px 24px' }}>
-            <h3 style={{ margin: '0 0 14px', fontSize: 16, fontWeight: 700 }}>📋 {t.adminModRequests}</h3>
-            {modRequests.length === 0 ? (
-              <div style={{ color: 'var(--text-muted,#888)', fontSize: 14 }}>{t.adminModNoRequests}</div>
-            ) : modRequests.map(r => (
-              <div key={r.id} style={{ padding: '12px 0', borderBottom: '1px solid var(--border,#eee)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: nameToColor(r.name), display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>
-                    {r.initials || getInitials(r.name)}
-                  </div>
-                  <div>
-                    <span style={{ fontWeight: 700, fontSize: 14 }}>{r.name}</span>
-                    <span style={{ color: 'var(--text-muted,#888)', fontSize: 12, marginLeft: 6 }}>@{r.handle}</span>
-                  </div>
-                  <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted,#888)' }}>{new Date(r.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US')}</span>
-                </div>
-                {r.reason && <p style={{ margin: '0 0 10px', fontSize: 13, color: 'var(--text,#111)', lineHeight: 1.5 }}>{r.reason}</p>}
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <button
-                    style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: '#22c55e', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}
-                    onClick={async () => {
-                      await apiApproveModeratorRequest(r.id)
-                      apiGetModeratorRequests().then(d => { if (d) setModRequests(d.requests || []) })
-                      apiGetModerators().then(d => { if (d) setModModerators(d.moderators || []) })
-                      showModToast('✓ ' + t.adminModApprove)
-                    }}
-                  >{t.adminModApprove}</button>
-                  <input
-                    style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border,#ddd)', fontSize: 13, flex: 1, minWidth: 120 }}
-                    placeholder={lang === 'da' ? 'Begrundelse (valgfri)' : 'Reason (optional)'}
-                    value={modDenyReason[r.id] || ''}
-                    onChange={e => setModDenyReason(p => ({ ...p, [r.id]: e.target.value }))}
-                  />
-                  <button
-                    style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: '#ef4444', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}
-                    onClick={async () => {
-                      await apiDenyModeratorRequest(r.id, modDenyReason[r.id] || '')
-                      apiGetModeratorRequests().then(d => { if (d) setModRequests(d.requests || []) })
-                      showModToast('✓ ' + t.adminModDeny)
-                    }}
-                  >{t.adminModDeny}</button>
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
       )}
     </div>
