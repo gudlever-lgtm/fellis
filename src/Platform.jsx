@@ -1503,9 +1503,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     return () => clearTimeout(timer)
   }, [pinnedPost])
 
-  const pageNum = Math.floor(offset / PAGE_SIZE) + 1
-  const totalPages = Math.ceil(total / PAGE_SIZE)
-
   return (
     <div className="p-feed" ref={feedContainerRef}>
       {/* Likers modal */}
@@ -2384,13 +2381,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       {offset + PAGE_SIZE < total && (
         <div ref={bottomSentinelRef} className="p-feed-sentinel">
           {loadingPage && <div className="p-feed-loading">{lang === 'da' ? 'Indlæser...' : 'Loading...'}</div>}
-        </div>
-      )}
-
-      {/* Page indicator */}
-      {totalPages > 1 && (
-        <div className="p-feed-page-indicator">
-          {pageNum} / {totalPages}
         </div>
       )}
 
