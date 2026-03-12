@@ -4194,16 +4194,13 @@ app.post('/api/me/cancel-adfree', authenticate, async (req, res) => {
     const [[user]] = await pool.query('SELECT ads_free, ads_free_sub_id FROM users WHERE id = ?', [req.userId])
     if (!user) return res.status(404).json({ error: 'User not found' })
     if (!user.ads_free) return res.status(400).json({ error: 'Not subscribed' })
+    if (!user.ads_free_sub_id) return res.status(400).json({ error: 'No Stripe subscription ID found. Contact support.' })
 
-    let cancelAt = null
+    const stripe = await getStripe()
+    if (!stripe) return res.status(503).json({ error: 'Stripe not configured' })
 
-    if (user.ads_free_sub_id) {
-      const stripe = await getStripe()
-      if (stripe) {
-        const sub = await stripe.subscriptions.update(user.ads_free_sub_id, { cancel_at_period_end: true })
-        cancelAt = sub.cancel_at ? new Date(sub.cancel_at * 1000) : null
-      }
-    }
+    const sub = await stripe.subscriptions.update(user.ads_free_sub_id, { cancel_at_period_end: true })
+    const cancelAt = sub.cancel_at ? new Date(sub.cancel_at * 1000) : null
 
     await pool.query(
       'UPDATE users SET ads_free_cancel_at = ? WHERE id = ?',
