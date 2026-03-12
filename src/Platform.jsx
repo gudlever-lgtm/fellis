@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } from 'react'
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { PT, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiUploadAdImage, apiGetSubscription, apiCreateAdFreeCheckout, apiCreateAdCampaignCheckout, apiGetAdminAdSettings, apiSaveAdminAdSettings } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiUploadAdImage, apiGetSubscription, apiCreateAdFreeCheckout, apiCreateAdCampaignCheckout, apiTestStripe, apiGetAdminAdSettings, apiSaveAdminAdSettings } from './api.js'
 import ReelsPage from './Reels.jsx'
 import AdBanner from './AdBanner.jsx'
 
@@ -9276,6 +9276,7 @@ function AdsManagementPage({ lang, t }) {
   const [imageUploading, setImageUploading] = useState(false)
   const [checkingOut, setCheckingOut] = useState(null)
   const [successBanner, setSuccessBanner] = useState(false)
+  const [checkoutError, setCheckoutError] = useState(null)
 
   const isExpired = (ad) => {
     if (!ad.end_date) return false
@@ -9285,8 +9286,15 @@ function AdsManagementPage({ lang, t }) {
 
   const handlePayAndActivate = async (ad) => {
     setCheckingOut(ad.id)
-    const res = await apiCreateAdCampaignCheckout(ad.id).catch(() => null)
+    setCheckoutError(null)
+    let res = null
+    try {
+      res = await apiCreateAdCampaignCheckout(ad.id)
+    } catch (err) {
+      setCheckoutError(err.message || (lang === 'da' ? 'Stripe er ikke konfigureret korrekt. Kontakt administrator.' : 'Stripe is not configured correctly. Contact administrator.'))
+    }
     setCheckingOut(null)
+    if (!res) return
     if (res?.activated) { reload(); return }
     if (res?.url) { window.location.href = res.url; return }
   }
@@ -9379,6 +9387,11 @@ function AdsManagementPage({ lang, t }) {
       {successBanner && (
         <div style={{ background: '#F0FAF4', border: '1px solid #b7dfc9', borderRadius: 8, padding: '12px 16px', marginBottom: 16, color: '#1a5c38', fontWeight: 600, fontSize: 14 }}>
           ✅ {t.adsPaymentSuccess}
+        </div>
+      )}
+      {checkoutError && (
+        <div style={{ background: '#FFF0ED', border: '1px solid #F5C6BC', borderRadius: 8, padding: '12px 16px', marginBottom: 16, color: '#C0392B', fontWeight: 600, fontSize: 14 }}>
+          ⚠️ {checkoutError}
         </div>
       )}
 
@@ -10847,6 +10860,8 @@ function AdminPage({ lang, t }) {
     media_max_files: '4', registration_open: '1',
   })
   const [status, setStatus] = useState('idle') // idle | saving | saved
+  const [stripeTestResult, setStripeTestResult] = useState(null)
+  const [stripeTestLoading, setStripeTestLoading] = useState(false)
   const [stats, setStats] = useState(null)
   const [weights, setWeights] = useState({ family: 1000, interest: 100, recency: 50 })
   const [weightStatus, setWeightStatus] = useState('idle')
@@ -11162,7 +11177,7 @@ function AdminPage({ lang, t }) {
                 </div>
               ))}
             </div>
-            <div style={{ marginTop: 20 }}>
+            <div style={{ marginTop: 20, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
               <button
                 type="submit"
                 disabled={status === 'saving'}
@@ -11170,7 +11185,32 @@ function AdminPage({ lang, t }) {
               >
                 {status === 'saving' ? t.adminSaving : status === 'saved' ? t.adminSaved : t.adminSave}
               </button>
+              <button
+                type="button"
+                disabled={stripeTestLoading}
+                onClick={async () => {
+                  setStripeTestLoading(true)
+                  setStripeTestResult(null)
+                  try {
+                    const r = await apiTestStripe()
+                    setStripeTestResult(r)
+                  } catch (e) {
+                    setStripeTestResult({ ok: false, error: e.message })
+                  }
+                  setStripeTestLoading(false)
+                }}
+                style={{ padding: '10px 20px', borderRadius: 8, border: '1px solid #2D6A4F', background: 'none', color: '#2D6A4F', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}
+              >
+                {stripeTestLoading ? '…' : (lang === 'da' ? 'Test forbindelse' : 'Test connection')}
+              </button>
             </div>
+            {stripeTestResult && (
+              <div style={{ marginTop: 14, padding: '12px 16px', borderRadius: 8, border: `1px solid ${stripeTestResult.ok ? '#b7dfc9' : '#F5C6BC'}`, background: stripeTestResult.ok ? '#F0FAF4' : '#FFF0ED', fontSize: 13, color: stripeTestResult.ok ? '#1a5c38' : '#C0392B' }}>
+                {stripeTestResult.ok
+                  ? `✅ ${lang === 'da' ? 'Stripe virker!' : 'Stripe is working!'} Account: ${stripeTestResult.account_id}${stripeTestResult.country ? ` (${stripeTestResult.country})` : ''}${stripeTestResult.email ? ` — ${stripeTestResult.email}` : ''}`
+                  : `⚠️ ${stripeTestResult.error}`}
+              </div>
+            )}
           </form>
         </div>
       )}

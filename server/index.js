@@ -3889,6 +3889,19 @@ async function getStripe() {
   } catch { return null }
 }
 
+// POST /api/admin/stripe/test — verify that the configured Stripe secret key is valid
+app.post('/api/admin/stripe/test', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const stripe = await getStripe()
+    if (!stripe) return res.json({ ok: false, error: 'Stripe secret key er ikke sat eller er maskeret. Gem en rigtig nøgle først.' })
+    // Lightweight call: retrieve the connected account to verify key validity
+    const account = await stripe.accounts.retrieve()
+    res.json({ ok: true, account_id: account.id, country: account.country, email: account.email || null })
+  } catch (err) {
+    res.json({ ok: false, error: err.message })
+  }
+})
+
 // POST /api/stripe/checkout/adfree — create Stripe checkout for ads_free sub
 app.post('/api/stripe/checkout/adfree', authenticate, async (req, res) => {
   try {
