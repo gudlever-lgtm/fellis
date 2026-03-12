@@ -9513,9 +9513,15 @@ function AdsManagementPage({ lang, t }) {
               <div style={{ fontSize: 11, color: '#aaa', marginTop: 4 }}>{da ? 'Sidebar og Stories er endnu ikke aktiveret på platformen.' : 'Sidebar and Stories are not yet active on the platform.'}</div>
 
               <label style={lS}>{t.adsAdStartDate}</label>
-              <input type="date" style={fS} value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} />
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input type="date" style={{ ...fS, flex: 1 }} value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} />
+                <button type="button" onClick={() => setForm(f => ({ ...f, start_date: new Date().toISOString().slice(0, 10) }))} style={{ flexShrink: 0, padding: '6px 10px', borderRadius: 6, border: '1px solid #ccc', background: '#f5f5f5', fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap' }}>{da ? 'I dag' : 'Today'}</button>
+              </div>
               <label style={lS}>{t.adsAdEndDate}</label>
-              <input type="date" style={fS} value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} />
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input type="date" style={{ ...fS, flex: 1 }} value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} />
+                <button type="button" onClick={() => setForm(f => ({ ...f, end_date: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10) }))} style={{ flexShrink: 0, padding: '6px 10px', borderRadius: 6, border: '1px solid #ccc', background: '#f5f5f5', fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap' }}>{da ? '+30 dage' : '+30 days'}</button>
+              </div>
 
               <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
                 <button type="submit" disabled={saving} style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>{saving ? '…' : t.adsSave}</button>
