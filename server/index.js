@@ -3981,7 +3981,7 @@ app.post('/api/stripe/checkout/adfree', authenticate, async (req, res) => {
       customer: customerId,
       mode: 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${origin}/?adfree=success`,
+      success_url: `${origin}/?adfree=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/?adfree=cancel`,
       metadata: { user_id: String(req.userId), type: 'adfree' },
     })
@@ -4147,13 +4147,43 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
 // GET /api/me/subscription — get current user's ads_free status
 app.get('/api/me/subscription', authenticate, async (req, res) => {
   try {
-    const [[user]] = await pool.query('SELECT ads_free, mode FROM users WHERE id = ?', [req.userId])
+    const [[user]] = await pool.query('SELECT ads_free, ads_free_since, mode FROM users WHERE id = ?', [req.userId])
     if (!user) return res.status(404).json({ error: 'User not found' })
     const [[adSettings]] = await pool.query('SELECT adfree_price_private, adfree_price_business, currency, ads_enabled FROM admin_ad_settings WHERE id = 1').catch(() => [[{ adfree_price_private: 29, adfree_price_business: 49, currency: 'DKK', ads_enabled: 1 }]])
     const price = user.mode === 'business' ? adSettings?.adfree_price_business : adSettings?.adfree_price_private
-    res.json({ ads_free: Boolean(user.ads_free), price: price || 29, currency: adSettings?.currency || 'DKK', ads_enabled: Boolean(adSettings?.ads_enabled) })
+    res.json({ ads_free: Boolean(user.ads_free), ads_free_since: user.ads_free_since || null, price: price || 29, currency: adSettings?.currency || 'DKK', ads_enabled: Boolean(adSettings?.ads_enabled) })
   } catch (err) {
     console.error('GET /api/me/subscription error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/me/verify-adfree — verify Stripe adfree checkout session and activate (webhook fallback)
+app.post('/api/me/verify-adfree', authenticate, async (req, res) => {
+  try {
+    const { session_id } = req.body
+    if (!session_id) return res.status(400).json({ error: 'session_id required' })
+
+    const stripe = await getStripe()
+    if (!stripe) return res.status(503).json({ error: 'Stripe not configured' })
+
+    const session = await stripe.checkout.sessions.retrieve(session_id)
+    if (!session) return res.status(404).json({ error: 'Session not found' })
+    if (session.payment_status !== 'paid' && session.status !== 'complete') {
+      return res.status(402).json({ error: 'Payment not completed' })
+    }
+    if (String(session.metadata?.user_id) !== String(req.userId)) {
+      return res.status(403).json({ error: 'Session does not belong to this user' })
+    }
+
+    const subId = session.subscription
+    await pool.query(
+      'UPDATE users SET ads_free = 1, ads_free_sub_id = ?, ads_free_since = NOW() WHERE id = ?',
+      [subId, req.userId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/me/verify-adfree error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })
@@ -4178,6 +4208,9 @@ async function initSettingsSchema() {
     await pool.query(`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS user_agent VARCHAR(500) DEFAULT NULL`)
     await pool.query(`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS ip_address VARCHAR(50) DEFAULT NULL`)
     await pool.query(`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`)
+
+    // Adfree subscription timestamp
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ads_free_since DATETIME DEFAULT NULL`)
 
     // Privacy settings columns on users
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_visibility ENUM('all','friends') NOT NULL DEFAULT 'all'`)
