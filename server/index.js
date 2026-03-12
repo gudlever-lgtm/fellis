@@ -3649,6 +3649,16 @@ async function initAds() {
     await pool.query(`ALTER TABLE ads ADD COLUMN IF NOT EXISTS stripe_session_id VARCHAR(200) DEFAULT NULL`).catch(() => {})
     await pool.query(`ALTER TABLE ads ADD COLUMN IF NOT EXISTS paid_at DATETIME DEFAULT NULL`).catch(() => {})
     await pool.query(`ALTER TABLE ads ADD COLUMN IF NOT EXISTS paid_amount DECIMAL(10,2) DEFAULT NULL`).catch(() => {})
+    // Daily stats table
+    await pool.query(`CREATE TABLE IF NOT EXISTS ad_stats (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      ad_id INT NOT NULL,
+      stat_date DATE NOT NULL,
+      impressions INT NOT NULL DEFAULT 0,
+      clicks INT NOT NULL DEFAULT 0,
+      UNIQUE KEY uq_ad_date (ad_id, stat_date),
+      FOREIGN KEY (ad_id) REFERENCES ads(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
   } catch (err) {
     console.error('initAds error:', err.message)
   }
@@ -3820,6 +3830,10 @@ app.post('/api/ads/:id/impression', authenticate, async (req, res) => {
     const [[ad]] = await pool.query('SELECT id FROM ads WHERE id = ?', [req.params.id])
     if (!ad) return res.status(404).json({ error: 'Ad not found' })
     await pool.query('UPDATE ads SET impressions = impressions + 1 WHERE id = ?', [req.params.id])
+    await pool.query(
+      'INSERT INTO ad_stats (ad_id, stat_date, impressions) VALUES (?, CURDATE(), 1) ON DUPLICATE KEY UPDATE impressions = impressions + 1',
+      [req.params.id]
+    )
     res.json({ ok: true })
   } catch (err) {
     console.error('POST /api/ads/:id/impression error:', err.message)
@@ -3833,9 +3847,34 @@ app.post('/api/ads/:id/click', authenticate, async (req, res) => {
     const [[ad]] = await pool.query('SELECT id FROM ads WHERE id = ?', [req.params.id])
     if (!ad) return res.status(404).json({ error: 'Ad not found' })
     await pool.query('UPDATE ads SET clicks = clicks + 1 WHERE id = ?', [req.params.id])
+    await pool.query(
+      'INSERT INTO ad_stats (ad_id, stat_date, clicks) VALUES (?, CURDATE(), 1) ON DUPLICATE KEY UPDATE clicks = clicks + 1',
+      [req.params.id]
+    )
     res.json({ ok: true })
   } catch (err) {
     console.error('POST /api/ads/:id/click error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/ads/:id/stats — daily impressions + clicks for last N days
+app.get('/api/ads/:id/stats', authenticate, async (req, res) => {
+  try {
+    const adId = parseInt(req.params.id)
+    const days = Math.min(parseInt(req.query.days || '30'), 90)
+    const [[ad]] = await pool.query('SELECT advertiser_id FROM ads WHERE id = ?', [adId])
+    if (!ad) return res.status(404).json({ error: 'Ad not found' })
+    if (ad.advertiser_id !== req.userId && req.userId !== 1) return res.status(403).json({ error: 'Forbidden' })
+    const [rows] = await pool.query(
+      `SELECT stat_date AS date, impressions, clicks FROM ad_stats
+       WHERE ad_id = ? AND stat_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+       ORDER BY stat_date ASC`,
+      [adId, days]
+    )
+    res.json({ stats: rows })
+  } catch (err) {
+    console.error('GET /api/ads/:id/stats error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })

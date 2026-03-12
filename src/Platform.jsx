@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } from 'react'
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { PT, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiUploadAdImage, apiGetSubscription, apiCreateAdFreeCheckout, apiCreateAdCampaignCheckout, apiVerifyAdPayment, apiTestStripe, apiGetAdminAdSettings, apiSaveAdminAdSettings } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiUploadAdImage, apiGetSubscription, apiCreateAdFreeCheckout, apiCreateAdCampaignCheckout, apiVerifyAdPayment, apiGetAdStats, apiTestStripe, apiGetAdminAdSettings, apiSaveAdminAdSettings } from './api.js'
 import ReelsPage from './Reels.jsx'
 import AdBanner from './AdBanner.jsx'
 
@@ -9277,6 +9277,19 @@ function AdsManagementPage({ lang, t }) {
   const [checkingOut, setCheckingOut] = useState(null)
   const [successBanner, setSuccessBanner] = useState(false)
   const [checkoutError, setCheckoutError] = useState(null)
+  const [openStatsId, setOpenStatsId] = useState(null)
+  const [statsData, setStatsData] = useState({}) // adId → { loading, rows }
+
+  const toggleStats = (adId) => {
+    if (openStatsId === adId) { setOpenStatsId(null); return }
+    setOpenStatsId(adId)
+    if (!statsData[adId]) {
+      setStatsData(prev => ({ ...prev, [adId]: { loading: true, rows: [] } }))
+      apiGetAdStats(adId, 30).then(r => {
+        setStatsData(prev => ({ ...prev, [adId]: { loading: false, rows: r?.stats || [] } }))
+      }).catch(() => setStatsData(prev => ({ ...prev, [adId]: { loading: false, rows: [] } })))
+    }
+  }
 
   const isExpired = (ad) => {
     if (!ad.end_date) return false
@@ -9440,6 +9453,7 @@ function AdsManagementPage({ lang, t }) {
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                  <button onClick={() => toggleStats(ad.id)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, border: `1px solid ${openStatsId === ad.id ? '#2D6A4F' : '#bbb'}`, background: openStatsId === ad.id ? '#F0FAF4' : 'none', color: openStatsId === ad.id ? '#2D6A4F' : '#555', cursor: 'pointer' }}>📊 {da ? 'Statistik' : 'Stats'}</button>
                   {(ad.status === 'draft' || isExpired(ad)) && (
                     <button
                       onClick={() => handlePayAndActivate(ad)}
@@ -9453,6 +9467,57 @@ function AdsManagementPage({ lang, t }) {
                   <button onClick={() => handleDelete(ad)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, border: '1px solid #e74c3c', color: '#e74c3c', background: 'none', cursor: 'pointer' }}>{t.adsDelete}</button>
                 </div>
               </div>
+              {openStatsId === ad.id && (() => {
+                const sd = statsData[ad.id]
+                const rows = sd?.rows || []
+                const maxVal = Math.max(1, ...rows.map(r => Math.max(r.impressions, r.clicks)))
+                const W = 480, H = 120, barW = Math.max(4, Math.floor((W - 20) / Math.max(rows.length * 2 + rows.length, 1)))
+                const gap = Math.floor((W - 20 - rows.length * barW * 2) / Math.max(rows.length - 1, 1))
+                const totalImpr = rows.reduce((s, r) => s + r.impressions, 0)
+                const totalClicks = rows.reduce((s, r) => s + r.clicks, 0)
+                const bestDay = rows.reduce((b, r) => r.clicks > (b?.clicks || 0) ? r : b, null)
+                return (
+                  <div style={{ borderTop: '1px solid #eee', padding: '14px 16px 16px', background: '#FAFAF8' }}>
+                    {sd?.loading ? (
+                      <div style={{ fontSize: 13, color: '#888', textAlign: 'center', padding: '12px 0' }}>{da ? 'Henter…' : 'Loading…'}</div>
+                    ) : rows.length === 0 ? (
+                      <div style={{ fontSize: 13, color: '#aaa', textAlign: 'center', padding: '12px 0' }}>{da ? 'Ingen data endnu — data registreres fra annoncen vises.' : 'No data yet — data is recorded once the ad is shown.'}</div>
+                    ) : (
+                      <>
+                        <div style={{ display: 'flex', gap: 20, marginBottom: 12, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 12, color: '#555' }}>{da ? 'Visninger' : 'Impressions'}: <strong>{totalImpr}</strong></span>
+                          <span style={{ fontSize: 12, color: '#555' }}>{da ? 'Klik' : 'Clicks'}: <strong>{totalClicks}</strong></span>
+                          <span style={{ fontSize: 12, color: '#555' }}>CTR: <strong>{totalImpr > 0 ? ((totalClicks / totalImpr) * 100).toFixed(2) + '%' : '–'}</strong></span>
+                          {bestDay && <span style={{ fontSize: 12, color: '#555' }}>{da ? 'Bedste dag' : 'Best day'}: <strong>{bestDay.date.slice(0, 10)} ({bestDay.clicks} {da ? 'klik' : 'clicks'})</strong></span>}
+                        </div>
+                        <div style={{ overflowX: 'auto' }}>
+                          <svg width={Math.max(W, rows.length * (barW * 2 + 4) + 20)} height={H + 30} style={{ display: 'block' }}>
+                            {rows.map((r, i) => {
+                              const bw = barW
+                              const x = 10 + i * (bw * 2 + (rows.length > 1 ? gap : 4))
+                              const iH = Math.max(2, Math.round((r.impressions / maxVal) * H))
+                              const cH = Math.max(r.clicks > 0 ? 2 : 0, Math.round((r.clicks / maxVal) * H))
+                              return (
+                                <g key={r.date}>
+                                  <rect x={x} y={H - iH} width={bw} height={iH} fill="#b7dfc9" rx={2} />
+                                  <rect x={x + bw + 1} y={H - cH} width={bw} height={cH} fill="#2D6A4F" rx={2} />
+                                  {(i === 0 || i === rows.length - 1 || rows.length <= 10) && (
+                                    <text x={x + bw} y={H + 14} textAnchor="middle" fontSize={9} fill="#999">{r.date.slice(5)}</text>
+                                  )}
+                                </g>
+                              )
+                            })}
+                          </svg>
+                        </div>
+                        <div style={{ display: 'flex', gap: 14, marginTop: 6 }}>
+                          <span style={{ fontSize: 11, color: '#888', display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ display: 'inline-block', width: 10, height: 10, background: '#b7dfc9', borderRadius: 2 }} />{da ? 'Visninger' : 'Impressions'}</span>
+                          <span style={{ fontSize: 11, color: '#888', display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ display: 'inline-block', width: 10, height: 10, background: '#2D6A4F', borderRadius: 2 }} />{da ? 'Klik' : 'Clicks'}</span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
           ))}
         </div>
