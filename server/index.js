@@ -4001,7 +4001,7 @@ app.post('/api/stripe/checkout/ad-campaign', authenticate, attachUserMode, requi
           product_data: { name: `Annonce: ${ad.title} (${days} dage)` },
         },
       }],
-      success_url: `${origin}/?ad_payment=success&ad_id=${ad_id}`,
+      success_url: `${origin}/?ad_payment=success&ad_id=${ad_id}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/?ad_payment=cancel&ad_id=${ad_id}`,
       metadata: { user_id: String(req.userId), type: 'ad-campaign', ad_id: String(ad_id), period_days: String(days), paid_amount: String(price) },
     })
@@ -4009,6 +4009,43 @@ app.post('/api/stripe/checkout/ad-campaign', authenticate, attachUserMode, requi
     res.json({ url: session.url })
   } catch (err) {
     console.error('POST /api/stripe/checkout/ad-campaign error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/ads/:id/verify-payment — verify Stripe session and activate ad (called on success redirect)
+app.post('/api/ads/:id/verify-payment', authenticate, async (req, res) => {
+  try {
+    const adId = parseInt(req.params.id)
+    const { session_id } = req.body
+    if (!session_id) return res.status(400).json({ error: 'session_id required' })
+
+    const [[ad]] = await pool.query('SELECT id, advertiser_id, payment_status FROM ads WHERE id = ?', [adId])
+    if (!ad) return res.status(404).json({ error: 'Ad not found' })
+    if (ad.advertiser_id !== req.userId) return res.status(403).json({ error: 'Forbidden' })
+
+    // Already activated (webhook may have fired already)
+    if (ad.payment_status === 'paid') return res.json({ ok: true, already_active: true })
+
+    const stripe = await getStripe()
+    if (!stripe) return res.status(503).json({ error: 'Stripe not configured' })
+
+    const session = await stripe.checkout.sessions.retrieve(session_id)
+    if (session.payment_status !== 'paid') return res.status(402).json({ error: 'Payment not completed' })
+
+    // Activate the ad
+    const meta = session.metadata || {}
+    const days = parseInt(meta.period_days || '30')
+    const paidAmount = parseFloat(meta.paid_amount || '0')
+    const startDate = new Date().toISOString().slice(0, 10)
+    const endDate = new Date(Date.now() + days * 86400000).toISOString().slice(0, 10)
+    await pool.query(
+      `UPDATE ads SET status = 'active', payment_status = 'paid', paid_at = NOW(), paid_amount = ?, stripe_session_id = ?, start_date = ?, end_date = ? WHERE id = ?`,
+      [paidAmount, session_id, startDate, endDate, adId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/ads/:id/verify-payment error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })

@@ -895,6 +895,9 @@ export async function apiCreateAdFreeCheckout() {
 export async function apiCreateAdCampaignCheckout(adId) {
   return await request('/api/stripe/checkout/ad-campaign', { method: 'POST', body: JSON.stringify({ ad_id: adId }) })
 }
+export async function apiVerifyAdPayment(adId, sessionId) {
+  return await request(`/api/ads/${adId}/verify-payment`, { method: 'POST', body: JSON.stringify({ session_id: sessionId }) })
+}
 export async function apiTestStripe() {
   return await request('/api/admin/stripe/test', { method: 'POST' })
 }
