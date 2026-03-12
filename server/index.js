@@ -1231,20 +1231,26 @@ app.patch('/api/me/mode', authenticate, async (req, res) => {
 
     await pool.query('UPDATE users SET mode = ? WHERE id = ?', [mode, req.userId])
 
-    // If user has an active (non-cancelled) ad-free sub from a different price tier, cancel at period end
+    // If user has an active (non-cancelled) ad-free sub and is switching mode (different price tier), cancel at period end
+    // Also triggers when ads_free_sub_mode is NULL (subscribed before column existed)
+    const subModeIsWrong = !user?.ads_free_sub_mode || user.ads_free_sub_mode !== mode
     if (
       user?.ads_free &&
       user?.ads_free_sub_id &&
       !user?.ads_free_cancel_at &&
-      user?.ads_free_sub_mode &&
-      user.ads_free_sub_mode !== mode
+      user?.mode !== mode &&
+      subModeIsWrong
     ) {
       try {
         const stripe = await getStripe()
         if (stripe) {
           const sub = await stripe.subscriptions.update(user.ads_free_sub_id, { cancel_at_period_end: true })
           const cancelAt = sub.cancel_at ? new Date(sub.cancel_at * 1000) : null
-          await pool.query('UPDATE users SET ads_free_cancel_at = ?, ads_free_mode_change = 1 WHERE id = ?', [cancelAt, req.userId])
+          // Record current (old) mode as the subscribed mode, and flag as mode-change cancellation
+          await pool.query(
+            'UPDATE users SET ads_free_cancel_at = ?, ads_free_mode_change = 1, ads_free_sub_mode = ? WHERE id = ?',
+            [cancelAt, user.mode, req.userId]
+          )
         }
       } catch (stripeErr) {
         console.error('PATCH /api/me/mode stripe cancel error:', stripeErr.message)
