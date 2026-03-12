@@ -3302,7 +3302,7 @@ function BillingSettings({ lang, t }) {
         setVerifying(true)
         apiVerifyAdfreePayment(sessionId).then(r => {
           setVerifying(false)
-          if (r?.ok) loadSub()
+          if (r?.ok) window.location.reload()
           else setVerifyError(lang === 'da' ? 'Betaling registreret – opdater siden om et øjeblik.' : 'Payment registered – refresh in a moment.')
         }).catch(() => { setVerifying(false); loadSub() })
       } else {
@@ -3359,7 +3359,7 @@ function BillingSettings({ lang, t }) {
           </div>
         ) : (
           <>
-            {!sub.ads_enabled && (
+            {!sub?.ads_enabled && (
               <div style={{ fontSize: 13, color: '#888', marginBottom: 12 }}>
                 {lang === 'da' ? 'Annoncer er i øjeblikket deaktiveret på platformen.' : 'Ads are currently disabled on the platform.'}
               </div>
