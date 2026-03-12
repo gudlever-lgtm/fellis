@@ -4188,6 +4188,25 @@ app.post('/api/me/verify-adfree', authenticate, async (req, res) => {
   }
 })
 
+// POST /api/me/reactivate-adfree — undo cancel_at_period_end on existing subscription
+app.post('/api/me/reactivate-adfree', authenticate, async (req, res) => {
+  try {
+    const [[user]] = await pool.query('SELECT ads_free, ads_free_sub_id FROM users WHERE id = ?', [req.userId])
+    if (!user) return res.status(404).json({ error: 'User not found' })
+    if (!user.ads_free_sub_id) return res.status(400).json({ error: 'No Stripe subscription ID found.' })
+
+    const stripe = await getStripe()
+    if (!stripe) return res.status(503).json({ error: 'Stripe not configured' })
+
+    await stripe.subscriptions.update(user.ads_free_sub_id, { cancel_at_period_end: false })
+    await pool.query('UPDATE users SET ads_free_cancel_at = NULL WHERE id = ?', [req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/me/reactivate-adfree error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // POST /api/me/cancel-adfree — cancel Stripe subscription at period end
 app.post('/api/me/cancel-adfree', authenticate, async (req, res) => {
   try {
