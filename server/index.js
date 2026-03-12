@@ -4134,7 +4134,7 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
     if (event.type === 'customer.subscription.deleted') {
       const sub = event.data.object
       // Cancel ads_free when subscription ends
-      await pool.query('UPDATE users SET ads_free = 0, ads_free_sub_id = NULL WHERE ads_free_sub_id = ?', [sub.id])
+      await pool.query('UPDATE users SET ads_free = 0, ads_free_sub_id = NULL, ads_free_cancel_at = NULL WHERE ads_free_sub_id = ?', [sub.id])
     }
 
     res.json({ received: true })
@@ -4147,11 +4147,11 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
 // GET /api/me/subscription — get current user's ads_free status
 app.get('/api/me/subscription', authenticate, async (req, res) => {
   try {
-    const [[user]] = await pool.query('SELECT ads_free, ads_free_since, mode FROM users WHERE id = ?', [req.userId])
+    const [[user]] = await pool.query('SELECT ads_free, ads_free_since, ads_free_cancel_at, mode FROM users WHERE id = ?', [req.userId])
     if (!user) return res.status(404).json({ error: 'User not found' })
     const [[adSettings]] = await pool.query('SELECT adfree_price_private, adfree_price_business, currency, ads_enabled FROM admin_ad_settings WHERE id = 1').catch(() => [[{ adfree_price_private: 29, adfree_price_business: 49, currency: 'DKK', ads_enabled: 1 }]])
     const price = user.mode === 'business' ? adSettings?.adfree_price_business : adSettings?.adfree_price_private
-    res.json({ ads_free: Boolean(user.ads_free), ads_free_since: user.ads_free_since || null, price: price || 29, currency: adSettings?.currency || 'DKK', ads_enabled: Boolean(adSettings?.ads_enabled) })
+    res.json({ ads_free: Boolean(user.ads_free), ads_free_since: user.ads_free_since || null, ads_free_cancel_at: user.ads_free_cancel_at || null, price: price || 29, currency: adSettings?.currency || 'DKK', ads_enabled: Boolean(adSettings?.ads_enabled) })
   } catch (err) {
     console.error('GET /api/me/subscription error:', err.message)
     res.status(500).json({ error: 'Server error' })
@@ -4178,12 +4178,40 @@ app.post('/api/me/verify-adfree', authenticate, async (req, res) => {
 
     const subId = session.subscription
     await pool.query(
-      'UPDATE users SET ads_free = 1, ads_free_sub_id = ?, ads_free_since = NOW() WHERE id = ?',
+      'UPDATE users SET ads_free = 1, ads_free_sub_id = ?, ads_free_since = NOW(), ads_free_cancel_at = NULL WHERE id = ?',
       [subId, req.userId]
     )
     res.json({ ok: true })
   } catch (err) {
     console.error('POST /api/me/verify-adfree error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/me/cancel-adfree — cancel Stripe subscription at period end
+app.post('/api/me/cancel-adfree', authenticate, async (req, res) => {
+  try {
+    const [[user]] = await pool.query('SELECT ads_free, ads_free_sub_id FROM users WHERE id = ?', [req.userId])
+    if (!user) return res.status(404).json({ error: 'User not found' })
+    if (!user.ads_free) return res.status(400).json({ error: 'Not subscribed' })
+
+    let cancelAt = null
+
+    if (user.ads_free_sub_id) {
+      const stripe = await getStripe()
+      if (stripe) {
+        const sub = await stripe.subscriptions.update(user.ads_free_sub_id, { cancel_at_period_end: true })
+        cancelAt = sub.cancel_at ? new Date(sub.cancel_at * 1000) : null
+      }
+    }
+
+    await pool.query(
+      'UPDATE users SET ads_free_cancel_at = ? WHERE id = ?',
+      [cancelAt, req.userId]
+    )
+    res.json({ ok: true, cancel_at: cancelAt })
+  } catch (err) {
+    console.error('POST /api/me/cancel-adfree error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })
@@ -4209,8 +4237,9 @@ async function initSettingsSchema() {
     await pool.query(`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS ip_address VARCHAR(50) DEFAULT NULL`)
     await pool.query(`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`)
 
-    // Adfree subscription timestamp
+    // Adfree subscription timestamps
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ads_free_since DATETIME DEFAULT NULL`)
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ads_free_cancel_at DATETIME DEFAULT NULL`)
 
     // Privacy settings columns on users
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_visibility ENUM('all','friends') NOT NULL DEFAULT 'all'`)

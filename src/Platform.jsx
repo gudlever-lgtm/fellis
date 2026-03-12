@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } from 'react'
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { PT, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiUploadAdImage, apiGetSubscription, apiCreateAdFreeCheckout, apiVerifyAdfreePayment, apiCreateAdCampaignCheckout, apiVerifyAdPayment, apiGetAdStats, apiTestStripe, apiGetAdminAdSettings, apiSaveAdminAdSettings } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiUploadAdImage, apiGetSubscription, apiCreateAdFreeCheckout, apiVerifyAdfreePayment, apiCancelAdfree, apiCreateAdCampaignCheckout, apiVerifyAdPayment, apiGetAdStats, apiTestStripe, apiGetAdminAdSettings, apiSaveAdminAdSettings } from './api.js'
 import ReelsPage from './Reels.jsx'
 import AdBanner from './AdBanner.jsx'
 
@@ -3286,6 +3286,9 @@ function BillingSettings({ lang, t }) {
   const [loading, setLoading] = useState(false)
   const [verifying, setVerifying] = useState(false)
   const [verifyError, setVerifyError] = useState(null)
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
+  const [cancelError, setCancelError] = useState(null)
 
   const loadSub = () => apiGetSubscription().then(data => { if (data) setSub(data) }).catch(() => {})
 
@@ -3306,7 +3309,6 @@ function BillingSettings({ lang, t }) {
           else setVerifyError(lang === 'da' ? 'Betaling registreret – opdater siden om et øjeblik.' : 'Payment registered – refresh in a moment.')
         }).catch(() => { setVerifying(false); loadSub() })
       } else {
-        // Webhook may have handled it already
         loadSub()
       }
     }
@@ -3323,10 +3325,27 @@ function BillingSettings({ lang, t }) {
     }
   }
 
+  const handleCancel = async () => {
+    setCancelling(true)
+    setCancelError(null)
+    const r = await apiCancelAdfree().catch(() => null)
+    setCancelling(false)
+    if (r?.ok) {
+      setShowCancelConfirm(false)
+      loadSub()
+    } else {
+      setCancelError(t.adFreeCancelError)
+    }
+  }
+
   if (!sub && !verifying) return <div style={{ padding: 20, color: '#888', textAlign: 'center' }}>{lang === 'da' ? 'Henter…' : 'Loading…'}</div>
 
   const currency = (sub?.currency) || 'DKK'
   const price = (sub?.price) || 29
+  const isCancelled = Boolean(sub?.ads_free_cancel_at)
+  const cancelAtStr = sub?.ads_free_cancel_at
+    ? new Date(sub.ads_free_cancel_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+    : null
 
   return (
     <div>
@@ -3345,18 +3364,70 @@ function BillingSettings({ lang, t }) {
         <p style={{ margin: '0 0 16px', fontSize: 14, color: '#555', lineHeight: 1.6 }}>{t.adFreeDesc}</p>
 
         {sub?.ads_free ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: '#F0FAF4', borderRadius: 10, border: '1px solid #c3e6cb' }}>
-            <span style={{ fontSize: 20 }}>✅</span>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 14, color: '#2D6A4F' }}>{t.adFreeActiveLabel}</div>
-              {sub.ads_free_since && (
-                <div style={{ fontSize: 12, color: '#2D6A4F', marginTop: 2 }}>
-                  {lang === 'da' ? 'Aktiveret' : 'Activated'}: {new Date(sub.ads_free_since).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: isCancelled ? '#fffbf0' : '#F0FAF4', borderRadius: 10, border: `1px solid ${isCancelled ? '#ffe082' : '#c3e6cb'}`, marginBottom: 16 }}>
+              <span style={{ fontSize: 20 }}>{isCancelled ? '⏳' : '✅'}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 14, color: isCancelled ? '#7a5800' : '#2D6A4F' }}>
+                  {isCancelled ? t.adFreeCancelled : t.adFreeActiveLabel}
                 </div>
-              )}
-              <div style={{ fontSize: 12, color: '#555', marginTop: 2 }}>{lang === 'da' ? 'Abonnementet fornyes automatisk.' : 'Your subscription renews automatically.'}</div>
+                {sub.ads_free_since && !isCancelled && (
+                  <div style={{ fontSize: 12, color: '#2D6A4F', marginTop: 2 }}>
+                    {lang === 'da' ? 'Aktiveret' : 'Activated'}: {new Date(sub.ads_free_since).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  </div>
+                )}
+                {isCancelled && cancelAtStr ? (
+                  <div style={{ fontSize: 12, color: '#7a5800', marginTop: 2 }}>
+                    {t.adFreeCancelledDesc}: <strong>{cancelAtStr}</strong>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 12, color: '#555', marginTop: 2 }}>{lang === 'da' ? 'Abonnementet fornyes automatisk.' : 'Your subscription renews automatically.'}</div>
+                )}
+              </div>
             </div>
-          </div>
+
+            {!showCancelConfirm && !isCancelled && (
+              <button
+                onClick={() => setShowCancelConfirm(true)}
+                style={{ background: 'none', border: '1px solid #ccc', borderRadius: 8, padding: '8px 16px', fontSize: 13, color: '#666', cursor: 'pointer' }}
+              >
+                {t.adFreeCancelBtn}
+              </button>
+            )}
+
+            {!showCancelConfirm && isCancelled && (
+              <button
+                onClick={handleCheckout}
+                disabled={loading}
+                style={{ background: '#2D6A4F', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, color: '#fff', fontWeight: 700, cursor: 'pointer' }}
+              >
+                {loading ? t.adFreeLoading : t.adFreeReactivateBtn}
+              </button>
+            )}
+
+            {showCancelConfirm && (
+              <div style={{ background: '#fff8f0', border: '1px solid #f5c6a0', borderRadius: 10, padding: '16px 18px', marginTop: 4 }}>
+                <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8 }}>{t.adFreeCancelConfirmTitle}</div>
+                <div style={{ fontSize: 13, color: '#555', lineHeight: 1.6, marginBottom: 14 }}>{t.adFreeCancelConfirmBody}</div>
+                {cancelError && <div style={{ fontSize: 13, color: '#c0392b', marginBottom: 10 }}>{cancelError}</div>}
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button
+                    onClick={handleCancel}
+                    disabled={cancelling}
+                    style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#c0392b', color: '#fff', fontWeight: 700, fontSize: 13, cursor: cancelling ? 'not-allowed' : 'pointer', opacity: cancelling ? 0.7 : 1 }}
+                  >
+                    {cancelling ? t.adFreeCancelLoading : t.adFreeCancelConfirm}
+                  </button>
+                  <button
+                    onClick={() => { setShowCancelConfirm(false); setCancelError(null) }}
+                    style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #ccc', background: '#fff', fontSize: 13, cursor: 'pointer' }}
+                  >
+                    {t.adFreeCancelNo}
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         ) : (
           <>
             {!sub?.ads_enabled && (
