@@ -904,7 +904,6 @@ export async function apiVerifyAdPayment(adId, sessionId) {
 export async function apiGetAdStats(adId, days = 30) {
   return await request(`/api/ads/${adId}/stats?days=${days}`)
 }
-}
 export async function apiTestStripe() {
   return await request('/api/admin/stripe/test', { method: 'POST' })
 }
