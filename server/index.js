@@ -1227,7 +1227,30 @@ app.patch('/api/me/mode', authenticate, async (req, res) => {
   const { mode } = req.body
   if (!['privat', 'business'].includes(mode)) return res.status(400).json({ error: 'Invalid mode' })
   try {
+    const [[user]] = await pool.query('SELECT mode, ads_free, ads_free_sub_id, ads_free_sub_mode, ads_free_cancel_at FROM users WHERE id = ?', [req.userId])
+
     await pool.query('UPDATE users SET mode = ? WHERE id = ?', [mode, req.userId])
+
+    // If user has an active (non-cancelled) ad-free sub from a different price tier, cancel at period end
+    if (
+      user?.ads_free &&
+      user?.ads_free_sub_id &&
+      !user?.ads_free_cancel_at &&
+      user?.ads_free_sub_mode &&
+      user.ads_free_sub_mode !== mode
+    ) {
+      try {
+        const stripe = await getStripe()
+        if (stripe) {
+          const sub = await stripe.subscriptions.update(user.ads_free_sub_id, { cancel_at_period_end: true })
+          const cancelAt = sub.cancel_at ? new Date(sub.cancel_at * 1000) : null
+          await pool.query('UPDATE users SET ads_free_cancel_at = ?, ads_free_mode_change = 1 WHERE id = ?', [cancelAt, req.userId])
+        }
+      } catch (stripeErr) {
+        console.error('PATCH /api/me/mode stripe cancel error:', stripeErr.message)
+      }
+    }
+
     res.json({ ok: true })
   } catch (err) {
     res.status(500).json({ error: 'Failed to update mode' })
@@ -4113,9 +4136,11 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
       const session = event.data.object
       if (session.metadata?.type === 'adfree' && session.metadata?.user_id) {
         const subId = session.subscription
+        const uid = parseInt(session.metadata.user_id)
+        const [[uRow]] = await pool.query('SELECT mode FROM users WHERE id = ?', [uid])
         await pool.query(
-          'UPDATE users SET ads_free = 1, ads_free_sub_id = ? WHERE id = ?',
-          [subId, parseInt(session.metadata.user_id)]
+          'UPDATE users SET ads_free = 1, ads_free_sub_id = ?, ads_free_sub_mode = ?, ads_free_mode_change = 0 WHERE id = ?',
+          [subId, uRow?.mode || null, uid]
         )
       }
       if (session.metadata?.type === 'ad-campaign' && session.metadata?.ad_id) {
@@ -4147,11 +4172,11 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
 // GET /api/me/subscription — get current user's ads_free status
 app.get('/api/me/subscription', authenticate, async (req, res) => {
   try {
-    const [[user]] = await pool.query('SELECT ads_free, ads_free_since, ads_free_cancel_at, mode FROM users WHERE id = ?', [req.userId])
+    const [[user]] = await pool.query('SELECT ads_free, ads_free_since, ads_free_cancel_at, ads_free_sub_mode, ads_free_mode_change, mode FROM users WHERE id = ?', [req.userId])
     if (!user) return res.status(404).json({ error: 'User not found' })
     const [[adSettings]] = await pool.query('SELECT adfree_price_private, adfree_price_business, currency, ads_enabled FROM admin_ad_settings WHERE id = 1').catch(() => [[{ adfree_price_private: 29, adfree_price_business: 49, currency: 'DKK', ads_enabled: 1 }]])
     const price = user.mode === 'business' ? adSettings?.adfree_price_business : adSettings?.adfree_price_private
-    res.json({ ads_free: Boolean(user.ads_free), ads_free_since: user.ads_free_since || null, ads_free_cancel_at: user.ads_free_cancel_at || null, price: price || 29, currency: adSettings?.currency || 'DKK', ads_enabled: Boolean(adSettings?.ads_enabled) })
+    res.json({ ads_free: Boolean(user.ads_free), ads_free_since: user.ads_free_since || null, ads_free_cancel_at: user.ads_free_cancel_at || null, ads_free_mode_change: Boolean(user.ads_free_mode_change), ads_free_sub_mode: user.ads_free_sub_mode || null, mode: user.mode, price: price || 29, currency: adSettings?.currency || 'DKK', ads_enabled: Boolean(adSettings?.ads_enabled) })
   } catch (err) {
     console.error('GET /api/me/subscription error:', err.message)
     res.status(500).json({ error: 'Server error' })
@@ -4178,8 +4203,8 @@ app.post('/api/me/verify-adfree', authenticate, async (req, res) => {
 
     const subId = session.subscription
     await pool.query(
-      'UPDATE users SET ads_free = 1, ads_free_sub_id = ?, ads_free_since = NOW(), ads_free_cancel_at = NULL WHERE id = ?',
-      [subId, req.userId]
+      'UPDATE users SET ads_free = 1, ads_free_sub_id = ?, ads_free_since = NOW(), ads_free_cancel_at = NULL, ads_free_mode_change = 0, ads_free_sub_mode = (SELECT mode FROM users WHERE id = ?) WHERE id = ?',
+      [subId, req.userId, req.userId]
     )
     res.json({ ok: true })
   } catch (err) {
@@ -4199,7 +4224,7 @@ app.post('/api/me/reactivate-adfree', authenticate, async (req, res) => {
     if (!stripe) return res.status(503).json({ error: 'Stripe not configured' })
 
     await stripe.subscriptions.update(user.ads_free_sub_id, { cancel_at_period_end: false })
-    await pool.query('UPDATE users SET ads_free_cancel_at = NULL WHERE id = ?', [req.userId])
+    await pool.query('UPDATE users SET ads_free_cancel_at = NULL, ads_free_mode_change = 0 WHERE id = ?', [req.userId])
     res.json({ ok: true })
   } catch (err) {
     console.error('POST /api/me/reactivate-adfree error:', err.message)
@@ -4253,9 +4278,11 @@ async function initSettingsSchema() {
     await pool.query(`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS ip_address VARCHAR(50) DEFAULT NULL`)
     await pool.query(`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`)
 
-    // Adfree subscription timestamps
+    // Adfree subscription timestamps and mode tracking
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ads_free_since DATETIME DEFAULT NULL`)
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ads_free_cancel_at DATETIME DEFAULT NULL`)
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ads_free_sub_mode VARCHAR(20) DEFAULT NULL`)
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ads_free_mode_change TINYINT(1) NOT NULL DEFAULT 0`)
 
     // Privacy settings columns on users
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_visibility ENUM('all','friends') NOT NULL DEFAULT 'all'`)

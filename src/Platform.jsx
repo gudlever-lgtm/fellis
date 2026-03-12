@@ -3344,6 +3344,7 @@ function BillingSettings({ lang, t }) {
   const currency = (sub?.currency) || 'DKK'
   const price = (sub?.price) || 29
   const isCancelled = Boolean(sub?.ads_free_cancel_at)
+  const isModeChange = Boolean(sub?.ads_free_mode_change)
   const cancelAtStr = sub?.ads_free_cancel_at
     ? new Date(sub.ads_free_cancel_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
     : null
@@ -3378,9 +3379,18 @@ function BillingSettings({ lang, t }) {
                   </div>
                 )}
                 {isCancelled && cancelAtStr ? (
-                  <div style={{ fontSize: 12, color: '#7a5800', marginTop: 2 }}>
-                    {t.adFreeCancelledDesc}: <strong>{cancelAtStr}</strong>
-                  </div>
+                  <>
+                    <div style={{ fontSize: 12, color: '#7a5800', marginTop: 2 }}>
+                      {t.adFreeCancelledDesc}: <strong>{cancelAtStr}</strong>
+                    </div>
+                    {isModeChange && (
+                      <div style={{ fontSize: 12, color: '#7a5800', marginTop: 3 }}>
+                        {lang === 'da'
+                          ? `Dit ${sub.ads_free_sub_mode === 'privat' ? 'private' : 'business'} abonnement udløber på denne dato. Herefter kan du tegne et nyt ${sub.mode === 'business' ? 'business' : 'privat'} abonnement til ${price} ${currency}/md.`
+                          : `Your ${sub.ads_free_sub_mode === 'privat' ? 'personal' : 'business'} subscription expires on this date. After that you can subscribe with your ${sub.mode === 'business' ? 'business' : 'personal'} account at ${price} ${currency}/mo.`}
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <div style={{ fontSize: 12, color: '#555', marginTop: 2 }}>{lang === 'da' ? 'Abonnementet fornyes automatisk.' : 'Your subscription renews automatically.'}</div>
                 )}
@@ -3396,7 +3406,7 @@ function BillingSettings({ lang, t }) {
               </button>
             )}
 
-            {!showCancelConfirm && isCancelled && (
+            {!showCancelConfirm && isCancelled && !isModeChange && (
               <button
                 onClick={async () => {
                   setReactivating(true)
