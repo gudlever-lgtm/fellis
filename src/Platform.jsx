@@ -10927,12 +10927,19 @@ function AdminPage({ lang, t }) {
     }
   }, [adminTab, viralDays])
 
+  const [saveError, setSaveError] = useState(null)
   const handleSave = async (e) => {
     e.preventDefault()
     setStatus('saving')
-    await apiSaveAdminSettings(form).catch(() => {})
-    setStatus('saved')
-    setTimeout(() => setStatus('idle'), 3000)
+    setSaveError(null)
+    try {
+      await apiSaveAdminSettings(form)
+      setStatus('saved')
+      setTimeout(() => setStatus('idle'), 3000)
+    } catch (err) {
+      setStatus('idle')
+      setSaveError(err.message || (lang === 'da' ? 'Gem fejlede — tjek at du er logget ind som admin.' : 'Save failed — check that you are logged in as admin.'))
+    }
   }
 
   const fS = { width: '100%', padding: '9px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 0 }
@@ -11207,10 +11214,11 @@ function AdminPage({ lang, t }) {
             {stripeTestResult && (
               <div style={{ marginTop: 14, padding: '12px 16px', borderRadius: 8, border: `1px solid ${stripeTestResult.ok ? '#b7dfc9' : '#F5C6BC'}`, background: stripeTestResult.ok ? '#F0FAF4' : '#FFF0ED', fontSize: 13, color: stripeTestResult.ok ? '#1a5c38' : '#C0392B' }}>
                 {stripeTestResult.ok
-                  ? `✅ ${lang === 'da' ? 'Stripe virker!' : 'Stripe is working!'} Account: ${stripeTestResult.account_id}${stripeTestResult.country ? ` (${stripeTestResult.country})` : ''}${stripeTestResult.email ? ` — ${stripeTestResult.email}` : ''}`
+                  ? `✅ ${lang === 'da' ? 'Stripe virker!' : 'Stripe is working!'} ${stripeTestResult.livemode ? '🔴 LIVE' : '🟡 TEST'} — nøgle: ${stripeTestResult.key_hint}`
                   : `⚠️ ${stripeTestResult.error}`}
               </div>
             )}
+            {saveError && <div style={{ marginTop: 12, padding: '10px 14px', borderRadius: 8, background: '#FFF0ED', border: '1px solid #F5C6BC', color: '#C0392B', fontSize: 13 }}>⚠️ {saveError}</div>}
           </form>
         </div>
       )}

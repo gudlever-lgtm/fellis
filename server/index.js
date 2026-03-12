@@ -3892,11 +3892,21 @@ async function getStripe() {
 // POST /api/admin/stripe/test — verify that the configured Stripe secret key is valid
 app.post('/api/admin/stripe/test', authenticate, requireAdmin, async (req, res) => {
   try {
-    const stripe = await getStripe()
-    if (!stripe) return res.json({ ok: false, error: 'Stripe secret key er ikke sat eller er maskeret. Gem en rigtig nøgle først.' })
-    // Lightweight call: retrieve the connected account to verify key validity
-    const account = await stripe.accounts.retrieve()
-    res.json({ ok: true, account_id: account.id, country: account.country, email: account.email || null })
+    // Step 1: check what is actually in the DB
+    const [[row]] = await pool.query("SELECT key_value FROM admin_settings WHERE key_name = 'stripe_secret_key'").catch(() => [[null]])
+    if (!row || !row.key_value) return res.json({ ok: false, error: 'Ingen nøgle gemt i databasen. Udfyld feltet og gem.' })
+    if (row.key_value.startsWith('••')) return res.json({ ok: false, error: 'Databasen indeholder en maskeret nøgle. Skriv den rigtige nøgle i feltet og gem igen.' })
+    // Step 2: initialise Stripe with the stored key
+    let stripe
+    try {
+      const { default: Stripe } = await import('stripe')
+      stripe = new Stripe(row.key_value, { apiVersion: '2024-06-20' })
+    } catch (e) {
+      return res.json({ ok: false, error: `Stripe-pakke fejl: ${e.message}` })
+    }
+    // Step 3: lightweight API call — balance works for all key types
+    const balance = await stripe.balance.retrieve()
+    res.json({ ok: true, livemode: balance.livemode, key_hint: row.key_value.slice(0, 8) + '…' })
   } catch (err) {
     res.json({ ok: false, error: err.message })
   }
