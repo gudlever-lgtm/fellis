@@ -31,7 +31,8 @@ async function request(path, options = {}) {
     })
     if (!res.ok) {
       const body = await res.json().catch(() => ({}))
-      throw new Error(body.error || `HTTP ${res.status}`)
+      console.warn(`API ${path} → ${res.status}`, body.error || '')
+      return null
     }
     return await res.json()
   } catch (err) {

@@ -1284,15 +1284,15 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
 
     // Load recent company posts from followed companies
     fetch('/api/companies', { credentials: 'include' })
-      .then(r => r.json())
+      .then(r => r.ok ? r.json() : null)
       .then(data => {
-        const allCompanies = data.companies || []
+        const allCompanies = data?.companies || []
         const followed = allCompanies.filter(c => c.is_following || c.role === 'following' || c.member_role === 'owner' || c.role === 'owner')
         if (!followed.length) return
         return fetch(`/api/companies/${followed[0].id}/posts?limit=2`, { credentials: 'include' })
-          .then(r => r.json())
+          .then(r => r.ok ? r.json() : null)
           .then(pd => {
-            setCpFeedPosts((pd.posts || []).map(p => ({ ...p, company: followed[0] })))
+            setCpFeedPosts((pd?.posts || []).map(p => ({ ...p, company: followed[0] })))
           })
       })
       .catch(() => {})
@@ -2003,18 +2003,18 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         const timeAgo = new Date(post.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short' })
         const toggleLike = () => {
           fetch(`/api/companies/${cp.id}/posts/${post.id}/like`, { method: 'POST', credentials: 'include' })
-            .then(r => r.json())
-            .then(data => setCpFeedPosts(prev => prev.map(p => p.id === post.id
+            .then(r => r.ok ? r.json() : null)
+            .then(data => { if (!data) return; setCpFeedPosts(prev => prev.map(p => p.id === post.id
               ? { ...p, liked: data.liked ? 1 : 0, likes: data.liked ? p.likes + 1 : Math.max(0, p.likes - 1) }
-              : p)))
+              : p)) })
             .catch(() => {})
         }
         const toggleComments = () => {
           setCpFeedExpanded(prev => { const n = new Set(prev); n.has(post.id) ? n.delete(post.id) : n.add(post.id); return n })
           if (!cpFeedCommentLists[post.id]) {
             fetch(`/api/companies/${cp.id}/posts/${post.id}/comments`, { credentials: 'include' })
-              .then(r => r.json())
-              .then(data => setCpFeedCommentLists(prev => ({ ...prev, [post.id]: data.comments || [] })))
+              .then(r => r.ok ? r.json() : null)
+              .then(data => setCpFeedCommentLists(prev => ({ ...prev, [post.id]: data?.comments || [] })))
               .catch(() => {})
           }
         }
@@ -2026,8 +2026,9 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text }),
           })
-            .then(r => r.json())
+            .then(r => r.ok ? r.json() : null)
             .then(comment => {
+              if (!comment) return
               setCpFeedCommentLists(prev => ({ ...prev, [post.id]: [...(prev[post.id] || []), comment] }))
               setCpFeedPosts(prev => prev.map(p => p.id === post.id ? { ...p, comment_count: (p.comment_count || 0) + 1 } : p))
               setCpFeedCommentTexts(prev => ({ ...prev, [post.id]: '' }))
@@ -2647,8 +2648,8 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
       })
     }
     fetch('/api/companies', { credentials: 'include' })
-      .then(r => r.json())
-      .then(data => setMyCompanies((data.companies || []).filter(c => c.member_role === 'owner')))
+      .then(r => r.ok ? r.json() : null)
+      .then(data => setMyCompanies((data?.companies || []).filter(c => c.member_role === 'owner')))
       .catch(() => {})
   }, [currentUser.name, mode, onUserUpdate])
 
@@ -3614,8 +3615,8 @@ function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenM
 
   useEffect(() => {
     fetch('/api/profile', { credentials: 'include' })
-      .then(r => r.json())
-      .then(data => { setProfile(data); setNewEmail(data.email || '') })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (!data) return; setProfile(data); setNewEmail(data.email || '') })
       .catch(() => {})
   }, [])
 
@@ -3806,8 +3807,8 @@ function SettingsPrivatliv({ lang, t, fS, lS }) {
 
   useEffect(() => {
     fetch('/api/settings/privacy', { credentials: 'include' })
-      .then(r => r.json())
-      .then(data => { setProfileVis(data.profile_visibility || 'all'); setFriendReqPrivacy(data.friend_request_privacy || 'all'); setLoading(false) })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) { setProfileVis(data.profile_visibility || 'all'); setFriendReqPrivacy(data.friend_request_privacy || 'all') }; setLoading(false) })
       .catch(() => setLoading(false))
   }, [])
 
@@ -3861,8 +3862,8 @@ function SettingsSessions({ lang, t, onLogout }) {
   const load = () => {
     setLoading(true)
     fetch('/api/settings/sessions', { credentials: 'include' })
-      .then(r => r.json())
-      .then(data => { setSessions(data.sessions || []); setLoading(false) })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { setSessions(data?.sessions || []); setLoading(false) })
       .catch(() => setLoading(false))
   }
   useEffect(() => { load() }, [])
@@ -5917,7 +5918,7 @@ function SearchPage({ lang, t, mode, onNavigateToPost, onNavigateToConv, onNavig
         const [data, compData] = await Promise.all([
           apiSearch(query.trim()),
           fetch(`/api/companies/all?q=${encodeURIComponent(query.trim())}`, { credentials: 'include' })
-            .then(r => r.json()).catch(() => ({ companies: [] })),
+            .then(r => r.ok ? r.json() : { companies: [] }).catch(() => ({ companies: [] })),
         ])
         setResults(data || { posts: [], messages: [] })
         setCompanyMatches(compData.companies || [])
@@ -7225,15 +7226,16 @@ function SkillsSection({ profile, t, lang, isOwn }) {
   useEffect(() => {
     if (!profile?.id) return
     fetch(`/api/skills/${profile.id}`, { credentials: 'include' })
-      .then(r => r.json())
-      .then(data => { setSkills(data.skills || []); setLoading(false) })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { setSkills(data?.skills || []); setLoading(false) })
       .catch(() => setLoading(false))
   }, [profile?.id])
 
   const endorse = (skillId) => {
     fetch(`/api/skills/${skillId}/endorse`, { method: 'POST', credentials: 'include' })
-      .then(r => r.json())
+      .then(r => r.ok ? r.json() : null)
       .then(data => {
+        if (!data) return
         setSkills(prev => prev.map(s => s.id === skillId
           ? { ...s, endorsed_by_me: data.endorsed ? 1 : 0, endorsement_count: s.endorsement_count + (data.endorsed ? 1 : -1) }
           : s))
@@ -7249,8 +7251,8 @@ function SkillsSection({ profile, t, lang, isOwn }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name }),
     })
-      .then(r => r.json())
-      .then(skill => { setSkills(prev => [...prev, skill]); setNewSkill(''); setShowAdd(false) })
+      .then(r => r.ok ? r.json() : null)
+      .then(skill => { if (!skill) return; setSkills(prev => [...prev, skill]); setNewSkill(''); setShowAdd(false) })
       .catch(() => {})
   }
 
@@ -7264,8 +7266,8 @@ function SkillsSection({ profile, t, lang, isOwn }) {
     if (endorsersPopup?.skillId === skillId) { setEndorsersPopup(null); return }
     setEndorsersLoading(true)
     fetch(`/api/skills/${skillId}/endorsers`, { credentials: 'include' })
-      .then(r => r.json())
-      .then(data => { setEndorsersPopup({ skillId, endorsers: data.endorsers || [] }); setEndorsersLoading(false) })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { setEndorsersPopup({ skillId, endorsers: data?.endorsers || [] }); setEndorsersLoading(false) })
       .catch(() => setEndorsersLoading(false))
   }
 
@@ -7370,8 +7372,8 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
   const loadCompanies = () => {
     setLoading(true)
     fetch('/api/companies', { credentials: 'include' })
-      .then(r => r.json())
-      .then(data => { setCompanies(data.companies || []); setLoading(false) })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { setCompanies(data?.companies || []); setLoading(false) })
       .catch(() => setLoading(false))
   }
 
@@ -7385,8 +7387,8 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
       setOpenedFromFeed(true)
     } else {
       fetch(`/api/companies/${initialCompanyId}`, { credentials: 'include' })
-        .then(r => r.json())
-        .then(data => { if (data.company) { setSelectedCompany(data.company); setOpenedFromFeed(true) } })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (data?.company) { setSelectedCompany(data.company); setOpenedFromFeed(true) } })
         .catch(() => {})
     }
   }, [initialCompanyId, companies, loading])
@@ -7402,8 +7404,9 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
 
   const toggleFollow = (id) => {
     fetch(`/api/companies/${id}/follow`, { method: 'POST', credentials: 'include' })
-      .then(r => r.json())
+      .then(r => r.ok ? r.json() : null)
       .then(data => {
+        if (!data) return
         setCompanies(prev => prev.map(c => c.id === id ? {
           ...c,
           is_following: data.following,
@@ -7423,8 +7426,8 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
     setDiscoverLoading(true)
     const params = discoverSearch ? `?q=${encodeURIComponent(discoverSearch)}` : ''
     fetch(`/api/companies/all${params}`, { credentials: 'include' })
-      .then(r => r.json())
-      .then(data => { setDiscoverCompanies(data.companies || []); setDiscoverLoading(false) })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { setDiscoverCompanies(data?.companies || []); setDiscoverLoading(false) })
       .catch(() => setDiscoverLoading(false))
   }, [tab, discoverSearch])
 
@@ -7591,10 +7594,10 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
   useEffect(() => {
     setPostsLoading(true)
     fetch(`/api/companies/${company.id}`, { credentials: 'include' })
-      .then(r => r.json())
+      .then(r => r.ok ? r.json() : null)
       .then(data => {
-        setCompanyPosts(data.posts || [])
-        setCompanyJobs(data.jobs || [])
+        setCompanyPosts(data?.posts || [])
+        setCompanyJobs(data?.jobs || [])
         setPostsLoading(false)
       })
       .catch(() => setPostsLoading(false))
@@ -7605,9 +7608,9 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
     if (companyMembers.length > 0) return
     setMembersLoading(true)
     fetch(`/api/companies/${company.id}/members`, { credentials: 'include' })
-      .then(r => r.json())
+      .then(r => r.ok ? r.json() : null)
       .then(data => {
-        const members = data.members || []
+        const members = data?.members || []
         setCompanyMembers(members)
         const state = {}
         members.forEach(m => {
@@ -7628,8 +7631,9 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
 
   const toggleCompanyLike = (postId) => {
     fetch(`/api/companies/${company.id}/posts/${postId}/like`, { method: 'POST', credentials: 'include' })
-      .then(r => r.json())
+      .then(r => r.ok ? r.json() : null)
       .then(data => {
+        if (!data) return
         setCompanyPosts(prev => prev.map(p => p.id === postId
           ? { ...p, liked: data.liked ? 1 : 0, likes: data.liked ? p.likes + 1 : Math.max(0, p.likes - 1) }
           : p))
@@ -7641,8 +7645,8 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
     setExpandedCompanyComments(prev => { const n = new Set(prev); n.has(postId) ? n.delete(postId) : n.add(postId); return n })
     if (!companyCommentLists[postId]) {
       fetch(`/api/companies/${company.id}/posts/${postId}/comments`, { credentials: 'include' })
-        .then(r => r.json())
-        .then(data => setCompanyCommentLists(prev => ({ ...prev, [postId]: data.comments || [] })))
+        .then(r => r.ok ? r.json() : null)
+        .then(data => setCompanyCommentLists(prev => ({ ...prev, [postId]: data?.comments || [] })))
         .catch(() => {})
     }
   }
@@ -7655,8 +7659,9 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text }),
     })
-      .then(r => r.json())
+      .then(r => r.ok ? r.json() : null)
       .then(comment => {
+        if (!comment) return
         setCompanyCommentLists(prev => ({ ...prev, [postId]: [...(prev[postId] || []), comment] }))
         setCompanyPosts(prev => prev.map(p => p.id === postId ? { ...p, comment_count: (p.comment_count || 0) + 1 } : p))
         setCompanyCommentInputs(prev => ({ ...prev, [postId]: '' }))
@@ -7685,8 +7690,9 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text_da: newPost.trim(), text_en: newPost.trim() }),
     })
-      .then(r => r.json())
+      .then(r => r.ok ? r.json() : null)
       .then(post => {
+        if (!post) return
         setCompanyPosts(prev => [post, ...prev])
         setNewPost('')
         setCpMediaFiles([])
@@ -7718,8 +7724,8 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
                   setShowFollowersPopup(true)
                   if (!followers) {
                     fetch(`/api/companies/${company.id}/followers`, { credentials: 'include' })
-                      .then(r => r.json())
-                      .then(d => setFollowers(d.followers || []))
+                      .then(r => r.ok ? r.json() : null)
+                      .then(d => setFollowers(d?.followers || []))
                       .catch(() => setFollowers([]))
                   }
                 }}
@@ -8172,8 +8178,9 @@ function JobCard({ job, t, lang, onSaveToggle }) {
 
   const toggleSave = () => {
     fetch(`/api/jobs/${job.id}/save`, { method: 'POST', credentials: 'include' })
-      .then(r => r.json())
+      .then(r => r.ok ? r.json() : null)
       .then(data => {
+        if (!data) return
         setIsSaved(data.saved)
         onSaveToggle?.(job.id, data.saved)
       })
@@ -8272,24 +8279,24 @@ function JobsPage({ lang, t, currentUser, mode }) {
     if (filterType) params.set('type', filterType)
     setLoading(true)
     fetch(`/api/jobs?${params}`, { credentials: 'include' })
-      .then(r => r.json())
-      .then(data => { setJobs(data.jobs || []); setLoading(false) })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { setJobs(data?.jobs || []); setLoading(false) })
       .catch(() => setLoading(false))
   }, [filterKeyword, filterType])
 
   useEffect(() => {
     if (tab === 'saved') {
       fetch('/api/jobs/saved', { credentials: 'include' })
-        .then(r => r.json())
-        .then(data => setSavedJobs(data.jobs || []))
+        .then(r => r.ok ? r.json() : null)
+        .then(data => setSavedJobs(data?.jobs || []))
         .catch(() => {})
     }
   }, [tab])
 
   useEffect(() => {
     fetch('/api/companies', { credentials: 'include' })
-      .then(r => r.json())
-      .then(data => setMyCompanies((data.companies || []).filter(c => c.member_role === 'owner' || c.member_role === 'admin')))
+      .then(r => r.ok ? r.json() : null)
+      .then(data => setMyCompanies((data?.companies || []).filter(c => c.member_role === 'owner' || c.member_role === 'admin')))
       .catch(() => {})
   }, [])
 
@@ -8307,8 +8314,8 @@ function JobsPage({ lang, t, currentUser, mode }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...job, active: !job.active }),
     })
-      .then(r => r.json())
-      .then(() => refreshMyJobs())
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) refreshMyJobs() })
       .catch(() => {})
   }
 
