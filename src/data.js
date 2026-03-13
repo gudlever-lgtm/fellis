@@ -853,6 +853,13 @@ export const PT = {
     modTabQueue: 'Rapporter',
     modTabUsers: 'Brugere',
     modTabLog: 'Log',
+    // Memories
+    memoriesTitle: 'Minder',
+    memoriesOnThisDay: 'På denne dag',
+    memoriesYearAgo: 'år siden',
+    memoriesShare: 'Del som opslag',
+    memoriesDismiss: 'Skjul',
+    memoriesShared: 'Delt!',
   },
   en: {
     feed: 'Feed',
@@ -1567,6 +1574,13 @@ export const PT = {
     modTabQueue: 'Reports',
     modTabUsers: 'Users',
     modTabLog: 'Log',
+    // Memories
+    memoriesTitle: 'Memories',
+    memoriesOnThisDay: 'On this day',
+    memoriesYearAgo: 'year ago',
+    memoriesShare: 'Share as post',
+    memoriesDismiss: 'Dismiss',
+    memoriesShared: 'Shared!',
   },
 }
 

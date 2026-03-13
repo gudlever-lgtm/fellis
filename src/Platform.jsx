@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } from 'react'
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { PT, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdminAdSettings, apiSaveAdminAdSettings } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiFetchMemories } from './api.js'
 import ReelsPage from './Reels.jsx'
 import AdBanner from './AdBanner.jsx'
 
@@ -996,6 +996,131 @@ function GooglePhotosPicker({ lang, clientId, maxFiles = 4, onPhotosSelected, on
   )
 }
 
+// ── Memories card — "On this day" ─────────────────────────────────────────────
+function MemoriesCard({ lang, t, onShare }) {
+  const [memories, setMemories] = useState(null) // null = loading, [] = none
+  const [dismissed, setDismissed] = useState(false)
+  const [idx, setIdx] = useState(0)
+  const [sharedIdx, setSharedIdx] = useState(new Set())
+
+  useEffect(() => {
+    apiFetchMemories().then(data => {
+      setMemories(data?.memories ?? [])
+    })
+  }, [])
+
+  if (dismissed || memories === null || memories.length === 0) return null
+
+  const memory = memories[idx]
+  const yearsAgo = memory.yearsAgo
+
+  const yearsLabel = lang === 'da'
+    ? `${yearsAgo} ${t.memoriesYearAgo}`
+    : `${yearsAgo} ${yearsAgo === 1 ? t.memoriesYearAgo : t.memoriesYearAgo + 's'}`
+
+  const handleShare = async () => {
+    const text = memory.text[lang] || memory.text.da || ''
+    if (onShare) onShare(text)
+    setSharedIdx(prev => new Set(prev).add(idx))
+  }
+
+  const s = {
+    card: {
+      background: 'linear-gradient(135deg, #eaf4ef 0%, #f5f0eb 100%)',
+      border: '1.5px solid #b7dfc9',
+      borderRadius: 14,
+      padding: '16px 18px',
+      marginBottom: 12,
+      position: 'relative',
+    },
+    header: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 10,
+    },
+    icon: { fontSize: 22 },
+    titleBlock: { flex: 1 },
+    title: { fontSize: 14, fontWeight: 700, color: '#2D6A4F' },
+    subtitle: { fontSize: 12, color: '#6a9e83', marginTop: 1 },
+    dismiss: {
+      background: 'none',
+      border: 'none',
+      cursor: 'pointer',
+      color: '#aaa',
+      fontSize: 16,
+      lineHeight: 1,
+      padding: '2px 4px',
+      borderRadius: 4,
+    },
+    body: {
+      fontSize: 14,
+      color: '#333',
+      lineHeight: 1.5,
+      marginBottom: 12,
+      display: '-webkit-box',
+      WebkitLineClamp: 4,
+      WebkitBoxOrient: 'vertical',
+      overflow: 'hidden',
+    },
+    footer: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+    },
+    shareBtn: {
+      background: '#2D6A4F',
+      color: '#fff',
+      border: 'none',
+      borderRadius: 8,
+      fontSize: 13,
+      fontWeight: 600,
+      padding: '6px 14px',
+      cursor: 'pointer',
+    },
+    sharedLabel: {
+      fontSize: 13,
+      color: '#2D6A4F',
+      fontWeight: 600,
+    },
+    navBtn: {
+      background: 'none',
+      border: '1px solid #b7dfc9',
+      borderRadius: 6,
+      fontSize: 12,
+      color: '#2D6A4F',
+      padding: '4px 10px',
+      cursor: 'pointer',
+      marginLeft: 'auto',
+    },
+  }
+
+  return (
+    <div style={s.card}>
+      <div style={s.header}>
+        <span style={s.icon}>🕰️</span>
+        <div style={s.titleBlock}>
+          <div style={s.title}>{t.memoriesOnThisDay}</div>
+          <div style={s.subtitle}>{yearsLabel}</div>
+        </div>
+        <button style={s.dismiss} onClick={() => setDismissed(true)} title={t.memoriesDismiss}>✕</button>
+      </div>
+      <div style={s.body}>{memory.text[lang] || memory.text.da}</div>
+      <div style={s.footer}>
+        {sharedIdx.has(idx)
+          ? <span style={s.sharedLabel}>✓ {t.memoriesShared}</span>
+          : <button style={s.shareBtn} onClick={handleShare}>{t.memoriesShare}</button>
+        }
+        {memories.length > 1 && (
+          <button style={s.navBtn} onClick={() => setIdx(i => (i + 1) % memories.length)}>
+            {idx + 1} / {memories.length} ›
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onNavigate }) {
   const [posts, setPosts] = useState([])
   const [feedCategoryFilter, setFeedCategoryFilter] = useState(null)
@@ -1818,6 +1943,15 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
 
       {/* Reels strip */}
       <ReelsStrip lang={lang} t={t} onNavigate={onNavigate} />
+
+      {/* Memories card — on this day */}
+      {offset === 0 && (
+        <MemoriesCard
+          lang={lang}
+          t={t}
+          onShare={(text) => setNewPostText(prev => prev ? prev + '\n\n' + text : text)}
+        />
+      )}
 
       {/* Google Photos picker modal */}
       {showGooglePicker && googlePhotosClientId && (
