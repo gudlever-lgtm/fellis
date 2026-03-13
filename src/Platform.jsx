@@ -6971,7 +6971,7 @@ function EventDetailModal({ event, t, lang, mode, myRsvp, extras, onRsvp, onExtr
   useEffect(() => {
     if (event?.id) {
       apiGetEventComments(event.id).then(d => { if (d?.comments) setEventComments(d.comments) }).catch(() => {})
-      apiGetCarpoolingPosts(event.id).then(d => { if (d?.posts) setCarpoolingPosts(d.posts) }).catch(() => {})
+      apiGetCarpoolingPosts(event.id).then(d => { if (d?.carpooling) setCarpoolingPosts(d.carpooling) }).catch(() => {})
     }
   }, [event?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 

@@ -5977,6 +5977,7 @@ app.get('/api/posts/saved', authenticate, async (req, res) => {
     }))
     res.json({ posts })
   } catch (err) {
+    console.error('GET /api/posts/saved error:', err.message)
     res.json({ posts: [] })
   }
 })
@@ -6020,8 +6021,9 @@ app.post('/api/events/:id/comments', authenticate, async (req, res) => {
   const { text } = req.body
   if (!text?.trim()) return res.status(400).json({ error: 'text required' })
   try {
-    await pool.query('INSERT INTO event_comments (event_id, user_id, text) VALUES (?, ?, ?)', [req.params.id, req.userId, text.trim()])
-    const [rows] = await pool.query('SELECT ec.id, ec.text, ec.created_at, u.name AS author, u.avatar_url FROM event_comments ec JOIN users u ON u.id = ec.user_id WHERE ec.id = LAST_INSERT_ID()')
+    const [result] = await pool.query('INSERT INTO event_comments (event_id, user_id, text) VALUES (?, ?, ?)', [req.params.id, req.userId, text.trim()])
+    const newId = result.insertId
+    const [rows] = await pool.query('SELECT ec.id, ec.text, ec.created_at, u.name AS author, u.avatar_url FROM event_comments ec JOIN users u ON u.id = ec.user_id WHERE ec.id = ?', [newId])
     res.json({ ok: true, comment: rows[0] || null })
   } catch (err) { res.status(500).json({ error: err.message }) }
 })
@@ -6029,13 +6031,13 @@ app.post('/api/events/:id/comments', authenticate, async (req, res) => {
 app.get('/api/events/:id/carpooling', authenticate, async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT ec.id, ec.type, ec.from_area, ec.seats, ec.created_at, u.name AS author, u.avatar_url
+      `SELECT ec.id, ec.type, ec.from_area, ec.seats, ec.created_at, u.id AS user_id, u.name AS author, u.avatar_url
        FROM event_carpooling ec JOIN users u ON u.id = ec.user_id
        WHERE ec.event_id = ? ORDER BY ec.created_at DESC`,
       [req.params.id]
     )
-    res.json({ posts: rows })
-  } catch { res.json({ posts: [] }) }
+    res.json({ carpooling: rows })
+  } catch (err) { console.error('GET /api/events/:id/carpooling error:', err.message); res.json({ carpooling: [] }) }
 })
 
 app.post('/api/events/:id/carpooling', authenticate, async (req, res) => {
