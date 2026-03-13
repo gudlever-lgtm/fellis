@@ -100,11 +100,12 @@ export async function apiPreflightPost(text) {
   return await request('/api/feed/preflight', { method: 'POST', body: JSON.stringify({ text }) })
 }
 
-export async function apiCreatePost(text, mediaFiles) {
+export async function apiCreatePost(text, mediaFiles, scheduledAt) {
   if (mediaFiles?.length) {
     // Use FormData for multipart upload
     const form = new FormData()
     form.append('text', text)
+    if (scheduledAt) form.append('scheduled_at', scheduledAt)
     for (const file of mediaFiles) {
       form.append('media', file)
     }
@@ -127,7 +128,7 @@ export async function apiCreatePost(text, mediaFiles) {
   }
   return await request('/api/feed', {
     method: 'POST',
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ text, ...(scheduledAt ? { scheduled_at: scheduledAt } : {}) }),
   })
 }
 
@@ -908,4 +909,87 @@ export async function apiUploadFile(file, type = 'post') {
     if (!res.ok) return null
     return await res.json()
   } catch { return null }
+}
+
+// ── Job Applications ──────────────────────────────────────────────────────────
+export async function apiApplyToJob(jobId, { name, email, message }, cvFile) {
+  const form = new FormData()
+  form.append('name', name)
+  form.append('email', email)
+  if (message) form.append('message', message)
+  if (cvFile) form.append('cv', cvFile)
+  try {
+    const res = await fetch(`${API_BASE}/api/jobs/${jobId}/apply`, {
+      method: 'POST',
+      headers: formHeaders(),
+      credentials: 'same-origin',
+      body: form,
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.error || `HTTP ${res.status}`)
+    }
+    return await res.json()
+  } catch (err) {
+    if (err.message === 'Failed to fetch') return null
+    throw err
+  }
+}
+
+export async function apiGetJobApplications(jobId) {
+  return await request(`/api/jobs/${jobId}/applications`)
+}
+
+export async function apiUpdateJobApplication(jobId, appId, status) {
+  return await request(`/api/jobs/${jobId}/applications/${appId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  })
+}
+
+// ── CRM Contact Notes ─────────────────────────────────────────────────────────
+export async function apiGetContactNote(userId) {
+  return await request(`/api/contact-notes/${userId}`)
+}
+
+export async function apiSaveContactNote(userId, note) {
+  return await request(`/api/contact-notes/${userId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ note }),
+  })
+}
+
+export async function apiGetAllContactNotes() {
+  return await request('/api/contact-notes')
+}
+
+// ── Scheduled Posts ───────────────────────────────────────────────────────────
+export async function apiGetScheduledPosts() {
+  return await request('/api/feed/scheduled')
+}
+
+export async function apiReschedulePost(postId, scheduledAt) {
+  return await request(`/api/feed/scheduled/${postId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ scheduled_at: scheduledAt || null }),
+  })
+}
+
+// ── Company Lead Capture ──────────────────────────────────────────────────────
+export async function apiSubmitCompanyLead(companyId, data) {
+  return await request(`/api/companies/${companyId}/leads`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function apiGetCompanyLeads(companyId) {
+  return await request(`/api/companies/${companyId}/leads`)
+}
+
+export async function apiUpdateCompanyLead(companyId, leadId, status) {
+  return await request(`/api/companies/${companyId}/leads/${leadId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  })
 }

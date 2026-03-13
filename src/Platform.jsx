@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } from 'react'
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { PT, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdminAdSettings, apiSaveAdminAdSettings } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiApplyToJob, apiGetJobApplications, apiUpdateJobApplication, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead } from './api.js'
 import ReelsPage from './Reels.jsx'
 import AdBanner from './AdBanner.jsx'
 
@@ -1081,6 +1081,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [googlePhotosClientId, setGooglePhotosClientId] = useState(null)
   const [mediaMaxFiles, setMediaMaxFiles] = useState(4)
   const mediaMaxFilesRef = useRef(4)
+  const [scheduleEnabled, setScheduleEnabled] = useState(false)
+  const [scheduledAt, setScheduledAt] = useState('')
 
   const handleJoinGroup = async (groupId) => {
     setJoinedGroupIds(prev => new Set([...prev, groupId]))
@@ -1260,8 +1262,12 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     })
   }, [])
 
-  const doCreatePost = useCallback((text, files) => {
-    apiCreatePost(text, files).then(data => {
+  const doCreatePost = useCallback((text, files, schedAt) => {
+    apiCreatePost(text, files, schedAt || undefined).then(data => {
+      if (data?.scheduled) {
+        // Scheduled post — don't add to feed, just show a toast
+        return
+      }
       if (data) {
         setPosts(prev => [data, ...prev].slice(0, PAGE_SIZE))
         setTotal(prev => prev + 1)
@@ -1288,6 +1294,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     setPostCategories(new Set())
     setAutoCategories(new Set())
     setShowCategoryPicker(false)
+    setScheduleEnabled(false)
+    setScheduledAt('')
     if (fileInputRef.current) fileInputRef.current.value = ''
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
   }, [mediaPreviews, currentUser.name])
@@ -1302,13 +1310,14 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       setKeywordWarning({ keyword: check.keyword, category: check.category, notes: check.notes, text, files })
       return
     }
-    doCreatePost(text, files)
+    const schedAt = scheduleEnabled && scheduledAt ? scheduledAt : null
+    doCreatePost(text, files, schedAt)
     setNewPostText('')
     setMediaFiles([])
     setMediaPreviews([])
     setPostExpanded(false)
     setMediaPopup(false)
-  }, [newPostText, mediaFiles, doCreatePost])
+  }, [newPostText, mediaFiles, doCreatePost, scheduleEnabled, scheduledAt])
 
   const toggleLike = useCallback((id, emoji) => {
     const isLiked = likedPosts.has(id)
@@ -1804,12 +1813,34 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   )}
                 </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                {mode === 'business' && (
+                  <button
+                    type="button"
+                    onMouseDown={e => e.preventDefault()}
+                    onClick={() => { setScheduleEnabled(v => !v); if (scheduleEnabled) setScheduledAt('') }}
+                    style={{ padding: '6px 12px', borderRadius: 8, border: `1px solid ${scheduleEnabled ? '#1877F2' : '#ddd'}`, background: scheduleEnabled ? '#EBF4FF' : '#fff', color: scheduleEnabled ? '#1877F2' : '#555', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                    title={lang === 'da' ? 'Planlæg opslag' : 'Schedule post'}
+                  >
+                    🕐 {lang === 'da' ? 'Planlæg' : 'Schedule'}
+                  </button>
+                )}
+                {scheduleEnabled && (
+                  <input
+                    type="datetime-local"
+                    value={scheduledAt}
+                    min={new Date(Date.now() + 60000).toISOString().slice(0, 16)}
+                    onChange={e => setScheduledAt(e.target.value)}
+                    style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #1877F2', fontSize: 12, color: '#333' }}
+                  />
+                )}
                 <span className="p-input-hint-wrap">
                   <span className="p-input-hint-icon">?</span>
                   <span className="p-input-hint-tooltip">{t.postInputHint}</span>
                 </span>
-                <button className="p-post-btn" onMouseDown={e => e.preventDefault()} onClick={handlePost} disabled={!newPostText.trim() && !mediaPreviews.length && !providerMediaUrls.length}>{t.post}</button>
+                <button className="p-post-btn" onMouseDown={e => e.preventDefault()} onClick={handlePost} disabled={!newPostText.trim() && !mediaPreviews.length && !providerMediaUrls.length}>
+                  {scheduleEnabled && scheduledAt ? (lang === 'da' ? 'Planlæg' : 'Schedule') : t.post}
+                </button>
               </div>
             </div>
           </>
@@ -2481,7 +2512,18 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
   const [parachordEnabled, setParachordEnabled] = useState(() => localStorage.getItem('fellis_parachord_enabled') !== 'false')
   const [profilePublic, setProfilePublic] = useState(false)
   const [profilePublicSaving, setProfilePublicSaving] = useState(false)
+  const [scheduledPosts, setScheduledPosts] = useState(null) // null = not loaded
+  const [allNotes, setAllNotes] = useState(null) // null = not loaded
   const { rels } = useContactRelationships()
+
+  useEffect(() => {
+    if (profileTab === 'scheduled' && scheduledPosts === null) {
+      apiGetScheduledPosts().then(data => setScheduledPosts(data?.posts || [])).catch(() => setScheduledPosts([]))
+    }
+    if (profileTab === 'notes' && allNotes === null) {
+      apiGetAllContactNotes().then(data => setAllNotes(data?.notes || [])).catch(() => setAllNotes([]))
+    }
+  }, [profileTab]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleParachordToggle = () => {
     const next = !parachordEnabled
@@ -2584,6 +2626,16 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
         <button className={`p-filter-tab${profileTab === 'about' ? ' active' : ''}`} onClick={() => setProfileTab('about')}>{t.profileTabAbout}</button>
         <button className={`p-filter-tab${profileTab === 'posts' ? ' active' : ''}`} onClick={() => setProfileTab('posts')}>{t.profileTabPosts}{userPosts.length > 0 ? ` (${userPosts.length})` : ''}</button>
         <button className={`p-filter-tab${profileTab === 'photos' ? ' active' : ''}`} onClick={() => setProfileTab('photos')}>{t.profileTabPhotos} ({MOCK_FB_PHOTOS.length})</button>
+        {mode === 'business' && (
+          <button className={`p-filter-tab${profileTab === 'scheduled' ? ' active' : ''}`} onClick={() => setProfileTab('scheduled')}>
+            🕐 {lang === 'da' ? 'Planlagte' : 'Scheduled'}{scheduledPosts?.length > 0 ? ` (${scheduledPosts.length})` : ''}
+          </button>
+        )}
+        {mode === 'business' && (
+          <button className={`p-filter-tab${profileTab === 'notes' ? ' active' : ''}`} onClick={() => setProfileTab('notes')}>
+            🔒 {lang === 'da' ? 'Mine noter' : 'My notes'}{allNotes?.length > 0 ? ` (${allNotes.length})` : ''}
+          </button>
+        )}
       </div>
 
       {/* About tab */}
@@ -2801,6 +2853,89 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
                   )}
                   <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.45)', color: '#fff', fontSize: 10, padding: '4px 6px', lineHeight: 1.3 }}>
                     {photo.caption[lang]}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Scheduled posts tab (business mode) */}
+      {profileTab === 'scheduled' && (
+        <div className="p-card" style={{ padding: 16 }}>
+          <h3 className="p-section-title" style={{ marginTop: 0 }}>🕐 {lang === 'da' ? 'Planlagte opslag' : 'Scheduled posts'}</h3>
+          {scheduledPosts === null ? (
+            <div style={{ textAlign: 'center', padding: 32, color: '#888' }}>⏳</div>
+          ) : scheduledPosts.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 32, color: '#888' }}>
+              {lang === 'da' ? 'Ingen planlagte opslag.' : 'No scheduled posts.'}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {scheduledPosts.map(post => (
+                <div key={post.id} style={{ border: '1px solid #e8e4df', borderRadius: 10, padding: 14 }}>
+                  <div style={{ fontSize: 13, color: '#333', marginBottom: 8, lineHeight: 1.5 }}>
+                    {(post.text?.da || post.text?.en || '').slice(0, 200)}
+                    {(post.text?.da || '').length > 200 ? '…' : ''}
+                  </div>
+                  <div style={{ fontSize: 12, color: '#1877F2', fontWeight: 600, marginBottom: 10 }}>
+                    🕐 {new Date(post.scheduledAt).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      onClick={() => {
+                        apiReschedulePost(post.id, null).then(() => {
+                          setScheduledPosts(prev => prev.filter(p => p.id !== post.id))
+                        }).catch(() => {})
+                      }}
+                      style={{ padding: '5px 12px', borderRadius: 7, border: '1px solid #2D6A4F', background: '#F0FAF4', color: '#2D6A4F', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}
+                    >
+                      ▶ {lang === 'da' ? 'Udgiv nu' : 'Publish now'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (!window.confirm(lang === 'da' ? 'Slet planlagt opslag?' : 'Delete scheduled post?')) return
+                        apiDeletePost(post.id).then(() => {
+                          setScheduledPosts(prev => prev.filter(p => p.id !== post.id))
+                        }).catch(() => {})
+                      }}
+                      style={{ padding: '5px 12px', borderRadius: 7, border: '1px solid #e74c3c', background: '#fff5f5', color: '#e74c3c', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}
+                    >
+                      🗑 {lang === 'da' ? 'Annuller' : 'Cancel'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* My notes tab (business mode CRM) */}
+      {profileTab === 'notes' && (
+        <div className="p-card" style={{ padding: 16 }}>
+          <h3 className="p-section-title" style={{ marginTop: 0 }}>🔒 {lang === 'da' ? 'Mine private noter' : 'My private notes'}</h3>
+          {allNotes === null ? (
+            <div style={{ textAlign: 'center', padding: 32, color: '#888' }}>⏳</div>
+          ) : allNotes.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 32, color: '#888' }}>
+              {lang === 'da' ? 'Ingen noter endnu. Åbn en forbindelses profil for at tilføje noter.' : 'No notes yet. Open a connection\'s profile to add notes.'}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {allNotes.map(n => (
+                <div key={n.contact_id} style={{ border: '1px solid #e8e4df', borderRadius: 10, padding: 14 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                    <div className="p-avatar-sm" style={{ background: nameToColor(n.contact_name), flexShrink: 0 }}>{getInitials(n.contact_name)}</div>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 14 }}>{n.contact_name}</div>
+                      {n.contact_handle && <div style={{ fontSize: 12, color: '#888' }}>@{n.contact_handle}</div>}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 13, color: '#444', lineHeight: 1.5, marginBottom: 6 }}>{n.note}</div>
+                  <div style={{ fontSize: 10, color: '#bbb' }}>
+                    {lang === 'da' ? 'Sidst opdateret' : 'Last updated'}: {new Date(n.updated_at).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                   </div>
                 </div>
               ))}
@@ -4739,11 +4874,33 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onMessage }) 
 // ── Friend Profile Modal ──
 function FriendProfileModal({ userId, lang, t, onClose, onMessage }) {
   const [profile, setProfile] = useState(null)
+  const [crmNote, setCrmNote] = useState('')
+  const [crmNoteUpdatedAt, setCrmNoteUpdatedAt] = useState(null)
+  const [crmSaveStatus, setCrmSaveStatus] = useState(null) // null | 'saving' | 'saved'
+  const crmTimerRef = useRef(null)
 
   useEffect(() => {
     if (!userId) return
     apiFetchProfile(userId).then(data => { if (data) setProfile(data) })
+    apiGetContactNote(userId).then(data => {
+      if (data) { setCrmNote(data.note || ''); setCrmNoteUpdatedAt(data.updatedAt) }
+    }).catch(() => {})
   }, [userId])
+
+  const handleCrmNoteChange = (val) => {
+    setCrmNote(val)
+    clearTimeout(crmTimerRef.current)
+    setCrmSaveStatus('saving')
+    crmTimerRef.current = setTimeout(async () => {
+      try {
+        const res = await apiSaveContactNote(userId, val)
+        if (res?.ok) { setCrmNoteUpdatedAt(res.updatedAt); setCrmSaveStatus('saved') }
+        else setCrmSaveStatus(null)
+      } catch { setCrmSaveStatus(null) }
+    }, 800)
+  }
+
+  useEffect(() => () => clearTimeout(crmTimerRef.current), [])
 
   if (!userId) return null
 
@@ -4800,6 +4957,27 @@ function FriendProfileModal({ userId, lang, t, onClose, onMessage }) {
                   💬 {t.message}
                 </button>
               )}
+              {/* CRM private note */}
+              <div style={{ marginTop: 20, borderTop: '1px solid #f0f0f0', paddingTop: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#555' }}>
+                    🔒 {lang === 'da' ? 'Privat note' : 'Private note'}
+                  </span>
+                  {crmSaveStatus === 'saving' && <span style={{ fontSize: 11, color: '#aaa' }}>{lang === 'da' ? 'Gemmer…' : 'Saving…'}</span>}
+                  {crmSaveStatus === 'saved' && <span style={{ fontSize: 11, color: '#2D6A4F' }}>✓ {lang === 'da' ? 'Gemt' : 'Saved'}</span>}
+                </div>
+                <textarea
+                  value={crmNote}
+                  onChange={e => handleCrmNoteChange(e.target.value)}
+                  placeholder={lang === 'da' ? 'Skriv en privat note om denne kontakt…' : 'Write a private note about this contact…'}
+                  style={{ width: '100%', minHeight: 72, padding: '8px 10px', borderRadius: 8, border: '1px solid #e0e0e0', fontSize: 12, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box', lineHeight: 1.5, color: '#333' }}
+                />
+                {crmNoteUpdatedAt && (
+                  <div style={{ fontSize: 10, color: '#bbb', marginTop: 3 }}>
+                    {lang === 'da' ? 'Sidst opdateret' : 'Last updated'}: {new Date(crmNoteUpdatedAt).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                )}
+              </div>
             </div>
           </>
         )}
@@ -7434,6 +7612,92 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
   )
 }
 
+function CompanyLeadModal({ company, t, lang, onClose }) {
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [topic, setTopic] = useState('')
+  const [message, setMessage] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [done, setDone] = useState(false)
+  const [error, setError] = useState('')
+
+  const submit = async () => {
+    if (!name.trim() || !email.trim() || !message.trim()) {
+      setError(lang === 'da' ? 'Navn, e-mail og besked er påkrævet.' : 'Name, email, and message are required.')
+      return
+    }
+    setSubmitting(true)
+    setError('')
+    try {
+      const res = await apiSubmitCompanyLead(company.id, { name: name.trim(), email: email.trim(), topic: topic.trim(), message: message.trim() })
+      setSubmitting(false)
+      if (res && res.ok) {
+        setDone(true)
+      } else {
+        setError(lang === 'da' ? 'Noget gik galt. Prøv igen.' : 'Something went wrong. Please try again.')
+      }
+    } catch {
+      setSubmitting(false)
+      setError(lang === 'da' ? 'Noget gik galt. Prøv igen.' : 'Something went wrong. Please try again.')
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="p-card" onClick={e => e.stopPropagation()} style={{ padding: 28, maxWidth: 480, width: '92%', borderRadius: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>
+            {lang === 'da' ? `Kontakt ${company.name}` : `Contact ${company.name}`}
+          </h3>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#888' }}>✕</button>
+        </div>
+        {done ? (
+          <div style={{ textAlign: 'center', padding: '24px 0' }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+            <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>{lang === 'da' ? 'Besked sendt!' : 'Message sent!'}</div>
+            <div style={{ color: '#666', fontSize: 14, marginBottom: 20 }}>
+              {lang === 'da' ? 'Virksomheden vil kontakte dig snarest.' : 'The company will reach out to you shortly.'}
+            </div>
+            <button onClick={onClose} style={{ padding: '10px 24px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>
+              {lang === 'da' ? 'Luk' : 'Close'}
+            </button>
+          </div>
+        ) : (
+          <>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4, color: '#444' }}>{lang === 'da' ? 'Navn *' : 'Name *'}</label>
+                <input value={name} onChange={e => setName(e.target.value)} style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4, color: '#444' }}>{lang === 'da' ? 'E-mail *' : 'Email *'}</label>
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4, color: '#444' }}>{lang === 'da' ? 'Emne' : 'Topic'}</label>
+                <input value={topic} onChange={e => setTopic(e.target.value)} placeholder={lang === 'da' ? 'f.eks. Samarbejde, Tilbud, ...' : 'e.g. Partnership, Quote, ...'} style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4, color: '#444' }}>{lang === 'da' ? 'Besked *' : 'Message *'}</label>
+                <textarea value={message} onChange={e => setMessage(e.target.value)} rows={4} style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' }} />
+              </div>
+            </div>
+            {error && <div style={{ color: '#c0392b', fontSize: 13, marginTop: 8 }}>{error}</div>}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
+              <button onClick={onClose} style={{ padding: '9px 20px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', cursor: 'pointer', fontSize: 14 }}>
+                {lang === 'da' ? 'Annuller' : 'Cancel'}
+              </button>
+              <button onClick={submit} disabled={submitting} style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: submitting ? 'default' : 'pointer', fontWeight: 600, fontSize: 14, opacity: submitting ? 0.7 : 1 }}>
+                {submitting ? '...' : (lang === 'da' ? 'Send besked' : 'Send message')}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBack, onFollow, isFollowing }) {
   const [tab, setTab] = useState('posts')
   const [newPost, setNewPost] = useState('')
@@ -7453,6 +7717,9 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
   const [showCreateJobModal, setShowCreateJobModal] = useState(false)
   const [showFollowersPopup, setShowFollowersPopup] = useState(false)
   const [followers, setFollowers] = useState(null)
+  const [showLeadForm, setShowLeadForm] = useState(false)
+  const [leads, setLeads] = useState(null)
+  const [leadsLoading, setLeadsLoading] = useState(false)
 
   useEffect(() => {
     setPostsLoading(true)
@@ -7465,6 +7732,18 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
       })
       .catch(() => setPostsLoading(false))
   }, [company.id])
+
+  useEffect(() => {
+    if (tab !== 'leads') return
+    if (leads !== null) return
+    setLeadsLoading(true)
+    apiGetCompanyLeads(company.id)
+      .then(data => {
+        setLeads(data?.leads || [])
+        setLeadsLoading(false)
+      })
+      .catch(() => { setLeads([]); setLeadsLoading(false) })
+  }, [tab, company.id, leads])
 
   useEffect(() => {
     if (tab !== 'members') return
@@ -7610,6 +7889,14 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
                   {t.companyRoleOwner}
                 </span>
               )}
+              {!isOwner && company.role !== 'admin' && company.role !== 'editor' && (
+                <button
+                  onClick={() => setShowLeadForm(true)}
+                  style={{ padding: '8px 20px', borderRadius: 8, border: '1px solid #2D6A4F', background: '#fff', color: '#2D6A4F', cursor: 'pointer', fontWeight: 600, fontSize: 14 }}
+                >
+                  ✉️ {lang === 'da' ? 'Kontakt os' : 'Contact us'}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -7617,10 +7904,15 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
 
       {/* Tabs */}
       <div className="p-filter-tabs" style={{ marginBottom: 16 }}>
-        {['posts', 'members', 'about', 'jobs'].map(tp => (
+        {['posts', 'members', 'about', 'jobs', ...(isOwner || company.role === 'admin' ? ['leads'] : [])].map(tp => (
           <button key={tp} className={`p-filter-tab${tab === tp ? ' active' : ''}`} onClick={() => setTab(tp)}>
-            {tp === 'posts' ? t.companyPosts : tp === 'members' ? t.companyMembers : tp === 'about' ? t.companyAbout : t.jobs}
+            {tp === 'posts' ? t.companyPosts : tp === 'members' ? t.companyMembers : tp === 'about' ? t.companyAbout : tp === 'jobs' ? t.jobs : (lang === 'da' ? '📬 Leads' : '📬 Leads')}
             {tp === 'jobs' && companyJobs.length > 0 && <span style={{ marginLeft: 4, fontSize: 11 }}>({companyJobs.length})</span>}
+            {tp === 'leads' && leads && leads.filter(l => l.status === 'new').length > 0 && (
+              <span style={{ marginLeft: 4, fontSize: 11, background: '#c0392b', color: '#fff', borderRadius: 10, padding: '1px 5px' }}>
+                {leads.filter(l => l.status === 'new').length}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -7860,6 +8152,58 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
         </div>
       )}
 
+      {tab === 'leads' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <h4 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700 }}>
+            {lang === 'da' ? 'Indkommende leads' : 'Incoming leads'}
+          </h4>
+          {leadsLoading ? (
+            <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>⏳</div>
+          ) : !leads || leads.length === 0 ? (
+            <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>
+              {lang === 'da' ? 'Ingen leads endnu.' : 'No leads yet.'}
+            </div>
+          ) : leads.map(lead => (
+            <div key={lead.id} className="p-card" style={{ padding: '14px 16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>{lead.name}</div>
+                  <div style={{ fontSize: 13, color: '#555' }}>
+                    <a href={`mailto:${lead.email}`} style={{ color: '#1877F2' }}>{lead.email}</a>
+                  </div>
+                  {lead.topic && <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>📌 {lead.topic}</div>}
+                  {lead.message && <div style={{ fontSize: 13, color: '#444', marginTop: 8, lineHeight: 1.5 }}>{lead.message}</div>}
+                  <div style={{ fontSize: 11, color: '#aaa', marginTop: 6 }}>
+                    {new Date(lead.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                </div>
+                <div style={{ flexShrink: 0 }}>
+                  <select
+                    value={lead.status}
+                    onChange={async e => {
+                      const newStatus = e.target.value
+                      try {
+                        const res = await apiUpdateCompanyLead(company.id, lead.id, newStatus)
+                        if (res?.ok) {
+                          setLeads(prev => prev.map(l => l.id === lead.id ? { ...l, status: newStatus } : l))
+                        }
+                      } catch {}
+                    }}
+                    style={{ padding: '5px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, cursor: 'pointer',
+                      background: lead.status === 'new' ? '#fff3cd' : lead.status === 'responded' ? '#d4edda' : '#f0f0f0',
+                      color: lead.status === 'new' ? '#856404' : lead.status === 'responded' ? '#155724' : '#555' }}
+                  >
+                    <option value="new">{lang === 'da' ? 'Ny' : 'New'}</option>
+                    <option value="responded">{lang === 'da' ? 'Besvaret' : 'Responded'}</option>
+                    <option value="archived">{lang === 'da' ? 'Arkiveret' : 'Archived'}</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Create Job Modal from Company Page */}
       {showCreateJobModal && (
         <CreateJobModal
@@ -7897,6 +8241,11 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
             ))}
           </div>
         </div>
+      )}
+
+      {/* Lead capture modal */}
+      {showLeadForm && (
+        <CompanyLeadModal company={company} t={t} lang={lang} onClose={() => setShowLeadForm(false)} />
       )}
     </div>
   )
@@ -8024,9 +8373,88 @@ function CreateCompanyModal({ t, lang, currentUser, onClose, onCreate }) {
   )
 }
 
+// ── Job Apply Modal ──
+function JobApplyModal({ job, lang, t, onClose }) {
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [message, setMessage] = useState('')
+  const [cvFile, setCvFile] = useState(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [done, setDone] = useState(false)
+  const [error, setError] = useState(null)
+  const cvRef = useRef(null)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!name.trim() || !email.trim()) return
+    setSubmitting(true); setError(null)
+    try {
+      const res = await apiApplyToJob(job.id, { name, email, message }, cvFile)
+      if (res?.ok) { setDone(true) }
+      else setError(lang === 'da' ? 'Noget gik galt' : 'Something went wrong')
+    } catch (err) {
+      setError(err.message === 'Already applied'
+        ? (lang === 'da' ? 'Du har allerede ansøgt om dette job' : 'You have already applied for this job')
+        : (lang === 'da' ? 'Noget gik galt' : 'Something went wrong'))
+    } finally { setSubmitting(false) }
+  }
+
+  const fS = { display: 'block', width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box', marginTop: 4 }
+  const lS = { fontSize: 12, fontWeight: 600, color: '#555', marginTop: 12, display: 'block' }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="p-msg-modal" style={{ maxWidth: 440 }} onClick={e => e.stopPropagation()}>
+        <div className="p-msg-modal-header">
+          <span>📝 {lang === 'da' ? 'Ansøg om stilling' : 'Apply for position'}</span>
+          <button className="p-msg-modal-close" onClick={onClose}>✕</button>
+        </div>
+        {done ? (
+          <div style={{ padding: '24px 20px', textAlign: 'center' }}>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>✅</div>
+            <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6 }}>
+              {lang === 'da' ? 'Ansøgning sendt!' : 'Application sent!'}
+            </div>
+            <div style={{ fontSize: 13, color: '#666', marginBottom: 16 }}>
+              {lang === 'da' ? 'Virksomheden vil tage kontakt, hvis du er et godt match.' : 'The company will reach out if you are a good match.'}
+            </div>
+            <button className="p-events-create-btn" onClick={onClose}>{lang === 'da' ? 'Luk' : 'Close'}</button>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} style={{ padding: '16px 20px' }}>
+            <div style={{ fontSize: 13, color: '#555', marginBottom: 12 }}>
+              <strong>{typeof job.title === 'string' ? job.title : (job.title?.da || '')}</strong>
+              {' '}&middot;{' '}
+              {job.company_name || job.companyName || ''}
+            </div>
+            <label style={lS}>{lang === 'da' ? 'Dit navn' : 'Your name'} *</label>
+            <input style={fS} value={name} onChange={e => setName(e.target.value)} required autoFocus />
+            <label style={lS}>{lang === 'da' ? 'E-mail' : 'Email'} *</label>
+            <input style={fS} type="email" value={email} onChange={e => setEmail(e.target.value)} required />
+            <label style={lS}>{lang === 'da' ? 'Kort besked' : 'Short message'}</label>
+            <textarea style={{ ...fS, minHeight: 80, resize: 'vertical' }} value={message} onChange={e => setMessage(e.target.value)} placeholder={lang === 'da' ? 'Fortæl lidt om dig selv...' : 'Tell a bit about yourself...'} />
+            <label style={lS}>{lang === 'da' ? 'CV (valgfri)' : 'CV (optional)'}</label>
+            <input ref={cvRef} type="file" style={{ ...fS, padding: '6px 8px' }} accept=".pdf,.doc,.docx,.txt" onChange={e => setCvFile(e.target.files?.[0] || null)} />
+            {error && <div style={{ color: '#e74c3c', fontSize: 12, marginTop: 8 }}>{error}</div>}
+            <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+              <button type="button" onClick={onClose} style={{ flex: 1, padding: 10, borderRadius: 8, border: '1px solid #ddd', background: '#fff', cursor: 'pointer', fontSize: 13 }}>
+                {lang === 'da' ? 'Annuller' : 'Cancel'}
+              </button>
+              <button type="submit" disabled={submitting || !name.trim() || !email.trim()} style={{ flex: 2, padding: 10, borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
+                {submitting ? '…' : (lang === 'da' ? 'Send ansøgning' : 'Send application')}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Jobs ──
 function JobCard({ job, t, lang, onSaveToggle }) {
   const [isSaved, setIsSaved] = useState(!!job.saved)
+  const [showApplyModal, setShowApplyModal] = useState(false)
   const companyName = job.company_name || job.companyName || ''
   const companyColor = job.company_color || job.companyColor || '#1877F2'
   const title = typeof job.title === 'string' ? job.title : (job.title?.[lang] || job.title?.da || '')
@@ -8087,15 +8515,21 @@ function JobCard({ job, t, lang, onSaveToggle }) {
             </div>
           )}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button
+              onClick={() => setShowApplyModal(true)}
+              className="p-events-create-btn"
+              style={{ padding: '8px 18px', fontSize: 13 }}
+            >
+              {t.jobApply}
+            </button>
             {applyLink && (
               <a
                 href={applyLink.startsWith('http') ? applyLink : `mailto:${applyLink}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-events-create-btn"
-                style={{ textDecoration: 'none', display: 'inline-block', padding: '8px 18px', fontSize: 13 }}
+                style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', color: '#555', fontWeight: 600, fontSize: 13, textDecoration: 'none', display: 'inline-block' }}
               >
-                {t.jobApply} →
+                🔗 {lang === 'da' ? 'Eksternt link' : 'External link'}
               </a>
             )}
             {job.contact_email && (
@@ -8115,6 +8549,7 @@ function JobCard({ job, t, lang, onSaveToggle }) {
           </div>
         </div>
       </div>
+      {showApplyModal && <JobApplyModal job={job} lang={lang} t={t} onClose={() => setShowApplyModal(false)} />}
     </div>
   )
 }
@@ -8131,6 +8566,9 @@ function JobsPage({ lang, t, currentUser, mode }) {
   const [showCreate, setShowCreate] = useState(false)
   const [editJob, setEditJob] = useState(null)
   const [myCompanies, setMyCompanies] = useState([])
+  const [applicantsJob, setApplicantsJob] = useState(null) // job being viewed for applicants
+  const [applicants, setApplicants] = useState([])
+  const [applicantsLoading, setApplicantsLoading] = useState(false)
 
   useEffect(() => {
     const params = new URLSearchParams()
@@ -8166,6 +8604,15 @@ function JobsPage({ lang, t, currentUser, mode }) {
   }, [mode])
 
   const refreshMyJobs = () => apiGetMyJobs().then(data => setMyJobs(data?.jobs || []))
+
+  const openApplicants = (job) => {
+    setApplicantsJob(job)
+    setApplicantsLoading(true)
+    apiGetJobApplications(job.id).then(data => {
+      setApplicants(data?.applications || [])
+      setApplicantsLoading(false)
+    }).catch(() => setApplicantsLoading(false))
+  }
 
   const handleToggleActive = (job) => {
     fetch(`/api/jobs/${job.id}`, {
@@ -8281,6 +8728,12 @@ function JobsPage({ lang, t, currentUser, mode }) {
                       >
                         {job.active ? `🚫 ${t.jobClose}` : `✅ ${t.jobReopen}`}
                       </button>
+                      <button
+                        onClick={() => openApplicants(job)}
+                        style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid #1877F2', background: '#EBF4FF', color: '#1877F2', fontSize: 13, cursor: 'pointer', fontWeight: 600 }}
+                      >
+                        👥 {lang === 'da' ? 'Ansøgere' : 'Applicants'}
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -8327,6 +8780,61 @@ function JobsPage({ lang, t, currentUser, mode }) {
           onClose={() => setEditJob(null)}
           onCreate={() => { setEditJob(null); refreshMyJobs() }}
         />
+      )}
+      {applicantsJob && (
+        <div className="modal-backdrop" onClick={() => setApplicantsJob(null)}>
+          <div className="p-msg-modal" style={{ maxWidth: 560, maxHeight: '80vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+            <div className="p-msg-modal-header">
+              <span>👥 {lang === 'da' ? 'Ansøgere' : 'Applicants'} — {applicantsJob.title}</span>
+              <button className="p-msg-modal-close" onClick={() => setApplicantsJob(null)}>✕</button>
+            </div>
+            {applicantsLoading ? (
+              <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>⏳</div>
+            ) : applicants.length === 0 ? (
+              <div style={{ padding: 32, textAlign: 'center', color: '#888' }}>
+                {lang === 'da' ? 'Ingen ansøgere endnu.' : 'No applicants yet.'}
+              </div>
+            ) : (
+              <div style={{ padding: '8px 0' }}>
+                {applicants.map(app => (
+                  <div key={app.id} style={{ padding: '12px 20px', borderBottom: '1px solid #f0f0f0' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                      <div className="p-avatar-sm" style={{ background: nameToColor(app.name), flexShrink: 0 }}>{getInitials(app.name)}</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, fontSize: 14 }}>{app.name}</div>
+                        <div style={{ fontSize: 12, color: '#888' }}>{app.email}</div>
+                        {app.message && <div style={{ fontSize: 13, color: '#555', marginTop: 6, lineHeight: 1.5 }}>{app.message}</div>}
+                        {app.cv_url && (
+                          <a href={app.cv_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#1877F2', marginTop: 4, display: 'inline-block' }}>
+                            📄 {lang === 'da' ? 'Se CV' : 'View CV'}
+                          </a>
+                        )}
+                        <div style={{ fontSize: 11, color: '#aaa', marginTop: 4 }}>
+                          {new Date(app.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </div>
+                      </div>
+                      <select
+                        value={app.status}
+                        onChange={e => {
+                          const newStatus = e.target.value
+                          apiUpdateJobApplication(applicantsJob.id, app.id, newStatus).then(() => {
+                            setApplicants(prev => prev.map(a => a.id === app.id ? { ...a, status: newStatus } : a))
+                          }).catch(() => {})
+                        }}
+                        style={{ fontSize: 12, padding: '4px 8px', borderRadius: 8, border: `1px solid ${app.status === 'shortlisted' ? '#2D6A4F' : app.status === 'rejected' ? '#e74c3c' : app.status === 'reviewed' ? '#1877F2' : '#ddd'}`, background: '#fff', color: '#333', cursor: 'pointer' }}
+                      >
+                        <option value="pending">{lang === 'da' ? 'Afventer' : 'Pending'}</option>
+                        <option value="reviewed">{lang === 'da' ? 'Gennemset' : 'Reviewed'}</option>
+                        <option value="shortlisted">{lang === 'da' ? 'Shortlistet' : 'Shortlisted'}</option>
+                        <option value="rejected">{lang === 'da' ? 'Afvist' : 'Rejected'}</option>
+                      </select>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   )
