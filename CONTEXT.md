@@ -195,8 +195,8 @@ server {
 
 ## Vigtige ting at huske
 
-- Push altid til main
-- Test altid for HTTP 404 og 500
+- Push altid til main, når du er færdig
+- Test **alle** API/fetch-kald for HTTP 404 og 500 — håndter begge eksplicit i koden
 - Skriv kode der er let at forstå og vedligeholde
 - `npm test` kører API-route-tjekket — kør det inden build
 - GDPR: bevar `apiDeleteAccount()` og `apiExportData()` funktionsdygtige
