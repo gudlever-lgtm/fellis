@@ -16,33 +16,6 @@ function ModeGate({ mode, currentMode, children }) {
   return children
 }
 
-// Renders children for qualifying plan; for others renders a blurred/locked upgrade CTA.
-// Use: <PlanGate plan="business_pro" currentPlan={plan} lang={lang}>...</PlanGate>
-function PlanGate({ plan, currentPlan, lang, children }) {
-  const hasAccess = currentPlan === plan
-  if (hasAccess) return children
-  return (
-    <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden' }}>
-      <div style={{ filter: 'blur(4px)', pointerEvents: 'none', userSelect: 'none' }}>
-        {children}
-      </div>
-      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.7)', gap: 8 }}>
-        <span style={{ fontSize: 22 }}>🔒</span>
-        <span style={{ fontWeight: 700, fontSize: 14 }}>{lang === 'da' ? 'Kræver Business Pro' : 'Requires Business Pro'}</span>
-        <span style={{ fontSize: 12, color: '#888', textAlign: 'center', maxWidth: 200 }}>
-          {lang === 'da' ? 'Opgradér din plan for at låse op for denne funktion.' : 'Upgrade your plan to unlock this feature.'}
-        </span>
-        <button
-          style={{ marginTop: 4, padding: '7px 20px', borderRadius: 20, border: 'none', background: '#1877F2', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
-          onClick={() => window.location.href = '/upgrade'}
-        >
-          {lang === 'da' ? 'Opgrader nu' : 'Upgrade now'}
-        </button>
-      </div>
-    </div>
-  )
-}
-
 // ── Mock notifications ──
 
 export default function Platform({ lang: initialLang, onLogout, initialPostId }) {
