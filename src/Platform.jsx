@@ -1,12 +1,47 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } from 'react'
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { PT, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdminAdSettings, apiSaveAdminAdSettings } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiSavePost, apiGetSavedPosts, apiGetEventComments, apiAddEventComment, apiGetCarpoolingPosts, apiAddCarpoolingPost } from './api.js'
 import ReelsPage from './Reels.jsx'
 import AdBanner from './AdBanner.jsx'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
+// ── Gate components ──
+
+// Renders children only when user is in the specified mode.
+// Use: <ModeGate mode="business" currentMode={mode}>...</ModeGate>
+function ModeGate({ mode, currentMode, children }) {
+  if (currentMode !== mode) return null
+  return children
+}
+
+// Renders children for qualifying plan; for others renders a blurred/locked upgrade CTA.
+// Use: <PlanGate plan="business_pro" currentPlan={plan} lang={lang}>...</PlanGate>
+function PlanGate({ plan, currentPlan, lang, children }) {
+  const hasAccess = currentPlan === plan
+  if (hasAccess) return children
+  return (
+    <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden' }}>
+      <div style={{ filter: 'blur(4px)', pointerEvents: 'none', userSelect: 'none' }}>
+        {children}
+      </div>
+      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.7)', gap: 8 }}>
+        <span style={{ fontSize: 22 }}>🔒</span>
+        <span style={{ fontWeight: 700, fontSize: 14 }}>{lang === 'da' ? 'Kræver Business Pro' : 'Requires Business Pro'}</span>
+        <span style={{ fontSize: 12, color: '#888', textAlign: 'center', maxWidth: 200 }}>
+          {lang === 'da' ? 'Opgradér din plan for at låse op for denne funktion.' : 'Upgrade your plan to unlock this feature.'}
+        </span>
+        <button
+          style={{ marginTop: 4, padding: '7px 20px', borderRadius: 20, border: 'none', background: '#1877F2', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+          onClick={() => window.location.href = '/upgrade'}
+        >
+          {lang === 'da' ? 'Opgrader nu' : 'Upgrade now'}
+        </button>
+      </div>
+    </div>
+  )
+}
 
 // ── Mock notifications ──
 
@@ -96,11 +131,16 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
     return () => clearInterval(interval)
   }, [])
 
-  // Load notifications from server on mount
+  // Load notifications from server on mount and poll every 30s
   useEffect(() => {
-    apiGetNotifications().then(data => {
-      if (Array.isArray(data)) setNotifs(data.map(n => normaliseNotif(n, lang)))
-    }).catch(() => {})
+    const loadNotifs = () => {
+      apiGetNotifications().then(data => {
+        if (Array.isArray(data)) setNotifs(data.map(n => normaliseNotif(n, lang)))
+      }).catch(() => {})
+    }
+    loadNotifs()
+    const interval = setInterval(loadNotifs, 30000)
+    return () => clearInterval(interval)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Close dropdowns when clicking outside
@@ -271,6 +311,9 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
                 <button className="avatar-dropdown-item" onClick={() => navigateTo('privacy')}>
                   <span>🔒</span> {menuT.privacy}
                 </button>
+                <button className="avatar-dropdown-item" onClick={() => navigateTo('saved')}>
+                  <span>🔖</span> {lang === 'da' ? 'Gemte opslag' : 'Saved posts'}
+                </button>
                 <button className="avatar-dropdown-item" onClick={() => navigateTo('about')}>
                   <span>💡</span> {menuT.about}
                 </button>
@@ -344,6 +387,16 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
             onNavigateToPost={(postId) => { setHighlightPostId(postId); navigateTo('feed') }}
             onNavigateToConv={(convId) => { setOpenConvId(convId); navigateTo('messages') }}
             onNavigateToCompany={(id) => navigateTo('company', id ? { companyId: id } : null)}
+          />
+        )}
+        {page === 'saved' && (
+          <SavedPage
+            lang={lang}
+            t={t}
+            currentUser={currentUser}
+            savedPostIds={savedPostIds}
+            onToggleSave={toggleSavePost}
+            onNavigateToPost={(postId) => { setHighlightPostId(postId); navigateTo('feed') }}
           />
         )}
       </div>
@@ -1014,6 +1067,10 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [likedPosts, setLikedPosts] = useState(new Set())
   const [reactions, setReactions] = useState({})   // postId → emoji
   const [likePopup, setLikePopup] = useState(null) // postId with open reaction popup
+  const [savedPostIds, setSavedPostIds] = useState(new Set()) // saved/bookmarked post ids
+  const [composerPreviewUrl, setComposerPreviewUrl] = useState(null) // URL detected in composer
+  const [composerPreviewDismissed, setComposerPreviewDismissed] = useState(null) // dismissed URL
+  const composerPreviewTimer = useRef(null)
   const [expandedComments, setExpandedComments] = useState(new Set())
   const [likersModal, setLikersModal] = useState(null) // { postId, likers } | null
   const [commentTexts, setCommentTexts] = useState({})
@@ -1288,6 +1345,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     setPostCategories(new Set())
     setAutoCategories(new Set())
     setShowCategoryPicker(false)
+    setComposerPreviewUrl(null)
+    setComposerPreviewDismissed(null)
     if (fileInputRef.current) fileInputRef.current.value = ''
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
   }, [mediaPreviews, currentUser.name])
@@ -1352,6 +1411,25 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     apiToggleLike(id, action === 'remove' ? null : nextEmoji).catch(() => {})
     setLikePopup(null)
   }, [likedPosts, reactions])
+
+  const toggleSavePost = useCallback((postId) => {
+    const wasSaved = savedPostIds.has(postId)
+    setSavedPostIds(prev => {
+      const next = new Set(prev)
+      wasSaved ? next.delete(postId) : next.add(postId)
+      return next
+    })
+    apiSavePost(postId).then(data => {
+      if (data === null) return // offline — keep optimistic
+      if (data.saved !== undefined) {
+        setSavedPostIds(prev => {
+          const next = new Set(prev)
+          data.saved ? next.add(postId) : next.delete(postId)
+          return next
+        })
+      }
+    }).catch(() => {})
+  }, [savedPostIds])
 
   const toggleComments = useCallback((id) => {
     setExpandedComments(prev => {
@@ -1653,6 +1731,17 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                     if (e.target.value.includes('@') && sharePopupFriends === null) {
                       apiFetchFriends().then(d => { if (d) setSharePopupFriends(d) })
                     }
+                    // Debounced URL detection for composer link preview
+                    clearTimeout(composerPreviewTimer.current)
+                    composerPreviewTimer.current = setTimeout(() => {
+                      const parts = linkifyText(e.target.value)
+                      const firstUrl = parts.find(p => p.t === 'url')?.v || null
+                      if (firstUrl && firstUrl !== composerPreviewDismissed) {
+                        setComposerPreviewUrl(firstUrl)
+                      } else if (!firstUrl) {
+                        setComposerPreviewUrl(null)
+                      }
+                    }, 600)
                   }}
                   onKeyDown={e => {
                     if (feedMention.handleKey(e, f => {
@@ -1688,6 +1777,19 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                     <button className="p-media-preview-remove" onClick={() => removeMedia(i)}>✕</button>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* Composer link preview */}
+            {composerPreviewUrl && composerPreviewUrl !== composerPreviewDismissed && (
+              <div style={{ margin: '6px 12px 0', position: 'relative' }}>
+                <LinkPreview url={composerPreviewUrl} />
+                <button
+                  onMouseDown={e => e.preventDefault()}
+                  onClick={() => { setComposerPreviewDismissed(composerPreviewUrl); setComposerPreviewUrl(null) }}
+                  title={lang === 'da' ? 'Fjern forhåndsvisning' : 'Remove preview'}
+                  style={{ position: 'absolute', top: 6, right: 6, background: 'rgba(0,0,0,0.5)', border: 'none', color: '#fff', borderRadius: '50%', width: 22, height: 22, cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}
+                >✕</button>
               </div>
             )}
 
@@ -2295,6 +2397,17 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   </>
                 )}
               </div>
+              <button
+                className={`p-action-btn${savedPostIds.has(post.id) ? ' saved' : ''}`}
+                onClick={() => toggleSavePost(post.id)}
+                title={savedPostIds.has(post.id) ? (lang === 'da' ? 'Fjern bogmærke' : 'Remove bookmark') : (lang === 'da' ? 'Gem opslag' : 'Save post')}
+                style={{ marginLeft: 'auto' }}
+              >
+                {savedPostIds.has(post.id) ? '🔖' : '🔖'}
+                <span style={{ opacity: savedPostIds.has(post.id) ? 1 : 0.45 }}>
+                  {savedPostIds.has(post.id) ? (lang === 'da' ? 'Gemt' : 'Saved') : (lang === 'da' ? 'Gem' : 'Save')}
+                </span>
+              </button>
               {mode === 'business' && post.author === currentUser.name && (
                 <button className="p-action-btn p-action-btn-insights" onClick={() => setInsightsPostId(p => p === post.id ? null : post.id)}>
                   📊 {t.analyticsPostInsights}
@@ -6874,6 +6987,46 @@ function ShareEventModal({ event, friends, t, lang, getTitle, onClose }) {
 }
 
 function EventDetailModal({ event, t, lang, mode, myRsvp, extras, onRsvp, onExtrasChange, onClose, getTitle, getDesc, getLocation, formatDate, eventTypeLabel }) {
+  const [detailTab, setDetailTab] = useState('info') // 'info' | 'wall' | 'carpooling'
+  const [eventComments, setEventComments] = useState([])
+  const [commentInput, setCommentInput] = useState('')
+  const [carpoolingPosts, setCarpoolingPosts] = useState([])
+  const [carpoolType, setCarpoolType] = useState('offer')
+  const [carpoolArea, setCarpoolArea] = useState('')
+  const [carpoolSeats, setCarpoolSeats] = useState(1)
+
+  useEffect(() => {
+    if (event?.id) {
+      apiGetEventComments(event.id).then(d => { if (d?.comments) setEventComments(d.comments) }).catch(() => {})
+      apiGetCarpoolingPosts(event.id).then(d => { if (d?.posts) setCarpoolingPosts(d.posts) }).catch(() => {})
+    }
+  }, [event?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleAddComment = async () => {
+    if (!commentInput.trim()) return
+    const text = commentInput.trim()
+    setCommentInput('')
+    const data = await apiAddEventComment(event.id, text).catch(() => null)
+    if (data?.ok) {
+      const newComment = data.comment || { id: Date.now(), text, author: '', created_at: new Date().toISOString() }
+      setEventComments(prev => [...prev, newComment])
+    } else {
+      // Optimistic fallback
+      setEventComments(prev => [...prev, { id: Date.now(), text, author: lang === 'da' ? 'Dig' : 'You', created_at: new Date().toISOString() }])
+    }
+  }
+
+  const handleAddCarpool = async () => {
+    if (!carpoolArea.trim()) return
+    const area = carpoolArea.trim()
+    setCarpoolArea('')
+    await apiAddCarpoolingPost(event.id, carpoolType, area, carpoolSeats).catch(() => {})
+    setCarpoolingPosts(prev => [{
+      id: Date.now(), type: carpoolType, from_area: area, seats: carpoolSeats,
+      author: lang === 'da' ? 'Dig' : 'You', created_at: new Date().toISOString(),
+    }, ...prev])
+  }
+
   useEffect(() => {
     const h = (e) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', h)
@@ -6969,6 +7122,135 @@ function EventDetailModal({ event, t, lang, mode, myRsvp, extras, onRsvp, onExtr
             </>
           )}
         </div>
+
+        {/* ── Tab strip: Info / Wall / Carpooling ── */}
+        <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid #eee', margin: '20px 0 0' }}>
+          {[
+            { key: 'info', label: lang === 'da' ? 'Om' : 'About' },
+            { key: 'wall', label: lang === 'da' ? 'Væg' : 'Wall' },
+            ...(mode !== 'business' ? [{ key: 'carpooling', label: lang === 'da' ? 'Samkørsel' : 'Carpooling' }] : []),
+          ].map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setDetailTab(tab.key)}
+              style={{
+                flex: 1, padding: '10px 0', background: 'none', border: 'none', borderBottom: `2px solid ${detailTab === tab.key ? '#2D6A4F' : 'transparent'}`,
+                fontWeight: detailTab === tab.key ? 700 : 400, fontSize: 13, cursor: 'pointer',
+                color: detailTab === tab.key ? '#2D6A4F' : '#666',
+              }}
+            >{tab.label}</button>
+          ))}
+        </div>
+
+        {/* Info tab — already shown above, this area is blank */}
+        {detailTab === 'info' && null}
+
+        {/* Wall tab — event comments */}
+        {detailTab === 'wall' && (
+          <div style={{ marginTop: 16 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 280, overflowY: 'auto', marginBottom: 12 }}>
+              {eventComments.length === 0 && (
+                <div style={{ color: '#aaa', fontSize: 13, textAlign: 'center', padding: 20 }}>
+                  {lang === 'da' ? 'Ingen kommentarer endnu – vær den første!' : 'No comments yet — be the first!'}
+                </div>
+              )}
+              {eventComments.map(c => (
+                <div key={c.id} style={{ display: 'flex', gap: 8 }}>
+                  <div style={{ width: 30, height: 30, borderRadius: '50%', background: nameToColor(c.author || '?'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#fff', fontWeight: 700, flexShrink: 0 }}>
+                    {getInitials(c.author || '?')}
+                  </div>
+                  <div style={{ background: '#f4f4f4', borderRadius: 10, padding: '8px 12px', fontSize: 13, flex: 1 }}>
+                    <span style={{ fontWeight: 700, marginRight: 6 }}>{c.author}</span>
+                    {c.text}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                style={{ flex: 1, padding: '9px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, fontFamily: 'inherit' }}
+                placeholder={lang === 'da' ? 'Skriv en kommentar…' : 'Write a comment…'}
+                value={commentInput}
+                onChange={e => setCommentInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleAddComment() }}
+              />
+              <button
+                onClick={handleAddComment}
+                style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+              >{lang === 'da' ? 'Send' : 'Send'}</button>
+            </div>
+          </div>
+        )}
+
+        {/* Carpooling tab — common/privat mode only */}
+        {detailTab === 'carpooling' && (
+          <div style={{ marginTop: 16 }}>
+            <p style={{ fontSize: 13, color: '#666', marginBottom: 12 }}>
+              {lang === 'da'
+                ? 'Tilbyd eller efterspørg samkørsel til dette arrangement. Ingen ruteberegning — blot et aftaleopslagstavle.'
+                : 'Offer or request a lift to this event. No routing — just a simple notice board.'}
+            </p>
+
+            {/* Add carpool post */}
+            <div style={{ background: '#f9f9f9', borderRadius: 10, padding: 14, marginBottom: 16 }}>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+                {[
+                  { key: 'offer', label: lang === 'da' ? '🚗 Tilbyder lift' : '🚗 Offering a lift' },
+                  { key: 'request', label: lang === 'da' ? '🙋 Søger lift' : '🙋 Requesting a lift' },
+                ].map(o => (
+                  <button
+                    key={o.key}
+                    onClick={() => setCarpoolType(o.key)}
+                    style={{ padding: '7px 14px', borderRadius: 20, border: `1.5px solid ${carpoolType === o.key ? '#2D6A4F' : '#ddd'}`, background: carpoolType === o.key ? '#eaf4ef' : '#fff', color: carpoolType === o.key ? '#2D6A4F' : '#444', fontWeight: carpoolType === o.key ? 700 : 400, fontSize: 13, cursor: 'pointer' }}
+                  >{o.label}</button>
+                ))}
+              </div>
+              <input
+                style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 8 }}
+                placeholder={lang === 'da' ? 'Fra hvilken by/bydel? (f.eks. Nørrebro, Aarhus)' : 'From which area? (e.g. Nørrebro, Aarhus)'}
+                value={carpoolArea}
+                onChange={e => setCarpoolArea(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleAddCarpool() }}
+              />
+              {carpoolType === 'offer' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                  <label style={{ fontSize: 13, color: '#555' }}>{lang === 'da' ? 'Antal pladser:' : 'Seats available:'}</label>
+                  <select value={carpoolSeats} onChange={e => setCarpoolSeats(Number(e.target.value))} style={{ padding: '5px 8px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13 }}>
+                    {[1, 2, 3, 4, 5, 6].map(n => <option key={n} value={n}>{n}</option>)}
+                  </select>
+                </div>
+              )}
+              <button
+                onClick={handleAddCarpool}
+                disabled={!carpoolArea.trim()}
+                style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: carpoolArea.trim() ? '#2D6A4F' : '#ccc', color: '#fff', fontWeight: 700, fontSize: 13, cursor: carpoolArea.trim() ? 'pointer' : 'not-allowed' }}
+              >{lang === 'da' ? 'Opslå' : 'Post'}</button>
+            </div>
+
+            {/* Carpool posts list */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {carpoolingPosts.length === 0 && (
+                <div style={{ color: '#aaa', fontSize: 13, textAlign: 'center', padding: 20 }}>
+                  {lang === 'da' ? 'Ingen opslag endnu.' : 'No posts yet.'}
+                </div>
+              )}
+              {carpoolingPosts.map(p => (
+                <div key={p.id} style={{ background: '#f4f4f4', borderRadius: 10, padding: '12px 14px', display: 'flex', gap: 10 }}>
+                  <span style={{ fontSize: 22 }}>{p.type === 'offer' ? '🚗' : '🙋'}</span>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 13 }}>{p.author}</div>
+                    <div style={{ fontSize: 13, color: '#333' }}>
+                      {p.type === 'offer'
+                        ? (lang === 'da' ? `Tilbyder lift fra ${p.from_area}` : `Offering a lift from ${p.from_area}`)
+                        : (lang === 'da' ? `Søger lift fra ${p.from_area}` : `Looking for a lift from ${p.from_area}`)}
+                      {p.type === 'offer' && p.seats > 1 && <span style={{ marginLeft: 6, fontSize: 12, color: '#888' }}>({p.seats} {lang === 'da' ? 'pladser' : 'seats'})</span>}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -11907,6 +12189,100 @@ function AdminPage({ lang, t }) {
               </div>
             ))}
           </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Saved Posts Page ──────────────────────────────────────────────────────────
+function SavedPage({ lang, t, currentUser, savedPostIds, onToggleSave, onNavigateToPost }) {
+  const [posts, setPosts] = useState(null) // null = loading
+  const [localSaved, setLocalSaved] = useState(new Set(savedPostIds))
+
+  useEffect(() => {
+    apiGetSavedPosts().then(data => {
+      if (data?.posts) {
+        setPosts(data.posts)
+        setLocalSaved(new Set(data.posts.map(p => p.id)))
+      } else {
+        setPosts([])
+      }
+    }).catch(() => setPosts([]))
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleUnsave = (postId) => {
+    setLocalSaved(prev => { const n = new Set(prev); n.delete(postId); return n })
+    setPosts(prev => prev.filter(p => p.id !== postId))
+    onToggleSave(postId)
+  }
+
+  return (
+    <div style={{ maxWidth: 680, margin: '0 auto', padding: '20px 16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+        <span style={{ fontSize: 24 }}>🔖</span>
+        <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>
+          {lang === 'da' ? 'Gemte opslag' : 'Saved posts'}
+        </h2>
+      </div>
+
+      {posts === null ? (
+        <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>
+          {lang === 'da' ? 'Indlæser…' : 'Loading…'}
+        </div>
+      ) : posts.length === 0 ? (
+        <div className="p-card" style={{ textAlign: 'center', padding: 48 }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>🔖</div>
+          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6 }}>
+            {lang === 'da' ? 'Ingen gemte opslag endnu' : 'No saved posts yet'}
+          </div>
+          <div style={{ fontSize: 13, color: '#888' }}>
+            {lang === 'da'
+              ? 'Tryk på bogmærke-ikonet på et opslag for at gemme det her.'
+              : 'Tap the bookmark icon on a post to save it here.'}
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {posts.filter(p => localSaved.has(p.id)).map(post => (
+            <div key={post.id} className="p-card" style={{ padding: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
+                <div className="p-avatar-sm" style={{ background: nameToColor(post.author), flexShrink: 0 }}>
+                  {getInitials(post.author)}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>{post.author}</div>
+                  <div style={{ fontSize: 12, color: '#888' }}>{post.time?.[lang] || ''}</div>
+                </div>
+                <button
+                  onClick={() => handleUnsave(post.id)}
+                  title={lang === 'da' ? 'Fjern bogmærke' : 'Remove bookmark'}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#2D6A4F', padding: '2px 6px' }}
+                >🔖</button>
+              </div>
+              <div
+                style={{ fontSize: 14, color: '#333', lineHeight: 1.6, cursor: 'pointer' }}
+                onClick={() => onNavigateToPost(post.id)}
+              >
+                {(post.text?.[lang] || post.text?.da || '').slice(0, 300)}
+                {(post.text?.[lang] || post.text?.da || '').length > 300 && '…'}
+              </div>
+              {post.media?.length > 0 && (
+                <div style={{ marginTop: 10 }}>
+                  <img
+                    src={post.media[0].url?.startsWith('http') ? post.media[0].url : `${API_BASE}${post.media[0].url}`}
+                    alt=""
+                    style={{ width: '100%', maxHeight: 220, objectFit: 'cover', borderRadius: 8 }}
+                    loading="lazy"
+                  />
+                </div>
+              )}
+              <div style={{ marginTop: 10, display: 'flex', gap: 12, fontSize: 12, color: '#888' }}>
+                <span>❤️ {post.likes}</span>
+                <span>💬 {post.comments?.length || 0}</span>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

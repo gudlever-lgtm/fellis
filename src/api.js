@@ -894,6 +894,38 @@ export async function apiSaveAdminAdSettings(settings) {
   return await request('/api/admin/ad-settings', { method: 'PUT', body: JSON.stringify(settings) })
 }
 
+// ── Saved Posts (Bookmarks) ───────────────────────────────────────────────────
+export async function apiSavePost(postId) {
+  return await request(`/api/posts/${postId}/save`, { method: 'POST' })
+}
+
+export async function apiGetSavedPosts() {
+  return await request('/api/posts/saved')
+}
+
+// ── Event Comments & Carpooling ───────────────────────────────────────────────
+export async function apiGetEventComments(eventId) {
+  return await request(`/api/events/${eventId}/comments`)
+}
+
+export async function apiAddEventComment(eventId, text) {
+  return await request(`/api/events/${eventId}/comments`, {
+    method: 'POST',
+    body: JSON.stringify({ text }),
+  })
+}
+
+export async function apiGetCarpoolingPosts(eventId) {
+  return await request(`/api/events/${eventId}/carpooling`)
+}
+
+export async function apiAddCarpoolingPost(eventId, type, fromArea, seats = 1) {
+  return await request(`/api/events/${eventId}/carpooling`, {
+    method: 'POST',
+    body: JSON.stringify({ type, fromArea, seats }),
+  })
+}
+
 export async function apiUploadFile(file, type = 'post') {
   const form = new FormData()
   form.append('file', file)

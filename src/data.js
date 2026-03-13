@@ -16,12 +16,11 @@ export function getInitials(name) {
 
 // Shared reaction emojis (used by posts and reels)
 export const REACTIONS = [
-  { emoji: '👍', label: { da: 'Synes godt om', en: 'Like' } },
   { emoji: '❤️', label: { da: 'Elsker', en: 'Love' } },
-  { emoji: '😄', label: { da: 'Haha', en: 'Haha' } },
+  { emoji: '👏', label: { da: 'Klapper', en: 'Clap' } },
+  { emoji: '😂', label: { da: 'Haha', en: 'Haha' } },
   { emoji: '😮', label: { da: 'Wow', en: 'Wow' } },
   { emoji: '😢', label: { da: 'Trist', en: 'Sad' } },
-  { emoji: '😡', label: { da: 'Vred', en: 'Angry' } },
 ]
 
 // Current user

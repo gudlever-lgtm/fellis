@@ -5916,6 +5916,140 @@ app.all('/api/stub/:fn', authenticate, (req, res) => res.json({ ok: true }))
 process.on('unhandledRejection', (reason) => {
   console.error('Unhandled promise rejection (caught at process level):', reason)
 })
+// ── Saved Posts (Bookmarks) ────────────────────────────────────────────────────
+async function initSavedPosts() {
+  await pool.query(`CREATE TABLE IF NOT EXISTS saved_posts (
+    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    post_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
+    UNIQUE KEY unique_save (user_id, post_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`).catch(() => {})
+}
+
+// Toggle save/unsave a post
+app.post('/api/posts/:id/save', authenticate, async (req, res) => {
+  const postId = parseInt(req.params.id)
+  try {
+    const [existing] = await pool.query('SELECT id FROM saved_posts WHERE user_id = ? AND post_id = ?', [req.userId, postId])
+    if (existing.length > 0) {
+      await pool.query('DELETE FROM saved_posts WHERE user_id = ? AND post_id = ?', [req.userId, postId])
+      res.json({ ok: true, saved: false })
+    } else {
+      await pool.query('INSERT INTO saved_posts (user_id, post_id) VALUES (?, ?)', [req.userId, postId])
+      res.json({ ok: true, saved: true })
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// Get saved posts
+app.get('/api/posts/saved', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT p.id, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.categories, p.created_at,
+              u.name AS author, u.id AS author_id, u.avatar_url,
+              sp.created_at AS saved_at
+       FROM saved_posts sp
+       JOIN posts p ON p.id = sp.post_id
+       JOIN users u ON u.id = p.author_id
+       WHERE sp.user_id = ?
+       ORDER BY sp.created_at DESC
+       LIMIT 100`,
+      [req.userId]
+    )
+    const posts = rows.map(p => ({
+      id: p.id,
+      author: p.author,
+      authorId: p.author_id,
+      avatar_url: p.avatar_url,
+      time: { da: p.time_da || '', en: p.time_en || '' },
+      text: { da: p.text_da || '', en: p.text_en || '' },
+      likes: p.likes || 0,
+      media: p.media ? JSON.parse(p.media) : [],
+      categories: p.categories ? JSON.parse(p.categories) : [],
+      comments: [],
+      savedAt: p.saved_at,
+      saved: true,
+    }))
+    res.json({ posts })
+  } catch (err) {
+    res.json({ posts: [] })
+  }
+})
+
+// ── Event Comments & Carpooling ───────────────────────────────────────────────
+async function initEventExtras() {
+  await pool.query(`CREATE TABLE IF NOT EXISTS event_comments (
+    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    event_id INT NOT NULL,
+    user_id INT NOT NULL,
+    text TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`).catch(() => {})
+
+  await pool.query(`CREATE TABLE IF NOT EXISTS event_carpooling (
+    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    event_id INT NOT NULL,
+    user_id INT NOT NULL,
+    type ENUM('offer', 'request') NOT NULL,
+    from_area VARCHAR(200) NOT NULL,
+    seats INT DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`).catch(() => {})
+}
+
+app.get('/api/events/:id/comments', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT ec.id, ec.text, ec.created_at, u.name AS author, u.avatar_url
+       FROM event_comments ec JOIN users u ON u.id = ec.user_id
+       WHERE ec.event_id = ? ORDER BY ec.created_at ASC`,
+      [req.params.id]
+    )
+    res.json({ comments: rows })
+  } catch { res.json({ comments: [] }) }
+})
+
+app.post('/api/events/:id/comments', authenticate, async (req, res) => {
+  const { text } = req.body
+  if (!text?.trim()) return res.status(400).json({ error: 'text required' })
+  try {
+    await pool.query('INSERT INTO event_comments (event_id, user_id, text) VALUES (?, ?, ?)', [req.params.id, req.userId, text.trim()])
+    const [rows] = await pool.query('SELECT ec.id, ec.text, ec.created_at, u.name AS author, u.avatar_url FROM event_comments ec JOIN users u ON u.id = ec.user_id WHERE ec.id = LAST_INSERT_ID()')
+    res.json({ ok: true, comment: rows[0] || null })
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+app.get('/api/events/:id/carpooling', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT ec.id, ec.type, ec.from_area, ec.seats, ec.created_at, u.name AS author, u.avatar_url
+       FROM event_carpooling ec JOIN users u ON u.id = ec.user_id
+       WHERE ec.event_id = ? ORDER BY ec.created_at DESC`,
+      [req.params.id]
+    )
+    res.json({ posts: rows })
+  } catch { res.json({ posts: [] }) }
+})
+
+app.post('/api/events/:id/carpooling', authenticate, async (req, res) => {
+  const { type, fromArea, seats } = req.body
+  if (!type || !fromArea?.trim()) return res.status(400).json({ error: 'type and fromArea required' })
+  try {
+    await pool.query(
+      'INSERT INTO event_carpooling (event_id, user_id, type, from_area, seats) VALUES (?, ?, ?, ?, ?)',
+      [req.params.id, req.userId, type, fromArea.trim(), seats || 1]
+    )
+    res.json({ ok: true })
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
 process.on('uncaughtException', (err) => {
   console.error('Uncaught exception (caught at process level):', err)
 })
@@ -5941,6 +6075,8 @@ app.listen(PORT, () => {
   initReels()
   initAds()
   initAdminAdSettings()
+  initSavedPosts()
+  initEventExtras()
 })
 
 app.all('/api/stub/:fn', authenticate, (req, res) => res.json({ ok: true }))
