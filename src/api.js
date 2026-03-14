@@ -886,6 +886,17 @@ export async function apiCreateAdFreeCheckout() {
   return await request('/api/stripe/checkout/adfree', { method: 'POST' })
 }
 
+// ── Mollie payments ───────────────────────────────────────────────────────────
+export async function apiCreateMolliePayment(plan, amount, currency) {
+  const body = { plan }
+  if (amount != null) body.amount = parseFloat(amount).toFixed(2)
+  if (currency) body.currency = currency
+  return await request('/api/mollie/payment/create', { method: 'POST', body: JSON.stringify(body) })
+}
+export async function apiGetMollieStatus() {
+  return await request('/api/mollie/payment/status')
+}
+
 // ── Admin ad settings ─────────────────────────────────────────────────────────
 export async function apiGetAdminAdSettings() {
   return await request('/api/admin/ad-settings')

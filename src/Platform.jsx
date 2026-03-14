@@ -1,7 +1,9 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } from 'react'
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { PT, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdminAdSettings, apiSaveAdminAdSettings } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetMollieStatus, apiCreateMolliePayment } from './api.js'
+import PaymentSuccess from './pages/PaymentSuccess.jsx'
+import PaymentFailed from './pages/PaymentFailed.jsx'
 import ReelsPage from './Reels.jsx'
 import AdBanner from './AdBanner.jsx'
 
@@ -10,9 +12,9 @@ const API_BASE = import.meta.env.VITE_API_URL || ''
 
 // ── Mock notifications ──
 
-export default function Platform({ lang: initialLang, onLogout, initialPostId }) {
+export default function Platform({ lang: initialLang, onLogout, initialPostId, initialPage }) {
   const [lang, setLang] = useState(initialLang || 'da')
-  const [page, setPage] = useState('feed')
+  const [page, setPage] = useState(initialPage || 'feed')
   const [currentUser, setCurrentUser] = useState({ name: '', handle: '', initials: '' })
   const [showAvatarMenu, setShowAvatarMenu] = useState(false)
   const [showMobileMenu, setShowMobileMenu] = useState(false)
@@ -336,6 +338,8 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId })
         {page === 'about' && <AboutPage lang={lang} />}
         {page === 'admin' && currentUser.is_admin && <AdminPage lang={lang} t={t} />}
         {page === 'moderation' && (currentUser.is_moderator || currentUser.is_admin) && <ModeratorPage lang={lang} t={t} currentUser={currentUser} />}
+        {page === 'payment-success' && <PaymentSuccess lang={lang} onNavigate={navigateTo} />}
+        {page === 'payment-failed' && <PaymentFailed lang={lang} onNavigate={navigateTo} />}
         {page === 'search' && (
           <SearchPage
             lang={lang}
@@ -3250,6 +3254,8 @@ function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, on
 function BillingSettings({ lang, t }) {
   const [sub, setSub] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [mollieLoading, setMollieLoading] = useState(false)
+  const [mollieError, setMollieError] = useState(null)
 
   useEffect(() => {
     apiGetSubscription().then(data => { if (data) setSub(data) }).catch(() => {})
@@ -3263,6 +3269,18 @@ function BillingSettings({ lang, t }) {
       window.location.href = data.url
     } else if (data?.error) {
       alert(data.error)
+    }
+  }
+
+  const handleMollieCheckout = async () => {
+    setMollieError(null)
+    setMollieLoading(true)
+    const data = await apiCreateMolliePayment('adfree').catch(() => null)
+    setMollieLoading(false)
+    if (data?.checkoutUrl) {
+      window.location.href = data.checkoutUrl
+    } else {
+      setMollieError(data?.error || (lang === 'da' ? 'Kunne ikke oprette betaling.' : 'Could not create payment.'))
     }
   }
 
@@ -3282,7 +3300,7 @@ function BillingSettings({ lang, t }) {
             <span style={{ fontSize: 20 }}>✅</span>
             <div>
               <div style={{ fontWeight: 700, fontSize: 14, color: '#2D6A4F' }}>{t.adFreeActiveLabel}</div>
-              <div style={{ fontSize: 12, color: '#555', marginTop: 2 }}>{lang === 'da' ? 'Abonnementet fornyes automatisk.' : 'Your subscription renews automatically.'}</div>
+              <div style={{ fontSize: 12, color: '#555', marginTop: 2 }}>{lang === 'da' ? 'Abonnementet er aktivt.' : 'Your subscription is active.'}</div>
             </div>
           </div>
         ) : (
@@ -3292,18 +3310,44 @@ function BillingSettings({ lang, t }) {
                 {lang === 'da' ? 'Annoncer er i øjeblikket deaktiveret på platformen.' : 'Ads are currently disabled on the platform.'}
               </div>
             )}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
               <span style={{ fontSize: 13, color: '#555' }}>{t.adFreePrice}:</span>
               <span style={{ fontSize: 22, fontWeight: 800, color: '#1a1a1a' }}>{price} {currency}</span>
               <span style={{ fontSize: 13, color: '#888' }}>{t.adFreeMonth}</span>
             </div>
+
+            {/* Mollie checkout — primary */}
             <button
-              onClick={handleCheckout}
-              disabled={loading}
-              style={{ width: '100%', padding: '12px 0', borderRadius: 10, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 15, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}
+              onClick={handleMollieCheckout}
+              disabled={mollieLoading}
+              style={{ width: '100%', padding: '13px 0', borderRadius: 10, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 15, cursor: mollieLoading ? 'not-allowed' : 'pointer', opacity: mollieLoading ? 0.7 : 1, marginBottom: 8 }}
             >
-              {loading ? t.adFreeLoading : t.adFreeBtn}
+              {mollieLoading
+                ? (lang === 'da' ? 'Henter…' : 'Loading…')
+                : (lang === 'da' ? `Betal ${price} ${currency} — Mollie` : `Pay ${price} ${currency} — Mollie`)}
             </button>
+            {mollieError && <p style={{ fontSize: 13, color: '#e03131', margin: '0 0 12px' }}>{mollieError}</p>}
+
+            {/* Mollie accepted methods */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
+              {['MobilePay', 'Visa', 'Mastercard', 'Apple Pay', 'Google Pay'].map(m => (
+                <span key={m} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 20, background: '#f0f0f0', color: '#555' }}>{m}</span>
+              ))}
+            </div>
+
+            {/* Stripe fallback (shown only if Stripe was already configured) */}
+            <details style={{ marginTop: 8 }}>
+              <summary style={{ fontSize: 12, color: '#aaa', cursor: 'pointer', userSelect: 'none' }}>
+                {lang === 'da' ? 'Betal med Stripe i stedet' : 'Pay with Stripe instead'}
+              </summary>
+              <button
+                onClick={handleCheckout}
+                disabled={loading}
+                style={{ width: '100%', padding: '11px 0', borderRadius: 10, border: '1px solid #ccc', background: '#fff', color: '#333', fontWeight: 600, fontSize: 14, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, marginTop: 10 }}
+              >
+                {loading ? t.adFreeLoading : t.adFreeBtn}
+              </button>
+            </details>
           </>
         )}
       </div>
@@ -10791,17 +10835,10 @@ function ReportModal({ t, targetType, targetId, onClose }) {
 }
 
 function AdminPage({ lang, t }) {
-  const STRIPE_FIELDS = [
-    { key: 'stripe_secret_key', label: t.adminStripeSecretKey, type: 'password', placeholder: 'sk_live_...' },
-    { key: 'stripe_pub_key', label: t.adminStripePubKey, type: 'text', placeholder: 'pk_live_...' },
-    { key: 'stripe_webhook_secret', label: t.adminStripeWebhookSecret, type: 'password', placeholder: 'whsec_...' },
-    { key: 'stripe_price_boost', label: t.adminStripePriceBoost, type: 'text', placeholder: 'price_...' },
-  ]
-
   const [adminTab, setAdminTab] = useState('stats')
   const [form, setForm] = useState({
-    stripe_secret_key: '', stripe_pub_key: '', stripe_webhook_secret: '',
-    stripe_price_boost: '',
+    mollie_api_key: '',
+    mollie_price_adfree_private: '', mollie_price_adfree_business: '', mollie_price_boost: '',
     pwd_min_length: '6', pwd_require_uppercase: '0', pwd_require_lowercase: '0',
     pwd_require_numbers: '0', pwd_require_symbols: '0',
     media_max_files: '4', registration_open: '1',
@@ -10825,7 +10862,6 @@ function AdminPage({ lang, t }) {
   const [modCandidates, setModCandidates] = useState(null)
   const [candidateNote, setCandidateNote] = useState({}) // userId → note string
   const [candidatePending, setCandidatePending] = useState({}) // userId → editing note
-  const [modModerators, setModModerators] = useState(null)
   const [newKeyword, setNewKeyword] = useState('')
   const [newKeywordAction, setNewKeywordAction] = useState('flag')
   const [newKeywordCategory, setNewKeywordCategory] = useState('profanity')
@@ -10917,8 +10953,8 @@ function AdminPage({ lang, t }) {
         <button className={`p-filter-tab${adminTab === 'ads' ? ' active' : ''}`} onClick={() => setAdminTab('ads')}>
           📢 {t.adminAdsTitle}
         </button>
-        <button className={`p-filter-tab${adminTab === 'stripe' ? ' active' : ''}`} onClick={() => setAdminTab('stripe')}>
-          💳 {t.adminStripeTitle}
+        <button className={`p-filter-tab${adminTab === 'payment' ? ' active' : ''}`} onClick={() => setAdminTab('payment')}>
+          💳 {t.adminPaymentTitle}
         </button>
         <button className={`p-filter-tab${adminTab === 'security' ? ' active' : ''}`} onClick={() => setAdminTab('security')}>
           🔒 {lang === 'da' ? 'Sikkerhed & GDPR' : 'Security & GDPR'}
@@ -11108,27 +11144,62 @@ function AdminPage({ lang, t }) {
 
       {adminTab === 'ads' && <AdminAdSettingsPanel lang={lang} t={t} />}
 
-      {adminTab === 'stripe' && (
+      {adminTab === 'payment' && (
         <div className="p-card" style={{ marginBottom: 20 }}>
-          <h3 style={{ margin: '0 0 8px', fontSize: 16, fontWeight: 700 }}>💳 {t.adminStripeTitle}</h3>
+          <h3 style={{ margin: '0 0 8px', fontSize: 16, fontWeight: 700 }}>💳 {t.adminPaymentTitle}</h3>
           <div style={{ background: '#F0F7FF', border: '1px solid #BDD8F9', borderRadius: 8, padding: '12px 14px', marginBottom: 20, fontSize: 13, lineHeight: 1.6, color: '#2C4A6E' }}>
-            ℹ️ {t.adminStripeInfoCard}
+            ℹ️ {t.adminPaymentInfoCard}
           </div>
           <form onSubmit={handleSave}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {STRIPE_FIELDS.map(({ key, label, type, placeholder }) => (
-                <div key={key}>
-                  <label style={lS}>{label}</label>
-                  <input
-                    style={fS}
-                    type={type}
-                    placeholder={placeholder}
-                    value={form[key] || ''}
-                    onChange={e => setForm(prev => ({ ...prev, [key]: e.target.value }))}
-                    autoComplete="off"
-                  />
-                </div>
-              ))}
+              <div>
+                <label style={lS}>{t.adminPaymentMollieKey}</label>
+                <input
+                  style={fS}
+                  type="password"
+                  placeholder="live_xxxxxxxxxxxxxxxxxxxxxxxx"
+                  value={form.mollie_api_key || ''}
+                  onChange={e => setForm(prev => ({ ...prev, mollie_api_key: e.target.value }))}
+                  autoComplete="off"
+                />
+                <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>{t.adminPaymentMollieKeyHint}</div>
+              </div>
+              <div style={{ fontWeight: 700, fontSize: 13, color: '#2D6A4F', paddingBottom: 4, borderBottom: '1px solid #eee' }}>
+                {t.adminPaymentPriceIds}
+              </div>
+              <div>
+                <label style={lS}>{t.adminPaymentPriceAdFreePrivate}</label>
+                <input
+                  style={fS}
+                  type="text"
+                  placeholder={lang === 'da' ? 'f.eks. 29.00 DKK' : 'e.g. 29.00 DKK'}
+                  value={form.mollie_price_adfree_private || ''}
+                  onChange={e => setForm(prev => ({ ...prev, mollie_price_adfree_private: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label style={lS}>{t.adminPaymentPriceAdFreeBusiness}</label>
+                <input
+                  style={fS}
+                  type="text"
+                  placeholder={lang === 'da' ? 'f.eks. 49.00 DKK' : 'e.g. 49.00 DKK'}
+                  value={form.mollie_price_adfree_business || ''}
+                  onChange={e => setForm(prev => ({ ...prev, mollie_price_adfree_business: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label style={lS}>{t.adminPaymentPriceBoost}</label>
+                <input
+                  style={fS}
+                  type="text"
+                  placeholder={lang === 'da' ? 'f.eks. 19.00 DKK' : 'e.g. 19.00 DKK'}
+                  value={form.mollie_price_boost || ''}
+                  onChange={e => setForm(prev => ({ ...prev, mollie_price_boost: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div style={{ marginTop: 12, padding: '12px 14px', background: '#FFFBF0', border: '1px solid #FFE08A', borderRadius: 8, fontSize: 12, color: '#7A5C00', lineHeight: 1.6 }}>
+              ⚙️ {t.adminPaymentEnvNote}
             </div>
             <div style={{ marginTop: 20 }}>
               <button
