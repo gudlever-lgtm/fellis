@@ -3997,13 +3997,18 @@ async function initMollie() {
   }
 }
 
-function getMollieKey() {
-  const key = process.env.MOLLIE_API_KEY || ''
-  return key || null
+async function getMollieKey() {
+  // Prefer env var; fall back to admin_settings DB entry
+  if (process.env.MOLLIE_API_KEY) return process.env.MOLLIE_API_KEY
+  try {
+    const [[row]] = await pool.query("SELECT key_value FROM admin_settings WHERE key_name = 'mollie_api_key'")
+    if (row?.key_value && !row.key_value.startsWith('••')) return row.key_value
+  } catch {}
+  return null
 }
 
 async function getMollieClient() {
-  const key = getMollieKey()
+  const key = await getMollieKey()
   if (!key) return null
   try {
     const { createMollieClient } = await import('@mollie/api-client')
@@ -4014,24 +4019,46 @@ async function getMollieClient() {
 // POST /api/mollie/payment/create — create a Mollie payment and return checkout URL
 app.post('/api/mollie/payment/create', authenticate, async (req, res) => {
   try {
-    const { plan, amount, currency = 'DKK' } = req.body || {}
-    if (!plan || !amount) return res.status(400).json({ error: 'Missing required fields: plan, amount' })
-
-    const parsedAmount = parseFloat(amount)
-    if (isNaN(parsedAmount) || parsedAmount <= 0) return res.status(400).json({ error: 'Invalid amount' })
+    const { plan, currency: reqCurrency } = req.body || {}
+    if (!plan) return res.status(400).json({ error: 'Missing required field: plan' })
 
     const mollie = await getMollieClient()
-    if (!mollie) return res.status(503).json({ error: 'Mollie not configured — set MOLLIE_API_KEY in .env' })
+    if (!mollie) return res.status(503).json({ error: 'Mollie ikke konfigureret — sæt MOLLIE_API_KEY i server/.env eller i Betalingskonfiguration under Admin' })
 
-    const [[user]] = await pool.query('SELECT id, email, name FROM users WHERE id = ?', [req.userId])
+    const [[user]] = await pool.query('SELECT id, email, name, mode FROM users WHERE id = ?', [req.userId])
     if (!user) return res.status(404).json({ error: 'User not found' })
+
+    // Resolve amount from admin_settings (mollie_price_*) or fall back to ad_settings prices
+    let resolvedAmount = null
+    let resolvedCurrency = reqCurrency || 'DKK'
+    try {
+      if (plan === 'adfree') {
+        const priceKey = user.mode === 'business' ? 'mollie_price_adfree_business' : 'mollie_price_adfree_private'
+        const [[pr]] = await pool.query('SELECT key_value FROM admin_settings WHERE key_name = ?', [priceKey])
+        if (pr?.key_value) resolvedAmount = parseFloat(pr.key_value)
+      } else if (plan === 'boost') {
+        const [[pr]] = await pool.query("SELECT key_value FROM admin_settings WHERE key_name = 'mollie_price_boost'")
+        if (pr?.key_value) resolvedAmount = parseFloat(pr.key_value)
+      }
+      // Fallback: use ad_settings prices + currency
+      if (!resolvedAmount) {
+        const [[adS]] = await pool.query('SELECT adfree_price_private, adfree_price_business, currency FROM admin_ad_settings WHERE id = 1').catch(() => [[null]])
+        if (adS) {
+          resolvedAmount = user.mode === 'business' ? adS.adfree_price_business : adS.adfree_price_private
+          resolvedCurrency = adS.currency || 'DKK'
+        }
+      }
+    } catch {}
+
+    // Final fallback
+    if (!resolvedAmount || isNaN(resolvedAmount) || resolvedAmount <= 0) resolvedAmount = 29
 
     const origin = req.headers.origin || 'https://fellis.eu'
     const redirectUrl = `${origin}/?mollie_payment=success&plan=${encodeURIComponent(plan)}`
     const webhookUrl = `${origin}/api/mollie/payment/webhook`
 
     const payment = await mollie.payments.create({
-      amount: { currency, value: parsedAmount.toFixed(2) },
+      amount: { currency: resolvedCurrency, value: resolvedAmount.toFixed(2) },
       description: `fellis.eu — ${plan}`,
       redirectUrl,
       webhookUrl,

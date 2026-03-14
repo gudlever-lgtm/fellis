@@ -3275,14 +3275,12 @@ function BillingSettings({ lang, t }) {
   const handleMollieCheckout = async () => {
     setMollieError(null)
     setMollieLoading(true)
-    const price = sub?.price || 29
-    const currency = sub?.currency || 'DKK'
-    const data = await apiCreateMolliePayment('adfree', price, currency).catch(() => null)
+    const data = await apiCreateMolliePayment('adfree').catch(() => null)
     setMollieLoading(false)
     if (data?.checkoutUrl) {
       window.location.href = data.checkoutUrl
     } else {
-      setMollieError(lang === 'da' ? 'Kunne ikke oprette betaling — er MOLLIE_API_KEY sat i .env?' : 'Could not create payment — is MOLLIE_API_KEY set in .env?')
+      setMollieError(data?.error || (lang === 'da' ? 'Kunne ikke oprette betaling.' : 'Could not create payment.'))
     }
   }
 
@@ -10837,17 +10835,10 @@ function ReportModal({ t, targetType, targetId, onClose }) {
 }
 
 function AdminPage({ lang, t }) {
-  const STRIPE_FIELDS = [
-    { key: 'stripe_secret_key', label: t.adminStripeSecretKey, type: 'password', placeholder: 'sk_live_...' },
-    { key: 'stripe_pub_key', label: t.adminStripePubKey, type: 'text', placeholder: 'pk_live_...' },
-    { key: 'stripe_webhook_secret', label: t.adminStripeWebhookSecret, type: 'password', placeholder: 'whsec_...' },
-    { key: 'stripe_price_boost', label: t.adminStripePriceBoost, type: 'text', placeholder: 'price_...' },
-  ]
-
   const [adminTab, setAdminTab] = useState('stats')
   const [form, setForm] = useState({
-    stripe_secret_key: '', stripe_pub_key: '', stripe_webhook_secret: '',
-    stripe_price_boost: '',
+    mollie_api_key: '',
+    mollie_price_adfree_private: '', mollie_price_adfree_business: '', mollie_price_boost: '',
     pwd_min_length: '6', pwd_require_uppercase: '0', pwd_require_lowercase: '0',
     pwd_require_numbers: '0', pwd_require_symbols: '0',
     media_max_files: '4', registration_open: '1',
@@ -10963,8 +10954,8 @@ function AdminPage({ lang, t }) {
         <button className={`p-filter-tab${adminTab === 'ads' ? ' active' : ''}`} onClick={() => setAdminTab('ads')}>
           📢 {t.adminAdsTitle}
         </button>
-        <button className={`p-filter-tab${adminTab === 'stripe' ? ' active' : ''}`} onClick={() => setAdminTab('stripe')}>
-          💳 {t.adminStripeTitle}
+        <button className={`p-filter-tab${adminTab === 'payment' ? ' active' : ''}`} onClick={() => setAdminTab('payment')}>
+          💳 {t.adminPaymentTitle}
         </button>
         <button className={`p-filter-tab${adminTab === 'security' ? ' active' : ''}`} onClick={() => setAdminTab('security')}>
           🔒 {lang === 'da' ? 'Sikkerhed & GDPR' : 'Security & GDPR'}
@@ -11154,27 +11145,62 @@ function AdminPage({ lang, t }) {
 
       {adminTab === 'ads' && <AdminAdSettingsPanel lang={lang} t={t} />}
 
-      {adminTab === 'stripe' && (
+      {adminTab === 'payment' && (
         <div className="p-card" style={{ marginBottom: 20 }}>
-          <h3 style={{ margin: '0 0 8px', fontSize: 16, fontWeight: 700 }}>💳 {t.adminStripeTitle}</h3>
+          <h3 style={{ margin: '0 0 8px', fontSize: 16, fontWeight: 700 }}>💳 {t.adminPaymentTitle}</h3>
           <div style={{ background: '#F0F7FF', border: '1px solid #BDD8F9', borderRadius: 8, padding: '12px 14px', marginBottom: 20, fontSize: 13, lineHeight: 1.6, color: '#2C4A6E' }}>
-            ℹ️ {t.adminStripeInfoCard}
+            ℹ️ {t.adminPaymentInfoCard}
           </div>
           <form onSubmit={handleSave}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {STRIPE_FIELDS.map(({ key, label, type, placeholder }) => (
-                <div key={key}>
-                  <label style={lS}>{label}</label>
-                  <input
-                    style={fS}
-                    type={type}
-                    placeholder={placeholder}
-                    value={form[key] || ''}
-                    onChange={e => setForm(prev => ({ ...prev, [key]: e.target.value }))}
-                    autoComplete="off"
-                  />
-                </div>
-              ))}
+              <div>
+                <label style={lS}>{t.adminPaymentMollieKey}</label>
+                <input
+                  style={fS}
+                  type="password"
+                  placeholder="live_xxxxxxxxxxxxxxxxxxxxxxxx"
+                  value={form.mollie_api_key || ''}
+                  onChange={e => setForm(prev => ({ ...prev, mollie_api_key: e.target.value }))}
+                  autoComplete="off"
+                />
+                <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>{t.adminPaymentMollieKeyHint}</div>
+              </div>
+              <div style={{ fontWeight: 700, fontSize: 13, color: '#2D6A4F', paddingBottom: 4, borderBottom: '1px solid #eee' }}>
+                {t.adminPaymentPriceIds}
+              </div>
+              <div>
+                <label style={lS}>{t.adminPaymentPriceAdFreePrivate}</label>
+                <input
+                  style={fS}
+                  type="text"
+                  placeholder={lang === 'da' ? 'f.eks. 29.00 DKK' : 'e.g. 29.00 DKK'}
+                  value={form.mollie_price_adfree_private || ''}
+                  onChange={e => setForm(prev => ({ ...prev, mollie_price_adfree_private: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label style={lS}>{t.adminPaymentPriceAdFreeBusiness}</label>
+                <input
+                  style={fS}
+                  type="text"
+                  placeholder={lang === 'da' ? 'f.eks. 49.00 DKK' : 'e.g. 49.00 DKK'}
+                  value={form.mollie_price_adfree_business || ''}
+                  onChange={e => setForm(prev => ({ ...prev, mollie_price_adfree_business: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label style={lS}>{t.adminPaymentPriceBoost}</label>
+                <input
+                  style={fS}
+                  type="text"
+                  placeholder={lang === 'da' ? 'f.eks. 19.00 DKK' : 'e.g. 19.00 DKK'}
+                  value={form.mollie_price_boost || ''}
+                  onChange={e => setForm(prev => ({ ...prev, mollie_price_boost: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div style={{ marginTop: 12, padding: '12px 14px', background: '#FFFBF0', border: '1px solid #FFE08A', borderRadius: 8, fontSize: 12, color: '#7A5C00', lineHeight: 1.6 }}>
+              ⚙️ {t.adminPaymentEnvNote}
             </div>
             <div style={{ marginTop: 20 }}>
               <button
