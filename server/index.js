@@ -3969,6 +3969,162 @@ app.get('/api/me/subscription', authenticate, async (req, res) => {
   }
 })
 
+// ── Mollie — subscription payments ──────────────────────────────────────────
+
+async function initMollie() {
+  try {
+    // Create subscriptions table if it doesn't exist
+    await pool.query(`CREATE TABLE IF NOT EXISTS subscriptions (
+      id                INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      user_id           INT UNSIGNED NOT NULL,
+      mollie_payment_id VARCHAR(64) DEFAULT NULL,
+      plan              VARCHAR(32) NOT NULL DEFAULT 'adfree',
+      status            VARCHAR(32) NOT NULL DEFAULT 'open',
+      expires_at        DATETIME DEFAULT NULL,
+      created_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_user_id (user_id),
+      KEY idx_mollie_payment_id (mollie_payment_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+    // Ensure columns exist (idempotent for existing installs)
+    await pool.query('ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS mollie_payment_id VARCHAR(64) DEFAULT NULL').catch(() => {})
+    await pool.query('ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS plan VARCHAR(32) NOT NULL DEFAULT \'adfree\'').catch(() => {})
+    await pool.query('ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS status VARCHAR(32) NOT NULL DEFAULT \'open\'').catch(() => {})
+    await pool.query('ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS expires_at DATETIME DEFAULT NULL').catch(() => {})
+  } catch (err) {
+    console.error('initMollie:', err.message)
+  }
+}
+
+function getMollieKey() {
+  const key = process.env.MOLLIE_API_KEY || ''
+  return key || null
+}
+
+async function getMollieClient() {
+  const key = getMollieKey()
+  if (!key) return null
+  try {
+    const { createMollieClient } = await import('@mollie/api-client')
+    return createMollieClient({ apiKey: key })
+  } catch { return null }
+}
+
+// POST /api/mollie/payment/create — create a Mollie payment and return checkout URL
+app.post('/api/mollie/payment/create', authenticate, async (req, res) => {
+  try {
+    const { plan, amount, currency = 'DKK' } = req.body || {}
+    if (!plan || !amount) return res.status(400).json({ error: 'Missing required fields: plan, amount' })
+
+    const parsedAmount = parseFloat(amount)
+    if (isNaN(parsedAmount) || parsedAmount <= 0) return res.status(400).json({ error: 'Invalid amount' })
+
+    const mollie = await getMollieClient()
+    if (!mollie) return res.status(503).json({ error: 'Mollie not configured — set MOLLIE_API_KEY in .env' })
+
+    const [[user]] = await pool.query('SELECT id, email, name FROM users WHERE id = ?', [req.userId])
+    if (!user) return res.status(404).json({ error: 'User not found' })
+
+    const origin = req.headers.origin || 'https://fellis.eu'
+    const redirectUrl = `${origin}/?mollie_payment=success&plan=${encodeURIComponent(plan)}`
+    const webhookUrl = `${origin}/api/mollie/payment/webhook`
+
+    const payment = await mollie.payments.create({
+      amount: { currency, value: parsedAmount.toFixed(2) },
+      description: `fellis.eu — ${plan}`,
+      redirectUrl,
+      webhookUrl,
+      metadata: { user_id: String(req.userId), plan },
+    })
+
+    // Record the pending payment in the subscriptions table
+    await pool.query(
+      'INSERT INTO subscriptions (user_id, mollie_payment_id, plan, status) VALUES (?, ?, ?, ?)',
+      [req.userId, payment.id, plan, 'open']
+    )
+
+    res.json({ checkoutUrl: payment._links.checkout.href, paymentId: payment.id })
+  } catch (err) {
+    console.error('POST /api/mollie/payment/create error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/mollie/payment/webhook — Mollie webhook (always returns 200 so Mollie doesn't retry)
+app.post('/api/mollie/payment/webhook', express.urlencoded({ extended: false }), async (req, res) => {
+  // Always respond 200 immediately — Mollie retries if we don't
+  res.status(200).send('OK')
+  try {
+    const id = req.body?.id || req.query?.id
+    if (!id || typeof id !== 'string' || !id.startsWith('tr_')) {
+      console.warn('Mollie webhook: invalid or missing payment id:', id)
+      return
+    }
+
+    const mollie = await getMollieClient()
+    if (!mollie) { console.error('Mollie webhook: client unavailable'); return }
+
+    const payment = await mollie.payments.get(id)
+
+    // Find the matching subscription row
+    const [[sub]] = await pool.query('SELECT * FROM subscriptions WHERE mollie_payment_id = ?', [id])
+    if (!sub) { console.warn('Mollie webhook: no subscription row for payment', id); return }
+
+    const status = payment.status // 'open','pending','authorized','expired','canceled','failed','paid'
+    let expiresAt = null
+    if (status === 'paid') {
+      // Grant 30 days of access per payment (one-time payment model)
+      expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    }
+
+    await pool.query(
+      'UPDATE subscriptions SET status = ?, expires_at = ? WHERE mollie_payment_id = ?',
+      [status, expiresAt, id]
+    )
+
+    if (status === 'paid') {
+      // Mark user as ads-free
+      await pool.query('UPDATE users SET ads_free = 1 WHERE id = ?', [sub.user_id])
+    } else if (['expired', 'canceled', 'failed'].includes(status)) {
+      // Only revoke if there's no other active paid subscription
+      const [[active]] = await pool.query(
+        "SELECT id FROM subscriptions WHERE user_id = ? AND status = 'paid' AND (expires_at IS NULL OR expires_at > NOW()) AND mollie_payment_id != ? LIMIT 1",
+        [sub.user_id, id]
+      )
+      if (!active) {
+        await pool.query('UPDATE users SET ads_free = 0 WHERE id = ?', [sub.user_id])
+      }
+    }
+  } catch (err) {
+    console.error('POST /api/mollie/payment/webhook error:', err.message)
+  }
+})
+
+// GET /api/mollie/payment/status — current user's Mollie subscription status
+app.get('/api/mollie/payment/status', authenticate, async (req, res) => {
+  try {
+    const [[user]] = await pool.query('SELECT ads_free, mode FROM users WHERE id = ?', [req.userId])
+    if (!user) return res.status(404).json({ error: 'User not found' })
+
+    // Get the most recent paid or pending subscription
+    const [[sub]] = await pool.query(
+      "SELECT plan, status, expires_at FROM subscriptions WHERE user_id = ? ORDER BY created_at DESC LIMIT 1",
+      [req.userId]
+    )
+
+    res.json({
+      ads_free: Boolean(user.ads_free),
+      plan: sub?.plan || null,
+      status: sub?.status || null,
+      expires_at: sub?.expires_at || null,
+    })
+  } catch (err) {
+    console.error('GET /api/mollie/payment/status error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // ── Admin settings ──────────────────────────────────────────────────────────
 
 async function initAdminSettings() {
@@ -5933,6 +6089,7 @@ app.listen(PORT, () => {
   initConversations()
   initMarketplace()
   initCompanies()
+  initMollie()
   initAdminSettings()
   initAnalytics()
   initSettingsSchema()

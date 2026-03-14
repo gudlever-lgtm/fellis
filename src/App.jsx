@@ -395,6 +395,7 @@ function App() {
   const [inviterName, setInviterName] = useState(null)
   const [inviterEmail, setInviterEmail] = useState(null)
   const [initialPostId, setInitialPostId] = useState(null)
+  const [initialPage, setInitialPage] = useState(null)
   const [fbError, setFbError] = useState(null)
 
   // On mount: check for Facebook OAuth callback, invite links, or validate existing session
@@ -404,6 +405,14 @@ function App() {
     const postId = params.get('post')
     if (postId) {
       setInitialPostId(parseInt(postId))
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+    const molliePayment = params.get('mollie_payment')
+    if (molliePayment === 'success') {
+      setInitialPage('payment-success')
+      window.history.replaceState({}, '', window.location.pathname)
+    } else if (molliePayment === 'failed' || molliePayment === 'cancel') {
+      setInitialPage('payment-failed')
       window.history.replaceState({}, '', window.location.pathname)
     }
     const fbSession = params.get('fb_session')
@@ -516,7 +525,7 @@ function App() {
             onDecline={handleConsentDecline}
           />
         )}
-        <Platform lang={lang} onLogout={handleLogout} initialPostId={initialPostId} />
+        <Platform lang={lang} onLogout={handleLogout} initialPostId={initialPostId} initialPage={initialPage} />
       </>
     )
   }
