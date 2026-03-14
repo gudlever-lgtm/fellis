@@ -4788,6 +4788,13 @@ app.get('/api/admin/settings', authenticate, requireAdmin, async (req, res) => {
     const [rows] = await pool.query('SELECT key_name, key_value FROM admin_settings')
     const settings = {}
     for (const row of rows) settings[row.key_name] = row.key_value
+    // Overlay env vars so the admin form pre-populates them
+    if (process.env.GOOGLE_CLIENT_ID && !settings.google_photos_client_id) {
+      settings.google_photos_client_id = process.env.GOOGLE_CLIENT_ID
+    }
+    if (process.env.MOLLIE_API_KEY && !settings.mollie_api_key) {
+      settings.mollie_api_key = process.env.MOLLIE_API_KEY
+    }
     // Mask secrets — return only whether they are set, not the actual values
     const masked = {}
     for (const [k, v] of Object.entries(settings)) {
@@ -5787,8 +5794,29 @@ app.get('/api/config', async (req, res) => {
 })
 
 // ── Changelog ─────────────────────────────────────────────────────────────────
+const CHANGELOG_ENTRIES = [
+  { date: '2026-03', icon: '🌍', da: 'Flersproget infrastruktur — sitet er klar til nye sprog', en: 'Multi-language infrastructure — site is ready for new languages' },
+  { date: '2026-03', icon: '💳', da: 'Mollie betalingsgateway — betal for reklamefrit abonnement via MobilePay, Visa, Mastercard m.fl.', en: 'Mollie payment gateway — pay for ad-free subscription via MobilePay, Visa, Mastercard etc.' },
+  { date: '2026-03', icon: '🕰️', da: 'Memories — "På denne dag": se dine opslag fra tidligere år', en: 'Memories — "On this day": see your posts from previous years' },
+  { date: '2026-02', icon: '🏢', da: 'Business-tilstand — skift til businesskonto og få adgang til ekstra funktioner', en: 'Business mode — switch to a business account and unlock extra features' },
+  { date: '2026-02', icon: '💼', da: 'Stillingsopslag — businessbrugere kan oprette og administrere jobs direkte på platformen', en: 'Job listings — business users can create and manage job posts directly on the platform' },
+  { date: '2026-02', icon: '📅', da: 'Planlagte opslag — opret opslag og planlæg dem til fremtidig publicering', en: 'Scheduled posts — create posts and schedule them for future publishing' },
+  { date: '2026-02', icon: '🤝', da: 'CRM-noter — tilføj private noter til dine forbindelser', en: 'CRM notes — add private notes to your connections' },
+  { date: '2026-01', icon: '📸', da: 'Google Fotos integration — vælg billeder direkte fra dit Google Fotos-bibliotek', en: 'Google Photos integration — pick photos directly from your Google Photos library' },
+  { date: '2026-01', icon: '🖼️', da: 'Medier i beskeder — send billeder og filer direkte i samtaler', en: 'Media in messages — send images and files directly in conversations' },
+  { date: '2026-01', icon: '📊', da: 'Analytics-dashboard — businessbrugere får indsigt i profilvisninger og engagement', en: 'Analytics dashboard — business users get insights into profile views and engagement' },
+  { date: '2025-12', icon: '🛡️', da: 'Moderationssystem — rapportér indhold, keywordfiltre og moderatorroller', en: 'Moderation system — report content, keyword filters and moderator roles' },
+  { date: '2025-12', icon: '🔔', da: 'In-app notifikationer og email-notifikationer ved vigtige hændelser', en: 'In-app and email notifications for important events' },
+  { date: '2025-11', icon: '🏷️', da: 'Feed-kategorier — kategorisér opslag og filtrer feedet efter kategori', en: 'Feed categories — categorise posts and filter the feed by category' },
+]
 app.get('/api/changelog', authenticate, async (req, res) => {
-  res.json({ entries: [] })
+  const lang = req.query.lang || 'da'
+  const entries = CHANGELOG_ENTRIES.map(e => ({
+    date: e.date,
+    icon: e.icon,
+    text: lang === 'en' ? e.en : e.da,
+  }))
+  res.json({ entries })
 })
 
 // ── Notifications ─────────────────────────────────────────────────────────────
