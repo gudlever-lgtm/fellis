@@ -4816,7 +4816,7 @@ app.get('/api/admin/settings', authenticate, requireAdmin, async (req, res) => {
 
 // POST /api/admin/settings — save Stripe config (admin only)
 app.post('/api/admin/settings', authenticate, requireAdmin, async (req, res) => {
-  const allowed = ['stripe_secret_key', 'stripe_pub_key', 'stripe_webhook_secret', 'stripe_price_pro_monthly', 'stripe_price_pro_yearly', 'stripe_price_boost', 'pwd_min_length', 'pwd_require_uppercase', 'pwd_require_lowercase', 'pwd_require_numbers', 'pwd_require_symbols', 'google_photos_client_id', 'media_max_files', 'registration_open', 'mollie_api_key']
+  const allowed = ['stripe_secret_key', 'stripe_pub_key', 'stripe_webhook_secret', 'stripe_price_pro_monthly', 'stripe_price_pro_yearly', 'stripe_price_boost', 'pwd_min_length', 'pwd_require_uppercase', 'pwd_require_lowercase', 'pwd_require_numbers', 'pwd_require_symbols', 'google_photos_client_id', 'media_max_files', 'marketplace_max_photos', 'registration_open', 'mollie_api_key']
   try {
     for (const [key, value] of Object.entries(req.body)) {
       if (!allowed.includes(key)) continue
@@ -5810,7 +5810,7 @@ app.patch('/api/profile', authenticate, async (req, res) => {
 app.get('/api/config', async (req, res) => {
   try {
     const [rows] = await pool.query(
-      "SELECT key_name, key_value FROM admin_settings WHERE key_name IN ('stripe_pub_key','google_photos_client_id','media_max_files')"
+      "SELECT key_name, key_value FROM admin_settings WHERE key_name IN ('stripe_pub_key','google_photos_client_id','media_max_files','marketplace_max_photos')"
     )
     const cfg = {}
     for (const r of rows) cfg[r.key_name] = r.key_value
@@ -5822,6 +5822,7 @@ app.get('/api/config', async (req, res) => {
     const googleClientId = process.env.GOOGLE_CLIENT_ID || cfg.google_photos_client_id || null
     if (googleClientId) cfg.googlePhotosClientId = googleClientId
     if (cfg.media_max_files) cfg.mediaMaxFiles = parseInt(cfg.media_max_files, 10) || 4
+    if (cfg.marketplace_max_photos) cfg.marketplaceMaxPhotos = parseInt(cfg.marketplace_max_photos, 10) || 4
     res.json({ config: cfg, facebookEnabled: !!process.env.FB_APP_ID })
   } catch { res.json({ config: {}, facebookEnabled: false }) }
 })

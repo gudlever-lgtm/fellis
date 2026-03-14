@@ -321,7 +321,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
         </div>
         {page === 'events' && <EventsPage lang={lang} t={t} currentUser={currentUser} mode={mode} />}
         {page === 'calendar' && <CalendarPage lang={lang} t={t} currentUser={currentUser} />}
-        {page === 'marketplace' && <MarketplacePage lang={lang} t={t} currentUser={currentUser} onContactSeller={async (sellerId) => {
+        {page === 'marketplace' && <MarketplacePage lang={lang} t={t} currentUser={currentUser} maxPhotos={marketplaceMaxPhotos} onContactSeller={async (sellerId) => {
           const numId = parseInt(sellerId)
           if (numId > 0 && !isNaN(numId) && numId !== currentUser.id) {
             const data = await apiCreateConversation([numId], null, false, false).catch(() => null)
@@ -1220,6 +1220,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [googlePhotosClientId, setGooglePhotosClientId] = useState(null)
   const [mediaMaxFiles, setMediaMaxFiles] = useState(4)
   const mediaMaxFilesRef = useRef(4)
+  const [marketplaceMaxPhotos, setMarketplaceMaxPhotos] = useState(4)
   const [scheduleEnabled, setScheduleEnabled] = useState(false)
   const [scheduledAt, setScheduledAt] = useState('')
 
@@ -1276,6 +1277,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       const cfg = res?.config || res
       if (cfg?.googlePhotosClientId) setGooglePhotosClientId(cfg.googlePhotosClientId)
       if (cfg?.mediaMaxFiles) { setMediaMaxFiles(cfg.mediaMaxFiles); mediaMaxFilesRef.current = cfg.mediaMaxFiles }
+      if (cfg?.marketplaceMaxPhotos) setMarketplaceMaxPhotos(cfg.marketplaceMaxPhotos)
     })
     apiFetchFeed(0, PAGE_SIZE).then(data => {
       if (data?.posts) {
@@ -9306,7 +9308,7 @@ const MOCK_LISTINGS = [
   { id: 6, title: { da: 'Weber kuglegrill — 57 cm', en: 'Weber kettle grill — 57 cm' }, price: 600, priceNegotiable: true, description: { da: 'Weber One-Touch 57 cm. Brugt 2 sæsoner, ellers i perfekt stand.', en: 'Weber One-Touch 57cm. Used 2 seasons, otherwise in perfect condition.' }, category: 'garden', location: 'Hellerup', photos: [], seller: 'Liam Madsen', sellerId: 'mock-liam', postedAt: '2026-02-12', sold: false },
 ]
 
-function MarketplacePage({ lang, t, currentUser, onContactSeller, onViewProfile }) {
+function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller, onViewProfile }) {
   const [tab, setTab] = useState('browse')
   const [listings, setListings] = useState(MOCK_LISTINGS)
   const [myListings, setMyListings] = useState([])
@@ -9606,6 +9608,7 @@ function MarketplacePage({ lang, t, currentUser, onContactSeller, onViewProfile 
           listingTitle={listingTitle}
           listingDesc={listingDesc}
           formError={formError}
+          maxPhotos={maxPhotos}
           onClose={() => { setShowForm(false); setEditListing(null); setFormError(null) }}
           onSubmit={editListing ? handleUpdate : handleCreate}
         />
@@ -9750,7 +9753,7 @@ function ListingDetailModal({ listing, t, lang, currentUser, catLabel, catIcon, 
   )
 }
 
-function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, formError, onClose, onSubmit }) {
+function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, formError, maxPhotos = 4, onClose, onSubmit }) {
   const isEdit = !!listing
   const sanitize = (v) => (!v || v === '[object Object]') ? '' : v
   const [title, setTitle]           = useState(isEdit ? sanitize(listingTitle(listing)) : '')
@@ -9768,11 +9771,19 @@ function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, formErr
   )
   const fileInputRef = useRef(null)
 
-  const handlePhotos = (e) => {
-    const files = Array.from(e.target.files).slice(0, 4 - photoPreviews.length)
-    if (!files.length) return
-    setPhotoFiles(prev => [...prev, ...files].slice(0, 4))
-    setPhotoPreviews(prev => [...prev, ...files.map(f => URL.createObjectURL(f))].slice(0, 4))
+  const addFiles = (files) => {
+    const toAdd = Array.from(files).filter(f => f.type.startsWith('image/')).slice(0, maxPhotos - photoPreviews.length)
+    if (!toAdd.length) return
+    setPhotoFiles(prev => [...prev, ...toAdd].slice(0, maxPhotos))
+    setPhotoPreviews(prev => [...prev, ...toAdd.map(f => URL.createObjectURL(f))].slice(0, maxPhotos))
+  }
+
+  const handlePhotos = (e) => { addFiles(e.target.files) }
+
+  const handlePaste = (e) => {
+    const items = Array.from(e.clipboardData?.items || [])
+    const imageFiles = items.filter(i => i.kind === 'file' && i.type.startsWith('image/')).map(i => i.getAsFile())
+    if (imageFiles.length) { e.preventDefault(); addFiles(imageFiles) }
   }
 
   const removePhoto = (i) => {
@@ -9835,7 +9846,7 @@ function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, formErr
           <span>{isEdit ? t.marketplaceEditTitle : t.marketplaceFormTitle}</span>
           <button className="p-msg-modal-close" onClick={onClose}>✕</button>
         </div>
-        <form onSubmit={handleSubmit} style={{ padding: '16px 20px 20px', overflowY: 'auto', maxHeight: 'calc(90vh - 60px)' }}>
+        <form onSubmit={handleSubmit} onPaste={handlePaste} style={{ padding: '16px 20px 20px', overflowY: 'auto', maxHeight: 'calc(90vh - 60px)' }}>
           <label style={lS}>{t.marketplaceFieldTitle}</label>
           <input style={fS} value={title} onChange={e => setTitle(e.target.value)} placeholder={lang === 'da' ? 'Hvad sælger du?' : 'What are you selling?'} required />
 
@@ -9890,7 +9901,7 @@ function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, formErr
           <label style={lS}>{t.marketplaceFieldDescription}</label>
           <textarea style={{ ...fS, minHeight: 80, resize: 'vertical' }} value={description} onChange={e => setDescription(e.target.value)} placeholder={lang === 'da' ? 'Beskriv varen...' : 'Describe the item...'} />
 
-          <label style={lS}>{t.marketplaceFieldPhotos}</label>
+          <label style={lS}>{t.marketplaceFieldPhotos} <span style={{ fontWeight: 400, color: '#999' }}>({lang === 'da' ? `maks. ${maxPhotos}` : `max ${maxPhotos}`})</span></label>
           <div className="p-listing-photo-upload-row">
             {photoPreviews.map((src, i) => (
               <div key={i} className="p-listing-upload-thumb">
@@ -9898,13 +9909,18 @@ function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, formErr
                 <button type="button" className="p-listing-upload-remove" onClick={() => removePhoto(i)}>✕</button>
               </div>
             ))}
-            {photoPreviews.length < 4 && (
+            {photoPreviews.length < maxPhotos && (
               <button type="button" className="p-listing-upload-add" onClick={() => fileInputRef.current?.click()}>
                 <span>📷</span>
                 <span>{lang === 'da' ? 'Tilføj foto' : 'Add photo'}</span>
               </button>
             )}
           </div>
+          {photoPreviews.length < maxPhotos && (
+            <div style={{ fontSize: 11, color: '#aaa', marginTop: 4 }}>
+              {lang === 'da' ? '💡 Du kan også indsætte billeder med Ctrl+V' : '💡 You can also paste images with Ctrl+V'}
+            </div>
+          )}
           <input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handlePhotos} />
 
           {formError && (
@@ -11508,7 +11524,7 @@ function AdminPage({ lang, t }) {
     mollie_api_key: '',
     pwd_min_length: '6', pwd_require_uppercase: '0', pwd_require_lowercase: '0',
     pwd_require_numbers: '0', pwd_require_symbols: '0',
-    media_max_files: '4', registration_open: '1',
+    media_max_files: '4', marketplace_max_photos: '4', registration_open: '1',
   })
   const [status, setStatus] = useState('idle') // idle | saving | saved
   const [stats, setStats] = useState(null)
@@ -11958,6 +11974,18 @@ function AdminPage({ lang, t }) {
                     onChange={e => setForm(prev => ({ ...prev, media_max_files: e.target.value }))}
                   />
                   <span style={{ fontSize: 13, color: '#888' }}>{lang === 'da' ? '(1–20 filer)' : '(1–20 files)'}</span>
+                </div>
+              </div>
+              <div>
+                <label style={lS}>{lang === 'da' ? 'Max antal fotos per annonce (marked)' : 'Max photos per listing (marketplace)'}</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <input
+                    style={{ ...fS, width: 100 }}
+                    type="number" min="1" max="20"
+                    value={form.marketplace_max_photos || '4'}
+                    onChange={e => setForm(prev => ({ ...prev, marketplace_max_photos: e.target.value }))}
+                  />
+                  <span style={{ fontSize: 13, color: '#888' }}>{lang === 'da' ? '(1–20 fotos)' : '(1–20 photos)'}</span>
                 </div>
               </div>
               <div>
