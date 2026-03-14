@@ -10862,7 +10862,6 @@ function AdminPage({ lang, t }) {
   const [modCandidates, setModCandidates] = useState(null)
   const [candidateNote, setCandidateNote] = useState({}) // userId → note string
   const [candidatePending, setCandidatePending] = useState({}) // userId → editing note
-  const [modModerators, setModModerators] = useState(null)
   const [newKeyword, setNewKeyword] = useState('')
   const [newKeywordAction, setNewKeywordAction] = useState('flag')
   const [newKeywordCategory, setNewKeywordCategory] = useState('profanity')
