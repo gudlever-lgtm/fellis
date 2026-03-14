@@ -138,6 +138,28 @@ export const POSTS = [
   },
 ]
 
+// Supported UI languages — add a new entry here + a matching key in PT to enable a new language
+export const SUPPORTED_LANGS = [
+  { code: 'da', label: 'Dansk' },
+  { code: 'en', label: 'English' },
+  // { code: 'de', label: 'Deutsch' },
+  // { code: 'sv', label: 'Svenska' },
+  // { code: 'no', label: 'Norsk' },
+  // { code: 'fr', label: 'Français' },
+]
+
+// Auto-detect best language from browser preferences
+export function detectLang() {
+  const stored = localStorage.getItem('fellis_lang')
+  if (stored && SUPPORTED_LANGS.some(l => l.code === stored)) return stored
+  const codes = SUPPORTED_LANGS.map(l => l.code)
+  for (const pref of (navigator.languages || [])) {
+    const code = pref.split('-')[0].toLowerCase()
+    if (codes.includes(code)) return code
+  }
+  return 'da'
+}
+
 // Platform translations
 export const PT = {
   da: {

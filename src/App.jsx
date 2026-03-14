@@ -2,16 +2,13 @@ import { useState, useCallback, useEffect } from 'react'
 import Landing from './Landing.jsx'
 import Platform from './Platform.jsx'
 import { apiCheckSession, apiLogout, apiGiveConsent, apiGetInviteInfo, apiTrackVisit } from './api.js'
+import { SUPPORTED_LANGS, detectLang } from './data.js'
 import './App.css'
 
 // ── Public Privacy Policy Page (/privacy) ──
 // Accessible without login — used as the Facebook App privacy policy URL
 function PublicPrivacyPage() {
-  const [lang, setLang] = useState(() => {
-    const stored = localStorage.getItem('fellis_lang')
-    if (stored) return stored
-    return navigator.language?.startsWith('da') ? 'da' : 'en'
-  })
+  const [lang, setLang] = useState(() => detectLang())
   const da = lang === 'da'
 
   const s = {
@@ -33,7 +30,7 @@ function PublicPrivacyPage() {
     <div style={s.page}>
       <nav style={s.nav}>
         <a href="/" style={s.brand}>fellis.eu</a>
-        <button style={s.langBtn} onClick={() => setLang(da ? 'en' : 'da')}>{da ? 'EN' : 'DA'}</button>
+        <select style={s.langBtn} value={lang} onChange={e => setLang(e.target.value)} aria-label="Language">{SUPPORTED_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}</select>
       </nav>
 
       <h1 style={s.h1}>{da ? 'Privatlivspolitik' : 'Privacy Policy'}</h1>
@@ -169,7 +166,7 @@ function PublicTermsPage() {
     <div style={s.page}>
       <nav style={s.nav}>
         <a href="/" style={s.brand}>fellis.eu</a>
-        <button style={s.langBtn} onClick={() => setLang(da ? 'en' : 'da')}>{da ? 'EN' : 'DA'}</button>
+        <select style={s.langBtn} value={lang} onChange={e => setLang(e.target.value)} aria-label="Language">{SUPPORTED_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}</select>
       </nav>
 
       <h1 style={s.h1}>{da ? 'Servicevilkår' : 'Terms of Service'}</h1>
@@ -386,9 +383,7 @@ function App() {
   const [view, setView] = useState(() => {
     return localStorage.getItem('fellis_logged_in') ? 'platform' : 'landing'
   })
-  const [lang, setLang] = useState(() => {
-    return localStorage.getItem('fellis_lang') || 'da'
-  })
+  const [lang, setLang] = useState(() => detectLang())
   // GDPR: Show consent dialog after Facebook OAuth before importing data
   const [showConsent, setShowConsent] = useState(false)
   const [inviteToken, setInviteToken] = useState(null)
