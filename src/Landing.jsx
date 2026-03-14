@@ -7,7 +7,7 @@ const INVITE_FRIENDS = [
   { name: 'Ven 2', mutual: 3, online: true },
   { name: 'Ven 3', mutual: 8, online: false },
 ]
-import { apiLogin, apiRegister, apiForgotPassword, apiResetPassword, getFacebookAuthUrl, apiSendInvites, apiGetInviteLink, apiGetConfig } from './api.js'
+import { apiLogin, apiRegister, apiForgotPassword, apiResetPassword, getFacebookAuthUrl, apiSendInvites, apiGetInviteLink, apiGetConfig, apiGiveConsent } from './api.js'
 
 // ── Landing translations ──
 const T = {
@@ -113,6 +113,9 @@ const T = {
     registerMathError: 'Forkert svar — prøv igen',
     registerSubmit: 'Opret konto & gå til profil',
     registerError: 'Kunne ikke oprette konto',
+    registerGdpr: 'Jeg accepterer behandling af mine persondata i henhold til fellis.eu\'s',
+    registerGdprLink: 'privatlivspolitik',
+    registerGdprRequired: 'Du skal acceptere privatlivspolitikken for at oprette en konto',
     // Create account card (step 1)
     createAccountTitle: 'Opret konto direkte',
     createAccountDesc: 'Opret en konto uden Facebook — brug e-mail og adgangskode.',
@@ -231,6 +234,9 @@ const T = {
     registerMathError: 'Wrong answer — please try again',
     registerSubmit: 'Create account & go to profile',
     registerError: 'Could not create account',
+    registerGdpr: 'I accept the processing of my personal data in accordance with fellis.eu\'s',
+    registerGdprLink: 'privacy policy',
+    registerGdprRequired: 'You must accept the privacy policy to create an account',
     // Create account card (step 1)
     createAccountTitle: 'Create account directly',
     createAccountDesc: 'Create an account without Facebook — use email and password.',
@@ -291,6 +297,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
   const [regPasswordRepeat, setRegPasswordRepeat] = useState('')
   const [regError, setRegError] = useState('')
   const [regLoading, setRegLoading] = useState(false)
+  const [gdprAccepted, setGdprAccepted] = useState(false)
   // Anti-bot: math challenge
   const [mathChallenge] = useState(() => {
     const a = Math.floor(Math.random() * 9) + 1
@@ -440,6 +447,10 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
       setRegError(t.registerPasswordMismatch)
       return
     }
+    if (!gdprAccepted) {
+      setRegError(t.registerGdprRequired)
+      return
+    }
     if (parseInt(mathAnswer, 10) !== mathChallenge.answer) {
       setRegError(t.registerMathError)
       return
@@ -448,6 +459,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
     setRegError('')
     try {
       await apiRegister(regName.trim(), regEmail.trim(), regPassword.trim(), lang, inviteToken || undefined)
+      await apiGiveConsent(['data_processing']).catch(() => {})
       // Flag for onboarding tour (only for new registrations)
       localStorage.setItem('fellis_onboarding', '1')
       if (inviterName) localStorage.setItem('fellis_onboarding_inviter', inviterName)
@@ -881,8 +893,23 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
                 style={{ marginTop: 0 }}
               />
             </div>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 12, cursor: 'pointer', fontSize: 13, color: '#555', lineHeight: 1.5 }}>
+              <input
+                type="checkbox"
+                checked={gdprAccepted}
+                onChange={e => setGdprAccepted(e.target.checked)}
+                style={{ marginTop: 2, flexShrink: 0, accentColor: '#2D6A4F' }}
+              />
+              <span>
+                {t.registerGdpr}{' '}
+                <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: '#2D6A4F', fontWeight: 600 }}>
+                  {t.registerGdprLink}
+                </a>
+                {' '}(GDPR Art. 6 & 7)
+              </span>
+            </label>
             {regError && <div className="fb-error">{regError}</div>}
-            <button type="submit" className="btn-primary" style={{ width: '100%' }} disabled={regLoading}>
+            <button type="submit" className="btn-primary" style={{ width: '100%' }} disabled={regLoading || !gdprAccepted}>
               {regLoading ? '...' : t.registerSubmit}
             </button>
           </form>
