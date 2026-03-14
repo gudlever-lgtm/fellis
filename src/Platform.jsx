@@ -11354,7 +11354,6 @@ function AdminPage({ lang, t }) {
   const [showKwGuide, setShowKwGuide] = useState(false)
   const [modToast, setModToast] = useState(null)
   // Moderator management state
-  const [modModerators, setModModerators] = useState([])
   const [modRequests, setModRequests] = useState([])
   const [modGrantSearch, setModGrantSearch] = useState('')
   const [modGrantResults, setModGrantResults] = useState([])
