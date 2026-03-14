@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } from 'react'
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { PT, SUPPORTED_LANGS, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetMollieStatus, apiCreateMolliePayment, apiFetchMemories, apiApplyToJob, apiGetJobApplications, apiUpdateJobApplication, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiExchangeGoogleCode, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiFetchMemories, apiApplyToJob, apiGetJobApplications, apiUpdateJobApplication, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead } from './api.js'
 import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
 import ReelsPage from './Reels.jsx'
@@ -321,7 +321,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
         </div>
         {page === 'events' && <EventsPage lang={lang} t={t} currentUser={currentUser} mode={mode} />}
         {page === 'calendar' && <CalendarPage lang={lang} t={t} currentUser={currentUser} />}
-        {page === 'marketplace' && <MarketplacePage lang={lang} t={t} currentUser={currentUser} onContactSeller={async (sellerId) => {
+        {page === 'marketplace' && <MarketplacePage lang={lang} t={t} currentUser={currentUser} maxPhotos={marketplaceMaxPhotos} onContactSeller={async (sellerId) => {
           const numId = parseInt(sellerId)
           if (numId > 0 && !isNaN(numId) && numId !== currentUser.id) {
             const data = await apiCreateConversation([numId], null, false, false).catch(() => null)
@@ -687,6 +687,61 @@ function openCamera(onFile) {
   inp.click()
 }
 
+// ── Shared media picker button ─────────────────────────────────────────────
+// Used everywhere uploads are possible: feed, comments, messages, company posts, marketplace listings.
+// Props:
+//   lang, onFiles(files[]), accept, multiple
+//   googlePhotosClientId, onGooglePhotos()  — optional, shows Google Fotos option
+//   align = 'left' | 'right'               — popup direction
+//   buttonContent                           — optional custom button label/icon
+function MediaPickerButton({ lang, onFiles, accept = 'image/*,video/*', multiple = true, googlePhotosClientId, onGooglePhotos, align = 'left', buttonContent }) {
+  const [open, setOpen] = useState(false)
+  const fileRef = useRef(null)
+  const pickGallery = () => { fileRef.current?.click(); setOpen(false) }
+  const pickCamera = () => { setOpen(false); openCamera(e => onFiles(Array.from(e.target.files).filter(Boolean))) }
+  return (
+    <div className="p-media-popup-wrap">
+      <button
+        type="button"
+        className={`p-media-popup-btn${open ? ' active' : ''}`}
+        onMouseDown={e => e.preventDefault()}
+        onClick={() => setOpen(p => !p)}
+        title={lang === 'da' ? 'Tilføj medie' : 'Add media'}
+      >{buttonContent ?? '+'}</button>
+      {open && (
+        <>
+          <div className="p-share-backdrop" onClick={() => setOpen(false)} />
+          <div className={`p-share-popup p-media-popup${align === 'right' ? ' p-media-popup-right' : ''}`}>
+            <button className="p-share-option" type="button" onMouseDown={e => e.preventDefault()} onClick={pickGallery}>
+              <span className="p-media-popup-icon">🖼️</span>
+              {lang === 'da' ? 'Galleri' : 'Gallery'}
+            </button>
+            <button className="p-share-option" type="button" onMouseDown={e => e.preventDefault()} onClick={pickCamera}>
+              <span className="p-media-popup-icon">📷</span>
+              {lang === 'da' ? 'Kamera' : 'Camera'}
+            </button>
+            {googlePhotosClientId && onGooglePhotos && (
+              <button className="p-share-option" type="button" onMouseDown={e => e.preventDefault()} onClick={() => { setOpen(false); onGooglePhotos() }}>
+                <span className="p-media-popup-icon" style={{ fontSize: 16 }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={{ verticalAlign: 'middle' }}>
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" fill="#4285F4"/>
+                    <path d="M6.5 12A5.5 5.5 0 0 1 12 6.5V2C6.48 2 2 6.48 2 12h4.5z" fill="#34A853"/>
+                    <path d="M12 17.5A5.5 5.5 0 0 1 6.5 12H2c0 5.52 4.48 10 10 10v-4.5z" fill="#FBBC05"/>
+                    <path d="M17.5 12A5.5 5.5 0 0 1 12 17.5V22c5.52 0 10-4.48 10-10h-4.5z" fill="#EA4335"/>
+                  </svg>
+                </span>
+                Google Fotos
+              </button>
+            )}
+          </div>
+        </>
+      )}
+      <input ref={fileRef} type="file" accept={accept} multiple={multiple} style={{ display: 'none' }}
+        onChange={e => { onFiles(Array.from(e.target.files).filter(Boolean)); e.target.value = '' }} />
+    </div>
+  )
+}
+
 // REACTIONS imported from data.js
 
 // ── Feed ──
@@ -894,7 +949,7 @@ function GooglePhotosPicker({ lang, clientId, maxFiles = 4, onPhotosSelected, on
           const url = doc.url || doc.thumbUrl
           const mimeType = doc.mimeType || 'image/jpeg'
           try {
-            const result = await apiDownloadGooglePhoto(accessToken, url, mimeType)
+            const result = await apiDownloadGooglePhoto(url, accessTokenRef.current)
             if (result?.url) results.push({ localUrl: result.url, mimeType: result.mimeType || mimeType })
           } catch {}
         }
@@ -915,16 +970,25 @@ function GooglePhotosPicker({ lang, clientId, maxFiles = 4, onPhotosSelected, on
       await new Promise((resolve) => window.gapi.load('picker', resolve))
       pickerApiLoaded.current = true
 
-      const tokenClient = window.google.accounts.oauth2.initTokenClient({
+      // Authorization Code Flow — client_secret stays on server, no implicit flow
+      const codeClient = window.google.accounts.oauth2.initCodeClient({
         client_id: clientId,
-        scope: 'https://www.googleapis.com/auth/photoslibrary.readonly https://www.googleapis.com/auth/drive.readonly',
-        callback: (resp) => {
+        scope: 'https://www.googleapis.com/auth/photoslibrary.readonly',
+        ux_mode: 'popup',
+        callback: async (resp) => {
           if (resp.error) { setErrorMsg(resp.error); setStatus('error'); return }
-          accessTokenRef.current = resp.access_token
-          openPicker(resp.access_token)
+          setStatus('loading')
+          const result = await apiExchangeGoogleCode(resp.code)
+          if (!result?.access_token) {
+            setErrorMsg(result?.error || (lang === 'da' ? 'Kunne ikke hente adgangstoken' : 'Could not get access token'))
+            setStatus('error')
+            return
+          }
+          accessTokenRef.current = result.access_token
+          openPicker(result.access_token)
         },
       })
-      tokenClient.requestAccessToken({ prompt: 'consent' })
+      codeClient.requestCode()
     } catch (err) {
       setErrorMsg(lang === 'da' ? 'Fejl ved indlæsning af Google API' : 'Failed to load Google API')
       setStatus('error')
@@ -1152,7 +1216,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [sharePopupFriends, setSharePopupFriends] = useState(null) // null = not loaded yet
   const [shareSentTo, setShareSentTo] = useState(null)   // friendId just messaged
   const [postExpanded, setPostExpanded] = useState(false)
-  const [mediaPopup, setMediaPopup] = useState(false)
   const [postMenu, setPostMenu] = useState(null)       // postId with open options menu
   const [hiddenPosts, setHiddenPosts] = useState(new Set()) // locally hidden post ids
   const [reportModal, setReportModal] = useState(null)   // { targetType, targetId } | null
@@ -1162,11 +1225,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [autoCategories, setAutoCategories] = useState(new Set())
   const [showCategoryPicker, setShowCategoryPicker] = useState(false)
   const [providerMediaUrls, setProviderMediaUrls] = useState([])
-  const fileInputRef = useRef(null)
   const textareaRef = useRef(null)
   const feedMention = useMention(sharePopupFriends || [])
-  const commentFileRefs = useRef({})
-  const [commentMediaPopup, setCommentMediaPopup] = useState(null) // postId of open popup
   const bottomSentinelRef = useRef(null)
   const topSentinelRef = useRef(null)
   const feedContainerRef = useRef(null)
@@ -1211,6 +1271,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [googlePhotosClientId, setGooglePhotosClientId] = useState(null)
   const [mediaMaxFiles, setMediaMaxFiles] = useState(4)
   const mediaMaxFilesRef = useRef(4)
+  const [marketplaceMaxPhotos, setMarketplaceMaxPhotos] = useState(4)
   const [scheduleEnabled, setScheduleEnabled] = useState(false)
   const [scheduledAt, setScheduledAt] = useState('')
 
@@ -1267,6 +1328,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       const cfg = res?.config || res
       if (cfg?.googlePhotosClientId) setGooglePhotosClientId(cfg.googlePhotosClientId)
       if (cfg?.mediaMaxFiles) { setMediaMaxFiles(cfg.mediaMaxFiles); mediaMaxFilesRef.current = cfg.mediaMaxFiles }
+      if (cfg?.marketplaceMaxPhotos) setMarketplaceMaxPhotos(cfg.marketplaceMaxPhotos)
     })
     apiFetchFeed(0, PAGE_SIZE).then(data => {
       if (data?.posts) {
@@ -1427,7 +1489,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     setShowCategoryPicker(false)
     setScheduleEnabled(false)
     setScheduledAt('')
-    if (fileInputRef.current) fileInputRef.current.value = ''
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
   }, [mediaPreviews, currentUser.name])
 
@@ -1618,8 +1679,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     })
     setCommentTexts(prev => ({ ...prev, [postId]: '' }))
     setCommentMedia(prev => { const n = { ...prev }; delete n[postId]; return n })
-    setCommentMediaPopup(null)
-    if (commentFileRefs.current[postId]) commentFileRefs.current[postId].value = ''
   }, [commentTexts, commentMedia, currentUser.name])
 
   // Fetch and pin the specific post from a search result click
@@ -1740,11 +1799,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       )}
       {/* New post */}
       <div className="p-card p-new-post">
-        {/* Hidden file input — gallery only */}
-        <input ref={fileInputRef} type="file"
-          accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
-          multiple style={{ display: 'none' }} onChange={handleFileSelect} />
-
         {/* Collapsed prompt — click anywhere to expand */}
         {!postExpanded && !newPostText && !mediaPreviews.length ? (
           <div className="p-new-post-row p-new-post-collapsed" onClick={() => { setPostExpanded(true); setTimeout(() => textareaRef.current?.focus(), 0) }}>
@@ -1905,44 +1959,12 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
             <div className="p-new-post-actions">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 {/* Media attachment popup */}
-                <div className="p-media-popup-wrap">
-                  <button
-                    className={`p-media-popup-btn${mediaPopup ? ' active' : ''}`}
-                    onMouseDown={e => e.preventDefault()}
-                    onClick={() => setMediaPopup(p => !p)}
-                    title={lang === 'da' ? 'Tilføj medie' : 'Add media'}
-                  >
-                    +
-                  </button>
-                  {mediaPopup && (
-                    <>
-                      <div className="p-share-backdrop" onClick={() => setMediaPopup(false)} />
-                      <div className="p-share-popup p-media-popup">
-                        <button className="p-share-option" onMouseDown={e => e.preventDefault()} onClick={() => { fileInputRef.current?.click(); setMediaPopup(false) }}>
-                          <span className="p-media-popup-icon">🖼️</span>
-                          {lang === 'da' ? 'Galleri' : 'Gallery'}
-                        </button>
-                        <button className="p-share-option" onMouseDown={e => e.preventDefault()} onClick={() => { setMediaPopup(false); openCamera(handleFileSelect) }}>
-                          <span className="p-media-popup-icon">📷</span>
-                          {lang === 'da' ? 'Kamera' : 'Camera'}
-                        </button>
-                        {googlePhotosClientId && (
-                          <button className="p-share-option" onMouseDown={e => e.preventDefault()} onClick={() => { setMediaPopup(false); setShowGooglePicker(true) }}>
-                            <span className="p-media-popup-icon" style={{ fontSize: 16 }}>
-                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={{ verticalAlign: 'middle' }}>
-                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" fill="#4285F4"/>
-                                <path d="M6.5 12A5.5 5.5 0 0 1 12 6.5V2C6.48 2 2 6.48 2 12h4.5z" fill="#34A853"/>
-                                <path d="M12 17.5A5.5 5.5 0 0 1 6.5 12H2c0 5.52 4.48 10 10 10v-4.5z" fill="#FBBC05"/>
-                                <path d="M17.5 12A5.5 5.5 0 0 1 12 17.5V22c5.52 0 10-4.48 10-10h-4.5z" fill="#EA4335"/>
-                              </svg>
-                            </span>
-                            Google Fotos
-                          </button>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </div>
+                <MediaPickerButton
+                  lang={lang}
+                  onFiles={files => handleFileSelect({ target: { files } })}
+                  googlePhotosClientId={googlePhotosClientId}
+                  onGooglePhotos={() => setShowGooglePicker(true)}
+                />
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 {mode === 'business' && (
@@ -2509,10 +2531,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   <div className="p-avatar-xs" style={{ background: nameToColor(currentUser.name) }}>
                     {currentUser.initials || getInitials(currentUser.name)}
                   </div>
-                  {/* Hidden file input — gallery only */}
-                  <input ref={el => commentFileRefs.current[post.id] = el} type="file"
-                    accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
-                    style={{ display: 'none' }} onChange={e => handleCommentFileSelect(post.id, e)} />
                   <input
                     className="p-comment-input"
                     placeholder={t.writeComment}
@@ -2520,29 +2538,12 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                     onChange={e => setCommentTexts(prev => ({ ...prev, [post.id]: e.target.value }))}
                     onKeyDown={e => e.key === 'Enter' && handleComment(post.id)}
                   />
-                  {/* Media attachment popup */}
-                  <div className="p-media-popup-wrap">
-                    <button
-                      className={`p-media-popup-btn${commentMediaPopup === post.id ? ' active' : ''}`}
-                      onClick={() => setCommentMediaPopup(p => p === post.id ? null : post.id)}
-                      title={lang === 'da' ? 'Tilføj medie' : 'Add media'}
-                    >+</button>
-                    {commentMediaPopup === post.id && (
-                      <>
-                        <div className="p-share-backdrop" onClick={() => setCommentMediaPopup(null)} />
-                        <div className="p-share-popup p-media-popup p-media-popup-right">
-                          <button className="p-share-option" onClick={() => { commentFileRefs.current[post.id]?.click(); setCommentMediaPopup(null) }}>
-                            <span className="p-media-popup-icon">🖼️</span>
-                            {lang === 'da' ? 'Galleri' : 'Gallery'}
-                          </button>
-                          <button className="p-share-option" onClick={() => { setCommentMediaPopup(null); openCamera(e => handleCommentFileSelect(post.id, e)) }}>
-                            <span className="p-media-popup-icon">📷</span>
-                            {lang === 'da' ? 'Kamera' : 'Camera'}
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
+                  <MediaPickerButton
+                    lang={lang}
+                    accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
+                    align="right"
+                    onFiles={files => handleCommentFileSelect(post.id, { target: { files } })}
+                  />
                   <button className="p-send-btn" onClick={() => handleComment(post.id)}>{t.send}</button>
                 </div>
               </div>
@@ -6303,14 +6304,12 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened }) 
   const [msgMedia, setMsgMedia] = useState([]) // [{url, type, mime, preview}]
   const [uploadingMedia, setUploadingMedia] = useState(false)
   const [loadingOlder, setLoadingOlder] = useState(false)
-  const [msgMediaPopup, setMsgMediaPopup] = useState(false)
   const [modal, setModal] = useState(null) // null | 'new' | 'newGroup' | 'invite' | 'mute' | 'rename'
   const [showConvMenu, setShowConvMenu] = useState(false)
   const [deleteConvId, setDeleteConvId] = useState(null) // id to confirm delete
   const messagesEndRef = useRef(null)
   const msgInputRef = useRef(null)
   const msgBodyRef = useRef(null)
-  const mediaInputRef = useRef(null)
   const msgMention = useMention(friends)
   const topMsgSentinelRef = useRef(null)
   const menuRef = useRef(null)
@@ -6713,33 +6712,14 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened }) 
                 <span className="p-input-hint-tooltip">{t.msgInputHint}</span>
               </span>
               {/* Attach button */}
-              <div className="p-media-popup-wrap" style={{ alignSelf: 'flex-end', marginBottom: 4 }}>
-                <button
-                  className={`p-media-popup-btn${msgMediaPopup ? ' active' : ''}`}
-                  onMouseDown={e => e.preventDefault()}
-                  onClick={() => setMsgMediaPopup(p => !p)}
-                  title={lang === 'da' ? 'Tilføj medie' : 'Add media'}
-                >
-                  +
-                </button>
-                {msgMediaPopup && (
-                  <>
-                    <div className="p-share-backdrop" onClick={() => setMsgMediaPopup(false)} />
-                    <div className="p-share-popup p-media-popup p-media-popup-right">
-                      <button className="p-share-option" onMouseDown={e => e.preventDefault()} onClick={() => { mediaInputRef.current?.click(); setMsgMediaPopup(false) }}>
-                        <span className="p-media-popup-icon">🖼️</span>
-                        {lang === 'da' ? 'Galleri' : 'Gallery'}
-                      </button>
-                      <button className="p-share-option" onMouseDown={e => e.preventDefault()} onClick={() => { setMsgMediaPopup(false); openCamera(e => handleMediaFiles(e.target.files)) }}>
-                        <span className="p-media-popup-icon">📷</span>
-                        {lang === 'da' ? 'Kamera' : 'Camera'}
-                      </button>
-                    </div>
-                  </>
-                )}
+              <div style={{ alignSelf: 'flex-end', marginBottom: 4 }}>
+                <MediaPickerButton
+                  lang={lang}
+                  accept="image/*,video/*"
+                  align="right"
+                  onFiles={files => handleMediaFiles(files)}
+                />
               </div>
-              <input ref={mediaInputRef} type="file" accept="image/*,video/*" multiple style={{ display: 'none' }}
-                onChange={e => { handleMediaFiles(e.target.files); e.target.value = '' }} />
               <div style={{ position: 'relative', flex: 1 }}>
                 {msgMention.query !== null && (
                   <MentionDropdown
@@ -7900,8 +7880,6 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
   const [newPost, setNewPost] = useState('')
   const [cpMediaFiles, setCpMediaFiles] = useState([])
   const [cpMediaPreviews, setCpMediaPreviews] = useState([])
-  const [cpMediaPopup, setCpMediaPopup] = useState(false)
-  const cpFileInputRef = useRef(null)
   const [companyPosts, setCompanyPosts] = useState([])
   const [companyJobs, setCompanyJobs] = useState([])
   const [postsLoading, setPostsLoading] = useState(true)
@@ -8036,7 +8014,6 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
         setNewPost('')
         setCpMediaFiles([])
         setCpMediaPreviews([])
-        if (cpFileInputRef.current) cpFileInputRef.current.value = ''
       })
       .catch(() => {})
   }
@@ -8121,9 +8098,6 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
         <>
           {(isOwner || company.role === 'admin' || company.role === 'editor') && (
             <div className="p-card" style={{ marginBottom: 12 }}>
-              <input ref={cpFileInputRef} type="file"
-                accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
-                multiple style={{ display: 'none' }} onChange={handleCpFileSelect} />
               <div className="p-new-post-row">
                 <div style={{ width: 36, height: 36, borderRadius: 8, background: company.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 16, flexShrink: 0 }}>
                   {company.name[0]}
@@ -8151,31 +8125,10 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
               )}
               <div className="p-new-post-actions">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div className="p-media-popup-wrap">
-                    <button
-                      className={`p-media-popup-btn${cpMediaPopup ? ' active' : ''}`}
-                      onMouseDown={e => e.preventDefault()}
-                      onClick={() => setCpMediaPopup(p => !p)}
-                      title={lang === 'da' ? 'Tilføj medie' : 'Add media'}
-                    >
-                      +
-                    </button>
-                    {cpMediaPopup && (
-                      <>
-                        <div className="p-share-backdrop" onClick={() => setCpMediaPopup(false)} />
-                        <div className="p-share-popup p-media-popup">
-                          <button className="p-share-option" onMouseDown={e => e.preventDefault()} onClick={() => { cpFileInputRef.current?.click(); setCpMediaPopup(false) }}>
-                            <span className="p-media-popup-icon">🖼️</span>
-                            {lang === 'da' ? 'Galleri' : 'Gallery'}
-                          </button>
-                          <button className="p-share-option" onMouseDown={e => e.preventDefault()} onClick={() => { setCpMediaPopup(false); openCamera(handleCpFileSelect) }}>
-                            <span className="p-media-popup-icon">📷</span>
-                            {lang === 'da' ? 'Kamera' : 'Camera'}
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
+                  <MediaPickerButton
+                    lang={lang}
+                    onFiles={files => handleCpFileSelect({ target: { files } })}
+                  />
                 </div>
                 <button
                   className="p-post-btn"
@@ -9297,7 +9250,7 @@ const MOCK_LISTINGS = [
   { id: 6, title: { da: 'Weber kuglegrill — 57 cm', en: 'Weber kettle grill — 57 cm' }, price: 600, priceNegotiable: true, description: { da: 'Weber One-Touch 57 cm. Brugt 2 sæsoner, ellers i perfekt stand.', en: 'Weber One-Touch 57cm. Used 2 seasons, otherwise in perfect condition.' }, category: 'garden', location: 'Hellerup', photos: [], seller: 'Liam Madsen', sellerId: 'mock-liam', postedAt: '2026-02-12', sold: false },
 ]
 
-function MarketplacePage({ lang, t, currentUser, onContactSeller, onViewProfile }) {
+function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller, onViewProfile }) {
   const [tab, setTab] = useState('browse')
   const [listings, setListings] = useState(MOCK_LISTINGS)
   const [myListings, setMyListings] = useState([])
@@ -9597,6 +9550,7 @@ function MarketplacePage({ lang, t, currentUser, onContactSeller, onViewProfile 
           listingTitle={listingTitle}
           listingDesc={listingDesc}
           formError={formError}
+          maxPhotos={maxPhotos}
           onClose={() => { setShowForm(false); setEditListing(null); setFormError(null) }}
           onSubmit={editListing ? handleUpdate : handleCreate}
         />
@@ -9741,7 +9695,7 @@ function ListingDetailModal({ listing, t, lang, currentUser, catLabel, catIcon, 
   )
 }
 
-function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, formError, onClose, onSubmit }) {
+function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, formError, maxPhotos = 4, onClose, onSubmit }) {
   const isEdit = !!listing
   const sanitize = (v) => (!v || v === '[object Object]') ? '' : v
   const [title, setTitle]           = useState(isEdit ? sanitize(listingTitle(listing)) : '')
@@ -9757,13 +9711,17 @@ function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, formErr
   const [photoPreviews, setPhotoPreviews] = useState(
     isEdit ? (listing.photos || []).map(p => p.url || p) : []
   )
-  const fileInputRef = useRef(null)
+  const addFiles = (files) => {
+    const toAdd = Array.from(files).filter(f => f.type.startsWith('image/')).slice(0, maxPhotos - photoPreviews.length)
+    if (!toAdd.length) return
+    setPhotoFiles(prev => [...prev, ...toAdd].slice(0, maxPhotos))
+    setPhotoPreviews(prev => [...prev, ...toAdd.map(f => URL.createObjectURL(f))].slice(0, maxPhotos))
+  }
 
-  const handlePhotos = (e) => {
-    const files = Array.from(e.target.files).slice(0, 4 - photoPreviews.length)
-    if (!files.length) return
-    setPhotoFiles(prev => [...prev, ...files].slice(0, 4))
-    setPhotoPreviews(prev => [...prev, ...files.map(f => URL.createObjectURL(f))].slice(0, 4))
+  const handlePaste = (e) => {
+    const items = Array.from(e.clipboardData?.items || [])
+    const imageFiles = items.filter(i => i.kind === 'file' && i.type.startsWith('image/')).map(i => i.getAsFile())
+    if (imageFiles.length) { e.preventDefault(); addFiles(imageFiles) }
   }
 
   const removePhoto = (i) => {
@@ -9826,7 +9784,7 @@ function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, formErr
           <span>{isEdit ? t.marketplaceEditTitle : t.marketplaceFormTitle}</span>
           <button className="p-msg-modal-close" onClick={onClose}>✕</button>
         </div>
-        <form onSubmit={handleSubmit} style={{ padding: '16px 20px 20px', overflowY: 'auto', maxHeight: 'calc(90vh - 60px)' }}>
+        <form onSubmit={handleSubmit} onPaste={handlePaste} style={{ padding: '16px 20px 20px', overflowY: 'auto', maxHeight: 'calc(90vh - 60px)' }}>
           <label style={lS}>{t.marketplaceFieldTitle}</label>
           <input style={fS} value={title} onChange={e => setTitle(e.target.value)} placeholder={lang === 'da' ? 'Hvad sælger du?' : 'What are you selling?'} required />
 
@@ -9881,7 +9839,7 @@ function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, formErr
           <label style={lS}>{t.marketplaceFieldDescription}</label>
           <textarea style={{ ...fS, minHeight: 80, resize: 'vertical' }} value={description} onChange={e => setDescription(e.target.value)} placeholder={lang === 'da' ? 'Beskriv varen...' : 'Describe the item...'} />
 
-          <label style={lS}>{t.marketplaceFieldPhotos}</label>
+          <label style={lS}>{t.marketplaceFieldPhotos} <span style={{ fontWeight: 400, color: '#999' }}>({lang === 'da' ? `maks. ${maxPhotos}` : `max ${maxPhotos}`})</span></label>
           <div className="p-listing-photo-upload-row">
             {photoPreviews.map((src, i) => (
               <div key={i} className="p-listing-upload-thumb">
@@ -9889,14 +9847,20 @@ function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, formErr
                 <button type="button" className="p-listing-upload-remove" onClick={() => removePhoto(i)}>✕</button>
               </div>
             ))}
-            {photoPreviews.length < 4 && (
-              <button type="button" className="p-listing-upload-add" onClick={() => fileInputRef.current?.click()}>
-                <span>📷</span>
-                <span>{lang === 'da' ? 'Tilføj foto' : 'Add photo'}</span>
-              </button>
+            {photoPreviews.length < maxPhotos && (
+              <MediaPickerButton
+                lang={lang}
+                accept="image/*"
+                onFiles={addFiles}
+                buttonContent={<><span>📷</span><span style={{ fontSize: 11, marginTop: 2 }}>{lang === 'da' ? 'Tilføj foto' : 'Add photo'}</span></>}
+              />
             )}
           </div>
-          <input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handlePhotos} />
+          {photoPreviews.length < maxPhotos && (
+            <div style={{ fontSize: 11, color: '#aaa', marginTop: 4 }}>
+              {lang === 'da' ? '💡 Du kan også indsætte billeder med Ctrl+V' : '💡 You can also paste images with Ctrl+V'}
+            </div>
+          )}
 
           {formError && (
             <div style={{ background: '#fff0f0', border: '1px solid #f5c6c6', borderRadius: 8, padding: '10px 14px', marginTop: 12, fontSize: 13, color: '#c0392b' }}>
@@ -10161,16 +10125,16 @@ function AdsManagementPage({ lang, t }) {
               <input style={fieldStyle} value={form.image_url} onChange={e => setForm(f => ({ ...f, image_url: e.target.value }))} placeholder="https://..." />
               <label style={labelStyle}>{t.adsAdTarget} *</label>
               <input required style={fieldStyle} value={form.target_url} onChange={e => setForm(f => ({ ...f, target_url: e.target.value }))} placeholder="https://..." />
-              <label style={labelStyle}>{t.adsPlacement}</label>
-              <select style={fieldStyle} value={form.placement} onChange={e => setForm(f => ({ ...f, placement: e.target.value }))}>
-                <option value="feed">{t.adsFeed}</option>
-                <option value="sidebar">{t.adsSidebar}</option>
-                <option value="stories">{t.adsStories}</option>
-              </select>
               <label style={labelStyle}>{t.adsAdStartDate}</label>
-              <input type="date" style={fieldStyle} value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} />
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input type="date" style={{ ...fieldStyle, flex: 1 }} value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} />
+                <button type="button" onClick={() => setForm(f => ({ ...f, start_date: new Date().toISOString().slice(0,10) }))} style={{ whiteSpace: 'nowrap', fontSize: 11, padding: '6px 8px', borderRadius: 6, border: '1px solid #ccc', background: '#f5f5f5', cursor: 'pointer' }}>{lang === 'da' ? 'I dag' : 'Today'}</button>
+              </div>
               <label style={labelStyle}>{t.adsAdEndDate}</label>
-              <input type="date" style={fieldStyle} value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} />
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input type="date" style={{ ...fieldStyle, flex: 1 }} value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} />
+                <button type="button" onClick={() => { const d = new Date(); d.setDate(d.getDate() + 30); setForm(f => ({ ...f, end_date: d.toISOString().slice(0,10) })) }} style={{ whiteSpace: 'nowrap', fontSize: 11, padding: '6px 8px', borderRadius: 6, border: '1px solid #ccc', background: '#f5f5f5', cursor: 'pointer' }}>+30 {lang === 'da' ? 'dage' : 'days'}</button>
+              </div>
               <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
                 <button type="submit" disabled={saving} style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>{saving ? '…' : t.adsSave}</button>
                 <button type="button" onClick={() => setShowCreate(false)} style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: '1px solid #ddd', background: 'none', fontSize: 14, cursor: 'pointer' }}>{t.adsCancel}</button>
@@ -10191,9 +10155,11 @@ function AdminAdSettingsPanel({ lang, t }) {
   const [settings, setSettings] = useState(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [adStats, setAdStats] = useState([])
 
   useEffect(() => {
     apiGetAdminAdSettings().then(data => { if (data?.settings) setSettings(data.settings) }).catch(() => {})
+    apiGetAdminAdStats().then(data => { if (data?.stats) setAdStats(data.stats) }).catch(() => {})
   }, [])
 
   const handle = (key, val) => setSettings(s => ({ ...s, [key]: val }))
@@ -11499,7 +11465,7 @@ function AdminPage({ lang, t }) {
     mollie_api_key: '',
     pwd_min_length: '6', pwd_require_uppercase: '0', pwd_require_lowercase: '0',
     pwd_require_numbers: '0', pwd_require_symbols: '0',
-    media_max_files: '4', registration_open: '1',
+    media_max_files: '4', marketplace_max_photos: '4', registration_open: '1',
   })
   const [status, setStatus] = useState('idle') // idle | saving | saved
   const [stats, setStats] = useState(null)
@@ -11539,6 +11505,8 @@ function AdminPage({ lang, t }) {
   const [revealKeyLoading, setRevealKeyLoading] = useState(false)
   const [revealKeyError, setRevealKeyError] = useState(null)
   const [revealedMollieKey, setRevealedMollieKey] = useState(null)
+  const [replaceKeyMode, setReplaceKeyMode] = useState(false)
+  const [newKeyValue, setNewKeyValue] = useState('')
 
   function showModToast(msg) { setModToast(msg); setTimeout(() => setModToast(null), 3000) }
 
@@ -11886,25 +11854,59 @@ function AdminPage({ lang, t }) {
                         <button type="button" onClick={() => setRevealedMollieKey(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#888' }}>✕</button>
                       </div>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => { setForm(prev => ({ ...prev, mollie_api_key: '' })); setRevealedMollieKey(null) }}
-                      style={{ marginTop: 6, background: 'none', border: 'none', color: '#e03131', fontSize: 12, cursor: 'pointer', padding: 0 }}
-                    >
-                      {lang === 'da' ? '× Erstat nøgle' : '× Replace key'}
-                    </button>
+                    {!replaceKeyMode ? (
+                      <button
+                        type="button"
+                        onClick={() => { setReplaceKeyMode(true); setNewKeyValue(''); setRevealedMollieKey(null) }}
+                        style={{ marginTop: 6, background: 'none', border: 'none', color: '#e03131', fontSize: 12, cursor: 'pointer', padding: 0 }}
+                      >
+                        {lang === 'da' ? '× Erstat nøgle' : '× Replace key'}
+                      </button>
+                    ) : (
+                      <div style={{ marginTop: 8, padding: '12px 14px', background: '#FFF5F5', border: '1px solid #f5c6c6', borderRadius: 8 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: '#c0392b' }}>
+                          ✏️ {lang === 'da' ? 'Skriv eller indsæt den nye Mollie API-nøgle' : 'Type or paste the new Mollie API key'}
+                        </div>
+                        <input
+                          autoFocus
+                          style={{ ...fS, fontFamily: 'monospace' }}
+                          type="text"
+                          placeholder="live_xxxxxxxxxxxxxxxxxxxxxxxx"
+                          value={newKeyValue}
+                          onChange={e => setNewKeyValue(e.target.value)}
+                          autoComplete="off"
+                        />
+                        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                          <button
+                            type="button"
+                            disabled={!newKeyValue.trim()}
+                            onClick={() => {
+                              setForm(prev => ({ ...prev, mollie_api_key: newKeyValue.trim() }))
+                              setReplaceKeyMode(false)
+                              setNewKeyValue('')
+                            }}
+                            style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+                          >
+                            {lang === 'da' ? 'Sæt ny nøgle' : 'Set new key'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setReplaceKeyMode(false); setNewKeyValue('') }}
+                            style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', fontSize: 13, cursor: 'pointer' }}
+                          >
+                            {lang === 'da' ? 'Annuller' : 'Cancel'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <input
                     style={fS}
-                    type={revealedMollieKey ? 'text' : 'password'}
+                    type="text"
                     placeholder="live_xxxxxxxxxxxxxxxxxxxxxxxx"
-                    value={revealedMollieKey || form.mollie_api_key || ''}
-                    onChange={e => {
-                      const v = e.target.value
-                      setRevealedMollieKey(null)
-                      setForm(prev => ({ ...prev, mollie_api_key: v }))
-                    }}
+                    value={form.mollie_api_key || ''}
+                    onChange={e => setForm(prev => ({ ...prev, mollie_api_key: e.target.value }))}
                     autoComplete="off"
                   />
                 )}
@@ -11949,6 +11951,18 @@ function AdminPage({ lang, t }) {
                     onChange={e => setForm(prev => ({ ...prev, media_max_files: e.target.value }))}
                   />
                   <span style={{ fontSize: 13, color: '#888' }}>{lang === 'da' ? '(1–20 filer)' : '(1–20 files)'}</span>
+                </div>
+              </div>
+              <div>
+                <label style={lS}>{lang === 'da' ? 'Max antal fotos per annonce (marked)' : 'Max photos per listing (marketplace)'}</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <input
+                    style={{ ...fS, width: 100 }}
+                    type="number" min="1" max="20"
+                    value={form.marketplace_max_photos || '4'}
+                    onChange={e => setForm(prev => ({ ...prev, marketplace_max_photos: e.target.value }))}
+                  />
+                  <span style={{ fontSize: 13, color: '#888' }}>{lang === 'da' ? '(1–20 fotos)' : '(1–20 photos)'}</span>
                 </div>
               </div>
               <div>
