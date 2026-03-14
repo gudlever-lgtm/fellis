@@ -521,6 +521,13 @@ export async function apiSaveAdminSettings(data) {
   })
 }
 
+export async function apiRevealAdminKey(keyName, password) {
+  return await request('/api/admin/settings/reveal-key', {
+    method: 'POST',
+    body: JSON.stringify({ key_name: keyName, password }),
+  })
+}
+
 export async function apiGetAdminStats() {
   return await request('/api/admin/stats')
 }
