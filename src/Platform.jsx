@@ -10248,12 +10248,6 @@ function AdminAdSettingsPanel({ lang, t }) {
         <label style={lS}>{t.adminAdsRefresh}</label>
         <input type="number" min="30" style={{ ...iS, maxWidth: 120 }} value={settings.refresh_interval_seconds || ''} onChange={e => handle('refresh_interval_seconds', e.target.value)} />
 
-        <div style={{ fontWeight: 700, fontSize: 13, color: '#2D6A4F', marginTop: 20, paddingBottom: 6, borderBottom: '1px solid #eee' }}>Stripe Price IDs</div>
-        <label style={lS}>{t.adminAdsStripePricePrivate}</label>
-        <input style={iS} placeholder="price_..." value={settings.stripe_price_adfree_private || ''} onChange={e => handle('stripe_price_adfree_private', e.target.value)} />
-        <label style={lS}>{t.adminAdsStripePriceBusiness}</label>
-        <input style={iS} placeholder="price_..." value={settings.stripe_price_adfree_business || ''} onChange={e => handle('stripe_price_adfree_business', e.target.value)} />
-
         <button type="submit" disabled={saving} style={{ marginTop: 20, padding: '10px 24px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
           {saved ? t.adminAdsSaved : saving ? t.adminAdsSaving : t.adminAdsSave}
         </button>
@@ -11498,7 +11492,6 @@ function AdminPage({ lang, t }) {
   const [adminTab, setAdminTab] = useState('stats')
   const [form, setForm] = useState({
     mollie_api_key: '',
-    mollie_price_adfree_private: '', mollie_price_adfree_business: '', mollie_price_boost: '',
     pwd_min_length: '6', pwd_require_uppercase: '0', pwd_require_lowercase: '0',
     pwd_require_numbers: '0', pwd_require_symbols: '0',
     media_max_files: '4', registration_open: '1',
@@ -11824,89 +11817,12 @@ function AdminPage({ lang, t }) {
                 />
                 <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>{t.adminPaymentMollieKeyHint}</div>
               </div>
-              <div style={{ fontWeight: 700, fontSize: 13, color: '#2D6A4F', paddingBottom: 4, borderBottom: '1px solid #eee' }}>
-                {t.adminPaymentPriceIds}
-              </div>
-              <div>
-                <label style={lS}>{t.adminPaymentPriceAdFreePrivate}</label>
-                <input
-                  style={fS}
-                  type="text"
-                  placeholder={lang === 'da' ? 'f.eks. 29.00 DKK' : 'e.g. 29.00 DKK'}
-                  value={form.mollie_price_adfree_private || ''}
-                  onChange={e => setForm(prev => ({ ...prev, mollie_price_adfree_private: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label style={lS}>{t.adminPaymentPriceAdFreeBusiness}</label>
-                <input
-                  style={fS}
-                  type="text"
-                  placeholder={lang === 'da' ? 'f.eks. 49.00 DKK' : 'e.g. 49.00 DKK'}
-                  value={form.mollie_price_adfree_business || ''}
-                  onChange={e => setForm(prev => ({ ...prev, mollie_price_adfree_business: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label style={lS}>{t.adminPaymentPriceBoost}</label>
-                <input
-                  style={fS}
-                  type="text"
-                  placeholder={lang === 'da' ? 'f.eks. 19.00 DKK' : 'e.g. 19.00 DKK'}
-                  value={form.mollie_price_boost || ''}
-                  onChange={e => setForm(prev => ({ ...prev, mollie_price_boost: e.target.value }))}
-                />
-              </div>
             </div>
-            <div style={{ marginTop: 12, padding: '12px 14px', background: '#FFFBF0', border: '1px solid #FFE08A', borderRadius: 8, fontSize: 12, color: '#7A5C00', lineHeight: 1.6 }}>
+            <div style={{ marginTop: 12, padding: '12px 14px', background: '#F0F7FF', border: '1px solid #BDD8F9', borderRadius: 8, fontSize: 12, color: '#2C4A6E', lineHeight: 1.6 }}>
+              💡 {lang === 'da' ? 'Priser for reklamefrit abonnement og Boost sættes under Annoncestyring.' : 'Prices for ad-free subscriptions and Boost are set under Ads management.'}
+            </div>
+            <div style={{ marginTop: 8, padding: '12px 14px', background: '#FFFBF0', border: '1px solid #FFE08A', borderRadius: 8, fontSize: 12, color: '#7A5C00', lineHeight: 1.6 }}>
               ⚙️ {t.adminPaymentEnvNote}
-            </div>
-            <div style={{ marginTop: 20 }}>
-              <button
-                type="submit"
-                disabled={status === 'saving'}
-                style={{ padding: '10px 24px', borderRadius: 8, border: 'none', background: status === 'saved' ? '#40916C' : '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}
-              >
-                {status === 'saving' ? t.adminSaving : status === 'saved' ? t.adminSaved : t.adminSave}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {adminTab === 'platform' && (
-        <div className="p-card" style={{ marginBottom: 20, padding: '20px 24px' }}>
-          <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700 }}>🔒 {lang === 'da' ? 'Adgangskodepolitik' : 'Password policy'}</h3>
-          <p style={{ margin: '0 0 20px', fontSize: 13, color: '#666' }}>
-            {lang === 'da' ? 'Krav der gælder ved oprettelse, nulstilling og skift af adgangskode.' : 'Requirements enforced on registration, reset, and password change.'}
-          </p>
-          <form onSubmit={handleSave}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div>
-                <label style={lS}>{lang === 'da' ? 'Minimumslængde' : 'Minimum length'}</label>
-                <input
-                  style={{ ...fS, width: 120 }}
-                  type="number" min="4" max="64"
-                  value={form.pwd_min_length || '6'}
-                  onChange={e => setForm(prev => ({ ...prev, pwd_min_length: e.target.value }))}
-                />
-              </div>
-              {[
-                { key: 'pwd_require_uppercase', da: 'Kræv stort bogstav (A–Z)', en: 'Require uppercase letter (A–Z)' },
-                { key: 'pwd_require_lowercase', da: 'Kræv lille bogstav (a–z)', en: 'Require lowercase letter (a–z)' },
-                { key: 'pwd_require_numbers',   da: 'Kræv tal (0–9)',           en: 'Require number (0–9)' },
-                { key: 'pwd_require_symbols',   da: 'Kræv specialtegn (!@#$…)', en: 'Require symbol (!@#$…)' },
-              ].map(({ key, da, en }) => (
-                <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
-                  <input
-                    type="checkbox"
-                    checked={form[key] === '1'}
-                    onChange={e => setForm(prev => ({ ...prev, [key]: e.target.checked ? '1' : '0' }))}
-                    style={{ width: 16, height: 16, accentColor: '#2D6A4F', cursor: 'pointer' }}
-                  />
-                  {lang === 'da' ? da : en}
-                </label>
-              ))}
             </div>
             <div style={{ marginTop: 20 }}>
               <button
@@ -11941,6 +11857,21 @@ function AdminPage({ lang, t }) {
                   />
                   <span style={{ fontSize: 13, color: '#888' }}>{lang === 'da' ? '(1–20 filer)' : '(1–20 files)'}</span>
                 </div>
+              </div>
+              <div>
+                <label style={lS}>Google Photos Client ID</label>
+                <input
+                  style={fS}
+                  type="text"
+                  placeholder="123456789-abc.apps.googleusercontent.com"
+                  value={form.google_photos_client_id || ''}
+                  onChange={e => setForm(prev => ({ ...prev, google_photos_client_id: e.target.value }))}
+                />
+                <span style={{ fontSize: 12, color: '#888', marginTop: 4, display: 'block' }}>
+                  {lang === 'da'
+                    ? 'OAuth 2.0 Client ID fra Google Cloud Console. Aktiverer Google Fotos i oprettelsesboksen.'
+                    : 'OAuth 2.0 Client ID from Google Cloud Console. Enables Google Photos in the post creator.'}
+                </span>
               </div>
             </div>
           </div>

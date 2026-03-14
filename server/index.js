@@ -4801,12 +4801,13 @@ app.get('/api/admin/settings', authenticate, requireAdmin, async (req, res) => {
 
 // POST /api/admin/settings — save Stripe config (admin only)
 app.post('/api/admin/settings', authenticate, requireAdmin, async (req, res) => {
-  const allowed = ['stripe_secret_key', 'stripe_pub_key', 'stripe_webhook_secret', 'stripe_price_pro_monthly', 'stripe_price_pro_yearly', 'stripe_price_boost', 'pwd_min_length', 'pwd_require_uppercase', 'pwd_require_lowercase', 'pwd_require_numbers', 'pwd_require_symbols']
+  const allowed = ['stripe_secret_key', 'stripe_pub_key', 'stripe_webhook_secret', 'stripe_price_pro_monthly', 'stripe_price_pro_yearly', 'stripe_price_boost', 'pwd_min_length', 'pwd_require_uppercase', 'pwd_require_lowercase', 'pwd_require_numbers', 'pwd_require_symbols', 'google_photos_client_id', 'media_max_files', 'registration_open', 'mollie_api_key']
   try {
     for (const [key, value] of Object.entries(req.body)) {
       if (!allowed.includes(key)) continue
-      // pwd_ keys are always saved (value can be '0'); skip only masked/empty Stripe secrets
-      if (!key.startsWith('pwd_')) {
+      // pwd_, media_, registration_ and google_ keys are always saved (value can be '0'/'')
+      const alwaysSave = key.startsWith('pwd_') || key.startsWith('media_') || key.startsWith('registration_') || key.startsWith('google_') || key === 'mollie_api_key'
+      if (!alwaysSave) {
         if (!value || value === '••••••••' + (value || '').slice(-4)) continue // skip masked/empty
       }
       await pool.query('INSERT INTO admin_settings (key_name, key_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE key_value = VALUES(key_value)', [key, value])
@@ -5769,7 +5770,7 @@ app.patch('/api/profile', authenticate, async (req, res) => {
 app.get('/api/config', async (req, res) => {
   try {
     const [rows] = await pool.query(
-      "SELECT key_name, key_value FROM admin_settings WHERE key_name IN ('stripe_pub_key')"
+      "SELECT key_name, key_value FROM admin_settings WHERE key_name IN ('stripe_pub_key','google_photos_client_id','media_max_files')"
     )
     const cfg = {}
     for (const r of rows) cfg[r.key_name] = r.key_value
@@ -5777,6 +5778,10 @@ app.get('/api/config', async (req, res) => {
       cfg.fb_app_id = process.env.FB_APP_ID
       cfg.facebookEnabled = true
     }
+    // Google Photos Client ID: env var takes priority, then admin_settings
+    const googleClientId = process.env.GOOGLE_CLIENT_ID || cfg.google_photos_client_id || null
+    if (googleClientId) cfg.googlePhotosClientId = googleClientId
+    if (cfg.media_max_files) cfg.mediaMaxFiles = parseInt(cfg.media_max_files, 10) || 4
     res.json({ config: cfg, facebookEnabled: !!process.env.FB_APP_ID })
   } catch { res.json({ config: {}, facebookEnabled: false }) }
 })
