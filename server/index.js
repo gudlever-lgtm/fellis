@@ -4795,10 +4795,18 @@ app.get('/api/admin/settings', authenticate, requireAdmin, async (req, res) => {
     if (process.env.MOLLIE_API_KEY && !settings.mollie_api_key) {
       settings.mollie_api_key = process.env.MOLLIE_API_KEY
     }
-    // Mask secrets — return only whether they are set, not the actual values
+    // Mask secrets — show first 4 chars for API keys, fully mask other secrets
+    const API_KEY_FIELDS = ['mollie_api_key', 'stripe_secret_key', 'stripe_webhook_secret']
     const masked = {}
     for (const [k, v] of Object.entries(settings)) {
-      masked[k] = v ? (k.includes('secret') || k.includes('Secret') ? '••••••••' + v.slice(-4) : v) : ''
+      if (!v) { masked[k] = ''; continue }
+      if (API_KEY_FIELDS.includes(k)) {
+        masked[k] = v.slice(0, 4) + '•'.repeat(Math.max(0, v.length - 4))
+      } else if (k.includes('secret') || k.includes('Secret')) {
+        masked[k] = '••••••••' + v.slice(-4)
+      } else {
+        masked[k] = v
+      }
     }
     res.json({ settings: masked })
   } catch (err) {
@@ -4822,6 +4830,31 @@ app.post('/api/admin/settings', authenticate, requireAdmin, async (req, res) => 
     res.json({ ok: true })
   } catch (err) {
     res.status(500).json({ error: 'Failed to save settings' })
+  }
+})
+
+// POST /api/admin/settings/reveal-key — verify admin password then return full key value
+app.post('/api/admin/settings/reveal-key', authenticate, requireAdmin, async (req, res) => {
+  const REVEALABLE = ['mollie_api_key', 'stripe_secret_key', 'stripe_webhook_secret']
+  const { key_name, password } = req.body
+  if (!key_name || !password) return res.status(400).json({ error: 'key_name and password required' })
+  if (!REVEALABLE.includes(key_name)) return res.status(403).json({ error: 'Not revealable' })
+  try {
+    // Verify admin password
+    const [[user]] = await pool.query('SELECT password_hash FROM users WHERE id = ?', [req.userId])
+    const hash = crypto.createHash('sha256').update(password).digest('hex')
+    if (hash !== user?.password_hash) return res.status(401).json({ error: 'Forkert adgangskode' })
+    // Return full value: env var or DB
+    let value = null
+    if (key_name === 'mollie_api_key') value = process.env.MOLLIE_API_KEY || null
+    if (!value) {
+      const [[row]] = await pool.query('SELECT key_value FROM admin_settings WHERE key_name = ?', [key_name])
+      value = row?.key_value || null
+    }
+    if (!value) return res.status(404).json({ error: 'Nøgle ikke sat' })
+    res.json({ value })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
   }
 })
 
@@ -6373,14 +6406,66 @@ app.patch('/api/admin/moderation/users/:id/candidate', authenticate, requireAdmi
   if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' })
   const { is_candidate, note } = req.body
   try {
+    // When denying (is_candidate=false with a note), prefix note with [denied] so user sees denial state
+    const storedNote = is_candidate ? (note || null) : (note ? `[denied] ${note}` : null)
     await pool.query(
-      `UPDATE users SET moderator_candidate = ?, moderator_candidate_note = ?, moderator_candidate_at = ? WHERE id = ?`,
-      [is_candidate ? 1 : 0, is_candidate ? (note || null) : null, is_candidate ? new Date() : null, id]
+      `UPDATE users SET moderator_candidate = ?, moderator_candidate_note = ?, moderator_candidate_at = NOW() WHERE id = ?`,
+      [is_candidate ? 1 : 0, storedNote, id]
     )
     res.json({ ok: true })
   } catch (err) {
     console.error('PATCH /api/admin/moderation/users/:id/candidate error:', err)
     res.status(500).json({ error: 'Failed to update candidate status' })
+  }
+})
+
+// ── User-facing moderator request flow ────────────────────────────────────────
+
+// GET /api/moderation/my-request — get current user's own moderator request status
+app.get('/api/moderation/my-request', authenticate, async (req, res) => {
+  try {
+    const [[user]] = await pool.query(
+      'SELECT is_moderator, moderator_candidate, moderator_candidate_note, moderator_candidate_at FROM users WHERE id = ?',
+      [req.userId]
+    )
+    if (!user) return res.status(404).json({ error: 'User not found' })
+    const isModerator = Boolean(user.is_moderator)
+    let request = null
+    if (user.moderator_candidate === 1) {
+      request = { status: 'pending', reason: user.moderator_candidate_note, created_at: user.moderator_candidate_at }
+    } else if (user.moderator_candidate_note?.startsWith('[denied]')) {
+      request = { status: 'denied', reason: user.moderator_candidate_note.slice(8).trim(), created_at: user.moderator_candidate_at }
+    }
+    res.json({ isModerator, request })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/moderation/request — submit a moderator request
+app.post('/api/moderation/request', authenticate, async (req, res) => {
+  const { reason } = req.body
+  try {
+    await pool.query(
+      'UPDATE users SET moderator_candidate = 1, moderator_candidate_note = ?, moderator_candidate_at = NOW() WHERE id = ?',
+      [reason || '', req.userId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// DELETE /api/moderation/request — withdraw a moderator request
+app.delete('/api/moderation/request', authenticate, async (req, res) => {
+  try {
+    await pool.query(
+      'UPDATE users SET moderator_candidate = 0, moderator_candidate_note = NULL, moderator_candidate_at = NULL WHERE id = ?',
+      [req.userId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
   }
 })
 

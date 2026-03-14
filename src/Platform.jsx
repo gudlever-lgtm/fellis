@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } from 'react'
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { PT, SUPPORTED_LANGS, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetMollieStatus, apiCreateMolliePayment, apiFetchMemories, apiApplyToJob, apiGetJobApplications, apiUpdateJobApplication, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetMollieStatus, apiCreateMolliePayment, apiFetchMemories, apiApplyToJob, apiGetJobApplications, apiUpdateJobApplication, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead } from './api.js'
 import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
 import ReelsPage from './Reels.jsx'
@@ -4347,8 +4347,11 @@ function AboutPage({ lang }) {
           ? <div style={{ padding: '16px 20px', fontSize: 13, color: '#aaa' }}>{t.changelogEmpty}</div>
           : changelog.map((entry, i) => (
               <div key={i} style={{ padding: '10px 20px', fontSize: 13, color: '#333', borderBottom: i < changelog.length - 1 ? '1px solid #f0f0f0' : 'none', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                <span style={{ color: '#b7dfc9', fontWeight: 700, flexShrink: 0 }}>·</span>
-                {entry}
+                <span style={{ flexShrink: 0 }}>{entry.icon || '·'}</span>
+                <span style={{ flex: 1 }}>
+                  <span style={{ color: '#aaa', fontSize: 11, marginRight: 8 }}>{entry.date}</span>
+                  {entry.text || entry}
+                </span>
               </div>
             ))
         }
@@ -11531,6 +11534,11 @@ function AdminPage({ lang, t }) {
   const [modGrantSearch, setModGrantSearch] = useState('')
   const [modGrantResults, setModGrantResults] = useState([])
   const [modDenyReason, setModDenyReason] = useState({})
+  const [revealKeyPwd, setRevealKeyPwd] = useState('')
+  const [revealKeyShow, setRevealKeyShow] = useState(false)
+  const [revealKeyLoading, setRevealKeyLoading] = useState(false)
+  const [revealKeyError, setRevealKeyError] = useState(null)
+  const [revealedMollieKey, setRevealedMollieKey] = useState(null)
 
   function showModToast(msg) { setModToast(msg); setTimeout(() => setModToast(null), 3000) }
 
@@ -11809,14 +11817,97 @@ function AdminPage({ lang, t }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
                 <label style={lS}>{t.adminPaymentMollieKey}</label>
-                <input
-                  style={fS}
-                  type="password"
-                  placeholder="live_xxxxxxxxxxxxxxxxxxxxxxxx"
-                  value={form.mollie_api_key || ''}
-                  onChange={e => setForm(prev => ({ ...prev, mollie_api_key: e.target.value }))}
-                  autoComplete="off"
-                />
+                {/* Show masked key with reveal option if already set, otherwise allow entry */}
+                {form.mollie_api_key && !revealedMollieKey ? (
+                  <div>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <input
+                        style={{ ...fS, fontFamily: 'monospace', letterSpacing: 1, color: '#555', background: '#f9f9f9' }}
+                        type="text"
+                        readOnly
+                        value={form.mollie_api_key}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => { setRevealKeyShow(true); setRevealKeyError(null); setRevealKeyPwd('') }}
+                        style={{ padding: '9px 14px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+                      >
+                        🔍 {lang === 'da' ? 'Vis nøgle' : 'Show key'}
+                      </button>
+                    </div>
+                    {revealKeyShow && (
+                      <div style={{ marginTop: 8, padding: '12px 14px', background: '#FFFBF0', border: '1px solid #FFE08A', borderRadius: 8 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
+                          🔒 {lang === 'da' ? 'Bekræft din adgangskode for at se den fulde nøgle' : 'Confirm your password to reveal the full key'}
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                          <input
+                            type="password"
+                            autoFocus
+                            style={{ ...fS, width: 220 }}
+                            placeholder={lang === 'da' ? 'Adgangskode' : 'Password'}
+                            value={revealKeyPwd}
+                            onChange={e => setRevealKeyPwd(e.target.value)}
+                            onKeyDown={async e => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault()
+                                setRevealKeyLoading(true); setRevealKeyError(null)
+                                const res = await apiRevealAdminKey('mollie_api_key', revealKeyPwd)
+                                setRevealKeyLoading(false)
+                                if (res?.value) { setRevealedMollieKey(res.value); setRevealKeyShow(false); setRevealKeyPwd('') }
+                                else setRevealKeyError(res?.error || (lang === 'da' ? 'Forkert adgangskode' : 'Wrong password'))
+                              }
+                            }}
+                          />
+                          <button
+                            type="button"
+                            disabled={revealKeyLoading || !revealKeyPwd}
+                            onClick={async () => {
+                              setRevealKeyLoading(true); setRevealKeyError(null)
+                              const res = await apiRevealAdminKey('mollie_api_key', revealKeyPwd)
+                              setRevealKeyLoading(false)
+                              if (res?.value) { setRevealedMollieKey(res.value); setRevealKeyShow(false); setRevealKeyPwd('') }
+                              else setRevealKeyError(res?.error || (lang === 'da' ? 'Forkert adgangskode' : 'Wrong password'))
+                            }}
+                            style={{ padding: '9px 14px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+                          >
+                            {revealKeyLoading ? '…' : (lang === 'da' ? 'Vis' : 'Reveal')}
+                          </button>
+                          <button type="button" onClick={() => { setRevealKeyShow(false); setRevealKeyPwd('') }} style={{ padding: '9px 14px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', fontSize: 13, cursor: 'pointer' }}>
+                            {lang === 'da' ? 'Annuller' : 'Cancel'}
+                          </button>
+                        </div>
+                        {revealKeyError && <div style={{ fontSize: 12, color: '#e03131', marginTop: 6 }}>⚠️ {revealKeyError}</div>}
+                      </div>
+                    )}
+                    {revealedMollieKey && (
+                      <div style={{ marginTop: 8, padding: '10px 14px', background: '#F0FAF4', border: '1px solid #c3e6cb', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <code style={{ fontSize: 12, flex: 1, wordBreak: 'break-all', color: '#2D6A4F' }}>{revealedMollieKey}</code>
+                        <button type="button" onClick={() => setRevealedMollieKey(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#888' }}>✕</button>
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => { setForm(prev => ({ ...prev, mollie_api_key: '' })); setRevealedMollieKey(null) }}
+                      style={{ marginTop: 6, background: 'none', border: 'none', color: '#e03131', fontSize: 12, cursor: 'pointer', padding: 0 }}
+                    >
+                      {lang === 'da' ? '× Erstat nøgle' : '× Replace key'}
+                    </button>
+                  </div>
+                ) : (
+                  <input
+                    style={fS}
+                    type={revealedMollieKey ? 'text' : 'password'}
+                    placeholder="live_xxxxxxxxxxxxxxxxxxxxxxxx"
+                    value={revealedMollieKey || form.mollie_api_key || ''}
+                    onChange={e => {
+                      const v = e.target.value
+                      setRevealedMollieKey(null)
+                      setForm(prev => ({ ...prev, mollie_api_key: v }))
+                    }}
+                    autoComplete="off"
+                  />
+                )}
                 <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>{t.adminPaymentMollieKeyHint}</div>
               </div>
             </div>

@@ -521,8 +521,26 @@ export async function apiSaveAdminSettings(data) {
   })
 }
 
+export async function apiRevealAdminKey(keyName, password) {
+  return await request('/api/admin/settings/reveal-key', {
+    method: 'POST',
+    body: JSON.stringify({ key_name: keyName, password }),
+  })
+}
+
 export async function apiGetAdminStats() {
   return await request('/api/admin/stats')
+}
+
+// ── User moderator request ────────────────────────────────────────────────────
+export async function apiGetMyModeratorRequest() {
+  return await request('/api/moderation/my-request')
+}
+export async function apiRequestModeratorStatus(reason) {
+  return await request('/api/moderation/request', { method: 'POST', body: JSON.stringify({ reason }) })
+}
+export async function apiWithdrawModeratorRequest() {
+  return await request('/api/moderation/request', { method: 'DELETE' })
 }
 
 export async function apiGetAnalytics(days = 30) {
