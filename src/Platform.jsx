@@ -1,11 +1,12 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } from 'react'
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { PT, SUPPORTED_LANGS, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiExchangeGoogleCode, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiFetchMemories, apiApplyToJob, apiGetJobApplications, apiUpdateJobApplication, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiExchangeGoogleCode, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiFetchMemories, apiApplyToJob, apiGetJobApplications, apiUpdateJobApplication, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiAdminGetPlatformAds, apiAdminCreatePlatformAd, apiAdminUpdatePlatformAd, apiAdminDeletePlatformAd } from './api.js'
 import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
 import ReelsPage from './Reels.jsx'
 import AdBanner from './AdBanner.jsx'
+import AdSidebar from './components/AdSidebar.jsx'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -297,7 +298,8 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
         </div>
       </nav>
 
-      <div className="p-content">
+      <div style={{ display: 'flex', alignItems: 'flex-start', maxWidth: 960, margin: '0 auto', padding: '0 8px' }}>
+      <div className="p-content" style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: page === 'feed' ? '' : 'none' }}>
           <FeedPage lang={lang} t={t} currentUser={currentUser} mode={mode} adsFree={adsFree} highlightPostId={highlightPostId} onHighlightCleared={() => setHighlightPostId(null)}
             onViewProfile={(uid) => { setViewUserId(uid); navigateTo('view-profile') }}
@@ -351,6 +353,9 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
             onNavigateToCompany={(id) => navigateTo('company', id ? { companyId: id } : null)}
           />
         )}
+      </div>
+      {/* Right sidebar — display ads, desktop only (hidden on mobile via AdSidebar internals) */}
+      <AdSidebar mode={mode} adsFree={adsFree} />
       </div>
 
       {/* Onboarding welcome tour — shown only once for new accounts */}
@@ -11459,6 +11464,200 @@ function ReportModal({ t, targetType, targetId, onClose }) {
   )
 }
 
+// ── Admin Platform Ads Panel ──────────────────────────────────────────────────
+// Manages platform-level display/native/sticky ads (zone-based, admin only).
+function AdminPlatformAdsPanel({ lang }) {
+  const da = lang === 'da'
+  const [ads, setAds] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [editingId, setEditingId] = useState(null)
+  const [showForm, setShowForm] = useState(false)
+  const EMPTY_FORM = { title: '', image_url: '', link_url: '', zone: 'display', mode: 'all', active: true, start_date: '', end_date: '' }
+  const [form, setForm] = useState(EMPTY_FORM)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const load = () => {
+    setLoading(true)
+    apiAdminGetPlatformAds().then(data => {
+      setAds(data?.ads || [])
+      setLoading(false)
+    }).catch(() => setLoading(false))
+  }
+
+  useEffect(() => { load() }, [])
+
+  const handleEdit = (ad) => {
+    setEditingId(ad.id)
+    setForm({
+      title: ad.title || '',
+      image_url: ad.image_url || '',
+      link_url: ad.link_url || ad.target_url || '',
+      zone: ad.zone || 'display',
+      mode: ad.mode || 'all',
+      active: ad.status === 'active',
+      start_date: ad.start_date ? ad.start_date.slice(0, 10) : '',
+      end_date: ad.end_date ? ad.end_date.slice(0, 10) : '',
+    })
+    setShowForm(true)
+    setError('')
+  }
+
+  const handleNew = () => {
+    setEditingId(null)
+    setForm(EMPTY_FORM)
+    setShowForm(true)
+    setError('')
+  }
+
+  const handleDelete = async (id) => {
+    if (!window.confirm(da ? 'Slet denne annonce?' : 'Delete this ad?')) return
+    await apiAdminDeletePlatformAd(id).catch(() => {})
+    load()
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!form.title || !form.link_url) { setError(da ? 'Titel og link er påkrævet' : 'Title and link are required'); return }
+    setSaving(true)
+    setError('')
+    const payload = {
+      title: form.title,
+      image_url: form.image_url || null,
+      link_url: form.link_url,
+      zone: form.zone,
+      mode: form.mode,
+      active: form.active ? 1 : 0,
+      start_date: form.start_date || null,
+      end_date: form.end_date || null,
+    }
+    const res = editingId
+      ? await apiAdminUpdatePlatformAd(editingId, payload).catch(() => null)
+      : await apiAdminCreatePlatformAd(payload).catch(() => null)
+    setSaving(false)
+    if (!res) { setError(da ? 'Kunne ikke gemme' : 'Could not save'); return }
+    setShowForm(false)
+    setEditingId(null)
+    load()
+  }
+
+  const iS = { width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box', fontFamily: 'inherit' }
+  const lS = { fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 4, marginTop: 12 }
+
+  return (
+    <div className="p-card" style={{ marginBottom: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>🗃️ {da ? 'Platform-annoncer' : 'Platform Ads'}</h3>
+        <button onClick={handleNew} style={{ padding: '7px 16px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+          + {da ? 'Ny annonce' : 'New ad'}
+        </button>
+      </div>
+
+      {showForm && (
+        <form onSubmit={handleSubmit} style={{ background: '#F8FAF9', border: '1px solid #ddd', borderRadius: 10, padding: 16, marginBottom: 16 }}>
+          <h4 style={{ margin: '0 0 4px', fontSize: 14, fontWeight: 700 }}>
+            {editingId ? (da ? 'Rediger annonce' : 'Edit ad') : (da ? 'Ny annonce' : 'New ad')}
+          </h4>
+          <label style={lS}>{da ? 'Titel' : 'Title'} *</label>
+          <input style={iS} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} required />
+          <label style={lS}>{da ? 'Billede-URL' : 'Image URL'}</label>
+          <input style={iS} type="url" value={form.image_url} onChange={e => setForm(f => ({ ...f, image_url: e.target.value }))} placeholder="https://..." />
+          <label style={lS}>{da ? 'Destination-URL' : 'Link URL'} *</label>
+          <input style={iS} type="url" value={form.link_url} onChange={e => setForm(f => ({ ...f, link_url: e.target.value }))} placeholder="https://..." required />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
+            <div>
+              <label style={lS}>{da ? 'Zone' : 'Zone'}</label>
+              <select style={iS} value={form.zone} onChange={e => setForm(f => ({ ...f, zone: e.target.value }))}>
+                <option value="display">{da ? 'Display (sidebar)' : 'Display (sidebar)'}</option>
+                <option value="native">{da ? 'Native (feed)' : 'Native (feed)'}</option>
+                <option value="sticky">{da ? 'Sticky (stories)' : 'Sticky (stories)'}</option>
+              </select>
+            </div>
+            <div>
+              <label style={lS}>{da ? 'Målgruppe' : 'Audience'}</label>
+              <select style={iS} value={form.mode} onChange={e => setForm(f => ({ ...f, mode: e.target.value }))}>
+                <option value="all">{da ? 'Alle brugere' : 'All users'}</option>
+                <option value="common">{da ? 'Privat-tilstand' : 'Common mode'}</option>
+                <option value="business">{da ? 'Business-tilstand' : 'Business mode'}</option>
+              </select>
+            </div>
+            <div>
+              <label style={lS}>{da ? 'Startdato' : 'Start date'}</label>
+              <input style={iS} type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} />
+            </div>
+            <div>
+              <label style={lS}>{da ? 'Slutdato' : 'End date'}</label>
+              <input style={iS} type="date" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} />
+            </div>
+          </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+            <input type="checkbox" checked={form.active} onChange={e => setForm(f => ({ ...f, active: e.target.checked }))} style={{ width: 16, height: 16 }} />
+            {da ? 'Aktiv (vises til brugere)' : 'Active (shown to users)'}
+          </label>
+          {error && <div style={{ color: '#c0392b', fontSize: 13, marginTop: 8 }}>{error}</div>}
+          <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+            <button type="submit" disabled={saving} style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+              {saving ? '…' : (da ? 'Gem' : 'Save')}
+            </button>
+            <button type="button" onClick={() => setShowForm(false)} style={{ padding: '9px 16px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', fontSize: 13, cursor: 'pointer' }}>
+              {da ? 'Annuller' : 'Cancel'}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 24, color: '#888', fontSize: 13 }}>{da ? 'Henter…' : 'Loading…'}</div>
+      ) : ads.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: 24, color: '#aaa', fontSize: 13 }}>{da ? 'Ingen annoncer endnu.' : 'No ads yet.'}</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {ads.map(ad => {
+            const ctr = ad.ctr || '0.00'
+            const isActive = ad.status === 'active'
+            return (
+              <div key={ad.id} style={{ background: '#fff', border: '1px solid #E8E4DF', borderRadius: 10, padding: '12px 16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <span style={{ fontWeight: 700, fontSize: 14 }}>{ad.title}</span>
+                      <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 12, background: isActive ? '#E8F5E9' : '#F5F5F5', color: isActive ? '#2D6A4F' : '#999', fontWeight: 600 }}>
+                        {isActive ? (da ? 'Aktiv' : 'Active') : (da ? 'Inaktiv' : 'Inactive')}
+                      </span>
+                      <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 12, background: '#EEF4FF', color: '#1877F2', fontWeight: 600 }}>{ad.zone}</span>
+                      <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 12, background: '#FFF8E7', color: '#B8860B', fontWeight: 600 }}>{ad.mode}</span>
+                    </div>
+                    {/* Stats bar */}
+                    <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 12, color: '#888' }}>
+                      <span>👁 {(ad.impressions || 0).toLocaleString()} {da ? 'visninger' : 'impressions'}</span>
+                      <span>🖱 {(ad.clicks || 0).toLocaleString()} {da ? 'klik' : 'clicks'}</span>
+                      <span>CTR: {ctr}%</span>
+                    </div>
+                    {/* Visual bar */}
+                    {ad.impressions > 0 && (
+                      <div style={{ marginTop: 6, height: 4, background: '#F0F0F0', borderRadius: 2, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${Math.min(parseFloat(ctr) * 5, 100)}%`, background: '#2D6A4F', borderRadius: 2 }} />
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                    <button onClick={() => handleEdit(ad)} style={{ padding: '6px 12px', borderRadius: 7, border: '1px solid #ddd', background: '#fff', fontSize: 12, cursor: 'pointer' }}>
+                      {da ? 'Rediger' : 'Edit'}
+                    </button>
+                    <button onClick={() => handleDelete(ad.id)} style={{ padding: '6px 12px', borderRadius: 7, border: '1px solid #fcc', background: '#fff', fontSize: 12, cursor: 'pointer', color: '#c0392b' }}>
+                      {da ? 'Slet' : 'Delete'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function AdminPage({ lang, t }) {
   const [adminTab, setAdminTab] = useState('stats')
   const [form, setForm] = useState({
@@ -11773,7 +11972,12 @@ function AdminPage({ lang, t }) {
         <AdminSecurityGdpr viralStats={viralStats} lang={lang} />
       )}
 
-      {adminTab === 'ads' && <AdminAdSettingsPanel lang={lang} t={t} />}
+      {adminTab === 'ads' && (
+        <>
+          <AdminPlatformAdsPanel lang={lang} />
+          <AdminAdSettingsPanel lang={lang} t={t} />
+        </>
+      )}
 
       {adminTab === 'payment' && (
         <div className="p-card" style={{ marginBottom: 20 }}>

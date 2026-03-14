@@ -923,6 +923,34 @@ export async function apiServeAds(placement) {
   return await request(`/api/ads?serve=1&placement=${placement}`)
 }
 
+// Platform ad serving — public, zone/mode based (display/native/sticky)
+export async function apiGetPlatformAds(zone, mode) {
+  const params = new URLSearchParams({ zone })
+  if (mode && mode !== 'all') params.append('mode', mode)
+  return await request(`/api/ads?${params}`)
+}
+
+export async function apiTrackPlatformAd(id, event) {
+  return await request(`/api/ads/${id}/track`, { method: 'POST', body: JSON.stringify({ event }) })
+}
+
+// Admin platform ad management (CRUD)
+export async function apiAdminGetPlatformAds() {
+  return await request('/api/admin/ads')
+}
+
+export async function apiAdminCreatePlatformAd(data) {
+  return await request('/api/admin/ads', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function apiAdminUpdatePlatformAd(id, data) {
+  return await request(`/api/admin/ads/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+}
+
+export async function apiAdminDeletePlatformAd(id) {
+  return await request(`/api/admin/ads/${id}`, { method: 'DELETE' })
+}
+
 // ── Ads-free subscription (Stripe) ───────────────────────────────────────────
 export async function apiGetSubscription() {
   return await request('/api/me/subscription')

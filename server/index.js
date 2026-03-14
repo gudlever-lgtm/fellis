@@ -4046,6 +4046,34 @@ app.post('/api/ads', authenticate, attachUserMode, requireBusiness, async (req, 
   }
 })
 
+// GET /api/ads?zone=&mode= — public platform ad serving (no auth required)
+// Must be registered BEFORE the authenticated handler below.
+app.get('/api/ads', async (req, res, next) => {
+  const { zone, mode } = req.query
+  const VALID_ZONES = ['display', 'native', 'sticky']
+  if (!zone || !VALID_ZONES.includes(zone)) return next() // not a zone request
+  const VALID_MODES = ['all', 'common', 'business']
+  try {
+    let query = `SELECT id, title, image_url, COALESCE(link_url, target_url) AS link_url, zone, mode, body
+                 FROM ads
+                 WHERE status = 'active'
+                   AND zone = ?
+                   AND (start_date IS NULL OR start_date <= CURDATE())
+                   AND (end_date IS NULL OR end_date >= CURDATE())`
+    const params = [zone]
+    if (mode && VALID_MODES.includes(mode) && mode !== 'all') {
+      query += ' AND (mode = ? OR mode = ?)'
+      params.push(mode, 'all')
+    }
+    query += ' ORDER BY RAND() LIMIT 5'
+    const [rows] = await pool.query(query, params)
+    res.json({ ads: rows })
+  } catch (err) {
+    console.error('GET /api/ads zone error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // GET /api/ads — list own ads (business) or all active ads (admin)
 app.get('/api/ads', authenticate, async (req, res) => {
   try {
@@ -4155,6 +4183,122 @@ app.post('/api/ads/:id/click', authenticate, async (req, res) => {
     res.json({ ok: true })
   } catch (err) {
     console.error('POST /api/ads/:id/click error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/ads/:id/track — GDPR-safe impression/click tracking (public, no auth required)
+// Hashes IP before storing — no personal data kept in ad_stats.
+app.post('/api/ads/:id/track', async (req, res) => {
+  const { event } = req.body || {}
+  if (!['impression', 'click'].includes(event)) return res.status(400).json({ error: 'event must be impression or click' })
+  const rawIp = (req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || '').replace(/^::ffff:/, '')
+  const ipHash = crypto.createHash('sha256').update(rawIp + (process.env.IP_HASH_SALT || 'fellis-ads')).digest('hex')
+  try {
+    const [[ad]] = await pool.query('SELECT id FROM ads WHERE id = ?', [req.params.id])
+    if (!ad) return res.status(404).json({ error: 'Ad not found' })
+    const col = event === 'impression' ? 'impressions' : 'clicks'
+    await pool.query(`UPDATE ads SET ${col} = ${col} + 1 WHERE id = ?`, [req.params.id])
+    const sessionId = getSessionIdFromRequest(req)
+    let userId = null
+    if (sessionId) {
+      const [rows] = await pool.query('SELECT user_id FROM sessions WHERE id = ? AND expires_at > NOW()', [sessionId]).catch(() => [[]])
+      if (rows.length) userId = rows[0].user_id
+    }
+    await pool.query(
+      'INSERT INTO ad_stats (ad_id, event, user_id, ip_hash) VALUES (?,?,?,?)',
+      [req.params.id, event, userId || null, ipHash]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/ads/:id/track error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Admin platform ad management ───────────────────────────────────────────────
+
+// GET /api/admin/ads — all ads with aggregated stats (admin only)
+app.get('/api/admin/ads', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT a.*,
+              (SELECT COUNT(*) FROM ad_stats WHERE ad_id = a.id AND event = 'impression') AS tracked_impressions,
+              (SELECT COUNT(*) FROM ad_stats WHERE ad_id = a.id AND event = 'click')      AS tracked_clicks
+       FROM ads a ORDER BY a.created_at DESC`
+    )
+    const ads = rows.map(r => ({
+      ...r,
+      ctr: r.impressions > 0 ? ((r.clicks / r.impressions) * 100).toFixed(2) : '0.00',
+    }))
+    res.json({ ads })
+  } catch (err) {
+    console.error('GET /api/admin/ads error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/admin/ads — create platform ad (admin only)
+app.post('/api/admin/ads', authenticate, requireAdmin, async (req, res) => {
+  const { title, image_url, link_url, zone = 'display', mode = 'all', active = 1, start_date, end_date } = req.body || {}
+  if (!title || !link_url) return res.status(400).json({ error: 'title and link_url required' })
+  const VALID_ZONES = ['display', 'native', 'sticky']
+  const VALID_MODES = ['all', 'common', 'business']
+  if (!VALID_ZONES.includes(zone)) return res.status(400).json({ error: 'Invalid zone' })
+  if (!VALID_MODES.includes(mode)) return res.status(400).json({ error: 'Invalid mode' })
+  try {
+    const status = active ? 'active' : 'paused'
+    const [result] = await pool.query(
+      'INSERT INTO ads (title, image_url, link_url, target_url, zone, mode, status, start_date, end_date) VALUES (?,?,?,?,?,?,?,?,?)',
+      [title, image_url || null, link_url, link_url, zone, mode, status, start_date || null, end_date || null]
+    )
+    const [[ad]] = await pool.query('SELECT * FROM ads WHERE id = ?', [result.insertId])
+    res.status(201).json({ ad })
+  } catch (err) {
+    console.error('POST /api/admin/ads error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// PUT /api/admin/ads/:id — update platform ad (admin only)
+app.put('/api/admin/ads/:id', authenticate, requireAdmin, async (req, res) => {
+  const { title, image_url, link_url, zone, mode, active, start_date, end_date } = req.body || {}
+  const VALID_ZONES = ['display', 'native', 'sticky']
+  const VALID_MODES = ['all', 'common', 'business']
+  if (zone && !VALID_ZONES.includes(zone)) return res.status(400).json({ error: 'Invalid zone' })
+  if (mode && !VALID_MODES.includes(mode)) return res.status(400).json({ error: 'Invalid mode' })
+  try {
+    const [[ad]] = await pool.query('SELECT id FROM ads WHERE id = ?', [req.params.id])
+    if (!ad) return res.status(404).json({ error: 'Ad not found' })
+    const updates = {}
+    if (title !== undefined) updates.title = title
+    if (image_url !== undefined) updates.image_url = image_url
+    if (link_url !== undefined) { updates.link_url = link_url; updates.target_url = link_url }
+    if (zone !== undefined) updates.zone = zone
+    if (mode !== undefined) updates.mode = mode
+    if (active !== undefined) updates.status = active ? 'active' : 'paused'
+    if (start_date !== undefined) updates.start_date = start_date || null
+    if (end_date !== undefined) updates.end_date = end_date || null
+    if (!Object.keys(updates).length) return res.status(400).json({ error: 'No valid fields' })
+    const setClauses = Object.keys(updates).map(k => `${k} = ?`).join(', ')
+    await pool.query(`UPDATE ads SET ${setClauses} WHERE id = ?`, [...Object.values(updates), req.params.id])
+    const [[updated]] = await pool.query('SELECT * FROM ads WHERE id = ?', [req.params.id])
+    res.json({ ad: updated })
+  } catch (err) {
+    console.error('PUT /api/admin/ads/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// DELETE /api/admin/ads/:id — permanently delete platform ad (admin only)
+app.delete('/api/admin/ads/:id', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [[ad]] = await pool.query('SELECT id FROM ads WHERE id = ?', [req.params.id])
+    if (!ad) return res.status(404).json({ error: 'Ad not found' })
+    await pool.query('DELETE FROM ads WHERE id = ?', [req.params.id])
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/admin/ads/:id error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })
