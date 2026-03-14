@@ -747,10 +747,17 @@ export async function apiGetMyJobs() {
   return await request('/api/jobs/mine')
 }
 
-export async function apiDownloadGooglePhoto(url) {
+export async function apiExchangeGoogleCode(code) {
+  return await request('/api/auth/google/exchange', {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  })
+}
+
+export async function apiDownloadGooglePhoto(url, accessToken) {
   return await request('/api/providers/google-photos/download', {
     method: 'POST',
-    body: JSON.stringify({ url }),
+    body: JSON.stringify({ url, access_token: accessToken }),
   })
 }
 

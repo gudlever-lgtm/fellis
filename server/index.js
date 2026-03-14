@@ -5926,8 +5926,53 @@ app.get('/api/jobs/mine', authenticate, async (req, res) => {
 })
 
 // ── Google Photos (stub) ──────────────────────────────────────────────────────
+// POST /api/auth/google/exchange — exchange GIS auth code for access token (keeps client_secret server-side)
+app.post('/api/auth/google/exchange', authenticate, async (req, res) => {
+  const { code } = req.body
+  if (!code) return res.status(400).json({ error: 'code required' })
+  const clientId = process.env.GOOGLE_CLIENT_ID
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET
+  if (!clientId || !clientSecret) {
+    return res.status(503).json({ error: 'Google OAuth not configured — set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in server/.env' })
+  }
+  try {
+    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: 'postmessage', // GIS popup-mode convention
+        grant_type: 'authorization_code',
+      }),
+    })
+    const data = await tokenRes.json()
+    if (data.error) return res.status(400).json({ error: data.error_description || data.error })
+    res.json({ access_token: data.access_token, expires_in: data.expires_in })
+  } catch (err) {
+    console.error('Google token exchange error:', err.message)
+    res.status(500).json({ error: 'Token exchange failed' })
+  }
+})
+
+// POST /api/providers/google-photos/download — proxy-download a Google photo server-side
 app.post('/api/providers/google-photos/download', authenticate, async (req, res) => {
-  res.status(501).json({ error: 'Google Photos integration not configured on this server' })
+  const { url, access_token } = req.body
+  if (!url || !access_token) return res.status(400).json({ error: 'url and access_token required' })
+  try {
+    const imgRes = await fetch(url, { headers: { Authorization: `Bearer ${access_token}` } })
+    if (!imgRes.ok) return res.status(imgRes.status).json({ error: 'Failed to fetch image from Google' })
+    const contentType = imgRes.headers.get('content-type') || 'image/jpeg'
+    const buffer = Buffer.from(await imgRes.arrayBuffer())
+    const ext = contentType.includes('png') ? 'png' : contentType.includes('gif') ? 'gif' : 'webp'.includes(contentType) ? 'webp' : 'jpg'
+    const filename = `gphotos-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+    fs.writeFileSync(path.join(UPLOADS_DIR, filename), buffer)
+    res.json({ url: `/uploads/${filename}`, mimeType: contentType })
+  } catch (err) {
+    console.error('Google photo download error:', err.message)
+    res.status(500).json({ error: 'Download failed' })
+  }
 })
 
 // ── Post insights (real data) ─────────────────────────────────────────────────
