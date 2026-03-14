@@ -532,6 +532,17 @@ export async function apiGetAdminStats() {
   return await request('/api/admin/stats')
 }
 
+// ── User moderator request ────────────────────────────────────────────────────
+export async function apiGetMyModeratorRequest() {
+  return await request('/api/moderation/my-request')
+}
+export async function apiRequestModeratorStatus(reason) {
+  return await request('/api/moderation/request', { method: 'POST', body: JSON.stringify({ reason }) })
+}
+export async function apiWithdrawModeratorRequest() {
+  return await request('/api/moderation/request', { method: 'DELETE' })
+}
+
 export async function apiGetAnalytics(days = 30) {
   return await request(`/api/analytics?days=${days}`)
 }

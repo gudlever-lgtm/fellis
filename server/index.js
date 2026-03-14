@@ -6406,14 +6406,66 @@ app.patch('/api/admin/moderation/users/:id/candidate', authenticate, requireAdmi
   if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' })
   const { is_candidate, note } = req.body
   try {
+    // When denying (is_candidate=false with a note), prefix note with [denied] so user sees denial state
+    const storedNote = is_candidate ? (note || null) : (note ? `[denied] ${note}` : null)
     await pool.query(
-      `UPDATE users SET moderator_candidate = ?, moderator_candidate_note = ?, moderator_candidate_at = ? WHERE id = ?`,
-      [is_candidate ? 1 : 0, is_candidate ? (note || null) : null, is_candidate ? new Date() : null, id]
+      `UPDATE users SET moderator_candidate = ?, moderator_candidate_note = ?, moderator_candidate_at = NOW() WHERE id = ?`,
+      [is_candidate ? 1 : 0, storedNote, id]
     )
     res.json({ ok: true })
   } catch (err) {
     console.error('PATCH /api/admin/moderation/users/:id/candidate error:', err)
     res.status(500).json({ error: 'Failed to update candidate status' })
+  }
+})
+
+// ── User-facing moderator request flow ────────────────────────────────────────
+
+// GET /api/moderation/my-request — get current user's own moderator request status
+app.get('/api/moderation/my-request', authenticate, async (req, res) => {
+  try {
+    const [[user]] = await pool.query(
+      'SELECT is_moderator, moderator_candidate, moderator_candidate_note, moderator_candidate_at FROM users WHERE id = ?',
+      [req.userId]
+    )
+    if (!user) return res.status(404).json({ error: 'User not found' })
+    const isModerator = Boolean(user.is_moderator)
+    let request = null
+    if (user.moderator_candidate === 1) {
+      request = { status: 'pending', reason: user.moderator_candidate_note, created_at: user.moderator_candidate_at }
+    } else if (user.moderator_candidate_note?.startsWith('[denied]')) {
+      request = { status: 'denied', reason: user.moderator_candidate_note.slice(8).trim(), created_at: user.moderator_candidate_at }
+    }
+    res.json({ isModerator, request })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/moderation/request — submit a moderator request
+app.post('/api/moderation/request', authenticate, async (req, res) => {
+  const { reason } = req.body
+  try {
+    await pool.query(
+      'UPDATE users SET moderator_candidate = 1, moderator_candidate_note = ?, moderator_candidate_at = NOW() WHERE id = ?',
+      [reason || '', req.userId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// DELETE /api/moderation/request — withdraw a moderator request
+app.delete('/api/moderation/request', authenticate, async (req, res) => {
+  try {
+    await pool.query(
+      'UPDATE users SET moderator_candidate = 0, moderator_candidate_note = NULL, moderator_candidate_at = NULL WHERE id = ?',
+      [req.userId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
   }
 })
 
