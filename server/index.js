@@ -4197,6 +4197,30 @@ app.put('/api/admin/ad-settings', authenticate, requireAdmin, async (req, res) =
   }
 })
 
+// GET /api/admin/ad-stats — per-placement impressions, clicks, CTR (admin only)
+app.get('/api/admin/ad-stats', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT placement,
+              SUM(impressions) AS impressions,
+              SUM(clicks) AS clicks
+       FROM ads
+       WHERE status != 'archived'
+       GROUP BY placement`
+    )
+    const stats = rows.map(r => ({
+      placement: r.placement,
+      impressions: Number(r.impressions) || 0,
+      clicks: Number(r.clicks) || 0,
+      ctr: r.impressions > 0 ? ((r.clicks / r.impressions) * 100).toFixed(2) : '0.00',
+    }))
+    res.json({ stats })
+  } catch (err) {
+    console.error('GET /api/admin/ad-stats error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // ── Stripe — ads_free subscription ───────────────────────────────────────────
 
 async function getStripe() {

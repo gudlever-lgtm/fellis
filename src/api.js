@@ -943,6 +943,9 @@ export async function apiGetMollieStatus() {
 }
 
 // ── Admin ad settings ─────────────────────────────────────────────────────────
+export async function apiGetAdminAdStats() {
+  return await request('/api/admin/ad-stats')
+}
 export async function apiGetAdminAdSettings() {
   return await request('/api/admin/ad-settings')
 }
