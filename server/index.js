@@ -4788,6 +4788,13 @@ app.get('/api/admin/settings', authenticate, requireAdmin, async (req, res) => {
     const [rows] = await pool.query('SELECT key_name, key_value FROM admin_settings')
     const settings = {}
     for (const row of rows) settings[row.key_name] = row.key_value
+    // Overlay env vars so the admin form pre-populates them
+    if (process.env.GOOGLE_CLIENT_ID && !settings.google_photos_client_id) {
+      settings.google_photos_client_id = process.env.GOOGLE_CLIENT_ID
+    }
+    if (process.env.MOLLIE_API_KEY && !settings.mollie_api_key) {
+      settings.mollie_api_key = process.env.MOLLIE_API_KEY
+    }
     // Mask secrets — return only whether they are set, not the actual values
     const masked = {}
     for (const [k, v] of Object.entries(settings)) {
