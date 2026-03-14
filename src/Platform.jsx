@@ -1263,7 +1263,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
 
   // Initial load
   useEffect(() => {
-    apiGetConfig().then(cfg => {
+    apiGetConfig().then(res => {
+      const cfg = res?.config || res
       if (cfg?.googlePhotosClientId) setGooglePhotosClientId(cfg.googlePhotosClientId)
       if (cfg?.mediaMaxFiles) { setMediaMaxFiles(cfg.mediaMaxFiles); mediaMaxFilesRef.current = cfg.mediaMaxFiles }
     })
@@ -3630,7 +3631,7 @@ function SettingsLeverandoerer({ lang, t }) {
   const [config, setConfig] = useState(null)
 
   useEffect(() => {
-    apiGetConfig().then(c => { if (c) setConfig(c) })
+    apiGetConfig().then(res => { if (res) setConfig(res?.config || res) })
   }, [])
 
   const cardStyle = { background: '#fff', borderRadius: 12, border: '1px solid #e8e8e8', padding: '20px 22px', marginBottom: 16 }
