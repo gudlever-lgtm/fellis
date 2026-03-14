@@ -3893,7 +3893,7 @@ function ModeratorRequestCard({ lang, t, currentUser }) {
   }, [])
 
   if (!modReqData) return null
-  if (currentUser?.is_admin) return null // admins don't need to apply
+  if (currentUser?.is_admin || currentUser?.is_moderator) return null // already privileged
 
   const { request, isModerator } = modReqData
   const cardStyle = { marginTop: 20, padding: '16px 20px', borderRadius: 12, border: '1px solid var(--border,#eee)', background: 'var(--card-bg,#fff)' }
