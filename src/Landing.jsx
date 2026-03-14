@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { nameToColor, getInitials } from './data.js'
+import { nameToColor, getInitials, SUPPORTED_LANGS, detectLang } from './data.js'
 
 // Placeholder friends for the invite step (migration wizard only)
 const INVITE_FRIENDS = [
@@ -250,7 +250,7 @@ const T = {
 }
 
 export default function Landing({ onEnterPlatform, inviteToken, inviterName, inviterEmail, fbError }) {
-  const [lang, setLang] = useState('da')
+  const [lang, setLang] = useState(() => detectLang())
   const [step, setStep] = useState(0)
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [selectedContent, setSelectedContent] = useState({ profile: true, friends: true, posts: true })
@@ -331,7 +331,10 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
     }
   }, [step]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const toggleLang = useCallback(() => setLang(p => p === 'da' ? 'en' : 'da'), [])
+  const changeLang = useCallback((code) => {
+    localStorage.setItem('fellis_lang', code)
+    setLang(code)
+  }, [])
 
   // ── Login handler ──
   const handleLogin = useCallback(async (e) => {
@@ -507,7 +510,9 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
           </div>
         </div>
         <div className="nav-right-group">
-          <button className="lang-toggle" onClick={toggleLang}>{t.langToggle}</button>
+          <select className="lang-toggle" value={lang} onChange={e => changeLang(e.target.value)} aria-label="Language">
+            {SUPPORTED_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
+          </select>
           <button className="login-btn" onClick={() => { setShowLoginModal(true); setLoginError(''); setLoginEmail(''); setLoginPassword('') }}>
             {t.loginBtn}
           </button>

@@ -858,6 +858,20 @@ export async function apiRevokeModerator(userId) {
   return await request(`/api/admin/moderators/${userId}/revoke`, { method: 'POST' })
 }
 
+// Aliases used by Moderators admin tab
+export async function apiGetModeratorRequests() {
+  return await request('/api/admin/moderation/candidates')
+}
+export async function apiApproveModeratorRequest(id) {
+  return await request(`/api/admin/moderators/${id}/grant`, { method: 'POST' })
+}
+export async function apiDenyModeratorRequest(id, reason) {
+  return await request(`/api/admin/moderation/users/${id}/candidate`, {
+    method: 'PATCH',
+    body: JSON.stringify({ is_candidate: false, note: reason }),
+  })
+}
+
 // ── Ads ──────────────────────────────────────────────────────────────────────
 export async function apiCreateAd(data) {
   return await request('/api/ads', { method: 'POST', body: JSON.stringify(data) })
