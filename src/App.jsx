@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import Landing from './Landing.jsx'
 import Platform from './Platform.jsx'
-import { apiCheckSession, apiLogout, apiGiveConsent, apiGetInviteInfo, apiTrackVisit } from './api.js'
+import { apiCheckSession, apiLogout, apiGiveConsent, apiGetInviteInfo, apiTrackVisit, apiGetConsentStatus } from './api.js'
 import { SUPPORTED_LANGS, detectLang } from './data.js'
 import './App.css'
 
@@ -379,6 +379,54 @@ function ConsentDialog({ lang, onConsent, onDecline }) {
   )
 }
 
+// Shown to existing users who haven't given data_processing consent yet
+function GeneralConsentDialog({ lang, onAccept }) {
+  const [checked, setChecked] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const da = lang === 'da'
+  return (
+    <div className="modal-backdrop">
+      <div className="fb-modal" style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()}>
+        <div className="fb-modal-header" style={{ background: '#2D6A4F' }}>
+          <div className="fb-modal-logo" style={{ color: '#fff', fontFamily: "'Playfair Display', serif" }}>fellis.eu — GDPR</div>
+        </div>
+        <div className="fb-modal-form" style={{ textAlign: 'left' }}>
+          <h3 style={{ marginBottom: 8 }}>{da ? 'Samtykke til databehandling' : 'Data Processing Consent'}</h3>
+          <p style={{ fontSize: 14, color: '#555', marginBottom: 12 }}>
+            {da
+              ? 'fellis.eu behandler dine persondata for at levere platformens funktioner. Vi opbevarer dine data sikkert på EU-servere i Danmark og deler dem aldrig med tredjeparter til reklameformål.'
+              : 'fellis.eu processes your personal data to deliver the platform\'s features. We store your data securely on EU servers in Denmark and never share it with third parties for advertising purposes.'}
+          </p>
+          <ul style={{ fontSize: 13, color: '#333', marginBottom: 16, paddingLeft: 20, lineHeight: 1.8 }}>
+            <li>{da ? 'Kontooplysninger: navn, e-mail, profilbillede' : 'Account info: name, email, profile picture'}</li>
+            <li>{da ? 'Indhold du opretter: opslag, kommentarer, beskeder' : 'Content you create: posts, comments, messages'}</li>
+            <li>{da ? 'Du kan til enhver tid slette din konto og alle data' : 'You can delete your account and all data at any time'}</li>
+            <li>{da ? 'Du kan eksportere alle dine data (GDPR Art. 20)' : 'You can export all your data (GDPR Art. 20)'}</li>
+          </ul>
+          <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 13, cursor: 'pointer', marginBottom: 16 }}>
+            <input type="checkbox" checked={checked} onChange={e => setChecked(e.target.checked)} style={{ marginTop: 2, accentColor: '#2D6A4F' }} />
+            <span>
+              {da ? 'Jeg accepterer behandling af mine persondata som beskrevet ovenfor og i ' : 'I accept the processing of my personal data as described above and in the '}
+              <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: '#2D6A4F', fontWeight: 600 }}>
+                {da ? 'privatlivspolitikken' : 'privacy policy'}
+              </a>
+              {' '}(GDPR Art. 6 & 7)
+            </span>
+          </label>
+          <button
+            className="fb-login-submit"
+            style={{ background: checked ? '#2D6A4F' : '#ccc', width: '100%' }}
+            disabled={!checked || loading}
+            onClick={async () => { setLoading(true); await onAccept(); setLoading(false) }}
+          >
+            {loading ? '…' : (da ? 'Acceptér og fortsæt' : 'Accept and continue')}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function App() {
   const [view, setView] = useState(() => {
     return localStorage.getItem('fellis_logged_in') ? 'platform' : 'landing'
@@ -386,6 +434,8 @@ function App() {
   const [lang, setLang] = useState(() => detectLang())
   // GDPR: Show consent dialog after Facebook OAuth before importing data
   const [showConsent, setShowConsent] = useState(false)
+  // GDPR: Show general data processing consent for existing users who haven't accepted yet
+  const [showGeneralConsent, setShowGeneralConsent] = useState(false)
   const [inviteToken, setInviteToken] = useState(null)
   const [inviterName, setInviterName] = useState(null)
   const [inviterEmail, setInviterEmail] = useState(null)
@@ -467,11 +517,16 @@ function App() {
       window.history.replaceState({}, '', window.location.pathname)
     }
 
-    apiCheckSession().then(data => {
+    apiCheckSession().then(async data => {
       if (data) {
         setView('platform')
         if (data.lang) setLang(data.lang)
         localStorage.setItem('fellis_logged_in', 'true')
+        // Check if user has given data_processing consent — show dialog if not
+        const consentData = await apiGetConsentStatus().catch(() => null)
+        if (consentData && !consentData.data_processing?.given) {
+          setShowGeneralConsent(true)
+        }
       } else {
         // Session expired or invalid — clear and go to landing
         localStorage.removeItem('fellis_logged_in')
@@ -489,6 +544,10 @@ function App() {
     localStorage.removeItem('fellis_invite_token')
     setInviteToken(null)
     setInviterName(null)
+    // Check if existing user has given data_processing consent
+    apiGetConsentStatus().then(data => {
+      if (data && !data.data_processing?.given) setShowGeneralConsent(true)
+    }).catch(() => {})
   }, [])
 
   const handleLogout = useCallback(() => {
@@ -518,6 +577,15 @@ function App() {
             lang={lang}
             onConsent={handleConsentAccept}
             onDecline={handleConsentDecline}
+          />
+        )}
+        {showGeneralConsent && (
+          <GeneralConsentDialog
+            lang={lang}
+            onAccept={async () => {
+              await apiGiveConsent(['data_processing']).catch(() => {})
+              setShowGeneralConsent(false)
+            }}
           />
         )}
         <Platform lang={lang} onLogout={handleLogout} initialPostId={initialPostId} initialPage={initialPage} />
