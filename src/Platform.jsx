@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } from 'react'
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { PT, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetMollieStatus, apiCreateMolliePayment } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetMollieStatus, apiCreateMolliePayment, apiFetchMemories } from './api.js'
 import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
 import ReelsPage from './Reels.jsx'
@@ -1000,6 +1000,131 @@ function GooglePhotosPicker({ lang, clientId, maxFiles = 4, onPhotosSelected, on
   )
 }
 
+// ── Memories card — "On this day" ─────────────────────────────────────────────
+function MemoriesCard({ lang, t, onShare }) {
+  const [memories, setMemories] = useState(null) // null = loading, [] = none
+  const [dismissed, setDismissed] = useState(false)
+  const [idx, setIdx] = useState(0)
+  const [sharedIdx, setSharedIdx] = useState(new Set())
+
+  useEffect(() => {
+    apiFetchMemories().then(data => {
+      setMemories(data?.memories ?? [])
+    })
+  }, [])
+
+  if (dismissed || memories === null || memories.length === 0) return null
+
+  const memory = memories[idx]
+  const yearsAgo = memory.yearsAgo
+
+  const yearsLabel = lang === 'da'
+    ? `${yearsAgo} ${t.memoriesYearAgo}`
+    : `${yearsAgo} ${yearsAgo === 1 ? t.memoriesYearAgo : t.memoriesYearAgo + 's'}`
+
+  const handleShare = async () => {
+    const text = memory.text[lang] || memory.text.da || ''
+    if (onShare) onShare(text)
+    setSharedIdx(prev => new Set(prev).add(idx))
+  }
+
+  const s = {
+    card: {
+      background: 'linear-gradient(135deg, #eaf4ef 0%, #f5f0eb 100%)',
+      border: '1.5px solid #b7dfc9',
+      borderRadius: 14,
+      padding: '16px 18px',
+      marginBottom: 12,
+      position: 'relative',
+    },
+    header: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 10,
+    },
+    icon: { fontSize: 22 },
+    titleBlock: { flex: 1 },
+    title: { fontSize: 14, fontWeight: 700, color: '#2D6A4F' },
+    subtitle: { fontSize: 12, color: '#6a9e83', marginTop: 1 },
+    dismiss: {
+      background: 'none',
+      border: 'none',
+      cursor: 'pointer',
+      color: '#aaa',
+      fontSize: 16,
+      lineHeight: 1,
+      padding: '2px 4px',
+      borderRadius: 4,
+    },
+    body: {
+      fontSize: 14,
+      color: '#333',
+      lineHeight: 1.5,
+      marginBottom: 12,
+      display: '-webkit-box',
+      WebkitLineClamp: 4,
+      WebkitBoxOrient: 'vertical',
+      overflow: 'hidden',
+    },
+    footer: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+    },
+    shareBtn: {
+      background: '#2D6A4F',
+      color: '#fff',
+      border: 'none',
+      borderRadius: 8,
+      fontSize: 13,
+      fontWeight: 600,
+      padding: '6px 14px',
+      cursor: 'pointer',
+    },
+    sharedLabel: {
+      fontSize: 13,
+      color: '#2D6A4F',
+      fontWeight: 600,
+    },
+    navBtn: {
+      background: 'none',
+      border: '1px solid #b7dfc9',
+      borderRadius: 6,
+      fontSize: 12,
+      color: '#2D6A4F',
+      padding: '4px 10px',
+      cursor: 'pointer',
+      marginLeft: 'auto',
+    },
+  }
+
+  return (
+    <div style={s.card}>
+      <div style={s.header}>
+        <span style={s.icon}>🕰️</span>
+        <div style={s.titleBlock}>
+          <div style={s.title}>{t.memoriesOnThisDay}</div>
+          <div style={s.subtitle}>{yearsLabel}</div>
+        </div>
+        <button style={s.dismiss} onClick={() => setDismissed(true)} title={t.memoriesDismiss}>✕</button>
+      </div>
+      <div style={s.body}>{memory.text[lang] || memory.text.da}</div>
+      <div style={s.footer}>
+        {sharedIdx.has(idx)
+          ? <span style={s.sharedLabel}>✓ {t.memoriesShared}</span>
+          : <button style={s.shareBtn} onClick={handleShare}>{t.memoriesShare}</button>
+        }
+        {memories.length > 1 && (
+          <button style={s.navBtn} onClick={() => setIdx(i => (i + 1) % memories.length)}>
+            {idx + 1} / {memories.length} ›
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onNavigate }) {
   const [posts, setPosts] = useState([])
   const [feedCategoryFilter, setFeedCategoryFilter] = useState(null)
@@ -1163,15 +1288,15 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
 
     // Load recent company posts from followed companies
     fetch('/api/companies', { credentials: 'include' })
-      .then(r => r.json())
+      .then(r => r.ok ? r.json() : null)
       .then(data => {
-        const allCompanies = data.companies || []
+        const allCompanies = data?.companies || []
         const followed = allCompanies.filter(c => c.is_following || c.role === 'following' || c.member_role === 'owner' || c.role === 'owner')
         if (!followed.length) return
         return fetch(`/api/companies/${followed[0].id}/posts?limit=2`, { credentials: 'include' })
-          .then(r => r.json())
+          .then(r => r.ok ? r.json() : null)
           .then(pd => {
-            setCpFeedPosts((pd.posts || []).map(p => ({ ...p, company: followed[0] })))
+            setCpFeedPosts((pd?.posts || []).map(p => ({ ...p, company: followed[0] })))
           })
       })
       .catch(() => {})
@@ -1823,6 +1948,15 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       {/* Reels strip */}
       <ReelsStrip lang={lang} t={t} onNavigate={onNavigate} />
 
+      {/* Memories card — on this day */}
+      {offset === 0 && (
+        <MemoriesCard
+          lang={lang}
+          t={t}
+          onShare={(text) => setNewPostText(prev => prev ? prev + '\n\n' + text : text)}
+        />
+      )}
+
       {/* Google Photos picker modal */}
       {showGooglePicker && googlePhotosClientId && (
         <GooglePhotosPicker
@@ -1873,18 +2007,18 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         const timeAgo = new Date(post.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short' })
         const toggleLike = () => {
           fetch(`/api/companies/${cp.id}/posts/${post.id}/like`, { method: 'POST', credentials: 'include' })
-            .then(r => r.json())
-            .then(data => setCpFeedPosts(prev => prev.map(p => p.id === post.id
+            .then(r => r.ok ? r.json() : null)
+            .then(data => { if (!data) return; setCpFeedPosts(prev => prev.map(p => p.id === post.id
               ? { ...p, liked: data.liked ? 1 : 0, likes: data.liked ? p.likes + 1 : Math.max(0, p.likes - 1) }
-              : p)))
+              : p)) })
             .catch(() => {})
         }
         const toggleComments = () => {
           setCpFeedExpanded(prev => { const n = new Set(prev); n.has(post.id) ? n.delete(post.id) : n.add(post.id); return n })
           if (!cpFeedCommentLists[post.id]) {
             fetch(`/api/companies/${cp.id}/posts/${post.id}/comments`, { credentials: 'include' })
-              .then(r => r.json())
-              .then(data => setCpFeedCommentLists(prev => ({ ...prev, [post.id]: data.comments || [] })))
+              .then(r => r.ok ? r.json() : null)
+              .then(data => setCpFeedCommentLists(prev => ({ ...prev, [post.id]: data?.comments || [] })))
               .catch(() => {})
           }
         }
@@ -1896,8 +2030,9 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text }),
           })
-            .then(r => r.json())
+            .then(r => r.ok ? r.json() : null)
             .then(comment => {
+              if (!comment) return
               setCpFeedCommentLists(prev => ({ ...prev, [post.id]: [...(prev[post.id] || []), comment] }))
               setCpFeedPosts(prev => prev.map(p => p.id === post.id ? { ...p, comment_count: (p.comment_count || 0) + 1 } : p))
               setCpFeedCommentTexts(prev => ({ ...prev, [post.id]: '' }))
@@ -2517,8 +2652,8 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
       })
     }
     fetch('/api/companies', { credentials: 'include' })
-      .then(r => r.json())
-      .then(data => setMyCompanies((data.companies || []).filter(c => c.member_role === 'owner')))
+      .then(r => r.ok ? r.json() : null)
+      .then(data => setMyCompanies((data?.companies || []).filter(c => c.member_role === 'owner')))
       .catch(() => {})
   }, [currentUser.name, mode, onUserUpdate])
 
@@ -3524,8 +3659,8 @@ function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenM
 
   useEffect(() => {
     fetch('/api/profile', { credentials: 'include' })
-      .then(r => r.json())
-      .then(data => { setProfile(data); setNewEmail(data.email || '') })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (!data) return; setProfile(data); setNewEmail(data.email || '') })
       .catch(() => {})
   }, [])
 
@@ -3716,8 +3851,8 @@ function SettingsPrivatliv({ lang, t, fS, lS }) {
 
   useEffect(() => {
     fetch('/api/settings/privacy', { credentials: 'include' })
-      .then(r => r.json())
-      .then(data => { setProfileVis(data.profile_visibility || 'all'); setFriendReqPrivacy(data.friend_request_privacy || 'all'); setLoading(false) })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) { setProfileVis(data.profile_visibility || 'all'); setFriendReqPrivacy(data.friend_request_privacy || 'all') }; setLoading(false) })
       .catch(() => setLoading(false))
   }, [])
 
@@ -3771,8 +3906,8 @@ function SettingsSessions({ lang, t, onLogout }) {
   const load = () => {
     setLoading(true)
     fetch('/api/settings/sessions', { credentials: 'include' })
-      .then(r => r.json())
-      .then(data => { setSessions(data.sessions || []); setLoading(false) })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { setSessions(data?.sessions || []); setLoading(false) })
       .catch(() => setLoading(false))
   }
   useEffect(() => { load() }, [])
@@ -5827,7 +5962,7 @@ function SearchPage({ lang, t, mode, onNavigateToPost, onNavigateToConv, onNavig
         const [data, compData] = await Promise.all([
           apiSearch(query.trim()),
           fetch(`/api/companies/all?q=${encodeURIComponent(query.trim())}`, { credentials: 'include' })
-            .then(r => r.json()).catch(() => ({ companies: [] })),
+            .then(r => r.ok ? r.json() : { companies: [] }).catch(() => ({ companies: [] })),
         ])
         setResults(data || { posts: [], messages: [] })
         setCompanyMatches(compData.companies || [])
@@ -7135,15 +7270,16 @@ function SkillsSection({ profile, t, lang, isOwn }) {
   useEffect(() => {
     if (!profile?.id) return
     fetch(`/api/skills/${profile.id}`, { credentials: 'include' })
-      .then(r => r.json())
-      .then(data => { setSkills(data.skills || []); setLoading(false) })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { setSkills(data?.skills || []); setLoading(false) })
       .catch(() => setLoading(false))
   }, [profile?.id])
 
   const endorse = (skillId) => {
     fetch(`/api/skills/${skillId}/endorse`, { method: 'POST', credentials: 'include' })
-      .then(r => r.json())
+      .then(r => r.ok ? r.json() : null)
       .then(data => {
+        if (!data) return
         setSkills(prev => prev.map(s => s.id === skillId
           ? { ...s, endorsed_by_me: data.endorsed ? 1 : 0, endorsement_count: s.endorsement_count + (data.endorsed ? 1 : -1) }
           : s))
@@ -7159,8 +7295,8 @@ function SkillsSection({ profile, t, lang, isOwn }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name }),
     })
-      .then(r => r.json())
-      .then(skill => { setSkills(prev => [...prev, skill]); setNewSkill(''); setShowAdd(false) })
+      .then(r => r.ok ? r.json() : null)
+      .then(skill => { if (!skill) return; setSkills(prev => [...prev, skill]); setNewSkill(''); setShowAdd(false) })
       .catch(() => {})
   }
 
@@ -7174,8 +7310,8 @@ function SkillsSection({ profile, t, lang, isOwn }) {
     if (endorsersPopup?.skillId === skillId) { setEndorsersPopup(null); return }
     setEndorsersLoading(true)
     fetch(`/api/skills/${skillId}/endorsers`, { credentials: 'include' })
-      .then(r => r.json())
-      .then(data => { setEndorsersPopup({ skillId, endorsers: data.endorsers || [] }); setEndorsersLoading(false) })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { setEndorsersPopup({ skillId, endorsers: data?.endorsers || [] }); setEndorsersLoading(false) })
       .catch(() => setEndorsersLoading(false))
   }
 
@@ -7280,8 +7416,8 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
   const loadCompanies = () => {
     setLoading(true)
     fetch('/api/companies', { credentials: 'include' })
-      .then(r => r.json())
-      .then(data => { setCompanies(data.companies || []); setLoading(false) })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { setCompanies(data?.companies || []); setLoading(false) })
       .catch(() => setLoading(false))
   }
 
@@ -7295,8 +7431,8 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
       setOpenedFromFeed(true)
     } else {
       fetch(`/api/companies/${initialCompanyId}`, { credentials: 'include' })
-        .then(r => r.json())
-        .then(data => { if (data.company) { setSelectedCompany(data.company); setOpenedFromFeed(true) } })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (data?.company) { setSelectedCompany(data.company); setOpenedFromFeed(true) } })
         .catch(() => {})
     }
   }, [initialCompanyId, companies, loading])
@@ -7312,8 +7448,9 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
 
   const toggleFollow = (id) => {
     fetch(`/api/companies/${id}/follow`, { method: 'POST', credentials: 'include' })
-      .then(r => r.json())
+      .then(r => r.ok ? r.json() : null)
       .then(data => {
+        if (!data) return
         setCompanies(prev => prev.map(c => c.id === id ? {
           ...c,
           is_following: data.following,
@@ -7333,8 +7470,8 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
     setDiscoverLoading(true)
     const params = discoverSearch ? `?q=${encodeURIComponent(discoverSearch)}` : ''
     fetch(`/api/companies/all${params}`, { credentials: 'include' })
-      .then(r => r.json())
-      .then(data => { setDiscoverCompanies(data.companies || []); setDiscoverLoading(false) })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { setDiscoverCompanies(data?.companies || []); setDiscoverLoading(false) })
       .catch(() => setDiscoverLoading(false))
   }, [tab, discoverSearch])
 
@@ -7501,10 +7638,10 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
   useEffect(() => {
     setPostsLoading(true)
     fetch(`/api/companies/${company.id}`, { credentials: 'include' })
-      .then(r => r.json())
+      .then(r => r.ok ? r.json() : null)
       .then(data => {
-        setCompanyPosts(data.posts || [])
-        setCompanyJobs(data.jobs || [])
+        setCompanyPosts(data?.posts || [])
+        setCompanyJobs(data?.jobs || [])
         setPostsLoading(false)
       })
       .catch(() => setPostsLoading(false))
@@ -7515,9 +7652,9 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
     if (companyMembers.length > 0) return
     setMembersLoading(true)
     fetch(`/api/companies/${company.id}/members`, { credentials: 'include' })
-      .then(r => r.json())
+      .then(r => r.ok ? r.json() : null)
       .then(data => {
-        const members = data.members || []
+        const members = data?.members || []
         setCompanyMembers(members)
         const state = {}
         members.forEach(m => {
@@ -7538,8 +7675,9 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
 
   const toggleCompanyLike = (postId) => {
     fetch(`/api/companies/${company.id}/posts/${postId}/like`, { method: 'POST', credentials: 'include' })
-      .then(r => r.json())
+      .then(r => r.ok ? r.json() : null)
       .then(data => {
+        if (!data) return
         setCompanyPosts(prev => prev.map(p => p.id === postId
           ? { ...p, liked: data.liked ? 1 : 0, likes: data.liked ? p.likes + 1 : Math.max(0, p.likes - 1) }
           : p))
@@ -7551,8 +7689,8 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
     setExpandedCompanyComments(prev => { const n = new Set(prev); n.has(postId) ? n.delete(postId) : n.add(postId); return n })
     if (!companyCommentLists[postId]) {
       fetch(`/api/companies/${company.id}/posts/${postId}/comments`, { credentials: 'include' })
-        .then(r => r.json())
-        .then(data => setCompanyCommentLists(prev => ({ ...prev, [postId]: data.comments || [] })))
+        .then(r => r.ok ? r.json() : null)
+        .then(data => setCompanyCommentLists(prev => ({ ...prev, [postId]: data?.comments || [] })))
         .catch(() => {})
     }
   }
@@ -7565,8 +7703,9 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text }),
     })
-      .then(r => r.json())
+      .then(r => r.ok ? r.json() : null)
       .then(comment => {
+        if (!comment) return
         setCompanyCommentLists(prev => ({ ...prev, [postId]: [...(prev[postId] || []), comment] }))
         setCompanyPosts(prev => prev.map(p => p.id === postId ? { ...p, comment_count: (p.comment_count || 0) + 1 } : p))
         setCompanyCommentInputs(prev => ({ ...prev, [postId]: '' }))
@@ -7595,8 +7734,9 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text_da: newPost.trim(), text_en: newPost.trim() }),
     })
-      .then(r => r.json())
+      .then(r => r.ok ? r.json() : null)
       .then(post => {
+        if (!post) return
         setCompanyPosts(prev => [post, ...prev])
         setNewPost('')
         setCpMediaFiles([])
@@ -7628,8 +7768,8 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
                   setShowFollowersPopup(true)
                   if (!followers) {
                     fetch(`/api/companies/${company.id}/followers`, { credentials: 'include' })
-                      .then(r => r.json())
-                      .then(d => setFollowers(d.followers || []))
+                      .then(r => r.ok ? r.json() : null)
+                      .then(d => setFollowers(d?.followers || []))
                       .catch(() => setFollowers([]))
                   }
                 }}
@@ -8082,8 +8222,9 @@ function JobCard({ job, t, lang, onSaveToggle }) {
 
   const toggleSave = () => {
     fetch(`/api/jobs/${job.id}/save`, { method: 'POST', credentials: 'include' })
-      .then(r => r.json())
+      .then(r => r.ok ? r.json() : null)
       .then(data => {
+        if (!data) return
         setIsSaved(data.saved)
         onSaveToggle?.(job.id, data.saved)
       })
@@ -8182,24 +8323,24 @@ function JobsPage({ lang, t, currentUser, mode }) {
     if (filterType) params.set('type', filterType)
     setLoading(true)
     fetch(`/api/jobs?${params}`, { credentials: 'include' })
-      .then(r => r.json())
-      .then(data => { setJobs(data.jobs || []); setLoading(false) })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { setJobs(data?.jobs || []); setLoading(false) })
       .catch(() => setLoading(false))
   }, [filterKeyword, filterType])
 
   useEffect(() => {
     if (tab === 'saved') {
       fetch('/api/jobs/saved', { credentials: 'include' })
-        .then(r => r.json())
-        .then(data => setSavedJobs(data.jobs || []))
+        .then(r => r.ok ? r.json() : null)
+        .then(data => setSavedJobs(data?.jobs || []))
         .catch(() => {})
     }
   }, [tab])
 
   useEffect(() => {
     fetch('/api/companies', { credentials: 'include' })
-      .then(r => r.json())
-      .then(data => setMyCompanies((data.companies || []).filter(c => c.member_role === 'owner' || c.member_role === 'admin')))
+      .then(r => r.ok ? r.json() : null)
+      .then(data => setMyCompanies((data?.companies || []).filter(c => c.member_role === 'owner' || c.member_role === 'admin')))
       .catch(() => {})
   }, [])
 
@@ -8217,8 +8358,8 @@ function JobsPage({ lang, t, currentUser, mode }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...job, active: !job.active }),
     })
-      .then(r => r.json())
-      .then(() => refreshMyJobs())
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) refreshMyJobs() })
       .catch(() => {})
   }
 

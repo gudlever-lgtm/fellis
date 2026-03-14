@@ -1633,6 +1633,47 @@ app.get('/api/feed', authenticate, async (req, res) => {
   }
 })
 
+// GET /api/feed/memories — posts by the current user from this same date in previous years
+app.get('/api/feed/memories', authenticate, async (req, res) => {
+  try {
+    const now = new Date()
+    const month = now.getMonth() + 1 // 1-based
+    const day = now.getDate()
+
+    const [rows] = await pool.query(
+      `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en,
+              p.likes, p.media, p.created_at,
+              YEAR(p.created_at) as post_year,
+              (? - YEAR(p.created_at)) as years_ago
+       FROM posts p JOIN users u ON u.id = p.author_id
+       WHERE p.author_id = ?
+         AND MONTH(p.created_at) = ?
+         AND DAY(p.created_at) = ?
+         AND YEAR(p.created_at) < ?
+       ORDER BY p.created_at DESC
+       LIMIT 10`,
+      [now.getFullYear(), req.userId, month, day, now.getFullYear()]
+    )
+
+    const memories = rows.map(p => ({
+      id: p.id,
+      authorId: p.author_id,
+      author: p.author,
+      text: { da: p.text_da, en: p.text_en },
+      time: { da: p.time_da, en: p.time_en },
+      likes: p.likes || 0,
+      media: (() => { try { return p.media ? JSON.parse(p.media) : [] } catch { return [] } })(),
+      createdAt: p.created_at,
+      yearsAgo: p.years_ago,
+    }))
+
+    res.json({ memories })
+  } catch (err) {
+    console.error('GET /api/feed/memories error:', err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // POST /api/feed/preflight — check text against keyword filters without posting
 app.post('/api/feed/preflight', authenticate, (req, res) => {
   const { text } = req.body

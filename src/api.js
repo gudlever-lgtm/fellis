@@ -31,7 +31,8 @@ async function request(path, options = {}) {
     })
     if (!res.ok) {
       const body = await res.json().catch(() => ({}))
-      throw new Error(body.error || `HTTP ${res.status}`)
+      console.warn(`API ${path} → ${res.status}`, body.error || '')
+      return null
     }
     return await res.json()
   } catch (err) {
@@ -98,6 +99,10 @@ export async function apiFetchFeed(offset = 0, limit = 20) {
 
 export async function apiPreflightPost(text) {
   return await request('/api/feed/preflight', { method: 'POST', body: JSON.stringify({ text }) })
+}
+
+export async function apiFetchMemories() {
+  return await request('/api/feed/memories')
 }
 
 export async function apiCreatePost(text, mediaFiles) {

@@ -876,6 +876,12 @@ export const PT = {
     mollieCheckoutLabel: 'Betal med Mollie',
     mollieCheckoutLoading: 'Henter...',
     mollieCheckoutError: 'Kunne ikke oprette betaling. Prøv igen.',
+    memoriesTitle: 'Minder',
+    memoriesOnThisDay: 'På denne dag',
+    memoriesYearAgo: 'år siden',
+    memoriesShare: 'Del som opslag',
+    memoriesDismiss: 'Skjul',
+    memoriesShared: 'Delt!',
   },
   en: {
     feed: 'Feed',
@@ -1613,6 +1619,12 @@ export const PT = {
     mollieCheckoutLabel: 'Pay with Mollie',
     mollieCheckoutLoading: 'Loading...',
     mollieCheckoutError: 'Could not create payment. Please try again.',
+    memoriesTitle: 'Memories',
+    memoriesOnThisDay: 'On this day',
+    memoriesYearAgo: 'year ago',
+    memoriesShare: 'Share as post',
+    memoriesDismiss: 'Dismiss',
+    memoriesShared: 'Shared!',
   },
 }
 
