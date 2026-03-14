@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } from 'react'
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { PT, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetMollieStatus } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetMollieStatus, apiCreateMolliePayment } from './api.js'
 import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
 import ReelsPage from './Reels.jsx'
@@ -3254,6 +3254,8 @@ function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, on
 function BillingSettings({ lang, t }) {
   const [sub, setSub] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [mollieLoading, setMollieLoading] = useState(false)
+  const [mollieError, setMollieError] = useState(null)
 
   useEffect(() => {
     apiGetSubscription().then(data => { if (data) setSub(data) }).catch(() => {})
@@ -3267,6 +3269,20 @@ function BillingSettings({ lang, t }) {
       window.location.href = data.url
     } else if (data?.error) {
       alert(data.error)
+    }
+  }
+
+  const handleMollieCheckout = async () => {
+    setMollieError(null)
+    setMollieLoading(true)
+    const price = sub?.price || 29
+    const currency = sub?.currency || 'DKK'
+    const data = await apiCreateMolliePayment('adfree', price, currency).catch(() => null)
+    setMollieLoading(false)
+    if (data?.checkoutUrl) {
+      window.location.href = data.checkoutUrl
+    } else {
+      setMollieError(lang === 'da' ? 'Kunne ikke oprette betaling — er MOLLIE_API_KEY sat i .env?' : 'Could not create payment — is MOLLIE_API_KEY set in .env?')
     }
   }
 
@@ -3286,7 +3302,7 @@ function BillingSettings({ lang, t }) {
             <span style={{ fontSize: 20 }}>✅</span>
             <div>
               <div style={{ fontWeight: 700, fontSize: 14, color: '#2D6A4F' }}>{t.adFreeActiveLabel}</div>
-              <div style={{ fontSize: 12, color: '#555', marginTop: 2 }}>{lang === 'da' ? 'Abonnementet fornyes automatisk.' : 'Your subscription renews automatically.'}</div>
+              <div style={{ fontSize: 12, color: '#555', marginTop: 2 }}>{lang === 'da' ? 'Abonnementet er aktivt.' : 'Your subscription is active.'}</div>
             </div>
           </div>
         ) : (
@@ -3296,18 +3312,44 @@ function BillingSettings({ lang, t }) {
                 {lang === 'da' ? 'Annoncer er i øjeblikket deaktiveret på platformen.' : 'Ads are currently disabled on the platform.'}
               </div>
             )}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
               <span style={{ fontSize: 13, color: '#555' }}>{t.adFreePrice}:</span>
               <span style={{ fontSize: 22, fontWeight: 800, color: '#1a1a1a' }}>{price} {currency}</span>
               <span style={{ fontSize: 13, color: '#888' }}>{t.adFreeMonth}</span>
             </div>
+
+            {/* Mollie checkout — primary */}
             <button
-              onClick={handleCheckout}
-              disabled={loading}
-              style={{ width: '100%', padding: '12px 0', borderRadius: 10, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 15, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}
+              onClick={handleMollieCheckout}
+              disabled={mollieLoading}
+              style={{ width: '100%', padding: '13px 0', borderRadius: 10, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 15, cursor: mollieLoading ? 'not-allowed' : 'pointer', opacity: mollieLoading ? 0.7 : 1, marginBottom: 8 }}
             >
-              {loading ? t.adFreeLoading : t.adFreeBtn}
+              {mollieLoading
+                ? (lang === 'da' ? 'Henter…' : 'Loading…')
+                : (lang === 'da' ? `Betal ${price} ${currency} — Mollie` : `Pay ${price} ${currency} — Mollie`)}
             </button>
+            {mollieError && <p style={{ fontSize: 13, color: '#e03131', margin: '0 0 12px' }}>{mollieError}</p>}
+
+            {/* Mollie accepted methods */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
+              {['MobilePay', 'Visa', 'Mastercard', 'Apple Pay', 'Google Pay'].map(m => (
+                <span key={m} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 20, background: '#f0f0f0', color: '#555' }}>{m}</span>
+              ))}
+            </div>
+
+            {/* Stripe fallback (shown only if Stripe was already configured) */}
+            <details style={{ marginTop: 8 }}>
+              <summary style={{ fontSize: 12, color: '#aaa', cursor: 'pointer', userSelect: 'none' }}>
+                {lang === 'da' ? 'Betal med Stripe i stedet' : 'Pay with Stripe instead'}
+              </summary>
+              <button
+                onClick={handleCheckout}
+                disabled={loading}
+                style={{ width: '100%', padding: '11px 0', borderRadius: 10, border: '1px solid #ccc', background: '#fff', color: '#333', fontWeight: 600, fontSize: 14, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, marginTop: 10 }}
+              >
+                {loading ? t.adFreeLoading : t.adFreeBtn}
+              </button>
+            </details>
           </>
         )}
       </div>
