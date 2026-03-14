@@ -10170,16 +10170,16 @@ function AdsManagementPage({ lang, t }) {
               <input style={fieldStyle} value={form.image_url} onChange={e => setForm(f => ({ ...f, image_url: e.target.value }))} placeholder="https://..." />
               <label style={labelStyle}>{t.adsAdTarget} *</label>
               <input required style={fieldStyle} value={form.target_url} onChange={e => setForm(f => ({ ...f, target_url: e.target.value }))} placeholder="https://..." />
-              <label style={labelStyle}>{t.adsPlacement}</label>
-              <select style={fieldStyle} value={form.placement} onChange={e => setForm(f => ({ ...f, placement: e.target.value }))}>
-                <option value="feed">{t.adsFeed}</option>
-                <option value="sidebar">{t.adsSidebar}</option>
-                <option value="stories">{t.adsStories}</option>
-              </select>
               <label style={labelStyle}>{t.adsAdStartDate}</label>
-              <input type="date" style={fieldStyle} value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} />
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input type="date" style={{ ...fieldStyle, flex: 1 }} value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} />
+                <button type="button" onClick={() => setForm(f => ({ ...f, start_date: new Date().toISOString().slice(0,10) }))} style={{ whiteSpace: 'nowrap', fontSize: 11, padding: '6px 8px', borderRadius: 6, border: '1px solid #ccc', background: '#f5f5f5', cursor: 'pointer' }}>{lang === 'da' ? 'I dag' : 'Today'}</button>
+              </div>
               <label style={labelStyle}>{t.adsAdEndDate}</label>
-              <input type="date" style={fieldStyle} value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} />
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input type="date" style={{ ...fieldStyle, flex: 1 }} value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} />
+                <button type="button" onClick={() => { const d = new Date(); d.setDate(d.getDate() + 30); setForm(f => ({ ...f, end_date: d.toISOString().slice(0,10) })) }} style={{ whiteSpace: 'nowrap', fontSize: 11, padding: '6px 8px', borderRadius: 6, border: '1px solid #ccc', background: '#f5f5f5', cursor: 'pointer' }}>+30 {lang === 'da' ? 'dage' : 'days'}</button>
+              </div>
               <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
                 <button type="submit" disabled={saving} style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>{saving ? '…' : t.adsSave}</button>
                 <button type="button" onClick={() => setShowCreate(false)} style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: '1px solid #ddd', background: 'none', fontSize: 14, cursor: 'pointer' }}>{t.adsCancel}</button>
