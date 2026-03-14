@@ -705,8 +705,8 @@ export async function apiGetConfig() {
   } catch { return null }
 }
 
-export async function apiGetChangelog() {
-  return await request('/api/changelog')
+export async function apiGetChangelog(lang = 'da') {
+  return await request(`/api/changelog?lang=${lang}`)
 }
 
 export async function apiGetNotifications() {
