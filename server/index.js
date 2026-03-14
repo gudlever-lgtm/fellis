@@ -1522,7 +1522,8 @@ app.get('/api/feed', authenticate, async (req, res) => {
 
     const [countResult] = await pool.query(
       `SELECT COUNT(*) as total FROM posts p
-       WHERE p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?)`,
+       WHERE (p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?))
+         AND (p.scheduled_at IS NULL OR p.scheduled_at <= NOW())`,
       [req.userId, req.userId]
     )
     const total = countResult[0].total
@@ -1530,7 +1531,8 @@ app.get('/api/feed', authenticate, async (req, res) => {
     const [posts] = await pool.query(
       `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.created_at, p.edited_at
        FROM posts p JOIN users u ON p.author_id = u.id
-       WHERE p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?)
+       WHERE (p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?))
+         AND (p.scheduled_at IS NULL OR p.scheduled_at <= NOW())
        ORDER BY p.created_at DESC
        LIMIT ? OFFSET ?`,
       [req.userId, req.userId, limit, offset]
@@ -1633,6 +1635,47 @@ app.get('/api/feed', authenticate, async (req, res) => {
   }
 })
 
+// GET /api/feed/memories — posts by the current user from this same date in previous years
+app.get('/api/feed/memories', authenticate, async (req, res) => {
+  try {
+    const now = new Date()
+    const month = now.getMonth() + 1 // 1-based
+    const day = now.getDate()
+
+    const [rows] = await pool.query(
+      `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en,
+              p.likes, p.media, p.created_at,
+              YEAR(p.created_at) as post_year,
+              (? - YEAR(p.created_at)) as years_ago
+       FROM posts p JOIN users u ON u.id = p.author_id
+       WHERE p.author_id = ?
+         AND MONTH(p.created_at) = ?
+         AND DAY(p.created_at) = ?
+         AND YEAR(p.created_at) < ?
+       ORDER BY p.created_at DESC
+       LIMIT 10`,
+      [now.getFullYear(), req.userId, month, day, now.getFullYear()]
+    )
+
+    const memories = rows.map(p => ({
+      id: p.id,
+      authorId: p.author_id,
+      author: p.author,
+      text: { da: p.text_da, en: p.text_en },
+      time: { da: p.time_da, en: p.time_en },
+      likes: p.likes || 0,
+      media: (() => { try { return p.media ? JSON.parse(p.media) : [] } catch { return [] } })(),
+      createdAt: p.created_at,
+      yearsAgo: p.years_ago,
+    }))
+
+    res.json({ memories })
+  } catch (err) {
+    console.error('GET /api/feed/memories error:', err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // POST /api/feed/preflight — check text against keyword filters without posting
 app.post('/api/feed/preflight', authenticate, (req, res) => {
   const { text } = req.body
@@ -1644,7 +1687,7 @@ app.post('/api/feed/preflight', authenticate, (req, res) => {
 
 // POST /api/feed — create a new post (with optional media)
 app.post('/api/feed', authenticate, upload.array('media', 4), async (req, res) => {
-  const { text } = req.body
+  const { text, scheduled_at } = req.body
   if (!text && !req.files?.length) return res.status(400).json({ error: 'Post text or media required' })
 
   // Keyword filter check
@@ -1674,9 +1717,11 @@ app.post('/api/feed', authenticate, upload.array('media', 4), async (req, res) =
 
   try {
     const mediaJson = mediaUrls.length > 0 ? JSON.stringify(mediaUrls) : null
+    const scheduledDate = scheduled_at ? new Date(scheduled_at) : null
+    if (scheduledDate && isNaN(scheduledDate.getTime())) return res.status(400).json({ error: 'Invalid scheduled_at' })
     const [result] = await pool.query(
-      'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media) VALUES (?, ?, ?, ?, ?, ?)',
-      [req.userId, text, text, 'Lige nu', 'Just now', mediaJson]
+      'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media, scheduled_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [req.userId, text, text, 'Lige nu', 'Just now', mediaJson, scheduledDate]
     )
     const [users] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
     const now = new Date()
@@ -1687,6 +1732,9 @@ app.post('/api/feed', authenticate, upload.array('media', 4), async (req, res) =
         'INSERT INTO reports (reporter_id, target_type, target_id, reason, details) VALUES (?, ?, ?, ?, ?)',
         [req.userId, 'post', postId, 'keyword_flag', `Auto-flagged: keyword "${autoFlagKeyword}"`]
       ).catch(() => {})
+    }
+    if (scheduledDate) {
+      return res.json({ id: postId, scheduled: true, scheduledAt: scheduledDate })
     }
     res.json({
       id: postId,
@@ -3613,6 +3661,297 @@ app.post('/api/jobs/:id/save', authenticate, async (req, res) => {
       res.json({ saved: true })
     }
   } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Business Features: Job Applications, Contact Notes, Scheduled Posts, Company Leads ──
+
+async function initBusinessFeatures() {
+  try {
+    // Scheduled posts support
+    await pool.query(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS scheduled_at DATETIME NULL DEFAULT NULL`)
+
+    // Job applications
+    await pool.query(`CREATE TABLE IF NOT EXISTS job_applications (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      job_id INT NOT NULL,
+      applicant_id INT NOT NULL,
+      name VARCHAR(200) NOT NULL,
+      email VARCHAR(200) NOT NULL,
+      message TEXT DEFAULT NULL,
+      cv_url VARCHAR(500) DEFAULT NULL,
+      status ENUM('pending','reviewed','shortlisted','rejected') NOT NULL DEFAULT 'pending',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_job_applicant (job_id, applicant_id),
+      INDEX idx_ja_job (job_id),
+      INDEX idx_ja_applicant (applicant_id),
+      FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE,
+      FOREIGN KEY (applicant_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+
+    // CRM contact notes (private per author)
+    await pool.query(`CREATE TABLE IF NOT EXISTS contact_notes (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      author_id INT NOT NULL,
+      contact_id INT NOT NULL,
+      note TEXT NOT NULL DEFAULT '',
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_cn_author_contact (author_id, contact_id),
+      INDEX idx_cn_author (author_id),
+      FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (contact_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+
+    // Company lead capture
+    await pool.query(`CREATE TABLE IF NOT EXISTS company_leads (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      company_id INT NOT NULL,
+      name VARCHAR(200) NOT NULL,
+      email VARCHAR(200) NOT NULL,
+      topic VARCHAR(200) DEFAULT NULL,
+      message TEXT DEFAULT NULL,
+      status ENUM('new','responded','archived') NOT NULL DEFAULT 'new',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_cl_company (company_id),
+      FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+
+  } catch (err) {
+    console.error('initBusinessFeatures error:', err.message)
+  }
+}
+
+// ── Job Applications ──────────────────────────────────────────────────────────
+
+// POST /api/jobs/:id/apply — submit in-app application
+app.post('/api/jobs/:id/apply', authenticate, upload.single('cv'), async (req, res) => {
+  try {
+    const { name, email, message } = req.body
+    if (!name?.trim() || !email?.trim()) return res.status(400).json({ error: 'Name and email required' })
+    const [[job]] = await pool.query('SELECT id, company_id FROM jobs WHERE id = ? AND active = 1', [req.params.id])
+    if (!job) return res.status(404).json({ error: 'Job not found' })
+    let cvUrl = null
+    if (req.file) {
+      const buf = Buffer.alloc(16)
+      const fd = require('fs').openSync(req.file.path, 'r')
+      require('fs').readSync(fd, buf, 0, 16, 0)
+      require('fs').closeSync(fd)
+      if (!validateMagicBytes(buf, req.file.mimetype)) {
+        require('fs').unlinkSync(req.file.path)
+        return res.status(400).json({ error: 'Invalid CV file type' })
+      }
+      cvUrl = `/uploads/${req.file.filename}`
+    }
+    await pool.query(
+      'INSERT INTO job_applications (job_id, applicant_id, name, email, message, cv_url) VALUES (?, ?, ?, ?, ?, ?)',
+      [req.params.id, req.userId, name.trim(), email.trim(), message?.trim() || null, cvUrl]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Already applied' })
+    console.error('POST /api/jobs/:id/apply error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/jobs/:id/applications — recruiter: list applicants (company admin/owner only)
+app.get('/api/jobs/:id/applications', authenticate, async (req, res) => {
+  try {
+    const [[job]] = await pool.query('SELECT id, company_id FROM jobs WHERE id = ?', [req.params.id])
+    if (!job) return res.status(404).json({ error: 'Not found' })
+    const [[member]] = await pool.query(
+      "SELECT role FROM company_members WHERE company_id = ? AND user_id = ? AND role IN ('owner','admin','editor')",
+      [job.company_id, req.userId]
+    )
+    if (!member) return res.status(403).json({ error: 'Forbidden' })
+    const [applications] = await pool.query(
+      `SELECT ja.*, u.handle AS applicant_handle
+       FROM job_applications ja JOIN users u ON u.id = ja.applicant_id
+       WHERE ja.job_id = ? ORDER BY ja.created_at DESC`,
+      [req.params.id]
+    )
+    res.json({ applications })
+  } catch (err) {
+    console.error('GET /api/jobs/:id/applications error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// PATCH /api/jobs/:id/applications/:appId — recruiter: update applicant status
+app.patch('/api/jobs/:id/applications/:appId', authenticate, async (req, res) => {
+  try {
+    const { status } = req.body
+    const validStatuses = ['pending', 'reviewed', 'shortlisted', 'rejected']
+    if (!validStatuses.includes(status)) return res.status(400).json({ error: 'Invalid status' })
+    const [[job]] = await pool.query('SELECT id, company_id FROM jobs WHERE id = ?', [req.params.id])
+    if (!job) return res.status(404).json({ error: 'Not found' })
+    const [[member]] = await pool.query(
+      "SELECT role FROM company_members WHERE company_id = ? AND user_id = ? AND role IN ('owner','admin','editor')",
+      [job.company_id, req.userId]
+    )
+    if (!member) return res.status(403).json({ error: 'Forbidden' })
+    await pool.query('UPDATE job_applications SET status = ? WHERE id = ? AND job_id = ?', [status, req.params.appId, req.params.id])
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('PATCH /api/jobs/:id/applications/:appId error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Contact Notes (CRM) ───────────────────────────────────────────────────────
+
+// GET /api/contact-notes/:userId — get my private note for a specific contact
+app.get('/api/contact-notes/:userId', authenticate, async (req, res) => {
+  try {
+    const [[row]] = await pool.query(
+      'SELECT note, updated_at FROM contact_notes WHERE author_id = ? AND contact_id = ?',
+      [req.userId, req.params.userId]
+    )
+    res.json({ note: row?.note || '', updatedAt: row?.updated_at || null })
+  } catch (err) {
+    console.error('GET /api/contact-notes/:userId error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// PUT /api/contact-notes/:userId — save/update my private note for a contact
+app.put('/api/contact-notes/:userId', authenticate, async (req, res) => {
+  try {
+    const { note } = req.body
+    if (note === undefined) return res.status(400).json({ error: 'note required' })
+    if (!note.trim()) {
+      await pool.query('DELETE FROM contact_notes WHERE author_id = ? AND contact_id = ?', [req.userId, req.params.userId])
+      return res.json({ ok: true })
+    }
+    await pool.query(
+      `INSERT INTO contact_notes (author_id, contact_id, note) VALUES (?, ?, ?)
+       ON DUPLICATE KEY UPDATE note = VALUES(note), updated_at = NOW()`,
+      [req.userId, req.params.userId, note.trim()]
+    )
+    const [[row]] = await pool.query(
+      'SELECT updated_at FROM contact_notes WHERE author_id = ? AND contact_id = ?',
+      [req.userId, req.params.userId]
+    )
+    res.json({ ok: true, updatedAt: row?.updated_at || null })
+  } catch (err) {
+    console.error('PUT /api/contact-notes/:userId error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/contact-notes — list all my notes (for "My notes" view)
+app.get('/api/contact-notes', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT cn.contact_id, cn.note, cn.updated_at, u.name AS contact_name, u.handle AS contact_handle, u.avatar_url AS contact_avatar
+       FROM contact_notes cn JOIN users u ON u.id = cn.contact_id
+       WHERE cn.author_id = ? AND cn.note != '' ORDER BY cn.updated_at DESC`,
+      [req.userId]
+    )
+    res.json({ notes: rows })
+  } catch (err) {
+    console.error('GET /api/contact-notes error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Scheduled Posts ───────────────────────────────────────────────────────────
+
+// GET /api/feed/scheduled — list my scheduled posts
+app.get('/api/feed/scheduled', authenticate, async (req, res) => {
+  try {
+    const [posts] = await pool.query(
+      `SELECT p.id, p.text_da, p.text_en, p.media, p.scheduled_at
+       FROM posts p WHERE p.author_id = ? AND p.scheduled_at > NOW()
+       ORDER BY p.scheduled_at ASC`,
+      [req.userId]
+    )
+    const result = posts.map(p => {
+      let media = null
+      if (p.media) { try { media = typeof p.media === 'string' ? JSON.parse(p.media) : p.media } catch {} }
+      return { id: p.id, text: { da: p.text_da, en: p.text_en }, media, scheduledAt: p.scheduled_at }
+    })
+    res.json({ posts: result })
+  } catch (err) {
+    console.error('GET /api/feed/scheduled error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// PATCH /api/feed/scheduled/:id — reschedule or cancel a scheduled post
+app.patch('/api/feed/scheduled/:id', authenticate, async (req, res) => {
+  try {
+    const { scheduled_at } = req.body
+    const [[post]] = await pool.query('SELECT id FROM posts WHERE id = ? AND author_id = ? AND scheduled_at > NOW()', [req.params.id, req.userId])
+    if (!post) return res.status(404).json({ error: 'Scheduled post not found' })
+    if (!scheduled_at) {
+      // Cancel: set scheduled_at to null so post publishes immediately
+      await pool.query('UPDATE posts SET scheduled_at = NULL WHERE id = ?', [req.params.id])
+    } else {
+      await pool.query('UPDATE posts SET scheduled_at = ? WHERE id = ?', [new Date(scheduled_at), req.params.id])
+    }
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('PATCH /api/feed/scheduled/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Company Lead Capture ──────────────────────────────────────────────────────
+
+// POST /api/companies/:id/leads — submit a lead form
+app.post('/api/companies/:id/leads', authenticate, async (req, res) => {
+  try {
+    const { name, email, topic, message } = req.body
+    if (!name?.trim() || !email?.trim()) return res.status(400).json({ error: 'Name and email required' })
+    const [[company]] = await pool.query('SELECT id FROM companies WHERE id = ?', [req.params.id])
+    if (!company) return res.status(404).json({ error: 'Company not found' })
+    await pool.query(
+      'INSERT INTO company_leads (company_id, name, email, topic, message) VALUES (?, ?, ?, ?, ?)',
+      [req.params.id, name.trim(), email.trim(), topic?.trim() || null, message?.trim() || null]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/companies/:id/leads error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/companies/:id/leads — company admin: get all leads
+app.get('/api/companies/:id/leads', authenticate, async (req, res) => {
+  try {
+    const [[member]] = await pool.query(
+      "SELECT role FROM company_members WHERE company_id = ? AND user_id = ? AND role IN ('owner','admin')",
+      [req.params.id, req.userId]
+    )
+    if (!member) return res.status(403).json({ error: 'Forbidden' })
+    const [leads] = await pool.query(
+      'SELECT * FROM company_leads WHERE company_id = ? ORDER BY created_at DESC',
+      [req.params.id]
+    )
+    res.json({ leads })
+  } catch (err) {
+    console.error('GET /api/companies/:id/leads error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// PATCH /api/companies/:id/leads/:leadId — update lead status
+app.patch('/api/companies/:id/leads/:leadId', authenticate, async (req, res) => {
+  try {
+    const { status } = req.body
+    const validStatuses = ['new', 'responded', 'archived']
+    if (!validStatuses.includes(status)) return res.status(400).json({ error: 'Invalid status' })
+    const [[member]] = await pool.query(
+      "SELECT role FROM company_members WHERE company_id = ? AND user_id = ? AND role IN ('owner','admin')",
+      [req.params.id, req.userId]
+    )
+    if (!member) return res.status(403).json({ error: 'Forbidden' })
+    await pool.query('UPDATE company_leads SET status = ? WHERE id = ? AND company_id = ?', [status, req.params.leadId, req.params.id])
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('PATCH /api/companies/:id/leads/:leadId error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })
@@ -6125,6 +6464,7 @@ app.listen(PORT, () => {
   initReels()
   initAds()
   initAdminAdSettings()
+  initBusinessFeatures()
 })
 
 app.all('/api/stub/:fn', authenticate, (req, res) => res.json({ ok: true }))
