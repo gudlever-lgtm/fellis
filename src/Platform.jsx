@@ -5296,6 +5296,11 @@ function FriendsPage({ lang, t, mode, onMessage }) {
     window.open(`https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`, 'facebook-share', 'width=580,height=400')
   }, [inviteLink])
 
+  const handleLinkedInShare = useCallback(() => {
+    const shareUrl = encodeURIComponent(inviteLink || 'https://fellis.eu')
+    window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${shareUrl}`, 'linkedin-share', 'width=600,height=500')
+  }, [inviteLink])
+
   const handleSendEmailInvite = useCallback(async (e) => {
     e.preventDefault()
     if (!inviteEmail.trim()) return
@@ -5462,10 +5467,16 @@ function FriendsPage({ lang, t, mode, onMessage }) {
             {inviteCopied ? (lang === 'da' ? 'Kopieret!' : 'Copied!') : (lang === 'da' ? 'Kopier' : 'Copy')}
           </button>
         </div>
-        <button className="p-fb-share-btn" onClick={handleFbShare}>
-          <span className="fb-icon">f</span>
-          {lang === 'da' ? 'Del på Facebook' : 'Share on Facebook'}
-        </button>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <button className="p-fb-share-btn" onClick={handleFbShare}>
+            <span className="fb-icon">f</span>
+            {lang === 'da' ? 'Del på Facebook' : 'Share on Facebook'}
+          </button>
+          <button className="p-fb-share-btn" onClick={handleLinkedInShare} style={{ background: '#0A66C2' }}>
+            <span className="fb-icon" style={{ fontWeight: 900, fontSize: 16 }}>in</span>
+            {lang === 'da' ? 'Del på LinkedIn' : 'Share on LinkedIn'}
+          </button>
+        </div>
       </div>
 
       {/* Incoming connection requests (only on non-invites tabs; shown inside Invitations tab too) */}
