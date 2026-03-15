@@ -6720,4 +6720,21 @@ app.listen(PORT, () => {
 
 app.all('/api/stub/:fn', authenticate, (req, res) => res.json({ ok: true }))
 
-app.post('/api/upload/file', authenticate, (req, res) => res.json({ ok: true, url: null }))
+app.post('/api/upload/file', authenticate, upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' })
+  try {
+    const header = Buffer.alloc(16)
+    const fd = fs.openSync(req.file.path, 'r')
+    fs.readSync(fd, header, 0, 16, 0)
+    fs.closeSync(fd)
+    if (!validateMagicBytes(header, req.file.mimetype)) {
+      fs.unlinkSync(req.file.path)
+      return res.status(400).json({ error: 'File content does not match declared type' })
+    }
+    const type = req.file.mimetype.startsWith('video/') ? 'video' : 'image'
+    res.json({ url: `/uploads/${req.file.filename}`, type, mime: req.file.mimetype })
+  } catch (err) {
+    console.error('POST /api/upload/file error:', err.message)
+    res.status(500).json({ error: 'Upload failed' })
+  }
+})
