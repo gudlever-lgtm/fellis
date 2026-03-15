@@ -17,7 +17,7 @@ import ChuckBanner from './components/easter-eggs/ChuckBanner.jsx'
 import MatrixRain from './components/easter-eggs/MatrixRain.jsx'
 import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
 import RickRoll from './components/easter-eggs/RickRoll.jsx'
-import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiEvaluateBadges, apiGetEarnedBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge } from './api.js'
+import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiEvaluateBadges, apiGetEarnedBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences } from './api.js'
 import { BADGES, BADGE_BY_ID } from './badges/badgeDefinitions.js'
 import BadgeToastQueue from './components/BadgeToast.jsx'
 import ModeGate from './components/ModeGate.jsx'
@@ -145,12 +145,30 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
     return () => clearTimeout(timer)
   }, [checkBadges])
 
-  // Load notifications from server on mount
-  useEffect(() => {
+  const reloadNotifs = useCallback(() => {
     apiGetNotifications().then(data => {
       if (Array.isArray(data)) setNotifs(data.map(n => normaliseNotif(n, lang)))
     }).catch(() => {})
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [lang]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load notifications on mount + refresh every 60s
+  useEffect(() => {
+    reloadNotifs()
+    const interval = setInterval(reloadNotifs, 60000)
+    return () => clearInterval(interval)
+  }, [reloadNotifs])
+
+  // Real-time notification push via SSE
+  useEffect(() => {
+    const es = openSSE()
+    es.onmessage = (e) => {
+      try {
+        const payload = JSON.parse(e.data)
+        if (payload.type === 'notification') reloadNotifs()
+      } catch {}
+    }
+    return () => es.close()
+  }, [reloadNotifs])
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -331,16 +349,10 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
                 notifs={notifs}
                 t={t}
                 lang={lang}
-                mode={mode}
                 onMarkAllRead={markAllRead}
                 onMarkRead={(id) => {
                   setNotifs(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
                   apiMarkNotificationRead(id).catch(() => {})
-                }}
-                onNavigate={(pg, postId) => {
-                  if (postId) { setHighlightPostId(postId) }
-                  navigateTo(pg)
-                  setShowNotifPanel(false)
                 }}
               />
             )}
@@ -551,20 +563,39 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
 }
 
 // ── Notifications Panel ──
-function NotificationsPanel({ notifs, t, lang, mode, onMarkAllRead, onMarkRead, onNavigate }) {
-  const getLabel = (n) => {
-    switch (n.type) {
-      case 'friend_request': return mode === 'business' ? t.notifConnectionRequest : t.notifFriendRequest
-      case 'like': return t.notifLike
-      case 'comment': return t.notifComment
-      case 'accepted': return mode === 'business' ? t.notifConnectionAccepted : t.notifAccepted
-      case 'group_post': return `${t.notifGroupPost} "${n.group}"`
-      case 'profile_view': return t.notifProfileView
-      case 'endorsement': return t.notifEndorsement
-      default: return ''
-    }
+const NOTIF_ICONS = {
+  like: '❤️', comment: '💬', friend_request: '👥', friend_accepted: '🤝',
+  event_rsvp: '📅', listing_boosted: '🚀', moderator_granted: '🛡️',
+  mod_result: '📋', moderation: '⚠️',
+}
+
+function timeAgo(dateStr, lang) {
+  const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
+  if (diff < 60) return lang === 'da' ? 'Lige nu' : 'Just now'
+  if (diff < 3600) { const m = Math.floor(diff / 60); return lang === 'da' ? `${m} min siden` : `${m}m ago` }
+  if (diff < 86400) { const h = Math.floor(diff / 3600); return lang === 'da' ? `${h} t siden` : `${h}h ago` }
+  const d = Math.floor(diff / 86400)
+  return lang === 'da' ? `${d} dag${d !== 1 ? 'e' : ''} siden` : `${d}d ago`
+}
+
+function normaliseNotif(n, lang) {
+  return {
+    id: n.id,
+    type: n.type,
+    icon: NOTIF_ICONS[n.type] || '🔔',
+    message: lang === 'en' ? (n.message_en || n.message_da) : (n.message_da || n.message_en),
+    link: n.link,
+    read: Boolean(n.read_at),
+    time: timeAgo(n.created_at, lang),
   }
+}
+
+function NotificationsPanel({ notifs, t, lang, onMarkAllRead, onMarkRead }) {
   const unread = notifs.filter(n => !n.read).length
+  const handleClick = (n) => {
+    onMarkRead(n.id)
+    if (n.link) window.history.pushState({}, '', n.link)
+  }
   return (
     <div className="notif-panel">
       <div className="notif-panel-header">
@@ -580,13 +611,12 @@ function NotificationsPanel({ notifs, t, lang, mode, onMarkAllRead, onMarkRead, 
           <div
             key={n.id}
             className={`notif-item${n.read ? '' : ' notif-item-unread'}`}
-            onClick={() => { onMarkRead(n.id); onNavigate(n.targetPage, n.postId) }}
+            onClick={() => handleClick(n)}
           >
             <div className="notif-item-dot" style={{ opacity: n.read ? 0 : 1 }} />
             <div className="notif-item-body">
-              <span className="notif-actor">{n.actor}</span>
-              {' '}
-              <span>{getLabel(n)}</span>
+              <span className="notif-item-icon" style={{ marginRight: 6 }}>{n.icon}</span>
+              <span>{n.message}</span>
             </div>
             <div className="notif-item-time">{n.time}</div>
           </div>
@@ -3692,7 +3722,7 @@ function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, on
   const fS = { display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box', fontFamily: 'inherit' }
   const lS = { display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4, marginTop: 14 }
   const billingLabel = lang === 'da' ? 'Abonnement' : 'Billing'
-  const tabLabels = { konto: t.settingsKonto, billing: billingLabel, privatliv: t.settingsPrivatliv, sessions: t.settingsSessions, sprog: t.settingsSprog, leverandoerer: t.settingsLeverandoerer }
+  const tabLabels = { konto: t.settingsKonto, billing: billingLabel, notifikationer: t.settingsNotifikationer, privatliv: t.settingsPrivatliv, sessions: t.settingsSessions, sprog: t.settingsSprog, leverandoerer: t.settingsLeverandoerer }
 
   return (
     <div className="p-events" style={{ maxWidth: 600 }}>
@@ -3708,10 +3738,100 @@ function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, on
         <EasterEggSettings lang={lang} />
       </>}
       {tab === 'billing' && <BillingSettings lang={lang} t={t} />}
+      {tab === 'notifikationer' && <SettingsNotifications lang={lang} t={t} />}
       {tab === 'privatliv' && <SettingsPrivatliv lang={lang} t={t} fS={fS} lS={lS} />}
       {tab === 'sessions' && <SettingsSessions lang={lang} t={t} onLogout={onLogout} />}
       {tab === 'sprog' && <SettingsSprog lang={lang} t={t} darkMode={darkMode} onToggleDark={onToggleDark} />}
       {tab === 'leverandoerer' && <SettingsLeverandoerer lang={lang} t={t} />}
+    </div>
+  )
+}
+
+const NOTIF_PREF_TYPES = [
+  { key: 'like',            icon: '❤️' },
+  { key: 'comment',         icon: '💬' },
+  { key: 'friend_request',  icon: '👥' },
+  { key: 'friend_accepted', icon: '🤝' },
+  { key: 'event_rsvp',      icon: '📅' },
+  { key: 'listing_boosted', icon: '🚀' },
+  { key: 'mod_result',      icon: '📋' },
+  { key: 'moderation',      icon: '⚠️' },
+]
+
+function SettingsNotifications({ lang, t }) {
+  const [prefs, setPrefs] = useState({})
+  const [saved, setSaved] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    apiGetNotificationPreferences().then(data => {
+      if (data?.prefs) setPrefs(data.prefs)
+      setLoading(false)
+    }).catch(() => setLoading(false))
+  }, [])
+
+  const allEnabled = prefs.all !== false
+  const isEnabled = (key) => prefs[key] !== false && allEnabled
+
+  const toggle = (key) => {
+    if (key === 'all') {
+      setPrefs(p => ({ ...p, all: p.all === false ? true : false }))
+    } else {
+      setPrefs(p => ({ ...p, [key]: p[key] === false ? true : false }))
+    }
+  }
+
+  const save = async () => {
+    await apiSaveNotificationPreferences(prefs).catch(() => {})
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2500)
+  }
+
+  const labelMap = {
+    like: t.notifPrefLike, comment: t.notifPrefComment,
+    friend_request: t.notifPrefFriendRequest, friend_accepted: t.notifPrefFriendAccepted,
+    event_rsvp: t.notifPrefEventRsvp, listing_boosted: t.notifPrefListingBoosted,
+    mod_result: t.notifPrefModResult, moderation: t.notifPrefModeration,
+  }
+
+  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>{lang === 'da' ? 'Henter…' : 'Loading…'}</div>
+
+  return (
+    <div className="p-card" style={{ padding: '20px 24px' }}>
+      <h3 style={{ margin: '0 0 6px', fontSize: 16, fontWeight: 700 }}>🔔 {t.notifPrefTitle}</h3>
+      <p style={{ margin: '0 0 20px', fontSize: 13, color: '#666' }}>{t.notifPrefDesc}</p>
+
+      {/* Master toggle */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: '2px solid #eee', marginBottom: 8 }}>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 14 }}>🔔 {t.notifPrefAll}</div>
+          <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{t.notifPrefAllDesc}</div>
+        </div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+          <input type="checkbox" checked={allEnabled} onChange={() => toggle('all')} style={{ width: 18, height: 18, cursor: 'pointer' }} />
+        </label>
+      </div>
+
+      {/* Per-type toggles */}
+      {NOTIF_PREF_TYPES.map(({ key, icon }) => (
+        <div key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid #f0eeec', opacity: allEnabled ? 1 : 0.4 }}>
+          <div style={{ fontSize: 14 }}>{icon} {labelMap[key]}</div>
+          <input
+            type="checkbox"
+            checked={isEnabled(key)}
+            disabled={!allEnabled}
+            onChange={() => toggle(key)}
+            style={{ width: 17, height: 17, cursor: allEnabled ? 'pointer' : 'not-allowed' }}
+          />
+        </div>
+      ))}
+
+      <button
+        onClick={save}
+        style={{ marginTop: 20, padding: '10px 24px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}
+      >
+        {saved ? t.notifPrefSaved : t.notifPrefSave}
+      </button>
     </div>
   )
 }

@@ -740,6 +740,17 @@ export async function apiMarkAllNotificationsRead() {
   return await request('/api/notifications/read-all', { method: 'POST' })
 }
 
+export async function apiGetNotificationPreferences() {
+  return await request('/api/me/notification-preferences')
+}
+
+export async function apiSaveNotificationPreferences(prefs) {
+  return await request('/api/me/notification-preferences', {
+    method: 'PUT',
+    body: JSON.stringify({ prefs }),
+  })
+}
+
 export async function apiSuggestCategory(text) {
   return await request(`/api/feed/suggest-category?text=${encodeURIComponent(text)}`)
 }

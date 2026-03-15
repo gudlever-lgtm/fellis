@@ -1881,6 +1881,19 @@ app.post('/api/feed/:id/like', authenticate, async (req, res) => {
         await pool.query('INSERT INTO post_likes (post_id, user_id) VALUES (?, ?)', [postId, req.userId])
       }
       await pool.query('UPDATE posts SET likes = likes + 1 WHERE id = ?', [postId])
+      // Notify post author (not self)
+      const [[post]] = await pool.query('SELECT user_id FROM posts WHERE id = ?', [postId]).catch(() => [[null]])
+      if (post && post.user_id !== req.userId) {
+        const [[liker]] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId]).catch(() => [[null]])
+        if (liker) {
+          const emoji = reaction || '❤️'
+          createNotification(post.user_id, 'like',
+            `${liker.name} reagerede ${emoji} på dit opslag`,
+            `${liker.name} reacted ${emoji} to your post`,
+            '/feed'
+          )
+        }
+      }
       res.json({ liked: true, reaction })
     }
   } catch (err) {
@@ -1948,6 +1961,15 @@ app.post('/api/feed/:id/comment', authenticate, upload.single('media'), async (r
     }
     const [users] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
     const media = mediaJson ? JSON.parse(mediaJson) : null
+    // Notify post author (not self)
+    const [[post]] = await pool.query('SELECT user_id FROM posts WHERE id = ?', [postId]).catch(() => [[null]])
+    if (post && post.user_id !== req.userId) {
+      createNotification(post.user_id, 'comment',
+        `${users[0].name} kommenterede dit opslag`,
+        `${users[0].name} commented on your post`,
+        '/feed'
+      )
+    }
     res.json({ author: users[0].name, text: { da: text, en: text }, media })
   } catch (err) {
     res.status(500).json({ error: 'Failed to add comment' })
@@ -2177,6 +2199,14 @@ app.post('/api/friends/request/:userId', authenticate, async (req, res) => {
        ON DUPLICATE KEY UPDATE status = 'pending', created_at = CURRENT_TIMESTAMP()`,
       [req.userId, targetId]
     )
+    const [[sender]] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId]).catch(() => [[null]])
+    if (sender) {
+      createNotification(targetId, 'friend_request',
+        `${sender.name} har sendt dig en venneanmodning`,
+        `${sender.name} sent you a friend request`,
+        '/friends'
+      )
+    }
     res.json({ ok: true })
   } catch (err) { res.status(500).json({ error: 'Failed to send request' }) }
 })
@@ -2214,6 +2244,14 @@ app.post('/api/friends/requests/:id/accept', authenticate, async (req, res) => {
     await pool.query(`UPDATE friend_requests SET status = 'accepted' WHERE id = ?`, [reqId])
     await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [req.userId, fromId])
     await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [fromId, req.userId])
+    const [[acceptor]] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId]).catch(() => [[null]])
+    if (acceptor) {
+      createNotification(fromId, 'friend_accepted',
+        `${acceptor.name} accepterede din venneanmodning`,
+        `${acceptor.name} accepted your friend request`,
+        '/friends'
+      )
+    }
     res.json({ ok: true })
   } catch (err) { res.status(500).json({ error: 'Failed to accept request' }) }
 })
@@ -3165,7 +3203,15 @@ app.post('/api/marketplace/:id/boost', authenticate, async (req, res) => {
     if (existing.user_id !== req.userId) return res.status(403).json({ error: 'Forbidden' })
     // When Stripe is configured, create a Checkout session here
     // For now: set boosted_until to 7 days from now (free boost for testing)
+    const [[listing]] = await pool.query('SELECT title FROM marketplace_listings WHERE id = ?', [req.params.id]).catch(() => [[null]])
     await pool.query('UPDATE marketplace_listings SET boosted_until = DATE_ADD(NOW(), INTERVAL 7 DAY) WHERE id = ?', [req.params.id])
+    if (listing) {
+      createNotification(req.userId, 'listing_boosted',
+        `Din annonce "${listing.title}" er nu boostet i 7 dage`,
+        `Your listing "${listing.title}" is now boosted for 7 days`,
+        '/marketplace'
+      )
+    }
     res.json({ ok: true, boostedUntil: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString() })
   } catch (err) {
     res.status(500).json({ error: 'Server error' })
@@ -5377,6 +5423,21 @@ app.put('/api/events/:id/rsvp', authenticate, async (req, res) => {
          ON DUPLICATE KEY UPDATE status = VALUES(status), dietary = VALUES(dietary), plus_one = VALUES(plus_one)`,
         [req.params.id, req.userId, status, dietary || null, plusOne ? 1 : 0]
       )
+      if (status === 'going' || status === 'maybe') {
+        const [[ev]] = await pool.query('SELECT organizer_id, title FROM events WHERE id = ?', [req.params.id]).catch(() => [[null]])
+        if (ev && ev.organizer_id !== req.userId) {
+          const [[rsvper]] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId]).catch(() => [[null]])
+          if (rsvper) {
+            const statusDa = status === 'going' ? 'deltager' : 'måske deltager'
+            const statusEn = status === 'going' ? 'is going' : 'might attend'
+            createNotification(ev.organizer_id, 'event_rsvp',
+              `${rsvper.name} ${statusDa} til "${ev.title}"`,
+              `${rsvper.name} ${statusEn} "${ev.title}"`,
+              '/events'
+            )
+          }
+        }
+      }
     }
     res.json({ ok: true })
   } catch (err) {
@@ -6235,13 +6296,31 @@ async function initNotifications() {
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`).catch(() => {})
+
+  await pool.query(`CREATE TABLE IF NOT EXISTS notification_preferences (
+    user_id INT NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    enabled TINYINT(1) NOT NULL DEFAULT 1,
+    PRIMARY KEY (user_id, type),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`).catch(() => {})
 }
 
 async function createNotification(userId, type, messageDa, messageEn, link = null) {
+  try {
+    // Check if user disabled this type or all notifications
+    const [prefs] = await pool.query(
+      'SELECT type FROM notification_preferences WHERE user_id = ? AND type IN (?, "all") AND enabled = 0',
+      [userId, type]
+    ).catch(() => [[]])
+    if (prefs.length > 0) return
+  } catch {}
   await pool.query(
     'INSERT INTO notifications (user_id, type, message_da, message_en, link) VALUES (?, ?, ?, ?, ?)',
     [userId, type, messageDa, messageEn, link]
   ).catch(err => console.error('createNotification error:', err.message))
+  // Push real-time notification via SSE
+  sseBroadcast(userId, { type: 'notification' })
 }
 
 app.get('/api/notifications', authenticate, async (req, res) => {
@@ -6264,6 +6343,38 @@ app.post('/api/notifications/:id/read', authenticate, async (req, res) => {
 app.post('/api/notifications/read-all', authenticate, async (req, res) => {
   await pool.query('UPDATE notifications SET read_at = NOW() WHERE user_id = ? AND read_at IS NULL', [req.userId]).catch(() => {})
   res.json({ ok: true })
+})
+
+// GET /api/me/notification-preferences — get user's notification type preferences
+app.get('/api/me/notification-preferences', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT type, enabled FROM notification_preferences WHERE user_id = ?',
+      [req.userId]
+    )
+    const prefs = {}
+    for (const r of rows) prefs[r.type] = Boolean(r.enabled)
+    res.json({ prefs })
+  } catch {
+    res.json({ prefs: {} })
+  }
+})
+
+// PUT /api/me/notification-preferences — save user's notification type preferences
+app.put('/api/me/notification-preferences', authenticate, async (req, res) => {
+  const { prefs } = req.body
+  if (!prefs || typeof prefs !== 'object') return res.status(400).json({ error: 'Invalid prefs' })
+  try {
+    for (const [type, enabled] of Object.entries(prefs)) {
+      await pool.query(
+        'INSERT INTO notification_preferences (user_id, type, enabled) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE enabled = VALUES(enabled)',
+        [req.userId, type, enabled ? 1 : 0]
+      )
+    }
+    res.json({ ok: true })
+  } catch {
+    res.status(500).json({ error: 'Server error' })
+  }
 })
 
 // ── Feed category suggestion ──────────────────────────────────────────────────
@@ -6580,6 +6691,11 @@ app.post('/api/admin/moderation/users/:id/warn', authenticate, requireModerator,
       'INSERT INTO moderation_actions (admin_id, target_user_id, action_type, reason) VALUES (?, ?, "warn", ?)',
       [req.userId, targetId, reason || null]
     )
+    createNotification(targetId, 'moderation',
+      `Du har modtaget en advarsel på fellis.eu${reason ? `: ${reason}` : ''}`,
+      `You have received a warning on fellis.eu${reason ? `: ${reason}` : ''}`,
+      null
+    )
     // Send warning email if mailer is configured
     if (mailer) {
       const [[u]] = await pool.query('SELECT email, name FROM users WHERE id = ?', [targetId]).catch(() => [[null]])
@@ -6620,6 +6736,11 @@ app.post('/api/admin/moderation/users/:id/suspend', authenticate, requireAdmin, 
     await pool.query(
       'INSERT INTO moderation_actions (admin_id, target_user_id, action_type, reason) VALUES (?, ?, "suspend", ?)',
       [req.userId, targetId, reason || null]
+    )
+    createNotification(targetId, 'moderation',
+      `Din konto er suspenderet i ${days} dage${reason ? `. Årsag: ${reason}` : ''}`,
+      `Your account has been suspended for ${days} days${reason ? `. Reason: ${reason}` : ''}`,
+      null
     )
     if (mailer) {
       const [[u]] = await pool.query('SELECT email, name FROM users WHERE id = ?', [targetId]).catch(() => [[null]])
@@ -6827,6 +6948,13 @@ app.patch('/api/admin/moderation/users/:id/candidate', authenticate, requireAdmi
       `UPDATE users SET moderator_candidate = ?, moderator_candidate_note = ?, moderator_candidate_at = NOW() WHERE id = ?`,
       [is_candidate ? 1 : 0, storedNote, id]
     )
+    if (!is_candidate) {
+      createNotification(id, 'mod_result',
+        `Din ansøgning om moderatorstatus er afvist${note ? `. Begrundelse: ${note}` : ''}`,
+        `Your moderator application was denied${note ? `. Reason: ${note}` : ''}`,
+        null
+      )
+    }
     res.json({ ok: true })
   } catch (err) {
     console.error('PATCH /api/admin/moderation/users/:id/candidate error:', err)
