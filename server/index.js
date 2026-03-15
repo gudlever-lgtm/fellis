@@ -2102,7 +2102,7 @@ app.post('/api/invites', authenticate, async (req, res) => {
       const email = typeof friend === 'string' ? friend : (friend.email || null)
       const name  = typeof friend === 'string' ? null   : (friend.name  || null)
       const token = crypto.randomBytes(32).toString('hex')
-      await pool.query(
+      const [insertResult] = await pool.query(
         'INSERT INTO invitations (inviter_id, invite_token, invitee_name, invitee_email) VALUES (?, ?, ?, ?)',
         [req.userId, token, name || email, email]
       )
@@ -2119,7 +2119,7 @@ app.post('/api/invites', authenticate, async (req, res) => {
           html: `<p>Hej!</p><p><strong>${inviter.name || 'En ven'}</strong> vil gerne forbindes med dig på <strong>Fellis</strong>.</p><p><a href="${inviteUrl}" style="background:#2D6A4F;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:bold">Opret konto og forbind</a></p><p style="color:#888;font-size:12px">Eller kopier dette link: ${inviteUrl}</p>`,
         }).catch(err => console.error('Mail send error:', err.message))
       }
-      created.push({ name: name || email, email, token, inviteUrl })
+      created.push({ id: insertResult.insertId, name: name || email, email, token, inviteUrl })
     }
     res.json({ invitations: created, count: created.length, emailSent: !!(mailer) })
   } catch (err) {
@@ -2150,7 +2150,7 @@ app.get('/api/invites', authenticate, async (req, res) => {
               u.name as accepted_by_name
        FROM invitations i
        LEFT JOIN users u ON i.accepted_by = u.id
-       WHERE i.inviter_id = ? AND i.status != 'accepted' AND (i.invitee_name IS NOT NULL OR i.invitee_email IS NOT NULL)
+       WHERE i.inviter_id = ? AND (i.invitee_name IS NOT NULL OR i.invitee_email IS NOT NULL)
        ORDER BY i.created_at DESC`,
       [req.userId]
     )
