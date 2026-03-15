@@ -10110,8 +10110,10 @@ function AdsManagementPage({ lang, t }) {
     setSaving(false); setShowCreate(false); reload()
   }
 
+  const isPaidAndActive = (ad) => ad.paid_until && new Date(ad.paid_until) > new Date()
+
   const handleStatus = (ad, status) => {
-    if (status === 'active') { setPaymentAd(ad); setPaymentError(null); return }
+    if (status === 'active' && !isPaidAndActive(ad)) { setPaymentAd(ad); setPaymentError(null); return }
     apiUpdateAd(ad.id, { status }).catch(() => {}).then(() => reload())
   }
 
@@ -10193,6 +10195,17 @@ function AdsManagementPage({ lang, t }) {
                     <span>{t.adsImpressions}: <strong>{ad.impressions}</strong></span>
                     <span>{t.adsClicks}: <strong>{ad.clicks}</strong></span>
                     <span>{t.adsCTR}: <strong>{ctr(ad.impressions, ad.clicks)}</strong></span>
+                    {ad.payment_status === 'pending' && !isPaidAndActive(ad) && (
+                      <span style={{ color: '#e67e22' }}>⏳ {lang === 'da' ? 'Afventer betaling' : 'Awaiting payment'}</span>
+                    )}
+                    {ad.payment_status === 'failed' && (
+                      <span style={{ color: '#e74c3c' }}>✗ {lang === 'da' ? 'Betaling mislykkedes' : 'Payment failed'}</span>
+                    )}
+                    {isPaidAndActive(ad) && (
+                      <span style={{ color: '#2D6A4F' }}>
+                        ✓ {lang === 'da' ? 'Betalt' : 'Paid'}{ad.paid_amount ? ` ${parseFloat(ad.paid_amount).toFixed(2)}` : ''} · {lang === 'da' ? 'til' : 'until'} <strong>{new Date(ad.paid_until).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-GB')}</strong>
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
@@ -10222,15 +10235,27 @@ function AdsManagementPage({ lang, t }) {
               <label style={labelStyle}>{t.adsAdTarget} *</label>
               <input required style={fieldStyle} value={form.target_url} onChange={e => setForm(f => ({ ...f, target_url: e.target.value }))} placeholder="https://..." />
               <label style={labelStyle}>{t.adsAdStartDate}</label>
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <input type="date" style={{ ...fieldStyle, flex: 1 }} value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} />
-                <button type="button" onClick={() => setForm(f => ({ ...f, start_date: new Date().toISOString().slice(0,10) }))} style={{ whiteSpace: 'nowrap', fontSize: 11, padding: '6px 8px', borderRadius: 6, border: '1px solid #ccc', background: '#f5f5f5', cursor: 'pointer' }}>{lang === 'da' ? 'I dag' : 'Today'}</button>
-              </div>
+              {editAd && isPaidAndActive(editAd) ? (
+                <div style={{ padding: '8px 10px', background: '#f5f5f5', borderRadius: 6, border: '1px solid #ddd', fontSize: 13, color: '#888' }}>
+                  {form.start_date || '–'} <span style={{ fontSize: 11 }}>({lang === 'da' ? 'låst – annonce er betalt' : 'locked – ad is paid'})</span>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <input type="date" style={{ ...fieldStyle, flex: 1 }} value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} />
+                  <button type="button" onClick={() => setForm(f => ({ ...f, start_date: new Date().toISOString().slice(0,10) }))} style={{ whiteSpace: 'nowrap', fontSize: 11, padding: '6px 8px', borderRadius: 6, border: '1px solid #ccc', background: '#f5f5f5', cursor: 'pointer' }}>{lang === 'da' ? 'I dag' : 'Today'}</button>
+                </div>
+              )}
               <label style={labelStyle}>{t.adsAdEndDate}</label>
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <input type="date" style={{ ...fieldStyle, flex: 1 }} value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} />
-                <button type="button" onClick={() => { const d = new Date(); d.setDate(d.getDate() + 30); setForm(f => ({ ...f, end_date: d.toISOString().slice(0,10) })) }} style={{ whiteSpace: 'nowrap', fontSize: 11, padding: '6px 8px', borderRadius: 6, border: '1px solid #ccc', background: '#f5f5f5', cursor: 'pointer' }}>+30 {lang === 'da' ? 'dage' : 'days'}</button>
-              </div>
+              {editAd && isPaidAndActive(editAd) ? (
+                <div style={{ padding: '8px 10px', background: '#f5f5f5', borderRadius: 6, border: '1px solid #ddd', fontSize: 13, color: '#888' }}>
+                  {form.end_date || '–'} <span style={{ fontSize: 11 }}>({lang === 'da' ? 'låst – annonce er betalt' : 'locked – ad is paid'})</span>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <input type="date" style={{ ...fieldStyle, flex: 1 }} value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} />
+                  <button type="button" onClick={() => { const d = new Date(); d.setDate(d.getDate() + 30); setForm(f => ({ ...f, end_date: d.toISOString().slice(0,10) })) }} style={{ whiteSpace: 'nowrap', fontSize: 11, padding: '6px 8px', borderRadius: 6, border: '1px solid #ccc', background: '#f5f5f5', cursor: 'pointer' }}>+30 {lang === 'da' ? 'dage' : 'days'}</button>
+                </div>
+              )}
               <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
                 <button type="submit" disabled={saving} style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>{saving ? '…' : t.adsSave}</button>
                 <button type="button" onClick={() => setShowCreate(false)} style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: '1px solid #ddd', background: 'none', fontSize: 14, cursor: 'pointer' }}>{t.adsCancel}</button>

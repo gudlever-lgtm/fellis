@@ -3979,6 +3979,10 @@ async function initAds() {
       INDEX idx_ads_status_placement (status, placement),
       FOREIGN KEY (advertiser_id) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+    await pool.query("ALTER TABLE ads ADD COLUMN IF NOT EXISTS paid_until DATETIME DEFAULT NULL").catch(() => {})
+    await pool.query("ALTER TABLE ads ADD COLUMN IF NOT EXISTS payment_status VARCHAR(32) DEFAULT 'unpaid'").catch(() => {})
+    await pool.query("ALTER TABLE ads ADD COLUMN IF NOT EXISTS paid_amount DECIMAL(10,2) DEFAULT NULL").catch(() => {})
+    await pool.query("ALTER TABLE ads ADD COLUMN IF NOT EXISTS paid_at DATETIME DEFAULT NULL").catch(() => {})
   } catch (err) {
     console.error('initAds error:', err.message)
   }
@@ -4107,6 +4111,12 @@ app.put('/api/ads/:id', authenticate, async (req, res) => {
     const VALID_PLACEMENT = ['feed', 'sidebar', 'stories']
     if (status && !VALID_STATUS.includes(status)) return res.status(400).json({ error: 'Invalid status' })
     if (placement && !VALID_PLACEMENT.includes(placement)) return res.status(400).json({ error: 'Invalid placement' })
+    // Block date changes when ad is within its paid period (prevents circumventing payment)
+    const isPaidAndActive = ad.paid_until && new Date(ad.paid_until) > new Date()
+    if (isPaidAndActive && (start_date !== undefined || end_date !== undefined)) {
+      return res.status(403).json({ error: 'Cannot change dates while ad is within paid period' })
+    }
+    // Allow reactivation of a paid ad without requiring payment (server trusts paid_until)
     await pool.query(
       'UPDATE ads SET title=COALESCE(?,title), body=COALESCE(?,body), image_url=COALESCE(?,image_url), target_url=COALESCE(?,target_url), status=COALESCE(?,status), placement=COALESCE(?,placement), start_date=COALESCE(?,start_date), end_date=COALESCE(?,end_date) WHERE id=?',
       [title||null, body||null, image_url||null, target_url||null, status||null, placement||null, start_date||null, end_date||null, req.params.id]
@@ -4472,6 +4482,13 @@ app.post('/api/mollie/payment/create', authenticate, async (req, res) => {
       pool.query('INSERT INTO subscriptions (user_id, mollie_payment_id, plan, status) VALUES (?, ?, ?, ?)',
         [req.userId, payment.id, plan, 'open'])
     )
+    // Mark the ad as payment pending immediately when checkout is initiated
+    if (plan === 'ad_activation' && adId) {
+      await pool.query(
+        "UPDATE ads SET payment_status = 'pending' WHERE id = ? AND advertiser_id = ?",
+        [adId, req.userId]
+      ).catch(() => {})
+    }
 
     res.json({ checkoutUrl: payment._links.checkout.href, paymentId: payment.id })
   } catch (err) {
@@ -4514,21 +4531,37 @@ app.post('/api/mollie/payment/webhook', express.urlencoded({ extended: false }),
 
     if (status === 'paid') {
       if (sub.plan === 'ad_activation') {
-        // Activate the specific ad
+        // Activate the specific ad and record full payment details
         const adId = sub.ad_id || payment.metadata?.ad_id
-        if (adId) await pool.query("UPDATE ads SET status = 'active' WHERE id = ?", [adId])
+        const paidAmount = parseFloat(payment.amount?.value) || null
+        if (adId) await pool.query(
+          "UPDATE ads SET status = 'active', paid_until = DATE_ADD(NOW(), INTERVAL 30 DAY), payment_status = 'paid', paid_amount = ?, paid_at = NOW() WHERE id = ?",
+          [paidAmount, adId]
+        ).catch(() =>
+          // Fallback if new columns don't exist yet
+          pool.query("UPDATE ads SET status = 'active', paid_until = DATE_ADD(NOW(), INTERVAL 30 DAY) WHERE id = ?", [adId])
+        )
       } else {
         // Mark user as ads-free (adfree / boost plans)
         await pool.query('UPDATE users SET ads_free = 1 WHERE id = ?', [sub.user_id])
       }
     } else if (['expired', 'canceled', 'failed'].includes(status)) {
-      // Only revoke if there's no other active paid subscription
-      const [[active]] = await pool.query(
-        "SELECT id FROM subscriptions WHERE user_id = ? AND status = 'paid' AND (expires_at IS NULL OR expires_at > NOW()) AND mollie_payment_id != ? LIMIT 1",
-        [sub.user_id, id]
-      )
-      if (!active) {
-        await pool.query('UPDATE users SET ads_free = 0 WHERE id = ?', [sub.user_id])
+      if (sub.plan === 'ad_activation') {
+        // Mark payment as failed on the ad (keep as draft so user can retry)
+        const adId = sub.ad_id || payment.metadata?.ad_id
+        if (adId) await pool.query(
+          "UPDATE ads SET payment_status = 'failed' WHERE id = ? AND payment_status != 'paid'",
+          [adId]
+        ).catch(() => {})
+      } else {
+        // Only revoke ads_free if there's no other active paid subscription
+        const [[active]] = await pool.query(
+          "SELECT id FROM subscriptions WHERE user_id = ? AND status = 'paid' AND (expires_at IS NULL OR expires_at > NOW()) AND mollie_payment_id != ? LIMIT 1",
+          [sub.user_id, id]
+        )
+        if (!active) {
+          await pool.query('UPDATE users SET ads_free = 0 WHERE id = ?', [sub.user_id])
+        }
       }
     }
   } catch (err) {
