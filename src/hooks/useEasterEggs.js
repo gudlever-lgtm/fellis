@@ -64,7 +64,7 @@ async function postEggEvent(eggId, event) {
 export default function useEasterEggs() {
   const [eggs, setEggsState] = useState(loadEggs)
 
-  const triggerEgg = useCallback((id) => {
+  const triggerEgg = useCallback((id, onPosted) => {
     // Read current values synchronously from localStorage so we always have fresh state
     const current = loadEggs()
     const adminConfig = loadAdminEggs()
@@ -90,7 +90,11 @@ export default function useEasterEggs() {
     }
     saveEggs(updated)
     setEggsState(updated)
-    postEggEvent(id, wasDiscovered ? 'activated' : 'discovered')
+    // Call onPosted after the event is confirmed stored in DB — avoids race condition
+    // with badge evaluation that reads from the same DB table
+    postEggEvent(id, wasDiscovered ? 'activated' : 'discovered').then(() => {
+      onPosted?.()
+    })
     return true
   }, [])
 
