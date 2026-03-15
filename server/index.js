@@ -519,6 +519,20 @@ pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id VARCHA
   .catch(err => console.error('Migration (users.stripe_customer_id):', err.message))
 pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS ads_free_sub_id VARCHAR(200) DEFAULT NULL")
   .catch(err => console.error('Migration (users.ads_free_sub_id):', err.message))
+// Clear stale Stripe-originated ads_free flags for users with no active Mollie adfree subscription.
+// When migrating from Stripe to Mollie, users who paid via Stripe still have ads_free=1 but no
+// active Mollie subscription — they would never see ads. Reset them so only Mollie payments grant ad-free.
+pool.query(`
+  UPDATE users SET ads_free = 0
+  WHERE ads_free = 1
+    AND ads_free_sub_id IS NOT NULL
+    AND id NOT IN (
+      SELECT user_id FROM subscriptions
+      WHERE status = 'paid'
+        AND plan NOT IN ('ad_activation')
+        AND (expires_at IS NULL OR expires_at > NOW())
+    )
+`).catch(err => console.error('Migration (stripe ads_free cleanup):', err.message))
 
 // ── Viral growth auto-migrations ──
 pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_public TINYINT(1) NOT NULL DEFAULT 0')
