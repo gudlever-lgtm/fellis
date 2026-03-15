@@ -1587,16 +1587,30 @@ app.get('/api/feed', authenticate, async (req, res) => {
     )
     const total = countResult[0].total
 
-    const [posts] = await pool.query(
-      `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.created_at, p.edited_at,
-              (SELECT COUNT(*) FROM earned_badges WHERE user_id = p.author_id) as author_badge_count
-       FROM posts p JOIN users u ON p.author_id = u.id
-       WHERE (p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?))
-         AND (p.scheduled_at IS NULL OR p.scheduled_at <= NOW())
-       ORDER BY p.created_at DESC
-       LIMIT ? OFFSET ?`,
-      [req.userId, req.userId, limit, offset]
-    )
+    let posts
+    try {
+      ;[posts] = await pool.query(
+        `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.created_at, p.edited_at,
+                (SELECT COUNT(*) FROM earned_badges WHERE user_id = p.author_id) as author_badge_count
+         FROM posts p JOIN users u ON p.author_id = u.id
+         WHERE (p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?))
+           AND (p.scheduled_at IS NULL OR p.scheduled_at <= NOW())
+         ORDER BY p.created_at DESC
+         LIMIT ? OFFSET ?`,
+        [req.userId, req.userId, limit, offset]
+      )
+    } catch {
+      ;[posts] = await pool.query(
+        `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.created_at, p.edited_at,
+                0 as author_badge_count
+         FROM posts p JOIN users u ON p.author_id = u.id
+         WHERE (p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?))
+           AND (p.scheduled_at IS NULL OR p.scheduled_at <= NOW())
+         ORDER BY p.created_at DESC
+         LIMIT ? OFFSET ?`,
+        [req.userId, req.userId, limit, offset]
+      )
+    }
     const postIds = posts.map(p => p.id)
     let comments = []
     if (postIds.length > 0) {
@@ -5185,7 +5199,7 @@ app.get('/api/admin/stats', authenticate, requireAdmin, async (req, res) => {
     const [[{ posts }]] = await pool.query('SELECT COUNT(*) as posts FROM posts')
     const [[{ events }]] = await pool.query('SELECT COUNT(*) as events FROM events').catch(() => [[{ events: 0 }]])
     const [[{ listings }]] = await pool.query('SELECT COUNT(*) as listings FROM marketplace_listings WHERE sold = 0').catch(() => [[{ listings: 0 }]])
-    const [[{ friendships }]] = await pool.query('SELECT COUNT(*)/2 as friendships FROM friendships')
+    const [[{ friendships }]] = await pool.query('SELECT FLOOR(COUNT(*)/2) as friendships FROM friendships')
     const [[{ messages }]] = await pool.query('SELECT COUNT(*) as messages FROM messages')
     const [[{ new_users_7d }]] = await pool.query("SELECT COUNT(*) as new_users_7d FROM users WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)").catch(() => [[{ new_users_7d: 0 }]])
     const [[{ rsvps }]] = await pool.query("SELECT COUNT(*) as rsvps FROM event_rsvps WHERE status = 'going'").catch(() => [[{ rsvps: 0 }]])
@@ -7313,7 +7327,12 @@ app.get('/api/badges/all', authenticate, async (req, res) => {
 app.get('/api/admin/badges/stats', authenticate, requireAdmin, async (req, res) => {
   try {
     const lang = req.lang || 'da'
-    const [[{ totalUsers }]] = await pool.query('SELECT COUNT(*) AS totalUsers FROM users WHERE is_bot = 0 OR is_bot IS NULL')
+    let totalUsers = 0
+    try {
+      ;[[{ totalUsers }]] = await pool.query('SELECT COUNT(*) AS totalUsers FROM users WHERE is_bot = 0 OR is_bot IS NULL')
+    } catch {
+      ;[[{ totalUsers }]] = await pool.query('SELECT COUNT(*) AS totalUsers FROM users')
+    }
     let awardCounts = []
     try {
       ;[awardCounts] = await pool.query(`
@@ -7550,7 +7569,14 @@ app.get('/api/explore/feed', authenticate, async (req, res) => {
     let mediaFilter = ''
     if (filter === 'images') mediaFilter = `AND JSON_LENGTH(p.media) > 0 AND NOT JSON_CONTAINS(p.media, '"video"', '$[0].type')`
     else if (filter === 'video') mediaFilter = `AND JSON_LENGTH(p.media) > 0 AND JSON_CONTAINS(p.media, '"video"', '$[0].type')`
-    else if (filter === 'reels') mediaFilter = `AND p.id IN (SELECT post_id FROM reels WHERE post_id IS NOT NULL)`
+    else if (filter === 'reels') {
+      try {
+        await pool.query('SELECT 1 FROM reels LIMIT 1')
+        mediaFilter = `AND p.id IN (SELECT post_id FROM reels WHERE post_id IS NOT NULL)`
+      } catch {
+        mediaFilter = `AND 1=0` // reels table doesn't exist — return empty
+      }
+    }
 
     // Cursor is the trending_score of the last item
     const cursorClause = cursor !== null ? `HAVING trending_score < ${parseFloat(cursor)}` : ''
@@ -7604,23 +7630,40 @@ app.get('/api/explore/feed', authenticate, async (req, res) => {
 app.get('/api/users/suggested', authenticate, async (req, res) => {
   const limit = parseInt(req.query.limit) || 6
   try {
-    const [rows] = await pool.query(`
-      SELECT
-        u.id, u.name, u.handle, u.avatar_url, u.initials,
-        (SELECT COUNT(*) FROM friendships f2 WHERE f2.friend_id = u.id) AS follower_count,
-        (
-          SELECT COUNT(*)
-          FROM user_interests ui1
-          JOIN user_interests ui2 ON ui1.interest = ui2.interest
-          WHERE ui1.user_id = ? AND ui2.user_id = u.id
-        ) AS shared_interests
-      FROM users u
-      WHERE u.id != ?
-        AND u.id NOT IN (SELECT friend_id FROM friendships WHERE user_id = ?)
-        AND u.id NOT IN (SELECT to_user_id FROM friend_requests WHERE from_user_id = ? AND status = 'pending')
-      ORDER BY shared_interests DESC, follower_count DESC
-      LIMIT ?
-    `, [req.userId, req.userId, req.userId, req.userId, limit])
+    let rows
+    try {
+      ;[rows] = await pool.query(`
+        SELECT
+          u.id, u.name, u.handle, u.avatar_url, u.initials,
+          (SELECT COUNT(*) FROM friendships f2 WHERE f2.friend_id = u.id) AS follower_count,
+          (
+            SELECT COUNT(*)
+            FROM user_interests ui1
+            JOIN user_interests ui2 ON ui1.interest = ui2.interest
+            WHERE ui1.user_id = ? AND ui2.user_id = u.id
+          ) AS shared_interests
+        FROM users u
+        WHERE u.id != ?
+          AND u.id NOT IN (SELECT friend_id FROM friendships WHERE user_id = ?)
+          AND u.id NOT IN (SELECT to_user_id FROM friend_requests WHERE from_user_id = ? AND status = 'pending')
+        ORDER BY shared_interests DESC, follower_count DESC
+        LIMIT ?
+      `, [req.userId, req.userId, req.userId, req.userId, limit])
+    } catch {
+      // Fallback if user_interests table doesn't exist
+      ;[rows] = await pool.query(`
+        SELECT
+          u.id, u.name, u.handle, u.avatar_url, u.initials,
+          (SELECT COUNT(*) FROM friendships f2 WHERE f2.friend_id = u.id) AS follower_count,
+          0 AS shared_interests
+        FROM users u
+        WHERE u.id != ?
+          AND u.id NOT IN (SELECT friend_id FROM friendships WHERE user_id = ?)
+          AND u.id NOT IN (SELECT to_user_id FROM friend_requests WHERE from_user_id = ? AND status = 'pending')
+        ORDER BY follower_count DESC
+        LIMIT ?
+      `, [req.userId, req.userId, req.userId, limit])
+    }
     res.json(rows)
   } catch (err) {
     console.error('GET /api/users/suggested error:', err.message)
