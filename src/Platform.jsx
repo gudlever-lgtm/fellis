@@ -2275,7 +2275,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         const menuOpen = postMenu === post.id
         return (
           <Fragment key={post.id}>
-            {postIdx > 0 && postIdx % 3 === 0 && <AdBanner placement="feed" adsFree={adsFree} />}
+            {(postIdx === 1 || (postIdx > 1 && postIdx % 4 === 0)) && <AdBanner placement="feed" adsFree={adsFree} />}
           <div className="p-card p-post">
             <div className="p-post-header">
               <div
@@ -2552,6 +2552,9 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
           </Fragment>
         )
       })}
+
+      {/* Ad banner — always shown after posts list */}
+      <AdBanner placement="feed" adsFree={adsFree} />
 
       {/* Bottom sentinel — triggers loading next page */}
       {offset + PAGE_SIZE < total && (
@@ -10151,8 +10154,8 @@ function AdsManagementPage({ lang, t }) {
             </p>
             <p style={{ margin: '0 0 16px', fontSize: 14, color: '#666', lineHeight: 1.5 }}>
               {lang === 'da'
-                ? `For at aktivere din reklame betales en kampagnepris på ${adSettings?.ad_price_cpm || 50} ${adSettings?.currency || 'DKK'}. Du viderestilles til Mollie for sikker betaling.`
-                : `To activate your ad, a campaign fee of ${adSettings?.ad_price_cpm || 50} ${adSettings?.currency || 'DKK'} is charged. You will be redirected to Mollie for secure payment.`}
+                ? `Aktivering koster ${adSettings?.ad_price_cpm || 50} ${adSettings?.currency || 'DKK'} og giver 30 dages visning fra betalingsdatoen. Dine valgte kampagnedatoer låses og kan ikke ændres i perioden. Du viderestilles til Mollie for sikker betaling.`
+                : `Activation costs ${adSettings?.ad_price_cpm || 50} ${adSettings?.currency || 'DKK'} and gives 30 days of display from the payment date. Your selected campaign dates are locked and cannot be changed during the period. You will be redirected to Mollie for secure payment.`}
             </p>
             {paymentError && <div style={{ color: '#c0392b', fontSize: 13, marginBottom: 12 }}>{paymentError}</div>}
             <div style={{ display: 'flex', gap: 10 }}>
