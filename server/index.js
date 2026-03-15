@@ -4361,8 +4361,25 @@ async function initMollie() {
 }
 
 async function getMollieKey() {
-  // Prefer env var; fall back to admin_settings DB entry
-  if (process.env.MOLLIE_API_KEY) return process.env.MOLLIE_API_KEY
+  // 1. Process env (set at startup from .env file)
+  const envKey = (process.env.MOLLIE_API_KEY || '').replace(/^["']|["']$/g, '').trim()
+  if (envKey) return envKey
+  // 2. Re-read .env file directly as fallback (handles PM2 env not updating)
+  try {
+    const { readFileSync } = await import('fs')
+    const envFile = readFileSync(path.join(__dirname, '.env'), 'utf8')
+    for (const line of envFile.split('\n')) {
+      const trimmed = line.trim()
+      if (!trimmed || trimmed.startsWith('#')) continue
+      const idx = trimmed.indexOf('=')
+      if (idx === -1) continue
+      if (trimmed.slice(0, idx).trim() === 'MOLLIE_API_KEY') {
+        const val = trimmed.slice(idx + 1).trim().replace(/^["']|["']$/g, '')
+        if (val) return val
+      }
+    }
+  } catch {}
+  // 3. DB admin_settings fallback
   try {
     const [[row]] = await pool.query("SELECT key_value FROM admin_settings WHERE key_name = 'mollie_api_key'")
     if (row?.key_value && !row.key_value.startsWith('••')) return row.key_value
@@ -4376,7 +4393,10 @@ async function getMollieClient() {
   try {
     const { createMollieClient } = await import('@mollie/api-client')
     return createMollieClient({ apiKey: key })
-  } catch { return null }
+  } catch (err) {
+    console.error('getMollieClient import error:', err.message)
+    return null
+  }
 }
 
 // POST /api/mollie/payment/create — create a Mollie payment and return checkout URL
