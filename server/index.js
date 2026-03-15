@@ -382,6 +382,10 @@ const FB_DATA_RETENTION_DAYS = parseInt(process.env.FB_DATA_RETENTION_DAYS || '9
 const app = express()
 app.use(express.json())
 
+// ── Serve built frontend (assets/, index.html, public/) ───────────────────
+const FRONTEND_ROOT = path.resolve(__dirname, '..')
+app.use(express.static(FRONTEND_ROOT, { index: false }))
+
 // ── SSE: real-time push to connected clients ──────────────────────────────
 // Map<userId, Set<res>> — one user may have multiple tabs open
 const sseClients = new Map()
@@ -7351,4 +7355,9 @@ app.post('/api/upload/file', authenticate, upload.single('file'), async (req, re
     console.error('POST /api/upload/file error:', err.message)
     res.status(500).json({ error: 'Upload failed' })
   }
+})
+
+// ── SPA fallback — serve index.html for all non-API, non-asset routes ─────
+app.get('*', (req, res) => {
+  res.sendFile(path.join(FRONTEND_ROOT, 'index.html'))
 })
