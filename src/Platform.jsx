@@ -164,7 +164,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
       {/* Platform nav — only Feed, Friends, Messages in main tabs */}
       <nav className="p-nav">
         <div className="p-nav-left">
-          <div className="nav-logo" style={{ cursor: 'pointer' }} onClick={() => navigateTo('feed')}>
+          <div className="nav-logo" style={{ cursor: 'pointer' }} onClick={() => { navigateTo('feed'); window.location.reload() }}>
             <img src="/fellis-logo.jpg" className="nav-logo-icon" alt="" />
             <div className="nav-logo-text">
               <span className="nav-logo-brand">{t.navBrand}</span>
