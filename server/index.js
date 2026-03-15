@@ -4159,6 +4159,17 @@ app.post('/api/ads/:id/click', authenticate, async (req, res) => {
   }
 })
 
+// GET /api/ads/price — public ad pricing for authenticated users (used in payment modal)
+app.get('/api/ads/price', authenticate, async (req, res) => {
+  try {
+    const [[row]] = await pool.query('SELECT ad_price_cpm, currency FROM admin_ad_settings WHERE id = 1')
+    res.json({ ad_price_cpm: row?.ad_price_cpm || 50, currency: row?.currency || 'DKK' })
+  } catch (err) {
+    console.error('GET /api/ads/price error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // ── Admin ad settings ─────────────────────────────────────────────────────────
 
 // GET /api/admin/ad-settings — fetch ad pricing & display settings (admin only)

@@ -950,6 +950,9 @@ export async function apiGetMollieStatus() {
 export async function apiGetAdminAdStats() {
   return await request('/api/admin/ad-stats')
 }
+export async function apiGetAdPrice() {
+  return await request('/api/ads/price')
+}
 export async function apiGetAdminAdSettings() {
   return await request('/api/admin/ad-settings')
 }
