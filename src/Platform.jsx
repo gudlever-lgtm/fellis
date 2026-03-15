@@ -243,6 +243,12 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
           <select className="lang-toggle" value={lang} onChange={e => changeLang(e.target.value)} aria-label="Language">
             {SUPPORTED_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
           </select>
+          {/* Ad-free badge */}
+          {adsFree && (
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#2D6A4F', background: '#e8f5ee', border: '1px solid #b7dfc9', borderRadius: 20, padding: '3px 9px', whiteSpace: 'nowrap' }}>
+              ✓ Ad-free
+            </span>
+          )}
           {/* Avatar with dropdown menu */}
           <div ref={avatarMenuRef} style={{ position: 'relative' }}>
             {avatarSrc ? (
