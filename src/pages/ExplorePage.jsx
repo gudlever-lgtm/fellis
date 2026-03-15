@@ -56,13 +56,11 @@ function SuggestedCard({ user, lang, onViewProfile }) {
 
   const handleFollow = async () => {
     try {
-      await fetch('/api/friends/request', {
+      await fetch(`/api/friends/request/${user.id}`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           'X-Session-Id': localStorage.getItem('fellis_session_id'),
         },
-        body: JSON.stringify({ to_user_id: user.id }),
       })
       setFollowing(true)
     } catch { /* network unavailable */ }
