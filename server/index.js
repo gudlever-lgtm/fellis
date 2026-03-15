@@ -519,6 +519,17 @@ pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id VARCHA
   .catch(err => console.error('Migration (users.stripe_customer_id):', err.message))
 pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS ads_free_sub_id VARCHAR(200) DEFAULT NULL")
   .catch(err => console.error('Migration (users.ads_free_sub_id):', err.message))
+// Reset ads_free for users with no active Mollie adfree subscription (clears stale Stripe flags).
+pool.query(`
+  UPDATE users SET ads_free = 0
+  WHERE ads_free = 1
+    AND id NOT IN (
+      SELECT user_id FROM subscriptions
+      WHERE status = 'paid'
+        AND plan NOT IN ('ad_activation')
+        AND (expires_at IS NULL OR expires_at > NOW())
+    )
+`).catch(err => console.error('Migration (ads_free cleanup):', err.message))
 
 // ── Viral growth auto-migrations ──
 pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_public TINYINT(1) NOT NULL DEFAULT 0')
@@ -902,9 +913,9 @@ app.post('/api/auth/logout', authenticate, async (req, res) => {
 // GET /api/auth/session — check if session is valid
 app.get('/api/auth/session', authenticate, async (req, res) => {
   try {
-    const [users] = await pool.query('SELECT id, name, handle, initials, avatar_url, plan, mode, ads_free, is_moderator FROM users WHERE id = ?', [req.userId])
+    const [users] = await pool.query('SELECT id, name, handle, initials, avatar_url, mode, ads_free, is_moderator FROM users WHERE id = ?', [req.userId])
     if (users.length === 0) return res.status(404).json({ error: 'User not found' })
-    const user = { ...users[0], plan: users[0].plan || 'business', mode: users[0].mode || 'privat', ads_free: Boolean(users[0].ads_free), is_admin: users[0].id === 1, is_moderator: Boolean(users[0].is_moderator) || users[0].id === 1 }
+    const user = { ...users[0], mode: users[0].mode || 'privat', ads_free: Boolean(users[0].ads_free), is_admin: users[0].id === 1, is_moderator: Boolean(users[0].is_moderator) || users[0].id === 1 }
     res.json({ user, lang: req.lang })
   } catch (err) {
     res.status(500).json({ error: 'Session check failed' })
