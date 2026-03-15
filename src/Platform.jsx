@@ -65,7 +65,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
   // 🎉 Party Mode easter egg (global — triggered anywhere on the platform)
   const { triggerEgg: triggerGlobalEgg } = useEasterEggs()
   const [partyActive, setPartyActive] = useState(false)
-  useKeySequence('party', () => { if (triggerGlobalEgg('party')) { setPartyActive(true); setTimeout(checkBadges, 500) } }, 2000, !partyActive)
+  useKeySequence('party', () => { if (triggerGlobalEgg('party', checkBadges)) { setPartyActive(true) } }, 2000, !partyActive)
   const [showOnboarding, setShowOnboarding] = useState(() => localStorage.getItem('fellis_onboarding') === '1')
   const [onboardingInviterName] = useState(() => localStorage.getItem('fellis_onboarding_inviter') || null)
   const avatarMenuRef = useRef(null)
@@ -1376,24 +1376,23 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   // Rick Roll sentinel — placed at very bottom of feed
   const rickrollSentinelRef = useRef(null)
   useScrollHold(rickrollSentinelRef, 4000, () => {
-    if (!rickrollActive && triggerEgg('rickroll')) { setRickrollActive(true); setTimeout(onBadgeCheck, 500) }
+    if (!rickrollActive && triggerEgg('rickroll', onBadgeCheck)) { setRickrollActive(true) }
   }, !rickrollActive)
 
   // Chuck Norris: Konami code ↑↑↓↓←→←→BA (keyboard) / 10 taps on feed title (mobile)
-  const triggerChuck = () => { if (!chuckActive && triggerEgg('chuck')) { setChuckActive(true); setTimeout(onBadgeCheck, 500) } }
+  const triggerChuck = () => { if (!chuckActive && triggerEgg('chuck', onBadgeCheck)) { setChuckActive(true) } }
   useKonamiCode(triggerChuck, !chuckActive)
 
   // Matrix Rain: 7 avatar clicks within 3 seconds (works on mobile too)
   useAvatarClick(feedContainerRef, 7, 3000, () => {
-    if (!matrixActive && triggerEgg('matrix')) { setMatrixActive(true); setTimeout(onBadgeCheck, 500) }
+    if (!matrixActive && triggerEgg('matrix', onBadgeCheck)) { setMatrixActive(true) }
   }, !matrixActive)
 
   // Flip Feed: type "flip" within 2 seconds (keyboard) / 3 taps on feed title (mobile)
   const triggerFlip = () => {
     if (flipActiveRef.current) return
-    if (!triggerEgg('flip')) return
+    if (!triggerEgg('flip', onBadgeCheck)) return
     flipActiveRef.current = true
-    setTimeout(onBadgeCheck, 500)
     if (feedContainerRef.current) feedContainerRef.current.classList.add('feed-flipped')
     setTimeout(() => {
       if (feedContainerRef.current) feedContainerRef.current.classList.remove('feed-flipped')
@@ -1405,9 +1404,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   // Gravity: press G G within 1 second (keyboard) / 2 taps on feed title (mobile)
   const triggerGravity = () => {
     if (gravityActiveRef.current) return
-    if (!triggerEgg('gravity')) return
+    if (!triggerEgg('gravity', onBadgeCheck)) return
     gravityActiveRef.current = true
-    setTimeout(onBadgeCheck, 500)
     if (feedContainerRef.current) feedContainerRef.current.classList.add('feed-gravity')
     setTimeout(() => {
       if (feedContainerRef.current) feedContainerRef.current.classList.remove('feed-gravity')
@@ -1418,7 +1416,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
 
   // Party Mode: type "party" within 2 seconds (keyboard) / 5 taps on feed title (mobile)
   // (Party is also triggered via useKeySequence in the outer PlatformShell — this covers mobile)
-  const triggerPartyMobile = () => { if (triggerGlobalEgg('party')) { setPartyActive(true); setTimeout(checkBadges, 500) } }
+  const triggerPartyMobile = () => { if (triggerGlobalEgg('party', checkBadges)) { setPartyActive(true) } }
 
   // Feed title tap-count: 2=Gravity, 3=Flip, 5=Party, 10=Chuck (mobile)
   useTapCount(feedTitleRef, { 2: triggerGravity, 3: triggerFlip, 5: triggerPartyMobile, 10: triggerChuck }, 5000, 600)
@@ -1426,9 +1424,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   // Retro Mode: Shift+click on feed title (keyboard) / long-press feed title 1.5s (mobile)
   const triggerRetro = () => {
     if (retroActiveRef.current) return
-    if (!triggerEgg('retro')) return
+    if (!triggerEgg('retro', onBadgeCheck)) return
     retroActiveRef.current = true
-    setTimeout(onBadgeCheck, 500)
     document.body.classList.add('retro-mode')
     setTimeout(() => {
       document.body.classList.remove('retro-mode')
