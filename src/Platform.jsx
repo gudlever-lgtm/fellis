@@ -339,7 +339,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
         {page === 'ads' && mode === 'business' && <AdsManagementPage lang={lang} t={t} />}
         {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} initialCompanyId={navParam?.companyId} />}
         {page === 'analytics' && <AnalyticsPage lang={lang} t={t} currentUser={currentUser} />}
-        {page === 'settings' && <SettingsPage lang={lang} t={t} currentUser={currentUser} mode={mode} adsFree={adsFree} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onLogout={onLogout} onOpenModeModal={() => setShowModeModal(true)} darkMode={darkMode} onToggleDark={() => setDarkMode(d => !d)} />}
+        {page === 'settings' && <SettingsPage lang={lang} t={t} currentUser={currentUser} mode={mode} adsFree={adsFree} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onLogout={onLogout} onOpenModeModal={() => setShowModeModal(true)} darkMode={darkMode} onToggleDark={() => setDarkMode(d => !d)} initialTab={navParam} />}
         {page === 'privacy' && <PrivacySection lang={lang} onLogout={onLogout} />}
         {page === 'visitors' && <VisitorStatsPage lang={lang} />}
         {page === 'about' && <AboutPage lang={lang} />}
@@ -2281,7 +2281,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         const menuOpen = postMenu === post.id
         return (
           <Fragment key={post.id}>
-            {(postIdx === 1 || (postIdx > 1 && postIdx % 4 === 0)) && <AdBanner placement="feed" adsFree={adsFree} />}
+            {(postIdx === 1 || (postIdx > 1 && postIdx % 4 === 0)) && <AdBanner placement="feed" adsFree={adsFree} lang={lang} onGoAdFree={adsFree ? null : () => onNavigate('settings', 'billing')} />}
           <div className="p-card p-post">
             <div className="p-post-header">
               <div
@@ -2560,7 +2560,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       })}
 
       {/* Ad banner — always shown after posts list */}
-      <AdBanner placement="feed" adsFree={adsFree} />
+      <AdBanner placement="feed" adsFree={adsFree} lang={lang} onGoAdFree={adsFree ? null : () => onNavigate('settings', 'billing')} />
 
       {/* Bottom sentinel — triggers loading next page */}
       {offset + PAGE_SIZE < total && (
@@ -3402,8 +3402,8 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
 }
 
 // ── Settings Page ─────────────────────────────────────────────────────────────
-function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onLogout, onOpenModeModal, darkMode, onToggleDark }) {
-  const [tab, setTab] = useState('konto')
+function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onLogout, onOpenModeModal, darkMode, onToggleDark, initialTab }) {
+  const [tab, setTab] = useState(initialTab || 'konto')
 
   const fS = { display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box', fontFamily: 'inherit' }
   const lS = { display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4, marginTop: 14 }

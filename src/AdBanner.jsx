@@ -9,7 +9,7 @@ import { apiServeAds, apiRecordAdImpression, apiRecordAdClick } from './api.js'
  *   adsFree     boolean — if true, renders nothing
  *   currentUser optional user object (ads_free is checked server-side too)
  */
-export default function AdBanner({ placement = 'feed', adsFree = false }) {
+export default function AdBanner({ placement = 'feed', adsFree = false, onGoAdFree, lang = 'da' }) {
   const [ads, setAds] = useState([])
   const [refreshInterval, setRefreshInterval] = useState(300)
   const [adIndex, setAdIndex] = useState(0)
@@ -80,10 +80,18 @@ export default function AdBanner({ placement = 'feed', adsFree = false }) {
             {ad.body && <div style={{ fontSize: 13, color: '#555', lineHeight: 1.5 }}>{ad.body}</div>}
           </div>
         </div>
-        <span style={{
-          position: 'absolute', top: 8, right: 10,
-          fontSize: 10, color: '#aaa', fontWeight: 600, letterSpacing: 0.5,
-        }}>Sponsoreret</span>
+        <div style={{ position: 'absolute', top: 8, right: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 10, color: '#aaa', fontWeight: 600, letterSpacing: 0.5 }}>Sponsoreret</span>
+          {onGoAdFree && (
+            <button
+              onClick={e => { e.stopPropagation(); onGoAdFree() }}
+              title={lang === 'da' ? 'Fjern annoncer' : 'Remove ads'}
+              style={{ background: 'none', border: '1px solid #ddd', borderRadius: 20, padding: '1px 7px', fontSize: 10, color: '#aaa', cursor: 'pointer', lineHeight: 1.6 }}
+            >
+              🚫 {lang === 'da' ? 'Reklamefri' : 'Ad-free'}
+            </button>
+          )}
+        </div>
       </div>
     )
   }
@@ -104,7 +112,15 @@ export default function AdBanner({ placement = 'feed', adsFree = false }) {
         tabIndex={0}
         onKeyDown={e => e.key === 'Enter' && handleClick()}
       >
-        <div style={{ fontSize: 10, color: '#aaa', fontWeight: 600, marginBottom: 6 }}>SPONSORERET</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+          <span style={{ fontSize: 10, color: '#aaa', fontWeight: 600 }}>SPONSORERET</span>
+          {onGoAdFree && (
+            <button onClick={e => { e.stopPropagation(); onGoAdFree() }}
+              style={{ background: 'none', border: '1px solid #eee', borderRadius: 20, padding: '1px 7px', fontSize: 10, color: '#aaa', cursor: 'pointer' }}>
+              🚫 {lang === 'da' ? 'Reklamefri' : 'Ad-free'}
+            </button>
+          )}
+        </div>
         {ad.image_url && (
           <img src={ad.image_url} alt="" style={{ width: '100%', borderRadius: 8, marginBottom: 8, objectFit: 'cover', maxHeight: 120 }} />
         )}
@@ -131,7 +147,15 @@ export default function AdBanner({ placement = 'feed', adsFree = false }) {
       tabIndex={0}
       onKeyDown={e => e.key === 'Enter' && handleClick()}
     >
-      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, opacity: 0.7, marginBottom: 8 }}>SPONSORERET</div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, opacity: 0.7 }}>SPONSORERET</span>
+        {onGoAdFree && (
+          <button onClick={e => { e.stopPropagation(); onGoAdFree() }}
+            style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 20, padding: '1px 7px', fontSize: 10, color: '#fff', cursor: 'pointer' }}>
+            🚫 {lang === 'da' ? 'Reklamefri' : 'Ad-free'}
+          </button>
+        )}
+      </div>
       {ad.image_url && (
         <img src={ad.image_url} alt="" style={{ width: '100%', borderRadius: 8, marginBottom: 10, objectFit: 'cover', maxHeight: 160 }} />
       )}
