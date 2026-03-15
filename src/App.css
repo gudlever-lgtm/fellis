@@ -3413,6 +3413,38 @@
   gap: 2px;
 }
 
+/* ── Nav: intermediate window widths (desktop resize) ── */
+@media (max-width: 1100px) {
+  .p-nav-tab {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+  .p-nav-tabs {
+    gap: 2px;
+  }
+}
+
+@media (max-width: 900px) {
+  .p-nav-tab-label {
+    display: none;
+  }
+  .p-nav-tab {
+    padding: 8px 10px;
+  }
+  .nav-logo-tagline {
+    display: none;
+  }
+}
+
+@media (max-width: 700px) {
+  .p-nav-tab {
+    padding: 8px 8px;
+  }
+  .nav-logo-text {
+    display: none;
+  }
+}
+
 /* Analytics grid responsive */
 @media (max-width: 600px) {
   .p-nav-tab-label {
