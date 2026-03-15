@@ -4141,13 +4141,13 @@ app.put('/api/ads/:id', authenticate, async (req, res) => {
   }
 })
 
-// DELETE /api/ads/:id — archive ad
+// DELETE /api/ads/:id — permanently delete ad
 app.delete('/api/ads/:id', authenticate, async (req, res) => {
   try {
     const [[ad]] = await pool.query('SELECT * FROM ads WHERE id = ?', [req.params.id])
     if (!ad) return res.status(404).json({ error: 'Ad not found' })
     if (ad.advertiser_id !== req.userId && req.userId !== 1) return res.status(403).json({ error: 'Forbidden' })
-    await pool.query("UPDATE ads SET status = 'archived' WHERE id = ?", [req.params.id])
+    await pool.query('DELETE FROM ads WHERE id = ?', [req.params.id])
     res.json({ ok: true })
   } catch (err) {
     console.error('DELETE /api/ads/:id error:', err.message)

@@ -10129,7 +10129,7 @@ function AdsManagementPage({ lang, t }) {
   }
 
   const handleDelete = async (ad) => {
-    if (!window.confirm(lang === 'da' ? 'Arkivér denne annonce?' : 'Archive this ad?')) return
+    if (!window.confirm(lang === 'da' ? `Slet annoncen "${ad.title}" permanent? Dette kan ikke fortrydes.` : `Permanently delete the ad "${ad.title}"? This cannot be undone.`)) return
     await apiDeleteAd(ad.id).catch(() => {})
     reload()
   }
