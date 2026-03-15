@@ -1187,6 +1187,20 @@ app.get('/api/profile/:id', authenticate, async (req, res) => {
     if (targetId !== req.userId) {
       pool.query('INSERT INTO profile_views (viewer_id, profile_id) VALUES (?, ?)', [req.userId, targetId]).catch(() => {})
     }
+    // Fetch earned badges for the target user
+    let badges = []
+    try {
+      const lang = req.lang || 'da'
+      const [badgeRows] = await pool.query(
+        'SELECT badge_id, awarded_at FROM earned_badges WHERE user_id = ? ORDER BY awarded_at ASC',
+        [targetId]
+      )
+      badges = badgeRows.map(r => {
+        const def = BADGE_BY_ID[r.badge_id]
+        if (!def) return null
+        return { id: r.badge_id, icon: def.icon, name: def.name[lang] || def.name.da, tier: def.tier, awardedAt: r.awarded_at }
+      }).filter(Boolean)
+    } catch { /* badges table may not exist yet */ }
     res.json({
       id: u.id, name: u.name, handle: u.handle, initials: u.initials,
       bio: { da: u.bio_da || '', en: u.bio_en || '' },
@@ -1195,9 +1209,37 @@ app.get('/api/profile/:id', authenticate, async (req, res) => {
       friendCount: u.friend_count, postCount: u.post_count, photoCount: u.photo_count || 0,
       mutualCount: u.mutual_count || 0,
       isFriend: !!u.is_friend,
+      badges,
     })
   } catch (err) {
     res.status(500).json({ error: 'Failed to load profile' })
+  }
+})
+
+// GET /api/profile/:id/photos — posts with images/video from a user (max 30)
+app.get('/api/profile/:id/photos', authenticate, async (req, res) => {
+  const targetId = parseInt(req.params.id)
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, media, created_at
+       FROM posts
+       WHERE author_id = ? AND media IS NOT NULL AND media != 'null' AND scheduled_at IS NULL
+       ORDER BY created_at DESC
+       LIMIT 30`,
+      [targetId]
+    )
+    const photos = []
+    for (const row of rows) {
+      let media = []
+      try { media = JSON.parse(row.media) || [] } catch { continue }
+      for (const m of media) {
+        if (m?.url) photos.push({ postId: row.id, url: m.url, type: m.type || 'image', created_at: row.created_at })
+      }
+    }
+    res.json(photos.slice(0, 30))
+  } catch (err) {
+    console.error('GET /api/profile/:id/photos error:', err.message)
+    res.status(500).json({ error: 'Server error' })
   }
 })
 
@@ -5143,7 +5185,7 @@ app.get('/api/admin/stats', authenticate, requireAdmin, async (req, res) => {
     const [[{ posts }]] = await pool.query('SELECT COUNT(*) as posts FROM posts')
     const [[{ events }]] = await pool.query('SELECT COUNT(*) as events FROM events').catch(() => [[{ events: 0 }]])
     const [[{ listings }]] = await pool.query('SELECT COUNT(*) as listings FROM marketplace_listings WHERE sold = 0').catch(() => [[{ listings: 0 }]])
-    const [[{ friendships }]] = await pool.query('SELECT COUNT(*) as friendships FROM friendships')
+    const [[{ friendships }]] = await pool.query('SELECT COUNT(*)/2 as friendships FROM friendships')
     const [[{ messages }]] = await pool.query('SELECT COUNT(*) as messages FROM messages')
     const [[{ new_users_7d }]] = await pool.query("SELECT COUNT(*) as new_users_7d FROM users WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)").catch(() => [[{ new_users_7d: 0 }]])
     const [[{ rsvps }]] = await pool.query("SELECT COUNT(*) as rsvps FROM event_rsvps WHERE status = 'going'").catch(() => [[{ rsvps: 0 }]])
@@ -5174,9 +5216,9 @@ app.get('/api/admin/stats/list', authenticate, requireAdmin, async (req, res) =>
     } else if (type === 'events') {
       ;[rows] = await pool.query("SELECT e.id, e.title, e.date, u.name AS organizer FROM events e JOIN users u ON u.id = e.organizer_id ORDER BY e.date DESC LIMIT 20").catch(() => [rows])
     } else if (type === 'listings') {
-      ;[rows] = await pool.query("SELECT l.id, l.title, l.price, l.currency, u.name AS seller FROM marketplace_listings l JOIN users u ON u.id = l.seller_id WHERE l.sold = 0 ORDER BY l.created_at DESC LIMIT 20").catch(() => [rows])
+      ;[rows] = await pool.query("SELECT l.id, l.title, l.price, l.category, u.name AS seller, l.created_at FROM marketplace_listings l JOIN users u ON u.id = l.user_id WHERE l.sold = 0 ORDER BY l.created_at DESC LIMIT 20").catch(() => [rows])
     } else if (type === 'friendships') {
-      ;[rows] = await pool.query("SELECT f.id, a.name AS user1, b.name AS user2, f.created_at FROM friendships f JOIN users a ON a.id = f.user_id JOIN users b ON b.id = f.friend_id ORDER BY f.created_at DESC LIMIT 20").catch(() => [rows])
+      ;[rows] = await pool.query("SELECT f.id, a.name AS user1, b.name AS user2, f.created_at FROM friendships f JOIN users a ON a.id = f.user_id JOIN users b ON b.id = f.friend_id WHERE f.user_id < f.friend_id ORDER BY f.created_at DESC LIMIT 20").catch(() => [rows])
     } else if (type === 'messages') {
       ;[rows] = await pool.query("SELECT m.id, u.name AS sender, SUBSTRING(m.body, 1, 60) AS preview, m.created_at FROM messages m JOIN users u ON u.id = m.sender_id ORDER BY m.created_at DESC LIMIT 20").catch(() => [rows])
     }
@@ -6953,11 +6995,16 @@ app.post('/api/easter-eggs/event', authenticate, async (req, res) => {
 // GET /api/admin/easter-eggs/stats — per-egg stats (admin only)
 app.get('/api/admin/easter-eggs/stats', authenticate, requireAdmin, async (req, res) => {
   try {
-    const [rows] = await pool.query(`
+    // All events per egg (total activations + unique users)
+    const [allRows] = await pool.query(`
+      SELECT egg_id, COUNT(*) AS total_activations, COUNT(DISTINCT user_id) AS unique_discoverers
+      FROM easter_egg_events
+      GROUP BY egg_id
+    `)
+    // Discovery timing stats (only from 'discovered' events)
+    const [discRows] = await pool.query(`
       SELECT
         e.egg_id,
-        COUNT(*) AS total_activations,
-        COUNT(DISTINCT e.user_id) AS unique_discoverers,
         MIN(TIMESTAMPDIFF(SECOND, u.created_at, e.activated_at)) AS min_seconds,
         MAX(TIMESTAMPDIFF(SECOND, u.created_at, e.activated_at)) AS max_seconds,
         AVG(TIMESTAMPDIFF(SECOND, u.created_at, e.activated_at)) AS avg_seconds
@@ -6966,12 +7013,16 @@ app.get('/api/admin/easter-eggs/stats', authenticate, requireAdmin, async (req, 
       WHERE e.event = 'discovered'
       GROUP BY e.egg_id
     `)
-    const [actRows] = await pool.query(`
-      SELECT egg_id, COUNT(*) AS total FROM easter_egg_events GROUP BY egg_id
-    `)
-    const actMap = {}
-    for (const r of actRows) actMap[r.egg_id] = r.total
-    const stats = rows.map(r => ({ ...r, total_activations: actMap[r.egg_id] || r.total_activations }))
+    const discMap = {}
+    for (const r of discRows) discMap[r.egg_id] = r
+    const stats = allRows.map(r => ({
+      egg_id: r.egg_id,
+      total_activations: Number(r.total_activations),
+      unique_discoverers: Number(r.unique_discoverers),
+      min_seconds: discMap[r.egg_id]?.min_seconds ?? null,
+      max_seconds: discMap[r.egg_id]?.max_seconds ?? null,
+      avg_seconds: discMap[r.egg_id]?.avg_seconds ?? null,
+    }))
     res.json({ stats })
   } catch (err) {
     console.error('GET /api/admin/easter-eggs/stats error:', err.message)
@@ -7263,11 +7314,17 @@ app.get('/api/admin/badges/stats', authenticate, requireAdmin, async (req, res) 
   try {
     const lang = req.lang || 'da'
     const [[{ totalUsers }]] = await pool.query('SELECT COUNT(*) AS totalUsers FROM users WHERE is_bot = 0 OR is_bot IS NULL')
-    const [awardCounts] = await pool.query(`
-      SELECT badge_id, COUNT(*) AS awarded_count FROM earned_badges
-      GROUP BY badge_id ORDER BY awarded_count DESC
-    `)
-    const [disabledRows] = await pool.query('SELECT badge_id FROM badge_config WHERE enabled = 0')
+    let awardCounts = []
+    try {
+      ;[awardCounts] = await pool.query(`
+        SELECT badge_id, COUNT(*) AS awarded_count FROM earned_badges
+        GROUP BY badge_id ORDER BY awarded_count DESC
+      `)
+    } catch { /* earned_badges table may not exist */ }
+    let disabledRows = []
+    try {
+      ;[disabledRows] = await pool.query('SELECT badge_id FROM badge_config WHERE enabled = 0')
+    } catch { /* badge_config table may not exist */ }
     const disabledSet = new Set(disabledRows.map(r => r.badge_id))
 
     const stats = BADGES.map(b => {
