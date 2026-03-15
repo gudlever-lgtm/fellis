@@ -4318,11 +4318,14 @@ app.put('/api/admin/ad-settings', authenticate, requireAdmin, async (req, res) =
   }
 })
 
-// GET /api/admin/ad-stats — per-placement impressions, clicks, CTR (admin only)
+// GET /api/admin/ad-stats — per-placement impressions, clicks, CTR, count & revenue (admin only)
 app.get('/api/admin/ad-stats', authenticate, requireAdmin, async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT placement,
+              COUNT(*) AS total_count,
+              SUM(CASE WHEN payment_status = 'paid' THEN 1 ELSE 0 END) AS paid_count,
+              SUM(CASE WHEN payment_status = 'paid' THEN COALESCE(paid_amount, 0) ELSE 0 END) AS total_paid,
               SUM(impressions) AS impressions,
               SUM(clicks) AS clicks
        FROM ads
@@ -4331,6 +4334,9 @@ app.get('/api/admin/ad-stats', authenticate, requireAdmin, async (req, res) => {
     )
     const stats = rows.map(r => ({
       placement: r.placement,
+      total_count: Number(r.total_count) || 0,
+      paid_count: Number(r.paid_count) || 0,
+      total_paid: Number(r.total_paid) || 0,
       impressions: Number(r.impressions) || 0,
       clicks: Number(r.clicks) || 0,
       ctr: r.impressions > 0 ? ((r.clicks / r.impressions) * 100).toFixed(2) : '0.00',

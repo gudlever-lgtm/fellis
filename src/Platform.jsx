@@ -10788,9 +10788,60 @@ function AdminAdSettingsPanel({ lang, t }) {
 
   if (!settings) return <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>{lang === 'da' ? 'Henter…' : 'Loading…'}</div>
 
+  const placementLabel = (p) => p === 'feed' ? t.adminAdsPlacementFeed : p === 'sidebar' ? t.adminAdsPlacementSidebar : t.adminAdsPlacementStories
+  const currency = settings?.currency || 'DKK'
+
   return (
     <div className="p-card" style={{ marginBottom: 20 }}>
       <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 700 }}>📢 {t.adminAdsTitle}</h3>
+
+      {/* Ad overview — count, paid, revenue per placement */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontWeight: 700, fontSize: 13, color: '#2D6A4F', paddingBottom: 6, borderBottom: '1px solid #eee', marginBottom: 10 }}>📊 {t.adminAdsOverviewTitle}</div>
+        {adStats.length === 0 ? (
+          <div style={{ color: '#aaa', fontSize: 13 }}>{t.adminAdsNoStats}</div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: '#F6F4F1' }}>
+                  {[t.adminAdsColPlacement, t.adminAdsColCount, t.adminAdsColPaid, t.adminAdsColRevenue, t.adminAdsColImpressions, t.adminAdsColClicks, t.adminAdsColCTR].map(h => (
+                    <th key={h} style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 600, color: '#555', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {['feed', 'sidebar', 'stories'].map(pl => {
+                  const s = adStats.find(r => r.placement === pl) || { total_count: 0, paid_count: 0, total_paid: 0, impressions: 0, clicks: 0, ctr: '0.00' }
+                  return (
+                    <tr key={pl} style={{ borderBottom: '1px solid #eee' }}>
+                      <td style={{ padding: '7px 10px', fontWeight: 600 }}>{placementLabel(pl)}</td>
+                      <td style={{ padding: '7px 10px' }}>{s.total_count}</td>
+                      <td style={{ padding: '7px 10px' }}>{s.paid_count}</td>
+                      <td style={{ padding: '7px 10px', fontWeight: 700, color: '#2D6A4F' }}>{Number(s.total_paid).toFixed(2)} {currency}</td>
+                      <td style={{ padding: '7px 10px', color: '#555' }}>{s.impressions.toLocaleString()}</td>
+                      <td style={{ padding: '7px 10px', color: '#555' }}>{s.clicks.toLocaleString()}</td>
+                      <td style={{ padding: '7px 10px', color: '#555' }}>{s.ctr}%</td>
+                    </tr>
+                  )
+                })}
+                <tr style={{ background: '#F6F4F1', fontWeight: 700 }}>
+                  <td style={{ padding: '7px 10px' }}>{lang === 'da' ? 'Total' : 'Total'}</td>
+                  <td style={{ padding: '7px 10px' }}>{adStats.reduce((a, r) => a + r.total_count, 0)}</td>
+                  <td style={{ padding: '7px 10px' }}>{adStats.reduce((a, r) => a + r.paid_count, 0)}</td>
+                  <td style={{ padding: '7px 10px', color: '#2D6A4F' }}>{adStats.reduce((a, r) => a + Number(r.total_paid), 0).toFixed(2)} {currency}</td>
+                  <td style={{ padding: '7px 10px' }}>{adStats.reduce((a, r) => a + r.impressions, 0).toLocaleString()}</td>
+                  <td style={{ padding: '7px 10px' }}>{adStats.reduce((a, r) => a + r.clicks, 0).toLocaleString()}</td>
+                  <td style={{ padding: '7px 10px' }}>
+                    {(() => { const ti = adStats.reduce((a, r) => a + r.impressions, 0); const tc = adStats.reduce((a, r) => a + r.clicks, 0); return ti > 0 ? ((tc / ti) * 100).toFixed(2) : '0.00' })()}%
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
       <form onSubmit={handleSave}>
         {/* Master switch */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', background: '#F0FAF4', borderRadius: 8, marginBottom: 20 }}>
