@@ -932,11 +932,15 @@ export async function apiCreateAdFreeCheckout() {
 }
 
 // ── Mollie payments ───────────────────────────────────────────────────────────
-export async function apiCreateMolliePayment(plan, amount, currency) {
+export async function apiCreateMolliePayment(plan, amount, currency, adId) {
   const body = { plan }
   if (amount != null) body.amount = parseFloat(amount).toFixed(2)
   if (currency) body.currency = currency
+  if (adId) body.ad_id = adId
   return await request('/api/mollie/payment/create', { method: 'POST', body: JSON.stringify(body) })
+}
+export async function apiGetAdminStatDetail(type) {
+  return await request(`/api/admin/stats/list?type=${type}`)
 }
 export async function apiGetMollieStatus() {
   return await request('/api/mollie/payment/status')
