@@ -20,6 +20,9 @@ import RickRoll from './components/easter-eggs/RickRoll.jsx'
 import { apiGetAdminEasterEggStats, apiEvaluateBadges, apiGetEarnedBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge } from './api.js'
 import { BADGES, BADGE_BY_ID } from './badges/badgeDefinitions.js'
 import BadgeToastQueue from './components/BadgeToast.jsx'
+import ModeGate from './components/ModeGate.jsx'
+import StoryBar from './components/StoryBar.jsx'
+import ExplorePage from './pages/ExplorePage.jsx'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -48,6 +51,11 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
     if (stored === 'common') { localStorage.setItem('fellis_mode', 'privat'); return 'privat' }
     return stored
   })
+  // Sync Common mode body class for CSS scoping
+  useEffect(() => {
+    document.body.classList.toggle('mode-common', mode === 'privat' || mode === 'common')
+    document.body.classList.toggle('mode-business', mode === 'business')
+  }, [mode])
   const [showNotifPanel, setShowNotifPanel] = useState(false)
   const [notifs, setNotifs] = useState([])
   const [showModeModal, setShowModeModal] = useState(false)
@@ -207,7 +215,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
       {/* Platform nav — only Feed, Friends, Messages in main tabs */}
       <nav className="p-nav">
         <div className="p-nav-left">
-          <div ref={navLogoRef} className="nav-logo" style={{ cursor: 'pointer' }} onClick={() => { navigateTo('feed'); window.location.reload() }}>
+          <div className="nav-logo" style={{ cursor: 'pointer' }} onClick={() => { navigateTo('feed'); window.location.reload() }}>
             <img src="/fellis-logo.jpg" className="nav-logo-icon" alt="" />
             <div className="nav-logo-text">
               <span className="nav-logo-brand">{t.navBrand}</span>
@@ -238,6 +246,16 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
               </span>
             </button>
           ))}
+          {/* Udforsk tab — Common mode only */}
+          {mode !== 'business' && (
+            <button
+              className={`p-nav-tab${page === 'explore' ? ' active' : ''}`}
+              onClick={() => { navigateTo('explore'); setShowMobileMenu(false) }}
+            >
+              <span className="p-nav-tab-icon">🧭</span>
+              <span className="p-nav-tab-label">{t.explore || (lang === 'da' ? 'Udforsk' : 'Explore')}</span>
+            </button>
+          )}
           {/* Business-only primary tabs */}
           {mode === 'business' && ['analytics', 'ads'].map(p => (
             <button
@@ -432,6 +450,13 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
         {page === 'privacy' && <PrivacySection lang={lang} onLogout={onLogout} />}
         {page === 'visitors' && <VisitorStatsPage lang={lang} />}
         {page === 'about' && <AboutPage lang={lang} />}
+        {page === 'explore' && mode !== 'business' && (
+          <ExplorePage
+            lang={lang}
+            currentUser={currentUser}
+            onViewProfile={(uid) => { setViewUserId(uid); navigateTo('view-profile') }}
+          />
+        )}
         {page === 'admin' && currentUser.is_admin && <AdminPage lang={lang} t={t} />}
         {page === 'moderation' && (currentUser.is_moderator || currentUser.is_admin) && <ModeratorPage lang={lang} t={t} currentUser={currentUser} />}
         {page === 'payment-success' && <PaymentSuccess lang={lang} onNavigate={navigateTo} />}
@@ -1346,7 +1371,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const gravityActiveRef = useRef(false)
 
   // Refs for touch/mobile triggers
-  const navLogoRef   = useRef(null)
   const feedTitleRef = useRef(null)
 
   // Rick Roll sentinel — placed at very bottom of feed
@@ -1355,9 +1379,9 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     if (!rickrollActive && triggerEgg('rickroll')) { setRickrollActive(true); setTimeout(onBadgeCheck, 500) }
   }, !rickrollActive)
 
-  // Chuck Norris: Konami code ↑↑↓↓←→←→BA (keyboard) / long-press nav logo 2s (mobile)
-  useKonamiCode(() => { if (!chuckActive && triggerEgg('chuck')) { setChuckActive(true); setTimeout(onBadgeCheck, 500) } }, !chuckActive)
-  useLongPress(navLogoRef, 2000, () => { if (!chuckActive && triggerEgg('chuck')) { setChuckActive(true); setTimeout(onBadgeCheck, 500) } }, !chuckActive)
+  // Chuck Norris: Konami code ↑↑↓↓←→←→BA (keyboard) / 10 taps on feed title (mobile)
+  const triggerChuck = () => { if (!chuckActive && triggerEgg('chuck')) { setChuckActive(true); setTimeout(onBadgeCheck, 500) } }
+  useKonamiCode(triggerChuck, !chuckActive)
 
   // Matrix Rain: 7 avatar clicks within 3 seconds (works on mobile too)
   useAvatarClick(feedContainerRef, 7, 3000, () => {
@@ -1396,8 +1420,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   // (Party is also triggered via useKeySequence in the outer PlatformShell — this covers mobile)
   const triggerPartyMobile = () => { if (triggerGlobalEgg('party')) { setPartyActive(true); setTimeout(checkBadges, 500) } }
 
-  // Feed title tap-count: 2 = Gravity, 3 = Flip, 5 = Party (mobile)
-  useTapCount(feedTitleRef, { 2: triggerGravity, 3: triggerFlip, 5: triggerPartyMobile }, 3000, 600)
+  // Feed title tap-count: 2=Gravity, 3=Flip, 5=Party, 10=Chuck (mobile)
+  useTapCount(feedTitleRef, { 2: triggerGravity, 3: triggerFlip, 5: triggerPartyMobile, 10: triggerChuck }, 5000, 600)
 
   // Retro Mode: Shift+click on feed title (keyboard) / long-press feed title 1.5s (mobile)
   const triggerRetro = () => {
@@ -1984,6 +2008,13 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
           </div>
         </div>
       )}
+      {/* Story bar — Common mode only */}
+      {mode !== 'business' && (
+        <ModeGate mode="privat" currentMode={mode}>
+          <StoryBar currentUser={currentUser} lang={lang} />
+        </ModeGate>
+      )}
+
       {/* Feed title — Shift+click / long-press 1.5s = Retro; 2/3/5-tap = Gravity/Flip/Party */}
       <div
         ref={feedTitleRef}
@@ -4205,7 +4236,7 @@ function ModeratorRequestCard({ lang, t, currentUser }) {
 }
 
 const EGG_META = {
-  chuck:    { icon: '🤜', name: 'Chuck Norris', trigger: { da: 'Konami-kode (↑↑↓↓←→←→BA) / hold logo nede 2 sek.', en: 'Konami code (↑↑↓↓←→←→BA) / long-press logo 2 sec.' } },
+  chuck:    { icon: '🤜', name: 'Chuck Norris', trigger: { da: 'Konami-kode (↑↑↓↓←→←→BA) / 10 tryk på Feed-overskrift', en: 'Konami code (↑↑↓↓←→←→BA) / 10 taps on Feed title' } },
   matrix:   { icon: '🟩', name: 'Matrix Rain',  trigger: { da: '7 klik på en avatar inden for 3 sek.', en: '7 clicks on an avatar within 3 sec.' } },
   flip:     { icon: '🔃', name: 'Flip Feed',    trigger: { da: 'Skriv "flip" / 3 tryk på Feed-overskrift', en: 'Type "flip" / 3 taps on Feed title' } },
   retro:    { icon: '📺', name: 'Retro Mode',   trigger: { da: 'Shift+klik / hold Feed-overskrift nede 1,5 sek.', en: 'Shift+click / long-press Feed title 1.5 sec.' } },

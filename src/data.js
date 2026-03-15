@@ -917,6 +917,7 @@ export const PT = {
     memoriesShare: 'Del som opslag',
     memoriesDismiss: 'Skjul',
     memoriesShared: 'Delt!',
+    explore: 'Udforsk',
   },
   en: {
     feed: 'Feed',
@@ -1673,6 +1674,7 @@ export const PT = {
     memoriesShare: 'Share as post',
     memoriesDismiss: 'Dismiss',
     memoriesShared: 'Shared!',
+    explore: 'Explore',
   },
 }
 

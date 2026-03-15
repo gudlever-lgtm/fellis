@@ -1094,3 +1094,28 @@ export async function apiToggleBadge(badgeId, enabled) {
     body: JSON.stringify({ enabled }),
   })
 }
+
+// ── Stories ───────────────────────────────────────────────────────────────────
+export async function apiGetStoriesFeed() {
+  return await request('/api/stories/feed')
+}
+export async function apiCreateStory(content_text, bg_color) {
+  return await request('/api/stories', { method: 'POST', body: JSON.stringify({ content_text, bg_color }) })
+}
+export async function apiDeleteStory(id) {
+  return await request(`/api/stories/${id}`, { method: 'DELETE' })
+}
+
+// ── Explore ───────────────────────────────────────────────────────────────────
+export async function apiGetTrendingTags() {
+  return await request('/api/explore/trending-tags')
+}
+export async function apiGetExploreFeed(cursor, filter, tag) {
+  const params = new URLSearchParams({ filter: filter || 'all' })
+  if (cursor) params.set('cursor', cursor)
+  if (tag) params.set('tag', tag)
+  return await request(`/api/explore/feed?${params}`)
+}
+export async function apiGetSuggestedUsers(limit = 6) {
+  return await request(`/api/users/suggested?limit=${limit}`)
+}
