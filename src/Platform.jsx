@@ -1690,7 +1690,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     setMediaPreviews([])
     setProviderMediaUrls([])
     setPostExpanded(false)
-    setMediaPopup(false)
     setPostCategories(new Set())
     setAutoCategories(new Set())
     setShowCategoryPicker(false)
@@ -1715,7 +1714,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     setMediaFiles([])
     setMediaPreviews([])
     setPostExpanded(false)
-    setMediaPopup(false)
   }, [newPostText, mediaFiles, providerMediaUrls, doCreatePost, scheduleEnabled, scheduledAt])
 
   const toggleLike = useCallback((id, emoji) => {
@@ -1999,7 +1997,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   setMediaFiles([])
                   setMediaPreviews([])
                   setPostExpanded(false)
-                  setMediaPopup(false)
                 }}
                 style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: '#c0392b', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}
               >
