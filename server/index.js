@@ -4398,6 +4398,9 @@ async function initMollie() {
     await pool.query('ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS status VARCHAR(32) NOT NULL DEFAULT \'open\'').catch(() => {})
     await pool.query('ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS expires_at DATETIME DEFAULT NULL').catch(() => {})
     await pool.query('ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS ad_id INT DEFAULT NULL').catch(() => {})
+    await pool.query('ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS recurring TINYINT(1) NOT NULL DEFAULT 0').catch(() => {})
+    await pool.query('ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS mollie_subscription_id VARCHAR(64) DEFAULT NULL').catch(() => {})
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS mollie_customer_id VARCHAR(64) DEFAULT NULL').catch(() => {})
   } catch (err) {
     console.error('initMollie:', err.message)
   }
@@ -4445,7 +4448,7 @@ async function getMollieClient() {
 // POST /api/mollie/payment/create — create a Mollie payment and return checkout URL
 app.post('/api/mollie/payment/create', authenticate, async (req, res) => {
   try {
-    const { plan, currency: reqCurrency, ad_id: adId } = req.body || {}
+    const { plan, currency: reqCurrency, ad_id: adId, recurring = false } = req.body || {}
     if (!plan) return res.status(400).json({ error: 'Missing required field: plan' })
 
     const mollie = await getMollieClient()
@@ -4484,23 +4487,41 @@ app.post('/api/mollie/payment/create', authenticate, async (req, res) => {
 
     const origin = req.headers.origin || 'https://fellis.eu'
     const adIdParam = adId ? `&ad_id=${adId}` : ''
-    const redirectUrl = `${origin}/?mollie_payment=success&plan=${encodeURIComponent(plan)}${adIdParam}`
+    const recurringParam = recurring ? '&recurring=1' : ''
+    const redirectUrl = `${origin}/?mollie_payment=success&plan=${encodeURIComponent(plan)}${adIdParam}${recurringParam}`
     const webhookUrl = `${origin}/api/mollie/payment/webhook`
 
-    const payment = await mollie.payments.create({
+    // For recurring: get or create a Mollie customer to enable mandate/subscription
+    let mollieCustomerId = null
+    if (recurring) {
+      const [[userRow]] = await pool.query('SELECT mollie_customer_id, email, name FROM users WHERE id = ?', [req.userId])
+      mollieCustomerId = userRow?.mollie_customer_id
+      if (!mollieCustomerId) {
+        const customer = await mollie.customers.create({ name: userRow?.name || 'fellis user', email: userRow?.email || '' })
+        mollieCustomerId = customer.id
+        await pool.query('UPDATE users SET mollie_customer_id = ? WHERE id = ?', [mollieCustomerId, req.userId]).catch(() => {})
+      }
+    }
+
+    const paymentParams = {
       amount: { currency: resolvedCurrency, value: resolvedAmount.toFixed(2) },
-      description: `fellis.eu — ${plan}`,
+      description: `fellis.eu — ${plan}${recurring ? ' (abonnement)' : ''}`,
       redirectUrl,
       webhookUrl,
-      metadata: { user_id: String(req.userId), plan, ...(adId ? { ad_id: String(adId) } : {}) },
-    })
+      metadata: { user_id: String(req.userId), plan, recurring: String(!!recurring), ...(adId ? { ad_id: String(adId) } : {}) },
+    }
+    if (recurring && mollieCustomerId) {
+      paymentParams.customerId = mollieCustomerId
+      paymentParams.sequenceType = 'first'
+    }
+
+    const payment = await mollie.payments.create(paymentParams)
 
     // Record the pending payment in the subscriptions table
     await pool.query(
-      'INSERT INTO subscriptions (user_id, mollie_payment_id, plan, status, ad_id) VALUES (?, ?, ?, ?, ?)',
-      [req.userId, payment.id, plan, 'open', adId || null]
+      'INSERT INTO subscriptions (user_id, mollie_payment_id, plan, status, ad_id, recurring) VALUES (?, ?, ?, ?, ?, ?)',
+      [req.userId, payment.id, plan, 'open', adId || null, recurring ? 1 : 0]
     ).catch(() =>
-      // ad_id column may not exist yet — retry without it
       pool.query('INSERT INTO subscriptions (user_id, mollie_payment_id, plan, status) VALUES (?, ?, ?, ?)',
         [req.userId, payment.id, plan, 'open'])
     )
@@ -4535,48 +4556,85 @@ app.post('/api/mollie/payment/webhook', express.urlencoded({ extended: false }),
 
     const payment = await mollie.payments.get(id)
 
-    // Find the matching subscription row
-    const [[sub]] = await pool.query('SELECT * FROM subscriptions WHERE mollie_payment_id = ?', [id])
+    // Subscription renewal payments from Mollie have a subscriptionId but no matching row by payment id.
+    // Find sub by mollie_subscription_id first, then fall back to mollie_payment_id.
+    let sub = null
+    if (payment.subscriptionId) {
+      const [[bySub]] = await pool.query('SELECT * FROM subscriptions WHERE mollie_subscription_id = ?', [payment.subscriptionId])
+      sub = bySub || null
+    }
+    if (!sub) {
+      const [[byPay]] = await pool.query('SELECT * FROM subscriptions WHERE mollie_payment_id = ?', [id])
+      sub = byPay || null
+    }
     if (!sub) { console.warn('Mollie webhook: no subscription row for payment', id); return }
 
     const status = payment.status // 'open','pending','authorized','expired','canceled','failed','paid'
-    let expiresAt = null
-    if (status === 'paid') {
-      // Grant 30 days of access per payment (one-time payment model)
-      expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    const expiresAt = status === 'paid' ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : null
+
+    // For renewal payments (subscriptionId present) insert a new row rather than overwriting the original
+    if (payment.subscriptionId && sub.mollie_subscription_id) {
+      if (status === 'paid') {
+        await pool.query(
+          'INSERT INTO subscriptions (user_id, mollie_payment_id, plan, status, ad_id, recurring, mollie_subscription_id, expires_at) VALUES (?, ?, ?, ?, ?, 1, ?, ?)',
+          [sub.user_id, id, sub.plan, 'paid', sub.ad_id || null, sub.mollie_subscription_id, expiresAt]
+        ).catch(() => {})
+      }
+    } else {
+      await pool.query(
+        'UPDATE subscriptions SET status = ?, expires_at = ? WHERE mollie_payment_id = ?',
+        [status, expiresAt, id]
+      )
     }
 
-    await pool.query(
-      'UPDATE subscriptions SET status = ?, expires_at = ? WHERE mollie_payment_id = ?',
-      [status, expiresAt, id]
-    )
-
     if (status === 'paid') {
+      const isRecurringFirstPayment = sub.recurring && !sub.mollie_subscription_id
+      const adId = sub.ad_id || payment.metadata?.ad_id
+      const paidAmount = parseFloat(payment.amount?.value) || null
+
       if (sub.plan === 'ad_activation') {
-        // Activate the specific ad and record full payment details
-        const adId = sub.ad_id || payment.metadata?.ad_id
-        const paidAmount = parseFloat(payment.amount?.value) || null
+        // Activate the ad and extend paid_until
         if (adId) await pool.query(
           "UPDATE ads SET status = 'active', paid_until = DATE_ADD(NOW(), INTERVAL 30 DAY), payment_status = 'paid', paid_amount = ?, paid_at = NOW() WHERE id = ?",
           [paidAmount, adId]
         ).catch(() =>
-          // Fallback if new columns don't exist yet
           pool.query("UPDATE ads SET status = 'active', paid_until = DATE_ADD(NOW(), INTERVAL 30 DAY) WHERE id = ?", [adId])
         )
       } else {
-        // Mark user as ads-free (adfree / boost plans)
         await pool.query('UPDATE users SET ads_free = 1 WHERE id = ?', [sub.user_id])
+      }
+
+      // After first payment of a recurring plan: create a Mollie Subscription
+      if (isRecurringFirstPayment && payment.customerId) {
+        try {
+          const interval = sub.plan === 'ad_activation' ? '30 days' : '1 month'
+          const mollieSubscription = await mollie.customers.subscriptions.create(payment.customerId, {
+            amount: { currency: payment.amount.currency, value: payment.amount.value },
+            interval,
+            description: `fellis.eu — ${sub.plan} (abonnement)`,
+            webhookUrl: `${payment._links?.webhookUrl?.href?.replace(/\/api\/mollie.*/, '') || 'https://fellis.eu'}/api/mollie/payment/webhook`,
+            metadata: { user_id: String(sub.user_id), plan: sub.plan, ...(adId ? { ad_id: String(adId) } : {}) },
+          })
+          await pool.query(
+            'UPDATE subscriptions SET mollie_subscription_id = ? WHERE id = ?',
+            [mollieSubscription.id, sub.id]
+          ).catch(() => {})
+          await pool.query(
+            'UPDATE users SET mollie_customer_id = ? WHERE id = ?',
+            [payment.customerId, sub.user_id]
+          ).catch(() => {})
+        } catch (subErr) {
+          console.error('Mollie subscription create error:', subErr.message)
+        }
       }
     } else if (['expired', 'canceled', 'failed'].includes(status)) {
       if (sub.plan === 'ad_activation') {
-        // Mark payment as failed on the ad (keep as draft so user can retry)
         const adId = sub.ad_id || payment.metadata?.ad_id
         if (adId) await pool.query(
           "UPDATE ads SET payment_status = 'failed' WHERE id = ? AND payment_status != 'paid'",
           [adId]
         ).catch(() => {})
       } else {
-        // Only revoke ads_free if there's no other active paid subscription
         const [[active]] = await pool.query(
           "SELECT id FROM subscriptions WHERE user_id = ? AND status = 'paid' AND (expires_at IS NULL OR expires_at > NOW()) AND mollie_payment_id != ? LIMIT 1",
           [sub.user_id, id]
@@ -4597,9 +4655,11 @@ app.get('/api/mollie/payment/status', authenticate, async (req, res) => {
     const [[user]] = await pool.query('SELECT ads_free, mode FROM users WHERE id = ?', [req.userId])
     if (!user) return res.status(404).json({ error: 'User not found' })
 
-    // Get the most recent paid or pending subscription
+    // Get the most recent active or pending subscription (prefer recurring+active)
     const [[sub]] = await pool.query(
-      "SELECT plan, status, expires_at FROM subscriptions WHERE user_id = ? ORDER BY created_at DESC LIMIT 1",
+      `SELECT plan, status, expires_at, recurring, mollie_subscription_id
+       FROM subscriptions WHERE user_id = ?
+       ORDER BY recurring DESC, created_at DESC LIMIT 1`,
       [req.userId]
     )
 
@@ -4608,9 +4668,52 @@ app.get('/api/mollie/payment/status', authenticate, async (req, res) => {
       plan: sub?.plan || null,
       status: sub?.status || null,
       expires_at: sub?.expires_at || null,
+      recurring: Boolean(sub?.recurring),
+      has_subscription: !!sub?.mollie_subscription_id,
     })
   } catch (err) {
     console.error('GET /api/mollie/payment/status error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// DELETE /api/mollie/subscription/cancel — cancel active recurring subscription
+app.delete('/api/mollie/subscription/cancel', authenticate, async (req, res) => {
+  try {
+    const [[sub]] = await pool.query(
+      `SELECT s.*, u.mollie_customer_id FROM subscriptions s
+       JOIN users u ON u.id = s.user_id
+       WHERE s.user_id = ? AND s.mollie_subscription_id IS NOT NULL
+       ORDER BY s.created_at DESC LIMIT 1`,
+      [req.userId]
+    )
+    if (!sub) return res.status(404).json({ error: 'No active subscription found' })
+
+    const mollie = await getMollieClient()
+    if (!mollie) return res.status(503).json({ error: 'Payment provider unavailable' })
+
+    if (sub.mollie_customer_id && sub.mollie_subscription_id) {
+      await mollie.customers.subscriptions.cancel(sub.mollie_subscription_id, { customerId: sub.mollie_customer_id })
+        .catch(err => console.warn('Mollie subscription cancel warning:', err.message))
+    }
+
+    await pool.query(
+      "UPDATE subscriptions SET status = 'canceled' WHERE mollie_subscription_id = ?",
+      [sub.mollie_subscription_id]
+    )
+
+    // Revoke ads_free if no other active subscription remains
+    if (sub.plan !== 'ad_activation') {
+      const [[active]] = await pool.query(
+        "SELECT id FROM subscriptions WHERE user_id = ? AND status = 'paid' AND (expires_at IS NULL OR expires_at > NOW()) AND mollie_subscription_id != ? LIMIT 1",
+        [req.userId, sub.mollie_subscription_id]
+      )
+      if (!active) await pool.query('UPDATE users SET ads_free = 0 WHERE id = ?', [req.userId])
+    }
+
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/mollie/subscription/cancel error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })

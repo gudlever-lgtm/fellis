@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } from 'react'
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { PT, SUPPORTED_LANGS, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiExchangeGoogleCode, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiFetchMemories, apiApplyToJob, apiGetJobApplications, apiUpdateJobApplication, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiExchangeGoogleCode, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiFetchMemories, apiApplyToJob, apiGetJobApplications, apiUpdateJobApplication, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail } from './api.js'
 import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
 import ReelsPage from './Reels.jsx'
@@ -3116,7 +3116,7 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
       if (data) {
         setProfile(data)
         if (data.interests?.length) setInterests(data.interests)
-        setBirthday(data.birthday || '')
+        setBirthday(data.birthday ? data.birthday.slice(0, 10) : '')
       }
     })
   }, [])
@@ -3432,6 +3432,9 @@ function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, on
 function BillingSettings({ lang, t }) {
   const [sub, setSub] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [recurring, setRecurring] = useState(false)
+  const [cancelLoading, setCancelLoading] = useState(false)
+  const [cancelMsg, setCancelMsg] = useState(null)
   const [mollieLoading, setMollieLoading] = useState(false)
   const [mollieError, setMollieError] = useState(null)
 
@@ -3439,26 +3442,28 @@ function BillingSettings({ lang, t }) {
     apiGetSubscription().then(data => { if (data) setSub(data) }).catch(() => {})
   }, [])
 
-  const handleCheckout = async () => {
-    setLoading(true)
-    const data = await apiCreateAdFreeCheckout().catch(() => null)
-    setLoading(false)
-    if (data?.url) {
-      window.location.href = data.url
-    } else if (data?.error) {
-      alert(data.error)
-    }
-  }
-
   const handleMollieCheckout = async () => {
     setMollieError(null)
     setMollieLoading(true)
-    const data = await apiCreateMolliePayment('adfree').catch(() => null)
+    const data = await apiCreateMolliePayment('adfree', null, null, null, recurring).catch(() => null)
     setMollieLoading(false)
     if (data?.checkoutUrl) {
       window.location.href = data.checkoutUrl
     } else {
       setMollieError(data?.error || (lang === 'da' ? 'Kunne ikke oprette betaling.' : 'Could not create payment.'))
+    }
+  }
+
+  const handleCancelSubscription = async () => {
+    if (!window.confirm(lang === 'da' ? 'Opsig dit abonnement? Du beholder adgang til periodens udløb.' : 'Cancel your subscription? You keep access until the end of the period.')) return
+    setCancelLoading(true); setCancelMsg(null)
+    const data = await apiCancelMollieSubscription().catch(() => null)
+    setCancelLoading(false)
+    if (data?.ok) {
+      setCancelMsg({ ok: true, text: lang === 'da' ? 'Abonnement opsagt.' : 'Subscription cancelled.' })
+      apiGetMollieStatus().then(d => { if (d) setSub(d) }).catch(() => {})
+    } else {
+      setCancelMsg({ ok: false, text: data?.error || (lang === 'da' ? 'Kunne ikke opsige.' : 'Could not cancel.') })
     }
   }
 
@@ -3474,12 +3479,28 @@ function BillingSettings({ lang, t }) {
         <p style={{ margin: '0 0 16px', fontSize: 14, color: '#555', lineHeight: 1.6 }}>{t.adFreeDesc}</p>
 
         {sub.ads_free ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: '#F0FAF4', borderRadius: 10, border: '1px solid #c3e6cb' }}>
-            <span style={{ fontSize: 20 }}>✅</span>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 14, color: '#2D6A4F' }}>{t.adFreeActiveLabel}</div>
-              <div style={{ fontSize: 12, color: '#555', marginTop: 2 }}>{lang === 'da' ? 'Abonnementet er aktivt.' : 'Your subscription is active.'}</div>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: '#F0FAF4', borderRadius: 10, border: '1px solid #c3e6cb', marginBottom: sub.has_subscription ? 12 : 0 }}>
+              <span style={{ fontSize: 20 }}>✅</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 14, color: '#2D6A4F' }}>{t.adFreeActiveLabel}</div>
+                <div style={{ fontSize: 12, color: '#555', marginTop: 2 }}>
+                  {sub.has_subscription
+                    ? (lang === 'da' ? 'Løbende abonnement — fornyes automatisk.' : 'Recurring subscription — renews automatically.')
+                    : (lang === 'da' ? 'Engangsbetaling aktiv.' : 'One-time payment active.')}
+                  {sub.expires_at && <span> {lang === 'da' ? 'Udløber' : 'Expires'}: <strong>{new Date(sub.expires_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-GB')}</strong></span>}
+                </div>
+              </div>
             </div>
+            {sub.has_subscription && (
+              <div style={{ marginTop: 8 }}>
+                {cancelMsg && <p style={{ fontSize: 13, color: cancelMsg.ok ? '#2D6A4F' : '#e03131', margin: '0 0 8px' }}>{cancelMsg.ok ? '✓' : '✗'} {cancelMsg.text}</p>}
+                <button onClick={handleCancelSubscription} disabled={cancelLoading}
+                  style={{ fontSize: 13, padding: '7px 14px', borderRadius: 8, border: '1px solid #e74c3c', background: '#fff', color: '#e74c3c', cursor: 'pointer', opacity: cancelLoading ? 0.6 : 1 }}>
+                  {cancelLoading ? '…' : (lang === 'da' ? 'Opsig abonnement' : 'Cancel subscription')}
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <>
@@ -3488,13 +3509,18 @@ function BillingSettings({ lang, t }) {
                 {lang === 'da' ? 'Annoncer er i øjeblikket deaktiveret på platformen.' : 'Ads are currently disabled on the platform.'}
               </div>
             )}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-              <span style={{ fontSize: 13, color: '#555' }}>{t.adFreePrice}:</span>
-              <span style={{ fontSize: 22, fontWeight: 800, color: '#1a1a1a' }}>{price} {currency}</span>
-              <span style={{ fontSize: 13, color: '#888' }}>{t.adFreeMonth}</span>
+            {/* Recurring toggle */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+              {[false, true].map(r => (
+                <button key={String(r)} onClick={() => setRecurring(r)}
+                  style={{ flex: 1, padding: '9px 0', borderRadius: 8, border: `1.5px solid ${recurring === r ? '#2D6A4F' : '#ddd'}`, background: recurring === r ? '#eaf5ef' : '#fff', color: recurring === r ? '#2D6A4F' : '#555', fontWeight: recurring === r ? 700 : 400, fontSize: 13, cursor: 'pointer' }}>
+                  {r
+                    ? (lang === 'da' ? `🔁 Månedligt — ${price} ${currency}/md.` : `🔁 Monthly — ${price} ${currency}/mo.`)
+                    : (lang === 'da' ? `1× Engangsbetaling — ${price} ${currency}` : `1× One-time — ${price} ${currency}`)}
+                </button>
+              ))}
             </div>
 
-            {/* Mollie checkout — primary */}
             <button
               onClick={handleMollieCheckout}
               disabled={mollieLoading}
@@ -3502,30 +3528,22 @@ function BillingSettings({ lang, t }) {
             >
               {mollieLoading
                 ? (lang === 'da' ? 'Henter…' : 'Loading…')
-                : (lang === 'da' ? `Betal ${price} ${currency} — Mollie` : `Pay ${price} ${currency} — Mollie`)}
+                : (lang === 'da'
+                    ? (recurring ? `Opret abonnement — ${price} ${currency}/md.` : `Betal ${price} ${currency}`)
+                    : (recurring ? `Subscribe — ${price} ${currency}/mo.` : `Pay ${price} ${currency}`))}
             </button>
             {mollieError && <p style={{ fontSize: 13, color: '#e03131', margin: '0 0 12px' }}>{mollieError}</p>}
 
-            {/* Mollie accepted methods */}
+            {/* Accepted payment methods */}
+            <div style={{ fontSize: 11, color: '#aaa', marginBottom: 6 }}>
+              {lang === 'da' ? 'Vi benytter Mollie som betalingsgateway — sikker betaling via EU-certificeret udbyder.' : 'We use Mollie as payment gateway — secure payment via EU-certified provider.'}
+            </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
               {['MobilePay', 'Visa', 'Mastercard', 'Apple Pay', 'Google Pay'].map(m => (
                 <span key={m} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 20, background: '#f0f0f0', color: '#555' }}>{m}</span>
               ))}
             </div>
 
-            {/* Stripe fallback (shown only if Stripe was already configured) */}
-            <details style={{ marginTop: 8 }}>
-              <summary style={{ fontSize: 12, color: '#aaa', cursor: 'pointer', userSelect: 'none' }}>
-                {lang === 'da' ? 'Betal med Stripe i stedet' : 'Pay with Stripe instead'}
-              </summary>
-              <button
-                onClick={handleCheckout}
-                disabled={loading}
-                style={{ width: '100%', padding: '11px 0', borderRadius: 10, border: '1px solid #ccc', background: '#fff', color: '#333', fontWeight: 600, fontSize: 14, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, marginTop: 10 }}
-              >
-                {loading ? t.adFreeLoading : t.adFreeBtn}
-              </button>
-            </details>
           </>
         )}
       </div>
@@ -10059,6 +10077,7 @@ function AdsManagementPage({ lang, t }) {
   const [adSettings, setAdSettings] = useState(null)
   const [paymentLoading, setPaymentLoading] = useState(false)
   const [paymentError, setPaymentError] = useState(null)
+  const [adRecurring, setAdRecurring] = useState(false)
 
   useEffect(() => { apiGetAdPrice().then(d => { if (d) setAdSettings(d) }).catch(() => {}) }, [])
 
@@ -10102,7 +10121,7 @@ function AdsManagementPage({ lang, t }) {
     setPaymentLoading(true); setPaymentError(null)
     const price = adSettings?.ad_price_cpm || 50
     const currency = adSettings?.currency || 'DKK'
-    const data = await apiCreateMolliePayment('ad_activation', price, currency, paymentAd.id).catch(() => null)
+    const data = await apiCreateMolliePayment('ad_activation', price, currency, paymentAd.id, adRecurring).catch(() => null)
     setPaymentLoading(false)
     if (data?.checkoutUrl) { window.location.href = data.checkoutUrl; return }
     setPaymentError(data?.error || (lang === 'da' ? 'Kunne ikke oprette betaling.' : 'Could not create payment.'))
@@ -10123,22 +10142,46 @@ function AdsManagementPage({ lang, t }) {
       {paymentAd && (
         <div className="modal-backdrop" onClick={() => setPaymentAd(null)}>
           <div className="p-event-create-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 400 }}>
-            <h3 style={{ margin: '0 0 12px', fontSize: 17, fontWeight: 700 }}>
+            <h3 style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 700 }}>
               💳 {lang === 'da' ? 'Aktivér reklame' : 'Activate ad'}
             </h3>
-            <p style={{ margin: '0 0 8px', fontSize: 14, color: '#444' }}>
+            <p style={{ margin: '0 0 12px', fontSize: 14, color: '#444' }}>
               <strong>{paymentAd.title}</strong>
             </p>
-            <p style={{ margin: '0 0 16px', fontSize: 14, color: '#666', lineHeight: 1.5 }}>
+            {/* Recurring toggle */}
+            <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+              {[false, true].map(r => {
+                const price = adSettings?.ad_price_cpm || 50
+                const cur = adSettings?.currency || 'DKK'
+                return (
+                  <button key={String(r)} type="button" onClick={() => setAdRecurring(r)}
+                    style={{ flex: 1, padding: '8px 4px', borderRadius: 7, border: `1.5px solid ${adRecurring === r ? '#2D6A4F' : '#ddd'}`, background: adRecurring === r ? '#eaf5ef' : '#fff', color: adRecurring === r ? '#2D6A4F' : '#555', fontWeight: adRecurring === r ? 700 : 400, fontSize: 12, cursor: 'pointer' }}>
+                    {r
+                      ? (lang === 'da' ? `🔁 Løbende — ${price} ${cur}/md.` : `🔁 Recurring — ${price} ${cur}/mo.`)
+                      : (lang === 'da' ? `1× Engangsbetaling — ${price} ${cur}` : `1× One-time — ${price} ${cur}`)}
+                  </button>
+                )
+              })}
+            </div>
+            <p style={{ margin: '0 0 12px', fontSize: 13, color: '#666', lineHeight: 1.5 }}>
               {lang === 'da'
-                ? `Aktivering koster ${adSettings?.ad_price_cpm || 50} ${adSettings?.currency || 'DKK'} og giver 30 dages visning fra betalingsdatoen. Dine valgte kampagnedatoer låses og kan ikke ændres i perioden. Du viderestilles til Mollie for sikker betaling.`
-                : `Activation costs ${adSettings?.ad_price_cpm || 50} ${adSettings?.currency || 'DKK'} and gives 30 days of display from the payment date. Your selected campaign dates are locked and cannot be changed during the period. You will be redirected to Mollie for secure payment.`}
+                ? (adRecurring
+                    ? `Annoncen faktureres automatisk hver 30. dag og forbliver aktiv. Opsiges til enhver tid.`
+                    : `Giver 30 dages visning fra betalingsdatoen. Kampagnedatoer låses i perioden.`)
+                : (adRecurring
+                    ? `The ad is billed automatically every 30 days and stays active. Cancel any time.`
+                    : `Gives 30 days of display from the payment date. Campaign dates are locked during the period.`)}
+            </p>
+            <p style={{ margin: '0 0 14px', fontSize: 11, color: '#aaa' }}>
+              {lang === 'da' ? 'Sikker betaling via Mollie — EU-certificeret betalingsgateway.' : 'Secure payment via Mollie — EU-certified payment gateway.'}
             </p>
             {paymentError && <div style={{ color: '#c0392b', fontSize: 13, marginBottom: 12 }}>{paymentError}</div>}
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={handlePayAndActivate} disabled={paymentLoading}
                 style={{ flex: 2, padding: '11px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
-                {paymentLoading ? '…' : `💳 ${lang === 'da' ? 'Betal & aktivér' : 'Pay & activate'}`}
+                {paymentLoading ? '…' : (lang === 'da'
+                  ? (adRecurring ? 'Opret abonnement' : 'Betal & aktivér')
+                  : (adRecurring ? 'Subscribe' : 'Pay & activate'))}
               </button>
               <button onClick={() => setPaymentAd(null)}
                 style={{ flex: 1, padding: '11px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', fontSize: 14, cursor: 'pointer' }}>
