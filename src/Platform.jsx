@@ -5350,6 +5350,10 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onMessage, on
   const [profile, setProfile] = useState(null)
   const [photos, setPhotos] = useState([])
   const [lightbox, setLightbox] = useState(null) // url of enlarged photo
+  const { triggerEgg } = useEasterEggs()
+  const avatarClickCount = useRef(0)
+  const avatarClickTimer = useRef(null)
+  const [watcherPop, setWatcherPop] = useState(false)
 
   useEffect(() => {
     if (!userId) return
@@ -5363,6 +5367,20 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onMessage, on
       if (Array.isArray(data)) setPhotos(data)
     })
   }, [userId, onBadgeCheck])
+
+  const handleAvatarClick = useCallback(() => {
+    avatarClickCount.current += 1
+    clearTimeout(avatarClickTimer.current)
+    avatarClickTimer.current = setTimeout(() => { avatarClickCount.current = 0 }, 4000)
+    if (avatarClickCount.current >= 7) {
+      avatarClickCount.current = 0
+      clearTimeout(avatarClickTimer.current)
+      if (triggerEgg('watcher', onBadgeCheck)) {
+        setWatcherPop(true)
+        setTimeout(() => setWatcherPop(false), 2200)
+      }
+    }
+  }, [triggerEgg, onBadgeCheck])
 
   const avatarSrc = profile?.avatarUrl
     ? (profile.avatarUrl.startsWith('http') ? profile.avatarUrl : `${API_BASE}${profile.avatarUrl}`)
@@ -5379,12 +5397,17 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onMessage, on
         <div className="p-card p-profile-card">
           <div className="p-profile-banner" />
           <div className="p-profile-info">
-            <div className="p-profile-avatar-wrapper">
+            <div className="p-profile-avatar-wrapper" style={{ position: 'relative' }} onClick={handleAvatarClick}>
               {avatarSrc ? (
-                <img className="p-profile-avatar-img" src={avatarSrc} alt="" />
+                <img className="p-profile-avatar-img" src={avatarSrc} alt="" style={{ cursor: 'pointer' }} />
               ) : (
-                <div className="p-profile-avatar" style={{ background: nameToColor(profile.name) }}>
+                <div className="p-profile-avatar" style={{ background: nameToColor(profile.name), cursor: 'pointer' }}>
                   {profile.initials || getInitials(profile.name)}
+                </div>
+              )}
+              {watcherPop && (
+                <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: 40, pointerEvents: 'none', animation: 'fadeInOut 2.2s ease forwards', zIndex: 10 }}>
+                  👀
                 </div>
               )}
             </div>
