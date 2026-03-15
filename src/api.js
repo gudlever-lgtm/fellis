@@ -1067,6 +1067,9 @@ export async function apiUpdateCompanyLead(companyId, leadId, status) {
 export async function apiPostEasterEggEvent(eggId, event) {
   return await request("/api/easter-eggs/event", { method: "POST", body: JSON.stringify({ eggId, event }) })
 }
+export async function apiGetMyEasterEggs() {
+  return await request('/api/easter-eggs')
+}
 export async function apiGetAdminEasterEggStats() {
   return await request("/api/admin/easter-eggs/stats")
 }

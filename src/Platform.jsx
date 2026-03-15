@@ -17,7 +17,7 @@ import ChuckBanner from './components/easter-eggs/ChuckBanner.jsx'
 import MatrixRain from './components/easter-eggs/MatrixRain.jsx'
 import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
 import RickRoll from './components/easter-eggs/RickRoll.jsx'
-import { apiGetAdminEasterEggStats, apiEvaluateBadges, apiGetEarnedBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge } from './api.js'
+import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiEvaluateBadges, apiGetEarnedBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge } from './api.js'
 import { BADGES, BADGE_BY_ID } from './badges/badgeDefinitions.js'
 import BadgeToastQueue from './components/BadgeToast.jsx'
 import ModeGate from './components/ModeGate.jsx'
@@ -2905,6 +2905,8 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
   const [scheduledPosts, setScheduledPosts] = useState(null) // null = not loaded
   const [allNotes, setAllNotes] = useState(null) // null = not loaded
   const [earnedBadges, setEarnedBadges] = useState(null) // null = not loaded
+  const [photos, setPhotos] = useState([])
+  const [lightbox, setLightbox] = useState(null)
   const { rels } = useContactRelationships()
 
   useEffect(() => {
@@ -2941,6 +2943,24 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
       setUserPosts(posts.filter(p => p.author === currentUser.name))
     })
     apiGetEarnedBadges().then(data => { if (data) setEarnedBadges(data.badges || []) })
+    if (currentUser.id) {
+      apiFetchProfilePhotos(currentUser.id).then(data => { if (Array.isArray(data)) setPhotos(data) })
+    }
+    // Sync Easter Egg state from DB to localStorage (keeps state accurate across sessions/devices)
+    apiGetMyEasterEggs().then(data => {
+      if (!data?.eggs) return
+      try {
+        const stored = JSON.parse(localStorage.getItem(USER_LS_KEY) || '{}')
+        let changed = false
+        for (const [id, srv] of Object.entries(data.eggs)) {
+          if (srv.discovered && !stored[id]?.discovered) {
+            stored[id] = { ...(stored[id] || {}), discovered: true, activationCount: srv.activationCount, firstDiscoveredAt: srv.firstDiscoveredAt }
+            changed = true
+          }
+        }
+        if (changed) localStorage.setItem(USER_LS_KEY, JSON.stringify(stored))
+      } catch {}
+    })
     if (mode === 'privat') {
       apiFetchConversations().then(convs => {
         if (convs) setFamilyGroups(convs.filter(c => c.isFamilyGroup))
@@ -3026,7 +3046,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
       <div className="p-filter-tabs" style={{ marginBottom: 16 }}>
         <button className={`p-filter-tab${profileTab === 'about' ? ' active' : ''}`} onClick={() => setProfileTab('about')}>{t.profileTabAbout}</button>
         <button className={`p-filter-tab${profileTab === 'posts' ? ' active' : ''}`} onClick={() => setProfileTab('posts')}>{t.profileTabPosts}{userPosts.length > 0 ? ` (${userPosts.length})` : ''}</button>
-        <button className={`p-filter-tab${profileTab === 'photos' ? ' active' : ''}`} onClick={() => setProfileTab('photos')}>{t.profileTabPhotos} ({MOCK_FB_PHOTOS.length})</button>
+        <button className={`p-filter-tab${profileTab === 'photos' ? ' active' : ''}`} onClick={() => setProfileTab('photos')}>{t.profileTabPhotos}{photos.length > 0 ? ` (${photos.length})` : ''}</button>
         {mode === 'business' && (
           <button className={`p-filter-tab${profileTab === 'scheduled' ? ' active' : ''}`} onClick={() => setProfileTab('scheduled')}>
             🕐 {lang === 'da' ? 'Planlagte' : 'Scheduled'}{scheduledPosts?.length > 0 ? ` (${scheduledPosts.length})` : ''}
@@ -3240,28 +3260,36 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
       {/* Photos tab */}
       {profileTab === 'photos' && (
         <div className="p-card" style={{ padding: 16 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <h3 className="p-section-title" style={{ margin: 0 }}>{t.profileTabPhotos}</h3>
-            <span style={{ fontSize: 12, color: '#888' }}>
-              {t.profilePhotosFacebook}: {MOCK_FB_PHOTOS.filter(p => p.source === 'facebook').length}
-            </span>
-          </div>
-          {MOCK_FB_PHOTOS.length === 0 ? (
+          <h3 className="p-section-title" style={{ marginTop: 0 }}>{t.profileTabPhotos}</h3>
+          {photos.length === 0 ? (
             <div style={{ textAlign: 'center', color: '#888', padding: '40px 0' }}>{t.profileNoPhotos}</div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-              {MOCK_FB_PHOTOS.map(photo => (
-                <div key={photo.id} style={{ position: 'relative', aspectRatio: '1', borderRadius: 8, overflow: 'hidden', background: photo.color, cursor: 'pointer', minHeight: 90 }}>
-                  {photo.source === 'facebook' && (
-                    <div style={{ position: 'absolute', top: 4, left: 4, background: '#1877F2', color: '#fff', borderRadius: 4, fontSize: 10, padding: '1px 5px', fontWeight: 700, lineHeight: 1.4 }}>f</div>
-                  )}
-                  <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.45)', color: '#fff', fontSize: 10, padding: '4px 6px', lineHeight: 1.3 }}>
-                    {photo.caption[lang]}
-                  </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
+              {photos.map((p, i) => (
+                <div
+                  key={i}
+                  onClick={() => setLightbox(p.url.startsWith('http') ? p.url : `${API_BASE}${p.url}`)}
+                  style={{ aspectRatio: '1', overflow: 'hidden', borderRadius: 6, cursor: 'zoom-in', background: '#f0ede8' }}
+                >
+                  {p.type === 'video'
+                    ? <video src={p.url.startsWith('http') ? p.url : `${API_BASE}${p.url}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
+                    : <img src={p.url.startsWith('http') ? p.url : `${API_BASE}${p.url}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
                 </div>
               ))}
             </div>
           )}
+        </div>
+      )}
+      {lightbox && (
+        <div
+          onClick={() => setLightbox(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', zIndex: 4000, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out' }}
+        >
+          <img src={lightbox} alt="" style={{ maxWidth: '95vw', maxHeight: '92vh', borderRadius: 8, objectFit: 'contain' }} />
+          <button
+            onClick={() => setLightbox(null)}
+            style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', width: 36, height: 36, color: '#fff', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >✕</button>
         </div>
       )}
 
@@ -3316,10 +3344,11 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
         </div>
       )}
 
-      {/* My notes tab (business mode CRM) */}
-      {profileTab === 'badges' && (
+      {/* Badges + Easter Eggs tab */}
+      {profileTab === 'badges' && (<>
         <BadgesProfileSection lang={lang} earnedBadges={earnedBadges} onBadgeCheck={onBadgeCheck} setEarnedBadges={setEarnedBadges} />
-      )}
+        <EasterEggSettings lang={lang} />
+      </>)}
 
       {profileTab === 'notes' && (
         <div className="p-card" style={{ padding: 16 }}>

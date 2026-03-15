@@ -7006,6 +7006,33 @@ app.post('/api/easter-eggs/event', authenticate, async (req, res) => {
   }
 })
 
+// GET /api/easter-eggs — current user's discovered eggs from DB
+app.get('/api/easter-eggs', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT egg_id,
+              SUM(IF(event='discovered',1,0)) AS discovered_count,
+              SUM(1) AS activation_count,
+              MIN(IF(event='discovered', activated_at, NULL)) AS first_discovered_at
+       FROM easter_egg_events WHERE user_id = ?
+       GROUP BY egg_id`,
+      [req.userId]
+    )
+    const eggs = {}
+    for (const r of rows) {
+      eggs[r.egg_id] = {
+        discovered: r.discovered_count > 0,
+        activationCount: Number(r.activation_count),
+        firstDiscoveredAt: r.first_discovered_at || null,
+      }
+    }
+    res.json({ eggs })
+  } catch (err) {
+    console.error('GET /api/easter-eggs error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // GET /api/admin/easter-eggs/stats — per-egg stats (admin only)
 app.get('/api/admin/easter-eggs/stats', authenticate, requireAdmin, async (req, res) => {
   try {
@@ -7570,12 +7597,8 @@ app.get('/api/explore/feed', authenticate, async (req, res) => {
     if (filter === 'images') mediaFilter = `AND JSON_LENGTH(p.media) > 0 AND NOT JSON_CONTAINS(p.media, '"video"', '$[0].type')`
     else if (filter === 'video') mediaFilter = `AND JSON_LENGTH(p.media) > 0 AND JSON_CONTAINS(p.media, '"video"', '$[0].type')`
     else if (filter === 'reels') {
-      try {
-        await pool.query('SELECT 1 FROM reels LIMIT 1')
-        mediaFilter = `AND p.id IN (SELECT post_id FROM reels WHERE post_id IS NOT NULL)`
-      } catch {
-        mediaFilter = `AND 1=0` // reels table doesn't exist — return empty
-      }
+      // Reels are a separate content type (not linked to posts) — return empty
+      return res.json({ posts: [], nextCursor: null })
     }
 
     // Cursor is the trending_score of the last item
