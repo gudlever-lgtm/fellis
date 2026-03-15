@@ -7023,7 +7023,7 @@ async function computeUserStats(userId) {
         SELECT 1 FROM friendships f2 WHERE f2.user_id = f1.friend_id AND f2.friend_id = ?
       )) AS mutualFollowCount,
       (SELECT COUNT(DISTINCT profile_id) FROM profile_views WHERE viewer_id = ?) AS profilesVisited,
-      (SELECT COALESCE(SUM(s.count), 0) FROM share_events s WHERE s.user_id = ? AND s.share_type = 'post') AS shareCount,
+      (SELECT COUNT(*) FROM share_events s WHERE s.user_id = ? AND s.share_type = 'post') AS shareCount,
       (SELECT COUNT(*) FROM posts WHERE author_id = ? AND likes >= 10) AS postsWithTenPlusLikes,
       (SELECT COALESCE(MAX(likes), 0) FROM posts WHERE author_id = ?) AS maxLikesOnSinglePost,
       (SELECT COUNT(DISTINCT cl.comment_id) FROM comment_likes cl JOIN comments c ON c.id = cl.comment_id WHERE c.author_id = ?) AS commentsWithLikes,
