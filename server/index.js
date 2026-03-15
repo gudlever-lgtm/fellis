@@ -4087,6 +4087,18 @@ app.get('/api/ads', authenticate, async (req, res) => {
   }
 })
 
+// GET /api/ads/price — public ad pricing for authenticated users (used in payment modal)
+// NOTE: must be registered BEFORE /api/ads/:id to avoid Express matching "price" as :id
+app.get('/api/ads/price', authenticate, async (req, res) => {
+  try {
+    const [[row]] = await pool.query('SELECT ad_price_cpm, currency FROM admin_ad_settings WHERE id = 1')
+    res.json({ ad_price_cpm: row?.ad_price_cpm || 50, currency: row?.currency || 'DKK' })
+  } catch (err) {
+    console.error('GET /api/ads/price error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // GET /api/ads/:id — get single ad
 app.get('/api/ads/:id', authenticate, async (req, res) => {
   try {
@@ -4165,17 +4177,6 @@ app.post('/api/ads/:id/click', authenticate, async (req, res) => {
     res.json({ ok: true })
   } catch (err) {
     console.error('POST /api/ads/:id/click error:', err.message)
-    res.status(500).json({ error: 'Server error' })
-  }
-})
-
-// GET /api/ads/price — public ad pricing for authenticated users (used in payment modal)
-app.get('/api/ads/price', authenticate, async (req, res) => {
-  try {
-    const [[row]] = await pool.query('SELECT ad_price_cpm, currency FROM admin_ad_settings WHERE id = 1')
-    res.json({ ad_price_cpm: row?.ad_price_cpm || 50, currency: row?.currency || 'DKK' })
-  } catch (err) {
-    console.error('GET /api/ads/price error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })
@@ -4376,6 +4377,7 @@ async function initMollie() {
     await pool.query('ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS plan VARCHAR(32) NOT NULL DEFAULT \'adfree\'').catch(() => {})
     await pool.query('ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS status VARCHAR(32) NOT NULL DEFAULT \'open\'').catch(() => {})
     await pool.query('ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS expires_at DATETIME DEFAULT NULL').catch(() => {})
+    await pool.query('ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS ad_id INT DEFAULT NULL').catch(() => {})
   } catch (err) {
     console.error('initMollie:', err.message)
   }

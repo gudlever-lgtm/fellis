@@ -10211,7 +10211,7 @@ function AdsManagementPage({ lang, t }) {
                 <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                   {ad.status === 'draft' && <button onClick={() => handleStatus(ad, 'active')} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, border: '1px solid #2D6A4F', color: '#2D6A4F', background: 'none', cursor: 'pointer' }}>{t.adsActivate}</button>}
                   {ad.status === 'active' && <button onClick={() => handleStatus(ad, 'paused')} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, border: '1px solid #e67e22', color: '#e67e22', background: 'none', cursor: 'pointer' }}>{t.adsPause}</button>}
-                  {ad.status === 'paused' && <button onClick={() => handleStatus(ad, 'active')} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, border: '1px solid #2D6A4F', color: '#2D6A4F', background: 'none', cursor: 'pointer' }}>{t.adsActivate}</button>}
+                  {ad.status === 'paused' && <button onClick={() => handleStatus(ad, 'active')} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, border: '1px solid #2D6A4F', color: '#2D6A4F', background: 'none', cursor: 'pointer' }}>{isPaidAndActive(ad) ? t.adsReactivate : t.adsActivate}</button>}
                   <button onClick={() => openEdit(ad)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, border: '1px solid #999', background: 'none', cursor: 'pointer' }}>{t.adsEdit}</button>
                   <button onClick={() => handleDelete(ad)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, border: '1px solid #e74c3c', color: '#e74c3c', background: 'none', cursor: 'pointer' }}>{t.adsDelete}</button>
                 </div>
