@@ -5185,7 +5185,7 @@ app.get('/api/admin/stats', authenticate, requireAdmin, async (req, res) => {
     const [[{ posts }]] = await pool.query('SELECT COUNT(*) as posts FROM posts')
     const [[{ events }]] = await pool.query('SELECT COUNT(*) as events FROM events').catch(() => [[{ events: 0 }]])
     const [[{ listings }]] = await pool.query('SELECT COUNT(*) as listings FROM marketplace_listings WHERE sold = 0').catch(() => [[{ listings: 0 }]])
-    const [[{ friendships }]] = await pool.query('SELECT COUNT(*)/2 as friendships FROM friendships')
+    const [[{ friendships }]] = await pool.query('SELECT FLOOR(COUNT(*)/2) as friendships FROM friendships')
     const [[{ messages }]] = await pool.query('SELECT COUNT(*) as messages FROM messages')
     const [[{ new_users_7d }]] = await pool.query("SELECT COUNT(*) as new_users_7d FROM users WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)").catch(() => [[{ new_users_7d: 0 }]])
     const [[{ rsvps }]] = await pool.query("SELECT COUNT(*) as rsvps FROM event_rsvps WHERE status = 'going'").catch(() => [[{ rsvps: 0 }]])
@@ -7313,7 +7313,12 @@ app.get('/api/badges/all', authenticate, async (req, res) => {
 app.get('/api/admin/badges/stats', authenticate, requireAdmin, async (req, res) => {
   try {
     const lang = req.lang || 'da'
-    const [[{ totalUsers }]] = await pool.query('SELECT COUNT(*) AS totalUsers FROM users WHERE is_bot = 0 OR is_bot IS NULL')
+    let totalUsers = 0
+    try {
+      ;[[{ totalUsers }]] = await pool.query('SELECT COUNT(*) AS totalUsers FROM users WHERE is_bot = 0 OR is_bot IS NULL')
+    } catch {
+      ;[[{ totalUsers }]] = await pool.query('SELECT COUNT(*) AS totalUsers FROM users')
+    }
     let awardCounts = []
     try {
       ;[awardCounts] = await pool.query(`
