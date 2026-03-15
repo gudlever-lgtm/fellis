@@ -1069,3 +1069,28 @@ export async function apiPostEasterEggEvent(eggId, event) {
 export async function apiGetAdminEasterEggStats() {
   return await request("/api/admin/easter-eggs/stats")
 }
+
+// ── Badge reward system ───────────────────────────────────────────────────────
+// Evaluate and award new badges for the current user. Returns { newBadges: [] }.
+export async function apiEvaluateBadges() {
+  return await request('/api/badges/evaluate', { method: 'POST' })
+}
+// Get all earned badges for the current user.
+export async function apiGetEarnedBadges() {
+  return await request('/api/badges/earned')
+}
+// Get all badge definitions with enabled state (auth required).
+export async function apiGetAllBadges() {
+  return await request('/api/badges/all')
+}
+// Admin: aggregate badge award stats.
+export async function apiGetAdminBadgeStats() {
+  return await request('/api/admin/badges/stats')
+}
+// Admin: enable or disable a badge by ID.
+export async function apiToggleBadge(badgeId, enabled) {
+  return await request(`/api/admin/badges/${badgeId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ enabled }),
+  })
+}

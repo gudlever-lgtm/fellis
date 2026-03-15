@@ -4980,3 +4980,161 @@ body.retro-mode .p-card {
 .feed-gravity .p-card:not(.p-new-post) {
   animation: egg-gravity-fall 0.7s ease-in forwards;
 }
+
+/* ── Badge system ─────────────────────────────────────────────────────────── */
+
+/* Badge grid in profile */
+.badge-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+}
+
+/* Individual badge cell */
+.badge-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: default;
+  position: relative;
+}
+
+/* Earned badge icon wrapper */
+.badge-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  border: 2px solid transparent;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  position: relative;
+}
+.badge-icon:hover {
+  transform: scale(1.12);
+}
+
+/* Tier ring colors */
+.badge-tier-1 .badge-icon { border-color: #CD7F32; background: rgba(205,127,50,0.12); }
+.badge-tier-2 .badge-icon { border-color: #A8A9AD; background: rgba(168,169,173,0.12); }
+.badge-tier-3 .badge-icon { border-color: #FFD700; background: rgba(255,215,0,0.14); box-shadow: 0 0 8px rgba(255,215,0,0.35); }
+.badge-egg    .badge-icon { border-color: #9D4EDD; background: rgba(157,78,221,0.12); }
+
+/* Locked badge — greyed out */
+.badge-cell.locked .badge-icon {
+  filter: grayscale(1) opacity(0.35);
+  border-color: #ccc;
+  background: #f5f5f5;
+}
+.badge-cell.locked .badge-label {
+  color: #aaa;
+  font-style: italic;
+}
+
+/* Badge label below icon */
+.badge-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text, #111);
+  text-align: center;
+  line-height: 1.2;
+  max-width: 72px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Tooltip on hover */
+.badge-cell .badge-tooltip {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.88);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 8px 12px;
+  border-radius: 8px;
+  white-space: nowrap;
+  max-width: 200px;
+  white-space: normal;
+  text-align: center;
+  z-index: 200;
+  pointer-events: none;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+.badge-cell:hover .badge-tooltip {
+  display: block;
+}
+
+/* Tier progress bar */
+.badge-tier-section { margin-bottom: 22px; }
+.badge-tier-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.badge-tier-title {
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.badge-tier-count {
+  font-size: 12px;
+  color: var(--text-muted, #888);
+  font-weight: 600;
+}
+.badge-tier-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border, #eee);
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.badge-tier-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Admin badge table */
+.badge-admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.badge-admin-table th {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 2px solid var(--border, #eee);
+  color: var(--text-muted, #888);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.badge-admin-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border, #f0f0f0);
+  vertical-align: middle;
+}
+.badge-admin-table tr:last-child td { border-bottom: none; }
+.badge-admin-table tr.disabled-row td { opacity: 0.45; }
+
+/* Stagger-in animation for badge grid */
+@keyframes badge-pop-in {
+  from { transform: scale(0.5); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+.badge-cell.earned .badge-icon {
+  animation: badge-pop-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
