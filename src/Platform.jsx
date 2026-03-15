@@ -232,17 +232,17 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
         </button>
         <div className={`p-nav-tabs${showMobileMenu ? ' open' : ''}`}>
           {/* Primary tabs — always visible */}
-          {['feed', 'friends', 'messages', 'events'].map(p => (
+          {['feed', 'reels', 'messages', 'events'].map(p => (
             <button
               key={p}
               className={`p-nav-tab${page === p ? ' active' : ''}`}
               onClick={() => { navigateTo(p); setShowMobileMenu(false) }}
             >
               <span className="p-nav-tab-icon">
-                {p === 'feed' ? '🏠' : p === 'friends' ? '👥' : p === 'messages' ? '💬' : '📅'}
+                {p === 'feed' ? '🏠' : p === 'reels' ? '🎬' : p === 'messages' ? '💬' : '📅'}
               </span>
               <span className="p-nav-tab-label">
-                {p === 'friends' ? (mode === 'business' ? t.connectionsLabel : t.friends) : (t[p] || p)}
+                {t[p] || p}
               </span>
             </button>
           ))}
@@ -270,7 +270,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
           {/* "Mere" / "More" dropdown for secondary tabs */}
           <div ref={moreMenuRef} style={{ position: 'relative' }}>
             <button
-              className={`p-nav-tab${['reels', 'calendar', 'marketplace', 'jobs', 'company'].includes(page) ? ' active' : ''}`}
+              className={`p-nav-tab${['friends', 'calendar', 'marketplace', 'jobs', 'company'].includes(page) ? ' active' : ''}`}
               onClick={() => setShowMoreMenu(v => !v)}
             >
               <span className="p-nav-tab-icon">{'⋯'}</span>
@@ -283,7 +283,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
                 border: '1px solid #e8e8e4', minWidth: 160, padding: '6px 0',
               }}>
                 {[
-                  { id: 'reels', icon: '🎬', label: t.reels || 'Reels' },
+                  { id: 'friends', icon: '👥', label: mode === 'business' ? t.connectionsLabel : t.friends },
                   { id: 'calendar', icon: '🗓️', label: t.calendar || (lang === 'da' ? 'Kalender' : 'Calendar') },
                   { id: 'marketplace', icon: '🛍️', label: t.marketplace || (lang === 'da' ? 'Marked' : 'Marketplace') },
                   ...(mode === 'business' ? [
@@ -1635,6 +1635,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       name: f.name,
     }))
     setMediaPreviews(previews)
+    setPostExpanded(true)
   }, [])
 
   // Called by GooglePhotosPicker after server-side download completes.
@@ -1699,7 +1700,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   }, [mediaPreviews, currentUser.name])
 
   const handlePost = useCallback(async () => {
-    if (!newPostText.trim() && !mediaFiles.length) return
+    if (!newPostText.trim() && !mediaFiles.length && !providerMediaUrls.length) return
     const text = newPostText.trim()
     const files = mediaFiles.length > 0 ? mediaFiles : null
     const check = await apiPreflightPost(text)
@@ -1715,7 +1716,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     setMediaPreviews([])
     setPostExpanded(false)
     setMediaPopup(false)
-  }, [newPostText, mediaFiles, doCreatePost, scheduleEnabled, scheduledAt])
+  }, [newPostText, mediaFiles, providerMediaUrls, doCreatePost, scheduleEnabled, scheduledAt])
 
   const toggleLike = useCallback((id, emoji) => {
     const isLiked = likedPosts.has(id)
@@ -2030,11 +2031,18 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       <div className="p-card p-new-post">
         {/* Collapsed prompt — click anywhere to expand */}
         {!postExpanded && !newPostText && !mediaPreviews.length ? (
-          <div className="p-new-post-row p-new-post-collapsed" onClick={() => { setPostExpanded(true); setTimeout(() => textareaRef.current?.focus(), 0) }}>
-            <div className="p-avatar-sm" style={{ background: nameToColor(currentUser.name) }}>
+          <div className="p-new-post-row p-new-post-collapsed">
+            <div className="p-avatar-sm" style={{ background: nameToColor(currentUser.name) }} onClick={() => { setPostExpanded(true); setTimeout(() => textareaRef.current?.focus(), 0) }}>
               {currentUser.initials || getInitials(currentUser.name)}
             </div>
-            <div className="p-new-post-prompt">{t.newPost}</div>
+            <div className="p-new-post-prompt" style={{ flex: 1 }} onClick={() => { setPostExpanded(true); setTimeout(() => textareaRef.current?.focus(), 0) }}>{t.newPost}</div>
+            <MediaPickerButton
+              lang={lang}
+              onFiles={files => handleFileSelect({ target: { files } })}
+              googlePhotosClientId={googlePhotosClientId}
+              onGooglePhotos={() => { setPostExpanded(true); setShowGooglePicker(true) }}
+              align="right"
+            />
           </div>
         ) : (
           /* Expanded composer */
@@ -5315,14 +5323,19 @@ function PrivacySection({ lang, onLogout }) {
 // ── Friend Profile (full page) ──
 function FriendProfilePage({ userId, lang, t, currentUser, onBack, onMessage, onBadgeCheck }) {
   const [profile, setProfile] = useState(null)
+  const [photos, setPhotos] = useState([])
+  const [lightbox, setLightbox] = useState(null) // url of enlarged photo
+
   useEffect(() => {
     if (!userId) return
     apiFetchProfile(userId).then(data => {
       if (data) {
         setProfile(data)
-        // Profile visit was recorded by server; check badges (Curious/Explorer)
         setTimeout(onBadgeCheck, 800)
       }
+    })
+    apiFetchProfilePhotos(userId).then(data => {
+      if (Array.isArray(data)) setPhotos(data)
     })
   }, [userId, onBadgeCheck])
 
@@ -5368,6 +5381,59 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onMessage, on
               </button>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Badges */}
+      {profile?.badges?.length > 0 && (
+        <div className="p-card" style={{ marginTop: 12 }}>
+          <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700 }}>
+            🏅 {lang === 'da' ? 'Badges' : 'Badges'} <span style={{ fontWeight: 400, color: '#A09890', fontSize: 13 }}>({profile.badges.length})</span>
+          </h3>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {profile.badges.map(b => (
+              <div key={b.id} title={b.name} style={{ display: 'flex', alignItems: 'center', gap: 6, background: b.tier === 'gold' ? '#FFF8E1' : b.tier === 'silver' ? '#F5F5F5' : '#F0FAF4', borderRadius: 20, padding: '4px 12px', fontSize: 13, border: `1px solid ${b.tier === 'gold' ? '#FFD54F' : b.tier === 'silver' ? '#E0E0E0' : '#B7DFC9'}` }}>
+                <span style={{ fontSize: 16 }}>{b.icon}</span>
+                <span style={{ fontWeight: 600, color: '#333' }}>{b.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Photo grid */}
+      {photos.length > 0 && (
+        <div className="p-card" style={{ marginTop: 12 }}>
+          <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700 }}>
+            🖼 {lang === 'da' ? 'Billeder' : 'Photos'} <span style={{ fontWeight: 400, color: '#A09890', fontSize: 13 }}>({photos.length})</span>
+          </h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
+            {photos.map((p, i) => (
+              <div
+                key={i}
+                onClick={() => setLightbox(p.url.startsWith('http') ? p.url : `${API_BASE}${p.url}`)}
+                style={{ aspectRatio: '1', overflow: 'hidden', borderRadius: 6, cursor: 'zoom-in', background: '#f0ede8' }}
+              >
+                {p.type === 'video'
+                  ? <video src={p.url.startsWith('http') ? p.url : `${API_BASE}${p.url}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
+                  : <img src={p.url.startsWith('http') ? p.url : `${API_BASE}${p.url}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Lightbox */}
+      {lightbox && (
+        <div
+          onClick={() => setLightbox(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', zIndex: 4000, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out' }}
+        >
+          <img src={lightbox} alt="" style={{ maxWidth: '95vw', maxHeight: '92vh', borderRadius: 8, objectFit: 'contain' }} />
+          <button
+            onClick={() => setLightbox(null)}
+            style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', width: 36, height: 36, color: '#fff', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >✕</button>
         </div>
       )}
     </div>
@@ -5459,6 +5525,22 @@ function FriendProfileModal({ userId, lang, t, onClose, onMessage }) {
                 <button className="p-friend-msg-btn" style={{ marginTop: 16 }} onClick={() => { onClose(); onMessage(profile) }}>
                   💬 {t.message}
                 </button>
+              )}
+              {/* Badges */}
+              {profile.badges?.length > 0 && (
+                <div style={{ marginTop: 16, borderTop: '1px solid #f0f0f0', paddingTop: 14 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#555', marginBottom: 8 }}>
+                    🏅 {lang === 'da' ? 'Badges' : 'Badges'}
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {profile.badges.map(b => (
+                      <div key={b.id} title={b.name} style={{ display: 'flex', alignItems: 'center', gap: 4, background: b.tier === 'gold' ? '#FFF8E1' : b.tier === 'silver' ? '#F5F5F5' : '#F0FAF4', borderRadius: 16, padding: '3px 10px', fontSize: 12, border: `1px solid ${b.tier === 'gold' ? '#FFD54F' : b.tier === 'silver' ? '#E0E0E0' : '#B7DFC9'}` }}>
+                        <span style={{ fontSize: 14 }}>{b.icon}</span>
+                        <span style={{ fontWeight: 600, color: '#333' }}>{b.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
               {/* CRM private note */}
               <div style={{ marginTop: 20, borderTop: '1px solid #f0f0f0', paddingTop: 16 }}>
@@ -7299,13 +7381,13 @@ function EventsPage({ lang, t, currentUser, mode }) {
             const isExpired = new Date(ev.date) < new Date()
             const isOrganizer = ev.organizer === currentUser.name || ev.organizerId === currentUser.id
             return (
-              <div key={ev.id} className="p-card p-event-card" onClick={() => setSelectedEvent(ev)} style={isExpired ? { opacity: 0.65 } : {}}>
+              <div key={ev.id} className="p-card p-event-card" onClick={() => setSelectedEvent(ev)}>
                 <div className="p-event-card-body">
-                  <div className="p-event-date-col">
+                  <div className="p-event-date-col" style={isExpired ? { opacity: 0.55 } : {}}>
                     <div className="p-event-month">{new Date(ev.date).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { month: 'short' }).toUpperCase()}</div>
                     <div className="p-event-day">{new Date(ev.date).getDate()}</div>
                   </div>
-                  <div className="p-event-info">
+                  <div className="p-event-info" style={isExpired ? { opacity: 0.55 } : {}}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <h3 className="p-event-title">{getEventTitle(ev)}</h3>
                       {typeLabel && <span className="p-event-type-badge">{typeLabel}</span>}
@@ -12604,10 +12686,10 @@ function AdminPage({ lang, t }) {
 
   const statItems = stats ? [
     { icon: '👥', label: lang === 'da' ? 'Brugere i alt' : 'Total users', value: stats.users, detailType: 'users' },
-    { icon: '🟢', label: lang === 'da' ? 'Aktive sessioner' : 'Active sessions', value: stats.active_users, detailType: 'active_users' },
+    { icon: '🟢', label: lang === 'da' ? 'Aktive sessioner' : 'Active sessions', value: stats.active_users },
     { icon: '🆕', label: lang === 'da' ? 'Nye brugere (7 dage)' : 'New users (7 days)', value: stats.new_users_7d, detailType: 'new_users_7d' },
     { icon: '📝', label: lang === 'da' ? 'Opslag i alt' : 'Total posts', value: stats.posts, detailType: 'posts' },
-    { icon: '💬', label: lang === 'da' ? 'Beskeder i alt' : 'Total messages', value: stats.messages, detailType: 'messages' },
+    { icon: '💬', label: lang === 'da' ? 'Beskeder i alt' : 'Total messages', value: stats.messages },
     { icon: '📅', label: lang === 'da' ? 'Begivenheder' : 'Events', value: stats.events, detailType: 'events' },
     { icon: '✅', label: lang === 'da' ? 'Tilmeldinger (going)' : 'Event RSVPs (going)', value: stats.rsvps },
     { icon: '🛍️', label: lang === 'da' ? 'Aktive annoncer' : 'Active listings', value: stats.listings, detailType: 'listings' },
