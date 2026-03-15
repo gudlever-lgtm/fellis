@@ -7531,15 +7531,34 @@ app.get('/api/stories/feed', authenticate, async (req, res) => {
   }
 })
 
+// Returns the UTC Date corresponding to next midnight in Europe/Copenhagen timezone
+function nextMidnightCopenhagen() {
+  const tz = 'Europe/Copenhagen'
+  const now = new Date()
+  // Today's date string in Copenhagen (e.g. '2026-03-15')
+  const todayStr = new Intl.DateTimeFormat('sv-SE', { timeZone: tz }).format(now)
+  const [y, m, d] = todayStr.split('-').map(Number)
+  // Midnight UTC for the next calendar day in Copenhagen
+  const nextDayMidnightUTC = new Date(Date.UTC(y, m - 1, d + 1, 0, 0, 0))
+  // Hour in Copenhagen when it's midnight UTC on that date (= the UTC offset)
+  const hourInCopenhagen = Number(
+    new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', hour12: false })
+      .format(nextDayMidnightUTC)
+  ) % 24
+  // Subtract offset to get midnight Copenhagen in UTC
+  return new Date(nextDayMidnightUTC.getTime() - hourInCopenhagen * 3_600_000)
+}
+
 // POST /api/stories — create a new story
 app.post('/api/stories', authenticate, async (req, res) => {
   const { content_text, bg_color } = req.body
   if (!content_text || !content_text.trim()) return res.status(400).json({ error: 'content_text required' })
   const color = /^#[0-9A-Fa-f]{6}$/.test(bg_color) ? bg_color : '#2D6A4F'
+  const expiresAt = nextMidnightCopenhagen()
   try {
     const [result] = await pool.query(
-      'INSERT INTO stories (user_id, content_text, bg_color) VALUES (?, ?, ?)',
-      [req.userId, content_text.trim().slice(0, 280), color]
+      'INSERT INTO stories (user_id, content_text, bg_color, expires_at) VALUES (?, ?, ?, ?)',
+      [req.userId, content_text.trim().slice(0, 280), color, expiresAt]
     )
     const [[story]] = await pool.query(
       'SELECT s.*, u.name, u.avatar_url, u.initials FROM stories s JOIN users u ON u.id = s.user_id WHERE s.id = ?',
