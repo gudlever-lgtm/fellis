@@ -1546,7 +1546,8 @@ app.get('/api/feed', authenticate, async (req, res) => {
     const total = countResult[0].total
 
     const [posts] = await pool.query(
-      `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.created_at, p.edited_at
+      `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.created_at, p.edited_at,
+              (SELECT COUNT(*) FROM earned_badges WHERE user_id = p.author_id) as author_badge_count
        FROM posts p JOIN users u ON p.author_id = u.id
        WHERE (p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?))
          AND (p.scheduled_at IS NULL OR p.scheduled_at <= NOW())
@@ -1634,6 +1635,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
         comments: commentsByPost[p.id] || [],
         createdAtRaw: p.created_at,
         edited: !!p.edited_at,
+        authorBadgeCount: p.author_badge_count || 0,
       }
     })
     // Track post views (fire-and-forget)
@@ -7247,8 +7249,7 @@ app.get('/api/badges/all', authenticate, async (req, res) => {
 })
 
 // GET /api/admin/badges/stats — admin badge statistics
-app.get('/api/admin/badges/stats', authenticate, async (req, res) => {
-  if (!req.isAdmin) return res.status(403).json({ error: 'Forbidden' })
+app.get('/api/admin/badges/stats', authenticate, requireAdmin, async (req, res) => {
   try {
     const lang = req.lang || 'da'
     const [[{ totalUsers }]] = await pool.query('SELECT COUNT(*) AS totalUsers FROM users WHERE is_bot = 0 OR is_bot IS NULL')
@@ -7288,8 +7289,7 @@ app.get('/api/admin/badges/stats', authenticate, async (req, res) => {
 })
 
 // PATCH /api/admin/badges/:badgeId — enable/disable a badge
-app.patch('/api/admin/badges/:badgeId', authenticate, async (req, res) => {
-  if (!req.isAdmin) return res.status(403).json({ error: 'Forbidden' })
+app.patch('/api/admin/badges/:badgeId', authenticate, requireAdmin, async (req, res) => {
   const { badgeId } = req.params
   if (!BADGE_BY_ID[badgeId]) return res.status(404).json({ error: 'Unknown badge' })
   const enabled = req.body.enabled !== false
