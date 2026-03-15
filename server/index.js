@@ -4007,8 +4007,17 @@ async function initAdminAdSettings() {
       updated_by INT DEFAULT NULL,
       FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+    // Ensure columns exist on older installs
+    await pool.query(`ALTER TABLE admin_ad_settings ADD COLUMN IF NOT EXISTS ads_enabled TINYINT(1) NOT NULL DEFAULT 1`).catch(() => {})
+    await pool.query(`ALTER TABLE admin_ad_settings ADD COLUMN IF NOT EXISTS ad_price_cpm DECIMAL(10,2) NOT NULL DEFAULT 50.00`).catch(() => {})
+    await pool.query(`ALTER TABLE admin_ad_settings ADD COLUMN IF NOT EXISTS max_ads_feed INT NOT NULL DEFAULT 3`).catch(() => {})
+    await pool.query(`ALTER TABLE admin_ad_settings ADD COLUMN IF NOT EXISTS max_ads_sidebar INT NOT NULL DEFAULT 2`).catch(() => {})
+    await pool.query(`ALTER TABLE admin_ad_settings ADD COLUMN IF NOT EXISTS max_ads_stories INT NOT NULL DEFAULT 1`).catch(() => {})
+    await pool.query(`ALTER TABLE admin_ad_settings ADD COLUMN IF NOT EXISTS refresh_interval_seconds INT NOT NULL DEFAULT 300`).catch(() => {})
     // Ensure a default row always exists
     await pool.query(`INSERT IGNORE INTO admin_ad_settings (id) VALUES (1)`)
+    // Fix NULL ads_enabled on existing rows (should default to enabled)
+    await pool.query(`UPDATE admin_ad_settings SET ads_enabled = 1 WHERE id = 1 AND ads_enabled IS NULL`).catch(() => {})
   } catch (err) {
     console.error('initAdminAdSettings error:', err.message)
   }
