@@ -15,7 +15,9 @@ import ChuckBanner from './components/easter-eggs/ChuckBanner.jsx'
 import MatrixRain from './components/easter-eggs/MatrixRain.jsx'
 import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
 import RickRoll from './components/easter-eggs/RickRoll.jsx'
-import { apiGetAdminEasterEggStats } from './api.js'
+import { apiGetAdminEasterEggStats, apiEvaluateBadges, apiGetEarnedBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge } from './api.js'
+import { BADGES, BADGE_BY_ID } from './badges/badgeDefinitions.js'
+import BadgeToastQueue from './components/BadgeToast.jsx'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -50,11 +52,21 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
   // 🎉 Party Mode easter egg (global — triggered anywhere on the platform)
   const { triggerEgg: triggerGlobalEgg } = useEasterEggs()
   const [partyActive, setPartyActive] = useState(false)
-  useKeySequence('party', () => { if (triggerGlobalEgg('party')) setPartyActive(true) }, 2000, !partyActive)
+  useKeySequence('party', () => { if (triggerGlobalEgg('party')) { setPartyActive(true); setTimeout(checkBadges, 500) } }, 2000, !partyActive)
   const [showOnboarding, setShowOnboarding] = useState(() => localStorage.getItem('fellis_onboarding') === '1')
   const [onboardingInviterName] = useState(() => localStorage.getItem('fellis_onboarding_inviter') || null)
   const avatarMenuRef = useRef(null)
   const notifRef = useRef(null)
+
+  // 🏅 Badge system — evaluate and show toasts for newly earned badges
+  const badgeQueueRef = useRef(null)
+  const checkBadges = useCallback(() => {
+    apiEvaluateBadges().then(data => {
+      if (data?.newBadges?.length) {
+        badgeQueueRef.current?.addBadges(data.newBadges)
+      }
+    }).catch(() => {})
+  }, [])
   const t = PT[lang]
 
   useEffect(() => {
@@ -111,6 +123,12 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
     const interval = setInterval(() => apiHeartbeat().catch(() => {}), 60000)
     return () => clearInterval(interval)
   }, [])
+
+  // Check for newly earned badges shortly after app load (login day recorded on heartbeat above)
+  useEffect(() => {
+    const timer = setTimeout(checkBadges, 3000)
+    return () => clearTimeout(timer)
+  }, [checkBadges])
 
   // Load notifications from server on mount
   useEffect(() => {
@@ -324,13 +342,14 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
             onViewProfile={(uid) => { setViewUserId(uid); navigateTo('view-profile') }}
             onViewOwnProfile={() => navigateTo('profile')}
             onNavigate={navigateTo}
+            onBadgeCheck={checkBadges}
           />
         </div>
         {page === 'reels' && <ReelsPage t={t} currentUser={currentUser} initialReelId={navParam?.reelId} />}
-        {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} />}
-        {page === 'view-profile' && viewUserId && <FriendProfilePage userId={viewUserId} lang={lang} t={t} currentUser={currentUser} onBack={() => navigateTo('feed')} onMessage={async (prof) => { const data = await apiCreateConversation([prof.id], null, false, false).catch(() => null); if (data?.id) setOpenConvId(data.id); navigateTo('messages') }} />}
-        {page === 'edit-profile' && <EditProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} />}
-        {page === 'friends' && <FriendsPage lang={lang} t={t} mode={mode} onMessage={async (friend) => {
+        {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onBadgeCheck={checkBadges} />}
+        {page === 'view-profile' && viewUserId && <FriendProfilePage userId={viewUserId} lang={lang} t={t} currentUser={currentUser} onBack={() => navigateTo('feed')} onBadgeCheck={checkBadges} onMessage={async (prof) => { const data = await apiCreateConversation([prof.id], null, false, false).catch(() => null); if (data?.id) setOpenConvId(data.id); navigateTo('messages') }} />}
+        {page === 'edit-profile' && <EditProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onBadgeCheck={checkBadges} />}
+        {page === 'friends' && <FriendsPage lang={lang} t={t} mode={mode} onBadgeCheck={checkBadges} onMessage={async (friend) => {
           if (friend?.id) {
             const data = await apiCreateConversation([friend.id], null, false, false).catch(() => null)
             if (data?.id) setOpenConvId(data.id)
@@ -425,6 +444,9 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
 
       {/* 🎉 Party Mode confetti (global) */}
       {partyActive && <PartyConfetti onDismiss={() => setPartyActive(false)} />}
+
+      {/* 🏅 Badge toast notifications */}
+      <BadgeToastQueue queueRef={badgeQueueRef} lang={lang} />
 
       {/* Fixed status bar at bottom */}
       <div style={{
@@ -1214,7 +1236,7 @@ function MemoriesCard({ lang, t, onShare }) {
   )
 }
 
-function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onNavigate }) {
+function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onNavigate, onBadgeCheck }) {
   const [posts, setPosts] = useState([])
   const [feedCategoryFilter, setFeedCategoryFilter] = useState(null)
   const [pinnedPost, setPinnedPost] = useState(null)
@@ -1271,15 +1293,15 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   // Rick Roll sentinel — placed at very bottom of feed
   const rickrollSentinelRef = useRef(null)
   useScrollHold(rickrollSentinelRef, 4000, () => {
-    if (!rickrollActive && triggerEgg('rickroll')) setRickrollActive(true)
+    if (!rickrollActive && triggerEgg('rickroll')) { setRickrollActive(true); setTimeout(onBadgeCheck, 500) }
   }, !rickrollActive)
 
   // Chuck Norris: Konami code ↑↑↓↓←→←→BA
-  useKonamiCode(() => { if (!chuckActive && triggerEgg('chuck')) setChuckActive(true) }, !chuckActive)
+  useKonamiCode(() => { if (!chuckActive && triggerEgg('chuck')) { setChuckActive(true); setTimeout(onBadgeCheck, 500) } }, !chuckActive)
 
   // Matrix Rain: 7 avatar clicks within 3 seconds
   useAvatarClick(feedContainerRef, 7, 3000, () => {
-    if (!matrixActive && triggerEgg('matrix')) setMatrixActive(true)
+    if (!matrixActive && triggerEgg('matrix')) { setMatrixActive(true); setTimeout(onBadgeCheck, 500) }
   }, !matrixActive)
 
   // Flip Feed: type "flip" within 2 seconds
@@ -1287,6 +1309,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     if (flipActiveRef.current) return
     if (!triggerEgg('flip')) return
     flipActiveRef.current = true
+    setTimeout(onBadgeCheck, 500)
     if (feedContainerRef.current) feedContainerRef.current.classList.add('feed-flipped')
     setTimeout(() => {
       if (feedContainerRef.current) feedContainerRef.current.classList.remove('feed-flipped')
@@ -1299,6 +1322,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     if (gravityActiveRef.current) return
     if (!triggerEgg('gravity')) return
     gravityActiveRef.current = true
+    setTimeout(onBadgeCheck, 500)
     if (feedContainerRef.current) feedContainerRef.current.classList.add('feed-gravity')
     setTimeout(() => {
       if (feedContainerRef.current) feedContainerRef.current.classList.remove('feed-gravity')
@@ -1312,6 +1336,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     if (retroActiveRef.current) return
     if (!triggerEgg('retro')) return
     retroActiveRef.current = true
+    setTimeout(onBadgeCheck, 500)
     document.body.classList.add('retro-mode')
     setTimeout(() => {
       document.body.classList.remove('retro-mode')
@@ -1550,6 +1575,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       if (data) {
         setPosts(prev => [data, ...prev].slice(0, PAGE_SIZE))
         setTotal(prev => prev + 1)
+        setTimeout(onBadgeCheck, 300)
       } else {
         const localMedia = mediaPreviews.length > 0
           ? mediaPreviews.map(p => ({ url: p.url, type: p.type, mime: '' }))
@@ -1636,9 +1662,9 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       return { ...p, likes: action === 'add' ? p.likes + 1 : action === 'remove' ? p.likes - 1 : p.likes, reactions: reacts }
     }))
 
-    apiToggleLike(id, action === 'remove' ? null : nextEmoji).catch(() => {})
+    apiToggleLike(id, action === 'remove' ? null : nextEmoji).then(() => { if (action === 'add') setTimeout(onBadgeCheck, 300) }).catch(() => {})
     setLikePopup(null)
-  }, [likedPosts, reactions])
+  }, [likedPosts, reactions, onBadgeCheck])
 
   const toggleComments = useCallback((id) => {
     setExpandedComments(prev => {
@@ -1762,10 +1788,11 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         if (p.id !== postId) return p
         return { ...p, comments: [...p.comments, comment] }
       }))
+      setTimeout(onBadgeCheck, 300)
     })
     setCommentTexts(prev => ({ ...prev, [postId]: '' }))
     setCommentMedia(prev => { const n = { ...prev }; delete n[postId]; return n })
-  }, [commentTexts, commentMedia, currentUser.name])
+  }, [commentTexts, commentMedia, currentUser.name, onBadgeCheck])
 
   // Fetch and pin the specific post from a search result click
   useEffect(() => {
@@ -2746,7 +2773,7 @@ const MOCK_FB_PHOTOS = [
 ]
 
 // ── Profile (clean — read-only view) ──
-function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
+function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onBadgeCheck }) {
   const [profile, setProfile] = useState({ ...currentUser })
   const [userPosts, setUserPosts] = useState([])
   const [familyGroups, setFamilyGroups] = useState([])
@@ -2761,6 +2788,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
   const [profilePublicSaving, setProfilePublicSaving] = useState(false)
   const [scheduledPosts, setScheduledPosts] = useState(null) // null = not loaded
   const [allNotes, setAllNotes] = useState(null) // null = not loaded
+  const [earnedBadges, setEarnedBadges] = useState(null) // null = not loaded
   const { rels } = useContactRelationships()
 
   useEffect(() => {
@@ -2769,6 +2797,9 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
     }
     if (profileTab === 'notes' && allNotes === null) {
       apiGetAllContactNotes().then(data => setAllNotes(data?.notes || [])).catch(() => setAllNotes([]))
+    }
+    if (profileTab === 'badges' && earnedBadges === null) {
+      apiGetEarnedBadges().then(data => setEarnedBadges(data?.badges || [])).catch(() => setEarnedBadges([]))
     }
   }, [profileTab]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -2883,6 +2914,9 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
             🔒 {lang === 'da' ? 'Mine noter' : 'My notes'}{allNotes?.length > 0 ? ` (${allNotes.length})` : ''}
           </button>
         )}
+        <button className={`p-filter-tab${profileTab === 'badges' ? ' active' : ''}`} onClick={() => setProfileTab('badges')}>
+          🏅 {lang === 'da' ? 'Badges' : 'Badges'}{earnedBadges !== null ? ` (${earnedBadges.length})` : ''}
+        </button>
       </div>
 
       {/* About tab */}
@@ -3160,6 +3194,10 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
       )}
 
       {/* My notes tab (business mode CRM) */}
+      {profileTab === 'badges' && (
+        <BadgesProfileSection lang={lang} earnedBadges={earnedBadges} onBadgeCheck={onBadgeCheck} setEarnedBadges={setEarnedBadges} />
+      )}
+
       {profileTab === 'notes' && (
         <div className="p-card" style={{ padding: 16 }}>
           <h3 className="p-section-title" style={{ marginTop: 0 }}>🔒 {lang === 'da' ? 'Mine private noter' : 'My private notes'}</h3>
@@ -3195,7 +3233,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
 }
 
 // ── Edit Profile ──
-function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
+function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onBadgeCheck }) {
   const [profile, setProfile] = useState({ ...currentUser })
   const avatarInputRef = useRef(null)
   // Interests state
@@ -3347,6 +3385,7 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
               })
               setBioSaveStatus(res?.ok ? 'saved' : 'error')
               setTimeout(() => setBioSaveStatus(null), 2000)
+              if (res?.ok) setTimeout(onBadgeCheck, 400)
             }}
             style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: bioSaveStatus === 'saved' ? '#40916C' : '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
           >
@@ -5158,12 +5197,18 @@ function PrivacySection({ lang, onLogout }) {
 }
 
 // ── Friend Profile (full page) ──
-function FriendProfilePage({ userId, lang, t, currentUser, onBack, onMessage }) {
+function FriendProfilePage({ userId, lang, t, currentUser, onBack, onMessage, onBadgeCheck }) {
   const [profile, setProfile] = useState(null)
   useEffect(() => {
     if (!userId) return
-    apiFetchProfile(userId).then(data => { if (data) setProfile(data) })
-  }, [userId])
+    apiFetchProfile(userId).then(data => {
+      if (data) {
+        setProfile(data)
+        // Profile visit was recorded by server; check badges (Curious/Explorer)
+        setTimeout(onBadgeCheck, 800)
+      }
+    })
+  }, [userId, onBadgeCheck])
 
   const avatarSrc = profile?.avatarUrl
     ? (profile.avatarUrl.startsWith('http') ? profile.avatarUrl : `${API_BASE}${profile.avatarUrl}`)
@@ -5527,7 +5572,7 @@ function ReferralDashboard({ t, lang, referralData, badges, leaderboard, inviteL
 }
 
 // ── Friends ──
-function FriendsPage({ lang, t, mode, onMessage }) {
+function FriendsPage({ lang, t, mode, onMessage, onBadgeCheck }) {
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [friends, setFriends] = useState([])
@@ -5611,7 +5656,8 @@ function FriendsPage({ lang, t, mode, onMessage }) {
   const handleAccept = useCallback(async (reqId) => {
     await apiAcceptFriendRequest(reqId)
     refreshAll()
-  }, [refreshAll])
+    setTimeout(onBadgeCheck, 500)
+  }, [refreshAll, onBadgeCheck])
 
   const handleDecline = useCallback(async (reqId) => {
     await apiDeclineFriendRequest(reqId)
@@ -12115,6 +12161,233 @@ function AdminEasterEggsPanel({ lang }) {
   )
 }
 
+// ── BadgesProfileSection — badges tab in user profile ────────────────────────
+function BadgesProfileSection({ lang, earnedBadges, onBadgeCheck, setEarnedBadges }) {
+  const da = lang === 'da'
+
+  const handleCheckNow = async () => {
+    if (onBadgeCheck) onBadgeCheck()
+    // Refresh earned badges after a delay to see newly awarded ones
+    setTimeout(() => {
+      apiGetEarnedBadges().then(d => { if (d) setEarnedBadges(d.badges || []) })
+    }, 1500)
+  }
+
+  if (earnedBadges === null) {
+    return (
+      <div className="p-card" style={{ padding: 40, textAlign: 'center', color: '#888' }}>⏳</div>
+    )
+  }
+
+  const earnedSet = new Set(earnedBadges.map(b => b.id))
+
+  const tiers = [
+    { tier: 1, label: da ? '🥉 Begynder (bronze)' : '🥉 Beginner (bronze)', color: '#CD7F32', fillColor: '#CD7F32' },
+    { tier: 2, label: da ? '🥈 Engageret (sølv)' : '🥈 Engaged (silver)',   color: '#A8A9AD', fillColor: '#A8A9AD' },
+    { tier: 3, label: da ? '🥇 Ekspert (guld)' : '🥇 Expert (gold)',         color: '#FFD700', fillColor: '#FFD700' },
+    { tier: 0, label: da ? '🥚 Påskeæg (hemmeligt)' : '🥚 Easter Eggs (secret)', color: '#9D4EDD', fillColor: '#9D4EDD' },
+  ]
+
+  const tierClassMap = { 1: 'badge-tier-1', 2: 'badge-tier-2', 3: 'badge-tier-3', 0: 'badge-egg' }
+
+  return (
+    <div className="p-card" style={{ padding: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>🏅 {da ? 'Mine badges' : 'My badges'}</h3>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 13, color: '#888' }}>{earnedBadges.length} / {BADGES.length}</span>
+          <button
+            onClick={handleCheckNow}
+            style={{ padding: '5px 12px', borderRadius: 8, border: '1px solid #2D6A4F', background: '#fff', color: '#2D6A4F', fontWeight: 600, cursor: 'pointer', fontSize: 12 }}
+          >{da ? 'Opdater' : 'Refresh'}</button>
+        </div>
+      </div>
+
+      {tiers.map(({ tier, label, color, fillColor }) => {
+        const tierBadges = BADGES.filter(b => b.tier === tier)
+        const tierEarned = tierBadges.filter(b => earnedSet.has(b.id))
+        const pct = tierBadges.length ? tierEarned.length / tierBadges.length : 0
+
+        return (
+          <div key={tier} className="badge-tier-section">
+            <div className="badge-tier-header">
+              <span className="badge-tier-title" style={{ color }}>{label}</span>
+              <span className="badge-tier-count">{tierEarned.length} / {tierBadges.length}</span>
+            </div>
+            <div className="badge-tier-bar">
+              <div className="badge-tier-bar-fill" style={{ width: `${pct * 100}%`, background: fillColor }} />
+            </div>
+            <div className="badge-grid">
+              {tierBadges.map((badge, idx) => {
+                const isEarned = earnedSet.has(badge.id)
+                const earnedData = earnedBadges.find(b => b.id === badge.id)
+                const isEgg = tier === 0
+                const displayName = isEgg && !isEarned ? '???' : badge.name[lang] || badge.name.da
+                const displayDesc = isEgg && !isEarned ? (da ? 'Hemmeligt — opdage det selv!' : 'Secret — discover it yourself!') : badge.description[lang] || badge.description.da
+
+                return (
+                  <div
+                    key={badge.id}
+                    className={`badge-cell ${tierClassMap[tier]} ${isEarned ? 'earned' : 'locked'}`}
+                    style={{ animationDelay: isEarned ? `${idx * 40}ms` : '0ms' }}
+                  >
+                    <div className="badge-icon">{badge.icon}</div>
+                    <span className="badge-label">{displayName}</span>
+                    <div className="badge-tooltip">
+                      <strong>{displayName}</strong><br />
+                      {displayDesc}
+                      {isEarned && earnedData?.awardedAt && (
+                        <><br /><span style={{ fontSize: 10, opacity: 0.7 }}>
+                          {da ? 'Optjent' : 'Earned'}: {new Date(earnedData.awardedAt).toLocaleDateString(da ? 'da-DK' : 'en-US')}
+                        </span></>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ── AdminBadgesPanel — badge management in admin panel ────────────────────────
+function AdminBadgesPanel({ lang }) {
+  const da = lang === 'da'
+  const [stats, setStats] = useState(null)
+  const [allDefs, setAllDefs] = useState(null)
+  const [toggling, setToggling] = useState(null) // badge id being toggled
+
+  useEffect(() => {
+    apiGetAdminBadgeStats().then(d => { if (d) setStats(d) })
+    apiGetAllBadges().then(d => { if (d) setAllDefs(d.badges) })
+  }, [])
+
+  const handleToggle = async (badgeId, currentEnabled) => {
+    setToggling(badgeId)
+    await apiToggleBadge(badgeId, !currentEnabled)
+    setAllDefs(prev => prev?.map(b => b.id === badgeId ? { ...b, enabled: !currentEnabled } : b))
+    setStats(prev => prev ? {
+      ...prev,
+      stats: prev.stats?.map(s => s.id === badgeId ? { ...s, enabled: !currentEnabled } : s),
+    } : prev)
+    setToggling(null)
+  }
+
+  if (!stats || !allDefs) {
+    return <div className="p-card" style={{ padding: 40, textAlign: 'center', color: '#888' }}>⏳</div>
+  }
+
+  const TIER_LABEL_DA = { 1: '🥉 Bronze', 2: '🥈 Sølv', 3: '🥇 Guld', 0: '🥚 Påskeæg' }
+  const TIER_LABEL_EN = { 1: '🥉 Bronze', 2: '🥈 Silver', 3: '🥇 Gold', 0: '🥚 Easter Egg' }
+  const tierLabel = tier => (da ? TIER_LABEL_DA : TIER_LABEL_EN)[tier] || `T${tier}`
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Summary stats */}
+      <div className="p-card" style={{ padding: 20 }}>
+        <h3 style={{ margin: '0 0 14px', fontSize: 16, fontWeight: 700 }}>📊 {da ? 'Overblik' : 'Overview'}</h3>
+        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 16 }}>
+          <div style={{ flex: 1, minWidth: 120, background: '#f9fafb', borderRadius: 10, padding: '14px 18px', textAlign: 'center' }}>
+            <div style={{ fontSize: 24, fontWeight: 700 }}>{stats.totalUsers}</div>
+            <div style={{ fontSize: 12, color: '#888' }}>{da ? 'Brugere' : 'Users'}</div>
+          </div>
+          <div style={{ flex: 1, minWidth: 120, background: '#f9fafb', borderRadius: 10, padding: '14px 18px', textAlign: 'center' }}>
+            <div style={{ fontSize: 24, fontWeight: 700 }}>{allDefs.length}</div>
+            <div style={{ fontSize: 12, color: '#888' }}>{da ? 'Badges i alt' : 'Total badges'}</div>
+          </div>
+          <div style={{ flex: 1, minWidth: 120, background: '#f9fafb', borderRadius: 10, padding: '14px 18px', textAlign: 'center' }}>
+            <div style={{ fontSize: 24, fontWeight: 700 }}>{allDefs.filter(b => b.enabled).length}</div>
+            <div style={{ fontSize: 12, color: '#888' }}>{da ? 'Aktive badges' : 'Active badges'}</div>
+          </div>
+        </div>
+
+        {stats.topEarned?.length > 0 && (
+          <>
+            <h4 style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, color: '#555' }}>🏆 {da ? 'Mest optjente' : 'Most earned'}</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
+              {stats.topEarned.map(b => (
+                <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 18 }}>{b.icon}</span>
+                  <span style={{ flex: 1, fontSize: 13 }}>{b.name}</span>
+                  <span style={{ fontSize: 12, color: '#888' }}>{b.awardedCount} ({b.awardedPct}%)</span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+        {stats.rarest?.length > 0 && (
+          <>
+            <h4 style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, color: '#555' }}>💎 {da ? 'Sjældneste' : 'Rarest'}</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {stats.rarest.map(b => (
+                <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 18 }}>{b.icon}</span>
+                  <span style={{ flex: 1, fontSize: 13 }}>{b.name}</span>
+                  <span style={{ fontSize: 12, color: '#888' }}>{b.awardedCount} ({b.awardedPct}%)</span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Badge definition table */}
+      <div className="p-card" style={{ padding: 20, overflowX: 'auto' }}>
+        <h3 style={{ margin: '0 0 14px', fontSize: 16, fontWeight: 700 }}>⚙️ {da ? 'Badge-definitioner' : 'Badge definitions'}</h3>
+        <table className="badge-admin-table">
+          <thead>
+            <tr>
+              <th>{da ? 'Badge' : 'Badge'}</th>
+              <th>{da ? 'Tier' : 'Tier'}</th>
+              <th>{da ? 'Optjent' : 'Awarded'}</th>
+              <th>%</th>
+              <th>{da ? 'Aktiv' : 'Active'}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {allDefs.map(b => {
+              const statRow = stats.stats?.find(s => s.id === b.id)
+              return (
+                <tr key={b.id} className={b.enabled ? '' : 'disabled-row'}>
+                  <td>
+                    <span style={{ fontSize: 18, marginRight: 8 }}>{b.icon}</span>
+                    <span style={{ fontWeight: 600 }}>{b.name}</span>
+                  </td>
+                  <td style={{ fontSize: 12, color: '#888' }}>{tierLabel(b.tier)}</td>
+                  <td style={{ fontSize: 13 }}>{statRow?.awardedCount ?? 0}</td>
+                  <td style={{ fontSize: 13 }}>{statRow?.awardedPct ?? 0}%</td>
+                  <td>
+                    <button
+                      disabled={toggling === b.id}
+                      onClick={() => handleToggle(b.id, b.enabled)}
+                      style={{
+                        width: 38, height: 22, borderRadius: 11,
+                        background: b.enabled ? '#52B788' : '#ccc',
+                        border: 'none', cursor: toggling === b.id ? 'wait' : 'pointer',
+                        transition: 'background 0.2s', position: 'relative',
+                      }}
+                      title={b.enabled ? (da ? 'Deaktiver' : 'Disable') : (da ? 'Aktiver' : 'Enable')}
+                    >
+                      <span style={{
+                        position: 'absolute', top: 3, left: b.enabled ? 18 : 3,
+                        width: 16, height: 16, borderRadius: '50%',
+                        background: '#fff', transition: 'left 0.2s',
+                      }} />
+                    </button>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
 function AdminPage({ lang, t }) {
   const [adminTab, setAdminTab] = useState('stats')
   const [form, setForm] = useState({
@@ -12267,6 +12540,9 @@ function AdminPage({ lang, t }) {
         </button>
         <button className={`p-filter-tab${adminTab === 'easter-eggs' ? ' active' : ''}`} onClick={() => setAdminTab('easter-eggs')}>
           🥚 {lang === 'da' ? 'Påskeæg' : 'Easter Eggs'}
+        </button>
+        <button className={`p-filter-tab${adminTab === 'badges' ? ' active' : ''}`} onClick={() => setAdminTab('badges')}>
+          🏅 {lang === 'da' ? 'Badges' : 'Badges'}
         </button>
       </div>
 
@@ -13396,6 +13672,7 @@ function AdminPage({ lang, t }) {
       )}
 
       {adminTab === 'easter-eggs' && <AdminEasterEggsPanel lang={lang} />}
+      {adminTab === 'badges' && <AdminBadgesPanel lang={lang} />}
     </div>
   )
 }

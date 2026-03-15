@@ -48,6 +48,8 @@ import crypto from 'crypto'
 import fs from 'fs'
 import multer from 'multer'
 import pool from './db.js'
+import { BADGES, BADGE_BY_ID, PLATFORM_LAUNCH_DATE } from '../src/badges/badgeDefinitions.js'
+import { evaluateBadges } from '../src/badges/badgeEngine.js'
 
 // ── Mail transport (only active when MAIL_HOST is configured + nodemailer installed) ──
 let mailer = null
@@ -6072,6 +6074,7 @@ app.post('/api/groups/:id/join', authenticate, async (req, res) => {
 // ── Heartbeat (online presence) ──────────────────────────────────────────────
 app.post('/api/me/heartbeat', authenticate, async (req, res) => {
   pool.query('UPDATE users SET last_active = NOW() WHERE id = ?', [req.userId]).catch(() => {})
+  recordLoginDay(req.userId).catch(() => {})
   res.json({ ok: true })
 })
 
@@ -6960,6 +6963,348 @@ app.get('/api/admin/easter-eggs/stats', authenticate, requireAdmin, async (req, 
   }
 })
 
+// ── Badge reward system ───────────────────────────────────────────────────────
+
+async function initBadges() {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS earned_badges (
+      id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      user_id INT(11) NOT NULL,
+      badge_id VARCHAR(100) NOT NULL,
+      awarded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY unique_user_badge_def (user_id, badge_id),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+
+    await pool.query(`CREATE TABLE IF NOT EXISTS badge_config (
+      badge_id VARCHAR(100) NOT NULL PRIMARY KEY,
+      enabled TINYINT(1) NOT NULL DEFAULT 1
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+
+    await pool.query(`CREATE TABLE IF NOT EXISTS user_login_days (
+      id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      user_id INT(11) NOT NULL,
+      login_date DATE NOT NULL,
+      UNIQUE KEY unique_user_date (user_id, login_date),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+
+    // comment_likes — used for the "Contributor" badge
+    // TODO: wire a comment-like button in the UI to populate this table
+    await pool.query(`CREATE TABLE IF NOT EXISTS comment_likes (
+      id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      comment_id INT(11) NOT NULL,
+      user_id INT(11) NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY unique_comment_like (comment_id, user_id),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+  } catch (err) {
+    console.error('initBadges error:', err.message)
+  }
+}
+
+// Compute user stats needed for badge evaluation
+async function computeUserStats(userId) {
+  const [[user]] = await pool.query(
+    `SELECT created_at, name, bio_da, bio_en, location, avatar_url FROM users WHERE id = ?`, [userId]
+  )
+  if (!user) return null
+
+  const [[counts]] = await pool.query(`
+    SELECT
+      (SELECT COUNT(*) FROM posts WHERE author_id = ?) AS postCount,
+      (SELECT COUNT(*) FROM comments WHERE author_id = ?) AS commentCount,
+      (SELECT COUNT(*) FROM post_likes pl JOIN posts p ON p.id = pl.post_id WHERE p.author_id = ?) AS likesReceived,
+      (SELECT COUNT(*) FROM post_likes WHERE user_id = ?) AS likesSentCount,
+      (SELECT COUNT(*) FROM friendships WHERE user_id = ?) AS followingCount,
+      (SELECT COUNT(*) FROM friendships WHERE friend_id = ?) AS followerCount,
+      (SELECT COUNT(*) FROM friendships f1 WHERE f1.user_id = ? AND EXISTS(
+        SELECT 1 FROM friendships f2 WHERE f2.user_id = f1.friend_id AND f2.friend_id = ?
+      )) AS mutualFollowCount,
+      (SELECT COUNT(DISTINCT profile_id) FROM profile_views WHERE viewer_id = ?) AS profilesVisited,
+      (SELECT COALESCE(SUM(s.count), 0) FROM share_events s WHERE s.user_id = ? AND s.share_type = 'post') AS shareCount,
+      (SELECT COUNT(*) FROM posts WHERE author_id = ? AND likes >= 10) AS postsWithTenPlusLikes,
+      (SELECT COALESCE(MAX(likes), 0) FROM posts WHERE author_id = ?) AS maxLikesOnSinglePost,
+      (SELECT COUNT(DISTINCT cl.comment_id) FROM comment_likes cl JOIN comments c ON c.id = cl.comment_id WHERE c.author_id = ?) AS commentsWithLikes,
+      (SELECT COUNT(*) FROM friendships f JOIN users u ON u.id = f.user_id WHERE f.friend_id = ?
+        AND f.created_at <= DATE_ADD(u.created_at, INTERVAL 7 DAY)) AS followersJoinedWithinFirstWeek
+  `, [userId, userId, userId, userId, userId, userId, userId, userId, userId, userId, userId, userId, userId, userId])
+
+  // Active months: distinct YYYY-MM with at least 1 post or comment in the last 6 months
+  const [[{ activeMonths }]] = await pool.query(`
+    SELECT COUNT(DISTINCT ym) AS activeMonths FROM (
+      SELECT DATE_FORMAT(created_at, '%Y-%m') AS ym
+      FROM posts WHERE author_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+      UNION ALL
+      SELECT DATE_FORMAT(created_at, '%Y-%m') AS ym
+      FROM comments WHERE author_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+    ) sub
+  `, [userId, userId])
+
+  // Login streak from user_login_days
+  const [loginDays] = await pool.query(
+    'SELECT login_date FROM user_login_days WHERE user_id = ? ORDER BY login_date DESC',
+    [userId]
+  )
+  const totalLoginDays = loginDays.length
+  let loginStreakDays = 0
+  if (loginDays.length) {
+    const today = new Date(); today.setHours(0,0,0,0)
+    const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1)
+    const todayStr = today.toISOString().slice(0, 10)
+    const yestStr = yesterday.toISOString().slice(0, 10)
+    const dates = loginDays.map(d => {
+      const v = d.login_date
+      if (v instanceof Date) return v.toISOString().slice(0, 10)
+      return String(v).slice(0, 10)
+    })
+    if (dates[0] === todayStr || dates[0] === yestStr) {
+      loginStreakDays = 1
+      for (let i = 1; i < dates.length; i++) {
+        const prev = new Date(dates[i - 1]); prev.setDate(prev.getDate() - 1)
+        const prevStr = prev.toISOString().slice(0, 10)
+        if (dates[i] === prevStr) loginStreakDays++
+        else break
+      }
+    }
+  }
+
+  // Easter egg stats from server-side events
+  const [eggRows] = await pool.query(`
+    SELECT egg_id,
+           COUNT(*) AS total_count,
+           SUM(IF(event='discovered',1,0)) AS discovered_count,
+           MIN(IF(event='discovered', activated_at, NULL)) AS first_discovered_at
+    FROM easter_egg_events WHERE user_id = ?
+    GROUP BY egg_id
+  `, [userId])
+
+  const eggDiscovered = []
+  const eggActivationCounts = {}
+  const eggFirstDiscoveredAt = {}
+  for (const r of eggRows) {
+    eggActivationCounts[r.egg_id] = Number(r.total_count)
+    if (r.discovered_count > 0) {
+      eggDiscovered.push(r.egg_id)
+      eggFirstDiscoveredAt[r.egg_id] = r.first_discovered_at
+    }
+  }
+
+  const profileComplete = !!(
+    user.name?.trim() &&
+    (user.bio_da?.trim() || user.bio_en?.trim()) &&
+    user.location?.trim() &&
+    user.avatar_url?.trim()
+  )
+
+  return {
+    accountCreatedAt: user.created_at,
+    platformLaunchDate: PLATFORM_LAUNCH_DATE,
+    postCount: Number(counts.postCount || 0),
+    commentCount: Number(counts.commentCount || 0),
+    likesReceived: Number(counts.likesReceived || 0),
+    likesSentCount: Number(counts.likesSentCount || 0),
+    followingCount: Number(counts.followingCount || 0),
+    followerCount: Number(counts.followerCount || 0),
+    mutualFollowCount: Number(counts.mutualFollowCount || 0),
+    profilesVisited: Number(counts.profilesVisited || 0),
+    shareCount: Number(counts.shareCount || 0),
+    postsWithTenPlusLikes: Number(counts.postsWithTenPlusLikes || 0),
+    maxLikesOnSinglePost: Number(counts.maxLikesOnSinglePost || 0),
+    commentsWithLikes: Number(counts.commentsWithLikes || 0),
+    followersJoinedWithinFirstWeek: Number(counts.followersJoinedWithinFirstWeek || 0),
+    loginStreakDays,
+    totalLoginDays,
+    activeMonths: Number(activeMonths || 0),
+    profileComplete,
+    easterEggs: {
+      discovered: eggDiscovered,
+      activationCounts: eggActivationCounts,
+      firstDiscoveredAt: eggFirstDiscoveredAt,
+    },
+  }
+}
+
+// Record today as a login day (called from heartbeat + session check)
+async function recordLoginDay(userId) {
+  try {
+    await pool.query(
+      'INSERT IGNORE INTO user_login_days (user_id, login_date) VALUES (?, CURDATE())',
+      [userId]
+    )
+  } catch { /* non-fatal */ }
+}
+
+// POST /api/badges/evaluate — compute stats, award new badges, return them
+app.post('/api/badges/evaluate', authenticate, async (req, res) => {
+  try {
+    const userId = req.userId
+    await recordLoginDay(userId)
+
+    const stats = await computeUserStats(userId)
+    if (!stats) return res.json({ newBadges: [] })
+
+    // Get already-earned badge IDs
+    const [earnedRows] = await pool.query(
+      'SELECT badge_id FROM earned_badges WHERE user_id = ?', [userId]
+    )
+    const earnedIds = earnedRows.map(r => r.badge_id)
+
+    // Get disabled badge IDs
+    const [disabledRows] = await pool.query(
+      'SELECT badge_id FROM badge_config WHERE enabled = 0'
+    )
+    const disabledIds = disabledRows.map(r => r.badge_id)
+
+    const newIds = evaluateBadges(stats, earnedIds, disabledIds)
+    if (!newIds.length) return res.json({ newBadges: [] })
+
+    const lang = req.lang || 'da'
+    const now = new Date()
+    const newBadges = []
+
+    for (const badgeId of newIds) {
+      try {
+        await pool.query(
+          'INSERT IGNORE INTO earned_badges (user_id, badge_id, awarded_at) VALUES (?, ?, ?)',
+          [userId, badgeId, now]
+        )
+        const def = BADGE_BY_ID[badgeId]
+        if (def) {
+          newBadges.push({
+            id: badgeId,
+            name: def.name[lang] || def.name.da,
+            description: def.description[lang] || def.description.da,
+            tier: def.tier,
+            category: def.category,
+            icon: def.icon,
+            awardedAt: now,
+          })
+        }
+      } catch { /* INSERT IGNORE handles duplicates */ }
+    }
+
+    res.json({ newBadges })
+  } catch (err) {
+    console.error('POST /api/badges/evaluate error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/badges/earned — all earned badges for the current user
+app.get('/api/badges/earned', authenticate, async (req, res) => {
+  try {
+    const lang = req.lang || 'da'
+    const [rows] = await pool.query(
+      'SELECT badge_id, awarded_at FROM earned_badges WHERE user_id = ? ORDER BY awarded_at ASC',
+      [req.userId]
+    )
+    const badges = rows.map(r => {
+      const def = BADGE_BY_ID[r.badge_id]
+      if (!def) return null
+      return {
+        id: r.badge_id,
+        name: def.name[lang] || def.name.da,
+        description: def.description[lang] || def.description.da,
+        tier: def.tier,
+        category: def.category,
+        icon: def.icon,
+        awardedAt: r.awarded_at,
+      }
+    }).filter(Boolean)
+    res.json({ badges })
+  } catch (err) {
+    console.error('GET /api/badges/earned error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/badges/all — all badge definitions (for admin overview)
+app.get('/api/badges/all', authenticate, async (req, res) => {
+  try {
+    const lang = req.lang || 'da'
+    const [disabledRows] = await pool.query('SELECT badge_id FROM badge_config WHERE enabled = 0')
+    const disabledSet = new Set(disabledRows.map(r => r.badge_id))
+    const defs = BADGES.map(b => ({
+      id: b.id,
+      name: b.name[lang] || b.name.da,
+      description: b.description[lang] || b.description.da,
+      tier: b.tier,
+      category: b.category,
+      icon: b.icon,
+      enabled: !disabledSet.has(b.id),
+    }))
+    res.json({ badges: defs })
+  } catch (err) {
+    console.error('GET /api/badges/all error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/admin/badges/stats — admin badge statistics
+app.get('/api/admin/badges/stats', authenticate, async (req, res) => {
+  if (!req.isAdmin) return res.status(403).json({ error: 'Forbidden' })
+  try {
+    const lang = req.lang || 'da'
+    const [[{ totalUsers }]] = await pool.query('SELECT COUNT(*) AS totalUsers FROM users WHERE is_bot = 0 OR is_bot IS NULL')
+    const [awardCounts] = await pool.query(`
+      SELECT badge_id, COUNT(*) AS awarded_count FROM earned_badges
+      GROUP BY badge_id ORDER BY awarded_count DESC
+    `)
+    const [disabledRows] = await pool.query('SELECT badge_id FROM badge_config WHERE enabled = 0')
+    const disabledSet = new Set(disabledRows.map(r => r.badge_id))
+
+    const stats = BADGES.map(b => {
+      const row = awardCounts.find(r => r.badge_id === b.id)
+      const count = row ? Number(row.awarded_count) : 0
+      return {
+        id: b.id,
+        name: b.name[lang] || b.name.da,
+        tier: b.tier,
+        category: b.category,
+        icon: b.icon,
+        enabled: !disabledSet.has(b.id),
+        awardedCount: count,
+        awardedPct: totalUsers > 0 ? Math.round((count / totalUsers) * 1000) / 10 : 0,
+      }
+    })
+
+    const sorted = [...stats].sort((a, b) => b.awardedCount - a.awardedCount)
+    res.json({
+      stats,
+      totalUsers: Number(totalUsers),
+      topEarned: sorted.slice(0, 5),
+      rarest: sorted.filter(s => s.awardedCount > 0).slice(-5).reverse(),
+    })
+  } catch (err) {
+    console.error('GET /api/admin/badges/stats error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// PATCH /api/admin/badges/:badgeId — enable/disable a badge
+app.patch('/api/admin/badges/:badgeId', authenticate, async (req, res) => {
+  if (!req.isAdmin) return res.status(403).json({ error: 'Forbidden' })
+  const { badgeId } = req.params
+  if (!BADGE_BY_ID[badgeId]) return res.status(404).json({ error: 'Unknown badge' })
+  const enabled = req.body.enabled !== false
+  try {
+    if (enabled) {
+      await pool.query('DELETE FROM badge_config WHERE badge_id = ?', [badgeId])
+    } else {
+      await pool.query(
+        'INSERT INTO badge_config (badge_id, enabled) VALUES (?, 0) ON DUPLICATE KEY UPDATE enabled = 0',
+        [badgeId]
+      )
+    }
+    res.json({ ok: true, badgeId, enabled })
+  } catch (err) {
+    console.error('PATCH /api/admin/badges/:badgeId error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
   console.log(`fellis.eu API running on http://localhost:${PORT}`)
@@ -6984,6 +7329,7 @@ app.listen(PORT, () => {
   initAdminAdSettings()
   initBusinessFeatures()
   initEasterEggs()
+  initBadges()
 })
 
 app.all('/api/stub/:fn', authenticate, (req, res) => res.json({ ok: true }))
