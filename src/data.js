@@ -413,6 +413,7 @@ export const PT = {
     adsEdit: 'Rediger',
     adsDelete: 'Slet / arkivér',
     adsActivate: 'Aktivér',
+    adsReactivate: 'Reaktivér',
     adsPause: 'Sæt på pause',
     // Admin ads settings
     adminAdsTitle: 'Annoncestyring',
@@ -1166,6 +1167,7 @@ export const PT = {
     adsEdit: 'Edit',
     adsDelete: 'Delete / archive',
     adsActivate: 'Activate',
+    adsReactivate: 'Reactivate',
     adsPause: 'Pause',
     // Admin ads settings
     adminAdsTitle: 'Ad management',
