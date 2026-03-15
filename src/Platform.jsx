@@ -58,6 +58,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
   }, [mode])
   const [showNotifPanel, setShowNotifPanel] = useState(false)
   const [notifs, setNotifs] = useState([])
+  const [friendsRefreshKey, setFriendsRefreshKey] = useState(0)
   const [showModeModal, setShowModeModal] = useState(false)
   const [adsFree, setAdsFree] = useState(false)
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('fellis_dark') === '1')
@@ -166,6 +167,9 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
       try {
         const payload = JSON.parse(e.data)
         if (payload.type === 'notification') reloadNotifs()
+        if (payload.type === 'notification' || payload.type === 'friend_request') {
+          setFriendsRefreshKey(k => k + 1)
+        }
       } catch {}
     }
     return () => es.close()
@@ -435,7 +439,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
         {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onBadgeCheck={checkBadges} />}
         {page === 'view-profile' && viewUserId && <FriendProfilePage userId={viewUserId} lang={lang} t={t} currentUser={currentUser} onBack={() => navigateTo('feed')} onBadgeCheck={checkBadges} onMessage={async (prof) => { const data = await apiCreateConversation([prof.id], null, false, false).catch(() => null); if (data?.id) setOpenConvId(data.id); navigateTo('messages') }} />}
         {page === 'edit-profile' && <EditProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onBadgeCheck={checkBadges} />}
-        {page === 'friends' && <FriendsPage lang={lang} t={t} mode={mode} onBadgeCheck={checkBadges} onMessage={async (friend) => {
+        {page === 'friends' && <FriendsPage lang={lang} t={t} mode={mode} sseRefreshKey={friendsRefreshKey} onBadgeCheck={checkBadges} onMessage={async (friend) => {
           if (friend?.id) {
             const data = await apiCreateConversation([friend.id], null, false, false).catch(() => null)
             if (data?.id) setOpenConvId(data.id)
@@ -5942,7 +5946,7 @@ function ReferralDashboard({ t, lang, referralData, badges, leaderboard, inviteL
 }
 
 // ── Friends ──
-function FriendsPage({ lang, t, mode, onMessage, onBadgeCheck }) {
+function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) {
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [friends, setFriends] = useState([])
@@ -5991,6 +5995,11 @@ function FriendsPage({ lang, t, mode, onMessage, onBadgeCheck }) {
       if (data?.token) setInviteLink(`https://fellis.eu/?invite=${data.token}`)
     })
   }, [refreshAll])
+
+  // Refresh friend requests when SSE signals a new notification (e.g. incoming friend request)
+  useEffect(() => {
+    if (sseRefreshKey > 0) refreshAll()
+  }, [sseRefreshKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Close •••menu on outside click
   useEffect(() => {
