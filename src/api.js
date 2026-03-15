@@ -220,6 +220,13 @@ export async function apiUnfriend(userId, notify = false) {
   return await request(`/api/friends/${userId}${notify ? '?notify=1' : ''}`, { method: 'DELETE' })
 }
 
+export async function apiToggleFamilyFriend(userId, isFamily) {
+  return await request(`/api/friends/${userId}/family`, {
+    method: 'PATCH',
+    body: JSON.stringify({ is_family: isFamily }),
+  })
+}
+
 // Conversations (replaces legacy /api/messages)
 export async function apiFetchConversations() {
   return await request('/api/conversations')

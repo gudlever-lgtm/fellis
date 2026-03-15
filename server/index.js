@@ -273,6 +273,7 @@ async function initFriendRequests() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
     // Also add source column to friendships if missing (for Facebook tracking)
     await pool.query('ALTER TABLE friendships ADD COLUMN source VARCHAR(50) DEFAULT NULL').catch(() => {})
+    await pool.query('ALTER TABLE friendships ADD COLUMN is_family TINYINT(1) NOT NULL DEFAULT 0').catch(() => {})
   } catch (err) {
     console.error('initFriendRequests error:', err.message)
   }
@@ -2265,7 +2266,16 @@ app.post('/api/friends/requests/:id/decline', authenticate, async (req, res) => 
       [reqId, req.userId]
     )
     if (!rows.length) return res.status(404).json({ error: 'Request not found' })
+    const fromId = rows[0].from_user_id
     await pool.query(`UPDATE friend_requests SET status = 'declined' WHERE id = ?`, [reqId])
+    const [[decliner]] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId]).catch(() => [[null]])
+    if (decliner) {
+      createNotification(fromId, 'friend_declined',
+        `${decliner.name} har afvist din venneanmodning`,
+        `${decliner.name} declined your friend request`,
+        '/friends'
+      )
+    }
     res.json({ ok: true })
   } catch (err) { res.status(500).json({ error: 'Failed to decline request' }) }
 })
@@ -2311,6 +2321,22 @@ app.delete('/api/friends/:userId', authenticate, async (req, res) => {
     }
     res.json({ ok: true })
   } catch (err) { res.status(500).json({ error: 'Failed to unfriend' }) }
+})
+
+// PATCH /api/friends/:userId/family — mark/unmark as family (for feed weighting)
+app.patch('/api/friends/:userId/family', authenticate, async (req, res) => {
+  const targetId = parseInt(req.params.userId)
+  const { is_family } = req.body
+  if (isNaN(targetId)) return res.status(400).json({ error: 'Invalid user ID' })
+  try {
+    await pool.query(
+      'UPDATE friendships SET is_family = ? WHERE user_id = ? AND friend_id = ?',
+      [is_family ? 1 : 0, req.userId, targetId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
 })
 
 // ── Conversation routes ──
