@@ -2458,6 +2458,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
             {(postIdx === 1 || (postIdx > 1 && postIdx % 4 === 0)) && <AdBanner placement="feed" adsFree={adsFree} lang={lang} onGoAdFree={adsFree ? null : () => onNavigate('settings', 'billing')} />}
           <div className="p-card p-post">
             <div className="p-post-header">
+              <div style={{ position: 'relative', flexShrink: 0 }}>
               <div
                 className="p-avatar-sm"
                 style={{ background: nameToColor(post.author), cursor: 'pointer' }}
@@ -2465,6 +2466,12 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
               >
                 {getInitials(post.author)}
               </div>
+              {post.authorBadgeCount > 0 && (
+                <span style={{ position: 'absolute', bottom: -3, right: -6, fontSize: 9, fontWeight: 700, background: '#FFD700', color: '#7a5f00', borderRadius: 7, padding: '0 3px', lineHeight: '13px', border: '1.5px solid #fff', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
+                  🏅{post.authorBadgeCount}
+                </span>
+              )}
+            </div>
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <div
@@ -2877,6 +2884,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
       const posts = data?.posts || data || []
       setUserPosts(posts.filter(p => p.author === currentUser.name))
     })
+    apiGetEarnedBadges().then(data => { if (data) setEarnedBadges(data.badges || []) })
     if (mode === 'privat') {
       apiFetchConversations().then(convs => {
         if (convs) setFamilyGroups(convs.filter(c => c.isFamilyGroup))
@@ -2948,6 +2956,12 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
               <strong>{(profile.photoCount || 0).toLocaleString()}</strong>
               <span>{t.photosLabel}</span>
             </div>
+            {earnedBadges !== null && earnedBadges.length > 0 && (
+              <div className="p-profile-stat" style={{ cursor: 'pointer' }} onClick={() => setProfileTab('badges')}>
+                <strong>🏅 {earnedBadges.length}</strong>
+                <span>{lang === 'da' ? 'Badges' : 'Badges'}</span>
+              </div>
+            )}
           </div>
         </div>
       </div>

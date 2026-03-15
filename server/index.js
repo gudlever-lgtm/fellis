@@ -1546,7 +1546,8 @@ app.get('/api/feed', authenticate, async (req, res) => {
     const total = countResult[0].total
 
     const [posts] = await pool.query(
-      `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.created_at, p.edited_at
+      `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.created_at, p.edited_at,
+              (SELECT COUNT(*) FROM earned_badges WHERE user_id = p.author_id) as author_badge_count
        FROM posts p JOIN users u ON p.author_id = u.id
        WHERE (p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?))
          AND (p.scheduled_at IS NULL OR p.scheduled_at <= NOW())
@@ -1634,6 +1635,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
         comments: commentsByPost[p.id] || [],
         createdAtRaw: p.created_at,
         edited: !!p.edited_at,
+        authorBadgeCount: p.author_badge_count || 0,
       }
     })
     // Track post views (fire-and-forget)
