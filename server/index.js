@@ -3287,17 +3287,17 @@ app.get('/api/companies/all', authenticate, async (req, res) => {
 app.post('/api/companies', authenticate, async (req, res) => {
   try {
     const { name, handle, tagline, description, industry, size, website, color,
-            cvr, company_type, address, phone, email, linkedin, founded_year } = req.body
+            cvr, company_type, address, phone, email, linkedin, founded_year, logo_url } = req.body
     if (!name || !handle) return res.status(400).json({ error: 'name and handle required' })
     const safeHandle = handle.startsWith('@') ? handle : `@${handle}`
     const [result] = await pool.query(
       `INSERT INTO companies (owner_id, name, handle, tagline, description, industry, size, website, color,
-         cvr, company_type, address, phone, email, linkedin, founded_year)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         cvr, company_type, address, phone, email, linkedin, founded_year, logo_url)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [req.userId, name, safeHandle, tagline || null, description || null,
         industry || null, size || null, website || null, color || '#1877F2',
         cvr || null, company_type || null, address || null, phone || null,
-        email || null, linkedin || null, founded_year || null]
+        email || null, linkedin || null, founded_year || null, logo_url || null]
     )
     const companyId = result.insertId
     await pool.query(
@@ -4997,11 +4997,11 @@ app.get('/api/events', authenticate, async (req, res) => {
 // POST /api/events — create event
 app.post('/api/events', authenticate, async (req, res) => {
   try {
-    const { title, description, date, location, eventType, ticketUrl, cap } = req.body
+    const { title, description, date, location, eventType, ticketUrl, cap, coverUrl } = req.body
     if (!title || !date) return res.status(400).json({ error: 'Title and date required' })
     const [result] = await pool.query(
-      `INSERT INTO events (organizer_id, title, description, date, location, event_type, ticket_url, cap) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [req.userId, title, description || null, date, location || null, eventType || null, ticketUrl || null, cap || null]
+      `INSERT INTO events (organizer_id, title, description, date, location, event_type, ticket_url, cap, cover_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [req.userId, title, description || null, date, location || null, eventType || null, ticketUrl || null, cap || null, coverUrl || null]
     )
     const [[event]] = await pool.query(
       `SELECT e.*, u.name AS organizer_name FROM events e JOIN users u ON e.organizer_id = u.id WHERE e.id = ?`,
@@ -5011,7 +5011,8 @@ app.post('/api/events', authenticate, async (req, res) => {
       id: event.id, title: event.title, description: event.description,
       date: event.date, location: event.location, organizer: event.organizer_name,
       organizerId: event.organizer_id, eventType: event.event_type,
-      ticketUrl: event.ticket_url, cap: event.cap, going: [], maybe: [], myRsvp: null,
+      ticketUrl: event.ticket_url, cap: event.cap, coverUrl: event.cover_url,
+      going: [], maybe: [], myRsvp: null,
     })
   } catch (err) {
     console.error('POST /api/events error:', err.message)
