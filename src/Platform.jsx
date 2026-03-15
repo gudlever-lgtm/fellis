@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } from 'react'
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { PT, SUPPORTED_LANGS, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiExchangeGoogleCode, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiFetchMemories, apiApplyToJob, apiGetJobApplications, apiUpdateJobApplication, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiExchangeGoogleCode, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiFetchMemories, apiApplyToJob, apiGetJobApplications, apiUpdateJobApplication, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail } from './api.js'
 import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
 import ReelsPage from './Reels.jsx'
@@ -10054,7 +10054,7 @@ function ImageUrlInput({ value, onChange, lang, style, placeholder }) {
     <div style={{ position: 'relative' }}>
       <input
         style={{ ...style, ...(uploading ? { opacity: 0.6 } : {}) }}
-        type="url"
+        type="text"
         value={value}
         onChange={e => onChange(e.target.value)}
         onPaste={handlePaste}
@@ -10075,6 +10075,12 @@ function AdsManagementPage({ lang, t }) {
   const [editAd, setEditAd] = useState(null)
   const [form, setForm] = useState({ title: '', body: '', image_url: '', target_url: '', placement: 'feed', start_date: '', end_date: '' })
   const [saving, setSaving] = useState(false)
+  const [paymentAd, setPaymentAd] = useState(null) // ad pending activation payment
+  const [adSettings, setAdSettings] = useState(null)
+  const [paymentLoading, setPaymentLoading] = useState(false)
+  const [paymentError, setPaymentError] = useState(null)
+
+  useEffect(() => { apiGetAdminAdSettings().then(d => { if (d) setAdSettings(d) }).catch(() => {}) }, [])
 
   const reload = () => {
     setLoading(true)
@@ -10104,9 +10110,20 @@ function AdsManagementPage({ lang, t }) {
     setSaving(false); setShowCreate(false); reload()
   }
 
-  const handleStatus = async (ad, status) => {
-    await apiUpdateAd(ad.id, { status }).catch(() => {})
-    reload()
+  const handleStatus = (ad, status) => {
+    if (status === 'active') { setPaymentAd(ad); setPaymentError(null); return }
+    apiUpdateAd(ad.id, { status }).catch(() => {}).then(() => reload())
+  }
+
+  const handlePayAndActivate = async () => {
+    if (!paymentAd) return
+    setPaymentLoading(true); setPaymentError(null)
+    const price = adSettings?.ad_price_cpm || 50
+    const currency = adSettings?.currency || 'DKK'
+    const data = await apiCreateMolliePayment('ad_activation', price, currency, paymentAd.id).catch(() => null)
+    setPaymentLoading(false)
+    if (data?.checkoutUrl) { window.location.href = data.checkoutUrl; return }
+    setPaymentError(data?.error || (lang === 'da' ? 'Kunne ikke oprette betaling.' : 'Could not create payment.'))
   }
 
   const handleDelete = async (ad) => {
@@ -10120,6 +10137,36 @@ function AdsManagementPage({ lang, t }) {
 
   return (
     <div style={{ maxWidth: 800, margin: '0 auto', padding: '0 16px 80px' }}>
+      {/* Payment modal for ad activation */}
+      {paymentAd && (
+        <div className="modal-backdrop" onClick={() => setPaymentAd(null)}>
+          <div className="p-event-create-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 400 }}>
+            <h3 style={{ margin: '0 0 12px', fontSize: 17, fontWeight: 700 }}>
+              💳 {lang === 'da' ? 'Aktivér reklame' : 'Activate ad'}
+            </h3>
+            <p style={{ margin: '0 0 8px', fontSize: 14, color: '#444' }}>
+              <strong>{paymentAd.title}</strong>
+            </p>
+            <p style={{ margin: '0 0 16px', fontSize: 14, color: '#666', lineHeight: 1.5 }}>
+              {lang === 'da'
+                ? `For at aktivere din reklame betales en kampagnepris på ${adSettings?.ad_price_cpm || 50} ${adSettings?.currency || 'DKK'}. Du viderestilles til Mollie for sikker betaling.`
+                : `To activate your ad, a campaign fee of ${adSettings?.ad_price_cpm || 50} ${adSettings?.currency || 'DKK'} is charged. You will be redirected to Mollie for secure payment.`}
+            </p>
+            {paymentError && <div style={{ color: '#c0392b', fontSize: 13, marginBottom: 12 }}>{paymentError}</div>}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={handlePayAndActivate} disabled={paymentLoading}
+                style={{ flex: 2, padding: '11px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+                {paymentLoading ? '…' : `💳 ${lang === 'da' ? 'Betal & aktivér' : 'Pay & activate'}`}
+              </button>
+              <button onClick={() => setPaymentAd(null)}
+                style={{ flex: 1, padding: '11px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', fontSize: 14, cursor: 'pointer' }}>
+                {lang === 'da' ? 'Annuller' : 'Cancel'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '20px 0 16px' }}>
         <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>📢 {t.adsTitle}</h2>
         <button onClick={openCreate} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>+ {t.adsCreate}</button>
@@ -11714,6 +11761,8 @@ function AdminPage({ lang, t }) {
   const [interestStats, setInterestStats] = useState(null)
   const [viralStats, setViralStats] = useState(null)
   const [viralDays, setViralDays] = useState(30)
+  const [expandedStat, setExpandedStat] = useState(null) // stat type currently expanded
+  const [statDetail, setStatDetail] = useState(null) // { type, rows }
   // Moderation state
   const [modQueue, setModQueue] = useState(null)
   const [modUsers, setModUsers] = useState(null)
@@ -11796,16 +11845,24 @@ function AdminPage({ lang, t }) {
   const lS = { fontSize: 13, fontWeight: 600, color: '#555', marginBottom: 4, display: 'block' }
 
   const statItems = stats ? [
-    { icon: '👥', label: lang === 'da' ? 'Brugere i alt' : 'Total users', value: stats.users },
-    { icon: '🟢', label: lang === 'da' ? 'Aktive sessioner' : 'Active sessions', value: stats.active_users },
-    { icon: '🆕', label: lang === 'da' ? 'Nye brugere (7 dage)' : 'New users (7 days)', value: stats.new_users_7d },
-    { icon: '📝', label: lang === 'da' ? 'Opslag i alt' : 'Total posts', value: stats.posts },
-    { icon: '💬', label: lang === 'da' ? 'Beskeder i alt' : 'Total messages', value: stats.messages },
-    { icon: '📅', label: lang === 'da' ? 'Begivenheder' : 'Events', value: stats.events },
+    { icon: '👥', label: lang === 'da' ? 'Brugere i alt' : 'Total users', value: stats.users, detailType: 'users' },
+    { icon: '🟢', label: lang === 'da' ? 'Aktive sessioner' : 'Active sessions', value: stats.active_users, detailType: 'active_users' },
+    { icon: '🆕', label: lang === 'da' ? 'Nye brugere (7 dage)' : 'New users (7 days)', value: stats.new_users_7d, detailType: 'new_users_7d' },
+    { icon: '📝', label: lang === 'da' ? 'Opslag i alt' : 'Total posts', value: stats.posts, detailType: 'posts' },
+    { icon: '💬', label: lang === 'da' ? 'Beskeder i alt' : 'Total messages', value: stats.messages, detailType: 'messages' },
+    { icon: '📅', label: lang === 'da' ? 'Begivenheder' : 'Events', value: stats.events, detailType: 'events' },
     { icon: '✅', label: lang === 'da' ? 'Tilmeldinger (going)' : 'Event RSVPs (going)', value: stats.rsvps },
-    { icon: '🛍️', label: lang === 'da' ? 'Aktive annoncer' : 'Active listings', value: stats.listings },
-    { icon: '🤝', label: lang === 'da' ? 'Forbindelser' : 'Friendships', value: stats.friendships },
+    { icon: '🛍️', label: lang === 'da' ? 'Aktive annoncer' : 'Active listings', value: stats.listings, detailType: 'listings' },
+    { icon: '🤝', label: lang === 'da' ? 'Forbindelser' : 'Friendships', value: stats.friendships, detailType: 'friendships' },
   ] : []
+
+  const handleStatClick = (s) => {
+    if (!s.detailType) return
+    if (expandedStat === s.detailType) { setExpandedStat(null); setStatDetail(null); return }
+    setExpandedStat(s.detailType)
+    setStatDetail(null)
+    apiGetAdminStatDetail(s.detailType).then(d => { if (d) setStatDetail(d) }).catch(() => {})
+  }
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto', padding: '24px 16px' }}>
@@ -11850,14 +11907,55 @@ function AdminPage({ lang, t }) {
           ) : (
             <>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
-              {statItems.map(s => (
-                <div key={s.label} className="p-card" style={{ textAlign: 'center', padding: '20px 16px' }}>
-                  <div style={{ fontSize: 32, marginBottom: 6 }}>{s.icon}</div>
-                  <div style={{ fontSize: 28, fontWeight: 800, color: '#2D6A4F', marginBottom: 4 }}>{s.value ?? '—'}</div>
-                  <div style={{ fontSize: 12, color: '#888', fontWeight: 500 }}>{s.label}</div>
-                </div>
-              ))}
+              {statItems.map(s => {
+                const isExpanded = expandedStat === s.detailType
+                return (
+                  <div key={s.label} className="p-card"
+                    onClick={() => handleStatClick(s)}
+                    style={{ textAlign: 'center', padding: '20px 16px', cursor: s.detailType ? 'pointer' : 'default',
+                      border: isExpanded ? '2px solid #2D6A4F' : undefined, transition: 'border 0.15s' }}>
+                    <div style={{ fontSize: 32, marginBottom: 6 }}>{s.icon}</div>
+                    <div style={{ fontSize: 28, fontWeight: 800, color: '#2D6A4F', marginBottom: 4 }}>{s.value ?? '—'}</div>
+                    <div style={{ fontSize: 12, color: '#888', fontWeight: 500 }}>{s.label}</div>
+                    {s.detailType && <div style={{ fontSize: 10, color: '#bbb', marginTop: 4 }}>{isExpanded ? '▲' : '▼'}</div>}
+                  </div>
+                )
+              })}
             </div>
+
+            {/* Expandable stat detail panel */}
+            {expandedStat && (
+              <div className="p-card" style={{ marginTop: 12, padding: '16px 20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>
+                    {statItems.find(s => s.detailType === expandedStat)?.icon} {statItems.find(s => s.detailType === expandedStat)?.label}
+                  </h4>
+                  <button onClick={() => { setExpandedStat(null); setStatDetail(null) }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#aaa' }}>✕</button>
+                </div>
+                {!statDetail ? (
+                  <div style={{ color: '#aaa', fontSize: 13, textAlign: 'center', padding: 16 }}>{lang === 'da' ? 'Henter…' : 'Loading…'}</div>
+                ) : statDetail.rows.length === 0 ? (
+                  <div style={{ color: '#aaa', fontSize: 13, textAlign: 'center', padding: 16 }}>{lang === 'da' ? 'Ingen data.' : 'No data.'}</div>
+                ) : (
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                      <tbody>
+                        {statDetail.rows.map((row, i) => (
+                          <tr key={i} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                            {Object.entries(row).map(([k, v]) => (
+                              <td key={k} style={{ padding: '6px 8px', color: '#333', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {k === 'created_at' || k === 'expires_at' ? new Date(v).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-GB') : String(v ?? '—')}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Mode segmentation */}
             <div className="p-card" style={{ marginTop: 16, padding: '20px 24px' }}>
@@ -12151,6 +12249,12 @@ function AdminPage({ lang, t }) {
                   />
                 )}
                 <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>{t.adminPaymentMollieKeyHint}</div>
+                <div style={{ marginTop: 8 }}>
+                  <a href="https://my.mollie.com/dashboard/" target="_blank" rel="noopener noreferrer"
+                    style={{ fontSize: 13, color: '#1877F2', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    🔗 {lang === 'da' ? 'Åbn Mollie administration' : 'Open Mollie dashboard'} ↗
+                  </a>
+                </div>
               </div>
             </div>
             <div style={{ marginTop: 12, padding: '12px 14px', background: '#F0F7FF', border: '1px solid #BDD8F9', borderRadius: 8, fontSize: 12, color: '#2C4A6E', lineHeight: 1.6 }}>
