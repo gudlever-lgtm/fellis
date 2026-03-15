@@ -329,6 +329,13 @@ export const BADGES = [
     evaluate: s => (s.easterEggs?.discovered || []).includes('rickroll'),
   },
   {
+    id: 'egg_shadow_watcher',
+    name: { da: 'Skyggefølger', en: 'Shadow Watcher' },
+    description: { da: 'Opdagede Profil-kigger påskeægget', en: 'Discovered the Profile Watcher easter egg' },
+    tier: 0, category: 'easter_egg', icon: '👀',
+    evaluate: s => (s.easterEggs?.discovered || []).includes('watcher'),
+  },
+  {
     id: 'egg_egg_hunter',
     name: { da: 'Ægsjæger', en: 'Egg Hunter' },
     description: { da: 'Opdagede 3 påskeæg', en: 'Discovered 3 easter eggs' },
@@ -338,18 +345,18 @@ export const BADGES = [
   {
     id: 'egg_egg_master',
     name: { da: 'Ægsmester', en: 'Egg Master' },
-    description: { da: 'Opdagede alle 7 påskeæg', en: 'Discovered all 7 easter eggs' },
+    description: { da: 'Opdagede alle 8 påskeæg', en: 'Discovered all 8 easter eggs' },
     tier: 0, category: 'easter_egg', icon: '🐣',
-    evaluate: s => (s.easterEggs?.discovered || []).length >= 7,
+    evaluate: s => (s.easterEggs?.discovered || []).length >= 8,
   },
   {
     id: 'egg_speedrunner',
     name: { da: 'Speedrunner', en: 'Speedrunner' },
-    description: { da: 'Opdagede alle 7 påskeæg inden for 7 dage af kontoopretholdelse', en: 'Discover all 7 easter eggs within 7 days of account creation' },
+    description: { da: 'Opdagede alle 8 påskeæg inden for 7 dage af kontoopretholdelse', en: 'Discover all 8 easter eggs within 7 days of account creation' },
     tier: 0, category: 'easter_egg', icon: '⚡',
     evaluate: s => {
       const disc = s.easterEggs?.discovered || []
-      if (disc.length < 7 || !s.accountCreatedAt) return false
+      if (disc.length < 8 || !s.accountCreatedAt) return false
       const ts = s.easterEggs?.firstDiscoveredAt || {}
       const times = Object.values(ts).map(t => new Date(t).getTime()).filter(Boolean)
       if (!times.length) return false

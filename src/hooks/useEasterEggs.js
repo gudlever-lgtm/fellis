@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
+import { apiPostEasterEggEvent } from '../api.js'
 
-export const EGG_IDS = ['chuck', 'matrix', 'flip', 'retro', 'gravity', 'party', 'rickroll']
+export const EGG_IDS = ['chuck', 'matrix', 'flip', 'retro', 'gravity', 'party', 'rickroll', 'watcher']
 
 const EGG_DEFAULTS = {
   chuck:    { discovered: false, enabled: true, activationCount: 0, firstDiscoveredAt: null },
@@ -10,6 +11,7 @@ const EGG_DEFAULTS = {
   gravity:  { discovered: false, enabled: true, activationCount: 0, firstDiscoveredAt: null },
   party:    { discovered: false, enabled: true, activationCount: 0, firstDiscoveredAt: null },
   rickroll: { discovered: false, enabled: true, activationCount: 0, firstDiscoveredAt: null },
+  watcher:  { discovered: false, enabled: true, activationCount: 0, firstDiscoveredAt: null },
 }
 
 export const USER_LS_KEY = 'fellis_easter_eggs'
@@ -41,13 +43,7 @@ function saveEggs(eggs) {
 // Post activation event to server (best-effort, fire-and-forget)
 async function postEggEvent(eggId, event) {
   try {
-    const sid = localStorage.getItem('fellis_session_id')
-    if (!sid) return
-    await fetch('/api/easter-eggs/event', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Session-Id': sid },
-      body: JSON.stringify({ eggId, event }),
-    })
+    await apiPostEasterEggEvent(eggId, event)
   } catch {
     // TODO: queue failed events in localStorage and retry on next session
   }
