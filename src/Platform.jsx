@@ -60,6 +60,8 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
   const [onboardingInviterName] = useState(() => localStorage.getItem('fellis_onboarding_inviter') || null)
   const avatarMenuRef = useRef(null)
   const notifRef = useRef(null)
+  const [showMoreMenu, setShowMoreMenu] = useState(false)
+  const moreMenuRef = useRef(null)
 
   // 🏅 Badge system — evaluate and show toasts for newly earned badges
   const badgeQueueRef = useRef(null)
@@ -142,7 +144,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
 
   // Close dropdowns when clicking outside
   useEffect(() => {
-    if (!showAvatarMenu && !showNotifPanel) return
+    if (!showAvatarMenu && !showNotifPanel && !showMoreMenu) return
     const handleClick = (e) => {
       if (showAvatarMenu && avatarMenuRef.current && !avatarMenuRef.current.contains(e.target)) {
         setShowAvatarMenu(false)
@@ -150,10 +152,13 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
       if (showNotifPanel && notifRef.current && !notifRef.current.contains(e.target)) {
         setShowNotifPanel(false)
       }
+      if (showMoreMenu && moreMenuRef.current && !moreMenuRef.current.contains(e.target)) {
+        setShowMoreMenu(false)
+      }
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
-  }, [showAvatarMenu, showNotifPanel])
+  }, [showAvatarMenu, showNotifPanel, showMoreMenu])
 
   const [navParam, setNavParam] = useState(null)
   const savedFeedScroll = useRef(0)
@@ -216,26 +221,71 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
           {showMobileMenu ? '✕' : '☰'}
         </button>
         <div className={`p-nav-tabs${showMobileMenu ? ' open' : ''}`}>
-          {['feed', 'reels', 'friends', 'messages', 'events', 'calendar', 'marketplace', ...(mode === 'business' ? ['jobs', 'analytics', 'company', 'ads'] : [])].map(p => (
+          {/* Primary tabs — always visible */}
+          {['feed', 'friends', 'messages', 'events'].map(p => (
             <button
               key={p}
               className={`p-nav-tab${page === p ? ' active' : ''}`}
-              onClick={() => navigateTo(p)}
+              onClick={() => { navigateTo(p); setShowMobileMenu(false) }}
             >
               <span className="p-nav-tab-icon">
-                {p === 'feed' ? '🏠' : p === 'reels' ? '🎬' : p === 'friends' ? '👥' : p === 'messages' ? '💬' : p === 'events' ? '📅' : p === 'calendar' ? '🗓️' : p === 'marketplace' ? '🛍️' : p === 'analytics' ? '📊' : p === 'company' ? '🏢' : p === 'admin' ? '⚙️' : p === 'ads' ? '📢' : '💼'}
+                {p === 'feed' ? '🏠' : p === 'friends' ? '👥' : p === 'messages' ? '💬' : '📅'}
               </span>
               <span className="p-nav-tab-label">
-                {p === 'friends'
-                  ? (mode === 'business' ? t.connectionsLabel : t.friends)
-                  : p === 'analytics' ? t.analyticsNav
-                  : p === 'company' ? t.companies
-                  : p === 'admin' ? t.adminTitle
-                  : p === 'ads' ? t.adsTitle
-                  : (t[p] || p)}
+                {p === 'friends' ? (mode === 'business' ? t.connectionsLabel : t.friends) : (t[p] || p)}
               </span>
             </button>
           ))}
+          {/* Business-only primary tabs */}
+          {mode === 'business' && ['analytics', 'ads'].map(p => (
+            <button
+              key={p}
+              className={`p-nav-tab${page === p ? ' active' : ''}`}
+              onClick={() => { navigateTo(p); setShowMobileMenu(false) }}
+            >
+              <span className="p-nav-tab-icon">{p === 'analytics' ? '📊' : '📢'}</span>
+              <span className="p-nav-tab-label">{p === 'analytics' ? t.analyticsNav : t.adsTitle}</span>
+            </button>
+          ))}
+          {/* "Mere" / "More" dropdown for secondary tabs */}
+          <div ref={moreMenuRef} style={{ position: 'relative' }}>
+            <button
+              className={`p-nav-tab${['reels', 'calendar', 'marketplace', 'jobs', 'company'].includes(page) ? ' active' : ''}`}
+              onClick={() => setShowMoreMenu(v => !v)}
+            >
+              <span className="p-nav-tab-icon">{'⋯'}</span>
+              <span className="p-nav-tab-label">{lang === 'da' ? 'Mere' : 'More'}</span>
+            </button>
+            {showMoreMenu && (
+              <div style={{
+                position: 'absolute', top: '100%', left: 0, zIndex: 200,
+                background: '#fff', borderRadius: 10, boxShadow: '0 4px 20px rgba(0,0,0,0.13)',
+                border: '1px solid #e8e8e4', minWidth: 160, padding: '6px 0',
+              }}>
+                {[
+                  { id: 'reels', icon: '🎬', label: t.reels || 'Reels' },
+                  { id: 'calendar', icon: '🗓️', label: t.calendar || (lang === 'da' ? 'Kalender' : 'Calendar') },
+                  { id: 'marketplace', icon: '🛍️', label: t.marketplace || (lang === 'da' ? 'Marked' : 'Marketplace') },
+                  ...(mode === 'business' ? [
+                    { id: 'jobs', icon: '💼', label: t.jobs || 'Jobs' },
+                    { id: 'company', icon: '🏢', label: t.companies || (lang === 'da' ? 'Virksomheder' : 'Companies') },
+                  ] : []),
+                ].map(item => (
+                  <button key={item.id}
+                    onClick={() => { navigateTo(item.id); setShowMoreMenu(false); setShowMobileMenu(false) }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                      padding: '9px 16px', background: page === item.id ? '#f0f7f4' : 'none',
+                      border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: page === item.id ? 700 : 400,
+                      color: page === item.id ? '#2D6A4F' : '#333', textAlign: 'left',
+                    }}
+                  >
+                    <span>{item.icon}</span> {item.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
         <div className="p-nav-right">
           <button
@@ -12513,41 +12563,77 @@ function AdminPage({ lang, t }) {
     <div style={{ maxWidth: 640, margin: '0 auto', padding: '24px 16px' }}>
       <h2 style={{ margin: '0 0 16px', fontSize: 22, fontWeight: 700 }}>⚙️ {t.adminTitle}</h2>
 
-      <div className="p-filter-tabs" style={{ marginBottom: 20 }}>
-        <button className={`p-filter-tab${adminTab === 'stats' ? ' active' : ''}`} onClick={() => setAdminTab('stats')}>
-          📊 {lang === 'da' ? 'Status' : 'Overview'}
-        </button>
-        <button className={`p-filter-tab${adminTab === 'feed' ? ' active' : ''}`} onClick={() => setAdminTab('feed')}>
-          🎯 {t.adminFeedTab}
-        </button>
-        <button className={`p-filter-tab${adminTab === 'viral' ? ' active' : ''}`} onClick={() => setAdminTab('viral')}>
-          🚀 {lang === 'da' ? 'Viral vækst' : 'Viral growth'}
-        </button>
-        <button className={`p-filter-tab${adminTab === 'ads' ? ' active' : ''}`} onClick={() => setAdminTab('ads')}>
-          📢 {t.adminAdsTitle}
-        </button>
-        <button className={`p-filter-tab${adminTab === 'payment' ? ' active' : ''}`} onClick={() => setAdminTab('payment')}>
-          💳 {t.adminPaymentTitle}
-        </button>
-        <button className={`p-filter-tab${adminTab === 'security' ? ' active' : ''}`} onClick={() => setAdminTab('security')}>
-          🔒 {lang === 'da' ? 'Sikkerhed & GDPR' : 'Security & GDPR'}
-        </button>
-        <button className={`p-filter-tab${adminTab === 'platform' ? ' active' : ''}`} onClick={() => setAdminTab('platform')}>
-          🛠️ {lang === 'da' ? 'Indstillinger' : 'Settings'}
-        </button>
-        <button className={`p-filter-tab${adminTab === 'moderation' ? ' active' : ''}`} onClick={() => setAdminTab('moderation')}>
-          🛡️ {t.adminModerationTab}
-        </button>
-        <button className={`p-filter-tab${adminTab === 'moderators' ? ' active' : ''}`} onClick={() => setAdminTab('moderators')}>
-          👮 {t.adminModModeratorsTab}
-        </button>
-        <button className={`p-filter-tab${adminTab === 'easter-eggs' ? ' active' : ''}`} onClick={() => setAdminTab('easter-eggs')}>
-          🥚 {lang === 'da' ? 'Påskeæg' : 'Easter Eggs'}
-        </button>
-        <button className={`p-filter-tab${adminTab === 'badges' ? ' active' : ''}`} onClick={() => setAdminTab('badges')}>
-          🏅 {lang === 'da' ? 'Badges' : 'Badges'}
-        </button>
-      </div>
+      {/* Admin navigation — grouped into categories */}
+      {(() => {
+        const adminGroups = [
+          {
+            label: lang === 'da' ? 'Oversigt' : 'Overview',
+            tabs: [
+              { id: 'stats', icon: '📊', label: lang === 'da' ? 'Status' : 'Overview' },
+              { id: 'viral', icon: '🚀', label: lang === 'da' ? 'Viral vækst' : 'Viral growth' },
+            ],
+          },
+          {
+            label: lang === 'da' ? 'Indhold' : 'Content',
+            tabs: [
+              { id: 'feed', icon: '🎯', label: t.adminFeedTab },
+              { id: 'moderation', icon: '🛡️', label: t.adminModerationTab },
+              { id: 'moderators', icon: '👮', label: t.adminModModeratorsTab },
+            ],
+          },
+          {
+            label: lang === 'da' ? 'Økonomi' : 'Monetisation',
+            tabs: [
+              { id: 'ads', icon: '📢', label: t.adminAdsTitle },
+              { id: 'payment', icon: '💳', label: t.adminPaymentTitle },
+            ],
+          },
+          {
+            label: lang === 'da' ? 'Platform' : 'Platform',
+            tabs: [
+              { id: 'platform', icon: '🛠️', label: lang === 'da' ? 'Indstillinger' : 'Settings' },
+              { id: 'security', icon: '🔒', label: lang === 'da' ? 'Sikkerhed & GDPR' : 'Security & GDPR' },
+            ],
+          },
+          {
+            label: lang === 'da' ? 'Sjov & Gamification' : 'Fun & Gamification',
+            tabs: [
+              { id: 'easter-eggs', icon: '🥚', label: lang === 'da' ? 'Påskeæg' : 'Easter Eggs' },
+              { id: 'badges', icon: '🏅', label: 'Badges' },
+            ],
+          },
+        ]
+        return (
+          <div style={{ marginBottom: 24, background: '#f8f8f6', borderRadius: 12, padding: '12px 16px', border: '1px solid #e8e8e4' }}>
+            {adminGroups.map(group => (
+              <div key={group.label} style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#999', textTransform: 'uppercase', letterSpacing: '0.06em', minWidth: 110, flexShrink: 0 }}>
+                  {group.label}
+                </span>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {group.tabs.map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setAdminTab(tab.id)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 5,
+                        padding: '5px 12px', borderRadius: 20, border: 'none', cursor: 'pointer',
+                        fontSize: 13, fontWeight: adminTab === tab.id ? 700 : 500,
+                        background: adminTab === tab.id ? '#2D6A4F' : '#fff',
+                        color: adminTab === tab.id ? '#fff' : '#444',
+                        boxShadow: adminTab === tab.id ? '0 2px 8px rgba(45,106,79,0.18)' : '0 1px 3px rgba(0,0,0,0.08)',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      <span>{tab.icon}</span> {tab.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      })()}
 
       {adminTab === 'stats' && (
         <div>

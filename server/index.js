@@ -7247,8 +7247,7 @@ app.get('/api/badges/all', authenticate, async (req, res) => {
 })
 
 // GET /api/admin/badges/stats — admin badge statistics
-app.get('/api/admin/badges/stats', authenticate, async (req, res) => {
-  if (!req.isAdmin) return res.status(403).json({ error: 'Forbidden' })
+app.get('/api/admin/badges/stats', authenticate, requireAdmin, async (req, res) => {
   try {
     const lang = req.lang || 'da'
     const [[{ totalUsers }]] = await pool.query('SELECT COUNT(*) AS totalUsers FROM users WHERE is_bot = 0 OR is_bot IS NULL')
@@ -7288,8 +7287,7 @@ app.get('/api/admin/badges/stats', authenticate, async (req, res) => {
 })
 
 // PATCH /api/admin/badges/:badgeId — enable/disable a badge
-app.patch('/api/admin/badges/:badgeId', authenticate, async (req, res) => {
-  if (!req.isAdmin) return res.status(403).json({ error: 'Forbidden' })
+app.patch('/api/admin/badges/:badgeId', authenticate, requireAdmin, async (req, res) => {
   const { badgeId } = req.params
   if (!BADGE_BY_ID[badgeId]) return res.status(404).json({ error: 'Unknown badge' })
   const enabled = req.body.enabled !== false
