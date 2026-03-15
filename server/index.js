@@ -2208,6 +2208,8 @@ app.post('/api/friends/request/:userId', authenticate, async (req, res) => {
         '/friends'
       )
     }
+    // Also broadcast a friend_request SSE event so recipient's Friends page refreshes live
+    sseBroadcast(targetId, { type: 'friend_request' })
     res.json({ ok: true })
   } catch (err) { res.status(500).json({ error: 'Failed to send request' }) }
 })
