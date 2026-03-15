@@ -4927,3 +4927,56 @@ body.dark .p-modal {
 .dark-mode-toggle-track.on .dark-mode-toggle-thumb {
   left: 22px;
 }
+
+/* ── Easter Eggs ── */
+
+/* Retro / CRT mode */
+body.retro-mode {
+  filter: sepia(0.15) saturate(0.85) contrast(1.1);
+}
+body.retro-mode::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.07) 2px,
+    rgba(0,0,0,0.07) 4px
+  );
+  pointer-events: none;
+  z-index: 9990;
+  animation: crt-flicker 0.15s infinite;
+}
+@keyframes crt-flicker {
+  0%   { opacity: 0.97 }
+  50%  { opacity: 1 }
+  100% { opacity: 0.98 }
+}
+body.retro-mode .p-card,
+body.retro-mode .p-nav {
+  font-family: 'Courier New', monospace !important;
+  letter-spacing: 0.3px;
+}
+body.retro-mode .p-card {
+  border-color: #3a3a2a !important;
+  box-shadow: 0 2px 0 #000 !important;
+}
+
+/* Flip feed */
+.p-feed.feed-flipped {
+  transform: rotate(180deg);
+  transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-origin: center center;
+}
+
+/* Gravity fall */
+@keyframes egg-gravity-fall {
+  0%   { transform: translateY(0);     opacity: 1; }
+  80%  { transform: translateY(90vh);  opacity: 0.2; }
+  100% { transform: translateY(100vh); opacity: 0; }
+}
+.feed-gravity .p-card:not(.p-new-post) {
+  animation: egg-gravity-fall 0.7s ease-in forwards;
+}

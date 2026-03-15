@@ -6894,6 +6894,72 @@ process.on('uncaughtException', (err) => {
   console.error('Uncaught exception (caught at process level):', err)
 })
 
+// ── Easter Eggs ──────────────────────────────────────────────────────────────
+
+async function initEasterEggs() {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS easter_egg_events (
+      id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      user_id     INT UNSIGNED NOT NULL,
+      egg_id      VARCHAR(32)  NOT NULL,
+      event       VARCHAR(32)  NOT NULL DEFAULT 'activated',
+      activated_at TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_user_egg (user_id, egg_id),
+      KEY idx_egg_event (egg_id, event)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+  } catch (err) {
+    console.error('initEasterEggs:', err.message)
+  }
+}
+
+// POST /api/easter-eggs/event — record an egg activation (authenticated)
+app.post('/api/easter-eggs/event', authenticate, async (req, res) => {
+  try {
+    const { eggId, event = 'activated' } = req.body || {}
+    if (!eggId) return res.status(400).json({ error: 'Missing eggId' })
+    const validEvents = ['discovered', 'activated']
+    if (!validEvents.includes(event)) return res.status(400).json({ error: 'Invalid event' })
+    await pool.query(
+      'INSERT INTO easter_egg_events (user_id, egg_id, event) VALUES (?, ?, ?)',
+      [req.userId, eggId, event]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/easter-eggs/event error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/admin/easter-eggs/stats — per-egg stats (admin only)
+app.get('/api/admin/easter-eggs/stats', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT
+        e.egg_id,
+        COUNT(*) AS total_activations,
+        COUNT(DISTINCT e.user_id) AS unique_discoverers,
+        MIN(TIMESTAMPDIFF(SECOND, u.created_at, e.activated_at)) AS min_seconds,
+        MAX(TIMESTAMPDIFF(SECOND, u.created_at, e.activated_at)) AS max_seconds,
+        AVG(TIMESTAMPDIFF(SECOND, u.created_at, e.activated_at)) AS avg_seconds
+      FROM easter_egg_events e
+      JOIN users u ON u.id = e.user_id
+      WHERE e.event = 'discovered'
+      GROUP BY e.egg_id
+    `)
+    const [actRows] = await pool.query(`
+      SELECT egg_id, COUNT(*) AS total FROM easter_egg_events GROUP BY egg_id
+    `)
+    const actMap = {}
+    for (const r of actRows) actMap[r.egg_id] = r.total
+    const stats = rows.map(r => ({ ...r, total_activations: actMap[r.egg_id] || r.total_activations }))
+    res.json({ stats })
+  } catch (err) {
+    console.error('GET /api/admin/easter-eggs/stats error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
   console.log(`fellis.eu API running on http://localhost:${PORT}`)
@@ -6917,6 +6983,7 @@ app.listen(PORT, () => {
   initAds()
   initAdminAdSettings()
   initBusinessFeatures()
+  initEasterEggs()
 })
 
 app.all('/api/stub/:fn', authenticate, (req, res) => res.json({ ok: true }))

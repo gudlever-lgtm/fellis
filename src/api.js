@@ -1061,3 +1061,11 @@ export async function apiUpdateCompanyLead(companyId, leadId, status) {
     body: JSON.stringify({ status }),
   })
 }
+
+// ── Easter Eggs ──────────────────────────────────────────────────────────────
+export async function apiPostEasterEggEvent(eggId, event) {
+  return await request("/api/easter-eggs/event", { method: "POST", body: JSON.stringify({ eggId, event }) })
+}
+export async function apiGetAdminEasterEggStats() {
+  return await request("/api/admin/easter-eggs/stats")
+}
