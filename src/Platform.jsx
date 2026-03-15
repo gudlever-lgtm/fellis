@@ -33,10 +33,13 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
   const [openConvId, setOpenConvId] = useState(null)
   const [highlightPostId, setHighlightPostId] = useState(null)
 
-  // React to initialPostId prop (set async in App after URL parse)
+  // React to initialPostId/initialPage props (set async in App after URL parse)
   useEffect(() => {
     if (initialPostId) setHighlightPostId(initialPostId)
   }, [initialPostId])
+  useEffect(() => {
+    if (initialPage) setPage(initialPage)
+  }, [initialPage])
   const [viewUserId, setViewUserId] = useState(null)
   const [mode, setMode] = useState(() => {
     const stored = localStorage.getItem('fellis_mode') || 'privat'
