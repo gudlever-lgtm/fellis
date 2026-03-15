@@ -1745,6 +1745,16 @@ app.post('/api/feed', authenticate, upload.array('media', 4), async (req, res) =
     const [users] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
     const now = new Date()
     const postId = result.insertId
+    // Extract and store hashtags (max 10)
+    if (text) {
+      const tags = [...new Set((text.match(/#([\wæøåÆØÅ]{1,99})/g) || []).map(t => t.slice(1).toLowerCase()))].slice(0, 10)
+      if (tags.length > 0) {
+        pool.query(
+          `INSERT IGNORE INTO post_hashtags (post_id, tag) VALUES ${tags.map(() => '(?,?)').join(',')}`,
+          tags.flatMap(tag => [postId, tag])
+        ).catch(() => {})
+      }
+    }
     // Auto-flag: create a pending report for admin review
     if (autoFlagKeyword) {
       pool.query(
@@ -7334,6 +7344,7 @@ app.listen(PORT, () => {
   initBusinessFeatures()
   initEasterEggs()
   initBadges()
+  initStoriesHashtags()
 })
 
 app.all('/api/stub/:fn', authenticate, (req, res) => res.json({ ok: true }))
@@ -7354,6 +7365,209 @@ app.post('/api/upload/file', authenticate, upload.single('file'), async (req, re
   } catch (err) {
     console.error('POST /api/upload/file error:', err.message)
     res.status(500).json({ error: 'Upload failed' })
+  }
+})
+
+// ── Stories + Hashtags: schema init ──────────────────────────────────────────
+async function initStoriesHashtags() {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS stories (
+      id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      user_id INT(11) NOT NULL,
+      content_text TEXT NOT NULL,
+      bg_color VARCHAR(7) NOT NULL DEFAULT '#2D6A4F',
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP(),
+      expires_at TIMESTAMP NOT NULL DEFAULT (CURRENT_TIMESTAMP() + INTERVAL 24 HOUR),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+    await pool.query(`CREATE TABLE IF NOT EXISTS post_hashtags (
+      id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      post_id INT(11) NOT NULL,
+      tag VARCHAR(100) NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP(),
+      INDEX idx_tag (tag),
+      INDEX idx_created (created_at),
+      FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+  } catch (err) {
+    console.error('initStoriesHashtags error:', err.message)
+  }
+}
+
+// ── Stories ───────────────────────────────────────────────────────────────────
+// GET /api/stories/feed — active stories (not expired) from self + friends
+app.get('/api/stories/feed', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT s.id, s.user_id, s.content_text, s.bg_color, s.created_at, s.expires_at,
+             u.name, u.avatar_url, u.initials
+      FROM stories s
+      JOIN users u ON u.id = s.user_id
+      WHERE s.expires_at > NOW()
+        AND (
+          s.user_id = ?
+          OR s.user_id IN (
+            SELECT friend_id FROM friendships WHERE user_id = ?
+          )
+        )
+      ORDER BY s.user_id = ? DESC, s.created_at DESC
+    `, [req.userId, req.userId, req.userId])
+    // Group by user: one entry per user (latest story)
+    const seen = new Set()
+    const grouped = []
+    for (const r of rows) {
+      if (!seen.has(r.user_id)) {
+        seen.add(r.user_id)
+        grouped.push(r)
+      }
+    }
+    res.json(grouped)
+  } catch (err) {
+    console.error('GET /api/stories/feed error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/stories — create a new story
+app.post('/api/stories', authenticate, async (req, res) => {
+  const { content_text, bg_color } = req.body
+  if (!content_text || !content_text.trim()) return res.status(400).json({ error: 'content_text required' })
+  const color = /^#[0-9A-Fa-f]{6}$/.test(bg_color) ? bg_color : '#2D6A4F'
+  try {
+    const [result] = await pool.query(
+      'INSERT INTO stories (user_id, content_text, bg_color) VALUES (?, ?, ?)',
+      [req.userId, content_text.trim().slice(0, 280), color]
+    )
+    const [[story]] = await pool.query(
+      'SELECT s.*, u.name, u.avatar_url, u.initials FROM stories s JOIN users u ON u.id = s.user_id WHERE s.id = ?',
+      [result.insertId]
+    )
+    res.json(story)
+  } catch (err) {
+    console.error('POST /api/stories error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// DELETE /api/stories/:id — delete own story
+app.delete('/api/stories/:id', authenticate, async (req, res) => {
+  const id = parseInt(req.params.id)
+  try {
+    const [[story]] = await pool.query('SELECT user_id FROM stories WHERE id = ?', [id])
+    if (!story) return res.status(404).json({ error: 'Story not found' })
+    if (story.user_id !== req.userId) return res.status(403).json({ error: 'Forbidden' })
+    await pool.query('DELETE FROM stories WHERE id = ?', [id])
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/stories/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Explore ───────────────────────────────────────────────────────────────────
+// GET /api/explore/trending-tags — top 10 hashtags last 48 hours
+app.get('/api/explore/trending-tags', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT tag, COUNT(*) AS count
+      FROM post_hashtags
+      WHERE created_at > NOW() - INTERVAL 48 HOUR
+      GROUP BY tag
+      ORDER BY count DESC
+      LIMIT 10
+    `)
+    res.json(rows)
+  } catch (err) {
+    console.error('GET /api/explore/trending-tags error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/explore/feed — trending posts from non-followed users
+app.get('/api/explore/feed', authenticate, async (req, res) => {
+  const cursor = req.query.cursor ? parseFloat(req.query.cursor) : null
+  const filter = req.query.filter || 'all'   // all | images | video | reels
+  const limit = 20
+  try {
+    // Build media-type filter clause
+    let mediaFilter = ''
+    if (filter === 'images') mediaFilter = `AND JSON_LENGTH(p.media) > 0 AND NOT JSON_CONTAINS(p.media, '"video"', '$[0].type')`
+    else if (filter === 'video') mediaFilter = `AND JSON_LENGTH(p.media) > 0 AND JSON_CONTAINS(p.media, '"video"', '$[0].type')`
+    else if (filter === 'reels') mediaFilter = `AND p.id IN (SELECT post_id FROM reels WHERE post_id IS NOT NULL)`
+
+    // Cursor is the trending_score of the last item
+    const cursorClause = cursor !== null ? `HAVING trending_score < ${parseFloat(cursor)}` : ''
+
+    const [rows] = await pool.query(`
+      SELECT
+        p.id, p.author_id, p.text_da, p.text_en, p.time_da, p.time_en,
+        p.likes, p.media, p.categories, p.created_at,
+        u.name AS author, u.avatar_url, u.initials,
+        (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) AS comment_count,
+        (p.likes + (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) * 2)
+          / POW(TIMESTAMPDIFF(HOUR, p.created_at, NOW()) + 1, 1.2) AS trending_score
+      FROM posts p
+      JOIN users u ON u.id = p.author_id
+      WHERE p.author_id != ?
+        AND p.author_id NOT IN (
+          SELECT friend_id FROM friendships WHERE user_id = ?
+        )
+        AND p.scheduled_at IS NULL
+        ${mediaFilter}
+      ${cursorClause}
+      ORDER BY trending_score DESC
+      LIMIT ?
+    `, [req.userId, req.userId, limit])
+
+    const posts = rows.map(r => ({
+      id: r.id,
+      author: r.author,
+      author_id: r.author_id,
+      avatar_url: r.avatar_url,
+      initials: r.initials,
+      text: { da: r.text_da, en: r.text_en },
+      time: { da: r.time_da, en: r.time_en },
+      likes: r.likes,
+      comment_count: r.comment_count,
+      media: r.media ? JSON.parse(r.media) : null,
+      categories: r.categories ? JSON.parse(r.categories) : null,
+      created_at: r.created_at,
+      trending_score: parseFloat(r.trending_score) || 0,
+    }))
+
+    const nextCursor = posts.length === limit ? posts[posts.length - 1].trending_score : null
+    res.json({ posts, nextCursor })
+  } catch (err) {
+    console.error('GET /api/explore/feed error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/users/suggested — 6 users not followed, sorted by follower count + shared interests
+app.get('/api/users/suggested', authenticate, async (req, res) => {
+  const limit = parseInt(req.query.limit) || 6
+  try {
+    const [rows] = await pool.query(`
+      SELECT
+        u.id, u.name, u.handle, u.avatar_url, u.initials,
+        (SELECT COUNT(*) FROM friendships f2 WHERE f2.friend_id = u.id) AS follower_count,
+        (
+          SELECT COUNT(*)
+          FROM user_interests ui1
+          JOIN user_interests ui2 ON ui1.interest = ui2.interest
+          WHERE ui1.user_id = ? AND ui2.user_id = u.id
+        ) AS shared_interests
+      FROM users u
+      WHERE u.id != ?
+        AND u.id NOT IN (SELECT friend_id FROM friendships WHERE user_id = ?)
+        AND u.id NOT IN (SELECT to_user_id FROM friend_requests WHERE from_user_id = ? AND status = 'pending')
+      ORDER BY shared_interests DESC, follower_count DESC
+      LIMIT ?
+    `, [req.userId, req.userId, req.userId, req.userId, limit])
+    res.json(rows)
+  } catch (err) {
+    console.error('GET /api/users/suggested error:', err.message)
+    res.status(500).json({ error: 'Server error' })
   }
 })
 
