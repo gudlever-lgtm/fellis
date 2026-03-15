@@ -4019,7 +4019,7 @@ async function getMollieClient() {
 // POST /api/mollie/payment/create — create a Mollie payment and return checkout URL
 app.post('/api/mollie/payment/create', authenticate, async (req, res) => {
   try {
-    const { plan, currency: reqCurrency } = req.body || {}
+    const { plan, currency: reqCurrency, ad_id: adId } = req.body || {}
     if (!plan) return res.status(400).json({ error: 'Missing required field: plan' })
 
     const mollie = await getMollieClient()
@@ -4039,6 +4039,9 @@ app.post('/api/mollie/payment/create', authenticate, async (req, res) => {
       } else if (plan === 'boost') {
         const [[pr]] = await pool.query("SELECT key_value FROM admin_settings WHERE key_name = 'mollie_price_boost'")
         if (pr?.key_value) resolvedAmount = parseFloat(pr.key_value)
+      } else if (plan === 'ad_activation') {
+        const [[adS]] = await pool.query('SELECT ad_price_cpm, currency FROM admin_ad_settings WHERE id = 1').catch(() => [[null]])
+        if (adS?.ad_price_cpm) { resolvedAmount = parseFloat(adS.ad_price_cpm); resolvedCurrency = adS.currency || 'DKK' }
       }
       // Fallback: use ad_settings prices + currency
       if (!resolvedAmount) {
@@ -4054,7 +4057,8 @@ app.post('/api/mollie/payment/create', authenticate, async (req, res) => {
     if (!resolvedAmount || isNaN(resolvedAmount) || resolvedAmount <= 0) resolvedAmount = 29
 
     const origin = req.headers.origin || 'https://fellis.eu'
-    const redirectUrl = `${origin}/?mollie_payment=success&plan=${encodeURIComponent(plan)}`
+    const adIdParam = adId ? `&ad_id=${adId}` : ''
+    const redirectUrl = `${origin}/?mollie_payment=success&plan=${encodeURIComponent(plan)}${adIdParam}`
     const webhookUrl = `${origin}/api/mollie/payment/webhook`
 
     const payment = await mollie.payments.create({
@@ -4062,13 +4066,17 @@ app.post('/api/mollie/payment/create', authenticate, async (req, res) => {
       description: `fellis.eu — ${plan}`,
       redirectUrl,
       webhookUrl,
-      metadata: { user_id: String(req.userId), plan },
+      metadata: { user_id: String(req.userId), plan, ...(adId ? { ad_id: String(adId) } : {}) },
     })
 
     // Record the pending payment in the subscriptions table
     await pool.query(
-      'INSERT INTO subscriptions (user_id, mollie_payment_id, plan, status) VALUES (?, ?, ?, ?)',
-      [req.userId, payment.id, plan, 'open']
+      'INSERT INTO subscriptions (user_id, mollie_payment_id, plan, status, ad_id) VALUES (?, ?, ?, ?, ?)',
+      [req.userId, payment.id, plan, 'open', adId || null]
+    ).catch(() =>
+      // ad_id column may not exist yet — retry without it
+      pool.query('INSERT INTO subscriptions (user_id, mollie_payment_id, plan, status) VALUES (?, ?, ?, ?)',
+        [req.userId, payment.id, plan, 'open'])
     )
 
     res.json({ checkoutUrl: payment._links.checkout.href, paymentId: payment.id })
@@ -4111,8 +4119,14 @@ app.post('/api/mollie/payment/webhook', express.urlencoded({ extended: false }),
     )
 
     if (status === 'paid') {
-      // Mark user as ads-free
-      await pool.query('UPDATE users SET ads_free = 1 WHERE id = ?', [sub.user_id])
+      if (sub.plan === 'ad_activation') {
+        // Activate the specific ad
+        const adId = sub.ad_id || payment.metadata?.ad_id
+        if (adId) await pool.query("UPDATE ads SET status = 'active' WHERE id = ?", [adId])
+      } else {
+        // Mark user as ads-free (adfree / boost plans)
+        await pool.query('UPDATE users SET ads_free = 1 WHERE id = ?', [sub.user_id])
+      }
     } else if (['expired', 'canceled', 'failed'].includes(status)) {
       // Only revoke if there's no other active paid subscription
       const [[active]] = await pool.query(
@@ -4490,7 +4504,7 @@ app.get('/api/admin/stats', authenticate, requireAdmin, async (req, res) => {
     const [[{ messages }]] = await pool.query('SELECT COUNT(*) as messages FROM messages')
     const [[{ new_users_7d }]] = await pool.query("SELECT COUNT(*) as new_users_7d FROM users WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)").catch(() => [[{ new_users_7d: 0 }]])
     const [[{ rsvps }]] = await pool.query("SELECT COUNT(*) as rsvps FROM event_rsvps WHERE status = 'going'").catch(() => [[{ rsvps: 0 }]])
-    const [[{ users_privat }]] = await pool.query("SELECT COUNT(*) as users_privat FROM users WHERE mode = 'privat' OR mode IS NULL").catch(() => [[{ users_privat: 0 }]])
+    const [[{ users_privat }]] = await pool.query("SELECT COUNT(*) as users_privat FROM users WHERE mode != 'business' OR mode IS NULL").catch(() => [[{ users_privat: 0 }]])
     const [[{ users_business }]] = await pool.query("SELECT COUNT(*) as users_business FROM users WHERE mode = 'business'").catch(() => [[{ users_business: 0 }]])
     const [[{ posts_business }]] = await pool.query("SELECT COUNT(*) as posts_business FROM posts p JOIN users u ON u.id = p.author_id WHERE u.mode = 'business'").catch(() => [[{ posts_business: 0 }]])
     const [[{ new_business_7d }]] = await pool.query("SELECT COUNT(*) as new_business_7d FROM users WHERE mode = 'business' AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)").catch(() => [[{ new_business_7d: 0 }]])
@@ -4498,6 +4512,34 @@ app.get('/api/admin/stats', authenticate, requireAdmin, async (req, res) => {
     res.json({ users, active_users, posts, events, listings, friendships, messages, new_users_7d, rsvps, users_privat, users_business, posts_business, new_business_7d, active_business })
   } catch (err) {
     console.error('GET /api/admin/stats error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/admin/stats/list — return a short list of records for a given stat type
+app.get('/api/admin/stats/list', authenticate, requireAdmin, async (req, res) => {
+  const { type } = req.query
+  try {
+    let rows = []
+    if (type === 'users' || type === 'new_users_7d') {
+      const where = type === 'new_users_7d' ? "WHERE u.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)" : ''
+      ;[rows] = await pool.query(`SELECT id, name, email, mode, created_at FROM users u ${where} ORDER BY created_at DESC LIMIT 20`)
+    } else if (type === 'active_users') {
+      ;[rows] = await pool.query("SELECT u.id, u.name, u.email, u.mode, s.expires_at FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.expires_at > NOW() ORDER BY s.expires_at DESC LIMIT 20")
+    } else if (type === 'posts') {
+      ;[rows] = await pool.query("SELECT p.id, u.name AS author, COALESCE(p.text_da, p.text_en, '') AS text, p.created_at FROM posts p JOIN users u ON u.id = p.author_id ORDER BY p.created_at DESC LIMIT 20")
+    } else if (type === 'events') {
+      ;[rows] = await pool.query("SELECT e.id, e.title, e.date, u.name AS organizer FROM events e JOIN users u ON u.id = e.organizer_id ORDER BY e.date DESC LIMIT 20").catch(() => [rows])
+    } else if (type === 'listings') {
+      ;[rows] = await pool.query("SELECT l.id, l.title, l.price, l.currency, u.name AS seller FROM marketplace_listings l JOIN users u ON u.id = l.seller_id WHERE l.sold = 0 ORDER BY l.created_at DESC LIMIT 20").catch(() => [rows])
+    } else if (type === 'friendships') {
+      ;[rows] = await pool.query("SELECT f.id, a.name AS user1, b.name AS user2, f.created_at FROM friendships f JOIN users a ON a.id = f.user_id JOIN users b ON b.id = f.friend_id ORDER BY f.created_at DESC LIMIT 20").catch(() => [rows])
+    } else if (type === 'messages') {
+      ;[rows] = await pool.query("SELECT m.id, u.name AS sender, SUBSTRING(m.body, 1, 60) AS preview, m.created_at FROM messages m JOIN users u ON u.id = m.sender_id ORDER BY m.created_at DESC LIMIT 20").catch(() => [rows])
+    }
+    res.json({ type, rows })
+  } catch (err) {
+    console.error('GET /api/admin/stats/list error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })
