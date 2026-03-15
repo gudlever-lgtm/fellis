@@ -3102,16 +3102,6 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
 function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
   const [profile, setProfile] = useState({ ...currentUser })
   const avatarInputRef = useRef(null)
-  // Password change state
-  const [currentPassword, setCurrentPassword] = useState('')
-  const [newPassword, setNewPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [passwordMsg, setPasswordMsg] = useState(null)
-  const [currentPwdError, setCurrentPwdError] = useState(null)
-  const [passwordLoading, setPasswordLoading] = useState(false)
-  const [showCurrent, setShowCurrent] = useState(false)
-  const [showNew, setShowNew] = useState(false)
-  const [showConfirm, setShowConfirm] = useState(false)
   // Interests state
   const [interests, setInterests] = useState([])
   const [interestsSaving, setInterestsSaving] = useState(false)
@@ -3163,39 +3153,6 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
     ? (avatarUrl.startsWith('http') || avatarUrl.startsWith('blob:') ? avatarUrl : `${API_BASE}${avatarUrl}`)
     : null
 
-  const hasPassword = !!profile?.hasPassword
-
-  const handleChangePassword = async (e) => {
-    e.preventDefault()
-    if (hasPassword && !currentPassword) {
-      setCurrentPwdError(lang === 'da' ? 'Indtast din nuværende adgangskode' : 'Enter your current password')
-      return
-    }
-    if (!newPassword || !confirmPassword) return
-    if (newPassword !== confirmPassword) return // inline match indicator already shows the error
-    setPasswordLoading(true); setPasswordMsg(null); setCurrentPwdError(null)
-    try {
-      const res = await fetch('/api/profile/password', {
-        method: 'PATCH', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...(hasPassword ? { currentPassword } : {}), newPassword, lang }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        if (res.status === 401) {
-          setCurrentPwdError(lang === 'da' ? 'Forkert adgangskode' : 'Wrong password')
-        } else {
-          setPasswordMsg({ ok: false, text: data.error })
-        }
-        return
-      }
-      setCurrentPassword(''); setNewPassword(''); setConfirmPassword('')
-      setCurrentPwdError(null)
-      setPasswordMsg({ ok: true, text: t.settingsSaved })
-    } catch { setPasswordMsg({ ok: false, text: lang === 'da' ? 'Netværksfejl' : 'Network error' }) }
-    finally { setPasswordLoading(false) }
-  }
-
   const editT = lang === 'da' ? {
     title: 'Rediger profil',
     avatarLabel: 'Profilbillede',
@@ -3207,12 +3164,6 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
     savedInfo: 'Gemt!',
     back: 'Tilbage til profil',
     skillsSection: 'Kompetencer',
-    passwordTitle: hasPassword ? 'Skift adgangskode' : 'Opret adgangskode',
-    passwordNote: 'Opret din fellis-adgangskode for at logge ind næste gang.',
-    currentPwd: 'Nuværende adgangskode',
-    newPwd: hasPassword ? 'Ny adgangskode' : 'Adgangskode',
-    confirmPwd: 'Bekræft adgangskode',
-    savePwd: hasPassword ? 'Gem adgangskode' : 'Opret adgangskode',
   } : {
     title: 'Edit profile',
     avatarLabel: 'Profile picture',
@@ -3224,12 +3175,6 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
     savedInfo: 'Saved!',
     back: 'Back to profile',
     skillsSection: 'Skills',
-    passwordTitle: hasPassword ? 'Change password' : 'Create password',
-    passwordNote: 'Create your fellis password to log in next time.',
-    currentPwd: 'Current password',
-    newPwd: hasPassword ? 'New password' : 'Password',
-    confirmPwd: 'Confirm password',
-    savePwd: hasPassword ? 'Save password' : 'Create password',
   }
 
   const fieldStyle = { display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box' }
@@ -3385,55 +3330,6 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
             <SkillsSection profile={profile} t={t} lang={lang} isOwn={true} />
           </div>
         )}
-
-        {/* Password change section */}
-        <div style={{ marginTop: 28, borderTop: '2px solid #eee', paddingTop: 20 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: '#333', marginBottom: 12 }}>🔑 {editT.passwordTitle}</div>
-          <form onSubmit={handleChangePassword}>
-              {!hasPassword && (
-                <p style={{ margin: '0 0 12px', fontSize: 13, color: '#888', background: '#F9F9F9', borderRadius: 8, padding: '10px 12px' }}>
-                  {editT.passwordNote}
-                </p>
-              )}
-              {hasPassword && (<>
-                <label style={labelStyle}>{editT.currentPwd}</label>
-                <div style={{ position: 'relative' }}>
-                  <input
-                    style={{ ...fieldStyle, paddingRight: 44, borderColor: currentPwdError ? '#c0392b' : undefined }}
-                    type={showCurrent ? 'text' : 'password'}
-                    value={currentPassword}
-                    onChange={e => { setCurrentPassword(e.target.value); if (currentPwdError) setCurrentPwdError(null) }}
-                    onBlur={() => { if (!currentPassword) setCurrentPwdError(lang === 'da' ? 'Påkrævet' : 'Required') }}
-                    required
-                    placeholder="••••••••"
-                  />
-                  <button type="button" onClick={() => setShowCurrent(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#888' }}>{showCurrent ? '🙈' : '👁️'}</button>
-                </div>
-                {currentPwdError && <div style={{ marginTop: 4, fontSize: 12, fontWeight: 600, color: '#c0392b' }}>✗ {currentPwdError}</div>}
-              </>)}
-              <label style={labelStyle}>{editT.newPwd}</label>
-              <div style={{ position: 'relative' }}>
-                <input style={{ ...fieldStyle, paddingRight: 44 }} type={showNew ? 'text' : 'password'} value={newPassword} onChange={e => setNewPassword(e.target.value)} required placeholder="••••••••" />
-                <button type="button" onClick={() => setShowNew(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#888' }}>{showNew ? '🙈' : '👁️'}</button>
-              </div>
-              <PasswordStrengthIndicator password={newPassword} lang={lang} />
-              <label style={labelStyle}>{editT.confirmPwd}</label>
-              <div style={{ position: 'relative' }}>
-                <input style={{ ...fieldStyle, paddingRight: 44 }} type={showConfirm ? 'text' : 'password'} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required placeholder="••••••••" />
-                <button type="button" onClick={() => setShowConfirm(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#888' }}>{showConfirm ? '🙈' : '👁️'}</button>
-              </div>
-              {confirmPassword.length > 0 && (
-                <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: newPassword === confirmPassword ? '#2D6A4F' : '#c0392b' }}>
-                  <span style={{ fontSize: 13 }}>{newPassword === confirmPassword ? '✓' : '✗'}</span>
-                  <span>{lang === 'da' ? (newPassword === confirmPassword ? 'Adgangskoderne stemmer overens' : 'Adgangskoderne stemmer ikke overens') : (newPassword === confirmPassword ? 'Passwords match' : 'Passwords do not match')}</span>
-                </div>
-              )}
-              {passwordMsg && <div style={{ marginTop: 8, fontSize: 13, color: passwordMsg.ok ? '#2D6A4F' : '#c0392b', fontWeight: 600 }}>{passwordMsg.ok ? '✓' : '✗'} {passwordMsg.text}</div>}
-              <button type="submit" disabled={passwordLoading} style={{ marginTop: 12, padding: '9px 20px', borderRadius: 8, border: 'none', background: '#444', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, opacity: passwordLoading ? 0.7 : 1 }}>
-                {editT.savePwd}
-              </button>
-            </form>
-        </div>
 
         {/* Interests picker */}
         <div className="p-card" style={{ marginBottom: 16 }}>
@@ -3803,6 +3699,16 @@ function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenM
   const [showEmailPw, setShowEmailPw] = useState(false)
   const [emailMsg, setEmailMsg] = useState(null)
   const [emailLoading, setEmailLoading] = useState(false)
+  // Password change state
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordMsg, setPasswordMsg] = useState(null)
+  const [currentPwdError, setCurrentPwdError] = useState(null)
+  const [passwordLoading, setPasswordLoading] = useState(false)
+  const [showCurrent, setShowCurrent] = useState(false)
+  const [showNew, setShowNew] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
 
   useEffect(() => {
     fetch('/api/profile', { credentials: 'include' })
@@ -3810,6 +3716,39 @@ function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenM
       .then(data => { if (!data) return; setProfile(data); setNewEmail(data.email || '') })
       .catch(() => {})
   }, [])
+
+  const hasPassword = !!profile?.hasPassword
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault()
+    if (hasPassword && !currentPassword) {
+      setCurrentPwdError(lang === 'da' ? 'Indtast din nuværende adgangskode' : 'Enter your current password')
+      return
+    }
+    if (!newPassword || !confirmPassword) return
+    if (newPassword !== confirmPassword) return
+    setPasswordLoading(true); setPasswordMsg(null); setCurrentPwdError(null)
+    try {
+      const res = await fetch('/api/profile/password', {
+        method: 'PATCH', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...(hasPassword ? { currentPassword } : {}), newPassword, lang }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        if (res.status === 401) {
+          setCurrentPwdError(lang === 'da' ? 'Forkert adgangskode' : 'Wrong password')
+        } else {
+          setPasswordMsg({ ok: false, text: data.error })
+        }
+        return
+      }
+      setCurrentPassword(''); setNewPassword(''); setConfirmPassword('')
+      setCurrentPwdError(null)
+      setPasswordMsg({ ok: true, text: t.settingsSaved })
+    } catch { setPasswordMsg({ ok: false, text: lang === 'da' ? 'Netværksfejl' : 'Network error' }) }
+    finally { setPasswordLoading(false) }
+  }
 
   const handleChangeEmail = async (e) => {
     e.preventDefault()
@@ -3853,20 +3792,52 @@ function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenM
         </button>
       </form>
 
-      {/* Password — link to Edit Profile */}
+      {/* Password change */}
       <div style={{ borderTop: '1px solid #eee', paddingTop: 20 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: '#333', marginBottom: 8 }}>{lang === 'da' ? 'Adgangskode' : 'Password'}</div>
-        <div style={{ fontSize: 13, color: '#666', marginBottom: 12 }}>
-          {lang === 'da'
-            ? 'Skift adgangskode under din profilredigering.'
-            : 'Change your password under profile editing.'}
-        </div>
-        <button
-          onClick={() => onNavigate('edit-profile')}
-          style={{ padding: '8px 18px', borderRadius: 8, border: '1px solid #2D6A4F', background: '#fff', color: '#2D6A4F', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
-        >
-          ✏️ {lang === 'da' ? 'Gå til Rediger profil' : 'Go to Edit profile'}
-        </button>
+        <div style={{ fontSize: 14, fontWeight: 700, color: '#333', marginBottom: 12 }}>🔑 {lang === 'da' ? (hasPassword ? 'Skift adgangskode' : 'Opret adgangskode') : (hasPassword ? 'Change password' : 'Create password')}</div>
+        <form onSubmit={handleChangePassword}>
+          {!hasPassword && (
+            <p style={{ margin: '0 0 12px', fontSize: 13, color: '#888', background: '#F9F9F9', borderRadius: 8, padding: '10px 12px' }}>
+              {lang === 'da' ? 'Opret din fellis-adgangskode for at logge ind næste gang.' : 'Create your fellis password to log in next time.'}
+            </p>
+          )}
+          {hasPassword && (<>
+            <label style={lS}>{lang === 'da' ? 'Nuværende adgangskode' : 'Current password'}</label>
+            <div style={{ position: 'relative' }}>
+              <input
+                style={{ ...fS, paddingRight: 44, borderColor: currentPwdError ? '#c0392b' : undefined }}
+                type={showCurrent ? 'text' : 'password'}
+                value={currentPassword}
+                onChange={e => { setCurrentPassword(e.target.value); if (currentPwdError) setCurrentPwdError(null) }}
+                onBlur={() => { if (!currentPassword) setCurrentPwdError(lang === 'da' ? 'Påkrævet' : 'Required') }}
+                required placeholder="••••••••"
+              />
+              <button type="button" onClick={() => setShowCurrent(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#888' }}>{showCurrent ? '🙈' : '👁️'}</button>
+            </div>
+            {currentPwdError && <div style={{ marginTop: 4, fontSize: 12, fontWeight: 600, color: '#c0392b' }}>✗ {currentPwdError}</div>}
+          </>)}
+          <label style={lS}>{lang === 'da' ? (hasPassword ? 'Ny adgangskode' : 'Adgangskode') : (hasPassword ? 'New password' : 'Password')}</label>
+          <div style={{ position: 'relative' }}>
+            <input style={{ ...fS, paddingRight: 44 }} type={showNew ? 'text' : 'password'} value={newPassword} onChange={e => setNewPassword(e.target.value)} required placeholder="••••••••" />
+            <button type="button" onClick={() => setShowNew(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#888' }}>{showNew ? '🙈' : '👁️'}</button>
+          </div>
+          <PasswordStrengthIndicator password={newPassword} lang={lang} />
+          <label style={lS}>{lang === 'da' ? 'Bekræft adgangskode' : 'Confirm password'}</label>
+          <div style={{ position: 'relative' }}>
+            <input style={{ ...fS, paddingRight: 44 }} type={showConfirm ? 'text' : 'password'} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required placeholder="••••••••" />
+            <button type="button" onClick={() => setShowConfirm(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#888' }}>{showConfirm ? '🙈' : '👁️'}</button>
+          </div>
+          {confirmPassword.length > 0 && (
+            <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: newPassword === confirmPassword ? '#2D6A4F' : '#c0392b' }}>
+              <span>{newPassword === confirmPassword ? '✓' : '✗'}</span>
+              <span>{lang === 'da' ? (newPassword === confirmPassword ? 'Adgangskoderne stemmer overens' : 'Adgangskoderne stemmer ikke overens') : (newPassword === confirmPassword ? 'Passwords match' : 'Passwords do not match')}</span>
+            </div>
+          )}
+          {passwordMsg && <div style={{ marginTop: 8, fontSize: 13, color: passwordMsg.ok ? '#2D6A4F' : '#c0392b', fontWeight: 600 }}>{passwordMsg.ok ? '✓' : '✗'} {passwordMsg.text}</div>}
+          <button type="submit" disabled={passwordLoading} style={{ marginTop: 12, padding: '9px 20px', borderRadius: 8, border: 'none', background: '#444', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, opacity: passwordLoading ? 0.7 : 1 }}>
+            {passwordLoading ? '…' : (lang === 'da' ? (hasPassword ? 'Gem adgangskode' : 'Opret adgangskode') : (hasPassword ? 'Save password' : 'Create password'))}
+          </button>
+        </form>
       </div>
 
       {/* Account type / mode switch */}
