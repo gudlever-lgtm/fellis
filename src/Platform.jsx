@@ -10,6 +10,8 @@ import useKonamiCode from './hooks/useKonamiCode.js'
 import useKeySequence from './hooks/useKeySequence.js'
 import useScrollHold from './hooks/useScrollHold.js'
 import useAvatarClick from './hooks/useAvatarClick.js'
+import useLongPress from './hooks/useLongPress.js'
+import useTapCount from './hooks/useTapCount.js'
 import useEasterEggs, { loadEggs, loadAdminEggs, USER_LS_KEY, ADMIN_LS_KEY, EGG_IDS } from './hooks/useEasterEggs.js'
 import ChuckBanner from './components/easter-eggs/ChuckBanner.jsx'
 import MatrixRain from './components/easter-eggs/MatrixRain.jsx'
@@ -205,7 +207,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
       {/* Platform nav — only Feed, Friends, Messages in main tabs */}
       <nav className="p-nav">
         <div className="p-nav-left">
-          <div className="nav-logo" style={{ cursor: 'pointer' }} onClick={() => { navigateTo('feed'); window.location.reload() }}>
+          <div ref={navLogoRef} className="nav-logo" style={{ cursor: 'pointer' }} onClick={() => { navigateTo('feed'); window.location.reload() }}>
             <img src="/fellis-logo.jpg" className="nav-logo-icon" alt="" />
             <div className="nav-logo-text">
               <span className="nav-logo-brand">{t.navBrand}</span>
@@ -1343,22 +1345,27 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const retroActiveRef   = useRef(false)
   const gravityActiveRef = useRef(false)
 
+  // Refs for touch/mobile triggers
+  const navLogoRef   = useRef(null)
+  const feedTitleRef = useRef(null)
+
   // Rick Roll sentinel — placed at very bottom of feed
   const rickrollSentinelRef = useRef(null)
   useScrollHold(rickrollSentinelRef, 4000, () => {
     if (!rickrollActive && triggerEgg('rickroll')) { setRickrollActive(true); setTimeout(onBadgeCheck, 500) }
   }, !rickrollActive)
 
-  // Chuck Norris: Konami code ↑↑↓↓←→←→BA
+  // Chuck Norris: Konami code ↑↑↓↓←→←→BA (keyboard) / long-press nav logo 2s (mobile)
   useKonamiCode(() => { if (!chuckActive && triggerEgg('chuck')) { setChuckActive(true); setTimeout(onBadgeCheck, 500) } }, !chuckActive)
+  useLongPress(navLogoRef, 2000, () => { if (!chuckActive && triggerEgg('chuck')) { setChuckActive(true); setTimeout(onBadgeCheck, 500) } }, !chuckActive)
 
-  // Matrix Rain: 7 avatar clicks within 3 seconds
+  // Matrix Rain: 7 avatar clicks within 3 seconds (works on mobile too)
   useAvatarClick(feedContainerRef, 7, 3000, () => {
     if (!matrixActive && triggerEgg('matrix')) { setMatrixActive(true); setTimeout(onBadgeCheck, 500) }
   }, !matrixActive)
 
-  // Flip Feed: type "flip" within 2 seconds
-  useKeySequence('flip', () => {
+  // Flip Feed: type "flip" within 2 seconds (keyboard) / 3 taps on feed title (mobile)
+  const triggerFlip = () => {
     if (flipActiveRef.current) return
     if (!triggerEgg('flip')) return
     flipActiveRef.current = true
@@ -1368,10 +1375,11 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       if (feedContainerRef.current) feedContainerRef.current.classList.remove('feed-flipped')
       flipActiveRef.current = false
     }, 10000)
-  }, 2000)
+  }
+  useKeySequence('flip', triggerFlip, 2000)
 
-  // Gravity: press G G within 1 second
-  useKeySequence('gg', () => {
+  // Gravity: press G G within 1 second (keyboard) / 2 taps on feed title (mobile)
+  const triggerGravity = () => {
     if (gravityActiveRef.current) return
     if (!triggerEgg('gravity')) return
     gravityActiveRef.current = true
@@ -1381,11 +1389,18 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       if (feedContainerRef.current) feedContainerRef.current.classList.remove('feed-gravity')
       gravityActiveRef.current = false
     }, 2500)
-  }, 1000)
+  }
+  useKeySequence('gg', triggerGravity, 1000)
 
-  // Retro Mode: Shift+click on feed title
-  const handleRetroTrigger = (e) => {
-    if (!e.shiftKey) return
+  // Party Mode: type "party" within 2 seconds (keyboard) / 5 taps on feed title (mobile)
+  // (Party is also triggered via useKeySequence in the outer PlatformShell — this covers mobile)
+  const triggerPartyMobile = () => { if (triggerGlobalEgg('party')) { setPartyActive(true); setTimeout(checkBadges, 500) } }
+
+  // Feed title tap-count: 2 = Gravity, 3 = Flip, 5 = Party (mobile)
+  useTapCount(feedTitleRef, { 2: triggerGravity, 3: triggerFlip, 5: triggerPartyMobile }, 3000, 600)
+
+  // Retro Mode: Shift+click on feed title (keyboard) / long-press feed title 1.5s (mobile)
+  const triggerRetro = () => {
     if (retroActiveRef.current) return
     if (!triggerEgg('retro')) return
     retroActiveRef.current = true
@@ -1396,6 +1411,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       retroActiveRef.current = false
     }, 30000)
   }
+  const handleRetroTrigger = (e) => { if (e.shiftKey) triggerRetro() }
+  useLongPress(feedTitleRef, 1500, triggerRetro)
   // ── end easter eggs ─────────────────────────────────────────────────────────
 
   const CP_FEED_DEFAULT_COMMENTS = [
@@ -1967,8 +1984,9 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
           </div>
         </div>
       )}
-      {/* Feed title — Shift+click triggers Retro Mode easter egg */}
+      {/* Feed title — Shift+click / long-press 1.5s = Retro; 2/3/5-tap = Gravity/Flip/Party */}
       <div
+        ref={feedTitleRef}
         style={{ display: 'flex', alignItems: 'center', padding: '12px 4px 4px', userSelect: 'none' }}
         onClick={handleRetroTrigger}
       >
@@ -4187,12 +4205,12 @@ function ModeratorRequestCard({ lang, t, currentUser }) {
 }
 
 const EGG_META = {
-  chuck:    { icon: '🤜', name: 'Chuck Norris', trigger: { da: 'Konami-kode (↑↑↓↓←→←→BA)', en: 'Konami code (↑↑↓↓←→←→BA)' } },
+  chuck:    { icon: '🤜', name: 'Chuck Norris', trigger: { da: 'Konami-kode (↑↑↓↓←→←→BA) / hold logo nede 2 sek.', en: 'Konami code (↑↑↓↓←→←→BA) / long-press logo 2 sec.' } },
   matrix:   { icon: '🟩', name: 'Matrix Rain',  trigger: { da: '7 klik på en avatar inden for 3 sek.', en: '7 clicks on an avatar within 3 sec.' } },
-  flip:     { icon: '🔃', name: 'Flip Feed',    trigger: { da: 'Skriv "flip" (inden for 2 sek.)', en: 'Type "flip" (within 2 sec.)' } },
-  retro:    { icon: '📺', name: 'Retro Mode',   trigger: { da: 'Shift+klik på Feed-overskrift', en: 'Shift+click on Feed title' } },
-  gravity:  { icon: '⬇️', name: 'Gravity',      trigger: { da: 'Tryk G+G inden for 1 sek.', en: 'Press G+G within 1 sec.' } },
-  party:    { icon: '🎉', name: 'Party Mode',   trigger: { da: 'Skriv P+A+R+T+Y inden for 2 sek.', en: 'Type P+A+R+T+Y within 2 sec.' } },
+  flip:     { icon: '🔃', name: 'Flip Feed',    trigger: { da: 'Skriv "flip" / 3 tryk på Feed-overskrift', en: 'Type "flip" / 3 taps on Feed title' } },
+  retro:    { icon: '📺', name: 'Retro Mode',   trigger: { da: 'Shift+klik / hold Feed-overskrift nede 1,5 sek.', en: 'Shift+click / long-press Feed title 1.5 sec.' } },
+  gravity:  { icon: '⬇️', name: 'Gravity',      trigger: { da: 'Tryk G+G / 2 tryk på Feed-overskrift', en: 'Press G+G / 2 taps on Feed title' } },
+  party:    { icon: '🎉', name: 'Party Mode',   trigger: { da: 'Skriv "party" / 5 tryk på Feed-overskrift', en: 'Type "party" / 5 taps on Feed title' } },
   rickroll: { icon: '🎵', name: 'Rick Roll',    trigger: { da: 'Rul til bunden og vent 4 sek.', en: 'Scroll to bottom and hold 4 sec.' } },
 }
 
