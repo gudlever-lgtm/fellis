@@ -10195,9 +10195,15 @@ function AdsManagementPage({ lang, t }) {
                     <span>{t.adsImpressions}: <strong>{ad.impressions}</strong></span>
                     <span>{t.adsClicks}: <strong>{ad.clicks}</strong></span>
                     <span>{t.adsCTR}: <strong>{ctr(ad.impressions, ad.clicks)}</strong></span>
+                    {ad.payment_status === 'pending' && !isPaidAndActive(ad) && (
+                      <span style={{ color: '#e67e22' }}>⏳ {lang === 'da' ? 'Afventer betaling' : 'Awaiting payment'}</span>
+                    )}
+                    {ad.payment_status === 'failed' && (
+                      <span style={{ color: '#e74c3c' }}>✗ {lang === 'da' ? 'Betaling mislykkedes' : 'Payment failed'}</span>
+                    )}
                     {isPaidAndActive(ad) && (
                       <span style={{ color: '#2D6A4F' }}>
-                        ✓ {lang === 'da' ? 'Betalt til' : 'Paid until'} <strong>{new Date(ad.paid_until).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-GB')}</strong>
+                        ✓ {lang === 'da' ? 'Betalt' : 'Paid'}{ad.paid_amount ? ` ${parseFloat(ad.paid_amount).toFixed(2)}` : ''} · {lang === 'da' ? 'til' : 'until'} <strong>{new Date(ad.paid_until).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-GB')}</strong>
                       </span>
                     )}
                   </div>
