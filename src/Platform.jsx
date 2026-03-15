@@ -147,7 +147,8 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
 
   const reloadNotifs = useCallback(() => {
     apiGetNotifications().then(data => {
-      if (Array.isArray(data)) setNotifs(data.map(n => normaliseNotif(n, lang)))
+      const list = data?.notifications ?? (Array.isArray(data) ? data : null)
+      if (list) setNotifs(list.map(n => normaliseNotif(n, lang)))
     }).catch(() => {})
   }, [lang]) // eslint-disable-line react-hooks/exhaustive-deps
 
