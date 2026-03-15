@@ -2101,7 +2101,9 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   }}
                   onPaste={handleFeedPaste}
                   onFocus={() => setPostExpanded(true)}
-                  onBlur={() => {
+                  onBlur={e => {
+                    // Don't collapse when focus moves to OS file dialog (relatedTarget is null)
+                    if (!e.relatedTarget && !newPostText.trim() && !mediaPreviews.length) return
                     if (!newPostText.trim() && !mediaPreviews.length) setPostExpanded(false)
                     feedMention.close()
                   }}
