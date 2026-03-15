@@ -236,7 +236,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
             <button
               key={p}
               className={`p-nav-tab${page === p ? ' active' : ''}`}
-              onClick={() => { navigateTo(p); setShowMobileMenu(false) }}
+              onClick={() => { if (p === 'feed') { savedFeedScroll.current = 0; window.scrollTo({ top: 0, behavior: 'smooth' }) } navigateTo(p); setShowMobileMenu(false) }}
             >
               <span className="p-nav-tab-icon">
                 {p === 'feed' ? '🏠' : p === 'reels' ? '🎬' : p === 'messages' ? '💬' : '📅'}
