@@ -4107,6 +4107,12 @@ app.put('/api/ads/:id', authenticate, async (req, res) => {
     const VALID_PLACEMENT = ['feed', 'sidebar', 'stories']
     if (status && !VALID_STATUS.includes(status)) return res.status(400).json({ error: 'Invalid status' })
     if (placement && !VALID_PLACEMENT.includes(placement)) return res.status(400).json({ error: 'Invalid placement' })
+    // Block date changes when ad is within its paid period (prevents circumventing payment)
+    const isPaidAndActive = ad.paid_until && new Date(ad.paid_until) > new Date()
+    if (isPaidAndActive && (start_date !== undefined || end_date !== undefined)) {
+      return res.status(403).json({ error: 'Cannot change dates while ad is within paid period' })
+    }
+    // Allow reactivation of a paid ad without requiring payment (server trusts paid_until)
     await pool.query(
       'UPDATE ads SET title=COALESCE(?,title), body=COALESCE(?,body), image_url=COALESCE(?,image_url), target_url=COALESCE(?,target_url), status=COALESCE(?,status), placement=COALESCE(?,placement), start_date=COALESCE(?,start_date), end_date=COALESCE(?,end_date) WHERE id=?',
       [title||null, body||null, image_url||null, target_url||null, status||null, placement||null, start_date||null, end_date||null, req.params.id]
@@ -4514,9 +4520,12 @@ app.post('/api/mollie/payment/webhook', express.urlencoded({ extended: false }),
 
     if (status === 'paid') {
       if (sub.plan === 'ad_activation') {
-        // Activate the specific ad
+        // Activate the specific ad and set paid_until to 30 days from now
         const adId = sub.ad_id || payment.metadata?.ad_id
-        if (adId) await pool.query("UPDATE ads SET status = 'active' WHERE id = ?", [adId])
+        if (adId) await pool.query(
+          "UPDATE ads SET status = 'active', paid_until = DATE_ADD(NOW(), INTERVAL 30 DAY) WHERE id = ?",
+          [adId]
+        )
       } else {
         // Mark user as ads-free (adfree / boost plans)
         await pool.query('UPDATE users SET ads_free = 1 WHERE id = ?', [sub.user_id])
