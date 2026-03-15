@@ -6,6 +6,16 @@ import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
 import ReelsPage from './Reels.jsx'
 import AdBanner from './AdBanner.jsx'
+import useKonamiCode from './hooks/useKonamiCode.js'
+import useKeySequence from './hooks/useKeySequence.js'
+import useScrollHold from './hooks/useScrollHold.js'
+import useAvatarClick from './hooks/useAvatarClick.js'
+import useEasterEggs, { loadEggs, loadAdminEggs, USER_LS_KEY, ADMIN_LS_KEY, EGG_IDS } from './hooks/useEasterEggs.js'
+import ChuckBanner from './components/easter-eggs/ChuckBanner.jsx'
+import MatrixRain from './components/easter-eggs/MatrixRain.jsx'
+import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
+import RickRoll from './components/easter-eggs/RickRoll.jsx'
+import { apiGetAdminEasterEggStats } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -36,6 +46,11 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
   const [showModeModal, setShowModeModal] = useState(false)
   const [adsFree, setAdsFree] = useState(false)
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('fellis_dark') === '1')
+
+  // 🎉 Party Mode easter egg (global — triggered anywhere on the platform)
+  const { triggerEgg: triggerGlobalEgg } = useEasterEggs()
+  const [partyActive, setPartyActive] = useState(false)
+  useKeySequence('party', () => { if (triggerGlobalEgg('party')) setPartyActive(true) }, 2000, !partyActive)
   const [showOnboarding, setShowOnboarding] = useState(() => localStorage.getItem('fellis_onboarding') === '1')
   const [onboardingInviterName] = useState(() => localStorage.getItem('fellis_onboarding_inviter') || null)
   const avatarMenuRef = useRef(null)
@@ -339,7 +354,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
         {page === 'ads' && mode === 'business' && <AdsManagementPage lang={lang} t={t} />}
         {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} initialCompanyId={navParam?.companyId} />}
         {page === 'analytics' && <AnalyticsPage lang={lang} t={t} currentUser={currentUser} />}
-        {page === 'settings' && <SettingsPage lang={lang} t={t} currentUser={currentUser} mode={mode} adsFree={adsFree} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onLogout={onLogout} onOpenModeModal={() => setShowModeModal(true)} darkMode={darkMode} onToggleDark={() => setDarkMode(d => !d)} />}
+        {page === 'settings' && <SettingsPage lang={lang} t={t} currentUser={currentUser} mode={mode} adsFree={adsFree} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onLogout={onLogout} onOpenModeModal={() => setShowModeModal(true)} darkMode={darkMode} onToggleDark={() => setDarkMode(d => !d)} initialTab={navParam} />}
         {page === 'privacy' && <PrivacySection lang={lang} onLogout={onLogout} />}
         {page === 'visitors' && <VisitorStatsPage lang={lang} />}
         {page === 'about' && <AboutPage lang={lang} />}
@@ -407,6 +422,9 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
           </div>
         )
       })()}
+
+      {/* 🎉 Party Mode confetti (global) */}
+      {partyActive && <PartyConfetti onDismiss={() => setPartyActive(false)} />}
 
       {/* Fixed status bar at bottom */}
       <div style={{
@@ -1240,6 +1258,68 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [feedRsvpMap, setFeedRsvpMap] = useState({})
   const [feedRsvpExtras, setFeedRsvpExtras] = useState({})
   const { rels } = useContactRelationships()
+
+  // ── 🥚 Easter Eggs ──────────────────────────────────────────────────────────
+  const { triggerEgg } = useEasterEggs()
+  const [chuckActive,    setChuckActive]    = useState(false)
+  const [matrixActive,   setMatrixActive]   = useState(false)
+  const [rickrollActive, setRickrollActive] = useState(false)
+  const flipActiveRef    = useRef(false)
+  const retroActiveRef   = useRef(false)
+  const gravityActiveRef = useRef(false)
+
+  // Rick Roll sentinel — placed at very bottom of feed
+  const rickrollSentinelRef = useRef(null)
+  useScrollHold(rickrollSentinelRef, 4000, () => {
+    if (!rickrollActive && triggerEgg('rickroll')) setRickrollActive(true)
+  }, !rickrollActive)
+
+  // Chuck Norris: Konami code ↑↑↓↓←→←→BA
+  useKonamiCode(() => { if (!chuckActive && triggerEgg('chuck')) setChuckActive(true) }, !chuckActive)
+
+  // Matrix Rain: 7 avatar clicks within 3 seconds
+  useAvatarClick(feedContainerRef, 7, 3000, () => {
+    if (!matrixActive && triggerEgg('matrix')) setMatrixActive(true)
+  }, !matrixActive)
+
+  // Flip Feed: type "flip" within 2 seconds
+  useKeySequence('flip', () => {
+    if (flipActiveRef.current) return
+    if (!triggerEgg('flip')) return
+    flipActiveRef.current = true
+    if (feedContainerRef.current) feedContainerRef.current.classList.add('feed-flipped')
+    setTimeout(() => {
+      if (feedContainerRef.current) feedContainerRef.current.classList.remove('feed-flipped')
+      flipActiveRef.current = false
+    }, 10000)
+  }, 2000)
+
+  // Gravity: press G G within 1 second
+  useKeySequence('gg', () => {
+    if (gravityActiveRef.current) return
+    if (!triggerEgg('gravity')) return
+    gravityActiveRef.current = true
+    if (feedContainerRef.current) feedContainerRef.current.classList.add('feed-gravity')
+    setTimeout(() => {
+      if (feedContainerRef.current) feedContainerRef.current.classList.remove('feed-gravity')
+      gravityActiveRef.current = false
+    }, 2500)
+  }, 1000)
+
+  // Retro Mode: Shift+click on feed title
+  const handleRetroTrigger = (e) => {
+    if (!e.shiftKey) return
+    if (retroActiveRef.current) return
+    if (!triggerEgg('retro')) return
+    retroActiveRef.current = true
+    document.body.classList.add('retro-mode')
+    setTimeout(() => {
+      document.body.classList.remove('retro-mode')
+      retroActiveRef.current = false
+    }, 30000)
+  }
+  // ── end easter eggs ─────────────────────────────────────────────────────────
+
   const CP_FEED_DEFAULT_COMMENTS = [
     { id: 1, author: 'Mia Skov', text: 'Spændende mulighed!' },
     { id: 2, author: 'Jonas Holm', text: 'Sender ansøgning i dag 🙌' },
@@ -1756,6 +1836,10 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
           {blockToast}
         </div>
       )}
+      {/* 🥚 Easter egg overlays */}
+      {chuckActive    && <ChuckBanner onDismiss={() => setChuckActive(false)} />}
+      {matrixActive   && <MatrixRain  onDismiss={() => setMatrixActive(false)} />}
+      {rickrollActive && <RickRoll    onDismiss={() => setRickrollActive(false)} />}
       {/* Keyword warning modal */}
       {keywordWarning && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000 }}>
@@ -1803,6 +1887,16 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
           </div>
         </div>
       )}
+      {/* Feed title — Shift+click triggers Retro Mode easter egg */}
+      <div
+        style={{ display: 'flex', alignItems: 'center', padding: '12px 4px 4px', userSelect: 'none' }}
+        onClick={handleRetroTrigger}
+      >
+        <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#2D6A4F', cursor: 'default' }}>
+          🏠 {lang === 'da' ? 'Feed' : 'Feed'}
+        </h2>
+      </div>
+
       {/* New post */}
       <div className="p-card p-new-post">
         {/* Collapsed prompt — click anywhere to expand */}
@@ -2281,7 +2375,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         const menuOpen = postMenu === post.id
         return (
           <Fragment key={post.id}>
-            {(postIdx === 1 || (postIdx > 1 && postIdx % 4 === 0)) && <AdBanner placement="feed" adsFree={adsFree} />}
+            {(postIdx === 1 || (postIdx > 1 && postIdx % 4 === 0)) && <AdBanner placement="feed" adsFree={adsFree} lang={lang} onGoAdFree={adsFree ? null : () => onNavigate('settings', 'billing')} />}
           <div className="p-card p-post">
             <div className="p-post-header">
               <div
@@ -2560,7 +2654,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       })}
 
       {/* Ad banner — always shown after posts list */}
-      <AdBanner placement="feed" adsFree={adsFree} />
+      <AdBanner placement="feed" adsFree={adsFree} lang={lang} onGoAdFree={adsFree ? null : () => onNavigate('settings', 'billing')} />
 
       {/* Bottom sentinel — triggers loading next page */}
       {offset + PAGE_SIZE < total && (
@@ -2632,6 +2726,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
           ↑
         </button>
       )}
+      {/* Rick Roll sentinel — scroll here and hold 4s */}
+      <div ref={rickrollSentinelRef} style={{ height: 4 }} />
     </div>
   )
 }
@@ -3402,8 +3498,8 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
 }
 
 // ── Settings Page ─────────────────────────────────────────────────────────────
-function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onLogout, onOpenModeModal, darkMode, onToggleDark }) {
-  const [tab, setTab] = useState('konto')
+function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onLogout, onOpenModeModal, darkMode, onToggleDark, initialTab }) {
+  const [tab, setTab] = useState(initialTab || 'konto')
 
   const fS = { display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box', fontFamily: 'inherit' }
   const lS = { display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4, marginTop: 14 }
@@ -3419,7 +3515,10 @@ function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, on
         ))}
       </div>
 
-      {tab === 'konto' && <SettingsKonto lang={lang} t={t} currentUser={currentUser} mode={mode} fS={fS} lS={lS} onNavigate={onNavigate} onOpenModeModal={onOpenModeModal} />}
+      {tab === 'konto' && <>
+        <SettingsKonto lang={lang} t={t} currentUser={currentUser} mode={mode} fS={fS} lS={lS} onNavigate={onNavigate} onOpenModeModal={onOpenModeModal} />
+        <EasterEggSettings lang={lang} />
+      </>}
       {tab === 'billing' && <BillingSettings lang={lang} t={t} />}
       {tab === 'privatliv' && <SettingsPrivatliv lang={lang} t={t} fS={fS} lS={lS} />}
       {tab === 'sessions' && <SettingsSessions lang={lang} t={t} onLogout={onLogout} />}
@@ -3471,6 +3570,8 @@ function BillingSettings({ lang, t }) {
 
   const currency = sub.currency || 'DKK'
   const price = sub.price || 29
+  const monthlyPrice = sub.recurring_price ?? price
+  const displayPrice = recurring ? monthlyPrice : price
 
   return (
     <div>
@@ -3515,7 +3616,7 @@ function BillingSettings({ lang, t }) {
                 <button key={String(r)} onClick={() => setRecurring(r)}
                   style={{ flex: 1, padding: '9px 0', borderRadius: 8, border: `1.5px solid ${recurring === r ? '#2D6A4F' : '#ddd'}`, background: recurring === r ? '#eaf5ef' : '#fff', color: recurring === r ? '#2D6A4F' : '#555', fontWeight: recurring === r ? 700 : 400, fontSize: 13, cursor: 'pointer' }}>
                   {r
-                    ? (lang === 'da' ? `🔁 Månedligt — ${price} ${currency}/md.` : `🔁 Monthly — ${price} ${currency}/mo.`)
+                    ? (lang === 'da' ? `🔁 Månedligt — ${monthlyPrice} ${currency}/md.` : `🔁 Monthly — ${monthlyPrice} ${currency}/mo.`)
                     : (lang === 'da' ? `1× Engangsbetaling — ${price} ${currency}` : `1× One-time — ${price} ${currency}`)}
                 </button>
               ))}
@@ -3529,8 +3630,8 @@ function BillingSettings({ lang, t }) {
               {mollieLoading
                 ? (lang === 'da' ? 'Henter…' : 'Loading…')
                 : (lang === 'da'
-                    ? (recurring ? `Opret abonnement — ${price} ${currency}/md.` : `Betal ${price} ${currency}`)
-                    : (recurring ? `Subscribe — ${price} ${currency}/mo.` : `Pay ${price} ${currency}`))}
+                    ? (recurring ? `Opret abonnement — ${monthlyPrice} ${currency}/md.` : `Betal ${displayPrice} ${currency}`)
+                    : (recurring ? `Subscribe — ${monthlyPrice} ${currency}/mo.` : `Pay ${displayPrice} ${currency}`))}
             </button>
             {mollieError && <p style={{ fontSize: 13, color: '#e03131', margin: '0 0 12px' }}>{mollieError}</p>}
 
@@ -3975,6 +4076,64 @@ function ModeratorRequestCard({ lang, t, currentUser }) {
           >{t.modRequestReapply}</button>
         </>
       )}
+    </div>
+  )
+}
+
+const EGG_META = {
+  chuck:    { icon: '🤜', name: 'Chuck Norris', trigger: { da: 'Konami-kode (↑↑↓↓←→←→BA)', en: 'Konami code (↑↑↓↓←→←→BA)' } },
+  matrix:   { icon: '🟩', name: 'Matrix Rain',  trigger: { da: '7 klik på en avatar inden for 3 sek.', en: '7 clicks on an avatar within 3 sec.' } },
+  flip:     { icon: '🔃', name: 'Flip Feed',    trigger: { da: 'Skriv "flip" (inden for 2 sek.)', en: 'Type "flip" (within 2 sec.)' } },
+  retro:    { icon: '📺', name: 'Retro Mode',   trigger: { da: 'Shift+klik på Feed-overskrift', en: 'Shift+click on Feed title' } },
+  gravity:  { icon: '⬇️', name: 'Gravity',      trigger: { da: 'Tryk G+G inden for 1 sek.', en: 'Press G+G within 1 sec.' } },
+  party:    { icon: '🎉', name: 'Party Mode',   trigger: { da: 'Skriv P+A+R+T+Y inden for 2 sek.', en: 'Type P+A+R+T+Y within 2 sec.' } },
+  rickroll: { icon: '🎵', name: 'Rick Roll',    trigger: { da: 'Rul til bunden og vent 4 sek.', en: 'Scroll to bottom and hold 4 sec.' } },
+}
+
+function EasterEggSettings({ lang }) {
+  const { eggs, toggleEgg } = useEasterEggs()
+  const adminConfig = loadAdminEggs()
+
+  const discovered = EGG_IDS.filter(id => eggs[id]?.discovered)
+  if (!discovered.length) return null
+
+  const fmtDate = (iso) => iso ? new Date(iso).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-GB') : '—'
+
+  return (
+    <div className="p-card" style={{ marginTop: 16, padding: '20px 22px' }}>
+      <h3 style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700 }}>🥚 {lang === 'da' ? 'Påskeæg' : 'Easter Eggs'}</h3>
+      <p style={{ margin: '0 0 8px', fontSize: 13, color: '#888' }}>
+        {lang === 'da' ? `Du har opdaget ${discovered.length} af ${EGG_IDS.length} skjulte funktioner.` : `You've discovered ${discovered.length} of ${EGG_IDS.length} hidden features.`}
+      </p>
+      {discovered.map(id => {
+        const meta = EGG_META[id]
+        const egg = eggs[id]
+        const adminEgg = adminConfig[id] || {}
+        const globallyDisabled = adminEgg.globalEnabled === false
+        const enabled = !globallyDisabled && egg?.enabled !== false
+        const hintText = adminEgg.hintsEnabled && adminEgg.hintText ? adminEgg.hintText : null
+        return (
+          <div key={id} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '10px 0', borderTop: '1px solid #eee', gap: 12 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 600, fontSize: 14 }}>{meta.icon} {meta.name}</div>
+              <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>{meta.trigger[lang]}</div>
+              {hintText && <div style={{ fontSize: 11, color: '#2D6A4F', marginTop: 3, fontStyle: 'italic' }}>💡 {hintText}</div>}
+              <div style={{ fontSize: 11, color: '#bbb', marginTop: 2 }}>
+                {lang === 'da' ? `Opdaget: ${fmtDate(egg?.firstDiscoveredAt)}` : `Discovered: ${fmtDate(egg?.firstDiscoveredAt)}`}
+                {' · '}
+                {lang === 'da' ? `Aktiveret ${egg?.activationCount ?? 1}×` : `Activated ${egg?.activationCount ?? 1}×`}
+              </div>
+              {globallyDisabled && (
+                <div style={{ fontSize: 11, color: '#e03131', marginTop: 2 }}>{lang === 'da' ? '⚠ Deaktiveret af admin' : '⚠ Disabled by admin'}</div>
+              )}
+            </div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: globallyDisabled ? 'not-allowed' : 'pointer', flexShrink: 0, marginTop: 2 }}>
+              <input type="checkbox" checked={enabled} disabled={globallyDisabled} onChange={() => !globallyDisabled && toggleEgg(id)} style={{ width: 16, height: 16 }} />
+              <span style={{ fontSize: 12, color: '#555' }}>{lang === 'da' ? 'Aktiv' : 'On'}</span>
+            </label>
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -10151,14 +10310,15 @@ function AdsManagementPage({ lang, t }) {
             {/* Recurring toggle */}
             <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
               {[false, true].map(r => {
-                const price = adSettings?.ad_price_cpm || 50
+                const adPrice = adSettings?.ad_price_cpm || 50
+                const adMonthlyPrice = adSettings?.ad_recurring_price ?? adPrice
                 const cur = adSettings?.currency || 'DKK'
                 return (
                   <button key={String(r)} type="button" onClick={() => setAdRecurring(r)}
                     style={{ flex: 1, padding: '8px 4px', borderRadius: 7, border: `1.5px solid ${adRecurring === r ? '#2D6A4F' : '#ddd'}`, background: adRecurring === r ? '#eaf5ef' : '#fff', color: adRecurring === r ? '#2D6A4F' : '#555', fontWeight: adRecurring === r ? 700 : 400, fontSize: 12, cursor: 'pointer' }}>
                     {r
-                      ? (lang === 'da' ? `🔁 Løbende — ${price} ${cur}/md.` : `🔁 Recurring — ${price} ${cur}/mo.`)
-                      : (lang === 'da' ? `1× Engangsbetaling — ${price} ${cur}` : `1× One-time — ${price} ${cur}`)}
+                      ? (lang === 'da' ? `🔁 Løbende — ${adMonthlyPrice} ${cur}/md.` : `🔁 Recurring — ${adMonthlyPrice} ${cur}/mo.`)
+                      : (lang === 'da' ? `1× Engangsbetaling — ${adPrice} ${cur}` : `1× One-time — ${adPrice} ${cur}`)}
                   </button>
                 )
               })}
@@ -10314,7 +10474,9 @@ function AdminAdSettingsPanel({ lang, t }) {
     await apiSaveAdminAdSettings({
       adfree_price_private: parseFloat(settings.adfree_price_private),
       adfree_price_business: parseFloat(settings.adfree_price_business),
+      adfree_recurring_pct: parseInt(settings.adfree_recurring_pct ?? 100),
       ad_price_cpm: parseFloat(settings.ad_price_cpm),
+      ad_recurring_pct: parseInt(settings.ad_recurring_pct ?? 100),
       currency: settings.currency,
       max_ads_feed: parseInt(settings.max_ads_feed),
       max_ads_sidebar: parseInt(settings.max_ads_sidebar),
@@ -10348,8 +10510,24 @@ function AdminAdSettingsPanel({ lang, t }) {
         <input type="number" step="0.01" style={iS} value={settings.adfree_price_private || ''} onChange={e => handle('adfree_price_private', e.target.value)} />
         <label style={lS}>{t.adminAdsPriceBusiness}</label>
         <input type="number" step="0.01" style={iS} value={settings.adfree_price_business || ''} onChange={e => handle('adfree_price_business', e.target.value)} />
+        <label style={lS}>{t.adminAdsRecurringPctAdfree}</label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <input type="number" min="1" max="200" style={{ ...iS, maxWidth: 100 }} value={settings.adfree_recurring_pct ?? 100} onChange={e => handle('adfree_recurring_pct', e.target.value)} />
+          <span style={{ fontSize: 12, color: '#888' }}>%</span>
+          <span style={{ fontSize: 12, color: '#aaa' }}>
+            {lang === 'da' ? `→ Privat: ${Math.round((parseFloat(settings.adfree_price_private)||29) * (parseInt(settings.adfree_recurring_pct??100)/100) * 100)/100} ${settings.currency||'DKK'}/md.` : `→ Personal: ${Math.round((parseFloat(settings.adfree_price_private)||29) * (parseInt(settings.adfree_recurring_pct??100)/100) * 100)/100} ${settings.currency||'DKK'}/mo.`}
+          </span>
+        </div>
         <label style={lS}>{t.adminAdsCPM}</label>
         <input type="number" step="0.01" style={iS} value={settings.ad_price_cpm || ''} onChange={e => handle('ad_price_cpm', e.target.value)} />
+        <label style={lS}>{t.adminAdsRecurringPctAd}</label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <input type="number" min="1" max="200" style={{ ...iS, maxWidth: 100 }} value={settings.ad_recurring_pct ?? 100} onChange={e => handle('ad_recurring_pct', e.target.value)} />
+          <span style={{ fontSize: 12, color: '#888' }}>%</span>
+          <span style={{ fontSize: 12, color: '#aaa' }}>
+            {lang === 'da' ? `→ ${Math.round((parseFloat(settings.ad_price_cpm)||50) * (parseInt(settings.ad_recurring_pct??100)/100) * 100)/100} ${settings.currency||'DKK'}/md.` : `→ ${Math.round((parseFloat(settings.ad_price_cpm)||50) * (parseInt(settings.ad_recurring_pct??100)/100) * 100)/100} ${settings.currency||'DKK'}/mo.`}
+          </span>
+        </div>
         <label style={lS}>{t.adminAdsCurrency}</label>
         <input style={{ ...iS, maxWidth: 120 }} value={settings.currency || 'DKK'} onChange={e => handle('currency', e.target.value)} />
 
@@ -11797,6 +11975,146 @@ function AdminPlatformAdsPanel({ lang }) {
   )
 }
 
+function AdminEasterEggsPanel({ lang }) {
+  const ADMIN_KEY = ADMIN_LS_KEY
+  const [cfg, setCfg] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(ADMIN_KEY) || '{}') } catch { return {} }
+  })
+  const [stats, setStats] = useState(null)
+  const [statsNote, setStatsNote] = useState(null)
+
+  useEffect(() => {
+    apiGetAdminEasterEggStats()
+      .then(d => { if (d?.stats) setStats(d.stats) })
+      .catch(() => setStatsNote(lang === 'da' ? 'Serverstatistik utilgængelig.' : 'Server stats unavailable.'))
+  }, [lang])
+
+  const updateCfg = (id, key, val) => {
+    setCfg(prev => {
+      const updated = { ...prev, [id]: { ...(prev[id] || {}), [key]: val } }
+      localStorage.setItem(ADMIN_KEY, JSON.stringify(updated))
+      return updated
+    })
+  }
+
+  const statMap = {}
+  if (stats) for (const s of stats) statMap[s.egg_id] = s
+
+  const maxAct = Math.max(1, ...EGG_IDS.map(id => statMap[id]?.total_activations || 0))
+
+  const fmtDays = (sec) => sec != null ? (sec / 86400).toFixed(1) : '—'
+
+  return (
+    <div>
+      {/* Config table */}
+      <div className="p-card" style={{ marginBottom: 20, padding: '20px 22px', overflowX: 'auto' }}>
+        <h3 style={{ margin: '0 0 14px', fontSize: 16, fontWeight: 700 }}>🥚 {lang === 'da' ? 'Påskeæg — konfiguration' : 'Easter Eggs — configuration'}</h3>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <thead>
+            <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
+              <th style={{ padding: '6px 8px', fontWeight: 700, color: '#555' }}>{lang === 'da' ? 'Navn' : 'Name'}</th>
+              <th style={{ padding: '6px 8px', fontWeight: 700, color: '#555' }}>{lang === 'da' ? 'Trigger' : 'Trigger'}</th>
+              <th style={{ padding: '6px 8px', fontWeight: 700, color: '#555', textAlign: 'center' }}>{lang === 'da' ? 'Global' : 'Global'}</th>
+              <th style={{ padding: '6px 8px', fontWeight: 700, color: '#555', textAlign: 'center' }}>{lang === 'da' ? 'Hints' : 'Hints'}</th>
+              <th style={{ padding: '6px 8px', fontWeight: 700, color: '#555' }}>{lang === 'da' ? 'Hint-tekst' : 'Hint text'}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {EGG_IDS.map(id => {
+              const meta = EGG_META[id]
+              const ec = cfg[id] || {}
+              const globalEnabled = ec.globalEnabled !== false
+              const hintsEnabled = !!ec.hintsEnabled
+              return (
+                <tr key={id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                  <td style={{ padding: '8px 8px' }}><span style={{ marginRight: 6 }}>{meta.icon}</span>{meta.name}</td>
+                  <td style={{ padding: '8px 8px', color: '#888', fontSize: 12 }}>{meta.trigger[lang]}</td>
+                  <td style={{ padding: '8px', textAlign: 'center' }}>
+                    <input type="checkbox" checked={globalEnabled} onChange={e => updateCfg(id, 'globalEnabled', e.target.checked)} style={{ width: 16, height: 16, cursor: 'pointer' }} />
+                  </td>
+                  <td style={{ padding: '8px', textAlign: 'center' }}>
+                    <input type="checkbox" checked={hintsEnabled} onChange={e => updateCfg(id, 'hintsEnabled', e.target.checked)} style={{ width: 16, height: 16, cursor: 'pointer' }} />
+                  </td>
+                  <td style={{ padding: '8px' }}>
+                    <input
+                      type="text"
+                      value={ec.hintText || ''}
+                      onChange={e => updateCfg(id, 'hintText', e.target.value)}
+                      placeholder={hintsEnabled ? (lang === 'da' ? 'Hint til brugere…' : 'Hint for users…') : ''}
+                      disabled={!hintsEnabled}
+                      style={{ width: '100%', padding: '4px 8px', borderRadius: 5, border: '1px solid #ddd', fontSize: 12, boxSizing: 'border-box', opacity: hintsEnabled ? 1 : 0.4 }}
+                    />
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+        <p style={{ fontSize: 11, color: '#aaa', margin: '10px 0 0' }}>
+          {lang === 'da' ? '⚠ Konfiguration gemmes i localStorage på denne enhed.' : '⚠ Configuration is stored in localStorage on this device.'}
+        </p>
+      </div>
+
+      {/* Stats table */}
+      <div className="p-card" style={{ padding: '20px 22px', overflowX: 'auto' }}>
+        <h3 style={{ margin: '0 0 14px', fontSize: 16, fontWeight: 700 }}>📊 {lang === 'da' ? 'Statistik' : 'Statistics'}</h3>
+        {statsNote && <p style={{ fontSize: 13, color: '#aaa', margin: '0 0 14px' }}>{statsNote}</p>}
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <thead>
+            <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
+              <th style={{ padding: '6px 8px', fontWeight: 700, color: '#555' }}>{lang === 'da' ? 'Æg' : 'Egg'}</th>
+              <th style={{ padding: '6px 8px', fontWeight: 700, color: '#555', textAlign: 'right' }}>{lang === 'da' ? 'Aktiveringer' : 'Activations'}</th>
+              <th style={{ padding: '6px 8px', fontWeight: 700, color: '#555', textAlign: 'right' }}>{lang === 'da' ? 'Opdagere' : 'Discoverers'}</th>
+              <th style={{ padding: '6px 8px', fontWeight: 700, color: '#555', textAlign: 'right' }}>{lang === 'da' ? 'Gns. dage' : 'Avg. days'}</th>
+              <th style={{ padding: '6px 8px', fontWeight: 700, color: '#555', textAlign: 'right' }}>{lang === 'da' ? 'Hurtigst' : 'Fastest'}</th>
+              <th style={{ padding: '6px 8px', fontWeight: 700, color: '#555', textAlign: 'right' }}>{lang === 'da' ? 'Langsomst' : 'Slowest'}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {EGG_IDS.map(id => {
+              const meta = EGG_META[id]
+              const s = statMap[id]
+              return (
+                <tr key={id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                  <td style={{ padding: '8px' }}>{meta.icon} {meta.name}</td>
+                  <td style={{ padding: '8px', textAlign: 'right', fontWeight: 600 }}>{s?.total_activations ?? 0}</td>
+                  <td style={{ padding: '8px', textAlign: 'right' }}>{s?.unique_discoverers ?? 0}</td>
+                  <td style={{ padding: '8px', textAlign: 'right' }}>{fmtDays(s?.avg_seconds)}</td>
+                  <td style={{ padding: '8px', textAlign: 'right', color: '#2D6A4F' }}>{fmtDays(s?.min_seconds)}</td>
+                  <td style={{ padding: '8px', textAlign: 'right', color: '#888' }}>{fmtDays(s?.max_seconds)}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+
+        {/* Simple SVG bar chart */}
+        <div style={{ marginTop: 20 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#555', marginBottom: 10 }}>
+            {lang === 'da' ? 'Aktiveringer pr. påskeæg' : 'Activations per easter egg'}
+          </div>
+          {EGG_IDS.map(id => {
+            const meta = EGG_META[id]
+            const count = statMap[id]?.total_activations || 0
+            const pct = Math.round((count / maxAct) * 100)
+            return (
+              <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                <span style={{ width: 22, fontSize: 14 }}>{meta.icon}</span>
+                <span style={{ width: 110, fontSize: 12, color: '#555', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{meta.name}</span>
+                <div style={{ flex: 1, background: '#f0f0f0', borderRadius: 4, height: 14, overflow: 'hidden' }}>
+                  <div style={{ width: `${pct}%`, height: '100%', background: '#2D6A4F', borderRadius: 4, transition: 'width 0.4s' }} />
+                </div>
+                <span style={{ fontSize: 12, color: '#888', width: 28, textAlign: 'right' }}>{count}</span>
+              </div>
+            )
+          })}
+          {!stats && <p style={{ fontSize: 12, color: '#ccc', margin: '8px 0 0' }}>{lang === 'da' ? '(Ingen serverdata endnu)' : '(No server data yet)'}</p>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function AdminPage({ lang, t }) {
   const [adminTab, setAdminTab] = useState('stats')
   const [form, setForm] = useState({
@@ -11946,6 +12264,9 @@ function AdminPage({ lang, t }) {
         </button>
         <button className={`p-filter-tab${adminTab === 'moderators' ? ' active' : ''}`} onClick={() => setAdminTab('moderators')}>
           👮 {t.adminModModeratorsTab}
+        </button>
+        <button className={`p-filter-tab${adminTab === 'easter-eggs' ? ' active' : ''}`} onClick={() => setAdminTab('easter-eggs')}>
+          🥚 {lang === 'da' ? 'Påskeæg' : 'Easter Eggs'}
         </button>
       </div>
 
@@ -13073,6 +13394,8 @@ function AdminPage({ lang, t }) {
           </div>
         </div>
       )}
+
+      {adminTab === 'easter-eggs' && <AdminEasterEggsPanel lang={lang} />}
     </div>
   )
 }

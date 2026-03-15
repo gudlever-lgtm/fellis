@@ -4025,6 +4025,8 @@ async function initAdminAdSettings() {
     await pool.query(`ALTER TABLE admin_ad_settings ADD COLUMN IF NOT EXISTS max_ads_sidebar INT NOT NULL DEFAULT 2`).catch(() => {})
     await pool.query(`ALTER TABLE admin_ad_settings ADD COLUMN IF NOT EXISTS max_ads_stories INT NOT NULL DEFAULT 1`).catch(() => {})
     await pool.query(`ALTER TABLE admin_ad_settings ADD COLUMN IF NOT EXISTS refresh_interval_seconds INT NOT NULL DEFAULT 300`).catch(() => {})
+    await pool.query(`ALTER TABLE admin_ad_settings ADD COLUMN IF NOT EXISTS adfree_recurring_pct INT NOT NULL DEFAULT 100`).catch(() => {})
+    await pool.query(`ALTER TABLE admin_ad_settings ADD COLUMN IF NOT EXISTS ad_recurring_pct INT NOT NULL DEFAULT 100`).catch(() => {})
     // Ensure a default row always exists
     await pool.query(`INSERT IGNORE INTO admin_ad_settings (id) VALUES (1)`)
     // Fix NULL ads_enabled on existing rows (should default to enabled)
@@ -4111,8 +4113,11 @@ app.get('/api/ads', authenticate, async (req, res) => {
 // NOTE: must be registered BEFORE /api/ads/:id to avoid Express matching "price" as :id
 app.get('/api/ads/price', authenticate, async (req, res) => {
   try {
-    const [[row]] = await pool.query('SELECT ad_price_cpm, currency FROM admin_ad_settings WHERE id = 1')
-    res.json({ ad_price_cpm: row?.ad_price_cpm || 50, currency: row?.currency || 'DKK' })
+    const [[row]] = await pool.query('SELECT ad_price_cpm, ad_recurring_pct, currency FROM admin_ad_settings WHERE id = 1')
+    const adPrice = parseFloat(row?.ad_price_cpm) || 50
+    const adRecurringPct = parseInt(row?.ad_recurring_pct ?? 100)
+    const adRecurringPrice = Math.round(adPrice * adRecurringPct / 100 * 100) / 100
+    res.json({ ad_price_cpm: adPrice, ad_recurring_price: adRecurringPrice, ad_recurring_pct: adRecurringPct, currency: row?.currency || 'DKK' })
   } catch (err) {
     console.error('GET /api/ads/price error:', err.message)
     res.status(500).json({ error: 'Server error' })
@@ -4217,7 +4222,7 @@ app.get('/api/admin/ad-settings', authenticate, requireAdmin, async (req, res) =
 
 // PUT /api/admin/ad-settings — update ad pricing & display settings (admin only)
 app.put('/api/admin/ad-settings', authenticate, requireAdmin, async (req, res) => {
-  const allowed = ['adfree_price_private', 'adfree_price_business', 'ad_price_cpm', 'currency', 'max_ads_feed', 'max_ads_sidebar', 'max_ads_stories', 'refresh_interval_seconds', 'ads_enabled', 'stripe_price_adfree_private', 'stripe_price_adfree_business']
+  const allowed = ['adfree_price_private', 'adfree_price_business', 'ad_price_cpm', 'currency', 'max_ads_feed', 'max_ads_sidebar', 'max_ads_stories', 'refresh_interval_seconds', 'ads_enabled', 'stripe_price_adfree_private', 'stripe_price_adfree_business', 'adfree_recurring_pct', 'ad_recurring_pct']
   const updates = {}
   for (const key of allowed) {
     if (key in req.body) updates[key] = req.body[key]
@@ -4360,14 +4365,37 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
   }
 })
 
-// GET /api/me/subscription — get current user's ads_free status
+// GET /api/me/subscription — get current user's ads_free status + Mollie subscription details
 app.get('/api/me/subscription', authenticate, async (req, res) => {
   try {
     const [[user]] = await pool.query('SELECT ads_free, mode FROM users WHERE id = ?', [req.userId])
     if (!user) return res.status(404).json({ error: 'User not found' })
-    const [[adSettings]] = await pool.query('SELECT adfree_price_private, adfree_price_business, currency, ads_enabled FROM admin_ad_settings WHERE id = 1').catch(() => [[{ adfree_price_private: 29, adfree_price_business: 49, currency: 'DKK', ads_enabled: 1 }]])
-    const price = user.mode === 'business' ? adSettings?.adfree_price_business : adSettings?.adfree_price_private
-    res.json({ ads_free: Boolean(user.ads_free), price: price || 29, currency: adSettings?.currency || 'DKK', ads_enabled: Boolean(adSettings?.ads_enabled) })
+    const [[adSettings]] = await pool.query('SELECT adfree_price_private, adfree_price_business, adfree_recurring_pct, currency, ads_enabled FROM admin_ad_settings WHERE id = 1').catch(() => [[{ adfree_price_private: 29, adfree_price_business: 49, adfree_recurring_pct: 100, currency: 'DKK', ads_enabled: 1 }]])
+    const price = parseFloat(user.mode === 'business' ? adSettings?.adfree_price_business : adSettings?.adfree_price_private) || 29
+    const recurringPct = parseInt(adSettings?.adfree_recurring_pct ?? 100)
+    const recurringPrice = Math.round(price * recurringPct / 100 * 100) / 100
+
+    // Include Mollie subscription status
+    const [[sub]] = await pool.query(
+      `SELECT plan, status, expires_at, recurring, mollie_subscription_id
+       FROM subscriptions WHERE user_id = ? AND plan != 'ad_activation'
+       ORDER BY recurring DESC, created_at DESC LIMIT 1`,
+      [req.userId]
+    ).catch(() => [[null]])
+
+    res.json({
+      ads_free: Boolean(user.ads_free),
+      price,
+      recurring_price: recurringPrice,
+      recurring_pct: recurringPct,
+      currency: adSettings?.currency || 'DKK',
+      ads_enabled: Boolean(adSettings?.ads_enabled),
+      plan: sub?.plan || null,
+      status: sub?.status || null,
+      expires_at: sub?.expires_at || null,
+      recurring: Boolean(sub?.recurring),
+      has_subscription: !!sub?.mollie_subscription_id,
+    })
   } catch (err) {
     console.error('GET /api/me/subscription error:', err.message)
     res.status(500).json({ error: 'Server error' })
@@ -4457,32 +4485,28 @@ app.post('/api/mollie/payment/create', authenticate, async (req, res) => {
     const [[user]] = await pool.query('SELECT id, email, name, mode FROM users WHERE id = ?', [req.userId])
     if (!user) return res.status(404).json({ error: 'User not found' })
 
-    // Resolve amount from admin_settings (mollie_price_*) or fall back to ad_settings prices
+    // Resolve amount from admin_ad_settings
     let resolvedAmount = null
     let resolvedCurrency = reqCurrency || 'DKK'
-    try {
-      if (plan === 'adfree') {
-        const priceKey = user.mode === 'business' ? 'mollie_price_adfree_business' : 'mollie_price_adfree_private'
-        const [[pr]] = await pool.query('SELECT key_value FROM admin_settings WHERE key_name = ?', [priceKey])
-        if (pr?.key_value) resolvedAmount = parseFloat(pr.key_value)
-      } else if (plan === 'boost') {
-        const [[pr]] = await pool.query("SELECT key_value FROM admin_settings WHERE key_name = 'mollie_price_boost'")
-        if (pr?.key_value) resolvedAmount = parseFloat(pr.key_value)
-      } else if (plan === 'ad_activation') {
-        const [[adS]] = await pool.query('SELECT ad_price_cpm, currency FROM admin_ad_settings WHERE id = 1').catch(() => [[null]])
-        if (adS?.ad_price_cpm) { resolvedAmount = parseFloat(adS.ad_price_cpm); resolvedCurrency = adS.currency || 'DKK' }
+    const [[adS]] = await pool.query('SELECT adfree_price_private, adfree_price_business, adfree_recurring_pct, ad_price_cpm, ad_recurring_pct, currency FROM admin_ad_settings WHERE id = 1').catch(() => [[null]])
+    resolvedCurrency = adS?.currency || 'DKK'
+    if (plan === 'adfree') {
+      const oneTimePrice = parseFloat(user.mode === 'business' ? adS?.adfree_price_business : adS?.adfree_price_private) || 29
+      if (recurring) {
+        const pct = parseInt(adS?.adfree_recurring_pct ?? 100)
+        resolvedAmount = Math.round(oneTimePrice * pct / 100 * 100) / 100
+      } else {
+        resolvedAmount = oneTimePrice
       }
-      // Fallback: use ad_settings prices + currency
-      if (!resolvedAmount) {
-        const [[adS]] = await pool.query('SELECT adfree_price_private, adfree_price_business, currency FROM admin_ad_settings WHERE id = 1').catch(() => [[null]])
-        if (adS) {
-          resolvedAmount = user.mode === 'business' ? adS.adfree_price_business : adS.adfree_price_private
-          resolvedCurrency = adS.currency || 'DKK'
-        }
+    } else if (plan === 'ad_activation') {
+      const oneTimePrice = parseFloat(adS?.ad_price_cpm) || 50
+      if (recurring) {
+        const pct = parseInt(adS?.ad_recurring_pct ?? 100)
+        resolvedAmount = Math.round(oneTimePrice * pct / 100 * 100) / 100
+      } else {
+        resolvedAmount = oneTimePrice
       }
-    } catch {}
-
-    // Final fallback
+    }
     if (!resolvedAmount || isNaN(resolvedAmount) || resolvedAmount <= 0) resolvedAmount = 29
 
     const origin = req.headers.origin || 'https://fellis.eu'
@@ -4517,6 +4541,12 @@ app.post('/api/mollie/payment/create', authenticate, async (req, res) => {
 
     const payment = await mollie.payments.create(paymentParams)
 
+    const checkoutUrl = payment._links?.checkout?.href
+    if (!checkoutUrl) {
+      console.error('POST /api/mollie/payment/create: no checkout URL in response', JSON.stringify(payment._links))
+      return res.status(500).json({ error: 'Mollie returnerede ingen checkout-URL. Prøv igen.' })
+    }
+
     // Record the pending payment in the subscriptions table
     await pool.query(
       'INSERT INTO subscriptions (user_id, mollie_payment_id, plan, status, ad_id, recurring) VALUES (?, ?, ?, ?, ?, ?)',
@@ -4533,10 +4563,12 @@ app.post('/api/mollie/payment/create', authenticate, async (req, res) => {
       ).catch(() => {})
     }
 
-    res.json({ checkoutUrl: payment._links.checkout.href, paymentId: payment.id })
+    res.json({ checkoutUrl, paymentId: payment.id })
   } catch (err) {
-    console.error('POST /api/mollie/payment/create error:', err.message)
-    res.status(500).json({ error: 'Server error' })
+    console.error('POST /api/mollie/payment/create error:', err.message, err.stack)
+    // Surface Mollie API error details if available
+    const mollieMsg = err.message || ''
+    res.status(500).json({ error: mollieMsg || 'Server error' })
   }
 })
 
@@ -6862,6 +6894,72 @@ process.on('uncaughtException', (err) => {
   console.error('Uncaught exception (caught at process level):', err)
 })
 
+// ── Easter Eggs ──────────────────────────────────────────────────────────────
+
+async function initEasterEggs() {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS easter_egg_events (
+      id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      user_id     INT UNSIGNED NOT NULL,
+      egg_id      VARCHAR(32)  NOT NULL,
+      event       VARCHAR(32)  NOT NULL DEFAULT 'activated',
+      activated_at TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_user_egg (user_id, egg_id),
+      KEY idx_egg_event (egg_id, event)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+  } catch (err) {
+    console.error('initEasterEggs:', err.message)
+  }
+}
+
+// POST /api/easter-eggs/event — record an egg activation (authenticated)
+app.post('/api/easter-eggs/event', authenticate, async (req, res) => {
+  try {
+    const { eggId, event = 'activated' } = req.body || {}
+    if (!eggId) return res.status(400).json({ error: 'Missing eggId' })
+    const validEvents = ['discovered', 'activated']
+    if (!validEvents.includes(event)) return res.status(400).json({ error: 'Invalid event' })
+    await pool.query(
+      'INSERT INTO easter_egg_events (user_id, egg_id, event) VALUES (?, ?, ?)',
+      [req.userId, eggId, event]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/easter-eggs/event error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/admin/easter-eggs/stats — per-egg stats (admin only)
+app.get('/api/admin/easter-eggs/stats', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT
+        e.egg_id,
+        COUNT(*) AS total_activations,
+        COUNT(DISTINCT e.user_id) AS unique_discoverers,
+        MIN(TIMESTAMPDIFF(SECOND, u.created_at, e.activated_at)) AS min_seconds,
+        MAX(TIMESTAMPDIFF(SECOND, u.created_at, e.activated_at)) AS max_seconds,
+        AVG(TIMESTAMPDIFF(SECOND, u.created_at, e.activated_at)) AS avg_seconds
+      FROM easter_egg_events e
+      JOIN users u ON u.id = e.user_id
+      WHERE e.event = 'discovered'
+      GROUP BY e.egg_id
+    `)
+    const [actRows] = await pool.query(`
+      SELECT egg_id, COUNT(*) AS total FROM easter_egg_events GROUP BY egg_id
+    `)
+    const actMap = {}
+    for (const r of actRows) actMap[r.egg_id] = r.total
+    const stats = rows.map(r => ({ ...r, total_activations: actMap[r.egg_id] || r.total_activations }))
+    res.json({ stats })
+  } catch (err) {
+    console.error('GET /api/admin/easter-eggs/stats error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
   console.log(`fellis.eu API running on http://localhost:${PORT}`)
@@ -6885,6 +6983,7 @@ app.listen(PORT, () => {
   initAds()
   initAdminAdSettings()
   initBusinessFeatures()
+  initEasterEggs()
 })
 
 app.all('/api/stub/:fn', authenticate, (req, res) => res.json({ ok: true }))
