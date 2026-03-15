@@ -6,6 +6,8 @@ import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
 import ReelsPage from './Reels.jsx'
 import AdBanner from './AdBanner.jsx'
+import useKonamiCode from './hooks/useKonamiCode.js'
+import ChuckBanner from './components/ChuckBanner.jsx'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -1240,6 +1242,21 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [feedRsvpMap, setFeedRsvpMap] = useState({})
   const [feedRsvpExtras, setFeedRsvpExtras] = useState({})
   const { rels } = useContactRelationships()
+
+  // 🥚 Easter egg: Chuck Norris
+  const EASTER_EGG_KEY = 'fellis_easter_eggs'
+  const getEasterEggs = () => { try { return JSON.parse(localStorage.getItem(EASTER_EGG_KEY) || '{}') } catch { return {} } }
+  const [chuckVisible, setChuckVisible] = useState(false)
+  const chuckEgg = getEasterEggs().chuckNorris
+  const chuckEnabled = chuckEgg?.enabled !== false
+  const triggerChuck = () => {
+    const eggs = getEasterEggs()
+    eggs.chuckNorris = { discovered: true, enabled: eggs.chuckNorris?.enabled !== false }
+    localStorage.setItem(EASTER_EGG_KEY, JSON.stringify(eggs))
+    if (eggs.chuckNorris.enabled) setChuckVisible(true)
+  }
+  useKonamiCode(triggerChuck, !chuckVisible)
+
   const CP_FEED_DEFAULT_COMMENTS = [
     { id: 1, author: 'Mia Skov', text: 'Spændende mulighed!' },
     { id: 2, author: 'Jonas Holm', text: 'Sender ansøgning i dag 🙌' },
@@ -1756,6 +1773,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
           {blockToast}
         </div>
       )}
+      {/* 🥚 Chuck Norris easter egg */}
+      {chuckVisible && <ChuckBanner onDismiss={() => setChuckVisible(false)} />}
       {/* Keyword warning modal */}
       {keywordWarning && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000 }}>
@@ -3419,7 +3438,10 @@ function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, on
         ))}
       </div>
 
-      {tab === 'konto' && <SettingsKonto lang={lang} t={t} currentUser={currentUser} mode={mode} fS={fS} lS={lS} onNavigate={onNavigate} onOpenModeModal={onOpenModeModal} />}
+      {tab === 'konto' && <>
+        <SettingsKonto lang={lang} t={t} currentUser={currentUser} mode={mode} fS={fS} lS={lS} onNavigate={onNavigate} onOpenModeModal={onOpenModeModal} />
+        <EasterEggSettings lang={lang} />
+      </>}
       {tab === 'billing' && <BillingSettings lang={lang} t={t} />}
       {tab === 'privatliv' && <SettingsPrivatliv lang={lang} t={t} fS={fS} lS={lS} />}
       {tab === 'sessions' && <SettingsSessions lang={lang} t={t} onLogout={onLogout} />}
@@ -3471,6 +3493,8 @@ function BillingSettings({ lang, t }) {
 
   const currency = sub.currency || 'DKK'
   const price = sub.price || 29
+  const monthlyPrice = sub.recurring_price ?? price
+  const displayPrice = recurring ? monthlyPrice : price
 
   return (
     <div>
@@ -3515,7 +3539,7 @@ function BillingSettings({ lang, t }) {
                 <button key={String(r)} onClick={() => setRecurring(r)}
                   style={{ flex: 1, padding: '9px 0', borderRadius: 8, border: `1.5px solid ${recurring === r ? '#2D6A4F' : '#ddd'}`, background: recurring === r ? '#eaf5ef' : '#fff', color: recurring === r ? '#2D6A4F' : '#555', fontWeight: recurring === r ? 700 : 400, fontSize: 13, cursor: 'pointer' }}>
                   {r
-                    ? (lang === 'da' ? `🔁 Månedligt — ${price} ${currency}/md.` : `🔁 Monthly — ${price} ${currency}/mo.`)
+                    ? (lang === 'da' ? `🔁 Månedligt — ${monthlyPrice} ${currency}/md.` : `🔁 Monthly — ${monthlyPrice} ${currency}/mo.`)
                     : (lang === 'da' ? `1× Engangsbetaling — ${price} ${currency}` : `1× One-time — ${price} ${currency}`)}
                 </button>
               ))}
@@ -3529,8 +3553,8 @@ function BillingSettings({ lang, t }) {
               {mollieLoading
                 ? (lang === 'da' ? 'Henter…' : 'Loading…')
                 : (lang === 'da'
-                    ? (recurring ? `Opret abonnement — ${price} ${currency}/md.` : `Betal ${price} ${currency}`)
-                    : (recurring ? `Subscribe — ${price} ${currency}/mo.` : `Pay ${price} ${currency}`))}
+                    ? (recurring ? `Opret abonnement — ${monthlyPrice} ${currency}/md.` : `Betal ${displayPrice} ${currency}`)
+                    : (recurring ? `Subscribe — ${monthlyPrice} ${currency}/mo.` : `Pay ${displayPrice} ${currency}`))}
             </button>
             {mollieError && <p style={{ fontSize: 13, color: '#e03131', margin: '0 0 12px' }}>{mollieError}</p>}
 
@@ -3974,6 +3998,45 @@ function ModeratorRequestCard({ lang, t, currentUser }) {
             }}
           >{t.modRequestReapply}</button>
         </>
+      )}
+    </div>
+  )
+}
+
+const EASTER_EGG_LS_KEY = 'fellis_easter_eggs'
+function getStoredEggs() { try { return JSON.parse(localStorage.getItem(EASTER_EGG_LS_KEY) || '{}') } catch { return {} } }
+
+function EasterEggSettings({ lang }) {
+  const [eggs, setEggs] = useState(getStoredEggs)
+
+  const hasAny = Object.values(eggs).some(e => e?.discovered)
+  if (!hasAny) return null
+
+  const toggleEgg = (key) => {
+    const updated = { ...eggs, [key]: { ...eggs[key], enabled: !eggs[key]?.enabled } }
+    localStorage.setItem(EASTER_EGG_LS_KEY, JSON.stringify(updated))
+    setEggs(updated)
+  }
+
+  return (
+    <div className="p-card" style={{ marginTop: 16, padding: '20px 22px' }}>
+      <h3 style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700 }}>🥚 {lang === 'da' ? 'Påskeæg' : 'Easter Eggs'}</h3>
+      <p style={{ margin: '0 0 16px', fontSize: 13, color: '#888' }}>
+        {lang === 'da' ? 'Skjulte funktioner du har opdaget.' : 'Hidden features you have discovered.'}
+      </p>
+      {eggs.chuckNorris?.discovered && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderTop: '1px solid #eee' }}>
+          <div>
+            <div style={{ fontWeight: 600, fontSize: 14 }}>🤜 Chuck Norris</div>
+            <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
+              {lang === 'da' ? 'Konami-kode aktiverer en sjov bundlinje.' : 'Konami code triggers a fun bottom bar.'}
+            </div>
+          </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+            <input type="checkbox" checked={eggs.chuckNorris?.enabled !== false} onChange={() => toggleEgg('chuckNorris')} style={{ width: 16, height: 16 }} />
+            <span style={{ fontSize: 13, color: '#555' }}>{lang === 'da' ? 'Aktiveret' : 'Enabled'}</span>
+          </label>
+        </div>
       )}
     </div>
   )
@@ -10151,14 +10214,15 @@ function AdsManagementPage({ lang, t }) {
             {/* Recurring toggle */}
             <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
               {[false, true].map(r => {
-                const price = adSettings?.ad_price_cpm || 50
+                const adPrice = adSettings?.ad_price_cpm || 50
+                const adMonthlyPrice = adSettings?.ad_recurring_price ?? adPrice
                 const cur = adSettings?.currency || 'DKK'
                 return (
                   <button key={String(r)} type="button" onClick={() => setAdRecurring(r)}
                     style={{ flex: 1, padding: '8px 4px', borderRadius: 7, border: `1.5px solid ${adRecurring === r ? '#2D6A4F' : '#ddd'}`, background: adRecurring === r ? '#eaf5ef' : '#fff', color: adRecurring === r ? '#2D6A4F' : '#555', fontWeight: adRecurring === r ? 700 : 400, fontSize: 12, cursor: 'pointer' }}>
                     {r
-                      ? (lang === 'da' ? `🔁 Løbende — ${price} ${cur}/md.` : `🔁 Recurring — ${price} ${cur}/mo.`)
-                      : (lang === 'da' ? `1× Engangsbetaling — ${price} ${cur}` : `1× One-time — ${price} ${cur}`)}
+                      ? (lang === 'da' ? `🔁 Løbende — ${adMonthlyPrice} ${cur}/md.` : `🔁 Recurring — ${adMonthlyPrice} ${cur}/mo.`)
+                      : (lang === 'da' ? `1× Engangsbetaling — ${adPrice} ${cur}` : `1× One-time — ${adPrice} ${cur}`)}
                   </button>
                 )
               })}
@@ -10314,7 +10378,9 @@ function AdminAdSettingsPanel({ lang, t }) {
     await apiSaveAdminAdSettings({
       adfree_price_private: parseFloat(settings.adfree_price_private),
       adfree_price_business: parseFloat(settings.adfree_price_business),
+      adfree_recurring_pct: parseInt(settings.adfree_recurring_pct ?? 100),
       ad_price_cpm: parseFloat(settings.ad_price_cpm),
+      ad_recurring_pct: parseInt(settings.ad_recurring_pct ?? 100),
       currency: settings.currency,
       max_ads_feed: parseInt(settings.max_ads_feed),
       max_ads_sidebar: parseInt(settings.max_ads_sidebar),
@@ -10348,8 +10414,24 @@ function AdminAdSettingsPanel({ lang, t }) {
         <input type="number" step="0.01" style={iS} value={settings.adfree_price_private || ''} onChange={e => handle('adfree_price_private', e.target.value)} />
         <label style={lS}>{t.adminAdsPriceBusiness}</label>
         <input type="number" step="0.01" style={iS} value={settings.adfree_price_business || ''} onChange={e => handle('adfree_price_business', e.target.value)} />
+        <label style={lS}>{t.adminAdsRecurringPctAdfree}</label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <input type="number" min="1" max="200" style={{ ...iS, maxWidth: 100 }} value={settings.adfree_recurring_pct ?? 100} onChange={e => handle('adfree_recurring_pct', e.target.value)} />
+          <span style={{ fontSize: 12, color: '#888' }}>%</span>
+          <span style={{ fontSize: 12, color: '#aaa' }}>
+            {lang === 'da' ? `→ Privat: ${Math.round((parseFloat(settings.adfree_price_private)||29) * (parseInt(settings.adfree_recurring_pct??100)/100) * 100)/100} ${settings.currency||'DKK'}/md.` : `→ Personal: ${Math.round((parseFloat(settings.adfree_price_private)||29) * (parseInt(settings.adfree_recurring_pct??100)/100) * 100)/100} ${settings.currency||'DKK'}/mo.`}
+          </span>
+        </div>
         <label style={lS}>{t.adminAdsCPM}</label>
         <input type="number" step="0.01" style={iS} value={settings.ad_price_cpm || ''} onChange={e => handle('ad_price_cpm', e.target.value)} />
+        <label style={lS}>{t.adminAdsRecurringPctAd}</label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <input type="number" min="1" max="200" style={{ ...iS, maxWidth: 100 }} value={settings.ad_recurring_pct ?? 100} onChange={e => handle('ad_recurring_pct', e.target.value)} />
+          <span style={{ fontSize: 12, color: '#888' }}>%</span>
+          <span style={{ fontSize: 12, color: '#aaa' }}>
+            {lang === 'da' ? `→ ${Math.round((parseFloat(settings.ad_price_cpm)||50) * (parseInt(settings.ad_recurring_pct??100)/100) * 100)/100} ${settings.currency||'DKK'}/md.` : `→ ${Math.round((parseFloat(settings.ad_price_cpm)||50) * (parseInt(settings.ad_recurring_pct??100)/100) * 100)/100} ${settings.currency||'DKK'}/mo.`}
+          </span>
+        </div>
         <label style={lS}>{t.adminAdsCurrency}</label>
         <input style={{ ...iS, maxWidth: 120 }} value={settings.currency || 'DKK'} onChange={e => handle('currency', e.target.value)} />
 
