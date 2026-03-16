@@ -108,5 +108,23 @@ export default function useEasterEggs() {
     return eggs[id]?.enabled !== false
   }, [eggs])
 
-  return { eggs, triggerEgg, toggleEgg, isEnabled }
+  // Authoritative sync from server — resets discovered state to match DB, preserves enabled pref
+  const syncFromServer = useCallback((serverEggs) => {
+    const stored = loadEggs()
+    const merged = {}
+    for (const id of EGG_IDS) {
+      const srv = serverEggs[id] || {}
+      merged[id] = {
+        ...EGG_DEFAULTS[id],
+        enabled: stored[id]?.enabled !== undefined ? stored[id].enabled : true,
+        discovered: Boolean(srv.discovered),
+        activationCount: srv.activationCount || 0,
+        firstDiscoveredAt: srv.firstDiscoveredAt || null,
+      }
+    }
+    saveEggs(merged)
+    setEggsState(merged)
+  }, [])
+
+  return { eggs, triggerEgg, toggleEgg, isEnabled, syncFromServer }
 }

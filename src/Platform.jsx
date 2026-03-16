@@ -13,7 +13,7 @@ import useScrollHold from './hooks/useScrollHold.js'
 import useAvatarClick from './hooks/useAvatarClick.js'
 import useLongPress from './hooks/useLongPress.js'
 import useTapCount from './hooks/useTapCount.js'
-import useEasterEggs, { loadEggs, loadAdminEggs, USER_LS_KEY, ADMIN_LS_KEY, EGG_IDS } from './hooks/useEasterEggs.js'
+import useEasterEggs, { loadEggs, loadAdminEggs, ADMIN_LS_KEY, EGG_IDS } from './hooks/useEasterEggs.js'
 import ChuckBanner from './components/easter-eggs/ChuckBanner.jsx'
 import MatrixRain from './components/easter-eggs/MatrixRain.jsx'
 import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
@@ -65,7 +65,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('fellis_dark') === '1')
 
   // 🎉 Party Mode easter egg (global — triggered anywhere on the platform)
-  const { triggerEgg: triggerGlobalEgg } = useEasterEggs()
+  const { triggerEgg: triggerGlobalEgg, syncFromServer: syncEggsFromServer } = useEasterEggs()
   const [partyActive, setPartyActive] = useState(false)
   useKeySequence('party', () => { if (triggerGlobalEgg('party', checkBadges)) { setPartyActive(true) } }, 2000, !partyActive)
   const [showOnboarding, setShowOnboarding] = useState(() => localStorage.getItem('fellis_onboarding') === '1')
@@ -2785,20 +2785,9 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
     if (currentUser.id) {
       apiFetchProfilePhotos(currentUser.id).then(data => { if (Array.isArray(data)) setPhotos(data) })
     }
-    // Sync Easter Egg state from DB to localStorage (keeps state accurate across sessions/devices)
+    // Sync Easter Egg state from DB (authoritative) — resets stale localStorage data from other users
     apiGetMyEasterEggs().then(data => {
-      if (!data?.eggs) return
-      try {
-        const stored = JSON.parse(localStorage.getItem(USER_LS_KEY) || '{}')
-        let changed = false
-        for (const [id, srv] of Object.entries(data.eggs)) {
-          if (srv.discovered && !stored[id]?.discovered) {
-            stored[id] = { ...(stored[id] || {}), discovered: true, activationCount: srv.activationCount, firstDiscoveredAt: srv.firstDiscoveredAt }
-            changed = true
-          }
-        }
-        if (changed) localStorage.setItem(USER_LS_KEY, JSON.stringify(stored))
-      } catch {}
+      if (data?.eggs !== undefined) syncEggsFromServer(data.eggs)
     })
     if (mode === 'privat') {
       apiFetchConversations().then(convs => {

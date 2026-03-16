@@ -3,6 +3,7 @@ import Landing from './Landing.jsx'
 import Platform from './Platform.jsx'
 import { apiCheckSession, apiLogout, apiGiveConsent, apiGetInviteInfo, apiTrackVisit, apiGetConsentStatus } from './api.js'
 import { SUPPORTED_LANGS, detectLang } from './data.js'
+import { USER_LS_KEY } from './hooks/useEasterEggs.js'
 import './App.css'
 
 // ── Public Privacy Policy Page (/privacy) ──
@@ -563,6 +564,7 @@ function App() {
     localStorage.removeItem('fellis_logged_in')
     localStorage.removeItem('fellis_lang')
     localStorage.removeItem('fellis_session_id')
+    localStorage.removeItem(USER_LS_KEY)
     apiLogout().catch(() => {})
   }, [])
 
