@@ -518,7 +518,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
       setRegError(t.registerError)
       setRegLoading(false)
     }
-  }, [regName, regEmail, regPassword, regPasswordRepeat, honeypot, mathAnswer, mathChallenge, lang, t, inviteToken, inviterName])
+  }, [regName, regEmail, regPassword, regPasswordRepeat, honeypot, gdprAccepted, mathAnswer, mathChallenge, lang, t, inviteToken, inviterName])
 
   // Redirect to real Facebook OAuth — carry invite token so callback can auto-connect
   const handleFbClick = useCallback(() => {
