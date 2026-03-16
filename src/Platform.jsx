@@ -12016,6 +12016,95 @@ function ReportModal({ t, targetType, targetId, onClose }) {
 }
 
 // ── Admin Platform Ads Panel ──────────────────────────────────────────────────
+// ── Admin Pricing Panel — edit all platform prices in one place ──
+function AdminPricingPanel({ lang }) {
+  const da = lang === 'da'
+  const [settings, setSettings] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    apiGetAdminAdSettings().then(data => { if (data?.settings) setSettings(data.settings) }).catch(() => {})
+  }, [])
+
+  const handle = (key, val) => setSettings(s => ({ ...s, [key]: val }))
+
+  const handleSave = async (e) => {
+    e.preventDefault()
+    if (!settings) return
+    setSaving(true)
+    await apiSaveAdminAdSettings({
+      adfree_price_private: parseFloat(settings.adfree_price_private) || 29,
+      adfree_price_business: parseFloat(settings.adfree_price_business) || 49,
+      boost_price: parseFloat(settings.boost_price) || 9,
+      ad_price_cpm: parseFloat(settings.ad_price_cpm) || 50,
+      currency: settings.currency || 'EUR',
+    }).catch(() => {})
+    setSaving(false); setSaved(true)
+    setTimeout(() => setSaved(false), 2500)
+  }
+
+  const lS = { fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 4, marginTop: 16 }
+  const iS = { padding: '8px 10px', borderRadius: 6, border: '1px solid #ddd', fontSize: 14, width: 140 }
+
+  if (!settings) return <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>{da ? 'Henter…' : 'Loading…'}</div>
+
+  return (
+    <div className="p-card" style={{ maxWidth: 480 }}>
+      <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700 }}>💰 {da ? 'Priser' : 'Pricing'}</h3>
+      <p style={{ margin: '0 0 20px', fontSize: 13, color: '#888' }}>
+        {da ? 'Alle priser vises i valutaen nedenfor og afspejles øjeblikkeligt i betalingsflows.' : 'All prices are shown in the currency below and take effect immediately in payment flows.'}
+      </p>
+      <form onSubmit={handleSave}>
+        <div style={{ background: '#F6F4F1', borderRadius: 8, padding: '14px 16px', marginBottom: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 13, color: '#2D6A4F', marginBottom: 10 }}>🚫 {da ? 'Reklamefrit abonnement' : 'Ad-free subscription'}</div>
+          <label style={lS}>{da ? 'Privat (éngangs)' : 'Personal (one-time)'}</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input type="number" step="0.01" min="0" style={iS} value={settings.adfree_price_private || ''} onChange={e => handle('adfree_price_private', e.target.value)} />
+            <span style={{ fontSize: 13, color: '#888' }}>{settings.currency || 'EUR'}</span>
+            <span style={{ fontSize: 12, color: '#aaa' }}>→ {formatPrice(parseFloat(settings.adfree_price_private) || 29)}</span>
+          </div>
+          <label style={lS}>{da ? 'Erhverv (éngangs)' : 'Business (one-time)'}</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input type="number" step="0.01" min="0" style={iS} value={settings.adfree_price_business || ''} onChange={e => handle('adfree_price_business', e.target.value)} />
+            <span style={{ fontSize: 13, color: '#888' }}>{settings.currency || 'EUR'}</span>
+            <span style={{ fontSize: 12, color: '#aaa' }}>→ {formatPrice(parseFloat(settings.adfree_price_business) || 49)}</span>
+          </div>
+        </div>
+
+        <div style={{ background: '#F6F4F1', borderRadius: 8, padding: '14px 16px', marginBottom: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 13, color: '#2D6A4F', marginBottom: 10 }}>🚀 {da ? 'Boost (markedsplads)' : 'Boost (marketplace)'}</div>
+          <label style={lS}>{da ? 'Pris pr. boost (7 dage)' : 'Price per boost (7 days)'}</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input type="number" step="0.01" min="0" style={iS} value={settings.boost_price ?? ''} onChange={e => handle('boost_price', e.target.value)} />
+            <span style={{ fontSize: 13, color: '#888' }}>{settings.currency || 'EUR'}</span>
+            <span style={{ fontSize: 12, color: '#aaa' }}>→ {formatPrice(parseFloat(settings.boost_price) || 9)}</span>
+          </div>
+        </div>
+
+        <div style={{ background: '#F6F4F1', borderRadius: 8, padding: '14px 16px', marginBottom: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 13, color: '#2D6A4F', marginBottom: 10 }}>📢 {da ? 'Annoncering' : 'Advertising'}</div>
+          <label style={lS}>{da ? 'Annonce pris (pr. aktivering)' : 'Ad price (per activation)'}</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input type="number" step="0.01" min="0" style={iS} value={settings.ad_price_cpm || ''} onChange={e => handle('ad_price_cpm', e.target.value)} />
+            <span style={{ fontSize: 13, color: '#888' }}>{settings.currency || 'EUR'}</span>
+            <span style={{ fontSize: 12, color: '#aaa' }}>→ {formatPrice(parseFloat(settings.ad_price_cpm) || 50)}</span>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 20 }}>
+          <label style={lS}>{da ? 'Valuta' : 'Currency'}</label>
+          <input style={{ ...iS, width: 80 }} value={settings.currency || 'EUR'} onChange={e => handle('currency', e.target.value)} maxLength={10} />
+        </div>
+
+        <button type="submit" className="btn-primary" disabled={saving} style={{ minWidth: 120 }}>
+          {saving ? (da ? 'Gemmer…' : 'Saving…') : saved ? (da ? '✓ Gemt' : '✓ Saved') : (da ? 'Gem priser' : 'Save prices')}
+        </button>
+      </form>
+    </div>
+  )
+}
+
 // Manages platform-level display/native/sticky ads (zone-based, admin only).
 function AdminPlatformAdsPanel({ lang }) {
   const da = lang === 'da'
@@ -12719,6 +12808,7 @@ function AdminPage({ lang, t }) {
           {
             label: lang === 'da' ? 'Økonomi' : 'Monetisation',
             tabs: [
+              { id: 'pricing', icon: '💰', label: lang === 'da' ? 'Priser' : 'Pricing' },
               { id: 'ads', icon: '📢', label: t.adminAdsTitle },
               { id: 'payment', icon: '💳', label: t.adminPaymentTitle },
             ],
@@ -12983,6 +13073,7 @@ function AdminPage({ lang, t }) {
         <AdminSecurityGdpr viralStats={viralStats} lang={lang} />
       )}
 
+      {adminTab === 'pricing' && <AdminPricingPanel lang={lang} />}
       {adminTab === 'ads' && <AdminAdSettingsPanel lang={lang} t={t} />}
 
       {adminTab === 'payment' && (
@@ -13130,7 +13221,7 @@ function AdminPage({ lang, t }) {
               </div>
             </div>
             <div style={{ marginTop: 12, padding: '12px 14px', background: '#F0F7FF', border: '1px solid #BDD8F9', borderRadius: 8, fontSize: 12, color: '#2C4A6E', lineHeight: 1.6 }}>
-              💡 {lang === 'da' ? 'Priser for reklamefrit abonnement og Boost sættes under Annoncestyring.' : 'Prices for ad-free subscriptions and Boost are set under Ads management.'}
+              💡 {lang === 'da' ? 'Priser for reklamefrit abonnement og Boost sættes under Økonomi → Priser.' : 'Prices for ad-free subscriptions and Boost are set under Monetisation → Pricing.'}
             </div>
             <div style={{ marginTop: 8, padding: '12px 14px', background: '#FFFBF0', border: '1px solid #FFE08A', borderRadius: 8, fontSize: 12, color: '#7A5C00', lineHeight: 1.6 }}>
               ⚙️ {t.adminPaymentEnvNote}
