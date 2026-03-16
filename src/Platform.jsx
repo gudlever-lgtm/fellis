@@ -1517,7 +1517,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   }, [])
 
   const doCreatePost = useCallback((text, files, schedAt, categories) => {
-    apiCreatePost(text, files, schedAt || undefined, categories?.length ? [...categories] : undefined).then(data => {
+    apiCreatePost(text, files, schedAt || undefined, categories?.size ? [...categories] : undefined).then(data => {
       if (data?.scheduled) {
         // Scheduled post — don't add to feed, just show a toast
         return
