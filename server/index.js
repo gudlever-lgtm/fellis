@@ -6491,7 +6491,27 @@ async function initNotifications() {
       PRIMARY KEY (user_id, type),
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
-    // Verify tables actually exist by counting rows
+
+    // Auto-migrate: add message_da / message_en if table was created with old schema
+    const [cols] = await pool.query(
+      "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'notifications'"
+    )
+    const colNames = cols.map(c => c.COLUMN_NAME)
+    if (!colNames.includes('message_da')) {
+      if (colNames.includes('message')) {
+        // Rename existing 'message' column → message_da, then add message_en
+        await pool.query('ALTER TABLE notifications CHANGE message message_da TEXT NOT NULL')
+        console.log('✓ notifications: renamed message → message_da')
+      } else {
+        await pool.query('ALTER TABLE notifications ADD COLUMN message_da TEXT NOT NULL AFTER type')
+        console.log('✓ notifications: added message_da column')
+      }
+    }
+    if (!colNames.includes('message_en')) {
+      await pool.query('ALTER TABLE notifications ADD COLUMN message_en TEXT NOT NULL AFTER message_da')
+      console.log('✓ notifications: added message_en column')
+    }
+
     const [[nRow]] = await pool.query('SELECT COUNT(*) as c FROM notifications')
     const [[pRow]] = await pool.query('SELECT COUNT(*) as c FROM notification_preferences')
     console.log(`✓ notifications table OK (${nRow.c} rows), notification_preferences OK (${pRow.c} rows)`)
