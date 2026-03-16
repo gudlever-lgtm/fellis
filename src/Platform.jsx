@@ -5835,7 +5835,7 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
     refreshAll()
   }, [unfriendTarget, refreshAll])
 
-  const filtered = (filter === 'invites' || filter === 'viral') ? [] : friends.filter(f => filter === 'all' || f.online)
+  const filtered = (filter === 'invites' || filter === 'requests' || filter === 'viral') ? [] : friends.filter(f => filter === 'all' || f.online)
 
   const handleCopyInvite = useCallback(() => {
     navigator.clipboard.writeText(inviteLink).catch(() => {})
@@ -6031,26 +6031,18 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
         </div>
       </div>
 
-      {/* Incoming connection requests (only on non-invites tabs; shown inside Invitations tab too) */}
-      {filter !== 'invites' && requests.incoming.length > 0 && (
-        <div className="p-card p-friend-requests-card">
-          <h3 className="p-section-title" style={{ margin: '0 0 12px' }}>
-            {t.incomingRequests} ({requests.incoming.length})
-          </h3>
-          <div className="p-friend-requests-list">
-            {requests.incoming.map(req => (
-              <div key={req.id} className="p-friend-request-row">
-                <div className="p-avatar-sm" style={{ background: nameToColor(req.from_name) }}>
-                  {getInitials(req.from_name)}
-                </div>
-                <div className="p-friend-request-name">{req.from_name}</div>
-                <div className="p-friend-request-actions">
-                  <button className="p-freq-accept-btn" onClick={() => handleAccept(req.id)}>{t.acceptRequest}</button>
-                  <button className="p-freq-decline-btn" onClick={() => handleDecline(req.id)}>{t.declineRequest}</button>
-                </div>
-              </div>
-            ))}
-          </div>
+      {/* Incoming requests badge — shown on non-request tabs to nudge user */}
+      {filter !== 'requests' && filter !== 'invites' && requests.incoming.length > 0 && (
+        <div className="p-card" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', borderLeft: '3px solid #2D6A4F' }} onClick={() => setFilter('requests')}>
+          <span style={{ fontSize: 20 }}>👥</span>
+          <span style={{ fontSize: 14, fontWeight: 600 }}>
+            {requests.incoming.length === 1
+              ? (lang === 'da' ? '1 afventende forbindelsesanmodning' : '1 pending connection request')
+              : (lang === 'da' ? `${requests.incoming.length} afventende forbindelsesanmodninger` : `${requests.incoming.length} pending connection requests`)}
+          </span>
+          <span style={{ marginLeft: 'auto', fontSize: 12, color: '#2D6A4F', fontWeight: 600 }}>
+            {lang === 'da' ? 'Se →' : 'View →'}
+          </span>
         </div>
       )}
 
@@ -6072,8 +6064,11 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
             <button className={`p-filter-tab${filter === 'online' ? ' active' : ''}`} onClick={() => setFilter('online')}>
               <span className="p-filter-online-dot" /> {t.onlineFriends} ({friends.filter(f => f.online).length})
             </button>
+            <button className={`p-filter-tab${filter === 'requests' ? ' active' : ''}`} onClick={() => setFilter('requests')}>
+              👥 {t.requestsTab} ({requests.incoming.length + requests.outgoing.length})
+            </button>
             <button className={`p-filter-tab${filter === 'invites' ? ' active' : ''}`} onClick={() => setFilter('invites')}>
-              ✉️ {t.invitesTab} ({requests.incoming.length + requests.outgoing.length})
+              ✉️ {t.invitesTab}
             </button>
             <button className={`p-filter-tab${filter === 'viral' ? ' active' : ''}`} onClick={() => setFilter('viral')}>
               🚀 {t.referralDashViralTitle}
@@ -6137,8 +6132,9 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
             </div>
           )}
         </div>
-      ) : filter === 'invites' ? (
+      ) : filter === 'requests' ? (
         <div className="p-invites-page">
+          <p style={{ margin: '0 0 16px', fontSize: 13, color: '#666' }}>{t.requestsTabDesc}</p>
 
           {/* ── Incoming connection requests ── */}
           <div className="p-card p-invites-section">
@@ -6166,7 +6162,7 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
             )}
           </div>
 
-          {/* ── Outgoing connection requests (pending friend requests sent) ── */}
+          {/* ── Outgoing connection requests ── */}
           <div className="p-card p-invites-section">
             <h3 className="p-invites-section-title">{t.invitesOutgoingTitle}</h3>
             {requests.outgoing.length === 0 ? (
@@ -6199,6 +6195,11 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
               </div>
             )}
           </div>
+        </div>
+
+      ) : filter === 'invites' ? (
+        <div className="p-invites-page">
+          <p style={{ margin: '0 0 16px', fontSize: 13, color: '#666' }}>{t.invitesTabDesc}</p>
 
           {/* ── Outgoing email invitations ── */}
           <div className="p-card p-invites-section">
