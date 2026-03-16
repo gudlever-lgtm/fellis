@@ -10655,12 +10655,6 @@ function AdminAdSettingsPanel({ lang, t }) {
     e.preventDefault()
     setSaving(true)
     await apiSaveAdminAdSettings({
-      adfree_price_private: parseFloat(settings.adfree_price_private),
-      adfree_price_business: parseFloat(settings.adfree_price_business),
-      adfree_recurring_pct: parseInt(settings.adfree_recurring_pct ?? 100),
-      ad_price_cpm: parseFloat(settings.ad_price_cpm),
-      ad_recurring_pct: parseInt(settings.ad_recurring_pct ?? 100),
-      currency: settings.currency,
       max_ads_feed: parseInt(settings.max_ads_feed),
       max_ads_sidebar: parseInt(settings.max_ads_sidebar),
       max_ads_stories: parseInt(settings.max_ads_stories),
@@ -10739,33 +10733,7 @@ function AdminAdSettingsPanel({ lang, t }) {
           <label htmlFor="ads_enabled" style={{ fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>{t.adminAdsEnabled}</label>
         </div>
 
-        <div style={{ fontWeight: 700, fontSize: 13, color: '#2D6A4F', marginTop: 4, paddingBottom: 6, borderBottom: '1px solid #eee' }}>{t.adminAdsPricingTitle}</div>
-        <label style={lS}>{t.adminAdsPricePrivate}</label>
-        <input type="number" step="0.01" style={iS} value={settings.adfree_price_private || ''} onChange={e => handle('adfree_price_private', e.target.value)} />
-        <label style={lS}>{t.adminAdsPriceBusiness}</label>
-        <input type="number" step="0.01" style={iS} value={settings.adfree_price_business || ''} onChange={e => handle('adfree_price_business', e.target.value)} />
-        <label style={lS}>{t.adminAdsRecurringPctAdfree}</label>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <input type="number" min="1" max="200" style={{ ...iS, maxWidth: 100 }} value={settings.adfree_recurring_pct ?? 100} onChange={e => handle('adfree_recurring_pct', e.target.value)} />
-          <span style={{ fontSize: 12, color: '#888' }}>%</span>
-          <span style={{ fontSize: 12, color: '#aaa' }}>
-            {lang === 'da' ? `→ Privat: ${formatPrice(Math.round((parseFloat(settings.adfree_price_private)||29) * (parseInt(settings.adfree_recurring_pct??100)/100) * 100)/100)}/md.` : `→ Personal: ${formatPrice(Math.round((parseFloat(settings.adfree_price_private)||29) * (parseInt(settings.adfree_recurring_pct??100)/100) * 100)/100)}/mo.`}
-          </span>
-        </div>
-        <label style={lS}>{t.adminAdsCPM}</label>
-        <input type="number" step="0.01" style={iS} value={settings.ad_price_cpm || ''} onChange={e => handle('ad_price_cpm', e.target.value)} />
-        <label style={lS}>{t.adminAdsRecurringPctAd}</label>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <input type="number" min="1" max="200" style={{ ...iS, maxWidth: 100 }} value={settings.ad_recurring_pct ?? 100} onChange={e => handle('ad_recurring_pct', e.target.value)} />
-          <span style={{ fontSize: 12, color: '#888' }}>%</span>
-          <span style={{ fontSize: 12, color: '#aaa' }}>
-            {lang === 'da' ? `→ ${formatPrice(Math.round((parseFloat(settings.ad_price_cpm)||50) * (parseInt(settings.ad_recurring_pct??100)/100) * 100)/100)}/md.` : `→ ${formatPrice(Math.round((parseFloat(settings.ad_price_cpm)||50) * (parseInt(settings.ad_recurring_pct??100)/100) * 100)/100)}/mo.`}
-          </span>
-        </div>
-        <label style={lS}>{t.adminAdsCurrency}</label>
-        <input style={{ ...iS, maxWidth: 120 }} value={settings.currency || 'EUR'} onChange={e => handle('currency', e.target.value)} />
-
-        <div style={{ fontWeight: 700, fontSize: 13, color: '#2D6A4F', marginTop: 20, paddingBottom: 6, borderBottom: '1px solid #eee' }}>{t.adminAdsDisplayTitle}</div>
+        <div style={{ fontWeight: 700, fontSize: 13, color: '#2D6A4F', marginTop: 4, paddingBottom: 6, borderBottom: '1px solid #eee' }}>{t.adminAdsDisplayTitle}</div>
         <label style={lS}>{t.adminAdsMaxFeed}</label>
         <input type="number" min="0" max="20" style={{ ...iS, maxWidth: 100 }} value={settings.max_ads_feed || ''} onChange={e => handle('max_ads_feed', e.target.value)} />
         <label style={lS}>{t.adminAdsMaxSidebar}</label>
