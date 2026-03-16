@@ -82,6 +82,25 @@ export async function apiResetPassword(token, password) {
   return data
 }
 
+export async function apiVerifyMfa(userId, code, lang) {
+  const data = await request('/api/auth/verify-mfa', {
+    method: 'POST',
+    body: JSON.stringify({ userId, code, lang }),
+  })
+  if (data?.sessionId) {
+    localStorage.setItem('fellis_session_id', data.sessionId)
+  }
+  return data
+}
+
+export async function apiEnableMfa() {
+  return await request('/api/auth/enable-mfa', { method: 'POST' })
+}
+
+export async function apiDisableMfa() {
+  return await request('/api/auth/disable-mfa', { method: 'POST' })
+}
+
 export async function apiCheckSession() {
   // Try session check even without localStorage — cookie may carry the session
   return await request('/api/auth/session')

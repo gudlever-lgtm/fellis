@@ -102,6 +102,10 @@ cd server && npm run seed
 | `MAIL_SECURE` | Use TLS | `false` |
 | `MAIL_USER` | SMTP username | _(optional)_ |
 | `MAIL_PASS` | SMTP password | _(optional)_ |
+| `SITE_URL` | Base URL for reset links in emails | `https://fellis.eu` |
+| `46ELKS_USERNAME` | 46elks API username (SMS MFA) | _(optional)_ |
+| `46ELKS_PASSWORD` | 46elks API password (SMS MFA) | _(optional)_ |
+| `46ELKS_SENDER` | SMS sender name/number | `fellis.eu` |
 | `UPLOADS_DIR` | Media upload directory | `/var/www/fellis.eu/uploads` |
 
 The server reads `.env` manually at startup (not via `--env-file`) for PM2 compatibility.
@@ -206,6 +210,13 @@ Vite builds from `src/` as root into `assets/` at the repo root:
 - Schema changes use standalone `server/migrate-*.sql` files
 - Run migrations manually against the DB; there is no migration runner
 - Comments in `schema.sql` show the `ALTER TABLE` equivalent for existing installs
+
+**Required migrations for existing installs:**
+
+```bash
+# MFA + password reset columns (adds reset_token, mfa_code, mfa_enabled to users)
+mysql -u root fellis_eu < server/migrate-mfa-reset.sql
+```
 
 ---
 

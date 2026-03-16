@@ -48,6 +48,7 @@ import crypto from 'crypto'
 import fs from 'fs'
 import multer from 'multer'
 import pool from './db.js'
+import { sendSms } from './sms.js'
 import { BADGES, BADGE_BY_ID, PLATFORM_LAUNCH_DATE } from '../src/badges/badgeDefinitions.js'
 import { evaluateBadges } from '../src/badges/badgeEngine.js'
 
@@ -155,6 +156,25 @@ function checkInviteRateLimit(userId) {
     return true
   }
   if (entry.count >= INVITE_MAX_PER_WINDOW) return false
+  entry.count++
+  return true
+}
+
+// ── In-memory rate limiter (forgot-password anti-abuse) ──
+// Tracks {email → {count, resetAt}} — max 3 requests per email per hour
+const forgotRateLimit = new Map()
+const FORGOT_MAX = 3
+const FORGOT_WINDOW_MS = 60 * 60 * 1000
+
+function checkForgotRateLimit(email) {
+  const key = email.toLowerCase()
+  const now = Date.now()
+  const entry = forgotRateLimit.get(key)
+  if (!entry || now > entry.resetAt) {
+    forgotRateLimit.set(key, { count: 1, resetAt: now + FORGOT_WINDOW_MS })
+    return true
+  }
+  if (entry.count >= FORGOT_MAX) return false
   entry.count++
   return true
 }
@@ -748,12 +768,14 @@ app.get('/api/auth/password-policy', async (req, res) => {
 
 // ── Auth routes ──
 
-// POST /api/auth/login — login with email + password
+// POST /api/auth/login — login with email + password (MFA-aware)
 app.post('/api/auth/login', async (req, res) => {
   const { email, password, lang } = req.body
   if (!email || !password) return res.status(400).json({ error: 'Email and password required' })
   try {
-    const [users] = await pool.query('SELECT id, password_hash, password_plain FROM users WHERE email = ?', [email])
+    const [users] = await pool.query(
+      'SELECT id, password_hash, password_plain, mfa_enabled, phone FROM users WHERE email = ?', [email]
+    )
     if (users.length === 0) return res.status(401).json({ error: 'Invalid credentials' })
     const user = users[0]
     const hash = crypto.createHash('sha256').update(password).digest('hex')
@@ -762,6 +784,20 @@ app.post('/api/auth/login', async (req, res) => {
     if (!user.password_plain) {
       await pool.query('UPDATE users SET password_plain = ? WHERE id = ?', [password, user.id])
     }
+
+    // MFA: if enabled and user has a phone number, send SMS code
+    if (user.mfa_enabled && user.phone) {
+      const rawCode = String(Math.floor(100000 + Math.random() * 900000))
+      const hashedCode = crypto.createHash('sha256').update(rawCode).digest('hex')
+      await pool.query(
+        'UPDATE users SET mfa_code = ?, mfa_code_expires = DATE_ADD(NOW(), INTERVAL 5 MINUTE) WHERE id = ?',
+        [hashedCode, user.id]
+      )
+      await sendSms(user.phone, `Din Fellis-kode er: ${rawCode} (udløber om 5 minutter)`)
+      return res.json({ mfa_required: true, userId: user.id })
+    }
+
+    // No MFA — create session immediately
     const sessionId = crypto.randomUUID()
     const ua = req.headers['user-agent'] || null
     const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null
@@ -852,25 +888,50 @@ app.post('/api/auth/register', async (req, res) => {
   }
 })
 
-// POST /api/auth/forgot-password — request password reset (or set first password for FB users)
+// POST /api/auth/forgot-password — request password reset link via email
 app.post('/api/auth/forgot-password', async (req, res) => {
   const { email } = req.body
   if (!email) return res.status(400).json({ error: 'Email required' })
+
+  // Rate limit: max 3 requests per email per hour
+  if (!checkForgotRateLimit(email)) {
+    return res.status(429).json({ error: 'Too many requests. Please try again later.' })
+  }
+
   try {
-    const [users] = await pool.query('SELECT id, name, facebook_id, password_hash FROM users WHERE email = ?', [email])
-    if (users.length === 0) {
-      // Don't reveal if user exists or not — always return success
-      return res.json({ ok: true })
-    }
-    const user = users[0]
-    const token = crypto.randomUUID()
-    // Store reset token (reuse sessions table with a special prefix)
-    await pool.query(
-      'INSERT INTO sessions (id, user_id, lang, expires_at) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 1 HOUR))',
-      [`reset:${token}`, user.id, 'da']
+    const [users] = await pool.query(
+      'SELECT id, name, facebook_id, password_hash FROM users WHERE email = ?', [email]
     )
-    // In a real app, send email. For demo, return the token directly.
-    res.json({ ok: true, resetToken: token, isFacebookUser: !!user.facebook_id, hasPassword: !!user.password_hash })
+    // Always return success to avoid leaking whether the email exists
+    if (users.length === 0) return res.json({ ok: true })
+
+    const user = users[0]
+    // Generate a cryptographically random token and store its SHA-256 hash
+    const rawToken = crypto.randomBytes(32).toString('hex')
+    const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex')
+    await pool.query(
+      'UPDATE users SET reset_token = ?, reset_token_expires = DATE_ADD(NOW(), INTERVAL 1 HOUR) WHERE id = ?',
+      [hashedToken, user.id]
+    )
+
+    const siteBase = process.env.SITE_URL || 'https://fellis.eu'
+    const resetUrl = `${siteBase}/?reset_token=${rawToken}`
+
+    if (mailer) {
+      const fromAddr = process.env.MAIL_FROM || process.env.MAIL_USER
+      await mailer.sendMail({
+        from: `"Fellis" <${fromAddr}>`,
+        to: email,
+        subject: 'Nulstil din adgangskode / Reset your password',
+        text: `Hej ${user.name},\n\nKlik her for at nulstille din adgangskode (linket udløber om 1 time):\n${resetUrl}\n\nHvis du ikke bad om dette, kan du ignorere denne e-mail.\n\nVenlig hilsen,\nFellis`,
+        html: `<p>Hej <strong>${user.name}</strong>,</p><p>Klik her for at nulstille din adgangskode (linket udløber om 1 time):</p><p><a href="${resetUrl}" style="background:#2D6A4F;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:bold">Nulstil adgangskode</a></p><p style="color:#888;font-size:12px">Eller kopier dette link: ${resetUrl}</p><p style="color:#888;font-size:12px">Hvis du ikke bad om dette, kan du ignorere denne e-mail.</p>`,
+      }).catch(err => console.error('Reset mail error:', err.message))
+    } else {
+      // Dev fallback: log the token (never expose in production without MAIL_HOST)
+      console.info(`[dev] Password reset link for ${email}: ${resetUrl}`)
+    }
+
+    res.json({ ok: true })
   } catch (err) {
     res.status(500).json({ error: 'Request failed' })
   }
@@ -884,28 +945,91 @@ app.post('/api/auth/reset-password', async (req, res) => {
   const resetPwdErrors = validatePasswordStrength(password, resetPolicy, resetLang || 'da')
   if (resetPwdErrors.length > 0) return res.status(400).json({ error: resetPwdErrors.join('. ') })
   try {
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex')
     const [rows] = await pool.query(
-      'SELECT user_id FROM sessions WHERE id = ? AND expires_at > NOW()',
-      [`reset:${token}`]
+      'SELECT id FROM users WHERE reset_token = ? AND reset_token_expires > NOW()',
+      [hashedToken]
     )
     if (rows.length === 0) return res.status(400).json({ error: 'Invalid or expired reset token' })
-    const userId = rows[0].user_id
+    const userId = rows[0].id
     const hash = crypto.createHash('sha256').update(password).digest('hex')
-    await pool.query('UPDATE users SET password_hash = ?, password_plain = ? WHERE id = ?', [hash, password, userId])
-    // Clean up reset token
-    await pool.query('DELETE FROM sessions WHERE id = ?', [`reset:${token}`])
+    // Update password and clear reset token atomically
+    await pool.query(
+      'UPDATE users SET password_hash = ?, password_plain = ?, reset_token = NULL, reset_token_expires = NULL WHERE id = ?',
+      [hash, password, userId]
+    )
     // Create a new login session
     const sessionId = crypto.randomUUID()
     const ua = req.headers['user-agent'] || null
     const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null
     await pool.query(
       'INSERT INTO sessions (id, user_id, lang, expires_at, user_agent, ip_address) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY), ?, ?)',
-      [sessionId, userId, 'da', ua, ip]
+      [sessionId, userId, resetLang || 'da', ua, ip]
     )
     setSessionCookie(res, sessionId)
     res.json({ ok: true, sessionId, userId })
   } catch (err) {
     res.status(500).json({ error: 'Reset failed' })
+  }
+})
+
+// POST /api/auth/verify-mfa — verify SMS code and complete login
+app.post('/api/auth/verify-mfa', async (req, res) => {
+  const { userId, code, lang } = req.body
+  if (!userId || !code) return res.status(400).json({ error: 'userId and code required' })
+  try {
+    const [rows] = await pool.query(
+      'SELECT id FROM users WHERE id = ? AND mfa_code_expires > NOW()',
+      [userId]
+    )
+    if (rows.length === 0) return res.status(400).json({ error: 'Code expired or user not found' })
+    const hashedCode = crypto.createHash('sha256').update(String(code)).digest('hex')
+    const [valid] = await pool.query(
+      'SELECT id FROM users WHERE id = ? AND mfa_code = ?',
+      [userId, hashedCode]
+    )
+    if (valid.length === 0) return res.status(401).json({ error: 'Invalid code' })
+    // Clear MFA code and create session
+    await pool.query(
+      'UPDATE users SET mfa_code = NULL, mfa_code_expires = NULL WHERE id = ?', [userId]
+    )
+    const sessionId = crypto.randomUUID()
+    const ua = req.headers['user-agent'] || null
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null
+    await pool.query(
+      'INSERT INTO sessions (id, user_id, lang, expires_at, user_agent, ip_address) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY), ?, ?)',
+      [sessionId, userId, lang || 'da', ua, ip]
+    )
+    setSessionCookie(res, sessionId)
+    res.json({ sessionId, userId })
+  } catch (err) {
+    res.status(500).json({ error: 'MFA verification failed' })
+  }
+})
+
+// POST /api/auth/enable-mfa — enable SMS MFA for current user (requires phone on account)
+app.post('/api/auth/enable-mfa', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT phone FROM users WHERE id = ?', [req.userId])
+    if (rows.length === 0) return res.status(404).json({ error: 'User not found' })
+    if (!rows[0].phone) return res.status(400).json({ error: 'A phone number is required to enable MFA' })
+    await pool.query('UPDATE users SET mfa_enabled = 1 WHERE id = ?', [req.userId])
+    res.json({ ok: true, mfa_enabled: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to enable MFA' })
+  }
+})
+
+// POST /api/auth/disable-mfa — disable SMS MFA for current user
+app.post('/api/auth/disable-mfa', authenticate, async (req, res) => {
+  try {
+    await pool.query(
+      'UPDATE users SET mfa_enabled = 0, mfa_code = NULL, mfa_code_expires = NULL WHERE id = ?',
+      [req.userId]
+    )
+    res.json({ ok: true, mfa_enabled: false })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to disable MFA' })
   }
 })
 
