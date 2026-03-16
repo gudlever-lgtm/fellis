@@ -6492,24 +6492,36 @@ async function initNotifications() {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
 
-    // Auto-migrate: add message_da / message_en if table was created with old schema
+    // Auto-migrate: ensure all required columns exist (table may have been created with old schema)
     const [cols] = await pool.query(
-      "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'notifications'"
+      "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'notifications' ORDER BY ORDINAL_POSITION"
     )
-    const colNames = cols.map(c => c.COLUMN_NAME)
-    if (!colNames.includes('message_da')) {
-      if (colNames.includes('message')) {
-        // Rename existing 'message' column → message_da, then add message_en
+    const colNames = new Set(cols.map(c => c.COLUMN_NAME))
+
+    if (!colNames.has('message_da')) {
+      if (colNames.has('message')) {
         await pool.query('ALTER TABLE notifications CHANGE message message_da TEXT NOT NULL')
         console.log('✓ notifications: renamed message → message_da')
       } else {
         await pool.query('ALTER TABLE notifications ADD COLUMN message_da TEXT NOT NULL AFTER type')
-        console.log('✓ notifications: added message_da column')
+        console.log('✓ notifications: added message_da')
       }
+      colNames.add('message_da')
     }
-    if (!colNames.includes('message_en')) {
+    if (!colNames.has('message_en')) {
       await pool.query('ALTER TABLE notifications ADD COLUMN message_en TEXT NOT NULL AFTER message_da')
-      console.log('✓ notifications: added message_en column')
+      console.log('✓ notifications: added message_en')
+      colNames.add('message_en')
+    }
+    if (!colNames.has('link')) {
+      await pool.query('ALTER TABLE notifications ADD COLUMN link VARCHAR(500) DEFAULT NULL AFTER message_en')
+      console.log('✓ notifications: added link')
+      colNames.add('link')
+    }
+    if (!colNames.has('read_at')) {
+      await pool.query('ALTER TABLE notifications ADD COLUMN read_at DATETIME DEFAULT NULL AFTER link')
+      console.log('✓ notifications: added read_at')
+      colNames.add('read_at')
     }
 
     const [[nRow]] = await pool.query('SELECT COUNT(*) as c FROM notifications')
