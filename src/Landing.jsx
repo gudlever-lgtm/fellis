@@ -7,7 +7,7 @@ const INVITE_FRIENDS = [
   { name: 'Ven 2', mutual: 3, online: true },
   { name: 'Ven 3', mutual: 8, online: false },
 ]
-import { apiLogin, apiRegister, apiForgotPassword, apiResetPassword, getFacebookAuthUrl, apiSendInvites, apiGetInviteLink, apiGetConfig, apiGiveConsent } from './api.js'
+import { apiLogin, apiRegister, apiForgotPassword, apiResetPassword, apiVerifyMfa, getFacebookAuthUrl, apiSendInvites, apiGetInviteLink, apiGetConfig, apiGiveConsent } from './api.js'
 
 // ── Landing translations ──
 const T = {
@@ -100,6 +100,13 @@ const T = {
     forgotError: 'Kunne ikke nulstille adgangskode',
     forgotFbNote: 'Din konto blev oprettet via Facebook. Opret en adgangskode for at logge ind med e-mail.',
     forgotBack: 'Tilbage til login',
+    forgotEmailSent: 'Tjek din e-mail for et nulstillingslink.',
+    mfaTitle: 'To-faktor-godkendelse',
+    mfaDesc: 'Vi har sendt en 6-cifret kode til dit telefonnummer.',
+    mfaCode: 'Engangskode',
+    mfaSubmit: 'Bekræft',
+    mfaError: 'Ugyldig eller udløbet kode',
+    mfaBack: 'Tilbage til login',
     // Register fields (step 4)
     registerTitle: 'Opret din fellis.eu konto',
     registerName: 'Fulde navn',
@@ -221,6 +228,13 @@ const T = {
     forgotError: 'Could not reset password',
     forgotFbNote: 'Your account was created via Facebook. Set a password to log in with email.',
     forgotBack: 'Back to login',
+    forgotEmailSent: 'Check your email for a reset link.',
+    mfaTitle: 'Two-factor authentication',
+    mfaDesc: 'We sent a 6-digit code to your phone number.',
+    mfaCode: 'One-time code',
+    mfaSubmit: 'Verify',
+    mfaError: 'Invalid or expired code',
+    mfaBack: 'Back to login',
     // Register fields (step 4)
     registerTitle: 'Create your fellis.eu account',
     registerName: 'Full name',
@@ -255,7 +269,7 @@ const T = {
   },
 }
 
-export default function Landing({ onEnterPlatform, inviteToken, inviterName, inviterEmail, fbError }) {
+export default function Landing({ onEnterPlatform, inviteToken, inviterName, inviterEmail, fbError, resetToken }) {
   const [lang, setLang] = useState(() => detectLang())
   const [step, setStep] = useState(0)
   const [showLoginModal, setShowLoginModal] = useState(false)
@@ -282,6 +296,12 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
   const [forgotLoading, setForgotLoading] = useState(false)
   const [forgotFbNote, setForgotFbNote] = useState(false)
 
+  // MFA state
+  const [mfaUserId, setMfaUserId] = useState(null)
+  const [mfaCode, setMfaCode] = useState('')
+  const [mfaError, setMfaError] = useState('')
+  const [mfaLoading, setMfaLoading] = useState(false)
+
   // Direct signup (skipping Facebook migration)
   const [directSignup, setDirectSignup] = useState(false)
   const [facebookEnabled, setFacebookEnabled] = useState(true) // optimistic; updated from /api/config
@@ -292,7 +312,6 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
   // Register state (step 4) — pre-fill email from email invite if available
   const [regName, setRegName] = useState('')
   const [regEmail, setRegEmail] = useState(inviterEmail || '')
-  const [regEmailRepeat, setRegEmailRepeat] = useState('')
   const [regPassword, setRegPassword] = useState('')
   const [regPasswordRepeat, setRegPasswordRepeat] = useState('')
   const [regError, setRegError] = useState('')
@@ -328,6 +347,15 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
     if (fbError) { setDirectSignup(true); setStep(4) }
   }, [fbError])
 
+  // Auto-open password reset form when arriving from email reset link
+  useEffect(() => {
+    if (resetToken) {
+      setForgotToken(resetToken)
+      setForgotMode('reset')
+      setShowLoginModal(true)
+    }
+  }, [resetToken])
+
   // Smart focus: when step 4 becomes active, focus email (if empty) or name (if email pre-filled)
   useEffect(() => {
     if (step === 4) {
@@ -357,6 +385,10 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
       if (data?.sessionId) {
         setShowLoginModal(false)
         onEnterPlatform(lang)
+      } else if (data?.mfa_required && data?.userId) {
+        setMfaUserId(data.userId)
+        setMfaCode('')
+        setMfaError('')
       } else {
         setLoginError(t.loginError)
       }
@@ -366,6 +398,27 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
     setLoginLoading(false)
   }, [loginEmail, loginPassword, lang, t, onEnterPlatform])
 
+  // ── MFA handler ──
+  const handleMfaVerify = useCallback(async (e) => {
+    e.preventDefault()
+    if (!mfaCode.trim()) return
+    setMfaLoading(true)
+    setMfaError('')
+    try {
+      const data = await apiVerifyMfa(mfaUserId, mfaCode.trim(), lang)
+      if (data?.sessionId) {
+        setMfaUserId(null)
+        setShowLoginModal(false)
+        onEnterPlatform(lang)
+      } else {
+        setMfaError(t.mfaError)
+      }
+    } catch {
+      setMfaError(t.mfaError)
+    }
+    setMfaLoading(false)
+  }, [mfaUserId, mfaCode, lang, t, onEnterPlatform])
+
   // ── Forgot password handlers ──
   const handleForgotSubmitEmail = useCallback(async (e) => {
     e.preventDefault()
@@ -374,10 +427,9 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
     setForgotError('')
     try {
       const data = await apiForgotPassword(forgotEmail.trim())
-      if (data?.resetToken) {
-        setForgotToken(data.resetToken)
-        setForgotFbNote(data.isFacebookUser && !data.hasPassword)
-        setForgotMode('reset')
+      if (data?.ok) {
+        // Server sends an email with the reset link — show confirmation
+        setForgotMode('email-sent')
       } else {
         setForgotError(t.forgotError)
       }
@@ -435,10 +487,6 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
       setRegError(t.registerError)
       return
     }
-    if (regEmail.trim().toLowerCase() !== regEmailRepeat.trim().toLowerCase()) {
-      setRegError(t.registerEmailMismatch)
-      return
-    }
     if (regPassword.length < 6) {
       setRegError(lang === 'da' ? 'Adgangskode skal være mindst 6 tegn' : 'Password must be at least 6 characters')
       return
@@ -470,7 +518,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
       setRegError(t.registerError)
       setRegLoading(false)
     }
-  }, [regName, regEmail, regEmailRepeat, regPassword, regPasswordRepeat, honeypot, mathAnswer, mathChallenge, lang, t, inviteToken, inviterName])
+  }, [regName, regEmail, regPassword, regPasswordRepeat, honeypot, mathAnswer, mathChallenge, lang, t, inviteToken, inviterName])
 
   // Redirect to real Facebook OAuth — carry invite token so callback can auto-connect
   const handleFbClick = useCallback(() => {
@@ -533,14 +581,14 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
 
       {/* Login Modal */}
       {showLoginModal && (
-        <div className="modal-backdrop" onClick={() => { setShowLoginModal(false); setForgotMode(null) }}>
+        <div className="modal-backdrop" onClick={() => { setShowLoginModal(false); setForgotMode(null); setMfaUserId(null) }}>
           <div className="fb-modal" onClick={e => e.stopPropagation()}>
             <div className="fb-modal-header" style={{ background: '#2D6A4F' }}>
               <div className="fb-modal-logo" style={{ color: '#fff', fontFamily: "'Playfair Display', serif" }}>fellis.eu</div>
             </div>
 
             {/* Normal login */}
-            {!forgotMode && (
+            {!forgotMode && !mfaUserId && (
               <form className="fb-modal-form" onSubmit={handleLogin}>
                 <h3>{t.loginTitle}</h3>
                 <input
@@ -569,6 +617,30 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
                     {t.loginSignup}
                   </span>
                 </div>
+              </form>
+            )}
+
+            {/* MFA: enter SMS code */}
+            {mfaUserId && !forgotMode && (
+              <form className="fb-modal-form" onSubmit={handleMfaVerify}>
+                <h3>{t.mfaTitle}</h3>
+                <p style={{ color: '#555', fontSize: 14, marginBottom: 12 }}>{t.mfaDesc}</p>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]{6}"
+                  maxLength={6}
+                  placeholder={t.mfaCode}
+                  value={mfaCode}
+                  onChange={e => setMfaCode(e.target.value.replace(/\D/g, ''))}
+                  className="fb-input"
+                  autoFocus
+                />
+                {mfaError && <div className="fb-error">{mfaError}</div>}
+                <button type="submit" className="fb-login-submit" style={{ background: '#2D6A4F' }} disabled={mfaLoading}>
+                  {mfaLoading ? '...' : t.mfaSubmit}
+                </button>
+                <button type="button" className="fb-forgot" onClick={() => setMfaUserId(null)}>{t.mfaBack}</button>
               </form>
             )}
 
@@ -614,7 +686,16 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
               </form>
             )}
 
-            {/* Forgot password: success */}
+            {/* Forgot password: email sent confirmation */}
+            {forgotMode === 'email-sent' && (
+              <div className="fb-modal-form" style={{ textAlign: 'center', padding: '32px 24px' }}>
+                <div style={{ fontSize: 48, marginBottom: 16 }}>✉</div>
+                <p style={{ color: '#2D6A4F', fontWeight: 600 }}>{t.forgotEmailSent}</p>
+                <button type="button" className="fb-forgot" style={{ marginTop: 16 }} onClick={closeForgotPassword}>{t.forgotBack}</button>
+              </div>
+            )}
+
+            {/* Forgot password: success (after reset via URL) */}
             {forgotMode === 'done' && (
               <div className="fb-modal-form" style={{ textAlign: 'center', padding: '32px 24px' }}>
                 <div style={{ fontSize: 48, marginBottom: 16 }}>✓</div>
@@ -841,15 +922,6 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
               required
             />
             <input
-              type="email"
-              placeholder={t.registerEmailRepeat}
-              value={regEmailRepeat}
-              onChange={e => setRegEmailRepeat(e.target.value)}
-              className="register-input"
-              required
-              onPaste={e => e.preventDefault()}
-            />
-            <input
               ref={nameRef}
               type="text"
               placeholder={t.registerName}
@@ -875,7 +947,6 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
               className="register-input"
               minLength={6}
               required
-              onPaste={e => e.preventDefault()}
             />
             <PasswordStrengthIndicator password={regPassword} lang={lang} />
             {/* Math challenge — simple human verification */}
@@ -897,7 +968,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
               <input
                 type="checkbox"
                 checked={gdprAccepted}
-                onChange={e => setGdprAccepted(e.target.checked)}
+                onChange={e => { setGdprAccepted(e.target.checked); if (e.target.checked) setRegError('') }}
                 style={{ marginTop: 2, flexShrink: 0, accentColor: '#2D6A4F' }}
               />
               <span>

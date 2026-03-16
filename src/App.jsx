@@ -442,6 +442,7 @@ function App() {
   const [initialPostId, setInitialPostId] = useState(null)
   const [initialPage, setInitialPage] = useState(null)
   const [fbError, setFbError] = useState(null)
+  const [resetToken, setResetToken] = useState(null)
 
   // On mount: check for Facebook OAuth callback, invite links, or validate existing session
   useEffect(() => {
@@ -514,6 +515,13 @@ function App() {
     const fbErrorParam = params.get('fb_error')
     if (fbErrorParam) {
       setFbError(fbErrorParam)
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+
+    // Password reset link: ?reset_token=<raw token from email>
+    const resetTokenParam = params.get('reset_token')
+    if (resetTokenParam) {
+      setResetToken(resetTokenParam)
       window.history.replaceState({}, '', window.location.pathname)
     }
 
@@ -593,7 +601,7 @@ function App() {
     )
   }
 
-  return <Landing onEnterPlatform={handleEnterPlatform} inviteToken={inviteToken} inviterName={inviterName} inviterEmail={inviterEmail} fbError={fbError} />
+  return <Landing onEnterPlatform={handleEnterPlatform} inviteToken={inviteToken} inviterName={inviterName} inviterEmail={inviterEmail} fbError={fbError} resetToken={resetToken} />
 }
 
 function AppRoot() {

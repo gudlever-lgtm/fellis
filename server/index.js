@@ -48,6 +48,7 @@ import crypto from 'crypto'
 import fs from 'fs'
 import multer from 'multer'
 import pool from './db.js'
+import { sendSms } from './sms.js'
 import { BADGES, BADGE_BY_ID, PLATFORM_LAUNCH_DATE } from '../src/badges/badgeDefinitions.js'
 import { evaluateBadges } from '../src/badges/badgeEngine.js'
 
@@ -155,6 +156,25 @@ function checkInviteRateLimit(userId) {
     return true
   }
   if (entry.count >= INVITE_MAX_PER_WINDOW) return false
+  entry.count++
+  return true
+}
+
+// ── In-memory rate limiter (forgot-password anti-abuse) ──
+// Tracks {email → {count, resetAt}} — max 3 requests per email per hour
+const forgotRateLimit = new Map()
+const FORGOT_MAX = 3
+const FORGOT_WINDOW_MS = 60 * 60 * 1000
+
+function checkForgotRateLimit(email) {
+  const key = email.toLowerCase()
+  const now = Date.now()
+  const entry = forgotRateLimit.get(key)
+  if (!entry || now > entry.resetAt) {
+    forgotRateLimit.set(key, { count: 1, resetAt: now + FORGOT_WINDOW_MS })
+    return true
+  }
+  if (entry.count >= FORGOT_MAX) return false
   entry.count++
   return true
 }
@@ -748,12 +768,14 @@ app.get('/api/auth/password-policy', async (req, res) => {
 
 // ── Auth routes ──
 
-// POST /api/auth/login — login with email + password
+// POST /api/auth/login — login with email + password (MFA-aware)
 app.post('/api/auth/login', async (req, res) => {
   const { email, password, lang } = req.body
   if (!email || !password) return res.status(400).json({ error: 'Email and password required' })
   try {
-    const [users] = await pool.query('SELECT id, password_hash, password_plain FROM users WHERE email = ?', [email])
+    const [users] = await pool.query(
+      'SELECT id, password_hash, password_plain, mfa_enabled, phone FROM users WHERE email = ?', [email]
+    )
     if (users.length === 0) return res.status(401).json({ error: 'Invalid credentials' })
     const user = users[0]
     const hash = crypto.createHash('sha256').update(password).digest('hex')
@@ -762,6 +784,20 @@ app.post('/api/auth/login', async (req, res) => {
     if (!user.password_plain) {
       await pool.query('UPDATE users SET password_plain = ? WHERE id = ?', [password, user.id])
     }
+
+    // MFA: if enabled and user has a phone number, send SMS code
+    if (user.mfa_enabled && user.phone) {
+      const rawCode = String(Math.floor(100000 + Math.random() * 900000))
+      const hashedCode = crypto.createHash('sha256').update(rawCode).digest('hex')
+      await pool.query(
+        'UPDATE users SET mfa_code = ?, mfa_code_expires = DATE_ADD(NOW(), INTERVAL 5 MINUTE) WHERE id = ?',
+        [hashedCode, user.id]
+      )
+      await sendSms(user.phone, `Din Fellis-kode er: ${rawCode} (udløber om 5 minutter)`)
+      return res.json({ mfa_required: true, userId: user.id })
+    }
+
+    // No MFA — create session immediately
     const sessionId = crypto.randomUUID()
     const ua = req.headers['user-agent'] || null
     const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null
@@ -852,25 +888,50 @@ app.post('/api/auth/register', async (req, res) => {
   }
 })
 
-// POST /api/auth/forgot-password — request password reset (or set first password for FB users)
+// POST /api/auth/forgot-password — request password reset link via email
 app.post('/api/auth/forgot-password', async (req, res) => {
   const { email } = req.body
   if (!email) return res.status(400).json({ error: 'Email required' })
+
+  // Rate limit: max 3 requests per email per hour
+  if (!checkForgotRateLimit(email)) {
+    return res.status(429).json({ error: 'Too many requests. Please try again later.' })
+  }
+
   try {
-    const [users] = await pool.query('SELECT id, name, facebook_id, password_hash FROM users WHERE email = ?', [email])
-    if (users.length === 0) {
-      // Don't reveal if user exists or not — always return success
-      return res.json({ ok: true })
-    }
-    const user = users[0]
-    const token = crypto.randomUUID()
-    // Store reset token (reuse sessions table with a special prefix)
-    await pool.query(
-      'INSERT INTO sessions (id, user_id, lang, expires_at) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 1 HOUR))',
-      [`reset:${token}`, user.id, 'da']
+    const [users] = await pool.query(
+      'SELECT id, name, facebook_id, password_hash FROM users WHERE email = ?', [email]
     )
-    // In a real app, send email. For demo, return the token directly.
-    res.json({ ok: true, resetToken: token, isFacebookUser: !!user.facebook_id, hasPassword: !!user.password_hash })
+    // Always return success to avoid leaking whether the email exists
+    if (users.length === 0) return res.json({ ok: true })
+
+    const user = users[0]
+    // Generate a cryptographically random token and store its SHA-256 hash
+    const rawToken = crypto.randomBytes(32).toString('hex')
+    const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex')
+    await pool.query(
+      'UPDATE users SET reset_token = ?, reset_token_expires = DATE_ADD(NOW(), INTERVAL 1 HOUR) WHERE id = ?',
+      [hashedToken, user.id]
+    )
+
+    const siteBase = process.env.SITE_URL || 'https://fellis.eu'
+    const resetUrl = `${siteBase}/?reset_token=${rawToken}`
+
+    if (mailer) {
+      const fromAddr = process.env.MAIL_FROM || process.env.MAIL_USER
+      await mailer.sendMail({
+        from: `"Fellis" <${fromAddr}>`,
+        to: email,
+        subject: 'Nulstil din adgangskode / Reset your password',
+        text: `Hej ${user.name},\n\nKlik her for at nulstille din adgangskode (linket udløber om 1 time):\n${resetUrl}\n\nHvis du ikke bad om dette, kan du ignorere denne e-mail.\n\nVenlig hilsen,\nFellis`,
+        html: `<p>Hej <strong>${user.name}</strong>,</p><p>Klik her for at nulstille din adgangskode (linket udløber om 1 time):</p><p><a href="${resetUrl}" style="background:#2D6A4F;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:bold">Nulstil adgangskode</a></p><p style="color:#888;font-size:12px">Eller kopier dette link: ${resetUrl}</p><p style="color:#888;font-size:12px">Hvis du ikke bad om dette, kan du ignorere denne e-mail.</p>`,
+      }).catch(err => console.error('Reset mail error:', err.message))
+    } else {
+      // Dev fallback: log the token (never expose in production without MAIL_HOST)
+      console.info(`[dev] Password reset link for ${email}: ${resetUrl}`)
+    }
+
+    res.json({ ok: true })
   } catch (err) {
     res.status(500).json({ error: 'Request failed' })
   }
@@ -884,28 +945,91 @@ app.post('/api/auth/reset-password', async (req, res) => {
   const resetPwdErrors = validatePasswordStrength(password, resetPolicy, resetLang || 'da')
   if (resetPwdErrors.length > 0) return res.status(400).json({ error: resetPwdErrors.join('. ') })
   try {
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex')
     const [rows] = await pool.query(
-      'SELECT user_id FROM sessions WHERE id = ? AND expires_at > NOW()',
-      [`reset:${token}`]
+      'SELECT id FROM users WHERE reset_token = ? AND reset_token_expires > NOW()',
+      [hashedToken]
     )
     if (rows.length === 0) return res.status(400).json({ error: 'Invalid or expired reset token' })
-    const userId = rows[0].user_id
+    const userId = rows[0].id
     const hash = crypto.createHash('sha256').update(password).digest('hex')
-    await pool.query('UPDATE users SET password_hash = ?, password_plain = ? WHERE id = ?', [hash, password, userId])
-    // Clean up reset token
-    await pool.query('DELETE FROM sessions WHERE id = ?', [`reset:${token}`])
+    // Update password and clear reset token atomically
+    await pool.query(
+      'UPDATE users SET password_hash = ?, password_plain = ?, reset_token = NULL, reset_token_expires = NULL WHERE id = ?',
+      [hash, password, userId]
+    )
     // Create a new login session
     const sessionId = crypto.randomUUID()
     const ua = req.headers['user-agent'] || null
     const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null
     await pool.query(
       'INSERT INTO sessions (id, user_id, lang, expires_at, user_agent, ip_address) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY), ?, ?)',
-      [sessionId, userId, 'da', ua, ip]
+      [sessionId, userId, resetLang || 'da', ua, ip]
     )
     setSessionCookie(res, sessionId)
     res.json({ ok: true, sessionId, userId })
   } catch (err) {
     res.status(500).json({ error: 'Reset failed' })
+  }
+})
+
+// POST /api/auth/verify-mfa — verify SMS code and complete login
+app.post('/api/auth/verify-mfa', async (req, res) => {
+  const { userId, code, lang } = req.body
+  if (!userId || !code) return res.status(400).json({ error: 'userId and code required' })
+  try {
+    const [rows] = await pool.query(
+      'SELECT id FROM users WHERE id = ? AND mfa_code_expires > NOW()',
+      [userId]
+    )
+    if (rows.length === 0) return res.status(400).json({ error: 'Code expired or user not found' })
+    const hashedCode = crypto.createHash('sha256').update(String(code)).digest('hex')
+    const [valid] = await pool.query(
+      'SELECT id FROM users WHERE id = ? AND mfa_code = ?',
+      [userId, hashedCode]
+    )
+    if (valid.length === 0) return res.status(401).json({ error: 'Invalid code' })
+    // Clear MFA code and create session
+    await pool.query(
+      'UPDATE users SET mfa_code = NULL, mfa_code_expires = NULL WHERE id = ?', [userId]
+    )
+    const sessionId = crypto.randomUUID()
+    const ua = req.headers['user-agent'] || null
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null
+    await pool.query(
+      'INSERT INTO sessions (id, user_id, lang, expires_at, user_agent, ip_address) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY), ?, ?)',
+      [sessionId, userId, lang || 'da', ua, ip]
+    )
+    setSessionCookie(res, sessionId)
+    res.json({ sessionId, userId })
+  } catch (err) {
+    res.status(500).json({ error: 'MFA verification failed' })
+  }
+})
+
+// POST /api/auth/enable-mfa — enable SMS MFA for current user (requires phone on account)
+app.post('/api/auth/enable-mfa', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT phone FROM users WHERE id = ?', [req.userId])
+    if (rows.length === 0) return res.status(404).json({ error: 'User not found' })
+    if (!rows[0].phone) return res.status(400).json({ error: 'A phone number is required to enable MFA' })
+    await pool.query('UPDATE users SET mfa_enabled = 1 WHERE id = ?', [req.userId])
+    res.json({ ok: true, mfa_enabled: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to enable MFA' })
+  }
+})
+
+// POST /api/auth/disable-mfa — disable SMS MFA for current user
+app.post('/api/auth/disable-mfa', authenticate, async (req, res) => {
+  try {
+    await pool.query(
+      'UPDATE users SET mfa_enabled = 0, mfa_code = NULL, mfa_code_expires = NULL WHERE id = ?',
+      [req.userId]
+    )
+    res.json({ ok: true, mfa_enabled: false })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to disable MFA' })
   }
 })
 
@@ -4154,7 +4278,7 @@ async function initAdminAdSettings() {
       adfree_price_private DECIMAL(10,2) NOT NULL DEFAULT 29.00,
       adfree_price_business DECIMAL(10,2) NOT NULL DEFAULT 49.00,
       ad_price_cpm DECIMAL(10,2) NOT NULL DEFAULT 50.00,
-      currency VARCHAR(10) NOT NULL DEFAULT 'DKK',
+      currency VARCHAR(10) NOT NULL DEFAULT 'EUR',
       max_ads_feed INT NOT NULL DEFAULT 3,
       max_ads_sidebar INT NOT NULL DEFAULT 2,
       max_ads_stories INT NOT NULL DEFAULT 1,
@@ -4265,7 +4389,7 @@ app.get('/api/ads/price', authenticate, async (req, res) => {
     const adPrice = parseFloat(row?.ad_price_cpm) || 50
     const adRecurringPct = parseInt(row?.ad_recurring_pct ?? 100)
     const adRecurringPrice = Math.round(adPrice * adRecurringPct / 100 * 100) / 100
-    res.json({ ad_price_cpm: adPrice, ad_recurring_price: adRecurringPrice, ad_recurring_pct: adRecurringPct, currency: row?.currency || 'DKK' })
+    res.json({ ad_price_cpm: adPrice, ad_recurring_price: adRecurringPrice, ad_recurring_pct: adRecurringPct, currency: row?.currency || 'EUR' })
   } catch (err) {
     console.error('GET /api/ads/price error:', err.message)
     res.status(500).json({ error: 'Server error' })
@@ -4524,7 +4648,7 @@ app.get('/api/me/subscription', authenticate, async (req, res) => {
   try {
     const [[user]] = await pool.query('SELECT ads_free, mode FROM users WHERE id = ?', [req.userId])
     if (!user) return res.status(404).json({ error: 'User not found' })
-    const [[adSettings]] = await pool.query('SELECT adfree_price_private, adfree_price_business, adfree_recurring_pct, currency, ads_enabled FROM admin_ad_settings WHERE id = 1').catch(() => [[{ adfree_price_private: 29, adfree_price_business: 49, adfree_recurring_pct: 100, currency: 'DKK', ads_enabled: 1 }]])
+    const [[adSettings]] = await pool.query('SELECT adfree_price_private, adfree_price_business, adfree_recurring_pct, currency, ads_enabled FROM admin_ad_settings WHERE id = 1').catch(() => [[{ adfree_price_private: 29, adfree_price_business: 49, adfree_recurring_pct: 100, currency: 'EUR', ads_enabled: 1 }]])
     const price = parseFloat(user.mode === 'business' ? adSettings?.adfree_price_business : adSettings?.adfree_price_private) || 29
     const recurringPct = parseInt(adSettings?.adfree_recurring_pct ?? 100)
     const recurringPrice = Math.round(price * recurringPct / 100 * 100) / 100
@@ -4542,7 +4666,7 @@ app.get('/api/me/subscription', authenticate, async (req, res) => {
       price,
       recurring_price: recurringPrice,
       recurring_pct: recurringPct,
-      currency: adSettings?.currency || 'DKK',
+      currency: adSettings?.currency || 'EUR',
       ads_enabled: Boolean(adSettings?.ads_enabled),
       plan: sub?.plan || null,
       status: sub?.status || null,
@@ -4641,9 +4765,9 @@ app.post('/api/mollie/payment/create', authenticate, async (req, res) => {
 
     // Resolve amount from admin_ad_settings
     let resolvedAmount = null
-    let resolvedCurrency = reqCurrency || 'DKK'
+    let resolvedCurrency = reqCurrency || 'EUR'
     const [[adS]] = await pool.query('SELECT adfree_price_private, adfree_price_business, adfree_recurring_pct, ad_price_cpm, ad_recurring_pct, currency FROM admin_ad_settings WHERE id = 1').catch(() => [[null]])
-    resolvedCurrency = adS?.currency || 'DKK'
+    resolvedCurrency = adS?.currency || 'EUR'
     if (plan === 'adfree') {
       const oneTimePrice = parseFloat(user.mode === 'business' ? adS?.adfree_price_business : adS?.adfree_price_private) || 29
       if (recurring) {
@@ -5202,9 +5326,6 @@ app.get('/api/admin/settings', authenticate, requireAdmin, async (req, res) => {
     const settings = {}
     for (const row of rows) settings[row.key_name] = row.key_value
     // Overlay env vars so the admin form pre-populates them
-    if (process.env.GOOGLE_CLIENT_ID && !settings.google_photos_client_id) {
-      settings.google_photos_client_id = process.env.GOOGLE_CLIENT_ID
-    }
     if (process.env.MOLLIE_API_KEY && !settings.mollie_api_key) {
       settings.mollie_api_key = process.env.MOLLIE_API_KEY
     }
@@ -5229,12 +5350,12 @@ app.get('/api/admin/settings', authenticate, requireAdmin, async (req, res) => {
 
 // POST /api/admin/settings — save Stripe config (admin only)
 app.post('/api/admin/settings', authenticate, requireAdmin, async (req, res) => {
-  const allowed = ['stripe_secret_key', 'stripe_pub_key', 'stripe_webhook_secret', 'stripe_price_pro_monthly', 'stripe_price_pro_yearly', 'stripe_price_boost', 'pwd_min_length', 'pwd_require_uppercase', 'pwd_require_lowercase', 'pwd_require_numbers', 'pwd_require_symbols', 'google_photos_client_id', 'media_max_files', 'marketplace_max_photos', 'registration_open', 'mollie_api_key']
+  const allowed = ['stripe_secret_key', 'stripe_pub_key', 'stripe_webhook_secret', 'stripe_price_pro_monthly', 'stripe_price_pro_yearly', 'stripe_price_boost', 'pwd_min_length', 'pwd_require_uppercase', 'pwd_require_lowercase', 'pwd_require_numbers', 'pwd_require_symbols', 'media_max_files', 'marketplace_max_photos', 'registration_open', 'mollie_api_key']
   try {
     for (const [key, value] of Object.entries(req.body)) {
       if (!allowed.includes(key)) continue
-      // pwd_, media_, registration_ and google_ keys are always saved (value can be '0'/'')
-      const alwaysSave = key.startsWith('pwd_') || key.startsWith('media_') || key.startsWith('registration_') || key.startsWith('google_') || key === 'mollie_api_key'
+      // pwd_, media_, registration_ keys are always saved (value can be '0'/'')
+      const alwaysSave = key.startsWith('pwd_') || key.startsWith('media_') || key.startsWith('registration_') || key === 'mollie_api_key'
       if (!alwaysSave) {
         if (!value || value === '••••••••' + (value || '').slice(-4)) continue // skip masked/empty
       }
@@ -6268,7 +6389,7 @@ app.patch('/api/profile', authenticate, async (req, res) => {
 app.get('/api/config', async (req, res) => {
   try {
     const [rows] = await pool.query(
-      "SELECT key_name, key_value FROM admin_settings WHERE key_name IN ('stripe_pub_key','google_photos_client_id','media_max_files','marketplace_max_photos')"
+      "SELECT key_name, key_value FROM admin_settings WHERE key_name IN ('stripe_pub_key','media_max_files','marketplace_max_photos')"
     )
     const cfg = {}
     for (const r of rows) cfg[r.key_name] = r.key_value
@@ -6276,9 +6397,6 @@ app.get('/api/config', async (req, res) => {
       cfg.fb_app_id = process.env.FB_APP_ID
       cfg.facebookEnabled = true
     }
-    // Google Photos Client ID: env var takes priority, then admin_settings
-    const googleClientId = process.env.GOOGLE_CLIENT_ID || cfg.google_photos_client_id || null
-    if (googleClientId) cfg.googlePhotosClientId = googleClientId
     if (cfg.media_max_files) cfg.mediaMaxFiles = parseInt(cfg.media_max_files, 10) || 4
     if (cfg.marketplace_max_photos) cfg.marketplaceMaxPhotos = parseInt(cfg.marketplace_max_photos, 10) || 4
     res.json({ config: cfg, facebookEnabled: !!process.env.FB_APP_ID })
@@ -6294,7 +6412,6 @@ const CHANGELOG_ENTRIES = [
   { date: '2026-02', icon: '💼', da: 'Stillingsopslag — businessbrugere kan oprette og administrere jobs direkte på platformen', en: 'Job listings — business users can create and manage job posts directly on the platform' },
   { date: '2026-02', icon: '📅', da: 'Planlagte opslag — opret opslag og planlæg dem til fremtidig publicering', en: 'Scheduled posts — create posts and schedule them for future publishing' },
   { date: '2026-02', icon: '🤝', da: 'CRM-noter — tilføj private noter til dine forbindelser', en: 'CRM notes — add private notes to your connections' },
-  { date: '2026-01', icon: '📸', da: 'Google Fotos integration — vælg billeder direkte fra dit Google Fotos-bibliotek', en: 'Google Photos integration — pick photos directly from your Google Photos library' },
   { date: '2026-01', icon: '🖼️', da: 'Medier i beskeder — send billeder og filer direkte i samtaler', en: 'Media in messages — send images and files directly in conversations' },
   { date: '2026-01', icon: '📊', da: 'Analytics-dashboard — businessbrugere får indsigt i profilvisninger og engagement', en: 'Analytics dashboard — business users get insights into profile views and engagement' },
   { date: '2025-12', icon: '🛡️', da: 'Moderationssystem — rapportér indhold, keywordfiltre og moderatorroller', en: 'Moderation system — report content, keyword filters and moderator roles' },
@@ -6432,56 +6549,6 @@ app.get('/api/feed/suggest-category', authenticate, async (req, res) => {
 // ── Jobs ──────────────────────────────────────────────────────────────────────
 app.get('/api/jobs/mine', authenticate, async (req, res) => {
   res.json({ jobs: [] })
-})
-
-// ── Google Photos (stub) ──────────────────────────────────────────────────────
-// POST /api/auth/google/exchange — exchange GIS auth code for access token (keeps client_secret server-side)
-app.post('/api/auth/google/exchange', authenticate, async (req, res) => {
-  const { code } = req.body
-  if (!code) return res.status(400).json({ error: 'code required' })
-  const clientId = process.env.GOOGLE_CLIENT_ID
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET
-  if (!clientId || !clientSecret) {
-    return res.status(503).json({ error: 'Google OAuth not configured — set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in server/.env' })
-  }
-  try {
-    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        code,
-        client_id: clientId,
-        client_secret: clientSecret,
-        redirect_uri: 'postmessage', // GIS popup-mode convention
-        grant_type: 'authorization_code',
-      }),
-    })
-    const data = await tokenRes.json()
-    if (data.error) return res.status(400).json({ error: data.error_description || data.error })
-    res.json({ access_token: data.access_token, expires_in: data.expires_in })
-  } catch (err) {
-    console.error('Google token exchange error:', err.message)
-    res.status(500).json({ error: 'Token exchange failed' })
-  }
-})
-
-// POST /api/providers/google-photos/download — proxy-download a Google photo server-side
-app.post('/api/providers/google-photos/download', authenticate, async (req, res) => {
-  const { url, access_token } = req.body
-  if (!url || !access_token) return res.status(400).json({ error: 'url and access_token required' })
-  try {
-    const imgRes = await fetch(url, { headers: { Authorization: `Bearer ${access_token}` } })
-    if (!imgRes.ok) return res.status(imgRes.status).json({ error: 'Failed to fetch image from Google' })
-    const contentType = imgRes.headers.get('content-type') || 'image/jpeg'
-    const buffer = Buffer.from(await imgRes.arrayBuffer())
-    const ext = contentType.includes('png') ? 'png' : contentType.includes('gif') ? 'gif' : 'webp'.includes(contentType) ? 'webp' : 'jpg'
-    const filename = `gphotos-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-    fs.writeFileSync(path.join(UPLOADS_DIR, filename), buffer)
-    res.json({ url: `/uploads/${filename}`, mimeType: contentType })
-  } catch (err) {
-    console.error('Google photo download error:', err.message)
-    res.status(500).json({ error: 'Download failed' })
-  }
 })
 
 // ── Post insights (real data) ─────────────────────────────────────────────────
