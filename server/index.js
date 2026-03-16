@@ -5476,7 +5476,7 @@ app.get('/api/admin/stats/list', authenticate, requireAdmin, async (req, res) =>
     } else if (type === 'friendships') {
       ;[rows] = await pool.query("SELECT f.id, a.name AS user1, b.name AS user2, f.created_at FROM friendships f JOIN users a ON a.id = f.user_id JOIN users b ON b.id = f.friend_id WHERE f.user_id < f.friend_id ORDER BY f.created_at DESC LIMIT 20").catch(() => [rows])
     } else if (type === 'messages') {
-      ;[rows] = await pool.query("SELECT m.id, u.name AS sender, SUBSTRING(m.body, 1, 60) AS preview, m.created_at FROM messages m JOIN users u ON u.id = m.sender_id ORDER BY m.created_at DESC LIMIT 20").catch(() => [rows])
+      ;[rows] = await pool.query("SELECT m.id, u.name AS sender, SUBSTRING(m.text_da, 1, 60) AS preview, m.created_at FROM messages m JOIN users u ON u.id = m.sender_id ORDER BY m.created_at DESC LIMIT 20").catch(() => [rows])
     }
     res.json({ type, rows })
   } catch (err) {
@@ -6704,7 +6704,7 @@ app.get('/api/posts/:id/insights', authenticate, async (req, res) => {
     let shares = 0
     try {
       const [[sh]] = await pool.query(
-        "SELECT COUNT(*) AS cnt FROM share_tracks WHERE target_id = ? AND share_type = 'post'",
+        "SELECT COUNT(*) AS cnt FROM share_events WHERE target_id = ? AND share_type = 'post'",
         [postId]
       )
       shares = Number(sh.cnt)
