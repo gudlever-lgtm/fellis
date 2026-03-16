@@ -343,7 +343,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
           <div ref={notifRef} style={{ position: 'relative' }}>
             <button
               className="p-nav-notif-btn"
-              onClick={() => { setShowNotifPanel(v => !v); setShowAvatarMenu(false) }}
+              onClick={() => { setShowNotifPanel(v => { if (!v) reloadNotifs(); return !v }); setShowAvatarMenu(false) }}
               aria-label={t.notifications}
               title={t.notifications}
             >
@@ -1516,8 +1516,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     })
   }, [])
 
-  const doCreatePost = useCallback((text, files, schedAt) => {
-    apiCreatePost(text, files, schedAt || undefined).then(data => {
+  const doCreatePost = useCallback((text, files, schedAt, categories) => {
+    apiCreatePost(text, files, schedAt || undefined, categories?.length ? [...categories] : undefined).then(data => {
       if (data?.scheduled) {
         // Scheduled post — don't add to feed, just show a toast
         return
@@ -1560,16 +1560,16 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     const check = await apiPreflightPost(text)
     if (check?.blocked) return // server will also block — just in case
     if (check?.flagged) {
-      setKeywordWarning({ keyword: check.keyword, category: check.category, notes: check.notes, text, files })
+      setKeywordWarning({ keyword: check.keyword, category: check.category, notes: check.notes, text, files, categories: postCategories })
       return
     }
     const schedAt = scheduleEnabled && scheduledAt ? scheduledAt : null
-    doCreatePost(text, files, schedAt)
+    doCreatePost(text, files, schedAt, postCategories)
     setNewPostText('')
     setMediaFiles([])
     setMediaPreviews([])
     setPostExpanded(false)
-  }, [newPostText, mediaFiles, providerMediaUrls, doCreatePost, scheduleEnabled, scheduledAt])
+  }, [newPostText, mediaFiles, providerMediaUrls, doCreatePost, scheduleEnabled, scheduledAt, postCategories])
 
   const toggleLike = useCallback((id, emoji) => {
     const isLiked = likedPosts.has(id)
@@ -1845,9 +1845,9 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
               </button>
               <button
                 onClick={() => {
-                  const { text, files } = keywordWarning
+                  const { text, files, categories: kwCats } = keywordWarning
                   setKeywordWarning(null)
-                  doCreatePost(text, files)
+                  doCreatePost(text, files, null, kwCats)
                   setNewPostText('')
                   setMediaFiles([])
                   setMediaPreviews([])
@@ -6070,7 +6070,7 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
               <span className="p-filter-online-dot" /> {t.onlineFriends} ({friends.filter(f => f.online).length})
             </button>
             <button className={`p-filter-tab${filter === 'invites' ? ' active' : ''}`} onClick={() => setFilter('invites')}>
-              ✉️ {t.invitesTab}{invites !== null && invites.filter(i => i.status === 'pending').length > 0 ? ` (${invites.filter(i => i.status === 'pending').length})` : ''}
+              ✉️ {t.invitesTab} ({requests.incoming.length})
             </button>
             <button className={`p-filter-tab${filter === 'viral' ? ' active' : ''}`} onClick={() => setFilter('viral')}>
               🚀 {t.referralDashViralTitle}
