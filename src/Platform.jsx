@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } f
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { PT, SUPPORTED_LANGS, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
 import { formatPrice } from './utils/currency.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiFetchMemories, apiApplyToJob, apiGetJobApplications, apiUpdateJobApplication, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiFetchMemories, apiApplyToJob, apiGetJobApplications, apiUpdateJobApplication, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory } from './api.js'
 import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
 import ReelsPage from './Reels.jsx'
@@ -3607,7 +3607,10 @@ function SettingsNotifications({ lang, t }) {
   }
 
   const save = async () => {
-    await apiSaveNotificationPreferences(prefs).catch(() => {})
+    // Always persist all known types so the DB reflects the full current state
+    const fullPrefs = { all: allEnabled }
+    for (const { key } of NOTIF_PREF_TYPES) fullPrefs[key] = isEnabled(key)
+    await apiSaveNotificationPreferences(fullPrefs).catch(() => {})
     setSaved(true)
     setTimeout(() => setSaved(false), 2500)
   }
@@ -5832,7 +5835,7 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
     refreshAll()
   }, [unfriendTarget, refreshAll])
 
-  const filtered = (filter === 'invites' || filter === 'viral') ? [] : friends.filter(f => filter === 'all' || f.online)
+  const filtered = (filter === 'invites' || filter === 'requests' || filter === 'viral') ? [] : friends.filter(f => filter === 'all' || f.online)
 
   const handleCopyInvite = useCallback(() => {
     navigator.clipboard.writeText(inviteLink).catch(() => {})
@@ -6028,26 +6031,18 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
         </div>
       </div>
 
-      {/* Incoming connection requests (only on non-invites tabs; shown inside Invitations tab too) */}
-      {filter !== 'invites' && requests.incoming.length > 0 && (
-        <div className="p-card p-friend-requests-card">
-          <h3 className="p-section-title" style={{ margin: '0 0 12px' }}>
-            {t.incomingRequests} ({requests.incoming.length})
-          </h3>
-          <div className="p-friend-requests-list">
-            {requests.incoming.map(req => (
-              <div key={req.id} className="p-friend-request-row">
-                <div className="p-avatar-sm" style={{ background: nameToColor(req.from_name) }}>
-                  {getInitials(req.from_name)}
-                </div>
-                <div className="p-friend-request-name">{req.from_name}</div>
-                <div className="p-friend-request-actions">
-                  <button className="p-freq-accept-btn" onClick={() => handleAccept(req.id)}>{t.acceptRequest}</button>
-                  <button className="p-freq-decline-btn" onClick={() => handleDecline(req.id)}>{t.declineRequest}</button>
-                </div>
-              </div>
-            ))}
-          </div>
+      {/* Incoming requests badge — shown on non-request tabs to nudge user */}
+      {filter !== 'requests' && filter !== 'invites' && requests.incoming.length > 0 && (
+        <div className="p-card" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', borderLeft: '3px solid #2D6A4F' }} onClick={() => setFilter('requests')}>
+          <span style={{ fontSize: 20 }}>👥</span>
+          <span style={{ fontSize: 14, fontWeight: 600 }}>
+            {requests.incoming.length === 1
+              ? (lang === 'da' ? '1 afventende forbindelsesanmodning' : '1 pending connection request')
+              : (lang === 'da' ? `${requests.incoming.length} afventende forbindelsesanmodninger` : `${requests.incoming.length} pending connection requests`)}
+          </span>
+          <span style={{ marginLeft: 'auto', fontSize: 12, color: '#2D6A4F', fontWeight: 600 }}>
+            {lang === 'da' ? 'Se →' : 'View →'}
+          </span>
         </div>
       )}
 
@@ -6069,8 +6064,11 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
             <button className={`p-filter-tab${filter === 'online' ? ' active' : ''}`} onClick={() => setFilter('online')}>
               <span className="p-filter-online-dot" /> {t.onlineFriends} ({friends.filter(f => f.online).length})
             </button>
+            <button className={`p-filter-tab${filter === 'requests' ? ' active' : ''}`} onClick={() => setFilter('requests')}>
+              👥 {t.requestsTab} ({requests.incoming.length + requests.outgoing.length})
+            </button>
             <button className={`p-filter-tab${filter === 'invites' ? ' active' : ''}`} onClick={() => setFilter('invites')}>
-              ✉️ {t.invitesTab} ({requests.incoming.length})
+              ✉️ {t.invitesTab}
             </button>
             <button className={`p-filter-tab${filter === 'viral' ? ' active' : ''}`} onClick={() => setFilter('viral')}>
               🚀 {t.referralDashViralTitle}
@@ -6134,8 +6132,9 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
             </div>
           )}
         </div>
-      ) : filter === 'invites' ? (
+      ) : filter === 'requests' ? (
         <div className="p-invites-page">
+          <p style={{ margin: '0 0 16px', fontSize: 13, color: '#666' }}>{t.requestsTabDesc}</p>
 
           {/* ── Incoming connection requests ── */}
           <div className="p-card p-invites-section">
@@ -6163,7 +6162,46 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
             )}
           </div>
 
-          {/* ── Outgoing invitations ── */}
+          {/* ── Outgoing connection requests ── */}
+          <div className="p-card p-invites-section">
+            <h3 className="p-invites-section-title">{t.invitesOutgoingTitle}</h3>
+            {requests.outgoing.length === 0 ? (
+              <div className="p-invites-empty">👥 {t.invitesOutgoingEmpty}</div>
+            ) : (
+              <div className="p-invites-list">
+                {requests.outgoing.map(req => (
+                  <div key={req.id} className="p-invite-row">
+                    <div className="p-avatar-sm" style={{ background: nameToColor(req.to_name) }}>
+                      {getInitials(req.to_name)}
+                    </div>
+                    <div className="p-invite-row-info">
+                      <div className="p-invite-row-name">{req.to_name}</div>
+                      <div className="p-invite-row-meta">{lang === 'da' ? 'Afventer svar' : 'Awaiting reply'}</div>
+                    </div>
+                    <div className="p-invite-row-actions">
+                      <span className="p-invite-status-badge">{t.invitesPending}</span>
+                      <button
+                        className="p-invite-cancel-btn"
+                        title={t.invitesWithdrawBtn}
+                        onClick={async () => {
+                          await apiCancelFriendRequest(req.to_id).catch(() => {})
+                          setRequests(prev => ({ ...prev, outgoing: prev.outgoing.filter(r => r.id !== req.id) }))
+                          setSentIds(prev => { const n = { ...prev }; delete n[req.to_id]; return n })
+                        }}
+                      >✕</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+      ) : filter === 'invites' ? (
+        <div className="p-invites-page">
+          <p style={{ margin: '0 0 16px', fontSize: 13, color: '#666' }}>{t.invitesTabDesc}</p>
+
+          {/* ── Outgoing email invitations ── */}
           <div className="p-card p-invites-section">
             <h3 className="p-invites-section-title">{t.invitesSentTitle}</h3>
             {(() => {

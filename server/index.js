@@ -2432,6 +2432,19 @@ app.post('/api/friends/requests/:id/decline', authenticate, async (req, res) => 
   } catch (err) { res.status(500).json({ error: 'Failed to decline request' }) }
 })
 
+// DELETE /api/friends/request/:userId — cancel an outgoing pending friend request
+app.delete('/api/friends/request/:userId', authenticate, async (req, res) => {
+  const targetId = parseInt(req.params.userId)
+  if (!targetId || targetId === req.userId) return res.status(400).json({ error: 'Invalid user' })
+  try {
+    await pool.query(
+      `DELETE FROM friend_requests WHERE from_user_id = ? AND to_user_id = ? AND status = 'pending'`,
+      [req.userId, targetId]
+    )
+    res.json({ ok: true })
+  } catch (err) { res.status(500).json({ error: 'Failed to cancel request' }) }
+})
+
 // DELETE /api/friends/:userId — unfriend (mutual). Optional ?notify=1 sends a message.
 app.delete('/api/friends/:userId', authenticate, async (req, res) => {
   const targetId = parseInt(req.params.userId)
@@ -6540,13 +6553,15 @@ app.put('/api/me/notification-preferences', authenticate, async (req, res) => {
   if (!prefs || typeof prefs !== 'object') return res.status(400).json({ error: 'Invalid prefs' })
   try {
     for (const [type, enabled] of Object.entries(prefs)) {
+      const val = enabled ? 1 : 0
       await pool.query(
-        'INSERT INTO notification_preferences (user_id, type, enabled) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE enabled = VALUES(enabled)',
-        [req.userId, type, enabled ? 1 : 0]
+        'INSERT INTO notification_preferences (user_id, type, enabled) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE enabled = ?',
+        [req.userId, type, val, val]
       )
     }
     res.json({ ok: true })
-  } catch {
+  } catch (err) {
+    console.error('[PUT /api/me/notification-preferences]', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })

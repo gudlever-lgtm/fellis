@@ -236,6 +236,10 @@ export async function apiDeclineFriendRequest(requestId) {
   return await request(`/api/friends/requests/${requestId}/decline`, { method: 'POST' })
 }
 
+export async function apiCancelFriendRequest(userId) {
+  return await request(`/api/friends/request/${userId}`, { method: 'DELETE' })
+}
+
 export async function apiUnfriend(userId, notify = false) {
   return await request(`/api/friends/${userId}${notify ? '?notify=1' : ''}`, { method: 'DELETE' })
 }
