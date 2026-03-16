@@ -292,7 +292,6 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
   // Register state (step 4) — pre-fill email from email invite if available
   const [regName, setRegName] = useState('')
   const [regEmail, setRegEmail] = useState(inviterEmail || '')
-  const [regEmailRepeat, setRegEmailRepeat] = useState('')
   const [regPassword, setRegPassword] = useState('')
   const [regPasswordRepeat, setRegPasswordRepeat] = useState('')
   const [regError, setRegError] = useState('')
@@ -435,10 +434,6 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
       setRegError(t.registerError)
       return
     }
-    if (regEmail.trim().toLowerCase() !== regEmailRepeat.trim().toLowerCase()) {
-      setRegError(t.registerEmailMismatch)
-      return
-    }
     if (regPassword.length < 6) {
       setRegError(lang === 'da' ? 'Adgangskode skal være mindst 6 tegn' : 'Password must be at least 6 characters')
       return
@@ -470,7 +465,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
       setRegError(t.registerError)
       setRegLoading(false)
     }
-  }, [regName, regEmail, regEmailRepeat, regPassword, regPasswordRepeat, honeypot, mathAnswer, mathChallenge, lang, t, inviteToken, inviterName])
+  }, [regName, regEmail, regPassword, regPasswordRepeat, honeypot, mathAnswer, mathChallenge, lang, t, inviteToken, inviterName])
 
   // Redirect to real Facebook OAuth — carry invite token so callback can auto-connect
   const handleFbClick = useCallback(() => {
@@ -841,15 +836,6 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
               required
             />
             <input
-              type="email"
-              placeholder={t.registerEmailRepeat}
-              value={regEmailRepeat}
-              onChange={e => setRegEmailRepeat(e.target.value)}
-              className="register-input"
-              required
-              onPaste={e => e.preventDefault()}
-            />
-            <input
               ref={nameRef}
               type="text"
               placeholder={t.registerName}
@@ -875,7 +861,6 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
               className="register-input"
               minLength={6}
               required
-              onPaste={e => e.preventDefault()}
             />
             <PasswordStrengthIndicator password={regPassword} lang={lang} />
             {/* Math challenge — simple human verification */}
@@ -897,7 +882,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
               <input
                 type="checkbox"
                 checked={gdprAccepted}
-                onChange={e => setGdprAccepted(e.target.checked)}
+                onChange={e => { setGdprAccepted(e.target.checked); if (e.target.checked) setRegError('') }}
                 style={{ marginTop: 2, flexShrink: 0, accentColor: '#2D6A4F' }}
               />
               <span>
