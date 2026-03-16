@@ -893,7 +893,7 @@ app.post('/api/auth/register', async (req, res) => {
             createNotification(referrerId, 'friend_accepted',
               `${newUser.name} accepterede din invitation og er nu din ven`,
               `${newUser.name} accepted your invitation and is now your friend`,
-              '/friends'
+              newUserId, newUser.name
             )
           }
         }
@@ -2041,7 +2041,7 @@ app.post('/api/feed/:id/like', authenticate, async (req, res) => {
           createNotification(post.user_id, 'like',
             `${liker.name} reagerede ${emoji} på dit opslag`,
             `${liker.name} reacted ${emoji} to your post`,
-            '/feed'
+            req.userId, liker.name, postId
           )
         }
       }
@@ -2118,7 +2118,7 @@ app.post('/api/feed/:id/comment', authenticate, upload.single('media'), async (r
       createNotification(post.user_id, 'comment',
         `${users[0].name} kommenterede dit opslag`,
         `${users[0].name} commented on your post`,
-        '/feed'
+        req.userId, users[0].name, postId
       )
     }
     res.json({ author: users[0].name, text: { da: text, en: text }, media })
@@ -2355,7 +2355,7 @@ app.post('/api/friends/request/:userId', authenticate, async (req, res) => {
       createNotification(targetId, 'friend_request',
         `${sender.name} har sendt dig en venneanmodning`,
         `${sender.name} sent you a friend request`,
-        '/friends'
+        req.userId, sender.name
       )
     }
     // Also broadcast a friend_request SSE event so recipient's Friends page refreshes live
@@ -2402,7 +2402,7 @@ app.post('/api/friends/requests/:id/accept', authenticate, async (req, res) => {
       createNotification(fromId, 'friend_accepted',
         `${acceptor.name} accepterede din venneanmodning`,
         `${acceptor.name} accepted your friend request`,
-        '/friends'
+        req.userId, acceptor.name
       )
     }
     res.json({ ok: true })
@@ -2425,7 +2425,7 @@ app.post('/api/friends/requests/:id/decline', authenticate, async (req, res) => 
       createNotification(fromId, 'friend_declined',
         `${decliner.name} har afvist din venneanmodning`,
         `${decliner.name} declined your friend request`,
-        '/friends'
+        req.userId, decliner.name
       )
     }
     res.json({ ok: true })
@@ -3400,7 +3400,7 @@ app.post('/api/marketplace/:id/boost', authenticate, async (req, res) => {
       createNotification(req.userId, 'listing_boosted',
         `Din annonce "${listing.title}" er nu boostet i 7 dage`,
         `Your listing "${listing.title}" is now boosted for 7 days`,
-        '/marketplace'
+        req.userId, null
       )
     }
     res.json({ ok: true, boostedUntil: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString() })
@@ -5476,7 +5476,7 @@ app.get('/api/admin/stats/list', authenticate, requireAdmin, async (req, res) =>
     } else if (type === 'friendships') {
       ;[rows] = await pool.query("SELECT f.id, a.name AS user1, b.name AS user2, f.created_at FROM friendships f JOIN users a ON a.id = f.user_id JOIN users b ON b.id = f.friend_id WHERE f.user_id < f.friend_id ORDER BY f.created_at DESC LIMIT 20").catch(() => [rows])
     } else if (type === 'messages') {
-      ;[rows] = await pool.query("SELECT m.id, u.name AS sender, SUBSTRING(m.body, 1, 60) AS preview, m.created_at FROM messages m JOIN users u ON u.id = m.sender_id ORDER BY m.created_at DESC LIMIT 20").catch(() => [rows])
+      ;[rows] = await pool.query("SELECT m.id, u.name AS sender, SUBSTRING(m.text_da, 1, 60) AS preview, m.created_at FROM messages m JOIN users u ON u.id = m.sender_id ORDER BY m.created_at DESC LIMIT 20").catch(() => [rows])
     }
     res.json({ type, rows })
   } catch (err) {
@@ -5623,7 +5623,7 @@ app.put('/api/events/:id/rsvp', authenticate, async (req, res) => {
             createNotification(ev.organizer_id, 'event_rsvp',
               `${rsvper.name} ${statusDa} til "${ev.title}"`,
               `${rsvper.name} ${statusEn} "${ev.title}"`,
-              '/events'
+              req.userId, rsvper.name
             )
           }
         }
@@ -6492,24 +6492,39 @@ async function initNotifications() {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
 
-    // Auto-migrate: add message_da / message_en if table was created with old schema
+    // Auto-migrate: inspect actual columns and fix any schema mismatches
     const [cols] = await pool.query(
-      "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'notifications'"
+      "SELECT COLUMN_NAME, IS_NULLABLE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'notifications' ORDER BY ORDINAL_POSITION"
     )
-    const colNames = cols.map(c => c.COLUMN_NAME)
-    if (!colNames.includes('message_da')) {
-      if (colNames.includes('message')) {
-        // Rename existing 'message' column → message_da, then add message_en
+    const colMap = Object.fromEntries(cols.map(c => [c.COLUMN_NAME, c]))
+
+    // message_da / message_en (old schema may have used 'message')
+    if (!colMap['message_da']) {
+      if (colMap['message']) {
         await pool.query('ALTER TABLE notifications CHANGE message message_da TEXT NOT NULL')
         console.log('✓ notifications: renamed message → message_da')
       } else {
         await pool.query('ALTER TABLE notifications ADD COLUMN message_da TEXT NOT NULL AFTER type')
-        console.log('✓ notifications: added message_da column')
+        console.log('✓ notifications: added message_da')
       }
     }
-    if (!colNames.includes('message_en')) {
+    if (!colMap['message_en']) {
       await pool.query('ALTER TABLE notifications ADD COLUMN message_en TEXT NOT NULL AFTER message_da')
-      console.log('✓ notifications: added message_en column')
+      console.log('✓ notifications: added message_en')
+    }
+    // actor_id / actor_name — make nullable if NOT NULL (so system notifications can omit them)
+    if (colMap['actor_id'] && colMap['actor_id'].IS_NULLABLE === 'NO') {
+      await pool.query('ALTER TABLE notifications MODIFY actor_id INT(11) DEFAULT NULL')
+      console.log('✓ notifications: actor_id made nullable')
+    }
+    if (colMap['actor_name'] && colMap['actor_name'].IS_NULLABLE === 'NO') {
+      await pool.query('ALTER TABLE notifications MODIFY actor_name VARCHAR(255) DEFAULT NULL')
+      console.log('✓ notifications: actor_name made nullable')
+    }
+    // is_read — add if missing (old schema may use read_at instead)
+    if (!colMap['is_read'] && !colMap['read_at']) {
+      await pool.query('ALTER TABLE notifications ADD COLUMN is_read TINYINT(1) NOT NULL DEFAULT 0 AFTER post_id')
+      console.log('✓ notifications: added is_read')
     }
 
     const [[nRow]] = await pool.query('SELECT COUNT(*) as c FROM notifications')
@@ -6520,20 +6535,20 @@ async function initNotifications() {
   }
 }
 
-async function createNotification(userId, type, messageDa, messageEn, link = null) {
+// actorId / actorName: who triggered the notification (nullable for system notifications)
+// postId: related post, if any
+async function createNotification(userId, type, messageDa, messageEn, actorId = null, actorName = null, postId = null) {
   try {
-    // Check if user disabled this type or all notifications
     const [prefs] = await pool.query(
       'SELECT type FROM notification_preferences WHERE user_id = ? AND type IN (?, "all") AND enabled = 0',
       [userId, type]
-    ).catch(() => [[]])  // if prefs table missing, proceed anyway
-    if (prefs.length > 0) return  // user has disabled this notification type
+    ).catch(() => [[]])
+    if (prefs.length > 0) return
 
     await pool.query(
-      'INSERT INTO notifications (user_id, type, message_da, message_en, link) VALUES (?, ?, ?, ?, ?)',
-      [userId, type, messageDa, messageEn, link]
+      'INSERT INTO notifications (user_id, type, message_da, message_en, actor_id, actor_name, post_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [userId, type, messageDa, messageEn, actorId || null, actorName || null, postId || null]
     )
-    // Only push SSE after confirmed INSERT — avoids spurious empty-panel refreshes
     sseBroadcast(userId, { type: 'notification' })
   } catch (err) {
     console.error('[createNotification] type=%s user=%d error: %s', type, userId, err.message)
@@ -6543,7 +6558,7 @@ async function createNotification(userId, type, messageDa, messageEn, link = nul
 app.get('/api/notifications', authenticate, async (req, res) => {
   try {
     const [rows] = await pool.query(
-      'SELECT id, type, message_da, message_en, link, read_at, created_at FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 50',
+      'SELECT id, type, message_da, message_en, actor_id, actor_name, post_id, is_read, created_at FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 50',
       [req.userId]
     )
     res.json({ notifications: rows })
@@ -6565,8 +6580,8 @@ app.post('/api/notifications/test', authenticate, async (req, res) => {
     }
     // 2. Insert test notification
     const [ins] = await pool.query(
-      'INSERT INTO notifications (user_id, type, message_da, message_en, link) VALUES (?, ?, ?, ?, ?)',
-      [req.userId, 'test', '🔔 Test notifikation — virker!', '🔔 Test notification — works!', null]
+      'INSERT INTO notifications (user_id, type, message_da, message_en, actor_id, actor_name) VALUES (?, ?, ?, ?, ?, ?)',
+      [req.userId, 'test', '🔔 Test notifikation — virker!', '🔔 Test notification — works!', req.userId, 'Test']
     )
     steps.push({ step: 'insert', ok: true, insertId: ins.insertId })
     // 3. Read it back
@@ -6585,7 +6600,7 @@ app.post('/api/notifications/test', authenticate, async (req, res) => {
 app.get('/api/notifications/unread-count', authenticate, async (req, res) => {
   try {
     const [[row]] = await pool.query(
-      'SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND read_at IS NULL',
+      'SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND is_read = 0',
       [req.userId]
     )
     res.json({ count: Number(row.count) })
@@ -6595,12 +6610,12 @@ app.get('/api/notifications/unread-count', authenticate, async (req, res) => {
 })
 
 app.post('/api/notifications/:id/read', authenticate, async (req, res) => {
-  await pool.query('UPDATE notifications SET read_at = NOW() WHERE id = ? AND user_id = ?', [req.params.id, req.userId]).catch(() => {})
+  await pool.query('UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?', [req.params.id, req.userId]).catch(() => {})
   res.json({ ok: true })
 })
 
 app.post('/api/notifications/read-all', authenticate, async (req, res) => {
-  await pool.query('UPDATE notifications SET read_at = NOW() WHERE user_id = ? AND read_at IS NULL', [req.userId]).catch(() => {})
+  await pool.query('UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0', [req.userId]).catch(() => {})
   res.json({ ok: true })
 })
 
@@ -6689,7 +6704,7 @@ app.get('/api/posts/:id/insights', authenticate, async (req, res) => {
     let shares = 0
     try {
       const [[sh]] = await pool.query(
-        "SELECT COUNT(*) AS cnt FROM share_tracks WHERE target_id = ? AND share_type = 'post'",
+        "SELECT COUNT(*) AS cnt FROM share_events WHERE target_id = ? AND share_type = 'post'",
         [postId]
       )
       shares = Number(sh.cnt)
@@ -6905,7 +6920,7 @@ app.post('/api/admin/moderation/users/:id/warn', authenticate, requireModerator,
     createNotification(targetId, 'moderation',
       `Du har modtaget en advarsel på fellis.eu${reason ? `: ${reason}` : ''}`,
       `You have received a warning on fellis.eu${reason ? `: ${reason}` : ''}`,
-      null
+      req.userId, 'fellis.eu'
     )
     // Send warning email if mailer is configured
     if (mailer) {
@@ -6951,7 +6966,7 @@ app.post('/api/admin/moderation/users/:id/suspend', authenticate, requireAdmin, 
     createNotification(targetId, 'moderation',
       `Din konto er suspenderet i ${days} dage${reason ? `. Årsag: ${reason}` : ''}`,
       `Your account has been suspended for ${days} days${reason ? `. Reason: ${reason}` : ''}`,
-      null
+      req.userId, 'fellis.eu'
     )
     if (mailer) {
       const [[u]] = await pool.query('SELECT email, name FROM users WHERE id = ?', [targetId]).catch(() => [[null]])
@@ -7163,7 +7178,7 @@ app.patch('/api/admin/moderation/users/:id/candidate', authenticate, requireAdmi
       createNotification(id, 'mod_result',
         `Din ansøgning om moderatorstatus er afvist${note ? `. Begrundelse: ${note}` : ''}`,
         `Your moderator application was denied${note ? `. Reason: ${note}` : ''}`,
-        null
+        req.userId, 'fellis.eu'
       )
     }
     res.json({ ok: true })
@@ -7254,7 +7269,7 @@ app.post('/api/admin/moderators/:userId/grant', authenticate, requireAdmin, asyn
       targetId, 'moderator_granted',
       'Du er nu moderator på fellis.eu 🛡️',
       'You are now a moderator on fellis.eu 🛡️',
-      '/moderation'
+      req.userId, 'fellis.eu'
     )
     if (mailer && user.email) {
       mailer.sendMail({

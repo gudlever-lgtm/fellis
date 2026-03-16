@@ -594,7 +594,14 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
 const NOTIF_ICONS = {
   like: '❤️', comment: '💬', friend_request: '👥', friend_accepted: '🤝',
   friend_declined: '👋', event_rsvp: '📅', listing_boosted: '🚀',
-  moderator_granted: '🛡️', mod_result: '📋', moderation: '⚠️',
+  moderator_granted: '🛡️', mod_result: '📋', moderation: '⚠️', test: '🔔',
+}
+// Navigation target for each notification type (no 'link' column in DB)
+const NOTIF_TYPE_PAGE = {
+  like: 'feed', comment: 'feed',
+  friend_request: 'friends', friend_accepted: 'friends', friend_declined: 'friends',
+  event_rsvp: 'events', listing_boosted: 'marketplace',
+  moderator_granted: 'admin', mod_result: 'profile', moderation: 'profile',
 }
 
 function timeAgo(dateStr, lang) {
@@ -612,23 +619,17 @@ function normaliseNotif(n, lang) {
     type: n.type,
     icon: NOTIF_ICONS[n.type] || '🔔',
     message: lang === 'en' ? (n.message_en || n.message_da) : (n.message_da || n.message_en),
-    link: n.link,
-    read: Boolean(n.read_at),
+    page: NOTIF_TYPE_PAGE[n.type] || null,
+    read: Boolean(n.is_read),  // DB uses is_read (0/1), not read_at
     time: timeAgo(n.created_at, lang),
   }
 }
-
-// Map notification link paths to platform page names
-const LINK_TO_PAGE = { '/friends': 'friends', '/feed': 'feed', '/marketplace': 'marketplace', '/events': 'events', '/messages': 'messages', '/profile': 'profile' }
 
 function NotificationsPanel({ notifs, t, lang, onMarkAllRead, onMarkRead, onNavigate, onTest, testResult }) {
   const unread = notifs.filter(n => !n.read).length
   const handleClick = (n) => {
     onMarkRead(n.id)
-    if (n.link) {
-      const page = LINK_TO_PAGE[n.link]
-      if (page && onNavigate) onNavigate(page)
-    }
+    if (n.page && onNavigate) onNavigate(n.page)
   }
   return (
     <div className="notif-panel">
