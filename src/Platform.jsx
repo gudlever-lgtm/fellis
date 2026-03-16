@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } f
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { PT, SUPPORTED_LANGS, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
 import { formatPrice } from './utils/currency.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiFetchMemories, apiApplyToJob, apiGetJobApplications, apiUpdateJobApplication, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiFetchMemories, apiApplyToJob, apiGetJobApplications, apiUpdateJobApplication, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory } from './api.js'
 import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
 import ReelsPage from './Reels.jsx'
@@ -1227,6 +1227,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [showCategoryPicker, setShowCategoryPicker] = useState(false)
   const [providerMediaUrls, setProviderMediaUrls] = useState([])
   const textareaRef = useRef(null)
+  const suggestCategoryTimer = useRef(null)
   const feedMention = useMention(sharePopupFriends || [])
   const bottomSentinelRef = useRef(null)
   const topSentinelRef = useRef(null)
@@ -1926,12 +1927,34 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   placeholder={t.newPost}
                   value={newPostText}
                   onChange={e => {
-                    setNewPostText(e.target.value)
+                    const val = e.target.value
+                    setNewPostText(val)
                     e.target.style.height = 'auto'
                     e.target.style.height = e.target.scrollHeight + 'px'
-                    feedMention.detect(e.target.value, e.target.selectionStart)
-                    if (e.target.value.includes('@') && sharePopupFriends === null) {
+                    feedMention.detect(val, e.target.selectionStart)
+                    if (val.includes('@') && sharePopupFriends === null) {
                       apiFetchFriends().then(d => { if (d) setSharePopupFriends(d) })
+                    }
+                    // Auto-suggest category based on post text (debounced 600ms)
+                    clearTimeout(suggestCategoryTimer.current)
+                    if (val.trim().length >= 10) {
+                      suggestCategoryTimer.current = setTimeout(async () => {
+                        const result = await apiSuggestCategory(val)
+                        if (result?.category) {
+                          const catId = result.category
+                          setPostCategories(prev => {
+                            if (prev.has(catId)) return prev
+                            const n = new Set(prev)
+                            n.add(catId)
+                            return n
+                          })
+                          setAutoCategories(prev => {
+                            const n = new Set(prev)
+                            n.add(catId)
+                            return n
+                          })
+                        }
+                      }, 600)
                     }
                   }}
                   onKeyDown={e => {
