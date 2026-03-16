@@ -4321,6 +4321,7 @@ async function initAdminAdSettings() {
     await pool.query(`ALTER TABLE admin_ad_settings ADD COLUMN IF NOT EXISTS refresh_interval_seconds INT NOT NULL DEFAULT 300`).catch(() => {})
     await pool.query(`ALTER TABLE admin_ad_settings ADD COLUMN IF NOT EXISTS adfree_recurring_pct INT NOT NULL DEFAULT 100`).catch(() => {})
     await pool.query(`ALTER TABLE admin_ad_settings ADD COLUMN IF NOT EXISTS ad_recurring_pct INT NOT NULL DEFAULT 100`).catch(() => {})
+    await pool.query(`ALTER TABLE admin_ad_settings ADD COLUMN IF NOT EXISTS boost_price DECIMAL(10,2) NOT NULL DEFAULT 9.00`).catch(() => {})
     // Ensure a default row always exists
     await pool.query(`INSERT IGNORE INTO admin_ad_settings (id) VALUES (1)`)
     // Fix NULL ads_enabled on existing rows (should default to enabled)
@@ -4407,11 +4408,12 @@ app.get('/api/ads', authenticate, async (req, res) => {
 // NOTE: must be registered BEFORE /api/ads/:id to avoid Express matching "price" as :id
 app.get('/api/ads/price', authenticate, async (req, res) => {
   try {
-    const [[row]] = await pool.query('SELECT ad_price_cpm, ad_recurring_pct, currency FROM admin_ad_settings WHERE id = 1')
+    const [[row]] = await pool.query('SELECT ad_price_cpm, ad_recurring_pct, boost_price, currency FROM admin_ad_settings WHERE id = 1')
     const adPrice = parseFloat(row?.ad_price_cpm) || 50
     const adRecurringPct = parseInt(row?.ad_recurring_pct ?? 100)
     const adRecurringPrice = Math.round(adPrice * adRecurringPct / 100 * 100) / 100
-    res.json({ ad_price_cpm: adPrice, ad_recurring_price: adRecurringPrice, ad_recurring_pct: adRecurringPct, currency: row?.currency || 'EUR' })
+    const boostPrice = parseFloat(row?.boost_price) || 9
+    res.json({ ad_price_cpm: adPrice, ad_recurring_price: adRecurringPrice, ad_recurring_pct: adRecurringPct, boost_price: boostPrice, currency: row?.currency || 'EUR' })
   } catch (err) {
     console.error('GET /api/ads/price error:', err.message)
     res.status(500).json({ error: 'Server error' })
@@ -4516,7 +4518,7 @@ app.get('/api/admin/ad-settings', authenticate, requireAdmin, async (req, res) =
 
 // PUT /api/admin/ad-settings — update ad pricing & display settings (admin only)
 app.put('/api/admin/ad-settings', authenticate, requireAdmin, async (req, res) => {
-  const allowed = ['adfree_price_private', 'adfree_price_business', 'ad_price_cpm', 'currency', 'max_ads_feed', 'max_ads_sidebar', 'max_ads_stories', 'refresh_interval_seconds', 'ads_enabled', 'stripe_price_adfree_private', 'stripe_price_adfree_business', 'adfree_recurring_pct', 'ad_recurring_pct']
+  const allowed = ['adfree_price_private', 'adfree_price_business', 'ad_price_cpm', 'boost_price', 'currency', 'max_ads_feed', 'max_ads_sidebar', 'max_ads_stories', 'refresh_interval_seconds', 'ads_enabled', 'stripe_price_adfree_private', 'stripe_price_adfree_business', 'adfree_recurring_pct', 'ad_recurring_pct']
   const updates = {}
   for (const key of allowed) {
     if (key in req.body) updates[key] = req.body[key]
