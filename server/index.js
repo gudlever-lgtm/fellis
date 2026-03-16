@@ -565,6 +565,19 @@ pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS reputation_score INT(11) 
   .catch(err => console.error('Migration (users.reputation_score):', err.message))
 pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_count INT(11) NOT NULL DEFAULT 0')
   .catch(err => console.error('Migration (users.referral_count):', err.message))
+// MFA + password reset columns (also in migrate-mfa-reset.sql, but added here for auto-migration)
+pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20) DEFAULT NULL')
+  .catch(err => console.error('Migration (users.phone):', err.message))
+pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS mfa_enabled TINYINT(1) NOT NULL DEFAULT 0')
+  .catch(err => console.error('Migration (users.mfa_enabled):', err.message))
+pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS mfa_code VARCHAR(64) DEFAULT NULL')
+  .catch(err => console.error('Migration (users.mfa_code):', err.message))
+pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS mfa_code_expires DATETIME DEFAULT NULL')
+  .catch(err => console.error('Migration (users.mfa_code_expires):', err.message))
+pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(64) DEFAULT NULL')
+  .catch(err => console.error('Migration (users.reset_token):', err.message))
+pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires DATETIME DEFAULT NULL')
+  .catch(err => console.error('Migration (users.reset_token_expires):', err.message))
 pool.query("ALTER TABLE invitations ADD COLUMN IF NOT EXISTS invite_source ENUM('link','email','facebook','other') DEFAULT 'link'")
   .catch(err => console.error('Migration (invitations.invite_source):', err.message))
 pool.query('ALTER TABLE invitations ADD COLUMN IF NOT EXISTS utm_source VARCHAR(100) DEFAULT NULL')
@@ -874,6 +887,15 @@ app.post('/api/auth/register', async (req, res) => {
           )
           await pool.query('UPDATE users SET referral_count = referral_count + 1 WHERE id = ?', [referrerId])
           await checkAndAwardBadges(referrerId)
+          // Notify inviter that their invitation was accepted
+          const [[newUser]] = await pool.query('SELECT name FROM users WHERE id = ?', [newUserId]).catch(() => [[null]])
+          if (newUser) {
+            createNotification(referrerId, 'friend_accepted',
+              `${newUser.name} accepterede din invitation og er nu din ven`,
+              `${newUser.name} accepted your invitation and is now your friend`,
+              '/friends'
+            )
+          }
         }
       } catch (err) {
         console.error('Invite auto-connect error:', err)

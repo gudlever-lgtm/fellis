@@ -980,7 +980,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
               </span>
             </label>
             {regError && <div className="fb-error">{regError}</div>}
-            <button type="submit" className="btn-primary" style={{ width: '100%' }} disabled={regLoading || !gdprAccepted}>
+            <button type="submit" className="btn-primary" style={{ width: '100%' }} disabled={regLoading}>
               {regLoading ? '...' : t.registerSubmit}
             </button>
           </form>
