@@ -306,6 +306,9 @@ export const PT = {
     invitesSentOk: 'Invitation sendt!',
     invitesCancelBtn: 'Annuller',
     invitesIncomingEmpty: 'Ingen indkommende anmodninger',
+    invitesOutgoingTitle: 'Sendte forbindelsesanmodninger',
+    invitesOutgoingEmpty: 'Du har ikke sendt nogen forbindelsesanmodninger endnu.',
+    invitesWithdrawBtn: 'Tilbagetræk',
     // Group suggestions
     groupSuggestionsTitle: 'fellis.eu foreslår',
     groupSuggestionsSubtitle: 'Grupper du måske vil synes om',
@@ -1091,6 +1094,9 @@ export const PT = {
     invitesSentOk: 'Invitation sent!',
     invitesCancelBtn: 'Cancel',
     invitesIncomingEmpty: 'No incoming requests',
+    invitesOutgoingTitle: 'Sent connection requests',
+    invitesOutgoingEmpty: "You haven't sent any connection requests yet.",
+    invitesWithdrawBtn: 'Withdraw',
     // Group suggestions
     groupSuggestionsTitle: 'fellis.eu suggests',
     groupSuggestionsSubtitle: 'Groups you might like',
