@@ -6499,15 +6499,18 @@ async function createNotification(userId, type, messageDa, messageEn, link = nul
     const [prefs] = await pool.query(
       'SELECT type FROM notification_preferences WHERE user_id = ? AND type IN (?, "all") AND enabled = 0',
       [userId, type]
-    ).catch(() => [[]])
-    if (prefs.length > 0) return
-  } catch {}
-  await pool.query(
-    'INSERT INTO notifications (user_id, type, message_da, message_en, link) VALUES (?, ?, ?, ?, ?)',
-    [userId, type, messageDa, messageEn, link]
-  ).catch(err => console.error('createNotification error:', err.message))
-  // Push real-time notification via SSE
-  sseBroadcast(userId, { type: 'notification' })
+    ).catch(() => [[]])  // if prefs table missing, proceed anyway
+    if (prefs.length > 0) return  // user has disabled this notification type
+
+    await pool.query(
+      'INSERT INTO notifications (user_id, type, message_da, message_en, link) VALUES (?, ?, ?, ?, ?)',
+      [userId, type, messageDa, messageEn, link]
+    )
+    // Only push SSE after confirmed INSERT — avoids spurious empty-panel refreshes
+    sseBroadcast(userId, { type: 'notification' })
+  } catch (err) {
+    console.error('[createNotification] type=%s user=%d error: %s', type, userId, err.message)
+  }
 }
 
 app.get('/api/notifications', authenticate, async (req, res) => {
@@ -6517,8 +6520,21 @@ app.get('/api/notifications', authenticate, async (req, res) => {
       [req.userId]
     )
     res.json({ notifications: rows })
-  } catch {
+  } catch (err) {
+    console.error('[GET /api/notifications]', err.message)
     res.json({ notifications: [] })
+  }
+})
+
+app.get('/api/notifications/unread-count', authenticate, async (req, res) => {
+  try {
+    const [[row]] = await pool.query(
+      'SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND read_at IS NULL',
+      [req.userId]
+    )
+    res.json({ count: Number(row.count) })
+  } catch {
+    res.json({ count: 0 })
   }
 })
 

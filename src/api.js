@@ -403,7 +403,8 @@ export function openSSE() {
   let closed = false
   let delay = 2000
   let timer = null
-  const ctrl = { onmessage: null }
+  const ctrl = { onmessage: null, onreconnect: null }
+  let connected = false
 
   function connect() {
     if (closed) return
@@ -412,7 +413,11 @@ export function openSSE() {
     const url = `${API_BASE}/api/sse?sid=${encodeURIComponent(sid)}`
     es = new EventSource(url)
     es.onmessage = (e) => { if (ctrl.onmessage) ctrl.onmessage(e) }
-    es.onopen = () => { delay = 2000 } // reset backoff on successful connect
+    es.onopen = () => {
+      delay = 2000 // reset backoff on successful connect
+      if (connected && ctrl.onreconnect) ctrl.onreconnect() // fired on reconnect (not first connect)
+      connected = true
+    }
     es.onerror = () => {
       es.close()
       es = null
@@ -761,6 +766,10 @@ export async function apiGetChangelog(lang = 'da') {
 
 export async function apiGetNotifications() {
   return await request('/api/notifications')
+}
+
+export async function apiGetNotificationCount() {
+  return await request('/api/notifications/unread-count')
 }
 
 export async function apiMarkNotificationRead(id) {
