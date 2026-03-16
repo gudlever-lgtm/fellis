@@ -124,12 +124,13 @@ export async function apiFetchMemories() {
   return await request('/api/feed/memories')
 }
 
-export async function apiCreatePost(text, mediaFiles, scheduledAt) {
+export async function apiCreatePost(text, mediaFiles, scheduledAt, categories) {
   if (mediaFiles?.length) {
     // Use FormData for multipart upload
     const form = new FormData()
     form.append('text', text)
     if (scheduledAt) form.append('scheduled_at', scheduledAt)
+    if (categories?.length) form.append('categories', JSON.stringify(categories))
     for (const file of mediaFiles) {
       form.append('media', file)
     }
@@ -152,7 +153,7 @@ export async function apiCreatePost(text, mediaFiles, scheduledAt) {
   }
   return await request('/api/feed', {
     method: 'POST',
-    body: JSON.stringify({ text, ...(scheduledAt ? { scheduled_at: scheduledAt } : {}) }),
+    body: JSON.stringify({ text, ...(scheduledAt ? { scheduled_at: scheduledAt } : {}), ...(categories?.length ? { categories } : {}) }),
   })
 }
 

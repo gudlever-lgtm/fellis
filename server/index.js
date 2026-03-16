@@ -1910,6 +1910,8 @@ app.post('/api/feed/preflight', authenticate, (req, res) => {
 // POST /api/feed — create a new post (with optional media)
 app.post('/api/feed', authenticate, upload.array('media', 4), async (req, res) => {
   const { text, scheduled_at } = req.body
+  const rawCats = req.body.categories
+  const categories = rawCats ? (typeof rawCats === 'string' ? JSON.parse(rawCats) : rawCats) : null
   if (!text && !req.files?.length) return res.status(400).json({ error: 'Post text or media required' })
 
   // Keyword filter check
@@ -1939,11 +1941,12 @@ app.post('/api/feed', authenticate, upload.array('media', 4), async (req, res) =
 
   try {
     const mediaJson = mediaUrls.length > 0 ? JSON.stringify(mediaUrls) : null
+    const categoriesJson = Array.isArray(categories) && categories.length > 0 ? JSON.stringify(categories) : null
     const scheduledDate = scheduled_at ? new Date(scheduled_at) : null
     if (scheduledDate && isNaN(scheduledDate.getTime())) return res.status(400).json({ error: 'Invalid scheduled_at' })
     const [result] = await pool.query(
-      'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media, scheduled_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [req.userId, text, text, 'Lige nu', 'Just now', mediaJson, scheduledDate]
+      'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media, scheduled_at, categories) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [req.userId, text, text, 'Lige nu', 'Just now', mediaJson, scheduledDate, categoriesJson]
     )
     const [users] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
     const now = new Date()
@@ -1975,6 +1978,7 @@ app.post('/api/feed', authenticate, upload.array('media', 4), async (req, res) =
       text: { da: text, en: text },
       likes: 0, liked: false, comments: [],
       media: mediaUrls.length > 0 ? mediaUrls : null,
+      categories: categoriesJson ? JSON.parse(categoriesJson) : null,
     })
   } catch (err) {
     res.status(500).json({ error: 'Failed to create post' })
