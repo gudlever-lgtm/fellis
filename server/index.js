@@ -5202,9 +5202,6 @@ app.get('/api/admin/settings', authenticate, requireAdmin, async (req, res) => {
     const settings = {}
     for (const row of rows) settings[row.key_name] = row.key_value
     // Overlay env vars so the admin form pre-populates them
-    if (process.env.GOOGLE_CLIENT_ID && !settings.google_photos_client_id) {
-      settings.google_photos_client_id = process.env.GOOGLE_CLIENT_ID
-    }
     if (process.env.MOLLIE_API_KEY && !settings.mollie_api_key) {
       settings.mollie_api_key = process.env.MOLLIE_API_KEY
     }
@@ -5229,12 +5226,12 @@ app.get('/api/admin/settings', authenticate, requireAdmin, async (req, res) => {
 
 // POST /api/admin/settings — save Stripe config (admin only)
 app.post('/api/admin/settings', authenticate, requireAdmin, async (req, res) => {
-  const allowed = ['stripe_secret_key', 'stripe_pub_key', 'stripe_webhook_secret', 'stripe_price_pro_monthly', 'stripe_price_pro_yearly', 'stripe_price_boost', 'pwd_min_length', 'pwd_require_uppercase', 'pwd_require_lowercase', 'pwd_require_numbers', 'pwd_require_symbols', 'google_photos_client_id', 'media_max_files', 'marketplace_max_photos', 'registration_open', 'mollie_api_key']
+  const allowed = ['stripe_secret_key', 'stripe_pub_key', 'stripe_webhook_secret', 'stripe_price_pro_monthly', 'stripe_price_pro_yearly', 'stripe_price_boost', 'pwd_min_length', 'pwd_require_uppercase', 'pwd_require_lowercase', 'pwd_require_numbers', 'pwd_require_symbols', 'media_max_files', 'marketplace_max_photos', 'registration_open', 'mollie_api_key']
   try {
     for (const [key, value] of Object.entries(req.body)) {
       if (!allowed.includes(key)) continue
-      // pwd_, media_, registration_ and google_ keys are always saved (value can be '0'/'')
-      const alwaysSave = key.startsWith('pwd_') || key.startsWith('media_') || key.startsWith('registration_') || key.startsWith('google_') || key === 'mollie_api_key'
+      // pwd_, media_, registration_ keys are always saved (value can be '0'/'')
+      const alwaysSave = key.startsWith('pwd_') || key.startsWith('media_') || key.startsWith('registration_') || key === 'mollie_api_key'
       if (!alwaysSave) {
         if (!value || value === '••••••••' + (value || '').slice(-4)) continue // skip masked/empty
       }
@@ -6268,7 +6265,7 @@ app.patch('/api/profile', authenticate, async (req, res) => {
 app.get('/api/config', async (req, res) => {
   try {
     const [rows] = await pool.query(
-      "SELECT key_name, key_value FROM admin_settings WHERE key_name IN ('stripe_pub_key','google_photos_client_id','media_max_files','marketplace_max_photos')"
+      "SELECT key_name, key_value FROM admin_settings WHERE key_name IN ('stripe_pub_key','media_max_files','marketplace_max_photos')"
     )
     const cfg = {}
     for (const r of rows) cfg[r.key_name] = r.key_value
@@ -6276,9 +6273,6 @@ app.get('/api/config', async (req, res) => {
       cfg.fb_app_id = process.env.FB_APP_ID
       cfg.facebookEnabled = true
     }
-    // Google Photos Client ID: env var takes priority, then admin_settings
-    const googleClientId = process.env.GOOGLE_CLIENT_ID || cfg.google_photos_client_id || null
-    if (googleClientId) cfg.googlePhotosClientId = googleClientId
     if (cfg.media_max_files) cfg.mediaMaxFiles = parseInt(cfg.media_max_files, 10) || 4
     if (cfg.marketplace_max_photos) cfg.marketplaceMaxPhotos = parseInt(cfg.marketplace_max_photos, 10) || 4
     res.json({ config: cfg, facebookEnabled: !!process.env.FB_APP_ID })
@@ -6294,7 +6288,6 @@ const CHANGELOG_ENTRIES = [
   { date: '2026-02', icon: '💼', da: 'Stillingsopslag — businessbrugere kan oprette og administrere jobs direkte på platformen', en: 'Job listings — business users can create and manage job posts directly on the platform' },
   { date: '2026-02', icon: '📅', da: 'Planlagte opslag — opret opslag og planlæg dem til fremtidig publicering', en: 'Scheduled posts — create posts and schedule them for future publishing' },
   { date: '2026-02', icon: '🤝', da: 'CRM-noter — tilføj private noter til dine forbindelser', en: 'CRM notes — add private notes to your connections' },
-  { date: '2026-01', icon: '📸', da: 'Google Fotos integration — vælg billeder direkte fra dit Google Fotos-bibliotek', en: 'Google Photos integration — pick photos directly from your Google Photos library' },
   { date: '2026-01', icon: '🖼️', da: 'Medier i beskeder — send billeder og filer direkte i samtaler', en: 'Media in messages — send images and files directly in conversations' },
   { date: '2026-01', icon: '📊', da: 'Analytics-dashboard — businessbrugere får indsigt i profilvisninger og engagement', en: 'Analytics dashboard — business users get insights into profile views and engagement' },
   { date: '2025-12', icon: '🛡️', da: 'Moderationssystem — rapportér indhold, keywordfiltre og moderatorroller', en: 'Moderation system — report content, keyword filters and moderator roles' },
@@ -6432,56 +6425,6 @@ app.get('/api/feed/suggest-category', authenticate, async (req, res) => {
 // ── Jobs ──────────────────────────────────────────────────────────────────────
 app.get('/api/jobs/mine', authenticate, async (req, res) => {
   res.json({ jobs: [] })
-})
-
-// ── Google Photos (stub) ──────────────────────────────────────────────────────
-// POST /api/auth/google/exchange — exchange GIS auth code for access token (keeps client_secret server-side)
-app.post('/api/auth/google/exchange', authenticate, async (req, res) => {
-  const { code } = req.body
-  if (!code) return res.status(400).json({ error: 'code required' })
-  const clientId = process.env.GOOGLE_CLIENT_ID
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET
-  if (!clientId || !clientSecret) {
-    return res.status(503).json({ error: 'Google OAuth not configured — set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in server/.env' })
-  }
-  try {
-    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        code,
-        client_id: clientId,
-        client_secret: clientSecret,
-        redirect_uri: 'postmessage', // GIS popup-mode convention
-        grant_type: 'authorization_code',
-      }),
-    })
-    const data = await tokenRes.json()
-    if (data.error) return res.status(400).json({ error: data.error_description || data.error })
-    res.json({ access_token: data.access_token, expires_in: data.expires_in })
-  } catch (err) {
-    console.error('Google token exchange error:', err.message)
-    res.status(500).json({ error: 'Token exchange failed' })
-  }
-})
-
-// POST /api/providers/google-photos/download — proxy-download a Google photo server-side
-app.post('/api/providers/google-photos/download', authenticate, async (req, res) => {
-  const { url, access_token } = req.body
-  if (!url || !access_token) return res.status(400).json({ error: 'url and access_token required' })
-  try {
-    const imgRes = await fetch(url, { headers: { Authorization: `Bearer ${access_token}` } })
-    if (!imgRes.ok) return res.status(imgRes.status).json({ error: 'Failed to fetch image from Google' })
-    const contentType = imgRes.headers.get('content-type') || 'image/jpeg'
-    const buffer = Buffer.from(await imgRes.arrayBuffer())
-    const ext = contentType.includes('png') ? 'png' : contentType.includes('gif') ? 'gif' : 'webp'.includes(contentType) ? 'webp' : 'jpg'
-    const filename = `gphotos-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-    fs.writeFileSync(path.join(UPLOADS_DIR, filename), buffer)
-    res.json({ url: `/uploads/${filename}`, mimeType: contentType })
-  } catch (err) {
-    console.error('Google photo download error:', err.message)
-    res.status(500).json({ error: 'Download failed' })
-  }
 })
 
 // ── Post insights (real data) ─────────────────────────────────────────────────
