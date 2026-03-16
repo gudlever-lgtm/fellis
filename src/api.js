@@ -772,6 +772,10 @@ export async function apiGetNotificationCount() {
   return await request('/api/notifications/unread-count')
 }
 
+export async function apiTestNotification() {
+  return await request('/api/notifications/test', { method: 'POST' })
+}
+
 export async function apiMarkNotificationRead(id) {
   return await request(`/api/notifications/${id}/read`, { method: 'POST' })
 }

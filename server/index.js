@@ -6471,26 +6471,33 @@ app.get('/api/changelog', authenticate, async (req, res) => {
 
 // ── Notifications ─────────────────────────────────────────────────────────────
 async function initNotifications() {
-  await pool.query(`CREATE TABLE IF NOT EXISTS notifications (
-    id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    user_id INT(11) NOT NULL,
-    type VARCHAR(50) NOT NULL,
-    message_da TEXT NOT NULL,
-    message_en TEXT NOT NULL,
-    link VARCHAR(500) DEFAULT NULL,
-    read_at DATETIME DEFAULT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
-    INDEX idx_user_created (user_id, created_at),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`).catch(err => console.error('initNotifications (notifications):', err.message))
-
-  await pool.query(`CREATE TABLE IF NOT EXISTS notification_preferences (
-    user_id INT(11) NOT NULL,
-    type VARCHAR(50) NOT NULL,
-    enabled TINYINT(1) NOT NULL DEFAULT 1,
-    PRIMARY KEY (user_id, type),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`).catch(err => console.error('initNotifications (preferences):', err.message))
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS notifications (
+      id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      user_id INT(11) NOT NULL,
+      type VARCHAR(50) NOT NULL,
+      message_da TEXT NOT NULL,
+      message_en TEXT NOT NULL,
+      link VARCHAR(500) DEFAULT NULL,
+      read_at DATETIME DEFAULT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
+      INDEX idx_user_created (user_id, created_at),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+    await pool.query(`CREATE TABLE IF NOT EXISTS notification_preferences (
+      user_id INT(11) NOT NULL,
+      type VARCHAR(50) NOT NULL,
+      enabled TINYINT(1) NOT NULL DEFAULT 1,
+      PRIMARY KEY (user_id, type),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+    // Verify tables actually exist by counting rows
+    const [[nRow]] = await pool.query('SELECT COUNT(*) as c FROM notifications')
+    const [[pRow]] = await pool.query('SELECT COUNT(*) as c FROM notification_preferences')
+    console.log(`✓ notifications table OK (${nRow.c} rows), notification_preferences OK (${pRow.c} rows)`)
+  } catch (err) {
+    console.error('✗ initNotifications FAILED:', err.message)
+  }
 }
 
 async function createNotification(userId, type, messageDa, messageEn, link = null) {
@@ -6523,6 +6530,35 @@ app.get('/api/notifications', authenticate, async (req, res) => {
   } catch (err) {
     console.error('[GET /api/notifications]', err.message)
     res.json({ notifications: [] })
+  }
+})
+
+// POST /api/notifications/test — send a test notification to yourself (for debugging)
+app.post('/api/notifications/test', authenticate, async (req, res) => {
+  const steps = []
+  try {
+    // 1. Check table exists
+    const [[tbl]] = await pool.query("SELECT COUNT(*) as c FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'notifications'")
+    steps.push({ step: 'table_exists', ok: tbl.c > 0 })
+    if (!tbl.c) {
+      return res.json({ ok: false, steps, error: 'notifications table does not exist — run migrate-notifications.sql' })
+    }
+    // 2. Insert test notification
+    const [ins] = await pool.query(
+      'INSERT INTO notifications (user_id, type, message_da, message_en, link) VALUES (?, ?, ?, ?, ?)',
+      [req.userId, 'test', '🔔 Test notifikation — virker!', '🔔 Test notification — works!', null]
+    )
+    steps.push({ step: 'insert', ok: true, insertId: ins.insertId })
+    // 3. Read it back
+    const [[row]] = await pool.query('SELECT id, type, message_da FROM notifications WHERE id = ?', [ins.insertId])
+    steps.push({ step: 'readback', ok: !!row, row })
+    // 4. Broadcast SSE
+    sseBroadcast(req.userId, { type: 'notification' })
+    steps.push({ step: 'sse_broadcast', ok: true, sseClients: sseClients.get(req.userId)?.size ?? 0 })
+    res.json({ ok: true, steps })
+  } catch (err) {
+    steps.push({ step: 'error', message: err.message })
+    res.json({ ok: false, steps, error: err.message })
   }
 })
 
