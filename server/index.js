@@ -1737,7 +1737,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
     let posts
     try {
       ;[posts] = await pool.query(
-        `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.created_at, p.edited_at,
+        `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.categories, p.created_at, p.edited_at,
                 (SELECT COUNT(*) FROM earned_badges WHERE user_id = p.author_id) as author_badge_count
          FROM posts p JOIN users u ON p.author_id = u.id
          WHERE (p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?))
@@ -1748,7 +1748,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
       )
     } catch {
       ;[posts] = await pool.query(
-        `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.created_at, p.edited_at,
+        `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.categories, p.created_at, p.edited_at,
                 0 as author_badge_count
          FROM posts p JOIN users u ON p.author_id = u.id
          WHERE (p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?))
@@ -1824,6 +1824,10 @@ app.get('/api/feed', authenticate, async (req, res) => {
       if (p.media) {
         try { media = typeof p.media === 'string' ? JSON.parse(p.media) : p.media } catch {}
       }
+      let categories = null
+      if (p.categories) {
+        try { categories = typeof p.categories === 'string' ? JSON.parse(p.categories) : p.categories } catch {}
+      }
       return {
         id: p.id,
         author: p.author,
@@ -1835,6 +1839,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
         userReaction: userReactionMap[p.id] || null,
         reactions: reactionsByPost[p.id] || [],
         media,
+        categories,
         comments: commentsByPost[p.id] || [],
         createdAtRaw: p.created_at,
         edited: !!p.edited_at,
