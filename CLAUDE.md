@@ -145,6 +145,12 @@ Vite builds from `src/` as root into `assets/` at the repo root:
 - The `PT` object in `data.js` holds all UI string translations — always add both `da` and `en` keys when adding new UI strings
 - Default language is Danish (`da`)
 
+### Currency Formatting
+- All prices are displayed in **EUR** using the `formatPrice()` helper from `src/utils/currency.js`
+- Uses `de-DE` locale: `1.234,56 €`
+- **Never** hardcode currency symbols or use `.toFixed(2) + ' DKK'` — always use `formatPrice(amount)`
+- Migration `server/migrate-currency.sql` adds `currency='EUR'` default and `price_eur` column to marketplace
+
 ### Authentication
 - Sessions are stored server-side in the `sessions` DB table (30-day expiry)
 - Session ID is kept in `localStorage` as `fellis_session_id` and sent as `X-Session-Id` header on every request
@@ -216,6 +222,9 @@ Vite builds from `src/` as root into `assets/` at the repo root:
 ```bash
 # MFA + password reset columns (adds reset_token, mfa_code, mfa_enabled to users)
 mysql -u root fellis_eu < server/migrate-mfa-reset.sql
+
+# EUR currency support (adds currency/price_eur to marketplace_listings, updates admin_ad_settings)
+mysql -u root fellis_eu < server/migrate-currency.sql
 ```
 
 ---

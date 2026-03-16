@@ -4278,7 +4278,7 @@ async function initAdminAdSettings() {
       adfree_price_private DECIMAL(10,2) NOT NULL DEFAULT 29.00,
       adfree_price_business DECIMAL(10,2) NOT NULL DEFAULT 49.00,
       ad_price_cpm DECIMAL(10,2) NOT NULL DEFAULT 50.00,
-      currency VARCHAR(10) NOT NULL DEFAULT 'DKK',
+      currency VARCHAR(10) NOT NULL DEFAULT 'EUR',
       max_ads_feed INT NOT NULL DEFAULT 3,
       max_ads_sidebar INT NOT NULL DEFAULT 2,
       max_ads_stories INT NOT NULL DEFAULT 1,
@@ -4389,7 +4389,7 @@ app.get('/api/ads/price', authenticate, async (req, res) => {
     const adPrice = parseFloat(row?.ad_price_cpm) || 50
     const adRecurringPct = parseInt(row?.ad_recurring_pct ?? 100)
     const adRecurringPrice = Math.round(adPrice * adRecurringPct / 100 * 100) / 100
-    res.json({ ad_price_cpm: adPrice, ad_recurring_price: adRecurringPrice, ad_recurring_pct: adRecurringPct, currency: row?.currency || 'DKK' })
+    res.json({ ad_price_cpm: adPrice, ad_recurring_price: adRecurringPrice, ad_recurring_pct: adRecurringPct, currency: row?.currency || 'EUR' })
   } catch (err) {
     console.error('GET /api/ads/price error:', err.message)
     res.status(500).json({ error: 'Server error' })
@@ -4648,7 +4648,7 @@ app.get('/api/me/subscription', authenticate, async (req, res) => {
   try {
     const [[user]] = await pool.query('SELECT ads_free, mode FROM users WHERE id = ?', [req.userId])
     if (!user) return res.status(404).json({ error: 'User not found' })
-    const [[adSettings]] = await pool.query('SELECT adfree_price_private, adfree_price_business, adfree_recurring_pct, currency, ads_enabled FROM admin_ad_settings WHERE id = 1').catch(() => [[{ adfree_price_private: 29, adfree_price_business: 49, adfree_recurring_pct: 100, currency: 'DKK', ads_enabled: 1 }]])
+    const [[adSettings]] = await pool.query('SELECT adfree_price_private, adfree_price_business, adfree_recurring_pct, currency, ads_enabled FROM admin_ad_settings WHERE id = 1').catch(() => [[{ adfree_price_private: 29, adfree_price_business: 49, adfree_recurring_pct: 100, currency: 'EUR', ads_enabled: 1 }]])
     const price = parseFloat(user.mode === 'business' ? adSettings?.adfree_price_business : adSettings?.adfree_price_private) || 29
     const recurringPct = parseInt(adSettings?.adfree_recurring_pct ?? 100)
     const recurringPrice = Math.round(price * recurringPct / 100 * 100) / 100
@@ -4666,7 +4666,7 @@ app.get('/api/me/subscription', authenticate, async (req, res) => {
       price,
       recurring_price: recurringPrice,
       recurring_pct: recurringPct,
-      currency: adSettings?.currency || 'DKK',
+      currency: adSettings?.currency || 'EUR',
       ads_enabled: Boolean(adSettings?.ads_enabled),
       plan: sub?.plan || null,
       status: sub?.status || null,
@@ -4765,9 +4765,9 @@ app.post('/api/mollie/payment/create', authenticate, async (req, res) => {
 
     // Resolve amount from admin_ad_settings
     let resolvedAmount = null
-    let resolvedCurrency = reqCurrency || 'DKK'
+    let resolvedCurrency = reqCurrency || 'EUR'
     const [[adS]] = await pool.query('SELECT adfree_price_private, adfree_price_business, adfree_recurring_pct, ad_price_cpm, ad_recurring_pct, currency FROM admin_ad_settings WHERE id = 1').catch(() => [[null]])
-    resolvedCurrency = adS?.currency || 'DKK'
+    resolvedCurrency = adS?.currency || 'EUR'
     if (plan === 'adfree') {
       const oneTimePrice = parseFloat(user.mode === 'business' ? adS?.adfree_price_business : adS?.adfree_price_private) || 29
       if (recurring) {

@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } from 'react'
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { PT, SUPPORTED_LANGS, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
+import { formatPrice } from './utils/currency.js'
 import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiFetchMemories, apiApplyToJob, apiGetJobApplications, apiUpdateJobApplication, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail } from './api.js'
 import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
@@ -3689,7 +3690,6 @@ function BillingSettings({ lang, t }) {
 
   if (!sub) return <div style={{ padding: 20, color: '#888', textAlign: 'center' }}>{lang === 'da' ? 'Henter…' : 'Loading…'}</div>
 
-  const currency = sub.currency || 'DKK'
   const price = sub.price || 29
   const monthlyPrice = sub.recurring_price ?? price
   const displayPrice = recurring ? monthlyPrice : price
@@ -3737,8 +3737,8 @@ function BillingSettings({ lang, t }) {
                 <button key={String(r)} onClick={() => setRecurring(r)}
                   style={{ flex: 1, padding: '9px 0', borderRadius: 8, border: `1.5px solid ${recurring === r ? '#2D6A4F' : '#ddd'}`, background: recurring === r ? '#eaf5ef' : '#fff', color: recurring === r ? '#2D6A4F' : '#555', fontWeight: recurring === r ? 700 : 400, fontSize: 13, cursor: 'pointer' }}>
                   {r
-                    ? (lang === 'da' ? `🔁 Månedligt — ${monthlyPrice} ${currency}/md.` : `🔁 Monthly — ${monthlyPrice} ${currency}/mo.`)
-                    : (lang === 'da' ? `1× Engangsbetaling — ${price} ${currency}` : `1× One-time — ${price} ${currency}`)}
+                    ? (lang === 'da' ? `🔁 Månedligt — ${formatPrice(monthlyPrice)}/md.` : `🔁 Monthly — ${formatPrice(monthlyPrice)}/mo.`)
+                    : (lang === 'da' ? `1× Engangsbetaling — ${formatPrice(price)}` : `1× One-time — ${formatPrice(price)}`)}
                 </button>
               ))}
             </div>
@@ -3751,8 +3751,8 @@ function BillingSettings({ lang, t }) {
               {mollieLoading
                 ? (lang === 'da' ? 'Henter…' : 'Loading…')
                 : (lang === 'da'
-                    ? (recurring ? `Opret abonnement — ${monthlyPrice} ${currency}/md.` : `Betal ${displayPrice} ${currency}`)
-                    : (recurring ? `Subscribe — ${monthlyPrice} ${currency}/mo.` : `Pay ${displayPrice} ${currency}`))}
+                    ? (recurring ? `Opret abonnement — ${formatPrice(monthlyPrice)}/md.` : `Betal ${formatPrice(displayPrice)}`)
+                    : (recurring ? `Subscribe — ${formatPrice(monthlyPrice)}/mo.` : `Pay ${formatPrice(displayPrice)}`))}
             </button>
             {mollieError && <p style={{ fontSize: 13, color: '#e03131', margin: '0 0 12px' }}>{mollieError}</p>}
 
@@ -9815,7 +9815,7 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
                 <div className="p-listing-price">
                   {listing.priceNegotiable
                     ? t.marketplacePriceNegotiable
-                    : `${listing.price.toLocaleString()} ${lang === 'da' ? 'kr.' : 'DKK'}`}
+                    : formatPrice(listing.price)}
                 </div>
                 <div className="p-listing-title">{listingTitle(listing)}</div>
                 <div className="p-listing-meta">
@@ -10474,7 +10474,7 @@ function AdsManagementPage({ lang, t }) {
     if (!paymentAd) return
     setPaymentLoading(true); setPaymentError(null)
     const price = adSettings?.ad_price_cpm || 50
-    const currency = adSettings?.currency || 'DKK'
+    const currency = adSettings?.currency || 'EUR'
     const data = await apiCreateMolliePayment('ad_activation', price, currency, paymentAd.id, adRecurring).catch(() => null)
     setPaymentLoading(false)
     if (data?.checkoutUrl) { window.location.href = data.checkoutUrl; return }
@@ -10507,13 +10507,12 @@ function AdsManagementPage({ lang, t }) {
               {[false, true].map(r => {
                 const adPrice = adSettings?.ad_price_cpm || 50
                 const adMonthlyPrice = adSettings?.ad_recurring_price ?? adPrice
-                const cur = adSettings?.currency || 'DKK'
                 return (
                   <button key={String(r)} type="button" onClick={() => setAdRecurring(r)}
                     style={{ flex: 1, padding: '8px 4px', borderRadius: 7, border: `1.5px solid ${adRecurring === r ? '#2D6A4F' : '#ddd'}`, background: adRecurring === r ? '#eaf5ef' : '#fff', color: adRecurring === r ? '#2D6A4F' : '#555', fontWeight: adRecurring === r ? 700 : 400, fontSize: 12, cursor: 'pointer' }}>
                     {r
-                      ? (lang === 'da' ? `🔁 Løbende — ${adMonthlyPrice} ${cur}/md.` : `🔁 Recurring — ${adMonthlyPrice} ${cur}/mo.`)
-                      : (lang === 'da' ? `1× Engangsbetaling — ${adPrice} ${cur}` : `1× One-time — ${adPrice} ${cur}`)}
+                      ? (lang === 'da' ? `🔁 Løbende — ${formatPrice(adMonthlyPrice)}/md.` : `🔁 Recurring — ${formatPrice(adMonthlyPrice)}/mo.`)
+                      : (lang === 'da' ? `1× Engangsbetaling — ${formatPrice(adPrice)}` : `1× One-time — ${formatPrice(adPrice)}`)}
                   </button>
                 )
               })}
@@ -10581,7 +10580,7 @@ function AdsManagementPage({ lang, t }) {
                     )}
                     {isPaidAndActive(ad) && (
                       <span style={{ color: '#2D6A4F' }}>
-                        ✓ {lang === 'da' ? 'Betalt' : 'Paid'}{ad.paid_amount ? ` ${parseFloat(ad.paid_amount).toFixed(2)}` : ''} · {lang === 'da' ? 'til' : 'until'} <strong>{new Date(ad.paid_until).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-GB')}</strong>
+                        ✓ {lang === 'da' ? 'Betalt' : 'Paid'}{ad.paid_amount ? ` ${formatPrice(parseFloat(ad.paid_amount))}` : ''} · {lang === 'da' ? 'til' : 'until'} <strong>{new Date(ad.paid_until).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-GB')}</strong>
                       </span>
                     )}
                   </div>
@@ -10691,7 +10690,7 @@ function AdminAdSettingsPanel({ lang, t }) {
   if (!settings) return <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>{lang === 'da' ? 'Henter…' : 'Loading…'}</div>
 
   const placementLabel = (p) => p === 'feed' ? t.adminAdsPlacementFeed : p === 'sidebar' ? t.adminAdsPlacementSidebar : t.adminAdsPlacementStories
-  const currency = settings?.currency || 'DKK'
+  const currency = settings?.currency || 'EUR'
 
   return (
     <div className="p-card" style={{ marginBottom: 20 }}>
@@ -10720,7 +10719,7 @@ function AdminAdSettingsPanel({ lang, t }) {
                       <td style={{ padding: '7px 10px', fontWeight: 600 }}>{placementLabel(pl)}</td>
                       <td style={{ padding: '7px 10px' }}>{s.total_count}</td>
                       <td style={{ padding: '7px 10px' }}>{s.paid_count}</td>
-                      <td style={{ padding: '7px 10px', fontWeight: 700, color: '#2D6A4F' }}>{Number(s.total_paid).toFixed(2)} {currency}</td>
+                      <td style={{ padding: '7px 10px', fontWeight: 700, color: '#2D6A4F' }}>{formatPrice(Number(s.total_paid))}</td>
                       <td style={{ padding: '7px 10px', color: '#555' }}>{s.impressions.toLocaleString()}</td>
                       <td style={{ padding: '7px 10px', color: '#555' }}>{s.clicks.toLocaleString()}</td>
                       <td style={{ padding: '7px 10px', color: '#555' }}>{s.ctr}%</td>
@@ -10731,7 +10730,7 @@ function AdminAdSettingsPanel({ lang, t }) {
                   <td style={{ padding: '7px 10px' }}>{lang === 'da' ? 'Total' : 'Total'}</td>
                   <td style={{ padding: '7px 10px' }}>{adStats.reduce((a, r) => a + r.total_count, 0)}</td>
                   <td style={{ padding: '7px 10px' }}>{adStats.reduce((a, r) => a + r.paid_count, 0)}</td>
-                  <td style={{ padding: '7px 10px', color: '#2D6A4F' }}>{adStats.reduce((a, r) => a + Number(r.total_paid), 0).toFixed(2)} {currency}</td>
+                  <td style={{ padding: '7px 10px', color: '#2D6A4F' }}>{formatPrice(adStats.reduce((a, r) => a + Number(r.total_paid), 0))}</td>
                   <td style={{ padding: '7px 10px' }}>{adStats.reduce((a, r) => a + r.impressions, 0).toLocaleString()}</td>
                   <td style={{ padding: '7px 10px' }}>{adStats.reduce((a, r) => a + r.clicks, 0).toLocaleString()}</td>
                   <td style={{ padding: '7px 10px' }}>
@@ -10761,7 +10760,7 @@ function AdminAdSettingsPanel({ lang, t }) {
           <input type="number" min="1" max="200" style={{ ...iS, maxWidth: 100 }} value={settings.adfree_recurring_pct ?? 100} onChange={e => handle('adfree_recurring_pct', e.target.value)} />
           <span style={{ fontSize: 12, color: '#888' }}>%</span>
           <span style={{ fontSize: 12, color: '#aaa' }}>
-            {lang === 'da' ? `→ Privat: ${Math.round((parseFloat(settings.adfree_price_private)||29) * (parseInt(settings.adfree_recurring_pct??100)/100) * 100)/100} ${settings.currency||'DKK'}/md.` : `→ Personal: ${Math.round((parseFloat(settings.adfree_price_private)||29) * (parseInt(settings.adfree_recurring_pct??100)/100) * 100)/100} ${settings.currency||'DKK'}/mo.`}
+            {lang === 'da' ? `→ Privat: ${formatPrice(Math.round((parseFloat(settings.adfree_price_private)||29) * (parseInt(settings.adfree_recurring_pct??100)/100) * 100)/100)}/md.` : `→ Personal: ${formatPrice(Math.round((parseFloat(settings.adfree_price_private)||29) * (parseInt(settings.adfree_recurring_pct??100)/100) * 100)/100)}/mo.`}
           </span>
         </div>
         <label style={lS}>{t.adminAdsCPM}</label>
@@ -10771,11 +10770,11 @@ function AdminAdSettingsPanel({ lang, t }) {
           <input type="number" min="1" max="200" style={{ ...iS, maxWidth: 100 }} value={settings.ad_recurring_pct ?? 100} onChange={e => handle('ad_recurring_pct', e.target.value)} />
           <span style={{ fontSize: 12, color: '#888' }}>%</span>
           <span style={{ fontSize: 12, color: '#aaa' }}>
-            {lang === 'da' ? `→ ${Math.round((parseFloat(settings.ad_price_cpm)||50) * (parseInt(settings.ad_recurring_pct??100)/100) * 100)/100} ${settings.currency||'DKK'}/md.` : `→ ${Math.round((parseFloat(settings.ad_price_cpm)||50) * (parseInt(settings.ad_recurring_pct??100)/100) * 100)/100} ${settings.currency||'DKK'}/mo.`}
+            {lang === 'da' ? `→ ${formatPrice(Math.round((parseFloat(settings.ad_price_cpm)||50) * (parseInt(settings.ad_recurring_pct??100)/100) * 100)/100)}/md.` : `→ ${formatPrice(Math.round((parseFloat(settings.ad_price_cpm)||50) * (parseInt(settings.ad_recurring_pct??100)/100) * 100)/100)}/mo.`}
           </span>
         </div>
         <label style={lS}>{t.adminAdsCurrency}</label>
-        <input style={{ ...iS, maxWidth: 120 }} value={settings.currency || 'DKK'} onChange={e => handle('currency', e.target.value)} />
+        <input style={{ ...iS, maxWidth: 120 }} value={settings.currency || 'EUR'} onChange={e => handle('currency', e.target.value)} />
 
         <div style={{ fontWeight: 700, fontSize: 13, color: '#2D6A4F', marginTop: 20, paddingBottom: 6, borderBottom: '1px solid #eee' }}>{t.adminAdsDisplayTitle}</div>
         <label style={lS}>{t.adminAdsMaxFeed}</label>
