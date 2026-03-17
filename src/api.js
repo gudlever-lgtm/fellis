@@ -101,6 +101,17 @@ export async function apiDisableMfa() {
   return await request('/api/auth/disable-mfa', { method: 'POST' })
 }
 
+export async function apiSendSettingsMfa() {
+  return await request('/api/auth/send-settings-mfa', { method: 'POST' })
+}
+
+export async function apiUpdatePhone(phone) {
+  return await request('/api/profile/phone', {
+    method: 'PATCH',
+    body: JSON.stringify({ phone }),
+  })
+}
+
 export async function apiCheckSession() {
   // Try session check even without localStorage — cookie may carry the session
   return await request('/api/auth/session')

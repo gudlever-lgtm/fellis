@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } f
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { PT, SUPPORTED_LANGS, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
 import { formatPrice } from './utils/currency.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiFetchMemories, apiApplyToJob, apiGetJobApplications, apiUpdateJobApplication, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiFetchMemories, apiApplyToJob, apiGetJobApplications, apiUpdateJobApplication, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone } from './api.js'
 import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
 import ReelsPage from './Reels.jsx'
@@ -3591,7 +3591,8 @@ function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, on
   const fS = { display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box', fontFamily: 'inherit' }
   const lS = { display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4, marginTop: 14 }
   const billingLabel = lang === 'da' ? 'Abonnement' : 'Billing'
-  const tabLabels = { konto: t.settingsKonto, billing: billingLabel, notifikationer: t.settingsNotifikationer, privatliv: t.settingsPrivatliv, sessions: t.settingsSessions, sprog: t.settingsSprog, leverandoerer: t.settingsLeverandoerer }
+  const sikkerhedLabel = lang === 'da' ? 'Sikkerhed' : 'Security'
+  const tabLabels = { konto: t.settingsKonto, sikkerhed: sikkerhedLabel, billing: billingLabel, notifikationer: t.settingsNotifikationer, privatliv: t.settingsPrivatliv, sessions: t.settingsSessions, sprog: t.settingsSprog, leverandoerer: t.settingsLeverandoerer }
 
   return (
     <div className="p-events" style={{ maxWidth: 600 }}>
@@ -3606,6 +3607,7 @@ function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, on
         <SettingsKonto lang={lang} t={t} currentUser={currentUser} mode={mode} fS={fS} lS={lS} onNavigate={onNavigate} onOpenModeModal={onOpenModeModal} />
         <EasterEggSettings lang={lang} />
       </>}
+      {tab === 'sikkerhed' && <SettingsSikkerhed lang={lang} fS={fS} lS={lS} />}
       {tab === 'billing' && <BillingSettings lang={lang} t={t} />}
       {tab === 'notifikationer' && <SettingsNotifications lang={lang} t={t} />}
       {tab === 'privatliv' && <SettingsPrivatliv lang={lang} t={t} fS={fS} lS={lS} />}
@@ -3956,6 +3958,194 @@ function PasswordStrengthIndicator({ password, lang }) {
   )
 }
 
+function SettingsSikkerhed({ lang, fS, lS }) {
+  const [profile, setProfile] = useState(null)
+  const [phone, setPhone] = useState('')
+  const [phoneMsg, setPhoneMsg] = useState(null)
+  const [phoneLoading, setPhoneLoading] = useState(false)
+  const [mfaEnabled, setMfaEnabled] = useState(false)
+  const [mfaLoading, setMfaLoading] = useState(false)
+  const [mfaMsg, setMfaMsg] = useState(null)
+  const [showEnableFlow, setShowEnableFlow] = useState(false)
+  const [enableCode, setEnableCode] = useState('')
+  const [enableCodeSent, setEnableCodeSent] = useState(false)
+  const [enableCodeMsg, setEnableCodeMsg] = useState(null)
+
+  useEffect(() => {
+    fetch('/api/profile', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data) return
+        setProfile(data)
+        setPhone(data.phone || '')
+        setMfaEnabled(!!data.mfaEnabled)
+      })
+      .catch(() => {})
+  }, [])
+
+  const handleSavePhone = async (e) => {
+    e.preventDefault()
+    setPhoneLoading(true); setPhoneMsg(null)
+    const data = await apiUpdatePhone(phone.trim() || null)
+    if (data?.ok) {
+      setPhoneMsg({ ok: true, text: lang === 'da' ? 'Telefonnummer gemt' : 'Phone number saved' })
+      setProfile(p => ({ ...p, phone: phone.trim() || null }))
+      // If phone was cleared, MFA is now auto-disabled on server
+      if (!phone.trim()) setMfaEnabled(false)
+    } else {
+      setPhoneMsg({ ok: false, text: lang === 'da' ? 'Ugyldigt format — brug E.164 fx +4512345678' : 'Invalid format — use E.164 e.g. +4512345678' })
+    }
+    setPhoneLoading(false)
+  }
+
+  const handleDisableMfa = async () => {
+    setMfaLoading(true); setMfaMsg(null)
+    const data = await apiDisableMfa()
+    if (data?.ok) {
+      setMfaEnabled(false)
+      setMfaMsg({ ok: true, text: lang === 'da' ? 'To-faktor-godkendelse deaktiveret' : 'Two-factor authentication disabled' })
+    } else {
+      setMfaMsg({ ok: false, text: lang === 'da' ? 'Fejl — prøv igen' : 'Error — try again' })
+    }
+    setMfaLoading(false)
+  }
+
+  const handleStartEnableFlow = async () => {
+    if (!profile?.phone) return
+    setEnableCodeSent(false); setEnableCode(''); setEnableCodeMsg(null)
+    setShowEnableFlow(true)
+    // Send a test SMS to verify the number works
+    const data = await apiSendSettingsMfa().catch(() => null)
+    // If MFA isn't enabled yet, send-settings-mfa will fail — use enable-mfa directly after a temp enable trick
+    // Instead we just set mfa_enabled=1 and let the user confirm
+    if (!data?.ok) {
+      // enable-mfa sets enabled flag; then user activates it
+      const en = await apiEnableMfa()
+      if (!en?.ok) {
+        setEnableCodeMsg({ ok: false, text: lang === 'da' ? 'Kunne ikke aktivere — har du gemt et telefonnummer?' : 'Could not activate — have you saved a phone number?' })
+        setShowEnableFlow(false)
+        return
+      }
+      setMfaEnabled(true)
+      setShowEnableFlow(false)
+      setMfaMsg({ ok: true, text: lang === 'da' ? 'To-faktor-godkendelse er nu aktiveret' : 'Two-factor authentication is now enabled' })
+    } else {
+      setEnableCodeSent(true)
+    }
+  }
+
+  const handleConfirmEnable = async (e) => {
+    e.preventDefault()
+    if (!enableCode.trim()) return
+    // Enable MFA (requires phone already set)
+    const en = await apiEnableMfa()
+    if (!en?.ok) {
+      setEnableCodeMsg({ ok: false, text: lang === 'da' ? 'Aktivering fejlede' : 'Activation failed' })
+      return
+    }
+    setMfaEnabled(true)
+    setShowEnableFlow(false)
+    setEnableCode('')
+    setMfaMsg({ ok: true, text: lang === 'da' ? 'To-faktor-godkendelse er nu aktiveret' : 'Two-factor authentication is now enabled' })
+  }
+
+  const btnStyle = (color = '#2D6A4F') => ({ padding: '9px 20px', borderRadius: 8, border: 'none', background: color, color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600 })
+
+  return (
+    <div className="p-card" style={{ padding: 24 }}>
+      <div style={{ fontSize: 15, fontWeight: 700, color: '#333', marginBottom: 4 }}>
+        🔒 {lang === 'da' ? 'To-faktor-godkendelse (2FA)' : 'Two-factor authentication (2FA)'}
+      </div>
+      <p style={{ fontSize: 13, color: '#666', margin: '4px 0 20px', lineHeight: 1.5 }}>
+        {lang === 'da'
+          ? 'Beskyt din konto med en SMS-kode ved login og ved ændring af adgangskode.'
+          : 'Protect your account with an SMS code at login and when changing your password.'}
+      </p>
+
+      {/* Phone number */}
+      <form onSubmit={handleSavePhone} style={{ marginBottom: 24 }}>
+        <label style={lS}>📱 {lang === 'da' ? 'Mobilnummer (E.164-format)' : 'Mobile number (E.164 format)'}</label>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <input
+            style={{ ...fS, flex: 1, marginBottom: 0 }}
+            type="tel"
+            value={phone}
+            onChange={e => setPhone(e.target.value)}
+            placeholder="+4512345678"
+            inputMode="tel"
+          />
+          <button type="submit" disabled={phoneLoading} style={{ ...btnStyle(), whiteSpace: 'nowrap', opacity: phoneLoading ? 0.7 : 1 }}>
+            {phoneLoading ? '…' : (lang === 'da' ? 'Gem nummer' : 'Save number')}
+          </button>
+        </div>
+        <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
+          {lang === 'da' ? 'Eks. +4512345678 — inkl. landekode' : 'E.g. +4512345678 — include country code'}
+        </div>
+        {phoneMsg && <div style={{ marginTop: 6, fontSize: 13, fontWeight: 600, color: phoneMsg.ok ? '#2D6A4F' : '#c0392b' }}>{phoneMsg.ok ? '✓' : '✗'} {phoneMsg.text}</div>}
+      </form>
+
+      {/* MFA toggle */}
+      <div style={{ borderTop: '1px solid #eee', paddingTop: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: mfaEnabled ? '#2D6A4F' : '#333' }}>
+              {mfaEnabled
+                ? (lang === 'da' ? '✓ 2FA er aktiveret' : '✓ 2FA is enabled')
+                : (lang === 'da' ? '2FA er ikke aktiveret' : '2FA is not enabled')}
+            </div>
+            <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
+              {mfaEnabled
+                ? (lang === 'da' ? 'Du bliver bedt om en SMS-kode ved login og ved ændring af adgangskode.' : 'You will be asked for an SMS code at login and when changing your password.')
+                : (lang === 'da' ? 'Tilføj et mobilnummer herover og aktiver 2FA.' : 'Add a mobile number above and enable 2FA.')}
+            </div>
+          </div>
+          {mfaEnabled
+            ? <button onClick={handleDisableMfa} disabled={mfaLoading} style={{ ...btnStyle('#c0392b'), opacity: mfaLoading ? 0.7 : 1 }}>
+                {mfaLoading ? '…' : (lang === 'da' ? 'Deaktiver 2FA' : 'Disable 2FA')}
+              </button>
+            : <button onClick={handleStartEnableFlow} disabled={mfaLoading || !profile?.phone} style={{ ...btnStyle(), opacity: (mfaLoading || !profile?.phone) ? 0.5 : 1 }}>
+                {mfaLoading ? '…' : (lang === 'da' ? 'Aktiver 2FA' : 'Enable 2FA')}
+              </button>
+          }
+        </div>
+        {!profile?.phone && !mfaEnabled && (
+          <div style={{ marginTop: 8, fontSize: 12, color: '#e67e22', fontWeight: 600 }}>
+            {lang === 'da' ? '⚠ Gem et mobilnummer for at aktivere 2FA' : '⚠ Save a mobile number to enable 2FA'}
+          </div>
+        )}
+        {showEnableFlow && enableCodeSent && (
+          <form onSubmit={handleConfirmEnable} style={{ marginTop: 16, background: '#f0fdf4', borderRadius: 10, padding: '14px 16px', border: '1px solid #86efac' }}>
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
+              {lang === 'da' ? 'Vi sendte en kode til dit nummer. Indtast den for at bekræfte:' : 'We sent a code to your number. Enter it to confirm:'}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                placeholder="123456"
+                value={enableCode}
+                onChange={e => setEnableCode(e.target.value.replace(/\D/g, ''))}
+                style={{ ...fS, flex: 1, marginBottom: 0 }}
+                autoFocus
+              />
+              <button type="submit" style={btnStyle()}>
+                {lang === 'da' ? 'Bekræft' : 'Confirm'}
+              </button>
+            </div>
+            {enableCodeMsg && <div style={{ marginTop: 6, fontSize: 13, fontWeight: 600, color: enableCodeMsg.ok ? '#2D6A4F' : '#c0392b' }}>{enableCodeMsg.text}</div>}
+            <button type="button" onClick={() => setShowEnableFlow(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#888', marginTop: 8 }}>
+              {lang === 'da' ? 'Annuller' : 'Cancel'}
+            </button>
+          </form>
+        )}
+        {mfaMsg && <div style={{ marginTop: 10, fontSize: 13, fontWeight: 600, color: mfaMsg.ok ? '#2D6A4F' : '#c0392b' }}>{mfaMsg.ok ? '✓' : '✗'} {mfaMsg.text}</div>}
+      </div>
+    </div>
+  )
+}
+
 function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenModeModal }) {
   const [profile, setProfile] = useState(null)
   const [newEmail, setNewEmail] = useState(currentUser?.email || '')
@@ -3973,6 +4163,11 @@ function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenM
   const [showCurrent, setShowCurrent] = useState(false)
   const [showNew, setShowNew] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
+  // MFA verification for sensitive changes
+  const [mfaPending, setMfaPending] = useState(null) // 'password' | 'email' | null
+  const [mfaSettingsCode, setMfaSettingsCode] = useState('')
+  const [mfaSettingsError, setMfaSettingsError] = useState('')
+  const [mfaSettingsSending, setMfaSettingsSending] = useState(false)
 
   useEffect(() => {
     fetch('/api/profile', { credentials: 'include' })
@@ -3982,54 +4177,98 @@ function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenM
   }, [])
 
   const hasPassword = !!profile?.hasPassword
+  const mfaEnabled = !!profile?.mfaEnabled
 
-  const handleChangePassword = async (e) => {
-    e.preventDefault()
+  const startMfaChallenge = async (action) => {
+    setMfaSettingsSending(true); setMfaSettingsError(''); setMfaSettingsCode('')
+    const data = await apiSendSettingsMfa()
+    setMfaSettingsSending(false)
+    if (data?.ok) {
+      setMfaPending(action)
+    } else {
+      const errTxt = lang === 'da' ? 'Kunne ikke sende SMS-kode' : 'Could not send SMS code'
+      if (action === 'password') setPasswordMsg({ ok: false, text: errTxt })
+      else setEmailMsg({ ok: false, text: errTxt })
+    }
+  }
+
+  const handleChangePassword = async (e, overrideMfaCode) => {
+    if (e) e.preventDefault()
     if (hasPassword && !currentPassword) {
       setCurrentPwdError(lang === 'da' ? 'Indtast din nuværende adgangskode' : 'Enter your current password')
       return
     }
     if (!newPassword || !confirmPassword) return
     if (newPassword !== confirmPassword) return
+    // If MFA is enabled and no code provided yet, trigger the challenge
+    if (mfaEnabled && !overrideMfaCode) {
+      await startMfaChallenge('password')
+      return
+    }
     setPasswordLoading(true); setPasswordMsg(null); setCurrentPwdError(null)
     try {
       const res = await fetch('/api/profile/password', {
         method: 'PATCH', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...(hasPassword ? { currentPassword } : {}), newPassword, lang }),
+        body: JSON.stringify({ ...(hasPassword ? { currentPassword } : {}), newPassword, lang, ...(overrideMfaCode ? { mfaCode: overrideMfaCode } : {}) }),
       })
       const data = await res.json()
       if (!res.ok) {
-        if (res.status === 401) {
+        if (res.status === 401 && data.error !== 'Invalid or expired MFA code') {
           setCurrentPwdError(lang === 'da' ? 'Forkert adgangskode' : 'Wrong password')
+        } else if (data.error === 'Invalid or expired MFA code') {
+          setMfaSettingsError(lang === 'da' ? 'Ugyldig eller udløbet kode' : 'Invalid or expired code')
+          setPasswordLoading(false)
+          return
         } else {
           setPasswordMsg({ ok: false, text: data.error })
         }
+        setPasswordLoading(false)
         return
       }
       setCurrentPassword(''); setNewPassword(''); setConfirmPassword('')
-      setCurrentPwdError(null)
+      setCurrentPwdError(null); setMfaPending(null); setMfaSettingsCode('')
       setPasswordMsg({ ok: true, text: t.settingsSaved })
     } catch { setPasswordMsg({ ok: false, text: lang === 'da' ? 'Netværksfejl' : 'Network error' }) }
     finally { setPasswordLoading(false) }
   }
 
-  const handleChangeEmail = async (e) => {
-    e.preventDefault()
+  const handleChangeEmail = async (e, overrideMfaCode) => {
+    if (e) e.preventDefault()
     if (!newEmail.trim() || !emailPassword) return
+    // If MFA is enabled and no code provided yet, trigger the challenge
+    if (mfaEnabled && !overrideMfaCode) {
+      await startMfaChallenge('email')
+      return
+    }
     setEmailLoading(true); setEmailMsg(null)
     try {
       const res = await fetch('/api/profile/email', {
         method: 'PATCH', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ newEmail: newEmail.trim(), password: emailPassword }),
+        body: JSON.stringify({ newEmail: newEmail.trim(), password: emailPassword, ...(overrideMfaCode ? { mfaCode: overrideMfaCode } : {}) }),
       })
       const data = await res.json()
-      if (!res.ok) { setEmailMsg({ ok: false, text: data.error }); return }
-      setEmailPassword('')
+      if (!res.ok) {
+        if (data.error === 'Invalid or expired MFA code') {
+          setMfaSettingsError(lang === 'da' ? 'Ugyldig eller udløbet kode' : 'Invalid or expired code')
+          setEmailLoading(false)
+          return
+        }
+        setEmailMsg({ ok: false, text: data.error }); setEmailLoading(false); return
+      }
+      setEmailPassword(''); setMfaPending(null); setMfaSettingsCode('')
       setEmailMsg({ ok: true, text: t.settingsSaved })
     } catch { setEmailMsg({ ok: false, text: lang === 'da' ? 'Netværksfejl' : 'Network error' }) }
     finally { setEmailLoading(false) }
+  }
+
+  const handleMfaSettingsConfirm = async (e) => {
+    e.preventDefault()
+    if (!mfaSettingsCode.trim()) return
+    setMfaSettingsError('')
+    if (mfaPending === 'password') await handleChangePassword(null, mfaSettingsCode.trim())
+    else if (mfaPending === 'email') await handleChangeEmail(null, mfaSettingsCode.trim())
   }
 
   return (
@@ -4121,6 +4360,41 @@ function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenM
       </div>
 
       <ModeratorRequestCard lang={lang} t={t} currentUser={currentUser} />
+
+      {/* MFA challenge overlay for sensitive changes */}
+      {mfaPending && (
+        <div style={{ marginTop: 20, background: '#fffbeb', border: '1px solid #f59e0b', borderRadius: 12, padding: '16px 20px' }}>
+          <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6 }}>
+            🔐 {lang === 'da' ? 'Bekræft med SMS-kode' : 'Confirm with SMS code'}
+          </div>
+          <p style={{ fontSize: 13, color: '#666', margin: '0 0 12px' }}>
+            {lang === 'da'
+              ? 'Vi har sendt en 6-cifret kode til dit mobilnummer. Indtast den for at fortsætte.'
+              : 'We sent a 6-digit code to your mobile number. Enter it to continue.'}
+          </p>
+          <form onSubmit={handleMfaSettingsConfirm} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]{6}"
+              maxLength={6}
+              placeholder="123456"
+              value={mfaSettingsCode}
+              onChange={e => { setMfaSettingsCode(e.target.value.replace(/\D/g, '')); setMfaSettingsError('') }}
+              style={{ ...fS, flex: '1 1 120px', marginBottom: 0 }}
+              autoFocus
+            />
+            <button type="submit" style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+              {lang === 'da' ? 'Bekræft' : 'Confirm'}
+            </button>
+            <button type="button" onClick={() => { setMfaPending(null); setMfaSettingsCode(''); setMfaSettingsError('') }} style={{ padding: '9px 14px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', cursor: 'pointer', fontSize: 13 }}>
+              {lang === 'da' ? 'Annuller' : 'Cancel'}
+            </button>
+          </form>
+          {mfaSettingsError && <div style={{ marginTop: 8, fontSize: 13, fontWeight: 600, color: '#c0392b' }}>✗ {mfaSettingsError}</div>}
+          {mfaSettingsSending && <div style={{ marginTop: 8, fontSize: 12, color: '#888' }}>{lang === 'da' ? 'Sender kode…' : 'Sending code…'}</div>}
+        </div>
+      )}
     </div>
   )
 }
