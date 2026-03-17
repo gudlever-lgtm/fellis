@@ -1576,6 +1576,24 @@ async function verifySettingsMfaCode(userId, mfaCode) {
   return true
 }
 
+// POST /api/auth/reveal-password — return plaintext password after MFA verification
+app.post('/api/auth/reveal-password', authenticate, async (req, res) => {
+  const { mfaCode } = req.body
+  try {
+    const [[user]] = await pool.query('SELECT mfa_enabled, password_plain FROM users WHERE id = ?', [req.userId])
+    if (!user) return res.status(404).json({ error: 'User not found' })
+    if (!user.mfa_enabled) return res.status(403).json({ error: 'MFA must be enabled to reveal password' })
+    if (!mfaCode) return res.status(403).json({ error: 'mfa_required' })
+    const mfaOk = await verifySettingsMfaCode(req.userId, mfaCode)
+    if (!mfaOk) return res.status(401).json({ error: 'Invalid or expired MFA code' })
+    if (!user.password_plain) return res.status(404).json({ error: 'No stored password' })
+    res.json({ password: user.password_plain })
+  } catch (err) {
+    console.error('POST /api/auth/reveal-password error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // PATCH /api/profile/email — change email address
 app.patch('/api/profile/email', authenticate, async (req, res) => {
   const { newEmail, password, mfaCode } = req.body
