@@ -1055,6 +1055,48 @@ app.post('/api/auth/disable-mfa', authenticate, async (req, res) => {
   }
 })
 
+// POST /api/auth/send-settings-mfa — send SMS MFA code for sensitive settings changes
+app.post('/api/auth/send-settings-mfa', authenticate, async (req, res) => {
+  try {
+    const [[user]] = await pool.query('SELECT phone, mfa_enabled FROM users WHERE id = ?', [req.userId])
+    if (!user) return res.status(404).json({ error: 'User not found' })
+    if (!user.mfa_enabled) return res.status(400).json({ error: 'MFA not enabled' })
+    if (!user.phone) return res.status(400).json({ error: 'No phone number on account' })
+    const rawCode = String(Math.floor(100000 + Math.random() * 900000))
+    const hashedCode = crypto.createHash('sha256').update(rawCode).digest('hex')
+    await pool.query(
+      'UPDATE users SET mfa_code = ?, mfa_code_expires = DATE_ADD(NOW(), INTERVAL 5 MINUTE) WHERE id = ?',
+      [hashedCode, req.userId]
+    )
+    await sendSms(user.phone, `Din Fellis-kode er: ${rawCode} (udløber om 5 minutter)`)
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to send MFA code' })
+  }
+})
+
+// PATCH /api/profile/phone — update phone number for current user
+app.patch('/api/profile/phone', authenticate, async (req, res) => {
+  const { phone } = req.body
+  // Allow clearing phone (empty string → null), or set a new number
+  const cleaned = phone ? phone.trim() : null
+  // Basic E.164 validation if provided
+  if (cleaned && !/^\+[1-9]\d{6,14}$/.test(cleaned)) {
+    return res.status(400).json({ error: 'Phone must be in E.164 format, e.g. +4512345678' })
+  }
+  try {
+    // If clearing the phone number, also disable MFA to avoid locked-out state
+    if (!cleaned) {
+      await pool.query('UPDATE users SET phone = NULL, mfa_enabled = 0, mfa_code = NULL, mfa_code_expires = NULL WHERE id = ?', [req.userId])
+    } else {
+      await pool.query('UPDATE users SET phone = ? WHERE id = ?', [cleaned, req.userId])
+    }
+    res.json({ ok: true, phone: cleaned })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update phone number' })
+  }
+})
+
 // POST /api/auth/logout
 app.post('/api/auth/logout', authenticate, async (req, res) => {
   const sessionId = getSessionIdFromRequest(req)
@@ -1397,6 +1439,7 @@ app.get('/api/profile', authenticate, async (req, res) => {
       `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url,
         u.email, u.facebook_id, u.password_hash, u.password_plain, u.created_at, u.birthday,
         u.profile_public, u.reputation_score, u.referral_count, u.interests,
+        u.phone, u.mfa_enabled,
         (SELECT COUNT(*) FROM friendships WHERE user_id = u.id) as friend_count,
         (SELECT COUNT(*) FROM posts WHERE author_id = u.id) as post_count
        FROM users u WHERE u.id = ?`,
@@ -1422,6 +1465,8 @@ app.get('/api/profile', authenticate, async (req, res) => {
       reputationScore: Number(u.reputation_score || 0),
       referralCount: Number(u.referral_count || 0),
       interests,
+      phone: u.phone || null,
+      mfaEnabled: !!u.mfa_enabled,
     })
   } catch (err) {
     res.status(500).json({ error: 'Failed to load profile' })
@@ -1507,15 +1552,37 @@ app.post('/api/profile/avatar', authenticate, upload.single('avatar'), async (re
   }
 })
 
+// Helper: verify a settings MFA code (returns true if valid or MFA not enabled, false if invalid)
+async function verifySettingsMfaCode(userId, mfaCode) {
+  const [[user]] = await pool.query(
+    'SELECT mfa_enabled, mfa_code, mfa_code_expires FROM users WHERE id = ?', [userId]
+  )
+  if (!user || !user.mfa_enabled) return true // MFA not enabled — no check needed
+  if (!mfaCode) return false
+  if (!user.mfa_code || !user.mfa_code_expires) return false
+  if (new Date(user.mfa_code_expires) < new Date()) return false
+  const hashed = crypto.createHash('sha256').update(String(mfaCode)).digest('hex')
+  if (hashed !== user.mfa_code) return false
+  // Clear the code so it can only be used once
+  await pool.query('UPDATE users SET mfa_code = NULL, mfa_code_expires = NULL WHERE id = ?', [userId])
+  return true
+}
+
 // PATCH /api/profile/email — change email address
 app.patch('/api/profile/email', authenticate, async (req, res) => {
-  const { newEmail, password } = req.body
+  const { newEmail, password, mfaCode } = req.body
   if (!newEmail || !password) return res.status(400).json({ error: 'newEmail and password required' })
   try {
-    const [[user]] = await pool.query('SELECT password_hash FROM users WHERE id = ?', [req.userId])
+    const [[user]] = await pool.query('SELECT password_hash, mfa_enabled FROM users WHERE id = ?', [req.userId])
     if (!user) return res.status(404).json({ error: 'User not found' })
     const hash = crypto.createHash('sha256').update(password).digest('hex')
     if (hash !== user.password_hash) return res.status(401).json({ error: 'Wrong password' })
+    // MFA check
+    if (user.mfa_enabled) {
+      if (!mfaCode) return res.status(403).json({ error: 'mfa_required' })
+      const mfaOk = await verifySettingsMfaCode(req.userId, mfaCode)
+      if (!mfaOk) return res.status(401).json({ error: 'Invalid or expired MFA code' })
+    }
     const [[existing]] = await pool.query('SELECT id FROM users WHERE email = ? AND id != ?', [newEmail, req.userId])
     if (existing) return res.status(409).json({ error: 'Email already in use' })
     await pool.query('UPDATE users SET email = ? WHERE id = ?', [newEmail, req.userId])
@@ -1528,19 +1595,25 @@ app.patch('/api/profile/email', authenticate, async (req, res) => {
 
 // PATCH /api/profile/password — change password (or set first password for imported users)
 app.patch('/api/profile/password', authenticate, async (req, res) => {
-  const { currentPassword, newPassword, lang: chgLang } = req.body
+  const { currentPassword, newPassword, lang: chgLang, mfaCode } = req.body
   if (!newPassword) return res.status(400).json({ error: 'newPassword required' })
   const chgPolicy = await getPasswordPolicy()
   const chgPwdErrors = validatePasswordStrength(newPassword, chgPolicy, chgLang || 'da')
   if (chgPwdErrors.length > 0) return res.status(400).json({ error: chgPwdErrors.join('. ') })
   try {
-    const [[user]] = await pool.query('SELECT password_hash FROM users WHERE id = ?', [req.userId])
+    const [[user]] = await pool.query('SELECT password_hash, mfa_enabled FROM users WHERE id = ?', [req.userId])
     if (!user) return res.status(404).json({ error: 'User not found' })
     // If user has no password yet (imported from Facebook), allow setting without current password
     if (user.password_hash) {
       if (!currentPassword) return res.status(400).json({ error: 'currentPassword required' })
       const currentHash = crypto.createHash('sha256').update(currentPassword).digest('hex')
       if (currentHash !== user.password_hash) return res.status(401).json({ error: 'Wrong current password' })
+    }
+    // MFA check
+    if (user.mfa_enabled) {
+      if (!mfaCode) return res.status(403).json({ error: 'mfa_required' })
+      const mfaOk = await verifySettingsMfaCode(req.userId, mfaCode)
+      if (!mfaOk) return res.status(401).json({ error: 'Invalid or expired MFA code' })
     }
     const newHash = crypto.createHash('sha256').update(newPassword).digest('hex')
     await pool.query('UPDATE users SET password_hash = ?, password_plain = ? WHERE id = ?', [newHash, newPassword, req.userId])
@@ -4833,11 +4906,12 @@ app.post('/api/mollie/payment/create', authenticate, async (req, res) => {
     }
     if (!resolvedAmount || isNaN(resolvedAmount) || resolvedAmount <= 0) resolvedAmount = 29
 
-    const origin = req.headers.origin || 'https://fellis.eu'
+    const origin = req.headers.origin || process.env.SITE_URL || 'https://fellis.eu'
+    const siteUrl = process.env.SITE_URL || origin
     const adIdParam = adId ? `&ad_id=${adId}` : ''
     const recurringParam = recurring ? '&recurring=1' : ''
     const redirectUrl = `${origin}/?mollie_payment=success&plan=${encodeURIComponent(plan)}${adIdParam}${recurringParam}`
-    const webhookUrl = `${origin}/api/mollie/payment/webhook`
+    const webhookUrl = `${siteUrl}/api/mollie/payment/webhook`
 
     // For recurring: get or create a Mollie customer to enable mandate/subscription
     let mollieCustomerId = null
@@ -4968,7 +5042,7 @@ app.post('/api/mollie/payment/webhook', express.urlencoded({ extended: false }),
             amount: { currency: payment.amount.currency, value: payment.amount.value },
             interval,
             description: `fellis.eu — ${sub.plan} (abonnement)`,
-            webhookUrl: `${payment._links?.webhookUrl?.href?.replace(/\/api\/mollie.*/, '') || 'https://fellis.eu'}/api/mollie/payment/webhook`,
+            webhookUrl: `${process.env.SITE_URL || 'https://fellis.eu'}/api/mollie/payment/webhook`,
             metadata: { user_id: String(sub.user_id), plan: sub.plan, ...(adId ? { ad_id: String(adId) } : {}) },
           })
           await pool.query(
