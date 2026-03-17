@@ -41,9 +41,14 @@ export async function sendSms(to, message) {
     })
     if (!res.ok) {
       const text = await res.text()
-      console.error(`46elks SMS error ${res.status}: ${text}`)
+      let parsed
+      try { parsed = JSON.parse(text) } catch { parsed = null }
+      console.error(`46elks SMS error — status: ${res.status} ${res.statusText}`)
+      console.error('46elks SMS error — response:', parsed ?? text)
       return false
     }
+    const data = await res.json().catch(() => null)
+    if (data) console.log('46elks SMS sent:', JSON.stringify(data))
     return true
   } catch (err) {
     console.error('46elks SMS fetch error:', err.message)
