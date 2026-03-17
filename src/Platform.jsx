@@ -4313,6 +4313,7 @@ function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenM
                 value={currentPassword}
                 onChange={e => { setCurrentPassword(e.target.value); if (currentPwdError) setCurrentPwdError(null) }}
                 onBlur={() => { if (!currentPassword) setCurrentPwdError(lang === 'da' ? 'Påkrævet' : 'Required') }}
+                autoComplete="current-password"
                 required placeholder="••••••••"
               />
               <button type="button" onClick={() => setShowCurrent(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#888' }}>{showCurrent ? '🙈' : '👁️'}</button>
@@ -4321,13 +4322,13 @@ function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenM
           </>)}
           <label style={lS}>{lang === 'da' ? (hasPassword ? 'Ny adgangskode' : 'Adgangskode') : (hasPassword ? 'New password' : 'Password')}</label>
           <div style={{ position: 'relative' }}>
-            <input style={{ ...fS, paddingRight: 44 }} type={showNew ? 'text' : 'password'} value={newPassword} onChange={e => setNewPassword(e.target.value)} required placeholder="••••••••" />
+            <input style={{ ...fS, paddingRight: 44 }} type={showNew ? 'text' : 'password'} value={newPassword} onChange={e => setNewPassword(e.target.value)} autoComplete="new-password" required placeholder="••••••••" />
             <button type="button" onClick={() => setShowNew(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#888' }}>{showNew ? '🙈' : '👁️'}</button>
           </div>
           <PasswordStrengthIndicator password={newPassword} lang={lang} />
           <label style={lS}>{lang === 'da' ? 'Bekræft adgangskode' : 'Confirm password'}</label>
           <div style={{ position: 'relative' }}>
-            <input style={{ ...fS, paddingRight: 44 }} type={showConfirm ? 'text' : 'password'} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required placeholder="••••••••" />
+            <input style={{ ...fS, paddingRight: 44 }} type={showConfirm ? 'text' : 'password'} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} autoComplete="new-password" required placeholder="••••••••" />
             <button type="button" onClick={() => setShowConfirm(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#888' }}>{showConfirm ? '🙈' : '👁️'}</button>
           </div>
           {confirmPassword.length > 0 && (
