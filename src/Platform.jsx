@@ -3874,40 +3874,6 @@ function SettingsLeverandoerer({ lang, t }) {
         <p style={{ fontSize: 13, color: '#555', margin: 0 }}>{t.providerApplePhotosDesc}</p>
       </div>
 
-      {/* Dropbox */}
-      <div style={{ ...cardStyle, opacity: 0.6 }}>
-        <div style={headerStyle}>
-          <div style={{ ...logoStyle, background: '#0061ff', color: '#fff', fontSize: 18 }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
-              <path d="M6 2L0 6l6 4-6 4 6 4 6-4-6-4 6-4L6 2zm12 0l-6 4 6 4-6 4 6 4 6-4-6-4 6-4-6-4zM6 16.5l6 4 6-4-6-4-6 4z"/>
-            </svg>
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>Dropbox</div>
-            <span style={badgeStyle(false)}>{t.providerComingSoon}</span>
-          </div>
-        </div>
-        <p style={{ fontSize: 13, color: '#555', margin: 0 }}>{t.providerDropboxDesc}</p>
-      </div>
-
-      {/* OneDrive */}
-      <div style={{ ...cardStyle, opacity: 0.6, marginBottom: 0 }}>
-        <div style={headerStyle}>
-          <div style={{ ...logoStyle, background: '#0078d4', color: '#fff', fontSize: 18 }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
-              <path d="M10.5 13.5H20c2.2 0 4-1.8 4-4s-1.8-4-4-4c-.3 0-.5 0-.8.1C18.5 3.6 16.5 2 14 2c-2.3 0-4.2 1.4-5 3.4C7.3 5.1 5.6 5.8 4.4 7 3.3 8 2.7 9.3 2.7 10.8c0 1.5 1.2 2.7 2.7 2.7h5.1z"/>
-              <path d="M10.5 13.5H20c2.2 0 4-1.8 4-4s-1.8-4-4-4c-.3 0-.5 0-.8.1C18.5 3.6 16.5 2 14 2c-2.3 0-4.2 1.4-5 3.4C7.3 5.1 5.6 5.8 4.4 7 3.3 8 2.7 9.3 2.7 10.8c0 1.5 1.2 2.7 2.7 2.7h5.1zM4 15l3.5 6.5h13L24 15H4z"/>
-            </svg>
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>Microsoft OneDrive</div>
-            <span style={badgeStyle(false)}>{t.providerComingSoon}</span>
-          </div>
-        </div>
-        <p style={{ fontSize: 13, color: '#555', margin: 0 }}>
-          {lang === 'da' ? 'Upload filer direkte fra din OneDrive-konto.' : 'Upload files directly from your OneDrive account.'}
-        </p>
-      </div>
     </div>
   )
 }
