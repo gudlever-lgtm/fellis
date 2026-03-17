@@ -25,7 +25,7 @@ export async function sendSms(to, message) {
     return false
   }
 
-  const sender = process.env['46ELKS_SENDER'] || 'fellis.eu'
+  const sender = process.env['46ELKS_SENDER'] || 'FellisEU'
   const credentials = Buffer.from(`${username}:${password}`).toString('base64')
 
   const body = new URLSearchParams({ from: sender, to, message })
