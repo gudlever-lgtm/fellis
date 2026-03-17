@@ -5601,6 +5601,7 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onMessage, on
   const [profile, setProfile] = useState(null)
   const [photos, setPhotos] = useState([])
   const [lightbox, setLightbox] = useState(null) // url of enlarged photo
+  const [requestSent, setRequestSent] = useState(false)
   const { triggerEgg } = useEasterEggs()
   const avatarClickCount = useRef(0)
   const avatarClickTimer = useRef(null)
@@ -5611,6 +5612,7 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onMessage, on
     apiFetchProfile(userId).then(data => {
       if (data) {
         setProfile(data)
+        setRequestSent(!!data.requestSent)
         setTimeout(onBadgeCheck, 800)
       }
     })
@@ -5674,11 +5676,27 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onMessage, on
               {profile.mutualCount > 0 && <div className="p-friend-profile-stat"><strong>{profile.mutualCount}</strong><span>{t.mutualFriends}</span></div>}
               <div className="p-friend-profile-stat"><strong>{profile.postCount}</strong><span>{t.postsLabel}</span></div>
             </div>
-            {profile.isFriend && (
-              <button className="p-friend-msg-btn" style={{ marginTop: 16 }} onClick={() => onMessage(profile)}>
-                💬 {t.message}
-              </button>
-            )}
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 16, flexWrap: 'wrap' }}>
+              {profile.isFriend ? (
+                <button className="p-friend-msg-btn" onClick={() => onMessage(profile)}>
+                  💬 {t.message}
+                </button>
+              ) : (
+                <button
+                  className="p-friend-msg-btn"
+                  disabled={requestSent}
+                  style={{ opacity: requestSent ? 0.6 : 1, cursor: requestSent ? 'default' : 'pointer' }}
+                  onClick={async () => {
+                    const res = await apiSendFriendRequest(userId)
+                    if (res !== null) setRequestSent(true)
+                  }}
+                >
+                  {requestSent
+                    ? (lang === 'da' ? '✓ Anmodning sendt' : '✓ Request sent')
+                    : (lang === 'da' ? '+ Tilføj ven' : '+ Add friend')}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

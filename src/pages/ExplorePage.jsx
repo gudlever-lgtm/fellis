@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { nameToColor, getInitials } from '../data.js'
 
-const FILTERS = ['all', 'images', 'video', 'reels']
+const FILTERS = ['all', 'images']
 
 function PostCard({ post, lang, onViewProfile }) {
   const text = post.text?.[lang] || post.text?.da || ''
@@ -102,8 +102,6 @@ export default function ExplorePage({ lang, onViewProfile }) {
     filter: {
       all: da ? 'Alt' : 'All',
       images: da ? 'Billeder' : 'Images',
-      video: da ? 'Video' : 'Video',
-      reels: da ? 'Reels' : 'Reels',
     },
     loadMore: da ? 'Hent flere' : 'Load more',
     noMore: da ? 'Ikke flere opslag' : 'No more posts',

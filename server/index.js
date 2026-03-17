@@ -1374,9 +1374,10 @@ app.get('/api/profile/:id', authenticate, async (req, res) => {
         (SELECT COUNT(*) FROM friendships f1
            JOIN friendships f2 ON f1.friend_id = f2.friend_id
            WHERE f1.user_id = ? AND f2.user_id = u.id) as mutual_count,
-        (SELECT COUNT(*) FROM friendships WHERE user_id = ? AND friend_id = u.id) as is_friend
+        (SELECT COUNT(*) FROM friendships WHERE user_id = ? AND friend_id = u.id) as is_friend,
+        (SELECT COUNT(*) FROM friend_requests WHERE from_id = ? AND to_id = u.id AND status = 'pending') as request_sent
        FROM users u WHERE u.id = ?`,
-      [req.userId, req.userId, targetId]
+      [req.userId, req.userId, req.userId, targetId]
     )
     if (users.length === 0) return res.status(404).json({ error: 'User not found' })
     const u = users[0]
@@ -1406,6 +1407,7 @@ app.get('/api/profile/:id', authenticate, async (req, res) => {
       friendCount: u.friend_count, postCount: u.post_count, photoCount: u.photo_count || 0,
       mutualCount: u.mutual_count || 0,
       isFriend: !!u.is_friend,
+      requestSent: !!u.request_sent,
       badges,
     })
   } catch (err) {
@@ -2426,7 +2428,8 @@ app.get('/api/invites', authenticate, async (req, res) => {
 app.get('/api/friends', authenticate, async (req, res) => {
   try {
     const [friends] = await pool.query(
-      `SELECT u.id, u.name, f.mutual_count as mutual, f.is_online as online
+      `SELECT u.id, u.name, f.mutual_count as mutual,
+              (u.last_active IS NOT NULL AND u.last_active > DATE_SUB(NOW(), INTERVAL 5 MINUTE)) as online
        FROM friendships f JOIN users u ON f.friend_id = u.id
        WHERE f.user_id = ?
        ORDER BY u.name`,
@@ -2889,7 +2892,7 @@ app.get('/api/users/search', authenticate, async (req, res) => {
     const [users] = await pool.query(
       `SELECT u.id, u.name, u.handle, u.avatar_url,
               CASE WHEN f.id IS NOT NULL THEN 1 ELSE 0 END as is_friend,
-              COALESCE(f.is_online, 0) as online,
+              (u.last_active IS NOT NULL AND u.last_active > DATE_SUB(NOW(), INTERVAL 5 MINUTE)) as online,
               COALESCE(f.mutual_count, 0) as mutual,
               (SELECT id FROM friend_requests WHERE from_user_id = ? AND to_user_id = u.id AND status = 'pending') as sent_request_id,
               (SELECT id FROM friend_requests WHERE from_user_id = u.id AND to_user_id = ? AND status = 'pending') as received_request_id
