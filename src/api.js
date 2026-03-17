@@ -105,6 +105,14 @@ export async function apiSendSettingsMfa() {
   return await request('/api/auth/send-settings-mfa', { method: 'POST' })
 }
 
+export async function apiGetAdminMfaUsers() {
+  return await request('/api/admin/mfa-users')
+}
+
+export async function apiAdminForceDisableMfa(userId) {
+  return await request(`/api/admin/users/${userId}/force-disable-mfa`, { method: 'POST' })
+}
+
 export async function apiUpdatePhone(phone) {
   return await request('/api/profile/phone', {
     method: 'PATCH',

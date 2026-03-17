@@ -806,7 +806,11 @@ app.post('/api/auth/login', async (req, res) => {
         'UPDATE users SET mfa_code = ?, mfa_code_expires = DATE_ADD(NOW(), INTERVAL 5 MINUTE) WHERE id = ?',
         [hashedCode, user.id]
       )
-      await sendSms(user.phone, `Din Fellis-kode er: ${rawCode} (udløber om 5 minutter)`)
+      const smsSent = await sendSms(user.phone, `Din Fellis-kode er: ${rawCode} (udløber om 5 minutter)`)
+      if (!smsSent) {
+        console.error(`MFA SMS failed to send for user ${user.id} — 46elks may not be configured`)
+        return res.status(503).json({ error: 'SMS service unavailable — could not send verification code' })
+      }
       return res.json({ mfa_required: true, userId: user.id })
     }
 
@@ -1068,7 +1072,11 @@ app.post('/api/auth/send-settings-mfa', authenticate, async (req, res) => {
       'UPDATE users SET mfa_code = ?, mfa_code_expires = DATE_ADD(NOW(), INTERVAL 5 MINUTE) WHERE id = ?',
       [hashedCode, req.userId]
     )
-    await sendSms(user.phone, `Din Fellis-kode er: ${rawCode} (udløber om 5 minutter)`)
+    const smsSent = await sendSms(user.phone, `Din Fellis-kode er: ${rawCode} (udløber om 5 minutter)`)
+    if (!smsSent) {
+      console.error(`Settings MFA SMS failed to send for user ${req.userId} — 46elks may not be configured`)
+      return res.status(503).json({ error: 'SMS service unavailable — could not send verification code' })
+    }
     res.json({ ok: true })
   } catch (err) {
     res.status(500).json({ error: 'Failed to send MFA code' })
@@ -5508,6 +5516,47 @@ app.post('/api/admin/settings/reveal-key', authenticate, requireAdmin, async (re
     if (!value) return res.status(404).json({ error: 'Nøgle ikke sat' })
     res.json({ value })
   } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/admin/mfa-users — list all users with MFA status (admin only)
+app.get('/api/admin/mfa-users', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, name, email,
+        CASE WHEN phone IS NOT NULL THEN 1 ELSE 0 END AS has_phone,
+        mfa_enabled,
+        CASE WHEN mfa_code_expires > NOW() THEN 1 ELSE 0 END AS pending_code,
+        created_at
+       FROM users
+       ORDER BY mfa_enabled DESC, name ASC`
+    )
+    res.json({ users: rows.map(u => ({
+      id: u.id, name: u.name, email: u.email,
+      hasPhone: !!u.has_phone, mfaEnabled: !!u.mfa_enabled,
+      pendingCode: !!u.pending_code, createdAt: u.created_at,
+    })) })
+  } catch (err) {
+    console.error('GET /api/admin/mfa-users error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/admin/users/:userId/force-disable-mfa — force-disable MFA for a user (admin only)
+app.post('/api/admin/users/:userId/force-disable-mfa', authenticate, requireAdmin, async (req, res) => {
+  const { userId } = req.params
+  try {
+    const [[user]] = await pool.query('SELECT id, name FROM users WHERE id = ?', [userId])
+    if (!user) return res.status(404).json({ error: 'User not found' })
+    await pool.query(
+      'UPDATE users SET mfa_enabled = 0, mfa_code = NULL, mfa_code_expires = NULL WHERE id = ?',
+      [userId]
+    )
+    console.log(`Admin (user ${req.userId}) force-disabled MFA for user ${userId} (${user.name})`)
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/admin/users/:userId/force-disable-mfa error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })

@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } f
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { PT, SUPPORTED_LANGS, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
 import { formatPrice } from './utils/currency.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiFetchMemories, apiApplyToJob, apiGetJobApplications, apiUpdateJobApplication, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiFetchMemories, apiApplyToJob, apiGetJobApplications, apiUpdateJobApplication, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiGetAdminMfaUsers, apiAdminForceDisableMfa } from './api.js'
 import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
 import ReelsPage from './Reels.jsx'
@@ -4313,6 +4313,7 @@ function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenM
                 value={currentPassword}
                 onChange={e => { setCurrentPassword(e.target.value); if (currentPwdError) setCurrentPwdError(null) }}
                 onBlur={() => { if (!currentPassword) setCurrentPwdError(lang === 'da' ? 'Påkrævet' : 'Required') }}
+                autoComplete="current-password"
                 required placeholder="••••••••"
               />
               <button type="button" onClick={() => setShowCurrent(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#888' }}>{showCurrent ? '🙈' : '👁️'}</button>
@@ -4321,13 +4322,13 @@ function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenM
           </>)}
           <label style={lS}>{lang === 'da' ? (hasPassword ? 'Ny adgangskode' : 'Adgangskode') : (hasPassword ? 'New password' : 'Password')}</label>
           <div style={{ position: 'relative' }}>
-            <input style={{ ...fS, paddingRight: 44 }} type={showNew ? 'text' : 'password'} value={newPassword} onChange={e => setNewPassword(e.target.value)} required placeholder="••••••••" />
+            <input style={{ ...fS, paddingRight: 44 }} type={showNew ? 'text' : 'password'} value={newPassword} onChange={e => setNewPassword(e.target.value)} autoComplete="new-password" required placeholder="••••••••" />
             <button type="button" onClick={() => setShowNew(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#888' }}>{showNew ? '🙈' : '👁️'}</button>
           </div>
           <PasswordStrengthIndicator password={newPassword} lang={lang} />
           <label style={lS}>{lang === 'da' ? 'Bekræft adgangskode' : 'Confirm password'}</label>
           <div style={{ position: 'relative' }}>
-            <input style={{ ...fS, paddingRight: 44 }} type={showConfirm ? 'text' : 'password'} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required placeholder="••••••••" />
+            <input style={{ ...fS, paddingRight: 44 }} type={showConfirm ? 'text' : 'password'} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} autoComplete="new-password" required placeholder="••••••••" />
             <button type="button" onClick={() => setShowConfirm(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#888' }}>{showConfirm ? '🙈' : '👁️'}</button>
           </div>
           {confirmPassword.length > 0 && (
@@ -12083,6 +12084,131 @@ function AdminViralStats({ viralStats, viralDays, setViralDays, lang }) {
   )
 }
 
+// ── Admin: MFA Users Tab ──
+function AdminMfaPanel({ lang }) {
+  const da = lang === 'da'
+  const [users, setUsers] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [disabling, setDisabling] = useState({})
+  const [toast, setToast] = useState(null)
+  const [search, setSearch] = useState('')
+
+  useEffect(() => {
+    apiGetAdminMfaUsers().then(d => {
+      if (d) setUsers(d.users)
+      setLoading(false)
+    })
+  }, [])
+
+  const showToast = (msg, ok) => { setToast({ msg, ok }); setTimeout(() => setToast(null), 3000) }
+
+  const handleForceDisable = async (userId, name) => {
+    if (!confirm(da ? `Deaktiver 2FA for ${name}?` : `Disable 2FA for ${name}?`)) return
+    setDisabling(prev => ({ ...prev, [userId]: true }))
+    const res = await apiAdminForceDisableMfa(userId)
+    setDisabling(prev => ({ ...prev, [userId]: false }))
+    if (res?.ok) {
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, mfaEnabled: false, pendingCode: false } : u))
+      showToast(da ? `2FA deaktiveret for ${name}` : `2FA disabled for ${name}`, true)
+    } else {
+      showToast(da ? 'Fejl — prøv igen' : 'Error — please try again', false)
+    }
+  }
+
+  const filtered = users
+    ? users.filter(u => !search || u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase()))
+    : []
+
+  const mfaCount = users ? users.filter(u => u.mfaEnabled).length : 0
+
+  return (
+    <div className="p-card" style={{ marginBottom: 20 }}>
+      <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700 }}>📱 {da ? '2FA-brugere' : 'MFA Users'}</h3>
+      <p style={{ fontSize: 13, color: '#666', margin: '0 0 14px' }}>
+        {da
+          ? `${mfaCount} bruger${mfaCount !== 1 ? 'e' : ''} har SMS 2FA aktiveret.`
+          : `${mfaCount} user${mfaCount !== 1 ? 's' : ''} have SMS 2FA enabled.`}
+      </p>
+      <input
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        placeholder={da ? 'Søg på navn eller e-mail…' : 'Search by name or email…'}
+        style={{ width: '100%', padding: '8px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 14, boxSizing: 'border-box', marginBottom: 12, fontFamily: 'inherit' }}
+      />
+      {loading && <div style={{ color: '#888', fontSize: 13 }}>{da ? 'Indlæser…' : 'Loading…'}</div>}
+      {!loading && filtered.length === 0 && (
+        <div style={{ color: '#888', fontSize: 13 }}>{da ? 'Ingen brugere fundet.' : 'No users found.'}</div>
+      )}
+      {!loading && filtered.length > 0 && (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: '#f5f5f2' }}>
+                <th style={{ textAlign: 'left', padding: '7px 10px', fontWeight: 600, color: '#555', borderBottom: '1px solid #e8e8e4' }}>{da ? 'Bruger' : 'User'}</th>
+                <th style={{ textAlign: 'center', padding: '7px 10px', fontWeight: 600, color: '#555', borderBottom: '1px solid #e8e8e4' }}>{da ? 'Telefon' : 'Phone'}</th>
+                <th style={{ textAlign: 'center', padding: '7px 10px', fontWeight: 600, color: '#555', borderBottom: '1px solid #e8e8e4' }}>2FA</th>
+                <th style={{ textAlign: 'center', padding: '7px 10px', fontWeight: 600, color: '#555', borderBottom: '1px solid #e8e8e4' }}>{da ? 'Afventer' : 'Pending'}</th>
+                <th style={{ padding: '7px 10px', borderBottom: '1px solid #e8e8e4' }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(u => (
+                <tr key={u.id} style={{ borderBottom: '1px solid #f2f2f0' }}>
+                  <td style={{ padding: '8px 10px' }}>
+                    <div style={{ fontWeight: 600, color: '#1a1a1a' }}>{u.name}</div>
+                    <div style={{ fontSize: 11, color: '#888' }}>{u.email}</div>
+                  </td>
+                  <td style={{ textAlign: 'center', padding: '8px 10px', color: u.hasPhone ? '#2D6A4F' : '#ccc' }}>
+                    {u.hasPhone ? '✓' : '—'}
+                  </td>
+                  <td style={{ textAlign: 'center', padding: '8px 10px' }}>
+                    <span style={{
+                      display: 'inline-block', padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700,
+                      background: u.mfaEnabled ? '#F0FAF4' : '#f5f5f2',
+                      color: u.mfaEnabled ? '#2D6A4F' : '#aaa',
+                      border: `1px solid ${u.mfaEnabled ? '#b7dfca' : '#e0e0da'}`,
+                    }}>
+                      {u.mfaEnabled ? (da ? 'Aktiv' : 'On') : (da ? 'Slået fra' : 'Off')}
+                    </span>
+                  </td>
+                  <td style={{ textAlign: 'center', padding: '8px 10px', color: u.pendingCode ? '#e67e22' : '#ccc' }}>
+                    {u.pendingCode ? '⏳' : '—'}
+                  </td>
+                  <td style={{ padding: '8px 10px', textAlign: 'right' }}>
+                    {u.mfaEnabled && (
+                      <button
+                        onClick={() => handleForceDisable(u.id, u.name)}
+                        disabled={!!disabling[u.id]}
+                        style={{
+                          padding: '4px 10px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                          background: '#fff0f0', color: '#c0392b', fontSize: 12, fontWeight: 600,
+                          opacity: disabling[u.id] ? 0.6 : 1,
+                        }}
+                      >
+                        {disabling[u.id] ? '…' : (da ? 'Deaktiver' : 'Disable')}
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {toast && (
+        <div style={{
+          marginTop: 12, padding: '8px 12px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+          background: toast.ok ? '#F0FAF4' : '#fff0f0',
+          color: toast.ok ? '#2D6A4F' : '#c0392b',
+          border: `1px solid ${toast.ok ? '#b7dfca' : '#f5b7b1'}`,
+        }}>
+          {toast.ok ? '✓' : '✗'} {toast.msg}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Admin: Security & GDPR Tab ──
 function AdminSecurityGdpr({ viralStats, lang }) {
   const da = lang === 'da'
@@ -13166,6 +13292,7 @@ function AdminPage({ lang, t }) {
             tabs: [
               { id: 'platform', icon: '🛠️', label: lang === 'da' ? 'Indstillinger' : 'Settings' },
               { id: 'security', icon: '🔒', label: lang === 'da' ? 'Sikkerhed & GDPR' : 'Security & GDPR' },
+              { id: 'mfa-admin', icon: '📱', label: lang === 'da' ? '2FA-brugere' : 'MFA Users' },
             ],
           },
           {
@@ -13420,6 +13547,8 @@ function AdminPage({ lang, t }) {
       {adminTab === 'security' && (
         <AdminSecurityGdpr viralStats={viralStats} lang={lang} />
       )}
+
+      {adminTab === 'mfa-admin' && <AdminMfaPanel lang={lang} />}
 
       {adminTab === 'pricing' && <AdminPricingPanel lang={lang} />}
       {adminTab === 'ads' && <AdminAdSettingsPanel lang={lang} t={t} />}
