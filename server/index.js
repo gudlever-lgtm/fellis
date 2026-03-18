@@ -1375,13 +1375,21 @@ app.get('/api/profile/:id', authenticate, async (req, res) => {
            JOIN friendships f2 ON f1.friend_id = f2.friend_id
            WHERE f1.user_id = ? AND f2.user_id = u.id) as mutual_count,
         (SELECT COUNT(*) FROM friendships WHERE user_id = ? AND friend_id = u.id) as is_friend,
-        (SELECT COUNT(*) FROM friend_requests WHERE from_id = ? AND to_id = u.id AND status = 'pending') as request_sent,
-        (SELECT COUNT(*) FROM user_blocks WHERE blocker_id = ? AND blocked_id = u.id) as is_blocked
+        (SELECT COUNT(*) FROM friend_requests WHERE from_user_id = ? AND to_user_id = u.id AND status = 'pending') as request_sent
        FROM users u WHERE u.id = ?`,
-      [req.userId, req.userId, req.userId, req.userId, targetId]
+      [req.userId, req.userId, req.userId, targetId]
     )
     if (users.length === 0) return res.status(404).json({ error: 'User not found' })
     const u = users[0]
+    // Check block status separately (user_blocks table is optional — added via migrate-moderation.sql)
+    let isBlocked = false
+    try {
+      const [[blockRow]] = await pool.query(
+        'SELECT COUNT(*) as cnt FROM user_blocks WHERE blocker_id = ? AND blocked_id = ?',
+        [req.userId, targetId]
+      )
+      isBlocked = blockRow.cnt > 0
+    } catch { /* table not yet created */ }
     // Log profile view (fire-and-forget, skip self-views)
     if (targetId !== req.userId) {
       pool.query('INSERT INTO profile_views (viewer_id, profile_id) VALUES (?, ?)', [req.userId, targetId]).catch(() => {})
@@ -1409,7 +1417,7 @@ app.get('/api/profile/:id', authenticate, async (req, res) => {
       mutualCount: u.mutual_count || 0,
       isFriend: !!u.is_friend,
       requestSent: !!u.request_sent,
-      isBlocked: !!u.is_blocked,
+      isBlocked,
       badges,
     })
   } catch (err) {
@@ -5452,6 +5460,72 @@ app.get('/api/analytics', authenticate, async (req, res) => {
       [req.userId]
     )
 
+    // Best time to post: engagement (likes + comments) per day-of-week × hour
+    // MOD(DAYOFWEEK+5,7) maps Sun=1→6, Mon=2→0, …, Sat=7→5
+    const [heatmapRows] = await pool.query(
+      `SELECT MOD(DAYOFWEEK(p.created_at) + 5, 7) AS day_idx,
+              HOUR(p.created_at) AS hour_idx,
+              SUM(p.likes) + COUNT(DISTINCT c.id) AS weight
+       FROM posts p
+       LEFT JOIN comments c ON c.post_id = p.id
+       WHERE p.author_id = ?
+       GROUP BY day_idx, hour_idx`,
+      [req.userId]
+    )
+    const heatmap = Array.from({ length: 7 }, () => Array(24).fill(0))
+    heatmapRows.forEach(r => { heatmap[r.day_idx][r.hour_idx] = Number(r.weight) })
+
+    // Hashtag performance: parse hashtags from post text, sum engagement
+    const [postTextsForTags] = await pool.query(
+      `SELECT COALESCE(NULLIF(p.text_da,''), NULLIF(p.text_en,''), '') AS text,
+              p.likes + COUNT(DISTINCT c.id) AS engagement
+       FROM posts p
+       LEFT JOIN comments c ON c.post_id = p.id
+       WHERE p.author_id = ?
+       GROUP BY p.id`,
+      [req.userId]
+    )
+    const hashtagMap = {}
+    const tagRe = /#[\w\u00C0-\u024F]+/g
+    postTextsForTags.forEach(row => {
+      const tags = (row.text || '').match(tagRe) || []
+      tags.forEach(tag => {
+        const key = tag.toLowerCase()
+        hashtagMap[key] = (hashtagMap[key] || 0) + Number(row.engagement)
+      })
+    })
+    const hashtagPerformance = Object.entries(hashtagMap)
+      .map(([label, value]) => ({ label, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 6)
+
+    // Audience locations: locations of the user's connections
+    const [locationRows] = await pool.query(
+      `SELECT u.location, COUNT(*) AS count
+       FROM friendships f
+       JOIN users u ON u.id = IF(f.user_id = ?, f.friend_id, f.user_id)
+       WHERE (f.user_id = ? OR f.friend_id = ?)
+         AND u.location IS NOT NULL AND u.location != ''
+       GROUP BY u.location ORDER BY count DESC LIMIT 5`,
+      [req.userId, req.userId, req.userId]
+    )
+    const locTotal = locationRows.reduce((s, r) => s + Number(r.count), 0) || 1
+    const audienceLocations = locationRows.map(r => ({
+      label: r.location,
+      pct: Math.round((Number(r.count) / locTotal) * 100),
+    }))
+
+    // Audience growth source: invite-based vs. organic connections
+    const [[growthStats]] = await pool.query(
+      `SELECT
+        (SELECT COUNT(*) FROM friendships WHERE user_id = ?) AS total_conns,
+        (SELECT COUNT(*) FROM invitations WHERE inviter_id = ? AND status = 'accepted') AS via_invite`,
+      [req.userId, req.userId]
+    )
+    const totalC = Number(growthStats.total_conns)
+    const viaInvite = Math.min(Number(growthStats.via_invite), totalC)
+    const organic = totalC - viaInvite
+
     res.json({
       days,
       views: viewRows,
@@ -5469,6 +5543,10 @@ app.get('/api/analytics', authenticate, async (req, res) => {
       funnel: { views: Number(funnel.views), requests: Number(funnel.requests), connections: Number(funnel.connections) },
       totalConnections: Number(total_connections),
       postTypes: { text: Number(postTypes.text_count || 0), media: Number(postTypes.media_count || 0) },
+      heatmap,
+      hashtagPerformance,
+      audienceLocations,
+      growthSource: { viaInvite, organic, total: totalC },
     })
   } catch (err) {
     console.error('GET /api/analytics error:', err.message)
