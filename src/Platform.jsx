@@ -5127,14 +5127,14 @@ function AboutPage({ lang }) {
     philosophyTitle: 'Vores filosofi',
     philosophyText: [
       'Fellis.eu er skabt som et privat og trygt alternativ til de store sociale netværk. Vi tror på, at sociale medier skal tjene mennesker — ikke omvendt.',
-      'Platformen er bygget i Europa, drives efter europæisk lovgivning og respekterer din privatlivets fred. Vi sælger ikke data, vi viser ikke algoritmestyrede reklamer, og vi gemmer kun det, der er nødvendigt for at platformen fungerer.',
+      'Platformen er bygget i Europa, drives efter europæisk lovgivning og respekterer din privatlivets fred. Vi sælger ikke data, og vi gemmer kun det, der er nødvendigt for at platformen fungerer. Vi viser reklamer for at finansiere platformen, men de er ikke baseret på algoritmisk profilering.',
       'Fællesskab, tillid og gennemsigtighed er kernen i alt, hvad vi gør.',
     ],
     purposeTitle: 'Formål',
     purposes: [
       'Skabe et dansk og europæisk fællesskab med fokus på tillid og privatliv',
       'Give brugerne fuld kontrol over egne data (GDPR)',
-      'Tilbyde et reklamefrit og algoritmefrit socialt netværk',
+      'Tilbyde et socialt netværk uden algoritmisk profilering eller datasalg',
       'Støtte lokal og europæisk digital infrastruktur',
       'Være åben og ærlig om, hvordan platformen fungerer og udvikles',
     ],
@@ -5178,14 +5178,14 @@ function AboutPage({ lang }) {
     philosophyTitle: 'Our philosophy',
     philosophyText: [
       'Fellis.eu was created as a private and safe alternative to the major social networks. We believe social media should serve people — not the other way around.',
-      'The platform is built in Europe, operates under European law, and respects your privacy. We do not sell data, we do not show algorithm-driven ads, and we only store what is necessary for the platform to function.',
+      'The platform is built in Europe, operates under European law, and respects your privacy. We do not sell data, and we only store what is necessary for the platform to function. We display ads to support the platform, but these are not based on algorithmic profiling.',
       'Community, trust and transparency are at the core of everything we do.',
     ],
     purposeTitle: 'Purpose',
     purposes: [
       'Create a Danish and European community focused on trust and privacy',
       'Give users full control over their own data (GDPR)',
-      'Offer an ad-free and algorithm-free social network',
+      'Offer a social network without algorithmic profiling or data sales',
       'Support local and European digital infrastructure',
       'Be open and honest about how the platform works and evolves',
     ],
