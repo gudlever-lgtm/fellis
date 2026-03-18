@@ -5070,6 +5070,38 @@ function AboutPage({ lang }) {
     ],
     changelogTitle: 'Implementerede tiltag',
     changelogEmpty: 'Ingen poster endnu',
+    servicesTitle: 'Tjenester vi bruger — og hvorfor europæisk',
+    servicesIntro: 'Vi vælger bevidst europæiske udbydere på alle lag af platformen. Det handler ikke kun om GDPR — det handler om at holde din data, din kommunikation og dine betalinger inden for et retssystem, der beskytter dig.',
+    services: [
+      {
+        name: 'Yggdrasil Cloud',
+        flag: '🇩🇰',
+        url: 'https://yggdrasilcloud.dk/',
+        role: 'Hosting & servere',
+        why: 'Dansk cloud-udbyder med servere fysisk placeret i Danmark. Dine data forlader aldrig EU og er underlagt dansk lovgivning — ikke CLOUD Act eller FISA 702.',
+      },
+      {
+        name: '46elks',
+        flag: '🇸🇪',
+        url: 'https://46elks.com/',
+        role: 'SMS til to-faktor-godkendelse',
+        why: 'Svensk teleudbyder med fuld GDPR-compliance. Bruges til at sende engangskoder ved login med to-faktor. Ingen data sendes til udbydere uden for EU.',
+      },
+      {
+        name: 'Mollie',
+        flag: '🇳🇱',
+        url: 'https://www.mollie.com/',
+        role: 'Betalinger',
+        why: 'Hollandsk betalingsgateway reguleret af De Nederlandsche Bank under EU\'s PSD2-direktiv. Understøtter MobilePay, Visa, Mastercard, Apple Pay og Google Pay — uden at dine kortoplysninger nogensinde rammer vores egne servere.',
+      },
+      {
+        name: 'Nodemailer',
+        flag: '🇪🇺',
+        url: 'https://nodemailer.com/',
+        role: 'E-mail (adgangskode-nulstilling)',
+        why: 'Open source e-mail-bibliotek med ingen ekstern afhængighed. E-mails sendes via din egen SMTP-server — vi låser dig ikke til en tredjeparts e-mail-tjeneste.',
+      },
+    ],
   } : {
     title: 'About Fellis',
     subtitle: 'Philosophy and purpose of Fellis.eu',
@@ -5089,6 +5121,38 @@ function AboutPage({ lang }) {
     ],
     changelogTitle: 'Implemented features',
     changelogEmpty: 'No entries yet',
+    servicesTitle: 'Services we use — and why European',
+    servicesIntro: 'We deliberately choose European providers at every layer of the platform. It is not just about GDPR compliance — it is about keeping your data, your communications, and your payments within a legal framework that protects you.',
+    services: [
+      {
+        name: 'Yggdrasil Cloud',
+        flag: '🇩🇰',
+        url: 'https://yggdrasilcloud.dk/',
+        role: 'Hosting & servers',
+        why: 'Danish cloud provider with servers physically located in Denmark. Your data never leaves the EU and is subject to Danish law — not the CLOUD Act or FISA 702.',
+      },
+      {
+        name: '46elks',
+        flag: '🇸🇪',
+        url: 'https://46elks.com/',
+        role: 'SMS for two-factor authentication',
+        why: 'Swedish telecom provider with full GDPR compliance. Used to send one-time codes during two-factor login. No data is sent to providers outside the EU.',
+      },
+      {
+        name: 'Mollie',
+        flag: '🇳🇱',
+        url: 'https://www.mollie.com/',
+        role: 'Payments',
+        why: "Dutch payment gateway regulated by De Nederlandsche Bank under the EU's PSD2 directive. Supports MobilePay, Visa, Mastercard, Apple Pay and Google Pay — without your card details ever touching our own servers.",
+      },
+      {
+        name: 'Nodemailer',
+        flag: '🇪🇺',
+        url: 'https://nodemailer.com/',
+        role: 'Email (password reset)',
+        why: 'Open source email library with no external dependency. Emails are sent via your own SMTP server — we do not lock you in to a third-party email service.',
+      },
+    ],
   }
 
   const s = {
@@ -5117,6 +5181,24 @@ function AboutPage({ lang }) {
           <div key={i} style={{ padding: '10px 20px', fontSize: 14, color: '#333', borderBottom: i < t.purposes.length - 1 ? '1px solid #f0f0f0' : 'none', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
             <span style={{ color: '#2D6A4F', fontWeight: 700, flexShrink: 0 }}>✓</span>
             {item}
+          </div>
+        ))}
+      </div>
+
+      {/* European services */}
+      <div style={s.section}>🌍 {t.servicesTitle}</div>
+      <div className="p-card" style={{ padding: 20, marginBottom: 16 }}>
+        <p style={{ fontSize: 13, color: '#555', lineHeight: 1.6, margin: '0 0 16px' }}>{t.servicesIntro}</p>
+        {t.services.map((svc, i) => (
+          <div key={svc.name} style={{ display: 'flex', gap: 14, alignItems: 'flex-start', paddingTop: i > 0 ? 14 : 0, marginTop: i > 0 ? 14 : 0, borderTop: i > 0 ? '1px solid #f0f0f0' : 'none' }}>
+            <div style={{ fontSize: 22, lineHeight: 1, flexShrink: 0, marginTop: 1 }}>{svc.flag}</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+                <a href={svc.url} target="_blank" rel="noopener noreferrer" style={{ fontWeight: 700, fontSize: 14, color: '#2D6A4F', textDecoration: 'none' }}>{svc.name}</a>
+                <span style={{ fontSize: 11, color: '#aaa', fontWeight: 500 }}>{svc.role}</span>
+              </div>
+              <p style={{ fontSize: 13, color: '#555', lineHeight: 1.55, margin: '4px 0 0' }}>{svc.why}</p>
+            </div>
           </div>
         ))}
       </div>

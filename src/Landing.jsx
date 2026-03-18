@@ -27,6 +27,12 @@ const T = {
     trustEncrypt: 'End-to-end krypteret',
     trustEU: 'Hostet i EU',
     trustDelete: 'Data slettet efter migrering',
+    servicesLabel: 'Bygget på europæiske tjenester',
+    services: [
+      { flag: '🇩🇰', name: 'Yggdrasil Cloud', role: 'Hosting', url: 'https://yggdrasilcloud.dk/' },
+      { flag: '🇸🇪', name: '46elks', role: 'SMS / MFA', url: 'https://46elks.com/' },
+      { flag: '🇳🇱', name: 'Mollie', role: 'Betaling', url: 'https://www.mollie.com/' },
+    ],
     step1: 'Forbind Facebook',
     step2: 'Vælg indhold',
     step3: 'Inviter venner',
@@ -155,6 +161,12 @@ const T = {
     trustEncrypt: 'End-to-end encrypted',
     trustEU: 'EU hosted',
     trustDelete: 'Data deleted after migration',
+    servicesLabel: 'Built on European services',
+    services: [
+      { flag: '🇩🇰', name: 'Yggdrasil Cloud', role: 'Hosting', url: 'https://yggdrasilcloud.dk/' },
+      { flag: '🇸🇪', name: '46elks', role: 'SMS / MFA', url: 'https://46elks.com/' },
+      { flag: '🇳🇱', name: 'Mollie', role: 'Payments', url: 'https://www.mollie.com/' },
+    ],
     step1: 'Connect Facebook',
     step2: 'Select content',
     step3: 'Invite friends',
@@ -750,6 +762,16 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
             <div className="trust-item"><div className="trust-icon">🔒</div><span className="trust-label">{t.trustEncrypt}</span></div>
             <div className="trust-item"><div className="trust-icon">🇪🇺</div><a href="https://yggdrasilcloud.dk/" target="_blank" rel="noopener noreferrer" className="trust-label trust-link">{t.trustEU}</a></div>
             <div className="trust-item"><div className="trust-icon">🗑️</div><span className="trust-label">{t.trustDelete}</span></div>
+          </div>
+          <div className="landing-services-row">
+            <span className="landing-services-label">{t.servicesLabel}:</span>
+            {t.services.map(svc => (
+              <a key={svc.name} href={svc.url} target="_blank" rel="noopener noreferrer" className="landing-service-chip">
+                <span>{svc.flag}</span>
+                <span className="landing-service-chip-name">{svc.name}</span>
+                <span className="landing-service-chip-role">{svc.role}</span>
+              </a>
+            ))}
           </div>
         </div>
       )}
