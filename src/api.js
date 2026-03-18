@@ -239,6 +239,10 @@ export async function apiFetchProfile(userId) {
 export async function apiFetchProfilePhotos(userId) {
   return await request(`/api/profile/${userId}/photos`)
 }
+
+export async function apiFetchUserPosts(userId) {
+  return await request(`/api/profile/${userId}/posts`)
+}
 export async function apiFetchFriends() {
   return await request('/api/friends')
 }

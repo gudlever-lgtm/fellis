@@ -1,8 +1,8 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } from 'react'
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
-import { PT, SUPPORTED_LANGS, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
+import { SUPPORTED_LANGS, EUROPEAN_LANGUAGES, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials, getTranslations } from './data.js'
 import { formatPrice } from './utils/currency.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiFetchMemories, apiApplyToJob, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiRevealPassword, apiGetAdminMfaUsers, apiAdminForceDisableMfa } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiFetchMemories, apiApplyToJob, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiRevealPassword, apiGetAdminMfaUsers, apiAdminForceDisableMfa } from './api.js'
 import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
 import ReelsPage from './Reels.jsx'
@@ -85,7 +85,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
       }
     }).catch(() => {})
   }, [])
-  const t = PT[lang]
+  const t = getTranslations(lang)
 
   useEffect(() => {
     document.body.classList.toggle('dark', darkMode)
@@ -4913,6 +4913,21 @@ function SettingsSessions({ lang, t, onLogout }) {
 }
 
 function SettingsSprog({ lang, t, darkMode, onToggleDark }) {
+  const [query, setQuery] = useState('')
+  const [open, setOpen] = useState(false)
+  const inputRef = useRef(null)
+  const dropRef = useRef(null)
+
+  const currentLang = EUROPEAN_LANGUAGES.find(l => l.code === lang) || EUROPEAN_LANGUAGES[0]
+
+  const filtered = query.trim()
+    ? EUROPEAN_LANGUAGES.filter(l =>
+        l.label.toLowerCase().includes(query.toLowerCase()) ||
+        l.country.toLowerCase().includes(query.toLowerCase()) ||
+        l.code.toLowerCase().includes(query.toLowerCase())
+      )
+    : EUROPEAN_LANGUAGES
+
   const switchLang = (newLang) => {
     localStorage.setItem('fellis_lang', newLang)
     fetch('/api/me/lang', {
@@ -4920,21 +4935,76 @@ function SettingsSprog({ lang, t, darkMode, onToggleDark }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ lang: newLang }),
     }).catch(() => {})
-    // Reload to apply language change
     window.location.reload()
   }
 
-  const radioStyle = { display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, cursor: 'pointer', padding: '8px 0' }
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!open) return
+    const handler = (e) => {
+      if (dropRef.current && !dropRef.current.contains(e.target)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
 
   return (
     <div className="p-card" style={{ padding: 24 }}>
       <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>🌐 {t.settingsLanguage}</div>
-      {[['da', '🇩🇰 Dansk'], ['en', '🇬🇧 English']].map(([val, label]) => (
-        <label key={val} style={radioStyle}>
-          <input type="radio" name="lang" value={val} checked={lang === val} onChange={() => { if (lang !== val) switchLang(val) }} />
-          {label}
-        </label>
-      ))}
+
+      {/* Searchable language combobox */}
+      <div ref={dropRef} style={{ position: 'relative', maxWidth: 320 }}>
+        <div
+          onClick={() => { setOpen(o => !o); setTimeout(() => inputRef.current?.focus(), 50) }}
+          style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', border: '1px solid #ddd', borderRadius: 10, cursor: 'pointer', background: '#fff', userSelect: 'none', fontSize: 14 }}
+        >
+          <span style={{ fontSize: 20 }}>{currentLang.flag}</span>
+          <span style={{ flex: 1, fontWeight: 500 }}>{currentLang.label}</span>
+          <span style={{ color: '#aaa', fontSize: 12 }}>{open ? '▲' : '▼'}</span>
+        </div>
+        {open && (
+          <div style={{ position: 'absolute', top: '110%', left: 0, right: 0, background: '#fff', border: '1px solid #ddd', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 200, overflow: 'hidden' }}>
+            <div style={{ padding: '8px 10px', borderBottom: '1px solid #f0ede8' }}>
+              <input
+                ref={inputRef}
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder={lang === 'da' ? 'Søg sprog...' : 'Search language...'}
+                style={{ width: '100%', border: 'none', outline: 'none', fontSize: 13, background: 'transparent', boxSizing: 'border-box' }}
+              />
+            </div>
+            <div style={{ maxHeight: 260, overflowY: 'auto' }}>
+              {filtered.length === 0 && (
+                <div style={{ padding: '12px 14px', color: '#aaa', fontSize: 13 }}>
+                  {lang === 'da' ? 'Ingen resultater' : 'No results'}
+                </div>
+              )}
+              {filtered.map(l => (
+                <div
+                  key={l.code}
+                  onClick={() => { setOpen(false); setQuery(''); if (l.code !== lang) switchLang(l.code) }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', cursor: 'pointer', background: l.code === lang ? '#f0faf4' : 'transparent', fontWeight: l.code === lang ? 600 : 400, fontSize: 14, transition: 'background 0.1s' }}
+                  onMouseEnter={e => { if (l.code !== lang) e.currentTarget.style.background = '#f7f5f0' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = l.code === lang ? '#f0faf4' : 'transparent' }}
+                >
+                  <span style={{ fontSize: 18 }}>{l.flag}</span>
+                  <div>
+                    <div>{l.label}</div>
+                    <div style={{ fontSize: 11, color: '#aaa', marginTop: 1 }}>{l.country}</div>
+                  </div>
+                  {l.code === lang && <span style={{ marginLeft: 'auto', color: '#2D6A4F' }}>✓</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <p style={{ fontSize: 12, color: '#aaa', marginTop: 8 }}>
+        {lang === 'da'
+          ? 'Sprog foreslås automatisk baseret på dit land første gang du besøger siden.'
+          : 'Language is auto-detected from your country on first visit.'}
+      </p>
 
       <div style={{ fontSize: 14, fontWeight: 700, marginTop: 24, marginBottom: 12 }}>🌙 {t.settingsDarkMode}</div>
       <div className="dark-mode-toggle" onClick={onToggleDark}>
@@ -5866,8 +5936,13 @@ function PrivacySection({ lang, onLogout }) {
 function FriendProfilePage({ userId, lang, t, currentUser, onBack, onMessage, onBadgeCheck }) {
   const [profile, setProfile] = useState(null)
   const [photos, setPhotos] = useState([])
+  const [userPosts, setUserPosts] = useState([])
   const [lightbox, setLightbox] = useState(null) // url of enlarged photo
   const [requestSent, setRequestSent] = useState(false)
+  const [isBlocked, setIsBlocked] = useState(false)
+  const [showReport, setShowReport] = useState(false)
+  const [reportReason, setReportReason] = useState('')
+  const [reportSent, setReportSent] = useState(false)
   const { triggerEgg } = useEasterEggs()
   const avatarClickCount = useRef(0)
   const avatarClickTimer = useRef(null)
@@ -5879,11 +5954,15 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onMessage, on
       if (data) {
         setProfile(data)
         setRequestSent(!!data.requestSent)
+        setIsBlocked(!!data.isBlocked)
         setTimeout(onBadgeCheck, 800)
       }
     })
     apiFetchProfilePhotos(userId).then(data => {
       if (Array.isArray(data)) setPhotos(data)
+    })
+    apiFetchUserPosts(userId).then(data => {
+      if (Array.isArray(data)) setUserPosts(data)
     })
   }, [userId, onBadgeCheck])
 
@@ -5943,11 +6022,11 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onMessage, on
               <div className="p-friend-profile-stat"><strong>{profile.postCount}</strong><span>{t.postsLabel}</span></div>
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 16, flexWrap: 'wrap' }}>
-              {profile.isFriend ? (
+              {!isBlocked && profile.isFriend ? (
                 <button className="p-friend-msg-btn" onClick={() => onMessage(profile)}>
                   💬 {t.message}
                 </button>
-              ) : (
+              ) : !isBlocked ? (
                 <button
                   className="p-friend-msg-btn"
                   disabled={requestSent}
@@ -5961,8 +6040,59 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onMessage, on
                     ? (lang === 'da' ? '✓ Anmodning sendt' : '✓ Request sent')
                     : (lang === 'da' ? '+ Tilføj ven' : '+ Add friend')}
                 </button>
-              )}
+              ) : null}
+              <button
+                className="p-friend-msg-btn"
+                style={{ background: isBlocked ? '#e8f5e9' : '#fff0f0', color: isBlocked ? '#2D6A4F' : '#c0392b', border: `1px solid ${isBlocked ? '#b7dfc9' : '#f5c6c6'}` }}
+                onClick={async () => {
+                  if (isBlocked) {
+                    const res = await apiUnblockUser(userId)
+                    if (res !== null) setIsBlocked(false)
+                  } else {
+                    if (!window.confirm(lang === 'da' ? `Blokér ${profile.name}?` : `Block ${profile.name}?`)) return
+                    const res = await apiBlockUser(userId)
+                    if (res !== null) setIsBlocked(true)
+                  }
+                }}
+              >
+                {isBlocked ? (lang === 'da' ? '🔓 Ophæv blokering' : '🔓 Unblock') : (lang === 'da' ? '🚫 Blokér' : '🚫 Block')}
+              </button>
+              <button
+                className="p-friend-msg-btn"
+                style={{ background: '#fffbf0', color: '#b7860b', border: '1px solid #f5e0a0' }}
+                onClick={() => { setShowReport(true); setReportSent(false); setReportReason('') }}
+              >
+                ⚑ {lang === 'da' ? 'Anmeld' : 'Report'}
+              </button>
             </div>
+            {showReport && (
+              <div style={{ marginTop: 12, padding: '12px 16px', background: '#fffbf0', borderRadius: 10, border: '1px solid #f5e0a0' }}>
+                {reportSent ? (
+                  <p style={{ margin: 0, color: '#2D6A4F', fontWeight: 600, fontSize: 14 }}>
+                    ✓ {lang === 'da' ? 'Anmeldelse sendt – tak' : 'Report submitted – thank you'}
+                  </p>
+                ) : (
+                  <>
+                    <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 600 }}>{lang === 'da' ? 'Anmeld bruger' : 'Report user'}</p>
+                    <select value={reportReason} onChange={e => setReportReason(e.target.value)} style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, marginBottom: 8 }}>
+                      <option value="">{lang === 'da' ? 'Vælg årsag...' : 'Choose reason...'}</option>
+                      <option value="spam">{lang === 'da' ? 'Spam' : 'Spam'}</option>
+                      <option value="harassment">{lang === 'da' ? 'Chikane / mobning' : 'Harassment / bullying'}</option>
+                      <option value="fake">{lang === 'da' ? 'Falsk profil' : 'Fake profile'}</option>
+                      <option value="hate">{lang === 'da' ? 'Hadefuldt indhold' : 'Hate speech'}</option>
+                      <option value="other">{lang === 'da' ? 'Andet' : 'Other'}</option>
+                    </select>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button className="p-friend-msg-btn" disabled={!reportReason} style={{ opacity: reportReason ? 1 : 0.5 }} onClick={async () => {
+                        const res = await apiReportContent('user', userId, reportReason)
+                        if (res !== null) { setReportSent(true); setTimeout(() => setShowReport(false), 2500) }
+                      }}>{lang === 'da' ? 'Send' : 'Submit'}</button>
+                      <button className="p-friend-msg-btn" style={{ background: '#f5f4f0', color: '#666', border: '1px solid #ddd' }} onClick={() => setShowReport(false)}>{lang === 'da' ? 'Annuller' : 'Cancel'}</button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -6002,6 +6132,41 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onMessage, on
                   : <img src={p.url.startsWith('http') ? p.url : `${API_BASE}${p.url}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Recent posts */}
+      {userPosts.length > 0 && (
+        <div className="p-card" style={{ marginTop: 12 }}>
+          <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700 }}>
+            📝 {lang === 'da' ? 'Seneste opslag' : 'Recent posts'} <span style={{ fontWeight: 400, color: '#A09890', fontSize: 13 }}>({userPosts.length})</span>
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {userPosts.map(p => {
+              const text = lang === 'da' ? (p.text_da || p.text_en || '') : (p.text_en || p.text_da || '')
+              const date = new Date(p.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })
+              const thumb = p.media?.[0]?.url
+              return (
+                <div key={p.id} style={{ display: 'flex', gap: 10, padding: '10px 0', borderBottom: '1px solid #f0ede8' }}>
+                  {thumb && (
+                    <img
+                      src={thumb.startsWith('http') ? thumb : `${API_BASE}${thumb}`}
+                      alt=""
+                      style={{ width: 56, height: 56, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }}
+                    />
+                  )}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    {text && <p style={{ margin: '0 0 4px', fontSize: 13, color: '#333', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{text}</p>}
+                    <div style={{ display: 'flex', gap: 12, fontSize: 12, color: '#999' }}>
+                      <span>{date}</span>
+                      <span>❤️ {p.likes || 0}</span>
+                      <span>💬 {p.comment_count || 0}</span>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </div>
       )}
