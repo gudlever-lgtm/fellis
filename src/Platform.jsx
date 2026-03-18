@@ -230,22 +230,14 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
     ? (currentUser.avatar_url.startsWith('http') || currentUser.avatar_url.startsWith('blob:') ? currentUser.avatar_url : `${API_BASE}${currentUser.avatar_url}`)
     : null
 
-  const menuT = lang === 'da' ? {
-    viewProfile: 'Se profil',
-    editProfile: 'Rediger profil',
-    settings: 'Indstillinger',
-    analytics: 'Analyser',
-    privacy: 'Privatliv & Data',
-    about: 'Om Fellis',
-    logout: 'Log ud',
-  } : {
-    viewProfile: 'View profile',
-    editProfile: 'Edit profile',
-    settings: 'Settings',
-    analytics: 'Analytics',
-    privacy: 'Privacy & Data',
-    about: 'About Fellis',
-    logout: 'Log out',
+  const menuT = {
+    viewProfile: t.viewProfile,
+    editProfile: t.editProfile,
+    settings: t.settings,
+    analytics: t.analytics,
+    privacy: t.privacy,
+    about: t.about,
+    logout: t.logout,
   }
 
   return (
@@ -257,7 +249,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
             <img src="/fellis-logo.jpg" className="nav-logo-icon" alt="" />
             <div className="nav-logo-text">
               <span className="nav-logo-brand">{t.navBrand}</span>
-              <span className="nav-logo-tagline">Connect. Share. Discover.</span>
+              <span className="nav-logo-tagline">{t.navTagline}</span>
             </div>
           </div>
         </div>
@@ -3344,28 +3336,17 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
     ? (avatarUrl.startsWith('http') || avatarUrl.startsWith('blob:') ? avatarUrl : `${API_BASE}${avatarUrl}`)
     : null
 
-  const editT = lang === 'da' ? {
-    title: 'Rediger profil',
-    avatarLabel: 'Profilbillede',
-    avatarBtn: 'Skift billede',
-    nameLabel: 'Navn',
-    bioLabel: 'Bio',
-    locationLabel: 'Lokation',
-    saveInfo: 'Gem',
-    savedInfo: 'Gemt!',
-    back: 'Tilbage til profil',
-    skillsSection: 'Kompetencer',
-  } : {
-    title: 'Edit profile',
-    avatarLabel: 'Profile picture',
-    avatarBtn: 'Change picture',
-    nameLabel: 'Name',
-    bioLabel: 'Bio',
-    locationLabel: 'Location',
-    saveInfo: 'Save',
-    savedInfo: 'Saved!',
-    back: 'Back to profile',
-    skillsSection: 'Skills',
+  const editT = {
+    title: t.editProfile,
+    avatarLabel: t.avatarLabel,
+    avatarBtn: t.avatarBtn,
+    nameLabel: t.nameLabel,
+    bioLabel: t.bioLabel,
+    locationLabel: t.locationLabel,
+    saveInfo: t.save,
+    savedInfo: t.savedInfo,
+    back: t.editProfileBack,
+    skillsSection: t.skillsSection,
   }
 
   const fieldStyle = { display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box' }

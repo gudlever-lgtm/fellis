@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { nameToColor, getInitials } from '../data.js'
+import { nameToColor, getInitials, getTranslations } from '../data.js'
 
 const FILTERS = ['all', 'images']
 
@@ -94,20 +94,20 @@ function SuggestedCard({ user, lang, onViewProfile }) {
 }
 
 export default function ExplorePage({ lang, onViewProfile }) {
-  const da = lang === 'da'
+  const tr = getTranslations(lang)
   const t = {
-    title: da ? 'Udforsk' : 'Explore',
-    trendingTags: da ? 'Populære emner' : 'Trending topics',
-    suggestedProfiles: da ? 'Foreslåede profiler' : 'Suggested profiles',
+    title: tr.explore,
+    trendingTags: tr.exploreTrendingTags,
+    suggestedProfiles: tr.exploreSuggested,
     filter: {
-      all: da ? 'Alt' : 'All',
-      images: da ? 'Billeder' : 'Images',
+      all: tr.exploreAll,
+      images: tr.exploreImages,
     },
-    loadMore: da ? 'Hent flere' : 'Load more',
-    noMore: da ? 'Ikke flere opslag' : 'No more posts',
-    loading: da ? 'Henter...' : 'Loading...',
-    activeTag: da ? 'Viser' : 'Showing',
-    clearTag: da ? 'Vis alt' : 'Show all',
+    loadMore: tr.exploreLoadMore,
+    noMore: tr.exploreNoMore,
+    loading: tr.exploreLoading,
+    activeTag: tr.exploreActiveTag,
+    clearTag: tr.exploreClearTag,
   }
 
   const [tags, setTags] = useState([])

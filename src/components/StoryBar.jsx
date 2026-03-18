@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { nameToColor, getInitials } from '../data.js'
+import { nameToColor, getInitials, getTranslations } from '../data.js'
 
 const STORY_COLORS = ['#2D6A4F', '#1877F2', '#E07A5F', '#6C63FF', '#D4A574', '#3D405B', '#40916C', '#F2CC8F']
 
@@ -64,15 +64,15 @@ export default function StoryBar({ currentUser, lang, onStoriesChange }) {
     } catch { /* network unavailable */ }
   }
 
-  const da = lang === 'da'
+  const tr = getTranslations(lang)
   const t = {
-    myStory: da ? 'Min status' : 'My status',
-    addStory: da ? 'Tilføj status' : 'Add status',
-    createTitle: da ? 'Opret status' : 'Create status',
-    placeholder: da ? 'Hvad vil du dele?' : 'What do you want to share?',
-    post: da ? 'Del' : 'Share',
-    cancel: da ? 'Annuller' : 'Cancel',
-    deleteStory: da ? 'Slet status' : 'Delete status',
+    myStory: tr.storyMyStory,
+    addStory: tr.storyAdd,
+    createTitle: tr.storyCreateTitle,
+    placeholder: tr.storyPlaceholder,
+    post: tr.share,
+    cancel: tr.cancel,
+    deleteStory: tr.storyDelete,
   }
 
   return (

@@ -1,22 +1,15 @@
-import { useState } from 'react'
 import CheckoutButton from '../components/PlanGate/CheckoutButton.jsx'
+import { getTranslations } from '../data.js'
 
 // Props: lang, plan, amount, currency, onNavigate
 export default function PaymentFailed({ lang = 'da', plan = 'adfree', amount = 29, currency = 'DKK', onNavigate }) {
+  const tr = getTranslations(lang)
   const t = {
-    da: {
-      title: 'Betaling afbrudt',
-      desc: 'Din betaling blev ikke gennemført. Du er ikke blevet opkrævet.',
-      retry: 'Prøv igen',
-      back: 'Gå tilbage til feed',
-    },
-    en: {
-      title: 'Payment cancelled',
-      desc: 'Your payment was not completed. You have not been charged.',
-      retry: 'Try again',
-      back: 'Back to feed',
-    },
-  }[lang] || {}
+    title: tr.paymentCancelledTitle,
+    desc: tr.paymentCancelledDesc,
+    retry: tr.paymentRetry,
+    back: tr.paymentBackToFeed,
+  }
 
   const s = {
     wrap: { maxWidth: 480, margin: '60px auto', textAlign: 'center', padding: '0 16px' },

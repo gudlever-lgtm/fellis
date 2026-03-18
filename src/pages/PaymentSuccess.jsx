@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { apiGetMollieStatus } from '../api.js'
+import { getTranslations } from '../data.js'
 
 export default function PaymentSuccess({ lang = 'da', onNavigate }) {
   const [sub, setSub] = useState(null)
@@ -12,28 +13,17 @@ export default function PaymentSuccess({ lang = 'da', onNavigate }) {
     })
   }, [])
 
+  const tr = getTranslations(lang)
   const t = {
-    da: {
-      title: 'Betaling gennemført',
-      thanks: 'Tak for din betaling! Din adgang er nu aktiv.',
-      plan: 'Plan',
-      status: 'Status',
-      expires: 'Udløber',
-      dashboard: 'Gå til feed',
-      loading: 'Henter status...',
-      paid: 'Betalt',
-    },
-    en: {
-      title: 'Payment successful',
-      thanks: 'Thank you for your payment! Your access is now active.',
-      plan: 'Plan',
-      status: 'Status',
-      expires: 'Expires',
-      dashboard: 'Go to feed',
-      loading: 'Loading status...',
-      paid: 'Paid',
-    },
-  }[lang] || {}
+    title: tr.paymentSuccessTitle,
+    thanks: tr.paymentSuccessThanks,
+    plan: tr.paymentPlanLabel,
+    status: tr.paymentStatusLabel,
+    expires: tr.paymentExpiresLabel,
+    dashboard: tr.paymentGoToDashboard,
+    loading: tr.paymentLoading,
+    paid: tr.paymentPaidStatus,
+  }
 
   const s = {
     wrap: { maxWidth: 480, margin: '60px auto', textAlign: 'center', padding: '0 16px' },
