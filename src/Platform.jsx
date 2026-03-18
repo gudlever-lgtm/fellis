@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } f
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { PT, SUPPORTED_LANGS, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
 import { formatPrice } from './utils/currency.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiFetchMemories, apiApplyToJob, apiGetJobApplications, apiUpdateJobApplication, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiRevealPassword, apiGetAdminMfaUsers, apiAdminForceDisableMfa } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiFetchMemories, apiApplyToJob, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiRevealPassword, apiGetAdminMfaUsers, apiAdminForceDisableMfa } from './api.js'
 import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
 import ReelsPage from './Reels.jsx'
@@ -323,8 +323,8 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
                   { id: 'friends', icon: '👥', label: mode === 'business' ? t.connectionsLabel : t.friends },
                   { id: 'calendar', icon: '🗓️', label: t.calendar || (lang === 'da' ? 'Kalender' : 'Calendar') },
                   { id: 'marketplace', icon: '🛍️', label: t.marketplace || (lang === 'da' ? 'Marked' : 'Marketplace') },
+                  { id: 'jobs', icon: '💼', label: t.jobs || 'Jobs' },
                   ...(mode === 'business' ? [
-                    { id: 'jobs', icon: '💼', label: t.jobs || 'Jobs' },
                     { id: 'company', icon: '🏢', label: t.companies || (lang === 'da' ? 'Virksomheder' : 'Companies') },
                   ] : []),
                 ].map(item => (
@@ -2468,6 +2468,28 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   <>
                     <div style={{ position: 'fixed', inset: 0, zIndex: 99 }} onClick={() => setPostMenu(null)} />
                     <div style={{ position: 'absolute', right: 0, top: '110%', background: '#fff', border: '1px solid #E8E4DF', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 100, minWidth: 180, overflow: 'hidden' }}>
+                      {Array.isArray(post.categories) && post.categories.length > 0 && (
+                        <div style={{ padding: '8px 12px 6px', borderBottom: '1px solid #f0f0f0' }}>
+                          <div style={{ fontSize: 11, color: '#aaa', fontWeight: 600, marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                            {lang === 'da' ? 'Kategorier' : 'Categories'}
+                          </div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                            {post.categories.map(catId => {
+                              const catInfo = INTEREST_CATEGORIES.find(c => c.id === catId)
+                              if (!catInfo) return null
+                              const isActive = feedCategoryFilter === catId
+                              return (
+                                <button key={catId}
+                                  onClick={() => { setFeedCategoryFilter(isActive ? null : catId); setPostMenu(null) }}
+                                  title={isActive ? t.feedCategoryFilterClear : t.feedCategoryFilterTitle}
+                                  style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11, fontWeight: 600, color: isActive ? '#fff' : '#2D6A4F', background: isActive ? '#2D6A4F' : '#eaf4ef', borderRadius: 20, padding: '2px 8px', border: `1px solid ${isActive ? '#2D6A4F' : '#b7dfc9'}`, cursor: 'pointer', fontFamily: 'inherit' }}>
+                                  {catInfo.icon} {catInfo[lang]}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
                       {isOwn ? (
                         <>
                           {(() => {
@@ -2516,24 +2538,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                 )}
               </div>
             </div>
-            {/* Category badges */}
-            {Array.isArray(post.categories) && post.categories.length > 0 && (
-              <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                {post.categories.map(catId => {
-                  const catInfo = INTEREST_CATEGORIES.find(c => c.id === catId)
-                  if (!catInfo) return null
-                  const isActive = feedCategoryFilter === catId
-                  return (
-                    <button key={catId}
-                      onClick={() => setFeedCategoryFilter(isActive ? null : catId)}
-                      title={isActive ? t.feedCategoryFilterClear : t.feedCategoryFilterTitle}
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: isActive ? '#fff' : '#2D6A4F', background: isActive ? '#2D6A4F' : '#eaf4ef', borderRadius: 20, padding: '2px 9px', border: `1px solid ${isActive ? '#2D6A4F' : '#b7dfc9'}`, cursor: 'pointer', fontFamily: 'inherit' }}>
-                      {catInfo.icon} {catInfo[lang]}
-                    </button>
-                  )
-                })}
-              </div>
-            )}
             {editingPostId === post.id ? (
               <div style={{ marginTop: 8 }}>
                 <textarea
@@ -9372,8 +9376,19 @@ function JobApplyModal({ job, lang, t, onClose }) {
 }
 
 // ── Jobs ──
-function JobCard({ job, t, lang, onSaveToggle }) {
+const JOB_TRACK_STATUSES = [
+  { value: 'not_applied', color: '#888', bg: '#f5f5f5', key: 'jobTrackNotApplied' },
+  { value: 'applied', color: '#1877F2', bg: '#EBF4FF', key: 'jobTrackApplied' },
+  { value: 'interview', color: '#E07B39', bg: '#FFF3EB', key: 'jobTrackInterview' },
+  { value: 'offer', color: '#7C3AED', bg: '#F3EEFF', key: 'jobTrackOffer' },
+  { value: 'hired', color: '#2D6A4F', bg: '#F0FAF4', key: 'jobTrackHired' },
+  { value: 'rejected', color: '#c0392b', bg: '#FFF0F0', key: 'jobTrackRejected' },
+  { value: 'not_interested', color: '#aaa', bg: '#f9f9f9', key: 'jobTrackNotInterested' },
+]
+
+function JobCard({ job, t, lang, onSaveToggle, onTrackChange }) {
   const [isSaved, setIsSaved] = useState(!!job.saved)
+  const [trackStatus, setTrackStatus] = useState(job.track_status || null)
   const [showApplyModal, setShowApplyModal] = useState(false)
   const companyName = job.company_name || job.companyName || ''
   const companyColor = job.company_color || job.companyColor || '#1877F2'
@@ -9383,6 +9398,7 @@ function JobCard({ job, t, lang, onSaveToggle }) {
   const applyLink = job.apply_link || job.applyLink || ''
   const postedDate = job.created_at ? new Date(job.created_at).toLocaleDateString() : (job.postedDate || '')
   const typeLabels = { fulltime: t.jobTypeFullTime, parttime: t.jobTypePartTime, freelance: t.jobTypeFreelance, internship: t.jobTypeInternship }
+  const trackInfo = JOB_TRACK_STATUSES.find(s => s.value === trackStatus)
 
   const toggleSave = () => {
     fetch(`/api/jobs/${job.id}/save`, { method: 'POST', credentials: 'include' })
@@ -9395,6 +9411,16 @@ function JobCard({ job, t, lang, onSaveToggle }) {
       .catch(() => {})
   }
 
+  const handleTrack = (status) => {
+    const newStatus = status || null
+    apiTrackJob(job.id, newStatus).then(data => {
+      if (!data) return
+      setTrackStatus(newStatus)
+      if (newStatus) setIsSaved(true)
+      onTrackChange?.(job.id, newStatus)
+    }).catch(() => {})
+  }
+
   return (
     <div className="p-card p-job-card">
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
@@ -9402,7 +9428,14 @@ function JobCard({ job, t, lang, onSaveToggle }) {
           {companyName[0]}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <h3 style={{ margin: '0 0 2px', fontSize: 16, fontWeight: 700 }}>{title}</h3>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+            <h3 style={{ margin: '0 0 2px', fontSize: 16, fontWeight: 700 }}>{title}</h3>
+            {trackInfo && (
+              <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: trackInfo.bg, color: trackInfo.color, flexShrink: 0 }}>
+                {t[trackInfo.key]}
+              </span>
+            )}
+          </div>
           <div style={{ fontSize: 13, color: '#666', marginBottom: 6 }}>
             {companyName} · {job.location}
             {!!job.remote && <span style={{ marginLeft: 6, fontSize: 11, padding: '2px 8px', borderRadius: 20, background: '#F0FAF4', color: '#2D6A4F', fontWeight: 600 }}>{t.jobRemote}</span>}
@@ -9435,7 +9468,7 @@ function JobCard({ job, t, lang, onSaveToggle }) {
               ⏳ {t.jobDeadline}: {new Date(job.deadline).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
             </div>
           )}
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
             <button
               onClick={() => setShowApplyModal(true)}
               className="p-events-create-btn"
@@ -9468,6 +9501,20 @@ function JobCard({ job, t, lang, onSaveToggle }) {
               {isSaved ? `★ ${t.jobSaved}` : `☆ ${t.jobSave}`}
             </button>
           </div>
+          {/* Personal tracking status */}
+          <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 12, color: '#888', fontWeight: 600 }}>📋 {t.jobTrackStatus}:</span>
+            <select
+              value={trackStatus || ''}
+              onChange={e => handleTrack(e.target.value || null)}
+              style={{ fontSize: 12, padding: '4px 8px', borderRadius: 8, border: `1px solid ${trackInfo ? trackInfo.color : '#ddd'}`, background: trackInfo ? trackInfo.bg : '#fff', color: trackInfo ? trackInfo.color : '#666', cursor: 'pointer', fontFamily: 'inherit', fontWeight: trackInfo ? 700 : 400 }}
+            >
+              <option value="">{t.jobTrackNone}</option>
+              {JOB_TRACK_STATUSES.map(s => (
+                <option key={s.value} value={s.value}>{t[s.key]}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
       {showApplyModal && <JobApplyModal job={job} lang={lang} t={t} onClose={() => setShowApplyModal(false)} />}
@@ -9478,6 +9525,7 @@ function JobCard({ job, t, lang, onSaveToggle }) {
 function JobsPage({ lang, t, currentUser, mode }) {
   const [jobs, setJobs] = useState([])
   const [savedJobs, setSavedJobs] = useState([])
+  const [trackedJobs, setTrackedJobs] = useState([])
   const [myJobs, setMyJobs] = useState([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('all')
@@ -9508,6 +9556,9 @@ function JobsPage({ lang, t, currentUser, mode }) {
         .then(r => r.ok ? r.json() : null)
         .then(data => setSavedJobs(data?.jobs || []))
         .catch(() => {})
+    }
+    if (tab === 'tracking') {
+      apiGetTrackedJobs().then(data => setTrackedJobs(data?.jobs || [])).catch(() => {})
     }
   }, [tab])
 
@@ -9546,7 +9597,7 @@ function JobsPage({ lang, t, currentUser, mode }) {
       .catch(() => {})
   }
 
-  const displayJobs = tab === 'saved' ? savedJobs : jobs.filter(j => {
+  const displayJobs = tab === 'saved' ? savedJobs : tab === 'tracking' ? trackedJobs : jobs.filter(j => {
     if (filterLocation && !j.location?.toLowerCase().includes(filterLocation.toLowerCase()) && !j.remote) return false
     return true
   })
@@ -9565,7 +9616,7 @@ function JobsPage({ lang, t, currentUser, mode }) {
       </div>
 
       {/* Filters — only shown on browse tabs */}
-      {tab !== 'mine' && (
+      {tab !== 'mine' && tab !== 'tracking' && (
         <div className="p-card" style={{ marginBottom: 14, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <input
             className="p-search-input"
@@ -9601,6 +9652,9 @@ function JobsPage({ lang, t, currentUser, mode }) {
         </button>
         <button className={`p-filter-tab${tab === 'saved' ? ' active' : ''}`} onClick={() => setTab('saved')}>
           {t.savedJobs} ({savedJobs.length})
+        </button>
+        <button className={`p-filter-tab${tab === 'tracking' ? ' active' : ''}`} onClick={() => setTab('tracking')}>
+          {t.jobTrackTab} ({trackedJobs.length})
         </button>
         {mode === 'business' && (
           <button className={`p-filter-tab${tab === 'mine' ? ' active' : ''}`} onClick={() => setTab('mine')}>
@@ -9677,6 +9731,18 @@ function JobsPage({ lang, t, currentUser, mode }) {
               onSaveToggle={(id, saved) => {
                 setJobs(prev => prev.map(j => j.id === id ? { ...j, saved } : j))
                 setSavedJobs(prev => saved ? [...prev, job] : prev.filter(j => j.id !== id))
+              }}
+              onTrackChange={(id, status) => {
+                setJobs(prev => prev.map(j => j.id === id ? { ...j, track_status: status } : j))
+                setSavedJobs(prev => prev.map(j => j.id === id ? { ...j, track_status: status } : j))
+                if (status) {
+                  setTrackedJobs(prev => {
+                    const exists = prev.find(j => j.id === id)
+                    return exists ? prev.map(j => j.id === id ? { ...j, track_status: status } : j) : [...prev, { ...job, track_status: status }]
+                  })
+                } else {
+                  setTrackedJobs(prev => prev.filter(j => j.id !== id))
+                }
               }}
             />
           ))}

@@ -1080,6 +1080,17 @@ export async function apiUpdateJobApplication(jobId, appId, status) {
   })
 }
 
+export async function apiTrackJob(jobId, status) {
+  return await request(`/api/jobs/${jobId}/track`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  })
+}
+
+export async function apiGetTrackedJobs() {
+  return await request('/api/jobs/tracked')
+}
+
 // ── CRM Contact Notes ─────────────────────────────────────────────────────────
 export async function apiGetContactNote(userId) {
   return await request(`/api/contact-notes/${userId}`)
