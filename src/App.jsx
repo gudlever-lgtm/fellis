@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react'
 import Landing from './Landing.jsx'
 import Platform from './Platform.jsx'
 import { apiCheckSession, apiLogout, apiGiveConsent, apiGetInviteInfo, apiTrackVisit, apiGetConsentStatus } from './api.js'
-import { SUPPORTED_LANGS, detectLang } from './data.js'
+import { SUPPORTED_LANGS, detectLang, detectLangFromIP } from './data.js'
 import { USER_LS_KEY } from './hooks/useEasterEggs.js'
 import './App.css'
 
@@ -444,6 +444,18 @@ function App() {
   const [initialPage, setInitialPage] = useState(null)
   const [fbError, setFbError] = useState(null)
   const [resetToken, setResetToken] = useState(null)
+
+  // On first visit (no stored lang): detect language from IP geolocation
+  useEffect(() => {
+    if (!localStorage.getItem('fellis_lang')) {
+      detectLangFromIP().then(detected => {
+        if (detected && !localStorage.getItem('fellis_lang')) {
+          localStorage.setItem('fellis_lang', detected)
+          setLang(detected)
+        }
+      })
+    }
+  }, [])
 
   // On mount: check for Facebook OAuth callback, invite links, or validate existing session
   useEffect(() => {

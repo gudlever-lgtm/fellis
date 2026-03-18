@@ -1375,9 +1375,10 @@ app.get('/api/profile/:id', authenticate, async (req, res) => {
            JOIN friendships f2 ON f1.friend_id = f2.friend_id
            WHERE f1.user_id = ? AND f2.user_id = u.id) as mutual_count,
         (SELECT COUNT(*) FROM friendships WHERE user_id = ? AND friend_id = u.id) as is_friend,
-        (SELECT COUNT(*) FROM friend_requests WHERE from_id = ? AND to_id = u.id AND status = 'pending') as request_sent
+        (SELECT COUNT(*) FROM friend_requests WHERE from_id = ? AND to_id = u.id AND status = 'pending') as request_sent,
+        (SELECT COUNT(*) FROM user_blocks WHERE blocker_id = ? AND blocked_id = u.id) as is_blocked
        FROM users u WHERE u.id = ?`,
-      [req.userId, req.userId, req.userId, targetId]
+      [req.userId, req.userId, req.userId, req.userId, targetId]
     )
     if (users.length === 0) return res.status(404).json({ error: 'User not found' })
     const u = users[0]
@@ -1408,6 +1409,7 @@ app.get('/api/profile/:id', authenticate, async (req, res) => {
       mutualCount: u.mutual_count || 0,
       isFriend: !!u.is_friend,
       requestSent: !!u.request_sent,
+      isBlocked: !!u.is_blocked,
       badges,
     })
   } catch (err) {
@@ -1438,6 +1440,29 @@ app.get('/api/profile/:id/photos', authenticate, async (req, res) => {
     res.json(photos.slice(0, 30))
   } catch (err) {
     console.error('GET /api/profile/:id/photos error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/profile/:id/posts — recent posts by a user (max 10)
+app.get('/api/profile/:id/posts', authenticate, async (req, res) => {
+  const targetId = parseInt(req.params.id)
+  try {
+    const [rows] = await pool.query(
+      `SELECT p.id, p.text_da, p.text_en, p.media, p.likes, p.created_at,
+              (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comment_count
+       FROM posts p
+       WHERE p.author_id = ? AND p.scheduled_at IS NULL
+       ORDER BY p.created_at DESC LIMIT 10`,
+      [targetId]
+    )
+    res.json(rows.map(p => {
+      let media = []
+      try { media = JSON.parse(p.media) || [] } catch { /* ignore */ }
+      return { id: p.id, text_da: p.text_da, text_en: p.text_en, media, likes: p.likes, comment_count: p.comment_count, created_at: p.created_at }
+    }))
+  } catch (err) {
+    console.error('GET /api/profile/:id/posts error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })
@@ -1498,7 +1523,8 @@ app.patch('/api/me/mode', authenticate, async (req, res) => {
 // PATCH /api/me/lang — update current session language
 app.patch('/api/me/lang', authenticate, async (req, res) => {
   const { lang } = req.body
-  if (!['da', 'en'].includes(lang)) return res.status(400).json({ error: 'Invalid lang' })
+  const VALID_LANGS = ['da','en','de','fr','es','it','nl','sv','no','fi','pl','pt','ro','hu','cs','sk','hr','bg','el','lt','lv','et','sl','mt','ga','lb']
+  if (!VALID_LANGS.includes(lang)) return res.status(400).json({ error: 'Invalid lang' })
   const sessionId = getSessionIdFromRequest(req)
   try {
     await pool.query('UPDATE sessions SET lang = ? WHERE id = ?', [lang, sessionId])
