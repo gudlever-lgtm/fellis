@@ -5,7 +5,7 @@ const KONAMI = [
   'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight',
   'b', 'a',
 ]
-const TIMEOUT_MS = 2000
+const TIMEOUT_MS = 3000
 
 /**
  * useKonamiCode — calls onActivate when the Konami code is entered anywhere on the page.
@@ -28,7 +28,7 @@ export default function useKonamiCode(onActivate, enabled = true) {
     const handler = (e) => {
       const expected = KONAMI[posRef.current]
 
-      if (e.key === expected) {
+      if (e.key === expected || e.key.toLowerCase() === expected) {
         clearTimeout(timerRef.current)
         posRef.current++
         if (posRef.current === KONAMI.length) {
@@ -40,14 +40,15 @@ export default function useKonamiCode(onActivate, enabled = true) {
       } else if (posRef.current > 0) {
         // Mismatch — restart, but check if this key begins the sequence
         clearTimeout(timerRef.current)
-        posRef.current = e.key === KONAMI[0] ? 1 : 0
+        posRef.current = (e.key === KONAMI[0] || e.key.toLowerCase() === KONAMI[0]) ? 1 : 0
         if (posRef.current > 0) timerRef.current = setTimeout(reset, TIMEOUT_MS)
       }
     }
 
-    window.addEventListener('keydown', handler)
+    // Use capture phase so arrow keys aren't consumed by scrollable elements first
+    window.addEventListener('keydown', handler, { capture: true })
     return () => {
-      window.removeEventListener('keydown', handler)
+      window.removeEventListener('keydown', handler, { capture: true })
       clearTimeout(timerRef.current)
     }
   }, [enabled])
