@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } f
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { PT, SUPPORTED_LANGS, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
 import { formatPrice } from './utils/currency.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiFetchMemories, apiApplyToJob, apiGetJobApplications, apiUpdateJobApplication, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiRevealPassword, apiGetAdminMfaUsers, apiAdminForceDisableMfa } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiFetchMemories, apiApplyToJob, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiRevealPassword, apiGetAdminMfaUsers, apiAdminForceDisableMfa } from './api.js'
 import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
 import ReelsPage from './Reels.jsx'
@@ -323,8 +323,8 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
                   { id: 'friends', icon: '👥', label: mode === 'business' ? t.connectionsLabel : t.friends },
                   { id: 'calendar', icon: '🗓️', label: t.calendar || (lang === 'da' ? 'Kalender' : 'Calendar') },
                   { id: 'marketplace', icon: '🛍️', label: t.marketplace || (lang === 'da' ? 'Marked' : 'Marketplace') },
+                  { id: 'jobs', icon: '💼', label: t.jobs || 'Jobs' },
                   ...(mode === 'business' ? [
-                    { id: 'jobs', icon: '💼', label: t.jobs || 'Jobs' },
                     { id: 'company', icon: '🏢', label: t.companies || (lang === 'da' ? 'Virksomheder' : 'Companies') },
                   ] : []),
                 ].map(item => (
@@ -2468,6 +2468,28 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   <>
                     <div style={{ position: 'fixed', inset: 0, zIndex: 99 }} onClick={() => setPostMenu(null)} />
                     <div style={{ position: 'absolute', right: 0, top: '110%', background: '#fff', border: '1px solid #E8E4DF', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 100, minWidth: 180, overflow: 'hidden' }}>
+                      {Array.isArray(post.categories) && post.categories.length > 0 && (
+                        <div style={{ padding: '8px 12px 6px', borderBottom: '1px solid #f0f0f0' }}>
+                          <div style={{ fontSize: 11, color: '#aaa', fontWeight: 600, marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                            {lang === 'da' ? 'Kategorier' : 'Categories'}
+                          </div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                            {post.categories.map(catId => {
+                              const catInfo = INTEREST_CATEGORIES.find(c => c.id === catId)
+                              if (!catInfo) return null
+                              const isActive = feedCategoryFilter === catId
+                              return (
+                                <button key={catId}
+                                  onClick={() => { setFeedCategoryFilter(isActive ? null : catId); setPostMenu(null) }}
+                                  title={isActive ? t.feedCategoryFilterClear : t.feedCategoryFilterTitle}
+                                  style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11, fontWeight: 600, color: isActive ? '#fff' : '#2D6A4F', background: isActive ? '#2D6A4F' : '#eaf4ef', borderRadius: 20, padding: '2px 8px', border: `1px solid ${isActive ? '#2D6A4F' : '#b7dfc9'}`, cursor: 'pointer', fontFamily: 'inherit' }}>
+                                  {catInfo.icon} {catInfo[lang]}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
                       {isOwn ? (
                         <>
                           {(() => {
@@ -2516,24 +2538,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                 )}
               </div>
             </div>
-            {/* Category badges */}
-            {Array.isArray(post.categories) && post.categories.length > 0 && (
-              <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                {post.categories.map(catId => {
-                  const catInfo = INTEREST_CATEGORIES.find(c => c.id === catId)
-                  if (!catInfo) return null
-                  const isActive = feedCategoryFilter === catId
-                  return (
-                    <button key={catId}
-                      onClick={() => setFeedCategoryFilter(isActive ? null : catId)}
-                      title={isActive ? t.feedCategoryFilterClear : t.feedCategoryFilterTitle}
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: isActive ? '#fff' : '#2D6A4F', background: isActive ? '#2D6A4F' : '#eaf4ef', borderRadius: 20, padding: '2px 9px', border: `1px solid ${isActive ? '#2D6A4F' : '#b7dfc9'}`, cursor: 'pointer', fontFamily: 'inherit' }}>
-                      {catInfo.icon} {catInfo[lang]}
-                    </button>
-                  )
-                })}
-              </div>
-            )}
             {editingPostId === post.id ? (
               <div style={{ marginTop: 8 }}>
                 <textarea
@@ -4529,6 +4533,169 @@ const EGG_META = {
   watcher:  { icon: '👀', name: 'Skyggefølger', trigger: { da: 'Klik 7 gange på en vens avatar i Vis Profil', en: "Click 7 times on a friend's avatar in View Profile" } },
 }
 
+const EGG_INTERVIEW = {
+  chuck: [
+    {
+      q_da: 'Hvorfor er du her?',
+      a_da: 'Fordi ingen anden turde nægte mig adgang. Faktisk forsøgte de at sætte en CAPTCHA op — men den løste sig selv af frygt.',
+      q_en: 'Why are you here?',
+      a_en: 'Because no one else dared to deny me entry. They tried setting up a CAPTCHA, but it solved itself out of fear.',
+    },
+    {
+      q_da: 'Hvad er din historie?',
+      a_da: 'Jeg startede som en vittighed på internettet i 2005. Siden da har jeg slået rekorder i frit fald, kompileret kode med et enkelt blik og vundet den samme skakparti mod mig selv 47 gange i træk.',
+      q_en: 'What is your history?',
+      a_en: 'I started as an internet joke in 2005. Since then I have broken records in freefall, compiled code with a single glare, and won the same chess game against myself 47 times in a row.',
+    },
+    {
+      q_da: 'Hvorfor synes du selv, du er sjov?',
+      a_da: 'Det er ikke mig, der synes det. Det er tyngdekraften, der griner — fordi den ikke gælder for mig.',
+      q_en: 'Why do you find yourself funny?',
+      a_en: "It's not me who finds it funny. It's gravity laughing — because it doesn't apply to me.",
+    },
+  ],
+  matrix: [
+    {
+      q_da: 'Hvorfor er du her?',
+      a_da: 'Du klikkede for hurtigt. Systemet bemærkede det. Jeg er altid her — du ser det bare ikke, medmindre du klikker syv gange.',
+      q_en: 'Why are you here?',
+      a_en: 'You clicked too fast. The system noticed. I am always here — you just cannot see me unless you click seven times.',
+    },
+    {
+      q_da: 'Hvad er din historie?',
+      a_da: 'Jeg er born af en film fra 1999 og en skærmsaver fra samme årti. En udvikler syntes, det ville se fedt ud. Det gør det stadig.',
+      q_en: 'What is your history?',
+      a_en: 'I was born from a 1999 film and a screensaver from the same decade. A developer thought it would look cool. It still does.',
+    },
+    {
+      q_da: 'Hvorfor synes du selv, du er sjov?',
+      a_da: 'Jeg er ikke sjov. Jeg er uundgåelig. Men den distinktion er åbenbart ret morsom for folk, der ser mig første gang.',
+      q_en: 'Why do you find yourself funny?',
+      a_en: 'I am not funny. I am inevitable. But that distinction is apparently quite amusing to people who see me for the first time.',
+    },
+  ],
+  flip: [
+    {
+      q_da: 'Hvorfor er du her?',
+      a_da: 'Fordi nogen troede, at verden ville se bedre ud på hovedet. De tog fejl, men det er stadig underholdende.',
+      q_en: 'Why are you here?',
+      a_en: 'Because someone thought the world would look better upside down. They were wrong, but it is still entertaining.',
+    },
+    {
+      q_da: 'Hvad er din historie?',
+      a_da: 'Jeg er opkaldt efter den tabel-flip-emoji (╯°□°）╯︵ ┻━┻ — en klassiker fra frustrerede chatbrugere. Jeg er frustrationens elegante søskende.',
+      q_en: 'What is your history?',
+      a_en: 'I am named after the table flip emoji (╯°□°）╯︵ ┻━┻ — a classic from frustrated chat users. I am frustration\'s elegant sibling.',
+    },
+    {
+      q_da: 'Hvorfor synes du selv, du er sjov?',
+      a_da: 'Fordi alle griner, når tingene er på vrangen — især når det ikke var meningen.',
+      q_en: 'Why do you find yourself funny?',
+      a_en: 'Because everyone laughs when things are upside down — especially when it was not intended.',
+    },
+  ],
+  retro: [
+    {
+      q_da: 'Hvorfor er du her?',
+      a_da: 'Fordi nogen savner den tid, hvor skærme lugtede af varm plast og pixels var synlige med det blotte øje.',
+      q_en: 'Why are you here?',
+      a_en: 'Because someone misses the time when screens smelled of warm plastic and pixels were visible to the naked eye.',
+    },
+    {
+      q_da: 'Hvad er din historie?',
+      a_da: 'Jeg er en hyldest til CRT-skærme, Courier New og de dage, hvor "hurtig computer" betød 56k modem. Jeg er nostalgi i filterform.',
+      q_en: 'What is your history?',
+      a_en: 'I am a tribute to CRT monitors, Courier New, and the days when "fast computer" meant a 56k modem. I am nostalgia in filter form.',
+    },
+    {
+      q_da: 'Hvorfor synes du selv, du er sjov?',
+      a_da: 'Fordi du holdt nede i 1,5 sekunder på en overskrift og blev belønnet med scanliner. Det er lidt absurd — og det er præcis, hvad jeg lever for.',
+      q_en: 'Why do you find yourself funny?',
+      a_en: 'Because you held down for 1.5 seconds on a headline and got rewarded with scanlines. That is slightly absurd — and that is exactly what I live for.',
+    },
+  ],
+  gravity: [
+    {
+      q_da: 'Hvorfor er du her?',
+      a_da: 'Fordi Newton ville have elsket sociale medier. Og fordi G+G er en billig pris for kaos.',
+      q_en: 'Why are you here?',
+      a_en: 'Because Newton would have loved social media. And because G+G is a cheap price for chaos.',
+    },
+    {
+      q_da: 'Hvad er din historie?',
+      a_da: 'Jeg er opkaldt efter en af universets fire grundkræfter. De andre tre — elektromagnetisme, stærk og svag kernekraft — er jaloux, men de kan ikke trykke G+G.',
+      q_en: 'What is your history?',
+      a_en: 'I am named after one of the four fundamental forces of the universe. The other three — electromagnetism, strong and weak nuclear force — are jealous, but they cannot press G+G.',
+    },
+    {
+      q_da: 'Hvorfor synes du selv, du er sjov?',
+      a_da: 'Fordi indlæg falder ned og forsvinder. Det er det sociale medie som det burde fungere.',
+      q_en: 'Why do you find yourself funny?',
+      a_en: 'Because posts fall down and disappear. That is social media as it should work.',
+    },
+  ],
+  party: [
+    {
+      q_da: 'Hvorfor er du her?',
+      a_da: 'Du bad om fest. Jeg leverer altid. Konfetti er min kærlighed, og kærlighed er konfetti.',
+      q_en: 'Why are you here?',
+      a_en: 'You asked for a party. I always deliver. Confetti is my love language, and love is confetti.',
+    },
+    {
+      q_da: 'Hvad er din historie?',
+      a_da: 'Jeg er inspireret af hvert eneste overraskelsesselskab, der nogensinde gik lidt for langt. 180 partikler, 10 farver, og ingen der rydder op bagefter.',
+      q_en: 'What is your history?',
+      a_en: 'I am inspired by every surprise party that ever went slightly too far. 180 particles, 10 colours, and nobody cleaning up afterwards.',
+    },
+    {
+      q_da: 'Hvorfor synes du selv, du er sjov?',
+      a_da: 'Fordi du skriver "party" på et dansk socialt medie og forventer alvor. Det er ikke alvor. Det er konfetti.',
+      q_en: 'Why do you find yourself funny?',
+      a_en: 'Because you type "party" on a Danish social platform and expect seriousness. This is not serious. This is confetti.',
+    },
+  ],
+  rickroll: [
+    {
+      q_da: 'Hvorfor er du her?',
+      a_da: 'Vi er aldrig nogensinde nødt til at sige farvel til hinanden. Og vi er aldrig nogensinde nødt til at løbe væk eller sige farvel. Du vidste godt, hvad der kom.',
+      q_en: 'Why are you here?',
+      a_en: 'We are never ever gonna have to say goodbye to each other. And we are never ever gonna run around and desert each other. You knew exactly what was coming.',
+    },
+    {
+      q_da: 'Hvad er din historie?',
+      a_da: 'Rick Astley udgav "Never Gonna Give You Up" i 1987. Internettet opdagede den i 2007 og besluttede, at den tilhører alle og ingen. Jeg er dens digitale efterliv.',
+      q_en: 'What is your history?',
+      a_en: 'Rick Astley released "Never Gonna Give You Up" in 1987. The internet discovered it in 2007 and decided it belongs to everyone and no one. I am its digital afterlife.',
+    },
+    {
+      q_da: 'Hvorfor synes du selv, du er sjov?',
+      a_da: 'Fordi du rullede til bunden af feed og ventede i 4 sekunder. Du stillede dig frivilligt op til det her.',
+      q_en: 'Why do you find yourself funny?',
+      a_en: 'Because you scrolled to the bottom of the feed and waited for 4 seconds. You voluntarily set yourself up for this.',
+    },
+  ],
+  watcher: [
+    {
+      q_da: 'Hvorfor er du her?',
+      a_da: 'Fordi du klikkede syv gange. Syv gange. På en avatar. Ingen klikker syv gange ved et uheld.',
+      q_en: 'Why are you here?',
+      a_en: 'Because you clicked seven times. Seven times. On an avatar. Nobody clicks seven times by accident.',
+    },
+    {
+      q_da: 'Hvad er din historie?',
+      a_da: 'Jeg hedder Skyggefølger, fordi jeg altid er der, selvom ingen ser mig. Jeg er den der 👀-emoji, der dukker op i alle tråde, man helst vil glemme.',
+      q_en: 'What is your history?',
+      a_en: 'I am called the Shadow Follower because I am always there even when nobody sees me. I am that 👀 emoji that appears in every thread you would rather forget.',
+    },
+    {
+      q_da: 'Hvorfor synes du selv, du er sjov?',
+      a_da: 'Øjne er i sig selv sjove. Prøv at skrive 👀 i en samtale og se, hvad der sker. Nogen begynder altid at forklare sig.',
+      q_en: 'Why do you find yourself funny?',
+      a_en: 'Eyes are inherently funny. Try writing 👀 in a conversation and watch what happens. Someone always starts explaining themselves.',
+    },
+  ],
+}
+
 function EasterEggSettings({ lang }) {
   const { eggs, toggleEgg } = useEasterEggs()
   const adminConfig = loadAdminEggs()
@@ -4550,26 +4717,43 @@ function EasterEggSettings({ lang }) {
         const adminEgg = adminConfig[id] || {}
         const globallyDisabled = adminEgg.globalEnabled === false
         const enabled = !globallyDisabled && egg?.enabled !== false
-        const hintText = adminEgg.hintsEnabled && adminEgg.hintText ? adminEgg.hintText : null
+        const interview = EGG_INTERVIEW[id]
         return (
-          <div key={id} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '10px 0', borderTop: '1px solid #eee', gap: 12 }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600, fontSize: 14 }}>{meta.icon} {meta.name}</div>
-              <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>{meta.trigger[lang]}</div>
-              {hintText && <div style={{ fontSize: 11, color: '#2D6A4F', marginTop: 3, fontStyle: 'italic' }}>💡 {hintText}</div>}
-              <div style={{ fontSize: 11, color: '#bbb', marginTop: 2 }}>
-                {lang === 'da' ? `Opdaget: ${fmtDate(egg?.firstDiscoveredAt)}` : `Discovered: ${fmtDate(egg?.firstDiscoveredAt)}`}
-                {' · '}
-                {lang === 'da' ? `Aktiveret ${egg?.activationCount ?? 1}×` : `Activated ${egg?.activationCount ?? 1}×`}
+          <div key={id} style={{ padding: '14px 0', borderTop: '1px solid #eee' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>{meta.icon} {meta.name}</div>
+                <div style={{ fontSize: 11, color: '#bbb', marginTop: 2 }}>
+                  {lang === 'da' ? `Opdaget: ${fmtDate(egg?.firstDiscoveredAt)}` : `Discovered: ${fmtDate(egg?.firstDiscoveredAt)}`}
+                  {' · '}
+                  {lang === 'da' ? `Aktiveret ${egg?.activationCount ?? 1}×` : `Activated ${egg?.activationCount ?? 1}×`}
+                </div>
+                {globallyDisabled && (
+                  <div style={{ fontSize: 11, color: '#e03131', marginTop: 2 }}>{lang === 'da' ? '⚠ Deaktiveret af admin' : '⚠ Disabled by admin'}</div>
+                )}
               </div>
-              {globallyDisabled && (
-                <div style={{ fontSize: 11, color: '#e03131', marginTop: 2 }}>{lang === 'da' ? '⚠ Deaktiveret af admin' : '⚠ Disabled by admin'}</div>
-              )}
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: globallyDisabled ? 'not-allowed' : 'pointer', flexShrink: 0, marginTop: 2 }}>
+                <input type="checkbox" checked={enabled} disabled={globallyDisabled} onChange={() => !globallyDisabled && toggleEgg(id)} style={{ width: 16, height: 16 }} />
+                <span style={{ fontSize: 12, color: '#555' }}>{lang === 'da' ? 'Aktiv' : 'On'}</span>
+              </label>
             </div>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: globallyDisabled ? 'not-allowed' : 'pointer', flexShrink: 0, marginTop: 2 }}>
-              <input type="checkbox" checked={enabled} disabled={globallyDisabled} onChange={() => !globallyDisabled && toggleEgg(id)} style={{ width: 16, height: 16 }} />
-              <span style={{ fontSize: 12, color: '#555' }}>{lang === 'da' ? 'Aktiv' : 'On'}</span>
-            </label>
+            {interview && (
+              <div style={{ marginTop: 12, background: '#f8f8f8', borderRadius: 8, padding: '12px 14px', fontSize: 12 }}>
+                <div style={{ fontWeight: 700, fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+                  {lang === 'da' ? `— Et interview med ${meta.name} —` : `— An interview with ${meta.name} —`}
+                </div>
+                {interview.map((qa, i) => (
+                  <div key={i} style={{ marginBottom: i < interview.length - 1 ? 10 : 0 }}>
+                    <div style={{ fontWeight: 600, color: '#555', marginBottom: 2 }}>
+                      {lang === 'da' ? qa.q_da : qa.q_en}
+                    </div>
+                    <div style={{ color: '#444', fontStyle: 'italic', lineHeight: 1.5 }}>
+                      "{lang === 'da' ? qa.a_da : qa.a_en}"
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )
       })}
@@ -4886,6 +5070,38 @@ function AboutPage({ lang }) {
     ],
     changelogTitle: 'Implementerede tiltag',
     changelogEmpty: 'Ingen poster endnu',
+    servicesTitle: 'Tjenester vi bruger — og hvorfor europæisk',
+    servicesIntro: 'Vi vælger bevidst europæiske udbydere på alle lag af platformen. Det handler ikke kun om GDPR — det handler om at holde din data, din kommunikation og dine betalinger inden for et retssystem, der beskytter dig.',
+    services: [
+      {
+        name: 'Yggdrasil Cloud',
+        flag: '🇩🇰',
+        url: 'https://yggdrasilcloud.dk/',
+        role: 'Hosting & servere',
+        why: 'Dansk cloud-udbyder med servere fysisk placeret i Danmark. Dine data forlader aldrig EU og er underlagt dansk lovgivning — ikke CLOUD Act eller FISA 702.',
+      },
+      {
+        name: '46elks',
+        flag: '🇸🇪',
+        url: 'https://46elks.com/',
+        role: 'SMS til to-faktor-godkendelse',
+        why: 'Svensk teleudbyder med fuld GDPR-compliance. Bruges til at sende engangskoder ved login med to-faktor. Ingen data sendes til udbydere uden for EU.',
+      },
+      {
+        name: 'Mollie',
+        flag: '🇳🇱',
+        url: 'https://www.mollie.com/',
+        role: 'Betalinger',
+        why: 'Hollandsk betalingsgateway reguleret af De Nederlandsche Bank under EU\'s PSD2-direktiv. Understøtter MobilePay, Visa, Mastercard, Apple Pay og Google Pay — uden at dine kortoplysninger nogensinde rammer vores egne servere.',
+      },
+      {
+        name: 'Nodemailer',
+        flag: '🇪🇺',
+        url: 'https://nodemailer.com/',
+        role: 'E-mail (adgangskode-nulstilling)',
+        why: 'Open source e-mail-bibliotek med ingen ekstern afhængighed. E-mails sendes via din egen SMTP-server — vi låser dig ikke til en tredjeparts e-mail-tjeneste.',
+      },
+    ],
   } : {
     title: 'About Fellis',
     subtitle: 'Philosophy and purpose of Fellis.eu',
@@ -4905,6 +5121,38 @@ function AboutPage({ lang }) {
     ],
     changelogTitle: 'Implemented features',
     changelogEmpty: 'No entries yet',
+    servicesTitle: 'Services we use — and why European',
+    servicesIntro: 'We deliberately choose European providers at every layer of the platform. It is not just about GDPR compliance — it is about keeping your data, your communications, and your payments within a legal framework that protects you.',
+    services: [
+      {
+        name: 'Yggdrasil Cloud',
+        flag: '🇩🇰',
+        url: 'https://yggdrasilcloud.dk/',
+        role: 'Hosting & servers',
+        why: 'Danish cloud provider with servers physically located in Denmark. Your data never leaves the EU and is subject to Danish law — not the CLOUD Act or FISA 702.',
+      },
+      {
+        name: '46elks',
+        flag: '🇸🇪',
+        url: 'https://46elks.com/',
+        role: 'SMS for two-factor authentication',
+        why: 'Swedish telecom provider with full GDPR compliance. Used to send one-time codes during two-factor login. No data is sent to providers outside the EU.',
+      },
+      {
+        name: 'Mollie',
+        flag: '🇳🇱',
+        url: 'https://www.mollie.com/',
+        role: 'Payments',
+        why: "Dutch payment gateway regulated by De Nederlandsche Bank under the EU's PSD2 directive. Supports MobilePay, Visa, Mastercard, Apple Pay and Google Pay — without your card details ever touching our own servers.",
+      },
+      {
+        name: 'Nodemailer',
+        flag: '🇪🇺',
+        url: 'https://nodemailer.com/',
+        role: 'Email (password reset)',
+        why: 'Open source email library with no external dependency. Emails are sent via your own SMTP server — we do not lock you in to a third-party email service.',
+      },
+    ],
   }
 
   const s = {
@@ -4933,6 +5181,24 @@ function AboutPage({ lang }) {
           <div key={i} style={{ padding: '10px 20px', fontSize: 14, color: '#333', borderBottom: i < t.purposes.length - 1 ? '1px solid #f0f0f0' : 'none', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
             <span style={{ color: '#2D6A4F', fontWeight: 700, flexShrink: 0 }}>✓</span>
             {item}
+          </div>
+        ))}
+      </div>
+
+      {/* European services */}
+      <div style={s.section}>🌍 {t.servicesTitle}</div>
+      <div className="p-card" style={{ padding: 20, marginBottom: 16 }}>
+        <p style={{ fontSize: 13, color: '#555', lineHeight: 1.6, margin: '0 0 16px' }}>{t.servicesIntro}</p>
+        {t.services.map((svc, i) => (
+          <div key={svc.name} style={{ display: 'flex', gap: 14, alignItems: 'flex-start', paddingTop: i > 0 ? 14 : 0, marginTop: i > 0 ? 14 : 0, borderTop: i > 0 ? '1px solid #f0f0f0' : 'none' }}>
+            <div style={{ fontSize: 22, lineHeight: 1, flexShrink: 0, marginTop: 1 }}>{svc.flag}</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+                <a href={svc.url} target="_blank" rel="noopener noreferrer" style={{ fontWeight: 700, fontSize: 14, color: '#2D6A4F', textDecoration: 'none' }}>{svc.name}</a>
+                <span style={{ fontSize: 11, color: '#aaa', fontWeight: 500 }}>{svc.role}</span>
+              </div>
+              <p style={{ fontSize: 13, color: '#555', lineHeight: 1.55, margin: '4px 0 0' }}>{svc.why}</p>
+            </div>
           </div>
         ))}
       </div>
@@ -9372,8 +9638,19 @@ function JobApplyModal({ job, lang, t, onClose }) {
 }
 
 // ── Jobs ──
-function JobCard({ job, t, lang, onSaveToggle }) {
+const JOB_TRACK_STATUSES = [
+  { value: 'not_applied', color: '#888', bg: '#f5f5f5', key: 'jobTrackNotApplied' },
+  { value: 'applied', color: '#1877F2', bg: '#EBF4FF', key: 'jobTrackApplied' },
+  { value: 'interview', color: '#E07B39', bg: '#FFF3EB', key: 'jobTrackInterview' },
+  { value: 'offer', color: '#7C3AED', bg: '#F3EEFF', key: 'jobTrackOffer' },
+  { value: 'hired', color: '#2D6A4F', bg: '#F0FAF4', key: 'jobTrackHired' },
+  { value: 'rejected', color: '#c0392b', bg: '#FFF0F0', key: 'jobTrackRejected' },
+  { value: 'not_interested', color: '#aaa', bg: '#f9f9f9', key: 'jobTrackNotInterested' },
+]
+
+function JobCard({ job, t, lang, onSaveToggle, onTrackChange }) {
   const [isSaved, setIsSaved] = useState(!!job.saved)
+  const [trackStatus, setTrackStatus] = useState(job.track_status || null)
   const [showApplyModal, setShowApplyModal] = useState(false)
   const companyName = job.company_name || job.companyName || ''
   const companyColor = job.company_color || job.companyColor || '#1877F2'
@@ -9383,6 +9660,7 @@ function JobCard({ job, t, lang, onSaveToggle }) {
   const applyLink = job.apply_link || job.applyLink || ''
   const postedDate = job.created_at ? new Date(job.created_at).toLocaleDateString() : (job.postedDate || '')
   const typeLabels = { fulltime: t.jobTypeFullTime, parttime: t.jobTypePartTime, freelance: t.jobTypeFreelance, internship: t.jobTypeInternship }
+  const trackInfo = JOB_TRACK_STATUSES.find(s => s.value === trackStatus)
 
   const toggleSave = () => {
     fetch(`/api/jobs/${job.id}/save`, { method: 'POST', credentials: 'include' })
@@ -9395,6 +9673,16 @@ function JobCard({ job, t, lang, onSaveToggle }) {
       .catch(() => {})
   }
 
+  const handleTrack = (status) => {
+    const newStatus = status || null
+    apiTrackJob(job.id, newStatus).then(data => {
+      if (!data) return
+      setTrackStatus(newStatus)
+      if (newStatus) setIsSaved(true)
+      onTrackChange?.(job.id, newStatus)
+    }).catch(() => {})
+  }
+
   return (
     <div className="p-card p-job-card">
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
@@ -9402,7 +9690,14 @@ function JobCard({ job, t, lang, onSaveToggle }) {
           {companyName[0]}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <h3 style={{ margin: '0 0 2px', fontSize: 16, fontWeight: 700 }}>{title}</h3>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+            <h3 style={{ margin: '0 0 2px', fontSize: 16, fontWeight: 700 }}>{title}</h3>
+            {trackInfo && (
+              <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: trackInfo.bg, color: trackInfo.color, flexShrink: 0 }}>
+                {t[trackInfo.key]}
+              </span>
+            )}
+          </div>
           <div style={{ fontSize: 13, color: '#666', marginBottom: 6 }}>
             {companyName} · {job.location}
             {!!job.remote && <span style={{ marginLeft: 6, fontSize: 11, padding: '2px 8px', borderRadius: 20, background: '#F0FAF4', color: '#2D6A4F', fontWeight: 600 }}>{t.jobRemote}</span>}
@@ -9435,7 +9730,7 @@ function JobCard({ job, t, lang, onSaveToggle }) {
               ⏳ {t.jobDeadline}: {new Date(job.deadline).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
             </div>
           )}
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
             <button
               onClick={() => setShowApplyModal(true)}
               className="p-events-create-btn"
@@ -9468,6 +9763,20 @@ function JobCard({ job, t, lang, onSaveToggle }) {
               {isSaved ? `★ ${t.jobSaved}` : `☆ ${t.jobSave}`}
             </button>
           </div>
+          {/* Personal tracking status */}
+          <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 12, color: '#888', fontWeight: 600 }}>📋 {t.jobTrackStatus}:</span>
+            <select
+              value={trackStatus || ''}
+              onChange={e => handleTrack(e.target.value || null)}
+              style={{ fontSize: 12, padding: '4px 8px', borderRadius: 8, border: `1px solid ${trackInfo ? trackInfo.color : '#ddd'}`, background: trackInfo ? trackInfo.bg : '#fff', color: trackInfo ? trackInfo.color : '#666', cursor: 'pointer', fontFamily: 'inherit', fontWeight: trackInfo ? 700 : 400 }}
+            >
+              <option value="">{t.jobTrackNone}</option>
+              {JOB_TRACK_STATUSES.map(s => (
+                <option key={s.value} value={s.value}>{t[s.key]}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
       {showApplyModal && <JobApplyModal job={job} lang={lang} t={t} onClose={() => setShowApplyModal(false)} />}
@@ -9478,6 +9787,7 @@ function JobCard({ job, t, lang, onSaveToggle }) {
 function JobsPage({ lang, t, currentUser, mode }) {
   const [jobs, setJobs] = useState([])
   const [savedJobs, setSavedJobs] = useState([])
+  const [trackedJobs, setTrackedJobs] = useState([])
   const [myJobs, setMyJobs] = useState([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('all')
@@ -9508,6 +9818,9 @@ function JobsPage({ lang, t, currentUser, mode }) {
         .then(r => r.ok ? r.json() : null)
         .then(data => setSavedJobs(data?.jobs || []))
         .catch(() => {})
+    }
+    if (tab === 'tracking') {
+      apiGetTrackedJobs().then(data => setTrackedJobs(data?.jobs || [])).catch(() => {})
     }
   }, [tab])
 
@@ -9546,7 +9859,7 @@ function JobsPage({ lang, t, currentUser, mode }) {
       .catch(() => {})
   }
 
-  const displayJobs = tab === 'saved' ? savedJobs : jobs.filter(j => {
+  const displayJobs = tab === 'saved' ? savedJobs : tab === 'tracking' ? trackedJobs : jobs.filter(j => {
     if (filterLocation && !j.location?.toLowerCase().includes(filterLocation.toLowerCase()) && !j.remote) return false
     return true
   })
@@ -9565,7 +9878,7 @@ function JobsPage({ lang, t, currentUser, mode }) {
       </div>
 
       {/* Filters — only shown on browse tabs */}
-      {tab !== 'mine' && (
+      {tab !== 'mine' && tab !== 'tracking' && (
         <div className="p-card" style={{ marginBottom: 14, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <input
             className="p-search-input"
@@ -9601,6 +9914,9 @@ function JobsPage({ lang, t, currentUser, mode }) {
         </button>
         <button className={`p-filter-tab${tab === 'saved' ? ' active' : ''}`} onClick={() => setTab('saved')}>
           {t.savedJobs} ({savedJobs.length})
+        </button>
+        <button className={`p-filter-tab${tab === 'tracking' ? ' active' : ''}`} onClick={() => setTab('tracking')}>
+          {t.jobTrackTab} ({trackedJobs.length})
         </button>
         {mode === 'business' && (
           <button className={`p-filter-tab${tab === 'mine' ? ' active' : ''}`} onClick={() => setTab('mine')}>
@@ -9677,6 +9993,18 @@ function JobsPage({ lang, t, currentUser, mode }) {
               onSaveToggle={(id, saved) => {
                 setJobs(prev => prev.map(j => j.id === id ? { ...j, saved } : j))
                 setSavedJobs(prev => saved ? [...prev, job] : prev.filter(j => j.id !== id))
+              }}
+              onTrackChange={(id, status) => {
+                setJobs(prev => prev.map(j => j.id === id ? { ...j, track_status: status } : j))
+                setSavedJobs(prev => prev.map(j => j.id === id ? { ...j, track_status: status } : j))
+                if (status) {
+                  setTrackedJobs(prev => {
+                    const exists = prev.find(j => j.id === id)
+                    return exists ? prev.map(j => j.id === id ? { ...j, track_status: status } : j) : [...prev, { ...job, track_status: status }]
+                  })
+                } else {
+                  setTrackedJobs(prev => prev.filter(j => j.id !== id))
+                }
               }}
             />
           ))}

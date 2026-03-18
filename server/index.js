@@ -3637,10 +3637,12 @@ async function initCompanies() {
       job_id INT NOT NULL,
       user_id INT NOT NULL,
       saved_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      track_status VARCHAR(30) DEFAULT NULL,
       PRIMARY KEY (job_id, user_id),
       FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+    await pool.query(`ALTER TABLE job_saves ADD COLUMN IF NOT EXISTS track_status VARCHAR(30) DEFAULT NULL`)
 
     // Repair: ensure all companies have their owner in company_members
     // (may be missing if company was created before this table existed)
@@ -3991,9 +3993,44 @@ app.get('/api/jobs/saved', authenticate, async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT j.*, c.name AS company_name, c.handle AS company_handle, c.color AS company_color,
-              1 AS saved
+              1 AS saved, js.track_status
        FROM jobs j JOIN companies c ON c.id = j.company_id
        JOIN job_saves js ON js.job_id = j.id AND js.user_id = ?
+       ORDER BY js.saved_at DESC`,
+      [req.userId]
+    )
+    res.json({ jobs: rows })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// PATCH /api/jobs/:id/track — set personal tracking status (private users)
+app.patch('/api/jobs/:id/track', authenticate, async (req, res) => {
+  try {
+    const { status } = req.body
+    const validStatuses = ['not_applied', 'applied', 'interview', 'offer', 'hired', 'rejected', 'not_interested']
+    if (status && !validStatuses.includes(status)) return res.status(400).json({ error: 'Invalid status' })
+    // Ensure a save row exists
+    await pool.query(
+      'INSERT INTO job_saves (job_id, user_id, track_status) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE track_status = VALUES(track_status)',
+      [req.params.id, req.userId, status || null]
+    )
+    res.json({ ok: true, status: status || null })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/jobs/tracked — jobs with a tracking status set by the user
+app.get('/api/jobs/tracked', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT j.*, c.name AS company_name, c.handle AS company_handle, c.color AS company_color,
+              1 AS saved, js.track_status
+       FROM jobs j JOIN companies c ON c.id = j.company_id
+       JOIN job_saves js ON js.job_id = j.id AND js.user_id = ?
+       WHERE js.track_status IS NOT NULL
        ORDER BY js.saved_at DESC`,
       [req.userId]
     )
@@ -4081,10 +4118,16 @@ app.delete('/api/jobs/:id', authenticate, async (req, res) => {
 // POST /api/jobs/:id/save — save or unsave job
 app.post('/api/jobs/:id/save', authenticate, async (req, res) => {
   try {
-    const [[existing]] = await pool.query('SELECT 1 FROM job_saves WHERE job_id = ? AND user_id = ?', [req.params.id, req.userId])
+    const [[existing]] = await pool.query('SELECT track_status FROM job_saves WHERE job_id = ? AND user_id = ?', [req.params.id, req.userId])
     if (existing) {
-      await pool.query('DELETE FROM job_saves WHERE job_id = ? AND user_id = ?', [req.params.id, req.userId])
-      res.json({ saved: false })
+      // Only unsave if no tracking status set (or force=true)
+      if (existing.track_status && !req.body.force) {
+        // Has tracking status: just clear the saved flag conceptually but keep tracking
+        res.json({ saved: false, track_status: existing.track_status })
+      } else {
+        await pool.query('DELETE FROM job_saves WHERE job_id = ? AND user_id = ?', [req.params.id, req.userId])
+        res.json({ saved: false })
+      }
     } else {
       await pool.query('INSERT IGNORE INTO job_saves (job_id, user_id) VALUES (?, ?)', [req.params.id, req.userId])
       res.json({ saved: true })
