@@ -2,7 +2,8 @@ import { useState, useCallback, useEffect } from 'react'
 import Landing from './Landing.jsx'
 import Platform from './Platform.jsx'
 import { apiCheckSession, apiLogout, apiGiveConsent, apiGetInviteInfo, apiTrackVisit, apiGetConsentStatus } from './api.js'
-import { SUPPORTED_LANGS, detectLang } from './data.js'
+import { SUPPORTED_LANGS, detectLang, detectLangFromIP } from './data.js'
+import { USER_LS_KEY } from './hooks/useEasterEggs.js'
 import './App.css'
 
 // ── Public Privacy Policy Page (/privacy) ──
@@ -442,6 +443,19 @@ function App() {
   const [initialPostId, setInitialPostId] = useState(null)
   const [initialPage, setInitialPage] = useState(null)
   const [fbError, setFbError] = useState(null)
+  const [resetToken, setResetToken] = useState(null)
+
+  // On first visit (no stored lang): detect language from IP geolocation
+  useEffect(() => {
+    if (!localStorage.getItem('fellis_lang')) {
+      detectLangFromIP().then(detected => {
+        if (detected && !localStorage.getItem('fellis_lang')) {
+          localStorage.setItem('fellis_lang', detected)
+          setLang(detected)
+        }
+      })
+    }
+  }, [])
 
   // On mount: check for Facebook OAuth callback, invite links, or validate existing session
   useEffect(() => {
@@ -517,6 +531,13 @@ function App() {
       window.history.replaceState({}, '', window.location.pathname)
     }
 
+    // Password reset link: ?reset_token=<raw token from email>
+    const resetTokenParam = params.get('reset_token')
+    if (resetTokenParam) {
+      setResetToken(resetTokenParam)
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+
     apiCheckSession().then(async data => {
       if (data) {
         setView('platform')
@@ -555,6 +576,7 @@ function App() {
     localStorage.removeItem('fellis_logged_in')
     localStorage.removeItem('fellis_lang')
     localStorage.removeItem('fellis_session_id')
+    localStorage.removeItem(USER_LS_KEY)
     apiLogout().catch(() => {})
   }, [])
 
@@ -593,7 +615,7 @@ function App() {
     )
   }
 
-  return <Landing onEnterPlatform={handleEnterPlatform} inviteToken={inviteToken} inviterName={inviterName} inviterEmail={inviterEmail} fbError={fbError} />
+  return <Landing onEnterPlatform={handleEnterPlatform} inviteToken={inviteToken} inviterName={inviterName} inviterEmail={inviterEmail} fbError={fbError} resetToken={resetToken} />
 }
 
 function AppRoot() {

@@ -5,7 +5,7 @@ import { apiFetchReels, apiUploadReel, apiToggleReelLike, apiFetchReelComments, 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
 // ── Single Reel Card ──────────────────────────────────────────────────────────
-function ReelCard({ reel, t, currentUser, onDelete }) {
+function ReelCard({ reel, t, currentUser, onDelete, onViewProfile }) {
   const [liked, setLiked] = useState(reel.liked_by_me)
   const [myReaction, setMyReaction] = useState(reel.my_reaction || '❤️')
   const [likesCount, setLikesCount] = useState(Number(reel.likes_count))
@@ -345,13 +345,18 @@ function ReelCard({ reel, t, currentUser, onDelete }) {
         )}
         <div style={s.overlay}>
           <div style={s.author}>
-            {avatarUrl
-              ? <img src={avatarUrl} style={s.avatar} alt="" />
-              : <div style={{ ...s.avatarFallback, background: nameToColor(reel.author_name) }}>{getInitials(reel.author_name)}</div>
-            }
-            <div>
-              <div style={s.authorName}>{reel.author_name}</div>
-              <div style={{ fontSize: 11, color: '#ccc' }}>{reel.author_handle}</div>
+            <div
+              onClick={() => onViewProfile && onViewProfile(reel.user_id)}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: onViewProfile ? 'pointer' : 'default' }}
+            >
+              {avatarUrl
+                ? <img src={avatarUrl} style={s.avatar} alt="" />
+                : <div style={{ ...s.avatarFallback, background: nameToColor(reel.author_name) }}>{getInitials(reel.author_name)}</div>
+              }
+              <div>
+                <div style={s.authorName}>{reel.author_name}</div>
+                <div style={{ fontSize: 11, color: '#ccc' }}>{reel.author_handle}</div>
+              </div>
             </div>
           </div>
           {reel.caption && <div style={s.caption}>{reel.caption}</div>}
@@ -606,7 +611,7 @@ function UploadModal({ t, onClose, onUploaded }) {
 }
 
 // ── Main ReelsPage ────────────────────────────────────────────────────────────
-export default function ReelsPage({ t, currentUser, initialReelId }) {
+export default function ReelsPage({ t, currentUser, initialReelId, onViewProfile }) {
   const [reels, setReels] = useState([])
   const [loading, setLoading] = useState(true)
   const [offset, setOffset] = useState(0)
@@ -714,6 +719,7 @@ export default function ReelsPage({ t, currentUser, initialReelId }) {
             t={t}
             currentUser={currentUser}
             onDelete={handleDelete}
+            onViewProfile={onViewProfile}
           />
         </div>
       ))}

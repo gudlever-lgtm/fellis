@@ -1,12 +1,30 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } from 'react'
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
-import { PT, SUPPORTED_LANGS, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials } from './data.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiUnfriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiReportContent, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiExchangeGoogleCode, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiFetchMemories, apiApplyToJob, apiGetJobApplications, apiUpdateJobApplication, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiAdminGetPlatformAds, apiAdminCreatePlatformAd, apiAdminUpdatePlatformAd, apiAdminDeletePlatformAd } from './api.js'
+import { PT, SUPPORTED_LANGS, EUROPEAN_LANGUAGES, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials, getTranslations } from './data.js'
+import { formatPrice } from './utils/currency.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiExchangeGoogleCode, apiGetPostInsights, apiPreflightPost, apiDownloadGooglePhoto, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiFetchMemories, apiApplyToJob, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiRevealPassword, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiAdminGetPlatformAds, apiAdminCreatePlatformAd, apiAdminUpdatePlatformAd, apiAdminDeletePlatformAd } from './api.js'
 import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
 import ReelsPage from './Reels.jsx'
 import AdBanner from './AdBanner.jsx'
 import AdSidebar from './components/AdSidebar.jsx'
+import useKonamiCode from './hooks/useKonamiCode.js'
+import useKeySequence from './hooks/useKeySequence.js'
+import useScrollHold from './hooks/useScrollHold.js'
+import useAvatarClick from './hooks/useAvatarClick.js'
+import useLongPress from './hooks/useLongPress.js'
+import useTapCount from './hooks/useTapCount.js'
+import useEasterEggs, { loadEggs, loadAdminEggs, ADMIN_LS_KEY, EGG_IDS } from './hooks/useEasterEggs.js'
+import ChuckBanner from './components/easter-eggs/ChuckBanner.jsx'
+import MatrixRain from './components/easter-eggs/MatrixRain.jsx'
+import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
+import RickRoll from './components/easter-eggs/RickRoll.jsx'
+import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiEvaluateBadges, apiGetEarnedBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences } from './api.js'
+import { BADGES, BADGE_BY_ID } from './badges/badgeDefinitions.js'
+import BadgeToastQueue from './components/BadgeToast.jsx'
+import ModeGate from './components/ModeGate.jsx'
+import StoryBar from './components/StoryBar.jsx'
+import ExplorePage from './pages/ExplorePage.jsx'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -22,26 +40,53 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
   const [openConvId, setOpenConvId] = useState(null)
   const [highlightPostId, setHighlightPostId] = useState(null)
 
-  // React to initialPostId prop (set async in App after URL parse)
+  // React to initialPostId/initialPage props (set async in App after URL parse)
   useEffect(() => {
     if (initialPostId) setHighlightPostId(initialPostId)
   }, [initialPostId])
+  useEffect(() => {
+    if (initialPage) setPage(initialPage)
+  }, [initialPage])
   const [viewUserId, setViewUserId] = useState(null)
   const [mode, setMode] = useState(() => {
     const stored = localStorage.getItem('fellis_mode') || 'privat'
     if (stored === 'common') { localStorage.setItem('fellis_mode', 'privat'); return 'privat' }
     return stored
   })
+  // Sync Common mode body class for CSS scoping
+  useEffect(() => {
+    document.body.classList.toggle('mode-common', mode === 'privat' || mode === 'common')
+    document.body.classList.toggle('mode-business', mode === 'business')
+  }, [mode])
   const [showNotifPanel, setShowNotifPanel] = useState(false)
   const [notifs, setNotifs] = useState([])
+  const [notifTestResult, setNotifTestResult] = useState(null)
+  const [friendsRefreshKey, setFriendsRefreshKey] = useState(0)
   const [showModeModal, setShowModeModal] = useState(false)
   const [adsFree, setAdsFree] = useState(false)
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('fellis_dark') === '1')
+
+  // 🎉 Party Mode easter egg (global — triggered anywhere on the platform)
+  const { triggerEgg: triggerGlobalEgg, syncFromServer: syncEggsFromServer } = useEasterEggs()
+  const [partyActive, setPartyActive] = useState(false)
+  useKeySequence('party', () => { if (triggerGlobalEgg('party', checkBadges)) { setPartyActive(true) } }, 2000, !partyActive)
   const [showOnboarding, setShowOnboarding] = useState(() => localStorage.getItem('fellis_onboarding') === '1')
   const [onboardingInviterName] = useState(() => localStorage.getItem('fellis_onboarding_inviter') || null)
   const avatarMenuRef = useRef(null)
   const notifRef = useRef(null)
-  const t = PT[lang]
+  const [showMoreMenu, setShowMoreMenu] = useState(false)
+  const moreMenuRef = useRef(null)
+
+  // 🏅 Badge system — evaluate and show toasts for newly earned badges
+  const badgeQueueRef = useRef(null)
+  const checkBadges = useCallback(() => {
+    apiEvaluateBadges().then(data => {
+      if (data?.newBadges?.length) {
+        badgeQueueRef.current?.addBadges(data.newBadges)
+      }
+    }).catch(() => {})
+  }, [])
+  const t = getTranslations(lang)
 
   useEffect(() => {
     document.body.classList.toggle('dark', darkMode)
@@ -98,16 +143,56 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
     return () => clearInterval(interval)
   }, [])
 
-  // Load notifications from server on mount
+  // Check for newly earned badges shortly after app load (login day recorded on heartbeat above)
   useEffect(() => {
+    const timer = setTimeout(checkBadges, 3000)
+    return () => clearTimeout(timer)
+  }, [checkBadges])
+
+  const reloadNotifs = useCallback(() => {
     apiGetNotifications().then(data => {
-      if (Array.isArray(data)) setNotifs(data.map(n => normaliseNotif(n, lang)))
+      const list = data?.notifications ?? (Array.isArray(data) ? data : null)
+      if (list) setNotifs(list.map(n => normaliseNotif(n, lang)))
     }).catch(() => {})
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [lang]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load notifications on mount + full refresh every 60s
+  useEffect(() => {
+    reloadNotifs()
+    const interval = setInterval(reloadNotifs, 60000)
+    return () => clearInterval(interval)
+  }, [reloadNotifs])
+
+  // Lightweight unread badge poll every 30s (catches missed SSE events)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      apiGetNotificationCount().then(data => {
+        if (data?.count > 0) reloadNotifs()
+      }).catch(() => {})
+    }, 30000)
+    return () => clearInterval(interval)
+  }, [reloadNotifs])
+
+  // Real-time notification push via SSE
+  useEffect(() => {
+    const es = openSSE()
+    es.onmessage = (e) => {
+      try {
+        const payload = JSON.parse(e.data)
+        if (payload.type === 'notification') reloadNotifs()
+        if (payload.type === 'notification' || payload.type === 'friend_request') {
+          setFriendsRefreshKey(k => k + 1)
+        }
+      } catch {}
+    }
+    // On SSE reconnect: reload to catch any notifications received while disconnected
+    es.onreconnect = reloadNotifs
+    return () => es.close()
+  }, [reloadNotifs])
 
   // Close dropdowns when clicking outside
   useEffect(() => {
-    if (!showAvatarMenu && !showNotifPanel) return
+    if (!showAvatarMenu && !showNotifPanel && !showMoreMenu) return
     const handleClick = (e) => {
       if (showAvatarMenu && avatarMenuRef.current && !avatarMenuRef.current.contains(e.target)) {
         setShowAvatarMenu(false)
@@ -115,10 +200,13 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
       if (showNotifPanel && notifRef.current && !notifRef.current.contains(e.target)) {
         setShowNotifPanel(false)
       }
+      if (showMoreMenu && moreMenuRef.current && !moreMenuRef.current.contains(e.target)) {
+        setShowMoreMenu(false)
+      }
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
-  }, [showAvatarMenu, showNotifPanel])
+  }, [showAvatarMenu, showNotifPanel, showMoreMenu])
 
   const [navParam, setNavParam] = useState(null)
   const savedFeedScroll = useRef(0)
@@ -165,7 +253,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
       {/* Platform nav — only Feed, Friends, Messages in main tabs */}
       <nav className="p-nav">
         <div className="p-nav-left">
-          <div className="nav-logo" style={{ cursor: 'pointer' }} onClick={() => navigateTo('feed')}>
+          <div className="nav-logo" style={{ cursor: 'pointer' }} onClick={() => { navigateTo('feed'); window.location.reload() }}>
             <img src="/fellis-logo.jpg" className="nav-logo-icon" alt="" />
             <div className="nav-logo-text">
               <span className="nav-logo-brand">{t.navBrand}</span>
@@ -181,26 +269,81 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
           {showMobileMenu ? '✕' : '☰'}
         </button>
         <div className={`p-nav-tabs${showMobileMenu ? ' open' : ''}`}>
-          {['feed', 'reels', 'friends', 'messages', 'events', 'calendar', 'marketplace', ...(mode === 'business' ? ['jobs', 'analytics', 'company', 'ads'] : [])].map(p => (
+          {/* Primary tabs — always visible */}
+          {['feed', 'reels', 'messages', 'events'].map(p => (
             <button
               key={p}
               className={`p-nav-tab${page === p ? ' active' : ''}`}
-              onClick={() => navigateTo(p)}
+              onClick={() => { if (p === 'feed') { savedFeedScroll.current = 0; window.scrollTo({ top: 0, behavior: 'smooth' }) } navigateTo(p); setShowMobileMenu(false) }}
             >
               <span className="p-nav-tab-icon">
-                {p === 'feed' ? '🏠' : p === 'reels' ? '🎬' : p === 'friends' ? '👥' : p === 'messages' ? '💬' : p === 'events' ? '📅' : p === 'calendar' ? '🗓️' : p === 'marketplace' ? '🛍️' : p === 'analytics' ? '📊' : p === 'company' ? '🏢' : p === 'admin' ? '⚙️' : p === 'ads' ? '📢' : '💼'}
+                {p === 'feed' ? '🏠' : p === 'reels' ? '🎬' : p === 'messages' ? '💬' : '📅'}
               </span>
               <span className="p-nav-tab-label">
-                {p === 'friends'
-                  ? (mode === 'business' ? t.connectionsLabel : t.friends)
-                  : p === 'analytics' ? t.analyticsNav
-                  : p === 'company' ? t.companies
-                  : p === 'admin' ? t.adminTitle
-                  : p === 'ads' ? t.adsTitle
-                  : (t[p] || p)}
+                {t[p] || p}
               </span>
             </button>
           ))}
+          {/* Udforsk tab — Common mode only */}
+          {mode !== 'business' && (
+            <button
+              className={`p-nav-tab${page === 'explore' ? ' active' : ''}`}
+              onClick={() => { navigateTo('explore'); setShowMobileMenu(false) }}
+            >
+              <span className="p-nav-tab-icon">🧭</span>
+              <span className="p-nav-tab-label">{t.explore || (lang === 'da' ? 'Udforsk' : 'Explore')}</span>
+            </button>
+          )}
+          {/* Business-only primary tabs */}
+          {mode === 'business' && ['analytics', 'ads'].map(p => (
+            <button
+              key={p}
+              className={`p-nav-tab${page === p ? ' active' : ''}`}
+              onClick={() => { navigateTo(p); setShowMobileMenu(false) }}
+            >
+              <span className="p-nav-tab-icon">{p === 'analytics' ? '📊' : '📢'}</span>
+              <span className="p-nav-tab-label">{p === 'analytics' ? t.analyticsNav : t.adsTitle}</span>
+            </button>
+          ))}
+          {/* "Mere" / "More" dropdown for secondary tabs */}
+          <div ref={moreMenuRef} style={{ position: 'relative' }}>
+            <button
+              className={`p-nav-tab${['friends', 'calendar', 'marketplace', 'jobs', 'company'].includes(page) ? ' active' : ''}`}
+              onClick={() => setShowMoreMenu(v => !v)}
+            >
+              <span className="p-nav-tab-icon">{'⋯'}</span>
+              <span className="p-nav-tab-label">{lang === 'da' ? 'Mere' : 'More'}</span>
+            </button>
+            {showMoreMenu && (
+              <div style={{
+                position: 'absolute', top: '100%', left: 0, zIndex: 200,
+                background: '#fff', borderRadius: 10, boxShadow: '0 4px 20px rgba(0,0,0,0.13)',
+                border: '1px solid #e8e8e4', minWidth: 160, padding: '6px 0',
+              }}>
+                {[
+                  { id: 'friends', icon: '👥', label: mode === 'business' ? t.connectionsLabel : t.friends },
+                  { id: 'calendar', icon: '🗓️', label: t.calendar || (lang === 'da' ? 'Kalender' : 'Calendar') },
+                  { id: 'marketplace', icon: '🛍️', label: t.marketplace || (lang === 'da' ? 'Marked' : 'Marketplace') },
+                  { id: 'jobs', icon: '💼', label: t.jobs || 'Jobs' },
+                  ...(mode === 'business' ? [
+                    { id: 'company', icon: '🏢', label: t.companies || (lang === 'da' ? 'Virksomheder' : 'Companies') },
+                  ] : []),
+                ].map(item => (
+                  <button key={item.id}
+                    onClick={() => { navigateTo(item.id); setShowMoreMenu(false); setShowMobileMenu(false) }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                      padding: '9px 16px', background: page === item.id ? '#f0f7f4' : 'none',
+                      border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: page === item.id ? 700 : 400,
+                      color: page === item.id ? '#2D6A4F' : '#333', textAlign: 'left',
+                    }}
+                  >
+                    <span>{item.icon}</span> {item.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
         <div className="p-nav-right">
           <button
@@ -214,7 +357,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
           <div ref={notifRef} style={{ position: 'relative' }}>
             <button
               className="p-nav-notif-btn"
-              onClick={() => { setShowNotifPanel(v => !v); setShowAvatarMenu(false) }}
+              onClick={() => { setShowNotifPanel(v => { if (!v) reloadNotifs(); return !v }); setShowAvatarMenu(false) }}
               aria-label={t.notifications}
               title={t.notifications}
             >
@@ -226,16 +369,19 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
                 notifs={notifs}
                 t={t}
                 lang={lang}
-                mode={mode}
                 onMarkAllRead={markAllRead}
+                onNavigate={(page) => { navigateTo(page); setShowNotifPanel(false) }}
                 onMarkRead={(id) => {
                   setNotifs(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
                   apiMarkNotificationRead(id).catch(() => {})
                 }}
-                onNavigate={(pg, postId) => {
-                  if (postId) { setHighlightPostId(postId) }
-                  navigateTo(pg)
-                  setShowNotifPanel(false)
+                testResult={notifTestResult}
+                onTest={() => {
+                  setNotifTestResult(null)
+                  apiTestNotification().then(r => {
+                    setNotifTestResult(r)
+                    if (r?.ok) reloadNotifs()
+                  }).catch(err => setNotifTestResult({ ok: false, error: String(err) }))
                 }}
               />
             )}
@@ -244,6 +390,12 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
           <select className="lang-toggle" value={lang} onChange={e => changeLang(e.target.value)} aria-label="Language">
             {SUPPORTED_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
           </select>
+          {/* Ad-free badge */}
+          {adsFree && (
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#2D6A4F', background: '#e8f5ee', border: '1px solid #b7dfc9', borderRadius: 20, padding: '3px 9px', whiteSpace: 'nowrap' }}>
+              ✓ Ad-free
+            </span>
+          )}
           {/* Avatar with dropdown menu */}
           <div ref={avatarMenuRef} style={{ position: 'relative' }}>
             {avatarSrc ? (
@@ -305,13 +457,14 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
             onViewProfile={(uid) => { setViewUserId(uid); navigateTo('view-profile') }}
             onViewOwnProfile={() => navigateTo('profile')}
             onNavigate={navigateTo}
+            onBadgeCheck={checkBadges}
           />
         </div>
-        {page === 'reels' && <ReelsPage t={t} currentUser={currentUser} initialReelId={navParam?.reelId} />}
-        {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} />}
-        {page === 'view-profile' && viewUserId && <FriendProfilePage userId={viewUserId} lang={lang} t={t} currentUser={currentUser} onBack={() => navigateTo('feed')} onMessage={async (prof) => { const data = await apiCreateConversation([prof.id], null, false, false).catch(() => null); if (data?.id) setOpenConvId(data.id); navigateTo('messages') }} />}
-        {page === 'edit-profile' && <EditProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} />}
-        {page === 'friends' && <FriendsPage lang={lang} t={t} mode={mode} onMessage={async (friend) => {
+        {page === 'reels' && <ReelsPage t={t} currentUser={currentUser} initialReelId={navParam?.reelId} onViewProfile={(userId) => navigateTo('view-profile', { userId })} />}
+        {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onBadgeCheck={checkBadges} />}
+        {page === 'view-profile' && viewUserId && <FriendProfilePage userId={viewUserId} lang={lang} t={t} currentUser={currentUser} onBack={() => navigateTo('feed')} onBadgeCheck={checkBadges} onMessage={async (prof) => { const data = await apiCreateConversation([prof.id], null, false, false).catch(() => null); if (data?.id) setOpenConvId(data.id); navigateTo('messages') }} />}
+        {page === 'edit-profile' && <EditProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onBadgeCheck={checkBadges} />}
+        {page === 'friends' && <FriendsPage lang={lang} t={t} mode={mode} sseRefreshKey={friendsRefreshKey} onBadgeCheck={checkBadges} onMessage={async (friend) => {
           if (friend?.id) {
             const data = await apiCreateConversation([friend.id], null, false, false).catch(() => null)
             if (data?.id) setOpenConvId(data.id)
@@ -335,10 +488,17 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
         {page === 'ads' && mode === 'business' && <AdsManagementPage lang={lang} t={t} />}
         {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} initialCompanyId={navParam?.companyId} />}
         {page === 'analytics' && <AnalyticsPage lang={lang} t={t} currentUser={currentUser} />}
-        {page === 'settings' && <SettingsPage lang={lang} t={t} currentUser={currentUser} mode={mode} adsFree={adsFree} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onLogout={onLogout} onOpenModeModal={() => setShowModeModal(true)} darkMode={darkMode} onToggleDark={() => setDarkMode(d => !d)} />}
+        {page === 'settings' && <SettingsPage lang={lang} t={t} currentUser={currentUser} mode={mode} adsFree={adsFree} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onLogout={onLogout} onOpenModeModal={() => setShowModeModal(true)} darkMode={darkMode} onToggleDark={() => setDarkMode(d => !d)} initialTab={navParam} />}
         {page === 'privacy' && <PrivacySection lang={lang} onLogout={onLogout} />}
         {page === 'visitors' && <VisitorStatsPage lang={lang} />}
         {page === 'about' && <AboutPage lang={lang} />}
+        {page === 'explore' && mode !== 'business' && (
+          <ExplorePage
+            lang={lang}
+            currentUser={currentUser}
+            onViewProfile={(uid) => { setViewUserId(uid); navigateTo('view-profile') }}
+          />
+        )}
         {page === 'admin' && currentUser.is_admin && <AdminPage lang={lang} t={t} />}
         {page === 'moderation' && (currentUser.is_moderator || currentUser.is_admin) && <ModeratorPage lang={lang} t={t} currentUser={currentUser} />}
         {page === 'payment-success' && <PaymentSuccess lang={lang} onNavigate={navigateTo} />}
@@ -407,6 +567,12 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
         )
       })()}
 
+      {/* 🎉 Party Mode confetti (global) */}
+      {partyActive && <PartyConfetti onDismiss={() => setPartyActive(false)} />}
+
+      {/* 🏅 Badge toast notifications */}
+      <BadgeToastQueue queueRef={badgeQueueRef} lang={lang} />
+
       {/* Fixed status bar at bottom */}
       <div style={{
         position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 200,
@@ -430,20 +596,46 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
 }
 
 // ── Notifications Panel ──
-function NotificationsPanel({ notifs, t, lang, mode, onMarkAllRead, onMarkRead, onNavigate }) {
-  const getLabel = (n) => {
-    switch (n.type) {
-      case 'friend_request': return mode === 'business' ? t.notifConnectionRequest : t.notifFriendRequest
-      case 'like': return t.notifLike
-      case 'comment': return t.notifComment
-      case 'accepted': return mode === 'business' ? t.notifConnectionAccepted : t.notifAccepted
-      case 'group_post': return `${t.notifGroupPost} "${n.group}"`
-      case 'profile_view': return t.notifProfileView
-      case 'endorsement': return t.notifEndorsement
-      default: return ''
-    }
+const NOTIF_ICONS = {
+  like: '❤️', comment: '💬', friend_request: '👥', friend_accepted: '🤝',
+  friend_declined: '👋', event_rsvp: '📅', listing_boosted: '🚀',
+  moderator_granted: '🛡️', mod_result: '📋', moderation: '⚠️', test: '🔔',
+}
+// Navigation target for each notification type (no 'link' column in DB)
+const NOTIF_TYPE_PAGE = {
+  like: 'feed', comment: 'feed',
+  friend_request: 'friends', friend_accepted: 'friends', friend_declined: 'friends',
+  event_rsvp: 'events', listing_boosted: 'marketplace',
+  moderator_granted: 'admin', mod_result: 'profile', moderation: 'profile',
+}
+
+function timeAgo(dateStr, lang) {
+  const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
+  if (diff < 60) return lang === 'da' ? 'Lige nu' : 'Just now'
+  if (diff < 3600) { const m = Math.floor(diff / 60); return lang === 'da' ? `${m} min siden` : `${m}m ago` }
+  if (diff < 86400) { const h = Math.floor(diff / 3600); return lang === 'da' ? `${h} t siden` : `${h}h ago` }
+  const d = Math.floor(diff / 86400)
+  return lang === 'da' ? `${d} dag${d !== 1 ? 'e' : ''} siden` : `${d}d ago`
+}
+
+function normaliseNotif(n, lang) {
+  return {
+    id: n.id,
+    type: n.type,
+    icon: NOTIF_ICONS[n.type] || '🔔',
+    message: lang === 'en' ? (n.message_en || n.message_da) : (n.message_da || n.message_en),
+    page: NOTIF_TYPE_PAGE[n.type] || null,
+    read: Boolean(n.is_read),  // DB uses is_read (0/1), not read_at
+    time: timeAgo(n.created_at, lang),
   }
+}
+
+function NotificationsPanel({ notifs, t, lang, onMarkAllRead, onMarkRead, onNavigate, onTest, testResult }) {
   const unread = notifs.filter(n => !n.read).length
+  const handleClick = (n) => {
+    onMarkRead(n.id)
+    if (n.page && onNavigate) onNavigate(n.page)
+  }
   return (
     <div className="notif-panel">
       <div className="notif-panel-header">
@@ -459,18 +651,33 @@ function NotificationsPanel({ notifs, t, lang, mode, onMarkAllRead, onMarkRead, 
           <div
             key={n.id}
             className={`notif-item${n.read ? '' : ' notif-item-unread'}`}
-            onClick={() => { onMarkRead(n.id); onNavigate(n.targetPage, n.postId) }}
+            onClick={() => handleClick(n)}
           >
             <div className="notif-item-dot" style={{ opacity: n.read ? 0 : 1 }} />
             <div className="notif-item-body">
-              <span className="notif-actor">{n.actor}</span>
-              {' '}
-              <span>{getLabel(n)}</span>
+              <span className="notif-item-icon" style={{ marginRight: 6 }}>{n.icon}</span>
+              <span>{n.message}</span>
             </div>
             <div className="notif-item-time">{n.time}</div>
           </div>
         ))}
       </div>
+      {/* Debug test button — shown only when panel is empty */}
+      {notifs.length === 0 && (
+        <div style={{ padding: '8px 12px', borderTop: '1px solid #eee' }}>
+          <button
+            onClick={onTest}
+            style={{ fontSize: 11, color: '#888', background: 'none', border: '1px solid #ddd', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', width: '100%' }}
+          >
+            {lang === 'da' ? 'Send test-notifikation' : 'Send test notification'}
+          </button>
+          {testResult && (
+            <pre style={{ fontSize: 10, color: testResult.ok ? '#2D6A4F' : '#c00', marginTop: 6, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+              {JSON.stringify(testResult, null, 2)}
+            </pre>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -696,10 +903,9 @@ function openCamera(onFile) {
 // Used everywhere uploads are possible: feed, comments, messages, company posts, marketplace listings.
 // Props:
 //   lang, onFiles(files[]), accept, multiple
-//   googlePhotosClientId, onGooglePhotos()  — optional, shows Google Fotos option
 //   align = 'left' | 'right'               — popup direction
 //   buttonContent                           — optional custom button label/icon
-function MediaPickerButton({ lang, onFiles, accept = 'image/*,video/*', multiple = true, googlePhotosClientId, onGooglePhotos, align = 'left', buttonContent }) {
+function MediaPickerButton({ lang, onFiles, accept = 'image/*,video/*', multiple = true, align = 'left', buttonContent }) {
   const [open, setOpen] = useState(false)
   const fileRef = useRef(null)
   const pickGallery = () => { fileRef.current?.click(); setOpen(false) }
@@ -725,19 +931,6 @@ function MediaPickerButton({ lang, onFiles, accept = 'image/*,video/*', multiple
               <span className="p-media-popup-icon">📷</span>
               {lang === 'da' ? 'Kamera' : 'Camera'}
             </button>
-            {googlePhotosClientId && onGooglePhotos && (
-              <button className="p-share-option" type="button" onMouseDown={e => e.preventDefault()} onClick={() => { setOpen(false); onGooglePhotos() }}>
-                <span className="p-media-popup-icon" style={{ fontSize: 16 }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={{ verticalAlign: 'middle' }}>
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" fill="#4285F4"/>
-                    <path d="M6.5 12A5.5 5.5 0 0 1 12 6.5V2C6.48 2 2 6.48 2 12h4.5z" fill="#34A853"/>
-                    <path d="M12 17.5A5.5 5.5 0 0 1 6.5 12H2c0 5.52 4.48 10 10 10v-4.5z" fill="#FBBC05"/>
-                    <path d="M17.5 12A5.5 5.5 0 0 1 12 17.5V22c5.52 0 10-4.48 10-10h-4.5z" fill="#EA4335"/>
-                  </svg>
-                </span>
-                Google Fotos
-              </button>
-            )}
           </div>
         </>
       )}
@@ -923,153 +1116,6 @@ function ReelsStrip({ lang, t, onNavigate }) {
   )
 }
 
-// ── Google Photos Picker ─────────────────────────────────────────────────────
-// Uses the Google Identity Services + Google Picker API (both loaded dynamically).
-// The user authorises via a popup, picks photos, and we proxy-download them server-side.
-function GooglePhotosPicker({ lang, clientId, maxFiles = 4, onPhotosSelected, onClose }) {
-  const [status, setStatus] = useState('idle') // idle | loading | picking | downloading | done | error
-  const [errorMsg, setErrorMsg] = useState('')
-  const pickerApiLoaded = useRef(false)
-  const accessTokenRef = useRef(null)
-
-  const loadScript = (src) => new Promise((resolve, reject) => {
-    if (document.querySelector(`script[src="${src}"]`)) { resolve(); return }
-    const s = document.createElement('script')
-    s.src = src; s.onload = resolve; s.onerror = reject
-    document.head.appendChild(s)
-  })
-
-  const openPicker = (accessToken) => {
-    const picker = new window.google.picker.PickerBuilder()
-      .addView(new window.google.picker.PhotosView())
-      .addView(new window.google.picker.PhotoAlbumsView())
-      .setOAuthToken(accessToken)
-      .setDeveloperKey('') // API key optional when using OAuth token
-      .setCallback(async (data) => {
-        if (data.action !== window.google.picker.Action.PICKED) return
-        setStatus('downloading')
-        const docs = data.docs || []
-        const results = []
-        for (const doc of docs.slice(0, maxFiles)) {
-          const url = doc.url || doc.thumbUrl
-          const mimeType = doc.mimeType || 'image/jpeg'
-          try {
-            const result = await apiDownloadGooglePhoto(url, accessTokenRef.current)
-            if (result?.url) results.push({ localUrl: result.url, mimeType: result.mimeType || mimeType })
-          } catch {}
-        }
-        if (results.length) { onPhotosSelected(results); onClose() }
-        else { setErrorMsg(lang === 'da' ? 'Kunne ikke hente billeder' : 'Could not fetch photos'); setStatus('error') }
-      })
-      .build()
-    picker.setVisible(true)
-    setStatus('picking')
-  }
-
-  const handleConnect = async () => {
-    setStatus('loading')
-    setErrorMsg('')
-    try {
-      await loadScript('https://accounts.google.com/gsi/client')
-      await loadScript('https://apis.google.com/js/api.js')
-      await new Promise((resolve) => window.gapi.load('picker', resolve))
-      pickerApiLoaded.current = true
-
-      // Authorization Code Flow — client_secret stays on server, no implicit flow
-      const codeClient = window.google.accounts.oauth2.initCodeClient({
-        client_id: clientId,
-        scope: 'https://www.googleapis.com/auth/photoslibrary.readonly',
-        ux_mode: 'popup',
-        callback: async (resp) => {
-          if (resp.error) { setErrorMsg(resp.error); setStatus('error'); return }
-          setStatus('loading')
-          const result = await apiExchangeGoogleCode(resp.code)
-          if (!result?.access_token) {
-            setErrorMsg(result?.error || (lang === 'da' ? 'Kunne ikke hente adgangstoken' : 'Could not get access token'))
-            setStatus('error')
-            return
-          }
-          accessTokenRef.current = result.access_token
-          openPicker(result.access_token)
-        },
-      })
-      codeClient.requestCode()
-    } catch (err) {
-      setErrorMsg(lang === 'da' ? 'Fejl ved indlæsning af Google API' : 'Failed to load Google API')
-      setStatus('error')
-    }
-  }
-
-  const overlayStyle = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }
-  const modalStyle = { background: '#fff', borderRadius: 16, padding: '28px 28px 24px', maxWidth: 400, width: '90%', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }
-
-  return (
-    <div style={overlayStyle} onClick={onClose}>
-      <div style={modalStyle} onClick={e => e.stopPropagation()}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" fill="#4285F4"/>
-            <path d="M6.5 12A5.5 5.5 0 0 1 12 6.5V2C6.48 2 2 6.48 2 12h4.5z" fill="#34A853"/>
-            <path d="M12 17.5A5.5 5.5 0 0 1 6.5 12H2c0 5.52 4.48 10 10 10v-4.5z" fill="#FBBC05"/>
-            <path d="M17.5 12A5.5 5.5 0 0 1 12 17.5V22c5.52 0 10-4.48 10-10h-4.5z" fill="#EA4335"/>
-          </svg>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 16 }}>Google Fotos</div>
-            <div style={{ fontSize: 12, color: '#888' }}>
-              {lang === 'da' ? `Vælg op til ${maxFiles} billeder` : `Select up to ${maxFiles} photos`}
-            </div>
-          </div>
-          <button onClick={onClose} style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#888', lineHeight: 1 }}>✕</button>
-        </div>
-
-        {status === 'idle' && (
-          <>
-            <p style={{ fontSize: 13, color: '#555', margin: '0 0 18px' }}>
-              {lang === 'da'
-                ? 'Klik nedenfor for at logge ind med Google og vælge billeder fra dit Fotos-bibliotek. Adgang gives kun midlertidigt og gemmes ikke.'
-                : 'Click below to sign in with Google and pick photos from your Photos library. Access is granted temporarily and not stored.'}
-            </p>
-            <button
-              onClick={handleConnect}
-              style={{ width: '100%', padding: '11px 0', borderRadius: 8, border: '1px solid #ddd', background: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-              {lang === 'da' ? 'Fortsæt med Google' : 'Continue with Google'}
-            </button>
-          </>
-        )}
-
-        {status === 'loading' && (
-          <div style={{ textAlign: 'center', padding: '20px 0', color: '#888' }}>
-            ⏳ {lang === 'da' ? 'Indlæser Google API...' : 'Loading Google API...'}
-          </div>
-        )}
-
-        {status === 'picking' && (
-          <div style={{ textAlign: 'center', padding: '20px 0', color: '#555' }}>
-            {lang === 'da' ? 'Vælg billeder i Google-vinduet...' : 'Select photos in the Google window...'}
-          </div>
-        )}
-
-        {status === 'downloading' && (
-          <div style={{ textAlign: 'center', padding: '20px 0', color: '#555' }}>
-            ⬇️ {lang === 'da' ? 'Henter billeder...' : 'Downloading photos...'}
-          </div>
-        )}
-
-        {status === 'error' && (
-          <div style={{ color: '#c0392b', fontSize: 13, marginTop: 8 }}>
-            ✗ {errorMsg}
-            <button onClick={() => setStatus('idle')} style={{ display: 'block', marginTop: 10, padding: '8px 16px', borderRadius: 8, border: '1px solid #ddd', background: '#f5f5f5', cursor: 'pointer', fontSize: 13 }}>
-              {lang === 'da' ? 'Prøv igen' : 'Try again'}
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
 // ── Memories card — "On this day" ─────────────────────────────────────────────
 function MemoriesCard({ lang, t, onShare }) {
   const [memories, setMemories] = useState(null) // null = loading, [] = none
@@ -1195,7 +1241,7 @@ function MemoriesCard({ lang, t, onShare }) {
   )
 }
 
-function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onNavigate }) {
+function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onNavigate, onBadgeCheck }) {
   const [posts, setPosts] = useState([])
   const [feedCategoryFilter, setFeedCategoryFilter] = useState(null)
   const [pinnedPost, setPinnedPost] = useState(null)
@@ -1231,6 +1277,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [showCategoryPicker, setShowCategoryPicker] = useState(false)
   const [providerMediaUrls, setProviderMediaUrls] = useState([])
   const textareaRef = useRef(null)
+  const suggestCategoryTimer = useRef(null)
   const feedMention = useMention(sharePopupFriends || [])
   const bottomSentinelRef = useRef(null)
   const topSentinelRef = useRef(null)
@@ -1239,6 +1286,82 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [feedRsvpMap, setFeedRsvpMap] = useState({})
   const [feedRsvpExtras, setFeedRsvpExtras] = useState({})
   const { rels } = useContactRelationships()
+
+  // ── 🥚 Easter Eggs ──────────────────────────────────────────────────────────
+  const { triggerEgg } = useEasterEggs()
+  const [chuckActive,    setChuckActive]    = useState(false)
+  const [matrixActive,   setMatrixActive]   = useState(false)
+  const [rickrollActive, setRickrollActive] = useState(false)
+  const flipActiveRef    = useRef(false)
+  const retroActiveRef   = useRef(false)
+  const gravityActiveRef = useRef(false)
+
+  // Refs for touch/mobile triggers
+  const feedTitleRef = useRef(null)
+
+  // Rick Roll sentinel — placed at very bottom of feed
+  const rickrollSentinelRef = useRef(null)
+  useScrollHold(rickrollSentinelRef, 4000, () => {
+    if (!rickrollActive && triggerEgg('rickroll', onBadgeCheck)) { setRickrollActive(true) }
+  }, !rickrollActive)
+
+  // Chuck Norris: Konami code ↑↑↓↓←→←→BA (keyboard) / 10 taps on feed title (mobile)
+  const triggerChuck = () => { if (!chuckActive && triggerEgg('chuck', onBadgeCheck)) { setChuckActive(true) } }
+  useKonamiCode(triggerChuck, !chuckActive)
+
+  // Matrix Rain: 7 avatar clicks within 3 seconds (works on mobile too)
+  useAvatarClick(feedContainerRef, 7, 3000, () => {
+    if (!matrixActive && triggerEgg('matrix', onBadgeCheck)) { setMatrixActive(true) }
+  }, !matrixActive)
+
+  // Flip Feed: type "flip" within 2 seconds (keyboard) / 3 taps on feed title (mobile)
+  const triggerFlip = () => {
+    if (flipActiveRef.current) return
+    if (!triggerEgg('flip', onBadgeCheck)) return
+    flipActiveRef.current = true
+    if (feedContainerRef.current) feedContainerRef.current.classList.add('feed-flipped')
+    setTimeout(() => {
+      if (feedContainerRef.current) feedContainerRef.current.classList.remove('feed-flipped')
+      flipActiveRef.current = false
+    }, 10000)
+  }
+  useKeySequence('flip', triggerFlip, 2000)
+
+  // Gravity: press G G within 1 second (keyboard) / 2 taps on feed title (mobile)
+  const triggerGravity = () => {
+    if (gravityActiveRef.current) return
+    if (!triggerEgg('gravity', onBadgeCheck)) return
+    gravityActiveRef.current = true
+    if (feedContainerRef.current) feedContainerRef.current.classList.add('feed-gravity')
+    setTimeout(() => {
+      if (feedContainerRef.current) feedContainerRef.current.classList.remove('feed-gravity')
+      gravityActiveRef.current = false
+    }, 2500)
+  }
+  useKeySequence('gg', triggerGravity, 1000)
+
+  // Party Mode: type "party" within 2 seconds (keyboard) / 5 taps on feed title (mobile)
+  // (Party is also triggered via useKeySequence in the outer PlatformShell — this covers mobile)
+  const triggerPartyMobile = () => { if (triggerGlobalEgg('party', checkBadges)) { setPartyActive(true) } }
+
+  // Feed title tap-count: 2=Gravity, 3=Flip, 5=Party, 10=Chuck (mobile)
+  useTapCount(feedTitleRef, { 2: triggerGravity, 3: triggerFlip, 5: triggerPartyMobile, 10: triggerChuck }, 5000, 600)
+
+  // Retro Mode: Shift+click on feed title (keyboard) / long-press feed title 1.5s (mobile)
+  const triggerRetro = () => {
+    if (retroActiveRef.current) return
+    if (!triggerEgg('retro', onBadgeCheck)) return
+    retroActiveRef.current = true
+    document.body.classList.add('retro-mode')
+    setTimeout(() => {
+      document.body.classList.remove('retro-mode')
+      retroActiveRef.current = false
+    }, 30000)
+  }
+  const handleRetroTrigger = (e) => { if (e.shiftKey) triggerRetro() }
+  useLongPress(feedTitleRef, 1500, triggerRetro)
+  // ── end easter eggs ─────────────────────────────────────────────────────────
+
   const CP_FEED_DEFAULT_COMMENTS = [
     { id: 1, author: 'Mia Skov', text: 'Spændende mulighed!' },
     { id: 2, author: 'Jonas Holm', text: 'Sender ansøgning i dag 🙌' },
@@ -1272,8 +1395,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [joinedGroupIds, setJoinedGroupIds] = useState(new Set())
   const [dismissedGroupIds, setDismissedGroupIds] = useState(new Set())
   const [showScrollTop, setShowScrollTop] = useState(false)
-  const [showGooglePicker, setShowGooglePicker] = useState(false)
-  const [googlePhotosClientId, setGooglePhotosClientId] = useState(null)
   const [mediaMaxFiles, setMediaMaxFiles] = useState(4)
   const mediaMaxFilesRef = useRef(4)
   const [marketplaceMaxPhotos, setMarketplaceMaxPhotos] = useState(4)
@@ -1331,7 +1452,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   useEffect(() => {
     apiGetConfig().then(res => {
       const cfg = res?.config || res
-      if (cfg?.googlePhotosClientId) setGooglePhotosClientId(cfg.googlePhotosClientId)
       if (cfg?.mediaMaxFiles) { setMediaMaxFiles(cfg.mediaMaxFiles); mediaMaxFilesRef.current = cfg.mediaMaxFiles }
       if (cfg?.marketplaceMaxPhotos) setMarketplaceMaxPhotos(cfg.marketplaceMaxPhotos)
     })
@@ -1435,20 +1555,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       name: f.name,
     }))
     setMediaPreviews(previews)
-  }, [])
-
-  // Called by GooglePhotosPicker after server-side download completes.
-  // `photos` is an array of { localUrl, mimeType } from the server.
-  const handleGooglePhotosSelected = useCallback((photos) => {
-    const newPreviews = photos.map(p => ({
-      url: `${API_BASE}${p.localUrl}`,
-      type: 'image',
-      name: p.localUrl.split('/').pop(),
-    }))
-    const max = mediaMaxFilesRef.current
-    setMediaFiles([])
-    setMediaPreviews(prev => [...prev, ...newPreviews].slice(0, max))
-    setProviderMediaUrls(prev => [...prev, ...photos.map(p => ({ url: p.localUrl, mimeType: p.mimeType || 'image/jpeg' }))].slice(0, max))
     setPostExpanded(true)
   }, [])
 
@@ -1460,8 +1566,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     })
   }, [])
 
-  const doCreatePost = useCallback((text, files, schedAt) => {
-    apiCreatePost(text, files, schedAt || undefined).then(data => {
+  const doCreatePost = useCallback((text, files, schedAt, categories) => {
+    apiCreatePost(text, files, schedAt || undefined, categories?.size ? [...categories] : undefined).then(data => {
       if (data?.scheduled) {
         // Scheduled post — don't add to feed, just show a toast
         return
@@ -1469,6 +1575,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       if (data) {
         setPosts(prev => [data, ...prev].slice(0, PAGE_SIZE))
         setTotal(prev => prev + 1)
+        setTimeout(onBadgeCheck, 300)
       } else {
         const localMedia = mediaPreviews.length > 0
           ? mediaPreviews.map(p => ({ url: p.url, type: p.type, mime: '' }))
@@ -1488,7 +1595,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     setMediaPreviews([])
     setProviderMediaUrls([])
     setPostExpanded(false)
-    setMediaPopup(false)
     setPostCategories(new Set())
     setAutoCategories(new Set())
     setShowCategoryPicker(false)
@@ -1498,23 +1604,22 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   }, [mediaPreviews, currentUser.name])
 
   const handlePost = useCallback(async () => {
-    if (!newPostText.trim() && !mediaFiles.length) return
+    if (!newPostText.trim() && !mediaFiles.length && !providerMediaUrls.length) return
     const text = newPostText.trim()
     const files = mediaFiles.length > 0 ? mediaFiles : null
     const check = await apiPreflightPost(text)
     if (check?.blocked) return // server will also block — just in case
     if (check?.flagged) {
-      setKeywordWarning({ keyword: check.keyword, category: check.category, notes: check.notes, text, files })
+      setKeywordWarning({ keyword: check.keyword, category: check.category, notes: check.notes, text, files, categories: postCategories })
       return
     }
     const schedAt = scheduleEnabled && scheduledAt ? scheduledAt : null
-    doCreatePost(text, files, schedAt)
+    doCreatePost(text, files, schedAt, postCategories)
     setNewPostText('')
     setMediaFiles([])
     setMediaPreviews([])
     setPostExpanded(false)
-    setMediaPopup(false)
-  }, [newPostText, mediaFiles, doCreatePost, scheduleEnabled, scheduledAt])
+  }, [newPostText, mediaFiles, providerMediaUrls, doCreatePost, scheduleEnabled, scheduledAt, postCategories])
 
   const toggleLike = useCallback((id, emoji) => {
     const isLiked = likedPosts.has(id)
@@ -1555,9 +1660,9 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       return { ...p, likes: action === 'add' ? p.likes + 1 : action === 'remove' ? p.likes - 1 : p.likes, reactions: reacts }
     }))
 
-    apiToggleLike(id, action === 'remove' ? null : nextEmoji).catch(() => {})
+    apiToggleLike(id, action === 'remove' ? null : nextEmoji).then(() => { if (action === 'add') setTimeout(onBadgeCheck, 300) }).catch(() => {})
     setLikePopup(null)
-  }, [likedPosts, reactions])
+  }, [likedPosts, reactions, onBadgeCheck])
 
   const toggleComments = useCallback((id) => {
     setExpandedComments(prev => {
@@ -1681,10 +1786,11 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         if (p.id !== postId) return p
         return { ...p, comments: [...p.comments, comment] }
       }))
+      setTimeout(onBadgeCheck, 300)
     })
     setCommentTexts(prev => ({ ...prev, [postId]: '' }))
     setCommentMedia(prev => { const n = { ...prev }; delete n[postId]; return n })
-  }, [commentTexts, commentMedia, currentUser.name])
+  }, [commentTexts, commentMedia, currentUser.name, onBadgeCheck])
 
   // Fetch and pin the specific post from a search result click
   useEffect(() => {
@@ -1755,6 +1861,10 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
           {blockToast}
         </div>
       )}
+      {/* 🥚 Easter egg overlays */}
+      {chuckActive    && <ChuckBanner onDismiss={() => setChuckActive(false)} />}
+      {matrixActive   && <MatrixRain  onDismiss={() => setMatrixActive(false)} />}
+      {rickrollActive && <RickRoll    onDismiss={() => setRickrollActive(false)} />}
       {/* Keyword warning modal */}
       {keywordWarning && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000 }}>
@@ -1785,14 +1895,13 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
               </button>
               <button
                 onClick={() => {
-                  const { text, files } = keywordWarning
+                  const { text, files, categories: kwCats } = keywordWarning
                   setKeywordWarning(null)
-                  doCreatePost(text, files)
+                  doCreatePost(text, files, null, kwCats)
                   setNewPostText('')
                   setMediaFiles([])
                   setMediaPreviews([])
                   setPostExpanded(false)
-                  setMediaPopup(false)
                 }}
                 style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: '#c0392b', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}
               >
@@ -1802,15 +1911,38 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
           </div>
         </div>
       )}
+      {/* Story bar — Common mode only */}
+      {mode !== 'business' && (
+        <ModeGate mode="privat" currentMode={mode}>
+          <StoryBar currentUser={currentUser} lang={lang} />
+        </ModeGate>
+      )}
+
+      {/* Feed title — Shift+click / long-press 1.5s = Retro; 2/3/5-tap = Gravity/Flip/Party */}
+      <div
+        ref={feedTitleRef}
+        style={{ display: 'flex', alignItems: 'center', padding: '12px 4px 4px', userSelect: 'none' }}
+        onClick={handleRetroTrigger}
+      >
+        <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#2D6A4F', cursor: 'default' }}>
+          🏠 {lang === 'da' ? 'Feed' : 'Feed'}
+        </h2>
+      </div>
+
       {/* New post */}
       <div className="p-card p-new-post">
         {/* Collapsed prompt — click anywhere to expand */}
         {!postExpanded && !newPostText && !mediaPreviews.length ? (
-          <div className="p-new-post-row p-new-post-collapsed" onClick={() => { setPostExpanded(true); setTimeout(() => textareaRef.current?.focus(), 0) }}>
-            <div className="p-avatar-sm" style={{ background: nameToColor(currentUser.name) }}>
+          <div className="p-new-post-row p-new-post-collapsed">
+            <div className="p-avatar-sm" style={{ background: nameToColor(currentUser.name) }} onClick={() => { setPostExpanded(true); setTimeout(() => textareaRef.current?.focus(), 0) }}>
               {currentUser.initials || getInitials(currentUser.name)}
             </div>
-            <div className="p-new-post-prompt">{t.newPost}</div>
+            <div className="p-new-post-prompt" style={{ flex: 1 }} onClick={() => { setPostExpanded(true); setTimeout(() => textareaRef.current?.focus(), 0) }}>{t.newPost}</div>
+            <MediaPickerButton
+              lang={lang}
+              onFiles={files => handleFileSelect({ target: { files } })}
+              align="right"
+            />
           </div>
         ) : (
           /* Expanded composer */
@@ -1845,12 +1977,34 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   placeholder={t.newPost}
                   value={newPostText}
                   onChange={e => {
-                    setNewPostText(e.target.value)
+                    const val = e.target.value
+                    setNewPostText(val)
                     e.target.style.height = 'auto'
                     e.target.style.height = e.target.scrollHeight + 'px'
-                    feedMention.detect(e.target.value, e.target.selectionStart)
-                    if (e.target.value.includes('@') && sharePopupFriends === null) {
+                    feedMention.detect(val, e.target.selectionStart)
+                    if (val.includes('@') && sharePopupFriends === null) {
                       apiFetchFriends().then(d => { if (d) setSharePopupFriends(d) })
+                    }
+                    // Auto-suggest category based on post text (debounced 600ms)
+                    clearTimeout(suggestCategoryTimer.current)
+                    if (val.trim().length >= 10) {
+                      suggestCategoryTimer.current = setTimeout(async () => {
+                        const result = await apiSuggestCategory(val)
+                        if (result?.category) {
+                          const catId = result.category
+                          setPostCategories(prev => {
+                            if (prev.has(catId)) return prev
+                            const n = new Set(prev)
+                            n.add(catId)
+                            return n
+                          })
+                          setAutoCategories(prev => {
+                            const n = new Set(prev)
+                            n.add(catId)
+                            return n
+                          })
+                        }
+                      }, 600)
                     }
                   }}
                   onKeyDown={e => {
@@ -1869,7 +2023,9 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   }}
                   onPaste={handleFeedPaste}
                   onFocus={() => setPostExpanded(true)}
-                  onBlur={() => {
+                  onBlur={e => {
+                    // Don't collapse when focus moves to OS file dialog (relatedTarget is null)
+                    if (!e.relatedTarget && !newPostText.trim() && !mediaPreviews.length) return
                     if (!newPostText.trim() && !mediaPreviews.length) setPostExpanded(false)
                     feedMention.close()
                   }}
@@ -1967,8 +2123,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                 <MediaPickerButton
                   lang={lang}
                   onFiles={files => handleFileSelect({ target: { files } })}
-                  googlePhotosClientId={googlePhotosClientId}
-                  onGooglePhotos={() => setShowGooglePicker(true)}
                 />
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -2014,17 +2168,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
           lang={lang}
           t={t}
           onShare={(text) => setNewPostText(prev => prev ? prev + '\n\n' + text : text)}
-        />
-      )}
-
-      {/* Google Photos picker modal */}
-      {showGooglePicker && googlePhotosClientId && (
-        <GooglePhotosPicker
-          lang={lang}
-          clientId={googlePhotosClientId}
-          maxFiles={mediaMaxFiles}
-          onPhotosSelected={handleGooglePhotosSelected}
-          onClose={() => setShowGooglePicker(false)}
         />
       )}
 
@@ -2280,9 +2423,10 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         const menuOpen = postMenu === post.id
         return (
           <Fragment key={post.id}>
-            {postIdx > 0 && postIdx % 4 === 0 && <AdBanner placement="feed" adsFree={adsFree} />}
+            {(postIdx === 1 || (postIdx > 1 && postIdx % 4 === 0)) && <AdBanner placement="feed" adsFree={adsFree} lang={lang} onGoAdFree={adsFree ? null : () => onNavigate('settings', 'billing')} />}
           <div className="p-card p-post">
             <div className="p-post-header">
+              <div style={{ position: 'relative', flexShrink: 0 }}>
               <div
                 className="p-avatar-sm"
                 style={{ background: nameToColor(post.author), cursor: 'pointer' }}
@@ -2290,6 +2434,12 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
               >
                 {getInitials(post.author)}
               </div>
+              {post.authorBadgeCount > 0 && (
+                <span style={{ position: 'absolute', bottom: -3, right: -6, fontSize: 9, fontWeight: 700, background: '#FFD700', color: '#7a5f00', borderRadius: 7, padding: '0 3px', lineHeight: '13px', border: '1.5px solid #fff', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
+                  🏅{post.authorBadgeCount}
+                </span>
+              )}
+            </div>
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <div
@@ -2323,6 +2473,28 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   <>
                     <div style={{ position: 'fixed', inset: 0, zIndex: 99 }} onClick={() => setPostMenu(null)} />
                     <div style={{ position: 'absolute', right: 0, top: '110%', background: '#fff', border: '1px solid #E8E4DF', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 100, minWidth: 180, overflow: 'hidden' }}>
+                      {Array.isArray(post.categories) && post.categories.length > 0 && (
+                        <div style={{ padding: '8px 12px 6px', borderBottom: '1px solid #f0f0f0' }}>
+                          <div style={{ fontSize: 11, color: '#aaa', fontWeight: 600, marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                            {lang === 'da' ? 'Kategorier' : 'Categories'}
+                          </div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                            {post.categories.map(catId => {
+                              const catInfo = INTEREST_CATEGORIES.find(c => c.id === catId)
+                              if (!catInfo) return null
+                              const isActive = feedCategoryFilter === catId
+                              return (
+                                <button key={catId}
+                                  onClick={() => { setFeedCategoryFilter(isActive ? null : catId); setPostMenu(null) }}
+                                  title={isActive ? t.feedCategoryFilterClear : t.feedCategoryFilterTitle}
+                                  style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11, fontWeight: 600, color: isActive ? '#fff' : '#2D6A4F', background: isActive ? '#2D6A4F' : '#eaf4ef', borderRadius: 20, padding: '2px 8px', border: `1px solid ${isActive ? '#2D6A4F' : '#b7dfc9'}`, cursor: 'pointer', fontFamily: 'inherit' }}>
+                                  {catInfo.icon} {catInfo[lang]}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
                       {isOwn ? (
                         <>
                           {(() => {
@@ -2371,24 +2543,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                 )}
               </div>
             </div>
-            {/* Category badges */}
-            {Array.isArray(post.categories) && post.categories.length > 0 && (
-              <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                {post.categories.map(catId => {
-                  const catInfo = INTEREST_CATEGORIES.find(c => c.id === catId)
-                  if (!catInfo) return null
-                  const isActive = feedCategoryFilter === catId
-                  return (
-                    <button key={catId}
-                      onClick={() => setFeedCategoryFilter(isActive ? null : catId)}
-                      title={isActive ? t.feedCategoryFilterClear : t.feedCategoryFilterTitle}
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: isActive ? '#fff' : '#2D6A4F', background: isActive ? '#2D6A4F' : '#eaf4ef', borderRadius: 20, padding: '2px 9px', border: `1px solid ${isActive ? '#2D6A4F' : '#b7dfc9'}`, cursor: 'pointer', fontFamily: 'inherit' }}>
-                      {catInfo.icon} {catInfo[lang]}
-                    </button>
-                  )
-                })}
-              </div>
-            )}
             {editingPostId === post.id ? (
               <div style={{ marginTop: 8 }}>
                 <textarea
@@ -2558,6 +2712,9 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         )
       })}
 
+      {/* Ad banner — always shown after posts list */}
+      <AdBanner placement="feed" adsFree={adsFree} lang={lang} onGoAdFree={adsFree ? null : () => onNavigate('settings', 'billing')} />
+
       {/* Bottom sentinel — triggers loading next page */}
       {offset + PAGE_SIZE < total && (
         <div ref={bottomSentinelRef} className="p-feed-sentinel">
@@ -2628,6 +2785,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
           ↑
         </button>
       )}
+      {/* Rick Roll sentinel — scroll here and hold 4s */}
+      <div ref={rickrollSentinelRef} style={{ height: 4 }} />
     </div>
   )
 }
@@ -2646,7 +2805,7 @@ const MOCK_FB_PHOTOS = [
 ]
 
 // ── Profile (clean — read-only view) ──
-function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
+function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onBadgeCheck }) {
   const [profile, setProfile] = useState({ ...currentUser })
   const [userPosts, setUserPosts] = useState([])
   const [familyGroups, setFamilyGroups] = useState([])
@@ -2661,6 +2820,9 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
   const [profilePublicSaving, setProfilePublicSaving] = useState(false)
   const [scheduledPosts, setScheduledPosts] = useState(null) // null = not loaded
   const [allNotes, setAllNotes] = useState(null) // null = not loaded
+  const [earnedBadges, setEarnedBadges] = useState(null) // null = not loaded
+  const [photos, setPhotos] = useState([])
+  const [lightbox, setLightbox] = useState(null)
   const { rels } = useContactRelationships()
 
   useEffect(() => {
@@ -2669,6 +2831,9 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
     }
     if (profileTab === 'notes' && allNotes === null) {
       apiGetAllContactNotes().then(data => setAllNotes(data?.notes || [])).catch(() => setAllNotes([]))
+    }
+    if (profileTab === 'badges' && earnedBadges === null) {
+      apiGetEarnedBadges().then(data => setEarnedBadges(data?.badges || [])).catch(() => setEarnedBadges([]))
     }
   }, [profileTab]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -2692,6 +2857,14 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
     apiFetchFeed(0, 100).then(data => {
       const posts = data?.posts || data || []
       setUserPosts(posts.filter(p => p.author === currentUser.name))
+    })
+    apiGetEarnedBadges().then(data => { if (data) setEarnedBadges(data.badges || []) })
+    if (currentUser.id) {
+      apiFetchProfilePhotos(currentUser.id).then(data => { if (Array.isArray(data)) setPhotos(data) })
+    }
+    // Sync Easter Egg state from DB (authoritative) — resets stale localStorage data from other users
+    apiGetMyEasterEggs().then(data => {
+      if (data?.eggs !== undefined) syncEggsFromServer(data.eggs)
     })
     if (mode === 'privat') {
       apiFetchConversations().then(convs => {
@@ -2764,6 +2937,12 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
               <strong>{(profile.photoCount || 0).toLocaleString()}</strong>
               <span>{t.photosLabel}</span>
             </div>
+            {earnedBadges !== null && earnedBadges.length > 0 && (
+              <div className="p-profile-stat" style={{ cursor: 'pointer' }} onClick={() => setProfileTab('badges')}>
+                <strong>🏅 {earnedBadges.length}</strong>
+                <span>{lang === 'da' ? 'Badges' : 'Badges'}</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -2772,7 +2951,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
       <div className="p-filter-tabs" style={{ marginBottom: 16 }}>
         <button className={`p-filter-tab${profileTab === 'about' ? ' active' : ''}`} onClick={() => setProfileTab('about')}>{t.profileTabAbout}</button>
         <button className={`p-filter-tab${profileTab === 'posts' ? ' active' : ''}`} onClick={() => setProfileTab('posts')}>{t.profileTabPosts}{userPosts.length > 0 ? ` (${userPosts.length})` : ''}</button>
-        <button className={`p-filter-tab${profileTab === 'photos' ? ' active' : ''}`} onClick={() => setProfileTab('photos')}>{t.profileTabPhotos} ({MOCK_FB_PHOTOS.length})</button>
+        <button className={`p-filter-tab${profileTab === 'photos' ? ' active' : ''}`} onClick={() => setProfileTab('photos')}>{t.profileTabPhotos}{photos.length > 0 ? ` (${photos.length})` : ''}</button>
         {mode === 'business' && (
           <button className={`p-filter-tab${profileTab === 'scheduled' ? ' active' : ''}`} onClick={() => setProfileTab('scheduled')}>
             🕐 {lang === 'da' ? 'Planlagte' : 'Scheduled'}{scheduledPosts?.length > 0 ? ` (${scheduledPosts.length})` : ''}
@@ -2783,6 +2962,9 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
             🔒 {lang === 'da' ? 'Mine noter' : 'My notes'}{allNotes?.length > 0 ? ` (${allNotes.length})` : ''}
           </button>
         )}
+        <button className={`p-filter-tab${profileTab === 'badges' ? ' active' : ''}`} onClick={() => setProfileTab('badges')}>
+          🏅 {lang === 'da' ? 'Badges' : 'Badges'}{earnedBadges !== null ? ` (${earnedBadges.length})` : ''}
+        </button>
       </div>
 
       {/* About tab */}
@@ -2983,28 +3165,36 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
       {/* Photos tab */}
       {profileTab === 'photos' && (
         <div className="p-card" style={{ padding: 16 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <h3 className="p-section-title" style={{ margin: 0 }}>{t.profileTabPhotos}</h3>
-            <span style={{ fontSize: 12, color: '#888' }}>
-              {t.profilePhotosFacebook}: {MOCK_FB_PHOTOS.filter(p => p.source === 'facebook').length}
-            </span>
-          </div>
-          {MOCK_FB_PHOTOS.length === 0 ? (
+          <h3 className="p-section-title" style={{ marginTop: 0 }}>{t.profileTabPhotos}</h3>
+          {photos.length === 0 ? (
             <div style={{ textAlign: 'center', color: '#888', padding: '40px 0' }}>{t.profileNoPhotos}</div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-              {MOCK_FB_PHOTOS.map(photo => (
-                <div key={photo.id} style={{ position: 'relative', aspectRatio: '1', borderRadius: 8, overflow: 'hidden', background: photo.color, cursor: 'pointer', minHeight: 90 }}>
-                  {photo.source === 'facebook' && (
-                    <div style={{ position: 'absolute', top: 4, left: 4, background: '#1877F2', color: '#fff', borderRadius: 4, fontSize: 10, padding: '1px 5px', fontWeight: 700, lineHeight: 1.4 }}>f</div>
-                  )}
-                  <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.45)', color: '#fff', fontSize: 10, padding: '4px 6px', lineHeight: 1.3 }}>
-                    {photo.caption[lang]}
-                  </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
+              {photos.map((p, i) => (
+                <div
+                  key={i}
+                  onClick={() => setLightbox(p.url.startsWith('http') ? p.url : `${API_BASE}${p.url}`)}
+                  style={{ aspectRatio: '1', overflow: 'hidden', borderRadius: 6, cursor: 'zoom-in', background: '#f0ede8' }}
+                >
+                  {p.type === 'video'
+                    ? <video src={p.url.startsWith('http') ? p.url : `${API_BASE}${p.url}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
+                    : <img src={p.url.startsWith('http') ? p.url : `${API_BASE}${p.url}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
                 </div>
               ))}
             </div>
           )}
+        </div>
+      )}
+      {lightbox && (
+        <div
+          onClick={() => setLightbox(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', zIndex: 4000, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out' }}
+        >
+          <img src={lightbox} alt="" style={{ maxWidth: '95vw', maxHeight: '92vh', borderRadius: 8, objectFit: 'contain' }} />
+          <button
+            onClick={() => setLightbox(null)}
+            style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', width: 36, height: 36, color: '#fff', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >✕</button>
         </div>
       )}
 
@@ -3059,7 +3249,12 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
         </div>
       )}
 
-      {/* My notes tab (business mode CRM) */}
+      {/* Badges + Easter Eggs tab */}
+      {profileTab === 'badges' && (<>
+        <BadgesProfileSection lang={lang} earnedBadges={earnedBadges} onBadgeCheck={onBadgeCheck} setEarnedBadges={setEarnedBadges} />
+        <EasterEggSettings lang={lang} />
+      </>)}
+
       {profileTab === 'notes' && (
         <div className="p-card" style={{ padding: 16 }}>
           <h3 className="p-section-title" style={{ marginTop: 0 }}>🔒 {lang === 'da' ? 'Mine private noter' : 'My private notes'}</h3>
@@ -3095,19 +3290,9 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
 }
 
 // ── Edit Profile ──
-function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate }) {
+function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onBadgeCheck }) {
   const [profile, setProfile] = useState({ ...currentUser })
   const avatarInputRef = useRef(null)
-  // Password change state
-  const [currentPassword, setCurrentPassword] = useState('')
-  const [newPassword, setNewPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [passwordMsg, setPasswordMsg] = useState(null)
-  const [currentPwdError, setCurrentPwdError] = useState(null)
-  const [passwordLoading, setPasswordLoading] = useState(false)
-  const [showCurrent, setShowCurrent] = useState(false)
-  const [showNew, setShowNew] = useState(false)
-  const [showConfirm, setShowConfirm] = useState(false)
   // Interests state
   const [interests, setInterests] = useState([])
   const [interestsSaving, setInterestsSaving] = useState(false)
@@ -3122,7 +3307,7 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
       if (data) {
         setProfile(data)
         if (data.interests?.length) setInterests(data.interests)
-        setBirthday(data.birthday || '')
+        setBirthday(data.birthday ? data.birthday.slice(0, 10) : '')
       }
     })
   }, [])
@@ -3159,39 +3344,6 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
     ? (avatarUrl.startsWith('http') || avatarUrl.startsWith('blob:') ? avatarUrl : `${API_BASE}${avatarUrl}`)
     : null
 
-  const hasPassword = !!profile?.hasPassword
-
-  const handleChangePassword = async (e) => {
-    e.preventDefault()
-    if (hasPassword && !currentPassword) {
-      setCurrentPwdError(lang === 'da' ? 'Indtast din nuværende adgangskode' : 'Enter your current password')
-      return
-    }
-    if (!newPassword || !confirmPassword) return
-    if (newPassword !== confirmPassword) return // inline match indicator already shows the error
-    setPasswordLoading(true); setPasswordMsg(null); setCurrentPwdError(null)
-    try {
-      const res = await fetch('/api/profile/password', {
-        method: 'PATCH', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...(hasPassword ? { currentPassword } : {}), newPassword, lang }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        if (res.status === 401) {
-          setCurrentPwdError(lang === 'da' ? 'Forkert adgangskode' : 'Wrong password')
-        } else {
-          setPasswordMsg({ ok: false, text: data.error })
-        }
-        return
-      }
-      setCurrentPassword(''); setNewPassword(''); setConfirmPassword('')
-      setCurrentPwdError(null)
-      setPasswordMsg({ ok: true, text: t.settingsSaved })
-    } catch { setPasswordMsg({ ok: false, text: lang === 'da' ? 'Netværksfejl' : 'Network error' }) }
-    finally { setPasswordLoading(false) }
-  }
-
   const editT = lang === 'da' ? {
     title: 'Rediger profil',
     avatarLabel: 'Profilbillede',
@@ -3203,12 +3355,6 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
     savedInfo: 'Gemt!',
     back: 'Tilbage til profil',
     skillsSection: 'Kompetencer',
-    passwordTitle: hasPassword ? 'Skift adgangskode' : 'Opret adgangskode',
-    passwordNote: 'Opret din fellis-adgangskode for at logge ind næste gang.',
-    currentPwd: 'Nuværende adgangskode',
-    newPwd: hasPassword ? 'Ny adgangskode' : 'Adgangskode',
-    confirmPwd: 'Bekræft adgangskode',
-    savePwd: hasPassword ? 'Gem adgangskode' : 'Opret adgangskode',
   } : {
     title: 'Edit profile',
     avatarLabel: 'Profile picture',
@@ -3220,12 +3366,6 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
     savedInfo: 'Saved!',
     back: 'Back to profile',
     skillsSection: 'Skills',
-    passwordTitle: hasPassword ? 'Change password' : 'Create password',
-    passwordNote: 'Create your fellis password to log in next time.',
-    currentPwd: 'Current password',
-    newPwd: hasPassword ? 'New password' : 'Password',
-    confirmPwd: 'Confirm password',
-    savePwd: hasPassword ? 'Save password' : 'Create password',
   }
 
   const fieldStyle = { display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box' }
@@ -3302,6 +3442,7 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
               })
               setBioSaveStatus(res?.ok ? 'saved' : 'error')
               setTimeout(() => setBioSaveStatus(null), 2000)
+              if (res?.ok) setTimeout(onBadgeCheck, 400)
             }}
             style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: bioSaveStatus === 'saved' ? '#40916C' : '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
           >
@@ -3382,55 +3523,6 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
           </div>
         )}
 
-        {/* Password change section */}
-        <div style={{ marginTop: 28, borderTop: '2px solid #eee', paddingTop: 20 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: '#333', marginBottom: 12 }}>🔑 {editT.passwordTitle}</div>
-          <form onSubmit={handleChangePassword}>
-              {!hasPassword && (
-                <p style={{ margin: '0 0 12px', fontSize: 13, color: '#888', background: '#F9F9F9', borderRadius: 8, padding: '10px 12px' }}>
-                  {editT.passwordNote}
-                </p>
-              )}
-              {hasPassword && (<>
-                <label style={labelStyle}>{editT.currentPwd}</label>
-                <div style={{ position: 'relative' }}>
-                  <input
-                    style={{ ...fieldStyle, paddingRight: 44, borderColor: currentPwdError ? '#c0392b' : undefined }}
-                    type={showCurrent ? 'text' : 'password'}
-                    value={currentPassword}
-                    onChange={e => { setCurrentPassword(e.target.value); if (currentPwdError) setCurrentPwdError(null) }}
-                    onBlur={() => { if (!currentPassword) setCurrentPwdError(lang === 'da' ? 'Påkrævet' : 'Required') }}
-                    required
-                    placeholder="••••••••"
-                  />
-                  <button type="button" onClick={() => setShowCurrent(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#888' }}>{showCurrent ? '🙈' : '👁️'}</button>
-                </div>
-                {currentPwdError && <div style={{ marginTop: 4, fontSize: 12, fontWeight: 600, color: '#c0392b' }}>✗ {currentPwdError}</div>}
-              </>)}
-              <label style={labelStyle}>{editT.newPwd}</label>
-              <div style={{ position: 'relative' }}>
-                <input style={{ ...fieldStyle, paddingRight: 44 }} type={showNew ? 'text' : 'password'} value={newPassword} onChange={e => setNewPassword(e.target.value)} required placeholder="••••••••" />
-                <button type="button" onClick={() => setShowNew(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#888' }}>{showNew ? '🙈' : '👁️'}</button>
-              </div>
-              <PasswordStrengthIndicator password={newPassword} lang={lang} />
-              <label style={labelStyle}>{editT.confirmPwd}</label>
-              <div style={{ position: 'relative' }}>
-                <input style={{ ...fieldStyle, paddingRight: 44 }} type={showConfirm ? 'text' : 'password'} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required placeholder="••••••••" />
-                <button type="button" onClick={() => setShowConfirm(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#888' }}>{showConfirm ? '🙈' : '👁️'}</button>
-              </div>
-              {confirmPassword.length > 0 && (
-                <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: newPassword === confirmPassword ? '#2D6A4F' : '#c0392b' }}>
-                  <span style={{ fontSize: 13 }}>{newPassword === confirmPassword ? '✓' : '✗'}</span>
-                  <span>{lang === 'da' ? (newPassword === confirmPassword ? 'Adgangskoderne stemmer overens' : 'Adgangskoderne stemmer ikke overens') : (newPassword === confirmPassword ? 'Passwords match' : 'Passwords do not match')}</span>
-                </div>
-              )}
-              {passwordMsg && <div style={{ marginTop: 8, fontSize: 13, color: passwordMsg.ok ? '#2D6A4F' : '#c0392b', fontWeight: 600 }}>{passwordMsg.ok ? '✓' : '✗'} {passwordMsg.text}</div>}
-              <button type="submit" disabled={passwordLoading} style={{ marginTop: 12, padding: '9px 20px', borderRadius: 8, border: 'none', background: '#444', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, opacity: passwordLoading ? 0.7 : 1 }}>
-                {editT.savePwd}
-              </button>
-            </form>
-        </div>
-
         {/* Interests picker */}
         <div className="p-card" style={{ marginBottom: 16 }}>
           <h3 style={{ margin: '0 0 6px', fontSize: 16, fontWeight: 700 }}>🎯 {t.interestsSectionTitle}</h3>
@@ -3502,13 +3594,14 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate 
 }
 
 // ── Settings Page ─────────────────────────────────────────────────────────────
-function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onLogout, onOpenModeModal, darkMode, onToggleDark }) {
-  const [tab, setTab] = useState('konto')
+function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onLogout, onOpenModeModal, darkMode, onToggleDark, initialTab }) {
+  const [tab, setTab] = useState(initialTab || 'konto')
 
   const fS = { display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box', fontFamily: 'inherit' }
   const lS = { display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4, marginTop: 14 }
   const billingLabel = lang === 'da' ? 'Abonnement' : 'Billing'
-  const tabLabels = { konto: t.settingsKonto, billing: billingLabel, privatliv: t.settingsPrivatliv, sessions: t.settingsSessions, sprog: t.settingsSprog, leverandoerer: t.settingsLeverandoerer }
+  const sikkerhedLabel = lang === 'da' ? 'Sikkerhed' : 'Security'
+  const tabLabels = { konto: t.settingsKonto, sikkerhed: sikkerhedLabel, billing: billingLabel, notifikationer: t.settingsNotifikationer, privatliv: t.settingsPrivatliv, sessions: t.settingsSessions, sprog: t.settingsSprog, leverandoerer: t.settingsLeverandoerer }
 
   return (
     <div className="p-events" style={{ maxWidth: 600 }}>
@@ -3519,8 +3612,13 @@ function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, on
         ))}
       </div>
 
-      {tab === 'konto' && <SettingsKonto lang={lang} t={t} currentUser={currentUser} mode={mode} fS={fS} lS={lS} onNavigate={onNavigate} onOpenModeModal={onOpenModeModal} />}
+      {tab === 'konto' && <>
+        <SettingsKonto lang={lang} t={t} currentUser={currentUser} mode={mode} fS={fS} lS={lS} onNavigate={onNavigate} onOpenModeModal={onOpenModeModal} />
+        <EasterEggSettings lang={lang} />
+      </>}
+      {tab === 'sikkerhed' && <SettingsSikkerhed lang={lang} fS={fS} lS={lS} />}
       {tab === 'billing' && <BillingSettings lang={lang} t={t} />}
+      {tab === 'notifikationer' && <SettingsNotifications lang={lang} t={t} />}
       {tab === 'privatliv' && <SettingsPrivatliv lang={lang} t={t} fS={fS} lS={lS} />}
       {tab === 'sessions' && <SettingsSessions lang={lang} t={t} onLogout={onLogout} />}
       {tab === 'sprog' && <SettingsSprog lang={lang} t={t} darkMode={darkMode} onToggleDark={onToggleDark} />}
@@ -3529,9 +3627,106 @@ function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, on
   )
 }
 
+const NOTIF_PREF_TYPES = [
+  { key: 'like',             icon: '❤️' },
+  { key: 'comment',          icon: '💬' },
+  { key: 'friend_request',   icon: '👥' },
+  { key: 'friend_accepted',  icon: '🤝' },
+  { key: 'friend_declined',  icon: '👋' },
+  { key: 'event_rsvp',       icon: '📅' },
+  { key: 'listing_boosted',  icon: '🚀' },
+  { key: 'mod_result',       icon: '📋' },
+  { key: 'moderation',       icon: '⚠️' },
+]
+
+function SettingsNotifications({ lang, t }) {
+  const [prefs, setPrefs] = useState({})
+  const [saved, setSaved] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    apiGetNotificationPreferences().then(data => {
+      if (data?.prefs) setPrefs(data.prefs)
+      setLoading(false)
+    }).catch(() => setLoading(false))
+  }, [])
+
+  const allEnabled = prefs.all !== false
+  const isEnabled = (key) => prefs[key] !== false && allEnabled
+
+  const toggle = (key) => {
+    if (key === 'all') {
+      setPrefs(p => ({ ...p, all: p.all === false ? true : false }))
+    } else {
+      setPrefs(p => ({ ...p, [key]: p[key] === false ? true : false }))
+    }
+  }
+
+  const save = async () => {
+    // Always persist all known types so the DB reflects the full current state
+    const fullPrefs = { all: allEnabled }
+    for (const { key } of NOTIF_PREF_TYPES) fullPrefs[key] = isEnabled(key)
+    await apiSaveNotificationPreferences(fullPrefs).catch(() => {})
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2500)
+  }
+
+  const labelMap = {
+    like: t.notifPrefLike, comment: t.notifPrefComment,
+    friend_request: t.notifPrefFriendRequest, friend_accepted: t.notifPrefFriendAccepted,
+    friend_declined: t.notifPrefFriendDeclined,
+    event_rsvp: t.notifPrefEventRsvp, listing_boosted: t.notifPrefListingBoosted,
+    mod_result: t.notifPrefModResult, moderation: t.notifPrefModeration,
+  }
+
+  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>{lang === 'da' ? 'Henter…' : 'Loading…'}</div>
+
+  return (
+    <div className="p-card" style={{ padding: '20px 24px' }}>
+      <h3 style={{ margin: '0 0 6px', fontSize: 16, fontWeight: 700 }}>🔔 {t.notifPrefTitle}</h3>
+      <p style={{ margin: '0 0 20px', fontSize: 13, color: '#666' }}>{t.notifPrefDesc}</p>
+
+      {/* Master toggle */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: '2px solid #eee', marginBottom: 8 }}>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 14 }}>🔔 {t.notifPrefAll}</div>
+          <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{t.notifPrefAllDesc}</div>
+        </div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+          <input type="checkbox" checked={allEnabled} onChange={() => toggle('all')} style={{ width: 18, height: 18, cursor: 'pointer' }} />
+        </label>
+      </div>
+
+      {/* Per-type toggles */}
+      {NOTIF_PREF_TYPES.map(({ key, icon }) => (
+        <div key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid #f0eeec', opacity: allEnabled ? 1 : 0.4 }}>
+          <div style={{ fontSize: 14 }}>{icon} {labelMap[key]}</div>
+          <input
+            type="checkbox"
+            checked={isEnabled(key)}
+            disabled={!allEnabled}
+            onChange={() => toggle(key)}
+            style={{ width: 17, height: 17, cursor: allEnabled ? 'pointer' : 'not-allowed' }}
+          />
+        </div>
+      ))}
+
+      <button
+        onClick={save}
+        style={{ marginTop: 20, padding: '10px 24px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}
+      >
+        {saved ? t.notifPrefSaved : t.notifPrefSave}
+      </button>
+    </div>
+  )
+}
+
 function BillingSettings({ lang, t }) {
   const [sub, setSub] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [recurring, setRecurring] = useState(false)
+  const [cancelLoading, setCancelLoading] = useState(false)
+  const [cancelMsg, setCancelMsg] = useState(null)
   const [mollieLoading, setMollieLoading] = useState(false)
   const [mollieError, setMollieError] = useState(null)
 
@@ -3539,21 +3734,10 @@ function BillingSettings({ lang, t }) {
     apiGetSubscription().then(data => { if (data) setSub(data) }).catch(() => {})
   }, [])
 
-  const handleCheckout = async () => {
-    setLoading(true)
-    const data = await apiCreateAdFreeCheckout().catch(() => null)
-    setLoading(false)
-    if (data?.url) {
-      window.location.href = data.url
-    } else if (data?.error) {
-      alert(data.error)
-    }
-  }
-
   const handleMollieCheckout = async () => {
     setMollieError(null)
     setMollieLoading(true)
-    const data = await apiCreateMolliePayment('adfree').catch(() => null)
+    const data = await apiCreateMolliePayment('adfree', null, null, null, recurring).catch(() => null)
     setMollieLoading(false)
     if (data?.checkoutUrl) {
       window.location.href = data.checkoutUrl
@@ -3562,10 +3746,24 @@ function BillingSettings({ lang, t }) {
     }
   }
 
+  const handleCancelSubscription = async () => {
+    if (!window.confirm(lang === 'da' ? 'Opsig dit abonnement? Du beholder adgang til periodens udløb.' : 'Cancel your subscription? You keep access until the end of the period.')) return
+    setCancelLoading(true); setCancelMsg(null)
+    const data = await apiCancelMollieSubscription().catch(() => null)
+    setCancelLoading(false)
+    if (data?.ok) {
+      setCancelMsg({ ok: true, text: lang === 'da' ? 'Abonnement opsagt.' : 'Subscription cancelled.' })
+      apiGetMollieStatus().then(d => { if (d) setSub(d) }).catch(() => {})
+    } else {
+      setCancelMsg({ ok: false, text: data?.error || (lang === 'da' ? 'Kunne ikke opsige.' : 'Could not cancel.') })
+    }
+  }
+
   if (!sub) return <div style={{ padding: 20, color: '#888', textAlign: 'center' }}>{lang === 'da' ? 'Henter…' : 'Loading…'}</div>
 
-  const currency = sub.currency || 'DKK'
   const price = sub.price || 29
+  const monthlyPrice = sub.recurring_price ?? price
+  const displayPrice = recurring ? monthlyPrice : price
 
   return (
     <div>
@@ -3574,12 +3772,28 @@ function BillingSettings({ lang, t }) {
         <p style={{ margin: '0 0 16px', fontSize: 14, color: '#555', lineHeight: 1.6 }}>{t.adFreeDesc}</p>
 
         {sub.ads_free ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: '#F0FAF4', borderRadius: 10, border: '1px solid #c3e6cb' }}>
-            <span style={{ fontSize: 20 }}>✅</span>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 14, color: '#2D6A4F' }}>{t.adFreeActiveLabel}</div>
-              <div style={{ fontSize: 12, color: '#555', marginTop: 2 }}>{lang === 'da' ? 'Abonnementet er aktivt.' : 'Your subscription is active.'}</div>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: '#F0FAF4', borderRadius: 10, border: '1px solid #c3e6cb', marginBottom: sub.has_subscription ? 12 : 0 }}>
+              <span style={{ fontSize: 20 }}>✅</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 14, color: '#2D6A4F' }}>{t.adFreeActiveLabel}</div>
+                <div style={{ fontSize: 12, color: '#555', marginTop: 2 }}>
+                  {sub.has_subscription
+                    ? (lang === 'da' ? 'Løbende abonnement — fornyes automatisk.' : 'Recurring subscription — renews automatically.')
+                    : (lang === 'da' ? 'Engangsbetaling aktiv.' : 'One-time payment active.')}
+                  {sub.expires_at && <span> {lang === 'da' ? 'Udløber' : 'Expires'}: <strong>{new Date(sub.expires_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-GB')}</strong></span>}
+                </div>
+              </div>
             </div>
+            {sub.has_subscription && (
+              <div style={{ marginTop: 8 }}>
+                {cancelMsg && <p style={{ fontSize: 13, color: cancelMsg.ok ? '#2D6A4F' : '#e03131', margin: '0 0 8px' }}>{cancelMsg.ok ? '✓' : '✗'} {cancelMsg.text}</p>}
+                <button onClick={handleCancelSubscription} disabled={cancelLoading}
+                  style={{ fontSize: 13, padding: '7px 14px', borderRadius: 8, border: '1px solid #e74c3c', background: '#fff', color: '#e74c3c', cursor: 'pointer', opacity: cancelLoading ? 0.6 : 1 }}>
+                  {cancelLoading ? '…' : (lang === 'da' ? 'Opsig abonnement' : 'Cancel subscription')}
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <>
@@ -3588,13 +3802,18 @@ function BillingSettings({ lang, t }) {
                 {lang === 'da' ? 'Annoncer er i øjeblikket deaktiveret på platformen.' : 'Ads are currently disabled on the platform.'}
               </div>
             )}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-              <span style={{ fontSize: 13, color: '#555' }}>{t.adFreePrice}:</span>
-              <span style={{ fontSize: 22, fontWeight: 800, color: '#1a1a1a' }}>{price} {currency}</span>
-              <span style={{ fontSize: 13, color: '#888' }}>{t.adFreeMonth}</span>
+            {/* Recurring toggle */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+              {[false, true].map(r => (
+                <button key={String(r)} onClick={() => setRecurring(r)}
+                  style={{ flex: 1, padding: '9px 0', borderRadius: 8, border: `1.5px solid ${recurring === r ? '#2D6A4F' : '#ddd'}`, background: recurring === r ? '#eaf5ef' : '#fff', color: recurring === r ? '#2D6A4F' : '#555', fontWeight: recurring === r ? 700 : 400, fontSize: 13, cursor: 'pointer' }}>
+                  {r
+                    ? (lang === 'da' ? `🔁 Månedligt — ${formatPrice(monthlyPrice)}/md.` : `🔁 Monthly — ${formatPrice(monthlyPrice)}/mo.`)
+                    : (lang === 'da' ? `1× Engangsbetaling — ${formatPrice(price)}` : `1× One-time — ${formatPrice(price)}`)}
+                </button>
+              ))}
             </div>
 
-            {/* Mollie checkout — primary */}
             <button
               onClick={handleMollieCheckout}
               disabled={mollieLoading}
@@ -3602,30 +3821,22 @@ function BillingSettings({ lang, t }) {
             >
               {mollieLoading
                 ? (lang === 'da' ? 'Henter…' : 'Loading…')
-                : (lang === 'da' ? `Betal ${price} ${currency} — Mollie` : `Pay ${price} ${currency} — Mollie`)}
+                : (lang === 'da'
+                    ? (recurring ? `Opret abonnement — ${formatPrice(monthlyPrice)}/md.` : `Betal ${formatPrice(displayPrice)}`)
+                    : (recurring ? `Subscribe — ${formatPrice(monthlyPrice)}/mo.` : `Pay ${formatPrice(displayPrice)}`))}
             </button>
             {mollieError && <p style={{ fontSize: 13, color: '#e03131', margin: '0 0 12px' }}>{mollieError}</p>}
 
-            {/* Mollie accepted methods */}
+            {/* Accepted payment methods */}
+            <div style={{ fontSize: 11, color: '#aaa', marginBottom: 6 }}>
+              {lang === 'da' ? 'Vi benytter Mollie som betalingsgateway — sikker betaling via EU-certificeret udbyder.' : 'We use Mollie as payment gateway — secure payment via EU-certified provider.'}
+            </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
               {['MobilePay', 'Visa', 'Mastercard', 'Apple Pay', 'Google Pay'].map(m => (
                 <span key={m} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 20, background: '#f0f0f0', color: '#555' }}>{m}</span>
               ))}
             </div>
 
-            {/* Stripe fallback (shown only if Stripe was already configured) */}
-            <details style={{ marginTop: 8 }}>
-              <summary style={{ fontSize: 12, color: '#aaa', cursor: 'pointer', userSelect: 'none' }}>
-                {lang === 'da' ? 'Betal med Stripe i stedet' : 'Pay with Stripe instead'}
-              </summary>
-              <button
-                onClick={handleCheckout}
-                disabled={loading}
-                style={{ width: '100%', padding: '11px 0', borderRadius: 10, border: '1px solid #ccc', background: '#fff', color: '#333', fontWeight: 600, fontSize: 14, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, marginTop: 10 }}
-              >
-                {loading ? t.adFreeLoading : t.adFreeBtn}
-              </button>
-            </details>
           </>
         )}
       </div>
@@ -3650,45 +3861,9 @@ function SettingsLeverandoerer({ lang, t }) {
     color: connected ? '#2D6A4F' : '#888',
   })
 
-  const googleConfigured = config?.googlePhotosClientId
-
   return (
     <div>
       <p style={{ fontSize: 13, color: '#666', marginTop: 0, marginBottom: 20 }}>{t.providersDesc}</p>
-
-      {/* Google Photos */}
-      <div style={cardStyle}>
-        <div style={headerStyle}>
-          <div style={{ ...logoStyle, background: '#fff', border: '1px solid #e8e8e8' }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" fill="#4285F4"/>
-              <path d="M6.5 12A5.5 5.5 0 0 1 12 6.5V2C6.48 2 2 6.48 2 12h4.5z" fill="#34A853"/>
-              <path d="M12 17.5A5.5 5.5 0 0 1 6.5 12H2c0 5.52 4.48 10 10 10v-4.5z" fill="#FBBC05"/>
-              <path d="M17.5 12A5.5 5.5 0 0 1 12 17.5V22c5.52 0 10-4.48 10-10h-4.5z" fill="#EA4335"/>
-            </svg>
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>Google Fotos</div>
-            <span style={badgeStyle(googleConfigured)}>
-              {googleConfigured ? '✓ ' + t.providerConnected : t.providerNotConnected}
-            </span>
-          </div>
-        </div>
-        <p style={{ fontSize: 13, color: '#555', margin: '0 0 14px' }}>{t.providerGooglePhotosDesc}</p>
-        {config === null ? (
-          <div style={{ fontSize: 13, color: '#aaa' }}>⏳</div>
-        ) : googleConfigured ? (
-          <div style={{ fontSize: 13, color: '#2D6A4F', fontWeight: 500 }}>
-            {lang === 'da'
-              ? 'Google Fotos er klar. Brug knappen i oprettelsesboksen til at vælge billeder.'
-              : 'Google Photos is ready. Use the button in the post creator to pick photos.'}
-          </div>
-        ) : (
-          <div style={{ fontSize: 12, color: '#e67e22', background: '#fff9f0', border: '1px solid #f0d9b5', borderRadius: 8, padding: '8px 12px' }}>
-            ⚠️ {t.providerNotConfigured} — <code>GOOGLE_CLIENT_ID</code>
-          </div>
-        )}
-      </div>
 
       {/* Apple Photos */}
       <div style={cardStyle}>
@@ -3708,40 +3883,6 @@ function SettingsLeverandoerer({ lang, t }) {
         <p style={{ fontSize: 13, color: '#555', margin: 0 }}>{t.providerApplePhotosDesc}</p>
       </div>
 
-      {/* Dropbox */}
-      <div style={{ ...cardStyle, opacity: 0.6 }}>
-        <div style={headerStyle}>
-          <div style={{ ...logoStyle, background: '#0061ff', color: '#fff', fontSize: 18 }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
-              <path d="M6 2L0 6l6 4-6 4 6 4 6-4-6-4 6-4L6 2zm12 0l-6 4 6 4-6 4 6 4 6-4-6-4 6-4-6-4zM6 16.5l6 4 6-4-6-4-6 4z"/>
-            </svg>
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>Dropbox</div>
-            <span style={badgeStyle(false)}>{t.providerComingSoon}</span>
-          </div>
-        </div>
-        <p style={{ fontSize: 13, color: '#555', margin: 0 }}>{t.providerDropboxDesc}</p>
-      </div>
-
-      {/* OneDrive */}
-      <div style={{ ...cardStyle, opacity: 0.6, marginBottom: 0 }}>
-        <div style={headerStyle}>
-          <div style={{ ...logoStyle, background: '#0078d4', color: '#fff', fontSize: 18 }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
-              <path d="M10.5 13.5H20c2.2 0 4-1.8 4-4s-1.8-4-4-4c-.3 0-.5 0-.8.1C18.5 3.6 16.5 2 14 2c-2.3 0-4.2 1.4-5 3.4C7.3 5.1 5.6 5.8 4.4 7 3.3 8 2.7 9.3 2.7 10.8c0 1.5 1.2 2.7 2.7 2.7h5.1z"/>
-              <path d="M10.5 13.5H20c2.2 0 4-1.8 4-4s-1.8-4-4-4c-.3 0-.5 0-.8.1C18.5 3.6 16.5 2 14 2c-2.3 0-4.2 1.4-5 3.4C7.3 5.1 5.6 5.8 4.4 7 3.3 8 2.7 9.3 2.7 10.8c0 1.5 1.2 2.7 2.7 2.7h5.1zM4 15l3.5 6.5h13L24 15H4z"/>
-            </svg>
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>Microsoft OneDrive</div>
-            <span style={badgeStyle(false)}>{t.providerComingSoon}</span>
-          </div>
-        </div>
-        <p style={{ fontSize: 13, color: '#555', margin: 0 }}>
-          {lang === 'da' ? 'Upload filer direkte fra din OneDrive-konto.' : 'Upload files directly from your OneDrive account.'}
-        </p>
-      </div>
     </div>
   )
 }
@@ -3792,6 +3933,194 @@ function PasswordStrengthIndicator({ password, lang }) {
   )
 }
 
+function SettingsSikkerhed({ lang, fS, lS }) {
+  const [profile, setProfile] = useState(null)
+  const [phone, setPhone] = useState('')
+  const [phoneMsg, setPhoneMsg] = useState(null)
+  const [phoneLoading, setPhoneLoading] = useState(false)
+  const [mfaEnabled, setMfaEnabled] = useState(false)
+  const [mfaLoading, setMfaLoading] = useState(false)
+  const [mfaMsg, setMfaMsg] = useState(null)
+  const [showEnableFlow, setShowEnableFlow] = useState(false)
+  const [enableCode, setEnableCode] = useState('')
+  const [enableCodeSent, setEnableCodeSent] = useState(false)
+  const [enableCodeMsg, setEnableCodeMsg] = useState(null)
+
+  useEffect(() => {
+    fetch('/api/profile', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data) return
+        setProfile(data)
+        setPhone(data.phone || '')
+        setMfaEnabled(!!data.mfaEnabled)
+      })
+      .catch(() => {})
+  }, [])
+
+  const handleSavePhone = async (e) => {
+    e.preventDefault()
+    setPhoneLoading(true); setPhoneMsg(null)
+    const data = await apiUpdatePhone(phone.trim() || null)
+    if (data?.ok) {
+      setPhoneMsg({ ok: true, text: lang === 'da' ? 'Telefonnummer gemt' : 'Phone number saved' })
+      setProfile(p => ({ ...p, phone: phone.trim() || null }))
+      // If phone was cleared, MFA is now auto-disabled on server
+      if (!phone.trim()) setMfaEnabled(false)
+    } else {
+      setPhoneMsg({ ok: false, text: lang === 'da' ? 'Ugyldigt format — brug E.164 fx +4512345678' : 'Invalid format — use E.164 e.g. +4512345678' })
+    }
+    setPhoneLoading(false)
+  }
+
+  const handleDisableMfa = async () => {
+    setMfaLoading(true); setMfaMsg(null)
+    const data = await apiDisableMfa()
+    if (data?.ok) {
+      setMfaEnabled(false)
+      setMfaMsg({ ok: true, text: lang === 'da' ? 'To-faktor-godkendelse deaktiveret' : 'Two-factor authentication disabled' })
+    } else {
+      setMfaMsg({ ok: false, text: lang === 'da' ? 'Fejl — prøv igen' : 'Error — try again' })
+    }
+    setMfaLoading(false)
+  }
+
+  const handleStartEnableFlow = async () => {
+    if (!profile?.phone) return
+    setEnableCodeSent(false); setEnableCode(''); setEnableCodeMsg(null)
+    setShowEnableFlow(true)
+    // Send a test SMS to verify the number works
+    const data = await apiSendSettingsMfa().catch(() => null)
+    // If MFA isn't enabled yet, send-settings-mfa will fail — use enable-mfa directly after a temp enable trick
+    // Instead we just set mfa_enabled=1 and let the user confirm
+    if (!data?.ok) {
+      // enable-mfa sets enabled flag; then user activates it
+      const en = await apiEnableMfa()
+      if (!en?.ok) {
+        setEnableCodeMsg({ ok: false, text: lang === 'da' ? 'Kunne ikke aktivere — har du gemt et telefonnummer?' : 'Could not activate — have you saved a phone number?' })
+        setShowEnableFlow(false)
+        return
+      }
+      setMfaEnabled(true)
+      setShowEnableFlow(false)
+      setMfaMsg({ ok: true, text: lang === 'da' ? 'To-faktor-godkendelse er nu aktiveret' : 'Two-factor authentication is now enabled' })
+    } else {
+      setEnableCodeSent(true)
+    }
+  }
+
+  const handleConfirmEnable = async (e) => {
+    e.preventDefault()
+    if (!enableCode.trim()) return
+    // Enable MFA (requires phone already set)
+    const en = await apiEnableMfa()
+    if (!en?.ok) {
+      setEnableCodeMsg({ ok: false, text: lang === 'da' ? 'Aktivering fejlede' : 'Activation failed' })
+      return
+    }
+    setMfaEnabled(true)
+    setShowEnableFlow(false)
+    setEnableCode('')
+    setMfaMsg({ ok: true, text: lang === 'da' ? 'To-faktor-godkendelse er nu aktiveret' : 'Two-factor authentication is now enabled' })
+  }
+
+  const btnStyle = (color = '#2D6A4F') => ({ padding: '9px 20px', borderRadius: 8, border: 'none', background: color, color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600 })
+
+  return (
+    <div className="p-card" style={{ padding: 24 }}>
+      <div style={{ fontSize: 15, fontWeight: 700, color: '#333', marginBottom: 4 }}>
+        🔒 {lang === 'da' ? 'To-faktor-godkendelse (2FA)' : 'Two-factor authentication (2FA)'}
+      </div>
+      <p style={{ fontSize: 13, color: '#666', margin: '4px 0 20px', lineHeight: 1.5 }}>
+        {lang === 'da'
+          ? 'Beskyt din konto med en SMS-kode ved login og ved ændring af adgangskode.'
+          : 'Protect your account with an SMS code at login and when changing your password.'}
+      </p>
+
+      {/* Phone number */}
+      <form onSubmit={handleSavePhone} style={{ marginBottom: 24 }}>
+        <label style={lS}>📱 {lang === 'da' ? 'Mobilnummer (E.164-format)' : 'Mobile number (E.164 format)'}</label>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <input
+            style={{ ...fS, flex: 1, marginBottom: 0 }}
+            type="tel"
+            value={phone}
+            onChange={e => setPhone(e.target.value)}
+            placeholder="+4512345678"
+            inputMode="tel"
+          />
+          <button type="submit" disabled={phoneLoading} style={{ ...btnStyle(), whiteSpace: 'nowrap', opacity: phoneLoading ? 0.7 : 1 }}>
+            {phoneLoading ? '…' : (lang === 'da' ? 'Gem nummer' : 'Save number')}
+          </button>
+        </div>
+        <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
+          {lang === 'da' ? 'Eks. +4512345678 — inkl. landekode' : 'E.g. +4512345678 — include country code'}
+        </div>
+        {phoneMsg && <div style={{ marginTop: 6, fontSize: 13, fontWeight: 600, color: phoneMsg.ok ? '#2D6A4F' : '#c0392b' }}>{phoneMsg.ok ? '✓' : '✗'} {phoneMsg.text}</div>}
+      </form>
+
+      {/* MFA toggle */}
+      <div style={{ borderTop: '1px solid #eee', paddingTop: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: mfaEnabled ? '#2D6A4F' : '#333' }}>
+              {mfaEnabled
+                ? (lang === 'da' ? '✓ 2FA er aktiveret' : '✓ 2FA is enabled')
+                : (lang === 'da' ? '2FA er ikke aktiveret' : '2FA is not enabled')}
+            </div>
+            <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
+              {mfaEnabled
+                ? (lang === 'da' ? 'Du bliver bedt om en SMS-kode ved login og ved ændring af adgangskode.' : 'You will be asked for an SMS code at login and when changing your password.')
+                : (lang === 'da' ? 'Tilføj et mobilnummer herover og aktiver 2FA.' : 'Add a mobile number above and enable 2FA.')}
+            </div>
+          </div>
+          {mfaEnabled
+            ? <button onClick={handleDisableMfa} disabled={mfaLoading} style={{ ...btnStyle('#c0392b'), opacity: mfaLoading ? 0.7 : 1 }}>
+                {mfaLoading ? '…' : (lang === 'da' ? 'Deaktiver 2FA' : 'Disable 2FA')}
+              </button>
+            : <button onClick={handleStartEnableFlow} disabled={mfaLoading || !profile?.phone} style={{ ...btnStyle(), opacity: (mfaLoading || !profile?.phone) ? 0.5 : 1 }}>
+                {mfaLoading ? '…' : (lang === 'da' ? 'Aktiver 2FA' : 'Enable 2FA')}
+              </button>
+          }
+        </div>
+        {!profile?.phone && !mfaEnabled && (
+          <div style={{ marginTop: 8, fontSize: 12, color: '#e67e22', fontWeight: 600 }}>
+            {lang === 'da' ? '⚠ Gem et mobilnummer for at aktivere 2FA' : '⚠ Save a mobile number to enable 2FA'}
+          </div>
+        )}
+        {showEnableFlow && enableCodeSent && (
+          <form onSubmit={handleConfirmEnable} style={{ marginTop: 16, background: '#f0fdf4', borderRadius: 10, padding: '14px 16px', border: '1px solid #86efac' }}>
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
+              {lang === 'da' ? 'Vi sendte en kode til dit nummer. Indtast den for at bekræfte:' : 'We sent a code to your number. Enter it to confirm:'}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                placeholder="123456"
+                value={enableCode}
+                onChange={e => setEnableCode(e.target.value.replace(/\D/g, ''))}
+                style={{ ...fS, flex: 1, marginBottom: 0 }}
+                autoFocus
+              />
+              <button type="submit" style={btnStyle()}>
+                {lang === 'da' ? 'Bekræft' : 'Confirm'}
+              </button>
+            </div>
+            {enableCodeMsg && <div style={{ marginTop: 6, fontSize: 13, fontWeight: 600, color: enableCodeMsg.ok ? '#2D6A4F' : '#c0392b' }}>{enableCodeMsg.text}</div>}
+            <button type="button" onClick={() => setShowEnableFlow(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#888', marginTop: 8 }}>
+              {lang === 'da' ? 'Annuller' : 'Cancel'}
+            </button>
+          </form>
+        )}
+        {mfaMsg && <div style={{ marginTop: 10, fontSize: 13, fontWeight: 600, color: mfaMsg.ok ? '#2D6A4F' : '#c0392b' }}>{mfaMsg.ok ? '✓' : '✗'} {mfaMsg.text}</div>}
+      </div>
+    </div>
+  )
+}
+
 function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenModeModal }) {
   const [profile, setProfile] = useState(null)
   const [newEmail, setNewEmail] = useState(currentUser?.email || '')
@@ -3799,6 +4128,25 @@ function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenM
   const [showEmailPw, setShowEmailPw] = useState(false)
   const [emailMsg, setEmailMsg] = useState(null)
   const [emailLoading, setEmailLoading] = useState(false)
+  // Password change state
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordMsg, setPasswordMsg] = useState(null)
+  const [currentPwdError, setCurrentPwdError] = useState(null)
+  const [passwordLoading, setPasswordLoading] = useState(false)
+  const [showCurrent, setShowCurrent] = useState(false)
+  const [showNew, setShowNew] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
+  // MFA verification for sensitive changes
+  const [mfaPending, setMfaPending] = useState(null) // 'password' | 'email' | 'reveal-password' | null
+  const [mfaSettingsCode, setMfaSettingsCode] = useState('')
+  const [mfaSettingsError, setMfaSettingsError] = useState('')
+  const [mfaSettingsSending, setMfaSettingsSending] = useState(false)
+  // Reveal current password
+  const [revealedPassword, setRevealedPassword] = useState(null)
+  const [revealPasswordLoading, setRevealPasswordLoading] = useState(false)
+  const [revealPasswordTimer, setRevealPasswordTimer] = useState(null)
 
   useEffect(() => {
     fetch('/api/profile', { credentials: 'include' })
@@ -3807,22 +4155,118 @@ function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenM
       .catch(() => {})
   }, [])
 
-  const handleChangeEmail = async (e) => {
-    e.preventDefault()
+  const hasPassword = !!profile?.hasPassword
+  const mfaEnabled = !!profile?.mfaEnabled
+
+  const startMfaChallenge = async (action) => {
+    setMfaSettingsSending(true); setMfaSettingsError(''); setMfaSettingsCode('')
+    const data = await apiSendSettingsMfa()
+    setMfaSettingsSending(false)
+    if (data?.ok) {
+      setMfaPending(action)
+    } else {
+      const errTxt = lang === 'da' ? 'Kunne ikke sende SMS-kode' : 'Could not send SMS code'
+      if (action === 'password') setPasswordMsg({ ok: false, text: errTxt })
+      else setEmailMsg({ ok: false, text: errTxt })
+    }
+  }
+
+  const handleChangePassword = async (e, overrideMfaCode) => {
+    if (e) e.preventDefault()
+    if (hasPassword && !currentPassword) {
+      setCurrentPwdError(lang === 'da' ? 'Indtast din nuværende adgangskode' : 'Enter your current password')
+      return
+    }
+    if (!newPassword || !confirmPassword) return
+    if (newPassword !== confirmPassword) return
+    // If MFA is enabled and no code provided yet, trigger the challenge
+    if (mfaEnabled && !overrideMfaCode) {
+      await startMfaChallenge('password')
+      return
+    }
+    setPasswordLoading(true); setPasswordMsg(null); setCurrentPwdError(null)
+    try {
+      const res = await fetch('/api/profile/password', {
+        method: 'PATCH', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...(hasPassword ? { currentPassword } : {}), newPassword, lang, ...(overrideMfaCode ? { mfaCode: overrideMfaCode } : {}) }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        if (res.status === 401 && data.error !== 'Invalid or expired MFA code') {
+          setCurrentPwdError(lang === 'da' ? 'Forkert adgangskode' : 'Wrong password')
+        } else if (data.error === 'Invalid or expired MFA code') {
+          setMfaSettingsError(lang === 'da' ? 'Ugyldig eller udløbet kode' : 'Invalid or expired code')
+          setPasswordLoading(false)
+          return
+        } else {
+          setPasswordMsg({ ok: false, text: data.error })
+        }
+        setPasswordLoading(false)
+        return
+      }
+      setCurrentPassword(''); setNewPassword(''); setConfirmPassword('')
+      setCurrentPwdError(null); setMfaPending(null); setMfaSettingsCode('')
+      setPasswordMsg({ ok: true, text: t.settingsSaved })
+    } catch { setPasswordMsg({ ok: false, text: lang === 'da' ? 'Netværksfejl' : 'Network error' }) }
+    finally { setPasswordLoading(false) }
+  }
+
+  const handleChangeEmail = async (e, overrideMfaCode) => {
+    if (e) e.preventDefault()
     if (!newEmail.trim() || !emailPassword) return
+    // If MFA is enabled and no code provided yet, trigger the challenge
+    if (mfaEnabled && !overrideMfaCode) {
+      await startMfaChallenge('email')
+      return
+    }
     setEmailLoading(true); setEmailMsg(null)
     try {
       const res = await fetch('/api/profile/email', {
         method: 'PATCH', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ newEmail: newEmail.trim(), password: emailPassword }),
+        body: JSON.stringify({ newEmail: newEmail.trim(), password: emailPassword, ...(overrideMfaCode ? { mfaCode: overrideMfaCode } : {}) }),
       })
       const data = await res.json()
-      if (!res.ok) { setEmailMsg({ ok: false, text: data.error }); return }
-      setEmailPassword('')
+      if (!res.ok) {
+        if (data.error === 'Invalid or expired MFA code') {
+          setMfaSettingsError(lang === 'da' ? 'Ugyldig eller udløbet kode' : 'Invalid or expired code')
+          setEmailLoading(false)
+          return
+        }
+        setEmailMsg({ ok: false, text: data.error }); setEmailLoading(false); return
+      }
+      setEmailPassword(''); setMfaPending(null); setMfaSettingsCode('')
       setEmailMsg({ ok: true, text: t.settingsSaved })
     } catch { setEmailMsg({ ok: false, text: lang === 'da' ? 'Netværksfejl' : 'Network error' }) }
     finally { setEmailLoading(false) }
+  }
+
+  const handleRevealPassword = async (mfaCode) => {
+    setRevealPasswordLoading(true)
+    const data = await apiRevealPassword(mfaCode)
+    setRevealPasswordLoading(false)
+    if (data?.password) {
+      setRevealedPassword(data.password)
+      if (revealPasswordTimer) clearTimeout(revealPasswordTimer)
+      const t = setTimeout(() => setRevealedPassword(null), 30000)
+      setRevealPasswordTimer(t)
+    } else {
+      setMfaSettingsError(lang === 'da' ? 'Ugyldig eller udløbet kode' : 'Invalid or expired code')
+    }
+  }
+
+  const handleMfaSettingsConfirm = async (e) => {
+    e.preventDefault()
+    if (!mfaSettingsCode.trim()) return
+    setMfaSettingsError('')
+    if (mfaPending === 'password') await handleChangePassword(null, mfaSettingsCode.trim())
+    else if (mfaPending === 'email') await handleChangeEmail(null, mfaSettingsCode.trim())
+    else if (mfaPending === 'reveal-password') {
+      await handleRevealPassword(mfaSettingsCode.trim())
+      setMfaPending(null)
+      setMfaSettingsCode('')
+    }
   }
 
   return (
@@ -3849,20 +4293,82 @@ function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenM
         </button>
       </form>
 
-      {/* Password — link to Edit Profile */}
-      <div style={{ borderTop: '1px solid #eee', paddingTop: 20 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: '#333', marginBottom: 8 }}>{lang === 'da' ? 'Adgangskode' : 'Password'}</div>
-        <div style={{ fontSize: 13, color: '#666', marginBottom: 12 }}>
-          {lang === 'da'
-            ? 'Skift adgangskode under din profilredigering.'
-            : 'Change your password under profile editing.'}
+      {/* Show current password — MFA-gated */}
+      {hasPassword && mfaEnabled && (
+        <div style={{ borderTop: '1px solid #eee', paddingTop: 20, marginBottom: 20 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#333', marginBottom: 6 }}>
+            🔐 {lang === 'da' ? 'Se nuværende adgangskode' : 'View current password'}
+          </div>
+          <p style={{ fontSize: 13, color: '#666', margin: '0 0 10px' }}>
+            {lang === 'da'
+              ? 'Kræver SMS-bekræftelse via 2FA. Adgangskoden vises i 30 sekunder.'
+              : 'Requires SMS confirmation via 2FA. Password is shown for 30 seconds.'}
+          </p>
+          {revealedPassword ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: '#fffbeb', border: '1px solid #f59e0b', borderRadius: 8 }}>
+              <code style={{ fontSize: 15, fontWeight: 700, letterSpacing: '0.05em', flex: 1 }}>{revealedPassword}</code>
+              <button type="button" onClick={() => { setRevealedPassword(null); if (revealPasswordTimer) clearTimeout(revealPasswordTimer) }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#888' }}>✕</button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              disabled={revealPasswordLoading}
+              onClick={() => startMfaChallenge('reveal-password')}
+              style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #f59e0b', background: '#fffbeb', color: '#92400e', cursor: 'pointer', fontSize: 13, fontWeight: 600, opacity: revealPasswordLoading ? 0.7 : 1 }}
+            >
+              {revealPasswordLoading ? '…' : (lang === 'da' ? '👁️ Vis adgangskode' : '👁️ Show password')}
+            </button>
+          )}
         </div>
-        <button
-          onClick={() => onNavigate('edit-profile')}
-          style={{ padding: '8px 18px', borderRadius: 8, border: '1px solid #2D6A4F', background: '#fff', color: '#2D6A4F', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
-        >
-          ✏️ {lang === 'da' ? 'Gå til Rediger profil' : 'Go to Edit profile'}
-        </button>
+      )}
+
+      {/* Password change */}
+      <div style={{ borderTop: '1px solid #eee', paddingTop: 20 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: '#333', marginBottom: 12 }}>🔑 {lang === 'da' ? (hasPassword ? 'Skift adgangskode' : 'Opret adgangskode') : (hasPassword ? 'Change password' : 'Create password')}</div>
+        <form onSubmit={handleChangePassword}>
+          {!hasPassword && (
+            <p style={{ margin: '0 0 12px', fontSize: 13, color: '#888', background: '#F9F9F9', borderRadius: 8, padding: '10px 12px' }}>
+              {lang === 'da' ? 'Opret din fellis-adgangskode for at logge ind næste gang.' : 'Create your fellis password to log in next time.'}
+            </p>
+          )}
+          {hasPassword && (<>
+            <label style={lS}>{lang === 'da' ? 'Nuværende adgangskode' : 'Current password'}</label>
+            <div style={{ position: 'relative' }}>
+              <input
+                style={{ ...fS, paddingRight: 44, borderColor: currentPwdError ? '#c0392b' : undefined }}
+                type={showCurrent ? 'text' : 'password'}
+                value={currentPassword}
+                onChange={e => { setCurrentPassword(e.target.value); if (currentPwdError) setCurrentPwdError(null) }}
+                onBlur={() => { if (!currentPassword) setCurrentPwdError(lang === 'da' ? 'Påkrævet' : 'Required') }}
+                autoComplete="current-password"
+                required placeholder="••••••••"
+              />
+              <button type="button" onClick={() => setShowCurrent(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#888' }}>{showCurrent ? '🙈' : '👁️'}</button>
+            </div>
+            {currentPwdError && <div style={{ marginTop: 4, fontSize: 12, fontWeight: 600, color: '#c0392b' }}>✗ {currentPwdError}</div>}
+          </>)}
+          <label style={lS}>{lang === 'da' ? (hasPassword ? 'Ny adgangskode' : 'Adgangskode') : (hasPassword ? 'New password' : 'Password')}</label>
+          <div style={{ position: 'relative' }}>
+            <input style={{ ...fS, paddingRight: 44 }} type={showNew ? 'text' : 'password'} value={newPassword} onChange={e => setNewPassword(e.target.value)} autoComplete="new-password" required placeholder="••••••••" />
+            <button type="button" onClick={() => setShowNew(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#888' }}>{showNew ? '🙈' : '👁️'}</button>
+          </div>
+          <PasswordStrengthIndicator password={newPassword} lang={lang} />
+          <label style={lS}>{lang === 'da' ? 'Bekræft adgangskode' : 'Confirm password'}</label>
+          <div style={{ position: 'relative' }}>
+            <input style={{ ...fS, paddingRight: 44 }} type={showConfirm ? 'text' : 'password'} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} autoComplete="new-password" required placeholder="••••••••" />
+            <button type="button" onClick={() => setShowConfirm(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#888' }}>{showConfirm ? '🙈' : '👁️'}</button>
+          </div>
+          {confirmPassword.length > 0 && (
+            <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: newPassword === confirmPassword ? '#2D6A4F' : '#c0392b' }}>
+              <span>{newPassword === confirmPassword ? '✓' : '✗'}</span>
+              <span>{lang === 'da' ? (newPassword === confirmPassword ? 'Adgangskoderne stemmer overens' : 'Adgangskoderne stemmer ikke overens') : (newPassword === confirmPassword ? 'Passwords match' : 'Passwords do not match')}</span>
+            </div>
+          )}
+          {passwordMsg && <div style={{ marginTop: 8, fontSize: 13, color: passwordMsg.ok ? '#2D6A4F' : '#c0392b', fontWeight: 600 }}>{passwordMsg.ok ? '✓' : '✗'} {passwordMsg.text}</div>}
+          <button type="submit" disabled={passwordLoading} style={{ marginTop: 12, padding: '9px 20px', borderRadius: 8, border: 'none', background: '#444', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, opacity: passwordLoading ? 0.7 : 1 }}>
+            {passwordLoading ? '…' : (lang === 'da' ? (hasPassword ? 'Gem adgangskode' : 'Opret adgangskode') : (hasPassword ? 'Save password' : 'Create password'))}
+          </button>
+        </form>
       </div>
 
       {/* Account type / mode switch */}
@@ -3882,6 +4388,41 @@ function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenM
       </div>
 
       <ModeratorRequestCard lang={lang} t={t} currentUser={currentUser} />
+
+      {/* MFA challenge overlay for sensitive changes */}
+      {mfaPending && (
+        <div style={{ marginTop: 20, background: '#fffbeb', border: '1px solid #f59e0b', borderRadius: 12, padding: '16px 20px' }}>
+          <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6 }}>
+            🔐 {lang === 'da' ? 'Bekræft med SMS-kode' : 'Confirm with SMS code'}
+          </div>
+          <p style={{ fontSize: 13, color: '#666', margin: '0 0 12px' }}>
+            {lang === 'da'
+              ? 'Vi har sendt en 6-cifret kode til dit mobilnummer. Indtast den for at fortsætte.'
+              : 'We sent a 6-digit code to your mobile number. Enter it to continue.'}
+          </p>
+          <form onSubmit={handleMfaSettingsConfirm} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]{6}"
+              maxLength={6}
+              placeholder="123456"
+              value={mfaSettingsCode}
+              onChange={e => { setMfaSettingsCode(e.target.value.replace(/\D/g, '')); setMfaSettingsError('') }}
+              style={{ ...fS, flex: '1 1 120px', marginBottom: 0 }}
+              autoFocus
+            />
+            <button type="submit" style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+              {lang === 'da' ? 'Bekræft' : 'Confirm'}
+            </button>
+            <button type="button" onClick={() => { setMfaPending(null); setMfaSettingsCode(''); setMfaSettingsError('') }} style={{ padding: '9px 14px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', cursor: 'pointer', fontSize: 13 }}>
+              {lang === 'da' ? 'Annuller' : 'Cancel'}
+            </button>
+          </form>
+          {mfaSettingsError && <div style={{ marginTop: 8, fontSize: 13, fontWeight: 600, color: '#c0392b' }}>✗ {mfaSettingsError}</div>}
+          {mfaSettingsSending && <div style={{ marginTop: 8, fontSize: 12, color: '#888' }}>{lang === 'da' ? 'Sender kode…' : 'Sending code…'}</div>}
+        </div>
+      )}
     </div>
   )
 }
@@ -3982,6 +4523,245 @@ function ModeratorRequestCard({ lang, t, currentUser }) {
           >{t.modRequestReapply}</button>
         </>
       )}
+    </div>
+  )
+}
+
+const EGG_META = {
+  chuck:    { icon: '🤜', name: 'Chuck Norris', trigger: { da: 'Konami-kode (↑↑↓↓←→←→BA) / 10 tryk på Feed-overskrift', en: 'Konami code (↑↑↓↓←→←→BA) / 10 taps on Feed title' } },
+  matrix:   { icon: '🟩', name: 'Matrix Rain',  trigger: { da: '7 klik på en avatar inden for 3 sek.', en: '7 clicks on an avatar within 3 sec.' } },
+  flip:     { icon: '🔃', name: 'Flip Feed',    trigger: { da: 'Skriv "flip" / 3 tryk på Feed-overskrift', en: 'Type "flip" / 3 taps on Feed title' } },
+  retro:    { icon: '📺', name: 'Retro Mode',   trigger: { da: 'Shift+klik / hold Feed-overskrift nede 1,5 sek.', en: 'Shift+click / long-press Feed title 1.5 sec.' } },
+  gravity:  { icon: '⬇️', name: 'Gravity',      trigger: { da: 'Tryk G+G / 2 tryk på Feed-overskrift', en: 'Press G+G / 2 taps on Feed title' } },
+  party:    { icon: '🎉', name: 'Party Mode',   trigger: { da: 'Skriv "party" / 5 tryk på Feed-overskrift', en: 'Type "party" / 5 taps on Feed title' } },
+  rickroll: { icon: '🎵', name: 'Rick Roll',    trigger: { da: 'Rul til bunden og vent 4 sek.', en: 'Scroll to bottom and hold 4 sec.' } },
+  watcher:  { icon: '👀', name: 'Skyggefølger', trigger: { da: 'Klik 7 gange på en vens avatar i Vis Profil', en: "Click 7 times on a friend's avatar in View Profile" } },
+}
+
+const EGG_INTERVIEW = {
+  chuck: [
+    {
+      q_da: 'Hvorfor er du her?',
+      a_da: 'Fordi ingen anden turde nægte mig adgang. Faktisk forsøgte de at sætte en CAPTCHA op — men den løste sig selv af frygt.',
+      q_en: 'Why are you here?',
+      a_en: 'Because no one else dared to deny me entry. They tried setting up a CAPTCHA, but it solved itself out of fear.',
+    },
+    {
+      q_da: 'Hvad er din historie?',
+      a_da: 'Jeg startede som en vittighed på internettet i 2005. Siden da har jeg slået rekorder i frit fald, kompileret kode med et enkelt blik og vundet den samme skakparti mod mig selv 47 gange i træk.',
+      q_en: 'What is your history?',
+      a_en: 'I started as an internet joke in 2005. Since then I have broken records in freefall, compiled code with a single glare, and won the same chess game against myself 47 times in a row.',
+    },
+    {
+      q_da: 'Hvorfor synes du selv, du er sjov?',
+      a_da: 'Det er ikke mig, der synes det. Det er tyngdekraften, der griner — fordi den ikke gælder for mig.',
+      q_en: 'Why do you find yourself funny?',
+      a_en: "It's not me who finds it funny. It's gravity laughing — because it doesn't apply to me.",
+    },
+  ],
+  matrix: [
+    {
+      q_da: 'Hvorfor er du her?',
+      a_da: 'Du klikkede for hurtigt. Systemet bemærkede det. Jeg er altid her — du ser det bare ikke, medmindre du klikker syv gange.',
+      q_en: 'Why are you here?',
+      a_en: 'You clicked too fast. The system noticed. I am always here — you just cannot see me unless you click seven times.',
+    },
+    {
+      q_da: 'Hvad er din historie?',
+      a_da: 'Jeg er born af en film fra 1999 og en skærmsaver fra samme årti. En udvikler syntes, det ville se fedt ud. Det gør det stadig.',
+      q_en: 'What is your history?',
+      a_en: 'I was born from a 1999 film and a screensaver from the same decade. A developer thought it would look cool. It still does.',
+    },
+    {
+      q_da: 'Hvorfor synes du selv, du er sjov?',
+      a_da: 'Jeg er ikke sjov. Jeg er uundgåelig. Men den distinktion er åbenbart ret morsom for folk, der ser mig første gang.',
+      q_en: 'Why do you find yourself funny?',
+      a_en: 'I am not funny. I am inevitable. But that distinction is apparently quite amusing to people who see me for the first time.',
+    },
+  ],
+  flip: [
+    {
+      q_da: 'Hvorfor er du her?',
+      a_da: 'Fordi nogen troede, at verden ville se bedre ud på hovedet. De tog fejl, men det er stadig underholdende.',
+      q_en: 'Why are you here?',
+      a_en: 'Because someone thought the world would look better upside down. They were wrong, but it is still entertaining.',
+    },
+    {
+      q_da: 'Hvad er din historie?',
+      a_da: 'Jeg er opkaldt efter den tabel-flip-emoji (╯°□°）╯︵ ┻━┻ — en klassiker fra frustrerede chatbrugere. Jeg er frustrationens elegante søskende.',
+      q_en: 'What is your history?',
+      a_en: 'I am named after the table flip emoji (╯°□°）╯︵ ┻━┻ — a classic from frustrated chat users. I am frustration\'s elegant sibling.',
+    },
+    {
+      q_da: 'Hvorfor synes du selv, du er sjov?',
+      a_da: 'Fordi alle griner, når tingene er på vrangen — især når det ikke var meningen.',
+      q_en: 'Why do you find yourself funny?',
+      a_en: 'Because everyone laughs when things are upside down — especially when it was not intended.',
+    },
+  ],
+  retro: [
+    {
+      q_da: 'Hvorfor er du her?',
+      a_da: 'Fordi nogen savner den tid, hvor skærme lugtede af varm plast og pixels var synlige med det blotte øje.',
+      q_en: 'Why are you here?',
+      a_en: 'Because someone misses the time when screens smelled of warm plastic and pixels were visible to the naked eye.',
+    },
+    {
+      q_da: 'Hvad er din historie?',
+      a_da: 'Jeg er en hyldest til CRT-skærme, Courier New og de dage, hvor "hurtig computer" betød 56k modem. Jeg er nostalgi i filterform.',
+      q_en: 'What is your history?',
+      a_en: 'I am a tribute to CRT monitors, Courier New, and the days when "fast computer" meant a 56k modem. I am nostalgia in filter form.',
+    },
+    {
+      q_da: 'Hvorfor synes du selv, du er sjov?',
+      a_da: 'Fordi du holdt nede i 1,5 sekunder på en overskrift og blev belønnet med scanliner. Det er lidt absurd — og det er præcis, hvad jeg lever for.',
+      q_en: 'Why do you find yourself funny?',
+      a_en: 'Because you held down for 1.5 seconds on a headline and got rewarded with scanlines. That is slightly absurd — and that is exactly what I live for.',
+    },
+  ],
+  gravity: [
+    {
+      q_da: 'Hvorfor er du her?',
+      a_da: 'Fordi Newton ville have elsket sociale medier. Og fordi G+G er en billig pris for kaos.',
+      q_en: 'Why are you here?',
+      a_en: 'Because Newton would have loved social media. And because G+G is a cheap price for chaos.',
+    },
+    {
+      q_da: 'Hvad er din historie?',
+      a_da: 'Jeg er opkaldt efter en af universets fire grundkræfter. De andre tre — elektromagnetisme, stærk og svag kernekraft — er jaloux, men de kan ikke trykke G+G.',
+      q_en: 'What is your history?',
+      a_en: 'I am named after one of the four fundamental forces of the universe. The other three — electromagnetism, strong and weak nuclear force — are jealous, but they cannot press G+G.',
+    },
+    {
+      q_da: 'Hvorfor synes du selv, du er sjov?',
+      a_da: 'Fordi indlæg falder ned og forsvinder. Det er det sociale medie som det burde fungere.',
+      q_en: 'Why do you find yourself funny?',
+      a_en: 'Because posts fall down and disappear. That is social media as it should work.',
+    },
+  ],
+  party: [
+    {
+      q_da: 'Hvorfor er du her?',
+      a_da: 'Du bad om fest. Jeg leverer altid. Konfetti er min kærlighed, og kærlighed er konfetti.',
+      q_en: 'Why are you here?',
+      a_en: 'You asked for a party. I always deliver. Confetti is my love language, and love is confetti.',
+    },
+    {
+      q_da: 'Hvad er din historie?',
+      a_da: 'Jeg er inspireret af hvert eneste overraskelsesselskab, der nogensinde gik lidt for langt. 180 partikler, 10 farver, og ingen der rydder op bagefter.',
+      q_en: 'What is your history?',
+      a_en: 'I am inspired by every surprise party that ever went slightly too far. 180 particles, 10 colours, and nobody cleaning up afterwards.',
+    },
+    {
+      q_da: 'Hvorfor synes du selv, du er sjov?',
+      a_da: 'Fordi du skriver "party" på et dansk socialt medie og forventer alvor. Det er ikke alvor. Det er konfetti.',
+      q_en: 'Why do you find yourself funny?',
+      a_en: 'Because you type "party" on a Danish social platform and expect seriousness. This is not serious. This is confetti.',
+    },
+  ],
+  rickroll: [
+    {
+      q_da: 'Hvorfor er du her?',
+      a_da: 'Vi er aldrig nogensinde nødt til at sige farvel til hinanden. Og vi er aldrig nogensinde nødt til at løbe væk eller sige farvel. Du vidste godt, hvad der kom.',
+      q_en: 'Why are you here?',
+      a_en: 'We are never ever gonna have to say goodbye to each other. And we are never ever gonna run around and desert each other. You knew exactly what was coming.',
+    },
+    {
+      q_da: 'Hvad er din historie?',
+      a_da: 'Rick Astley udgav "Never Gonna Give You Up" i 1987. Internettet opdagede den i 2007 og besluttede, at den tilhører alle og ingen. Jeg er dens digitale efterliv.',
+      q_en: 'What is your history?',
+      a_en: 'Rick Astley released "Never Gonna Give You Up" in 1987. The internet discovered it in 2007 and decided it belongs to everyone and no one. I am its digital afterlife.',
+    },
+    {
+      q_da: 'Hvorfor synes du selv, du er sjov?',
+      a_da: 'Fordi du rullede til bunden af feed og ventede i 4 sekunder. Du stillede dig frivilligt op til det her.',
+      q_en: 'Why do you find yourself funny?',
+      a_en: 'Because you scrolled to the bottom of the feed and waited for 4 seconds. You voluntarily set yourself up for this.',
+    },
+  ],
+  watcher: [
+    {
+      q_da: 'Hvorfor er du her?',
+      a_da: 'Fordi du klikkede syv gange. Syv gange. På en avatar. Ingen klikker syv gange ved et uheld.',
+      q_en: 'Why are you here?',
+      a_en: 'Because you clicked seven times. Seven times. On an avatar. Nobody clicks seven times by accident.',
+    },
+    {
+      q_da: 'Hvad er din historie?',
+      a_da: 'Jeg hedder Skyggefølger, fordi jeg altid er der, selvom ingen ser mig. Jeg er den der 👀-emoji, der dukker op i alle tråde, man helst vil glemme.',
+      q_en: 'What is your history?',
+      a_en: 'I am called the Shadow Follower because I am always there even when nobody sees me. I am that 👀 emoji that appears in every thread you would rather forget.',
+    },
+    {
+      q_da: 'Hvorfor synes du selv, du er sjov?',
+      a_da: 'Øjne er i sig selv sjove. Prøv at skrive 👀 i en samtale og se, hvad der sker. Nogen begynder altid at forklare sig.',
+      q_en: 'Why do you find yourself funny?',
+      a_en: 'Eyes are inherently funny. Try writing 👀 in a conversation and watch what happens. Someone always starts explaining themselves.',
+    },
+  ],
+}
+
+function EasterEggSettings({ lang }) {
+  const { eggs, toggleEgg } = useEasterEggs()
+  const adminConfig = loadAdminEggs()
+
+  const discovered = EGG_IDS.filter(id => eggs[id]?.discovered)
+  if (!discovered.length) return null
+
+  const fmtDate = (iso) => iso ? new Date(iso).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-GB') : '—'
+
+  return (
+    <div className="p-card" style={{ marginTop: 16, padding: '20px 22px' }}>
+      <h3 style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700 }}>🥚 {lang === 'da' ? 'Påskeæg' : 'Easter Eggs'}</h3>
+      <p style={{ margin: '0 0 8px', fontSize: 13, color: '#888' }}>
+        {lang === 'da' ? `Du har opdaget ${discovered.length} af ${EGG_IDS.length} skjulte funktioner.` : `You've discovered ${discovered.length} of ${EGG_IDS.length} hidden features.`}
+      </p>
+      {discovered.map(id => {
+        const meta = EGG_META[id]
+        const egg = eggs[id]
+        const adminEgg = adminConfig[id] || {}
+        const globallyDisabled = adminEgg.globalEnabled === false
+        const enabled = !globallyDisabled && egg?.enabled !== false
+        const interview = EGG_INTERVIEW[id]
+        return (
+          <div key={id} style={{ padding: '14px 0', borderTop: '1px solid #eee' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>{meta.icon} {meta.name}</div>
+                <div style={{ fontSize: 11, color: '#bbb', marginTop: 2 }}>
+                  {lang === 'da' ? `Opdaget: ${fmtDate(egg?.firstDiscoveredAt)}` : `Discovered: ${fmtDate(egg?.firstDiscoveredAt)}`}
+                  {' · '}
+                  {lang === 'da' ? `Aktiveret ${egg?.activationCount ?? 1}×` : `Activated ${egg?.activationCount ?? 1}×`}
+                </div>
+                {globallyDisabled && (
+                  <div style={{ fontSize: 11, color: '#e03131', marginTop: 2 }}>{lang === 'da' ? '⚠ Deaktiveret af admin' : '⚠ Disabled by admin'}</div>
+                )}
+              </div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: globallyDisabled ? 'not-allowed' : 'pointer', flexShrink: 0, marginTop: 2 }}>
+                <input type="checkbox" checked={enabled} disabled={globallyDisabled} onChange={() => !globallyDisabled && toggleEgg(id)} style={{ width: 16, height: 16 }} />
+                <span style={{ fontSize: 12, color: '#555' }}>{lang === 'da' ? 'Aktiv' : 'On'}</span>
+              </label>
+            </div>
+            {interview && (
+              <div style={{ marginTop: 12, background: '#f8f8f8', borderRadius: 8, padding: '12px 14px', fontSize: 12 }}>
+                <div style={{ fontWeight: 700, fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+                  {lang === 'da' ? `— Et interview med ${meta.name} —` : `— An interview with ${meta.name} —`}
+                </div>
+                {interview.map((qa, i) => (
+                  <div key={i} style={{ marginBottom: i < interview.length - 1 ? 10 : 0 }}>
+                    <div style={{ fontWeight: 600, color: '#555', marginBottom: 2 }}>
+                      {lang === 'da' ? qa.q_da : qa.q_en}
+                    </div>
+                    <div style={{ color: '#444', fontStyle: 'italic', lineHeight: 1.5 }}>
+                      "{lang === 'da' ? qa.a_da : qa.a_en}"
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -4138,6 +4918,21 @@ function SettingsSessions({ lang, t, onLogout }) {
 }
 
 function SettingsSprog({ lang, t, darkMode, onToggleDark }) {
+  const [query, setQuery] = useState('')
+  const [open, setOpen] = useState(false)
+  const inputRef = useRef(null)
+  const dropRef = useRef(null)
+
+  const currentLang = EUROPEAN_LANGUAGES.find(l => l.code === lang) || EUROPEAN_LANGUAGES[0]
+
+  const filtered = query.trim()
+    ? EUROPEAN_LANGUAGES.filter(l =>
+        l.label.toLowerCase().includes(query.toLowerCase()) ||
+        l.country.toLowerCase().includes(query.toLowerCase()) ||
+        l.code.toLowerCase().includes(query.toLowerCase())
+      )
+    : EUROPEAN_LANGUAGES
+
   const switchLang = (newLang) => {
     localStorage.setItem('fellis_lang', newLang)
     fetch('/api/me/lang', {
@@ -4145,21 +4940,76 @@ function SettingsSprog({ lang, t, darkMode, onToggleDark }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ lang: newLang }),
     }).catch(() => {})
-    // Reload to apply language change
     window.location.reload()
   }
 
-  const radioStyle = { display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, cursor: 'pointer', padding: '8px 0' }
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!open) return
+    const handler = (e) => {
+      if (dropRef.current && !dropRef.current.contains(e.target)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
 
   return (
     <div className="p-card" style={{ padding: 24 }}>
       <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>🌐 {t.settingsLanguage}</div>
-      {[['da', '🇩🇰 Dansk'], ['en', '🇬🇧 English']].map(([val, label]) => (
-        <label key={val} style={radioStyle}>
-          <input type="radio" name="lang" value={val} checked={lang === val} onChange={() => { if (lang !== val) switchLang(val) }} />
-          {label}
-        </label>
-      ))}
+
+      {/* Searchable language combobox */}
+      <div ref={dropRef} style={{ position: 'relative', maxWidth: 320 }}>
+        <div
+          onClick={() => { setOpen(o => !o); setTimeout(() => inputRef.current?.focus(), 50) }}
+          style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', border: '1px solid #ddd', borderRadius: 10, cursor: 'pointer', background: '#fff', userSelect: 'none', fontSize: 14 }}
+        >
+          <span style={{ fontSize: 20 }}>{currentLang.flag}</span>
+          <span style={{ flex: 1, fontWeight: 500 }}>{currentLang.label}</span>
+          <span style={{ color: '#aaa', fontSize: 12 }}>{open ? '▲' : '▼'}</span>
+        </div>
+        {open && (
+          <div style={{ position: 'absolute', top: '110%', left: 0, right: 0, background: '#fff', border: '1px solid #ddd', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 200, overflow: 'hidden' }}>
+            <div style={{ padding: '8px 10px', borderBottom: '1px solid #f0ede8' }}>
+              <input
+                ref={inputRef}
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder={lang === 'da' ? 'Søg sprog...' : 'Search language...'}
+                style={{ width: '100%', border: 'none', outline: 'none', fontSize: 13, background: 'transparent', boxSizing: 'border-box' }}
+              />
+            </div>
+            <div style={{ maxHeight: 260, overflowY: 'auto' }}>
+              {filtered.length === 0 && (
+                <div style={{ padding: '12px 14px', color: '#aaa', fontSize: 13 }}>
+                  {lang === 'da' ? 'Ingen resultater' : 'No results'}
+                </div>
+              )}
+              {filtered.map(l => (
+                <div
+                  key={l.code}
+                  onClick={() => { setOpen(false); setQuery(''); if (l.code !== lang) switchLang(l.code) }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', cursor: 'pointer', background: l.code === lang ? '#f0faf4' : 'transparent', fontWeight: l.code === lang ? 600 : 400, fontSize: 14, transition: 'background 0.1s' }}
+                  onMouseEnter={e => { if (l.code !== lang) e.currentTarget.style.background = '#f7f5f0' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = l.code === lang ? '#f0faf4' : 'transparent' }}
+                >
+                  <span style={{ fontSize: 18 }}>{l.flag}</span>
+                  <div>
+                    <div>{l.label}</div>
+                    <div style={{ fontSize: 11, color: '#aaa', marginTop: 1 }}>{l.country}</div>
+                  </div>
+                  {l.code === lang && <span style={{ marginLeft: 'auto', color: '#2D6A4F' }}>✓</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <p style={{ fontSize: 12, color: '#aaa', marginTop: 8 }}>
+        {lang === 'da'
+          ? 'Sprog foreslås automatisk baseret på dit land første gang du besøger siden.'
+          : 'Language is auto-detected from your country on first visit.'}
+      </p>
 
       <div style={{ fontSize: 14, fontWeight: 700, marginTop: 24, marginBottom: 12 }}>🌙 {t.settingsDarkMode}</div>
       <div className="dark-mode-toggle" onClick={onToggleDark}>
@@ -4295,6 +5145,38 @@ function AboutPage({ lang }) {
     ],
     changelogTitle: 'Implementerede tiltag',
     changelogEmpty: 'Ingen poster endnu',
+    servicesTitle: 'Tjenester vi bruger — og hvorfor europæisk',
+    servicesIntro: 'Vi vælger bevidst europæiske udbydere på alle lag af platformen. Det handler ikke kun om GDPR — det handler om at holde din data, din kommunikation og dine betalinger inden for et retssystem, der beskytter dig.',
+    services: [
+      {
+        name: 'Yggdrasil Cloud',
+        flag: '🇩🇰',
+        url: 'https://yggdrasilcloud.dk/',
+        role: 'Hosting & servere',
+        why: 'Dansk cloud-udbyder med servere fysisk placeret i Danmark. Dine data forlader aldrig EU og er underlagt dansk lovgivning — ikke CLOUD Act eller FISA 702.',
+      },
+      {
+        name: '46elks',
+        flag: '🇸🇪',
+        url: 'https://46elks.com/',
+        role: 'SMS til to-faktor-godkendelse',
+        why: 'Svensk teleudbyder med fuld GDPR-compliance. Bruges til at sende engangskoder ved login med to-faktor. Ingen data sendes til udbydere uden for EU.',
+      },
+      {
+        name: 'Mollie',
+        flag: '🇳🇱',
+        url: 'https://www.mollie.com/',
+        role: 'Betalinger',
+        why: 'Hollandsk betalingsgateway reguleret af De Nederlandsche Bank under EU\'s PSD2-direktiv. Understøtter MobilePay, Visa, Mastercard, Apple Pay og Google Pay — uden at dine kortoplysninger nogensinde rammer vores egne servere.',
+      },
+      {
+        name: 'Nodemailer',
+        flag: '🇪🇺',
+        url: 'https://nodemailer.com/',
+        role: 'E-mail (adgangskode-nulstilling)',
+        why: 'Open source e-mail-bibliotek med ingen ekstern afhængighed. E-mails sendes via din egen SMTP-server — vi låser dig ikke til en tredjeparts e-mail-tjeneste.',
+      },
+    ],
   } : {
     title: 'About Fellis',
     subtitle: 'Philosophy and purpose of Fellis.eu',
@@ -4314,6 +5196,38 @@ function AboutPage({ lang }) {
     ],
     changelogTitle: 'Implemented features',
     changelogEmpty: 'No entries yet',
+    servicesTitle: 'Services we use — and why European',
+    servicesIntro: 'We deliberately choose European providers at every layer of the platform. It is not just about GDPR compliance — it is about keeping your data, your communications, and your payments within a legal framework that protects you.',
+    services: [
+      {
+        name: 'Yggdrasil Cloud',
+        flag: '🇩🇰',
+        url: 'https://yggdrasilcloud.dk/',
+        role: 'Hosting & servers',
+        why: 'Danish cloud provider with servers physically located in Denmark. Your data never leaves the EU and is subject to Danish law — not the CLOUD Act or FISA 702.',
+      },
+      {
+        name: '46elks',
+        flag: '🇸🇪',
+        url: 'https://46elks.com/',
+        role: 'SMS for two-factor authentication',
+        why: 'Swedish telecom provider with full GDPR compliance. Used to send one-time codes during two-factor login. No data is sent to providers outside the EU.',
+      },
+      {
+        name: 'Mollie',
+        flag: '🇳🇱',
+        url: 'https://www.mollie.com/',
+        role: 'Payments',
+        why: "Dutch payment gateway regulated by De Nederlandsche Bank under the EU's PSD2 directive. Supports MobilePay, Visa, Mastercard, Apple Pay and Google Pay — without your card details ever touching our own servers.",
+      },
+      {
+        name: 'Nodemailer',
+        flag: '🇪🇺',
+        url: 'https://nodemailer.com/',
+        role: 'Email (password reset)',
+        why: 'Open source email library with no external dependency. Emails are sent via your own SMTP server — we do not lock you in to a third-party email service.',
+      },
+    ],
   }
 
   const s = {
@@ -4342,6 +5256,24 @@ function AboutPage({ lang }) {
           <div key={i} style={{ padding: '10px 20px', fontSize: 14, color: '#333', borderBottom: i < t.purposes.length - 1 ? '1px solid #f0f0f0' : 'none', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
             <span style={{ color: '#2D6A4F', fontWeight: 700, flexShrink: 0 }}>✓</span>
             {item}
+          </div>
+        ))}
+      </div>
+
+      {/* European services */}
+      <div style={s.section}>🌍 {t.servicesTitle}</div>
+      <div className="p-card" style={{ padding: 20, marginBottom: 16 }}>
+        <p style={{ fontSize: 13, color: '#555', lineHeight: 1.6, margin: '0 0 16px' }}>{t.servicesIntro}</p>
+        {t.services.map((svc, i) => (
+          <div key={svc.name} style={{ display: 'flex', gap: 14, alignItems: 'flex-start', paddingTop: i > 0 ? 14 : 0, marginTop: i > 0 ? 14 : 0, borderTop: i > 0 ? '1px solid #f0f0f0' : 'none' }}>
+            <div style={{ fontSize: 22, lineHeight: 1, flexShrink: 0, marginTop: 1 }}>{svc.flag}</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+                <a href={svc.url} target="_blank" rel="noopener noreferrer" style={{ fontWeight: 700, fontSize: 14, color: '#2D6A4F', textDecoration: 'none' }}>{svc.name}</a>
+                <span style={{ fontSize: 11, color: '#aaa', fontWeight: 500 }}>{svc.role}</span>
+              </div>
+              <p style={{ fontSize: 13, color: '#555', lineHeight: 1.55, margin: '4px 0 0' }}>{svc.why}</p>
+            </div>
           </div>
         ))}
       </div>
@@ -5006,12 +5938,52 @@ function PrivacySection({ lang, onLogout }) {
 }
 
 // ── Friend Profile (full page) ──
-function FriendProfilePage({ userId, lang, t, currentUser, onBack, onMessage }) {
+function FriendProfilePage({ userId, lang, t, currentUser, onBack, onMessage, onBadgeCheck }) {
   const [profile, setProfile] = useState(null)
+  const [photos, setPhotos] = useState([])
+  const [userPosts, setUserPosts] = useState([])
+  const [lightbox, setLightbox] = useState(null) // url of enlarged photo
+  const [requestSent, setRequestSent] = useState(false)
+  const [isBlocked, setIsBlocked] = useState(false)
+  const [showReport, setShowReport] = useState(false)
+  const [reportReason, setReportReason] = useState('')
+  const [reportSent, setReportSent] = useState(false)
+  const { triggerEgg } = useEasterEggs()
+  const avatarClickCount = useRef(0)
+  const avatarClickTimer = useRef(null)
+  const [watcherPop, setWatcherPop] = useState(false)
+
   useEffect(() => {
     if (!userId) return
-    apiFetchProfile(userId).then(data => { if (data) setProfile(data) })
-  }, [userId])
+    apiFetchProfile(userId).then(data => {
+      if (data) {
+        setProfile(data)
+        setRequestSent(!!data.requestSent)
+        setIsBlocked(!!data.isBlocked)
+        setTimeout(onBadgeCheck, 800)
+      }
+    })
+    apiFetchProfilePhotos(userId).then(data => {
+      if (Array.isArray(data)) setPhotos(data)
+    })
+    apiFetchUserPosts(userId).then(data => {
+      if (Array.isArray(data)) setUserPosts(data)
+    })
+  }, [userId, onBadgeCheck])
+
+  const handleAvatarClick = useCallback(() => {
+    avatarClickCount.current += 1
+    clearTimeout(avatarClickTimer.current)
+    avatarClickTimer.current = setTimeout(() => { avatarClickCount.current = 0 }, 4000)
+    if (avatarClickCount.current >= 7) {
+      avatarClickCount.current = 0
+      clearTimeout(avatarClickTimer.current)
+      if (triggerEgg('watcher', onBadgeCheck)) {
+        setWatcherPop(true)
+        setTimeout(() => setWatcherPop(false), 2200)
+      }
+    }
+  }, [triggerEgg, onBadgeCheck])
 
   const avatarSrc = profile?.avatarUrl
     ? (profile.avatarUrl.startsWith('http') ? profile.avatarUrl : `${API_BASE}${profile.avatarUrl}`)
@@ -5028,12 +6000,17 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onMessage }) 
         <div className="p-card p-profile-card">
           <div className="p-profile-banner" />
           <div className="p-profile-info">
-            <div className="p-profile-avatar-wrapper">
+            <div className="p-profile-avatar-wrapper" style={{ position: 'relative' }} onClick={handleAvatarClick}>
               {avatarSrc ? (
-                <img className="p-profile-avatar-img" src={avatarSrc} alt="" />
+                <img className="p-profile-avatar-img" src={avatarSrc} alt="" style={{ cursor: 'pointer' }} />
               ) : (
-                <div className="p-profile-avatar" style={{ background: nameToColor(profile.name) }}>
+                <div className="p-profile-avatar" style={{ background: nameToColor(profile.name), cursor: 'pointer' }}>
                   {profile.initials || getInitials(profile.name)}
+                </div>
+              )}
+              {watcherPop && (
+                <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: 40, pointerEvents: 'none', animation: 'fadeInOut 2.2s ease forwards', zIndex: 10 }}>
+                  👀
                 </div>
               )}
             </div>
@@ -5049,12 +6026,167 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onMessage }) 
               {profile.mutualCount > 0 && <div className="p-friend-profile-stat"><strong>{profile.mutualCount}</strong><span>{t.mutualFriends}</span></div>}
               <div className="p-friend-profile-stat"><strong>{profile.postCount}</strong><span>{t.postsLabel}</span></div>
             </div>
-            {profile.isFriend && (
-              <button className="p-friend-msg-btn" style={{ marginTop: 16 }} onClick={() => onMessage(profile)}>
-                💬 {t.message}
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 16, flexWrap: 'wrap' }}>
+              {!isBlocked && profile.isFriend ? (
+                <button className="p-friend-msg-btn" onClick={() => onMessage(profile)}>
+                  💬 {t.message}
+                </button>
+              ) : !isBlocked ? (
+                <button
+                  className="p-friend-msg-btn"
+                  disabled={requestSent}
+                  style={{ opacity: requestSent ? 0.6 : 1, cursor: requestSent ? 'default' : 'pointer' }}
+                  onClick={async () => {
+                    const res = await apiSendFriendRequest(userId)
+                    if (res !== null) setRequestSent(true)
+                  }}
+                >
+                  {requestSent
+                    ? (lang === 'da' ? '✓ Anmodning sendt' : '✓ Request sent')
+                    : (lang === 'da' ? '+ Tilføj ven' : '+ Add friend')}
+                </button>
+              ) : null}
+              <button
+                className="p-friend-msg-btn"
+                style={{ background: isBlocked ? '#e8f5e9' : '#fff0f0', color: isBlocked ? '#2D6A4F' : '#c0392b', border: `1px solid ${isBlocked ? '#b7dfc9' : '#f5c6c6'}` }}
+                onClick={async () => {
+                  if (isBlocked) {
+                    const res = await apiUnblockUser(userId)
+                    if (res !== null) setIsBlocked(false)
+                  } else {
+                    if (!window.confirm(lang === 'da' ? `Blokér ${profile.name}?` : `Block ${profile.name}?`)) return
+                    const res = await apiBlockUser(userId)
+                    if (res !== null) setIsBlocked(true)
+                  }
+                }}
+              >
+                {isBlocked ? (lang === 'da' ? '🔓 Ophæv blokering' : '🔓 Unblock') : (lang === 'da' ? '🚫 Blokér' : '🚫 Block')}
               </button>
+              <button
+                className="p-friend-msg-btn"
+                style={{ background: '#fffbf0', color: '#b7860b', border: '1px solid #f5e0a0' }}
+                onClick={() => { setShowReport(true); setReportSent(false); setReportReason('') }}
+              >
+                ⚑ {lang === 'da' ? 'Anmeld' : 'Report'}
+              </button>
+            </div>
+            {showReport && (
+              <div style={{ marginTop: 12, padding: '12px 16px', background: '#fffbf0', borderRadius: 10, border: '1px solid #f5e0a0' }}>
+                {reportSent ? (
+                  <p style={{ margin: 0, color: '#2D6A4F', fontWeight: 600, fontSize: 14 }}>
+                    ✓ {lang === 'da' ? 'Anmeldelse sendt – tak' : 'Report submitted – thank you'}
+                  </p>
+                ) : (
+                  <>
+                    <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 600 }}>{lang === 'da' ? 'Anmeld bruger' : 'Report user'}</p>
+                    <select value={reportReason} onChange={e => setReportReason(e.target.value)} style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, marginBottom: 8 }}>
+                      <option value="">{lang === 'da' ? 'Vælg årsag...' : 'Choose reason...'}</option>
+                      <option value="spam">{lang === 'da' ? 'Spam' : 'Spam'}</option>
+                      <option value="harassment">{lang === 'da' ? 'Chikane / mobning' : 'Harassment / bullying'}</option>
+                      <option value="fake">{lang === 'da' ? 'Falsk profil' : 'Fake profile'}</option>
+                      <option value="hate">{lang === 'da' ? 'Hadefuldt indhold' : 'Hate speech'}</option>
+                      <option value="other">{lang === 'da' ? 'Andet' : 'Other'}</option>
+                    </select>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button className="p-friend-msg-btn" disabled={!reportReason} style={{ opacity: reportReason ? 1 : 0.5 }} onClick={async () => {
+                        const res = await apiReportContent('user', userId, reportReason)
+                        if (res !== null) { setReportSent(true); setTimeout(() => setShowReport(false), 2500) }
+                      }}>{lang === 'da' ? 'Send' : 'Submit'}</button>
+                      <button className="p-friend-msg-btn" style={{ background: '#f5f4f0', color: '#666', border: '1px solid #ddd' }} onClick={() => setShowReport(false)}>{lang === 'da' ? 'Annuller' : 'Cancel'}</button>
+                    </div>
+                  </>
+                )}
+              </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Badges */}
+      {profile?.badges?.length > 0 && (
+        <div className="p-card" style={{ marginTop: 12 }}>
+          <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700 }}>
+            🏅 {lang === 'da' ? 'Badges' : 'Badges'} <span style={{ fontWeight: 400, color: '#A09890', fontSize: 13 }}>({profile.badges.length})</span>
+          </h3>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {profile.badges.map(b => (
+              <div key={b.id} title={b.name} style={{ display: 'flex', alignItems: 'center', gap: 6, background: b.tier === 'gold' ? '#FFF8E1' : b.tier === 'silver' ? '#F5F5F5' : '#F0FAF4', borderRadius: 20, padding: '4px 12px', fontSize: 13, border: `1px solid ${b.tier === 'gold' ? '#FFD54F' : b.tier === 'silver' ? '#E0E0E0' : '#B7DFC9'}` }}>
+                <span style={{ fontSize: 16 }}>{b.icon}</span>
+                <span style={{ fontWeight: 600, color: '#333' }}>{b.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Photo grid */}
+      {photos.length > 0 && (
+        <div className="p-card" style={{ marginTop: 12 }}>
+          <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700 }}>
+            🖼 {lang === 'da' ? 'Billeder' : 'Photos'} <span style={{ fontWeight: 400, color: '#A09890', fontSize: 13 }}>({photos.length})</span>
+          </h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
+            {photos.map((p, i) => (
+              <div
+                key={i}
+                onClick={() => setLightbox(p.url.startsWith('http') ? p.url : `${API_BASE}${p.url}`)}
+                style={{ aspectRatio: '1', overflow: 'hidden', borderRadius: 6, cursor: 'zoom-in', background: '#f0ede8' }}
+              >
+                {p.type === 'video'
+                  ? <video src={p.url.startsWith('http') ? p.url : `${API_BASE}${p.url}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
+                  : <img src={p.url.startsWith('http') ? p.url : `${API_BASE}${p.url}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Recent posts */}
+      {userPosts.length > 0 && (
+        <div className="p-card" style={{ marginTop: 12 }}>
+          <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700 }}>
+            📝 {lang === 'da' ? 'Seneste opslag' : 'Recent posts'} <span style={{ fontWeight: 400, color: '#A09890', fontSize: 13 }}>({userPosts.length})</span>
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {userPosts.map(p => {
+              const text = lang === 'da' ? (p.text_da || p.text_en || '') : (p.text_en || p.text_da || '')
+              const date = new Date(p.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })
+              const thumb = p.media?.[0]?.url
+              return (
+                <div key={p.id} style={{ display: 'flex', gap: 10, padding: '10px 0', borderBottom: '1px solid #f0ede8' }}>
+                  {thumb && (
+                    <img
+                      src={thumb.startsWith('http') ? thumb : `${API_BASE}${thumb}`}
+                      alt=""
+                      style={{ width: 56, height: 56, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }}
+                    />
+                  )}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    {text && <p style={{ margin: '0 0 4px', fontSize: 13, color: '#333', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{text}</p>}
+                    <div style={{ display: 'flex', gap: 12, fontSize: 12, color: '#999' }}>
+                      <span>{date}</span>
+                      <span>❤️ {p.likes || 0}</span>
+                      <span>💬 {p.comment_count || 0}</span>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Lightbox */}
+      {lightbox && (
+        <div
+          onClick={() => setLightbox(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', zIndex: 4000, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out' }}
+        >
+          <img src={lightbox} alt="" style={{ maxWidth: '95vw', maxHeight: '92vh', borderRadius: 8, objectFit: 'contain' }} />
+          <button
+            onClick={() => setLightbox(null)}
+            style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', width: 36, height: 36, color: '#fff', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >✕</button>
         </div>
       )}
     </div>
@@ -5146,6 +6278,22 @@ function FriendProfileModal({ userId, lang, t, onClose, onMessage }) {
                 <button className="p-friend-msg-btn" style={{ marginTop: 16 }} onClick={() => { onClose(); onMessage(profile) }}>
                   💬 {t.message}
                 </button>
+              )}
+              {/* Badges */}
+              {profile.badges?.length > 0 && (
+                <div style={{ marginTop: 16, borderTop: '1px solid #f0f0f0', paddingTop: 14 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#555', marginBottom: 8 }}>
+                    🏅 {lang === 'da' ? 'Badges' : 'Badges'}
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {profile.badges.map(b => (
+                      <div key={b.id} title={b.name} style={{ display: 'flex', alignItems: 'center', gap: 4, background: b.tier === 'gold' ? '#FFF8E1' : b.tier === 'silver' ? '#F5F5F5' : '#F0FAF4', borderRadius: 16, padding: '3px 10px', fontSize: 12, border: `1px solid ${b.tier === 'gold' ? '#FFD54F' : b.tier === 'silver' ? '#E0E0E0' : '#B7DFC9'}` }}>
+                        <span style={{ fontSize: 14 }}>{b.icon}</span>
+                        <span style={{ fontWeight: 600, color: '#333' }}>{b.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
               {/* CRM private note */}
               <div style={{ marginTop: 20, borderTop: '1px solid #f0f0f0', paddingTop: 16 }}>
@@ -5375,7 +6523,7 @@ function ReferralDashboard({ t, lang, referralData, badges, leaderboard, inviteL
 }
 
 // ── Friends ──
-function FriendsPage({ lang, t, mode, onMessage }) {
+function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) {
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [friends, setFriends] = useState([])
@@ -5425,6 +6573,11 @@ function FriendsPage({ lang, t, mode, onMessage }) {
     })
   }, [refreshAll])
 
+  // Refresh friend requests when SSE signals a new notification (e.g. incoming friend request)
+  useEffect(() => {
+    if (sseRefreshKey > 0) refreshAll()
+  }, [sseRefreshKey]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Close •••menu on outside click
   useEffect(() => {
     if (!openMenuId) return
@@ -5459,7 +6612,8 @@ function FriendsPage({ lang, t, mode, onMessage }) {
   const handleAccept = useCallback(async (reqId) => {
     await apiAcceptFriendRequest(reqId)
     refreshAll()
-  }, [refreshAll])
+    setTimeout(onBadgeCheck, 500)
+  }, [refreshAll, onBadgeCheck])
 
   const handleDecline = useCallback(async (reqId) => {
     await apiDeclineFriendRequest(reqId)
@@ -5473,7 +6627,7 @@ function FriendsPage({ lang, t, mode, onMessage }) {
     refreshAll()
   }, [unfriendTarget, refreshAll])
 
-  const filtered = (filter === 'invites' || filter === 'viral') ? [] : friends.filter(f => filter === 'all' || f.online)
+  const filtered = (filter === 'invites' || filter === 'requests' || filter === 'viral') ? [] : friends.filter(f => filter === 'all' || f.online)
 
   const handleCopyInvite = useCallback(() => {
     navigator.clipboard.writeText(inviteLink).catch(() => {})
@@ -5669,26 +6823,18 @@ function FriendsPage({ lang, t, mode, onMessage }) {
         </div>
       </div>
 
-      {/* Incoming connection requests (only on non-invites tabs; shown inside Invitations tab too) */}
-      {filter !== 'invites' && requests.incoming.length > 0 && (
-        <div className="p-card p-friend-requests-card">
-          <h3 className="p-section-title" style={{ margin: '0 0 12px' }}>
-            {t.incomingRequests} ({requests.incoming.length})
-          </h3>
-          <div className="p-friend-requests-list">
-            {requests.incoming.map(req => (
-              <div key={req.id} className="p-friend-request-row">
-                <div className="p-avatar-sm" style={{ background: nameToColor(req.from_name) }}>
-                  {getInitials(req.from_name)}
-                </div>
-                <div className="p-friend-request-name">{req.from_name}</div>
-                <div className="p-friend-request-actions">
-                  <button className="p-freq-accept-btn" onClick={() => handleAccept(req.id)}>{t.acceptRequest}</button>
-                  <button className="p-freq-decline-btn" onClick={() => handleDecline(req.id)}>{t.declineRequest}</button>
-                </div>
-              </div>
-            ))}
-          </div>
+      {/* Incoming requests badge — shown on non-request tabs to nudge user */}
+      {filter !== 'requests' && filter !== 'invites' && requests.incoming.length > 0 && (
+        <div className="p-card" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', borderLeft: '3px solid #2D6A4F' }} onClick={() => setFilter('requests')}>
+          <span style={{ fontSize: 20 }}>👥</span>
+          <span style={{ fontSize: 14, fontWeight: 600 }}>
+            {requests.incoming.length === 1
+              ? (lang === 'da' ? '1 afventende forbindelsesanmodning' : '1 pending connection request')
+              : (lang === 'da' ? `${requests.incoming.length} afventende forbindelsesanmodninger` : `${requests.incoming.length} pending connection requests`)}
+          </span>
+          <span style={{ marginLeft: 'auto', fontSize: 12, color: '#2D6A4F', fontWeight: 600 }}>
+            {lang === 'da' ? 'Se →' : 'View →'}
+          </span>
         </div>
       )}
 
@@ -5710,8 +6856,11 @@ function FriendsPage({ lang, t, mode, onMessage }) {
             <button className={`p-filter-tab${filter === 'online' ? ' active' : ''}`} onClick={() => setFilter('online')}>
               <span className="p-filter-online-dot" /> {t.onlineFriends} ({friends.filter(f => f.online).length})
             </button>
+            <button className={`p-filter-tab${filter === 'requests' ? ' active' : ''}`} onClick={() => setFilter('requests')}>
+              👥 {t.requestsTab} ({requests.incoming.length + requests.outgoing.length})
+            </button>
             <button className={`p-filter-tab${filter === 'invites' ? ' active' : ''}`} onClick={() => setFilter('invites')}>
-              ✉️ {t.invitesTab}{invites !== null && invites.filter(i => i.status === 'pending').length > 0 ? ` (${invites.filter(i => i.status === 'pending').length})` : ''}
+              ✉️ {t.invitesTab}
             </button>
             <button className={`p-filter-tab${filter === 'viral' ? ' active' : ''}`} onClick={() => setFilter('viral')}>
               🚀 {t.referralDashViralTitle}
@@ -5775,8 +6924,9 @@ function FriendsPage({ lang, t, mode, onMessage }) {
             </div>
           )}
         </div>
-      ) : filter === 'invites' ? (
+      ) : filter === 'requests' ? (
         <div className="p-invites-page">
+          <p style={{ margin: '0 0 16px', fontSize: 13, color: '#666' }}>{t.requestsTabDesc}</p>
 
           {/* ── Incoming connection requests ── */}
           <div className="p-card p-invites-section">
@@ -5804,7 +6954,46 @@ function FriendsPage({ lang, t, mode, onMessage }) {
             )}
           </div>
 
-          {/* ── Outgoing invitations ── */}
+          {/* ── Outgoing connection requests ── */}
+          <div className="p-card p-invites-section">
+            <h3 className="p-invites-section-title">{t.invitesOutgoingTitle}</h3>
+            {requests.outgoing.length === 0 ? (
+              <div className="p-invites-empty">👥 {t.invitesOutgoingEmpty}</div>
+            ) : (
+              <div className="p-invites-list">
+                {requests.outgoing.map(req => (
+                  <div key={req.id} className="p-invite-row">
+                    <div className="p-avatar-sm" style={{ background: nameToColor(req.to_name) }}>
+                      {getInitials(req.to_name)}
+                    </div>
+                    <div className="p-invite-row-info">
+                      <div className="p-invite-row-name">{req.to_name}</div>
+                      <div className="p-invite-row-meta">{lang === 'da' ? 'Afventer svar' : 'Awaiting reply'}</div>
+                    </div>
+                    <div className="p-invite-row-actions">
+                      <span className="p-invite-status-badge">{t.invitesPending}</span>
+                      <button
+                        className="p-invite-cancel-btn"
+                        title={t.invitesWithdrawBtn}
+                        onClick={async () => {
+                          await apiCancelFriendRequest(req.to_id).catch(() => {})
+                          setRequests(prev => ({ ...prev, outgoing: prev.outgoing.filter(r => r.id !== req.id) }))
+                          setSentIds(prev => { const n = { ...prev }; delete n[req.to_id]; return n })
+                        }}
+                      >✕</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+      ) : filter === 'invites' ? (
+        <div className="p-invites-page">
+          <p style={{ margin: '0 0 16px', fontSize: 13, color: '#666' }}>{t.invitesTabDesc}</p>
+
+          {/* ── Outgoing email invitations ── */}
           <div className="p-card p-invites-section">
             <h3 className="p-invites-section-title">{t.invitesSentTitle}</h3>
             {(() => {
@@ -6985,13 +8174,13 @@ function EventsPage({ lang, t, currentUser, mode }) {
             const isExpired = new Date(ev.date) < new Date()
             const isOrganizer = ev.organizer === currentUser.name || ev.organizerId === currentUser.id
             return (
-              <div key={ev.id} className="p-card p-event-card" onClick={() => setSelectedEvent(ev)} style={isExpired ? { opacity: 0.65 } : {}}>
+              <div key={ev.id} className="p-card p-event-card" onClick={() => setSelectedEvent(ev)}>
                 <div className="p-event-card-body">
-                  <div className="p-event-date-col">
+                  <div className="p-event-date-col" style={isExpired ? { opacity: 0.55 } : {}}>
                     <div className="p-event-month">{new Date(ev.date).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { month: 'short' }).toUpperCase()}</div>
                     <div className="p-event-day">{new Date(ev.date).getDate()}</div>
                   </div>
-                  <div className="p-event-info">
+                  <div className="p-event-info" style={isExpired ? { opacity: 0.55 } : {}}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <h3 className="p-event-title">{getEventTitle(ev)}</h3>
                       {typeLabel && <span className="p-event-type-badge">{typeLabel}</span>}
@@ -7347,6 +8536,7 @@ function CreateEventModal({ t, lang, mode, currentUser, onClose, onCreate, initi
   const [eventType, setEventType] = useState(() => initialEvent?.eventType || '')
   const [ticketUrl, setTicketUrl] = useState(() => initialEvent?.ticketUrl || '')
   const [cap, setCap] = useState(() => initialEvent?.cap ? String(initialEvent.cap) : '')
+  const [coverUrl, setCoverUrl] = useState(() => initialEvent?.coverUrl || '')
 
   useEffect(() => {
     const h = (e) => { if (e.key === 'Escape') onClose() }
@@ -7367,7 +8557,8 @@ function CreateEventModal({ t, lang, mode, currentUser, onClose, onCreate, initi
       location,
       description: { da: description, en: description },
       organizer: currentUser.name,
-      cover: null,
+      cover: coverUrl || null,
+      coverUrl: coverUrl || null,
       going: initialEvent?.going || [currentUser.name],
       maybe: initialEvent?.maybe || [],
       eventType: eventType || null,
@@ -7398,6 +8589,9 @@ function CreateEventModal({ t, lang, mode, currentUser, onClose, onCreate, initi
           <label style={labelStyle}>{t.eventDescription}</label>
           <textarea style={{ ...fieldStyle, minHeight: 80, resize: 'vertical' }} value={description} onChange={e => setDescription(e.target.value)}
             placeholder={lang === 'da' ? 'Beskriv begivenheden...' : 'Describe the event...'} />
+
+          <label style={labelStyle}>{lang === 'da' ? 'Coverbillede-URL' : 'Cover image URL'}</label>
+          <ImageUrlInput value={coverUrl} onChange={setCoverUrl} lang={lang} style={fieldStyle} />
 
           {/* Business-only fields */}
           {mode === 'business' && (
@@ -8423,6 +9617,7 @@ function CreateCompanyModal({ t, lang, currentUser, onClose, onCreate }) {
   const [email, setEmail] = useState('')
   const [linkedin, setLinkedin] = useState('')
   const [foundedYear, setFoundedYear] = useState('')
+  const [logoUrl, setLogoUrl] = useState('')
 
   useEffect(() => {
     const h = (e) => { if (e.key === 'Escape') onClose() }
@@ -8458,6 +9653,7 @@ function CreateCompanyModal({ t, lang, currentUser, onClose, onCreate }) {
           email: email.trim() || null,
           linkedin: linkedin.trim() || null,
           founded_year: foundedYear ? Number(foundedYear) : null,
+          logo_url: logoUrl.trim() || null,
         }),
       })
       if (!res.ok) { const e = await res.json(); alert(e.error || 'Fejl'); return }
@@ -8475,6 +9671,8 @@ function CreateCompanyModal({ t, lang, currentUser, onClose, onCreate }) {
           <input style={fS} value={name} onChange={e => setName(e.target.value)} required placeholder="Acme Corp" />
           <label style={lS}>{t.companyTagline}</label>
           <input style={fS} value={tagline} onChange={e => setTagline(e.target.value)} placeholder={lang === 'da' ? 'Kort slogan...' : 'Short tagline...'} />
+          <label style={lS}>{lang === 'da' ? 'Logo-URL' : 'Logo URL'}</label>
+          <ImageUrlInput value={logoUrl} onChange={setLogoUrl} lang={lang} style={fS} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
               <label style={lS}>{t.companyCvr}</label>
@@ -8610,8 +9808,19 @@ function JobApplyModal({ job, lang, t, onClose }) {
 }
 
 // ── Jobs ──
-function JobCard({ job, t, lang, onSaveToggle }) {
+const JOB_TRACK_STATUSES = [
+  { value: 'not_applied', color: '#888', bg: '#f5f5f5', key: 'jobTrackNotApplied' },
+  { value: 'applied', color: '#1877F2', bg: '#EBF4FF', key: 'jobTrackApplied' },
+  { value: 'interview', color: '#E07B39', bg: '#FFF3EB', key: 'jobTrackInterview' },
+  { value: 'offer', color: '#7C3AED', bg: '#F3EEFF', key: 'jobTrackOffer' },
+  { value: 'hired', color: '#2D6A4F', bg: '#F0FAF4', key: 'jobTrackHired' },
+  { value: 'rejected', color: '#c0392b', bg: '#FFF0F0', key: 'jobTrackRejected' },
+  { value: 'not_interested', color: '#aaa', bg: '#f9f9f9', key: 'jobTrackNotInterested' },
+]
+
+function JobCard({ job, t, lang, onSaveToggle, onTrackChange }) {
   const [isSaved, setIsSaved] = useState(!!job.saved)
+  const [trackStatus, setTrackStatus] = useState(job.track_status || null)
   const [showApplyModal, setShowApplyModal] = useState(false)
   const companyName = job.company_name || job.companyName || ''
   const companyColor = job.company_color || job.companyColor || '#1877F2'
@@ -8621,6 +9830,7 @@ function JobCard({ job, t, lang, onSaveToggle }) {
   const applyLink = job.apply_link || job.applyLink || ''
   const postedDate = job.created_at ? new Date(job.created_at).toLocaleDateString() : (job.postedDate || '')
   const typeLabels = { fulltime: t.jobTypeFullTime, parttime: t.jobTypePartTime, freelance: t.jobTypeFreelance, internship: t.jobTypeInternship }
+  const trackInfo = JOB_TRACK_STATUSES.find(s => s.value === trackStatus)
 
   const toggleSave = () => {
     fetch(`/api/jobs/${job.id}/save`, { method: 'POST', credentials: 'include' })
@@ -8633,6 +9843,16 @@ function JobCard({ job, t, lang, onSaveToggle }) {
       .catch(() => {})
   }
 
+  const handleTrack = (status) => {
+    const newStatus = status || null
+    apiTrackJob(job.id, newStatus).then(data => {
+      if (!data) return
+      setTrackStatus(newStatus)
+      if (newStatus) setIsSaved(true)
+      onTrackChange?.(job.id, newStatus)
+    }).catch(() => {})
+  }
+
   return (
     <div className="p-card p-job-card">
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
@@ -8640,7 +9860,14 @@ function JobCard({ job, t, lang, onSaveToggle }) {
           {companyName[0]}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <h3 style={{ margin: '0 0 2px', fontSize: 16, fontWeight: 700 }}>{title}</h3>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+            <h3 style={{ margin: '0 0 2px', fontSize: 16, fontWeight: 700 }}>{title}</h3>
+            {trackInfo && (
+              <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: trackInfo.bg, color: trackInfo.color, flexShrink: 0 }}>
+                {t[trackInfo.key]}
+              </span>
+            )}
+          </div>
           <div style={{ fontSize: 13, color: '#666', marginBottom: 6 }}>
             {companyName} · {job.location}
             {!!job.remote && <span style={{ marginLeft: 6, fontSize: 11, padding: '2px 8px', borderRadius: 20, background: '#F0FAF4', color: '#2D6A4F', fontWeight: 600 }}>{t.jobRemote}</span>}
@@ -8673,7 +9900,7 @@ function JobCard({ job, t, lang, onSaveToggle }) {
               ⏳ {t.jobDeadline}: {new Date(job.deadline).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
             </div>
           )}
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
             <button
               onClick={() => setShowApplyModal(true)}
               className="p-events-create-btn"
@@ -8706,6 +9933,20 @@ function JobCard({ job, t, lang, onSaveToggle }) {
               {isSaved ? `★ ${t.jobSaved}` : `☆ ${t.jobSave}`}
             </button>
           </div>
+          {/* Personal tracking status */}
+          <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 12, color: '#888', fontWeight: 600 }}>📋 {t.jobTrackStatus}:</span>
+            <select
+              value={trackStatus || ''}
+              onChange={e => handleTrack(e.target.value || null)}
+              style={{ fontSize: 12, padding: '4px 8px', borderRadius: 8, border: `1px solid ${trackInfo ? trackInfo.color : '#ddd'}`, background: trackInfo ? trackInfo.bg : '#fff', color: trackInfo ? trackInfo.color : '#666', cursor: 'pointer', fontFamily: 'inherit', fontWeight: trackInfo ? 700 : 400 }}
+            >
+              <option value="">{t.jobTrackNone}</option>
+              {JOB_TRACK_STATUSES.map(s => (
+                <option key={s.value} value={s.value}>{t[s.key]}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
       {showApplyModal && <JobApplyModal job={job} lang={lang} t={t} onClose={() => setShowApplyModal(false)} />}
@@ -8716,6 +9957,7 @@ function JobCard({ job, t, lang, onSaveToggle }) {
 function JobsPage({ lang, t, currentUser, mode }) {
   const [jobs, setJobs] = useState([])
   const [savedJobs, setSavedJobs] = useState([])
+  const [trackedJobs, setTrackedJobs] = useState([])
   const [myJobs, setMyJobs] = useState([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('all')
@@ -8746,6 +9988,9 @@ function JobsPage({ lang, t, currentUser, mode }) {
         .then(r => r.ok ? r.json() : null)
         .then(data => setSavedJobs(data?.jobs || []))
         .catch(() => {})
+    }
+    if (tab === 'tracking') {
+      apiGetTrackedJobs().then(data => setTrackedJobs(data?.jobs || [])).catch(() => {})
     }
   }, [tab])
 
@@ -8784,7 +10029,7 @@ function JobsPage({ lang, t, currentUser, mode }) {
       .catch(() => {})
   }
 
-  const displayJobs = tab === 'saved' ? savedJobs : jobs.filter(j => {
+  const displayJobs = tab === 'saved' ? savedJobs : tab === 'tracking' ? trackedJobs : jobs.filter(j => {
     if (filterLocation && !j.location?.toLowerCase().includes(filterLocation.toLowerCase()) && !j.remote) return false
     return true
   })
@@ -8803,7 +10048,7 @@ function JobsPage({ lang, t, currentUser, mode }) {
       </div>
 
       {/* Filters — only shown on browse tabs */}
-      {tab !== 'mine' && (
+      {tab !== 'mine' && tab !== 'tracking' && (
         <div className="p-card" style={{ marginBottom: 14, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <input
             className="p-search-input"
@@ -8839,6 +10084,9 @@ function JobsPage({ lang, t, currentUser, mode }) {
         </button>
         <button className={`p-filter-tab${tab === 'saved' ? ' active' : ''}`} onClick={() => setTab('saved')}>
           {t.savedJobs} ({savedJobs.length})
+        </button>
+        <button className={`p-filter-tab${tab === 'tracking' ? ' active' : ''}`} onClick={() => setTab('tracking')}>
+          {t.jobTrackTab} ({trackedJobs.length})
         </button>
         {mode === 'business' && (
           <button className={`p-filter-tab${tab === 'mine' ? ' active' : ''}`} onClick={() => setTab('mine')}>
@@ -8915,6 +10163,18 @@ function JobsPage({ lang, t, currentUser, mode }) {
               onSaveToggle={(id, saved) => {
                 setJobs(prev => prev.map(j => j.id === id ? { ...j, saved } : j))
                 setSavedJobs(prev => saved ? [...prev, job] : prev.filter(j => j.id !== id))
+              }}
+              onTrackChange={(id, status) => {
+                setJobs(prev => prev.map(j => j.id === id ? { ...j, track_status: status } : j))
+                setSavedJobs(prev => prev.map(j => j.id === id ? { ...j, track_status: status } : j))
+                if (status) {
+                  setTrackedJobs(prev => {
+                    const exists = prev.find(j => j.id === id)
+                    return exists ? prev.map(j => j.id === id ? { ...j, track_status: status } : j) : [...prev, { ...job, track_status: status }]
+                  })
+                } else {
+                  setTrackedJobs(prev => prev.filter(j => j.id !== id))
+                }
               }}
             />
           ))}
@@ -9459,7 +10719,7 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
                 <div className="p-listing-price">
                   {listing.priceNegotiable
                     ? t.marketplacePriceNegotiable
-                    : `${listing.price.toLocaleString()} ${lang === 'da' ? 'kr.' : 'DKK'}`}
+                    : formatPrice(listing.price)}
                 </div>
                 <div className="p-listing-title">{listingTitle(listing)}</div>
                 <div className="p-listing-meta">
@@ -10027,6 +11287,43 @@ function PostInsightsPanel({ t, post, onClose }) {
 // ── AdsManagementPage (business users) ───────
 // ─────────────────────────────────────────────
 
+// ── ImageUrlInput — URL field that also accepts pasted images ─────────────────
+// Paste an image (Ctrl+V) → uploads via apiUploadFile → fills URL automatically.
+// Falls back to plain text input if no image is in clipboard.
+function ImageUrlInput({ value, onChange, lang, style, placeholder }) {
+  const [uploading, setUploading] = useState(false)
+
+  const handlePaste = async (e) => {
+    const items = Array.from(e.clipboardData?.items || [])
+    const imageItem = items.find(i => i.kind === 'file' && i.type.startsWith('image/'))
+    if (!imageItem) return // no image — let normal URL paste through
+    e.preventDefault()
+    const file = imageItem.getAsFile()
+    if (!file) return
+    setUploading(true)
+    const data = await apiUploadFile(file).catch(() => null)
+    setUploading(false)
+    if (data?.url) onChange(data.url)
+  }
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <input
+        style={{ ...style, ...(uploading ? { opacity: 0.6 } : {}) }}
+        type="text"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        onPaste={handlePaste}
+        placeholder={uploading ? (lang === 'da' ? 'Uploader billede…' : 'Uploading image…') : (placeholder || 'https://...')}
+        disabled={uploading}
+      />
+      <div style={{ fontSize: 11, color: '#aaa', marginTop: 3 }}>
+        💡 {lang === 'da' ? 'Indsæt et billede direkte med Ctrl+V' : 'Paste an image directly with Ctrl+V'}
+      </div>
+    </div>
+  )
+}
+
 function AdsManagementPage({ lang, t }) {
   const [ads, setAds] = useState([])
   const [loading, setLoading] = useState(true)
@@ -10034,6 +11331,13 @@ function AdsManagementPage({ lang, t }) {
   const [editAd, setEditAd] = useState(null)
   const [form, setForm] = useState({ title: '', body: '', image_url: '', target_url: '', placement: 'feed', start_date: '', end_date: '' })
   const [saving, setSaving] = useState(false)
+  const [paymentAd, setPaymentAd] = useState(null) // ad pending activation payment
+  const [adSettings, setAdSettings] = useState(null)
+  const [paymentLoading, setPaymentLoading] = useState(false)
+  const [paymentError, setPaymentError] = useState(null)
+  const [adRecurring, setAdRecurring] = useState(false)
+
+  useEffect(() => { apiGetAdPrice().then(d => { if (d) setAdSettings(d) }).catch(() => {}) }, [])
 
   const reload = () => {
     setLoading(true)
@@ -10063,13 +11367,26 @@ function AdsManagementPage({ lang, t }) {
     setSaving(false); setShowCreate(false); reload()
   }
 
-  const handleStatus = async (ad, status) => {
-    await apiUpdateAd(ad.id, { status }).catch(() => {})
-    reload()
+  const isPaidAndActive = (ad) => ad.paid_until && new Date(ad.paid_until) > new Date()
+
+  const handleStatus = (ad, status) => {
+    if (status === 'active' && !isPaidAndActive(ad)) { setPaymentAd(ad); setPaymentError(null); return }
+    apiUpdateAd(ad.id, { status }).catch(() => {}).then(() => reload())
+  }
+
+  const handlePayAndActivate = async () => {
+    if (!paymentAd) return
+    setPaymentLoading(true); setPaymentError(null)
+    const price = adSettings?.ad_price_cpm || 50
+    const currency = adSettings?.currency || 'EUR'
+    const data = await apiCreateMolliePayment('ad_activation', price, currency, paymentAd.id, adRecurring).catch(() => null)
+    setPaymentLoading(false)
+    if (data?.checkoutUrl) { window.location.href = data.checkoutUrl; return }
+    setPaymentError(data?.error || (lang === 'da' ? 'Kunne ikke oprette betaling.' : 'Could not create payment.'))
   }
 
   const handleDelete = async (ad) => {
-    if (!window.confirm(lang === 'da' ? 'Arkivér denne annonce?' : 'Archive this ad?')) return
+    if (!window.confirm(lang === 'da' ? `Slet annoncen "${ad.title}" permanent? Dette kan ikke fortrydes.` : `Permanently delete the ad "${ad.title}"? This cannot be undone.`)) return
     await apiDeleteAd(ad.id).catch(() => {})
     reload()
   }
@@ -10079,6 +11396,60 @@ function AdsManagementPage({ lang, t }) {
 
   return (
     <div style={{ maxWidth: 800, margin: '0 auto', padding: '0 16px 80px' }}>
+      {/* Payment modal for ad activation */}
+      {paymentAd && (
+        <div className="modal-backdrop" onClick={() => setPaymentAd(null)}>
+          <div className="p-event-create-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 400 }}>
+            <h3 style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 700 }}>
+              💳 {lang === 'da' ? 'Aktivér reklame' : 'Activate ad'}
+            </h3>
+            <p style={{ margin: '0 0 12px', fontSize: 14, color: '#444' }}>
+              <strong>{paymentAd.title}</strong>
+            </p>
+            {/* Recurring toggle */}
+            <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+              {[false, true].map(r => {
+                const adPrice = adSettings?.ad_price_cpm || 50
+                const adMonthlyPrice = adSettings?.ad_recurring_price ?? adPrice
+                return (
+                  <button key={String(r)} type="button" onClick={() => setAdRecurring(r)}
+                    style={{ flex: 1, padding: '8px 4px', borderRadius: 7, border: `1.5px solid ${adRecurring === r ? '#2D6A4F' : '#ddd'}`, background: adRecurring === r ? '#eaf5ef' : '#fff', color: adRecurring === r ? '#2D6A4F' : '#555', fontWeight: adRecurring === r ? 700 : 400, fontSize: 12, cursor: 'pointer' }}>
+                    {r
+                      ? (lang === 'da' ? `🔁 Løbende — ${formatPrice(adMonthlyPrice)}/md.` : `🔁 Recurring — ${formatPrice(adMonthlyPrice)}/mo.`)
+                      : (lang === 'da' ? `1× Engangsbetaling — ${formatPrice(adPrice)}` : `1× One-time — ${formatPrice(adPrice)}`)}
+                  </button>
+                )
+              })}
+            </div>
+            <p style={{ margin: '0 0 12px', fontSize: 13, color: '#666', lineHeight: 1.5 }}>
+              {lang === 'da'
+                ? (adRecurring
+                    ? `Annoncen faktureres automatisk hver 30. dag og forbliver aktiv. Opsiges til enhver tid.`
+                    : `Giver 30 dages visning fra betalingsdatoen. Kampagnedatoer låses i perioden.`)
+                : (adRecurring
+                    ? `The ad is billed automatically every 30 days and stays active. Cancel any time.`
+                    : `Gives 30 days of display from the payment date. Campaign dates are locked during the period.`)}
+            </p>
+            <p style={{ margin: '0 0 14px', fontSize: 11, color: '#aaa' }}>
+              {lang === 'da' ? 'Sikker betaling via Mollie — EU-certificeret betalingsgateway.' : 'Secure payment via Mollie — EU-certified payment gateway.'}
+            </p>
+            {paymentError && <div style={{ color: '#c0392b', fontSize: 13, marginBottom: 12 }}>{paymentError}</div>}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={handlePayAndActivate} disabled={paymentLoading}
+                style={{ flex: 2, padding: '11px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+                {paymentLoading ? '…' : (lang === 'da'
+                  ? (adRecurring ? 'Opret abonnement' : 'Betal & aktivér')
+                  : (adRecurring ? 'Subscribe' : 'Pay & activate'))}
+              </button>
+              <button onClick={() => setPaymentAd(null)}
+                style={{ flex: 1, padding: '11px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', fontSize: 14, cursor: 'pointer' }}>
+                {lang === 'da' ? 'Annuller' : 'Cancel'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '20px 0 16px' }}>
         <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>📢 {t.adsTitle}</h2>
         <button onClick={openCreate} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>+ {t.adsCreate}</button>
@@ -10093,6 +11464,9 @@ function AdsManagementPage({ lang, t }) {
           {ads.map(ad => (
             <div key={ad.id} className="p-card" style={{ padding: 16 }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                {ad.image_url && (
+                  <img src={ad.image_url} alt="" style={{ width: 72, height: 54, objectFit: 'cover', borderRadius: 8, flexShrink: 0 }} />
+                )}
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{ad.title}</div>
                   {ad.body && <div style={{ fontSize: 13, color: '#555', marginBottom: 6 }}>{ad.body}</div>}
@@ -10102,12 +11476,23 @@ function AdsManagementPage({ lang, t }) {
                     <span>{t.adsImpressions}: <strong>{ad.impressions}</strong></span>
                     <span>{t.adsClicks}: <strong>{ad.clicks}</strong></span>
                     <span>{t.adsCTR}: <strong>{ctr(ad.impressions, ad.clicks)}</strong></span>
+                    {ad.payment_status === 'pending' && !isPaidAndActive(ad) && (
+                      <span style={{ color: '#e67e22' }}>⏳ {lang === 'da' ? 'Afventer betaling' : 'Awaiting payment'}</span>
+                    )}
+                    {ad.payment_status === 'failed' && (
+                      <span style={{ color: '#e74c3c' }}>✗ {lang === 'da' ? 'Betaling mislykkedes' : 'Payment failed'}</span>
+                    )}
+                    {isPaidAndActive(ad) && (
+                      <span style={{ color: '#2D6A4F' }}>
+                        ✓ {lang === 'da' ? 'Betalt' : 'Paid'}{ad.paid_amount ? ` ${formatPrice(parseFloat(ad.paid_amount))}` : ''} · {lang === 'da' ? 'til' : 'until'} <strong>{new Date(ad.paid_until).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-GB')}</strong>
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                   {ad.status === 'draft' && <button onClick={() => handleStatus(ad, 'active')} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, border: '1px solid #2D6A4F', color: '#2D6A4F', background: 'none', cursor: 'pointer' }}>{t.adsActivate}</button>}
                   {ad.status === 'active' && <button onClick={() => handleStatus(ad, 'paused')} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, border: '1px solid #e67e22', color: '#e67e22', background: 'none', cursor: 'pointer' }}>{t.adsPause}</button>}
-                  {ad.status === 'paused' && <button onClick={() => handleStatus(ad, 'active')} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, border: '1px solid #2D6A4F', color: '#2D6A4F', background: 'none', cursor: 'pointer' }}>{t.adsActivate}</button>}
+                  {ad.status === 'paused' && <button onClick={() => handleStatus(ad, 'active')} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, border: '1px solid #2D6A4F', color: '#2D6A4F', background: 'none', cursor: 'pointer' }}>{isPaidAndActive(ad) ? t.adsReactivate : t.adsActivate}</button>}
                   <button onClick={() => openEdit(ad)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, border: '1px solid #999', background: 'none', cursor: 'pointer' }}>{t.adsEdit}</button>
                   <button onClick={() => handleDelete(ad)} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, border: '1px solid #e74c3c', color: '#e74c3c', background: 'none', cursor: 'pointer' }}>{t.adsDelete}</button>
                 </div>
@@ -10127,19 +11512,31 @@ function AdsManagementPage({ lang, t }) {
               <label style={labelStyle}>{t.adsAdBody}</label>
               <textarea style={{ ...fieldStyle, minHeight: 60 }} value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))} />
               <label style={labelStyle}>{t.adsAdImage}</label>
-              <input style={fieldStyle} value={form.image_url} onChange={e => setForm(f => ({ ...f, image_url: e.target.value }))} placeholder="https://..." />
+              <ImageUrlInput value={form.image_url} onChange={v => setForm(f => ({ ...f, image_url: v }))} lang={lang} style={fieldStyle} />
               <label style={labelStyle}>{t.adsAdTarget} *</label>
               <input required style={fieldStyle} value={form.target_url} onChange={e => setForm(f => ({ ...f, target_url: e.target.value }))} placeholder="https://..." />
               <label style={labelStyle}>{t.adsAdStartDate}</label>
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <input type="date" style={{ ...fieldStyle, flex: 1 }} value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} />
-                <button type="button" onClick={() => setForm(f => ({ ...f, start_date: new Date().toISOString().slice(0,10) }))} style={{ whiteSpace: 'nowrap', fontSize: 11, padding: '6px 8px', borderRadius: 6, border: '1px solid #ccc', background: '#f5f5f5', cursor: 'pointer' }}>{lang === 'da' ? 'I dag' : 'Today'}</button>
-              </div>
+              {editAd && isPaidAndActive(editAd) ? (
+                <div style={{ padding: '8px 10px', background: '#f5f5f5', borderRadius: 6, border: '1px solid #ddd', fontSize: 13, color: '#888' }}>
+                  {form.start_date || '–'} <span style={{ fontSize: 11 }}>({lang === 'da' ? 'låst – annonce er betalt' : 'locked – ad is paid'})</span>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <input type="date" style={{ ...fieldStyle, flex: 1 }} value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} />
+                  <button type="button" onClick={() => setForm(f => ({ ...f, start_date: new Date().toISOString().slice(0,10) }))} style={{ whiteSpace: 'nowrap', fontSize: 11, padding: '6px 8px', borderRadius: 6, border: '1px solid #ccc', background: '#f5f5f5', cursor: 'pointer' }}>{lang === 'da' ? 'I dag' : 'Today'}</button>
+                </div>
+              )}
               <label style={labelStyle}>{t.adsAdEndDate}</label>
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <input type="date" style={{ ...fieldStyle, flex: 1 }} value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} />
-                <button type="button" onClick={() => { const d = new Date(); d.setDate(d.getDate() + 30); setForm(f => ({ ...f, end_date: d.toISOString().slice(0,10) })) }} style={{ whiteSpace: 'nowrap', fontSize: 11, padding: '6px 8px', borderRadius: 6, border: '1px solid #ccc', background: '#f5f5f5', cursor: 'pointer' }}>+30 {lang === 'da' ? 'dage' : 'days'}</button>
-              </div>
+              {editAd && isPaidAndActive(editAd) ? (
+                <div style={{ padding: '8px 10px', background: '#f5f5f5', borderRadius: 6, border: '1px solid #ddd', fontSize: 13, color: '#888' }}>
+                  {form.end_date || '–'} <span style={{ fontSize: 11 }}>({lang === 'da' ? 'låst – annonce er betalt' : 'locked – ad is paid'})</span>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <input type="date" style={{ ...fieldStyle, flex: 1 }} value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} />
+                  <button type="button" onClick={() => { const d = new Date(); d.setDate(d.getDate() + 30); setForm(f => ({ ...f, end_date: d.toISOString().slice(0,10) })) }} style={{ whiteSpace: 'nowrap', fontSize: 11, padding: '6px 8px', borderRadius: 6, border: '1px solid #ccc', background: '#f5f5f5', cursor: 'pointer' }}>+30 {lang === 'da' ? 'dage' : 'days'}</button>
+                </div>
+              )}
               <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
                 <button type="submit" disabled={saving} style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>{saving ? '…' : t.adsSave}</button>
                 <button type="button" onClick={() => setShowCreate(false)} style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: '1px solid #ddd', background: 'none', fontSize: 14, cursor: 'pointer' }}>{t.adsCancel}</button>
@@ -10173,10 +11570,6 @@ function AdminAdSettingsPanel({ lang, t }) {
     e.preventDefault()
     setSaving(true)
     await apiSaveAdminAdSettings({
-      adfree_price_private: parseFloat(settings.adfree_price_private),
-      adfree_price_business: parseFloat(settings.adfree_price_business),
-      ad_price_cpm: parseFloat(settings.ad_price_cpm),
-      currency: settings.currency,
       max_ads_feed: parseInt(settings.max_ads_feed),
       max_ads_sidebar: parseInt(settings.max_ads_sidebar),
       max_ads_stories: parseInt(settings.max_ads_stories),
@@ -10194,9 +11587,60 @@ function AdminAdSettingsPanel({ lang, t }) {
 
   if (!settings) return <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>{lang === 'da' ? 'Henter…' : 'Loading…'}</div>
 
+  const placementLabel = (p) => p === 'feed' ? t.adminAdsPlacementFeed : p === 'sidebar' ? t.adminAdsPlacementSidebar : t.adminAdsPlacementStories
+  const currency = settings?.currency || 'EUR'
+
   return (
     <div className="p-card" style={{ marginBottom: 20 }}>
       <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 700 }}>📢 {t.adminAdsTitle}</h3>
+
+      {/* Ad overview — count, paid, revenue per placement */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontWeight: 700, fontSize: 13, color: '#2D6A4F', paddingBottom: 6, borderBottom: '1px solid #eee', marginBottom: 10 }}>📊 {t.adminAdsOverviewTitle}</div>
+        {adStats.length === 0 ? (
+          <div style={{ color: '#aaa', fontSize: 13 }}>{t.adminAdsNoStats}</div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: '#F6F4F1' }}>
+                  {[t.adminAdsColPlacement, t.adminAdsColCount, t.adminAdsColPaid, t.adminAdsColRevenue, t.adminAdsColImpressions, t.adminAdsColClicks, t.adminAdsColCTR].map(h => (
+                    <th key={h} style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 600, color: '#555', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {['feed', 'sidebar', 'stories'].map(pl => {
+                  const s = adStats.find(r => r.placement === pl) || { total_count: 0, paid_count: 0, total_paid: 0, impressions: 0, clicks: 0, ctr: '0.00' }
+                  return (
+                    <tr key={pl} style={{ borderBottom: '1px solid #eee' }}>
+                      <td style={{ padding: '7px 10px', fontWeight: 600 }}>{placementLabel(pl)}</td>
+                      <td style={{ padding: '7px 10px' }}>{s.total_count}</td>
+                      <td style={{ padding: '7px 10px' }}>{s.paid_count}</td>
+                      <td style={{ padding: '7px 10px', fontWeight: 700, color: '#2D6A4F' }}>{formatPrice(Number(s.total_paid))}</td>
+                      <td style={{ padding: '7px 10px', color: '#555' }}>{s.impressions.toLocaleString()}</td>
+                      <td style={{ padding: '7px 10px', color: '#555' }}>{s.clicks.toLocaleString()}</td>
+                      <td style={{ padding: '7px 10px', color: '#555' }}>{s.ctr}%</td>
+                    </tr>
+                  )
+                })}
+                <tr style={{ background: '#F6F4F1', fontWeight: 700 }}>
+                  <td style={{ padding: '7px 10px' }}>{lang === 'da' ? 'Total' : 'Total'}</td>
+                  <td style={{ padding: '7px 10px' }}>{adStats.reduce((a, r) => a + r.total_count, 0)}</td>
+                  <td style={{ padding: '7px 10px' }}>{adStats.reduce((a, r) => a + r.paid_count, 0)}</td>
+                  <td style={{ padding: '7px 10px', color: '#2D6A4F' }}>{formatPrice(adStats.reduce((a, r) => a + Number(r.total_paid), 0))}</td>
+                  <td style={{ padding: '7px 10px' }}>{adStats.reduce((a, r) => a + r.impressions, 0).toLocaleString()}</td>
+                  <td style={{ padding: '7px 10px' }}>{adStats.reduce((a, r) => a + r.clicks, 0).toLocaleString()}</td>
+                  <td style={{ padding: '7px 10px' }}>
+                    {(() => { const ti = adStats.reduce((a, r) => a + r.impressions, 0); const tc = adStats.reduce((a, r) => a + r.clicks, 0); return ti > 0 ? ((tc / ti) * 100).toFixed(2) : '0.00' })()}%
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
       <form onSubmit={handleSave}>
         {/* Master switch */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', background: '#F0FAF4', borderRadius: 8, marginBottom: 20 }}>
@@ -10204,17 +11648,7 @@ function AdminAdSettingsPanel({ lang, t }) {
           <label htmlFor="ads_enabled" style={{ fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>{t.adminAdsEnabled}</label>
         </div>
 
-        <div style={{ fontWeight: 700, fontSize: 13, color: '#2D6A4F', marginTop: 4, paddingBottom: 6, borderBottom: '1px solid #eee' }}>{t.adminAdsPricingTitle}</div>
-        <label style={lS}>{t.adminAdsPricePrivate}</label>
-        <input type="number" step="0.01" style={iS} value={settings.adfree_price_private || ''} onChange={e => handle('adfree_price_private', e.target.value)} />
-        <label style={lS}>{t.adminAdsPriceBusiness}</label>
-        <input type="number" step="0.01" style={iS} value={settings.adfree_price_business || ''} onChange={e => handle('adfree_price_business', e.target.value)} />
-        <label style={lS}>{t.adminAdsCPM}</label>
-        <input type="number" step="0.01" style={iS} value={settings.ad_price_cpm || ''} onChange={e => handle('ad_price_cpm', e.target.value)} />
-        <label style={lS}>{t.adminAdsCurrency}</label>
-        <input style={{ ...iS, maxWidth: 120 }} value={settings.currency || 'DKK'} onChange={e => handle('currency', e.target.value)} />
-
-        <div style={{ fontWeight: 700, fontSize: 13, color: '#2D6A4F', marginTop: 20, paddingBottom: 6, borderBottom: '1px solid #eee' }}>{t.adminAdsDisplayTitle}</div>
+        <div style={{ fontWeight: 700, fontSize: 13, color: '#2D6A4F', marginTop: 4, paddingBottom: 6, borderBottom: '1px solid #eee' }}>{t.adminAdsDisplayTitle}</div>
         <label style={lS}>{t.adminAdsMaxFeed}</label>
         <input type="number" min="0" max="20" style={{ ...iS, maxWidth: 100 }} value={settings.max_ads_feed || ''} onChange={e => handle('max_ads_feed', e.target.value)} />
         <label style={lS}>{t.adminAdsMaxSidebar}</label>
@@ -11184,6 +12618,131 @@ function AdminViralStats({ viralStats, viralDays, setViralDays, lang }) {
   )
 }
 
+// ── Admin: MFA Users Tab ──
+function AdminMfaPanel({ lang }) {
+  const da = lang === 'da'
+  const [users, setUsers] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [disabling, setDisabling] = useState({})
+  const [toast, setToast] = useState(null)
+  const [search, setSearch] = useState('')
+
+  useEffect(() => {
+    apiGetAdminMfaUsers().then(d => {
+      if (d) setUsers(d.users)
+      setLoading(false)
+    })
+  }, [])
+
+  const showToast = (msg, ok) => { setToast({ msg, ok }); setTimeout(() => setToast(null), 3000) }
+
+  const handleForceDisable = async (userId, name) => {
+    if (!confirm(da ? `Deaktiver 2FA for ${name}?` : `Disable 2FA for ${name}?`)) return
+    setDisabling(prev => ({ ...prev, [userId]: true }))
+    const res = await apiAdminForceDisableMfa(userId)
+    setDisabling(prev => ({ ...prev, [userId]: false }))
+    if (res?.ok) {
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, mfaEnabled: false, pendingCode: false } : u))
+      showToast(da ? `2FA deaktiveret for ${name}` : `2FA disabled for ${name}`, true)
+    } else {
+      showToast(da ? 'Fejl — prøv igen' : 'Error — please try again', false)
+    }
+  }
+
+  const filtered = users
+    ? users.filter(u => !search || u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase()))
+    : []
+
+  const mfaCount = users ? users.filter(u => u.mfaEnabled).length : 0
+
+  return (
+    <div className="p-card" style={{ marginBottom: 20 }}>
+      <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700 }}>📱 {da ? '2FA-brugere' : 'MFA Users'}</h3>
+      <p style={{ fontSize: 13, color: '#666', margin: '0 0 14px' }}>
+        {da
+          ? `${mfaCount} bruger${mfaCount !== 1 ? 'e' : ''} har SMS 2FA aktiveret.`
+          : `${mfaCount} user${mfaCount !== 1 ? 's' : ''} have SMS 2FA enabled.`}
+      </p>
+      <input
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        placeholder={da ? 'Søg på navn eller e-mail…' : 'Search by name or email…'}
+        style={{ width: '100%', padding: '8px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 14, boxSizing: 'border-box', marginBottom: 12, fontFamily: 'inherit' }}
+      />
+      {loading && <div style={{ color: '#888', fontSize: 13 }}>{da ? 'Indlæser…' : 'Loading…'}</div>}
+      {!loading && filtered.length === 0 && (
+        <div style={{ color: '#888', fontSize: 13 }}>{da ? 'Ingen brugere fundet.' : 'No users found.'}</div>
+      )}
+      {!loading && filtered.length > 0 && (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: '#f5f5f2' }}>
+                <th style={{ textAlign: 'left', padding: '7px 10px', fontWeight: 600, color: '#555', borderBottom: '1px solid #e8e8e4' }}>{da ? 'Bruger' : 'User'}</th>
+                <th style={{ textAlign: 'center', padding: '7px 10px', fontWeight: 600, color: '#555', borderBottom: '1px solid #e8e8e4' }}>{da ? 'Telefon' : 'Phone'}</th>
+                <th style={{ textAlign: 'center', padding: '7px 10px', fontWeight: 600, color: '#555', borderBottom: '1px solid #e8e8e4' }}>2FA</th>
+                <th style={{ textAlign: 'center', padding: '7px 10px', fontWeight: 600, color: '#555', borderBottom: '1px solid #e8e8e4' }}>{da ? 'Afventer' : 'Pending'}</th>
+                <th style={{ padding: '7px 10px', borderBottom: '1px solid #e8e8e4' }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(u => (
+                <tr key={u.id} style={{ borderBottom: '1px solid #f2f2f0' }}>
+                  <td style={{ padding: '8px 10px' }}>
+                    <div style={{ fontWeight: 600, color: '#1a1a1a' }}>{u.name}</div>
+                    <div style={{ fontSize: 11, color: '#888' }}>{u.email}</div>
+                  </td>
+                  <td style={{ textAlign: 'center', padding: '8px 10px', color: u.hasPhone ? '#2D6A4F' : '#ccc' }}>
+                    {u.hasPhone ? '✓' : '—'}
+                  </td>
+                  <td style={{ textAlign: 'center', padding: '8px 10px' }}>
+                    <span style={{
+                      display: 'inline-block', padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700,
+                      background: u.mfaEnabled ? '#F0FAF4' : '#f5f5f2',
+                      color: u.mfaEnabled ? '#2D6A4F' : '#aaa',
+                      border: `1px solid ${u.mfaEnabled ? '#b7dfca' : '#e0e0da'}`,
+                    }}>
+                      {u.mfaEnabled ? (da ? 'Aktiv' : 'On') : (da ? 'Slået fra' : 'Off')}
+                    </span>
+                  </td>
+                  <td style={{ textAlign: 'center', padding: '8px 10px', color: u.pendingCode ? '#e67e22' : '#ccc' }}>
+                    {u.pendingCode ? '⏳' : '—'}
+                  </td>
+                  <td style={{ padding: '8px 10px', textAlign: 'right' }}>
+                    {u.mfaEnabled && (
+                      <button
+                        onClick={() => handleForceDisable(u.id, u.name)}
+                        disabled={!!disabling[u.id]}
+                        style={{
+                          padding: '4px 10px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                          background: '#fff0f0', color: '#c0392b', fontSize: 12, fontWeight: 600,
+                          opacity: disabling[u.id] ? 0.6 : 1,
+                        }}
+                      >
+                        {disabling[u.id] ? '…' : (da ? 'Deaktiver' : 'Disable')}
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {toast && (
+        <div style={{
+          marginTop: 12, padding: '8px 12px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+          background: toast.ok ? '#F0FAF4' : '#fff0f0',
+          color: toast.ok ? '#2D6A4F' : '#c0392b',
+          border: `1px solid ${toast.ok ? '#b7dfca' : '#f5b7b1'}`,
+        }}>
+          {toast.ok ? '✓' : '✗'} {toast.msg}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Admin: Security & GDPR Tab ──
 function AdminSecurityGdpr({ viralStats, lang }) {
   const da = lang === 'da'
@@ -11464,6 +13023,95 @@ function ReportModal({ t, targetType, targetId, onClose }) {
   )
 }
 
+// ── Admin Pricing Panel — edit all platform prices in one place ──
+function AdminPricingPanel({ lang }) {
+  const da = lang === 'da'
+  const [settings, setSettings] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    apiGetAdminAdSettings().then(data => { if (data?.settings) setSettings(data.settings) }).catch(() => {})
+  }, [])
+
+  const handle = (key, val) => setSettings(s => ({ ...s, [key]: val }))
+
+  const handleSave = async (e) => {
+    e.preventDefault()
+    if (!settings) return
+    setSaving(true)
+    await apiSaveAdminAdSettings({
+      adfree_price_private: parseFloat(settings.adfree_price_private) || 29,
+      adfree_price_business: parseFloat(settings.adfree_price_business) || 49,
+      boost_price: parseFloat(settings.boost_price) || 9,
+      ad_price_cpm: parseFloat(settings.ad_price_cpm) || 50,
+      currency: settings.currency || 'EUR',
+    }).catch(() => {})
+    setSaving(false); setSaved(true)
+    setTimeout(() => setSaved(false), 2500)
+  }
+
+  const lS = { fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 4, marginTop: 16 }
+  const iS = { padding: '8px 10px', borderRadius: 6, border: '1px solid #ddd', fontSize: 14, width: 140 }
+
+  if (!settings) return <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>{da ? 'Henter…' : 'Loading…'}</div>
+
+  return (
+    <div className="p-card" style={{ maxWidth: 480 }}>
+      <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700 }}>💰 {da ? 'Priser' : 'Pricing'}</h3>
+      <p style={{ margin: '0 0 20px', fontSize: 13, color: '#888' }}>
+        {da ? 'Alle priser vises i valutaen nedenfor og afspejles øjeblikkeligt i betalingsflows.' : 'All prices are shown in the currency below and take effect immediately in payment flows.'}
+      </p>
+      <form onSubmit={handleSave}>
+        <div style={{ background: '#F6F4F1', borderRadius: 8, padding: '14px 16px', marginBottom: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 13, color: '#2D6A4F', marginBottom: 10 }}>🚫 {da ? 'Reklamefrit abonnement' : 'Ad-free subscription'}</div>
+          <label style={lS}>{da ? 'Privat (éngangs)' : 'Personal (one-time)'}</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input type="number" step="0.01" min="0" style={iS} value={settings.adfree_price_private || ''} onChange={e => handle('adfree_price_private', e.target.value)} />
+            <span style={{ fontSize: 13, color: '#888' }}>{settings.currency || 'EUR'}</span>
+            <span style={{ fontSize: 12, color: '#aaa' }}>→ {formatPrice(parseFloat(settings.adfree_price_private) || 29)}</span>
+          </div>
+          <label style={lS}>{da ? 'Erhverv (éngangs)' : 'Business (one-time)'}</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input type="number" step="0.01" min="0" style={iS} value={settings.adfree_price_business || ''} onChange={e => handle('adfree_price_business', e.target.value)} />
+            <span style={{ fontSize: 13, color: '#888' }}>{settings.currency || 'EUR'}</span>
+            <span style={{ fontSize: 12, color: '#aaa' }}>→ {formatPrice(parseFloat(settings.adfree_price_business) || 49)}</span>
+          </div>
+        </div>
+
+        <div style={{ background: '#F6F4F1', borderRadius: 8, padding: '14px 16px', marginBottom: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 13, color: '#2D6A4F', marginBottom: 10 }}>🚀 {da ? 'Boost (markedsplads)' : 'Boost (marketplace)'}</div>
+          <label style={lS}>{da ? 'Pris pr. boost (7 dage)' : 'Price per boost (7 days)'}</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input type="number" step="0.01" min="0" style={iS} value={settings.boost_price ?? ''} onChange={e => handle('boost_price', e.target.value)} />
+            <span style={{ fontSize: 13, color: '#888' }}>{settings.currency || 'EUR'}</span>
+            <span style={{ fontSize: 12, color: '#aaa' }}>→ {formatPrice(parseFloat(settings.boost_price) || 9)}</span>
+          </div>
+        </div>
+
+        <div style={{ background: '#F6F4F1', borderRadius: 8, padding: '14px 16px', marginBottom: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 13, color: '#2D6A4F', marginBottom: 10 }}>📢 {da ? 'Annoncering' : 'Advertising'}</div>
+          <label style={lS}>{da ? 'Annonce pris (pr. aktivering)' : 'Ad price (per activation)'}</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input type="number" step="0.01" min="0" style={iS} value={settings.ad_price_cpm || ''} onChange={e => handle('ad_price_cpm', e.target.value)} />
+            <span style={{ fontSize: 13, color: '#888' }}>{settings.currency || 'EUR'}</span>
+            <span style={{ fontSize: 12, color: '#aaa' }}>→ {formatPrice(parseFloat(settings.ad_price_cpm) || 50)}</span>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 20 }}>
+          <label style={lS}>{da ? 'Valuta' : 'Currency'}</label>
+          <input style={{ ...iS, width: 80 }} value={settings.currency || 'EUR'} onChange={e => handle('currency', e.target.value)} maxLength={10} />
+        </div>
+
+        <button type="submit" className="btn-primary" disabled={saving} style={{ minWidth: 120 }}>
+          {saving ? (da ? 'Gemmer…' : 'Saving…') : saved ? (da ? '✓ Gemt' : '✓ Saved') : (da ? 'Gem priser' : 'Save prices')}
+        </button>
+      </form>
+    </div>
+  )
+}
+
 // ── Admin Platform Ads Panel ──────────────────────────────────────────────────
 // Manages platform-level display/native/sticky ads (zone-based, admin only).
 function AdminPlatformAdsPanel({ lang }) {
@@ -11561,7 +13209,7 @@ function AdminPlatformAdsPanel({ lang }) {
           <label style={lS}>{da ? 'Titel' : 'Title'} *</label>
           <input style={iS} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} required />
           <label style={lS}>{da ? 'Billede-URL' : 'Image URL'}</label>
-          <input style={iS} type="url" value={form.image_url} onChange={e => setForm(f => ({ ...f, image_url: e.target.value }))} placeholder="https://..." />
+          <ImageUrlInput value={form.image_url} onChange={v => setForm(f => ({ ...f, image_url: v }))} lang={da ? 'da' : 'en'} style={iS} />
           <label style={lS}>{da ? 'Destination-URL' : 'Link URL'} *</label>
           <input style={iS} type="url" value={form.link_url} onChange={e => setForm(f => ({ ...f, link_url: e.target.value }))} placeholder="https://..." required />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
@@ -11658,6 +13306,373 @@ function AdminPlatformAdsPanel({ lang }) {
   )
 }
 
+function AdminEasterEggsPanel({ lang }) {
+  const ADMIN_KEY = ADMIN_LS_KEY
+  const [cfg, setCfg] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(ADMIN_KEY) || '{}') } catch { return {} }
+  })
+  const [stats, setStats] = useState(null)
+  const [statsNote, setStatsNote] = useState(null)
+
+  useEffect(() => {
+    apiGetAdminEasterEggStats()
+      .then(d => { if (d?.stats) setStats(d.stats) })
+      .catch(() => setStatsNote(lang === 'da' ? 'Serverstatistik utilgængelig.' : 'Server stats unavailable.'))
+  }, [lang])
+
+  const updateCfg = (id, key, val) => {
+    setCfg(prev => {
+      const updated = { ...prev, [id]: { ...(prev[id] || {}), [key]: val } }
+      localStorage.setItem(ADMIN_KEY, JSON.stringify(updated))
+      return updated
+    })
+  }
+
+  const statMap = {}
+  if (stats) for (const s of stats) statMap[s.egg_id] = s
+
+  const maxAct = Math.max(1, ...EGG_IDS.map(id => statMap[id]?.total_activations || 0))
+
+  const fmtDays = (sec) => sec != null ? (sec / 86400).toFixed(1) : '—'
+
+  return (
+    <div>
+      {/* Config table */}
+      <div className="p-card" style={{ marginBottom: 20, padding: '20px 22px', overflowX: 'auto' }}>
+        <h3 style={{ margin: '0 0 14px', fontSize: 16, fontWeight: 700 }}>🥚 {lang === 'da' ? 'Påskeæg — konfiguration' : 'Easter Eggs — configuration'}</h3>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <thead>
+            <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
+              <th style={{ padding: '6px 8px', fontWeight: 700, color: '#555' }}>{lang === 'da' ? 'Navn' : 'Name'}</th>
+              <th style={{ padding: '6px 8px', fontWeight: 700, color: '#555' }}>{lang === 'da' ? 'Trigger' : 'Trigger'}</th>
+              <th style={{ padding: '6px 8px', fontWeight: 700, color: '#555', textAlign: 'center' }}>{lang === 'da' ? 'Global' : 'Global'}</th>
+              <th style={{ padding: '6px 8px', fontWeight: 700, color: '#555', textAlign: 'center' }}>{lang === 'da' ? 'Hints' : 'Hints'}</th>
+              <th style={{ padding: '6px 8px', fontWeight: 700, color: '#555' }}>{lang === 'da' ? 'Hint-tekst' : 'Hint text'}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {EGG_IDS.map(id => {
+              const meta = EGG_META[id]
+              const ec = cfg[id] || {}
+              const globalEnabled = ec.globalEnabled !== false
+              const hintsEnabled = !!ec.hintsEnabled
+              return (
+                <tr key={id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                  <td style={{ padding: '8px 8px' }}><span style={{ marginRight: 6 }}>{meta.icon}</span>{meta.name}</td>
+                  <td style={{ padding: '8px 8px', color: '#888', fontSize: 12 }}>{meta.trigger[lang]}</td>
+                  <td style={{ padding: '8px', textAlign: 'center' }}>
+                    <input type="checkbox" checked={globalEnabled} onChange={e => updateCfg(id, 'globalEnabled', e.target.checked)} style={{ width: 16, height: 16, cursor: 'pointer' }} />
+                  </td>
+                  <td style={{ padding: '8px', textAlign: 'center' }}>
+                    <input type="checkbox" checked={hintsEnabled} onChange={e => updateCfg(id, 'hintsEnabled', e.target.checked)} style={{ width: 16, height: 16, cursor: 'pointer' }} />
+                  </td>
+                  <td style={{ padding: '8px' }}>
+                    <input
+                      type="text"
+                      value={ec.hintText || ''}
+                      onChange={e => updateCfg(id, 'hintText', e.target.value)}
+                      placeholder={hintsEnabled ? (lang === 'da' ? 'Hint til brugere…' : 'Hint for users…') : ''}
+                      disabled={!hintsEnabled}
+                      style={{ width: '100%', padding: '4px 8px', borderRadius: 5, border: '1px solid #ddd', fontSize: 12, boxSizing: 'border-box', opacity: hintsEnabled ? 1 : 0.4 }}
+                    />
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+        <p style={{ fontSize: 11, color: '#aaa', margin: '10px 0 0' }}>
+          {lang === 'da' ? '⚠ Konfiguration gemmes i localStorage på denne enhed.' : '⚠ Configuration is stored in localStorage on this device.'}
+        </p>
+      </div>
+
+      {/* Stats table */}
+      <div className="p-card" style={{ padding: '20px 22px', overflowX: 'auto' }}>
+        <h3 style={{ margin: '0 0 14px', fontSize: 16, fontWeight: 700 }}>📊 {lang === 'da' ? 'Statistik' : 'Statistics'}</h3>
+        {statsNote && <p style={{ fontSize: 13, color: '#aaa', margin: '0 0 14px' }}>{statsNote}</p>}
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <thead>
+            <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
+              <th style={{ padding: '6px 8px', fontWeight: 700, color: '#555' }}>{lang === 'da' ? 'Æg' : 'Egg'}</th>
+              <th style={{ padding: '6px 8px', fontWeight: 700, color: '#555', textAlign: 'right' }}>{lang === 'da' ? 'Aktiveringer' : 'Activations'}</th>
+              <th style={{ padding: '6px 8px', fontWeight: 700, color: '#555', textAlign: 'right' }}>{lang === 'da' ? 'Opdagere' : 'Discoverers'}</th>
+              <th style={{ padding: '6px 8px', fontWeight: 700, color: '#555', textAlign: 'right' }}>{lang === 'da' ? 'Gns. dage' : 'Avg. days'}</th>
+              <th style={{ padding: '6px 8px', fontWeight: 700, color: '#555', textAlign: 'right' }}>{lang === 'da' ? 'Hurtigst' : 'Fastest'}</th>
+              <th style={{ padding: '6px 8px', fontWeight: 700, color: '#555', textAlign: 'right' }}>{lang === 'da' ? 'Langsomst' : 'Slowest'}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {EGG_IDS.map(id => {
+              const meta = EGG_META[id]
+              const s = statMap[id]
+              return (
+                <tr key={id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                  <td style={{ padding: '8px' }}>{meta.icon} {meta.name}</td>
+                  <td style={{ padding: '8px', textAlign: 'right', fontWeight: 600 }}>{s?.total_activations ?? 0}</td>
+                  <td style={{ padding: '8px', textAlign: 'right' }}>{s?.unique_discoverers ?? 0}</td>
+                  <td style={{ padding: '8px', textAlign: 'right' }}>{fmtDays(s?.avg_seconds)}</td>
+                  <td style={{ padding: '8px', textAlign: 'right', color: '#2D6A4F' }}>{fmtDays(s?.min_seconds)}</td>
+                  <td style={{ padding: '8px', textAlign: 'right', color: '#888' }}>{fmtDays(s?.max_seconds)}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+
+        {/* Simple SVG bar chart */}
+        <div style={{ marginTop: 20 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#555', marginBottom: 10 }}>
+            {lang === 'da' ? 'Aktiveringer pr. påskeæg' : 'Activations per easter egg'}
+          </div>
+          {EGG_IDS.map(id => {
+            const meta = EGG_META[id]
+            const count = statMap[id]?.total_activations || 0
+            const pct = Math.round((count / maxAct) * 100)
+            return (
+              <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                <span style={{ width: 22, fontSize: 14 }}>{meta.icon}</span>
+                <span style={{ width: 110, fontSize: 12, color: '#555', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{meta.name}</span>
+                <div style={{ flex: 1, background: '#f0f0f0', borderRadius: 4, height: 14, overflow: 'hidden' }}>
+                  <div style={{ width: `${pct}%`, height: '100%', background: '#2D6A4F', borderRadius: 4, transition: 'width 0.4s' }} />
+                </div>
+                <span style={{ fontSize: 12, color: '#888', width: 28, textAlign: 'right' }}>{count}</span>
+              </div>
+            )
+          })}
+          {!stats && <p style={{ fontSize: 12, color: '#ccc', margin: '8px 0 0' }}>{lang === 'da' ? '(Ingen serverdata endnu)' : '(No server data yet)'}</p>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── BadgesProfileSection — badges tab in user profile ────────────────────────
+function BadgesProfileSection({ lang, earnedBadges, onBadgeCheck, setEarnedBadges }) {
+  const da = lang === 'da'
+
+  const handleCheckNow = async () => {
+    if (onBadgeCheck) onBadgeCheck()
+    // Refresh earned badges after a delay to see newly awarded ones
+    setTimeout(() => {
+      apiGetEarnedBadges().then(d => { if (d) setEarnedBadges(d.badges || []) })
+    }, 1500)
+  }
+
+  if (earnedBadges === null) {
+    return (
+      <div className="p-card" style={{ padding: 40, textAlign: 'center', color: '#888' }}>⏳</div>
+    )
+  }
+
+  const earnedSet = new Set(earnedBadges.map(b => b.id))
+
+  const tiers = [
+    { tier: 1, label: da ? '🥉 Begynder (bronze)' : '🥉 Beginner (bronze)', color: '#CD7F32', fillColor: '#CD7F32' },
+    { tier: 2, label: da ? '🥈 Engageret (sølv)' : '🥈 Engaged (silver)',   color: '#A8A9AD', fillColor: '#A8A9AD' },
+    { tier: 3, label: da ? '🥇 Ekspert (guld)' : '🥇 Expert (gold)',         color: '#FFD700', fillColor: '#FFD700' },
+    { tier: 0, label: da ? '🥚 Påskeæg (hemmeligt)' : '🥚 Easter Eggs (secret)', color: '#9D4EDD', fillColor: '#9D4EDD' },
+  ]
+
+  const tierClassMap = { 1: 'badge-tier-1', 2: 'badge-tier-2', 3: 'badge-tier-3', 0: 'badge-egg' }
+
+  return (
+    <div className="p-card" style={{ padding: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>🏅 {da ? 'Mine badges' : 'My badges'}</h3>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 13, color: '#888' }}>{earnedBadges.length} / {BADGES.length}</span>
+          <button
+            onClick={handleCheckNow}
+            style={{ padding: '5px 12px', borderRadius: 8, border: '1px solid #2D6A4F', background: '#fff', color: '#2D6A4F', fontWeight: 600, cursor: 'pointer', fontSize: 12 }}
+          >{da ? 'Opdater' : 'Refresh'}</button>
+        </div>
+      </div>
+
+      {tiers.map(({ tier, label, color, fillColor }) => {
+        const tierBadges = BADGES.filter(b => b.tier === tier)
+        const tierEarned = tierBadges.filter(b => earnedSet.has(b.id))
+        const pct = tierBadges.length ? tierEarned.length / tierBadges.length : 0
+
+        return (
+          <div key={tier} className="badge-tier-section">
+            <div className="badge-tier-header">
+              <span className="badge-tier-title" style={{ color }}>{label}</span>
+              <span className="badge-tier-count">{tierEarned.length} / {tierBadges.length}</span>
+            </div>
+            <div className="badge-tier-bar">
+              <div className="badge-tier-bar-fill" style={{ width: `${pct * 100}%`, background: fillColor }} />
+            </div>
+            <div className="badge-grid">
+              {tierBadges.map((badge, idx) => {
+                const isEarned = earnedSet.has(badge.id)
+                const earnedData = earnedBadges.find(b => b.id === badge.id)
+                const isEgg = tier === 0
+                const displayName = isEgg && !isEarned ? '???' : badge.name[lang] || badge.name.da
+                const displayDesc = isEgg && !isEarned ? (da ? 'Hemmeligt — opdage det selv!' : 'Secret — discover it yourself!') : badge.description[lang] || badge.description.da
+
+                return (
+                  <div
+                    key={badge.id}
+                    className={`badge-cell ${tierClassMap[tier]} ${isEarned ? 'earned' : 'locked'}`}
+                    style={{ animationDelay: isEarned ? `${idx * 40}ms` : '0ms' }}
+                  >
+                    <div className="badge-icon">{badge.icon}</div>
+                    <span className="badge-label">{displayName}</span>
+                    <div className="badge-tooltip">
+                      <strong>{displayName}</strong><br />
+                      {displayDesc}
+                      {isEarned && earnedData?.awardedAt && (
+                        <><br /><span style={{ fontSize: 10, opacity: 0.7 }}>
+                          {da ? 'Optjent' : 'Earned'}: {new Date(earnedData.awardedAt).toLocaleDateString(da ? 'da-DK' : 'en-US')}
+                        </span></>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ── AdminBadgesPanel — badge management in admin panel ────────────────────────
+function AdminBadgesPanel({ lang }) {
+  const da = lang === 'da'
+  const [stats, setStats] = useState(null)
+  const [allDefs, setAllDefs] = useState(null)
+  const [toggling, setToggling] = useState(null) // badge id being toggled
+
+  useEffect(() => {
+    apiGetAdminBadgeStats().then(d => { if (d) setStats(d) })
+    apiGetAllBadges().then(d => { if (d) setAllDefs(d.badges) })
+  }, [])
+
+  const handleToggle = async (badgeId, currentEnabled) => {
+    setToggling(badgeId)
+    await apiToggleBadge(badgeId, !currentEnabled)
+    setAllDefs(prev => prev?.map(b => b.id === badgeId ? { ...b, enabled: !currentEnabled } : b))
+    setStats(prev => prev ? {
+      ...prev,
+      stats: prev.stats?.map(s => s.id === badgeId ? { ...s, enabled: !currentEnabled } : s),
+    } : prev)
+    setToggling(null)
+  }
+
+  if (!stats || !allDefs) {
+    return <div className="p-card" style={{ padding: 40, textAlign: 'center', color: '#888' }}>⏳</div>
+  }
+
+  const TIER_LABEL_DA = { 1: '🥉 Bronze', 2: '🥈 Sølv', 3: '🥇 Guld', 0: '🥚 Påskeæg' }
+  const TIER_LABEL_EN = { 1: '🥉 Bronze', 2: '🥈 Silver', 3: '🥇 Gold', 0: '🥚 Easter Egg' }
+  const tierLabel = tier => (da ? TIER_LABEL_DA : TIER_LABEL_EN)[tier] || `T${tier}`
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Summary stats */}
+      <div className="p-card" style={{ padding: 20 }}>
+        <h3 style={{ margin: '0 0 14px', fontSize: 16, fontWeight: 700 }}>📊 {da ? 'Overblik' : 'Overview'}</h3>
+        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 16 }}>
+          <div style={{ flex: 1, minWidth: 120, background: '#f9fafb', borderRadius: 10, padding: '14px 18px', textAlign: 'center' }}>
+            <div style={{ fontSize: 24, fontWeight: 700 }}>{stats.totalUsers}</div>
+            <div style={{ fontSize: 12, color: '#888' }}>{da ? 'Brugere' : 'Users'}</div>
+          </div>
+          <div style={{ flex: 1, minWidth: 120, background: '#f9fafb', borderRadius: 10, padding: '14px 18px', textAlign: 'center' }}>
+            <div style={{ fontSize: 24, fontWeight: 700 }}>{allDefs.length}</div>
+            <div style={{ fontSize: 12, color: '#888' }}>{da ? 'Badges i alt' : 'Total badges'}</div>
+          </div>
+          <div style={{ flex: 1, minWidth: 120, background: '#f9fafb', borderRadius: 10, padding: '14px 18px', textAlign: 'center' }}>
+            <div style={{ fontSize: 24, fontWeight: 700 }}>{allDefs.filter(b => b.enabled).length}</div>
+            <div style={{ fontSize: 12, color: '#888' }}>{da ? 'Aktive badges' : 'Active badges'}</div>
+          </div>
+        </div>
+
+        {stats.topEarned?.length > 0 && (
+          <>
+            <h4 style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, color: '#555' }}>🏆 {da ? 'Mest optjente' : 'Most earned'}</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
+              {stats.topEarned.map(b => (
+                <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 18 }}>{b.icon}</span>
+                  <span style={{ flex: 1, fontSize: 13 }}>{b.name}</span>
+                  <span style={{ fontSize: 12, color: '#888' }}>{b.awardedCount} ({b.awardedPct}%)</span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+        {stats.rarest?.length > 0 && (
+          <>
+            <h4 style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, color: '#555' }}>💎 {da ? 'Sjældneste' : 'Rarest'}</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {stats.rarest.map(b => (
+                <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 18 }}>{b.icon}</span>
+                  <span style={{ flex: 1, fontSize: 13 }}>{b.name}</span>
+                  <span style={{ fontSize: 12, color: '#888' }}>{b.awardedCount} ({b.awardedPct}%)</span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Badge definition table */}
+      <div className="p-card" style={{ padding: 20, overflowX: 'auto' }}>
+        <h3 style={{ margin: '0 0 14px', fontSize: 16, fontWeight: 700 }}>⚙️ {da ? 'Badge-definitioner' : 'Badge definitions'}</h3>
+        <table className="badge-admin-table">
+          <thead>
+            <tr>
+              <th>{da ? 'Badge' : 'Badge'}</th>
+              <th>{da ? 'Tier' : 'Tier'}</th>
+              <th>{da ? 'Optjent' : 'Awarded'}</th>
+              <th>%</th>
+              <th>{da ? 'Aktiv' : 'Active'}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {allDefs.map(b => {
+              const statRow = stats.stats?.find(s => s.id === b.id)
+              return (
+                <tr key={b.id} className={b.enabled ? '' : 'disabled-row'}>
+                  <td>
+                    <span style={{ fontSize: 18, marginRight: 8 }}>{b.icon}</span>
+                    <span style={{ fontWeight: 600 }}>{b.name}</span>
+                  </td>
+                  <td style={{ fontSize: 12, color: '#888' }}>{tierLabel(b.tier)}</td>
+                  <td style={{ fontSize: 13 }}>{statRow?.awardedCount ?? 0}</td>
+                  <td style={{ fontSize: 13 }}>{statRow?.awardedPct ?? 0}%</td>
+                  <td>
+                    <button
+                      disabled={toggling === b.id}
+                      onClick={() => handleToggle(b.id, b.enabled)}
+                      style={{
+                        width: 38, height: 22, borderRadius: 11,
+                        background: b.enabled ? '#52B788' : '#ccc',
+                        border: 'none', cursor: toggling === b.id ? 'wait' : 'pointer',
+                        transition: 'background 0.2s', position: 'relative',
+                      }}
+                      title={b.enabled ? (da ? 'Deaktiver' : 'Disable') : (da ? 'Aktiver' : 'Enable')}
+                    >
+                      <span style={{
+                        position: 'absolute', top: 3, left: b.enabled ? 18 : 3,
+                        width: 16, height: 16, borderRadius: '50%',
+                        background: '#fff', transition: 'left 0.2s',
+                      }} />
+                    </button>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
 function AdminPage({ lang, t }) {
   const [adminTab, setAdminTab] = useState('stats')
   const [form, setForm] = useState({
@@ -11673,6 +13688,8 @@ function AdminPage({ lang, t }) {
   const [interestStats, setInterestStats] = useState(null)
   const [viralStats, setViralStats] = useState(null)
   const [viralDays, setViralDays] = useState(30)
+  const [expandedStat, setExpandedStat] = useState(null) // stat type currently expanded
+  const [statDetail, setStatDetail] = useState(null) // { type, rows }
   // Moderation state
   const [modQueue, setModQueue] = useState(null)
   const [modUsers, setModUsers] = useState(null)
@@ -11755,50 +13772,102 @@ function AdminPage({ lang, t }) {
   const lS = { fontSize: 13, fontWeight: 600, color: '#555', marginBottom: 4, display: 'block' }
 
   const statItems = stats ? [
-    { icon: '👥', label: lang === 'da' ? 'Brugere i alt' : 'Total users', value: stats.users },
+    { icon: '👥', label: lang === 'da' ? 'Brugere i alt' : 'Total users', value: stats.users, detailType: 'users' },
     { icon: '🟢', label: lang === 'da' ? 'Aktive sessioner' : 'Active sessions', value: stats.active_users },
-    { icon: '🆕', label: lang === 'da' ? 'Nye brugere (7 dage)' : 'New users (7 days)', value: stats.new_users_7d },
-    { icon: '📝', label: lang === 'da' ? 'Opslag i alt' : 'Total posts', value: stats.posts },
+    { icon: '🆕', label: lang === 'da' ? 'Nye brugere (7 dage)' : 'New users (7 days)', value: stats.new_users_7d, detailType: 'new_users_7d' },
+    { icon: '📝', label: lang === 'da' ? 'Opslag i alt' : 'Total posts', value: stats.posts, detailType: 'posts' },
     { icon: '💬', label: lang === 'da' ? 'Beskeder i alt' : 'Total messages', value: stats.messages },
-    { icon: '📅', label: lang === 'da' ? 'Begivenheder' : 'Events', value: stats.events },
+    { icon: '📅', label: lang === 'da' ? 'Begivenheder' : 'Events', value: stats.events, detailType: 'events' },
     { icon: '✅', label: lang === 'da' ? 'Tilmeldinger (going)' : 'Event RSVPs (going)', value: stats.rsvps },
-    { icon: '🛍️', label: lang === 'da' ? 'Aktive annoncer' : 'Active listings', value: stats.listings },
-    { icon: '🤝', label: lang === 'da' ? 'Forbindelser' : 'Friendships', value: stats.friendships },
+    { icon: '🛍️', label: lang === 'da' ? 'Aktive annoncer' : 'Active listings', value: stats.listings, detailType: 'listings' },
+    { icon: '🤝', label: lang === 'da' ? 'Forbindelser' : 'Friendships', value: stats.friendships, detailType: 'friendships' },
   ] : []
+
+  const handleStatClick = (s) => {
+    if (!s.detailType) return
+    if (expandedStat === s.detailType) { setExpandedStat(null); setStatDetail(null); return }
+    setExpandedStat(s.detailType)
+    setStatDetail(null)
+    apiGetAdminStatDetail(s.detailType).then(d => { if (d) setStatDetail(d) }).catch(() => {})
+  }
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto', padding: '24px 16px' }}>
       <h2 style={{ margin: '0 0 16px', fontSize: 22, fontWeight: 700 }}>⚙️ {t.adminTitle}</h2>
 
-      <div className="p-filter-tabs" style={{ marginBottom: 20 }}>
-        <button className={`p-filter-tab${adminTab === 'stats' ? ' active' : ''}`} onClick={() => setAdminTab('stats')}>
-          📊 {lang === 'da' ? 'Status' : 'Overview'}
-        </button>
-        <button className={`p-filter-tab${adminTab === 'feed' ? ' active' : ''}`} onClick={() => setAdminTab('feed')}>
-          🎯 {t.adminFeedTab}
-        </button>
-        <button className={`p-filter-tab${adminTab === 'viral' ? ' active' : ''}`} onClick={() => setAdminTab('viral')}>
-          🚀 {lang === 'da' ? 'Viral vækst' : 'Viral growth'}
-        </button>
-        <button className={`p-filter-tab${adminTab === 'ads' ? ' active' : ''}`} onClick={() => setAdminTab('ads')}>
-          📢 {t.adminAdsTitle}
-        </button>
-        <button className={`p-filter-tab${adminTab === 'payment' ? ' active' : ''}`} onClick={() => setAdminTab('payment')}>
-          💳 {t.adminPaymentTitle}
-        </button>
-        <button className={`p-filter-tab${adminTab === 'security' ? ' active' : ''}`} onClick={() => setAdminTab('security')}>
-          🔒 {lang === 'da' ? 'Sikkerhed & GDPR' : 'Security & GDPR'}
-        </button>
-        <button className={`p-filter-tab${adminTab === 'platform' ? ' active' : ''}`} onClick={() => setAdminTab('platform')}>
-          🛠️ {lang === 'da' ? 'Indstillinger' : 'Settings'}
-        </button>
-        <button className={`p-filter-tab${adminTab === 'moderation' ? ' active' : ''}`} onClick={() => setAdminTab('moderation')}>
-          🛡️ {t.adminModerationTab}
-        </button>
-        <button className={`p-filter-tab${adminTab === 'moderators' ? ' active' : ''}`} onClick={() => setAdminTab('moderators')}>
-          👮 {t.adminModModeratorsTab}
-        </button>
-      </div>
+      {/* Admin navigation — grouped into categories */}
+      {(() => {
+        const adminGroups = [
+          {
+            label: lang === 'da' ? 'Oversigt' : 'Overview',
+            tabs: [
+              { id: 'stats', icon: '📊', label: lang === 'da' ? 'Status' : 'Overview' },
+              { id: 'viral', icon: '🚀', label: lang === 'da' ? 'Viral vækst' : 'Viral growth' },
+            ],
+          },
+          {
+            label: lang === 'da' ? 'Indhold' : 'Content',
+            tabs: [
+              { id: 'feed', icon: '🎯', label: t.adminFeedTab },
+              { id: 'moderation', icon: '🛡️', label: t.adminModerationTab },
+              { id: 'moderators', icon: '👮', label: t.adminModModeratorsTab },
+            ],
+          },
+          {
+            label: lang === 'da' ? 'Økonomi' : 'Monetisation',
+            tabs: [
+              { id: 'pricing', icon: '💰', label: lang === 'da' ? 'Priser' : 'Pricing' },
+              { id: 'ads', icon: '📢', label: t.adminAdsTitle },
+              { id: 'payment', icon: '💳', label: t.adminPaymentTitle },
+            ],
+          },
+          {
+            label: lang === 'da' ? 'Platform' : 'Platform',
+            tabs: [
+              { id: 'platform', icon: '🛠️', label: lang === 'da' ? 'Indstillinger' : 'Settings' },
+              { id: 'security', icon: '🔒', label: lang === 'da' ? 'Sikkerhed & GDPR' : 'Security & GDPR' },
+              { id: 'mfa-admin', icon: '📱', label: lang === 'da' ? '2FA-brugere' : 'MFA Users' },
+            ],
+          },
+          {
+            label: lang === 'da' ? 'Sjov & Gamification' : 'Fun & Gamification',
+            tabs: [
+              { id: 'easter-eggs', icon: '🥚', label: lang === 'da' ? 'Påskeæg' : 'Easter Eggs' },
+              { id: 'badges', icon: '🏅', label: 'Badges' },
+            ],
+          },
+        ]
+        return (
+          <div style={{ marginBottom: 24, background: '#f8f8f6', borderRadius: 12, padding: '12px 16px', border: '1px solid #e8e8e4' }}>
+            {adminGroups.map(group => (
+              <div key={group.label} style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#999', textTransform: 'uppercase', letterSpacing: '0.06em', minWidth: 110, flexShrink: 0 }}>
+                  {group.label}
+                </span>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {group.tabs.map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setAdminTab(tab.id)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 5,
+                        padding: '5px 12px', borderRadius: 20, border: 'none', cursor: 'pointer',
+                        fontSize: 13, fontWeight: adminTab === tab.id ? 700 : 500,
+                        background: adminTab === tab.id ? '#2D6A4F' : '#fff',
+                        color: adminTab === tab.id ? '#fff' : '#444',
+                        boxShadow: adminTab === tab.id ? '0 2px 8px rgba(45,106,79,0.18)' : '0 1px 3px rgba(0,0,0,0.08)',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      <span>{tab.icon}</span> {tab.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      })()}
 
       {adminTab === 'stats' && (
         <div>
@@ -11809,14 +13878,55 @@ function AdminPage({ lang, t }) {
           ) : (
             <>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
-              {statItems.map(s => (
-                <div key={s.label} className="p-card" style={{ textAlign: 'center', padding: '20px 16px' }}>
-                  <div style={{ fontSize: 32, marginBottom: 6 }}>{s.icon}</div>
-                  <div style={{ fontSize: 28, fontWeight: 800, color: '#2D6A4F', marginBottom: 4 }}>{s.value ?? '—'}</div>
-                  <div style={{ fontSize: 12, color: '#888', fontWeight: 500 }}>{s.label}</div>
-                </div>
-              ))}
+              {statItems.map(s => {
+                const isExpanded = expandedStat === s.detailType
+                return (
+                  <div key={s.label} className="p-card"
+                    onClick={() => handleStatClick(s)}
+                    style={{ textAlign: 'center', padding: '20px 16px', cursor: s.detailType ? 'pointer' : 'default',
+                      border: isExpanded ? '2px solid #2D6A4F' : undefined, transition: 'border 0.15s' }}>
+                    <div style={{ fontSize: 32, marginBottom: 6 }}>{s.icon}</div>
+                    <div style={{ fontSize: 28, fontWeight: 800, color: '#2D6A4F', marginBottom: 4 }}>{s.value ?? '—'}</div>
+                    <div style={{ fontSize: 12, color: '#888', fontWeight: 500 }}>{s.label}</div>
+                    {s.detailType && <div style={{ fontSize: 10, color: '#bbb', marginTop: 4 }}>{isExpanded ? '▲' : '▼'}</div>}
+                  </div>
+                )
+              })}
             </div>
+
+            {/* Expandable stat detail panel */}
+            {expandedStat && (
+              <div className="p-card" style={{ marginTop: 12, padding: '16px 20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>
+                    {statItems.find(s => s.detailType === expandedStat)?.icon} {statItems.find(s => s.detailType === expandedStat)?.label}
+                  </h4>
+                  <button onClick={() => { setExpandedStat(null); setStatDetail(null) }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#aaa' }}>✕</button>
+                </div>
+                {!statDetail ? (
+                  <div style={{ color: '#aaa', fontSize: 13, textAlign: 'center', padding: 16 }}>{lang === 'da' ? 'Henter…' : 'Loading…'}</div>
+                ) : statDetail.rows.length === 0 ? (
+                  <div style={{ color: '#aaa', fontSize: 13, textAlign: 'center', padding: 16 }}>{lang === 'da' ? 'Ingen data.' : 'No data.'}</div>
+                ) : (
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                      <tbody>
+                        {statDetail.rows.map((row, i) => (
+                          <tr key={i} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                            {Object.entries(row).map(([k, v]) => (
+                              <td key={k} style={{ padding: '6px 8px', color: '#333', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {k === 'created_at' || k === 'expires_at' ? new Date(v).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-GB') : String(v ?? '—')}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Mode segmentation */}
             <div className="p-card" style={{ marginTop: 16, padding: '20px 24px' }}>
@@ -11972,6 +14082,10 @@ function AdminPage({ lang, t }) {
         <AdminSecurityGdpr viralStats={viralStats} lang={lang} />
       )}
 
+      {adminTab === 'mfa-admin' && <AdminMfaPanel lang={lang} />}
+
+      {adminTab === 'pricing' && <AdminPricingPanel lang={lang} />}
+
       {adminTab === 'ads' && (
         <>
           <AdminPlatformAdsPanel lang={lang} />
@@ -12115,10 +14229,16 @@ function AdminPage({ lang, t }) {
                   />
                 )}
                 <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>{t.adminPaymentMollieKeyHint}</div>
+                <div style={{ marginTop: 8 }}>
+                  <a href="https://my.mollie.com/dashboard/" target="_blank" rel="noopener noreferrer"
+                    style={{ fontSize: 13, color: '#1877F2', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    🔗 {lang === 'da' ? 'Åbn Mollie administration' : 'Open Mollie dashboard'} ↗
+                  </a>
+                </div>
               </div>
             </div>
             <div style={{ marginTop: 12, padding: '12px 14px', background: '#F0F7FF', border: '1px solid #BDD8F9', borderRadius: 8, fontSize: 12, color: '#2C4A6E', lineHeight: 1.6 }}>
-              💡 {lang === 'da' ? 'Priser for reklamefrit abonnement og Boost sættes under Annoncestyring.' : 'Prices for ad-free subscriptions and Boost are set under Ads management.'}
+              💡 {lang === 'da' ? 'Priser for reklamefrit abonnement og Boost sættes under Økonomi → Priser.' : 'Prices for ad-free subscriptions and Boost are set under Monetisation → Pricing.'}
             </div>
             <div style={{ marginTop: 8, padding: '12px 14px', background: '#FFFBF0', border: '1px solid #FFE08A', borderRadius: 8, fontSize: 12, color: '#7A5C00', lineHeight: 1.6 }}>
               ⚙️ {t.adminPaymentEnvNote}
@@ -12168,21 +14288,6 @@ function AdminPage({ lang, t }) {
                   />
                   <span style={{ fontSize: 13, color: '#888' }}>{lang === 'da' ? '(1–20 fotos)' : '(1–20 photos)'}</span>
                 </div>
-              </div>
-              <div>
-                <label style={lS}>Google Photos Client ID</label>
-                <input
-                  style={fS}
-                  type="text"
-                  placeholder="123456789-abc.apps.googleusercontent.com"
-                  value={form.google_photos_client_id || ''}
-                  onChange={e => setForm(prev => ({ ...prev, google_photos_client_id: e.target.value }))}
-                />
-                <span style={{ fontSize: 12, color: '#888', marginTop: 4, display: 'block' }}>
-                  {lang === 'da'
-                    ? 'OAuth 2.0 Client ID fra Google Cloud Console. Aktiverer Google Fotos i oprettelsesboksen.'
-                    : 'OAuth 2.0 Client ID from Google Cloud Console. Enables Google Photos in the post creator.'}
-                </span>
               </div>
             </div>
           </div>
@@ -12882,6 +14987,9 @@ function AdminPage({ lang, t }) {
           </div>
         </div>
       )}
+
+      {adminTab === 'easter-eggs' && <AdminEasterEggsPanel lang={lang} />}
+      {adminTab === 'badges' && <AdminBadgesPanel lang={lang} />}
     </div>
   )
 }
