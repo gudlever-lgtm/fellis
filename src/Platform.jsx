@@ -4533,6 +4533,169 @@ const EGG_META = {
   watcher:  { icon: '👀', name: 'Skyggefølger', trigger: { da: 'Klik 7 gange på en vens avatar i Vis Profil', en: "Click 7 times on a friend's avatar in View Profile" } },
 }
 
+const EGG_INTERVIEW = {
+  chuck: [
+    {
+      q_da: 'Hvorfor er du her?',
+      a_da: 'Fordi ingen anden turde nægte mig adgang. Faktisk forsøgte de at sætte en CAPTCHA op — men den løste sig selv af frygt.',
+      q_en: 'Why are you here?',
+      a_en: 'Because no one else dared to deny me entry. They tried setting up a CAPTCHA, but it solved itself out of fear.',
+    },
+    {
+      q_da: 'Hvad er din historie?',
+      a_da: 'Jeg startede som en vittighed på internettet i 2005. Siden da har jeg slået rekorder i frit fald, kompileret kode med et enkelt blik og vundet den samme skakparti mod mig selv 47 gange i træk.',
+      q_en: 'What is your history?',
+      a_en: 'I started as an internet joke in 2005. Since then I have broken records in freefall, compiled code with a single glare, and won the same chess game against myself 47 times in a row.',
+    },
+    {
+      q_da: 'Hvorfor synes du selv, du er sjov?',
+      a_da: 'Det er ikke mig, der synes det. Det er tyngdekraften, der griner — fordi den ikke gælder for mig.',
+      q_en: 'Why do you find yourself funny?',
+      a_en: "It's not me who finds it funny. It's gravity laughing — because it doesn't apply to me.",
+    },
+  ],
+  matrix: [
+    {
+      q_da: 'Hvorfor er du her?',
+      a_da: 'Du klikkede for hurtigt. Systemet bemærkede det. Jeg er altid her — du ser det bare ikke, medmindre du klikker syv gange.',
+      q_en: 'Why are you here?',
+      a_en: 'You clicked too fast. The system noticed. I am always here — you just cannot see me unless you click seven times.',
+    },
+    {
+      q_da: 'Hvad er din historie?',
+      a_da: 'Jeg er born af en film fra 1999 og en skærmsaver fra samme årti. En udvikler syntes, det ville se fedt ud. Det gør det stadig.',
+      q_en: 'What is your history?',
+      a_en: 'I was born from a 1999 film and a screensaver from the same decade. A developer thought it would look cool. It still does.',
+    },
+    {
+      q_da: 'Hvorfor synes du selv, du er sjov?',
+      a_da: 'Jeg er ikke sjov. Jeg er uundgåelig. Men den distinktion er åbenbart ret morsom for folk, der ser mig første gang.',
+      q_en: 'Why do you find yourself funny?',
+      a_en: 'I am not funny. I am inevitable. But that distinction is apparently quite amusing to people who see me for the first time.',
+    },
+  ],
+  flip: [
+    {
+      q_da: 'Hvorfor er du her?',
+      a_da: 'Fordi nogen troede, at verden ville se bedre ud på hovedet. De tog fejl, men det er stadig underholdende.',
+      q_en: 'Why are you here?',
+      a_en: 'Because someone thought the world would look better upside down. They were wrong, but it is still entertaining.',
+    },
+    {
+      q_da: 'Hvad er din historie?',
+      a_da: 'Jeg er opkaldt efter den tabel-flip-emoji (╯°□°）╯︵ ┻━┻ — en klassiker fra frustrerede chatbrugere. Jeg er frustrationens elegante søskende.',
+      q_en: 'What is your history?',
+      a_en: 'I am named after the table flip emoji (╯°□°）╯︵ ┻━┻ — a classic from frustrated chat users. I am frustration\'s elegant sibling.',
+    },
+    {
+      q_da: 'Hvorfor synes du selv, du er sjov?',
+      a_da: 'Fordi alle griner, når tingene er på vrangen — især når det ikke var meningen.',
+      q_en: 'Why do you find yourself funny?',
+      a_en: 'Because everyone laughs when things are upside down — especially when it was not intended.',
+    },
+  ],
+  retro: [
+    {
+      q_da: 'Hvorfor er du her?',
+      a_da: 'Fordi nogen savner den tid, hvor skærme lugtede af varm plast og pixels var synlige med det blotte øje.',
+      q_en: 'Why are you here?',
+      a_en: 'Because someone misses the time when screens smelled of warm plastic and pixels were visible to the naked eye.',
+    },
+    {
+      q_da: 'Hvad er din historie?',
+      a_da: 'Jeg er en hyldest til CRT-skærme, Courier New og de dage, hvor "hurtig computer" betød 56k modem. Jeg er nostalgi i filterform.',
+      q_en: 'What is your history?',
+      a_en: 'I am a tribute to CRT monitors, Courier New, and the days when "fast computer" meant a 56k modem. I am nostalgia in filter form.',
+    },
+    {
+      q_da: 'Hvorfor synes du selv, du er sjov?',
+      a_da: 'Fordi du holdt nede i 1,5 sekunder på en overskrift og blev belønnet med scanliner. Det er lidt absurd — og det er præcis, hvad jeg lever for.',
+      q_en: 'Why do you find yourself funny?',
+      a_en: 'Because you held down for 1.5 seconds on a headline and got rewarded with scanlines. That is slightly absurd — and that is exactly what I live for.',
+    },
+  ],
+  gravity: [
+    {
+      q_da: 'Hvorfor er du her?',
+      a_da: 'Fordi Newton ville have elsket sociale medier. Og fordi G+G er en billig pris for kaos.',
+      q_en: 'Why are you here?',
+      a_en: 'Because Newton would have loved social media. And because G+G is a cheap price for chaos.',
+    },
+    {
+      q_da: 'Hvad er din historie?',
+      a_da: 'Jeg er opkaldt efter en af universets fire grundkræfter. De andre tre — elektromagnetisme, stærk og svag kernekraft — er jaloux, men de kan ikke trykke G+G.',
+      q_en: 'What is your history?',
+      a_en: 'I am named after one of the four fundamental forces of the universe. The other three — electromagnetism, strong and weak nuclear force — are jealous, but they cannot press G+G.',
+    },
+    {
+      q_da: 'Hvorfor synes du selv, du er sjov?',
+      a_da: 'Fordi indlæg falder ned og forsvinder. Det er det sociale medie som det burde fungere.',
+      q_en: 'Why do you find yourself funny?',
+      a_en: 'Because posts fall down and disappear. That is social media as it should work.',
+    },
+  ],
+  party: [
+    {
+      q_da: 'Hvorfor er du her?',
+      a_da: 'Du bad om fest. Jeg leverer altid. Konfetti er min kærlighed, og kærlighed er konfetti.',
+      q_en: 'Why are you here?',
+      a_en: 'You asked for a party. I always deliver. Confetti is my love language, and love is confetti.',
+    },
+    {
+      q_da: 'Hvad er din historie?',
+      a_da: 'Jeg er inspireret af hvert eneste overraskelsesselskab, der nogensinde gik lidt for langt. 180 partikler, 10 farver, og ingen der rydder op bagefter.',
+      q_en: 'What is your history?',
+      a_en: 'I am inspired by every surprise party that ever went slightly too far. 180 particles, 10 colours, and nobody cleaning up afterwards.',
+    },
+    {
+      q_da: 'Hvorfor synes du selv, du er sjov?',
+      a_da: 'Fordi du skriver "party" på et dansk socialt medie og forventer alvor. Det er ikke alvor. Det er konfetti.',
+      q_en: 'Why do you find yourself funny?',
+      a_en: 'Because you type "party" on a Danish social platform and expect seriousness. This is not serious. This is confetti.',
+    },
+  ],
+  rickroll: [
+    {
+      q_da: 'Hvorfor er du her?',
+      a_da: 'Vi er aldrig nogensinde nødt til at sige farvel til hinanden. Og vi er aldrig nogensinde nødt til at løbe væk eller sige farvel. Du vidste godt, hvad der kom.',
+      q_en: 'Why are you here?',
+      a_en: 'We are never ever gonna have to say goodbye to each other. And we are never ever gonna run around and desert each other. You knew exactly what was coming.',
+    },
+    {
+      q_da: 'Hvad er din historie?',
+      a_da: 'Rick Astley udgav "Never Gonna Give You Up" i 1987. Internettet opdagede den i 2007 og besluttede, at den tilhører alle og ingen. Jeg er dens digitale efterliv.',
+      q_en: 'What is your history?',
+      a_en: 'Rick Astley released "Never Gonna Give You Up" in 1987. The internet discovered it in 2007 and decided it belongs to everyone and no one. I am its digital afterlife.',
+    },
+    {
+      q_da: 'Hvorfor synes du selv, du er sjov?',
+      a_da: 'Fordi du rullede til bunden af feed og ventede i 4 sekunder. Du stillede dig frivilligt op til det her.',
+      q_en: 'Why do you find yourself funny?',
+      a_en: 'Because you scrolled to the bottom of the feed and waited for 4 seconds. You voluntarily set yourself up for this.',
+    },
+  ],
+  watcher: [
+    {
+      q_da: 'Hvorfor er du her?',
+      a_da: 'Fordi du klikkede syv gange. Syv gange. På en avatar. Ingen klikker syv gange ved et uheld.',
+      q_en: 'Why are you here?',
+      a_en: 'Because you clicked seven times. Seven times. On an avatar. Nobody clicks seven times by accident.',
+    },
+    {
+      q_da: 'Hvad er din historie?',
+      a_da: 'Jeg hedder Skyggefølger, fordi jeg altid er der, selvom ingen ser mig. Jeg er den der 👀-emoji, der dukker op i alle tråde, man helst vil glemme.',
+      q_en: 'What is your history?',
+      a_en: 'I am called the Shadow Follower because I am always there even when nobody sees me. I am that 👀 emoji that appears in every thread you would rather forget.',
+    },
+    {
+      q_da: 'Hvorfor synes du selv, du er sjov?',
+      a_da: 'Øjne er i sig selv sjove. Prøv at skrive 👀 i en samtale og se, hvad der sker. Nogen begynder altid at forklare sig.',
+      q_en: 'Why do you find yourself funny?',
+      a_en: 'Eyes are inherently funny. Try writing 👀 in a conversation and watch what happens. Someone always starts explaining themselves.',
+    },
+  ],
+}
+
 function EasterEggSettings({ lang }) {
   const { eggs, toggleEgg } = useEasterEggs()
   const adminConfig = loadAdminEggs()
@@ -4554,26 +4717,43 @@ function EasterEggSettings({ lang }) {
         const adminEgg = adminConfig[id] || {}
         const globallyDisabled = adminEgg.globalEnabled === false
         const enabled = !globallyDisabled && egg?.enabled !== false
-        const hintText = adminEgg.hintsEnabled && adminEgg.hintText ? adminEgg.hintText : null
+        const interview = EGG_INTERVIEW[id]
         return (
-          <div key={id} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '10px 0', borderTop: '1px solid #eee', gap: 12 }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600, fontSize: 14 }}>{meta.icon} {meta.name}</div>
-              <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>{meta.trigger[lang]}</div>
-              {hintText && <div style={{ fontSize: 11, color: '#2D6A4F', marginTop: 3, fontStyle: 'italic' }}>💡 {hintText}</div>}
-              <div style={{ fontSize: 11, color: '#bbb', marginTop: 2 }}>
-                {lang === 'da' ? `Opdaget: ${fmtDate(egg?.firstDiscoveredAt)}` : `Discovered: ${fmtDate(egg?.firstDiscoveredAt)}`}
-                {' · '}
-                {lang === 'da' ? `Aktiveret ${egg?.activationCount ?? 1}×` : `Activated ${egg?.activationCount ?? 1}×`}
+          <div key={id} style={{ padding: '14px 0', borderTop: '1px solid #eee' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>{meta.icon} {meta.name}</div>
+                <div style={{ fontSize: 11, color: '#bbb', marginTop: 2 }}>
+                  {lang === 'da' ? `Opdaget: ${fmtDate(egg?.firstDiscoveredAt)}` : `Discovered: ${fmtDate(egg?.firstDiscoveredAt)}`}
+                  {' · '}
+                  {lang === 'da' ? `Aktiveret ${egg?.activationCount ?? 1}×` : `Activated ${egg?.activationCount ?? 1}×`}
+                </div>
+                {globallyDisabled && (
+                  <div style={{ fontSize: 11, color: '#e03131', marginTop: 2 }}>{lang === 'da' ? '⚠ Deaktiveret af admin' : '⚠ Disabled by admin'}</div>
+                )}
               </div>
-              {globallyDisabled && (
-                <div style={{ fontSize: 11, color: '#e03131', marginTop: 2 }}>{lang === 'da' ? '⚠ Deaktiveret af admin' : '⚠ Disabled by admin'}</div>
-              )}
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: globallyDisabled ? 'not-allowed' : 'pointer', flexShrink: 0, marginTop: 2 }}>
+                <input type="checkbox" checked={enabled} disabled={globallyDisabled} onChange={() => !globallyDisabled && toggleEgg(id)} style={{ width: 16, height: 16 }} />
+                <span style={{ fontSize: 12, color: '#555' }}>{lang === 'da' ? 'Aktiv' : 'On'}</span>
+              </label>
             </div>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: globallyDisabled ? 'not-allowed' : 'pointer', flexShrink: 0, marginTop: 2 }}>
-              <input type="checkbox" checked={enabled} disabled={globallyDisabled} onChange={() => !globallyDisabled && toggleEgg(id)} style={{ width: 16, height: 16 }} />
-              <span style={{ fontSize: 12, color: '#555' }}>{lang === 'da' ? 'Aktiv' : 'On'}</span>
-            </label>
+            {interview && (
+              <div style={{ marginTop: 12, background: '#f8f8f8', borderRadius: 8, padding: '12px 14px', fontSize: 12 }}>
+                <div style={{ fontWeight: 700, fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+                  {lang === 'da' ? `— Et interview med ${meta.name} —` : `— An interview with ${meta.name} —`}
+                </div>
+                {interview.map((qa, i) => (
+                  <div key={i} style={{ marginBottom: i < interview.length - 1 ? 10 : 0 }}>
+                    <div style={{ fontWeight: 600, color: '#555', marginBottom: 2 }}>
+                      {lang === 'da' ? qa.q_da : qa.q_en}
+                    </div>
+                    <div style={{ color: '#444', fontStyle: 'italic', lineHeight: 1.5 }}>
+                      "{lang === 'da' ? qa.a_da : qa.a_en}"
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )
       })}
