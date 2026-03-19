@@ -1499,6 +1499,9 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [scheduleEnabled, setScheduleEnabled] = useState(false)
   const [scheduledAt, setScheduledAt] = useState('')
   const [postLocation, setPostLocation] = useState(null)       // { lat, lng, name } or null
+  const [locationSearchOpen, setLocationSearchOpen] = useState(false)
+  const [locationSearchText, setLocationSearchText] = useState('')
+  const [locationResults, setLocationResults] = useState([])
   const [locationLoading, setLocationLoading] = useState(false)
   const [locationMapPost, setLocationMapPost] = useState(null) // post whose map is shown in modal
 
@@ -1706,6 +1709,9 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     setScheduleEnabled(false)
     setScheduledAt('')
     setPostLocation(null)
+    setLocationSearchOpen(false)
+    setLocationSearchText('')
+    setLocationResults([])
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
   }, [mediaPreviews, currentUser.name])
 
@@ -2247,6 +2253,90 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
               </div>
             )}
 
+            {/* Location search panel */}
+            {locationSearchOpen && !postLocation && (
+              <div style={{ padding: '8px 4px 4px', position: 'relative' }}>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <input
+                    autoFocus
+                    type="text"
+                    value={locationSearchText}
+                    onChange={async e => {
+                      const q = e.target.value
+                      setLocationSearchText(q)
+                      setLocationResults([])
+                      if (q.length < 2) return
+                      setLocationLoading(true)
+                      try {
+                        const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=5&accept-language=${lang}`)
+                        const j = await r.json()
+                        setLocationResults(j)
+                      } catch {}
+                      setLocationLoading(false)
+                    }}
+                    placeholder={lang === 'da' ? 'Søg sted…' : 'Search location…'}
+                    style={{ flex: 1, padding: '7px 10px', borderRadius: 8, border: '1px solid #1877F2', fontSize: 13, outline: 'none' }}
+                  />
+                  <button
+                    type="button"
+                    onMouseDown={e => e.preventDefault()}
+                    title={lang === 'da' ? 'Brug min position' : 'Use my location'}
+                    onClick={() => {
+                      if (!navigator.geolocation) return
+                      setLocationLoading(true)
+                      navigator.geolocation.getCurrentPosition(
+                        async pos => {
+                          const { latitude: lat, longitude: lng } = pos.coords
+                          let name = ''
+                          try {
+                            const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=${lang}`)
+                            const j = await r.json()
+                            name = j.address?.city || j.address?.town || j.address?.village || j.address?.county || j.display_name?.split(',')[0] || ''
+                          } catch {}
+                          setPostLocation({ lat, lng, name })
+                          setLocationSearchOpen(false)
+                          setLocationSearchText('')
+                          setLocationResults([])
+                          setLocationLoading(false)
+                        },
+                        () => setLocationLoading(false),
+                        { timeout: 8000 }
+                      )
+                    }}
+                    style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid #ddd', background: '#f5f5f5', fontSize: 13, cursor: 'pointer' }}
+                  >
+                    {locationLoading ? '⏳' : '🎯'}
+                  </button>
+                  <button
+                    type="button"
+                    onMouseDown={e => e.preventDefault()}
+                    onClick={() => { setLocationSearchOpen(false); setLocationSearchText(''); setLocationResults([]) }}
+                    style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid #ddd', background: '#f5f5f5', fontSize: 13, cursor: 'pointer' }}
+                  >✕</button>
+                </div>
+                {locationResults.length > 0 && (
+                  <div style={{ position: 'absolute', left: 4, right: 4, background: '#fff', border: '1px solid #ddd', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 100, marginTop: 4 }}>
+                    {locationResults.map((r, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onMouseDown={e => e.preventDefault()}
+                        onClick={() => {
+                          setPostLocation({ lat: parseFloat(r.lat), lng: parseFloat(r.lon), name: r.display_name.split(',')[0] })
+                          setLocationSearchOpen(false)
+                          setLocationSearchText('')
+                          setLocationResults([])
+                        }}
+                        style={{ display: 'block', width: '100%', textAlign: 'left', padding: '9px 14px', background: 'none', border: 'none', borderBottom: i < locationResults.length - 1 ? '1px solid #f0f0f0' : 'none', cursor: 'pointer', fontSize: 13, color: '#333' }}
+                      >
+                        📍 {r.display_name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Selected location chip */}
             {postLocation && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 4px 0' }}>
@@ -2254,7 +2344,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   📍 {postLocation.name || `${postLocation.lat.toFixed(4)}, ${postLocation.lng.toFixed(4)}`}
                   <button
                     type="button"
-                    onClick={() => setPostLocation(null)}
+                    onClick={() => { setPostLocation(null) }}
                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', fontSize: 14, lineHeight: 1, padding: 0, marginLeft: 2 }}
                     title={lang === 'da' ? 'Fjern lokation' : 'Remove location'}
                   >×</button>
@@ -2269,35 +2359,20 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   lang={lang}
                   onFiles={files => handleFileSelect({ target: { files } })}
                 />
-                {/* Location picker */}
+                {/* Location picker toggle */}
                 <button
                   type="button"
                   onMouseDown={e => e.preventDefault()}
-                  disabled={locationLoading}
                   onClick={() => {
                     if (postLocation) { setPostLocation(null); return }
-                    if (!navigator.geolocation) return
-                    setLocationLoading(true)
-                    navigator.geolocation.getCurrentPosition(
-                      async pos => {
-                        const { latitude: lat, longitude: lng } = pos.coords
-                        let name = ''
-                        try {
-                          const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=${lang}`, { headers: { 'Accept-Language': lang } })
-                          const j = await r.json()
-                          name = j.address?.city || j.address?.town || j.address?.village || j.address?.county || j.display_name?.split(',')[0] || ''
-                        } catch {}
-                        setPostLocation({ lat, lng, name })
-                        setLocationLoading(false)
-                      },
-                      () => setLocationLoading(false),
-                      { timeout: 8000 }
-                    )
+                    setLocationSearchOpen(v => !v)
+                    setLocationSearchText('')
+                    setLocationResults([])
                   }}
-                  style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${postLocation ? '#1877F2' : '#ddd'}`, background: postLocation ? '#EBF4FF' : '#fff', color: postLocation ? '#1877F2' : '#555', fontSize: 13, cursor: locationLoading ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                  style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${postLocation || locationSearchOpen ? '#1877F2' : '#ddd'}`, background: postLocation || locationSearchOpen ? '#EBF4FF' : '#fff', color: postLocation || locationSearchOpen ? '#1877F2' : '#555', fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
                   title={lang === 'da' ? 'Tilføj lokation' : 'Add location'}
                 >
-                  {locationLoading ? '⏳' : '📍'}
+                  📍
                 </button>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
