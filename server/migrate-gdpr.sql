@@ -1,6 +1,7 @@
 -- GDPR Compliance Migration for fellis.eu
 -- Run this against your existing database to add compliance tables and columns.
--- Compatible with MariaDB 11.8+ / MySQL 8+
+-- NOTE: ADD COLUMN IF NOT EXISTS below is MariaDB-only syntax.
+-- MySQL 8.x users: run `node --env-file=.env run-migrations.js` instead.
 
 USE fellis_eu;
 

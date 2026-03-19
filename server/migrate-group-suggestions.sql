@@ -1,5 +1,6 @@
 -- Migration: Public group support for dynamic group suggestions
 -- Run this against the database for existing installations
+-- NOTE: ADD COLUMN IF NOT EXISTS is MariaDB-only. MySQL 8.x: use run-migrations.js
 
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS is_group TINYINT(1) DEFAULT 0;
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS is_public TINYINT(1) NOT NULL DEFAULT 0;
