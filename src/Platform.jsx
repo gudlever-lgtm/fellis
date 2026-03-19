@@ -18,6 +18,7 @@ import ChuckBanner from './components/easter-eggs/ChuckBanner.jsx'
 import MatrixRain from './components/easter-eggs/MatrixRain.jsx'
 import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
 import RickRoll from './components/easter-eggs/RickRoll.jsx'
+import RiddleBanner from './components/easter-eggs/RiddleBanner.jsx'
 import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiEvaluateBadges, apiGetEarnedBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences } from './api.js'
 import { BADGES, BADGE_BY_ID } from './badges/badgeDefinitions.js'
 import BadgeToastQueue from './components/BadgeToast.jsx'
@@ -1288,6 +1289,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [chuckActive,    setChuckActive]    = useState(false)
   const [matrixActive,   setMatrixActive]   = useState(false)
   const [rickrollActive, setRickrollActive] = useState(false)
+  const [riddlerActive,  setRiddlerActive]  = useState(false)
   const flipActiveRef    = useRef(false)
   const retroActiveRef   = useRef(false)
   const gravityActiveRef = useRef(false)
@@ -1380,6 +1382,14 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   useKeySequence('retro', triggerRetro, 3000)
   useLongPress(feedTitleRef, 1500, triggerRetro)
   const handleRetroTrigger = (e) => { if (e.shiftKey) triggerRetro() }
+
+  // Riddler: Shift+Click on the ? hint icon
+  const handleHintIconClick = (e) => {
+    if (e.shiftKey) {
+      e.preventDefault()
+      if (!riddlerActive && triggerEgg('riddler', onBadgeCheck)) { setRiddlerActive(true) }
+    }
+  }
   // ── end easter eggs ─────────────────────────────────────────────────────────
 
   const CP_FEED_DEFAULT_COMMENTS = [
@@ -1882,9 +1892,10 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         </div>
       )}
       {/* 🥚 Easter egg overlays */}
-      {chuckActive    && <ChuckBanner onDismiss={() => setChuckActive(false)} />}
-      {matrixActive   && <MatrixRain  onDismiss={() => setMatrixActive(false)} />}
-      {rickrollActive && <RickRoll    onDismiss={() => setRickrollActive(false)} />}
+      {chuckActive    && <ChuckBanner   onDismiss={() => setChuckActive(false)} />}
+      {matrixActive   && <MatrixRain    onDismiss={() => setMatrixActive(false)} />}
+      {rickrollActive && <RickRoll      onDismiss={() => setRickrollActive(false)} />}
+      {riddlerActive  && <RiddleBanner  lang={lang} onDismiss={() => setRiddlerActive(false)} />}
       {/* Keyword warning modal */}
       {keywordWarning && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000 }}>
@@ -2163,7 +2174,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   />
                 )}
                 <span className="p-input-hint-wrap">
-                  <span className="p-input-hint-icon" ref={hintIconRef}>?</span>
+                  <span className="p-input-hint-icon" ref={hintIconRef} onClick={handleHintIconClick}>?</span>
                   <span className="p-input-hint-tooltip">{t.postInputHint}</span>
                 </span>
                 <button className="p-post-btn" onMouseDown={e => e.preventDefault()} onClick={handlePost} disabled={!newPostText.trim() && !mediaPreviews.length && !providerMediaUrls.length}>
@@ -4552,6 +4563,7 @@ const EGG_META = {
   party:    { icon: '🎉', name: 'Party Mode',   trigger: { da: 'Skriv "party" / 5 tryk på Feed-overskrift', en: 'Type "party" / 5 taps on Feed title' } },
   rickroll: { icon: '🎵', name: 'Rick Roll',    trigger: { da: 'Rul til bunden og vent 4 sek.', en: 'Scroll to bottom and hold 4 sec.' } },
   watcher:  { icon: '👀', name: 'Skyggefølger', trigger: { da: 'Klik 7 gange på en vens avatar i Vis Profil', en: "Click 7 times on a friend's avatar in View Profile" } },
+  riddler:  { icon: '❓', name: 'The Riddler',   trigger: { da: 'Shift+klik på ? hint-ikonet', en: 'Shift+click the ? hint icon' } },
 }
 
 // Maps badge id → egg id for interview lookup in the badge grid
@@ -4564,6 +4576,7 @@ const BADGE_TO_EGG = {
   egg_party_animal:    'party',
   egg_never_gonna:     'rickroll',
   egg_shadow_watcher:  'watcher',
+  egg_riddler:         'riddler',
 }
 
 const EGG_INTERVIEW = {
@@ -4725,6 +4738,26 @@ const EGG_INTERVIEW = {
       a_da: 'Øjne er i sig selv sjove. Prøv at skrive 👀 i en samtale og se, hvad der sker. Nogen begynder altid at forklare sig.',
       q_en: 'Why do you find yourself funny?',
       a_en: 'Eyes are inherently funny. Try writing 👀 in a conversation and watch what happens. Someone always starts explaining themselves.',
+    },
+  ],
+  riddler: [
+    {
+      q_da: 'Hvorfor er du her?',
+      a_da: 'Fordi du holdt Shift nede og klikkede på et spørgsmålstegn. Du søgte et svar. Jeg er svaret på spørgsmålet om, hvad der sker, når man holder Shift nede.',
+      q_en: 'Why are you here?',
+      a_en: 'Because you held Shift and clicked a question mark. You were looking for an answer. I am the answer to the question of what happens when you hold Shift.',
+    },
+    {
+      q_da: 'Hvad er din historie?',
+      a_da: 'Jeg er opkaldt efter en skurk fra Gotham City, der kommunikerer udelukkende via gåder. Min personlighed er et spørgsmålstegn — bogstaveligt talt.',
+      q_en: 'What is your history?',
+      a_en: 'I am named after a villain from Gotham City who communicates exclusively in riddles. My entire personality is a question mark — literally.',
+    },
+    {
+      q_da: 'Hvorfor synes du selv, du er sjov?',
+      a_da: 'Fordi den bedste gåde altid er den, der allerede var skjult midt for øjnene på dig. Kan du huske det lille ?-ikon du har ignoreret i ugevis? Det var mig.',
+      q_en: 'Why do you find yourself funny?',
+      a_en: 'Because the best riddle is always the one hidden in plain sight. Remember that little ? icon you have been ignoring for weeks? That was me.',
     },
   ],
 }
@@ -7944,7 +7977,7 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened }) 
             )}
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 0, width: '100%' }}>
               <span className="p-input-hint-wrap">
-                <span className="p-input-hint-icon">?</span>
+                <span className="p-input-hint-icon" onClick={handleHintIconClick}>?</span>
                 <span className="p-input-hint-tooltip">{t.msgInputHint}</span>
               </span>
               {/* Attach button */}
