@@ -52,6 +52,15 @@ import { sendSms } from './sms.js'
 import { BADGES, BADGE_BY_ID, PLATFORM_LAUNCH_DATE } from '../src/badges/badgeDefinitions.js'
 import { evaluateBadges } from '../src/badges/badgeEngine.js'
 
+// MySQL 8.x compatible ADD COLUMN helper — ignores duplicate column error (errno 1060)
+async function addCol(table, col, def) {
+  try {
+    await pool.query(`ALTER TABLE \`${table}\` ADD COLUMN \`${col}\` ${def}`)
+  } catch (e) {
+    if (e.errno !== 1060) throw e
+  }
+}
+
 // ── Mail transport (only active when MAIL_HOST is configured + nodemailer installed) ──
 let mailer = null
 if (process.env.MAIL_HOST) {
@@ -135,8 +144,8 @@ async function initEvents() {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
     // Migrate: add columns that may be missing on existing installations
-    await pool.query(`ALTER TABLE event_rsvps ADD COLUMN IF NOT EXISTS dietary VARCHAR(255) DEFAULT NULL`).catch(() => {})
-    await pool.query(`ALTER TABLE event_rsvps ADD COLUMN IF NOT EXISTS plus_one TINYINT(1) DEFAULT 0`).catch(() => {})
+    await addCol('event_rsvps', 'dietary', 'VARCHAR(255) DEFAULT NULL').catch(() => {})
+    await addCol('event_rsvps', 'plus_one', 'TINYINT(1) DEFAULT 0').catch(() => {})
   } catch (err) {
     console.error('initEvents error:', err.message)
   }
@@ -521,24 +530,28 @@ const upload = multer({
 })
 
 // Auto-migrations
-pool.query('ALTER TABLE comments ADD COLUMN IF NOT EXISTS media JSON DEFAULT NULL')
+addCol('comments', 'media', 'JSON DEFAULT NULL')
   .catch(err => console.error('Migration (comments.media):', err.message))
-pool.query("ALTER TABLE post_likes ADD COLUMN IF NOT EXISTS reaction VARCHAR(10) DEFAULT '❤️'")
+addCol('post_likes', 'reaction', "VARCHAR(10) DEFAULT '❤️'")
   .catch(err => console.error('Migration (post_likes.reaction):', err.message))
-pool.query('ALTER TABLE invitations ADD COLUMN IF NOT EXISTS invitee_email VARCHAR(255) DEFAULT NULL')
+addCol('invitations', 'invitee_email', 'VARCHAR(255) DEFAULT NULL')
   .catch(err => console.error('Migration (invitations.invitee_email):', err.message))
-pool.query('ALTER TABLE marketplace_listings ADD COLUMN IF NOT EXISTS contact_phone VARCHAR(20) DEFAULT NULL')
+addCol('marketplace_listings', 'contact_phone', 'VARCHAR(20) DEFAULT NULL')
   .catch(err => console.error('Migration (marketplace_listings.contact_phone):', err.message))
-pool.query('ALTER TABLE marketplace_listings ADD COLUMN IF NOT EXISTS contact_email VARCHAR(255) DEFAULT NULL')
+addCol('marketplace_listings', 'contact_email', 'VARCHAR(255) DEFAULT NULL')
   .catch(err => console.error('Migration (marketplace_listings.contact_email):', err.message))
-pool.query('ALTER TABLE marketplace_listings ADD COLUMN IF NOT EXISTS sold TINYINT(1) NOT NULL DEFAULT 0')
+addCol('marketplace_listings', 'sold', 'TINYINT(1) NOT NULL DEFAULT 0')
   .catch(err => console.error('Migration (marketplace_listings.sold):', err.message))
-pool.query('ALTER TABLE marketplace_listings ADD COLUMN IF NOT EXISTS priceNegotiable TINYINT(1) NOT NULL DEFAULT 0')
+addCol('marketplace_listings', 'priceNegotiable', 'TINYINT(1) NOT NULL DEFAULT 0')
   .catch(err => console.error('Migration (marketplace_listings.priceNegotiable):', err.message))
 
-pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS mode VARCHAR(20) DEFAULT 'privat'")
+addCol('users', 'fb_token_expires_at', 'DATETIME DEFAULT NULL')
+  .catch(err => console.error('Migration (users.fb_token_expires_at):', err.message))
+addCol('users', 'fb_data_imported_at', 'DATETIME DEFAULT NULL')
+  .catch(err => console.error('Migration (users.fb_data_imported_at):', err.message))
+addCol('users', 'mode', "VARCHAR(20) DEFAULT 'privat'")
   .catch(err => console.error('Migration (users.mode):', err.message))
-pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS plan VARCHAR(30) DEFAULT 'business'")
+addCol('users', 'plan', "VARCHAR(30) DEFAULT 'business'")
   .catch(err => console.error('Migration (users.plan):', err.message))
 pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS ads_free TINYINT(1) NOT NULL DEFAULT 0")
   .catch(err => console.error('Migration (users.ads_free):', err.message))
@@ -559,46 +572,33 @@ pool.query(`
 `).catch(err => console.error('Migration (ads_free cleanup):', err.message))
 
 // ── Viral growth auto-migrations ──
-pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_public TINYINT(1) NOT NULL DEFAULT 0')
+addCol('users', 'profile_public', 'TINYINT(1) NOT NULL DEFAULT 0')
   .catch(err => console.error('Migration (users.profile_public):', err.message))
-pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS reputation_score INT(11) NOT NULL DEFAULT 0')
+addCol('users', 'reputation_score', 'INT(11) NOT NULL DEFAULT 0')
   .catch(err => console.error('Migration (users.reputation_score):', err.message))
-pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_count INT(11) NOT NULL DEFAULT 0')
+addCol('users', 'referral_count', 'INT(11) NOT NULL DEFAULT 0')
   .catch(err => console.error('Migration (users.referral_count):', err.message))
-// MFA + password reset columns (also in migrate-mfa-reset.sql, but added here for auto-migration)
-pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20) DEFAULT NULL')
-  .catch(err => console.error('Migration (users.phone):', err.message))
-pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS mfa_enabled TINYINT(1) NOT NULL DEFAULT 0')
-  .catch(err => console.error('Migration (users.mfa_enabled):', err.message))
-pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS mfa_code VARCHAR(64) DEFAULT NULL')
-  .catch(err => console.error('Migration (users.mfa_code):', err.message))
-pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS mfa_code_expires DATETIME DEFAULT NULL')
-  .catch(err => console.error('Migration (users.mfa_code_expires):', err.message))
-pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(64) DEFAULT NULL')
-  .catch(err => console.error('Migration (users.reset_token):', err.message))
-pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires DATETIME DEFAULT NULL')
-  .catch(err => console.error('Migration (users.reset_token_expires):', err.message))
-pool.query("ALTER TABLE invitations ADD COLUMN IF NOT EXISTS invite_source ENUM('link','email','facebook','other') DEFAULT 'link'")
+addCol('invitations', 'invite_source', "ENUM('link','email','facebook','other') DEFAULT 'link'")
   .catch(err => console.error('Migration (invitations.invite_source):', err.message))
-pool.query('ALTER TABLE invitations ADD COLUMN IF NOT EXISTS utm_source VARCHAR(100) DEFAULT NULL')
+addCol('invitations', 'utm_source', 'VARCHAR(100) DEFAULT NULL')
   .catch(err => console.error('Migration (invitations.utm_source):', err.message))
-pool.query('ALTER TABLE invitations ADD COLUMN IF NOT EXISTS utm_campaign VARCHAR(100) DEFAULT NULL')
+addCol('invitations', 'utm_campaign', 'VARCHAR(100) DEFAULT NULL')
   .catch(err => console.error('Migration (invitations.utm_campaign):', err.message))
-pool.query('ALTER TABLE posts ADD COLUMN IF NOT EXISTS share_token VARCHAR(64) DEFAULT NULL')
+addCol('posts', 'share_token', 'VARCHAR(64) DEFAULT NULL')
   .catch(err => console.error('Migration (posts.share_token):', err.message))
-pool.query('ALTER TABLE posts ADD COLUMN IF NOT EXISTS is_public TINYINT(1) NOT NULL DEFAULT 0')
+addCol('posts', 'is_public', 'TINYINT(1) NOT NULL DEFAULT 0')
   .catch(err => console.error('Migration (posts.is_public):', err.message))
-pool.query('ALTER TABLE posts ADD COLUMN IF NOT EXISTS share_count INT(11) NOT NULL DEFAULT 0')
+addCol('posts', 'share_count', 'INT(11) NOT NULL DEFAULT 0')
   .catch(err => console.error('Migration (posts.share_count):', err.message))
 
 // ── Group suggestions auto-migrations ──
-pool.query('ALTER TABLE conversations ADD COLUMN IF NOT EXISTS is_public TINYINT(1) NOT NULL DEFAULT 0')
+addCol('conversations', 'is_public', 'TINYINT(1) NOT NULL DEFAULT 0')
   .catch(err => console.error('Migration (conversations.is_public):', err.message))
-pool.query('ALTER TABLE conversations ADD COLUMN IF NOT EXISTS category VARCHAR(100) DEFAULT NULL')
+addCol('conversations', 'category', 'VARCHAR(100) DEFAULT NULL')
   .catch(err => console.error('Migration (conversations.category):', err.message))
-pool.query('ALTER TABLE conversations ADD COLUMN IF NOT EXISTS description_da TEXT DEFAULT NULL')
+addCol('conversations', 'description_da', 'TEXT DEFAULT NULL')
   .catch(err => console.error('Migration (conversations.description_da):', err.message))
-pool.query('ALTER TABLE conversations ADD COLUMN IF NOT EXISTS description_en TEXT DEFAULT NULL')
+addCol('conversations', 'description_en', 'TEXT DEFAULT NULL')
   .catch(err => console.error('Migration (conversations.description_en):', err.message))
 
 // Serve uploads with security headers (no script execution, no sniffing)
@@ -3715,17 +3715,17 @@ async function initCompanies() {
     `)
 
     // Migrations: add new company profile columns if missing
-    await pool.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS cvr VARCHAR(20) DEFAULT NULL`)
-    await pool.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS company_type VARCHAR(50) DEFAULT NULL`)
-    await pool.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS address VARCHAR(255) DEFAULT NULL`)
-    await pool.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS phone VARCHAR(50) DEFAULT NULL`)
-    await pool.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS email VARCHAR(255) DEFAULT NULL`)
-    await pool.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS linkedin VARCHAR(500) DEFAULT NULL`)
-    await pool.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS founded_year SMALLINT DEFAULT NULL`)
+    await addCol('companies', 'cvr', 'VARCHAR(20) DEFAULT NULL')
+    await addCol('companies', 'company_type', 'VARCHAR(50) DEFAULT NULL')
+    await addCol('companies', 'address', 'VARCHAR(255) DEFAULT NULL')
+    await addCol('companies', 'phone', 'VARCHAR(50) DEFAULT NULL')
+    await addCol('companies', 'email', 'VARCHAR(255) DEFAULT NULL')
+    await addCol('companies', 'linkedin', 'VARCHAR(500) DEFAULT NULL')
+    await addCol('companies', 'founded_year', 'SMALLINT DEFAULT NULL')
 
     // Migrations: add new job columns if missing
-    await pool.query(`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS contact_email VARCHAR(255) DEFAULT NULL`)
-    await pool.query(`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS deadline DATE DEFAULT NULL`)
+    await addCol('jobs', 'contact_email', 'VARCHAR(255) DEFAULT NULL')
+    await addCol('jobs', 'deadline', 'DATE DEFAULT NULL')
 
   } catch (err) {
     console.error('initCompanies error:', err.message)
@@ -4204,8 +4204,26 @@ app.post('/api/jobs/:id/save', authenticate, async (req, res) => {
 
 async function initBusinessFeatures() {
   try {
-    // Scheduled posts support
-    await pool.query(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS scheduled_at DATETIME NULL DEFAULT NULL`)
+    await pool.query(`CREATE TABLE IF NOT EXISTS admin_settings (
+      key_name VARCHAR(100) NOT NULL PRIMARY KEY,
+      key_value TEXT DEFAULT NULL,
+      updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP() ON UPDATE CURRENT_TIMESTAMP()
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+  } catch (err) {
+    console.error('initAdminSettings error:', err.message)
+  }
+}
+
+async function initSettingsSchema() {
+  try {
+    // Add user_agent and ip_address to sessions for session list display
+    await addCol('sessions', 'user_agent', 'VARCHAR(500) DEFAULT NULL')
+    await addCol('sessions', 'ip_address', 'VARCHAR(50) DEFAULT NULL')
+    await addCol('sessions', 'created_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP')
+
+    // Privacy settings columns on users
+    await addCol('users', 'profile_visibility', "ENUM('all','friends') NOT NULL DEFAULT 'all'")
+    await addCol('users', 'friend_request_privacy', "ENUM('all','friends_of_friends') NOT NULL DEFAULT 'all'")
 
     // Job applications
     await pool.query(`CREATE TABLE IF NOT EXISTS job_applications (
@@ -4257,32 +4275,25 @@ async function initBusinessFeatures() {
   }
 }
 
-// ── Job Applications ──────────────────────────────────────────────────────────
-
-// POST /api/jobs/:id/apply — submit in-app application
-app.post('/api/jobs/:id/apply', authenticate, upload.single('cv'), async (req, res) => {
+async function initSiteVisits() {
   try {
-    const { name, email, message } = req.body
-    if (!name?.trim() || !email?.trim()) return res.status(400).json({ error: 'Name and email required' })
-    const [[job]] = await pool.query('SELECT id, company_id FROM jobs WHERE id = ? AND active = 1', [req.params.id])
-    if (!job) return res.status(404).json({ error: 'Job not found' })
-    let cvUrl = null
-    if (req.file) {
-      const buf = Buffer.alloc(16)
-      const fd = require('fs').openSync(req.file.path, 'r')
-      require('fs').readSync(fd, buf, 0, 16, 0)
-      require('fs').closeSync(fd)
-      if (!validateMagicBytes(buf, req.file.mimetype)) {
-        require('fs').unlinkSync(req.file.path)
-        return res.status(400).json({ error: 'Invalid CV file type' })
-      }
-      cvUrl = `/uploads/${req.file.filename}`
-    }
-    await pool.query(
-      'INSERT INTO job_applications (job_id, applicant_id, name, email, message, cv_url) VALUES (?, ?, ?, ?, ?, ?)',
-      [req.params.id, req.userId, name.trim(), email.trim(), message?.trim() || null, cvUrl]
-    )
-    res.json({ ok: true })
+    await pool.query(`CREATE TABLE IF NOT EXISTS site_visits (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      session_id VARCHAR(100) NOT NULL,
+      ip_address VARCHAR(50) DEFAULT NULL,
+      user_agent VARCHAR(500) DEFAULT NULL,
+      browser VARCHAR(50) DEFAULT NULL,
+      os VARCHAR(50) DEFAULT NULL,
+      country VARCHAR(100) DEFAULT NULL,
+      country_code VARCHAR(2) DEFAULT NULL,
+      city VARCHAR(100) DEFAULT NULL,
+      visited_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_sv_visited (visited_at),
+      INDEX idx_sv_country (country_code),
+      INDEX idx_sv_session (session_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+    // Add edited_at column to posts if not present
+    await addCol('posts', 'edited_at', 'TIMESTAMP NULL DEFAULT NULL')
   } catch (err) {
     if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Already applied' })
     console.error('POST /api/jobs/:id/apply error:', err.message)
@@ -7536,19 +7547,35 @@ app.patch('/api/admin/moderation/users/:id/candidate', authenticate, requireAdmi
 // GET /api/moderation/my-request — get current user's own moderator request status
 app.get('/api/moderation/my-request', authenticate, async (req, res) => {
   try {
-    const [[user]] = await pool.query(
-      'SELECT is_moderator, moderator_candidate, moderator_candidate_note, moderator_candidate_at FROM users WHERE id = ?',
-      [req.userId]
-    )
-    if (!user) return res.status(404).json({ error: 'User not found' })
-    const isModerator = Boolean(user.is_moderator)
-    let request = null
-    if (user.moderator_candidate === 1) {
-      request = { status: 'pending', reason: user.moderator_candidate_note, created_at: user.moderator_candidate_at }
-    } else if (user.moderator_candidate_note?.startsWith('[denied]')) {
-      request = { status: 'denied', reason: user.moderator_candidate_note.slice(8).trim(), created_at: user.moderator_candidate_at }
-    }
-    res.json({ isModerator, request })
+    await pool.query(`CREATE TABLE IF NOT EXISTS reels (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      video_url VARCHAR(500) NOT NULL,
+      caption TEXT DEFAULT NULL,
+      views_count INT NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_user_id (user_id),
+      INDEX idx_created_at (created_at),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+    await pool.query(`CREATE TABLE IF NOT EXISTS reel_likes (
+      reel_id INT NOT NULL,
+      user_id INT NOT NULL,
+      reaction VARCHAR(10) DEFAULT '❤️',
+      PRIMARY KEY (reel_id, user_id),
+      FOREIGN KEY (reel_id) REFERENCES reels(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+    await addCol('reel_likes', 'reaction', "VARCHAR(10) DEFAULT '❤️'").catch(() => {})
+    await pool.query(`CREATE TABLE IF NOT EXISTS reel_comments (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      reel_id INT NOT NULL,
+      user_id INT NOT NULL,
+      text TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (reel_id) REFERENCES reels(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
   } catch (err) {
     res.status(500).json({ error: 'Server error' })
   }
