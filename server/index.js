@@ -3530,20 +3530,49 @@ app.delete('/api/marketplace/:id', authenticate, async (req, res) => {
 
 app.post('/api/marketplace/:id/boost', authenticate, async (req, res) => {
   try {
-    const [[existing]] = await pool.query('SELECT user_id FROM marketplace_listings WHERE id = ?', [req.params.id])
+    const listingId = parseInt(req.params.id)
+    const [[existing]] = await pool.query('SELECT user_id, title FROM marketplace_listings WHERE id = ?', [listingId])
     if (!existing) return res.status(404).json({ error: 'Not found' })
     if (existing.user_id !== req.userId) return res.status(403).json({ error: 'Forbidden' })
-    // When Stripe is configured, create a Checkout session here
-    // For now: set boosted_until to 7 days from now (free boost for testing)
-    const [[listing]] = await pool.query('SELECT title FROM marketplace_listings WHERE id = ?', [req.params.id]).catch(() => [[null]])
-    await pool.query('UPDATE marketplace_listings SET boosted_until = DATE_ADD(NOW(), INTERVAL 7 DAY) WHERE id = ?', [req.params.id])
-    if (listing) {
-      createNotification(req.userId, 'listing_boosted',
-        `Din annonce "${listing.title}" er nu boostet i 7 dage`,
-        `Your listing "${listing.title}" is now boosted for 7 days`,
-        req.userId, null
-      )
+
+    // Use Mollie if configured
+    const mollie = await getMollieClient()
+    if (mollie) {
+      const [[adS]] = await pool.query('SELECT boost_price, currency FROM admin_ad_settings WHERE id = 1').catch(() => [[null]])
+      const boostPrice = parseFloat(adS?.boost_price) || 9
+      const currency = adS?.currency || 'EUR'
+
+      const origin = req.headers.origin || process.env.SITE_URL || 'https://fellis.eu'
+      const siteUrl = process.env.SITE_URL || origin
+      const redirectUrl = `${origin}/?mollie_payment=success&plan=boost&listing_id=${listingId}`
+      const webhookUrl = `${siteUrl}/api/mollie/payment/webhook`
+
+      const payment = await mollie.payments.create({
+        amount: { currency, value: boostPrice.toFixed(2) },
+        description: `fellis.eu — Boost: ${existing.title}`,
+        redirectUrl,
+        webhookUrl,
+        metadata: { user_id: String(req.userId), plan: 'boost', listing_id: String(listingId) },
+      })
+
+      const checkoutUrl = payment._links?.checkout?.href
+      if (!checkoutUrl) return res.status(500).json({ error: 'Mollie returnerede ingen checkout-URL.' })
+
+      await pool.query(
+        'INSERT INTO subscriptions (user_id, mollie_payment_id, plan, status, ad_id) VALUES (?, ?, ?, ?, ?)',
+        [req.userId, payment.id, 'boost', 'open', listingId]
+      ).catch(() => {})
+
+      return res.json({ checkoutUrl, paymentId: payment.id })
     }
+
+    // Mollie not configured — free boost for development/testing
+    await pool.query('UPDATE marketplace_listings SET boosted_until = DATE_ADD(NOW(), INTERVAL 7 DAY) WHERE id = ?', [listingId])
+    createNotification(req.userId, 'listing_boosted',
+      `Din annonce "${existing.title}" er nu boostet i 7 dage`,
+      `Your listing "${existing.title}" is now boosted for 7 days`,
+      req.userId, null
+    )
     res.json({ ok: true, boostedUntil: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString() })
   } catch (err) {
     res.status(500).json({ error: 'Server error' })
@@ -5136,6 +5165,23 @@ app.post('/api/mollie/payment/webhook', express.urlencoded({ extended: false }),
         ).catch(() =>
           pool.query("UPDATE ads SET status = 'active', paid_until = DATE_ADD(NOW(), INTERVAL 30 DAY) WHERE id = ?", [adId])
         )
+      } else if (sub.plan === 'boost') {
+        // Boost the marketplace listing for 7 days
+        const listingId = sub.ad_id || payment.metadata?.listing_id
+        if (listingId) {
+          await pool.query(
+            'UPDATE marketplace_listings SET boosted_until = DATE_ADD(NOW(), INTERVAL 7 DAY) WHERE id = ?',
+            [listingId]
+          ).catch(() => {})
+          const [[listing]] = await pool.query('SELECT title, user_id FROM marketplace_listings WHERE id = ?', [listingId]).catch(() => [[null]])
+          if (listing) {
+            createNotification(sub.user_id, 'listing_boosted',
+              `Din annonce "${listing.title}" er nu boostet i 7 dage`,
+              `Your listing "${listing.title}" is now boosted for 7 days`,
+              sub.user_id, null
+            )
+          }
+        }
       } else {
         await pool.query('UPDATE users SET ads_free = 1 WHERE id = ?', [sub.user_id])
       }
@@ -5170,7 +5216,8 @@ app.post('/api/mollie/payment/webhook', express.urlencoded({ extended: false }),
           "UPDATE ads SET payment_status = 'failed' WHERE id = ? AND payment_status != 'paid'",
           [adId]
         ).catch(() => {})
-      } else {
+      } else if (sub.plan !== 'boost') {
+        // boost failures have no side-effects to revert
         const [[active]] = await pool.query(
           "SELECT id FROM subscriptions WHERE user_id = ? AND status = 'paid' AND (expires_at IS NULL OR expires_at > NOW()) AND mollie_payment_id != ? LIMIT 1",
           [sub.user_id, id]
