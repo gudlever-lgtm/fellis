@@ -135,8 +135,11 @@ export async function apiLogout() {
 }
 
 // Feed
-export async function apiFetchFeed(offset = 0, limit = 20) {
-  return await request(`/api/feed?offset=${offset}&limit=${limit}`)
+export async function apiFetchFeed(cursor = null, limit = 20) {
+  const params = cursor
+    ? `cursor=${encodeURIComponent(cursor)}&limit=${limit}`
+    : `limit=${limit}`
+  return await request(`/api/feed?${params}`)
 }
 
 export async function apiPreflightPost(text) {

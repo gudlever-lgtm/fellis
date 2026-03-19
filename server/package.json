@@ -6,7 +6,10 @@
     "start": "node --env-file=.env index.js",
     "seed": "node --env-file=.env seed.js",
     "seed-bots": "node seed-bots.js",
-    "cleanup-bots": "node cleanup-bots.js"
+    "cleanup-bots": "node cleanup-bots.js",
+    "migrate": "node --env-file=.env migrate.js",
+    "migrate:status": "node --env-file=.env migrate.js --status",
+    "migrate:dry-run": "node --env-file=.env migrate.js --dry-run"
   },
   "dependencies": {
     "@mollie/api-client": "^4.4.0",

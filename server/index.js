@@ -484,9 +484,61 @@ const FB_DATA_RETENTION_DAYS = parseInt(process.env.FB_DATA_RETENTION_DAYS || '9
 const app = express()
 app.use(express.json())
 
+// ── Rate limiting — in-memory, per IP + per user ──────────────────────────
+// Buckets: Map<key, { count, resetAt }>
+const _rl = new Map()
+function rateLimit({ windowMs = 60_000, max = 60, keyFn = (req) => req.ip } = {}) {
+  return (req, res, next) => {
+    const key = keyFn(req)
+    const now = Date.now()
+    let bucket = _rl.get(key)
+    if (!bucket || now > bucket.resetAt) {
+      bucket = { count: 0, resetAt: now + windowMs }
+      _rl.set(key, bucket)
+    }
+    bucket.count++
+    if (bucket.count > max) {
+      res.set('Retry-After', Math.ceil((bucket.resetAt - now) / 1000))
+      return res.status(429).json({ error: 'Too many requests — prøv igen om lidt' })
+    }
+    next()
+  }
+}
+// Purge stale buckets every 5 minutes to avoid memory growth
+setInterval(() => {
+  const now = Date.now()
+  for (const [k, v] of _rl) { if (now > v.resetAt) _rl.delete(k) }
+}, 5 * 60_000)
+
+// Strict limiter for auth + write endpoints: 30 req/min per IP
+const strictLimit = rateLimit({ windowMs: 60_000, max: 30 })
+// Standard limiter for general write endpoints: 60 req/min per user id (falls back to IP)
+const writeLimit = rateLimit({
+  windowMs: 60_000, max: 60,
+  keyFn: (req) => (req.userId ? `u:${req.userId}` : req.ip),
+})
+
 // ── Serve built frontend (assets/, index.html, public/) ───────────────────
 const FRONTEND_ROOT = path.resolve(__dirname, '..')
 app.use(express.static(FRONTEND_ROOT, { index: false }))
+
+// ── Health check ─────────────────────────────────────────────────────────
+const SERVER_START = Date.now()
+app.get('/api/health', async (_req, res) => {
+  let dbOk = false
+  try {
+    await pool.query('SELECT 1')
+    dbOk = true
+  } catch {}
+  const uptimeSec = Math.floor((Date.now() - SERVER_START) / 1000)
+  const status = dbOk ? 200 : 503
+  res.status(status).json({
+    status: dbOk ? 'ok' : 'degraded',
+    db: dbOk ? 'connected' : 'error',
+    uptime_sec: uptimeSec,
+    ts: new Date().toISOString(),
+  })
+})
 
 // ── SSE: real-time push to connected clients ──────────────────────────────
 // Map<userId, Set<res>> — one user may have multiple tabs open
@@ -854,7 +906,7 @@ app.get('/api/auth/password-policy', async (req, res) => {
 // ── Auth routes ──
 
 // POST /api/auth/login — login with email + password (MFA-aware)
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', strictLimit, async (req, res) => {
   const { email, password, lang } = req.body
   if (!email || !password) return res.status(400).json({ error: 'Email and password required' })
   try {
@@ -902,7 +954,7 @@ app.post('/api/auth/login', async (req, res) => {
 })
 
 // POST /api/auth/register — create account after migration
-app.post('/api/auth/register', async (req, res) => {
+app.post('/api/auth/register', strictLimit, async (req, res) => {
   const { name, email, password, lang, inviteToken } = req.body
   if (!name || !email || !password) return res.status(400).json({ error: 'Name, email, and password required' })
   const regPolicy = await getPasswordPolicy()
@@ -987,7 +1039,7 @@ app.post('/api/auth/register', async (req, res) => {
 })
 
 // POST /api/auth/forgot-password — request password reset link via email
-app.post('/api/auth/forgot-password', async (req, res) => {
+app.post('/api/auth/forgot-password', strictLimit, async (req, res) => {
   const { email } = req.body
   if (!email) return res.status(400).json({ error: 'Email required' })
 
@@ -1072,7 +1124,7 @@ app.post('/api/auth/reset-password', async (req, res) => {
 })
 
 // POST /api/auth/verify-mfa — verify SMS code and complete login
-app.post('/api/auth/verify-mfa', async (req, res) => {
+app.post('/api/auth/verify-mfa', strictLimit, async (req, res) => {
   const { userId, code, lang } = req.body
   if (!userId || !code) return res.status(400).json({ error: 'userId and code required' })
   try {
@@ -2164,19 +2216,20 @@ app.post('/api/skills/:id/endorse', authenticate, async (req, res) => {
 
 // ── Feed routes ──
 
-// GET /api/feed — get posts with pagination (max 20 in DOM)
+// GET /api/feed — cursor-based pagination (stable, no duplicate posts on new inserts)
+// Query params:
+//   cursor (optional) — ISO timestamp; load posts older than this (load-more / infinite scroll)
+//   limit  (optional, max 50, default 20)
+// Response: { posts, nextCursor }
+//   nextCursor — ISO timestamp to pass as ?cursor= for the next page, or null if no more posts
 app.get('/api/feed', authenticate, async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 20, 50)
-    const offset = Math.max(parseInt(req.query.offset) || 0, 0)
+    // cursor = ISO timestamp of the oldest post already seen; null = load from the top
+    const cursor = req.query.cursor || null
 
-    const [countResult] = await pool.query(
-      `SELECT COUNT(*) as total FROM posts p
-       WHERE (p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?))
-         AND (p.scheduled_at IS NULL OR p.scheduled_at <= NOW())`,
-      [req.userId, req.userId]
-    )
-    const total = countResult[0].total
+    const cursorFilter = cursor ? 'AND p.created_at < ?' : ''
+    const cursorParams = cursor ? [new Date(cursor)] : []
 
     let posts
     try {
@@ -2186,9 +2239,10 @@ app.get('/api/feed', authenticate, async (req, res) => {
          FROM posts p JOIN users u ON p.author_id = u.id
          WHERE (p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?))
            AND (p.scheduled_at IS NULL OR p.scheduled_at <= NOW())
+           ${cursorFilter}
          ORDER BY p.created_at DESC
-         LIMIT ? OFFSET ?`,
-        [req.userId, req.userId, limit, offset]
+         LIMIT ?`,
+        [req.userId, req.userId, ...cursorParams, limit]
       )
     } catch {
       ;[posts] = await pool.query(
@@ -2197,9 +2251,10 @@ app.get('/api/feed', authenticate, async (req, res) => {
          FROM posts p JOIN users u ON p.author_id = u.id
          WHERE (p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?))
            AND (p.scheduled_at IS NULL OR p.scheduled_at <= NOW())
+           ${cursorFilter}
          ORDER BY p.created_at DESC
-         LIMIT ? OFFSET ?`,
-        [req.userId, req.userId, limit, offset]
+         LIMIT ?`,
+        [req.userId, req.userId, ...cursorParams, limit]
       )
     }
     const postIds = posts.map(p => p.id)
@@ -2300,7 +2355,12 @@ app.get('/api/feed', authenticate, async (req, res) => {
         viewValues.flat()
       ).catch(() => {})
     }
-    res.json({ posts: result, total, offset, limit })
+    // nextCursor = created_at of the oldest post in this page (use as ?cursor= to load the next page)
+    // null when fewer posts were returned than requested — no more pages exist
+    const nextCursor = result.length === limit
+      ? result[result.length - 1].createdAtRaw?.toISOString?.() ?? new Date(result[result.length - 1].createdAtRaw).toISOString()
+      : null
+    res.json({ posts: result, nextCursor })
   } catch (err) {
     res.status(500).json({ error: 'Failed to load feed' })
   }
@@ -2357,7 +2417,7 @@ app.post('/api/feed/preflight', authenticate, (req, res) => {
 })
 
 // POST /api/feed — create a new post (with optional media)
-app.post('/api/feed', authenticate, upload.array('media', 4), async (req, res) => {
+app.post('/api/feed', authenticate, writeLimit, upload.array('media', 4), async (req, res) => {
   const { text, scheduled_at } = req.body
   const rawCats = req.body.categories
   const categories = rawCats ? (typeof rawCats === 'string' ? JSON.parse(rawCats) : rawCats) : null
@@ -2518,7 +2578,7 @@ app.get('/api/feed/:id/likers', authenticate, async (req, res) => {
 })
 
 // POST /api/feed/:id/comment — add comment (with optional single media file)
-app.post('/api/feed/:id/comment', authenticate, upload.single('media'), async (req, res) => {
+app.post('/api/feed/:id/comment', authenticate, writeLimit, upload.single('media'), async (req, res) => {
   const text = (req.body.text || '').trim()
   if (!text && !req.file) return res.status(400).json({ error: 'Comment text or media required' })
   const postId = parseInt(req.params.id)
@@ -2787,7 +2847,7 @@ app.get('/api/friends', authenticate, async (req, res) => {
 })
 
 // POST /api/friends/request/:userId — send a connection request
-app.post('/api/friends/request/:userId', authenticate, async (req, res) => {
+app.post('/api/friends/request/:userId', authenticate, writeLimit, async (req, res) => {
   const targetId = parseInt(req.params.userId)
   if (!targetId || targetId === req.userId) return res.status(400).json({ error: 'Invalid user' })
   try {
@@ -3035,7 +3095,7 @@ app.get('/api/conversations/:id/messages/older', authenticate, async (req, res) 
 })
 
 // POST /api/conversations — create a new 1:1 or group conversation
-app.post('/api/conversations', authenticate, async (req, res) => {
+app.post('/api/conversations', authenticate, writeLimit, async (req, res) => {
   const { participantIds, name, isGroup } = req.body
   if (!participantIds || !Array.isArray(participantIds) || !participantIds.length)
     return res.status(400).json({ error: 'participantIds required' })
@@ -3087,7 +3147,7 @@ app.get('/api/sse', authenticate, (req, res) => {
 })
 
 // POST /api/conversations/:id/messages — send a message
-app.post('/api/conversations/:id/messages', authenticate, async (req, res) => {
+app.post('/api/conversations/:id/messages', authenticate, writeLimit, async (req, res) => {
   const convId = parseInt(req.params.id)
   const { text } = req.body
   if (!text) return res.status(400).json({ error: 'Message text required' })
