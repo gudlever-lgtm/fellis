@@ -1498,6 +1498,9 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const mediaMaxFilesRef = useRef(4)
   const [scheduleEnabled, setScheduleEnabled] = useState(false)
   const [scheduledAt, setScheduledAt] = useState('')
+  const [postLocation, setPostLocation] = useState(null)       // { lat, lng, name } or null
+  const [locationLoading, setLocationLoading] = useState(false)
+  const [locationMapPost, setLocationMapPost] = useState(null) // post whose map is shown in modal
 
   const handleJoinGroup = async (groupId) => {
     setJoinedGroupIds(prev => new Set([...prev, groupId]))
@@ -1668,8 +1671,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     })
   }, [])
 
-  const doCreatePost = useCallback((text, files, schedAt, categories) => {
-    apiCreatePost(text, files, schedAt || undefined, categories?.size ? [...categories] : undefined).then(data => {
+  const doCreatePost = useCallback((text, files, schedAt, categories, location) => {
+    apiCreatePost(text, files, schedAt || undefined, categories?.size ? [...categories] : undefined, location || undefined).then(data => {
       if (data?.scheduled) {
         // Scheduled post — don't add to feed, just show a toast
         return
@@ -1702,6 +1705,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     setShowCategoryPicker(false)
     setScheduleEnabled(false)
     setScheduledAt('')
+    setPostLocation(null)
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
   }, [mediaPreviews, currentUser.name])
 
@@ -1712,16 +1716,16 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     const check = await apiPreflightPost(text)
     if (check?.blocked) return // server will also block — just in case
     if (check?.flagged) {
-      setKeywordWarning({ keyword: check.keyword, category: check.category, notes: check.notes, text, files, categories: postCategories })
+      setKeywordWarning({ keyword: check.keyword, category: check.category, notes: check.notes, text, files, categories: postCategories, location: postLocation })
       return
     }
     const schedAt = scheduleEnabled && scheduledAt ? scheduledAt : null
-    doCreatePost(text, files, schedAt, postCategories)
+    doCreatePost(text, files, schedAt, postCategories, postLocation)
     setNewPostText('')
     setMediaFiles([])
     setMediaPreviews([])
     setPostExpanded(false)
-  }, [newPostText, mediaFiles, providerMediaUrls, doCreatePost, scheduleEnabled, scheduledAt, postCategories])
+  }, [newPostText, mediaFiles, providerMediaUrls, doCreatePost, scheduleEnabled, scheduledAt, postCategories, postLocation])
 
   const toggleLike = useCallback((id, emoji) => {
     const isLiked = likedPosts.has(id)
@@ -1920,6 +1924,33 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
 
   return (
     <div className="p-feed" ref={feedContainerRef}>
+      {/* Location map modal */}
+      {locationMapPost && (
+        <div className="modal-backdrop" onClick={() => setLocationMapPost(null)}>
+          <div className="p-msg-modal" style={{ maxWidth: 520, padding: 0, overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
+            <div className="p-msg-modal-header" style={{ padding: '12px 16px' }}>
+              <span>📍 {locationMapPost.location?.name || (lang === 'da' ? 'Lokation' : 'Location')}</span>
+              <button className="p-msg-modal-close" onClick={() => setLocationMapPost(null)}>✕</button>
+            </div>
+            <iframe
+              title="OpenStreetMap"
+              src={`https://www.openstreetmap.org/export/embed.html?bbox=${locationMapPost.location.lng - 0.015},${locationMapPost.location.lat - 0.01},${locationMapPost.location.lng + 0.015},${locationMapPost.location.lat + 0.01}&layer=mapnik&marker=${locationMapPost.location.lat},${locationMapPost.location.lng}`}
+              style={{ width: '100%', height: 300, border: 'none', display: 'block' }}
+            />
+            <div style={{ padding: '10px 16px', textAlign: 'right' }}>
+              <a
+                href={`https://www.openstreetmap.org/?mlat=${locationMapPost.location.lat}&mlon=${locationMapPost.location.lng}#map=15/${locationMapPost.location.lat}/${locationMapPost.location.lng}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ fontSize: 12, color: '#1877F2' }}
+              >
+                {lang === 'da' ? 'Åbn i OpenStreetMap ↗' : 'Open in OpenStreetMap ↗'}
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Likers modal */}
       {likersModal && (
         <div className="modal-backdrop" onClick={() => setLikersModal(null)}>
@@ -1998,9 +2029,9 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
               </button>
               <button
                 onClick={() => {
-                  const { text, files, categories: kwCats } = keywordWarning
+                  const { text, files, categories: kwCats, location: kwLoc } = keywordWarning
                   setKeywordWarning(null)
-                  doCreatePost(text, files, null, kwCats)
+                  doCreatePost(text, files, null, kwCats, kwLoc)
                   setNewPostText('')
                   setMediaFiles([])
                   setMediaPreviews([])
@@ -2216,6 +2247,21 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
               </div>
             )}
 
+            {/* Selected location chip */}
+            {postLocation && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 4px 0' }}>
+                <span style={{ fontSize: 13, color: '#1877F2', background: '#EBF4FF', borderRadius: 20, padding: '3px 10px', display: 'flex', alignItems: 'center', gap: 5 }}>
+                  📍 {postLocation.name || `${postLocation.lat.toFixed(4)}, ${postLocation.lng.toFixed(4)}`}
+                  <button
+                    type="button"
+                    onClick={() => setPostLocation(null)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', fontSize: 14, lineHeight: 1, padding: 0, marginLeft: 2 }}
+                    title={lang === 'da' ? 'Fjern lokation' : 'Remove location'}
+                  >×</button>
+                </span>
+              </div>
+            )}
+
             <div className="p-new-post-actions">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 {/* Media attachment popup */}
@@ -2223,6 +2269,36 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   lang={lang}
                   onFiles={files => handleFileSelect({ target: { files } })}
                 />
+                {/* Location picker */}
+                <button
+                  type="button"
+                  onMouseDown={e => e.preventDefault()}
+                  disabled={locationLoading}
+                  onClick={() => {
+                    if (postLocation) { setPostLocation(null); return }
+                    if (!navigator.geolocation) return
+                    setLocationLoading(true)
+                    navigator.geolocation.getCurrentPosition(
+                      async pos => {
+                        const { latitude: lat, longitude: lng } = pos.coords
+                        let name = ''
+                        try {
+                          const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=${lang}`, { headers: { 'Accept-Language': lang } })
+                          const j = await r.json()
+                          name = j.address?.city || j.address?.town || j.address?.village || j.address?.county || j.display_name?.split(',')[0] || ''
+                        } catch {}
+                        setPostLocation({ lat, lng, name })
+                        setLocationLoading(false)
+                      },
+                      () => setLocationLoading(false),
+                      { timeout: 8000 }
+                    )
+                  }}
+                  style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${postLocation ? '#1877F2' : '#ddd'}`, background: postLocation ? '#EBF4FF' : '#fff', color: postLocation ? '#1877F2' : '#555', fontSize: 13, cursor: locationLoading ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                  title={lang === 'da' ? 'Tilføj lokation' : 'Add location'}
+                >
+                  {locationLoading ? '⏳' : '📍'}
+                </button>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 {mode === 'business' && (
@@ -2670,6 +2746,15 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
               </>
             )}
             {post.media && <PostMedia media={post.media} />}
+            {post.location && (
+              <div
+                onClick={() => setLocationMapPost(post)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, margin: '6px 0 2px', fontSize: 12, color: '#1877F2', cursor: 'pointer', padding: '3px 10px', background: '#EBF4FF', borderRadius: 20, width: 'fit-content' }}
+                title={lang === 'da' ? 'Vis på kort' : 'View on map'}
+              >
+                📍 {post.location.name || `${post.location.lat.toFixed(4)}, ${post.location.lng.toFixed(4)}`}
+              </div>
+            )}
             <div className="p-post-stats">
               <span className="p-reaction-summary" onClick={() => openLikersModal(post.id)} style={{ cursor: 'pointer' }}>
                 {post.reactions?.length > 0

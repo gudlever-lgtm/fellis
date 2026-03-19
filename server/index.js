@@ -2110,6 +2110,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
     try {
       ;[posts] = await pool.query(
         `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.categories, p.created_at, p.edited_at,
+                p.location_lat, p.location_lng, p.location_name,
                 (SELECT COUNT(*) FROM earned_badges WHERE user_id = p.author_id) as author_badge_count
          FROM posts p JOIN users u ON p.author_id = u.id
          WHERE (p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?))
@@ -2121,6 +2122,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
     } catch {
       ;[posts] = await pool.query(
         `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.categories, p.created_at, p.edited_at,
+                p.location_lat, p.location_lng, p.location_name,
                 0 as author_badge_count
          FROM posts p JOIN users u ON p.author_id = u.id
          WHERE (p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?))
@@ -2216,6 +2218,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
         createdAtRaw: p.created_at,
         edited: !!p.edited_at,
         authorBadgeCount: p.author_badge_count || 0,
+        location: p.location_lat ? { lat: Number(p.location_lat), lng: Number(p.location_lng), name: p.location_name } : null,
       }
     })
     // Track post views (fire-and-forget)
@@ -2287,6 +2290,9 @@ app.post('/api/feed/preflight', authenticate, (req, res) => {
 // POST /api/feed — create a new post (with optional media)
 app.post('/api/feed', authenticate, upload.array('media', 4), async (req, res) => {
   const { text, scheduled_at } = req.body
+  const locLat = req.body.location_lat ? parseFloat(req.body.location_lat) : null
+  const locLng = req.body.location_lng ? parseFloat(req.body.location_lng) : null
+  const locName = req.body.location_name ? String(req.body.location_name).slice(0, 255) : null
   const rawCats = req.body.categories
   const categories = rawCats ? (typeof rawCats === 'string' ? JSON.parse(rawCats) : rawCats) : null
   if (!text && !req.files?.length) return res.status(400).json({ error: 'Post text or media required' })
@@ -2322,8 +2328,8 @@ app.post('/api/feed', authenticate, upload.array('media', 4), async (req, res) =
     const scheduledDate = scheduled_at ? new Date(scheduled_at) : null
     if (scheduledDate && isNaN(scheduledDate.getTime())) return res.status(400).json({ error: 'Invalid scheduled_at' })
     const [result] = await pool.query(
-      'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media, scheduled_at, categories) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [req.userId, text, text, 'Lige nu', 'Just now', mediaJson, scheduledDate, categoriesJson]
+      'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media, scheduled_at, categories, location_lat, location_lng, location_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [req.userId, text, text, 'Lige nu', 'Just now', mediaJson, scheduledDate, categoriesJson, locLat, locLng, locName]
     )
     const [users] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
     const now = new Date()
@@ -2356,6 +2362,7 @@ app.post('/api/feed', authenticate, upload.array('media', 4), async (req, res) =
       likes: 0, liked: false, comments: [],
       media: mediaUrls.length > 0 ? mediaUrls : null,
       categories: categoriesJson ? JSON.parse(categoriesJson) : null,
+      location: locLat ? { lat: locLat, lng: locLng, name: locName } : null,
     })
   } catch (err) {
     res.status(500).json({ error: 'Failed to create post' })
