@@ -147,13 +147,18 @@ export async function apiFetchMemories() {
   return await request('/api/feed/memories')
 }
 
-export async function apiCreatePost(text, mediaFiles, scheduledAt, categories) {
+export async function apiCreatePost(text, mediaFiles, scheduledAt, categories, location) {
   if (mediaFiles?.length) {
     // Use FormData for multipart upload
     const form = new FormData()
     form.append('text', text)
     if (scheduledAt) form.append('scheduled_at', scheduledAt)
     if (categories?.length) form.append('categories', JSON.stringify(categories))
+    if (location) {
+      form.append('location_lat', location.lat)
+      form.append('location_lng', location.lng)
+      if (location.name) form.append('location_name', location.name)
+    }
     for (const file of mediaFiles) {
       form.append('media', file)
     }
@@ -176,7 +181,12 @@ export async function apiCreatePost(text, mediaFiles, scheduledAt, categories) {
   }
   return await request('/api/feed', {
     method: 'POST',
-    body: JSON.stringify({ text, ...(scheduledAt ? { scheduled_at: scheduledAt } : {}), ...(categories?.length ? { categories } : {}) }),
+    body: JSON.stringify({
+      text,
+      ...(scheduledAt ? { scheduled_at: scheduledAt } : {}),
+      ...(categories?.length ? { categories } : {}),
+      ...(location ? { location_lat: location.lat, location_lng: location.lng, location_name: location.name } : {}),
+    }),
   })
 }
 
