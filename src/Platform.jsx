@@ -1273,6 +1273,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [providerMediaUrls, setProviderMediaUrls] = useState([])
   const textareaRef = useRef(null)
   const suggestCategoryTimer = useRef(null)
+  const hintIconRef = useRef(null)
   const feedMention = useMention(sharePopupFriends || [])
   const bottomSentinelRef = useRef(null)
   const topSentinelRef = useRef(null)
@@ -1304,7 +1305,10 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const triggerChuck = () => { if (!chuckActive && triggerEgg('chuck', onBadgeCheck)) { setChuckActive(true) } }
   useKonamiCode(triggerChuck, !chuckActive)
 
-  // Matrix Rain: 7 avatar clicks within 3 seconds (works on mobile too)
+  // Matrix Rain: type "matrix" (keyboard) / 7 avatar clicks within 3 seconds (mobile)
+  useKeySequence('matrix', () => {
+    if (!matrixActive && triggerEgg('matrix', onBadgeCheck)) { setMatrixActive(true) }
+  }, 3000, !matrixActive)
   useAvatarClick(feedContainerRef, 7, 3000, () => {
     if (!matrixActive && triggerEgg('matrix', onBadgeCheck)) { setMatrixActive(true) }
   }, !matrixActive)
@@ -1342,7 +1346,27 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   // Feed title tap-count: 2=Gravity, 3=Flip, 5=Party, 10=Chuck (mobile)
   useTapCount(feedTitleRef, { 2: triggerGravity, 3: triggerFlip, 5: triggerPartyMobile, 10: triggerChuck }, 5000, 600)
 
-  // Retro Mode: Shift+click on feed title (keyboard) / long-press feed title 1.5s (mobile)
+  // Post hint icon double-tap: manually re-trigger AI category suggestion
+  useTapCount(hintIconRef, {
+    2: () => {
+      if (newPostText.trim().length >= 10) {
+        apiSuggestCategory(newPostText).then(result => {
+          if (result?.category) {
+            const catId = result.category
+            setPostCategories(prev => {
+              const n = new Set(prev)
+              autoCategories.forEach(old => n.delete(old))
+              n.add(catId)
+              return n
+            })
+            setAutoCategories(new Set([catId]))
+          }
+        })
+      }
+    }
+  }, 2000, 300)
+
+  // Retro Mode: type "retro" (keyboard) / long-press feed title 1.5s (mobile)
   const triggerRetro = () => {
     if (retroActiveRef.current) return
     if (!triggerEgg('retro', onBadgeCheck)) return
@@ -1353,7 +1377,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       retroActiveRef.current = false
     }, 30000)
   }
-  const handleRetroTrigger = (e) => { if (e.shiftKey) triggerRetro() }
+  useKeySequence('retro', triggerRetro, 3000)
   useLongPress(feedTitleRef, 1500, triggerRetro)
   // ── end easter eggs ─────────────────────────────────────────────────────────
 
@@ -1988,16 +2012,12 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                         if (result?.category) {
                           const catId = result.category
                           setPostCategories(prev => {
-                            if (prev.has(catId)) return prev
                             const n = new Set(prev)
+                            autoCategories.forEach(old => n.delete(old))
                             n.add(catId)
                             return n
                           })
-                          setAutoCategories(prev => {
-                            const n = new Set(prev)
-                            n.add(catId)
-                            return n
-                          })
+                          setAutoCategories(new Set([catId]))
                         }
                       }, 600)
                     }
@@ -2142,7 +2162,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   />
                 )}
                 <span className="p-input-hint-wrap">
-                  <span className="p-input-hint-icon">?</span>
+                  <span className="p-input-hint-icon" ref={hintIconRef}>?</span>
                   <span className="p-input-hint-tooltip">{t.postInputHint}</span>
                 </span>
                 <button className="p-post-btn" onMouseDown={e => e.preventDefault()} onClick={handlePost} disabled={!newPostText.trim() && !mediaPreviews.length && !providerMediaUrls.length}>
@@ -4523,9 +4543,9 @@ function ModeratorRequestCard({ lang, t, currentUser }) {
 
 const EGG_META = {
   chuck:    { icon: '🤜', name: 'Chuck Norris', trigger: { da: 'Konami-kode (↑↑↓↓←→←→BA) / 10 tryk på Feed-overskrift', en: 'Konami code (↑↑↓↓←→←→BA) / 10 taps on Feed title' } },
-  matrix:   { icon: '🟩', name: 'Matrix Rain',  trigger: { da: '7 klik på en avatar inden for 3 sek.', en: '7 clicks on an avatar within 3 sec.' } },
+  matrix:   { icon: '🟩', name: 'Matrix Rain',  trigger: { da: 'Skriv "matrix" / 7 klik på en avatar inden for 3 sek.', en: 'Type "matrix" / 7 clicks on an avatar within 3 sec.' } },
   flip:     { icon: '🔃', name: 'Flip Feed',    trigger: { da: 'Skriv "flip" / 3 tryk på Feed-overskrift', en: 'Type "flip" / 3 taps on Feed title' } },
-  retro:    { icon: '📺', name: 'Retro Mode',   trigger: { da: 'Shift+klik / hold Feed-overskrift nede 1,5 sek.', en: 'Shift+click / long-press Feed title 1.5 sec.' } },
+  retro:    { icon: '📺', name: 'Retro Mode',   trigger: { da: 'Skriv "retro" / hold Feed-overskrift nede 1,5 sek.', en: 'Type "retro" / long-press Feed title 1.5 sec.' } },
   gravity:  { icon: '⬇️', name: 'Gravity',      trigger: { da: 'Tryk G+G / 2 tryk på Feed-overskrift', en: 'Press G+G / 2 taps on Feed title' } },
   party:    { icon: '🎉', name: 'Party Mode',   trigger: { da: 'Skriv "party" / 5 tryk på Feed-overskrift', en: 'Type "party" / 5 taps on Feed title' } },
   rickroll: { icon: '🎵', name: 'Rick Roll',    trigger: { da: 'Rul til bunden og vent 4 sek.', en: 'Scroll to bottom and hold 4 sec.' } },
@@ -13470,6 +13490,7 @@ function AdminEasterEggsPanel({ lang }) {
 function BadgesProfileSection({ lang, earnedBadges, onBadgeCheck, setEarnedBadges }) {
   const da = lang === 'da'
   const [selectedEggId, setSelectedEggId] = useState(null)
+  const adminEggConfig = loadAdminEggs()
 
   const handleCheckNow = async () => {
     if (onBadgeCheck) onBadgeCheck()
@@ -13528,8 +13549,13 @@ function BadgesProfileSection({ lang, earnedBadges, onBadgeCheck, setEarnedBadge
                 const isEarned = earnedSet.has(badge.id)
                 const earnedData = earnedBadges.find(b => b.id === badge.id)
                 const isEgg = tier === 0
+                const eggKey = isEgg ? BADGE_TO_EGG[badge.id] : null
+                const adminEgg = eggKey ? (adminEggConfig[eggKey] || {}) : {}
+                const adminHint = adminEgg.hintsEnabled && adminEgg.hintText ? adminEgg.hintText : ''
                 const displayName = isEgg && !isEarned ? '???' : badge.name[lang] || badge.name.da
-                const displayDesc = isEgg && !isEarned ? (da ? 'Hemmeligt — opdage det selv!' : 'Secret — discover it yourself!') : badge.description[lang] || badge.description.da
+                const displayDesc = isEgg && !isEarned
+                  ? (adminHint ? `💡 ${adminHint}` : (da ? 'Hemmeligt — opdage det selv!' : 'Secret — discover it yourself!'))
+                  : badge.description[lang] || badge.description.da
 
                 const eggId = isEgg ? BADGE_TO_EGG[badge.id] : null
                 const hasInterview = eggId && !!EGG_INTERVIEW[eggId]
