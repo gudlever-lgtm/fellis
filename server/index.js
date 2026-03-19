@@ -553,11 +553,11 @@ addCol('users', 'mode', "VARCHAR(20) DEFAULT 'privat'")
   .catch(err => console.error('Migration (users.mode):', err.message))
 addCol('users', 'plan', "VARCHAR(30) DEFAULT 'business'")
   .catch(err => console.error('Migration (users.plan):', err.message))
-pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS ads_free TINYINT(1) NOT NULL DEFAULT 0")
+addCol('users', 'ads_free', 'TINYINT(1) NOT NULL DEFAULT 0')
   .catch(err => console.error('Migration (users.ads_free):', err.message))
-pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id VARCHAR(100) DEFAULT NULL")
+addCol('users', 'stripe_customer_id', 'VARCHAR(100) DEFAULT NULL')
   .catch(err => console.error('Migration (users.stripe_customer_id):', err.message))
-pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS ads_free_sub_id VARCHAR(200) DEFAULT NULL")
+addCol('users', 'ads_free_sub_id', 'VARCHAR(200) DEFAULT NULL')
   .catch(err => console.error('Migration (users.ads_free_sub_id):', err.message))
 // Reset ads_free for users with no active Mollie adfree subscription (clears stale Stripe flags).
 pool.query(`
@@ -3705,7 +3705,7 @@ async function initCompanies() {
       FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
-    await pool.query(`ALTER TABLE job_saves ADD COLUMN IF NOT EXISTS track_status VARCHAR(30) DEFAULT NULL`)
+    await addCol('job_saves', 'track_status', 'VARCHAR(30) DEFAULT NULL')
 
     // Repair: ensure all companies have their owner in company_members
     // (may be missing if company was created before this table existed)
@@ -4204,28 +4204,6 @@ app.post('/api/jobs/:id/save', authenticate, async (req, res) => {
 
 async function initBusinessFeatures() {
   try {
-    await pool.query(`CREATE TABLE IF NOT EXISTS admin_settings (
-      key_name VARCHAR(100) NOT NULL PRIMARY KEY,
-      key_value TEXT DEFAULT NULL,
-      updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP() ON UPDATE CURRENT_TIMESTAMP()
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
-  } catch (err) {
-    console.error('initAdminSettings error:', err.message)
-  }
-}
-
-async function initSettingsSchema() {
-  try {
-    // Add user_agent and ip_address to sessions for session list display
-    await addCol('sessions', 'user_agent', 'VARCHAR(500) DEFAULT NULL')
-    await addCol('sessions', 'ip_address', 'VARCHAR(50) DEFAULT NULL')
-    await addCol('sessions', 'created_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP')
-
-    // Privacy settings columns on users
-    await addCol('users', 'profile_visibility', "ENUM('all','friends') NOT NULL DEFAULT 'all'")
-    await addCol('users', 'friend_request_privacy', "ENUM('all','friends_of_friends') NOT NULL DEFAULT 'all'")
-
-    // Job applications
     await pool.query(`CREATE TABLE IF NOT EXISTS job_applications (
       id INT AUTO_INCREMENT PRIMARY KEY,
       job_id INT NOT NULL,
@@ -4242,8 +4220,6 @@ async function initSettingsSchema() {
       FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE,
       FOREIGN KEY (applicant_id) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
-
-    // CRM contact notes (private per author)
     await pool.query(`CREATE TABLE IF NOT EXISTS contact_notes (
       id INT AUTO_INCREMENT PRIMARY KEY,
       author_id INT NOT NULL,
@@ -4255,8 +4231,6 @@ async function initSettingsSchema() {
       FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY (contact_id) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
-
-    // Company lead capture
     await pool.query(`CREATE TABLE IF NOT EXISTS company_leads (
       id INT AUTO_INCREMENT PRIMARY KEY,
       company_id INT NOT NULL,
@@ -4269,9 +4243,41 @@ async function initSettingsSchema() {
       INDEX idx_cl_company (company_id),
       FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
-
   } catch (err) {
     console.error('initBusinessFeatures error:', err.message)
+  }
+}
+
+async function initSettingsSchema() {
+  try {
+    // Add session display columns (MySQL 8 compatible via addCol)
+    await addCol('sessions', 'user_agent', 'VARCHAR(500) DEFAULT NULL')
+    await addCol('sessions', 'ip_address', 'VARCHAR(50) DEFAULT NULL')
+    await addCol('sessions', 'created_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP')
+    // Privacy settings
+    await addCol('users', 'profile_visibility', "ENUM('all','friends') NOT NULL DEFAULT 'all'")
+    await addCol('users', 'friend_request_privacy', "ENUM('all','friends_of_friends') NOT NULL DEFAULT 'all'")
+    // Skills tables
+    await pool.query(`CREATE TABLE IF NOT EXISTS user_skills (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      name VARCHAR(100) NOT NULL,
+      display_order INT NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_user_skill (user_id, name),
+      INDEX idx_us_user (user_id),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+    await pool.query(`CREATE TABLE IF NOT EXISTS skill_endorsements (
+      skill_id INT NOT NULL,
+      endorser_id INT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (skill_id, endorser_id),
+      FOREIGN KEY (skill_id) REFERENCES user_skills(id) ON DELETE CASCADE,
+      FOREIGN KEY (endorser_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+  } catch (err) {
+    console.error('initSettingsSchema error:', err.message)
   }
 }
 
@@ -4294,6 +4300,23 @@ async function initSiteVisits() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
     // Add edited_at column to posts if not present
     await addCol('posts', 'edited_at', 'TIMESTAMP NULL DEFAULT NULL')
+  } catch (err) {
+    console.error('initSiteVisits error:', err.message)
+  }
+}
+
+// POST /api/jobs/:id/apply — submit a job application
+app.post('/api/jobs/:id/apply', authenticate, async (req, res) => {
+  try {
+    const { name, email, message } = req.body
+    if (!name || !email) return res.status(400).json({ error: 'Name and email required' })
+    const [[job]] = await pool.query("SELECT id FROM jobs WHERE id = ? AND status = 'open'", [req.params.id])
+    if (!job) return res.status(404).json({ error: 'Job not found' })
+    await pool.query(
+      'INSERT INTO job_applications (job_id, applicant_id, name, email, message) VALUES (?, ?, ?, ?, ?)',
+      [req.params.id, req.userId, name, email, message || null]
+    )
+    res.json({ ok: true })
   } catch (err) {
     if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Already applied' })
     console.error('POST /api/jobs/:id/apply error:', err.message)
@@ -4525,10 +4548,10 @@ async function initAds() {
       INDEX idx_ads_status_placement (status, placement),
       FOREIGN KEY (advertiser_id) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
-    await pool.query("ALTER TABLE ads ADD COLUMN IF NOT EXISTS paid_until DATETIME DEFAULT NULL").catch(() => {})
-    await pool.query("ALTER TABLE ads ADD COLUMN IF NOT EXISTS payment_status VARCHAR(32) DEFAULT 'unpaid'").catch(() => {})
-    await pool.query("ALTER TABLE ads ADD COLUMN IF NOT EXISTS paid_amount DECIMAL(10,2) DEFAULT NULL").catch(() => {})
-    await pool.query("ALTER TABLE ads ADD COLUMN IF NOT EXISTS paid_at DATETIME DEFAULT NULL").catch(() => {})
+    await addCol('ads', 'paid_until', 'DATETIME DEFAULT NULL')
+    await addCol('ads', 'payment_status', "VARCHAR(32) DEFAULT 'unpaid'")
+    await addCol('ads', 'paid_amount', 'DECIMAL(10,2) DEFAULT NULL')
+    await addCol('ads', 'paid_at', 'DATETIME DEFAULT NULL')
   } catch (err) {
     console.error('initAds error:', err.message)
   }
@@ -4554,15 +4577,15 @@ async function initAdminAdSettings() {
       FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
     // Ensure columns exist on older installs
-    await pool.query(`ALTER TABLE admin_ad_settings ADD COLUMN IF NOT EXISTS ads_enabled TINYINT(1) NOT NULL DEFAULT 1`).catch(() => {})
-    await pool.query(`ALTER TABLE admin_ad_settings ADD COLUMN IF NOT EXISTS ad_price_cpm DECIMAL(10,2) NOT NULL DEFAULT 50.00`).catch(() => {})
-    await pool.query(`ALTER TABLE admin_ad_settings ADD COLUMN IF NOT EXISTS max_ads_feed INT NOT NULL DEFAULT 3`).catch(() => {})
-    await pool.query(`ALTER TABLE admin_ad_settings ADD COLUMN IF NOT EXISTS max_ads_sidebar INT NOT NULL DEFAULT 2`).catch(() => {})
-    await pool.query(`ALTER TABLE admin_ad_settings ADD COLUMN IF NOT EXISTS max_ads_stories INT NOT NULL DEFAULT 1`).catch(() => {})
-    await pool.query(`ALTER TABLE admin_ad_settings ADD COLUMN IF NOT EXISTS refresh_interval_seconds INT NOT NULL DEFAULT 300`).catch(() => {})
-    await pool.query(`ALTER TABLE admin_ad_settings ADD COLUMN IF NOT EXISTS adfree_recurring_pct INT NOT NULL DEFAULT 100`).catch(() => {})
-    await pool.query(`ALTER TABLE admin_ad_settings ADD COLUMN IF NOT EXISTS ad_recurring_pct INT NOT NULL DEFAULT 100`).catch(() => {})
-    await pool.query(`ALTER TABLE admin_ad_settings ADD COLUMN IF NOT EXISTS boost_price DECIMAL(10,2) NOT NULL DEFAULT 9.00`).catch(() => {})
+    await addCol('admin_ad_settings', 'ads_enabled', 'TINYINT(1) NOT NULL DEFAULT 1')
+    await addCol('admin_ad_settings', 'ad_price_cpm', 'DECIMAL(10,2) NOT NULL DEFAULT 50.00')
+    await addCol('admin_ad_settings', 'max_ads_feed', 'INT NOT NULL DEFAULT 3')
+    await addCol('admin_ad_settings', 'max_ads_sidebar', 'INT NOT NULL DEFAULT 2')
+    await addCol('admin_ad_settings', 'max_ads_stories', 'INT NOT NULL DEFAULT 1')
+    await addCol('admin_ad_settings', 'refresh_interval_seconds', 'INT NOT NULL DEFAULT 300')
+    await addCol('admin_ad_settings', 'adfree_recurring_pct', 'INT NOT NULL DEFAULT 100')
+    await addCol('admin_ad_settings', 'ad_recurring_pct', 'INT NOT NULL DEFAULT 100')
+    await addCol('admin_ad_settings', 'boost_price', 'DECIMAL(10,2) NOT NULL DEFAULT 9.00')
     // Ensure a default row always exists
     await pool.query(`INSERT IGNORE INTO admin_ad_settings (id) VALUES (1)`)
     // Fix NULL ads_enabled on existing rows (should default to enabled)
@@ -4964,14 +4987,14 @@ async function initMollie() {
       KEY idx_mollie_payment_id (mollie_payment_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
     // Ensure columns exist (idempotent for existing installs)
-    await pool.query('ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS mollie_payment_id VARCHAR(64) DEFAULT NULL').catch(() => {})
-    await pool.query('ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS plan VARCHAR(32) NOT NULL DEFAULT \'adfree\'').catch(() => {})
-    await pool.query('ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS status VARCHAR(32) NOT NULL DEFAULT \'open\'').catch(() => {})
-    await pool.query('ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS expires_at DATETIME DEFAULT NULL').catch(() => {})
-    await pool.query('ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS ad_id INT DEFAULT NULL').catch(() => {})
-    await pool.query('ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS recurring TINYINT(1) NOT NULL DEFAULT 0').catch(() => {})
-    await pool.query('ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS mollie_subscription_id VARCHAR(64) DEFAULT NULL').catch(() => {})
-    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS mollie_customer_id VARCHAR(64) DEFAULT NULL').catch(() => {})
+    await addCol('subscriptions', 'mollie_payment_id', 'VARCHAR(64) DEFAULT NULL')
+    await addCol('subscriptions', 'plan', "VARCHAR(32) NOT NULL DEFAULT 'adfree'")
+    await addCol('subscriptions', 'status', "VARCHAR(32) NOT NULL DEFAULT 'open'")
+    await addCol('subscriptions', 'expires_at', 'DATETIME DEFAULT NULL')
+    await addCol('subscriptions', 'ad_id', 'INT DEFAULT NULL')
+    await addCol('subscriptions', 'recurring', 'TINYINT(1) NOT NULL DEFAULT 0')
+    await addCol('subscriptions', 'mollie_subscription_id', 'VARCHAR(64) DEFAULT NULL')
+    await addCol('users', 'mollie_customer_id', 'VARCHAR(64) DEFAULT NULL')
   } catch (err) {
     console.error('initMollie:', err.message)
   }
@@ -5323,67 +5346,6 @@ async function initAdminSettings() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
   } catch (err) {
     console.error('initAdminSettings error:', err.message)
-  }
-}
-
-async function initSettingsSchema() {
-  try {
-    // Add user_agent and ip_address to sessions for session list display
-    await pool.query(`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS user_agent VARCHAR(500) DEFAULT NULL`)
-    await pool.query(`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS ip_address VARCHAR(50) DEFAULT NULL`)
-    await pool.query(`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`)
-
-    // Privacy settings columns on users
-    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_visibility ENUM('all','friends') NOT NULL DEFAULT 'all'`)
-    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS friend_request_privacy ENUM('all','friends_of_friends') NOT NULL DEFAULT 'all'`)
-
-    // Skills tables
-    await pool.query(`CREATE TABLE IF NOT EXISTS user_skills (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      user_id INT NOT NULL,
-      name VARCHAR(100) NOT NULL,
-      display_order INT NOT NULL DEFAULT 0,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE KEY uq_user_skill (user_id, name),
-      INDEX idx_us_user (user_id),
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
-
-    await pool.query(`CREATE TABLE IF NOT EXISTS skill_endorsements (
-      skill_id INT NOT NULL,
-      endorser_id INT NOT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      PRIMARY KEY (skill_id, endorser_id),
-      FOREIGN KEY (skill_id) REFERENCES user_skills(id) ON DELETE CASCADE,
-      FOREIGN KEY (endorser_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
-
-  } catch (err) {
-    console.error('initSettingsSchema error:', err.message)
-  }
-}
-
-async function initSiteVisits() {
-  try {
-    await pool.query(`CREATE TABLE IF NOT EXISTS site_visits (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      session_id VARCHAR(100) NOT NULL,
-      ip_address VARCHAR(50) DEFAULT NULL,
-      user_agent VARCHAR(500) DEFAULT NULL,
-      browser VARCHAR(50) DEFAULT NULL,
-      os VARCHAR(50) DEFAULT NULL,
-      country VARCHAR(100) DEFAULT NULL,
-      country_code VARCHAR(2) DEFAULT NULL,
-      city VARCHAR(100) DEFAULT NULL,
-      visited_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      INDEX idx_sv_visited (visited_at),
-      INDEX idx_sv_country (country_code),
-      INDEX idx_sv_session (session_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
-    // Add edited_at column to posts if not present
-    await pool.query('ALTER TABLE posts ADD COLUMN IF NOT EXISTS edited_at TIMESTAMP NULL DEFAULT NULL')
-  } catch (err) {
-    console.error('initSiteVisits error:', err.message)
   }
 }
 
@@ -6127,7 +6089,7 @@ async function initReels() {
       FOREIGN KEY (reel_id) REFERENCES reels(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
-    await pool.query(`ALTER TABLE reel_likes ADD COLUMN IF NOT EXISTS reaction VARCHAR(10) DEFAULT '❤️'`).catch(() => {})
+    await addCol('reel_likes', 'reaction', "VARCHAR(10) DEFAULT '❤️'")
     await pool.query(`CREATE TABLE IF NOT EXISTS reel_comments (
       id INT AUTO_INCREMENT PRIMARY KEY,
       reel_id INT NOT NULL,
