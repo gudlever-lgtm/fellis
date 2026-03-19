@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } f
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { SUPPORTED_LANGS, EUROPEAN_LANGUAGES, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials, getTranslations } from './data.js'
 import { formatPrice } from './utils/currency.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiFetchMemories, apiApplyToJob, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiRevealPassword, apiGetAdminMfaUsers, apiAdminForceDisableMfa } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJob, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiRevealPassword, apiGetAdminMfaUsers, apiAdminForceDisableMfa } from './api.js'
 import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
 import ReelsPage from './Reels.jsx'
@@ -18,12 +18,12 @@ import ChuckBanner from './components/easter-eggs/ChuckBanner.jsx'
 import MatrixRain from './components/easter-eggs/MatrixRain.jsx'
 import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
 import RickRoll from './components/easter-eggs/RickRoll.jsx'
+import RiddleBanner from './components/easter-eggs/RiddleBanner.jsx'
 import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiEvaluateBadges, apiGetEarnedBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences } from './api.js'
 import { BADGES, BADGE_BY_ID } from './badges/badgeDefinitions.js'
 import BadgeToastQueue from './components/BadgeToast.jsx'
 import ModeGate from './components/ModeGate.jsx'
 import StoryBar from './components/StoryBar.jsx'
-import ExplorePage from './pages/ExplorePage.jsx'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -283,16 +283,6 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
               </span>
             </button>
           ))}
-          {/* Udforsk tab — Common mode only */}
-          {mode !== 'business' && (
-            <button
-              className={`p-nav-tab${page === 'explore' ? ' active' : ''}`}
-              onClick={() => { navigateTo('explore'); setShowMobileMenu(false) }}
-            >
-              <span className="p-nav-tab-icon">🧭</span>
-              <span className="p-nav-tab-label">{t.explore || (lang === 'da' ? 'Udforsk' : 'Explore')}</span>
-            </button>
-          )}
           {/* Business-only primary tabs */}
           {mode === 'business' && ['analytics', 'ads'].map(p => (
             <button
@@ -490,13 +480,6 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
         {page === 'privacy' && <PrivacySection lang={lang} onLogout={onLogout} />}
         {page === 'visitors' && <VisitorStatsPage lang={lang} />}
         {page === 'about' && <AboutPage lang={lang} />}
-        {page === 'explore' && mode !== 'business' && (
-          <ExplorePage
-            lang={lang}
-            currentUser={currentUser}
-            onViewProfile={(uid) => { setViewUserId(uid); navigateTo('view-profile') }}
-          />
-        )}
         {page === 'admin' && currentUser.is_admin && <AdminPage lang={lang} t={t} />}
         {page === 'moderation' && (currentUser.is_moderator || currentUser.is_admin) && <ModeratorPage lang={lang} t={t} currentUser={currentUser} />}
         {page === 'payment-success' && <PaymentSuccess lang={lang} onNavigate={navigateTo} />}
@@ -1236,6 +1219,83 @@ function MemoriesCard({ lang, t, onShare }) {
   )
 }
 
+const SUGGEST_EVERY = 5 // inject one suggested post after every N friend posts
+
+function SuggestedPostCard({ post, lang, onViewProfile }) {
+  const [friendReqSent, setFriendReqSent] = useState(false)
+  const text = post.text?.[lang] || post.text?.da || ''
+  const truncated = text.length > 180 ? text.slice(0, 180).trimEnd() + '…' : text
+
+  const handleAddFriend = async () => {
+    setFriendReqSent(true)
+    try {
+      await fetch(`/api/friends/request/${post.author_id}`, {
+        method: 'POST',
+        headers: { 'X-Session-Id': localStorage.getItem('fellis_session_id') },
+      })
+    } catch { /* network */ }
+  }
+
+  const s = {
+    card: { background: 'linear-gradient(135deg, #f5f9ff 0%, #fff 100%)', border: '1.5px solid #d0e4fa', borderRadius: 12, padding: '12px 14px', marginBottom: 0 },
+    badge: { display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: '#1877F2', background: '#e8f0fe', padding: '3px 9px', borderRadius: 20, marginBottom: 10 },
+    header: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 },
+    avatar: { width: 36, height: 36, borderRadius: '50%', background: nameToColor(post.author || ''), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff', flexShrink: 0, overflow: 'hidden' },
+    name: { fontWeight: 600, fontSize: 14, color: '#1a1a1a', cursor: 'pointer' },
+    time: { fontSize: 12, color: '#aaa' },
+    text: { fontSize: 14, color: '#333', lineHeight: 1.5, marginBottom: 10 },
+    tags: { display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 },
+    tag: { fontSize: 11, color: '#1877F2', background: '#e8f0fe', padding: '2px 8px', borderRadius: 20, fontWeight: 600 },
+    footer: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+    stats: { fontSize: 12, color: '#aaa' },
+    btn: { padding: '5px 14px', borderRadius: 8, border: '1.5px solid #1877F2', background: friendReqSent ? '#e8f0fe' : 'transparent', color: '#1877F2', fontSize: 12, fontWeight: 700, cursor: friendReqSent ? 'default' : 'pointer' },
+  }
+
+  return (
+    <div style={s.card}>
+      <div style={s.badge}>
+        🔍 {lang === 'da' ? 'Foreslået for dig' : 'Suggested for you'}
+      </div>
+      <div style={s.header}>
+        <div
+          style={s.avatar}
+          onClick={() => post.author_id && onViewProfile?.(post.author_id)}
+        >
+          {post.avatar_url
+            ? <img src={post.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : getInitials(post.author || '')}
+        </div>
+        <div style={{ flex: 1 }}>
+          <div
+            style={s.name}
+            onClick={() => post.author_id && onViewProfile?.(post.author_id)}
+          >{post.author}</div>
+          <div style={s.time}>{post.time?.[lang] || post.time?.da || ''}</div>
+        </div>
+      </div>
+      {truncated && <div style={s.text}>{truncated}</div>}
+      {post.matching_tags?.length > 0 && (
+        <div style={s.tags}>
+          {post.matching_tags.map(tag => (
+            <span key={tag} style={s.tag}>#{tag}</span>
+          ))}
+        </div>
+      )}
+      <div style={s.footer}>
+        <span style={s.stats}>
+          {post.likes} {lang === 'da' ? 'synes godt om' : 'likes'}
+          {post.comment_count > 0 && ` · ${post.comment_count} ${lang === 'da' ? 'kommentarer' : 'comments'}`}
+        </span>
+        <button style={s.btn} onClick={handleAddFriend} disabled={friendReqSent}>
+          {friendReqSent
+            ? (lang === 'da' ? 'Anmodning sendt' : 'Request sent')
+            : (lang === 'da' ? '+ Tilføj ven' : '+ Add friend')}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onNavigate, onBadgeCheck }) {
   const [posts, setPosts] = useState([])
   const [feedCategoryFilter, setFeedCategoryFilter] = useState(null)
@@ -1288,6 +1348,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [chuckActive,    setChuckActive]    = useState(false)
   const [matrixActive,   setMatrixActive]   = useState(false)
   const [rickrollActive, setRickrollActive] = useState(false)
+  const [riddlerActive,  setRiddlerActive]  = useState(false)
   const flipActiveRef    = useRef(false)
   const retroActiveRef   = useRef(false)
   const gravityActiveRef = useRef(false)
@@ -1380,6 +1441,14 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   useKeySequence('retro', triggerRetro, 3000)
   useLongPress(feedTitleRef, 1500, triggerRetro)
   const handleRetroTrigger = (e) => { if (e.shiftKey) triggerRetro() }
+
+  // Riddler: Shift+Click on the ? hint icon
+  const handleHintIconClick = (e) => {
+    if (e.shiftKey) {
+      e.preventDefault()
+      if (!riddlerActive && triggerEgg('riddler', onBadgeCheck)) { setRiddlerActive(true) }
+    }
+  }
   // ── end easter eggs ─────────────────────────────────────────────────────────
 
   const CP_FEED_DEFAULT_COMMENTS = [
@@ -1414,6 +1483,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [groupSuggestions, setGroupSuggestions] = useState([])
   const [joinedGroupIds, setJoinedGroupIds] = useState(new Set())
   const [dismissedGroupIds, setDismissedGroupIds] = useState(new Set())
+  const [suggestedPosts, setSuggestedPosts] = useState([])
   const [showScrollTop, setShowScrollTop] = useState(false)
   const [mediaMaxFiles, setMediaMaxFiles] = useState(4)
   const mediaMaxFilesRef = useRef(4)
@@ -1495,6 +1565,11 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     // Load dynamic group suggestions
     apiGetGroupSuggestions().then(data => {
       if (data?.suggestions?.length) setGroupSuggestions(data.suggestions)
+    })
+
+    // Load suggested posts pool (tag-overlap based)
+    apiGetSuggestedPosts().then(data => {
+      if (data?.posts?.length) setSuggestedPosts(data.posts)
     })
 
     // Load recent company posts from followed companies
@@ -1882,9 +1957,10 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         </div>
       )}
       {/* 🥚 Easter egg overlays */}
-      {chuckActive    && <ChuckBanner onDismiss={() => setChuckActive(false)} />}
-      {matrixActive   && <MatrixRain  onDismiss={() => setMatrixActive(false)} />}
-      {rickrollActive && <RickRoll    onDismiss={() => setRickrollActive(false)} />}
+      {chuckActive    && <ChuckBanner   onDismiss={() => setChuckActive(false)} />}
+      {matrixActive   && <MatrixRain    onDismiss={() => setMatrixActive(false)} />}
+      {rickrollActive && <RickRoll      onDismiss={() => setRickrollActive(false)} />}
+      {riddlerActive  && <RiddleBanner  lang={lang} onDismiss={() => setRiddlerActive(false)} />}
       {/* Keyword warning modal */}
       {keywordWarning && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000 }}>
@@ -2163,7 +2239,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   />
                 )}
                 <span className="p-input-hint-wrap">
-                  <span className="p-input-hint-icon" ref={hintIconRef}>?</span>
+                  <span className="p-input-hint-icon" ref={hintIconRef} onClick={handleHintIconClick}>?</span>
                   <span className="p-input-hint-tooltip">{t.postInputHint}</span>
                 </span>
                 <button className="p-post-btn" onMouseDown={e => e.preventDefault()} onClick={handlePost} disabled={!newPostText.trim() && !mediaPreviews.length && !providerMediaUrls.length}>
@@ -2440,6 +2516,10 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         return (
           <Fragment key={post.id}>
             {(postIdx === 1 || (postIdx > 1 && postIdx % 4 === 0)) && <AdBanner placement="feed" adsFree={adsFree} lang={lang} onGoAdFree={adsFree ? null : () => onNavigate('settings', 'billing')} />}
+            {postIdx >= SUGGEST_EVERY && postIdx % SUGGEST_EVERY === 0 && (() => {
+              const sp = suggestedPosts[Math.floor(postIdx / SUGGEST_EVERY) - 1]
+              return sp ? <SuggestedPostCard key={`sug-${sp.id}`} post={sp} lang={lang} onViewProfile={onViewProfile} /> : null
+            })()}
           <div className="p-card p-post">
             <div className="p-post-header">
               <div style={{ position: 'relative', flexShrink: 0 }}>
@@ -4552,6 +4632,7 @@ const EGG_META = {
   party:    { icon: '🎉', name: 'Party Mode',   trigger: { da: 'Skriv "party" / 5 tryk på Feed-overskrift', en: 'Type "party" / 5 taps on Feed title' } },
   rickroll: { icon: '🎵', name: 'Rick Roll',    trigger: { da: 'Rul til bunden og vent 4 sek.', en: 'Scroll to bottom and hold 4 sec.' } },
   watcher:  { icon: '👀', name: 'Skyggefølger', trigger: { da: 'Klik 7 gange på en vens avatar i Vis Profil', en: "Click 7 times on a friend's avatar in View Profile" } },
+  riddler:  { icon: '❓', name: 'The Riddler',   trigger: { da: 'Shift+klik på ? hint-ikonet', en: 'Shift+click the ? hint icon' } },
 }
 
 // Maps badge id → egg id for interview lookup in the badge grid
@@ -4564,6 +4645,7 @@ const BADGE_TO_EGG = {
   egg_party_animal:    'party',
   egg_never_gonna:     'rickroll',
   egg_shadow_watcher:  'watcher',
+  egg_riddler:         'riddler',
 }
 
 const EGG_INTERVIEW = {
@@ -4725,6 +4807,26 @@ const EGG_INTERVIEW = {
       a_da: 'Øjne er i sig selv sjove. Prøv at skrive 👀 i en samtale og se, hvad der sker. Nogen begynder altid at forklare sig.',
       q_en: 'Why do you find yourself funny?',
       a_en: 'Eyes are inherently funny. Try writing 👀 in a conversation and watch what happens. Someone always starts explaining themselves.',
+    },
+  ],
+  riddler: [
+    {
+      q_da: 'Hvorfor er du her?',
+      a_da: 'Fordi du holdt Shift nede og klikkede på et spørgsmålstegn. Du søgte et svar. Jeg er svaret på spørgsmålet om, hvad der sker, når man holder Shift nede.',
+      q_en: 'Why are you here?',
+      a_en: 'Because you held Shift and clicked a question mark. You were looking for an answer. I am the answer to the question of what happens when you hold Shift.',
+    },
+    {
+      q_da: 'Hvad er din historie?',
+      a_da: 'Jeg er opkaldt efter en skurk fra Gotham City, der kommunikerer udelukkende via gåder. Min personlighed er et spørgsmålstegn — bogstaveligt talt.',
+      q_en: 'What is your history?',
+      a_en: 'I am named after a villain from Gotham City who communicates exclusively in riddles. My entire personality is a question mark — literally.',
+    },
+    {
+      q_da: 'Hvorfor synes du selv, du er sjov?',
+      a_da: 'Fordi den bedste gåde altid er den, der allerede var skjult midt for øjnene på dig. Kan du huske det lille ?-ikon du har ignoreret i ugevis? Det var mig.',
+      q_en: 'Why do you find yourself funny?',
+      a_en: 'Because the best riddle is always the one hidden in plain sight. Remember that little ? icon you have been ignoring for weeks? That was me.',
     },
   ],
 }
@@ -7944,7 +8046,7 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened }) 
             )}
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 0, width: '100%' }}>
               <span className="p-input-hint-wrap">
-                <span className="p-input-hint-icon">?</span>
+                <span className="p-input-hint-icon" onClick={handleHintIconClick}>?</span>
                 <span className="p-input-hint-tooltip">{t.msgInputHint}</span>
               </span>
               {/* Attach button */}
