@@ -31,7 +31,8 @@ async function request(path, options = {}) {
     })
     if (!res.ok) {
       const body = await res.json().catch(() => ({}))
-      throw new Error(body.error || `HTTP ${res.status}`)
+      console.warn(`API ${path} → ${res.status}`, body.error || '')
+      return null
     }
     return await res.json()
   } catch (err) {
@@ -81,6 +82,48 @@ export async function apiResetPassword(token, password) {
   return data
 }
 
+export async function apiVerifyMfa(userId, code, lang) {
+  const data = await request('/api/auth/verify-mfa', {
+    method: 'POST',
+    body: JSON.stringify({ userId, code, lang }),
+  })
+  if (data?.sessionId) {
+    localStorage.setItem('fellis_session_id', data.sessionId)
+  }
+  return data
+}
+
+export async function apiEnableMfa() {
+  return await request('/api/auth/enable-mfa', { method: 'POST' })
+}
+
+export async function apiDisableMfa() {
+  return await request('/api/auth/disable-mfa', { method: 'POST' })
+}
+
+export async function apiSendSettingsMfa() {
+  return await request('/api/auth/send-settings-mfa', { method: 'POST' })
+}
+
+export async function apiRevealPassword(mfaCode) {
+  return await request('/api/auth/reveal-password', { method: 'POST', body: JSON.stringify({ mfaCode }) })
+}
+
+export async function apiGetAdminMfaUsers() {
+  return await request('/api/admin/mfa-users')
+}
+
+export async function apiAdminForceDisableMfa(userId) {
+  return await request(`/api/admin/users/${userId}/force-disable-mfa`, { method: 'POST' })
+}
+
+export async function apiUpdatePhone(phone) {
+  return await request('/api/profile/phone', {
+    method: 'PATCH',
+    body: JSON.stringify({ phone }),
+  })
+}
+
 export async function apiCheckSession() {
   // Try session check even without localStorage — cookie may carry the session
   return await request('/api/auth/session')
@@ -96,11 +139,21 @@ export async function apiFetchFeed(offset = 0, limit = 20) {
   return await request(`/api/feed?offset=${offset}&limit=${limit}`)
 }
 
-export async function apiCreatePost(text, mediaFiles) {
+export async function apiPreflightPost(text) {
+  return await request('/api/feed/preflight', { method: 'POST', body: JSON.stringify({ text }) })
+}
+
+export async function apiFetchMemories() {
+  return await request('/api/feed/memories')
+}
+
+export async function apiCreatePost(text, mediaFiles, scheduledAt, categories) {
   if (mediaFiles?.length) {
     // Use FormData for multipart upload
     const form = new FormData()
     form.append('text', text)
+    if (scheduledAt) form.append('scheduled_at', scheduledAt)
+    if (categories?.length) form.append('categories', JSON.stringify(categories))
     for (const file of mediaFiles) {
       form.append('media', file)
     }
@@ -123,7 +176,7 @@ export async function apiCreatePost(text, mediaFiles) {
   }
   return await request('/api/feed', {
     method: 'POST',
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ text, ...(scheduledAt ? { scheduled_at: scheduledAt } : {}), ...(categories?.length ? { categories } : {}) }),
   })
 }
 
@@ -183,8 +236,13 @@ export async function apiFetchProfile(userId) {
   if (userId) return await request(`/api/profile/${userId}`)
   return await request('/api/profile')
 }
+export async function apiFetchProfilePhotos(userId) {
+  return await request(`/api/profile/${userId}/photos`)
+}
 
-// Friends
+export async function apiFetchUserPosts(userId) {
+  return await request(`/api/profile/${userId}/posts`)
+}
 export async function apiFetchFriends() {
   return await request('/api/friends')
 }
@@ -205,8 +263,19 @@ export async function apiDeclineFriendRequest(requestId) {
   return await request(`/api/friends/requests/${requestId}/decline`, { method: 'POST' })
 }
 
+export async function apiCancelFriendRequest(userId) {
+  return await request(`/api/friends/request/${userId}`, { method: 'DELETE' })
+}
+
 export async function apiUnfriend(userId, notify = false) {
   return await request(`/api/friends/${userId}${notify ? '?notify=1' : ''}`, { method: 'DELETE' })
+}
+
+export async function apiToggleFamilyFriend(userId, isFamily) {
+  return await request(`/api/friends/${userId}/family`, {
+    method: 'PATCH',
+    body: JSON.stringify({ is_family: isFamily }),
+  })
 }
 
 // Conversations (replaces legacy /api/messages)
@@ -351,11 +420,48 @@ export async function apiDeleteEvent(eventId) {
   return await request(`/api/events/${eventId}`, { method: 'DELETE' })
 }
 
-// SSE — Server-Sent Events for real-time updates (returns EventSource)
+// SSE — Server-Sent Events for real-time updates.
+// Returns a controller object with { onmessage, close } so callers can attach
+// a message handler and close the connection.  Internally uses exponential
+// backoff (max ~60 s) so a temporary server restart does not spam the browser
+// console with a "can't establish connection" error every 3 seconds.
 export function openSSE() {
-  const sid = getSessionId()
-  const url = `${API_BASE}/api/sse${sid ? `?sid=${encodeURIComponent(sid)}` : ''}`
-  return new EventSource(url)
+  let es = null
+  let closed = false
+  let delay = 2000
+  let timer = null
+  const ctrl = { onmessage: null, onreconnect: null }
+  let connected = false
+
+  function connect() {
+    if (closed) return
+    const sid = getSessionId()
+    if (!sid) return // not logged in — nothing to connect to
+    const url = `${API_BASE}/api/sse?sid=${encodeURIComponent(sid)}`
+    es = new EventSource(url)
+    es.onmessage = (e) => { if (ctrl.onmessage) ctrl.onmessage(e) }
+    es.onopen = () => {
+      delay = 2000 // reset backoff on successful connect
+      if (connected && ctrl.onreconnect) ctrl.onreconnect() // fired on reconnect (not first connect)
+      connected = true
+    }
+    es.onerror = () => {
+      es.close()
+      es = null
+      if (!closed) {
+        timer = setTimeout(() => { delay = Math.min(delay * 2, 64000); connect() }, delay)
+      }
+    }
+  }
+
+  ctrl.close = () => {
+    closed = true
+    clearTimeout(timer)
+    es?.close()
+  }
+
+  connect()
+  return ctrl
 }
 
 // Link preview
@@ -479,12 +585,38 @@ export async function apiSaveAdminSettings(data) {
   })
 }
 
+export async function apiRevealAdminKey(keyName, password) {
+  return await request('/api/admin/settings/reveal-key', {
+    method: 'POST',
+    body: JSON.stringify({ key_name: keyName, password }),
+  })
+}
+
 export async function apiGetAdminStats() {
   return await request('/api/admin/stats')
 }
 
+// ── User moderator request ────────────────────────────────────────────────────
+export async function apiGetMyModeratorRequest() {
+  return await request('/api/moderation/my-request')
+}
+export async function apiRequestModeratorStatus(reason) {
+  return await request('/api/moderation/request', { method: 'POST', body: JSON.stringify({ reason }) })
+}
+export async function apiWithdrawModeratorRequest() {
+  return await request('/api/moderation/request', { method: 'DELETE' })
+}
+
 export async function apiGetAnalytics(days = 30) {
   return await request(`/api/analytics?days=${days}`)
+}
+
+export async function apiGetVisitorStats(days = 30) {
+  return await request(`/api/analytics/visitor-stats?days=${days}`)
+}
+
+export async function apiTrackVisit() {
+  return await request('/api/visit', { method: 'POST' })
 }
 
 export async function apiUpdateMode(mode) {
@@ -635,4 +767,444 @@ export async function apiFetchCalendarEvents() {
 
 export async function apiUpdateBirthday(birthday) {
   return await request('/api/profile/birthday', { method: 'PATCH', body: JSON.stringify({ birthday }) })
+}
+
+// ── Misc platform ──
+
+export async function apiHeartbeat() {
+  return await request('/api/me/heartbeat', { method: 'POST' })
+}
+
+export async function apiUpdateProfile(data) {
+  return await request('/api/profile', { method: 'PATCH', body: JSON.stringify(data) })
+}
+
+export async function apiGetConfig() {
+  try {
+    const res = await fetch(`${API_BASE}/api/config`)
+    if (!res.ok) return null
+    return await res.json()
+  } catch { return null }
+}
+
+export async function apiGetChangelog(lang = 'da') {
+  return await request(`/api/changelog?lang=${lang}`)
+}
+
+export async function apiGetNotifications() {
+  return await request('/api/notifications')
+}
+
+export async function apiGetNotificationCount() {
+  return await request('/api/notifications/unread-count')
+}
+
+export async function apiTestNotification() {
+  return await request('/api/notifications/test', { method: 'POST' })
+}
+
+export async function apiMarkNotificationRead(id) {
+  return await request(`/api/notifications/${id}/read`, { method: 'POST' })
+}
+
+export async function apiMarkAllNotificationsRead() {
+  return await request('/api/notifications/read-all', { method: 'POST' })
+}
+
+export async function apiGetNotificationPreferences() {
+  return await request('/api/me/notification-preferences')
+}
+
+export async function apiSaveNotificationPreferences(prefs) {
+  return await request('/api/me/notification-preferences', {
+    method: 'PUT',
+    body: JSON.stringify({ prefs }),
+  })
+}
+
+export async function apiSuggestCategory(text) {
+  return await request(`/api/feed/suggest-category?text=${encodeURIComponent(text)}`)
+}
+
+export async function apiGetMyJobs() {
+  return await request('/api/jobs/mine')
+}
+
+// ── Post insights ──
+
+export async function apiGetPostInsights(postId) {
+  return await request(`/api/posts/${postId}/insights`)
+}
+
+// ── Moderation ──
+
+export async function apiBlockUser(userId) {
+  return await request(`/api/users/${userId}/block`, { method: 'POST' })
+}
+
+export async function apiUnblockUser(userId) {
+  return await request(`/api/users/${userId}/block`, { method: 'DELETE' })
+}
+
+export async function apiGetMyBlocks() {
+  return await request('/api/me/blocks')
+}
+
+export async function apiReportContent(targetType, targetId, reason, details = '') {
+  return await request('/api/reports', {
+    method: 'POST',
+    body: JSON.stringify({ target_type: targetType, target_id: targetId, reason, details }),
+  })
+}
+
+export async function apiGetModerationQueue() {
+  return await request('/api/admin/moderation/queue')
+}
+
+export async function apiDismissReport(reportId, reason = '') {
+  return await request(`/api/admin/moderation/reports/${reportId}/dismiss`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  })
+}
+
+export async function apiModerateRemoveContent(type, targetId, reportId = null, reason = '') {
+  return await request('/api/admin/moderation/content/remove', {
+    method: 'POST',
+    body: JSON.stringify({ type, target_id: targetId, report_id: reportId, reason }),
+  })
+}
+
+export async function apiWarnUser(userId, reason = '', reportId = null) {
+  return await request(`/api/admin/moderation/users/${userId}/warn`, {
+    method: 'POST',
+    body: JSON.stringify({ reason, report_id: reportId }),
+  })
+}
+
+export async function apiSuspendUser(userId, days = 7, reason = '', reportId = null) {
+  return await request(`/api/admin/moderation/users/${userId}/suspend`, {
+    method: 'POST',
+    body: JSON.stringify({ days, reason, report_id: reportId }),
+  })
+}
+
+export async function apiBanUser(userId, reason = '', reportId = null) {
+  return await request(`/api/admin/moderation/users/${userId}/ban`, {
+    method: 'POST',
+    body: JSON.stringify({ reason, report_id: reportId }),
+  })
+}
+
+export async function apiUnbanUser(userId) {
+  return await request(`/api/admin/moderation/users/${userId}/unban`, { method: 'POST' })
+}
+
+export async function apiGetModerationUsers(q = '') {
+  return await request(`/api/admin/moderation/users${q ? `?q=${encodeURIComponent(q)}` : ''}`)
+}
+
+export async function apiGetKeywordFilters() {
+  return await request('/api/admin/moderation/keywords')
+}
+
+export async function apiAddKeywordFilter(keyword, action = 'flag', category = 'other', notes = '') {
+  return await request('/api/admin/moderation/keywords', {
+    method: 'POST',
+    body: JSON.stringify({ keyword, action, category, notes: notes || undefined }),
+  })
+}
+
+export async function apiUpdateKeywordFilter(id, keyword, action, category, notes = '') {
+  return await request(`/api/admin/moderation/keywords/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ keyword, action, category, notes: notes || undefined }),
+  })
+}
+
+export async function apiDeleteKeywordFilter(id) {
+  return await request(`/api/admin/moderation/keywords/${id}`, { method: 'DELETE' })
+}
+
+export async function apiGetModerationActions() {
+  return await request('/api/admin/moderation/actions')
+}
+
+export async function apiGetModeratorCandidates() {
+  return await request('/api/admin/moderation/candidates')
+}
+
+export async function apiUpdateModeratorCandidate(id, isCandidate, note) {
+  return await request(`/api/admin/moderation/users/${id}/candidate`, {
+    method: 'PATCH',
+    body: JSON.stringify({ is_candidate: isCandidate, note }),
+  })
+}
+
+// ── Moderator management (admin) ──
+export async function apiGetModerators() {
+  return await request('/api/admin/moderators')
+}
+export async function apiGrantModerator(userId) {
+  return await request(`/api/admin/moderators/${userId}/grant`, { method: 'POST' })
+}
+export async function apiRevokeModerator(userId) {
+  return await request(`/api/admin/moderators/${userId}/revoke`, { method: 'POST' })
+}
+
+// Aliases used by Moderators admin tab
+export async function apiGetModeratorRequests() {
+  return await request('/api/admin/moderation/candidates')
+}
+export async function apiApproveModeratorRequest(id) {
+  return await request(`/api/admin/moderators/${id}/grant`, { method: 'POST' })
+}
+export async function apiDenyModeratorRequest(id, reason) {
+  return await request(`/api/admin/moderation/users/${id}/candidate`, {
+    method: 'PATCH',
+    body: JSON.stringify({ is_candidate: false, note: reason }),
+  })
+}
+
+// ── Ads ──────────────────────────────────────────────────────────────────────
+export async function apiCreateAd(data) {
+  return await request('/api/ads', { method: 'POST', body: JSON.stringify(data) })
+}
+export async function apiGetMyAds() {
+  return await request('/api/ads')
+}
+export async function apiGetAd(id) {
+  return await request(`/api/ads/${id}`)
+}
+export async function apiUpdateAd(id, data) {
+  return await request(`/api/ads/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+}
+export async function apiDeleteAd(id) {
+  return await request(`/api/ads/${id}`, { method: 'DELETE' })
+}
+export async function apiRecordAdImpression(id) {
+  return await request(`/api/ads/${id}/impression`, { method: 'POST' })
+}
+export async function apiRecordAdClick(id) {
+  return await request(`/api/ads/${id}/click`, { method: 'POST' })
+}
+export async function apiServeAds(placement) {
+  return await request(`/api/ads?serve=1&placement=${placement}`)
+}
+
+// ── Ads-free subscription (Stripe) ───────────────────────────────────────────
+export async function apiGetSubscription() {
+  return await request('/api/me/subscription')
+}
+export async function apiCreateAdFreeCheckout() {
+  return await request('/api/stripe/checkout/adfree', { method: 'POST' })
+}
+
+// ── Mollie payments ───────────────────────────────────────────────────────────
+export async function apiCreateMolliePayment(plan, amount, currency, adId, recurring = false) {
+  const body = { plan, recurring: !!recurring }
+  if (amount != null) body.amount = parseFloat(amount).toFixed(2)
+  if (currency) body.currency = currency
+  if (adId) body.ad_id = adId
+  return await request('/api/mollie/payment/create', { method: 'POST', body: JSON.stringify(body) })
+}
+export async function apiCancelMollieSubscription() {
+  return await request('/api/mollie/subscription/cancel', { method: 'DELETE' })
+}
+export async function apiGetAdminStatDetail(type) {
+  return await request(`/api/admin/stats/list?type=${type}`)
+}
+export async function apiGetMollieStatus() {
+  return await request('/api/mollie/payment/status')
+}
+
+// ── Admin ad settings ─────────────────────────────────────────────────────────
+export async function apiGetAdminAdStats() {
+  return await request('/api/admin/ad-stats')
+}
+export async function apiGetAdPrice() {
+  return await request('/api/ads/price')
+}
+export async function apiGetAdminAdSettings() {
+  return await request('/api/admin/ad-settings')
+}
+export async function apiSaveAdminAdSettings(settings) {
+  return await request('/api/admin/ad-settings', { method: 'PUT', body: JSON.stringify(settings) })
+}
+
+export async function apiUploadFile(file, type = 'post') {
+  const form = new FormData()
+  form.append('file', file)
+  form.append('type', type)
+  try {
+    const res = await fetch(`${API_BASE}/api/upload/file`, {
+      method: 'POST',
+      headers: formHeaders(),
+      credentials: 'same-origin',
+      body: form,
+    })
+    if (!res.ok) return null
+    return await res.json()
+  } catch { return null }
+}
+
+// ── Job Applications ──────────────────────────────────────────────────────────
+export async function apiApplyToJob(jobId, { name, email, message }, cvFile) {
+  const form = new FormData()
+  form.append('name', name)
+  form.append('email', email)
+  if (message) form.append('message', message)
+  if (cvFile) form.append('cv', cvFile)
+  try {
+    const res = await fetch(`${API_BASE}/api/jobs/${jobId}/apply`, {
+      method: 'POST',
+      headers: formHeaders(),
+      credentials: 'same-origin',
+      body: form,
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.error || `HTTP ${res.status}`)
+    }
+    return await res.json()
+  } catch (err) {
+    if (err.message === 'Failed to fetch') return null
+    throw err
+  }
+}
+
+export async function apiGetJobApplications(jobId) {
+  return await request(`/api/jobs/${jobId}/applications`)
+}
+
+export async function apiUpdateJobApplication(jobId, appId, status) {
+  return await request(`/api/jobs/${jobId}/applications/${appId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  })
+}
+
+export async function apiTrackJob(jobId, status) {
+  return await request(`/api/jobs/${jobId}/track`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  })
+}
+
+export async function apiGetTrackedJobs() {
+  return await request('/api/jobs/tracked')
+}
+
+// ── CRM Contact Notes ─────────────────────────────────────────────────────────
+export async function apiGetContactNote(userId) {
+  return await request(`/api/contact-notes/${userId}`)
+}
+
+export async function apiSaveContactNote(userId, note) {
+  return await request(`/api/contact-notes/${userId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ note }),
+  })
+}
+
+export async function apiGetAllContactNotes() {
+  return await request('/api/contact-notes')
+}
+
+// ── Scheduled Posts ───────────────────────────────────────────────────────────
+export async function apiGetScheduledPosts() {
+  return await request('/api/feed/scheduled')
+}
+
+export async function apiReschedulePost(postId, scheduledAt) {
+  return await request(`/api/feed/scheduled/${postId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ scheduled_at: scheduledAt || null }),
+  })
+}
+
+// ── Company Lead Capture ──────────────────────────────────────────────────────
+export async function apiSubmitCompanyLead(companyId, data) {
+  return await request(`/api/companies/${companyId}/leads`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function apiGetCompanyLeads(companyId) {
+  return await request(`/api/companies/${companyId}/leads`)
+}
+
+export async function apiUpdateCompanyLead(companyId, leadId, status) {
+  return await request(`/api/companies/${companyId}/leads/${leadId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  })
+}
+
+// ── Easter Eggs ──────────────────────────────────────────────────────────────
+export async function apiPostEasterEggEvent(eggId, event) {
+  return await request("/api/easter-eggs/event", { method: "POST", body: JSON.stringify({ eggId, event }) })
+}
+export async function apiGetMyEasterEggs() {
+  return await request('/api/easter-eggs')
+}
+export async function apiGetAdminEasterEggStats() {
+  return await request("/api/admin/easter-eggs/stats")
+}
+
+// ── Badge reward system ───────────────────────────────────────────────────────
+// Evaluate and award new badges for the current user. Returns { newBadges: [] }.
+export async function apiEvaluateBadges() {
+  return await request('/api/badges/evaluate', { method: 'POST' })
+}
+// Get all earned badges for the current user.
+export async function apiGetEarnedBadges() {
+  return await request('/api/badges/earned')
+}
+// Get all badge definitions with enabled state (auth required).
+export async function apiGetAllBadges() {
+  return await request('/api/badges/all')
+}
+// Admin: aggregate badge award stats.
+export async function apiGetAdminBadgeStats() {
+  return await request('/api/admin/badges/stats')
+}
+// Admin: enable or disable a badge by ID.
+export async function apiToggleBadge(badgeId, enabled) {
+  return await request(`/api/admin/badges/${badgeId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ enabled }),
+  })
+}
+
+// ── Stories ───────────────────────────────────────────────────────────────────
+export async function apiGetStoriesFeed() {
+  return await request('/api/stories/feed')
+}
+export async function apiCreateStory(content_text, bg_color) {
+  return await request('/api/stories', { method: 'POST', body: JSON.stringify({ content_text, bg_color }) })
+}
+export async function apiDeleteStory(id) {
+  return await request(`/api/stories/${id}`, { method: 'DELETE' })
+}
+
+export async function apiGetSuggestedPosts(excludeIds = []) {
+  const params = new URLSearchParams({ limit: '20' })
+  if (excludeIds.length) params.set('exclude_ids', excludeIds.join(','))
+  return await request(`/api/feed/suggested-posts?${params}`)
+}
+
+// ── Explore ───────────────────────────────────────────────────────────────────
+export async function apiGetTrendingTags() {
+  return await request('/api/explore/trending-tags')
+}
+export async function apiGetExploreFeed(cursor, filter, tag) {
+  const params = new URLSearchParams({ filter: filter || 'all' })
+  if (cursor) params.set('cursor', cursor)
+  if (tag) params.set('tag', tag)
+  return await request(`/api/explore/feed?${params}`)
+}
+export async function apiGetSuggestedUsers(limit = 6) {
+  return await request(`/api/users/suggested?limit=${limit}`)
 }

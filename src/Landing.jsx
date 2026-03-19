@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react'
-import { nameToColor, getInitials } from './data.js'
+import { useState, useCallback, useEffect, useRef } from 'react'
+import { nameToColor, getInitials, SUPPORTED_LANGS, detectLang } from './data.js'
 
 // Placeholder friends for the invite step (migration wizard only)
 const INVITE_FRIENDS = [
@@ -7,7 +7,7 @@ const INVITE_FRIENDS = [
   { name: 'Ven 2', mutual: 3, online: true },
   { name: 'Ven 3', mutual: 8, online: false },
 ]
-import { apiLogin, apiRegister, apiForgotPassword, apiResetPassword, getFacebookAuthUrl, apiSendInvites, apiGetInviteLink } from './api.js'
+import { apiLogin, apiRegister, apiForgotPassword, apiResetPassword, apiVerifyMfa, getFacebookAuthUrl, apiSendInvites, apiGetInviteLink, apiGetConfig, apiGiveConsent } from './api.js'
 
 // ── Landing translations ──
 const T = {
@@ -27,6 +27,12 @@ const T = {
     trustEncrypt: 'End-to-end krypteret',
     trustEU: 'Hostet i EU',
     trustDelete: 'Data slettet efter migrering',
+    servicesLabel: 'Bygget på europæiske tjenester',
+    services: [
+      { flag: '🇩🇰', name: 'Yggdrasil Cloud', role: 'Hosting', url: 'https://yggdrasilcloud.dk/' },
+      { flag: '🇸🇪', name: '46elks', role: 'SMS / MFA', url: 'https://46elks.com/' },
+      { flag: '🇳🇱', name: 'Mollie', role: 'Betaling', url: 'https://www.mollie.com/' },
+    ],
     step1: 'Forbind Facebook',
     step2: 'Vælg indhold',
     step3: 'Inviter venner',
@@ -100,13 +106,29 @@ const T = {
     forgotError: 'Kunne ikke nulstille adgangskode',
     forgotFbNote: 'Din konto blev oprettet via Facebook. Opret en adgangskode for at logge ind med e-mail.',
     forgotBack: 'Tilbage til login',
+    forgotEmailSent: 'Tjek din e-mail for et nulstillingslink.',
+    mfaTitle: 'To-faktor-godkendelse',
+    mfaDesc: 'Vi har sendt en 6-cifret kode til dit telefonnummer.',
+    mfaCode: 'Engangskode',
+    mfaSubmit: 'Bekræft',
+    mfaError: 'Ugyldig eller udløbet kode',
+    mfaBack: 'Tilbage til login',
     // Register fields (step 4)
     registerTitle: 'Opret din fellis.eu konto',
     registerName: 'Fulde navn',
     registerEmail: 'E-mail',
+    registerEmailRepeat: 'Gentag e-mail',
+    registerEmailMismatch: 'E-mail adresserne stemmer ikke overens',
     registerPassword: 'Vælg adgangskode (min. 6 tegn)',
+    registerPasswordRepeat: 'Gentag adgangskode',
+    registerPasswordMismatch: 'Adgangskoderne stemmer ikke overens',
+    registerMathChallenge: (a, b) => `Hvad er ${a} + ${b}?`,
+    registerMathError: 'Forkert svar — prøv igen',
     registerSubmit: 'Opret konto & gå til profil',
     registerError: 'Kunne ikke oprette konto',
+    registerGdpr: 'Jeg accepterer behandling af mine persondata i henhold til fellis.eu\'s',
+    registerGdprLink: 'privatlivspolitik',
+    registerGdprRequired: 'Du skal acceptere privatlivspolitikken for at oprette en konto',
     // Create account card (step 1)
     createAccountTitle: 'Opret konto direkte',
     createAccountDesc: 'Opret en konto uden Facebook — brug e-mail og adgangskode.',
@@ -139,6 +161,12 @@ const T = {
     trustEncrypt: 'End-to-end encrypted',
     trustEU: 'EU hosted',
     trustDelete: 'Data deleted after migration',
+    servicesLabel: 'Built on European services',
+    services: [
+      { flag: '🇩🇰', name: 'Yggdrasil Cloud', role: 'Hosting', url: 'https://yggdrasilcloud.dk/' },
+      { flag: '🇸🇪', name: '46elks', role: 'SMS / MFA', url: 'https://46elks.com/' },
+      { flag: '🇳🇱', name: 'Mollie', role: 'Payments', url: 'https://www.mollie.com/' },
+    ],
     step1: 'Connect Facebook',
     step2: 'Select content',
     step3: 'Invite friends',
@@ -212,13 +240,29 @@ const T = {
     forgotError: 'Could not reset password',
     forgotFbNote: 'Your account was created via Facebook. Set a password to log in with email.',
     forgotBack: 'Back to login',
+    forgotEmailSent: 'Check your email for a reset link.',
+    mfaTitle: 'Two-factor authentication',
+    mfaDesc: 'We sent a 6-digit code to your phone number.',
+    mfaCode: 'One-time code',
+    mfaSubmit: 'Verify',
+    mfaError: 'Invalid or expired code',
+    mfaBack: 'Back to login',
     // Register fields (step 4)
     registerTitle: 'Create your fellis.eu account',
     registerName: 'Full name',
     registerEmail: 'Email',
+    registerEmailRepeat: 'Repeat email',
+    registerEmailMismatch: 'Email addresses do not match',
     registerPassword: 'Choose a password (min. 6 characters)',
+    registerPasswordRepeat: 'Repeat password',
+    registerPasswordMismatch: 'Passwords do not match',
+    registerMathChallenge: (a, b) => `What is ${a} + ${b}?`,
+    registerMathError: 'Wrong answer — please try again',
     registerSubmit: 'Create account & go to profile',
     registerError: 'Could not create account',
+    registerGdpr: 'I accept the processing of my personal data in accordance with fellis.eu\'s',
+    registerGdprLink: 'privacy policy',
+    registerGdprRequired: 'You must accept the privacy policy to create an account',
     // Create account card (step 1)
     createAccountTitle: 'Create account directly',
     createAccountDesc: 'Create an account without Facebook — use email and password.',
@@ -237,8 +281,8 @@ const T = {
   },
 }
 
-export default function Landing({ onEnterPlatform, inviteToken, inviterName }) {
-  const [lang, setLang] = useState('da')
+export default function Landing({ onEnterPlatform, inviteToken, inviterName, inviterEmail, fbError, resetToken }) {
+  const [lang, setLang] = useState(() => detectLang())
   const [step, setStep] = useState(0)
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [selectedContent, setSelectedContent] = useState({ profile: true, friends: true, posts: true })
@@ -264,22 +308,80 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName }) {
   const [forgotLoading, setForgotLoading] = useState(false)
   const [forgotFbNote, setForgotFbNote] = useState(false)
 
+  // MFA state
+  const [mfaUserId, setMfaUserId] = useState(null)
+  const [mfaCode, setMfaCode] = useState('')
+  const [mfaError, setMfaError] = useState('')
+  const [mfaLoading, setMfaLoading] = useState(false)
+
   // Direct signup (skipping Facebook migration)
   const [directSignup, setDirectSignup] = useState(false)
+  const [facebookEnabled, setFacebookEnabled] = useState(true) // optimistic; updated from /api/config
 
   // Mode selection (step 5)
   const [pendingEnter, setPendingEnter] = useState(false)
 
-  // Register state (step 4)
+  // Register state (step 4) — pre-fill email from email invite if available
   const [regName, setRegName] = useState('')
-  const [regEmail, setRegEmail] = useState('')
+  const [regEmail, setRegEmail] = useState(inviterEmail || '')
   const [regPassword, setRegPassword] = useState('')
+  const [regPasswordRepeat, setRegPasswordRepeat] = useState('')
   const [regError, setRegError] = useState('')
   const [regLoading, setRegLoading] = useState(false)
+  const [gdprAccepted, setGdprAccepted] = useState(false)
+  // Anti-bot: math challenge
+  const [mathChallenge] = useState(() => {
+    const a = Math.floor(Math.random() * 9) + 1
+    const b = Math.floor(Math.random() * 9) + 1
+    return { a, b, answer: a + b }
+  })
+  const [mathAnswer, setMathAnswer] = useState('')
+  // Anti-bot: honeypot field (must remain empty)
+  const [honeypot, setHoneypot] = useState('')
+  // Refs for smart focus
+  const emailRef = useRef(null)
+  const nameRef = useRef(null)
 
   const t = T[lang]
 
-  const toggleLang = useCallback(() => setLang(p => p === 'da' ? 'en' : 'da'), [])
+  // Pre-fill email when invite info arrives asynchronously
+  useEffect(() => {
+    if (inviterEmail && !regEmail) setRegEmail(inviterEmail)
+  }, [inviterEmail]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch server config to check if Facebook OAuth is available
+  useEffect(() => {
+    apiGetConfig().then(cfg => { if (cfg) setFacebookEnabled(cfg.facebookEnabled) })
+  }, [])
+
+  // If Facebook OAuth failed or is not configured, go straight to email signup
+  useEffect(() => {
+    if (fbError) { setDirectSignup(true); setStep(4) }
+  }, [fbError])
+
+  // Auto-open password reset form when arriving from email reset link
+  useEffect(() => {
+    if (resetToken) {
+      setForgotToken(resetToken)
+      setForgotMode('reset')
+      setShowLoginModal(true)
+    }
+  }, [resetToken])
+
+  // Smart focus: when step 4 becomes active, focus email (if empty) or name (if email pre-filled)
+  useEffect(() => {
+    if (step === 4) {
+      setTimeout(() => {
+        if (regEmail) nameRef.current?.focus()
+        else emailRef.current?.focus()
+      }, 50)
+    }
+  }, [step]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const changeLang = useCallback((code) => {
+    localStorage.setItem('fellis_lang', code)
+    setLang(code)
+  }, [])
 
   // ── Login handler ──
   const handleLogin = useCallback(async (e) => {
@@ -295,6 +397,10 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName }) {
       if (data?.sessionId) {
         setShowLoginModal(false)
         onEnterPlatform(lang)
+      } else if (data?.mfa_required && data?.userId) {
+        setMfaUserId(data.userId)
+        setMfaCode('')
+        setMfaError('')
       } else {
         setLoginError(t.loginError)
       }
@@ -304,6 +410,27 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName }) {
     setLoginLoading(false)
   }, [loginEmail, loginPassword, lang, t, onEnterPlatform])
 
+  // ── MFA handler ──
+  const handleMfaVerify = useCallback(async (e) => {
+    e.preventDefault()
+    if (!mfaCode.trim()) return
+    setMfaLoading(true)
+    setMfaError('')
+    try {
+      const data = await apiVerifyMfa(mfaUserId, mfaCode.trim(), lang)
+      if (data?.sessionId) {
+        setMfaUserId(null)
+        setShowLoginModal(false)
+        onEnterPlatform(lang)
+      } else {
+        setMfaError(t.mfaError)
+      }
+    } catch {
+      setMfaError(t.mfaError)
+    }
+    setMfaLoading(false)
+  }, [mfaUserId, mfaCode, lang, t, onEnterPlatform])
+
   // ── Forgot password handlers ──
   const handleForgotSubmitEmail = useCallback(async (e) => {
     e.preventDefault()
@@ -312,10 +439,9 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName }) {
     setForgotError('')
     try {
       const data = await apiForgotPassword(forgotEmail.trim())
-      if (data?.resetToken) {
-        setForgotToken(data.resetToken)
-        setForgotFbNote(data.isFacebookUser && !data.hasPassword)
-        setForgotMode('reset')
+      if (data?.ok) {
+        // Server sends an email with the reset link — show confirmation
+        setForgotMode('email-sent')
       } else {
         setForgotError(t.forgotError)
       }
@@ -367,6 +493,8 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName }) {
   // ── Register handler (step 4 done) ──
   const handleRegister = useCallback(async (e) => {
     e.preventDefault()
+    // Anti-bot: honeypot must be empty
+    if (honeypot) return
     if (!regName.trim() || !regEmail.trim() || !regPassword.trim()) {
       setRegError(t.registerError)
       return
@@ -375,10 +503,26 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName }) {
       setRegError(lang === 'da' ? 'Adgangskode skal være mindst 6 tegn' : 'Password must be at least 6 characters')
       return
     }
+    if (regPassword !== regPasswordRepeat) {
+      setRegError(t.registerPasswordMismatch)
+      return
+    }
+    if (!gdprAccepted) {
+      setRegError(t.registerGdprRequired)
+      return
+    }
+    if (parseInt(mathAnswer, 10) !== mathChallenge.answer) {
+      setRegError(t.registerMathError)
+      return
+    }
     setRegLoading(true)
     setRegError('')
     try {
       await apiRegister(regName.trim(), regEmail.trim(), regPassword.trim(), lang, inviteToken || undefined)
+      await apiGiveConsent(['data_processing']).catch(() => {})
+      // Flag for onboarding tour (only for new registrations)
+      localStorage.setItem('fellis_onboarding', '1')
+      if (inviterName) localStorage.setItem('fellis_onboarding_inviter', inviterName)
       // Show mode selector before entering platform
       setPendingEnter(true)
       setStep(5)
@@ -386,12 +530,12 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName }) {
       setRegError(t.registerError)
       setRegLoading(false)
     }
-  }, [regName, regEmail, regPassword, lang, t, inviteToken])
+  }, [regName, regEmail, regPassword, regPasswordRepeat, honeypot, gdprAccepted, mathAnswer, mathChallenge, lang, t, inviteToken, inviterName])
 
-  // Redirect to real Facebook OAuth
+  // Redirect to real Facebook OAuth — carry invite token so callback can auto-connect
   const handleFbClick = useCallback(() => {
-    window.location.href = getFacebookAuthUrl(lang)
-  }, [lang])
+    window.location.href = getFacebookAuthUrl(lang, inviteToken)
+  }, [lang, inviteToken])
 
   const handleContentNext = useCallback(() => {
     setImportLoading(true)
@@ -431,11 +575,16 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName }) {
     <div className="app">
       <nav className="nav">
         <div className="nav-logo">
-          <div className="nav-logo-icon">F</div>
-          {t.navBrand}
+          <img src="/fellis-logo.jpg" className="nav-logo-icon" alt="" />
+          <div className="nav-logo-text">
+            <span className="nav-logo-brand">{t.navBrand}</span>
+            <span className="nav-logo-tagline">Connect. Share. Discover.</span>
+          </div>
         </div>
         <div className="nav-right-group">
-          <button className="lang-toggle" onClick={toggleLang}>{t.langToggle}</button>
+          <select className="lang-toggle" value={lang} onChange={e => changeLang(e.target.value)} aria-label="Language">
+            {SUPPORTED_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
+          </select>
           <button className="login-btn" onClick={() => { setShowLoginModal(true); setLoginError(''); setLoginEmail(''); setLoginPassword('') }}>
             {t.loginBtn}
           </button>
@@ -444,14 +593,14 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName }) {
 
       {/* Login Modal */}
       {showLoginModal && (
-        <div className="modal-backdrop" onClick={() => { setShowLoginModal(false); setForgotMode(null) }}>
+        <div className="modal-backdrop" onClick={() => { setShowLoginModal(false); setForgotMode(null); setMfaUserId(null) }}>
           <div className="fb-modal" onClick={e => e.stopPropagation()}>
             <div className="fb-modal-header" style={{ background: '#2D6A4F' }}>
               <div className="fb-modal-logo" style={{ color: '#fff', fontFamily: "'Playfair Display', serif" }}>fellis.eu</div>
             </div>
 
             {/* Normal login */}
-            {!forgotMode && (
+            {!forgotMode && !mfaUserId && (
               <form className="fb-modal-form" onSubmit={handleLogin}>
                 <h3>{t.loginTitle}</h3>
                 <input
@@ -480,6 +629,30 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName }) {
                     {t.loginSignup}
                   </span>
                 </div>
+              </form>
+            )}
+
+            {/* MFA: enter SMS code */}
+            {mfaUserId && !forgotMode && (
+              <form className="fb-modal-form" onSubmit={handleMfaVerify}>
+                <h3>{t.mfaTitle}</h3>
+                <p style={{ color: '#555', fontSize: 14, marginBottom: 12 }}>{t.mfaDesc}</p>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]{6}"
+                  maxLength={6}
+                  placeholder={t.mfaCode}
+                  value={mfaCode}
+                  onChange={e => setMfaCode(e.target.value.replace(/\D/g, ''))}
+                  className="fb-input"
+                  autoFocus
+                />
+                {mfaError && <div className="fb-error">{mfaError}</div>}
+                <button type="submit" className="fb-login-submit" style={{ background: '#2D6A4F' }} disabled={mfaLoading}>
+                  {mfaLoading ? '...' : t.mfaSubmit}
+                </button>
+                <button type="button" className="fb-forgot" onClick={() => setMfaUserId(null)}>{t.mfaBack}</button>
               </form>
             )}
 
@@ -525,7 +698,16 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName }) {
               </form>
             )}
 
-            {/* Forgot password: success */}
+            {/* Forgot password: email sent confirmation */}
+            {forgotMode === 'email-sent' && (
+              <div className="fb-modal-form" style={{ textAlign: 'center', padding: '32px 24px' }}>
+                <div style={{ fontSize: 48, marginBottom: 16 }}>✉</div>
+                <p style={{ color: '#2D6A4F', fontWeight: 600 }}>{t.forgotEmailSent}</p>
+                <button type="button" className="fb-forgot" style={{ marginTop: 16 }} onClick={closeForgotPassword}>{t.forgotBack}</button>
+              </div>
+            )}
+
+            {/* Forgot password: success (after reset via URL) */}
             {forgotMode === 'done' && (
               <div className="fb-modal-form" style={{ textAlign: 'center', padding: '32px 24px' }}>
                 <div style={{ fontSize: 48, marginBottom: 16 }}>✓</div>
@@ -551,19 +733,21 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName }) {
           <h1>{t.headline}</h1>
           <p className="landing-subtitle">{t.subtitle}</p>
           <div className="landing-cards">
-            {/* Facebook migration card */}
-            <div className="landing-card landing-card-fb">
-              <div className="landing-card-visual">
-                <div className="brand-box brand-fb" style={{ width: 56, height: 56, fontSize: 22 }}>f</div>
-                <div className="dots-container" style={{ gap: 6 }}>
-                  <div className="dot" /><div className="dot" /><div className="dot" />
+            {/* Facebook migration card — only shown when FB OAuth is configured on the server */}
+            {facebookEnabled && (
+              <div className="landing-card landing-card-fb">
+                <div className="landing-card-visual">
+                  <div className="brand-box brand-fb" style={{ width: 56, height: 56, fontSize: 22 }}>f</div>
+                  <div className="dots-container" style={{ gap: 6 }}>
+                    <div className="dot" /><div className="dot" /><div className="dot" />
+                  </div>
+                  <div className="brand-box brand-some" style={{ width: 56, height: 56, fontSize: 22 }}>F</div>
                 </div>
-                <div className="brand-box brand-some" style={{ width: 56, height: 56, fontSize: 22 }}>F</div>
+                <h3>{t.fbCardTitle}</h3>
+                <p>{t.fbCardDesc}</p>
+                <button className="landing-card-btn landing-card-btn-fb" onClick={() => setStep(1)}>{t.fbCardBtn}</button>
               </div>
-              <h3>{t.fbCardTitle}</h3>
-              <p>{t.fbCardDesc}</p>
-              <button className="landing-card-btn landing-card-btn-fb" onClick={() => setStep(1)}>{t.fbCardBtn}</button>
-            </div>
+            )}
             {/* Create account card */}
             <div className="landing-card landing-card-create">
               <div className="landing-card-visual">
@@ -579,40 +763,39 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName }) {
             <div className="trust-item"><div className="trust-icon">🇪🇺</div><a href="https://yggdrasilcloud.dk/" target="_blank" rel="noopener noreferrer" className="trust-label trust-link">{t.trustEU}</a></div>
             <div className="trust-item"><div className="trust-icon">🗑️</div><span className="trust-label">{t.trustDelete}</span></div>
           </div>
+          <div className="landing-services-row">
+            <span className="landing-services-label">{t.servicesLabel}:</span>
+            {t.services.map(svc => (
+              <a key={svc.name} href={svc.url} target="_blank" rel="noopener noreferrer" className="landing-service-chip">
+                <span>{svc.flag}</span>
+                <span className="landing-service-chip-name">{svc.name}</span>
+                <span className="landing-service-chip-role">{svc.role}</span>
+              </a>
+            ))}
+          </div>
         </div>
       )}
 
       {step >= 1 && !directSignup && <ProgressBar step={step} t={t} />}
 
-      {/* Step 1 — Connect Facebook or Create Account */}
+      {/* Step 1 — Connect Facebook */}
       {step === 1 && (
         <div className="step-container">
           <h2>{t.connectTitle}</h2>
           <p className="step-subtitle">{t.connectSubtitle}</p>
-          <div className="step1-options">
-            <div className="step1-card">
-              <div className="step1-card-icon" style={{ background: '#EBF4FF' }}>f</div>
-              <h4>{t.connectBtn}</h4>
-              <p className="step1-card-desc">{lang === 'da'
-                ? 'Importer dine data fra Facebook automatisk.'
-                : 'Automatically import your data from Facebook.'
-              }</p>
-              <button className="fb-btn" onClick={handleFbClick}>
-                <span className="fb-icon">f</span>
-                {t.connectBtn}
-              </button>
-            </div>
-            <div className="step1-divider">
-              <span>{t.orDivider}</span>
-            </div>
-            <div className="step1-card">
-              <div className="step1-card-icon" style={{ background: '#F0FAF4' }}>✉</div>
-              <h4>{t.createAccountTitle}</h4>
-              <p className="step1-card-desc">{t.createAccountDesc}</p>
-              <button className="btn-primary" style={{ width: '100%' }} onClick={() => { setDirectSignup(true); setStep(4) }}>
-                {t.createAccountBtn}
-              </button>
-            </div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, marginTop: 24 }}>
+            <div className="step1-card-icon" style={{ background: '#EBF4FF', width: 64, height: 64, borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 700, color: '#1877F2' }}>f</div>
+            <p style={{ color: '#5C5C5C', textAlign: 'center', maxWidth: 320 }}>{lang === 'da'
+              ? 'Importer dine data fra Facebook automatisk.'
+              : 'Automatically import your data from Facebook.'
+            }</p>
+            <button className="fb-btn" onClick={handleFbClick}>
+              <span className="fb-icon">f</span>
+              {t.connectBtn}
+            </button>
+            <div style={{ color: '#aaa', fontSize: 13, margin: '4px 0' }}>{t.orDivider}</div>
+            <button className="btn-secondary" onClick={() => { setDirectSignup(true); setStep(4) }}>{t.createAccountBtn}</button>
+            <button className="btn-secondary" style={{ marginTop: 4 }} onClick={() => setStep(0)}>{t.back}</button>
           </div>
         </div>
       )}
@@ -740,19 +923,32 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName }) {
           {/* Registration form */}
           <form className="register-form" onSubmit={handleRegister}>
             <h3 className="register-title">{t.registerTitle}</h3>
+            {/* Honeypot — hidden from users, filled only by bots */}
             <input
               type="text"
-              placeholder={t.registerName}
-              value={regName}
-              onChange={e => setRegName(e.target.value)}
-              className="register-input"
-              required
+              name="website"
+              value={honeypot}
+              onChange={e => setHoneypot(e.target.value)}
+              tabIndex={-1}
+              aria-hidden="true"
+              style={{ position: 'absolute', left: '-9999px', opacity: 0, height: 0 }}
+              autoComplete="off"
             />
             <input
+              ref={emailRef}
               type="email"
               placeholder={t.registerEmail}
               value={regEmail}
               onChange={e => setRegEmail(e.target.value)}
+              className="register-input"
+              required
+            />
+            <input
+              ref={nameRef}
+              type="text"
+              placeholder={t.registerName}
+              value={regName}
+              onChange={e => setRegName(e.target.value)}
               className="register-input"
               required
             />
@@ -765,6 +961,46 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName }) {
               minLength={6}
               required
             />
+            <input
+              type="password"
+              placeholder={t.registerPasswordRepeat}
+              value={regPasswordRepeat}
+              onChange={e => setRegPasswordRepeat(e.target.value)}
+              className="register-input"
+              minLength={6}
+              required
+            />
+            <PasswordStrengthIndicator password={regPassword} lang={lang} />
+            {/* Math challenge — simple human verification */}
+            <div style={{ marginTop: 10, marginBottom: 4 }}>
+              <label style={{ display: 'block', fontSize: 13, color: '#555', marginBottom: 4 }}>
+                {t.registerMathChallenge(mathChallenge.a, mathChallenge.b)}
+              </label>
+              <input
+                type="number"
+                placeholder="?"
+                value={mathAnswer}
+                onChange={e => setMathAnswer(e.target.value)}
+                className="register-input"
+                required
+                style={{ marginTop: 0 }}
+              />
+            </div>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 12, cursor: 'pointer', fontSize: 13, color: '#555', lineHeight: 1.5 }}>
+              <input
+                type="checkbox"
+                checked={gdprAccepted}
+                onChange={e => { setGdprAccepted(e.target.checked); if (e.target.checked) setRegError('') }}
+                style={{ marginTop: 2, flexShrink: 0, accentColor: '#2D6A4F' }}
+              />
+              <span>
+                {t.registerGdpr}{' '}
+                <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: '#2D6A4F', fontWeight: 600 }}>
+                  {t.registerGdprLink}
+                </a>
+                {' '}(GDPR Art. 6 & 7)
+              </span>
+            </label>
             {regError && <div className="fb-error">{regError}</div>}
             <button type="submit" className="btn-primary" style={{ width: '100%' }} disabled={regLoading}>
               {regLoading ? '...' : t.registerSubmit}
@@ -833,6 +1069,52 @@ function ProgressBar({ step, t }) {
           </div>
         )
       })}
+    </div>
+  )
+}
+
+function PasswordStrengthIndicator({ password, lang }) {
+  const [policy, setPolicy] = useState(null)
+  useEffect(() => {
+    fetch('/api/auth/password-policy').then(r => r.ok ? r.json() : null).then(p => { if (p) setPolicy(p) }).catch(() => {})
+  }, [])
+
+  if (!password) return null
+
+  const minLen = policy?.min_length || 6
+  const checks = [
+    { ok: password.length >= minLen, da: `Min. ${minLen} tegn`, en: `Min. ${minLen} characters` },
+    ...(policy?.require_uppercase ? [{ ok: /[A-Z]/.test(password), da: 'Stort bogstav (A–Z)', en: 'Uppercase (A–Z)' }] : [{ ok: /[A-Z]/.test(password), da: 'Stort bogstav (A–Z)', en: 'Uppercase (A–Z)' }]),
+    ...(policy?.require_lowercase !== false ? [{ ok: /[a-z]/.test(password), da: 'Lille bogstav (a–z)', en: 'Lowercase (a–z)' }] : []),
+    ...(policy?.require_numbers !== false   ? [{ ok: /[0-9]/.test(password), da: 'Tal (0–9)', en: 'Number (0–9)' }] : []),
+    ...(policy?.require_symbols ? [{ ok: /[^A-Za-z0-9]/.test(password), da: 'Specialtegn (!@#…)', en: 'Symbol (!@#…)' }] : []),
+  ]
+
+  const passed = checks.filter(c => c.ok).length
+  const ratio = checks.length ? passed / checks.length : 0
+  const barColor = ratio < 0.4 ? '#e74c3c' : ratio < 0.75 ? '#f39c12' : '#2D6A4F'
+  const barLabel = ratio < 0.4
+    ? (lang === 'da' ? 'Svag' : 'Weak')
+    : ratio < 0.75
+    ? (lang === 'da' ? 'Middel' : 'Fair')
+    : (lang === 'da' ? 'Stærk' : 'Strong')
+
+  return (
+    <div style={{ marginTop: 8, marginBottom: 4 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <div style={{ flex: 1, height: 5, borderRadius: 3, background: '#eee', overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: `${ratio * 100}%`, background: barColor, borderRadius: 3, transition: 'width 0.25s, background 0.25s' }} />
+        </div>
+        <span style={{ fontSize: 11, fontWeight: 700, color: barColor, minWidth: 36 }}>{barLabel}</span>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        {checks.map((c, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: c.ok ? '#2D6A4F' : '#999' }}>
+            <span style={{ fontSize: 13, width: 16, textAlign: 'center', lineHeight: 1 }}>{c.ok ? '✓' : '○'}</span>
+            <span>{lang === 'da' ? c.da : c.en}</span>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

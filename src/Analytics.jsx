@@ -582,7 +582,11 @@ export default function AnalyticsPage({ lang, currentPlan, onUpgradePlan }) {
     [connGrowth]
   )
 
-  const heatmapData = useMemo(() => generateHeatmap(), [])
+  // Heatmap: real API data when loaded; seeded fallback while loading
+  const heatmapData = useMemo(
+    () => analyticsData?.heatmap || generateHeatmap(),
+    [analyticsData]
+  )
 
   // Top posts: real API data when loaded; seeded fallback while loading; empty state if no posts
   const topPostsData = useMemo(() => {
@@ -665,6 +669,30 @@ export default function AnalyticsPage({ lang, currentPlan, onUpgradePlan }) {
       {lang === 'da' ? 'demodata' : 'demo data'}
     </span>
   )
+
+  // Audience locations: real API data (friends' locations); fallback to demo
+  const audienceLocations = useMemo(() => {
+    if (analyticsData?.audienceLocations?.length) return analyticsData.audienceLocations
+    return null
+  }, [analyticsData])
+
+  // Hashtag performance: real API data; fallback to demo while loading
+  const hashtagData = useMemo(() => {
+    if (analyticsData?.hashtagPerformance?.length) return analyticsData.hashtagPerformance
+    return null
+  }, [analyticsData])
+
+  // Growth source: real invite vs. organic connection data
+  const growthSourceData = useMemo(() => {
+    const gs = analyticsData?.growthSource
+    if (gs && gs.total > 0) {
+      const items = []
+      if (gs.organic > 0) items.push({ label: lang === 'da' ? 'Organisk' : 'Organic', value: gs.organic, pct: Math.round((gs.organic / gs.total) * 100) })
+      if (gs.viaInvite > 0) items.push({ label: lang === 'da' ? 'Via invitationer' : 'Via invites', value: gs.viaInvite, pct: Math.round((gs.viaInvite / gs.total) * 100) })
+      if (items.length) return items
+    }
+    return null
+  }, [analyticsData, lang])
 
   const card = {
     background: '#fff', borderRadius: 12, padding: 20, marginBottom: 16,
@@ -863,47 +891,49 @@ export default function AnalyticsPage({ lang, currentPlan, onUpgradePlan }) {
         </div>
       </div>
 
-      {/* ── PRO: Audience Insights (no demographic fields in DB yet — demo data) ── */}
+      {/* ── PRO: Audience Insights ── */}
       <div style={card}>
-        <h3 style={sTitle}>{t.audience} {demoTag}</h3>
+        <h3 style={sTitle}>{t.audience}</h3>
         <PlanGate plan="business_pro" currentPlan={currentPlan} onUpgrade={() => setShowUpgrade(true)} lang={lang}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 20 }}>
             <div>
-              <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: '#444' }}>{t.industryDist}</p>
+              <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: '#444' }}>{t.industryDist} {demoTag}</p>
               <HBarChart data={INDUSTRY_DIST} valueKey="pct" suffix="%" />
             </div>
             <div>
-              <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: '#444' }}>{t.topLoc}</p>
-              <HBarChart data={TOP_LOCATIONS} valueKey="pct" suffix="%" color="#40916C" />
+              <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: '#444' }}>
+                {t.topLoc}{!audienceLocations && <>{' '}{demoTag}</>}
+              </p>
+              <HBarChart data={audienceLocations || TOP_LOCATIONS} valueKey="pct" suffix="%" color="#40916C" />
             </div>
           </div>
-          <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: '#444' }}>{t.seniority}</p>
+          <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: '#444' }}>{t.seniority} {demoTag}</p>
           <HBarChart data={SENIORITY} valueKey="pct" suffix="%" color="#6C63FF" />
         </PlanGate>
       </div>
 
-      {/* ── PRO: Best Time to Post (no posting-time data in DB yet — demo data) ── */}
+      {/* ── PRO: Best Time to Post (real data: engagement by day × hour of user's posts) ── */}
       <div style={card}>
-        <h3 style={sTitle}>{t.bestTime} {demoTag}</h3>
+        <h3 style={sTitle}>{t.bestTime}{!analyticsData?.heatmap && <>{' '}{demoTag}</>}</h3>
         <p style={sub}>{t.bestTimeDesc}</p>
         <PlanGate plan="business_pro" currentPlan={currentPlan} onUpgrade={() => setShowUpgrade(true)} lang={lang}>
           <PostingHeatmap data={heatmapData} lang={lang} />
         </PlanGate>
       </div>
 
-      {/* ── PRO: Audience Growth Source (no referral tracking yet — demo data) ── */}
+      {/* ── PRO: Audience Growth Source (real: invite vs organic connections) ── */}
       <div style={card}>
-        <h3 style={sTitle}>{t.growthSrc} {demoTag}</h3>
+        <h3 style={sTitle}>{t.growthSrc}{!growthSourceData && <>{' '}{demoTag}</>}</h3>
         <PlanGate plan="business_pro" currentPlan={currentPlan} onUpgrade={() => setShowUpgrade(true)} lang={lang}>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            {GROWTH_SOURCE.map((s, i) => (
+            {(growthSourceData || GROWTH_SOURCE).map((s, i) => (
               <div key={i} style={{
                 flex: 1, minWidth: 100, padding: '16px 12px',
                 borderRadius: 10, border: '1px solid #E8E4DF', textAlign: 'center',
               }}>
                 <div style={{ fontSize: 26, fontWeight: 700, color: '#2D6A4F' }}>{s.pct}%</div>
                 <div style={{ fontSize: 13, color: '#555', marginTop: 4, fontWeight: 500 }}>{s.label}</div>
-                <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>+{s.value} {lang === 'da' ? 'følgere' : 'followers'}</div>
+                <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>+{s.value} {lang === 'da' ? 'forbindelser' : 'connections'}</div>
               </div>
             ))}
           </div>
@@ -920,11 +950,11 @@ export default function AnalyticsPage({ lang, currentPlan, onUpgradePlan }) {
           </p>
           <BarChart data={postTypeData || POST_TYPE_PERF} />
 
-          {/* Hashtag performance: no hashtag tracking in DB yet */}
+          {/* Hashtag performance: real data parsed from user's posts */}
           <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, marginTop: 24, color: '#444' }}>
-            {t.hashtagPerf} {demoTag}
+            {t.hashtagPerf}{!hashtagData && <>{' '}{demoTag}</>}
           </p>
-          <HBarChart data={HASHTAG_PERF} valueKey="value" color="#6C63FF" />
+          <HBarChart data={hashtagData || HASHTAG_PERF} valueKey="value" color="#6C63FF" />
 
           {/* Engagement trend: real SQL data */}
           <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, marginTop: 24, color: '#444' }}>{t.engTrend}</p>

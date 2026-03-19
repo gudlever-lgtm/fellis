@@ -5,7 +5,7 @@ import { apiFetchReels, apiUploadReel, apiToggleReelLike, apiFetchReelComments, 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
 // ── Single Reel Card ──────────────────────────────────────────────────────────
-function ReelCard({ reel, t, currentUser, onDelete }) {
+function ReelCard({ reel, t, currentUser, onDelete, onViewProfile }) {
   const [liked, setLiked] = useState(reel.liked_by_me)
   const [myReaction, setMyReaction] = useState(reel.my_reaction || '❤️')
   const [likesCount, setLikesCount] = useState(Number(reel.likes_count))
@@ -15,12 +15,12 @@ function ReelCard({ reel, t, currentUser, onDelete }) {
   const [commentText, setCommentText] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [muted, setMuted] = useState(true)
+  const [playing, setPlaying] = useState(false)
   const [progress, setProgress] = useState(0)      // 0–1
   const [duration, setDuration] = useState(0)
   const [seeking, setSeeking] = useState(false)
   const videoRef = useRef(null)
   const progressRef = useRef(null)
-  const reactionTimerRef = useRef(null)
 
   const isOwn = currentUser?.id && reel.user_id === currentUser.id
 
@@ -42,15 +42,24 @@ function ReelCard({ reel, t, currentUser, onDelete }) {
     return () => observer.disconnect()
   }, [])
 
-  // Track video progress for the timeline bar
+  // Track video progress for the timeline bar and play/pause state
   useEffect(() => {
     const el = videoRef.current
     if (!el) return
     const onTime = () => { if (!seeking && el.duration) setProgress(el.currentTime / el.duration) }
     const onMeta = () => setDuration(el.duration || 0)
+    const onPlay = () => setPlaying(true)
+    const onPause = () => setPlaying(false)
     el.addEventListener('timeupdate', onTime)
     el.addEventListener('loadedmetadata', onMeta)
-    return () => { el.removeEventListener('timeupdate', onTime); el.removeEventListener('loadedmetadata', onMeta) }
+    el.addEventListener('play', onPlay)
+    el.addEventListener('pause', onPause)
+    return () => {
+      el.removeEventListener('timeupdate', onTime)
+      el.removeEventListener('loadedmetadata', onMeta)
+      el.removeEventListener('play', onPlay)
+      el.removeEventListener('pause', onPause)
+    }
   }, [seeking])
 
   // Seek on progress bar click/drag
@@ -105,17 +114,15 @@ function ReelCard({ reel, t, currentUser, onDelete }) {
     if (liked) {
       pickReaction(myReaction) // unlike
     } else {
-      // Short press = like with last/default reaction; long press shows picker
-      pickReaction(myReaction)
+      setShowReactionPicker(true) // show picker like posts do
     }
   }
 
-  const handleLikePointerDown = () => {
-    reactionTimerRef.current = setTimeout(() => setShowReactionPicker(true), 500)
-  }
-  const handleLikePointerUp = () => {
-    if (reactionTimerRef.current) clearTimeout(reactionTimerRef.current)
-  }
+  const togglePlay = useCallback(() => {
+    const el = videoRef.current
+    if (!el) return
+    if (el.paused) { el.play().catch(() => {}) } else { el.pause() }
+  }, [])
 
   const openComments = async () => {
     setShowComments(v => !v)
@@ -316,8 +323,18 @@ function ReelCard({ reel, t, currentUser, onDelete }) {
           loop
           muted={muted}
           playsInline
-          onClick={() => { setMuted(v => !v); setShowReactionPicker(false) }}
+          onClick={() => { togglePlay(); setShowReactionPicker(false) }}
         />
+        {!playing && (
+          <div style={{
+            position: 'absolute', top: '50%', left: '50%',
+            transform: 'translate(-50%, -50%)',
+            background: 'rgba(0,0,0,0.45)', borderRadius: '50%',
+            width: 60, height: 60,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 26, pointerEvents: 'none',
+          }}>▶</div>
+        )}
         <button style={s.muteBtn} onClick={() => setMuted(v => !v)} title={muted ? 'Slå lyd til' : 'Slå lyd fra'}>
           {muted ? '🔇' : '🔊'}
         </button>
@@ -328,13 +345,18 @@ function ReelCard({ reel, t, currentUser, onDelete }) {
         )}
         <div style={s.overlay}>
           <div style={s.author}>
-            {avatarUrl
-              ? <img src={avatarUrl} style={s.avatar} alt="" />
-              : <div style={{ ...s.avatarFallback, background: nameToColor(reel.author_name) }}>{getInitials(reel.author_name)}</div>
-            }
-            <div>
-              <div style={s.authorName}>{reel.author_name}</div>
-              <div style={{ fontSize: 11, color: '#ccc' }}>{reel.author_handle}</div>
+            <div
+              onClick={() => onViewProfile && onViewProfile(reel.user_id)}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: onViewProfile ? 'pointer' : 'default' }}
+            >
+              {avatarUrl
+                ? <img src={avatarUrl} style={s.avatar} alt="" />
+                : <div style={{ ...s.avatarFallback, background: nameToColor(reel.author_name) }}>{getInitials(reel.author_name)}</div>
+              }
+              <div>
+                <div style={s.authorName}>{reel.author_name}</div>
+                <div style={{ fontSize: 11, color: '#ccc' }}>{reel.author_handle}</div>
+              </div>
             </div>
           </div>
           {reel.caption && <div style={s.caption}>{reel.caption}</div>}
@@ -365,29 +387,29 @@ function ReelCard({ reel, t, currentUser, onDelete }) {
       <div style={{ ...s.actions, position: 'relative' }}>
         {/* Reaction picker popup */}
         {showReactionPicker && (
-          <div style={{
-            position: 'absolute', bottom: '100%', left: 0,
-            background: '#1a1a1a', borderRadius: 30, padding: '8px 12px',
-            display: 'flex', gap: 8, boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
-            zIndex: 10,
-          }}>
-            {REACTIONS.map(r => (
-              <button key={r.emoji} title={r.label.da}
-                style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', padding: '2px 4px', borderRadius: 6, transition: 'transform 0.1s' }}
-                onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.3)' }}
-                onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)' }}
-                onClick={() => pickReaction(r.emoji)}
-              >{r.emoji}</button>
-            ))}
-          </div>
+          <>
+            <div style={{ position: 'fixed', inset: 0, zIndex: 9 }} onClick={() => setShowReactionPicker(false)} />
+            <div style={{
+              position: 'absolute', bottom: '100%', left: 0,
+              background: '#1a1a1a', borderRadius: 30, padding: '8px 12px',
+              display: 'flex', gap: 8, boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+              zIndex: 10,
+            }}>
+              {REACTIONS.map(r => (
+                <button key={r.emoji} title={r.label.da}
+                  style={{ background: 'none', border: 'none', fontSize: 28, cursor: 'pointer', padding: '2px 4px', borderRadius: 6, transition: 'transform 0.1s' }}
+                  onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.3)' }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)' }}
+                  onClick={() => pickReaction(r.emoji)}
+                >{r.emoji}</button>
+              ))}
+            </div>
+          </>
         )}
-        <button
-          style={s.actionBtn}
-          onClick={toggleLike}
-          onPointerDown={handleLikePointerDown}
-          onPointerUp={handleLikePointerUp}
-          onPointerLeave={handleLikePointerUp}
-        >
+        <button style={s.actionBtn} onClick={togglePlay}>
+          <span style={{ fontSize: 20 }}>{playing ? '⏸' : '▶'}</span>
+        </button>
+        <button style={s.actionBtn} onClick={toggleLike}>
           <span style={{ fontSize: 20 }}>{liked ? myReaction : '🤍'}</span>
           <span>{likesCount} {t.reelsLikes}</span>
         </button>
@@ -589,7 +611,7 @@ function UploadModal({ t, onClose, onUploaded }) {
 }
 
 // ── Main ReelsPage ────────────────────────────────────────────────────────────
-export default function ReelsPage({ t, currentUser, initialReelId }) {
+export default function ReelsPage({ t, currentUser, initialReelId, onViewProfile }) {
   const [reels, setReels] = useState([])
   const [loading, setLoading] = useState(true)
   const [offset, setOffset] = useState(0)
@@ -697,6 +719,7 @@ export default function ReelsPage({ t, currentUser, initialReelId }) {
             t={t}
             currentUser={currentUser}
             onDelete={handleDelete}
+            onViewProfile={onViewProfile}
           />
         </div>
       ))}
