@@ -1,5 +1,6 @@
 -- Migration: add privacy settings columns to users table
--- Run against fellis_eu database
+-- NOTE: ADD COLUMN IF NOT EXISTS is MariaDB-only. MySQL 8.x: use run-migrations.js
+-- MariaDB: run against fellis_eu database
 
 ALTER TABLE users
   ADD COLUMN IF NOT EXISTS profile_visibility ENUM('all','friends') NOT NULL DEFAULT 'all',
