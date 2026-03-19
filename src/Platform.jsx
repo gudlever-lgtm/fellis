@@ -3964,26 +3964,106 @@ function SettingsLeverandoerer({ lang, t }) {
     color: connected ? '#2D6A4F' : '#888',
   })
 
+  const da = lang === 'da'
+  const sectionTitle = (label) => (
+    <div style={{ fontSize: 12, fontWeight: 700, color: '#999', letterSpacing: 1, textTransform: 'uppercase', margin: '28px 0 12px' }}>{label}</div>
+  )
+
   return (
     <div>
-      <p style={{ fontSize: 13, color: '#666', marginTop: 0, marginBottom: 20 }}>{t.providersDesc}</p>
+      <p style={{ fontSize: 13, color: '#666', marginTop: 0, marginBottom: 8 }}>{t.providersDesc}</p>
+
+      {sectionTitle(da ? 'Medie & indhold' : 'Media & content')}
 
       {/* Apple Photos */}
       <div style={cardStyle}>
         <div style={headerStyle}>
-          <div style={{ ...logoStyle, background: '#000', color: '#fff' }}>
+          <div style={{ ...logoStyle, background: '#000' }}>
             <svg width="20" height="20" viewBox="0 0 814 1000" fill="white" xmlns="http://www.w3.org/2000/svg">
               <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76.5 0-103.7 40.8-165.9 40.8s-105-37.5-155.5-127.4C46 790.8 0 663.5 0 541.8c0-207.9 135.5-317.7 269-317.7 70.9 0 130.4 44.7 174.4 44.7 42.8 0 110.3-47.1 191.9-47.1 30.9 0 111.2 2.6 170.9 96.1zM543.4 88.7C568.4 57.5 586 13.6 586 0s-.6-2.6-2.6-2.6c-4.5 0-57.1 23.3-87.5 56.6C470.9 81.3 450.9 128 450.9 172c0 3.8.6 6.4 3.2 6.4 4.5 0 56.5-25.1 89.3-89.7z"/>
             </svg>
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 700, fontSize: 15 }}>Apple Fotos</div>
-            <span style={badgeStyle(true)}>
-              {lang === 'da' ? 'Indbygget' : 'Built-in'}
-            </span>
+            <span style={badgeStyle(true)}>{da ? 'Indbygget' : 'Built-in'}</span>
           </div>
         </div>
         <p style={{ fontSize: 13, color: '#555', margin: 0 }}>{t.providerApplePhotosDesc}</p>
+      </div>
+
+      {/* OpenStreetMap */}
+      <div style={cardStyle}>
+        <div style={headerStyle}>
+          <div style={{ ...logoStyle, background: '#7EBC6F', fontSize: 22 }}>🗺️</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>OpenStreetMap</div>
+            <span style={badgeStyle(true)}>{da ? 'Indbygget' : 'Built-in'}</span>
+          </div>
+          <a href="https://www.openstreetmap.org" target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#2D6A4F' }}>openstreetmap.org ↗</a>
+        </div>
+        <p style={{ fontSize: 13, color: '#555', margin: 0 }}>
+          {da
+            ? 'Brugt til kortvisning og stedsøgning ved tilføjelse af lokation til opslag. OpenStreetMap er et open-source kortprojekt drevet af frivillige — ingen data sendes til Google Maps eller andre kommercielle udbydere.'
+            : 'Used for map display and location search when adding a location to posts. OpenStreetMap is an open-source map project run by volunteers — no data is sent to Google Maps or other commercial providers.'}
+        </p>
+      </div>
+
+      {/* Nextcloud */}
+      <div style={cardStyle}>
+        <div style={headerStyle}>
+          <div style={{ ...logoStyle, background: '#0082C9', fontSize: 20 }}>
+            <svg width="22" height="22" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="128" cy="128" r="128" fill="#0082C9"/>
+              <path d="M128 56c-28.7 0-52.2 20.6-57 48.1C63.1 98 54.9 94 46 94c-19.9 0-36 16.1-36 36s16.1 36 36 36c8.9 0 17.1-3.3 23.3-8.8.7 1.5 1.5 3 2.4 4.4C82.3 179.5 104.2 192 128 192s45.7-12.5 56.3-30.4c.9-1.4 1.7-2.9 2.4-4.4 6.2 5.5 14.4 8.8 23.3 8.8 19.9 0 36-16.1 36-36s-16.1-36-36-36c-8.9 0-17.1 3.3-23.3 8.8-4.4-27.7-28.2-48.8-58.7-48.8z" fill="white"/>
+            </svg>
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>Nextcloud</div>
+            <span style={badgeStyle(false)}>{da ? 'Kommende' : 'Coming soon'}</span>
+          </div>
+          <a href="https://nextcloud.com" target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#2D6A4F' }}>nextcloud.com ↗</a>
+        </div>
+        <p style={{ fontSize: 13, color: '#555', margin: 0 }}>
+          {da
+            ? 'Forbind din Nextcloud-instans og upload billeder og filer direkte herfra. Nextcloud er open-source og EU-hostet — en privatlivsfokuseret alternativ til Dropbox og Google Drive.'
+            : 'Connect your Nextcloud instance and upload photos and files directly from it. Nextcloud is open-source and EU-hosted — a privacy-focused alternative to Dropbox and Google Drive.'}
+        </p>
+      </div>
+
+      {sectionTitle(da ? 'Betaling & kommunikation' : 'Payment & communication')}
+
+      {/* Mollie */}
+      <div style={cardStyle}>
+        <div style={headerStyle}>
+          <div style={{ ...logoStyle, background: '#000', fontSize: 18, fontWeight: 900, color: '#fff', fontFamily: 'serif', letterSpacing: -1 }}>M</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>Mollie</div>
+            <span style={badgeStyle(true)}>{da ? 'Tilknyttet' : 'Connected'}</span>
+          </div>
+          <a href="https://www.mollie.com" target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#2D6A4F' }}>mollie.com ↗</a>
+        </div>
+        <p style={{ fontSize: 13, color: '#555', margin: 0 }}>
+          {da
+            ? 'Brugt som betalingsgateway til abonnementer og annonceoprettelse. Mollie er EU-certificeret og GDPR-compliant — en hollandsk udbyder med servere i Europa. Ingen kortoplysninger gemmes på fellis.eu.'
+            : 'Used as payment gateway for subscriptions and ad creation. Mollie is EU-certified and GDPR-compliant — a Dutch provider with servers in Europe. No card details are stored on fellis.eu.'}
+        </p>
+      </div>
+
+      {/* 46elks */}
+      <div style={cardStyle}>
+        <div style={headerStyle}>
+          <div style={{ ...logoStyle, background: '#F5A623', fontSize: 20 }}>📱</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>46elks</div>
+            <span style={badgeStyle(true)}>{da ? 'Tilknyttet' : 'Connected'}</span>
+          </div>
+          <a href="https://46elks.com" target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#2D6A4F' }}>46elks.com ↗</a>
+        </div>
+        <p style={{ fontSize: 13, color: '#555', margin: 0 }}>
+          {da
+            ? 'Svensk telekomoperatør brugt til afsendelse af SMS-engangskoder ved to-faktor-login (MFA). Ingen SMS-data opbevares på fellis.eu — kun din telefonnummer, som du selv angiver.'
+            : 'Swedish telecom provider used to send SMS one-time codes during two-factor login (MFA). No SMS data is stored on fellis.eu — only your phone number, which you provide yourself.'}
+        </p>
       </div>
 
     </div>
@@ -4915,15 +4995,38 @@ function EasterEggSettings({ lang }) {
 }
 
 function SettingsPrivatliv({ lang, t, fS, lS }) {
+  const da = lang === 'da'
   const [profileVis, setProfileVis] = useState('all')
   const [friendReqPrivacy, setFriendReqPrivacy] = useState('all')
+  const [postVis, setPostVis] = useState('all')
+  const [messagePrivacy, setMessagePrivacy] = useState('all')
+  const [commentPrivacy, setCommentPrivacy] = useState('all')
+  const [friendListVis, setFriendListVis] = useState('all')
+  const [searchable, setSearchable] = useState(true)
+  const [showOnline, setShowOnline] = useState(true)
+  const [analyticsOptOut, setAnalyticsOptOut] = useState(false)
+  const [allowTagging, setAllowTagging] = useState(true)
   const [loading, setLoading] = useState(true)
   const [msg, setMsg] = useState(null)
 
   useEffect(() => {
     fetch('/api/settings/privacy', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data) { setProfileVis(data.profile_visibility || 'all'); setFriendReqPrivacy(data.friend_request_privacy || 'all') }; setLoading(false) })
+      .then(d => {
+        if (d) {
+          setProfileVis(d.profile_visibility || 'all')
+          setFriendReqPrivacy(d.friend_request_privacy || 'all')
+          setPostVis(d.post_default_visibility || 'all')
+          setMessagePrivacy(d.message_privacy || 'all')
+          setCommentPrivacy(d.comment_privacy || 'all')
+          setFriendListVis(d.friend_list_visibility || 'all')
+          setSearchable(d.searchable !== 0)
+          setShowOnline(d.show_online_status !== 0)
+          setAnalyticsOptOut(!!d.analytics_opt_out)
+          setAllowTagging(d.allow_tagging !== 0)
+        }
+        setLoading(false)
+      })
       .catch(() => setLoading(false))
   }, [])
 
@@ -4933,38 +5036,143 @@ function SettingsPrivatliv({ lang, t, fS, lS }) {
       const res = await fetch('/api/settings/privacy', {
         method: 'PATCH', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profile_visibility: profileVis, friend_request_privacy: friendReqPrivacy }),
+        body: JSON.stringify({
+          profile_visibility: profileVis,
+          friend_request_privacy: friendReqPrivacy,
+          post_default_visibility: postVis,
+          message_privacy: messagePrivacy,
+          comment_privacy: commentPrivacy,
+          friend_list_visibility: friendListVis,
+          searchable, show_online_status: showOnline,
+          analytics_opt_out: analyticsOptOut, allow_tagging: allowTagging,
+        }),
       })
       if (!res.ok) throw new Error()
       setMsg({ ok: true, text: t.settingsSaved })
-    } catch { setMsg({ ok: false, text: lang === 'da' ? 'Fejl' : 'Error' }) }
+    } catch { setMsg({ ok: false, text: da ? 'Fejl ved gemning' : 'Error saving' }) }
   }
 
   if (loading) return <div className="p-card" style={{ padding: 24, textAlign: 'center', color: '#888' }}>⏳</div>
 
-  const radioStyle = { display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, cursor: 'pointer', padding: '8px 0' }
+  const radioStyle = { display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, cursor: 'pointer', padding: '7px 0' }
+  const sectionHead = { fontSize: 14, fontWeight: 700, color: '#333', marginTop: 24, marginBottom: 10 }
+  const divider = { borderTop: '1px solid #f0ede8', margin: '20px 0 0' }
+
+  const RadioGroup = ({ name, value, onChange, options }) => (
+    <div>
+      {options.map(([val, label, desc]) => (
+        <label key={val} style={radioStyle}>
+          <input type="radio" name={name} value={val} checked={value === val} onChange={() => onChange(val)} style={{ accentColor: '#2D6A4F' }} />
+          <span>
+            {label}
+            {desc && <span style={{ fontSize: 12, color: '#999', display: 'block', marginTop: 1 }}>{desc}</span>}
+          </span>
+        </label>
+      ))}
+    </div>
+  )
+
+  const Toggle = ({ checked, onChange, label, desc }) => (
+    <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', padding: '8px 0' }}>
+      <div
+        onClick={() => onChange(!checked)}
+        style={{ width: 38, height: 22, borderRadius: 11, background: checked ? '#2D6A4F' : '#ccc', position: 'relative', flexShrink: 0, transition: 'background .2s', cursor: 'pointer', marginTop: 1 }}
+      >
+        <div style={{ position: 'absolute', top: 3, left: checked ? 17 : 3, width: 16, height: 16, borderRadius: '50%', background: '#fff', transition: 'left .2s' }} />
+      </div>
+      <span style={{ fontSize: 14 }}>
+        {label}
+        {desc && <span style={{ fontSize: 12, color: '#999', display: 'block', marginTop: 1 }}>{desc}</span>}
+      </span>
+    </label>
+  )
 
   return (
     <div className="p-card" style={{ padding: 24 }}>
-      <div style={{ fontSize: 14, fontWeight: 700, color: '#333', marginBottom: 12 }}>{t.settingsProfileVisibility}</div>
-      {[['all', t.settingsVisAll], ['friends', t.settingsVisFriends]].map(([val, label]) => (
-        <label key={val} style={radioStyle}>
-          <input type="radio" name="pv" value={val} checked={profileVis === val} onChange={() => setProfileVis(val)} />
-          {label}
-        </label>
-      ))}
 
-      <div style={{ fontSize: 14, fontWeight: 700, color: '#333', marginTop: 20, marginBottom: 12 }}>{t.settingsFriendReqPrivacy}</div>
-      {[['all', t.settingsReqAll], ['friends_of_friends', t.settingsReqFriends]].map(([val, label]) => (
-        <label key={val} style={radioStyle}>
-          <input type="radio" name="frp" value={val} checked={friendReqPrivacy === val} onChange={() => setFriendReqPrivacy(val)} />
-          {label}
-        </label>
-      ))}
+      {/* Profil */}
+      <div style={{ fontSize: 15, fontWeight: 700, color: '#1a1a1a', marginBottom: 4 }}>{da ? 'Profil' : 'Profile'}</div>
+      <div style={{ fontSize: 13, color: '#888', marginBottom: 16 }}>{da ? 'Hvem kan se og finde din profil' : 'Who can see and find your profile'}</div>
 
-      {msg && <div style={{ marginTop: 12, fontSize: 13, color: msg.ok ? '#2D6A4F' : '#c0392b', fontWeight: 600 }}>{msg.ok ? '✓' : '✗'} {msg.text}</div>}
-      <button onClick={save} style={{ marginTop: 20, padding: '9px 22px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
-        {lang === 'da' ? 'Gem indstillinger' : 'Save settings'}
+      <div style={sectionHead}>{t.settingsProfileVisibility}</div>
+      <RadioGroup name="pv" value={profileVis} onChange={setProfileVis} options={[
+        ['all',     da ? 'Alle'          : 'Everyone',      da ? 'Alle, inkl. ikke-brugere' : 'Everyone, incl. non-users'],
+        ['friends', da ? 'Kun venner'    : 'Friends only',  da ? 'Kun folk du er venner med' : 'Only people you are friends with'],
+      ]} />
+
+      <div style={sectionHead}>{da ? 'Søgbarhed' : 'Searchability'}</div>
+      <Toggle checked={searchable} onChange={setSearchable}
+        label={da ? 'Vis mig i søgeresultater' : 'Show me in search results'}
+        desc={da ? 'Slår du dette fra, kan andre ikke finde dig via navn eller handle' : 'Turning this off prevents others from finding you by name or handle'} />
+
+      <div style={sectionHead}>{da ? 'Online-status' : 'Online status'}</div>
+      <Toggle checked={showOnline} onChange={setShowOnline}
+        label={da ? 'Vis min online-status og sidst-set' : 'Show my online status and last seen'}
+        desc={da ? 'Slår du dette fra, ser andre dig altid som offline' : 'Turning this off always shows you as offline to others'} />
+
+      <div style={divider} />
+
+      {/* Opslag & interaktion */}
+      <div style={{ fontSize: 15, fontWeight: 700, color: '#1a1a1a', marginTop: 20, marginBottom: 4 }}>{da ? 'Opslag & interaktion' : 'Posts & interaction'}</div>
+      <div style={{ fontSize: 13, color: '#888', marginBottom: 16 }}>{da ? 'Standardindstillinger for nye opslag og hvem der kan interagere' : 'Default settings for new posts and who can interact'}</div>
+
+      <div style={sectionHead}>{da ? 'Standardsynlighed for opslag' : 'Default post visibility'}</div>
+      <RadioGroup name="postvis" value={postVis} onChange={setPostVis} options={[
+        ['all',      da ? 'Alle'         : 'Everyone',     null],
+        ['friends',  da ? 'Kun venner'   : 'Friends only', null],
+        ['only_me',  da ? 'Kun mig'      : 'Only me',      da ? 'Kladde / privat' : 'Draft / private'],
+      ]} />
+
+      <div style={sectionHead}>{da ? 'Hvem kan kommentere mine opslag' : 'Who can comment on my posts'}</div>
+      <RadioGroup name="cp" value={commentPrivacy} onChange={setCommentPrivacy} options={[
+        ['all',     da ? 'Alle'       : 'Everyone',     null],
+        ['friends', da ? 'Kun venner' : 'Friends only', null],
+      ]} />
+
+      <div style={sectionHead}>{da ? 'Tagging' : 'Tagging'}</div>
+      <Toggle checked={allowTagging} onChange={setAllowTagging}
+        label={da ? 'Tillad venner at tagge mig i opslag' : 'Allow friends to tag me in posts'}
+        desc={da ? 'Tagget indhold vises på din profil' : 'Tagged content appears on your profile'} />
+
+      <div style={divider} />
+
+      {/* Beskeder & venner */}
+      <div style={{ fontSize: 15, fontWeight: 700, color: '#1a1a1a', marginTop: 20, marginBottom: 4 }}>{da ? 'Beskeder & venner' : 'Messages & friends'}</div>
+      <div style={{ fontSize: 13, color: '#888', marginBottom: 16 }}>{da ? 'Hvem kan kontakte dig og se dine venner' : 'Who can contact you and see your friends'}</div>
+
+      <div style={sectionHead}>{t.settingsFriendReqPrivacy}</div>
+      <RadioGroup name="frp" value={friendReqPrivacy} onChange={setFriendReqPrivacy} options={[
+        ['all',                da ? 'Alle'                    : 'Everyone',           null],
+        ['friends_of_friends', da ? 'Venners venner'          : 'Friends of friends', null],
+      ]} />
+
+      <div style={sectionHead}>{da ? 'Hvem kan sende mig beskeder' : 'Who can message me'}</div>
+      <RadioGroup name="mp" value={messagePrivacy} onChange={setMessagePrivacy} options={[
+        ['all',     da ? 'Alle'       : 'Everyone',     null],
+        ['friends', da ? 'Kun venner' : 'Friends only', null],
+      ]} />
+
+      <div style={sectionHead}>{da ? 'Hvem kan se min venneliste' : 'Who can see my friend list'}</div>
+      <RadioGroup name="flv" value={friendListVis} onChange={setFriendListVis} options={[
+        ['all',     da ? 'Alle'       : 'Everyone',     null],
+        ['friends', da ? 'Kun venner' : 'Friends only', null],
+        ['only_me', da ? 'Kun mig'    : 'Only me',      null],
+      ]} />
+
+      <div style={divider} />
+
+      {/* Data & GDPR */}
+      <div style={{ fontSize: 15, fontWeight: 700, color: '#1a1a1a', marginTop: 20, marginBottom: 4 }}>{da ? 'Data & GDPR' : 'Data & GDPR'}</div>
+      <div style={{ fontSize: 13, color: '#888', marginBottom: 16 }}>{da ? 'Kontrol over platformens brug af dine data' : 'Control over how the platform uses your data'}</div>
+
+      <div style={sectionHead}>{da ? 'Platformsanalyse' : 'Platform analytics'}</div>
+      <Toggle checked={analyticsOptOut} onChange={setAnalyticsOptOut}
+        label={da ? 'Fravælg anonymiseret aktivitetsanalyse' : 'Opt out of anonymised activity analytics'}
+        desc={da ? 'Fellis bruger aggregeret og anonymiseret data til at forbedre platformen. Du kan fravælge dette.' : 'Fellis uses aggregated anonymised data to improve the platform. You can opt out.'} />
+
+      {msg && <div style={{ marginTop: 16, fontSize: 13, color: msg.ok ? '#2D6A4F' : '#c0392b', fontWeight: 600 }}>{msg.ok ? '✓' : '✗'} {msg.text}</div>}
+      <button onClick={save} style={{ marginTop: 24, padding: '9px 22px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+        {da ? 'Gem indstillinger' : 'Save settings'}
       </button>
     </div>
   )

@@ -1736,12 +1736,23 @@ app.delete('/api/settings/sessions/:id', authenticate, async (req, res) => {
 app.get('/api/settings/privacy', authenticate, async (req, res) => {
   try {
     const [[user]] = await pool.query(
-      'SELECT profile_visibility, friend_request_privacy FROM users WHERE id = ?',
+      `SELECT profile_visibility, friend_request_privacy, post_default_visibility,
+              message_privacy, comment_privacy, searchable, show_online_status,
+              analytics_opt_out, allow_tagging, friend_list_visibility
+       FROM users WHERE id = ?`,
       [req.userId]
     )
     res.json({
-      profile_visibility: user?.profile_visibility || 'all',
-      friend_request_privacy: user?.friend_request_privacy || 'all',
+      profile_visibility:       user?.profile_visibility       || 'all',
+      friend_request_privacy:   user?.friend_request_privacy   || 'all',
+      post_default_visibility:  user?.post_default_visibility  || 'all',
+      message_privacy:          user?.message_privacy          || 'all',
+      comment_privacy:          user?.comment_privacy          || 'all',
+      searchable:               user?.searchable               ?? 1,
+      show_online_status:       user?.show_online_status       ?? 1,
+      analytics_opt_out:        user?.analytics_opt_out        ?? 0,
+      allow_tagging:            user?.allow_tagging            ?? 1,
+      friend_list_visibility:   user?.friend_list_visibility   || 'all',
     })
   } catch (err) {
     res.status(500).json({ error: 'Server error' })
@@ -1750,13 +1761,28 @@ app.get('/api/settings/privacy', authenticate, async (req, res) => {
 
 // PATCH /api/settings/privacy
 app.patch('/api/settings/privacy', authenticate, async (req, res) => {
-  const { profile_visibility, friend_request_privacy } = req.body
-  const pv = ['all', 'friends'].includes(profile_visibility) ? profile_visibility : null
-  const frp = ['all', 'friends_of_friends'].includes(friend_request_privacy) ? friend_request_privacy : null
-  if (!pv && !frp) return res.status(400).json({ error: 'Nothing to update' })
+  const {
+    profile_visibility, friend_request_privacy, post_default_visibility,
+    message_privacy, comment_privacy, searchable, show_online_status,
+    analytics_opt_out, allow_tagging, friend_list_visibility,
+  } = req.body
+  const fields = []
+  const vals = []
+  const enumCol = (v, allowed, col) => { if (allowed.includes(v)) { fields.push(`${col} = ?`); vals.push(v) } }
+  const boolCol = (v, col) => { if (v !== undefined) { fields.push(`${col} = ?`); vals.push(v ? 1 : 0) } }
+  enumCol(profile_visibility,      ['all','friends'],                          'profile_visibility')
+  enumCol(friend_request_privacy,  ['all','friends_of_friends'],               'friend_request_privacy')
+  enumCol(post_default_visibility, ['all','friends','only_me'],                'post_default_visibility')
+  enumCol(message_privacy,         ['all','friends'],                          'message_privacy')
+  enumCol(comment_privacy,         ['all','friends'],                          'comment_privacy')
+  enumCol(friend_list_visibility,  ['all','friends','only_me'],                'friend_list_visibility')
+  boolCol(searchable,        'searchable')
+  boolCol(show_online_status,'show_online_status')
+  boolCol(analytics_opt_out, 'analytics_opt_out')
+  boolCol(allow_tagging,     'allow_tagging')
+  if (!fields.length) return res.status(400).json({ error: 'Nothing to update' })
   try {
-    if (pv) await pool.query('UPDATE users SET profile_visibility = ? WHERE id = ?', [pv, req.userId])
-    if (frp) await pool.query('UPDATE users SET friend_request_privacy = ? WHERE id = ?', [frp, req.userId])
+    await pool.query(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`, [...vals, req.userId])
     res.json({ ok: true })
   } catch (err) {
     res.status(500).json({ error: 'Server error' })
@@ -4257,6 +4283,14 @@ async function initSettingsSchema() {
     // Privacy settings
     await addCol('users', 'profile_visibility', "ENUM('all','friends') NOT NULL DEFAULT 'all'")
     await addCol('users', 'friend_request_privacy', "ENUM('all','friends_of_friends') NOT NULL DEFAULT 'all'")
+    await addCol('users', 'post_default_visibility', "ENUM('all','friends','only_me') NOT NULL DEFAULT 'all'")
+    await addCol('users', 'message_privacy', "ENUM('all','friends') NOT NULL DEFAULT 'all'")
+    await addCol('users', 'comment_privacy', "ENUM('all','friends') NOT NULL DEFAULT 'all'")
+    await addCol('users', 'searchable', 'TINYINT(1) NOT NULL DEFAULT 1')
+    await addCol('users', 'show_online_status', 'TINYINT(1) NOT NULL DEFAULT 1')
+    await addCol('users', 'analytics_opt_out', 'TINYINT(1) NOT NULL DEFAULT 0')
+    await addCol('users', 'allow_tagging', 'TINYINT(1) NOT NULL DEFAULT 1')
+    await addCol('users', 'friend_list_visibility', "ENUM('all','friends','only_me') NOT NULL DEFAULT 'all'")
     // Skills tables
     await pool.query(`CREATE TABLE IF NOT EXISTS user_skills (
       id INT AUTO_INCREMENT PRIMARY KEY,
