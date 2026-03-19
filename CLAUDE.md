@@ -234,6 +234,9 @@ mysql -u root fellis_eu < server/migrate-currency.sql
 
 # Google & LinkedIn OAuth columns (adds google_id, linkedin_id to users + unique indexes)
 mysql -u root fellis_eu < server/migrate-google-linkedin-oauth.sql
+
+# Interest Graph Signal Engine (creates interest_signals + interest_scores tables)
+mysql -u root fellis_eu < server/migrate-signal-engine.sql
 ```
 
 ---

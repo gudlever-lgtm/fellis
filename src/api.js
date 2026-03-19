@@ -1216,3 +1216,21 @@ export async function apiGetExploreFeed(cursor, filter, tag) {
 export async function apiGetSuggestedUsers(limit = 6) {
   return await request(`/api/users/suggested?limit=${limit}`)
 }
+
+// ── Signal Engine / Interest Graph ────────────────────────────────────────────
+// Batch-send behavioral signals to the server. Each signal: { signal_type, source_type?, source_id?, interest_slugs?, context? }
+export async function apiIngestSignals(signals) {
+  return await request('/api/signals', 'POST', { signals })
+}
+// Get the authenticated user's computed interest graph
+export async function apiGetInterestGraph() {
+  return await request('/api/me/interest-graph')
+}
+// Manually correct a single interest weight (0–100)
+export async function apiCorrectInterest(slug, weight, context = 'hobby') {
+  return await request(`/api/me/interest-graph/${encodeURIComponent(slug)}`, 'PATCH', { weight, context })
+}
+// Get signal stats for transparency UI (last 30 days)
+export async function apiGetSignalStats() {
+  return await request('/api/me/interest-graph/signal-stats')
+}
