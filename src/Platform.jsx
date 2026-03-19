@@ -64,6 +64,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
   const [showModeModal, setShowModeModal] = useState(false)
   const [adsFree, setAdsFree] = useState(false)
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('fellis_dark') === '1')
+  const [marketplaceMaxPhotos, setMarketplaceMaxPhotos] = useState(4)
 
   // 🎉 Party Mode easter egg (global — triggered anywhere on the platform)
   const { triggerEgg: triggerGlobalEgg, syncFromServer: syncEggsFromServer } = useEasterEggs()
@@ -134,6 +135,14 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
       onLogout()
     })
   }, [onLogout]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load platform config (marketplace photo limit etc.)
+  useEffect(() => {
+    apiGetConfig().then(res => {
+      const cfg = res?.config || res
+      if (cfg?.marketplaceMaxPhotos) setMarketplaceMaxPhotos(cfg.marketplaceMaxPhotos)
+    })
+  }, [])
 
   // Heartbeat: update last_active every 60s so friends see us as online
   useEffect(() => {
@@ -1487,7 +1496,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [showScrollTop, setShowScrollTop] = useState(false)
   const [mediaMaxFiles, setMediaMaxFiles] = useState(4)
   const mediaMaxFilesRef = useRef(4)
-  const [marketplaceMaxPhotos, setMarketplaceMaxPhotos] = useState(4)
   const [scheduleEnabled, setScheduleEnabled] = useState(false)
   const [scheduledAt, setScheduledAt] = useState('')
 
@@ -1543,7 +1551,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     apiGetConfig().then(res => {
       const cfg = res?.config || res
       if (cfg?.mediaMaxFiles) { setMediaMaxFiles(cfg.mediaMaxFiles); mediaMaxFilesRef.current = cfg.mediaMaxFiles }
-      if (cfg?.marketplaceMaxPhotos) setMarketplaceMaxPhotos(cfg.marketplaceMaxPhotos)
     })
     apiFetchFeed(0, PAGE_SIZE).then(data => {
       if (data?.posts) {
@@ -8046,7 +8053,7 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened }) 
             )}
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 0, width: '100%' }}>
               <span className="p-input-hint-wrap">
-                <span className="p-input-hint-icon" onClick={handleHintIconClick}>?</span>
+                <span className="p-input-hint-icon">?</span>
                 <span className="p-input-hint-tooltip">{t.msgInputHint}</span>
               </span>
               {/* Attach button */}
