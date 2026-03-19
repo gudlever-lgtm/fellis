@@ -1379,6 +1379,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   }
   useKeySequence('retro', triggerRetro, 3000)
   useLongPress(feedTitleRef, 1500, triggerRetro)
+  const handleRetroTrigger = (e) => { if (e.shiftKey) triggerRetro() }
   // ── end easter eggs ─────────────────────────────────────────────────────────
 
   const CP_FEED_DEFAULT_COMMENTS = [
