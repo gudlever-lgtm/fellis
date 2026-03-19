@@ -1,14 +1,4 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } from 'react'
-import { MapContainer, TileLayer, Marker as LeafletMarker, Popup as LeafletPopup, useMap as useLeafletMap } from 'react-leaflet'
-import 'leaflet/dist/leaflet.css'
-import L from 'leaflet'
-import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
-import markerIcon from 'leaflet/dist/images/marker-icon.png'
-import markerShadow from 'leaflet/dist/images/marker-shadow.png'
-
-// Fix Leaflet default marker icon broken by bundlers
-delete L.Icon.Default.prototype._getIconUrl
-L.Icon.Default.mergeOptions({ iconUrl: markerIcon, iconRetinaUrl: markerIcon2x, shadowUrl: markerShadow })
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { SUPPORTED_LANGS, EUROPEAN_LANGUAGES, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials, getTranslations } from './data.js'
 import { formatPrice } from './utils/currency.js'
@@ -11039,7 +11029,7 @@ function CreateJobModal({ t, lang, companies, onClose, onCreate, editJob }) {
   )
 }
 
-// ── OpenStreetMap ──
+// ── OpenStreetMap (CDN Leaflet — no npm dependency) ──
 const _osmGeoCache = new Map()
 async function _osmGeocode(location) {
   if (!location) return null
@@ -11050,44 +11040,64 @@ async function _osmGeocode(location) {
       { headers: { 'Accept-Language': 'da,en' } }
     )
     const data = await res.json()
-    const result = data[0] ? { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon), display: data[0].display_name } : null
+    const result = data[0] ? { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) } : null
     _osmGeoCache.set(location, result)
     return result
   } catch { return null }
 }
 
-function _OsmRecenter({ coords }) {
-  const map = useLeafletMap()
-  useEffect(() => { map.setView([coords.lat, coords.lon], 13) }, [map, coords])
-  return null
+let _leafletPromise = null
+function _loadLeaflet() {
+  if (_leafletPromise) return _leafletPromise
+  _leafletPromise = new Promise((resolve) => {
+    if (window.L) { resolve(window.L); return }
+    const link = document.createElement('link')
+    link.rel = 'stylesheet'
+    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
+    document.head.appendChild(link)
+    const script = document.createElement('script')
+    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
+    script.onload = () => resolve(window.L)
+    document.head.appendChild(script)
+  })
+  return _leafletPromise
 }
 
 function OsmMap({ location, height = 220, lang }) {
-  const [coords, setCoords] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const containerRef = useRef(null)
+  const instanceRef = useRef(null)
+  const [status, setStatus] = useState('loading')
   useEffect(() => {
-    setLoading(true)
-    setCoords(null)
-    _osmGeocode(location).then(c => { setCoords(c); setLoading(false) })
+    if (!location) { setStatus('none'); return }
+    let cancelled = false
+    setStatus('loading')
+    Promise.all([_loadLeaflet(), _osmGeocode(location)]).then(([L, coords]) => {
+      if (cancelled || !containerRef.current) return
+      if (!coords) { setStatus('notfound'); return }
+      if (instanceRef.current) { instanceRef.current.remove(); instanceRef.current = null }
+      const map = L.map(containerRef.current, { scrollWheelZoom: false }).setView([coords.lat, coords.lon], 13)
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+      }).addTo(map)
+      L.marker([coords.lat, coords.lon]).addTo(map).bindPopup(location)
+      instanceRef.current = map
+      setStatus('ok')
+    })
+    return () => {
+      cancelled = true
+      if (instanceRef.current) { instanceRef.current.remove(); instanceRef.current = null }
+    }
   }, [location])
-  if (!location) return null
-  if (loading) return (
-    <div style={{ height, background: '#f0ede8', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa', fontSize: 13, gap: 6 }}>
-      🗺️ {lang === 'da' ? 'Indlæser kort…' : 'Loading map…'}
-    </div>
-  )
-  if (!coords) return null
+  if (!location || status === 'none' || status === 'notfound') return null
   return (
-    <MapContainer center={[coords.lat, coords.lon]} zoom={13} style={{ height, borderRadius: 10 }} scrollWheelZoom={false} attributionControl={true}>
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-      <_OsmRecenter coords={coords} />
-      <LeafletMarker position={[coords.lat, coords.lon]}>
-        <LeafletPopup>{location}</LeafletPopup>
-      </LeafletMarker>
-    </MapContainer>
+    <div style={{ position: 'relative', height, borderRadius: 10, overflow: 'hidden' }}>
+      {status === 'loading' && (
+        <div style={{ position: 'absolute', inset: 0, background: '#f0ede8', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa', fontSize: 13, gap: 6, zIndex: 1 }}>
+          🗺️ {lang === 'da' ? 'Indlæser kort…' : 'Loading map…'}
+        </div>
+      )}
+      <div ref={containerRef} style={{ height, width: '100%' }} />
+    </div>
   )
 }
 
@@ -11113,42 +11123,42 @@ const MOCK_LISTINGS = [
 ]
 
 function MarketplaceMapView({ listings, lang, onSelect }) {
-  const [markers, setMarkers] = useState([])
+  const containerRef = useRef(null)
+  const instanceRef = useRef(null)
   const listingTitle = (l) => typeof l.title === 'string' ? l.title : (l.title?.[lang] || l.title?.da || '')
   useEffect(() => {
-    if (!listings.length) return
     const withLocation = listings.filter(l => l.location && !l.sold)
-    Promise.all(
-      withLocation.map(l => _osmGeocode(l.location).then(c => c ? { listing: l, lat: c.lat, lon: c.lon } : null))
-    ).then(results => setMarkers(results.filter(Boolean)))
+    if (!withLocation.length || !containerRef.current) return
+    let cancelled = false
+    Promise.all([
+      _loadLeaflet(),
+      Promise.all(withLocation.map(l => _osmGeocode(l.location).then(c => c ? { listing: l, lat: c.lat, lon: c.lon } : null)))
+    ]).then(([L, results]) => {
+      if (cancelled || !containerRef.current) return
+      const markers = results.filter(Boolean)
+      if (instanceRef.current) { instanceRef.current.remove(); instanceRef.current = null }
+      const map = L.map(containerRef.current, { scrollWheelZoom: true }).setView([55.676, 12.568], 9)
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+      }).addTo(map)
+      markers.forEach(({ listing, lat, lon }) => {
+        const popup = `<strong>${listingTitle(listing)}</strong><br>📍 ${listing.location}<br>${listing.price ? listing.price.toLocaleString() + ' kr.' : (lang === 'da' ? 'Pris forhandles' : 'Negotiable')}`
+        L.marker([lat, lon]).addTo(map).bindPopup(popup).on('click', () => onSelect(listing))
+      })
+      if (markers.length) {
+        const group = L.featureGroup(markers.map(({ lat, lon }) => L.marker([lat, lon])))
+        map.fitBounds(group.getBounds().pad(0.2))
+      }
+      instanceRef.current = map
+    })
+    return () => {
+      cancelled = true
+      if (instanceRef.current) { instanceRef.current.remove(); instanceRef.current = null }
+    }
   }, [listings]) // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div style={{ borderRadius: 12, overflow: 'hidden', marginBottom: 16 }}>
-      <MapContainer
-        center={[55.676, 12.568]}
-        zoom={9}
-        style={{ height: 480, width: '100%' }}
-        scrollWheelZoom={true}
-      >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        {markers.map(({ listing, lat, lon }) => (
-          <LeafletMarker key={listing.id} position={[lat, lon]} eventHandlers={{ click: () => onSelect(listing) }}>
-            <LeafletPopup>
-              <strong>{listingTitle(listing)}</strong><br />
-              📍 {listing.location}<br />
-              {listing.price ? `${listing.price.toLocaleString()} kr.` : (lang === 'da' ? 'Pris forhandles' : 'Negotiable')}
-            </LeafletPopup>
-          </LeafletMarker>
-        ))}
-      </MapContainer>
-      {markers.length === 0 && (
-        <div style={{ textAlign: 'center', padding: 16, color: '#888', fontSize: 13 }}>
-          {lang === 'da' ? 'Geocoder annoncer…' : 'Geocoding listings…'}
-        </div>
-      )}
+      <div ref={containerRef} style={{ height: 480, width: '100%' }} />
     </div>
   )
 }
