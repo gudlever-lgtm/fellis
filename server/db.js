@@ -18,6 +18,7 @@ export function getPool() {
       waitForConnections: true,
       connectionLimit: 10,
       charset: 'utf8mb4',
+      ssl: process.env.DB_SSL === 'false' ? { rejectUnauthorized: false } : undefined,
     })
   }
   return pool
