@@ -1,4 +1,13 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } from 'react'
+import { MapContainer, TileLayer, Marker as LeafletMarker, Popup as LeafletPopup, useMap as useLeafletMap } from 'react-leaflet'
+import L from 'leaflet'
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
+import markerIcon from 'leaflet/dist/images/marker-icon.png'
+import markerShadow from 'leaflet/dist/images/marker-shadow.png'
+
+// Fix Leaflet default marker icon broken by bundlers
+delete L.Icon.Default.prototype._getIconUrl
+L.Icon.Default.mergeOptions({ iconUrl: markerIcon, iconRetinaUrl: markerIcon2x, shadowUrl: markerShadow })
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { SUPPORTED_LANGS, EUROPEAN_LANGUAGES, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials, getTranslations } from './data.js'
 import { formatPrice } from './utils/currency.js'
@@ -8980,6 +8989,12 @@ function EventDetailModal({ event, t, lang, mode, myRsvp, extras, onRsvp, onExtr
 
         <p style={{ fontSize: 14, color: '#444', lineHeight: 1.6, marginBottom: 20 }}>{getDesc(event)}</p>
 
+        {getLocation(event) && (
+          <div style={{ marginBottom: 20 }}>
+            <OsmMap location={getLocation(event)} height={200} lang={lang} />
+          </div>
+        )}
+
         {/* RSVP */}
         <div className="p-event-detail-rsvp" style={isExpired ? { pointerEvents: 'none' } : {}}>
           {['going', 'maybe', 'notGoing'].map(s => {
@@ -11023,6 +11038,58 @@ function CreateJobModal({ t, lang, companies, onClose, onCreate, editJob }) {
   )
 }
 
+// ── OpenStreetMap ──
+const _osmGeoCache = new Map()
+async function _osmGeocode(location) {
+  if (!location) return null
+  if (_osmGeoCache.has(location)) return _osmGeoCache.get(location)
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1`,
+      { headers: { 'Accept-Language': 'da,en' } }
+    )
+    const data = await res.json()
+    const result = data[0] ? { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon), display: data[0].display_name } : null
+    _osmGeoCache.set(location, result)
+    return result
+  } catch { return null }
+}
+
+function _OsmRecenter({ coords }) {
+  const map = useLeafletMap()
+  useEffect(() => { map.setView([coords.lat, coords.lon], 13) }, [map, coords])
+  return null
+}
+
+function OsmMap({ location, height = 220, lang }) {
+  const [coords, setCoords] = useState(null)
+  const [loading, setLoading] = useState(true)
+  useEffect(() => {
+    setLoading(true)
+    setCoords(null)
+    _osmGeocode(location).then(c => { setCoords(c); setLoading(false) })
+  }, [location])
+  if (!location) return null
+  if (loading) return (
+    <div style={{ height, background: '#f0ede8', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa', fontSize: 13, gap: 6 }}>
+      🗺️ {lang === 'da' ? 'Indlæser kort…' : 'Loading map…'}
+    </div>
+  )
+  if (!coords) return null
+  return (
+    <MapContainer center={[coords.lat, coords.lon]} zoom={13} style={{ height, borderRadius: 10 }} scrollWheelZoom={false} attributionControl={true}>
+      <TileLayer
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
+      <_OsmRecenter coords={coords} />
+      <LeafletMarker position={[coords.lat, coords.lon]}>
+        <LeafletPopup>{location}</LeafletPopup>
+      </LeafletMarker>
+    </MapContainer>
+  )
+}
+
 // ── Marketplace ──
 const MARKETPLACE_CATEGORIES = [
   { key: 'electronics', icon: '🖥️', labelKey: 'marketplaceCatElectronics' },
@@ -11043,6 +11110,47 @@ const MOCK_LISTINGS = [
   { id: 5, title: { da: 'Harry Potter — komplet boksæt (DA)', en: 'Harry Potter — complete box set (DK edition)' }, price: 150, priceNegotiable: false, description: { da: 'Alle 7 bøger på dansk i original boks. Lidt slidte, men komplette.', en: 'All 7 books in Danish in original box. Slightly worn but complete.' }, category: 'books', location: 'Odense', photos: [], seller: 'Alma Hansen', sellerId: 'mock-alma', postedAt: '2026-02-13', sold: true },
   { id: 6, title: { da: 'Weber kuglegrill — 57 cm', en: 'Weber kettle grill — 57 cm' }, price: 600, priceNegotiable: true, description: { da: 'Weber One-Touch 57 cm. Brugt 2 sæsoner, ellers i perfekt stand.', en: 'Weber One-Touch 57cm. Used 2 seasons, otherwise in perfect condition.' }, category: 'garden', location: 'Hellerup', photos: [], seller: 'Liam Madsen', sellerId: 'mock-liam', postedAt: '2026-02-12', sold: false },
 ]
+
+function MarketplaceMapView({ listings, lang, onSelect }) {
+  const [markers, setMarkers] = useState([])
+  const listingTitle = (l) => typeof l.title === 'string' ? l.title : (l.title?.[lang] || l.title?.da || '')
+  useEffect(() => {
+    if (!listings.length) return
+    const withLocation = listings.filter(l => l.location && !l.sold)
+    Promise.all(
+      withLocation.map(l => _osmGeocode(l.location).then(c => c ? { listing: l, lat: c.lat, lon: c.lon } : null))
+    ).then(results => setMarkers(results.filter(Boolean)))
+  }, [listings]) // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <div style={{ borderRadius: 12, overflow: 'hidden', marginBottom: 16 }}>
+      <MapContainer
+        center={[55.676, 12.568]}
+        zoom={9}
+        style={{ height: 480, width: '100%' }}
+        scrollWheelZoom={true}
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        {markers.map(({ listing, lat, lon }) => (
+          <LeafletMarker key={listing.id} position={[lat, lon]} eventHandlers={{ click: () => onSelect(listing) }}>
+            <LeafletPopup>
+              <strong>{listingTitle(listing)}</strong><br />
+              📍 {listing.location}<br />
+              {listing.price ? `${listing.price.toLocaleString()} kr.` : (lang === 'da' ? 'Pris forhandles' : 'Negotiable')}
+            </LeafletPopup>
+          </LeafletMarker>
+        ))}
+      </MapContainer>
+      {markers.length === 0 && (
+        <div style={{ textAlign: 'center', padding: 16, color: '#888', fontSize: 13 }}>
+          {lang === 'da' ? 'Geocoder annoncer…' : 'Geocoding listings…'}
+        </div>
+      )}
+    </div>
+  )
+}
 
 function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller, onViewProfile }) {
   const [tab, setTab] = useState('browse')
@@ -11164,6 +11272,9 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
         <button className={`p-filter-tab${tab === 'browse' ? ' active' : ''}`} onClick={() => setTab('browse')}>
           🔍 {t.marketplaceBrowse}
         </button>
+        <button className={`p-filter-tab${tab === 'map' ? ' active' : ''}`} onClick={() => setTab('map')}>
+          🗺️ {lang === 'da' ? 'Kortvisning' : 'Map view'}
+        </button>
         <button className={`p-filter-tab${tab === 'mine' ? ' active' : ''}`} onClick={() => setTab('mine')}>
           📋 {t.marketplaceMyListings}
         </button>
@@ -11210,7 +11321,11 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
         </div>
       )}
 
-      {tab === 'mine' && myListings.length === 0 ? (
+      {tab === 'map' && (
+        <MarketplaceMapView listings={filtered} lang={lang} onSelect={setSelectedListing} />
+      )}
+
+      {tab !== 'map' && (tab === 'mine' && myListings.length === 0 ? (
         <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>
           <div style={{ fontSize: 36, marginBottom: 12 }}>🛍️</div>
           <div style={{ marginBottom: 16 }}>{t.marketplaceNoMyListings}</div>
@@ -11288,7 +11403,7 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
             </div>
           ))}
         </div>
-      )}
+      ))}
 
       {deleteConfirmId && (
         <div className="modal-backdrop" onClick={() => setDeleteConfirmId(null)}>
@@ -11411,6 +11526,12 @@ function ListingDetailModal({ listing, t, lang, currentUser, catLabel, catIcon, 
             )}
           </div>
           {listingDesc(listing) && <p className="p-listing-detail-desc">{listingDesc(listing)}</p>}
+
+          {listing.location && (
+            <div style={{ marginTop: 12 }}>
+              <OsmMap location={listing.location} height={200} lang={lang} />
+            </div>
+          )}
 
           {/* Owner actions */}
           {isOwn && (
