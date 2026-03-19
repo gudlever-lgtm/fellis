@@ -3256,7 +3256,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
                   <div className="p-post-time">{post.time[lang]}</div>
                 </div>
               </div>
-              <div className="p-post-body">{post.text[lang]}</div>
+              <PostText text={post.text} lang={lang} />
               {post.media && <PostMedia media={post.media} />}
               <div className="p-post-stats">
                 <span>{post.likes} {t.like.toLowerCase()}</span>

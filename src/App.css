@@ -1403,6 +1403,8 @@
   line-height: 1.6;
   margin-bottom: 12px;
   color: #1A1A1A;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 /* ── Linkified text ── */
