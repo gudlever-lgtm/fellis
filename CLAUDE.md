@@ -97,6 +97,12 @@ cd server && npm run seed
 | `FB_APP_ID` | Facebook App ID (OAuth) | _(optional)_ |
 | `FB_APP_SECRET` | Facebook App Secret | _(optional)_ |
 | `FB_TOKEN_ENCRYPTION_KEY` | 32-byte hex key for AES-256-GCM token encryption | _(optional, but recommended)_ |
+| `GOOGLE_CLIENT_ID` | Google OAuth 2.0 Client ID (sign-in + photo picker) | _(optional)_ |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth 2.0 Client Secret | _(optional)_ |
+| `GOOGLE_REDIRECT_URI` | Google OAuth callback URL | `https://fellis.eu/api/auth/google/callback` |
+| `LINKEDIN_CLIENT_ID` | LinkedIn OAuth Client ID (sign-in + account linking) | _(optional)_ |
+| `LINKEDIN_CLIENT_SECRET` | LinkedIn OAuth Client Secret | _(optional)_ |
+| `LINKEDIN_REDIRECT_URI` | LinkedIn OAuth callback URL | `https://fellis.eu/api/auth/linkedin/callback` |
 | `MAIL_HOST` | SMTP host for email sending | _(optional)_ |
 | `MAIL_PORT` | SMTP port | `587` |
 | `MAIL_SECURE` | Use TLS | `false` |
@@ -225,6 +231,9 @@ mysql -u root fellis_eu < server/migrate-mfa-reset.sql
 
 # EUR currency support (adds currency/price_eur to marketplace_listings, updates admin_ad_settings)
 mysql -u root fellis_eu < server/migrate-currency.sql
+
+# Google & LinkedIn OAuth columns (adds google_id, linkedin_id to users + unique indexes)
+mysql -u root fellis_eu < server/migrate-google-linkedin-oauth.sql
 ```
 
 ---
