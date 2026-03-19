@@ -8416,6 +8416,105 @@ app.get('/api/users/suggested', authenticate, async (req, res) => {
   }
 })
 
+// GET /api/feed/suggested-posts — posts from non-friends ranked by tag overlap
+// Primary signal: hashtags the current user has used in their own posts.
+// Falls back to engagement-based ranking when the user has no hashtag history.
+app.get('/api/feed/suggested-posts', authenticate, async (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit) || 20, 40)
+  const excludeIds = (req.query.exclude_ids || '')
+    .split(',').map(s => parseInt(s)).filter(n => !isNaN(n) && n > 0)
+
+  try {
+    // Try tag-overlap ranking first (requires post_hashtags table)
+    let rows = []
+    try {
+      const excludeClause = excludeIds.length
+        ? `AND p.id NOT IN (${excludeIds.map(() => '?').join(',')})`
+        : ''
+
+      ;[rows] = await pool.query(`
+        SELECT
+          p.id, p.author_id, p.text_da, p.text_en, p.time_da, p.time_en,
+          p.likes, p.media, p.categories, p.created_at,
+          u.name AS author, u.avatar_url, u.initials,
+          (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) AS comment_count,
+          COALESCE(td.overlap, 0) AS tag_overlap,
+          td.matching_tags
+        FROM posts p
+        JOIN users u ON u.id = p.author_id
+        LEFT JOIN (
+          SELECT ph2.post_id,
+            COUNT(DISTINCT ph2.tag) AS overlap,
+            GROUP_CONCAT(DISTINCT ph2.tag ORDER BY ph2.tag SEPARATOR ',') AS matching_tags
+          FROM post_hashtags ph2
+          WHERE ph2.tag IN (
+            SELECT DISTINCT ph1.tag
+            FROM post_hashtags ph1
+            WHERE ph1.post_id IN (
+              SELECT id FROM posts WHERE author_id = ? ORDER BY created_at DESC LIMIT 50
+            )
+          )
+          GROUP BY ph2.post_id
+        ) AS td ON td.post_id = p.id
+        WHERE p.author_id != ?
+          AND p.author_id NOT IN (SELECT friend_id FROM friendships WHERE user_id = ?)
+          AND p.scheduled_at IS NULL
+          AND p.created_at > NOW() - INTERVAL 60 DAY
+          ${excludeClause}
+        ORDER BY td.overlap DESC, p.likes DESC, p.created_at DESC
+        LIMIT ?
+      `, [req.userId, req.userId, req.userId, ...excludeIds, limit])
+    } catch {
+      // post_hashtags table missing — fall back to popularity
+    }
+
+    // If tag-overlap returned nothing (no hashtags used), fall back to popularity
+    if (!rows.length) {
+      const excludeClause = excludeIds.length
+        ? `AND p.id NOT IN (${excludeIds.map(() => '?').join(',')})`
+        : ''
+      ;[rows] = await pool.query(`
+        SELECT
+          p.id, p.author_id, p.text_da, p.text_en, p.time_da, p.time_en,
+          p.likes, p.media, p.categories, p.created_at,
+          u.name AS author, u.avatar_url, u.initials,
+          (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) AS comment_count,
+          0 AS tag_overlap, NULL AS matching_tags
+        FROM posts p
+        JOIN users u ON u.id = p.author_id
+        WHERE p.author_id != ?
+          AND p.author_id NOT IN (SELECT friend_id FROM friendships WHERE user_id = ?)
+          AND p.scheduled_at IS NULL
+          AND p.created_at > NOW() - INTERVAL 60 DAY
+          ${excludeClause}
+        ORDER BY p.likes DESC, p.created_at DESC
+        LIMIT ?
+      `, [req.userId, req.userId, ...excludeIds, limit])
+    }
+
+    const posts = rows.map(r => ({
+      id: r.id,
+      author: r.author,
+      author_id: r.author_id,
+      avatar_url: r.avatar_url,
+      initials: r.initials,
+      text: { da: r.text_da, en: r.text_en },
+      time: { da: r.time_da, en: r.time_en },
+      likes: r.likes,
+      comment_count: r.comment_count,
+      media: r.media ? JSON.parse(r.media) : null,
+      categories: r.categories ? JSON.parse(r.categories) : null,
+      tag_overlap: r.tag_overlap || 0,
+      matching_tags: r.matching_tags ? r.matching_tags.split(',').slice(0, 3) : [],
+    }))
+
+    res.json({ posts })
+  } catch (err) {
+    console.error('GET /api/feed/suggested-posts error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // ── SPA fallback — serve index.html for all non-API, non-asset routes ─────
 app.get('*', (req, res) => {
   res.sendFile(path.join(FRONTEND_ROOT, 'index.html'))

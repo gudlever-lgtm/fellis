@@ -1189,6 +1189,12 @@ export async function apiDeleteStory(id) {
   return await request(`/api/stories/${id}`, { method: 'DELETE' })
 }
 
+export async function apiGetSuggestedPosts(excludeIds = []) {
+  const params = new URLSearchParams({ limit: '20' })
+  if (excludeIds.length) params.set('exclude_ids', excludeIds.join(','))
+  return await request(`/api/feed/suggested-posts?${params}`)
+}
+
 // ── Explore ───────────────────────────────────────────────────────────────────
 export async function apiGetTrendingTags() {
   return await request('/api/explore/trending-tags')
