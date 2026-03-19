@@ -2840,6 +2840,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
   const [photos, setPhotos] = useState([])
   const [lightbox, setLightbox] = useState(null)
   const { rels } = useContactRelationships()
+  const { syncFromServer: syncEggsFromServer } = useEasterEggs()
 
   useEffect(() => {
     if (profileTab === 'scheduled' && scheduledPosts === null) {
