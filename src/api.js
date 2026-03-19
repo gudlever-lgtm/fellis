@@ -631,6 +631,14 @@ export async function apiUpdateInterests(interests) {
   return await request('/api/me/interests', { method: 'PATCH', body: JSON.stringify({ interests }) })
 }
 
+export async function apiUpdateTags(tags) {
+  return await request('/api/me/tags', { method: 'PATCH', body: JSON.stringify({ tags }) })
+}
+
+export async function apiUpdateProfileExtended(data) {
+  return await request('/api/me/profile-extended', { method: 'PATCH', body: JSON.stringify(data) })
+}
+
 export async function apiGetFeedWeights() {
   return await request('/api/admin/feed-weights')
 }

@@ -1125,6 +1125,172 @@ app.get('/api/auth/session', authenticate, async (req, res) => {
   }
 })
 
+// ── Google OAuth ──
+
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET
+const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || 'https://fellis.eu/api/auth/google/callback'
+
+app.get('/api/auth/google', (req, res) => {
+  if (!GOOGLE_CLIENT_ID) return res.status(500).json({ error: 'Google integration not configured' })
+  const state = crypto.randomBytes(16).toString('hex')
+  const params = new URLSearchParams({
+    client_id: GOOGLE_CLIENT_ID,
+    redirect_uri: GOOGLE_REDIRECT_URI,
+    response_type: 'code',
+    scope: 'openid email profile',
+    state,
+    access_type: 'offline',
+    prompt: 'select_account',
+  })
+  res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`)
+})
+
+app.get('/api/auth/google/callback', async (req, res) => {
+  if (!GOOGLE_CLIENT_ID) return res.redirect('/?error=google_not_configured')
+  const { code, error } = req.query
+  if (error || !code) return res.redirect('/?error=google_denied')
+  try {
+    // Exchange code for tokens
+    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code, client_id: GOOGLE_CLIENT_ID, client_secret: GOOGLE_CLIENT_SECRET,
+        redirect_uri: GOOGLE_REDIRECT_URI, grant_type: 'authorization_code',
+      }),
+    })
+    const tokens = await tokenRes.json()
+    if (!tokens.access_token) return res.redirect('/?error=google_token_failed')
+    // Get user info
+    const userRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: `Bearer ${tokens.access_token}` },
+    })
+    const gUser = await userRes.json()
+    if (!gUser.sub) return res.redirect('/?error=google_userinfo_failed')
+
+    const sessionId = getSessionIdFromRequest(req)
+    if (sessionId) {
+      // Logged-in user: connect Google to existing account
+      const [[sess]] = await pool.query('SELECT user_id FROM sessions WHERE id = ? AND expires_at > NOW()', [sessionId])
+      if (sess) {
+        await pool.query('UPDATE users SET google_id = ? WHERE id = ?', [gUser.sub, sess.user_id])
+        return res.redirect('/?google_connected=1')
+      }
+    }
+    // Not logged in: login or register via Google
+    const [[existing]] = await pool.query('SELECT id FROM users WHERE google_id = ?', [gUser.sub])
+    let userId
+    if (existing) {
+      userId = existing.id
+    } else if (gUser.email) {
+      const [[byEmail]] = await pool.query('SELECT id FROM users WHERE email = ?', [gUser.email])
+      if (byEmail) {
+        await pool.query('UPDATE users SET google_id = ? WHERE id = ?', [gUser.sub, byEmail.id])
+        userId = byEmail.id
+      } else {
+        // Create new account
+        const handle = (gUser.email.split('@')[0] + Math.floor(Math.random() * 1000)).toLowerCase().replace(/[^a-z0-9_.]/g, '').slice(0, 30)
+        const name = gUser.name || gUser.email.split('@')[0]
+        const [ins] = await pool.query(
+          'INSERT INTO users (name, handle, email, google_id, avatar_url, interests, created_at) VALUES (?,?,?,?,?,?,NOW())',
+          [name, handle, gUser.email, gUser.sub, gUser.picture || null, JSON.stringify([])]
+        )
+        userId = ins.insertId
+      }
+    } else {
+      return res.redirect('/?error=google_no_email')
+    }
+    // Create session
+    const newSessId = crypto.randomBytes(32).toString('hex')
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    await pool.query('INSERT INTO sessions (id, user_id, expires_at) VALUES (?,?,?)', [newSessId, userId, expiresAt])
+    res.redirect(`/?google_session=${newSessId}`)
+  } catch (err) {
+    console.error('Google OAuth callback error:', err.message)
+    res.redirect('/?error=google_error')
+  }
+})
+
+// ── LinkedIn OAuth ──
+
+const LINKEDIN_CLIENT_ID = process.env.LINKEDIN_CLIENT_ID
+const LINKEDIN_CLIENT_SECRET = process.env.LINKEDIN_CLIENT_SECRET
+const LINKEDIN_REDIRECT_URI = process.env.LINKEDIN_REDIRECT_URI || 'https://fellis.eu/api/auth/linkedin/callback'
+
+app.get('/api/auth/linkedin', (req, res) => {
+  if (!LINKEDIN_CLIENT_ID) return res.status(500).json({ error: 'LinkedIn integration not configured' })
+  const state = crypto.randomBytes(16).toString('hex')
+  const params = new URLSearchParams({
+    response_type: 'code',
+    client_id: LINKEDIN_CLIENT_ID,
+    redirect_uri: LINKEDIN_REDIRECT_URI,
+    scope: 'openid profile email',
+    state,
+  })
+  res.redirect(`https://www.linkedin.com/oauth/v2/authorization?${params}`)
+})
+
+app.get('/api/auth/linkedin/callback', async (req, res) => {
+  if (!LINKEDIN_CLIENT_ID) return res.redirect('/?error=linkedin_not_configured')
+  const { code, error } = req.query
+  if (error || !code) return res.redirect('/?error=linkedin_denied')
+  try {
+    const tokenRes = await fetch('https://www.linkedin.com/oauth/v2/accessToken', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code', code,
+        client_id: LINKEDIN_CLIENT_ID, client_secret: LINKEDIN_CLIENT_SECRET,
+        redirect_uri: LINKEDIN_REDIRECT_URI,
+      }),
+    })
+    const tokens = await tokenRes.json()
+    if (!tokens.access_token) return res.redirect('/?error=linkedin_token_failed')
+    const userRes = await fetch('https://api.linkedin.com/v2/userinfo', {
+      headers: { Authorization: `Bearer ${tokens.access_token}` },
+    })
+    const lUser = await userRes.json()
+    if (!lUser.sub) return res.redirect('/?error=linkedin_userinfo_failed')
+
+    const sessionId = getSessionIdFromRequest(req)
+    if (sessionId) {
+      const [[sess]] = await pool.query('SELECT user_id FROM sessions WHERE id = ? AND expires_at > NOW()', [sessionId])
+      if (sess) {
+        await pool.query('UPDATE users SET linkedin_id = ? WHERE id = ?', [lUser.sub, sess.user_id])
+        return res.redirect('/?linkedin_connected=1')
+      }
+    }
+    const [[existing]] = await pool.query('SELECT id FROM users WHERE linkedin_id = ?', [lUser.sub])
+    let userId
+    if (existing) {
+      userId = existing.id
+    } else if (lUser.email) {
+      const [[byEmail]] = await pool.query('SELECT id FROM users WHERE email = ?', [lUser.email])
+      if (byEmail) {
+        await pool.query('UPDATE users SET linkedin_id = ? WHERE id = ?', [lUser.sub, byEmail.id])
+        userId = byEmail.id
+      } else {
+        const handle = (lUser.email.split('@')[0] + Math.floor(Math.random() * 1000)).toLowerCase().replace(/[^a-z0-9_.]/g, '').slice(0, 30)
+        const [ins] = await pool.query(
+          'INSERT INTO users (name, handle, email, linkedin_id, avatar_url, interests, created_at) VALUES (?,?,?,?,?,?,NOW())',
+          [lUser.name || lUser.email.split('@')[0], handle, lUser.email, lUser.sub, lUser.picture || null, JSON.stringify([])]
+        )
+        userId = ins.insertId
+      }
+    } else {
+      return res.redirect('/?error=linkedin_no_email')
+    }
+    const newSessId = crypto.randomBytes(32).toString('hex')
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    await pool.query('INSERT INTO sessions (id, user_id, expires_at) VALUES (?,?,?)', [newSessId, userId, expiresAt])
+    res.redirect(`/?linkedin_session=${newSessId}`)
+  } catch (err) {
+    console.error('LinkedIn OAuth callback error:', err.message)
+    res.redirect('/?error=linkedin_error')
+  }
+})
+
 // ── Facebook OAuth ──
 
 const FB_APP_ID = process.env.FB_APP_ID
@@ -1480,8 +1646,9 @@ app.get('/api/profile', authenticate, async (req, res) => {
   try {
     const [users] = await pool.query(
       `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url,
-        u.email, u.facebook_id, u.password_hash, u.password_plain, u.created_at, u.birthday,
-        u.profile_public, u.reputation_score, u.referral_count, u.interests,
+        u.email, u.facebook_id, u.google_id, u.linkedin_id, u.password_hash, u.password_plain, u.created_at, u.birthday,
+        u.profile_public, u.reputation_score, u.referral_count, u.interests, u.tags,
+        u.relationship_status, u.website,
         u.phone, u.mfa_enabled,
         (SELECT COUNT(*) FROM friendships WHERE user_id = u.id) as friend_count,
         (SELECT COUNT(*) FROM posts WHERE author_id = u.id) as post_count
@@ -1492,6 +1659,8 @@ app.get('/api/profile', authenticate, async (req, res) => {
     const u = users[0]
     let interests = []
     try { interests = typeof u.interests === 'string' ? JSON.parse(u.interests) : (u.interests || []) } catch {}
+    let tags = []
+    try { tags = typeof u.tags === 'string' ? JSON.parse(u.tags) : (u.tags || []) } catch {}
     res.json({
       id: u.id, name: u.name, handle: u.handle, initials: u.initials,
       bio: { da: u.bio_da || '', en: u.bio_en || '' },
@@ -1507,7 +1676,14 @@ app.get('/api/profile', authenticate, async (req, res) => {
       profile_public: !!u.profile_public,
       reputationScore: Number(u.reputation_score || 0),
       referralCount: Number(u.referral_count || 0),
-      interests,
+      interests, tags,
+      relationship_status: u.relationship_status || null,
+      website: u.website || null,
+      connectedProviders: {
+        facebook: !!u.facebook_id,
+        google: !!u.google_id,
+        linkedin: !!u.linkedin_id,
+      },
       phone: u.phone || null,
       mfaEnabled: !!u.mfa_enabled,
     })
@@ -1568,6 +1744,41 @@ app.patch('/api/me/interests', authenticate, async (req, res) => {
     res.json({ ok: true, interests: clean })
   } catch (err) {
     res.status(500).json({ error: 'Failed to update interests' })
+  }
+})
+
+// PATCH /api/me/tags — save user tags (max 10, max 30 chars each)
+app.patch('/api/me/tags', authenticate, async (req, res) => {
+  const { tags } = req.body
+  if (!Array.isArray(tags)) return res.status(400).json({ error: 'tags must be an array' })
+  const clean = tags.map(t => String(t).trim().slice(0, 30)).filter(Boolean).slice(0, 10)
+  try {
+    await pool.query('UPDATE users SET tags = ? WHERE id = ?', [JSON.stringify(clean), req.userId])
+    res.json({ ok: true, tags: clean })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update tags' })
+  }
+})
+
+// PATCH /api/me/profile-extended — update relationship_status + website
+app.patch('/api/me/profile-extended', authenticate, async (req, res) => {
+  const { relationship_status, website } = req.body
+  const VALID_REL = ['single','in_relationship','married','engaged','open','prefer_not']
+  const fields = [], vals = []
+  if (relationship_status !== undefined) {
+    const rel = VALID_REL.includes(relationship_status) ? relationship_status : null
+    fields.push('relationship_status = ?'); vals.push(rel)
+  }
+  if (website !== undefined) {
+    const url = website ? String(website).trim().slice(0, 300) : null
+    fields.push('website = ?'); vals.push(url)
+  }
+  if (!fields.length) return res.status(400).json({ error: 'Nothing to update' })
+  try {
+    await pool.query(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`, [...vals, req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update profile' })
   }
 })
 
@@ -4291,6 +4502,13 @@ async function initSettingsSchema() {
     await addCol('users', 'analytics_opt_out', 'TINYINT(1) NOT NULL DEFAULT 0')
     await addCol('users', 'allow_tagging', 'TINYINT(1) NOT NULL DEFAULT 1')
     await addCol('users', 'friend_list_visibility', "ENUM('all','friends','only_me') NOT NULL DEFAULT 'all'")
+    // Extended profile fields
+    await addCol('users', 'tags', 'JSON DEFAULT NULL')
+    await addCol('users', 'relationship_status', "ENUM('single','in_relationship','married','engaged','open','prefer_not') DEFAULT NULL")
+    await addCol('users', 'website', 'VARCHAR(300) DEFAULT NULL')
+    // OAuth provider IDs
+    await addCol('users', 'google_id', 'VARCHAR(100) DEFAULT NULL')
+    await addCol('users', 'linkedin_id', 'VARCHAR(100) DEFAULT NULL')
     // Skills tables
     await pool.query(`CREATE TABLE IF NOT EXISTS user_skills (
       id INT AUTO_INCREMENT PRIMARY KEY,

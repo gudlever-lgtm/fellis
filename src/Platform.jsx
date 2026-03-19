@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } f
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { SUPPORTED_LANGS, EUROPEAN_LANGUAGES, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials, getTranslations } from './data.js'
 import { formatPrice } from './utils/currency.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJob, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiRevealPassword, apiGetAdminMfaUsers, apiAdminForceDisableMfa } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJob, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiRevealPassword, apiGetAdminMfaUsers, apiAdminForceDisableMfa } from './api.js'
 import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
 import ReelsPage from './Reels.jsx'
@@ -2918,6 +2918,9 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
   const [interests, setInterests] = useState([])
   const [interestsSaving, setInterestsSaving] = useState(false)
   const [interestsSavedMsg, setInterestsSavedMsg] = useState('')
+  const [tags, setTags] = useState([])
+  const [relationshipStatus, setRelationshipStatus] = useState(null)
+  const [website, setWebsite] = useState('')
   const [parachordEnabled, setParachordEnabled] = useState(() => localStorage.getItem('fellis_parachord_enabled') !== 'false')
   const [profilePublic, setProfilePublic] = useState(false)
   const [profilePublicSaving, setProfilePublicSaving] = useState(false)
@@ -2952,6 +2955,9 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
       if (data) {
         setProfile(data)
         if (data.interests?.length) setInterests(data.interests)
+        if (data.tags) setTags(data.tags)
+        if (data.relationship_status) setRelationshipStatus(data.relationship_status)
+        if (data.website) setWebsite(data.website)
         if (data.profile_public !== undefined) setProfilePublic(!!data.profile_public)
         if (data.avatar_url || data.avatarUrl) {
           onUserUpdate(prev => ({ ...prev, avatar_url: data.avatarUrl || data.avatar_url }))
@@ -3095,6 +3101,33 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
             ✏️ {lang === 'da' ? 'Rediger interesser' : 'Edit interests'}
           </button>
         </div>
+
+        {/* Tags, relation, website */}
+        {(tags.length > 0 || relationshipStatus || website) && (
+          <div className="p-card p-login-info-card" style={{ marginBottom: 16 }}>
+            {tags.length > 0 && (<>
+              <h3 className="p-section-title">🏷️ {lang === 'da' ? 'Tags' : 'Tags'}</h3>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+                {tags.map(tag => (
+                  <span key={tag} style={{ padding: '4px 10px', borderRadius: 20, fontSize: 12, background: '#f5f5f5', color: '#555', border: '1px solid #e0e0e0' }}>#{tag}</span>
+                ))}
+              </div>
+            </>)}
+            {relationshipStatus && (<>
+              <h3 className="p-section-title">💛 {lang === 'da' ? 'Relation' : 'Relationship'}</h3>
+              <p style={{ fontSize: 13, color: '#555', margin: '0 0 12px' }}>
+                {({ single: lang === 'da' ? 'Single' : 'Single', in_relationship: lang === 'da' ? 'I et forhold' : 'In a relationship', married: lang === 'da' ? 'Gift' : 'Married', engaged: lang === 'da' ? 'Forlovet' : 'Engaged', open: lang === 'da' ? 'Åbent forhold' : 'Open relationship', prefer_not: lang === 'da' ? 'Foretrækker ikke at oplyse' : 'Prefer not to say' })[relationshipStatus] || relationshipStatus}
+              </p>
+            </>)}
+            {website && (<>
+              <h3 className="p-section-title">🔗 {lang === 'da' ? 'Hjemmeside' : 'Website'}</h3>
+              <a href={website.startsWith('http') ? website : `https://${website}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: '#2D6A4F', wordBreak: 'break-all' }}>{website}</a>
+            </>)}
+            <button onClick={() => onNavigate('edit-profile')} style={{ marginTop: 12, padding: '6px 16px', borderRadius: 8, border: '1px solid #2D6A4F', background: '#fff', color: '#2D6A4F', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+              ✏️ {lang === 'da' ? 'Rediger' : 'Edit'}
+            </button>
+          </div>
+        )}
 
         <div className="p-card p-login-info-card" style={{ marginBottom: 16 }}>
           <h3 className="p-section-title">🌐 {t.referralDashPublicProfile}</h3>
@@ -3402,14 +3435,23 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
   const [interestsSavedMsg, setInterestsSavedMsg] = useState('')
   const [interestsSaveOk, setInterestsSaveOk] = useState(true)
   const [birthday, setBirthday] = useState(currentUser.birthday || '')
-  const [birthdaySaveStatus, setBirthdaySaveStatus] = useState(null) // null | 'saving' | 'saved' | 'error'
-  const [bioSaveStatus, setBioSaveStatus] = useState(null) // null | 'saving' | 'saved' | 'error'
+  const [birthdaySaveStatus, setBirthdaySaveStatus] = useState(null)
+  const [bioSaveStatus, setBioSaveStatus] = useState(null)
+  // Extended profile
+  const [tags, setTags] = useState([])
+  const [tagInput, setTagInput] = useState('')
+  const [relationshipStatus, setRelationshipStatus] = useState('')
+  const [website, setWebsite] = useState('')
+  const [extSaveStatus, setExtSaveStatus] = useState(null)
 
   useEffect(() => {
     apiFetchProfile().then(data => {
       if (data) {
         setProfile(data)
         if (data.interests?.length) setInterests(data.interests)
+        if (data.tags) setTags(data.tags)
+        if (data.relationship_status) setRelationshipStatus(data.relationship_status)
+        if (data.website) setWebsite(data.website)
         setBirthday(data.birthday ? data.birthday.slice(0, 10) : '')
       }
     })
@@ -3685,6 +3727,80 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
           </button>
         </div>
 
+        {/* Tags, relationship status, website */}
+        <div className="p-card" style={{ padding: 20, marginTop: 12 }}>
+          <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 700 }}>🏷️ {lang === 'da' ? 'Tags, relation & hjemmeside' : 'Tags, relationship & website'}</h3>
+
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>{lang === 'da' ? 'Tags (maks. 10, maks. 30 tegn)' : 'Tags (max 10, max 30 chars)'}</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+            {tags.map(tag => (
+              <span key={tag} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 20, fontSize: 12, background: '#f5f5f5', border: '1px solid #e0e0e0', color: '#555' }}>
+                #{tag}
+                <button type="button" onClick={() => setTags(prev => prev.filter(t => t !== tag))} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#999', padding: 0, lineHeight: 1 }}>×</button>
+              </span>
+            ))}
+          </div>
+          {tags.length < 10 && (
+            <div style={{ display: 'flex', gap: 6 }}>
+              <input
+                value={tagInput}
+                onChange={e => setTagInput(e.target.value.replace(/\s/g, ''))}
+                onKeyDown={e => {
+                  if ((e.key === 'Enter' || e.key === ',') && tagInput.trim()) {
+                    e.preventDefault()
+                    const t = tagInput.trim().slice(0, 30)
+                    if (t && !tags.includes(t)) setTags(prev => [...prev, t])
+                    setTagInput('')
+                  }
+                }}
+                placeholder={lang === 'da' ? 'Skriv tag + Enter' : 'Type tag + Enter'}
+                style={{ flex: 1, padding: '7px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13 }}
+              />
+              <button type="button" onClick={() => { const t = tagInput.trim().slice(0, 30); if (t && !tags.includes(t)) { setTags(prev => [...prev, t]); setTagInput('') } }} style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid #2D6A4F', background: '#fff', color: '#2D6A4F', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>+</button>
+            </div>
+          )}
+
+          <div style={{ fontSize: 13, fontWeight: 600, margin: '16px 0 6px' }}>{lang === 'da' ? 'Relationsstatus' : 'Relationship status'}</div>
+          <select value={relationshipStatus} onChange={e => setRelationshipStatus(e.target.value)} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13 }}>
+            <option value="">{lang === 'da' ? '— Vælg (valgfrit) —' : '— Choose (optional) —'}</option>
+            <option value="single">{lang === 'da' ? 'Single' : 'Single'}</option>
+            <option value="in_relationship">{lang === 'da' ? 'I et forhold' : 'In a relationship'}</option>
+            <option value="married">{lang === 'da' ? 'Gift' : 'Married'}</option>
+            <option value="engaged">{lang === 'da' ? 'Forlovet' : 'Engaged'}</option>
+            <option value="open">{lang === 'da' ? 'Åbent forhold' : 'Open relationship'}</option>
+            <option value="prefer_not">{lang === 'da' ? 'Foretrækker ikke at oplyse' : 'Prefer not to say'}</option>
+          </select>
+
+          <div style={{ fontSize: 13, fontWeight: 600, margin: '16px 0 6px' }}>{lang === 'da' ? 'Hjemmeside / link' : 'Website / link'}</div>
+          <input
+            value={website}
+            onChange={e => setWebsite(e.target.value)}
+            placeholder="https://..."
+            style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }}
+          />
+
+          {extSaveStatus && (
+            <div style={{ marginTop: 8, fontSize: 13, color: extSaveStatus === 'saved' ? '#2D6A4F' : '#e53935', fontWeight: 600 }}>
+              {extSaveStatus === 'saved' ? (lang === 'da' ? '✓ Gemt' : '✓ Saved') : (lang === 'da' ? '✗ Fejl' : '✗ Error')}
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={async () => {
+              setExtSaveStatus(null)
+              const [r1, r2] = await Promise.all([
+                apiUpdateTags(tags),
+                apiUpdateProfileExtended({ relationship_status: relationshipStatus || null, website: website || null }),
+              ])
+              setExtSaveStatus(r1?.ok && r2?.ok ? 'saved' : 'error')
+              setTimeout(() => setExtSaveStatus(null), 3000)
+            }}
+            style={{ marginTop: 12, padding: '7px 20px', borderRadius: 8, fontSize: 13, fontWeight: 700, background: '#2D6A4F', color: '#fff', border: 'none', cursor: 'pointer' }}
+          >
+            {lang === 'da' ? 'Gem' : 'Save'}
+          </button>
+        </div>
+
         <button
           style={{ marginTop: 24, padding: '10px 20px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
           onClick={() => onNavigate('profile')}
@@ -3949,9 +4065,11 @@ function BillingSettings({ lang, t }) {
 
 function SettingsLeverandoerer({ lang, t }) {
   const [config, setConfig] = useState(null)
+  const [profile, setProfile] = useState(null)
 
   useEffect(() => {
     apiGetConfig().then(res => { if (res) setConfig(res?.config || res) })
+    apiFetchProfile().then(data => { if (data) setProfile(data) })
   }, [])
 
   const cardStyle = { background: '#fff', borderRadius: 12, border: '1px solid #e8e8e8', padding: '20px 22px', marginBottom: 16 }
@@ -3997,36 +4115,14 @@ function SettingsLeverandoerer({ lang, t }) {
           <div style={{ ...logoStyle, background: '#7EBC6F', fontSize: 22 }}>🗺️</div>
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 700, fontSize: 15 }}>OpenStreetMap</div>
-            <span style={badgeStyle(true)}>{da ? 'Indbygget' : 'Built-in'}</span>
+            <span style={badgeStyle(false)}>{da ? 'Kommende' : 'Coming soon'}</span>
           </div>
           <a href="https://www.openstreetmap.org" target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#2D6A4F' }}>openstreetmap.org ↗</a>
         </div>
         <p style={{ fontSize: 13, color: '#555', margin: 0 }}>
           {da
-            ? 'Brugt til kortvisning og stedsøgning ved tilføjelse af lokation til opslag. OpenStreetMap er et open-source kortprojekt drevet af frivillige — ingen data sendes til Google Maps eller andre kommercielle udbydere.'
-            : 'Used for map display and location search when adding a location to posts. OpenStreetMap is an open-source map project run by volunteers — no data is sent to Google Maps or other commercial providers.'}
-        </p>
-      </div>
-
-      {/* Nextcloud */}
-      <div style={cardStyle}>
-        <div style={headerStyle}>
-          <div style={{ ...logoStyle, background: '#0082C9', fontSize: 20 }}>
-            <svg width="22" height="22" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="128" cy="128" r="128" fill="#0082C9"/>
-              <path d="M128 56c-28.7 0-52.2 20.6-57 48.1C63.1 98 54.9 94 46 94c-19.9 0-36 16.1-36 36s16.1 36 36 36c8.9 0 17.1-3.3 23.3-8.8.7 1.5 1.5 3 2.4 4.4C82.3 179.5 104.2 192 128 192s45.7-12.5 56.3-30.4c.9-1.4 1.7-2.9 2.4-4.4 6.2 5.5 14.4 8.8 23.3 8.8 19.9 0 36-16.1 36-36s-16.1-36-36-36c-8.9 0-17.1 3.3-23.3 8.8-4.4-27.7-28.2-48.8-58.7-48.8z" fill="white"/>
-            </svg>
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>Nextcloud</div>
-            <span style={badgeStyle(false)}>{da ? 'Kommende' : 'Coming soon'}</span>
-          </div>
-          <a href="https://nextcloud.com" target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#2D6A4F' }}>nextcloud.com ↗</a>
-        </div>
-        <p style={{ fontSize: 13, color: '#555', margin: 0 }}>
-          {da
-            ? 'Forbind din Nextcloud-instans og upload billeder og filer direkte herfra. Nextcloud er open-source og EU-hostet — en privatlivsfokuseret alternativ til Dropbox og Google Drive.'
-            : 'Connect your Nextcloud instance and upload photos and files directly from it. Nextcloud is open-source and EU-hosted — a privacy-focused alternative to Dropbox and Google Drive.'}
+            ? 'Lokation på opslag — stedsøgning via Nominatim/OpenStreetMap uden API-nøgle. Open-source og EU-baseret, ingen data sendes til Google Maps.'
+            : 'Location on posts — place search via Nominatim/OpenStreetMap with no API key. Open-source and EU-based, no data sent to Google Maps.'}
         </p>
       </div>
 
@@ -4063,6 +4159,80 @@ function SettingsLeverandoerer({ lang, t }) {
           {da
             ? 'Svensk telekomoperatør brugt til afsendelse af SMS-engangskoder ved to-faktor-login (MFA). Ingen SMS-data opbevares på fellis.eu — kun din telefonnummer, som du selv angiver.'
             : 'Swedish telecom provider used to send SMS one-time codes during two-factor login (MFA). No SMS data is stored on fellis.eu — only your phone number, which you provide yourself.'}
+        </p>
+      </div>
+
+      {sectionTitle(da ? 'Login & identitet' : 'Login & identity')}
+      <p style={{ fontSize: 13, color: '#666', margin: '-4px 0 16px' }}>
+        {da ? 'Forbind din konto med andre login-udbydere. Du kan altid logge ind med din fellis-konto uanset.' : 'Connect your account to other login providers. You can always log in with your fellis account regardless.'}
+      </p>
+
+      {/* Facebook */}
+      <div style={cardStyle}>
+        <div style={headerStyle}>
+          <div style={{ ...logoStyle, background: '#1877F2' }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>Facebook</div>
+            <span style={badgeStyle(!!profile?.connectedProviders?.facebook)}>
+              {profile?.connectedProviders?.facebook ? (da ? 'Tilknyttet' : 'Connected') : (da ? 'Ikke tilknyttet' : 'Not connected')}
+            </span>
+          </div>
+          {!profile?.connectedProviders?.facebook && config?.fb_app_id && (
+            <a href="/api/auth/facebook" style={{ padding: '6px 14px', borderRadius: 8, background: '#1877F2', color: '#fff', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
+              {da ? 'Forbind' : 'Connect'}
+            </a>
+          )}
+        </div>
+        <p style={{ fontSize: 13, color: '#555', margin: 0 }}>
+          {da ? 'Log ind med din Facebook-konto. Profilbillede og navn kan importeres ved oprettelse.' : 'Log in with your Facebook account. Profile picture and name can be imported on sign-up.'}
+        </p>
+      </div>
+
+      {/* Google */}
+      <div style={cardStyle}>
+        <div style={headerStyle}>
+          <div style={{ ...logoStyle, background: '#fff', border: '1px solid #e8e8e8' }}>
+            <svg width="20" height="20" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>Google</div>
+            <span style={badgeStyle(!!profile?.connectedProviders?.google)}>
+              {profile?.connectedProviders?.google ? (da ? 'Tilknyttet' : 'Connected') : (da ? 'Ikke tilknyttet' : 'Not connected')}
+            </span>
+          </div>
+          {!profile?.connectedProviders?.google && (
+            <a href="/api/auth/google" style={{ padding: '6px 14px', borderRadius: 8, background: '#4285F4', color: '#fff', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
+              {da ? 'Forbind' : 'Connect'}
+            </a>
+          )}
+        </div>
+        <p style={{ fontSize: 13, color: '#555', margin: 0 }}>
+          {da ? 'Log ind eller opret konto med din Google-konto. Kræver GOOGLE_CLIENT_ID i serverkonfigurationen.' : 'Log in or sign up with your Google account. Requires GOOGLE_CLIENT_ID in server configuration.'}
+        </p>
+      </div>
+
+      {/* LinkedIn */}
+      <div style={cardStyle}>
+        <div style={headerStyle}>
+          <div style={{ ...logoStyle, background: '#0A66C2' }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>LinkedIn</div>
+            <span style={badgeStyle(!!profile?.connectedProviders?.linkedin)}>
+              {profile?.connectedProviders?.linkedin ? (da ? 'Tilknyttet' : 'Connected') : (da ? 'Ikke tilknyttet' : 'Not connected')}
+            </span>
+          </div>
+          {!profile?.connectedProviders?.linkedin && (
+            <a href="/api/auth/linkedin" style={{ padding: '6px 14px', borderRadius: 8, background: '#0A66C2', color: '#fff', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
+              {da ? 'Forbind' : 'Connect'}
+            </a>
+          )}
+        </div>
+        <p style={{ fontSize: 13, color: '#555', margin: 0 }}>
+          {da ? 'Forbind din LinkedIn-profil til fellis-kontoen. Særligt nyttigt i business-tilstand. Kræver LINKEDIN_CLIENT_ID i serverkonfigurationen.' : 'Connect your LinkedIn profile to your fellis account. Especially useful in business mode. Requires LINKEDIN_CLIENT_ID in server configuration.'}
         </p>
       </div>
 

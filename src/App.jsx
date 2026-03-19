@@ -501,9 +501,36 @@ function App() {
         setShowConsent(true)
       }
       setView('platform')
-      // Clean up URL params
       window.history.replaceState({}, '', window.location.pathname)
       return
+    }
+
+    // Returning from Google OAuth
+    const googleSession = params.get('google_session')
+    const googleConnected = params.get('google_connected')
+    if (googleSession) {
+      localStorage.setItem('fellis_session_id', googleSession)
+      localStorage.setItem('fellis_logged_in', 'true')
+      setView('platform')
+      window.history.replaceState({}, '', window.location.pathname)
+      return
+    }
+    if (googleConnected === '1') {
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+
+    // Returning from LinkedIn OAuth
+    const linkedinSession = params.get('linkedin_session')
+    const linkedinConnected = params.get('linkedin_connected')
+    if (linkedinSession) {
+      localStorage.setItem('fellis_session_id', linkedinSession)
+      localStorage.setItem('fellis_logged_in', 'true')
+      setView('platform')
+      window.history.replaceState({}, '', window.location.pathname)
+      return
+    }
+    if (linkedinConnected === '1') {
+      window.history.replaceState({}, '', window.location.pathname)
     }
 
     // Check for invite token in URL
