@@ -1273,6 +1273,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [providerMediaUrls, setProviderMediaUrls] = useState([])
   const textareaRef = useRef(null)
   const suggestCategoryTimer = useRef(null)
+  const hintIconRef = useRef(null)
   const feedMention = useMention(sharePopupFriends || [])
   const bottomSentinelRef = useRef(null)
   const topSentinelRef = useRef(null)
@@ -1304,7 +1305,10 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const triggerChuck = () => { if (!chuckActive && triggerEgg('chuck', onBadgeCheck)) { setChuckActive(true) } }
   useKonamiCode(triggerChuck, !chuckActive)
 
-  // Matrix Rain: 7 avatar clicks within 3 seconds (works on mobile too)
+  // Matrix Rain: type "matrix" (keyboard) / 7 avatar clicks within 3 seconds (mobile)
+  useKeySequence('matrix', () => {
+    if (!matrixActive && triggerEgg('matrix', onBadgeCheck)) { setMatrixActive(true) }
+  }, 3000, !matrixActive)
   useAvatarClick(feedContainerRef, 7, 3000, () => {
     if (!matrixActive && triggerEgg('matrix', onBadgeCheck)) { setMatrixActive(true) }
   }, !matrixActive)
@@ -1342,7 +1346,27 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   // Feed title tap-count: 2=Gravity, 3=Flip, 5=Party, 10=Chuck (mobile)
   useTapCount(feedTitleRef, { 2: triggerGravity, 3: triggerFlip, 5: triggerPartyMobile, 10: triggerChuck }, 5000, 600)
 
-  // Retro Mode: Shift+click on feed title (keyboard) / long-press feed title 1.5s (mobile)
+  // Post hint icon double-tap: manually re-trigger AI category suggestion
+  useTapCount(hintIconRef, {
+    2: () => {
+      if (newPostText.trim().length >= 10) {
+        apiSuggestCategory(newPostText).then(result => {
+          if (result?.category) {
+            const catId = result.category
+            setPostCategories(prev => {
+              const n = new Set(prev)
+              autoCategories.forEach(old => n.delete(old))
+              n.add(catId)
+              return n
+            })
+            setAutoCategories(new Set([catId]))
+          }
+        })
+      }
+    }
+  }, 2000, 300)
+
+  // Retro Mode: type "retro" (keyboard) / long-press feed title 1.5s (mobile)
   const triggerRetro = () => {
     if (retroActiveRef.current) return
     if (!triggerEgg('retro', onBadgeCheck)) return
@@ -1353,7 +1377,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       retroActiveRef.current = false
     }, 30000)
   }
-  const handleRetroTrigger = (e) => { if (e.shiftKey) triggerRetro() }
+  useKeySequence('retro', triggerRetro, 3000)
   useLongPress(feedTitleRef, 1500, triggerRetro)
   // ── end easter eggs ─────────────────────────────────────────────────────────
 
@@ -1988,16 +2012,12 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                         if (result?.category) {
                           const catId = result.category
                           setPostCategories(prev => {
-                            if (prev.has(catId)) return prev
                             const n = new Set(prev)
+                            autoCategories.forEach(old => n.delete(old))
                             n.add(catId)
                             return n
                           })
-                          setAutoCategories(prev => {
-                            const n = new Set(prev)
-                            n.add(catId)
-                            return n
-                          })
+                          setAutoCategories(new Set([catId]))
                         }
                       }, 600)
                     }
@@ -2142,7 +2162,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   />
                 )}
                 <span className="p-input-hint-wrap">
-                  <span className="p-input-hint-icon">?</span>
+                  <span className="p-input-hint-icon" ref={hintIconRef}>?</span>
                   <span className="p-input-hint-tooltip">{t.postInputHint}</span>
                 </span>
                 <button className="p-post-btn" onMouseDown={e => e.preventDefault()} onClick={handlePost} disabled={!newPostText.trim() && !mediaPreviews.length && !providerMediaUrls.length}>
@@ -3245,10 +3265,9 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
       )}
 
       {/* Badges + Easter Eggs tab */}
-      {profileTab === 'badges' && (<>
+      {profileTab === 'badges' && (
         <BadgesProfileSection lang={lang} earnedBadges={earnedBadges} onBadgeCheck={onBadgeCheck} setEarnedBadges={setEarnedBadges} />
-        <EasterEggSettings lang={lang} />
-      </>)}
+      )}
 
       {profileTab === 'notes' && (
         <div className="p-card" style={{ padding: 16 }}>
@@ -4524,13 +4543,25 @@ function ModeratorRequestCard({ lang, t, currentUser }) {
 
 const EGG_META = {
   chuck:    { icon: '🤜', name: 'Chuck Norris', trigger: { da: 'Konami-kode (↑↑↓↓←→←→BA) / 10 tryk på Feed-overskrift', en: 'Konami code (↑↑↓↓←→←→BA) / 10 taps on Feed title' } },
-  matrix:   { icon: '🟩', name: 'Matrix Rain',  trigger: { da: '7 klik på en avatar inden for 3 sek.', en: '7 clicks on an avatar within 3 sec.' } },
+  matrix:   { icon: '🟩', name: 'Matrix Rain',  trigger: { da: 'Skriv "matrix" / 7 klik på en avatar inden for 3 sek.', en: 'Type "matrix" / 7 clicks on an avatar within 3 sec.' } },
   flip:     { icon: '🔃', name: 'Flip Feed',    trigger: { da: 'Skriv "flip" / 3 tryk på Feed-overskrift', en: 'Type "flip" / 3 taps on Feed title' } },
-  retro:    { icon: '📺', name: 'Retro Mode',   trigger: { da: 'Shift+klik / hold Feed-overskrift nede 1,5 sek.', en: 'Shift+click / long-press Feed title 1.5 sec.' } },
+  retro:    { icon: '📺', name: 'Retro Mode',   trigger: { da: 'Skriv "retro" / hold Feed-overskrift nede 1,5 sek.', en: 'Type "retro" / long-press Feed title 1.5 sec.' } },
   gravity:  { icon: '⬇️', name: 'Gravity',      trigger: { da: 'Tryk G+G / 2 tryk på Feed-overskrift', en: 'Press G+G / 2 taps on Feed title' } },
   party:    { icon: '🎉', name: 'Party Mode',   trigger: { da: 'Skriv "party" / 5 tryk på Feed-overskrift', en: 'Type "party" / 5 taps on Feed title' } },
   rickroll: { icon: '🎵', name: 'Rick Roll',    trigger: { da: 'Rul til bunden og vent 4 sek.', en: 'Scroll to bottom and hold 4 sec.' } },
   watcher:  { icon: '👀', name: 'Skyggefølger', trigger: { da: 'Klik 7 gange på en vens avatar i Vis Profil', en: "Click 7 times on a friend's avatar in View Profile" } },
+}
+
+// Maps badge id → egg id for interview lookup in the badge grid
+const BADGE_TO_EGG = {
+  egg_rule_breaker:    'chuck',
+  egg_into_the_matrix: 'matrix',
+  egg_upside_down:     'flip',
+  egg_old_school:      'retro',
+  egg_what_goes_up:    'gravity',
+  egg_party_animal:    'party',
+  egg_never_gonna:     'rickroll',
+  egg_shadow_watcher:  'watcher',
 }
 
 const EGG_INTERVIEW = {
@@ -4697,8 +4728,16 @@ const EGG_INTERVIEW = {
 }
 
 function EasterEggSettings({ lang }) {
-  const { eggs, toggleEgg } = useEasterEggs()
+  const { eggs, syncFromServer } = useEasterEggs()
   const adminConfig = loadAdminEggs()
+  const [selectedEggId, setSelectedEggId] = useState(null)
+
+  // Sync from server on mount so count and discovered state is authoritative
+  useEffect(() => {
+    apiGetMyEasterEggs().then(data => {
+      if (data?.eggs !== undefined) syncFromServer(data.eggs)
+    })
+  }, [syncFromServer])
 
   const discovered = EGG_IDS.filter(id => eggs[id]?.discovered)
   if (!discovered.length) return null
@@ -4708,7 +4747,7 @@ function EasterEggSettings({ lang }) {
   return (
     <div className="p-card" style={{ marginTop: 16, padding: '20px 22px' }}>
       <h3 style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700 }}>🥚 {lang === 'da' ? 'Påskeæg' : 'Easter Eggs'}</h3>
-      <p style={{ margin: '0 0 8px', fontSize: 13, color: '#888' }}>
+      <p style={{ margin: '0 0 14px', fontSize: 13, color: '#888' }}>
         {lang === 'da' ? `Du har opdaget ${discovered.length} af ${EGG_IDS.length} skjulte funktioner.` : `You've discovered ${discovered.length} of ${EGG_IDS.length} hidden features.`}
       </p>
       {discovered.map(id => {
@@ -4716,13 +4755,17 @@ function EasterEggSettings({ lang }) {
         const egg = eggs[id]
         const adminEgg = adminConfig[id] || {}
         const globallyDisabled = adminEgg.globalEnabled === false
-        const enabled = !globallyDisabled && egg?.enabled !== false
         const interview = EGG_INTERVIEW[id]
+        const isSelected = selectedEggId === id
         return (
-          <div key={id} style={{ padding: '14px 0', borderTop: '1px solid #eee' }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+          <div key={id} style={{ padding: '12px 0', borderTop: '1px solid #eee' }}>
+            <div
+              style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: interview ? 'pointer' : 'default' }}
+              onClick={() => interview && setSelectedEggId(isSelected ? null : id)}
+            >
+              <div style={{ fontSize: 18, lineHeight: 1, marginTop: 1 }}>{meta.icon}</div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600, fontSize: 14 }}>{meta.icon} {meta.name}</div>
+                <div style={{ fontWeight: 600, fontSize: 14, color: '#333' }}>{meta.name}</div>
                 <div style={{ fontSize: 11, color: '#bbb', marginTop: 2 }}>
                   {lang === 'da' ? `Opdaget: ${fmtDate(egg?.firstDiscoveredAt)}` : `Discovered: ${fmtDate(egg?.firstDiscoveredAt)}`}
                   {' · '}
@@ -4732,22 +4775,21 @@ function EasterEggSettings({ lang }) {
                   <div style={{ fontSize: 11, color: '#e03131', marginTop: 2 }}>{lang === 'da' ? '⚠ Deaktiveret af admin' : '⚠ Disabled by admin'}</div>
                 )}
               </div>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: globallyDisabled ? 'not-allowed' : 'pointer', flexShrink: 0, marginTop: 2 }}>
-                <input type="checkbox" checked={enabled} disabled={globallyDisabled} onChange={() => !globallyDisabled && toggleEgg(id)} style={{ width: 16, height: 16 }} />
-                <span style={{ fontSize: 12, color: '#555' }}>{lang === 'da' ? 'Aktiv' : 'On'}</span>
-              </label>
+              {interview && (
+                <div style={{ fontSize: 12, color: '#9D4EDD', flexShrink: 0, marginTop: 3 }}>{isSelected ? '▲' : '▼'}</div>
+              )}
             </div>
-            {interview && (
-              <div style={{ marginTop: 12, background: '#f8f8f8', borderRadius: 8, padding: '12px 14px', fontSize: 12 }}>
-                <div style={{ fontWeight: 700, fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+            {isSelected && interview && (
+              <div style={{ marginTop: 10, background: '#f8f0ff', borderRadius: 8, padding: '12px 14px', fontSize: 12 }}>
+                <div style={{ fontWeight: 700, fontSize: 11, color: '#6B2FA0', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
                   {lang === 'da' ? `— Et interview med ${meta.name} —` : `— An interview with ${meta.name} —`}
                 </div>
                 {interview.map((qa, i) => (
                   <div key={i} style={{ marginBottom: i < interview.length - 1 ? 10 : 0 }}>
-                    <div style={{ fontWeight: 600, color: '#555', marginBottom: 2 }}>
+                    <div style={{ fontWeight: 600, color: '#4a2070', marginBottom: 2 }}>
                       {lang === 'da' ? qa.q_da : qa.q_en}
                     </div>
-                    <div style={{ color: '#444', fontStyle: 'italic', lineHeight: 1.5 }}>
+                    <div style={{ color: '#5a3080', fontStyle: 'italic', lineHeight: 1.5 }}>
                       "{lang === 'da' ? qa.a_da : qa.a_en}"
                     </div>
                   </div>
@@ -5145,28 +5187,28 @@ function AboutPage({ lang }) {
     services: [
       {
         name: 'Yggdrasil Cloud',
-        flag: '🇩🇰',
+        flag: '🇩🇰', country: 'Danmark',
         url: 'https://yggdrasilcloud.dk/',
         role: 'Hosting & servere',
         why: 'Dansk cloud-udbyder med servere fysisk placeret i Danmark. Dine data forlader aldrig EU og er underlagt dansk lovgivning — ikke CLOUD Act eller FISA 702.',
       },
       {
         name: '46elks',
-        flag: '🇸🇪',
+        flag: '🇸🇪', country: 'Sverige',
         url: 'https://46elks.com/',
         role: 'SMS til to-faktor-godkendelse',
         why: 'Svensk teleudbyder med fuld GDPR-compliance. Bruges til at sende engangskoder ved login med to-faktor. Ingen data sendes til udbydere uden for EU.',
       },
       {
         name: 'Mollie',
-        flag: '🇳🇱',
+        flag: '🇳🇱', country: 'Holland',
         url: 'https://www.mollie.com/',
         role: 'Betalinger',
         why: 'Hollandsk betalingsgateway reguleret af De Nederlandsche Bank under EU\'s PSD2-direktiv. Understøtter MobilePay, Visa, Mastercard, Apple Pay og Google Pay — uden at dine kortoplysninger nogensinde rammer vores egne servere.',
       },
       {
         name: 'Nodemailer',
-        flag: '🇪🇺',
+        flag: '🇪🇺', country: 'EU',
         url: 'https://nodemailer.com/',
         role: 'E-mail (adgangskode-nulstilling)',
         why: 'Open source e-mail-bibliotek med ingen ekstern afhængighed. E-mails sendes via din egen SMTP-server — vi låser dig ikke til en tredjeparts e-mail-tjeneste.',
@@ -5196,28 +5238,28 @@ function AboutPage({ lang }) {
     services: [
       {
         name: 'Yggdrasil Cloud',
-        flag: '🇩🇰',
+        flag: '🇩🇰', country: 'Denmark',
         url: 'https://yggdrasilcloud.dk/',
         role: 'Hosting & servers',
         why: 'Danish cloud provider with servers physically located in Denmark. Your data never leaves the EU and is subject to Danish law — not the CLOUD Act or FISA 702.',
       },
       {
         name: '46elks',
-        flag: '🇸🇪',
+        flag: '🇸🇪', country: 'Sweden',
         url: 'https://46elks.com/',
         role: 'SMS for two-factor authentication',
         why: 'Swedish telecom provider with full GDPR compliance. Used to send one-time codes during two-factor login. No data is sent to providers outside the EU.',
       },
       {
         name: 'Mollie',
-        flag: '🇳🇱',
+        flag: '🇳🇱', country: 'Netherlands',
         url: 'https://www.mollie.com/',
         role: 'Payments',
         why: "Dutch payment gateway regulated by De Nederlandsche Bank under the EU's PSD2 directive. Supports MobilePay, Visa, Mastercard, Apple Pay and Google Pay — without your card details ever touching our own servers.",
       },
       {
         name: 'Nodemailer',
-        flag: '🇪🇺',
+        flag: '🇪🇺', country: 'EU',
         url: 'https://nodemailer.com/',
         role: 'Email (password reset)',
         why: 'Open source email library with no external dependency. Emails are sent via your own SMTP server — we do not lock you in to a third-party email service.',
@@ -5261,7 +5303,10 @@ function AboutPage({ lang }) {
         <p style={{ fontSize: 13, color: '#555', lineHeight: 1.6, margin: '0 0 16px' }}>{t.servicesIntro}</p>
         {t.services.map((svc, i) => (
           <div key={svc.name} style={{ display: 'flex', gap: 14, alignItems: 'flex-start', paddingTop: i > 0 ? 14 : 0, marginTop: i > 0 ? 14 : 0, borderTop: i > 0 ? '1px solid #f0f0f0' : 'none' }}>
-            <div style={{ fontSize: 22, lineHeight: 1, flexShrink: 0, marginTop: 1 }}>{svc.flag}</div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0, width: 38, gap: 2, marginTop: 1 }}>
+              <div style={{ fontSize: 22, lineHeight: 1 }}>{svc.flag}</div>
+              <div style={{ fontSize: 9, color: '#aaa', fontWeight: 600, letterSpacing: 0.2, textAlign: 'center', lineHeight: 1.2 }}>{svc.country}</div>
+            </div>
             <div style={{ flex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
                 <a href={svc.url} target="_blank" rel="noopener noreferrer" style={{ fontWeight: 700, fontSize: 14, color: '#2D6A4F', textDecoration: 'none' }}>{svc.name}</a>
@@ -13444,6 +13489,8 @@ function AdminEasterEggsPanel({ lang }) {
 // ── BadgesProfileSection — badges tab in user profile ────────────────────────
 function BadgesProfileSection({ lang, earnedBadges, onBadgeCheck, setEarnedBadges }) {
   const da = lang === 'da'
+  const [selectedEggId, setSelectedEggId] = useState(null)
+  const adminEggConfig = loadAdminEggs()
 
   const handleCheckNow = async () => {
     if (onBadgeCheck) onBadgeCheck()
@@ -13502,14 +13549,27 @@ function BadgesProfileSection({ lang, earnedBadges, onBadgeCheck, setEarnedBadge
                 const isEarned = earnedSet.has(badge.id)
                 const earnedData = earnedBadges.find(b => b.id === badge.id)
                 const isEgg = tier === 0
+                const eggKey = isEgg ? BADGE_TO_EGG[badge.id] : null
+                const adminEgg = eggKey ? (adminEggConfig[eggKey] || {}) : {}
+                const adminHint = adminEgg.hintsEnabled && adminEgg.hintText ? adminEgg.hintText : ''
                 const displayName = isEgg && !isEarned ? '???' : badge.name[lang] || badge.name.da
-                const displayDesc = isEgg && !isEarned ? (da ? 'Hemmeligt — opdage det selv!' : 'Secret — discover it yourself!') : badge.description[lang] || badge.description.da
+                const displayDesc = isEgg && !isEarned
+                  ? (adminHint ? `💡 ${adminHint}` : (da ? 'Hemmeligt — opdage det selv!' : 'Secret — discover it yourself!'))
+                  : badge.description[lang] || badge.description.da
+
+                const eggId = isEgg ? BADGE_TO_EGG[badge.id] : null
+                const hasInterview = eggId && !!EGG_INTERVIEW[eggId]
+                const isSelected = eggId && selectedEggId === eggId
+                const handleClick = isEarned && hasInterview
+                  ? () => setSelectedEggId(isSelected ? null : eggId)
+                  : undefined
 
                 return (
                   <div
                     key={badge.id}
-                    className={`badge-cell ${tierClassMap[tier]} ${isEarned ? 'earned' : 'locked'}`}
-                    style={{ animationDelay: isEarned ? `${idx * 40}ms` : '0ms' }}
+                    className={`badge-cell ${tierClassMap[tier]} ${isEarned ? 'earned' : 'locked'}${isSelected ? ' selected' : ''}`}
+                    style={{ animationDelay: isEarned ? `${idx * 40}ms` : '0ms', cursor: handleClick ? 'pointer' : undefined, outline: isSelected ? '2px solid #9D4EDD' : undefined }}
+                    onClick={handleClick}
                   >
                     <div className="badge-icon">{badge.icon}</div>
                     <span className="badge-label">{displayName}</span>
@@ -13521,6 +13581,9 @@ function BadgesProfileSection({ lang, earnedBadges, onBadgeCheck, setEarnedBadge
                           {da ? 'Optjent' : 'Earned'}: {new Date(earnedData.awardedAt).toLocaleDateString(da ? 'da-DK' : 'en-US')}
                         </span></>
                       )}
+                      {isEarned && hasInterview && (
+                        <><br /><span style={{ fontSize: 10, opacity: 0.7 }}>{da ? '👆 Klik for interview' : '👆 Click for interview'}</span></>
+                      )}
                     </div>
                   </div>
                 )
@@ -13529,6 +13592,32 @@ function BadgesProfileSection({ lang, earnedBadges, onBadgeCheck, setEarnedBadge
           </div>
         )
       })}
+
+      {/* Interview panel — shown when a discovered egg is clicked */}
+      {selectedEggId && EGG_INTERVIEW[selectedEggId] && (() => {
+        const meta = EGG_META[selectedEggId]
+        const interview = EGG_INTERVIEW[selectedEggId]
+        return (
+          <div style={{ marginTop: 16, background: '#f8f0ff', borderRadius: 10, padding: '16px 18px', border: '1.5px solid #9D4EDD' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div style={{ fontWeight: 700, fontSize: 13, color: '#6B2FA0', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                {da ? `— Et interview med ${meta.name} —` : `— An interview with ${meta.name} —`}
+              </div>
+              <button onClick={() => setSelectedEggId(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9D4EDD', fontSize: 18, lineHeight: 1 }}>✕</button>
+            </div>
+            {interview.map((qa, i) => (
+              <div key={i} style={{ marginBottom: i < interview.length - 1 ? 12 : 0 }}>
+                <div style={{ fontWeight: 600, color: '#4a2070', fontSize: 13, marginBottom: 3 }}>
+                  {da ? qa.q_da : qa.q_en}
+                </div>
+                <div style={{ color: '#5a3080', fontStyle: 'italic', fontSize: 13, lineHeight: 1.55 }}>
+                  "{da ? qa.a_da : qa.a_en}"
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      })()}
     </div>
   )
 }
