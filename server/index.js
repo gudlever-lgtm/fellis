@@ -61,6 +61,78 @@ async function addCol(table, col, def) {
   }
 }
 
+// ── Signal Engine — constants ─────────────────────────────────────────────────
+const SIGNAL_VALUES = {
+  click: 3, dwell_short: 5, dwell_long: 10,
+  like: 8, comment: 12, share: 15,
+  scroll_past: -1, quick_close: -3, block: -20,
+}
+const CONTEXT_MULTIPLIERS = { professional: 1.4, hobby: 1.0, purchase: 1.6 }
+
+// Apply signals to interest_scores using the scoring formula:
+// new_weight = old_weight + (signal_value × context_multiplier) × (1 − saturation)
+// Saturation = current_weight/100, preventing weight from exceeding 100.
+// Negative signals can reduce weight toward 0 but never below it.
+async function applySignals(userId, signals) {
+  // signals: [{ interest_slug, signal_type, context? }]
+  const grouped = {}
+  for (const s of signals) {
+    const ctx = s.context || 'hobby'
+    const key = `${s.interest_slug}:${ctx}`
+    if (!grouped[key]) grouped[key] = { interest_slug: s.interest_slug, context: ctx, totalDelta: 0 }
+    const sv = SIGNAL_VALUES[s.signal_type] ?? 0
+    const cm = CONTEXT_MULTIPLIERS[ctx] ?? 1.0
+    grouped[key].totalDelta += sv * cm
+  }
+  for (const { interest_slug, context, totalDelta } of Object.values(grouped)) {
+    try {
+      // Frequency cap: if >10 signals of any type from this user+interest in last hour, throttle
+      const [[cap]] = await pool.query(
+        `SELECT COUNT(*) as cnt FROM interest_signals
+         WHERE user_id=? AND interest_slug=? AND created_at > NOW() - INTERVAL 1 HOUR`,
+        [userId, interest_slug]
+      )
+      const effectiveDelta = cap.cnt >= 10 ? totalDelta * 0.1 : totalDelta
+      const [[cur]] = await pool.query(
+        'SELECT weight FROM interest_scores WHERE user_id=? AND interest_slug=? AND context=?',
+        [userId, interest_slug, context]
+      ).catch(() => [[null]])
+      const oldWeight = cur ? cur.weight : 0
+      // Saturation for positive signals; for negative signals allow decay freely
+      const saturation = effectiveDelta > 0 ? oldWeight / 100 : 0
+      const newWeight = Math.max(0, Math.min(100, oldWeight + effectiveDelta * (1 - saturation)))
+      await pool.query(
+        `INSERT INTO interest_scores (user_id, interest_slug, context, weight, last_signal_at)
+         VALUES (?, ?, ?, ?, NOW())
+         ON DUPLICATE KEY UPDATE weight=?, last_signal_at=NOW()`,
+        [userId, interest_slug, context, newWeight, newWeight]
+      )
+    } catch (err) {
+      // Table may not exist yet on first boot before initSignalEngine runs — ignore silently
+    }
+  }
+}
+
+// Fire-and-forget signal helper: looks up post categories and generates signals server-side
+function autoSignalPost(userId, postId, signalType) {
+  pool.query('SELECT categories FROM posts WHERE id=?', [postId])
+    .then(([[post]]) => {
+      if (!post?.categories) return
+      let cats
+      try { cats = JSON.parse(post.categories) } catch { return }
+      if (!Array.isArray(cats) || cats.length === 0) return
+      const sv = SIGNAL_VALUES[signalType] ?? 0
+      if (sv === 0) return
+      const values = cats.map(slug => [userId, slug, signalType, sv, 'hobby', 'post', postId])
+      pool.query(
+        'INSERT INTO interest_signals (user_id, interest_slug, signal_type, signal_value, context, source_type, source_id) VALUES ?',
+        [values]
+      ).catch(() => {})
+      applySignals(userId, cats.map(slug => ({ interest_slug: slug, signal_type: signalType, context: 'hobby' }))).catch(() => {})
+    })
+    .catch(() => {})
+}
+
 // ── Mail transport (only active when MAIL_HOST is configured + nodemailer installed) ──
 let mailer = null
 if (process.env.MAIL_HOST) {
@@ -412,9 +484,61 @@ const FB_DATA_RETENTION_DAYS = parseInt(process.env.FB_DATA_RETENTION_DAYS || '9
 const app = express()
 app.use(express.json())
 
+// ── Rate limiting — in-memory, per IP + per user ──────────────────────────
+// Buckets: Map<key, { count, resetAt }>
+const _rl = new Map()
+function rateLimit({ windowMs = 60_000, max = 60, keyFn = (req) => req.ip } = {}) {
+  return (req, res, next) => {
+    const key = keyFn(req)
+    const now = Date.now()
+    let bucket = _rl.get(key)
+    if (!bucket || now > bucket.resetAt) {
+      bucket = { count: 0, resetAt: now + windowMs }
+      _rl.set(key, bucket)
+    }
+    bucket.count++
+    if (bucket.count > max) {
+      res.set('Retry-After', Math.ceil((bucket.resetAt - now) / 1000))
+      return res.status(429).json({ error: 'Too many requests — prøv igen om lidt' })
+    }
+    next()
+  }
+}
+// Purge stale buckets every 5 minutes to avoid memory growth
+setInterval(() => {
+  const now = Date.now()
+  for (const [k, v] of _rl) { if (now > v.resetAt) _rl.delete(k) }
+}, 5 * 60_000)
+
+// Strict limiter for auth + write endpoints: 30 req/min per IP
+const strictLimit = rateLimit({ windowMs: 60_000, max: 30 })
+// Standard limiter for general write endpoints: 60 req/min per user id (falls back to IP)
+const writeLimit = rateLimit({
+  windowMs: 60_000, max: 60,
+  keyFn: (req) => (req.userId ? `u:${req.userId}` : req.ip),
+})
+
 // ── Serve built frontend (assets/, index.html, public/) ───────────────────
 const FRONTEND_ROOT = path.resolve(__dirname, '..')
 app.use(express.static(FRONTEND_ROOT, { index: false }))
+
+// ── Health check ─────────────────────────────────────────────────────────
+const SERVER_START = Date.now()
+app.get('/api/health', async (_req, res) => {
+  let dbOk = false
+  try {
+    await pool.query('SELECT 1')
+    dbOk = true
+  } catch {}
+  const uptimeSec = Math.floor((Date.now() - SERVER_START) / 1000)
+  const status = dbOk ? 200 : 503
+  res.status(status).json({
+    status: dbOk ? 'ok' : 'degraded',
+    db: dbOk ? 'connected' : 'error',
+    uptime_sec: uptimeSec,
+    ts: new Date().toISOString(),
+  })
+})
 
 // ── SSE: real-time push to connected clients ──────────────────────────────
 // Map<userId, Set<res>> — one user may have multiple tabs open
@@ -782,7 +906,7 @@ app.get('/api/auth/password-policy', async (req, res) => {
 // ── Auth routes ──
 
 // POST /api/auth/login — login with email + password (MFA-aware)
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', strictLimit, async (req, res) => {
   const { email, password, lang } = req.body
   if (!email || !password) return res.status(400).json({ error: 'Email and password required' })
   try {
@@ -830,7 +954,7 @@ app.post('/api/auth/login', async (req, res) => {
 })
 
 // POST /api/auth/register — create account after migration
-app.post('/api/auth/register', async (req, res) => {
+app.post('/api/auth/register', strictLimit, async (req, res) => {
   const { name, email, password, lang, inviteToken } = req.body
   if (!name || !email || !password) return res.status(400).json({ error: 'Name, email, and password required' })
   const regPolicy = await getPasswordPolicy()
@@ -915,7 +1039,7 @@ app.post('/api/auth/register', async (req, res) => {
 })
 
 // POST /api/auth/forgot-password — request password reset link via email
-app.post('/api/auth/forgot-password', async (req, res) => {
+app.post('/api/auth/forgot-password', strictLimit, async (req, res) => {
   const { email } = req.body
   if (!email) return res.status(400).json({ error: 'Email required' })
 
@@ -1000,7 +1124,7 @@ app.post('/api/auth/reset-password', async (req, res) => {
 })
 
 // POST /api/auth/verify-mfa — verify SMS code and complete login
-app.post('/api/auth/verify-mfa', async (req, res) => {
+app.post('/api/auth/verify-mfa', strictLimit, async (req, res) => {
   const { userId, code, lang } = req.body
   if (!userId || !code) return res.status(400).json({ error: 'userId and code required' })
   try {
@@ -2092,19 +2216,20 @@ app.post('/api/skills/:id/endorse', authenticate, async (req, res) => {
 
 // ── Feed routes ──
 
-// GET /api/feed — get posts with pagination (max 20 in DOM)
+// GET /api/feed — cursor-based pagination (stable, no duplicate posts on new inserts)
+// Query params:
+//   cursor (optional) — ISO timestamp; load posts older than this (load-more / infinite scroll)
+//   limit  (optional, max 50, default 20)
+// Response: { posts, nextCursor }
+//   nextCursor — ISO timestamp to pass as ?cursor= for the next page, or null if no more posts
 app.get('/api/feed', authenticate, async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 20, 50)
-    const offset = Math.max(parseInt(req.query.offset) || 0, 0)
+    // cursor = ISO timestamp of the oldest post already seen; null = load from the top
+    const cursor = req.query.cursor || null
 
-    const [countResult] = await pool.query(
-      `SELECT COUNT(*) as total FROM posts p
-       WHERE (p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?))
-         AND (p.scheduled_at IS NULL OR p.scheduled_at <= NOW())`,
-      [req.userId, req.userId]
-    )
-    const total = countResult[0].total
+    const cursorFilter = cursor ? 'AND p.created_at < ?' : ''
+    const cursorParams = cursor ? [new Date(cursor)] : []
 
     let posts
     try {
@@ -2115,9 +2240,10 @@ app.get('/api/feed', authenticate, async (req, res) => {
          FROM posts p JOIN users u ON p.author_id = u.id
          WHERE (p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?))
            AND (p.scheduled_at IS NULL OR p.scheduled_at <= NOW())
+           ${cursorFilter}
          ORDER BY p.created_at DESC
-         LIMIT ? OFFSET ?`,
-        [req.userId, req.userId, limit, offset]
+         LIMIT ?`,
+        [req.userId, req.userId, ...cursorParams, limit]
       )
     } catch {
       ;[posts] = await pool.query(
@@ -2127,9 +2253,10 @@ app.get('/api/feed', authenticate, async (req, res) => {
          FROM posts p JOIN users u ON p.author_id = u.id
          WHERE (p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?))
            AND (p.scheduled_at IS NULL OR p.scheduled_at <= NOW())
+           ${cursorFilter}
          ORDER BY p.created_at DESC
-         LIMIT ? OFFSET ?`,
-        [req.userId, req.userId, limit, offset]
+         LIMIT ?`,
+        [req.userId, req.userId, ...cursorParams, limit]
       )
     }
     const postIds = posts.map(p => p.id)
@@ -2231,7 +2358,12 @@ app.get('/api/feed', authenticate, async (req, res) => {
         viewValues.flat()
       ).catch(() => {})
     }
-    res.json({ posts: result, total, offset, limit })
+    // nextCursor = created_at of the oldest post in this page (use as ?cursor= to load the next page)
+    // null when fewer posts were returned than requested — no more pages exist
+    const nextCursor = result.length === limit
+      ? result[result.length - 1].createdAtRaw?.toISOString?.() ?? new Date(result[result.length - 1].createdAtRaw).toISOString()
+      : null
+    res.json({ posts: result, nextCursor })
   } catch (err) {
     res.status(500).json({ error: 'Failed to load feed' })
   }
@@ -2288,7 +2420,7 @@ app.post('/api/feed/preflight', authenticate, (req, res) => {
 })
 
 // POST /api/feed — create a new post (with optional media)
-app.post('/api/feed', authenticate, upload.array('media', 4), async (req, res) => {
+app.post('/api/feed', authenticate, writeLimit, upload.array('media', 4), async (req, res) => {
   const { text, scheduled_at } = req.body
   const locLat = req.body.location_lat ? parseFloat(req.body.location_lat) : null
   const locLng = req.body.location_lng ? parseFloat(req.body.location_lng) : null
@@ -2417,7 +2549,7 @@ app.post('/api/feed/:id/like', authenticate, async (req, res) => {
       }
       await pool.query('UPDATE posts SET likes = likes + 1 WHERE id = ?', [postId])
       // Notify post author (not self)
-      const [[post]] = await pool.query('SELECT user_id FROM posts WHERE id = ?', [postId]).catch(() => [[null]])
+      const [[post]] = await pool.query('SELECT user_id, categories FROM posts WHERE id = ?', [postId]).catch(() => [[null]])
       if (post && post.user_id !== req.userId) {
         const [[liker]] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId]).catch(() => [[null]])
         if (liker) {
@@ -2429,6 +2561,7 @@ app.post('/api/feed/:id/like', authenticate, async (req, res) => {
           )
         }
       }
+      autoSignalPost(req.userId, postId, 'like')
       res.json({ liked: true, reaction })
     }
   } catch (err) {
@@ -2452,7 +2585,7 @@ app.get('/api/feed/:id/likers', authenticate, async (req, res) => {
 })
 
 // POST /api/feed/:id/comment — add comment (with optional single media file)
-app.post('/api/feed/:id/comment', authenticate, upload.single('media'), async (req, res) => {
+app.post('/api/feed/:id/comment', authenticate, writeLimit, upload.single('media'), async (req, res) => {
   const text = (req.body.text || '').trim()
   if (!text && !req.file) return res.status(400).json({ error: 'Comment text or media required' })
   const postId = parseInt(req.params.id)
@@ -2505,6 +2638,7 @@ app.post('/api/feed/:id/comment', authenticate, upload.single('media'), async (r
         req.userId, users[0].name, postId
       )
     }
+    autoSignalPost(req.userId, postId, 'comment')
     res.json({ author: users[0].name, text: { da: text, en: text }, media })
   } catch (err) {
     res.status(500).json({ error: 'Failed to add comment' })
@@ -2720,7 +2854,7 @@ app.get('/api/friends', authenticate, async (req, res) => {
 })
 
 // POST /api/friends/request/:userId — send a connection request
-app.post('/api/friends/request/:userId', authenticate, async (req, res) => {
+app.post('/api/friends/request/:userId', authenticate, writeLimit, async (req, res) => {
   const targetId = parseInt(req.params.userId)
   if (!targetId || targetId === req.userId) return res.status(400).json({ error: 'Invalid user' })
   try {
@@ -2968,7 +3102,7 @@ app.get('/api/conversations/:id/messages/older', authenticate, async (req, res) 
 })
 
 // POST /api/conversations — create a new 1:1 or group conversation
-app.post('/api/conversations', authenticate, async (req, res) => {
+app.post('/api/conversations', authenticate, writeLimit, async (req, res) => {
   const { participantIds, name, isGroup } = req.body
   if (!participantIds || !Array.isArray(participantIds) || !participantIds.length)
     return res.status(400).json({ error: 'participantIds required' })
@@ -3020,7 +3154,7 @@ app.get('/api/sse', authenticate, (req, res) => {
 })
 
 // POST /api/conversations/:id/messages — send a message
-app.post('/api/conversations/:id/messages', authenticate, async (req, res) => {
+app.post('/api/conversations/:id/messages', authenticate, writeLimit, async (req, res) => {
   const convId = parseInt(req.params.id)
   const { text } = req.body
   if (!text) return res.status(400).json({ error: 'Message text required' })
@@ -4561,6 +4695,61 @@ async function initSiteVisits() {
     await addCol('posts', 'edited_at', 'TIMESTAMP NULL DEFAULT NULL')
   } catch (err) {
     console.error('initSiteVisits error:', err.message)
+  }
+}
+
+// ── Signal Engine — DB init ───────────────────────────────────────────────────
+async function initSignalEngine() {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS interest_signals (
+      id BIGINT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      interest_slug VARCHAR(50) NOT NULL,
+      signal_type ENUM('click','dwell_short','dwell_long','like','comment','share','scroll_past','quick_close','block') NOT NULL,
+      signal_value TINYINT NOT NULL,
+      context ENUM('professional','hobby','purchase') NOT NULL DEFAULT 'hobby',
+      source_type VARCHAR(50) DEFAULT NULL,
+      source_id INT DEFAULT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_is_user (user_id),
+      INDEX idx_is_user_interest (user_id, interest_slug),
+      INDEX idx_is_cleanup (created_at),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+
+    await pool.query(`CREATE TABLE IF NOT EXISTS interest_scores (
+      user_id INT NOT NULL,
+      interest_slug VARCHAR(50) NOT NULL,
+      context ENUM('professional','hobby','purchase') NOT NULL DEFAULT 'hobby',
+      weight FLOAT NOT NULL DEFAULT 0,
+      explicit_set TINYINT(1) NOT NULL DEFAULT 0,
+      last_signal_at TIMESTAMP DEFAULT NULL,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (user_id, interest_slug, context),
+      INDEX idx_iscores_user_weight (user_id, weight),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+
+    // Daily decay: reduce weights by 0.5% for interests with no signal in the last 24 hours
+    setInterval(async () => {
+      try {
+        await pool.query(`
+          UPDATE interest_scores
+          SET weight = GREATEST(0, weight * 0.995)
+          WHERE (last_signal_at IS NULL OR last_signal_at < NOW() - INTERVAL 24 HOUR)
+            AND weight > 0
+        `)
+      } catch (err) { console.error('Interest decay error:', err.message) }
+    }, 24 * 60 * 60 * 1000)
+
+    // GDPR cleanup: raw signals deleted after 90 days, only scores are kept
+    setInterval(async () => {
+      try {
+        await pool.query('DELETE FROM interest_signals WHERE created_at < NOW() - INTERVAL 90 DAY')
+      } catch (err) { console.error('Signal GDPR cleanup error:', err.message) }
+    }, 24 * 60 * 60 * 1000)
+  } catch (err) {
+    console.error('initSignalEngine error:', err.message)
   }
 }
 
@@ -8399,6 +8588,7 @@ app.listen(PORT, () => {
   initEasterEggs()
   initBadges()
   initStoriesHashtags()
+  initSignalEngine()
 })
 
 app.all('/api/stub/:fn', authenticate, (req, res) => res.json({ ok: true }))
@@ -8759,6 +8949,136 @@ app.get('/api/feed/suggested-posts', authenticate, async (req, res) => {
     res.json({ posts })
   } catch (err) {
     console.error('GET /api/feed/suggested-posts error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Signal Engine — API endpoints ────────────────────────────────────────────
+
+// POST /api/signals — batch ingest behavioral signals from the frontend
+// Body: { signals: [{ signal_type, source_type?, source_id?, interest_slugs?, context? }] }
+// If interest_slugs is omitted and source_type='post', categories are resolved server-side.
+app.post('/api/signals', authenticate, async (req, res) => {
+  try {
+    const raw = req.body.signals
+    if (!Array.isArray(raw) || raw.length === 0) return res.json({ ok: true, processed: 0 })
+    if (raw.length > 100) return res.status(400).json({ error: 'Too many signals per batch (max 100)' })
+
+    const expanded = []
+    for (const s of raw) {
+      if (!SIGNAL_VALUES[s.signal_type] && SIGNAL_VALUES[s.signal_type] !== 0) continue
+      let slugs = Array.isArray(s.interest_slugs) ? s.interest_slugs : []
+      if (slugs.length === 0 && s.source_type === 'post' && s.source_id) {
+        try {
+          const [[post]] = await pool.query('SELECT categories FROM posts WHERE id=?', [parseInt(s.source_id)])
+          if (post?.categories) slugs = JSON.parse(post.categories) || []
+        } catch {}
+      }
+      const ctx = ['professional', 'hobby', 'purchase'].includes(s.context) ? s.context : 'hobby'
+      const sv = SIGNAL_VALUES[s.signal_type]
+      for (const slug of slugs) {
+        expanded.push({
+          user_id: req.userId, interest_slug: slug, signal_type: s.signal_type,
+          signal_value: sv, context: ctx,
+          source_type: s.source_type || null, source_id: s.source_id ? parseInt(s.source_id) : null,
+        })
+      }
+    }
+
+    if (expanded.length > 0) {
+      const values = expanded.map(s => [
+        s.user_id, s.interest_slug, s.signal_type, s.signal_value, s.context, s.source_type, s.source_id
+      ])
+      await pool.query(
+        'INSERT INTO interest_signals (user_id, interest_slug, signal_type, signal_value, context, source_type, source_id) VALUES ?',
+        [values]
+      )
+      await applySignals(req.userId, expanded)
+    }
+
+    res.json({ ok: true, processed: expanded.length })
+  } catch (err) {
+    console.error('POST /api/signals error:', err.message)
+    res.status(500).json({ error: 'Failed to ingest signals' })
+  }
+})
+
+// GET /api/me/interest-graph — user's full interest graph with computed weights
+app.get('/api/me/interest-graph', authenticate, async (req, res) => {
+  try {
+    const [scores] = await pool.query(`
+      SELECT interest_slug, context, weight, explicit_set, last_signal_at, updated_at
+      FROM interest_scores
+      WHERE user_id = ?
+      ORDER BY weight DESC
+    `, [req.userId])
+
+    // Seed explicit interests with initial score 50 if not yet tracked
+    const [[user]] = await pool.query('SELECT interests FROM users WHERE id=?', [req.userId]).catch(() => [[null]])
+    const explicit = user?.interests ? (Array.isArray(user.interests) ? user.interests : JSON.parse(user.interests)) : []
+
+    const scoreMap = new Set(scores.map(s => `${s.interest_slug}:${s.context}`))
+    const missing = []
+    for (const slug of explicit) {
+      if (!scoreMap.has(`${slug}:hobby`)) {
+        missing.push({ user_id: req.userId, interest_slug: slug, context: 'hobby', weight: 50, explicit_set: 1 })
+      }
+    }
+    if (missing.length > 0) {
+      const vals = missing.map(m => [m.user_id, m.interest_slug, m.context, m.weight, m.explicit_set])
+      await pool.query(
+        'INSERT IGNORE INTO interest_scores (user_id, interest_slug, context, weight, explicit_set) VALUES ?',
+        [vals]
+      )
+      // Re-fetch after seeding
+      const [fresh] = await pool.query(
+        'SELECT interest_slug, context, weight, explicit_set, last_signal_at, updated_at FROM interest_scores WHERE user_id=? ORDER BY weight DESC',
+        [req.userId]
+      )
+      return res.json({ scores: fresh, explicit })
+    }
+
+    res.json({ scores, explicit })
+  } catch (err) {
+    console.error('GET /api/me/interest-graph error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// PATCH /api/me/interest-graph/:slug — user manually corrects an interest weight
+app.patch('/api/me/interest-graph/:slug', authenticate, async (req, res) => {
+  try {
+    const { slug } = req.params
+    const { weight, context = 'hobby' } = req.body
+    if (typeof weight !== 'number' || weight < 0 || weight > 100) {
+      return res.status(400).json({ error: 'weight must be a number between 0 and 100' })
+    }
+    const ctx = ['professional', 'hobby', 'purchase'].includes(context) ? context : 'hobby'
+    await pool.query(
+      `INSERT INTO interest_scores (user_id, interest_slug, context, weight, explicit_set, last_signal_at)
+       VALUES (?, ?, ?, ?, 1, NOW())
+       ON DUPLICATE KEY UPDATE weight=?, explicit_set=1, last_signal_at=NOW()`,
+      [req.userId, slug, ctx, weight, weight]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('PATCH /api/me/interest-graph/:slug error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/me/interest-graph/signal-stats — recent signal counts for transparency UI
+app.get('/api/me/interest-graph/signal-stats', authenticate, async (req, res) => {
+  try {
+    const [stats] = await pool.query(`
+      SELECT interest_slug, signal_type, COUNT(*) as cnt, MAX(created_at) as last_at
+      FROM interest_signals
+      WHERE user_id = ? AND created_at > NOW() - INTERVAL 30 DAY
+      GROUP BY interest_slug, signal_type
+      ORDER BY cnt DESC
+    `, [req.userId])
+    res.json({ stats })
+  } catch (err) {
     res.status(500).json({ error: 'Server error' })
   }
 })

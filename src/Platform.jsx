@@ -2,10 +2,11 @@ import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } f
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { SUPPORTED_LANGS, EUROPEAN_LANGUAGES, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials, getTranslations } from './data.js'
 import { formatPrice } from './utils/currency.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJob, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiRevealPassword, apiGetAdminMfaUsers, apiAdminForceDisableMfa } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJob, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiRevealPassword, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals } from './api.js'
 import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
 import ReelsPage from './Reels.jsx'
+import InterestGraphPage from './InterestGraphPage.jsx'
 import AdBanner from './AdBanner.jsx'
 import useKonamiCode from './hooks/useKonamiCode.js'
 import useKeySequence from './hooks/useKeySequence.js'
@@ -306,7 +307,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
           {/* "Mere" / "More" dropdown for secondary tabs */}
           <div ref={moreMenuRef} style={{ position: 'relative' }}>
             <button
-              className={`p-nav-tab${['friends', 'calendar', 'marketplace', 'jobs', 'company'].includes(page) ? ' active' : ''}`}
+              className={`p-nav-tab${['friends', 'calendar', 'marketplace', 'jobs', 'company', 'interest-graph'].includes(page) ? ' active' : ''}`}
               onClick={() => setShowMoreMenu(v => !v)}
             >
               <span className="p-nav-tab-icon">{'⋯'}</span>
@@ -323,6 +324,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
                   { id: 'calendar', icon: '🗓️', label: t.calendar || (lang === 'da' ? 'Kalender' : 'Calendar') },
                   { id: 'marketplace', icon: '🛍️', label: t.marketplace || (lang === 'da' ? 'Marked' : 'Marketplace') },
                   { id: 'jobs', icon: '💼', label: t.jobs || 'Jobs' },
+                  { id: 'interest-graph', icon: '🧠', label: lang === 'da' ? 'Interessegraf' : 'Interest Graph' },
                   ...(mode === 'business' ? [
                     { id: 'company', icon: '🏢', label: t.companies || (lang === 'da' ? 'Virksomheder' : 'Companies') },
                   ] : []),
@@ -489,6 +491,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
         {page === 'privacy' && <PrivacySection lang={lang} onLogout={onLogout} />}
         {page === 'visitors' && <VisitorStatsPage lang={lang} />}
         {page === 'about' && <AboutPage lang={lang} />}
+        {page === 'interest-graph' && <InterestGraphPage lang={lang} t={t} currentUser={currentUser} />}
         {page === 'admin' && currentUser.is_admin && <AdminPage lang={lang} t={t} />}
         {page === 'moderation' && (currentUser.is_moderator || currentUser.is_admin) && <ModeratorPage lang={lang} t={t} currentUser={currentUser} />}
         {page === 'payment-success' && <PaymentSuccess lang={lang} onNavigate={navigateTo} />}
@@ -1311,12 +1314,10 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [pinnedPost, setPinnedPost] = useState(null)
   const pinnedRef = useRef(null)
   const [insightsPostId, setInsightsPostId] = useState(null)
-  const [offset, setOffset] = useState(0)
-  const [total, setTotal] = useState(0)
+  const [hasMore, setHasMore] = useState(true)
   const [loadingPage, setLoadingPage] = useState(false)
   const isFetchingRef = useRef(false)   // ref guard — avoids stale closure in observers
-  const offsetRef = useRef(0)           // mirrors offset state for stable observer callbacks
-  const totalRef = useRef(0)            // mirrors total state for stable observer callbacks
+  const nextCursorRef = useRef(null)    // cursor for next page (null = load from top)
   const [newPostText, setNewPostText] = useState('')
   const [mediaFiles, setMediaFiles] = useState([])
   const [mediaPreviews, setMediaPreviews] = useState([])
@@ -1335,6 +1336,42 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [hiddenPosts, setHiddenPosts] = useState(new Set()) // locally hidden post ids
   const [reportModal, setReportModal] = useState(null)   // { targetType, targetId } | null
   const [blockToast, setBlockToast] = useState(null)    // message string | null
+  // Signal engine: track dwell time on posts via IntersectionObserver
+  const dwellTimers = useRef(new Map())   // postId → { startMs, postId, categories }
+  const signalQueue = useRef([])
+  useEffect(() => {
+    const observer = new IntersectionObserver((entries) => {
+      const now = Date.now()
+      for (const entry of entries) {
+        const postId = parseInt(entry.target.dataset.postId)
+        const categories = entry.target.dataset.categories ? JSON.parse(entry.target.dataset.categories) : []
+        if (!postId || !categories.length) continue
+        if (entry.isIntersecting) {
+          dwellTimers.current.set(postId, { startMs: now, categories })
+        } else {
+          const timer = dwellTimers.current.get(postId)
+          if (timer) {
+            const dwell = now - timer.startMs
+            dwellTimers.current.delete(postId)
+            let type = null
+            if (dwell < 3000) type = 'quick_close'
+            else if (dwell < 30000) type = 'scroll_past'
+            else if (dwell < 120000) type = 'dwell_short'
+            else type = 'dwell_long'
+            signalQueue.current.push({ signal_type: type, source_type: 'post', source_id: postId, interest_slugs: categories })
+          }
+        }
+      }
+    }, { threshold: 0.5 })
+    const nodes = document.querySelectorAll('[data-post-id]')
+    nodes.forEach(n => observer.observe(n))
+    // Flush queue every 20 seconds
+    const flush = setInterval(() => {
+      const batch = signalQueue.current.splice(0)
+      if (batch.length > 0) apiIngestSignals(batch).catch(() => {})
+    }, 20000)
+    return () => { observer.disconnect(); clearInterval(flush) }
+  }, [posts])
   const [keywordWarning, setKeywordWarning] = useState(null) // { keyword, text, files } | null
   const [postCategories, setPostCategories] = useState(new Set())
   const [autoCategories, setAutoCategories] = useState(new Set())
@@ -1345,7 +1382,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const hintIconRef = useRef(null)
   const feedMention = useMention(sharePopupFriends || [])
   const bottomSentinelRef = useRef(null)
-  const topSentinelRef = useRef(null)
   const feedContainerRef = useRef(null)
   const [feedSelectedEvent, setFeedSelectedEvent] = useState(null)
   const [feedRsvpMap, setFeedRsvpMap] = useState({})
@@ -1516,37 +1552,30 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     if (feedDbEventIds.has(eventId)) apiRsvpEvent(eventId, newStatus, {}).catch(() => {})
   }
 
-  // Fetch a page of posts — stable callback (empty deps), guards via ref
-  const fetchPage = useCallback(async (newOffset, direction) => {
+  // Fetch the next page of posts and append them — stable callback (empty deps), guards via ref
+  const fetchMore = useCallback(async () => {
     if (isFetchingRef.current) return
     isFetchingRef.current = true
     setLoadingPage(true)
-    const data = await apiFetchFeed(newOffset, PAGE_SIZE)
+    const data = await apiFetchFeed(nextCursorRef.current, PAGE_SIZE)
     if (data?.posts) {
-      const container = feedContainerRef.current
-      // Capture scroll height BEFORE React flushes the DOM update
-      const prevScrollHeight = container?.scrollHeight ?? 0
-      setPosts(data.posts)
-      setTotal(data.total)
-      setOffset(newOffset)
-      setLikedPosts(new Set(data.posts.filter(p => p.liked).map(p => p.id)))
-      setReactions(Object.fromEntries(data.posts.filter(p => p.userReaction).map(p => [p.id, p.userReaction])))
-      offsetRef.current = newOffset
-      totalRef.current = data.total
-      if (container) {
-        if (direction === 'down') {
-          container.scrollTop = 0
-        } else if (direction === 'up') {
-          // After DOM paints: jump to the position that puts the user
-          // at the bottom of the newly loaded page so they can keep scrolling up
-          requestAnimationFrame(() => {
-            if (feedContainerRef.current) {
-              feedContainerRef.current.scrollTop =
-                feedContainerRef.current.scrollHeight - prevScrollHeight
-            }
-          })
-        }
-      }
+      setPosts(prev => {
+        const existingIds = new Set(prev.map(p => p.id))
+        const newPosts = data.posts.filter(p => !existingIds.has(p.id))
+        return [...prev, ...newPosts]
+      })
+      setLikedPosts(prev => {
+        const next = new Set(prev)
+        data.posts.filter(p => p.liked).forEach(p => next.add(p.id))
+        return next
+      })
+      setReactions(prev => {
+        const next = { ...prev }
+        data.posts.filter(p => p.userReaction).forEach(p => { next[p.id] = p.userReaction })
+        return next
+      })
+      nextCursorRef.current = data.nextCursor ?? null
+      setHasMore(data.nextCursor != null)
     }
     setLoadingPage(false)
     isFetchingRef.current = false
@@ -1558,13 +1587,13 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       const cfg = res?.config || res
       if (cfg?.mediaMaxFiles) { setMediaMaxFiles(cfg.mediaMaxFiles); mediaMaxFilesRef.current = cfg.mediaMaxFiles }
     })
-    apiFetchFeed(0, PAGE_SIZE).then(data => {
+    apiFetchFeed(null, PAGE_SIZE).then(data => {
       if (data?.posts) {
         setPosts(data.posts)
-        setTotal(data.total)
-        totalRef.current = data.total
         setLikedPosts(new Set(data.posts.filter(p => p.liked).map(p => p.id)))
         setReactions(Object.fromEntries(data.posts.filter(p => p.userReaction).map(p => [p.id, p.userReaction])))
+        nextCursorRef.current = data.nextCursor ?? null
+        setHasMore(data.nextCursor != null)
       }
     })
     apiFetchEvents().then(data => {
@@ -1601,37 +1630,18 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       .catch(() => {})
   }, [])
 
-  // Bottom sentinel — load next page
-  // Depends only on `offset` (to re-observe when sentinel mounts/unmounts) and
-  // `fetchPage` (stable). Reads current values via refs inside the callback.
+  // Bottom sentinel — infinite scroll: load next page when user reaches the end
   useEffect(() => {
     const el = bottomSentinelRef.current
     if (!el) return
     const observer = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting &&
-          !isFetchingRef.current &&
-          offsetRef.current + PAGE_SIZE < totalRef.current) {
-        fetchPage(offsetRef.current + PAGE_SIZE, 'down')
+      if (entries[0].isIntersecting && !isFetchingRef.current && nextCursorRef.current) {
+        fetchMore()
       }
     }, { threshold: 0.1 })
     observer.observe(el)
     return () => observer.disconnect()
-  }, [offset, fetchPage]) // offset: sentinel mounts when offset changes; fetchPage: stable
-
-  // Top sentinel — load previous page
-  useEffect(() => {
-    const el = topSentinelRef.current
-    if (!el) return
-    const observer = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting &&
-          !isFetchingRef.current &&
-          offsetRef.current > 0) {
-        fetchPage(Math.max(0, offsetRef.current - PAGE_SIZE), 'up')
-      }
-    }, { threshold: 0.1 })
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [offset, fetchPage]) // offset: sentinel mounts/unmounts; fetchPage: stable
+  }, [hasMore, fetchMore]) // re-attach when hasMore changes (sentinel mounts/unmounts)
 
   // Show scroll-to-top button when user has scrolled more than one viewport height
   useEffect(() => {
@@ -1681,8 +1691,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         return
       }
       if (data) {
-        setPosts(prev => [data, ...prev].slice(0, PAGE_SIZE))
-        setTotal(prev => prev + 1)
+        setPosts(prev => [data, ...prev])
         setTimeout(onBadgeCheck, 300)
       } else {
         const localMedia = mediaPreviews.length > 0
@@ -1694,8 +1703,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
           time: { da: new Date().toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' }), en: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) },
           text: { da: text, en: text },
           likes: 0, comments: [], media: localMedia,
-        }, ...prev].slice(0, PAGE_SIZE))
-        setTotal(prev => prev + 1)
+        }, ...prev])
       }
     })
     setNewPostText('')
@@ -1925,8 +1933,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     return () => clearTimeout(timer)
   }, [pinnedPost])
 
-  const pageNum = Math.floor(offset / PAGE_SIZE) + 1
-  const totalPages = Math.ceil(total / PAGE_SIZE)
 
   return (
     <div className="p-feed" ref={feedContainerRef}>
@@ -2413,20 +2419,11 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       <ReelsStrip lang={lang} t={t} onNavigate={onNavigate} />
 
       {/* Memories card — on this day */}
-      {offset === 0 && (
-        <MemoriesCard
-          lang={lang}
-          t={t}
-          onShare={(text) => setNewPostText(prev => prev ? prev + '\n\n' + text : text)}
-        />
-      )}
-
-      {/* Top sentinel — triggers loading previous page */}
-      {offset > 0 && (
-        <div ref={topSentinelRef} className="p-feed-sentinel">
-          {loadingPage && <div className="p-feed-loading">{lang === 'da' ? 'Indlæser...' : 'Loading...'}</div>}
-        </div>
-      )}
+      <MemoriesCard
+        lang={lang}
+        t={t}
+        onShare={(text) => setNewPostText(prev => prev ? prev + '\n\n' + text : text)}
+      />
 
       {/* Pinned search result */}
       {pinnedPost && (() => {
@@ -2543,7 +2540,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       })}
 
       {/* Event activity feed items — upcoming events only (not expired) */}
-      {offset === 0 && feedEvents.filter(ev => new Date(ev.date) > new Date()).slice(0, 2).map((ev, idx) => {
+      {feedEvents.filter(ev => new Date(ev.date) > new Date()).slice(0, 2).map((ev, idx) => {
         const item = { id: `ea${idx}`, event: ev, verb: idx === 0 ? 'going' : 'created',
           actor: ev.going?.[0] || ev.organizer,
           time: { da: 'For nylig', en: 'Recently' } }
@@ -2594,8 +2591,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         )
       })}
 
-      {/* Dynamic group suggestion card — shown on first page when suggestions exist */}
-      {offset === 0 && (() => {
+      {/* Dynamic group suggestion card — shown when suggestions exist */}
+      {(() => {
         const visible = groupSuggestions.filter(g => !dismissedGroupIds.has(g.id) && !joinedGroupIds.has(g.id))
         if (!visible.length) return null
         return (
@@ -2678,7 +2675,10 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
               const sp = suggestedPosts[Math.floor(postIdx / SUGGEST_EVERY) - 1]
               return sp ? <SuggestedPostCard key={`sug-${sp.id}`} post={sp} lang={lang} onViewProfile={onViewProfile} /> : null
             })()}
-          <div className="p-card p-post">
+          <div className="p-card p-post"
+            data-post-id={post.id}
+            data-categories={post.categories?.length ? JSON.stringify(post.categories) : undefined}
+          >
             <div className="p-post-header">
               <div style={{ position: 'relative', flexShrink: 0 }}>
               <div
@@ -2978,17 +2978,10 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       {/* Ad banner — always shown after posts list */}
       <AdBanner placement="feed" adsFree={adsFree} lang={lang} onGoAdFree={adsFree ? null : () => onNavigate('settings', 'billing')} />
 
-      {/* Bottom sentinel — triggers loading next page */}
-      {offset + PAGE_SIZE < total && (
+      {/* Bottom sentinel — triggers loading next page (infinite scroll) */}
+      {hasMore && (
         <div ref={bottomSentinelRef} className="p-feed-sentinel">
           {loadingPage && <div className="p-feed-loading">{lang === 'da' ? 'Indlæser...' : 'Loading...'}</div>}
-        </div>
-      )}
-
-      {/* Page indicator */}
-      {totalPages > 1 && (
-        <div className="p-feed-page-indicator">
-          {pageNum} / {totalPages}
         </div>
       )}
 
@@ -3124,7 +3117,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
         }
       }
     })
-    apiFetchFeed(0, 100).then(data => {
+    apiFetchFeed(null, 100).then(data => {
       const posts = data?.posts || data || []
       setUserPosts(posts.filter(p => p.author === currentUser.name))
     })
