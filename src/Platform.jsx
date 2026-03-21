@@ -1562,7 +1562,8 @@ function FeedSidebar({ lang, t, adsFree, onNavigate }) {
           {boostedListings.map(l => {
             const photo = Array.isArray(l.photos) ? l.photos[0] : null
             const API_BASE = import.meta.env.VITE_API_URL || ''
-            const photoSrc = photo ? (photo.startsWith('http') ? photo : `${API_BASE}${photo}`) : null
+            const photoStr = typeof photo === 'string' ? photo : (photo?.url || null)
+            const photoSrc = photoStr ? (photoStr.startsWith('http') ? photoStr : `${API_BASE}${photoStr}`) : null
             return (
               <div key={l.id} onClick={() => onNavigate('marketplace')} style={{ display: 'flex', gap: 10, marginBottom: 10, cursor: 'pointer', alignItems: 'center' }}>
                 {photoSrc
