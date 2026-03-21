@@ -10079,10 +10079,17 @@ app.get('*', async (req, res) => {
         watcher:  '👁️ Skyggefølger',
         riddler:  '❓ The Riddler',
       }
+      const DEFAULT_HINTS = {
+        chuck:    { hintsEnabled: true,  hintText: 'har en mening' },
+        gravity:  { hintsEnabled: true,  hintText: 'G G' },
+        rickroll: { hintsEnabled: true,  hintText: 'Going down!' },
+      }
       const [[row]] = await pool.query(
         "SELECT key_value FROM admin_settings WHERE key_name = 'easter_egg_config'"
       ).catch(() => [[null]])
-      const cfg = row ? JSON.parse(row.key_value || '{}') : {}
+      const cfg = (row && Object.keys(JSON.parse(row.key_value || '{}')).length)
+        ? JSON.parse(row.key_value)
+        : DEFAULT_HINTS
       const activeHints = Object.entries(cfg)
         .filter(([, ec]) => ec.hintsEnabled && ec.hintText?.trim())
         .map(([id, ec]) => `    ${EGG_LABELS[id] || id}: ${ec.hintText.trim()}`)
