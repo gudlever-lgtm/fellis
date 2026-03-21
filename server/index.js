@@ -4100,8 +4100,7 @@ app.get('/api/marketplace/stats', authenticate, async (req, res) => {
        LEFT JOIN listing_views lv ON l.id = lv.listing_id
        WHERE l.user_id = ?
        GROUP BY l.id, l.title, l.sold, l.category
-       ORDER BY views DESC, l.created_at DESC
-       LIMIT 5`,
+       ORDER BY views DESC, l.created_at DESC`,
       [req.userId]
     )
     const [categories] = await pool.query(

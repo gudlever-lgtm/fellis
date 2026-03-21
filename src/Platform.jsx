@@ -11532,8 +11532,6 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
   useEffect(() => {
     if (tab === 'mine' || tab === 'stats') {
       apiFetchMyListings().then(data => { if (data?.listings || Array.isArray(data)) setMyListings(data?.listings || data) })
-    }
-    if (tab === 'stats') {
       setStatsLoading(true)
       apiGetMarketplaceStats().then(data => { if (data) setMarketplaceStats(data) }).finally(() => setStatsLoading(false))
     }
@@ -11734,6 +11732,14 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
                     {listing.seller}
                   </span>
                 </div>
+                {tab === 'mine' && (() => {
+                  const viewCount = marketplaceStats?.topListings?.find(l => l.id === listing.id)?.views
+                  return viewCount !== undefined ? (
+                    <div style={{ fontSize: 12, color: '#888', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      👁 {viewCount} {t.marketplaceStatsViews}
+                    </div>
+                  ) : null
+                })()}
                 {tab === 'mine' && (
                   <div className="p-listing-actions" onClick={e => e.stopPropagation()}>
                     {!listing.sold && !boostedIds[listing.id] && (
