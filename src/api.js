@@ -168,11 +168,9 @@ export async function apiCreatePost(text, mediaFiles, scheduledAt, categories, l
     form.append('text', text)
     if (scheduledAt) form.append('scheduled_at', scheduledAt)
     if (categories?.length) form.append('categories', JSON.stringify(categories))
-    if (location) {
-      form.append('location_lat', location.lat)
-      form.append('location_lng', location.lng)
-      if (location.name) form.append('location_name', location.name)
-    }
+    if (location?.place_name) form.append('place_name', location.place_name)
+    if (location?.geo_lat != null) form.append('geo_lat', location.geo_lat)
+    if (location?.geo_lng != null) form.append('geo_lng', location.geo_lng)
     for (const file of mediaFiles) {
       form.append('media', file)
     }
@@ -195,12 +193,7 @@ export async function apiCreatePost(text, mediaFiles, scheduledAt, categories, l
   }
   return await request('/api/feed', {
     method: 'POST',
-    body: JSON.stringify({
-      text,
-      ...(scheduledAt ? { scheduled_at: scheduledAt } : {}),
-      ...(categories?.length ? { categories } : {}),
-      ...(location ? { location_lat: location.lat, location_lng: location.lng, location_name: location.name } : {}),
-    }),
+    body: JSON.stringify({ text, ...(scheduledAt ? { scheduled_at: scheduledAt } : {}), ...(categories?.length ? { categories } : {}), ...(location?.place_name ? location : {}) }),
   })
 }
 
@@ -243,8 +236,8 @@ export async function apiAddComment(postId, text, mediaFile) {
   })
 }
 
-export async function apiLikeComment(commentId) {
-  return await request(`/api/comments/${commentId}/like`, { method: 'POST' })
+export async function apiLikeComment(commentId, emoji = '❤️') {
+  return await request(`/api/comments/${commentId}/like`, { method: 'POST', body: JSON.stringify({ emoji }) })
 }
 
 export async function apiDeletePost(postId) {
