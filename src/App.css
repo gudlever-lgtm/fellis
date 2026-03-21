@@ -1103,7 +1103,7 @@
 
 /* ── Content area ── */
 .p-content {
-  max-width: var(--content-max-width);
+  max-width: 800px;
   margin: 0 auto;
   padding: 24px 16px 80px;
 }
@@ -1837,7 +1837,7 @@
 
 /* ── Profile ── */
 .p-profile {
-  max-width: var(--content-max-width);
+  max-width: 800px;
 }
 .p-profile-card {
   padding: 0;
@@ -2808,7 +2808,7 @@
 }
 .p-nav-hamburger:hover { background: #F0FAF4; color: #2D6A4F; }
 .p-search-page {
-  max-width: var(--content-max-width);
+  max-width: 800px;
   margin: 0 auto;
   padding: 0 0 40px;
 }
@@ -5515,7 +5515,7 @@ body.mode-common .p-action-btn {
 
 /* ── Explore page ── */
 .explore-page {
-  max-width: var(--content-max-width);
+  max-width: 800px;
   margin: 0 auto;
   padding: 0 0 80px;
 }

@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } f
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { SUPPORTED_LANGS, EUROPEAN_LANGUAGES, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials, getTranslations } from './data.js'
 import { formatPrice } from './utils/currency.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiRevealPassword, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiRevealPassword, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals, apiFetchCalendarReminders, apiCreateCalendarReminder, apiDeleteCalendarReminder } from './api.js'
 import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
 import ReelsPage from './Reels.jsx'
@@ -68,10 +68,29 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('fellis_dark') === '1')
   const [marketplaceMaxPhotos, setMarketplaceMaxPhotos] = useState(4)
 
-  // 🎉 Party Mode easter egg (global — triggered anywhere on the platform)
+  // 🥚 All easter egg triggers — global so they work from any page
   const { triggerEgg: triggerGlobalEgg, syncFromServer: syncEggsFromServer } = useEasterEggs()
-  const [partyActive, setPartyActive] = useState(false)
-  useKeySequence('party', () => { if (triggerGlobalEgg('party', checkBadges)) { setPartyActive(true) } }, 2000, !partyActive)
+  // Ref set by FeedPage so Platform-level triggers can fire feed-specific DOM effects
+  const feedEggRef = useRef({})
+
+  const [partyActive,  setPartyActive]  = useState(false)
+  const [chuckGlobalActive, setChuckGlobalActive] = useState(false)
+  const [matrixGlobalActive, setMatrixGlobalActive] = useState(false)
+  const [rickrollGlobalActive, setRickrollGlobalActive] = useState(false)
+
+  const triggerChuckGlobal   = () => { if (!chuckGlobalActive   && triggerGlobalEgg('chuck',    checkBadges)) { setChuckGlobalActive(true) } }
+  const triggerMatrixGlobal  = () => { if (!matrixGlobalActive  && triggerGlobalEgg('matrix',   checkBadges)) { setMatrixGlobalActive(true) } }
+  const triggerPartyGlobal   = () => { if (triggerGlobalEgg('party',    checkBadges)) { setPartyActive(true) } }
+  const triggerFlipGlobal    = () => { triggerGlobalEgg('flip',    checkBadges); feedEggRef.current.flip?.() }
+  const triggerGravityGlobal = () => { triggerGlobalEgg('gravity', checkBadges); feedEggRef.current.gravity?.() }
+  const triggerRetroGlobal   = () => { triggerGlobalEgg('retro',   checkBadges); feedEggRef.current.retro?.() }
+
+  useKeySequence('party',  triggerPartyGlobal,   2000, !partyActive)
+  useKeySequence('matrix', triggerMatrixGlobal,  3000, !matrixGlobalActive)
+  useKeySequence('flip',   triggerFlipGlobal,    2000)
+  useKeySequence('gg',     triggerGravityGlobal, 1000)
+  useKeySequence('retro',  triggerRetroGlobal,   3000)
+  useKonamiCode(triggerChuckGlobal, !chuckGlobalActive)
   const [showOnboarding, setShowOnboarding] = useState(() => localStorage.getItem('fellis_onboarding') === '1')
   const [onboardingInviterName] = useState(() => localStorage.getItem('fellis_onboarding_inviter') || null)
   const avatarMenuRef = useRef(null)
@@ -460,6 +479,12 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
             onViewOwnProfile={() => navigateTo('profile')}
             onNavigate={navigateTo}
             onBadgeCheck={checkBadges}
+            feedEggRef={feedEggRef}
+            onTriggerChuck={triggerChuckGlobal}
+            onTriggerMatrix={triggerMatrixGlobal}
+            onTriggerRickroll={() => { if (!rickrollGlobalActive && triggerGlobalEgg('rickroll', checkBadges)) setRickrollGlobalActive(true) }}
+            onTriggerParty={triggerPartyGlobal}
+            onTriggerRetro={triggerRetroGlobal}
           />
         </div>
         {page === 'reels' && <ReelsPage t={t} currentUser={currentUser} initialReelId={navParam?.reelId} onViewProfile={(userId) => navigateTo('view-profile', { userId })} />}
@@ -559,8 +584,11 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
         )
       })()}
 
-      {/* 🎉 Party Mode confetti (global) */}
-      {partyActive && <PartyConfetti onDismiss={() => setPartyActive(false)} />}
+      {/* 🥚 Easter egg overlays — all rendered globally so they work from any page */}
+      {partyActive        && <PartyConfetti onDismiss={() => setPartyActive(false)} />}
+      {chuckGlobalActive  && <ChuckBanner   onDismiss={() => setChuckGlobalActive(false)} />}
+      {matrixGlobalActive && <MatrixRain    onDismiss={() => setMatrixGlobalActive(false)} />}
+      {rickrollGlobalActive && <RickRoll    onDismiss={() => setRickrollGlobalActive(false)} />}
 
       {/* 🏅 Badge toast notifications */}
       <BadgeToastQueue queueRef={badgeQueueRef} lang={lang} />
@@ -945,7 +973,7 @@ function useMention(friends) {
   const [query, setQuery] = useState(null) // null = closed
   const [selIdx, setSelIdx] = useState(0)
   const filtered = query !== null
-    ? friends.filter(f => f.name.toLowerCase().startsWith(query.toLowerCase()))
+    ? friends.filter(f => f.name?.toLowerCase().startsWith(query.toLowerCase()))
     : []
 
   const detect = useCallback((text, cursor) => {
@@ -1354,7 +1382,7 @@ function BoostedListingCard({ listing, lang, t, onNavigate }) {
   )
 }
 
-function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onNavigate, onBadgeCheck }) {
+function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onNavigate, onBadgeCheck, feedEggRef, onTriggerChuck, onTriggerMatrix, onTriggerRickroll, onTriggerParty, onTriggerRetro }) {
   const [posts, setPosts] = useState([])
   const [feedCategoryFilter, setFeedCategoryFilter] = useState(null)
   const [pinnedPost, setPinnedPost] = useState(null)
@@ -1442,10 +1470,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const { rels } = useContactRelationships()
 
   // ── 🥚 Easter Eggs ──────────────────────────────────────────────────────────
-  const { triggerEgg } = useEasterEggs()
-  const [chuckActive,    setChuckActive]    = useState(false)
-  const [matrixActive,   setMatrixActive]   = useState(false)
-  const [rickrollActive, setRickrollActive] = useState(false)
+  // Keyboard/Konami triggers are global (Platform level).
+  // FeedPage registers DOM-effect callbacks via feedEggRef so Platform can call them.
   const [riddlerActive,  setRiddlerActive]  = useState(false)
   const flipActiveRef    = useRef(false)
   const retroActiveRef   = useRef(false)
@@ -1454,28 +1480,13 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   // Refs for touch/mobile triggers
   const feedTitleRef = useRef(null)
 
-  // Rick Roll sentinel — placed at very bottom of feed
+  // Rick Roll — scroll to bottom of feed for 4 seconds (feed-specific)
   const rickrollSentinelRef = useRef(null)
-  useScrollHold(rickrollSentinelRef, 4000, () => {
-    if (!rickrollActive && triggerEgg('rickroll', onBadgeCheck)) { setRickrollActive(true) }
-  }, !rickrollActive)
+  useScrollHold(rickrollSentinelRef, 4000, () => { onTriggerRickroll?.() }, true)
 
-  // Chuck Norris: Konami code ↑↑↓↓←→←→BA (keyboard) / 10 taps on feed title (mobile)
-  const triggerChuck = () => { if (!chuckActive && triggerEgg('chuck', onBadgeCheck)) { setChuckActive(true) } }
-  useKonamiCode(triggerChuck, !chuckActive)
-
-  // Matrix Rain: type "matrix" (keyboard) / 7 avatar clicks within 3 seconds (mobile)
-  useKeySequence('matrix', () => {
-    if (!matrixActive && triggerEgg('matrix', onBadgeCheck)) { setMatrixActive(true) }
-  }, 3000, !matrixActive)
-  useAvatarClick(feedContainerRef, 7, 3000, () => {
-    if (!matrixActive && triggerEgg('matrix', onBadgeCheck)) { setMatrixActive(true) }
-  }, !matrixActive)
-
-  // Flip Feed: type "flip" within 2 seconds (keyboard) / 3 taps on feed title (mobile)
-  const triggerFlip = () => {
+  // DOM-effect callbacks — called by Platform's global keyboard triggers
+  const doFlip = () => {
     if (flipActiveRef.current) return
-    if (!triggerEgg('flip', onBadgeCheck)) return
     flipActiveRef.current = true
     if (feedContainerRef.current) feedContainerRef.current.classList.add('feed-flipped')
     setTimeout(() => {
@@ -1483,12 +1494,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       flipActiveRef.current = false
     }, 10000)
   }
-  useKeySequence('flip', triggerFlip, 2000)
-
-  // Gravity: press G G within 1 second (keyboard) / 2 taps on feed title (mobile)
-  const triggerGravity = () => {
+  const doGravity = () => {
     if (gravityActiveRef.current) return
-    if (!triggerEgg('gravity', onBadgeCheck)) return
     gravityActiveRef.current = true
     if (feedContainerRef.current) feedContainerRef.current.classList.add('feed-gravity')
     setTimeout(() => {
@@ -1496,14 +1503,27 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       gravityActiveRef.current = false
     }, 2500)
   }
-  useKeySequence('gg', triggerGravity, 1000)
+  const doRetro = () => {
+    if (retroActiveRef.current) return
+    retroActiveRef.current = true
+    document.body.classList.add('retro-mode')
+    setTimeout(() => {
+      document.body.classList.remove('retro-mode')
+      retroActiveRef.current = false
+    }, 30000)
+  }
 
-  // Party Mode: type "party" within 2 seconds (keyboard) / 5 taps on feed title (mobile)
-  // (Party is also triggered via useKeySequence in the outer PlatformShell — this covers mobile)
-  const triggerPartyMobile = () => { if (triggerGlobalEgg('party', checkBadges)) { setPartyActive(true) } }
+  // Register DOM callbacks into feedEggRef so Platform can call them
+  useEffect(() => {
+    if (feedEggRef) feedEggRef.current = { flip: doFlip, gravity: doGravity, retro: doRetro }
+    return () => { if (feedEggRef) feedEggRef.current = {} }
+  })
+
+  // Avatar click — 7 clicks in 3 seconds = Matrix (mobile)
+  useAvatarClick(feedContainerRef, 7, 3000, () => { onTriggerMatrix?.() }, true)
 
   // Feed title tap-count: 2=Gravity, 3=Flip, 5=Party, 10=Chuck (mobile)
-  useTapCount(feedTitleRef, { 2: triggerGravity, 3: triggerFlip, 5: triggerPartyMobile, 10: triggerChuck }, 5000, 600)
+  useTapCount(feedTitleRef, { 2: doGravity, 3: doFlip, 5: () => onTriggerParty?.(), 10: () => onTriggerChuck?.() }, 5000, 600)
 
   // Post hint icon double-tap: manually re-trigger AI category suggestion
   useTapCount(hintIconRef, {
@@ -1525,20 +1545,9 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     }
   }, 2000, 300)
 
-  // Retro Mode: type "retro" (keyboard) / long-press feed title 1.5s (mobile)
-  const triggerRetro = () => {
-    if (retroActiveRef.current) return
-    if (!triggerEgg('retro', onBadgeCheck)) return
-    retroActiveRef.current = true
-    document.body.classList.add('retro-mode')
-    setTimeout(() => {
-      document.body.classList.remove('retro-mode')
-      retroActiveRef.current = false
-    }, 30000)
-  }
-  useKeySequence('retro', triggerRetro, 3000)
-  useLongPress(feedTitleRef, 1500, triggerRetro)
-  const handleRetroTrigger = (e) => { if (e.shiftKey) triggerRetro() }
+  // Retro Mode: type "retro" is global (Platform level); long-press feed title 1.5s / Shift+click (mobile)
+  useLongPress(feedTitleRef, 1500, () => onTriggerRetro?.())
+  const handleRetroTrigger = (e) => { if (e.shiftKey) onTriggerRetro?.() }
 
   // Riddler: Shift+Click on the ? hint icon
   const handleHintIconClick = (e) => {
@@ -2101,10 +2110,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
           {blockToast}
         </div>
       )}
-      {/* 🥚 Easter egg overlays */}
-      {chuckActive    && <ChuckBanner   onDismiss={() => setChuckActive(false)} />}
-      {matrixActive   && <MatrixRain    onDismiss={() => setMatrixActive(false)} />}
-      {rickrollActive && <RickRoll      onDismiss={() => setRickrollActive(false)} />}
+      {/* 🥚 Easter egg overlays — matrix/rickroll/chuck/party rendered globally in Platform */}
       {riddlerActive  && <RiddleBanner  lang={lang} onDismiss={() => setRiddlerActive(false)} />}
       {/* Keyword warning modal */}
       {keywordWarning && (
@@ -3827,7 +3833,7 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
   const labelStyle = { display: 'block', fontSize: 13, fontWeight: 600, color: '#555', marginBottom: 4, marginTop: 16 }
 
   return (
-    <div className="p-profile" style={{ maxWidth: 520 }}>
+    <div className="p-profile" style={{ maxWidth: 520, margin: '0 auto' }}>
       <div className="p-card" style={{ padding: 24 }}>
         <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 20 }}>{editT.title}</h2>
 
@@ -6054,6 +6060,13 @@ function AboutPage({ lang }) {
         role: 'E-mail (adgangskode-nulstilling)',
         why: 'Open source e-mail-bibliotek med ingen ekstern afhængighed. E-mails sendes via din egen SMTP-server — vi låser dig ikke til en tredjeparts e-mail-tjeneste.',
       },
+      {
+        name: 'Mistral AI',
+        flag: '🇫🇷', country: 'Frankrig',
+        url: 'https://mistral.ai/',
+        role: 'AI-assistance til CV og ansøgning',
+        why: 'Fransk AI-virksomhed grundlagt i 2023, med modeller hostet i EU. Bruges til at hjælpe dig med at skrive CV og ansøgningsbreve. Din profildata sendes kun, når du aktivt bruger generatoren, og Mistral gemmer den ikke efter svaret er leveret. Funktionen er valgfri og kræver en API-nøgle — uden nøgle bruges lokale skabeloner i stedet.',
+      },
     ],
   } : {
     title: 'About Fellis',
@@ -6104,6 +6117,13 @@ function AboutPage({ lang }) {
         url: 'https://nodemailer.com/',
         role: 'Email (password reset)',
         why: 'Open source email library with no external dependency. Emails are sent via your own SMTP server — we do not lock you in to a third-party email service.',
+      },
+      {
+        name: 'Mistral AI',
+        flag: '🇫🇷', country: 'France',
+        url: 'https://mistral.ai/',
+        role: 'AI assistance for CV and cover letters',
+        why: 'French AI company founded in 2023, with models hosted in the EU. Used to help you write CVs and cover letters. Your profile data is only sent when you actively use the generator, and Mistral does not retain it after the response is delivered. The feature is optional and requires an API key — without one, local templates are used instead.',
       },
     ],
   }
@@ -8034,7 +8054,7 @@ function NewConvModal({ t, lang, mode, friends, existingParticipantIds = [], isG
 
   const eligible = friends.filter(f =>
     !existingParticipantIds.includes(f.id) &&
-    f.name.toLowerCase().includes(search.toLowerCase()) &&
+    f.name?.toLowerCase().includes(search.toLowerCase()) &&
     (relFilter === 'all' || rels[String(f.id)] === relFilter)
   )
   const toggle = (id) => setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
@@ -14522,7 +14542,7 @@ function AdminMfaPanel({ lang }) {
   }
 
   const filtered = users
-    ? users.filter(u => !search || u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase()))
+    ? users.filter(u => !search || u.name?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase()))
     : []
 
   const mfaCount = users ? users.filter(u => u.mfaEnabled).length : 0
