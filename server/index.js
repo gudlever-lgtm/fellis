@@ -10077,7 +10077,7 @@ app.get('*', async (req, res) => {
         .map(([id, ec]) => `      ${id}: ${ec.hintText.trim()}`)
       const eggComment = activeHints.length
         ? `<!--\n    👋 Hej nysgerrige! / Hello curious one!\n\n    🥚 Easter egg hints:\n${activeHints.join('\n')}\n  -->`
-        : `<!-- 👋 Hej nysgerrige! / Hello curious one! No active easter egg hints right now. -->`
+        : `<!--\n    👋 Hej nysgerrige! / Hello curious one!\n\n    🥚 Easter eggs — all keyboard triggers work from any page.\n  -->`
       html = html.replace(/<!--[\s\S]*?Hej nysgerrige[\s\S]*?-->/, eggComment)
     } catch { /* keep original comment if DB unavailable */ }
 
