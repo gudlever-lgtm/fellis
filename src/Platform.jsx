@@ -11842,7 +11842,9 @@ function ListingDetailModal({ listing, t, lang, currentUser, catLabel, catIcon, 
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="p-listing-detail-modal" onClick={e => e.stopPropagation()}>
-        <button className="p-listing-detail-close" onClick={onClose}>✕</button>
+        <div className="p-listing-detail-close-wrap">
+          <button className="p-listing-detail-close" onClick={onClose}>✕</button>
+        </div>
         {listing.photos?.length > 0 ? (
           <div className={`p-post-media p-post-media-${Math.min(listing.photos.length, 4)} p-listing-detail-photos`}>
             {listing.photos.slice(0, 4).map((p, i) => (
