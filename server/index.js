@@ -8191,7 +8191,7 @@ app.post('/api/cv/generate', authenticate, async (req, res) => {
     // Build CV text
     let cvText = ''
     if (!type || type === 'cv' || type === 'both') {
-      cvText = `# ${me.name}\n`
+      cvText = `# ${me.name || ''}\n`
       if (me.location) cvText += `📍 ${me.location}\n`
       if (me.job_title || me.company) cvText += `💼 ${[me.job_title, me.company].filter(Boolean).join(' · ')}\n`
       cvText += '\n'

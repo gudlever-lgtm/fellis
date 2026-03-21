@@ -4155,6 +4155,9 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
 
       {/* Interest Graph — embedded directly in edit profile */}
       <InterestGraphPage lang={lang} t={t} currentUser={currentUser} />
+
+      {/* CV / Work profile — always shown in edit profile */}
+      <CVProfileSection lang={lang} t={t} isOwn={true} userId={currentUser.id} />
     </div>
   )
 }
@@ -11089,7 +11092,7 @@ function JobApplyModal({ job, lang, t, onClose, currentUser }) {
             <button className="p-events-create-btn" onClick={onClose}>{lang === 'da' ? 'Luk' : 'Close'}</button>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} style={{ padding: '16px 20px' }}>
+          <form onSubmit={handleSubmit} style={{ padding: '16px 20px', overflowY: 'auto', flex: 1 }}>
             <div style={{ fontSize: 13, color: '#555', marginBottom: 12 }}>
               <strong>{typeof job.title === 'string' ? job.title : (job.title?.da || '')}</strong>
               {' '}&middot;{' '}
