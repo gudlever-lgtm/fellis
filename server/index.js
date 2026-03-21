@@ -7696,6 +7696,7 @@ app.get('/api/config', async (req, res) => {
 
 // ── Changelog ─────────────────────────────────────────────────────────────────
 const CHANGELOG_ENTRIES = [
+  { date: '2026-03', icon: '📄', da: 'CV-profil og jobansøgning — tilføj erhvervserfaring, uddannelse og sprog til din profil og vedhæft CV og ansøgningsbrev direkte i jobopslag. AI-assistance via Mistral hjælper dig med at skrive dem.', en: 'CV profile and job applications — add work experience, education and languages to your profile and attach a CV and cover letter directly in job listings. AI assistance via Mistral helps you write them.' },
   { date: '2026-03', icon: '🌍', da: 'Flersproget infrastruktur — sitet er klar til nye sprog', en: 'Multi-language infrastructure — site is ready for new languages' },
   { date: '2026-03', icon: '💳', da: 'Mollie betalingsgateway — betal for reklamefrit abonnement via MobilePay, Visa, Mastercard m.fl.', en: 'Mollie payment gateway — pay for ad-free subscription via MobilePay, Visa, Mastercard etc.' },
   { date: '2026-03', icon: '🕰️', da: 'Memories — "På denne dag": se dine opslag fra tidligere år', en: 'Memories — "On this day": see your posts from previous years' },

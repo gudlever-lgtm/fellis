@@ -6054,6 +6054,13 @@ function AboutPage({ lang }) {
         role: 'E-mail (adgangskode-nulstilling)',
         why: 'Open source e-mail-bibliotek med ingen ekstern afhængighed. E-mails sendes via din egen SMTP-server — vi låser dig ikke til en tredjeparts e-mail-tjeneste.',
       },
+      {
+        name: 'Mistral AI',
+        flag: '🇫🇷', country: 'Frankrig',
+        url: 'https://mistral.ai/',
+        role: 'AI-assistance til CV og ansøgning',
+        why: 'Fransk AI-virksomhed grundlagt i 2023, med modeller hostet i EU. Bruges til at hjælpe dig med at skrive CV og ansøgningsbreve. Din profildata sendes kun, når du aktivt bruger generatoren, og Mistral gemmer den ikke efter svaret er leveret. Funktionen er valgfri og kræver en API-nøgle — uden nøgle bruges lokale skabeloner i stedet.',
+      },
     ],
   } : {
     title: 'About Fellis',
@@ -6104,6 +6111,13 @@ function AboutPage({ lang }) {
         url: 'https://nodemailer.com/',
         role: 'Email (password reset)',
         why: 'Open source email library with no external dependency. Emails are sent via your own SMTP server — we do not lock you in to a third-party email service.',
+      },
+      {
+        name: 'Mistral AI',
+        flag: '🇫🇷', country: 'France',
+        url: 'https://mistral.ai/',
+        role: 'AI assistance for CV and cover letters',
+        why: 'French AI company founded in 2023, with models hosted in the EU. Used to help you write CVs and cover letters. Your profile data is only sent when you actively use the generator, and Mistral does not retain it after the response is delivered. The feature is optional and requires an API key — without one, local templates are used instead.',
       },
     ],
   }
