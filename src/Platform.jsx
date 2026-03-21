@@ -92,10 +92,12 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
   useKeySequence('retro',  triggerRetroGlobal,   3000)
   useKonamiCode(triggerChuckGlobal, !chuckGlobalActive)
   // Mobile tap triggers on global nav elements (work from any page)
-  const navLogoRef = useRef(null)
+  const navSearchRef = useRef(null)
   const navAvatarTapRef = useRef(null)
-  useTapCount(navLogoRef,     { 5: triggerPartyGlobal,  10: triggerChuckGlobal  }, 5000, 600)
+  const notifTitleRef = useRef(null)
+  useTapCount(navSearchRef,    { 5: triggerPartyGlobal,  10: triggerChuckGlobal  }, 5000, 600)
   useTapCount(navAvatarTapRef, { 7: triggerMatrixGlobal }, 3000, 600)
+  useTapCount(notifTitleRef,   { 5: triggerPartyGlobal,  10: triggerChuckGlobal  }, 5000, 600)
   const [showOnboarding, setShowOnboarding] = useState(() => localStorage.getItem('fellis_onboarding') === '1')
   const [onboardingInviterName] = useState(() => localStorage.getItem('fellis_onboarding_inviter') || null)
   const avatarMenuRef = useRef(null)
@@ -290,7 +292,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
       {/* Platform nav — only Feed, Friends, Messages in main tabs */}
       <nav className="p-nav">
         <div className="p-nav-left">
-          <div ref={navLogoRef} className="nav-logo" style={{ cursor: 'pointer' }} onClick={() => { navigateTo('feed'); window.location.reload() }}>
+          <div className="nav-logo" style={{ cursor: 'pointer' }} onClick={() => { navigateTo('feed'); window.location.reload() }}>
             <img src="/fellis-logo.jpg" className="nav-logo-icon" alt="" />
             <div className="nav-logo-text">
               <span className="nav-logo-brand">{t.navBrand}</span>
@@ -374,6 +376,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
         </div>
         <div className="p-nav-right">
           <button
+            ref={navSearchRef}
             className={`p-nav-search-btn${page === 'search' ? ' active' : ''}`}
             onClick={() => navigateTo('search')}
             title={t.search}
@@ -396,6 +399,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
                 notifs={notifs}
                 t={t}
                 lang={lang}
+                titleRef={notifTitleRef}
                 onMarkAllRead={markAllRead}
                 onNavigate={(page, param) => { if (param?.convId) setOpenConvId(param.convId); navigateTo(page); setShowNotifPanel(false) }}
                 onMarkRead={(id) => {
@@ -658,7 +662,7 @@ function normaliseNotif(n, lang) {
   }
 }
 
-function NotificationsPanel({ notifs, t, lang, onMarkAllRead, onMarkRead, onNavigate, onTest, testResult }) {
+function NotificationsPanel({ notifs, t, lang, titleRef, onMarkAllRead, onMarkRead, onNavigate, onTest, testResult }) {
   const unread = notifs.filter(n => !n.read).length
   const handleClick = (n) => {
     onMarkRead(n.id)
@@ -667,7 +671,7 @@ function NotificationsPanel({ notifs, t, lang, onMarkAllRead, onMarkRead, onNavi
   return (
     <div className="notif-panel">
       <div className="notif-panel-header">
-        <span style={{ fontWeight: 700, fontSize: 15 }}>{t.notifications}</span>
+        <span ref={titleRef} style={{ fontWeight: 700, fontSize: 15, cursor: 'default', userSelect: 'none' }}>{t.notifications}</span>
         {unread > 0 && (
           <button className="notif-mark-all" onClick={onMarkAllRead}>{t.markAllRead}</button>
         )}
@@ -5245,12 +5249,12 @@ function ModeratorRequestCard({ lang, t, currentUser }) {
 }
 
 const EGG_META = {
-  chuck:    { icon: '🤜', name: 'Chuck Norris', trigger: { da: 'Konami-kode (↑↑↓↓←→←→BA) / 10 tryk på fellis-logoet', en: 'Konami code (↑↑↓↓←→←→BA) / 10 taps on the fellis logo' } },
+  chuck:    { icon: '🤜', name: 'Chuck Norris', trigger: { da: 'Konami-kode (↑↑↓↓←→←→BA) / 10 tryk på søgeikonet eller "Notifikationer"', en: 'Konami code (↑↑↓↓←→←→BA) / 10 taps on search icon or "Notifications"' } },
   matrix:   { icon: '🟩', name: 'Matrix Rain',  trigger: { da: 'Skriv "matrix" / 7 tryk på din avatar i navigationslinjen', en: 'Type "matrix" / 7 taps on your avatar in the nav bar' } },
   flip:     { icon: '🔃', name: 'Flip Feed',    trigger: { da: 'Skriv "flip" / 3 tryk på Feed-overskrift', en: 'Type "flip" / 3 taps on Feed title' } },
   retro:    { icon: '📺', name: 'Retro Mode',   trigger: { da: 'Skriv "retro" / hold Feed-overskrift nede 1,5 sek.', en: 'Type "retro" / long-press Feed title 1.5 sec.' } },
   gravity:  { icon: '⬇️', name: 'Gravity',      trigger: { da: 'Tryk G+G / 2 tryk på Feed-overskrift', en: 'Press G+G / 2 taps on Feed title' } },
-  party:    { icon: '🎉', name: 'Party Mode',   trigger: { da: 'Skriv "party" / 5 tryk på fellis-logoet', en: 'Type "party" / 5 taps on the fellis logo' } },
+  party:    { icon: '🎉', name: 'Party Mode',   trigger: { da: 'Skriv "party" / 5 tryk på søgeikonet eller "Notifikationer"', en: 'Type "party" / 5 taps on search icon or "Notifications"' } },
   rickroll: { icon: '🎵', name: 'Rick Roll',    trigger: { da: 'Rul til bunden og vent 4 sek.', en: 'Scroll to bottom and hold 4 sec.' } },
   watcher:  { icon: '👀', name: 'Skyggefølger', trigger: { da: 'Klik 7 gange på en vens avatar i Vis Profil', en: "Click 7 times on a friend's avatar in View Profile" } },
   riddler:  { icon: '❓', name: 'The Riddler',   trigger: { da: 'Shift+klik på ? hint-ikonet', en: 'Shift+click the ? hint icon' } },
