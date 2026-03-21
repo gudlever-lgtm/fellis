@@ -2283,21 +2283,31 @@ app.get('/api/feed', authenticate, async (req, res) => {
     if (postIds.length > 0) {
       try {
         const [rows] = await pool.query(
-          `SELECT c.id, c.post_id, u.name as author, c.text_da, c.text_en, c.media
-           FROM comments c JOIN users u ON c.author_id = u.id
+          `SELECT c.id, c.post_id, u.name as author, c.text_da, c.text_en, c.media,
+                  COUNT(cl.id) AS likes,
+                  MAX(CASE WHEN cl.user_id = ? THEN 1 ELSE 0 END) AS liked
+           FROM comments c
+           JOIN users u ON c.author_id = u.id
+           LEFT JOIN comment_likes cl ON cl.comment_id = c.id
            WHERE c.post_id IN (?)
+           GROUP BY c.id, c.post_id, u.name, c.text_da, c.text_en, c.media
            ORDER BY c.created_at ASC`,
-          [postIds]
+          [req.userId, postIds]
         )
         comments = rows
       } catch {
         // media column may not exist yet — fall back to query without it
         const [rows] = await pool.query(
-          `SELECT c.id, c.post_id, u.name as author, c.text_da, c.text_en
-           FROM comments c JOIN users u ON c.author_id = u.id
+          `SELECT c.id, c.post_id, u.name as author, c.text_da, c.text_en,
+                  COUNT(cl.id) AS likes,
+                  MAX(CASE WHEN cl.user_id = ? THEN 1 ELSE 0 END) AS liked
+           FROM comments c
+           JOIN users u ON c.author_id = u.id
+           LEFT JOIN comment_likes cl ON cl.comment_id = c.id
            WHERE c.post_id IN (?)
+           GROUP BY c.id, c.post_id, u.name, c.text_da, c.text_en
            ORDER BY c.created_at ASC`,
-          [postIds]
+          [req.userId, postIds]
         )
         comments = rows
       }
@@ -2337,7 +2347,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
       if (!commentsByPost[c.post_id]) commentsByPost[c.post_id] = []
       let cMedia = null
       if (c.media) { try { cMedia = typeof c.media === 'string' ? JSON.parse(c.media) : c.media } catch {} }
-      commentsByPost[c.post_id].push({ author: c.author, text: { da: c.text_da, en: c.text_en }, media: cMedia })
+      commentsByPost[c.post_id].push({ id: c.id, author: c.author, text: { da: c.text_da, en: c.text_en }, media: cMedia, likes: Number(c.likes || 0), liked: !!c.liked })
     }
     const result = posts.map(p => {
       let media = null
@@ -2661,6 +2671,27 @@ app.post('/api/feed/:id/comment', authenticate, writeLimit, upload.single('media
     res.json({ author: users[0].name, text: { da: text, en: text }, media })
   } catch (err) {
     res.status(500).json({ error: 'Failed to add comment' })
+  }
+})
+
+// POST /api/comments/:id/like — toggle like on a comment
+app.post('/api/comments/:id/like', authenticate, async (req, res) => {
+  const commentId = parseInt(req.params.id)
+  try {
+    const [existing] = await pool.query(
+      'SELECT id FROM comment_likes WHERE comment_id = ? AND user_id = ?',
+      [commentId, req.userId]
+    )
+    if (existing.length) {
+      await pool.query('DELETE FROM comment_likes WHERE comment_id = ? AND user_id = ?', [commentId, req.userId])
+      const [[{ n }]] = await pool.query('SELECT COUNT(*) AS n FROM comment_likes WHERE comment_id = ?', [commentId])
+      return res.json({ liked: false, likes: n })
+    }
+    await pool.query('INSERT INTO comment_likes (comment_id, user_id) VALUES (?, ?)', [commentId, req.userId])
+    const [[{ n }]] = await pool.query('SELECT COUNT(*) AS n FROM comment_likes WHERE comment_id = ?', [commentId])
+    res.json({ liked: true, likes: n })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to toggle comment like' })
   }
 })
 
@@ -8493,8 +8524,7 @@ async function initBadges() {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
 
-    // comment_likes — used for the "Contributor" badge
-    // TODO: wire a comment-like button in the UI to populate this table
+    // comment_likes — used for the "Contributor" badge + comment like UI
     await pool.query(`CREATE TABLE IF NOT EXISTS comment_likes (
       id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
       comment_id INT(11) NOT NULL,
