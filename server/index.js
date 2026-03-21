@@ -9242,6 +9242,19 @@ async function computeUserStats(userId) {
         AND f.created_at <= DATE_ADD(u.created_at, INTERVAL 7 DAY)) AS followersJoinedWithinFirstWeek
   `, [userId, userId, userId, userId, userId, userId, userId, userId, userId, userId, userId, userId, userId, userId])
 
+  // Reel stats
+  const [[reelStats]] = await pool.query(`
+    SELECT
+      COUNT(*) AS reelCount,
+      COALESCE(SUM(views_count), 0) AS reelViewsTotal
+    FROM reels WHERE user_id = ?
+  `, [userId])
+  const [[reelLikeRow]] = await pool.query(`
+    SELECT COUNT(*) AS reelLikesReceived
+    FROM reel_likes rl JOIN reels r ON r.id = rl.reel_id
+    WHERE r.user_id = ?
+  `, [userId])
+
   // Active months: distinct YYYY-MM with at least 1 post or comment in the last 6 months
   const [[{ activeMonths }]] = await pool.query(`
     SELECT COUNT(DISTINCT ym) AS activeMonths FROM (
@@ -9321,6 +9334,9 @@ async function computeUserStats(userId) {
     mutualFollowCount: Number(counts.mutualFollowCount || 0),
     profilesVisited: Number(counts.profilesVisited || 0),
     shareCount: Number(counts.shareCount || 0),
+    reelCount: Number(reelStats?.reelCount || 0),
+    reelViewsTotal: Number(reelStats?.reelViewsTotal || 0),
+    reelLikesReceived: Number(reelLikeRow?.reelLikesReceived || 0),
     postsWithTenPlusLikes: Number(counts.postsWithTenPlusLikes || 0),
     maxLikesOnSinglePost: Number(counts.maxLikesOnSinglePost || 0),
     commentsWithLikes: Number(counts.commentsWithLikes || 0),
