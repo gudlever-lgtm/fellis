@@ -20,7 +20,7 @@ import MatrixRain from './components/easter-eggs/MatrixRain.jsx'
 import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
 import RickRoll from './components/easter-eggs/RickRoll.jsx'
 import RiddleBanner from './components/easter-eggs/RiddleBanner.jsx'
-import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode } from './api.js'
+import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode, apiGetAdminEnvStatus } from './api.js'
 import { BADGES, BADGE_BY_ID } from './badges/badgeDefinitions.js'
 import BadgeToastQueue from './components/BadgeToast.jsx'
 import ModeGate from './components/ModeGate.jsx'
@@ -7071,9 +7071,12 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onMessage, on
           </h3>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {profile.badges.map(b => (
-              <div key={b.id} title={b.name} style={{ display: 'flex', alignItems: 'center', gap: 6, background: b.tier === 'gold' ? '#FFF8E1' : b.tier === 'silver' ? '#F5F5F5' : '#F0FAF4', borderRadius: 20, padding: '4px 12px', fontSize: 13, border: `1px solid ${b.tier === 'gold' ? '#FFD54F' : b.tier === 'silver' ? '#E0E0E0' : '#B7DFC9'}` }}>
-                <span style={{ fontSize: 16 }}>{b.icon}</span>
-                <span style={{ fontWeight: 600, color: '#333' }}>{b.name}</span>
+              <div key={b.id} title={b.description || b.name} style={{ display: 'flex', alignItems: 'center', gap: 8, background: b.tier === 'gold' ? '#FFF8E1' : b.tier === 'silver' ? '#F5F5F5' : '#F0FAF4', borderRadius: 12, padding: '6px 14px', fontSize: 13, border: `1px solid ${b.tier === 'gold' ? '#FFD54F' : b.tier === 'silver' ? '#E0E0E0' : '#B7DFC9'}` }}>
+                <span style={{ fontSize: 20 }}>{b.icon}</span>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ fontWeight: 600, color: '#333', lineHeight: 1.3 }}>{b.name}</span>
+                  {b.description && <span style={{ fontSize: 11, color: '#888', lineHeight: 1.3 }}>{b.description}</span>}
+                </div>
               </div>
             ))}
           </div>
@@ -7248,9 +7251,12 @@ function FriendProfileModal({ userId, lang, t, onClose, onMessage }) {
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                     {profile.badges.map(b => (
-                      <div key={b.id} title={b.name} style={{ display: 'flex', alignItems: 'center', gap: 4, background: b.tier === 'gold' ? '#FFF8E1' : b.tier === 'silver' ? '#F5F5F5' : '#F0FAF4', borderRadius: 16, padding: '3px 10px', fontSize: 12, border: `1px solid ${b.tier === 'gold' ? '#FFD54F' : b.tier === 'silver' ? '#E0E0E0' : '#B7DFC9'}` }}>
-                        <span style={{ fontSize: 14 }}>{b.icon}</span>
-                        <span style={{ fontWeight: 600, color: '#333' }}>{b.name}</span>
+                      <div key={b.id} title={b.description || b.name} style={{ display: 'flex', alignItems: 'center', gap: 6, background: b.tier === 'gold' ? '#FFF8E1' : b.tier === 'silver' ? '#F5F5F5' : '#F0FAF4', borderRadius: 10, padding: '5px 10px', fontSize: 12, border: `1px solid ${b.tier === 'gold' ? '#FFD54F' : b.tier === 'silver' ? '#E0E0E0' : '#B7DFC9'}` }}>
+                        <span style={{ fontSize: 16 }}>{b.icon}</span>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontWeight: 600, color: '#333', lineHeight: 1.3 }}>{b.name}</span>
+                          {b.description && <span style={{ fontSize: 10, color: '#888', lineHeight: 1.3 }}>{b.description}</span>}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -15511,6 +15517,7 @@ function BadgesProfileSection({ lang, earnedBadges, onBadgeCheck, setEarnedBadge
                   >
                     <div className="badge-icon">{badge.icon}</div>
                     <span className="badge-label">{displayName}</span>
+                    <span className="badge-desc">{displayDesc}</span>
                     <div className="badge-tooltip">
                       <strong>{displayName}</strong><br />
                       {displayDesc}
@@ -15745,6 +15752,7 @@ function AdminPage({ lang, t }) {
   const [revealedMollieKey, setRevealedMollieKey] = useState(null)
   const [replaceKeyMode, setReplaceKeyMode] = useState(false)
   const [newKeyValue, setNewKeyValue] = useState('')
+  const [envStatus, setEnvStatus] = useState(null)
 
   function showModToast(msg) { setModToast(msg); setTimeout(() => setModToast(null), 3000) }
 
@@ -15779,6 +15787,9 @@ function AdminPage({ lang, t }) {
     if (adminTab === 'moderators') {
       apiGetModerators().then(data => { if (data) setModModerators(data.moderators || []) })
       apiGetModeratorRequests().then(data => { if (data) setModRequests(data.requests || []) })
+    }
+    if (adminTab === 'payment') {
+      apiGetAdminEnvStatus().then(data => { if (data?.status) setEnvStatus(data.status) })
     }
   }, [adminTab, viralDays])
 
@@ -16120,7 +16131,7 @@ function AdminPage({ lang, t }) {
               <div>
                 <label style={lS}>{t.adminPaymentMollieKey}</label>
                 {/* Show masked key with reveal option if already set, otherwise allow entry */}
-                {form.mollie_api_key && !revealedMollieKey ? (
+                {form.mollie_api_key ? (
                   <div>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                       <input
@@ -16129,13 +16140,15 @@ function AdminPage({ lang, t }) {
                         readOnly
                         value={form.mollie_api_key}
                       />
-                      <button
-                        type="button"
-                        onClick={() => { setRevealKeyShow(true); setRevealKeyError(null); setRevealKeyPwd('') }}
-                        style={{ padding: '9px 14px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
-                      >
-                        🔍 {lang === 'da' ? 'Vis nøgle' : 'Show key'}
-                      </button>
+                      {!revealedMollieKey && (
+                        <button
+                          type="button"
+                          onClick={() => { setRevealKeyShow(true); setRevealKeyError(null); setRevealKeyPwd('') }}
+                          style={{ padding: '9px 14px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+                        >
+                          🔍 {lang === 'da' ? 'Vis nøgle' : 'Show key'}
+                        </button>
+                      )}
                     </div>
                     {revealKeyShow && (
                       <div style={{ marginTop: 8, padding: '12px 14px', background: '#FFFBF0', border: '1px solid #FFE08A', borderRadius: 8 }}>
@@ -16184,7 +16197,9 @@ function AdminPage({ lang, t }) {
                     )}
                     {revealedMollieKey && (
                       <div style={{ marginTop: 8, padding: '10px 14px', background: '#F0FAF4', border: '1px solid #c3e6cb', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <code style={{ fontSize: 12, flex: 1, wordBreak: 'break-all', color: '#2D6A4F' }}>{revealedMollieKey}</code>
+                        <code style={{ fontSize: 12, flex: 1, wordBreak: 'break-all', color: '#2D6A4F' }}>
+                          {revealedMollieKey.slice(0, 8)}{'•'.repeat(Math.max(0, revealedMollieKey.length - 12))}{revealedMollieKey.slice(-4)}
+                        </code>
                         <button type="button" onClick={() => setRevealedMollieKey(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#888' }}>✕</button>
                       </div>
                     )}
@@ -16256,8 +16271,23 @@ function AdminPage({ lang, t }) {
             <div style={{ marginTop: 12, padding: '12px 14px', background: '#F0F7FF', border: '1px solid #BDD8F9', borderRadius: 8, fontSize: 12, color: '#2C4A6E', lineHeight: 1.6 }}>
               💡 {lang === 'da' ? 'Priser for reklamefrit abonnement og Boost sættes under Økonomi → Priser.' : 'Prices for ad-free subscriptions and Boost are set under Monetisation → Pricing.'}
             </div>
-            <div style={{ marginTop: 8, padding: '12px 14px', background: '#FFFBF0', border: '1px solid #FFE08A', borderRadius: 8, fontSize: 12, color: '#7A5C00', lineHeight: 1.6 }}>
-              ⚙️ {t.adminPaymentEnvNote}
+            {/* ENV status card */}
+            <div style={{ marginTop: 8, padding: '14px 16px', background: '#F8F8F8', border: '1px solid #E0E0E0', borderRadius: 8 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10, color: '#444' }}>
+                ⚙️ {lang === 'da' ? 'server/.env — status' : 'server/.env — status'}
+              </div>
+              {!envStatus ? (
+                <div style={{ fontSize: 12, color: '#888' }}>…</div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 16px' }}>
+                  {Object.entries(envStatus).map(([key, set]) => (
+                    <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+                      <span style={{ color: set ? '#2D6A4F' : '#bbb', fontWeight: 700, flexShrink: 0 }}>{set ? '✓' : '–'}</span>
+                      <code style={{ color: set ? '#333' : '#aaa' }}>{key}</code>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <div style={{ marginTop: 20 }}>
               <button

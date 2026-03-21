@@ -625,6 +625,10 @@ export async function apiRevealAdminKey(keyName, password) {
   })
 }
 
+export async function apiGetAdminEnvStatus() {
+  return await request('/api/admin/env-status')
+}
+
 export async function apiGetAdminStats() {
   return await request('/api/admin/stats')
 }
