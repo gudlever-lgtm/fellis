@@ -8377,7 +8377,7 @@ function SearchPage({ lang, t, mode, onNavigateToPost, onNavigateToConv, onNavig
       {loading && <div className="p-search-status">{lang === 'da' ? 'Søger…' : 'Searching…'}</div>}
       {empty && !loading && (
         <div className="p-search-status">
-          {lang === 'da' ? `Ingen resultater for "${q}"` : `No results for "${q}"`}
+          {lang === 'da' ? `Ingen resultater for "${query}"` : `No results for "${query}"`}
         </div>
       )}
 
