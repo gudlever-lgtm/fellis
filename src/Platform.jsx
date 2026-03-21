@@ -20,7 +20,7 @@ import MatrixRain from './components/easter-eggs/MatrixRain.jsx'
 import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
 import RickRoll from './components/easter-eggs/RickRoll.jsx'
 import RiddleBanner from './components/easter-eggs/RiddleBanner.jsx'
-import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode, apiGetAdminEnvStatus } from './api.js'
+import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory } from './api.js'
 import { BADGES, BADGE_BY_ID } from './badges/badgeDefinitions.js'
 import BadgeToastQueue from './components/BadgeToast.jsx'
 import ModeGate from './components/ModeGate.jsx'
@@ -244,6 +244,12 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
     const timer = setTimeout(checkBadges, 3000)
     return () => clearTimeout(timer)
   }, [checkBadges])
+
+  // Load interest categories from API (falls back to static list)
+  const [interestCategories, setInterestCategories] = useState(INTEREST_CATEGORIES)
+  useEffect(() => {
+    apiGetInterestCategories().then(d => { if (d?.categories?.length) setInterestCategories(d.categories) }).catch(() => {})
+  }, [])
 
   const reloadNotifs = useCallback(() => {
     apiGetNotifications().then(data => {
@@ -555,10 +561,11 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
             onTriggerRickroll={() => { if (!rickrollGlobalActive && triggerGlobalEgg('rickroll', checkBadges)) setRickrollGlobalActive(true) }}
             onTriggerParty={triggerPartyGlobal}
             onTriggerRetro={triggerRetroGlobal}
+            interestCategories={interestCategories}
           />
         </div>
         {page === 'reels' && <ReelsPage t={t} currentUser={currentUser} initialReelId={navParam?.reelId} onViewProfile={(userId) => navigateTo('view-profile', { userId })} />}
-        {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onBadgeCheck={checkBadges} />}
+        {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onBadgeCheck={checkBadges} interestCategories={interestCategories} />}
         {page === 'view-profile' && viewUserId && <FriendProfilePage userId={viewUserId} lang={lang} t={t} currentUser={currentUser} onBack={() => navigateTo('feed')} onBadgeCheck={checkBadges} onMessage={async (prof) => { const data = await apiCreateConversation([prof.id], null, false, false).catch(() => null); if (data?.id) setOpenConvId(data.id); navigateTo('messages') }} />}
         {page === 'edit-profile' && <EditProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onBadgeCheck={checkBadges} />}
         {page === 'friends' && <FriendsPage lang={lang} t={t} mode={mode} sseRefreshKey={friendsRefreshKey} onBadgeCheck={checkBadges} onMessage={async (friend) => {
@@ -1452,7 +1459,7 @@ function BoostedListingCard({ listing, lang, t, onNavigate }) {
   )
 }
 
-function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onNavigate, onBadgeCheck, feedEggRef, onTriggerChuck, onTriggerMatrix, onTriggerRickroll, onTriggerParty, onTriggerRetro }) {
+function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onNavigate, onBadgeCheck, feedEggRef, onTriggerChuck, onTriggerMatrix, onTriggerRickroll, onTriggerParty, onTriggerRetro, interestCategories = INTEREST_CATEGORIES }) {
   const [posts, setPosts] = useState([])
   const [feedCategoryFilter, setFeedCategoryFilter] = useState(null)
   const [pinnedPost, setPinnedPost] = useState(null)
@@ -2360,7 +2367,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                     <span style={{ fontSize: 12, color: '#aaa' }}>{t.postCategoryNone}</span>
                   )}
                   {[...postCategories].map(catId => {
-                    const catInfo = INTEREST_CATEGORIES.find(c => c.id === catId)
+                    const catInfo = interestCategories.find(c => c.id === catId)
                     if (!catInfo) return null
                     const isAuto = autoCategories.has(catId)
                     return (
@@ -2393,7 +2400,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
             {/* Category picker — all 18 categories, multiple allowed */}
             {showCategoryPicker && (
               <div style={{ padding: '8px 12px', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {INTEREST_CATEGORIES.map(cat => {
+                {interestCategories.map(cat => {
                   const isActive = postCategories.has(cat.id)
                   return (
                     <button
@@ -2784,7 +2791,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
 
       {/* Active category filter indicator */}
       {feedCategoryFilter && (() => {
-        const catInfo = INTEREST_CATEGORIES.find(c => c.id === feedCategoryFilter)
+        const catInfo = interestCategories.find(c => c.id === feedCategoryFilter)
         if (!catInfo) return null
         return (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', background: '#eaf4ef', borderBottom: '1px solid #b7dfc9' }}>
@@ -2875,7 +2882,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                           </div>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                             {post.categories.map(catId => {
-                              const catInfo = INTEREST_CATEGORIES.find(c => c.id === catId)
+                              const catInfo = interestCategories.find(c => c.id === catId)
                               if (!catInfo) return null
                               const isActive = feedCategoryFilter === catId
                               return (
@@ -3237,7 +3244,7 @@ const MOCK_FB_PHOTOS = [
 ]
 
 // ── Profile (clean — read-only view) ──
-function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onBadgeCheck }) {
+function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onBadgeCheck, interestCategories = INTEREST_CATEGORIES }) {
   const [profile, setProfile] = useState({ ...currentUser })
   const [userPosts, setUserPosts] = useState([])
   const [familyGroups, setFamilyGroups] = useState([])
@@ -3775,6 +3782,11 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
   const [relationshipStatus, setRelationshipStatus] = useState('')
   const [website, setWebsite] = useState('')
   const [extSaveStatus, setExtSaveStatus] = useState(null)
+  const [interestCats, setInterestCats] = useState(INTEREST_CATEGORIES)
+
+  useEffect(() => {
+    apiGetInterestCategories().then(d => { if (d?.categories?.length) setInterestCats(d.categories) }).catch(() => {})
+  }, [])
 
   useEffect(() => {
     apiFetchProfile().then(data => {
@@ -4039,7 +4051,7 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
           <h3 style={{ margin: '0 0 6px', fontSize: 16, fontWeight: 700 }}>🎯 {t.interestsSectionTitle}</h3>
           <p style={{ fontSize: 13, color: '#666', margin: '0 0 12px' }}>{t.interestsSectionDesc}</p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
-            {INTEREST_CATEGORIES.map(cat => {
+            {interestCats.map(cat => {
               const selected = interests.includes(cat.id)
               return (
                 <button
@@ -7326,7 +7338,7 @@ function ReferralDashboard({ t, lang, referralData, badges, leaderboard, inviteL
     card: { background: '#fff', border: '1px solid #e8e8e8', borderRadius: 12, padding: 16 },
     cardTitle: { fontWeight: 700, fontSize: 15, marginBottom: 12, color: '#1a1a1a' },
     badgeGrid: { display: 'flex', flexWrap: 'wrap', gap: 10 },
-    badge: (earned) => ({ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '12px 16px', borderRadius: 12, border: `2px solid ${earned ? '#1877F2' : '#e0e0e0'}`, background: earned ? '#EBF4FF' : '#f8f8f8', opacity: earned ? 1 : 0.55, minWidth: 90, textAlign: 'center' }),
+    badge: (earned) => ({ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '12px 16px', borderRadius: 12, border: `2px solid ${earned ? '#1877F2' : '#e0e0e0'}`, background: earned ? '#EBF4FF' : '#f8f8f8', opacity: earned ? 1 : 0.55, minWidth: 90, textAlign: 'center', position: 'relative', cursor: 'default' }),
     badgeIcon: { fontSize: 28 },
     badgeTitle: (earned) => ({ fontSize: 11, fontWeight: 700, color: earned ? '#1877F2' : '#888' }),
     badgeProgress: { fontSize: 10, color: '#999' },
@@ -7381,31 +7393,6 @@ function ReferralDashboard({ t, lang, referralData, badges, leaderboard, inviteL
         )}
       </div>
 
-      {/* Share invite link */}
-      <div className="p-card">
-        <div style={s.cardTitle}>🔗 {t.inviteLinkTitle || t.referralDashShareLink}</div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <input readOnly value={inviteLink || `${siteUrl}/?invite=…`} style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, color: '#444', background: '#fafafa' }} />
-          <button className="p-btn-primary" onClick={() => copyLink(inviteLink)} style={{ whiteSpace: 'nowrap', padding: '8px 14px', fontSize: 13 }}>
-            {copiedShareLink === inviteLink ? t.referralDashShareCopied : t.referralDashShareCopy}
-          </button>
-        </div>
-        <div style={s.shareRow}>
-          <button style={s.shareBtn('#1877F2')} onClick={() => shareOn('facebook', inviteLink, lang === 'da' ? 'Kom med på fellis.eu — Danmarks private sociale netværk!' : 'Join me on fellis.eu — Denmark\'s privacy-first social network!')}>
-            f {t.referralDashShareFb}
-          </button>
-          <button style={s.shareBtn('#000')} onClick={() => shareOn('twitter', inviteLink, lang === 'da' ? 'Tilmeld dig fellis.eu med mit link!' : 'Join fellis.eu with my invite link!')}>
-            𝕏 {t.referralDashShareTwitter}
-          </button>
-          <button style={s.shareBtn('#0A66C2')} onClick={() => shareOn('linkedin', inviteLink, '')}>
-            in {t.referralDashShareLinkedIn}
-          </button>
-          <button style={s.shareBtn('#25D366')} onClick={() => shareOn('whatsapp', inviteLink, lang === 'da' ? 'Kom med på fellis.eu!' : 'Join me on fellis.eu!')}>
-            💬 {t.referralDashShareWhatsApp}
-          </button>
-        </div>
-      </div>
-
       {/* Badges */}
       <div className="p-card">
         <div style={s.cardTitle}>🏅 {t.referralDashBadgesTitle}</div>
@@ -7414,7 +7401,7 @@ function ReferralDashboard({ t, lang, referralData, badges, leaderboard, inviteL
         ) : (
           <div style={s.badgeGrid}>
             {badges.map(b => (
-              <div key={b.type} style={s.badge(b.earned)} title={b.description}>
+              <div key={b.type} style={s.badge(b.earned)}>
                 <span style={s.badgeIcon}>{b.icon}</span>
                 <span style={s.badgeTitle(b.earned)}>{b.title}</span>
                 {!b.earned && (
@@ -7426,6 +7413,18 @@ function ReferralDashboard({ t, lang, referralData, badges, leaderboard, inviteL
                   </>
                 )}
                 {b.earned && <span style={{ fontSize: 10, color: '#40916C', fontWeight: 700 }}>+{b.points} pt</span>}
+                {b.description && (
+                  <div style={{
+                    display: 'none', position: 'absolute', bottom: 'calc(100% + 8px)', left: '50%',
+                    transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.88)', color: '#fff',
+                    fontSize: 12, lineHeight: 1.4, padding: '8px 12px', borderRadius: 8,
+                    whiteSpace: 'normal', width: 180, textAlign: 'center', zIndex: 20,
+                    pointerEvents: 'none',
+                  }} className="ref-badge-tooltip">
+                    <strong style={{ display: 'block', marginBottom: 3 }}>{b.title}</strong>
+                    {b.description}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -7608,12 +7607,27 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
   const handleFbShare = useCallback(() => {
     const shareUrl = encodeURIComponent(inviteLink || 'https://fellis.eu')
     window.open(`https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`, 'facebook-share', 'width=580,height=400')
+    apiTrackShare('invite', null, 'facebook').catch(() => {})
   }, [inviteLink])
 
   const handleLinkedInShare = useCallback(() => {
     const shareUrl = encodeURIComponent(inviteLink || 'https://fellis.eu')
     window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${shareUrl}`, 'linkedin-share', 'width=600,height=500')
+    apiTrackShare('invite', null, 'linkedin').catch(() => {})
   }, [inviteLink])
+
+  const handleTwitterShare = useCallback(() => {
+    const text = encodeURIComponent(lang === 'da' ? 'Tilmeld dig fellis.eu med mit link!' : 'Join fellis.eu with my invite link!')
+    const shareUrl = encodeURIComponent(inviteLink || 'https://fellis.eu')
+    window.open(`https://twitter.com/intent/tweet?text=${text}&url=${shareUrl}`, 'twitter-share', 'width=580,height=400')
+    apiTrackShare('invite', null, 'twitter').catch(() => {})
+  }, [inviteLink, lang])
+
+  const handleWhatsAppShare = useCallback(() => {
+    const text = encodeURIComponent((lang === 'da' ? 'Kom med på fellis.eu! ' : 'Join me on fellis.eu! ') + (inviteLink || 'https://fellis.eu'))
+    window.open(`https://wa.me/?text=${text}`, '_blank')
+    apiTrackShare('invite', null, 'whatsapp').catch(() => {})
+  }, [inviteLink, lang])
 
   const handleSendEmailInvite = useCallback(async (e) => {
     e.preventDefault()
@@ -7781,14 +7795,22 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
             {inviteCopied ? (lang === 'da' ? 'Kopieret!' : 'Copied!') : (lang === 'da' ? 'Kopier' : 'Copy')}
           </button>
         </div>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button className="p-fb-share-btn" onClick={handleFbShare}>
             <span className="fb-icon">f</span>
             {lang === 'da' ? 'Del på Facebook' : 'Share on Facebook'}
           </button>
+          <button className="p-fb-share-btn" onClick={handleTwitterShare} style={{ background: '#000' }}>
+            <span className="fb-icon" style={{ fontFamily: 'serif', fontWeight: 900 }}>𝕏</span>
+            {lang === 'da' ? 'Del på X / Twitter' : 'Share on X / Twitter'}
+          </button>
           <button className="p-fb-share-btn" onClick={handleLinkedInShare} style={{ background: '#0A66C2' }}>
             <span className="fb-icon" style={{ fontWeight: 900, fontSize: 16 }}>in</span>
             {lang === 'da' ? 'Del på LinkedIn' : 'Share on LinkedIn'}
+          </button>
+          <button className="p-fb-share-btn" onClick={handleWhatsAppShare} style={{ background: '#25D366' }}>
+            <span className="fb-icon">💬</span>
+            {lang === 'da' ? 'Del via WhatsApp' : 'Share via WhatsApp'}
           </button>
         </div>
       </div>
@@ -8377,7 +8399,7 @@ function SearchPage({ lang, t, mode, onNavigateToPost, onNavigateToConv, onNavig
       {loading && <div className="p-search-status">{lang === 'da' ? 'Søger…' : 'Searching…'}</div>}
       {empty && !loading && (
         <div className="p-search-status">
-          {lang === 'da' ? `Ingen resultater for "${q}"` : `No results for "${q}"`}
+          {lang === 'da' ? `Ingen resultater for "${query}"` : `No results for "${query}"`}
         </div>
       )}
 
@@ -15702,6 +15724,147 @@ function AdminBadgesPanel({ lang }) {
   )
 }
 
+// ── AdminInterestCategoriesPanel ──────────────────────────────────────────────
+function AdminInterestCategoriesPanel({ lang }) {
+  const da = lang === 'da'
+  const [cats, setCats] = useState(null)
+  const [editId, setEditId] = useState(null) // id being edited, or 'new'
+  const [form, setForm] = useState({ id: '', da: '', en: '', icon: '⭐', sort_order: 0, active: 1 })
+  const [saving, setSaving] = useState(false)
+  const [toast, setToast] = useState(null)
+  const fS = { width: '100%', padding: '7px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13 }
+
+  const load = () => apiAdminGetInterestCategories().then(d => { if (d?.categories) setCats(d.categories) })
+  useEffect(() => { load() }, [])
+
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2500) }
+
+  const startEdit = (cat) => {
+    setForm({ id: cat.id, da: cat.da, en: cat.en, icon: cat.icon || '⭐', sort_order: cat.sort_order || 0, active: cat.active ?? 1 })
+    setEditId(cat.id)
+  }
+
+  const startNew = () => {
+    setForm({ id: '', da: '', en: '', icon: '⭐', sort_order: 0, active: 1 })
+    setEditId('new')
+  }
+
+  const handleSave = async (e) => {
+    e.preventDefault()
+    setSaving(true)
+    if (editId === 'new') {
+      const res = await apiAdminCreateInterestCategory(form)
+      if (res?.ok) { showToast(da ? 'Oprettet ✓' : 'Created ✓'); setEditId(null); load() }
+      else showToast(res?.error || 'Fejl')
+    } else {
+      const res = await apiAdminUpdateInterestCategory(editId, form)
+      if (res?.ok) { showToast(da ? 'Gemt ✓' : 'Saved ✓'); setEditId(null); load() }
+      else showToast(res?.error || 'Fejl')
+    }
+    setSaving(false)
+  }
+
+  const handleDelete = async (id) => {
+    if (!window.confirm(da ? `Slet "${id}"?` : `Delete "${id}"?`)) return
+    await apiAdminDeleteInterestCategory(id)
+    showToast(da ? 'Slettet' : 'Deleted')
+    load()
+  }
+
+  const toggleActive = async (cat) => {
+    await apiAdminUpdateInterestCategory(cat.id, { ...cat, active: cat.active ? 0 : 1 })
+    load()
+  }
+
+  return (
+    <div className="p-card" style={{ marginBottom: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>🎯 {da ? 'Interessekategorier' : 'Interest Categories'}</h3>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {cats && <span style={{ fontSize: 13, color: '#888' }}>{cats.length} {da ? 'kategorier' : 'categories'}</span>}
+          <button onClick={startNew} style={{ padding: '7px 16px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+            + {da ? 'Tilføj' : 'Add'}
+          </button>
+        </div>
+      </div>
+
+      {toast && <div style={{ background: '#F0FAF4', border: '1px solid #c3e6cb', borderRadius: 8, padding: '8px 14px', fontSize: 13, marginBottom: 12 }}>{toast}</div>}
+
+      {/* Edit / New form */}
+      {editId && (
+        <form onSubmit={handleSave} style={{ background: '#FAFAF8', border: '1px solid #e0e0e0', borderRadius: 10, padding: '16px 20px', marginBottom: 16 }}>
+          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>{editId === 'new' ? (da ? 'Ny kategori' : 'New category') : (da ? 'Rediger' : 'Edit') + ` — ${editId}`}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+            {editId === 'new' && (
+              <div style={{ gridColumn: '1/-1' }}>
+                <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>ID (slugified)</label>
+                <input style={fS} value={form.id} onChange={e => setForm(p => ({ ...p, id: e.target.value }))} placeholder="f.eks. sport-og-fitness" required />
+              </div>
+            )}
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Dansk navn</label>
+              <input style={fS} value={form.da} onChange={e => setForm(p => ({ ...p, da: e.target.value }))} required />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>English name</label>
+              <input style={fS} value={form.en} onChange={e => setForm(p => ({ ...p, en: e.target.value }))} required />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Ikon (emoji)</label>
+              <input style={{ ...fS, width: 80 }} value={form.icon} onChange={e => setForm(p => ({ ...p, icon: e.target.value }))} maxLength={8} />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>{da ? 'Sorteringsrækkefølge' : 'Sort order'}</label>
+              <input style={{ ...fS, width: 100 }} type="number" value={form.sort_order} onChange={e => setForm(p => ({ ...p, sort_order: parseInt(e.target.value) || 0 }))} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 20 }}>
+              <input type="checkbox" id="cat-active" checked={!!form.active} onChange={e => setForm(p => ({ ...p, active: e.target.checked ? 1 : 0 }))} />
+              <label htmlFor="cat-active" style={{ fontSize: 13 }}>{da ? 'Aktiv' : 'Active'}</label>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button type="submit" disabled={saving} style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+              {saving ? '…' : (da ? 'Gem' : 'Save')}
+            </button>
+            <button type="button" onClick={() => setEditId(null)} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', fontSize: 13, cursor: 'pointer' }}>
+              {da ? 'Annuller' : 'Cancel'}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* Category list */}
+      {!cats ? (
+        <div style={{ color: '#888', fontSize: 13 }}>…</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+          {/* Header */}
+          <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr 1fr 60px 60px 100px', gap: 8, padding: '6px 8px', background: '#f5f5f5', borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#666', marginBottom: 4 }}>
+            <span></span><span>Dansk</span><span>English</span><span>{da ? 'Order' : 'Order'}</span><span>{da ? 'Aktiv' : 'Active'}</span><span></span>
+          </div>
+          {cats.map(cat => (
+            <div key={cat.id} style={{ display: 'grid', gridTemplateColumns: '40px 1fr 1fr 60px 60px 100px', gap: 8, padding: '7px 8px', borderRadius: 8, fontSize: 13, alignItems: 'center', background: cat.active ? '#fff' : '#f9f9f9', border: '1px solid #f0f0f0' }}>
+              <span style={{ fontSize: 18, textAlign: 'center' }}>{cat.icon}</span>
+              <span style={{ color: cat.active ? '#222' : '#aaa' }}>{cat.da}</span>
+              <span style={{ color: '#888', fontSize: 12 }}>{cat.en}</span>
+              <span style={{ color: '#aaa', fontSize: 12 }}>{cat.sort_order}</span>
+              <span>
+                <button onClick={() => toggleActive(cat)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }} title={cat.active ? (da ? 'Deaktiver' : 'Deactivate') : (da ? 'Aktiver' : 'Activate')}>
+                  {cat.active ? '✅' : '⬜'}
+                </button>
+              </span>
+              <span style={{ display: 'flex', gap: 6 }}>
+                <button onClick={() => startEdit(cat)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #ddd', background: '#fff', fontSize: 12, cursor: 'pointer' }}>{da ? 'Rediger' : 'Edit'}</button>
+                <button onClick={() => handleDelete(cat.id)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #fcc', background: '#fff8f8', color: '#e03131', fontSize: 12, cursor: 'pointer' }}>✕</button>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function AdminPage({ lang, t }) {
   const [adminTab, setAdminTab] = useState('stats')
   const [form, setForm] = useState({
@@ -15867,6 +16030,12 @@ function AdminPage({ lang, t }) {
             tabs: [
               { id: 'easter-eggs', icon: '🥚', label: lang === 'da' ? 'Påskeæg' : 'Easter Eggs' },
               { id: 'badges', icon: '🏅', label: 'Badges' },
+            ],
+          },
+          {
+            label: lang === 'da' ? 'Brugerprofil' : 'User Profile',
+            tabs: [
+              { id: 'interests', icon: '🎯', label: lang === 'da' ? 'Interessekategorier' : 'Interest Categories' },
             ],
           },
         ]
@@ -17036,6 +17205,7 @@ function AdminPage({ lang, t }) {
 
       {adminTab === 'easter-eggs' && <AdminEasterEggsPanel lang={lang} />}
       {adminTab === 'badges' && <AdminBadgesPanel lang={lang} />}
+      {adminTab === 'interests' && <AdminInterestCategoriesPanel lang={lang} />}
     </div>
   )
 }

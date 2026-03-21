@@ -325,9 +325,9 @@ function ReelCard({ reel, t, currentUser, onDelete, onViewProfile }) {
   }
 
   return (
-    <div style={{ display: 'flex', gap: 16, maxWidth: 720, margin: '0 auto 32px', alignItems: 'flex-start' }}>
+    <div style={{ display: 'flex', gap: 20, maxWidth: 800, margin: '0 auto 32px', alignItems: 'flex-start' }}>
       {/* ── Reel video card ── */}
-      <div style={{ ...s.card, margin: 0, flex: '0 0 auto', width: 340 }}>
+      <div style={{ ...s.card, margin: 0, flex: '0 0 auto', width: 460 }}>
       <div style={s.videoWrap}>
         <video
           ref={videoRef}
@@ -356,23 +356,18 @@ function ReelCard({ reel, t, currentUser, onDelete, onViewProfile }) {
             🗑️
           </button>
         )}
-        <div style={s.overlay}>
-          <div style={s.author}>
-            <div
-              onClick={() => onViewProfile && onViewProfile(reel.user_id)}
-              style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: onViewProfile ? 'pointer' : 'default' }}
-            >
-              {avatarUrl
-                ? <img src={avatarUrl} style={s.avatar} alt="" />
-                : <div style={{ ...s.avatarFallback, background: nameToColor(reel.author_name) }}>{getInitials(reel.author_name)}</div>
-              }
-              <div>
-                <div style={s.authorName}>{reel.author_name}</div>
-                <div style={{ fontSize: 11, color: '#ccc' }}>{reel.author_handle}</div>
-              </div>
-            </div>
+        {/* Avatar icon at bottom-left of video */}
+        <div style={{ position: 'absolute', bottom: 28, left: 12, zIndex: 2 }}>
+          <div
+            onClick={() => onViewProfile && onViewProfile(reel.user_id)}
+            style={{ cursor: onViewProfile ? 'pointer' : 'default' }}
+            title={reel.author_name}
+          >
+            {avatarUrl
+              ? <img src={avatarUrl} style={{ ...s.avatar, width: 40, height: 40 }} alt="" />
+              : <div style={{ ...s.avatarFallback, width: 40, height: 40, background: nameToColor(reel.author_name) }}>{getInitials(reel.author_name)}</div>
+            }
           </div>
-          {reel.caption && <div style={s.caption}>{reel.caption}</div>}
         </div>
 
         {/* ── Timeline progress bar ── */}
@@ -463,19 +458,19 @@ function ReelCard({ reel, t, currentUser, onDelete, onViewProfile }) {
       </div>{/* end video card */}
 
       {/* ── Info card ── */}
-      <div style={{ flex: 1, background: '#fff', borderRadius: 16, padding: '20px 18px', boxShadow: '0 2px 12px rgba(0,0,0,0.08)', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ flex: 1, background: '#fff', borderRadius: 16, padding: '20px 20px', boxShadow: '0 2px 12px rgba(0,0,0,0.08)', minWidth: 260, display: 'flex', flexDirection: 'column', gap: 14 }}>
         {/* Author */}
         <div
-          style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: onViewProfile ? 'pointer' : 'default' }}
+          style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: onViewProfile ? 'pointer' : 'default' }}
           onClick={() => onViewProfile && onViewProfile(reel.user_id)}
         >
           {avatarUrl
-            ? <img src={avatarUrl} style={{ width: 42, height: 42, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} alt="" />
-            : <div style={{ width: 42, height: 42, borderRadius: '50%', background: nameToColor(reel.author_name), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: '#fff', flexShrink: 0 }}>{getInitials(reel.author_name)}</div>
+            ? <img src={avatarUrl} style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} alt="" />
+            : <div style={{ width: 44, height: 44, borderRadius: '50%', background: nameToColor(reel.author_name), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: '#fff', flexShrink: 0 }}>{getInitials(reel.author_name)}</div>
           }
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontWeight: 700, fontSize: 15, color: '#1a1a1a' }}>{reel.author_name}</div>
-            <div style={{ fontSize: 12, color: '#888' }}>{reel.author_handle}</div>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 15, color: '#1a1a1a', whiteSpace: 'nowrap' }}>{reel.author_name}</div>
+            <div style={{ fontSize: 12, color: '#888', whiteSpace: 'nowrap' }}>{reel.author_handle}</div>
           </div>
         </div>
 
@@ -489,31 +484,31 @@ function ReelCard({ reel, t, currentUser, onDelete, onViewProfile }) {
         )}
 
         {/* Stats */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, color: '#555' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13, color: '#555' }}>
           {reel.created_at && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 16 }}>📅</span>
-              <span>{fmtDate(reel.created_at)}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 16, flexShrink: 0 }}>📅</span>
+              <span style={{ whiteSpace: 'nowrap' }}>{fmtDate(reel.created_at)}</span>
             </div>
           )}
           {duration > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 16 }}>⏱</span>
-              <span>{fmtDuration(duration)}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 16, flexShrink: 0 }}>⏱</span>
+              <span style={{ whiteSpace: 'nowrap' }}>{fmtDuration(duration)}</span>
             </div>
           )}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 16 }}>{liked ? myReaction : '🤍'}</span>
-            <span>{likesCount} {t.reelsLikes}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 16, flexShrink: 0 }}>{liked ? myReaction : '🤍'}</span>
+            <span style={{ whiteSpace: 'nowrap' }}>{likesCount} {t.reelsLikes}</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 16 }}>💬</span>
-            <span>{Number(reel.comments_count)} {t.reelsComments}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 16, flexShrink: 0 }}>💬</span>
+            <span style={{ whiteSpace: 'nowrap' }}>{Number(reel.comments_count)} {t.reelsComments}</span>
           </div>
           {reel.views_count > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 16 }}>👁️</span>
-              <span>{reel.views_count}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 16, flexShrink: 0 }}>👁️</span>
+              <span style={{ whiteSpace: 'nowrap' }}>{reel.views_count}</span>
             </div>
           )}
         </div>

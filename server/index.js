@@ -5553,7 +5553,7 @@ app.get('/api/admin/ad-settings', authenticate, requireAdmin, async (req, res) =
 
 // PUT /api/admin/ad-settings — update ad pricing & display settings (admin only)
 app.put('/api/admin/ad-settings', authenticate, requireAdmin, async (req, res) => {
-  const allowed = ['adfree_price_private', 'adfree_price_business', 'ad_price_cpm', 'boost_price', 'currency', 'max_ads_feed', 'max_ads_sidebar', 'max_ads_stories', 'refresh_interval_seconds', 'ads_enabled', 'stripe_price_adfree_private', 'stripe_price_adfree_business', 'adfree_recurring_pct', 'ad_recurring_pct']
+  const allowed = ['adfree_price_private', 'adfree_price_business', 'ad_price_cpm', 'boost_price', 'currency', 'max_ads_feed', 'max_ads_sidebar', 'max_ads_stories', 'refresh_interval_seconds', 'ads_enabled', 'adfree_recurring_pct', 'ad_recurring_pct']
   const updates = {}
   for (const key of allowed) {
     if (key in req.body) updates[key] = req.body[key]
@@ -5605,102 +5605,7 @@ app.get('/api/admin/ad-stats', authenticate, requireAdmin, async (req, res) => {
   }
 })
 
-// ── Stripe — ads_free subscription ───────────────────────────────────────────
-
-async function getStripe() {
-  try {
-    const [[row]] = await pool.query("SELECT key_value FROM admin_settings WHERE key_name = 'stripe_secret_key'")
-    if (!row?.key_value || row.key_value.startsWith('••')) return null
-    const { default: Stripe } = await import('stripe')
-    return new Stripe(row.key_value, { apiVersion: '2024-06-20' })
-  } catch { return null }
-}
-
-// POST /api/stripe/checkout/adfree — create Stripe checkout for ads_free sub
-app.post('/api/stripe/checkout/adfree', authenticate, async (req, res) => {
-  try {
-    const stripe = await getStripe()
-    if (!stripe) return res.status(503).json({ error: 'Stripe not configured' })
-
-    const [[user]] = await pool.query('SELECT name, email, mode, ads_free, stripe_customer_id FROM users WHERE id = ?', [req.userId])
-    if (!user) return res.status(404).json({ error: 'User not found' })
-    if (user.ads_free) return res.status(400).json({ error: 'Already ad-free' })
-
-    const [[adSettings]] = await pool.query('SELECT adfree_price_private, adfree_price_business, currency, stripe_price_adfree_private, stripe_price_adfree_business FROM admin_ad_settings WHERE id = 1').catch(() => [[null]])
-
-    const isBusinessMode = user.mode === 'business'
-    const priceId = isBusinessMode ? adSettings?.stripe_price_adfree_business : adSettings?.stripe_price_adfree_private
-
-    if (!priceId) return res.status(503).json({ error: 'Ad-free price not configured in admin panel' })
-
-    // Get or create Stripe customer
-    let customerId = user.stripe_customer_id
-    if (!customerId) {
-      const customer = await stripe.customers.create({ email: user.email, name: user.name })
-      customerId = customer.id
-      await pool.query('UPDATE users SET stripe_customer_id = ? WHERE id = ?', [customerId, req.userId])
-    }
-
-    const origin = req.headers.origin || 'https://fellis.eu'
-    const session = await stripe.checkout.sessions.create({
-      customer: customerId,
-      mode: 'subscription',
-      line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${origin}/?adfree=success`,
-      cancel_url: `${origin}/?adfree=cancel`,
-      metadata: { user_id: String(req.userId), type: 'adfree' },
-    })
-
-    res.json({ url: session.url })
-  } catch (err) {
-    console.error('POST /api/stripe/checkout/adfree error:', err.message)
-    res.status(500).json({ error: 'Server error' })
-  }
-})
-
-// POST /api/stripe/webhook — Stripe webhook handler (raw body needed)
-app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
-  try {
-    const stripe = await getStripe()
-    if (!stripe) return res.status(200).send('ok')
-
-    const [[secretRow]] = await pool.query("SELECT key_value FROM admin_settings WHERE key_name = 'stripe_webhook_secret'").catch(() => [[null]])
-    const sig = req.headers['stripe-signature']
-
-    let event
-    if (secretRow?.key_value && sig) {
-      try {
-        event = stripe.webhooks.constructEvent(req.body, sig, secretRow.key_value)
-      } catch (err) {
-        return res.status(400).send(`Webhook Error: ${err.message}`)
-      }
-    } else {
-      event = JSON.parse(req.body.toString())
-    }
-
-    if (event.type === 'checkout.session.completed') {
-      const session = event.data.object
-      if (session.metadata?.type === 'adfree' && session.metadata?.user_id) {
-        const subId = session.subscription
-        await pool.query(
-          'UPDATE users SET ads_free = 1, ads_free_sub_id = ? WHERE id = ?',
-          [subId, parseInt(session.metadata.user_id)]
-        )
-      }
-    }
-
-    if (event.type === 'customer.subscription.deleted') {
-      const sub = event.data.object
-      // Cancel ads_free when subscription ends
-      await pool.query('UPDATE users SET ads_free = 0, ads_free_sub_id = NULL WHERE ads_free_sub_id = ?', [sub.id])
-    }
-
-    res.json({ received: true })
-  } catch (err) {
-    console.error('POST /api/stripe/webhook error:', err.message)
-    res.status(500).json({ error: 'Server error' })
-  }
-})
+// (Stripe integration removed — platform uses Mollie for payments)
 
 // GET /api/me/subscription — get current user's ads_free status + Mollie subscription details
 app.get('/api/me/subscription', authenticate, async (req, res) => {
@@ -6515,7 +6420,7 @@ app.get('/api/analytics/visitor-stats', authenticate, async (req, res) => {
   }
 })
 
-// GET /api/admin/settings — get Stripe config (admin only)
+// GET /api/admin/settings — get platform config (admin only)
 app.get('/api/admin/settings', authenticate, requireAdmin, async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT key_name, key_value FROM admin_settings')
@@ -6526,7 +6431,7 @@ app.get('/api/admin/settings', authenticate, requireAdmin, async (req, res) => {
       settings.mollie_api_key = process.env.MOLLIE_API_KEY
     }
     // Mask secrets — show first 4 chars for API keys, fully mask other secrets
-    const API_KEY_FIELDS = ['mollie_api_key', 'stripe_secret_key', 'stripe_webhook_secret']
+    const API_KEY_FIELDS = ['mollie_api_key']
     const masked = {}
     for (const [k, v] of Object.entries(settings)) {
       if (!v) { masked[k] = ''; continue }
@@ -6541,6 +6446,71 @@ app.get('/api/admin/settings', authenticate, requireAdmin, async (req, res) => {
     res.json({ settings: masked })
   } catch (err) {
     res.status(500).json({ error: 'Failed to load settings' })
+  }
+})
+
+// ── Interest categories ───────────────────────────────────────────────────────
+// GET /api/interest-categories — public list of active categories
+app.get('/api/interest-categories', async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT id, da, en, icon FROM interest_categories WHERE active = 1 ORDER BY sort_order, da'
+    )
+    res.json({ categories: rows })
+  } catch {
+    res.json({ categories: [] })
+  }
+})
+
+// GET /api/admin/interest-categories — all categories including inactive (admin)
+app.get('/api/admin/interest-categories', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT * FROM interest_categories ORDER BY sort_order, da'
+    )
+    res.json({ categories: rows })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// POST /api/admin/interest-categories — create
+app.post('/api/admin/interest-categories', authenticate, requireAdmin, async (req, res) => {
+  const { id, da, en, icon, sort_order = 0, active = 1 } = req.body
+  if (!id || !da || !en) return res.status(400).json({ error: 'id, da, en required' })
+  const safeId = id.toLowerCase().replace(/[^a-z0-9-]/g, '-').slice(0, 64)
+  try {
+    await pool.query(
+      'INSERT INTO interest_categories (id, da, en, icon, sort_order, active) VALUES (?, ?, ?, ?, ?, ?)',
+      [safeId, da.slice(0, 128), en.slice(0, 128), (icon || '⭐').slice(0, 8), sort_order, active ? 1 : 0]
+    )
+    res.json({ ok: true, id: safeId })
+  } catch (err) {
+    res.status(400).json({ error: err.message })
+  }
+})
+
+// PUT /api/admin/interest-categories/:id — update
+app.put('/api/admin/interest-categories/:id', authenticate, requireAdmin, async (req, res) => {
+  const { da, en, icon, sort_order, active } = req.body
+  try {
+    await pool.query(
+      'UPDATE interest_categories SET da=?, en=?, icon=?, sort_order=?, active=? WHERE id=?',
+      [da, en, icon || '⭐', sort_order ?? 0, active ? 1 : 0, req.params.id]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// DELETE /api/admin/interest-categories/:id — delete
+app.delete('/api/admin/interest-categories/:id', authenticate, requireAdmin, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM interest_categories WHERE id=?', [req.params.id])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
   }
 })
 
@@ -6561,9 +6531,9 @@ app.get('/api/admin/env-status', authenticate, requireAdmin, async (req, res) =>
   res.json({ status })
 })
 
-// POST /api/admin/settings — save Stripe config (admin only)
+// POST /api/admin/settings — save platform config (admin only)
 app.post('/api/admin/settings', authenticate, requireAdmin, async (req, res) => {
-  const allowed = ['stripe_secret_key', 'stripe_pub_key', 'stripe_webhook_secret', 'stripe_price_pro_monthly', 'stripe_price_pro_yearly', 'stripe_price_boost', 'pwd_min_length', 'pwd_require_uppercase', 'pwd_require_lowercase', 'pwd_require_numbers', 'pwd_require_symbols', 'media_max_files', 'marketplace_max_photos', 'registration_open', 'mollie_api_key']
+  const allowed = ['pwd_min_length', 'pwd_require_uppercase', 'pwd_require_lowercase', 'pwd_require_numbers', 'pwd_require_symbols', 'media_max_files', 'marketplace_max_photos', 'registration_open', 'mollie_api_key']
   try {
     for (const [key, value] of Object.entries(req.body)) {
       if (!allowed.includes(key)) continue
@@ -6582,7 +6552,7 @@ app.post('/api/admin/settings', authenticate, requireAdmin, async (req, res) => 
 
 // POST /api/admin/settings/reveal-key — verify admin password then return full key value
 app.post('/api/admin/settings/reveal-key', authenticate, requireAdmin, async (req, res) => {
-  const REVEALABLE = ['mollie_api_key', 'stripe_secret_key', 'stripe_webhook_secret']
+  const REVEALABLE = ['mollie_api_key']
   const { key_name, password } = req.body
   if (!key_name || !password) return res.status(400).json({ error: 'key_name and password required' })
   if (!REVEALABLE.includes(key_name)) return res.status(403).json({ error: 'Not revealable' })
@@ -7715,7 +7685,7 @@ app.patch('/api/profile', authenticate, async (req, res) => {
 app.get('/api/config', async (req, res) => {
   try {
     const [rows] = await pool.query(
-      "SELECT key_name, key_value FROM admin_settings WHERE key_name IN ('stripe_pub_key','media_max_files','marketplace_max_photos')"
+      "SELECT key_name, key_value FROM admin_settings WHERE key_name IN ('media_max_files','marketplace_max_photos')"
     )
     const cfg = {}
     for (const r of rows) cfg[r.key_name] = r.key_value

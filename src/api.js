@@ -629,6 +629,22 @@ export async function apiGetAdminEnvStatus() {
   return await request('/api/admin/env-status')
 }
 
+export async function apiGetInterestCategories() {
+  return await request('/api/interest-categories')
+}
+export async function apiAdminGetInterestCategories() {
+  return await request('/api/admin/interest-categories')
+}
+export async function apiAdminCreateInterestCategory(data) {
+  return await request('/api/admin/interest-categories', { method: 'POST', body: JSON.stringify(data) })
+}
+export async function apiAdminUpdateInterestCategory(id, data) {
+  return await request(`/api/admin/interest-categories/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+}
+export async function apiAdminDeleteInterestCategory(id) {
+  return await request(`/api/admin/interest-categories/${id}`, { method: 'DELETE' })
+}
+
 export async function apiGetAdminStats() {
   return await request('/api/admin/stats')
 }
