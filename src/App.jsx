@@ -86,6 +86,14 @@ function PublicPrivacyPage() {
       </div>
 
       <div style={s.section}>
+        <h2 style={s.h2}>{da ? 'AI-assistance (Mistral AI)' : 'AI assistance (Mistral AI)'}</h2>
+        <p style={s.p}>{da
+          ? 'Når du bruger CV- eller ansøgningsgeneratoren, kan din profilering (navn, erhvervserfaring, uddannelse, sprog og færdigheder) sendes til Mistral AI (mistral.ai), en EU-baseret sprogmodel hostet i Frankrig. Denne funktion kræver et API-nøgle sat af platformadministratoren og er valgfri — den falder automatisk tilbage til skabelon-generering, hvis nøglen ikke er konfigureret. Mistral AI behandler dataene udelukkende for at generere tekst og gemmer dem ikke efter svaret er leveret.'
+          : 'When you use the CV or cover letter generator, your profile data (name, work experience, education, languages and skills) may be sent to Mistral AI (mistral.ai), an EU-based language model hosted in France. This feature requires an API key set by the platform administrator and is optional — it falls back automatically to template generation if no key is configured. Mistral AI processes the data solely to generate text and does not retain it after the response is delivered.'
+        }</p>
+      </div>
+
+      <div style={s.section}>
         <h2 style={s.h2}>{da ? 'Opbevaring og sikkerhed' : 'Storage and security'}</h2>
         <ul style={s.ul}>
           {da ? <>
