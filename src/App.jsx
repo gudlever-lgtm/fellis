@@ -444,6 +444,7 @@ function App() {
   const [initialPage, setInitialPage] = useState(null)
   const [fbError, setFbError] = useState(null)
   const [resetToken, setResetToken] = useState(null)
+  const [sessionExpired, setSessionExpired] = useState(false)
 
   // On first visit (no stored lang): detect language from IP geolocation
   useEffect(() => {
@@ -577,8 +578,10 @@ function App() {
         }
       } else if (data?.__authError) {
         // Genuine 401/403 — session is invalid, clear it
+        const hadSession = localStorage.getItem('fellis_logged_in') === 'true'
         localStorage.removeItem('fellis_logged_in')
         localStorage.removeItem('fellis_session_id')
+        if (hadSession) setSessionExpired(true)
         setView('landing')
       } else {
         // null = network error or server unavailable — don't clear session,
@@ -646,7 +649,28 @@ function App() {
     )
   }
 
-  return <Landing onEnterPlatform={handleEnterPlatform} inviteToken={inviteToken} inviterName={inviterName} inviterEmail={inviterEmail} fbError={fbError} resetToken={resetToken} />
+  return (
+    <>
+      {sessionExpired && (
+        <div style={{
+          position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 9999, display: 'flex', alignItems: 'center', gap: 10,
+          background: '#1a1a2e', color: '#fff', borderRadius: 10,
+          padding: '12px 18px', fontSize: 14, boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
+          maxWidth: 'calc(100vw - 32px)',
+        }}>
+          <span>🔒</span>
+          <span>{lang === 'da' ? 'Din session er udløbet — log venligst ind igen.' : 'Your session has expired — please log in again.'}</span>
+          <button
+            onClick={() => setSessionExpired(false)}
+            style={{ background: 'none', border: 'none', color: '#aaa', cursor: 'pointer', fontSize: 16, lineHeight: 1, marginLeft: 4, padding: 0 }}
+            aria-label="Luk"
+          >✕</button>
+        </div>
+      )}
+      <Landing onEnterPlatform={handleEnterPlatform} inviteToken={inviteToken} inviterName={inviterName} inviterEmail={inviterEmail} fbError={fbError} resetToken={resetToken} />
+    </>
+  )
 }
 
 function AppRoot() {
