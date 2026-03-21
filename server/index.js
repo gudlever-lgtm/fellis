@@ -6544,6 +6544,23 @@ app.get('/api/admin/settings', authenticate, requireAdmin, async (req, res) => {
   }
 })
 
+// GET /api/admin/env-status — check which env vars are set (admin only, no values exposed)
+app.get('/api/admin/env-status', authenticate, requireAdmin, async (req, res) => {
+  const ENV_VARS = [
+    'MOLLIE_API_KEY',
+    'FB_APP_ID', 'FB_APP_SECRET', 'FB_TOKEN_ENCRYPTION_KEY',
+    'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET',
+    'LINKEDIN_CLIENT_ID', 'LINKEDIN_CLIENT_SECRET',
+    'MAIL_HOST', 'MAIL_USER',
+    '46ELKS_USERNAME',
+    'MISTRAL_API_KEY',
+    'UPLOADS_DIR',
+  ]
+  const status = {}
+  for (const v of ENV_VARS) status[v] = !!process.env[v]
+  res.json({ status })
+})
+
 // POST /api/admin/settings — save Stripe config (admin only)
 app.post('/api/admin/settings', authenticate, requireAdmin, async (req, res) => {
   const allowed = ['stripe_secret_key', 'stripe_pub_key', 'stripe_webhook_secret', 'stripe_price_pro_monthly', 'stripe_price_pro_yearly', 'stripe_price_boost', 'pwd_min_length', 'pwd_require_uppercase', 'pwd_require_lowercase', 'pwd_require_numbers', 'pwd_require_symbols', 'media_max_files', 'marketplace_max_photos', 'registration_open', 'mollie_api_key']
