@@ -6115,6 +6115,23 @@ async function initAdminSettings() {
       key_value TEXT DEFAULT NULL,
       updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP() ON UPDATE CURRENT_TIMESTAMP()
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+
+    // Seed default easter egg config (only if none exists yet)
+    const defaultEggCfg = {
+      chuck:    { globalEnabled: true, hintsEnabled: true,  hintText: 'har en mening' },
+      matrix:   { globalEnabled: true, hintsEnabled: false, hintText: '' },
+      flip:     { globalEnabled: true, hintsEnabled: false, hintText: '' },
+      retro:    { globalEnabled: true, hintsEnabled: false, hintText: '' },
+      gravity:  { globalEnabled: true, hintsEnabled: true,  hintText: 'G G' },
+      party:    { globalEnabled: true, hintsEnabled: false, hintText: '' },
+      rickroll: { globalEnabled: true, hintsEnabled: true,  hintText: 'Going down!' },
+      watcher:  { globalEnabled: true, hintsEnabled: false, hintText: '' },
+      riddler:  { globalEnabled: true, hintsEnabled: false, hintText: '' },
+    }
+    await pool.query(
+      "INSERT IGNORE INTO admin_settings (key_name, key_value) VALUES ('easter_egg_config', ?)",
+      [JSON.stringify(defaultEggCfg)]
+    )
   } catch (err) {
     console.error('initAdminSettings error:', err.message)
   }
@@ -9065,6 +9082,20 @@ app.get('/api/easter-eggs', authenticate, async (req, res) => {
   }
 })
 
+// GET /api/admin/easter-eggs/config — fetch current admin egg config (admin only)
+app.get('/api/admin/easter-eggs/config', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [[row]] = await pool.query(
+      "SELECT key_value FROM admin_settings WHERE key_name = 'easter_egg_config'"
+    ).catch(() => [[null]])
+    const cfg = row ? JSON.parse(row.key_value || '{}') : {}
+    res.json({ config: cfg })
+  } catch (err) {
+    console.error('GET /api/admin/easter-eggs/config error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // PUT /api/admin/easter-eggs/config — save per-egg hint/enabled config (admin only)
 app.put('/api/admin/easter-eggs/config', authenticate, requireAdmin, async (req, res) => {
   try {
@@ -10030,7 +10061,29 @@ app.get('/api/me/interest-graph/signal-stats', authenticate, async (req, res) =>
   }
 })
 
-// ── SPA fallback — serve index.html for all non-API, non-asset routes ─────
-app.get('*', (req, res) => {
-  res.sendFile(path.join(FRONTEND_ROOT, 'index.html'))
+// ── SPA fallback — serve index.html with dynamic easter egg hints comment ──
+app.get('*', async (req, res) => {
+  try {
+    let html = readFileSync(path.join(FRONTEND_ROOT, 'index.html'), 'utf8')
+
+    // Build the easter egg hints comment from admin config
+    try {
+      const [[row]] = await pool.query(
+        "SELECT key_value FROM admin_settings WHERE key_name = 'easter_egg_config'"
+      ).catch(() => [[null]])
+      const cfg = row ? JSON.parse(row.key_value || '{}') : {}
+      const activeHints = Object.entries(cfg)
+        .filter(([, ec]) => ec.hintsEnabled && ec.hintText?.trim())
+        .map(([id, ec]) => `      ${id}: ${ec.hintText.trim()}`)
+      const eggComment = activeHints.length
+        ? `<!--\n    👋 Hej nysgerrige! / Hello curious one!\n\n    🥚 Easter egg hints:\n${activeHints.join('\n')}\n  -->`
+        : `<!-- 👋 Hej nysgerrige! / Hello curious one! No active easter egg hints right now. -->`
+      html = html.replace(/<!--[\s\S]*?Hej nysgerrige[\s\S]*?-->/, eggComment)
+    } catch { /* keep original comment if DB unavailable */ }
+
+    res.setHeader('Content-Type', 'text/html')
+    res.send(html)
+  } catch {
+    res.sendFile(path.join(FRONTEND_ROOT, 'index.html'))
+  }
 })
