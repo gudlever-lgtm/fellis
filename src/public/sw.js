@@ -44,8 +44,10 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then(res => {
-          const clone = res.clone()
-          caches.open(CACHE_NAME).then(cache => cache.put(request, clone))
+          if (res.status === 200) {
+            const clone = res.clone()
+            caches.open(CACHE_NAME).then(cache => cache.put(request, clone))
+          }
           return res
         })
         .catch(() => caches.match('/'))
@@ -54,11 +56,12 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Static assets (JS, CSS, fonts, images): stale-while-revalidate
+  // Only cache complete responses (status 200) — skip 206 Partial Content (media range requests)
   event.respondWith(
     caches.open(CACHE_NAME).then(async cache => {
       const cached = await cache.match(request)
       const networkFetch = fetch(request).then(res => {
-        if (res.ok) cache.put(request, res.clone())
+        if (res.status === 200) cache.put(request, res.clone())
         return res
       }).catch(() => cached)
       return cached || networkFetch
