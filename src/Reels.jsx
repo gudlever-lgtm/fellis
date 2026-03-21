@@ -343,10 +343,10 @@ function ReelCard({ reel, t, currentUser, onDelete, onViewProfile }) {
           <div style={{
             position: 'absolute', top: '50%', left: '50%',
             transform: 'translate(-50%, -50%)',
-            background: 'rgba(0,0,0,0.45)', borderRadius: '50%',
+            background: 'rgba(0,0,0,0.6)', borderRadius: '50%',
             width: 60, height: 60,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 26, pointerEvents: 'none',
+            fontSize: 28, pointerEvents: 'none',
           }}>▶</div>
         )}
         <button style={s.muteBtn} onClick={() => setMuted(v => !v)} title={muted ? 'Slå lyd til' : 'Slå lyd fra'}>
@@ -357,10 +357,11 @@ function ReelCard({ reel, t, currentUser, onDelete, onViewProfile }) {
           onClick={() => setLooping(v => !v)}
           title={looping ? 'Afspil én gang' : 'Loop'}
           style={{
-            position: 'absolute', top: 44, right: 8, zIndex: 4,
-            background: 'rgba(0,0,0,0.55)', border: 'none', borderRadius: 20,
-            color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
-            padding: '3px 9px', lineHeight: 1.4,
+            position: 'absolute', top: 56, right: 12, zIndex: 4,
+            background: 'rgba(0,0,0,0.5)', border: 'none', borderRadius: '50%',
+            width: 36, height: 36,
+            color: '#fff', fontSize: 16, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
         >
           {looping ? '🔁' : '1️⃣'}
