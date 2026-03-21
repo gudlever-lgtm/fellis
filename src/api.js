@@ -1287,6 +1287,12 @@ export async function apiGetMyEasterEggs() {
 export async function apiGetAdminEasterEggStats() {
   return await request("/api/admin/easter-eggs/stats")
 }
+export async function apiSaveAdminEasterEggConfig(cfg) {
+  return await request('/api/admin/easter-eggs/config', { method: 'PUT', body: JSON.stringify(cfg) })
+}
+export async function apiGetEasterEggHints() {
+  return await request('/api/easter-eggs/hints')
+}
 
 // ── Badge reward system ───────────────────────────────────────────────────────
 // Evaluate and award new badges for the current user. Returns { newBadges: [] }.

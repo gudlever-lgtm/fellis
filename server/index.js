@@ -9065,6 +9065,41 @@ app.get('/api/easter-eggs', authenticate, async (req, res) => {
   }
 })
 
+// PUT /api/admin/easter-eggs/config — save per-egg hint/enabled config (admin only)
+app.put('/api/admin/easter-eggs/config', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const cfg = req.body || {}
+    await pool.query(
+      "INSERT INTO admin_settings (key_name, key_value) VALUES ('easter_egg_config', ?) ON DUPLICATE KEY UPDATE key_value = VALUES(key_value)",
+      [JSON.stringify(cfg)]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('PUT /api/admin/easter-eggs/config error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/easter-eggs/hints — public; returns eggs where admin enabled hints and set hint text
+app.get('/api/easter-eggs/hints', async (req, res) => {
+  try {
+    const [[row]] = await pool.query(
+      "SELECT key_value FROM admin_settings WHERE key_name = 'easter_egg_config'"
+    ).catch(() => [[null]])
+    const cfg = row ? JSON.parse(row.key_value || '{}') : {}
+    const hints = []
+    for (const [eggId, ec] of Object.entries(cfg)) {
+      if (ec.hintsEnabled && ec.hintText?.trim()) {
+        hints.push({ id: eggId, hint: ec.hintText.trim() })
+      }
+    }
+    res.json({ hints })
+  } catch (err) {
+    console.error('GET /api/easter-eggs/hints error:', err.message)
+    res.json({ hints: [] })
+  }
+})
+
 // GET /api/admin/easter-eggs/stats — per-egg stats (admin only)
 app.get('/api/admin/easter-eggs/stats', authenticate, requireAdmin, async (req, res) => {
   try {

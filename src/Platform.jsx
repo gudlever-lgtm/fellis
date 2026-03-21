@@ -20,7 +20,7 @@ import MatrixRain from './components/easter-eggs/MatrixRain.jsx'
 import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
 import RickRoll from './components/easter-eggs/RickRoll.jsx'
 import RiddleBanner from './components/easter-eggs/RiddleBanner.jsx'
-import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiEvaluateBadges, apiGetEarnedBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode } from './api.js'
+import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode } from './api.js'
 import { BADGES, BADGE_BY_ID } from './badges/badgeDefinitions.js'
 import BadgeToastQueue from './components/BadgeToast.jsx'
 import ModeGate from './components/ModeGate.jsx'
@@ -15205,6 +15205,7 @@ function AdminEasterEggsPanel({ lang }) {
   })
   const [stats, setStats] = useState(null)
   const [statsNote, setStatsNote] = useState(null)
+  const saveTimerRef = useRef(null)
 
   useEffect(() => {
     apiGetAdminEasterEggStats()
@@ -15216,6 +15217,9 @@ function AdminEasterEggsPanel({ lang }) {
     setCfg(prev => {
       const updated = { ...prev, [id]: { ...(prev[id] || {}), [key]: val } }
       localStorage.setItem(ADMIN_KEY, JSON.stringify(updated))
+      // Debounce server save by 800ms so typing hintText doesn't spam
+      clearTimeout(saveTimerRef.current)
+      saveTimerRef.current = setTimeout(() => apiSaveAdminEasterEggConfig(updated), 800)
       return updated
     })
   }
