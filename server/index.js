@@ -1663,6 +1663,7 @@ app.get('/api/profile/:id', authenticate, async (req, res) => {
   try {
     const [users] = await pool.query(
       `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url,
+        u.industry, u.seniority, u.job_title, u.company,
         (SELECT COUNT(*) FROM friendships WHERE user_id = u.id) as friend_count,
         (SELECT COUNT(*) FROM posts WHERE author_id = u.id) as post_count,
         (SELECT COUNT(*) FROM friendships f1
@@ -1685,8 +1686,13 @@ app.get('/api/profile/:id', authenticate, async (req, res) => {
       isBlocked = blockRow.cnt > 0
     } catch { /* table not yet created */ }
     // Log profile view (fire-and-forget, skip self-views)
+    // source_post_id tracks which post led to the visit (for analytics)
     if (targetId !== req.userId) {
-      pool.query('INSERT INTO profile_views (viewer_id, profile_id) VALUES (?, ?)', [req.userId, targetId]).catch(() => {})
+      const sourcePostId = parseInt(req.query.source_post_id) || null
+      pool.query(
+        'INSERT INTO profile_views (viewer_id, profile_id, source_post_id) VALUES (?, ?, ?)',
+        [req.userId, targetId, sourcePostId]
+      ).catch(() => {})
     }
     // Fetch earned badges for the target user
     let badges = []
@@ -1707,6 +1713,10 @@ app.get('/api/profile/:id', authenticate, async (req, res) => {
       bio: { da: u.bio_da || '', en: u.bio_en || '' },
       location: u.location, joinDate: u.join_date,
       avatarUrl: u.avatar_url || null,
+      industry: u.industry || null,
+      seniority: u.seniority || null,
+      jobTitle: u.job_title || null,
+      company: u.company || null,
       friendCount: u.friend_count, postCount: u.post_count, photoCount: u.photo_count || 0,
       mutualCount: u.mutual_count || 0,
       isFriend: !!u.is_friend,
@@ -1778,6 +1788,7 @@ app.get('/api/profile', authenticate, async (req, res) => {
         u.profile_public, u.reputation_score, u.referral_count, u.interests, u.tags,
         u.relationship_status, u.website,
         u.phone, u.mfa_enabled,
+        u.industry, u.seniority, u.job_title, u.company,
         (SELECT COUNT(*) FROM friendships WHERE user_id = u.id) as friend_count,
         (SELECT COUNT(*) FROM posts WHERE author_id = u.id) as post_count
        FROM users u WHERE u.id = ?`,
@@ -1794,6 +1805,10 @@ app.get('/api/profile', authenticate, async (req, res) => {
       bio: { da: u.bio_da || '', en: u.bio_en || '' },
       location: u.location, joinDate: u.join_date,
       avatarUrl: u.avatar_url || null,
+      industry: u.industry || null,
+      seniority: u.seniority || null,
+      jobTitle: u.job_title || null,
+      company: u.company || null,
       friendCount: u.friend_count, postCount: u.post_count, photoCount: u.photo_count || 0,
       email: u.email || null,
       loginMethod: u.facebook_id ? 'facebook' : 'email',
@@ -5848,12 +5863,22 @@ async function initAnalytics() {
       id INT AUTO_INCREMENT PRIMARY KEY,
       viewer_id INT NOT NULL,
       profile_id INT NOT NULL,
+      source_post_id INT DEFAULT NULL,
       viewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       INDEX idx_pv_profile (profile_id, viewed_at),
       INDEX idx_pv_viewer (viewer_id),
+      INDEX idx_pv_source_post (source_post_id),
       FOREIGN KEY (profile_id) REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY (viewer_id) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+    // Add source_post_id to existing installs (ignore if already exists)
+    await pool.query(`ALTER TABLE profile_views ADD COLUMN IF NOT EXISTS source_post_id INT DEFAULT NULL`).catch(() => {})
+    // Add audience insight columns to users (ignore if already exists)
+    await pool.query(`ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS industry  VARCHAR(100) DEFAULT NULL,
+      ADD COLUMN IF NOT EXISTS seniority VARCHAR(50)  DEFAULT NULL,
+      ADD COLUMN IF NOT EXISTS job_title VARCHAR(100) DEFAULT NULL,
+      ADD COLUMN IF NOT EXISTS company   VARCHAR(100) DEFAULT NULL`).catch(() => {})
   } catch (err) {
     console.error('initAnalytics error:', err.message)
   }
@@ -6039,6 +6064,83 @@ app.get('/api/analytics', authenticate, async (req, res) => {
     const viaInvite = Math.min(Number(growthStats.via_invite), totalC)
     const organic = totalC - viaInvite
 
+    // Industry distribution of connections (requires migrate-audience-insights.sql)
+    let industryDist = []
+    try {
+      const [industryRows] = await pool.query(
+        `SELECT u.industry, COUNT(*) AS count
+         FROM friendships f
+         JOIN users u ON u.id = IF(f.user_id = ?, f.friend_id, f.user_id)
+         WHERE (f.user_id = ? OR f.friend_id = ?)
+           AND u.industry IS NOT NULL AND u.industry != ''
+         GROUP BY u.industry ORDER BY count DESC LIMIT 8`,
+        [req.userId, req.userId, req.userId]
+      )
+      const indTotal = industryRows.reduce((s, r) => s + Number(r.count), 0) || 1
+      industryDist = industryRows.map(r => ({
+        label: r.industry,
+        pct: Math.round((Number(r.count) / indTotal) * 100),
+      }))
+    } catch { /* column not yet added */ }
+
+    // Seniority distribution of connections (requires migrate-audience-insights.sql)
+    let seniorityDist = []
+    try {
+      const [seniorityRows] = await pool.query(
+        `SELECT u.seniority, COUNT(*) AS count
+         FROM friendships f
+         JOIN users u ON u.id = IF(f.user_id = ?, f.friend_id, f.user_id)
+         WHERE (f.user_id = ? OR f.friend_id = ?)
+           AND u.seniority IS NOT NULL AND u.seniority != ''
+         GROUP BY u.seniority ORDER BY count DESC`,
+        [req.userId, req.userId, req.userId]
+      )
+      const senTotal = seniorityRows.reduce((s, r) => s + Number(r.count), 0) || 1
+      seniorityDist = seniorityRows.map(r => ({
+        label: r.seniority,
+        pct: Math.round((Number(r.count) / senTotal) * 100),
+      }))
+    } catch { /* column not yet added */ }
+
+    // Posts driving profile visits (requires migrate-audience-insights.sql)
+    let postsDrivingVisits = []
+    try {
+      const [drivingRows] = await pool.query(
+        `SELECT p.id,
+                SUBSTRING(COALESCE(NULLIF(p.text_da,''), NULLIF(p.text_en,''), ''), 1, 50) AS text,
+                COUNT(*) AS visits
+         FROM profile_views pv
+         JOIN posts p ON p.id = pv.source_post_id
+         WHERE pv.profile_id = ?
+           AND pv.source_post_id IS NOT NULL
+           AND pv.viewed_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+         GROUP BY pv.source_post_id ORDER BY visits DESC LIMIT 5`,
+        [req.userId, days]
+      )
+      postsDrivingVisits = drivingRows.map(r => ({
+        label: (r.text || '').trim().slice(0, 40) || `Post #${r.id}`,
+        value: Number(r.visits),
+      }))
+    } catch { /* column not yet added */ }
+
+    // Platform average new connections per user per day (for competitor benchmarking)
+    let platformAvgConnGrowth = []
+    try {
+      const [platformRows] = await pool.query(
+        `SELECT DATE(created_at) AS date, COUNT(*) AS total_new
+         FROM friendships
+         WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+         GROUP BY DATE(created_at) ORDER BY date ASC`,
+        [days]
+      )
+      const [[{ user_count }]] = await pool.query('SELECT COUNT(*) AS user_count FROM users')
+      const uc = Math.max(Number(user_count), 1)
+      platformAvgConnGrowth = platformRows.map(r => ({
+        date: r.date.toISOString().slice(0, 10),
+        value: Math.round((Number(r.total_new) / uc) * 10) / 10,
+      }))
+    } catch { /* ignore */ }
+
     res.json({
       days,
       views: viewRows,
@@ -6060,6 +6162,10 @@ app.get('/api/analytics', authenticate, async (req, res) => {
       hashtagPerformance,
       audienceLocations,
       growthSource: { viaInvite, organic, total: totalC },
+      industryDist,
+      seniorityDist,
+      postsDrivingVisits,
+      platformAvgConnGrowth,
     })
   } catch (err) {
     console.error('GET /api/analytics error:', err.message)
@@ -7218,13 +7324,17 @@ app.post('/api/me/heartbeat', authenticate, async (req, res) => {
 
 // ── Profile update ────────────────────────────────────────────────────────────
 app.patch('/api/profile', authenticate, async (req, res) => {
-  const { name, bio_da, bio_en, location } = req.body
+  const { name, bio_da, bio_en, location, industry, seniority, job_title, company } = req.body
   try {
     const fields = [], vals = []
-    if (name !== undefined)     { fields.push('name = ?');     vals.push(name.trim()) }
-    if (bio_da !== undefined)   { fields.push('bio_da = ?');   vals.push(bio_da) }
-    if (bio_en !== undefined)   { fields.push('bio_en = ?');   vals.push(bio_en) }
-    if (location !== undefined) { fields.push('location = ?'); vals.push(location) }
+    if (name !== undefined)      { fields.push('name = ?');      vals.push(name.trim()) }
+    if (bio_da !== undefined)    { fields.push('bio_da = ?');    vals.push(bio_da) }
+    if (bio_en !== undefined)    { fields.push('bio_en = ?');    vals.push(bio_en) }
+    if (location !== undefined)  { fields.push('location = ?');  vals.push(location) }
+    if (industry !== undefined)  { fields.push('industry = ?');  vals.push(industry ? String(industry).trim().slice(0, 100) : null) }
+    if (seniority !== undefined) { fields.push('seniority = ?'); vals.push(seniority || null) }
+    if (job_title !== undefined) { fields.push('job_title = ?'); vals.push(job_title ? String(job_title).trim().slice(0, 100) : null) }
+    if (company !== undefined)   { fields.push('company = ?');   vals.push(company ? String(company).trim().slice(0, 100) : null) }
     if (!fields.length) return res.status(400).json({ error: 'Nothing to update' })
     vals.push(req.userId)
     await pool.query(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`, vals)
