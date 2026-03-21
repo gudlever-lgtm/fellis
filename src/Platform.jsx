@@ -68,10 +68,29 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('fellis_dark') === '1')
   const [marketplaceMaxPhotos, setMarketplaceMaxPhotos] = useState(4)
 
-  // 🎉 Party Mode easter egg (global — triggered anywhere on the platform)
+  // 🥚 All easter egg triggers — global so they work from any page
   const { triggerEgg: triggerGlobalEgg, syncFromServer: syncEggsFromServer } = useEasterEggs()
-  const [partyActive, setPartyActive] = useState(false)
-  useKeySequence('party', () => { if (triggerGlobalEgg('party', checkBadges)) { setPartyActive(true) } }, 2000, !partyActive)
+  // Ref set by FeedPage so Platform-level triggers can fire feed-specific DOM effects
+  const feedEggRef = useRef({})
+
+  const [partyActive,  setPartyActive]  = useState(false)
+  const [chuckGlobalActive, setChuckGlobalActive] = useState(false)
+  const [matrixGlobalActive, setMatrixGlobalActive] = useState(false)
+  const [rickrollGlobalActive, setRickrollGlobalActive] = useState(false)
+
+  const triggerChuckGlobal   = () => { if (!chuckGlobalActive   && triggerGlobalEgg('chuck',    checkBadges)) { setChuckGlobalActive(true) } }
+  const triggerMatrixGlobal  = () => { if (!matrixGlobalActive  && triggerGlobalEgg('matrix',   checkBadges)) { setMatrixGlobalActive(true) } }
+  const triggerPartyGlobal   = () => { if (triggerGlobalEgg('party',    checkBadges)) { setPartyActive(true) } }
+  const triggerFlipGlobal    = () => { triggerGlobalEgg('flip',    checkBadges); feedEggRef.current.flip?.() }
+  const triggerGravityGlobal = () => { triggerGlobalEgg('gravity', checkBadges); feedEggRef.current.gravity?.() }
+  const triggerRetroGlobal   = () => { triggerGlobalEgg('retro',   checkBadges); feedEggRef.current.retro?.() }
+
+  useKeySequence('party',  triggerPartyGlobal,   2000, !partyActive)
+  useKeySequence('matrix', triggerMatrixGlobal,  3000, !matrixGlobalActive)
+  useKeySequence('flip',   triggerFlipGlobal,    2000)
+  useKeySequence('gg',     triggerGravityGlobal, 1000)
+  useKeySequence('retro',  triggerRetroGlobal,   3000)
+  useKonamiCode(triggerChuckGlobal, !chuckGlobalActive)
   const [showOnboarding, setShowOnboarding] = useState(() => localStorage.getItem('fellis_onboarding') === '1')
   const [onboardingInviterName] = useState(() => localStorage.getItem('fellis_onboarding_inviter') || null)
   const avatarMenuRef = useRef(null)
@@ -460,6 +479,12 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
             onViewOwnProfile={() => navigateTo('profile')}
             onNavigate={navigateTo}
             onBadgeCheck={checkBadges}
+            feedEggRef={feedEggRef}
+            onTriggerChuck={triggerChuckGlobal}
+            onTriggerMatrix={triggerMatrixGlobal}
+            onTriggerRickroll={() => { if (!rickrollGlobalActive && triggerGlobalEgg('rickroll', checkBadges)) setRickrollGlobalActive(true) }}
+            onTriggerParty={triggerPartyGlobal}
+            onTriggerRetro={triggerRetroGlobal}
           />
         </div>
         {page === 'reels' && <ReelsPage t={t} currentUser={currentUser} initialReelId={navParam?.reelId} onViewProfile={(userId) => navigateTo('view-profile', { userId })} />}
@@ -559,8 +584,11 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
         )
       })()}
 
-      {/* 🎉 Party Mode confetti (global) */}
-      {partyActive && <PartyConfetti onDismiss={() => setPartyActive(false)} />}
+      {/* 🥚 Easter egg overlays — all rendered globally so they work from any page */}
+      {partyActive        && <PartyConfetti onDismiss={() => setPartyActive(false)} />}
+      {chuckGlobalActive  && <ChuckBanner   onDismiss={() => setChuckGlobalActive(false)} />}
+      {matrixGlobalActive && <MatrixRain    onDismiss={() => setMatrixGlobalActive(false)} />}
+      {rickrollGlobalActive && <RickRoll    onDismiss={() => setRickrollGlobalActive(false)} />}
 
       {/* 🏅 Badge toast notifications */}
       <BadgeToastQueue queueRef={badgeQueueRef} lang={lang} />
@@ -1354,7 +1382,7 @@ function BoostedListingCard({ listing, lang, t, onNavigate }) {
   )
 }
 
-function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onNavigate, onBadgeCheck }) {
+function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onNavigate, onBadgeCheck, feedEggRef, onTriggerChuck, onTriggerMatrix, onTriggerRickroll, onTriggerParty, onTriggerRetro }) {
   const [posts, setPosts] = useState([])
   const [feedCategoryFilter, setFeedCategoryFilter] = useState(null)
   const [pinnedPost, setPinnedPost] = useState(null)
@@ -1442,10 +1470,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const { rels } = useContactRelationships()
 
   // ── 🥚 Easter Eggs ──────────────────────────────────────────────────────────
-  const { triggerEgg } = useEasterEggs()
-  const [chuckActive,    setChuckActive]    = useState(false)
-  const [matrixActive,   setMatrixActive]   = useState(false)
-  const [rickrollActive, setRickrollActive] = useState(false)
+  // Keyboard/Konami triggers are global (Platform level).
+  // FeedPage registers DOM-effect callbacks via feedEggRef so Platform can call them.
   const [riddlerActive,  setRiddlerActive]  = useState(false)
   const flipActiveRef    = useRef(false)
   const retroActiveRef   = useRef(false)
@@ -1454,28 +1480,13 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   // Refs for touch/mobile triggers
   const feedTitleRef = useRef(null)
 
-  // Rick Roll sentinel — placed at very bottom of feed
+  // Rick Roll — scroll to bottom of feed for 4 seconds (feed-specific)
   const rickrollSentinelRef = useRef(null)
-  useScrollHold(rickrollSentinelRef, 4000, () => {
-    if (!rickrollActive && triggerEgg('rickroll', onBadgeCheck)) { setRickrollActive(true) }
-  }, !rickrollActive)
+  useScrollHold(rickrollSentinelRef, 4000, () => { onTriggerRickroll?.() }, true)
 
-  // Chuck Norris: Konami code ↑↑↓↓←→←→BA (keyboard) / 10 taps on feed title (mobile)
-  const triggerChuck = () => { if (!chuckActive && triggerEgg('chuck', onBadgeCheck)) { setChuckActive(true) } }
-  useKonamiCode(triggerChuck, !chuckActive)
-
-  // Matrix Rain: type "matrix" (keyboard) / 7 avatar clicks within 3 seconds (mobile)
-  useKeySequence('matrix', () => {
-    if (!matrixActive && triggerEgg('matrix', onBadgeCheck)) { setMatrixActive(true) }
-  }, 3000, !matrixActive)
-  useAvatarClick(feedContainerRef, 7, 3000, () => {
-    if (!matrixActive && triggerEgg('matrix', onBadgeCheck)) { setMatrixActive(true) }
-  }, !matrixActive)
-
-  // Flip Feed: type "flip" within 2 seconds (keyboard) / 3 taps on feed title (mobile)
-  const triggerFlip = () => {
+  // DOM-effect callbacks — called by Platform's global keyboard triggers
+  const doFlip = () => {
     if (flipActiveRef.current) return
-    if (!triggerEgg('flip', onBadgeCheck)) return
     flipActiveRef.current = true
     if (feedContainerRef.current) feedContainerRef.current.classList.add('feed-flipped')
     setTimeout(() => {
@@ -1483,12 +1494,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       flipActiveRef.current = false
     }, 10000)
   }
-  useKeySequence('flip', triggerFlip, 2000)
-
-  // Gravity: press G G within 1 second (keyboard) / 2 taps on feed title (mobile)
-  const triggerGravity = () => {
+  const doGravity = () => {
     if (gravityActiveRef.current) return
-    if (!triggerEgg('gravity', onBadgeCheck)) return
     gravityActiveRef.current = true
     if (feedContainerRef.current) feedContainerRef.current.classList.add('feed-gravity')
     setTimeout(() => {
@@ -1496,14 +1503,27 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       gravityActiveRef.current = false
     }, 2500)
   }
-  useKeySequence('gg', triggerGravity, 1000)
+  const doRetro = () => {
+    if (retroActiveRef.current) return
+    retroActiveRef.current = true
+    document.body.classList.add('retro-mode')
+    setTimeout(() => {
+      document.body.classList.remove('retro-mode')
+      retroActiveRef.current = false
+    }, 30000)
+  }
 
-  // Party Mode: type "party" within 2 seconds (keyboard) / 5 taps on feed title (mobile)
-  // (Party is also triggered via useKeySequence in the outer PlatformShell — this covers mobile)
-  const triggerPartyMobile = () => { if (triggerGlobalEgg('party', checkBadges)) { setPartyActive(true) } }
+  // Register DOM callbacks into feedEggRef so Platform can call them
+  useEffect(() => {
+    if (feedEggRef) feedEggRef.current = { flip: doFlip, gravity: doGravity, retro: doRetro }
+    return () => { if (feedEggRef) feedEggRef.current = {} }
+  })
+
+  // Avatar click — 7 clicks in 3 seconds = Matrix (mobile)
+  useAvatarClick(feedContainerRef, 7, 3000, () => { onTriggerMatrix?.() }, true)
 
   // Feed title tap-count: 2=Gravity, 3=Flip, 5=Party, 10=Chuck (mobile)
-  useTapCount(feedTitleRef, { 2: triggerGravity, 3: triggerFlip, 5: triggerPartyMobile, 10: triggerChuck }, 5000, 600)
+  useTapCount(feedTitleRef, { 2: doGravity, 3: doFlip, 5: () => onTriggerParty?.(), 10: () => onTriggerChuck?.() }, 5000, 600)
 
   // Post hint icon double-tap: manually re-trigger AI category suggestion
   useTapCount(hintIconRef, {
@@ -1525,20 +1545,9 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     }
   }, 2000, 300)
 
-  // Retro Mode: type "retro" (keyboard) / long-press feed title 1.5s (mobile)
-  const triggerRetro = () => {
-    if (retroActiveRef.current) return
-    if (!triggerEgg('retro', onBadgeCheck)) return
-    retroActiveRef.current = true
-    document.body.classList.add('retro-mode')
-    setTimeout(() => {
-      document.body.classList.remove('retro-mode')
-      retroActiveRef.current = false
-    }, 30000)
-  }
-  useKeySequence('retro', triggerRetro, 3000)
-  useLongPress(feedTitleRef, 1500, triggerRetro)
-  const handleRetroTrigger = (e) => { if (e.shiftKey) triggerRetro() }
+  // Retro Mode: type "retro" is global (Platform level); long-press feed title 1.5s / Shift+click (mobile)
+  useLongPress(feedTitleRef, 1500, () => onTriggerRetro?.())
+  const handleRetroTrigger = (e) => { if (e.shiftKey) onTriggerRetro?.() }
 
   // Riddler: Shift+Click on the ? hint icon
   const handleHintIconClick = (e) => {
@@ -2101,10 +2110,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
           {blockToast}
         </div>
       )}
-      {/* 🥚 Easter egg overlays */}
-      {chuckActive    && <ChuckBanner   onDismiss={() => setChuckActive(false)} />}
-      {matrixActive   && <MatrixRain    onDismiss={() => setMatrixActive(false)} />}
-      {rickrollActive && <RickRoll      onDismiss={() => setRickrollActive(false)} />}
+      {/* 🥚 Easter egg overlays — matrix/rickroll/chuck/party rendered globally in Platform */}
       {riddlerActive  && <RiddleBanner  lang={lang} onDismiss={() => setRiddlerActive(false)} />}
       {/* Keyword warning modal */}
       {keywordWarning && (
