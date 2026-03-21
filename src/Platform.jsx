@@ -7326,7 +7326,7 @@ function ReferralDashboard({ t, lang, referralData, badges, leaderboard, inviteL
     card: { background: '#fff', border: '1px solid #e8e8e8', borderRadius: 12, padding: 16 },
     cardTitle: { fontWeight: 700, fontSize: 15, marginBottom: 12, color: '#1a1a1a' },
     badgeGrid: { display: 'flex', flexWrap: 'wrap', gap: 10 },
-    badge: (earned) => ({ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '12px 16px', borderRadius: 12, border: `2px solid ${earned ? '#1877F2' : '#e0e0e0'}`, background: earned ? '#EBF4FF' : '#f8f8f8', opacity: earned ? 1 : 0.55, minWidth: 90, textAlign: 'center' }),
+    badge: (earned) => ({ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '12px 16px', borderRadius: 12, border: `2px solid ${earned ? '#1877F2' : '#e0e0e0'}`, background: earned ? '#EBF4FF' : '#f8f8f8', opacity: earned ? 1 : 0.55, minWidth: 90, textAlign: 'center', position: 'relative', cursor: 'default' }),
     badgeIcon: { fontSize: 28 },
     badgeTitle: (earned) => ({ fontSize: 11, fontWeight: 700, color: earned ? '#1877F2' : '#888' }),
     badgeProgress: { fontSize: 10, color: '#999' },
@@ -7389,7 +7389,7 @@ function ReferralDashboard({ t, lang, referralData, badges, leaderboard, inviteL
         ) : (
           <div style={s.badgeGrid}>
             {badges.map(b => (
-              <div key={b.type} style={s.badge(b.earned)} title={b.description}>
+              <div key={b.type} style={s.badge(b.earned)}>
                 <span style={s.badgeIcon}>{b.icon}</span>
                 <span style={s.badgeTitle(b.earned)}>{b.title}</span>
                 {!b.earned && (
@@ -7401,6 +7401,18 @@ function ReferralDashboard({ t, lang, referralData, badges, leaderboard, inviteL
                   </>
                 )}
                 {b.earned && <span style={{ fontSize: 10, color: '#40916C', fontWeight: 700 }}>+{b.points} pt</span>}
+                {b.description && (
+                  <div style={{
+                    display: 'none', position: 'absolute', bottom: 'calc(100% + 8px)', left: '50%',
+                    transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.88)', color: '#fff',
+                    fontSize: 12, lineHeight: 1.4, padding: '8px 12px', borderRadius: 8,
+                    whiteSpace: 'normal', width: 180, textAlign: 'center', zIndex: 20,
+                    pointerEvents: 'none',
+                  }} className="ref-badge-tooltip">
+                    <strong style={{ display: 'block', marginBottom: 3 }}>{b.title}</strong>
+                    {b.description}
+                  </div>
+                )}
               </div>
             ))}
           </div>

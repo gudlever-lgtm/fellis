@@ -5095,6 +5095,10 @@ body.retro-mode .p-card {
 
 /* ── Badge system ─────────────────────────────────────────────────────────── */
 
+/* Referral badge tooltip */
+.ref-badge-tooltip { display: none; }
+div:hover > .ref-badge-tooltip { display: block; }
+
 /* Badge grid in profile */
 .badge-grid {
   display: grid;
