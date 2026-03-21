@@ -125,8 +125,19 @@ export async function apiUpdatePhone(phone) {
 }
 
 export async function apiCheckSession() {
-  // Try session check even without localStorage — cookie may carry the session
-  return await request('/api/auth/session')
+  // Use raw fetch so we can distinguish auth failures (401/403) from network errors.
+  // request() returns null for both, but only auth failures should clear the session.
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/session`, {
+      headers: headers(),
+      credentials: 'same-origin',
+    })
+    if (res.status === 401 || res.status === 403) return { __authError: true }
+    if (!res.ok) return null // server error — treat as network issue, keep session
+    return await res.json()
+  } catch {
+    return null // network unreachable — keep session
+  }
 }
 
 export async function apiLogout() {
