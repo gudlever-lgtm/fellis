@@ -526,7 +526,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
         {page === 'analytics' && <AnalyticsPage lang={lang} t={t} currentUser={currentUser} />}
         {page === 'settings' && <SettingsPage lang={lang} t={t} currentUser={currentUser} mode={mode} adsFree={adsFree} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onLogout={onLogout} onOpenModeModal={() => setShowModeModal(true)} darkMode={darkMode} onToggleDark={() => setDarkMode(d => !d)} initialTab={navParam} />}
         {page === 'privacy' && <PrivacySection lang={lang} onLogout={onLogout} />}
-        {page === 'visitors' && <VisitorStatsPage lang={lang} />}
+        {page === 'visitors' && <VisitorStatsPage lang={lang} onBadgeCheck={checkBadges} />}
         {page === 'about' && <AboutPage lang={lang} />}
         {page === 'admin' && currentUser.is_admin && <AdminPage lang={lang} t={t} />}
         {page === 'moderation' && (currentUser.is_moderator || currentUser.is_admin) && <ModeratorPage lang={lang} t={t} currentUser={currentUser} />}
@@ -5203,6 +5203,7 @@ const EGG_META = {
   rickroll: { icon: '🎵', name: 'Rick Roll',    trigger: { da: 'Rul til bunden og vent 4 sek.', en: 'Scroll to bottom and hold 4 sec.' } },
   watcher:  { icon: '👀', name: 'Skyggefølger', trigger: { da: 'Klik 7 gange på en vens avatar i Vis Profil', en: "Click 7 times on a friend's avatar in View Profile" } },
   riddler:  { icon: '❓', name: 'The Riddler',   trigger: { da: 'Shift+klik på ? hint-ikonet', en: 'Shift+click the ? hint icon' } },
+  phantom:  { icon: '👻', name: 'Phantom Visitors', trigger: { da: '5 klik på profilbesøg-personen i Besøgende', en: '5 clicks on the profile view person in Visitor Stats' } },
 }
 
 // Maps badge id → egg id for interview lookup in the badge grid
@@ -5216,6 +5217,7 @@ const BADGE_TO_EGG = {
   egg_never_gonna:     'rickroll',
   egg_shadow_watcher:  'watcher',
   egg_riddler:         'riddler',
+  egg_phantom:         'phantom',
 }
 
 const EGG_INTERVIEW = {
@@ -5397,6 +5399,26 @@ const EGG_INTERVIEW = {
       a_da: 'Fordi den bedste gåde altid er den, der allerede var skjult midt for øjnene på dig. Kan du huske det lille ?-ikon du har ignoreret i ugevis? Det var mig.',
       q_en: 'Why do you find yourself funny?',
       a_en: 'Because the best riddle is always the one hidden in plain sight. Remember that little ? icon you have been ignoring for weeks? That was me.',
+    },
+  ],
+  phantom: [
+    {
+      q_da: 'Hvorfor er du her?',
+      a_da: 'Fordi du klikkede fem gange på en lilla mand. Dine rigtige følgere behøver ikke en konto. Vi er allerede her.',
+      q_en: 'Why are you here?',
+      a_en: 'Because you clicked five times on a purple person. Your real followers do not need an account. We are already here.',
+    },
+    {
+      q_da: 'Hvad er din historie?',
+      a_da: 'Vi er dem, der besøger din profil kl. 03:47 uden at efterlade spor. Algoritmen ved ikke, vi eksisterer. Det gør vi dog.',
+      q_en: 'What is your history?',
+      a_en: 'We are the ones who visit your profile at 03:47 without leaving a trace. The algorithm does not know we exist. We do though.',
+    },
+    {
+      q_da: 'Hvorfor synes du selv, du er sjov?',
+      a_da: 'Vi er spøgelser. Vi er per definition sjove — og lidt uhyggelige. Men mest sjove. Boo.',
+      q_en: 'Why do you find yourself funny?',
+      a_en: 'We are ghosts. By definition we are funny — and slightly creepy. But mostly funny. Boo.',
     },
   ],
 }
@@ -6267,9 +6289,26 @@ function DailyBarChart({ data, color = '#2D6A4F', lang }) {
   )
 }
 
-function VisitorStatsPage({ lang }) {
+function VisitorStatsPage({ lang, onBadgeCheck }) {
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [phantomActive, setPhantomActive] = useState(false)
+  const phantomClickRef = useRef(0)
+  const phantomTimerRef = useRef(null)
+  const { triggerEgg } = useEasterEggs()
+
+  const handlePersonClick = () => {
+    phantomClickRef.current++
+    clearTimeout(phantomTimerRef.current)
+    phantomTimerRef.current = setTimeout(() => { phantomClickRef.current = 0 }, 2000)
+    if (phantomClickRef.current >= 5) {
+      phantomClickRef.current = 0
+      if (triggerEgg('phantom', onBadgeCheck)) {
+        setPhantomActive(true)
+        setTimeout(() => setPhantomActive(false), 2500)
+      }
+    }
+  }
 
   useEffect(() => {
     apiGetVisitorStats()
@@ -6349,7 +6388,12 @@ function VisitorStatsPage({ lang }) {
           </div>
         </div>
         <div className="p-card" style={{ padding: 20, display: 'flex', alignItems: 'center', gap: 16 }}>
-          <div style={{ fontSize: 30, lineHeight: 1 }}>👤</div>
+          <div style={{ position: 'relative', fontSize: 30, lineHeight: 1, cursor: 'pointer', userSelect: 'none' }} onClick={handlePersonClick}>
+            👤
+            {phantomActive && [0,1,2,3,4,5].map(i => (
+              <span key={i} className="egg-phantom-ghost" style={{ left: `${-10 + i * 20}px`, animationDelay: `${i * 0.08}s` }}>👻</span>
+            ))}
+          </div>
           <div>
             <div style={{ fontSize: 12, color: '#888', fontWeight: 500 }}>{t.myProfileViews}</div>
             <div style={{ fontSize: 28, fontWeight: 800, color: '#2D6A4F' }}>{stats?.myProfileViews ?? 0}</div>
@@ -14020,7 +14064,7 @@ function CalendarPage({ lang, t, currentUser }) {
   const hasSelected = selectedHolidays.length > 0 || selectedBirthdays.length > 0 || selectedEvents.length > 0 || selectedReminders.length > 0
 
   const s = {
-    page: { maxWidth: 700, margin: '0 auto', padding: '24px 16px' },
+    page: { maxWidth: 800, margin: '0 auto', padding: '24px 16px' },
     header: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
     title: { fontSize: 22, fontWeight: 700, margin: 0 },
     navBtn: { background: 'none', border: '1px solid var(--border, #ddd)', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 18, color: 'var(--text, #111)' },
@@ -15709,7 +15753,7 @@ function AdminPage({ lang, t }) {
   }
 
   return (
-    <div style={{ maxWidth: 640, margin: '0 auto', padding: '24px 16px' }}>
+    <div style={{ maxWidth: 800, margin: '0 auto', padding: '24px 16px' }}>
       <h2 style={{ margin: '0 0 16px', fontSize: 22, fontWeight: 700 }}>⚙️ {t.adminTitle}</h2>
 
       {/* Admin navigation — grouped into categories */}

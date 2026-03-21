@@ -6127,6 +6127,7 @@ async function initAdminSettings() {
       rickroll: { globalEnabled: true, hintsEnabled: true,  hintText: 'Going down!' },
       watcher:  { globalEnabled: true, hintsEnabled: false, hintText: '' },
       riddler:  { globalEnabled: true, hintsEnabled: false, hintText: '' },
+      phantom:  { globalEnabled: true, hintsEnabled: false, hintText: '' },
     }
     await pool.query(
       "INSERT IGNORE INTO admin_settings (key_name, key_value) VALUES ('easter_egg_config', ?)",
@@ -10078,6 +10079,7 @@ app.get('*', async (req, res) => {
         rickroll: '📼 Rick Roll',
         watcher:  '👁️ Skyggefølger',
         riddler:  '❓ The Riddler',
+        phantom:  '👻 Phantom Visitors',
       }
       const DEFAULT_HINTS = {
         chuck:    { hintsEnabled: true,  hintText: 'har en mening' },
