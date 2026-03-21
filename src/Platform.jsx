@@ -13895,10 +13895,35 @@ function CalendarPage({ lang, t, currentUser }) {
   const [month, setMonth] = useState(today.getMonth())
   const [selectedDay, setSelectedDay] = useState(null)
   const [calData, setCalData] = useState({ birthdays: [], events: [] })
+  const [reminders, setReminders] = useState([])
+  const [showReminderForm, setShowReminderForm] = useState(false)
+  const [reminderTitle, setReminderTitle] = useState('')
+  const [reminderNote, setReminderNote] = useState('')
+  const [reminderSaving, setReminderSaving] = useState(false)
 
   useEffect(() => {
     apiFetchCalendarEvents().then(data => { if (data) setCalData(data) })
+    apiFetchCalendarReminders().then(data => { if (data?.reminders) setReminders(data.reminders) })
   }, [])
+
+  const handleAddReminder = async (e) => {
+    e.preventDefault()
+    if (!reminderTitle.trim() || !selectedDateKey) return
+    setReminderSaving(true)
+    const result = await apiCreateCalendarReminder(selectedDateKey, reminderTitle.trim(), reminderNote.trim() || null)
+    if (result?.id) {
+      setReminders(prev => [...prev, result])
+      setReminderTitle('')
+      setReminderNote('')
+      setShowReminderForm(false)
+    }
+    setReminderSaving(false)
+  }
+
+  const handleDeleteReminder = async (id) => {
+    await apiDeleteCalendarReminder(id)
+    setReminders(prev => prev.filter(r => r.id !== id))
+  }
 
   const holidays = getDanishHolidays(year, lang)
 
@@ -13927,6 +13952,14 @@ function CalendarPage({ lang, t, currentUser }) {
     eventMap[key].push(e)
   })
 
+  const reminderMap = {}
+  reminders.forEach(r => {
+    if (!r.date) return
+    const key = r.date.slice(0, 10)
+    if (!reminderMap[key]) reminderMap[key] = []
+    reminderMap[key].push(r)
+  })
+
   // Calendar grid: weeks start on Monday
   const firstOfMonth = new Date(year, month, 1)
   const dowFirst = (firstOfMonth.getDay() + 6) % 7 // Mon=0 … Sun=6
@@ -13946,7 +13979,8 @@ function CalendarPage({ lang, t, currentUser }) {
   const selectedHolidays = selectedDateKey ? (holidayMap[selectedDateKey] || []) : []
   const selectedBirthdays = selectedDateKey ? (birthdayMap[selectedDateKey] || []) : []
   const selectedEvents = selectedDateKey ? (eventMap[selectedDateKey] || []) : []
-  const hasSelected = selectedHolidays.length > 0 || selectedBirthdays.length > 0 || selectedEvents.length > 0
+  const selectedReminders = selectedDateKey ? (reminderMap[selectedDateKey] || []) : []
+  const hasSelected = selectedHolidays.length > 0 || selectedBirthdays.length > 0 || selectedEvents.length > 0 || selectedReminders.length > 0
 
   const s = {
     page: { maxWidth: 700, margin: '0 auto', padding: '24px 16px' },
@@ -13989,6 +14023,7 @@ function CalendarPage({ lang, t, currentUser }) {
   const EVENT_COLOR_ORGANIZER = '#6C63FF'   // oprettet af dig
   const EVENT_COLOR_GOING = '#22c55e'       // du deltager
   const EVENT_COLOR_MAYBE = '#f97316'       // måske
+  const REMINDER_COLOR = '#ec4899'          // privat påmindelse
 
   return (
     <div style={s.page}>
@@ -14017,12 +14052,13 @@ function CalendarPage({ lang, t, currentUser }) {
           const hols = holidayMap[dateKey] || []
           const bdays = birthdayMap[dateKey] || []
           const evts = eventMap[dateKey] || []
+          const rems = reminderMap[dateKey] || []
 
           return (
             <div
               key={i}
               style={s.dayCell(isToday, isSelected, false)}
-              onClick={() => setSelectedDay(isSelected ? null : dayNum)}
+              onClick={() => { setSelectedDay(isSelected ? null : dayNum); setShowReminderForm(false) }}
             >
               <span style={s.dayNum(isSelected)}>{dayNum}</span>
               <div style={s.dots}>
@@ -14036,6 +14072,9 @@ function CalendarPage({ lang, t, currentUser }) {
                   const evtColor = e.isOrganizer ? EVENT_COLOR_ORGANIZER : e.myRsvp === 'going' ? EVENT_COLOR_GOING : EVENT_COLOR_MAYBE
                   return <span key={j} style={s.dot(evtColor)} title={typeof e.title === 'string' ? e.title : (e.title[lang] || e.title.da)} />
                 })}
+                {rems.map((r, j) => (
+                  <span key={j} style={s.dot(REMINDER_COLOR)} title={r.title} />
+                ))}
               </div>
             </div>
           )
@@ -14050,6 +14089,7 @@ function CalendarPage({ lang, t, currentUser }) {
         <div style={s.legendItem}><span style={{ ...s.dot(EVENT_COLOR_ORGANIZER), width: 10, height: 10 }} />{lang === 'da' ? 'Oprettet af dig' : 'Created by you'}</div>
         <div style={s.legendItem}><span style={{ ...s.dot(EVENT_COLOR_GOING), width: 10, height: 10 }} />{lang === 'da' ? 'Du deltager' : 'Attending'}</div>
         <div style={s.legendItem}><span style={{ ...s.dot(EVENT_COLOR_MAYBE), width: 10, height: 10 }} />{lang === 'da' ? 'Måske' : 'Maybe'}</div>
+        <div style={s.legendItem}><span style={{ ...s.dot(REMINDER_COLOR), width: 10, height: 10 }} />{t.calendarReminders}</div>
       </div>
 
       {/* Day detail panel */}
@@ -14093,6 +14133,62 @@ function CalendarPage({ lang, t, currentUser }) {
               </div>
             )
           })}
+
+          {/* Private reminders */}
+          {selectedReminders.length > 0 && (
+            <div style={{ marginTop: selectedHolidays.length + selectedBirthdays.length + selectedEvents.length > 0 ? 12 : 0, borderTop: selectedHolidays.length + selectedBirthdays.length + selectedEvents.length > 0 ? '1px solid var(--border,#eee)' : 'none', paddingTop: selectedHolidays.length + selectedBirthdays.length + selectedEvents.length > 0 ? 12 : 0 }}>
+              {selectedReminders.map((r, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 8 }}>
+                  <span style={s.itemDot(REMINDER_COLOR)} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text,#111)' }}>🔒 {r.title}</div>
+                    {r.note && <div style={{ fontSize: 13, color: 'var(--text-muted,#888)', marginTop: 2 }}>{r.note}</div>}
+                  </div>
+                  <button
+                    onClick={() => handleDeleteReminder(r.id)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#e74c3c', padding: '0 4px', flexShrink: 0 }}
+                    title={t.calendarReminderDelete}
+                  >✕</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Add reminder button / form */}
+          {!showReminderForm ? (
+            <button
+              onClick={() => setShowReminderForm(true)}
+              style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: '1px dashed #ec4899', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontSize: 13, color: '#ec4899', fontWeight: 600 }}
+            >
+              + {t.calendarReminderAdd}
+            </button>
+          ) : (
+            <form onSubmit={handleAddReminder} style={{ marginTop: 14, background: 'var(--bg,#f8f8f8)', borderRadius: 10, padding: '12px 14px', border: '1px solid #f9a8d4' }}>
+              <div style={{ fontSize: 11, color: '#ec4899', fontWeight: 700, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t.calendarReminderPrivate}</div>
+              <input
+                autoFocus
+                required
+                value={reminderTitle}
+                onChange={e => setReminderTitle(e.target.value)}
+                placeholder={t.calendarReminderPlaceholder}
+                style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box', marginBottom: 8 }}
+              />
+              <input
+                value={reminderNote}
+                onChange={e => setReminderNote(e.target.value)}
+                placeholder={t.calendarReminderNote}
+                style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box', marginBottom: 10 }}
+              />
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button type="submit" disabled={reminderSaving} style={{ flex: 1, padding: '8px 0', borderRadius: 7, border: 'none', background: '#ec4899', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+                  {reminderSaving ? '…' : t.calendarReminderSave}
+                </button>
+                <button type="button" onClick={() => { setShowReminderForm(false); setReminderTitle(''); setReminderNote('') }} style={{ flex: 1, padding: '8px 0', borderRadius: 7, border: '1px solid #ddd', background: 'none', fontSize: 13, cursor: 'pointer' }}>
+                  {t.calendarReminderCancel}
+                </button>
+              </div>
+            </form>
+          )}
         </div>
       )}
     </div>
