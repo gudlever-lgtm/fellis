@@ -1108,6 +1108,31 @@
   padding: 24px 16px 80px;
 }
 
+/* Feed page: two-column layout with sidebar */
+.p-content-feed {
+  max-width: 1140px;
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.p-feed-main {
+  flex: 1;
+  min-width: 0;
+  max-width: 740px;
+}
+
+/* Hide sidebar on smaller screens */
+@media (max-width: 900px) {
+  .p-content-feed {
+    max-width: 800px;
+    display: block;
+  }
+  .p-content-feed aside {
+    display: none;
+  }
+}
+
 /* ── Cards ── */
 .p-card {
   background: #fff;
