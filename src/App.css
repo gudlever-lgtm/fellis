@@ -2925,7 +2925,8 @@
   border-radius: 16px;
   width: 90%;
   max-width: 400px;
-  overflow: hidden;
+  max-height: 90vh;
+  overflow-y: auto;
   box-shadow: 0 8px 40px rgba(0,0,0,0.18);
 }
 .p-friend-profile-close {
@@ -2945,6 +2946,10 @@
 .p-friend-profile-banner {
   height: 80px;
   background: linear-gradient(135deg, #2D6A4F 0%, #52B788 100%);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  flex-shrink: 0;
 }
 .p-friend-profile-body {
   padding: 0 24px 24px;
