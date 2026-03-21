@@ -313,8 +313,21 @@ function ReelCard({ reel, t, currentUser, onDelete, onViewProfile }) {
     },
   }
 
+  const fmtDate = (iso) => {
+    if (!iso) return ''
+    return new Date(iso).toLocaleDateString('da-DK', { day: 'numeric', month: 'long', year: 'numeric' })
+  }
+  const fmtDuration = (sec) => {
+    if (!sec) return ''
+    const m = Math.floor(sec / 60)
+    const s2 = Math.floor(sec % 60)
+    return `${m}:${String(s2).padStart(2, '0')}`
+  }
+
   return (
-    <div style={s.card}>
+    <div style={{ display: 'flex', gap: 16, maxWidth: 720, margin: '0 auto 32px', alignItems: 'flex-start' }}>
+      {/* ── Reel video card ── */}
+      <div style={{ ...s.card, margin: 0, flex: '0 0 auto', width: 340 }}>
       <div style={s.videoWrap}>
         <video
           ref={videoRef}
@@ -447,6 +460,64 @@ function ReelCard({ reel, t, currentUser, onDelete, onViewProfile }) {
           </form>
         </div>
       )}
+      </div>{/* end video card */}
+
+      {/* ── Info card ── */}
+      <div style={{ flex: 1, background: '#fff', borderRadius: 16, padding: '20px 18px', boxShadow: '0 2px 12px rgba(0,0,0,0.08)', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {/* Author */}
+        <div
+          style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: onViewProfile ? 'pointer' : 'default' }}
+          onClick={() => onViewProfile && onViewProfile(reel.user_id)}
+        >
+          {avatarUrl
+            ? <img src={avatarUrl} style={{ width: 42, height: 42, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} alt="" />
+            : <div style={{ width: 42, height: 42, borderRadius: '50%', background: nameToColor(reel.author_name), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: '#fff', flexShrink: 0 }}>{getInitials(reel.author_name)}</div>
+          }
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontWeight: 700, fontSize: 15, color: '#1a1a1a' }}>{reel.author_name}</div>
+            <div style={{ fontSize: 12, color: '#888' }}>{reel.author_handle}</div>
+          </div>
+        </div>
+
+        <div style={{ borderTop: '1px solid #f0f0f0' }} />
+
+        {/* Caption */}
+        {reel.caption && (
+          <div style={{ fontSize: 14, color: '#333', lineHeight: 1.55, wordBreak: 'break-word' }}>
+            {reel.caption}
+          </div>
+        )}
+
+        {/* Stats */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, color: '#555' }}>
+          {reel.created_at && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 16 }}>📅</span>
+              <span>{fmtDate(reel.created_at)}</span>
+            </div>
+          )}
+          {duration > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 16 }}>⏱</span>
+              <span>{fmtDuration(duration)}</span>
+            </div>
+          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 16 }}>{liked ? myReaction : '🤍'}</span>
+            <span>{likesCount} {t.reelsLikes}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 16 }}>💬</span>
+            <span>{Number(reel.comments_count)} {t.reelsComments}</span>
+          </div>
+          {reel.views_count > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 16 }}>👁️</span>
+              <span>{reel.views_count}</span>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
