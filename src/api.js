@@ -1069,12 +1069,9 @@ export async function apiServeAds(placement) {
   return await request(`/api/ads?serve=1&placement=${placement}`)
 }
 
-// ── Ads-free subscription (Stripe) ───────────────────────────────────────────
+// ── Subscription ──────────────────────────────────────────────────────────────
 export async function apiGetSubscription() {
   return await request('/api/me/subscription')
-}
-export async function apiCreateAdFreeCheckout() {
-  return await request('/api/stripe/checkout/adfree', { method: 'POST' })
 }
 
 // ── Mollie payments ───────────────────────────────────────────────────────────
