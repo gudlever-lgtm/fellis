@@ -4247,7 +4247,7 @@ function SettingsLeverandoerer({ lang, t }) {
           <div style={{ ...logoStyle, background: '#7EBC6F', fontSize: 22 }}>🗺️</div>
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 700, fontSize: 15 }}>OpenStreetMap</div>
-            <span style={badgeStyle(false)}>{da ? 'Kommende' : 'Coming soon'}</span>
+            <span style={badgeStyle(true)}>{da ? 'Tilknyttet' : 'Connected'}</span>
           </div>
           <a href="https://www.openstreetmap.org" target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#2D6A4F' }}>openstreetmap.org ↗</a>
         </div>
