@@ -675,6 +675,10 @@ export async function apiGetBadges() {
   return await request('/api/badges')
 }
 
+export async function apiGeocode(q, lang = 'da') {
+  return await request(`/api/geocode?q=${encodeURIComponent(q)}&lang=${lang}`)
+}
+
 export async function apiGetPublicProfile(handle) {
   try {
     const res = await fetch(`${API_BASE}/api/public/profile/${encodeURIComponent(handle)}`)

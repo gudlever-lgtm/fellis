@@ -19,7 +19,7 @@ import MatrixRain from './components/easter-eggs/MatrixRain.jsx'
 import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
 import RickRoll from './components/easter-eggs/RickRoll.jsx'
 import RiddleBanner from './components/easter-eggs/RiddleBanner.jsx'
-import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiEvaluateBadges, apiGetEarnedBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences } from './api.js'
+import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiEvaluateBadges, apiGetEarnedBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode } from './api.js'
 import { BADGES, BADGE_BY_ID } from './badges/badgeDefinitions.js'
 import BadgeToastQueue from './components/BadgeToast.jsx'
 import ModeGate from './components/ModeGate.jsx'
@@ -2271,16 +2271,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                       if (q.length < 2) { setLocationSearching(false); return }
                       setLocationSearching(true)
                       locationDebounceRef.current = setTimeout(async () => {
-                        try {
-                          const r = await fetch(
-                            `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=5&accept-language=${lang}`,
-                            { headers: { 'User-Agent': 'fellis.eu/1.0 (contact@fellis.eu)' } }
-                          )
-                          if (r.ok) {
-                            const j = await r.json()
-                            setLocationResults(j)
-                          }
-                        } catch {}
+                        const results = await apiGeocode(q, lang)
+                        setLocationResults(results || [])
                         setLocationSearching(false)
                       }, 500)
                     }}
