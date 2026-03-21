@@ -7595,22 +7595,26 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
   const handleFbShare = useCallback(() => {
     const shareUrl = encodeURIComponent(inviteLink || 'https://fellis.eu')
     window.open(`https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`, 'facebook-share', 'width=580,height=400')
+    apiTrackShare('invite', null, 'facebook').catch(() => {})
   }, [inviteLink])
 
   const handleLinkedInShare = useCallback(() => {
     const shareUrl = encodeURIComponent(inviteLink || 'https://fellis.eu')
     window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${shareUrl}`, 'linkedin-share', 'width=600,height=500')
+    apiTrackShare('invite', null, 'linkedin').catch(() => {})
   }, [inviteLink])
 
   const handleTwitterShare = useCallback(() => {
     const text = encodeURIComponent(lang === 'da' ? 'Tilmeld dig fellis.eu med mit link!' : 'Join fellis.eu with my invite link!')
     const shareUrl = encodeURIComponent(inviteLink || 'https://fellis.eu')
     window.open(`https://twitter.com/intent/tweet?text=${text}&url=${shareUrl}`, 'twitter-share', 'width=580,height=400')
+    apiTrackShare('invite', null, 'twitter').catch(() => {})
   }, [inviteLink, lang])
 
   const handleWhatsAppShare = useCallback(() => {
     const text = encodeURIComponent((lang === 'da' ? 'Kom med på fellis.eu! ' : 'Join me on fellis.eu! ') + (inviteLink || 'https://fellis.eu'))
     window.open(`https://wa.me/?text=${text}`, '_blank')
+    apiTrackShare('invite', null, 'whatsapp').catch(() => {})
   }, [inviteLink, lang])
 
   const handleSendEmailInvite = useCallback(async (e) => {
