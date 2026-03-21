@@ -12018,30 +12018,53 @@ function genViews(days, base, seed) {
   return Array.from({ length: days }, (_, i) => Math.round(base + r() * base * 0.6 - base * 0.3 + Math.sin(i / 3) * base * 0.2))
 }
 
-function MiniLineChart({ data, color = '#1877F2', height = 80 }) {
+function MiniLineChart({ data, color = '#1877F2', height = 100 }) {
+  const [hover, setHover] = useState(null)
   if (!data || data.length < 2) return null
-  const w = 280, h = height
+  const W = 400, h = height
+  const PAD_T = 14, PAD_B = 8, PAD_L = 32
   const min = Math.min(...data), max = Math.max(...data)
   const range = max - min || 1
-  const pts = data.map((v, i) => {
-    const x = (i / (data.length - 1)) * (w - 20) + 10
-    const y = h - 10 - ((v - min) / range) * (h - 20)
-    return `${x},${y}`
-  })
-  const area = `M${pts.join('L')}L${(data.length - 1) / (data.length - 1) * (w - 20) + 10},${h}L10,${h}Z`
+  const py = v => PAD_T + ((max - v) / range) * (h - PAD_T - PAD_B)
+  const px = i => (i / (data.length - 1)) * W
+  const pts = data.map((v, i) => [px(i), py(v)])
+  const ptStr = pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ')
+  const areaStr = `0,${h - PAD_B} ${ptStr} ${W},${h - PAD_B}`
+  const yTicks = [0.5, 1].map(t => min + t * range)
   return (
-    <svg width="100%" viewBox={`0 0 ${w} ${h}`} style={{ display: 'block' }}>
-      <defs>
-        <linearGradient id="lc-grad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.25" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={area} fill="url(#lc-grad)" />
-      <polyline points={pts.join(' ')} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" />
-      {pts.map((pt, i) => i === data.length - 1 ? (
-        <circle key={i} cx={pt.split(',')[0]} cy={pt.split(',')[1]} r="3" fill={color} />
-      ) : null)}
+    <svg viewBox={`0 0 ${W + PAD_L} ${h}`} style={{ width: '100%', height: h, display: 'block', overflow: 'visible' }}
+      onMouseLeave={() => setHover(null)}>
+      {yTicks.map((v, ti) => {
+        const y = py(v)
+        return (
+          <g key={ti}>
+            <line x1={PAD_L} y1={y} x2={PAD_L + W} y2={y} stroke="#f0f0f0" strokeWidth="1" />
+            <text x={PAD_L - 4} y={y + 3.5} textAnchor="end" fontSize="9" fill="#ccc">{Math.round(v)}</text>
+          </g>
+        )
+      })}
+      <g transform={`translate(${PAD_L},0)`}>
+        <polygon points={areaStr} fill={color} fillOpacity="0.07" />
+        <polyline points={ptStr} fill="none" stroke={color} strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" />
+        {pts.map(([x, y], i) => (
+          <circle key={i} cx={x} cy={y} r={hover === i ? 5 : 2.5}
+            fill={hover === i ? color : '#fff'} stroke={color} strokeWidth="1.8"
+            style={{ cursor: 'default' }} onMouseEnter={() => setHover(i)} />
+        ))}
+        {hover !== null && (() => {
+          const [x, y] = pts[hover]
+          const v = data[hover]
+          const tipW = 56, tipH = 26
+          const tx = Math.min(Math.max(x - tipW / 2, -PAD_L + 2), W - tipW + 4)
+          const ty = y - tipH - 8 < 0 ? y + 8 : y - tipH - 8
+          return (
+            <g>
+              <rect x={tx} y={ty} width={tipW} height={tipH} rx="4" fill="#1a1a2e" fillOpacity="0.88" />
+              <text x={tx + tipW / 2} y={ty + 17} textAnchor="middle" fontSize="11" fill="#fff" fontWeight="700">{v.toLocaleString()}</text>
+            </g>
+          )
+        })()}
+      </g>
     </svg>
   )
 }
@@ -12049,14 +12072,14 @@ function MiniLineChart({ data, color = '#1877F2', height = 80 }) {
 function HBarChart({ items, color = '#1877F2' }) {
   const max = Math.max(...items.map(i => i.value), 1)
   return (
-    <div className="p-analytics-hbar-list">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       {items.map((item, i) => (
-        <div key={i} className="p-analytics-hbar-row">
-          <div className="p-analytics-hbar-label">{item.label}</div>
-          <div className="p-analytics-hbar-track">
-            <div className="p-analytics-hbar-fill" style={{ width: `${(item.value / max) * 100}%`, background: color }} />
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ width: 110, fontSize: 12, color: '#555', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</div>
+          <div style={{ flex: 1, height: 6, background: '#f0f0f0', borderRadius: 99, overflow: 'hidden' }}>
+            <div style={{ width: `${(item.value / max) * 100}%`, height: '100%', background: color, borderRadius: 99, transition: 'width 0.4s ease' }} />
           </div>
-          <div className="p-analytics-hbar-val">{item.value.toLocaleString()}</div>
+          <div style={{ fontSize: 12, color: '#333', fontWeight: 600, minWidth: 40, textAlign: 'right' }}>{typeof item.value === 'number' && item.value > 999 ? item.value.toLocaleString() : item.value}</div>
         </div>
       ))}
     </div>
@@ -12073,26 +12096,29 @@ function StatCard({ label, value, sub, color }) {
   )
 }
 
-function HeatmapGrid({ lang }) {
+function HeatmapGrid({ lang, data }) {
   const days = lang === 'da' ? ['Man', 'Tir', 'Ons', 'Tor', 'Fre', 'Lør', 'Søn'] : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-  const hours = ['8', '10', '12', '14', '16', '18', '20']
-  const r = seededRand(42)
-  const heat = days.map(() => hours.map(() => r()))
-  const peak = (d, h) => heat[d][h]
+  // Show every other hour (0,2,4,...,22) to keep it compact
+  const hourIdxs = [8, 10, 12, 14, 16, 18, 20]
+  const max = data ? Math.max(...data.flat(), 1) : 1
   return (
     <div className="p-analytics-heatmap">
       <div className="p-analytics-heatmap-inner">
         <div className="p-analytics-heatmap-row p-analytics-heatmap-header">
           <div className="p-analytics-heatmap-corner" />
-          {hours.map(h => <div key={h} className="p-analytics-heatmap-cell p-analytics-heatmap-hour">{h}h</div>)}
+          {hourIdxs.map(h => <div key={h} className="p-analytics-heatmap-cell p-analytics-heatmap-hour">{h}h</div>)}
         </div>
         {days.map((d, di) => (
           <div key={d} className="p-analytics-heatmap-row">
             <div className="p-analytics-heatmap-cell p-analytics-heatmap-day">{d}</div>
-            {hours.map((h, hi) => {
-              const v = peak(di, hi)
-              const opacity = 0.1 + v * 0.85
-              return <div key={hi} className="p-analytics-heatmap-cell p-analytics-heatmap-dot" style={{ background: `rgba(24,119,242,${opacity.toFixed(2)})` }} title={`${d} ${h}h`} />
+            {hourIdxs.map(hi => {
+              const v = data ? data[di][hi] : 0
+              const intensity = v / max
+              return (
+                <div key={hi} className="p-analytics-heatmap-cell p-analytics-heatmap-dot"
+                  title={`${d} ${hi}:00 — ${v}`}
+                  style={{ background: intensity > 0.03 ? `rgba(24,119,242,${(0.12 + intensity * 0.88).toFixed(2)})` : '#f0f0f0' }} />
+              )
             })}
           </div>
         ))}
@@ -12774,44 +12800,43 @@ function AnalyticsPage({ lang, t, currentUser }) {
         { label: lang === 'da' ? 'Video' : 'Video', value: 11.2 },
       ]
 
-  // ── Audience demographics — estimated (no demographic fields in profiles yet) ──
-  const industryData = [
-    { label: lang === 'da' ? 'Teknologi' : 'Technology', value: 34 },
-    { label: lang === 'da' ? 'Marketing' : 'Marketing', value: 22 },
-    { label: lang === 'da' ? 'Finans' : 'Finance', value: 17 },
-    { label: lang === 'da' ? 'Sundhed' : 'Healthcare', value: 14 },
-    { label: lang === 'da' ? 'Andet' : 'Other', value: 13 },
-  ]
-  const cityData = [
-    { label: 'København', value: 412 },
-    { label: 'Aarhus', value: 187 },
-    { label: 'Odense', value: 98 },
-    { label: 'Aalborg', value: 74 },
-    { label: 'Esbjerg', value: 31 },
-  ]
-  const seniorityData = [
-    { label: lang === 'da' ? 'Senior' : 'Senior', value: 38 },
-    { label: lang === 'da' ? 'Leder' : 'Manager', value: 27 },
-    { label: lang === 'da' ? 'Direktør' : 'Director', value: 18 },
-    { label: lang === 'da' ? 'Junior' : 'Junior', value: 17 },
-  ]
-  const growthSource = [
-    { label: lang === 'da' ? 'Søgning' : 'Search', value: 41 },
-    { label: lang === 'da' ? 'Forslag' : 'Suggestions', value: 33 },
-    { label: lang === 'da' ? 'Opslag' : 'Posts', value: 26 },
-  ]
-  const topics = [
-    { label: '#innovation', value: 12.3 },
-    { label: '#leadership', value: 9.7 },
-    { label: '#startup', value: 8.1 },
-    { label: '#ai', value: 14.5 },
-    { label: '#fellis', value: 6.2 },
-  ]
-  const competitors = [
-    { label: lang === 'da' ? 'Dig' : 'You', value: 4.7, color: '#1877F2' },
-    { label: lang === 'da' ? 'Branchegennemsnit' : 'Industry avg', value: 3.2, color: '#aaa' },
-    { label: lang === 'da' ? 'Top 10%' : 'Top 10%', value: 7.9, color: '#2D6A4F' },
-  ]
+  // ── Audience demographics — from real API data ──
+  const industryData = analytics?.industryDist?.length
+    ? analytics.industryDist.map(d => ({ label: d.label, value: d.pct }))
+    : null
+
+  const cityData = analytics?.audienceLocations?.length
+    ? analytics.audienceLocations.map(d => ({ label: d.label, value: d.pct }))
+    : null
+
+  const seniorityData = analytics?.seniorityDist?.length
+    ? analytics.seniorityDist.map(d => ({ label: d.label, value: d.pct }))
+    : null
+
+  const gs = analytics?.growthSource
+  const growthSource = gs && gs.total > 0
+    ? [
+        gs.organic > 0 && { label: lang === 'da' ? 'Organisk' : 'Organic', value: gs.organic },
+        gs.viaInvite > 0 && { label: lang === 'da' ? 'Via invitationer' : 'Via invites', value: gs.viaInvite },
+      ].filter(Boolean)
+    : null
+
+  const topics = analytics?.hashtagPerformance?.length
+    ? analytics.hashtagPerformance
+    : null
+
+  // Competitor benchmarking: user's avg daily conn growth vs platform avg
+  const platformAvg = analytics?.platformAvgConnGrowth
+  const userAvgDaily = totalConns > 0 ? (totalConns / range) : 0
+  const platformAvgDaily = platformAvg?.length
+    ? platformAvg.reduce((s, r) => s + r.value, 0) / platformAvg.length
+    : null
+  const competitors = platformAvgDaily !== null
+    ? [
+        { label: lang === 'da' ? 'Dig (dagligt snit)' : 'You (daily avg)', value: Math.round(userAvgDaily * 10) / 10 },
+        { label: lang === 'da' ? 'Platformsgennemsnit' : 'Platform average', value: Math.round(platformAvgDaily * 10) / 10 },
+      ]
+    : null
 
   // Total connections (real)
   const totalConnectionsVal = analytics?.totalConnections ?? currentUser?.friendCount ?? 0
@@ -12870,35 +12895,38 @@ function AnalyticsPage({ lang, t, currentUser }) {
       {/* ── Advanced analytics — available for all business users ── */}
       <div>
         <div className="p-analytics-section">
-          <div className="p-analytics-section-title">{t.analyticsAudienceTitle} <span style={{ fontSize: 11, color: '#aaa', fontWeight: 400 }}>{lang === 'da' ? '(estimeret)' : '(estimated)'}</span></div>
+          <div className="p-analytics-section-title">{t.analyticsAudienceTitle}</div>
           <div className="p-analytics-subsection-grid">
             <div>
               <div className="p-analytics-subsection-label">{t.analyticsAudienceIndustry}</div>
-              <HBarChart items={industryData} color="#1877F2" />
+              {industryData
+                ? <HBarChart items={industryData} color="#1877F2" />
+                : <p style={{ fontSize: 12, color: '#aaa', margin: 0 }}>{analytics ? (lang === 'da' ? 'Ingen data endnu' : 'No data yet') : '…'}</p>}
             </div>
             <div>
               <div className="p-analytics-subsection-label">{t.analyticsAudienceCities}</div>
-              <HBarChart items={cityData} color="#2D6A4F" />
+              {cityData
+                ? <HBarChart items={cityData} color="#2D6A4F" />
+                : <p style={{ fontSize: 12, color: '#aaa', margin: 0 }}>{analytics ? (lang === 'da' ? 'Ingen data endnu' : 'No data yet') : '…'}</p>}
             </div>
           </div>
           <div className="p-analytics-subsection-grid" style={{ marginTop: 16 }}>
             <div>
               <div className="p-analytics-subsection-label">{t.analyticsAudienceSeniority}</div>
-              <HBarChart items={seniorityData} color="#F4A261" />
+              {seniorityData
+                ? <HBarChart items={seniorityData} color="#F4A261" />
+                : <p style={{ fontSize: 12, color: '#aaa', margin: 0 }}>{analytics ? (lang === 'da' ? 'Ingen data endnu' : 'No data yet') : '…'}</p>}
             </div>
             <div>
               <div className="p-analytics-subsection-label">{t.analyticsAudienceGrowthSource}</div>
-              <HBarChart items={growthSource} color="#7E57C2" />
+              {growthSource
+                ? <HBarChart items={growthSource} color="#7E57C2" />
+                : <p style={{ fontSize: 12, color: '#aaa', margin: 0 }}>{analytics ? (lang === 'da' ? 'Ingen data endnu' : 'No data yet') : '…'}</p>}
             </div>
           </div>
           <div style={{ marginTop: 20 }}>
-            <div className="p-analytics-subsection-label">
-              {t.analyticsAudienceBestTime}
-              <span style={{ fontSize: 10, color: '#a07000', background: '#fff8e1', border: '1px solid #f0cc60', borderRadius: 3, padding: '1px 5px', marginLeft: 6, fontWeight: 500 }}>
-                {lang === 'da' ? 'demodata' : 'demo data'}
-              </span>
-            </div>
-            <HeatmapGrid lang={lang} />
+            <div className="p-analytics-subsection-label">{t.analyticsAudienceBestTime}</div>
+            <HeatmapGrid lang={lang} data={analytics?.heatmap || null} />
           </div>
         </div>
 
@@ -12906,16 +12934,13 @@ function AnalyticsPage({ lang, t, currentUser }) {
           <div className="p-analytics-section-title">{t.analyticsContentTitle}</div>
           <div className="p-analytics-subsection-label">{t.analyticsContentPostType}</div>
           <HBarChart items={postTypeItems} color="#1877F2" />
-          <div className="p-analytics-subsection-label" style={{ marginTop: 16 }}>
-            {t.analyticsContentTopics}
-            <span style={{ fontSize: 10, color: '#a07000', background: '#fff8e1', border: '1px solid #f0cc60', borderRadius: 3, padding: '1px 5px', marginLeft: 6, fontWeight: 500 }}>
-              {lang === 'da' ? 'demodata' : 'demo data'}
-            </span>
-          </div>
-          <HBarChart items={topics.map(p => ({ label: p.label, value: p.value }))} color="#F4A261" />
+          <div className="p-analytics-subsection-label" style={{ marginTop: 16 }}>{t.analyticsContentTopics}</div>
+          {topics
+            ? <HBarChart items={topics} color="#F4A261" />
+            : <p style={{ fontSize: 12, color: '#aaa', margin: 0 }}>{analytics ? (lang === 'da' ? 'Ingen data endnu — brug hashtags i dine opslag' : 'No data yet — use hashtags in your posts') : '…'}</p>}
           <div className="p-analytics-subsection-label" style={{ marginTop: 16 }}>{t.analyticsContentEngTrend}</div>
           <div className="p-analytics-chart-wrap">
-            <MiniLineChart data={engTrend.some(v => v > 0) ? engTrend : genViews(range, 2, 333)} color="#F4A261" height={80} />
+            <MiniLineChart data={engTrend.some(v => v > 0) ? engTrend : null} color="#F4A261" height={80} />
           </div>
         </div>
 
@@ -12935,10 +12960,14 @@ function AnalyticsPage({ lang, t, currentUser }) {
 
         <div className="p-analytics-section">
           <div className="p-analytics-section-title">{t.analyticsCompetitorTitle}</div>
-          <HBarChart items={competitors.map(c => ({ label: c.label, value: c.value }))} color="#1877F2" />
-          <p style={{ fontSize: 12, color: '#aaa', margin: '8px 0 0' }}>
-            {lang === 'da' ? 'Baseret på anonymiserede branchedata.' : 'Based on anonymised industry data.'}
-          </p>
+          {competitors
+            ? <>
+                <HBarChart items={competitors} color="#1877F2" />
+                <p style={{ fontSize: 12, color: '#aaa', margin: '8px 0 0' }}>
+                  {lang === 'da' ? 'Baseret på reelle forbindelsestal fra fellis.eu.' : 'Based on real connection data from fellis.eu.'}
+                </p>
+              </>
+            : <p style={{ fontSize: 12, color: '#aaa', margin: 0 }}>{analytics ? (lang === 'da' ? 'Ingen data endnu' : 'No data yet') : '…'}</p>}
         </div>
 
         <div className="p-analytics-section">
