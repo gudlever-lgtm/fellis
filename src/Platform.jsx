@@ -2839,10 +2839,10 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                     type="button"
                     onMouseDown={e => e.preventDefault()}
                     onClick={() => { setScheduleEnabled(v => !v); if (scheduleEnabled) setScheduledAt('') }}
-                    style={{ padding: '6px 12px', borderRadius: 8, border: `1px solid ${scheduleEnabled ? '#1877F2' : '#ddd'}`, background: scheduleEnabled ? '#EBF4FF' : '#fff', color: scheduleEnabled ? '#1877F2' : '#555', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                    style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${scheduleEnabled ? '#1877F2' : '#ddd'}`, background: scheduleEnabled ? '#EBF4FF' : '#fff', color: scheduleEnabled ? '#1877F2' : '#555', fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                     title={lang === 'da' ? 'Planlæg opslag' : 'Schedule post'}
                   >
-                    🕐 {lang === 'da' ? 'Planlæg' : 'Schedule'}
+                    🕐
                   </button>
                 )}
                 {scheduleEnabled && (
@@ -2858,8 +2858,11 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   <span className="p-input-hint-icon" ref={hintIconRef} data-egg-hints onClick={handleHintIconClick}>?</span>
                   <span className="p-input-hint-tooltip">{t.postInputHint}</span>
                 </span>
-                <button className="p-post-btn" onMouseDown={e => e.preventDefault()} onClick={handlePost} disabled={!newPostText.trim() && !mediaPreviews.length && !providerMediaUrls.length}>
-                  {scheduleEnabled && scheduledAt ? (lang === 'da' ? 'Planlæg' : 'Schedule') : t.post}
+                <button className="p-post-btn" onMouseDown={e => e.preventDefault()} onClick={handlePost} disabled={!newPostText.trim() && !mediaPreviews.length && !providerMediaUrls.length}
+                  title={scheduleEnabled && scheduledAt ? (lang === 'da' ? 'Planlæg' : 'Schedule') : t.post}
+                  style={{ minWidth: 0, padding: '8px 14px', fontSize: 18, lineHeight: 1 }}
+                >
+                  {scheduleEnabled && scheduledAt ? '🕐' : '→'}
                 </button>
               </div>
             </div>

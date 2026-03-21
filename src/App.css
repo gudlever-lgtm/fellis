@@ -1236,6 +1236,8 @@
   margin-top: 10px;
   padding-top: 10px;
   border-top: 1px solid #F0EDE9;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 /* Media popup trigger */
 .p-media-popup-wrap {
@@ -3572,17 +3574,19 @@
   }
   .p-nav-tabs {
     display: none;
-    position: absolute;
+    position: fixed;
     top: 48px;
     left: 0;
     right: 0;
-    z-index: 200;
+    z-index: 500;
     background: #fff;
     border-bottom: 1px solid #E8E4DF;
     flex-direction: column;
     gap: 2px;
     padding: 6px 0 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.14);
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
   }
   .p-nav-tabs.open {
     display: flex;
@@ -3624,8 +3628,16 @@
   .p-nav-search-btn { padding: 4px 6px; font-size: 18px; }
   .p-nav-avatar, .p-nav-avatar-img { width: 30px; height: 30px; font-size: 12px; }
 
-  /* ── Notification panel smaller ── */
-  .notif-panel { width: calc(100vw - 16px); right: -8px; }
+  /* ── Notification panel — full width fixed on mobile ── */
+  .notif-panel {
+    position: fixed;
+    top: 48px;
+    left: 8px;
+    right: 8px;
+    width: auto;
+    max-height: calc(100vh - 64px);
+    border-radius: 12px;
+  }
 
   /* ── Messaging ── */
   .p-msg-sidebar { width: 48px; }
@@ -3971,7 +3983,7 @@
 @media (max-width: 540px) {
   .p-event-card-body { flex-wrap: wrap; }
   .p-event-detail-modal, .p-event-create-modal, .mode-modal { padding: 20px 16px; }
-  .notif-panel { width: calc(100vw - 24px); right: -60px; }
+  .notif-panel { left: 8px; right: 8px; width: auto; }
 }
 
 /* ── Company pages ── */

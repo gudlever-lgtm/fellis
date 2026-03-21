@@ -16,7 +16,8 @@ function ReelCard({ reel, t, currentUser, onDelete, onViewProfile }) {
   const [submitting, setSubmitting] = useState(false)
   const [muted, setMuted] = useState(true)
   const [playing, setPlaying] = useState(false)
-  const [looping, setLooping] = useState(true)
+  const [looping, setLooping] = useState(false)
+  const [showInfoOverlay, setShowInfoOverlay] = useState(false)
   const [progress, setProgress] = useState(0)      // 0–1
   const [duration, setDuration] = useState(0)
   const [seeking, setSeeking] = useState(false)
@@ -325,10 +326,12 @@ function ReelCard({ reel, t, currentUser, onDelete, onViewProfile }) {
     return `${m}:${String(s2).padStart(2, '0')}`
   }
 
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 680
+
   return (
-    <div style={{ display: 'flex', gap: 20, maxWidth: 800, margin: '0 auto 32px', alignItems: 'flex-start' }}>
+    <div style={{ display: 'flex', gap: 20, maxWidth: 800, margin: '0 auto 32px', alignItems: 'flex-start', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
       {/* ── Reel video card ── */}
-      <div style={{ ...s.card, margin: 0, flex: '0 0 auto', width: 460 }}>
+      <div style={{ ...s.card, margin: 0, flex: '0 0 auto', width: isMobile ? '100%' : 420 }}>
       <div style={s.videoWrap}>
         <video
           ref={videoRef}
@@ -366,6 +369,50 @@ function ReelCard({ reel, t, currentUser, onDelete, onViewProfile }) {
         >
           {looping ? '🔁' : '1️⃣'}
         </button>
+        {/* Info overlay toggle — shows reel details on mobile */}
+        <button
+          onClick={() => setShowInfoOverlay(v => !v)}
+          title="Info"
+          style={{
+            position: 'absolute', top: 100, right: 12, zIndex: 4,
+            background: showInfoOverlay ? 'rgba(45,106,79,0.85)' : 'rgba(0,0,0,0.5)',
+            border: 'none', borderRadius: '50%',
+            width: 36, height: 36,
+            color: '#fff', fontSize: 15, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          ℹ️
+        </button>
+        {/* Info overlay panel */}
+        {showInfoOverlay && (
+          <div style={{
+            position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.75)', zIndex: 5,
+            display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
+            padding: '16px',
+          }} onClick={() => setShowInfoOverlay(false)}>
+            <div onClick={e => e.stopPropagation()} style={{ background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(6px)', borderRadius: 14, padding: '14px 16px', color: '#fff', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {/* Author */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: onViewProfile ? 'pointer' : 'default' }} onClick={() => onViewProfile && onViewProfile(reel.user_id)}>
+                {avatarUrl
+                  ? <img src={avatarUrl} style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.7)' }} alt="" />
+                  : <div style={{ width: 38, height: 38, borderRadius: '50%', background: nameToColor(reel.author_name), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff', border: '2px solid rgba(255,255,255,0.7)' }}>{getInitials(reel.author_name)}</div>
+                }
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>{reel.author_name}</div>
+                  <div style={{ fontSize: 11, opacity: 0.7 }}>{reel.author_handle}</div>
+                </div>
+              </div>
+              {reel.caption && <div style={{ fontSize: 13, lineHeight: 1.4, opacity: 0.9 }}>{reel.caption}</div>}
+              <div style={{ display: 'flex', gap: 14, fontSize: 13, opacity: 0.85 }}>
+                <span>{liked ? myReaction : '🤍'} {likesCount}</span>
+                <span>💬 {Number(reel.comments_count)}</span>
+                {duration > 0 && <span>⏱ {fmtDuration(duration)}</span>}
+              </div>
+            </div>
+          </div>
+        )}
         {isOwn && (
           <button style={s.deleteBtn} onClick={handleDelete} title={t.reelsDelete}>
             🗑️
@@ -472,8 +519,8 @@ function ReelCard({ reel, t, currentUser, onDelete, onViewProfile }) {
       )}
       </div>{/* end video card */}
 
-      {/* ── Info card ── */}
-      <div style={{ flex: 1, background: '#fff', borderRadius: 16, padding: '20px 20px', boxShadow: '0 2px 12px rgba(0,0,0,0.08)', minWidth: 260, display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* ── Info card (hidden on mobile — use ℹ️ overlay instead) ── */}
+      {!isMobile && <div style={{ flex: 1, background: '#fff', borderRadius: 16, padding: '20px 20px', boxShadow: '0 2px 12px rgba(0,0,0,0.08)', minWidth: 220, display: 'flex', flexDirection: 'column', gap: 14 }}>
         {/* Author */}
         <div
           style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: onViewProfile ? 'pointer' : 'default' }}
@@ -537,7 +584,7 @@ function ReelCard({ reel, t, currentUser, onDelete, onViewProfile }) {
             </div>
           )}
         </div>
-      </div>
+      </div>}
     </div>
   )
 }
