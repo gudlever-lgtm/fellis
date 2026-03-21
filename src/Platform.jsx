@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } f
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { SUPPORTED_LANGS, EUROPEAN_LANGUAGES, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials, getTranslations } from './data.js'
 import { formatPrice } from './utils/currency.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJob, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiRevealPassword, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiRevealPassword, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals } from './api.js'
 import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
 import ReelsPage from './Reels.jsx'
@@ -3581,6 +3581,8 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
             ))}
           </div>
         )}
+          {/* CV / Work profile card — always visible in about tab for own profile */}
+        <CVProfileSection lang={lang} t={t} isOwn={true} userId={profile.id} />
       </>)}
 
       {/* Posts tab */}
@@ -7171,6 +7173,9 @@ function FriendProfileModal({ userId, lang, t, onClose, onMessage }) {
                   </div>
                 </div>
               )}
+              {/* CV / Work profile card — shown only if user has made it public */}
+              <CVProfileSection lang={lang} t={t} isOwn={false} userId={userId} />
+
               {/* CRM private note */}
               <div style={{ marginTop: 20, borderTop: '1px solid #f0f0f0', paddingTop: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
@@ -10641,22 +10646,382 @@ function CreateCompanyModal({ t, lang, currentUser, onClose, onCreate }) {
 }
 
 // ── Job Apply Modal ──
-function JobApplyModal({ job, lang, t, onClose }) {
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
+// ── CV Profile Section ────────────────────────────────────────────────────────
+function CVProfileSection({ lang, t, isOwn, userId }) {
+  const [data, setData] = useState(null)
+  const [cvPublic, setCvPublic] = useState(false)
+  const [editExp, setEditExp] = useState(null)  // null | 'new' | entry obj
+  const [editEdu, setEditEdu] = useState(null)
+  const [showLangForm, setShowLangForm] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saveMsg, setSaveMsg] = useState(null)
+
+  // Experience form state
+  const [expForm, setExpForm] = useState({})
+  // Education form state
+  const [eduForm, setEduForm] = useState({})
+  // Language form state
+  const [langName, setLangName] = useState('')
+  const [langProf, setLangProf] = useState('conversational')
+
+  useEffect(() => {
+    const load = isOwn
+      ? apiGetCVProfile()
+      : apiGetPublicCVProfile(userId)
+    load.then(d => {
+      if (d) {
+        setData(d)
+        setCvPublic(!!d.profile?.cv_public)
+      }
+    }).catch(() => {})
+  }, [isOwn, userId])
+
+  const showSaved = (msg) => { setSaveMsg(msg); setTimeout(() => setSaveMsg(null), 2000) }
+
+  const toggleVisibility = async () => {
+    const next = !cvPublic
+    setCvPublic(next)
+    await apiSetCVVisibility(next)
+  }
+
+  const openEditExp = (entry) => {
+    setExpForm(entry ? {
+      company: entry.company || '', title: entry.title || '',
+      start_date: entry.start_date ? entry.start_date.slice(0, 10) : '',
+      end_date: entry.end_date ? entry.end_date.slice(0, 10) : '',
+      is_current: !!entry.is_current, description: entry.description || '',
+    } : { company: '', title: '', start_date: '', end_date: '', is_current: false, description: '' })
+    setEditExp(entry || 'new')
+  }
+
+  const saveExp = async () => {
+    setSaving(true)
+    try {
+      let updated
+      if (editExp === 'new') {
+        updated = await apiAddWorkExperience(expForm)
+        if (updated?.id) setData(d => ({ ...d, experience: [...(d.experience || []), updated] }))
+      } else {
+        updated = await apiUpdateWorkExperience(editExp.id, expForm)
+        if (updated?.id) setData(d => ({ ...d, experience: (d.experience || []).map(e => e.id === updated.id ? updated : e) }))
+      }
+      setEditExp(null); showSaved(t.cvSaved)
+    } finally { setSaving(false) }
+  }
+
+  const deleteExp = async (id) => {
+    await apiDeleteWorkExperience(id)
+    setData(d => ({ ...d, experience: (d.experience || []).filter(e => e.id !== id) }))
+    setEditExp(null)
+  }
+
+  const openEditEdu = (entry) => {
+    setEduForm(entry ? {
+      institution: entry.institution || '', degree: entry.degree || '',
+      field: entry.field || '', start_year: entry.start_year || '',
+      end_year: entry.end_year || '', description: entry.description || '',
+    } : { institution: '', degree: '', field: '', start_year: '', end_year: '', description: '' })
+    setEditEdu(entry || 'new')
+  }
+
+  const saveEdu = async () => {
+    setSaving(true)
+    try {
+      let updated
+      if (editEdu === 'new') {
+        updated = await apiAddEducation(eduForm)
+        if (updated?.id) setData(d => ({ ...d, education: [...(d.education || []), updated] }))
+      } else {
+        updated = await apiUpdateEducation(editEdu.id, eduForm)
+        if (updated?.id) setData(d => ({ ...d, education: (d.education || []).map(e => e.id === updated.id ? updated : e) }))
+      }
+      setEditEdu(null); showSaved(t.cvSaved)
+    } finally { setSaving(false) }
+  }
+
+  const deleteEdu = async (id) => {
+    await apiDeleteEducation(id)
+    setData(d => ({ ...d, education: (d.education || []).filter(e => e.id !== id) }))
+    setEditEdu(null)
+  }
+
+  const saveLang = async () => {
+    if (!langName.trim()) return
+    const entry = await apiAddLanguage({ language: langName.trim(), proficiency: langProf })
+    if (entry?.id) {
+      setData(d => ({ ...d, languages: [...(d.languages || []), entry] }))
+      setLangName(''); setShowLangForm(false)
+    }
+  }
+
+  const updateLangProf = async (id, proficiency) => {
+    await apiUpdateLanguage(id, proficiency)
+    setData(d => ({ ...d, languages: (d.languages || []).map(l => l.id === id ? { ...l, proficiency } : l) }))
+  }
+
+  const deleteLang = async (id) => {
+    await apiDeleteLanguage(id)
+    setData(d => ({ ...d, languages: (d.languages || []).filter(l => l.id !== id) }))
+  }
+
+  const fS = { display: 'block', width: '100%', padding: '8px 10px', borderRadius: 7, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box', fontFamily: 'inherit' }
+  const lS = { fontSize: 12, fontWeight: 600, color: '#555', marginTop: 10, display: 'block' }
+  const PROF_LEVELS = ['basic', 'conversational', 'professional', 'fluent', 'native']
+  const profLabel = (p) => ({ basic: t.cvProfBasic, conversational: t.cvProfConversational, professional: t.cvProfProfessional, fluent: t.cvProfFluent, native: t.cvProfNative }[p] || p)
+
+  const formatDateRange = (entry) => {
+    const from = entry.start_date ? new Date(entry.start_date).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'short' }) : ''
+    const to = entry.is_current ? t.cvPresent : (entry.end_date ? new Date(entry.end_date).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'short' }) : '')
+    return [from, to].filter(Boolean).join(' – ')
+  }
+
+  if (!data && !isOwn) return null
+  if (!data) return <div style={{ fontSize: 13, color: '#aaa', textAlign: 'center', padding: 20 }}>⏳</div>
+
+  const hasContent = (data.experience?.length || data.education?.length || data.languages?.length)
+
+  if (!isOwn && !hasContent) return null
+
+  return (
+    <div className="p-card" style={{ marginTop: 16, padding: '16px 20px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, gap: 10, flexWrap: 'wrap' }}>
+        <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>💼 {t.cvProfile}</h3>
+        {isOwn && (
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer', color: cvPublic ? '#2D6A4F' : '#888' }}>
+            <input type="checkbox" checked={cvPublic} onChange={toggleVisibility} style={{ cursor: 'pointer' }} />
+            {cvPublic ? t.cvProfileVisibility : t.cvProfileHidden}
+          </label>
+        )}
+      </div>
+
+      {saveMsg && <div style={{ fontSize: 12, color: '#2D6A4F', marginBottom: 8 }}>✓ {saveMsg}</div>}
+
+      {/* Work Experience */}
+      <div style={{ marginBottom: 18 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#333' }}>🏢 {t.cvWorkExperience}</div>
+          {isOwn && (
+            <button onClick={() => openEditExp(null)} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #2D6A4F', background: '#fff', color: '#2D6A4F', cursor: 'pointer', fontWeight: 600 }}>
+              + {t.cvAddExperience}
+            </button>
+          )}
+        </div>
+        {(data.experience || []).length === 0 && (
+          <div style={{ fontSize: 12, color: '#aaa', fontStyle: 'italic' }}>
+            {isOwn ? (lang === 'da' ? 'Ingen erfaring tilføjet endnu' : 'No experience added yet') : ''}
+          </div>
+        )}
+        {(data.experience || []).map(e => (
+          <div key={e.id} style={{ marginBottom: 10, paddingBottom: 10, borderBottom: '1px solid #f5f5f5' }}>
+            {editExp && editExp !== 'new' && editExp.id === e.id ? (
+              <CVExpForm form={expForm} setForm={setExpForm} fS={fS} lS={lS} t={t} lang={lang}
+                onSave={saveExp} onCancel={() => setEditExp(null)} onDelete={() => deleteExp(e.id)} saving={saving} isNew={false} />
+            ) : (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 700 }}>{e.title}</div>
+                  <div style={{ fontSize: 13, color: '#555' }}>{e.company}</div>
+                  <div style={{ fontSize: 12, color: '#999' }}>{formatDateRange(e)}</div>
+                  {e.description && <div style={{ fontSize: 13, color: '#666', marginTop: 4, lineHeight: 1.5 }}>{e.description}</div>}
+                </div>
+                {isOwn && (
+                  <button onClick={() => openEditExp(e)} style={{ fontSize: 12, padding: '3px 8px', borderRadius: 6, border: '1px solid #ddd', background: '#fff', color: '#555', cursor: 'pointer', flexShrink: 0 }}>
+                    ✏️
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+        {editExp === 'new' && (
+          <CVExpForm form={expForm} setForm={setExpForm} fS={fS} lS={lS} t={t} lang={lang}
+            onSave={saveExp} onCancel={() => setEditExp(null)} saving={saving} isNew={true} />
+        )}
+      </div>
+
+      {/* Education */}
+      <div style={{ marginBottom: 18 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#333' }}>🎓 {t.cvEducation}</div>
+          {isOwn && (
+            <button onClick={() => openEditEdu(null)} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #2D6A4F', background: '#fff', color: '#2D6A4F', cursor: 'pointer', fontWeight: 600 }}>
+              + {t.cvAddEducation}
+            </button>
+          )}
+        </div>
+        {(data.education || []).length === 0 && (
+          <div style={{ fontSize: 12, color: '#aaa', fontStyle: 'italic' }}>
+            {isOwn ? (lang === 'da' ? 'Ingen uddannelse tilføjet endnu' : 'No education added yet') : ''}
+          </div>
+        )}
+        {(data.education || []).map(e => (
+          <div key={e.id} style={{ marginBottom: 10, paddingBottom: 10, borderBottom: '1px solid #f5f5f5' }}>
+            {editEdu && editEdu !== 'new' && editEdu.id === e.id ? (
+              <CVEduForm form={eduForm} setForm={setEduForm} fS={fS} lS={lS} t={t}
+                onSave={saveEdu} onCancel={() => setEditEdu(null)} onDelete={() => deleteEdu(e.id)} saving={saving} isNew={false} />
+            ) : (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 700 }}>{[e.degree, e.field].filter(Boolean).join(', ') || e.institution}</div>
+                  {(e.degree || e.field) && <div style={{ fontSize: 13, color: '#555' }}>{e.institution}</div>}
+                  <div style={{ fontSize: 12, color: '#999' }}>{[e.start_year, e.end_year].filter(Boolean).join('–')}</div>
+                  {e.description && <div style={{ fontSize: 13, color: '#666', marginTop: 4, lineHeight: 1.5 }}>{e.description}</div>}
+                </div>
+                {isOwn && (
+                  <button onClick={() => openEditEdu(e)} style={{ fontSize: 12, padding: '3px 8px', borderRadius: 6, border: '1px solid #ddd', background: '#fff', color: '#555', cursor: 'pointer', flexShrink: 0 }}>
+                    ✏️
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+        {editEdu === 'new' && (
+          <CVEduForm form={eduForm} setForm={setEduForm} fS={fS} lS={lS} t={t}
+            onSave={saveEdu} onCancel={() => setEditEdu(null)} saving={saving} isNew={true} />
+        )}
+      </div>
+
+      {/* Languages */}
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#333' }}>🌐 {t.cvLanguages}</div>
+          {isOwn && !showLangForm && (
+            <button onClick={() => setShowLangForm(true)} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #2D6A4F', background: '#fff', color: '#2D6A4F', cursor: 'pointer', fontWeight: 600 }}>
+              + {t.cvAddLanguage}
+            </button>
+          )}
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {(data.languages || []).map(l => (
+            <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 20, background: '#f5f5f5', fontSize: 12 }}>
+              <span style={{ fontWeight: 600 }}>{l.language}</span>
+              {isOwn ? (
+                <select value={l.proficiency} onChange={e => updateLangProf(l.id, e.target.value)}
+                  style={{ fontSize: 11, border: 'none', background: 'transparent', cursor: 'pointer', color: '#666', padding: '0 2px' }}>
+                  {PROF_LEVELS.map(p => <option key={p} value={p}>{profLabel(p)}</option>)}
+                </select>
+              ) : (
+                <span style={{ color: '#888' }}>· {profLabel(l.proficiency)}</span>
+              )}
+              {isOwn && (
+                <button onClick={() => deleteLang(l.id)} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#aaa', padding: '0 2px', fontSize: 11 }}>✕</button>
+              )}
+            </div>
+          ))}
+        </div>
+        {showLangForm && (
+          <div style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <input style={{ ...fS, width: 'auto', flex: 1, minWidth: 100 }} value={langName} onChange={e => setLangName(e.target.value)}
+              placeholder={lang === 'da' ? 'Sprog…' : 'Language…'} autoFocus />
+            <select style={{ ...fS, width: 'auto' }} value={langProf} onChange={e => setLangProf(e.target.value)}>
+              {PROF_LEVELS.map(p => <option key={p} value={p}>{profLabel(p)}</option>)}
+            </select>
+            <button onClick={saveLang} style={{ padding: '8px 14px', borderRadius: 7, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>{t.cvSave}</button>
+            <button onClick={() => { setShowLangForm(false); setLangName('') }} style={{ padding: '8px 10px', borderRadius: 7, border: '1px solid #ddd', background: '#fff', cursor: 'pointer', fontSize: 13 }}>✕</button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function CVExpForm({ form, setForm, fS, lS, t, lang, onSave, onCancel, onDelete, saving, isNew }) {
+  return (
+    <div style={{ background: '#fafafa', borderRadius: 8, padding: '10px 12px', border: '1px solid #eee', marginBottom: 4 }}>
+      <label style={lS}>{t.cvJobTitle} *</label>
+      <input style={fS} value={form.title || ''} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder={lang === 'da' ? 'f.eks. Senior Designer' : 'e.g. Senior Designer'} autoFocus />
+      <label style={lS}>{t.cvCompany} *</label>
+      <input style={fS} value={form.company || ''} onChange={e => setForm(f => ({ ...f, company: e.target.value }))} placeholder={lang === 'da' ? 'Virksomhedsnavn' : 'Company name'} />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        <div>
+          <label style={lS}>{t.cvStartDate}</label>
+          <input style={fS} type="month" value={(form.start_date || '').slice(0, 7)} onChange={e => setForm(f => ({ ...f, start_date: e.target.value ? `${e.target.value}-01` : '' }))} />
+        </div>
+        <div>
+          <label style={lS}>{t.cvEndDate}</label>
+          <input style={fS} type="month" value={(form.end_date || '').slice(0, 7)} onChange={e => setForm(f => ({ ...f, end_date: e.target.value ? `${e.target.value}-01` : '' }))} disabled={!!form.is_current} />
+        </div>
+      </div>
+      <label style={{ ...lS, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+        <input type="checkbox" checked={!!form.is_current} onChange={e => setForm(f => ({ ...f, is_current: e.target.checked, end_date: '' }))} />
+        {t.cvCurrentPosition}
+      </label>
+      <label style={lS}>{t.cvDescription}</label>
+      <textarea style={{ ...fS, minHeight: 60, resize: 'vertical' }} value={form.description || ''} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+      <div style={{ display: 'flex', gap: 8, marginTop: 10, justifyContent: 'flex-end' }}>
+        {!isNew && onDelete && <button type="button" onClick={onDelete} style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #e74c3c', background: '#fff', color: '#e74c3c', cursor: 'pointer', fontSize: 12 }}>{t.cvDelete}</button>}
+        <button type="button" onClick={onCancel} style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #ddd', background: '#fff', cursor: 'pointer', fontSize: 12 }}>{t.cvCancel}</button>
+        <button type="button" onClick={onSave} disabled={saving || !form.title?.trim() || !form.company?.trim()} style={{ padding: '6px 14px', borderRadius: 6, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+          {saving ? '…' : t.cvSave}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function CVEduForm({ form, setForm, fS, lS, t, onSave, onCancel, onDelete, saving, isNew }) {
+  return (
+    <div style={{ background: '#fafafa', borderRadius: 8, padding: '10px 12px', border: '1px solid #eee', marginBottom: 4 }}>
+      <label style={lS}>{t.cvInstitution} *</label>
+      <input style={fS} value={form.institution || ''} onChange={e => setForm(f => ({ ...f, institution: e.target.value }))} autoFocus />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        <div>
+          <label style={lS}>{t.cvDegree}</label>
+          <input style={fS} value={form.degree || ''} onChange={e => setForm(f => ({ ...f, degree: e.target.value }))} />
+        </div>
+        <div>
+          <label style={lS}>{t.cvField}</label>
+          <input style={fS} value={form.field || ''} onChange={e => setForm(f => ({ ...f, field: e.target.value }))} />
+        </div>
+        <div>
+          <label style={lS}>{t.cvStartYear}</label>
+          <input style={fS} type="number" min="1950" max="2030" value={form.start_year || ''} onChange={e => setForm(f => ({ ...f, start_year: e.target.value ? Number(e.target.value) : '' }))} />
+        </div>
+        <div>
+          <label style={lS}>{t.cvEndYear}</label>
+          <input style={fS} type="number" min="1950" max="2030" value={form.end_year || ''} onChange={e => setForm(f => ({ ...f, end_year: e.target.value ? Number(e.target.value) : '' }))} />
+        </div>
+      </div>
+      <label style={lS}>{t.cvDescription}</label>
+      <textarea style={{ ...fS, minHeight: 60, resize: 'vertical' }} value={form.description || ''} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+      <div style={{ display: 'flex', gap: 8, marginTop: 10, justifyContent: 'flex-end' }}>
+        {!isNew && onDelete && <button type="button" onClick={onDelete} style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #e74c3c', background: '#fff', color: '#e74c3c', cursor: 'pointer', fontSize: 12 }}>{t.cvDelete}</button>}
+        <button type="button" onClick={onCancel} style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #ddd', background: '#fff', cursor: 'pointer', fontSize: 12 }}>{t.cvCancel}</button>
+        <button type="button" onClick={onSave} disabled={saving || !form.institution?.trim()} style={{ padding: '6px 14px', borderRadius: 6, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+          {saving ? '…' : t.cvSave}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function JobApplyModal({ job, lang, t, onClose, currentUser }) {
+  const [name, setName] = useState(currentUser?.name || '')
+  const [email, setEmail] = useState(currentUser?.email || '')
   const [message, setMessage] = useState('')
   const [cvFile, setCvFile] = useState(null)
+  const [letterFile, setLetterFile] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
   const [error, setError] = useState(null)
+  // AI generation state
+  const [aiTab, setAiTab] = useState(null) // null | 'cv' | 'letter'
+  const [generatedCV, setGeneratedCV] = useState('')
+  const [generatedLetter, setGeneratedLetter] = useState('')
+  const [generating, setGenerating] = useState(false)
+  const [genError, setGenError] = useState(null)
+  const [copiedCV, setCopiedCV] = useState(false)
+  const [copiedLetter, setCopiedLetter] = useState(false)
   const cvRef = useRef(null)
+  const letterRef = useRef(null)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!name.trim() || !email.trim()) return
     setSubmitting(true); setError(null)
     try {
-      const res = await apiApplyToJob(job.id, { name, email, message }, cvFile)
+      const res = await apiApplyToJobFull(job.id, { name, email, message }, cvFile, letterFile)
       if (res?.ok) { setDone(true) }
       else setError(lang === 'da' ? 'Noget gik galt' : 'Something went wrong')
     } catch (err) {
@@ -10666,12 +11031,48 @@ function JobApplyModal({ job, lang, t, onClose }) {
     } finally { setSubmitting(false) }
   }
 
-  const fS = { display: 'block', width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box', marginTop: 4 }
+  const handleGenerate = async (type) => {
+    setGenerating(true); setGenError(null)
+    const data = await apiGenerateCV(job.id, type)
+    setGenerating(false)
+    if (!data?.hasProfile && !data?.cv && !data?.letter) {
+      setGenError(t.jobGenerateError); return
+    }
+    if (type === 'cv' || type === 'both') setGeneratedCV(data.cv || '')
+    if (type === 'letter' || type === 'both') setGeneratedLetter(data.letter || '')
+    setAiTab(type === 'letter' ? 'letter' : 'cv')
+  }
+
+  const copyText = (text, which) => {
+    navigator.clipboard.writeText(text).then(() => {
+      if (which === 'cv') { setCopiedCV(true); setTimeout(() => setCopiedCV(false), 2000) }
+      else { setCopiedLetter(true); setTimeout(() => setCopiedLetter(false), 2000) }
+    })
+  }
+
+  const downloadText = (text, filename) => {
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = url; a.download = filename; a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const attachGenerated = (text, which) => {
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
+    const filename = which === 'cv' ? 'cv.txt' : 'application-letter.txt'
+    const file = new File([blob], filename, { type: 'text/plain' })
+    if (which === 'cv') setCvFile(file)
+    else setLetterFile(file)
+    setAiTab(null)
+  }
+
+  const fS = { display: 'block', width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box', marginTop: 4, fontFamily: 'inherit' }
   const lS = { fontSize: 12, fontWeight: 600, color: '#555', marginTop: 12, display: 'block' }
+  const btnS = { padding: '7px 14px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#444' }
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="p-msg-modal" style={{ maxWidth: 440 }} onClick={e => e.stopPropagation()}>
+      <div className="p-msg-modal" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
         <div className="p-msg-modal-header">
           <span>📝 {lang === 'da' ? 'Ansøg om stilling' : 'Apply for position'}</span>
           <button className="p-msg-modal-close" onClick={onClose}>✕</button>
@@ -10694,14 +11095,73 @@ function JobApplyModal({ job, lang, t, onClose }) {
               {' '}&middot;{' '}
               {job.company_name || job.companyName || ''}
             </div>
+
             <label style={lS}>{lang === 'da' ? 'Dit navn' : 'Your name'} *</label>
             <input style={fS} value={name} onChange={e => setName(e.target.value)} required autoFocus />
             <label style={lS}>{lang === 'da' ? 'E-mail' : 'Email'} *</label>
             <input style={fS} type="email" value={email} onChange={e => setEmail(e.target.value)} required />
             <label style={lS}>{lang === 'da' ? 'Kort besked' : 'Short message'}</label>
-            <textarea style={{ ...fS, minHeight: 80, resize: 'vertical' }} value={message} onChange={e => setMessage(e.target.value)} placeholder={lang === 'da' ? 'Fortæl lidt om dig selv...' : 'Tell a bit about yourself...'} />
+            <textarea style={{ ...fS, minHeight: 70, resize: 'vertical' }} value={message} onChange={e => setMessage(e.target.value)} placeholder={lang === 'da' ? 'Fortæl lidt om dig selv...' : 'Tell a bit about yourself...'} />
+
+            {/* AI generation panel */}
+            <div style={{ marginTop: 14, padding: '10px 12px', borderRadius: 8, background: '#F0FAF4', border: '1px solid #b7dfc8' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#2D6A4F', marginBottom: 6 }}>✨ {t.jobAIGenerateTitle}</div>
+              <div style={{ fontSize: 11, color: '#4a7c62', marginBottom: 8 }}>{t.jobAIGenerateHint}</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button type="button" style={{ ...btnS, borderColor: '#b7dfc8', background: aiTab === 'cv' ? '#2D6A4F' : '#fff', color: aiTab === 'cv' ? '#fff' : '#2D6A4F' }}
+                  onClick={() => aiTab === 'cv' ? setAiTab(null) : handleGenerate('cv')} disabled={generating}>
+                  {generating && aiTab !== 'letter' ? t.jobGenerating : `📄 ${t.jobBuildCVFromProfile}`}
+                </button>
+                <button type="button" style={{ ...btnS, borderColor: '#b7dfc8', background: aiTab === 'letter' ? '#2D6A4F' : '#fff', color: aiTab === 'letter' ? '#fff' : '#2D6A4F' }}
+                  onClick={() => aiTab === 'letter' ? setAiTab(null) : handleGenerate('letter')} disabled={generating}>
+                  {generating && aiTab === 'letter' ? t.jobGenerating : `✍️ ${t.jobGenerateLetter}`}
+                </button>
+              </div>
+              {genError && <div style={{ fontSize: 12, color: '#c0392b', marginTop: 6 }}>{genError}</div>}
+              {aiTab === 'cv' && generatedCV && (
+                <div style={{ marginTop: 10 }}>
+                  <textarea style={{ ...fS, marginTop: 0, minHeight: 140, fontFamily: 'monospace', fontSize: 11, background: '#fff' }}
+                    value={generatedCV} onChange={e => setGeneratedCV(e.target.value)} />
+                  <div style={{ display: 'flex', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+                    <button type="button" style={btnS} onClick={() => copyText(generatedCV, 'cv')}>{copiedCV ? `✓ ${t.jobCVCopied}` : t.jobCVCopy}</button>
+                    <button type="button" style={btnS} onClick={() => downloadText(generatedCV, 'cv.txt')}>⬇ {t.jobCVDownload}</button>
+                    <button type="button" style={{ ...btnS, background: '#2D6A4F', color: '#fff', borderColor: '#2D6A4F' }} onClick={() => attachGenerated(generatedCV, 'cv')}>
+                      📎 {t.jobAttachGenerated} (CV)
+                    </button>
+                  </div>
+                </div>
+              )}
+              {aiTab === 'letter' && generatedLetter && (
+                <div style={{ marginTop: 10 }}>
+                  <textarea style={{ ...fS, marginTop: 0, minHeight: 140, fontSize: 12, background: '#fff' }}
+                    value={generatedLetter} onChange={e => setGeneratedLetter(e.target.value)} />
+                  <div style={{ display: 'flex', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+                    <button type="button" style={btnS} onClick={() => copyText(generatedLetter, 'letter')}>{copiedLetter ? `✓ ${t.jobCVCopied}` : t.jobCVCopy}</button>
+                    <button type="button" style={btnS} onClick={() => downloadText(generatedLetter, 'application-letter.txt')}>⬇ {t.jobCVDownload}</button>
+                    <button type="button" style={{ ...btnS, background: '#2D6A4F', color: '#fff', borderColor: '#2D6A4F' }} onClick={() => attachGenerated(generatedLetter, 'letter')}>
+                      📎 {t.jobAttachGenerated} ({lang === 'da' ? 'brev' : 'letter'})
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* CV file upload */}
             <label style={lS}>{lang === 'da' ? 'CV (valgfri)' : 'CV (optional)'}</label>
-            <input ref={cvRef} type="file" style={{ ...fS, padding: '6px 8px' }} accept=".pdf,.doc,.docx,.txt" onChange={e => setCvFile(e.target.files?.[0] || null)} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input ref={cvRef} type="file" style={{ ...fS, padding: '6px 8px', flex: 1 }} accept=".pdf,.doc,.docx,.txt" onChange={e => setCvFile(e.target.files?.[0] || null)} />
+              {cvFile && <span style={{ fontSize: 11, color: '#2D6A4F', whiteSpace: 'nowrap' }}>✓ {cvFile.name}</span>}
+            </div>
+            <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>{t.jobCVHint}</div>
+
+            {/* Application letter upload */}
+            <label style={lS}>{t.jobApplicationLetter}</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input ref={letterRef} type="file" style={{ ...fS, padding: '6px 8px', flex: 1 }} accept=".pdf,.doc,.docx,.txt" onChange={e => setLetterFile(e.target.files?.[0] || null)} />
+              {letterFile && <span style={{ fontSize: 11, color: '#2D6A4F', whiteSpace: 'nowrap' }}>✓ {letterFile.name}</span>}
+            </div>
+            <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>{t.jobApplicationLetterHint}</div>
+
             {error && <div style={{ color: '#e74c3c', fontSize: 12, marginTop: 8 }}>{error}</div>}
             <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
               <button type="button" onClick={onClose} style={{ flex: 1, padding: 10, borderRadius: 8, border: '1px solid #ddd', background: '#fff', cursor: 'pointer', fontSize: 13 }}>
@@ -10729,7 +11189,7 @@ const JOB_TRACK_STATUSES = [
   { value: 'not_interested', color: '#aaa', bg: '#f9f9f9', key: 'jobTrackNotInterested' },
 ]
 
-function JobCard({ job, t, lang, onSaveToggle, onTrackChange }) {
+function JobCard({ job, t, lang, onSaveToggle, onTrackChange, currentUser }) {
   const [isSaved, setIsSaved] = useState(!!job.saved)
   const [trackStatus, setTrackStatus] = useState(job.track_status || null)
   const [showApplyModal, setShowApplyModal] = useState(false)
@@ -10819,22 +11279,22 @@ function JobCard({ job, t, lang, onSaveToggle, onTrackChange }) {
             >
               {t.jobApply}
             </button>
-            {applyLink && (
-              <a
-                href={applyLink.startsWith('http') ? applyLink : `mailto:${applyLink}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', color: '#555', fontWeight: 600, fontSize: 13, textDecoration: 'none', display: 'inline-block' }}
-              >
-                🔗 {lang === 'da' ? 'Eksternt link' : 'External link'}
-              </a>
-            )}
             {job.contact_email && (
               <a
                 href={`mailto:${job.contact_email}`}
                 style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', color: '#555', fontWeight: 600, fontSize: 13, textDecoration: 'none', display: 'inline-block' }}
               >
-                ✉️ {t.jobContact}
+                ✉️ {t.jobMailBtn}
+              </a>
+            )}
+            {applyLink && applyLink.startsWith('http') && (
+              <a
+                href={applyLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', color: '#555', fontWeight: 600, fontSize: 13, textDecoration: 'none', display: 'inline-block' }}
+              >
+                🔗 {t.jobOfficialSite}
               </a>
             )}
             <button
@@ -10860,7 +11320,7 @@ function JobCard({ job, t, lang, onSaveToggle, onTrackChange }) {
           </div>
         </div>
       </div>
-      {showApplyModal && <JobApplyModal job={job} lang={lang} t={t} onClose={() => setShowApplyModal(false)} />}
+      {showApplyModal && <JobApplyModal job={job} lang={lang} t={t} onClose={() => setShowApplyModal(false)} currentUser={currentUser} />}
     </div>
   )
 }
@@ -11071,6 +11531,7 @@ function JobsPage({ lang, t, currentUser, mode }) {
               job={job}
               t={t}
               lang={lang}
+              currentUser={currentUser}
               onSaveToggle={(id, saved) => {
                 setJobs(prev => prev.map(j => j.id === id ? { ...j, saved } : j))
                 setSavedJobs(prev => saved ? [...prev, job] : prev.filter(j => j.id !== id))
@@ -11134,11 +11595,18 @@ function JobsPage({ lang, t, currentUser, mode }) {
                         <div style={{ fontWeight: 700, fontSize: 14 }}>{app.name}</div>
                         <div style={{ fontSize: 12, color: '#888' }}>{app.email}</div>
                         {app.message && <div style={{ fontSize: 13, color: '#555', marginTop: 6, lineHeight: 1.5 }}>{app.message}</div>}
-                        {app.cv_url && (
-                          <a href={app.cv_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#1877F2', marginTop: 4, display: 'inline-block' }}>
-                            📄 {lang === 'da' ? 'Se CV' : 'View CV'}
-                          </a>
-                        )}
+                        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 4 }}>
+                          {app.cv_url && (
+                            <a href={app.cv_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#1877F2', display: 'inline-block' }}>
+                              📄 {lang === 'da' ? 'Se CV' : 'View CV'}
+                            </a>
+                          )}
+                          {app.application_letter_url && (
+                            <a href={app.application_letter_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#7C3AED', display: 'inline-block' }}>
+                              ✍️ {lang === 'da' ? 'Se ansøgningsbrev' : 'View cover letter'}
+                            </a>
+                          )}
+                        </div>
                         <div style={{ fontSize: 11, color: '#aaa', marginTop: 4 }}>
                           {new Date(app.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
                         </div>

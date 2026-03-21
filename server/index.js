@@ -608,6 +608,13 @@ const ALLOWED_MIME_TYPES = new Set([
   'video/mp4', 'video/webm', 'video/quicktime',
 ])
 
+const ALLOWED_DOC_MIME_TYPES = new Set([
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'text/plain',
+])
+
 // File signatures (magic bytes) for validation
 const MAGIC_BYTES = [
   { mime: 'image/jpeg', bytes: [0xFF, 0xD8, 0xFF] },
@@ -657,6 +664,16 @@ const upload = multer({
   },
 })
 
+const uploadDoc = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024, files: 2 },
+  fileFilter: (_req, file, cb) => {
+    if (!ALLOWED_DOC_MIME_TYPES.has(file.mimetype)) return cb(new Error('File type not allowed'))
+    if (file.originalname.includes('..') || file.originalname.includes('/') || file.originalname.includes('\\')) return cb(new Error('Invalid filename'))
+    cb(null, true)
+  },
+})
+
 // Auto-migrations
 addCol('comments', 'media', 'JSON DEFAULT NULL')
   .catch(err => console.error('Migration (comments.media):', err.message))
@@ -687,6 +704,8 @@ addCol('users', 'stripe_customer_id', 'VARCHAR(100) DEFAULT NULL')
   .catch(err => console.error('Migration (users.stripe_customer_id):', err.message))
 addCol('users', 'ads_free_sub_id', 'VARCHAR(200) DEFAULT NULL')
   .catch(err => console.error('Migration (users.ads_free_sub_id):', err.message))
+addCol('users', 'cv_public', 'TINYINT(1) NOT NULL DEFAULT 0')
+  .catch(err => console.error('Migration (users.cv_public):', err.message))
 // Reset ads_free for users with no active Mollie adfree subscription (clears stale Stripe flags).
 pool.query(`
   UPDATE users SET ads_free = 0
@@ -4848,6 +4867,7 @@ async function initBusinessFeatures() {
       email VARCHAR(200) NOT NULL,
       message TEXT DEFAULT NULL,
       cv_url VARCHAR(500) DEFAULT NULL,
+      application_letter_url VARCHAR(500) DEFAULT NULL,
       status ENUM('pending','reviewed','shortlisted','rejected') NOT NULL DEFAULT 'pending',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       UNIQUE KEY uq_job_applicant (job_id, applicant_id),
@@ -4855,6 +4875,46 @@ async function initBusinessFeatures() {
       INDEX idx_ja_applicant (applicant_id),
       FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE,
       FOREIGN KEY (applicant_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+    await addCol('job_applications', 'application_letter_url', 'VARCHAR(500) DEFAULT NULL')
+      .catch(() => {})
+    await pool.query(`CREATE TABLE IF NOT EXISTS work_experience (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      company VARCHAR(200) NOT NULL,
+      title VARCHAR(200) NOT NULL,
+      start_date DATE DEFAULT NULL,
+      end_date DATE DEFAULT NULL,
+      is_current TINYINT(1) NOT NULL DEFAULT 0,
+      description TEXT DEFAULT NULL,
+      sort_order SMALLINT NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_we_user (user_id),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+    await pool.query(`CREATE TABLE IF NOT EXISTS education (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      institution VARCHAR(200) NOT NULL,
+      degree VARCHAR(200) DEFAULT NULL,
+      field VARCHAR(200) DEFAULT NULL,
+      start_year SMALLINT DEFAULT NULL,
+      end_year SMALLINT DEFAULT NULL,
+      description TEXT DEFAULT NULL,
+      sort_order SMALLINT NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_ed_user (user_id),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+    await pool.query(`CREATE TABLE IF NOT EXISTS user_languages (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      language VARCHAR(100) NOT NULL,
+      proficiency ENUM('basic','conversational','professional','fluent','native') NOT NULL DEFAULT 'conversational',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_user_language (user_id, language),
+      INDEX idx_ul_user (user_id),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
     await pool.query(`CREATE TABLE IF NOT EXISTS contact_notes (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -5011,16 +5071,20 @@ async function initSignalEngine() {
   }
 }
 
-// POST /api/jobs/:id/apply — submit a job application
-app.post('/api/jobs/:id/apply', authenticate, async (req, res) => {
+// POST /api/jobs/:id/apply — submit a job application (with optional CV + application letter)
+app.post('/api/jobs/:id/apply', authenticate, uploadDoc.fields([{ name: 'cv', maxCount: 1 }, { name: 'application_letter', maxCount: 1 }]), async (req, res) => {
   try {
     const { name, email, message } = req.body
     if (!name || !email) return res.status(400).json({ error: 'Name and email required' })
     const [[job]] = await pool.query("SELECT id FROM jobs WHERE id = ? AND status = 'open'", [req.params.id])
     if (!job) return res.status(404).json({ error: 'Job not found' })
+    const cvFile = req.files?.cv?.[0]
+    const letterFile = req.files?.application_letter?.[0]
+    const cvUrl = cvFile ? `/uploads/${cvFile.filename}` : null
+    const letterUrl = letterFile ? `/uploads/${letterFile.filename}` : null
     await pool.query(
-      'INSERT INTO job_applications (job_id, applicant_id, name, email, message) VALUES (?, ?, ?, ?, ?)',
-      [req.params.id, req.userId, name, email, message || null]
+      'INSERT INTO job_applications (job_id, applicant_id, name, email, message, cv_url, application_letter_url) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [req.params.id, req.userId, name, email, message || null, cvUrl, letterUrl]
     )
     res.json({ ok: true })
   } catch (err) {
@@ -7798,6 +7862,324 @@ app.get('/api/feed/suggest-category', authenticate, async (req, res) => {
 // ── Jobs ──────────────────────────────────────────────────────────────────────
 app.get('/api/jobs/mine', authenticate, async (req, res) => {
   res.json({ jobs: [] })
+})
+
+// ── CV Profile ────────────────────────────────────────────────────────────────
+// GET /api/cv/profile — get full CV data for current user
+app.get('/api/cv/profile', authenticate, async (req, res) => {
+  try {
+    const [experience] = await pool.query(
+      'SELECT * FROM work_experience WHERE user_id = ? ORDER BY is_current DESC, sort_order ASC, start_date DESC',
+      [req.userId]
+    )
+    const [edu] = await pool.query(
+      'SELECT * FROM education WHERE user_id = ? ORDER BY sort_order ASC, start_year DESC',
+      [req.userId]
+    )
+    const [languages] = await pool.query(
+      'SELECT * FROM user_languages WHERE user_id = ? ORDER BY created_at ASC',
+      [req.userId]
+    )
+    const [[me]] = await pool.query(
+      'SELECT job_title, company, industry, seniority, skills, cv_public, bio_da, bio_en, name, location FROM users WHERE id = ?',
+      [req.userId]
+    )
+    res.json({ experience, education: edu, languages, profile: me })
+  } catch (err) {
+    console.error('GET /api/cv/profile error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/cv/profile/:userId — public CV view (respects cv_public flag)
+app.get('/api/cv/profile/:userId', authenticate, async (req, res) => {
+  try {
+    const [[owner]] = await pool.query('SELECT cv_public FROM users WHERE id = ?', [req.params.userId])
+    if (!owner) return res.status(404).json({ error: 'Not found' })
+    if (!owner.cv_public && req.userId !== Number(req.params.userId)) {
+      return res.status(403).json({ error: 'Profile not public' })
+    }
+    const [experience] = await pool.query(
+      'SELECT * FROM work_experience WHERE user_id = ? ORDER BY is_current DESC, sort_order ASC, start_date DESC',
+      [req.params.userId]
+    )
+    const [edu] = await pool.query(
+      'SELECT * FROM education WHERE user_id = ? ORDER BY sort_order ASC, start_year DESC',
+      [req.params.userId]
+    )
+    const [languages] = await pool.query(
+      'SELECT * FROM user_languages WHERE user_id = ? ORDER BY created_at ASC',
+      [req.params.userId]
+    )
+    const [[profile]] = await pool.query(
+      'SELECT job_title, company, industry, seniority, skills, bio_da, bio_en, name, location FROM users WHERE id = ?',
+      [req.params.userId]
+    )
+    res.json({ experience, education: edu, languages, profile })
+  } catch (err) {
+    console.error('GET /api/cv/profile/:userId error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// PATCH /api/cv/visibility — toggle cv_public
+app.patch('/api/cv/visibility', authenticate, async (req, res) => {
+  try {
+    const { cv_public } = req.body
+    await pool.query('UPDATE users SET cv_public = ? WHERE id = ?', [cv_public ? 1 : 0, req.userId])
+    res.json({ ok: true, cv_public: !!cv_public })
+  } catch (err) {
+    console.error('PATCH /api/cv/visibility error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/cv/experience — add work experience entry
+app.post('/api/cv/experience', authenticate, async (req, res) => {
+  try {
+    const { company, title, start_date, end_date, is_current, description, sort_order } = req.body
+    if (!company || !title) return res.status(400).json({ error: 'Company and title required' })
+    const [result] = await pool.query(
+      'INSERT INTO work_experience (user_id, company, title, start_date, end_date, is_current, description, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [req.userId, company, title, start_date || null, (is_current ? null : end_date || null), is_current ? 1 : 0, description || null, sort_order || 0]
+    )
+    const [[entry]] = await pool.query('SELECT * FROM work_experience WHERE id = ?', [result.insertId])
+    res.json(entry)
+  } catch (err) {
+    console.error('POST /api/cv/experience error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// PUT /api/cv/experience/:id — update work experience entry
+app.put('/api/cv/experience/:id', authenticate, async (req, res) => {
+  try {
+    const { company, title, start_date, end_date, is_current, description, sort_order } = req.body
+    if (!company || !title) return res.status(400).json({ error: 'Company and title required' })
+    await pool.query(
+      'UPDATE work_experience SET company=?, title=?, start_date=?, end_date=?, is_current=?, description=?, sort_order=? WHERE id=? AND user_id=?',
+      [company, title, start_date || null, (is_current ? null : end_date || null), is_current ? 1 : 0, description || null, sort_order || 0, req.params.id, req.userId]
+    )
+    const [[entry]] = await pool.query('SELECT * FROM work_experience WHERE id = ? AND user_id = ?', [req.params.id, req.userId])
+    if (!entry) return res.status(404).json({ error: 'Not found' })
+    res.json(entry)
+  } catch (err) {
+    console.error('PUT /api/cv/experience/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// DELETE /api/cv/experience/:id — delete work experience entry
+app.delete('/api/cv/experience/:id', authenticate, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM work_experience WHERE id = ? AND user_id = ?', [req.params.id, req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/cv/experience/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/cv/education — add education entry
+app.post('/api/cv/education', authenticate, async (req, res) => {
+  try {
+    const { institution, degree, field, start_year, end_year, description, sort_order } = req.body
+    if (!institution) return res.status(400).json({ error: 'Institution required' })
+    const [result] = await pool.query(
+      'INSERT INTO education (user_id, institution, degree, field, start_year, end_year, description, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [req.userId, institution, degree || null, field || null, start_year || null, end_year || null, description || null, sort_order || 0]
+    )
+    const [[entry]] = await pool.query('SELECT * FROM education WHERE id = ?', [result.insertId])
+    res.json(entry)
+  } catch (err) {
+    console.error('POST /api/cv/education error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// PUT /api/cv/education/:id — update education entry
+app.put('/api/cv/education/:id', authenticate, async (req, res) => {
+  try {
+    const { institution, degree, field, start_year, end_year, description, sort_order } = req.body
+    if (!institution) return res.status(400).json({ error: 'Institution required' })
+    await pool.query(
+      'UPDATE education SET institution=?, degree=?, field=?, start_year=?, end_year=?, description=?, sort_order=? WHERE id=? AND user_id=?',
+      [institution, degree || null, field || null, start_year || null, end_year || null, description || null, sort_order || 0, req.params.id, req.userId]
+    )
+    const [[entry]] = await pool.query('SELECT * FROM education WHERE id = ? AND user_id = ?', [req.params.id, req.userId])
+    if (!entry) return res.status(404).json({ error: 'Not found' })
+    res.json(entry)
+  } catch (err) {
+    console.error('PUT /api/cv/education/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// DELETE /api/cv/education/:id — delete education entry
+app.delete('/api/cv/education/:id', authenticate, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM education WHERE id = ? AND user_id = ?', [req.params.id, req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/cv/education/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/cv/languages — get user's language list
+app.get('/api/cv/languages', authenticate, async (req, res) => {
+  try {
+    const [languages] = await pool.query('SELECT * FROM user_languages WHERE user_id = ? ORDER BY created_at ASC', [req.userId])
+    res.json({ languages })
+  } catch (err) {
+    console.error('GET /api/cv/languages error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/cv/languages — add a language
+app.post('/api/cv/languages', authenticate, async (req, res) => {
+  try {
+    const { language, proficiency } = req.body
+    if (!language) return res.status(400).json({ error: 'Language required' })
+    const valid = ['basic', 'conversational', 'professional', 'fluent', 'native']
+    const prof = valid.includes(proficiency) ? proficiency : 'conversational'
+    const [result] = await pool.query(
+      'INSERT INTO user_languages (user_id, language, proficiency) VALUES (?, ?, ?)',
+      [req.userId, language.trim(), prof]
+    )
+    const [[entry]] = await pool.query('SELECT * FROM user_languages WHERE id = ?', [result.insertId])
+    res.json(entry)
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Language already added' })
+    console.error('POST /api/cv/languages error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// PUT /api/cv/languages/:id — update language proficiency
+app.put('/api/cv/languages/:id', authenticate, async (req, res) => {
+  try {
+    const { proficiency } = req.body
+    const valid = ['basic', 'conversational', 'professional', 'fluent', 'native']
+    if (!valid.includes(proficiency)) return res.status(400).json({ error: 'Invalid proficiency' })
+    await pool.query('UPDATE user_languages SET proficiency = ? WHERE id = ? AND user_id = ?', [proficiency, req.params.id, req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('PUT /api/cv/languages/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// DELETE /api/cv/languages/:id — delete a language
+app.delete('/api/cv/languages/:id', authenticate, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM user_languages WHERE id = ? AND user_id = ?', [req.params.id, req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/cv/languages/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/cv/generate — generate CV text + application letter template from profile data
+app.post('/api/cv/generate', authenticate, async (req, res) => {
+  try {
+    const { job_id, type } = req.body // type: 'cv' | 'letter' | 'both'
+    const [experience] = await pool.query(
+      'SELECT * FROM work_experience WHERE user_id = ? ORDER BY is_current DESC, start_date DESC',
+      [req.userId]
+    )
+    const [edu] = await pool.query(
+      'SELECT * FROM education WHERE user_id = ? ORDER BY start_year DESC',
+      [req.userId]
+    )
+    const [languages] = await pool.query(
+      'SELECT language, proficiency FROM user_languages WHERE user_id = ? ORDER BY proficiency DESC',
+      [req.userId]
+    )
+    const [[me]] = await pool.query(
+      'SELECT name, job_title, company, industry, seniority, skills, bio_da, bio_en, location FROM users WHERE id = ?',
+      [req.userId]
+    )
+    let job = null
+    if (job_id) {
+      const [[j]] = await pool.query('SELECT title, description, requirements, company_id FROM jobs WHERE id = ?', [job_id])
+      if (j) {
+        const [[c]] = await pool.query('SELECT name FROM companies WHERE id = ?', [j.company_id])
+        job = { ...j, company_name: c?.name || '' }
+      }
+    }
+
+    const skillsList = me.skills ? me.skills.split(',').map(s => s.trim()).filter(Boolean) : []
+    const langList = languages.map(l => `${l.language} (${l.proficiency})`).join(', ')
+
+    // Build CV text
+    let cvText = ''
+    if (!type || type === 'cv' || type === 'both') {
+      cvText = `# ${me.name}\n`
+      if (me.location) cvText += `📍 ${me.location}\n`
+      if (me.job_title || me.company) cvText += `💼 ${[me.job_title, me.company].filter(Boolean).join(' · ')}\n`
+      cvText += '\n'
+      if (me.bio_da || me.bio_en) {
+        cvText += `## Om mig / About\n${me.bio_da || me.bio_en}\n\n`
+      }
+      if (experience.length) {
+        cvText += `## Erhvervserfaring / Work Experience\n`
+        for (const e of experience) {
+          const from = e.start_date ? new Date(e.start_date).toLocaleDateString('da-DK', { year: 'numeric', month: 'short' }) : ''
+          const to = e.is_current ? 'nu / present' : (e.end_date ? new Date(e.end_date).toLocaleDateString('da-DK', { year: 'numeric', month: 'short' }) : '')
+          cvText += `\n### ${e.title} — ${e.company}\n`
+          if (from || to) cvText += `_${from}${from && to ? ' – ' : ''}${to}_\n`
+          if (e.description) cvText += `${e.description}\n`
+        }
+        cvText += '\n'
+      }
+      if (edu.length) {
+        cvText += `## Uddannelse / Education\n`
+        for (const e of edu) {
+          const years = [e.start_year, e.end_year].filter(Boolean).join('–')
+          cvText += `\n### ${[e.degree, e.field].filter(Boolean).join(', ')} — ${e.institution}\n`
+          if (years) cvText += `_${years}_\n`
+          if (e.description) cvText += `${e.description}\n`
+        }
+        cvText += '\n'
+      }
+      if (skillsList.length) cvText += `## Kompetencer / Skills\n${skillsList.join(' · ')}\n\n`
+      if (langList) cvText += `## Sprog / Languages\n${langList}\n\n`
+    }
+
+    // Build application letter template
+    let letterText = ''
+    if (type === 'letter' || type === 'both') {
+      const jobTitle = job ? (typeof job.title === 'string' ? job.title : job.title?.da || '') : '[Stilling / Position]'
+      const companyName = job?.company_name || '[Virksomhed / Company]'
+      const today = new Date().toLocaleDateString('da-DK', { day: 'numeric', month: 'long', year: 'numeric' })
+      letterText = `${me.location || ''}, ${today}\n\n`
+      letterText += `Kære ${companyName},\n\n`
+      letterText += `Jeg ansøger hermed om stillingen som ${jobTitle}. `
+      if (me.job_title || me.seniority) {
+        letterText += `Som ${[me.seniority, me.job_title].filter(Boolean).join(' ')} `
+        if (me.company) letterText += `hos ${me.company} `
+      }
+      letterText += `bringer jeg relevant erfaring og kompetencer til rollen.\n\n`
+      if (experience.length) {
+        const latest = experience[0]
+        letterText += `I min rolle som ${latest.title} hos ${latest.company} har jeg opnået solid erfaring inden for ${me.industry || 'branchen'}. `
+      }
+      if (skillsList.length) {
+        letterText += `Mine kernekompetencer inkluderer ${skillsList.slice(0, 4).join(', ')}. `
+      }
+      letterText += `\n\nJeg er motiveret af [udfyld din motivation] og ser frem til muligheden for at bidrage til ${companyName}.\n\n`
+      letterText += `Venlig hilsen,\n${me.name}\n`
+      if (langList) letterText += `\n---\n_Sprog / Languages: ${langList}_\n`
+    }
+
+    res.json({ cv: cvText, letter: letterText, hasProfile: !!(experience.length || edu.length || skillsList.length) })
+  } catch (err) {
+    console.error('POST /api/cv/generate error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
 })
 
 // ── Post insights (real data) ─────────────────────────────────────────────────

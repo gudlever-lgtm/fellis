@@ -1140,6 +1140,84 @@ export async function apiGetTrackedJobs() {
   return await request('/api/jobs/tracked')
 }
 
+export async function apiApplyToJobFull(jobId, { name, email, message }, cvFile, letterFile) {
+  const form = new FormData()
+  form.append('name', name)
+  form.append('email', email)
+  if (message) form.append('message', message)
+  if (cvFile) form.append('cv', cvFile)
+  if (letterFile) form.append('application_letter', letterFile)
+  try {
+    const res = await fetch(`${API_BASE}/api/jobs/${jobId}/apply`, {
+      method: 'POST',
+      headers: formHeaders(),
+      credentials: 'same-origin',
+      body: form,
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.error || `HTTP ${res.status}`)
+    }
+    return await res.json()
+  } catch (err) {
+    if (err.message === 'Failed to fetch') return null
+    throw err
+  }
+}
+
+// ── CV Profile ────────────────────────────────────────────────────────────────
+export async function apiGetCVProfile() {
+  return await request('/api/cv/profile')
+}
+
+export async function apiGetPublicCVProfile(userId) {
+  return await request(`/api/cv/profile/${userId}`)
+}
+
+export async function apiSetCVVisibility(cvPublic) {
+  return await request('/api/cv/visibility', { method: 'PATCH', body: JSON.stringify({ cv_public: cvPublic }) })
+}
+
+export async function apiAddWorkExperience(data) {
+  return await request('/api/cv/experience', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function apiUpdateWorkExperience(id, data) {
+  return await request(`/api/cv/experience/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+}
+
+export async function apiDeleteWorkExperience(id) {
+  return await request(`/api/cv/experience/${id}`, { method: 'DELETE' })
+}
+
+export async function apiAddEducation(data) {
+  return await request('/api/cv/education', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function apiUpdateEducation(id, data) {
+  return await request(`/api/cv/education/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+}
+
+export async function apiDeleteEducation(id) {
+  return await request(`/api/cv/education/${id}`, { method: 'DELETE' })
+}
+
+export async function apiAddLanguage(data) {
+  return await request('/api/cv/languages', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function apiUpdateLanguage(id, proficiency) {
+  return await request(`/api/cv/languages/${id}`, { method: 'PUT', body: JSON.stringify({ proficiency }) })
+}
+
+export async function apiDeleteLanguage(id) {
+  return await request(`/api/cv/languages/${id}`, { method: 'DELETE' })
+}
+
+export async function apiGenerateCV(jobId, type) {
+  return await request('/api/cv/generate', { method: 'POST', body: JSON.stringify({ job_id: jobId || null, type: type || 'both' }) })
+}
+
 // ── CRM Contact Notes ─────────────────────────────────────────────────────────
 export async function apiGetContactNote(userId) {
   return await request(`/api/contact-notes/${userId}`)
