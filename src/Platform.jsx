@@ -11716,7 +11716,7 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
                 ) : (
                   <div className="p-listing-photo-placeholder">{catIcon(listing.category)}</div>
                 )}
-                {listing.sold && <div className="p-listing-sold-badge">{t.marketplaceSold}</div>}
+                {!!listing.sold && <div className="p-listing-sold-badge">{t.marketplaceSold}</div>}
                 {boostedIds[listing.id] && <div className="p-listing-sold-badge" style={{ background: '#F4A261' }}>{t.marketplaceBoosted}</div>}
               </div>
               <div className="p-listing-body">
@@ -11746,7 +11746,7 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
                         ✓ {t.marketplaceMarkSold}
                       </button>
                     )}
-                    {listing.sold && (
+                    {!!listing.sold && (
                       <button className="p-listing-action-btn" style={{ color: '#2D6A4F', borderColor: '#2D6A4F' }} onClick={() => handleRelist(listing.id)}>
                         ↺ {lang === 'da' ? 'Genopslå' : 'Relist'}
                       </button>
