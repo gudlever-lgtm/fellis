@@ -11513,6 +11513,7 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
   const [marketplaceStats, setMarketplaceStats] = useState(null)
   const [statsLoading, setStatsLoading] = useState(false)
 
+  const isBoosted = (listing) => boostedIds[listing.id] || (listing.boosted_until && new Date(listing.boosted_until) > new Date())
   const catIcon = (key) => MARKETPLACE_CATEGORIES.find(c => c.key === key)?.icon || '📦'
   const catLabel = (key) => { const f = MARKETPLACE_CATEGORIES.find(c => c.key === key); return f ? `${f.icon} ${t[f.labelKey] || key}` : key }
   const listingTitle = (l) => typeof l.title === 'string' ? l.title : (l.title?.[lang] || l.title?.da || '')
@@ -11715,7 +11716,7 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
                   <div className="p-listing-photo-placeholder">{catIcon(listing.category)}</div>
                 )}
                 {!!listing.sold && <div className="p-listing-sold-badge">{t.marketplaceSold}</div>}
-                {boostedIds[listing.id] && <div className="p-listing-sold-badge" style={{ background: '#F4A261' }}>{t.marketplaceBoosted}</div>}
+                {isBoosted(listing) && <div className="p-listing-sold-badge" style={{ background: '#F4A261' }}>{t.marketplaceBoosted}</div>}
               </div>
               <div className="p-listing-body">
                 <div className="p-listing-price">
@@ -11742,7 +11743,7 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
                 })()}
                 {tab === 'mine' && (
                   <div className="p-listing-actions" onClick={e => e.stopPropagation()}>
-                    {!listing.sold && !boostedIds[listing.id] && (
+                    {!listing.sold && !isBoosted(listing) && (
                       <button className="p-listing-action-btn" style={{ color: '#F4A261', borderColor: '#F4A261' }} onClick={() => handleBoost(listing.id)}>
                         {t.marketplaceBoostBtn}
                       </button>
@@ -11864,6 +11865,7 @@ function ListingDetailModal({ listing, t, lang, currentUser, catLabel, catIcon, 
         )}
         <div className="p-listing-detail-body">
           {listing.sold ? <div className="p-listing-sold-badge p-listing-sold-badge-lg">{t.marketplaceSold}</div> : null}
+          {!listing.sold && listing.boosted_until && new Date(listing.boosted_until) > new Date() ? <div className="p-listing-sold-badge p-listing-sold-badge-lg" style={{ background: '#F4A261' }}>{t.marketplaceBoosted}</div> : null}
           <div className="p-listing-detail-price">
             {listing.priceNegotiable
               ? t.marketplacePriceNegotiable
