@@ -8562,6 +8562,27 @@ app.patch('/api/admin/badges/:badgeId', authenticate, requireAdmin, async (req, 
   }
 })
 
+// Nominatim geocode proxy — avoids browser User-Agent restrictions and rate-limits by IP
+let nominatimLastCall = 0
+app.get('/api/geocode', async (req, res) => {
+  const q = req.query.q
+  const lang = req.query.lang || 'da'
+  if (!q || q.length < 2) return res.json([])
+  const now = Date.now()
+  const wait = 1100 - (now - nominatimLastCall)
+  if (wait > 0) await new Promise(r => setTimeout(r, wait))
+  nominatimLastCall = Date.now()
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=5&accept-language=${lang}`
+    const r = await fetch(url, { headers: { 'User-Agent': 'fellis.eu/1.0 (contact@fellis.eu)' } })
+    if (!r.ok) return res.status(r.status).json([])
+    const data = await r.json()
+    res.json(data)
+  } catch {
+    res.status(502).json([])
+  }
+})
+
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
   console.log(`fellis.eu API running on http://localhost:${PORT}`)
