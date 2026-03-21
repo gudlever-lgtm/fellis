@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react'
 import { apiPostEasterEggEvent } from '../api.js'
 
-export const EGG_IDS = ['chuck', 'matrix', 'flip', 'retro', 'gravity', 'party', 'rickroll', 'watcher', 'riddler']
+export const EGG_IDS = ['chuck', 'matrix', 'flip', 'retro', 'gravity', 'party', 'rickroll', 'watcher', 'riddler', 'phantom']
 
 const EGG_DEFAULTS = {
   chuck:    { discovered: false, enabled: true, activationCount: 0, firstDiscoveredAt: null },
@@ -13,6 +13,7 @@ const EGG_DEFAULTS = {
   rickroll: { discovered: false, enabled: true, activationCount: 0, firstDiscoveredAt: null },
   watcher:  { discovered: false, enabled: true, activationCount: 0, firstDiscoveredAt: null },
   riddler:  { discovered: false, enabled: true, activationCount: 0, firstDiscoveredAt: null },
+  phantom:  { discovered: false, enabled: true, activationCount: 0, firstDiscoveredAt: null },
 }
 
 export const USER_LS_KEY = 'fellis_easter_eggs'
