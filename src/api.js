@@ -613,10 +613,6 @@ export async function apiRecordListingView(id) {
   return await request(`/api/marketplace/${id}/view`, { method: 'POST' })
 }
 
-export async function apiGetMarketplaceStats() {
-  return await request('/api/marketplace/stats')
-}
-
 // ── Admin ──
 export async function apiGetAdminSettings() {
   return await request('/api/admin/settings')
