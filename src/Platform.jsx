@@ -3849,7 +3849,7 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
   const labelStyle = { display: 'block', fontSize: 13, fontWeight: 600, color: '#555', marginBottom: 4, marginTop: 16 }
 
   return (
-    <div className="p-profile" style={{ maxWidth: 520, margin: '0 auto' }}>
+    <div className="p-profile" style={{ maxWidth: 800, margin: '0 auto' }}>
       <div className="p-card" style={{ padding: 24 }}>
         <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 20 }}>{editT.title}</h2>
 
@@ -4195,7 +4195,7 @@ function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, on
   const tabLabels = { konto: t.settingsKonto, sikkerhed: sikkerhedLabel, billing: billingLabel, notifikationer: t.settingsNotifikationer, privatliv: t.settingsPrivatliv, sessions: t.settingsSessions, sprog: t.settingsSprog, leverandoerer: t.settingsLeverandoerer }
 
   return (
-    <div className="p-events" style={{ maxWidth: 600 }}>
+    <div className="p-events" style={{ maxWidth: 800 }}>
       <h2 className="p-section-title" style={{ margin: '0 0 16px' }}>⚙️ {t.settings}</h2>
       <div className="p-filter-tabs" style={{ marginBottom: 20 }}>
         {Object.entries(tabLabels).map(([key, label]) => (
@@ -6765,7 +6765,7 @@ function PrivacySection({ lang, onLogout }) {
   }
 
   return (
-    <div className="p-profile" style={{ maxWidth: 640 }}>
+    <div className="p-profile" style={{ maxWidth: 800 }}>
       <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>{t.title}</h2>
       <p style={{ fontSize: 14, color: '#888', marginBottom: 20 }}>{t.subtitle}</p>
 

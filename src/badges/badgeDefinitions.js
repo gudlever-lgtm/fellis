@@ -29,6 +29,9 @@
  *   activeMonths,
  *   followersJoinedWithinFirstWeek,
  *   shareCount,
+ *   reelCount,
+ *   reelLikesReceived,
+ *   reelViewsTotal,
  *   profileComplete,           // boolean
  *   earnedBadgeIds,            // string[] — populated by the engine for cross-badge checks
  *   easterEggs: {
@@ -45,10 +48,12 @@ export const PLATFORM_LAUNCH_DATE = '2024-01-01T00:00:00.000Z'
 const ALL_T1_IDS = [
   't1_first_steps', 't1_say_hello', 't1_welcomed', 't1_profile_complete',
   't1_early_bird', 't1_connected', 't1_follower', 't1_curious', 't1_sharer', 't1_comeback',
+  't1_reel_debut', 't1_reel_liked',
 ]
 const ALL_T2_IDS = [
   't2_regular', 't2_conversationalist', 't2_popular', 't2_social_butterfly',
   't2_influencer', 't2_explorer', 't2_dedicated', 't2_appreciated', 't2_networker', 't2_contributor',
+  't2_reel_creator', 't2_reel_popular', 't2_reel_viewed', 't2_collector',
 ]
 
 export const BADGES = [
@@ -278,6 +283,80 @@ export const BADGES = [
     },
   },
 
+  // ── Reel Badges ───────────────────────────────────────────────────────────────
+  {
+    id: 't1_reel_debut',
+    name: { da: 'Reel-debut', en: 'Reel Debut' },
+    description: { da: 'Upload din første reel', en: 'Upload your first reel' },
+    tier: 1, category: 'activity', icon: '🎬',
+    evaluate: s => (s.reelCount || 0) >= 1,
+  },
+  {
+    id: 't2_reel_creator',
+    name: { da: 'Indholdsskaber', en: 'Content Creator' },
+    description: { da: 'Upload 5 reels', en: 'Upload 5 reels' },
+    tier: 2, category: 'activity', icon: '🎥',
+    evaluate: s => (s.reelCount || 0) >= 5,
+  },
+  {
+    id: 't3_reel_producer',
+    name: { da: 'Reel-producent', en: 'Reel Producer' },
+    description: { da: 'Upload 25 reels', en: 'Upload 25 reels' },
+    tier: 3, category: 'activity', icon: '🎞️',
+    evaluate: s => (s.reelCount || 0) >= 25,
+  },
+  {
+    id: 't1_reel_liked',
+    name: { da: 'Reel-yndling', en: 'Reel Favourite' },
+    description: { da: 'Modtag 10 likes på dine reels', en: 'Receive 10 likes on your reels' },
+    tier: 1, category: 'social', icon: '❤️‍🔥',
+    evaluate: s => (s.reelLikesReceived || 0) >= 10,
+  },
+  {
+    id: 't2_reel_popular',
+    name: { da: 'Reel-hit', en: 'Reel Hit' },
+    description: { da: 'Modtag 100 likes på dine reels', en: 'Receive 100 likes on your reels' },
+    tier: 2, category: 'social', icon: '💫',
+    evaluate: s => (s.reelLikesReceived || 0) >= 100,
+  },
+  {
+    id: 't3_reel_sensation',
+    name: { da: 'Reel-sensation', en: 'Reel Sensation' },
+    description: { da: 'Modtag 500 likes på dine reels', en: 'Receive 500 likes on your reels' },
+    tier: 3, category: 'social', icon: '🌟',
+    evaluate: s => (s.reelLikesReceived || 0) >= 500,
+  },
+  {
+    id: 't2_reel_viewed',
+    name: { da: 'Reel-seer', en: 'Reel Watched' },
+    description: { da: '500 visninger på dine reels', en: '500 views on your reels' },
+    tier: 2, category: 'activity', icon: '👁️',
+    evaluate: s => (s.reelViewsTotal || 0) >= 500,
+  },
+  {
+    id: 't3_reel_viral',
+    name: { da: 'Reel-viral', en: 'Reel Viral' },
+    description: { da: '5.000 visninger på dine reels', en: '5,000 views on your reels' },
+    tier: 3, category: 'activity', icon: '📺',
+    evaluate: s => (s.reelViewsTotal || 0) >= 5000,
+  },
+
+  // ── Badge Collector ───────────────────────────────────────────────────────────
+  {
+    id: 't2_collector',
+    name: { da: 'Samlær', en: 'Collector' },
+    description: { da: 'Optjen 10 badges', en: 'Earn 10 badges' },
+    tier: 2, category: 'special', icon: '🏆',
+    evaluate: s => (s.earnedBadgeIds || []).length >= 10,
+  },
+  {
+    id: 't3_completionist',
+    name: { da: 'Perfektionist', en: 'Completionist' },
+    description: { da: 'Optjen 25 badges', en: 'Earn 25 badges' },
+    tier: 3, category: 'special', icon: '💎',
+    evaluate: s => (s.earnedBadgeIds || []).length >= 25,
+  },
+
   // ── Easter Egg Badges (tier 0 — secret style) ────────────────────────────────
   {
     id: 'egg_rule_breaker',
@@ -343,6 +422,13 @@ export const BADGES = [
     evaluate: s => (s.easterEggs?.discovered || []).includes('riddler'),
   },
   {
+    id: 'egg_phantom',
+    name: { da: 'Spøgelsesbesøg', en: 'Phantom Visit' },
+    description: { da: 'Opdagede Phantom Visitors påskeægget', en: 'Discovered the Phantom Visitors easter egg' },
+    tier: 0, category: 'easter_egg', icon: '👻',
+    evaluate: s => (s.easterEggs?.discovered || []).includes('phantom'),
+  },
+  {
     id: 'egg_egg_hunter',
     name: { da: 'Ægsjæger', en: 'Egg Hunter' },
     description: { da: 'Opdagede 3 påskeæg', en: 'Discovered 3 easter eggs' },
@@ -352,18 +438,18 @@ export const BADGES = [
   {
     id: 'egg_egg_master',
     name: { da: 'Ægsmester', en: 'Egg Master' },
-    description: { da: 'Opdagede alle 9 påskeæg', en: 'Discovered all 9 easter eggs' },
+    description: { da: 'Opdagede alle 10 påskeæg', en: 'Discovered all 10 easter eggs' },
     tier: 0, category: 'easter_egg', icon: '🐣',
-    evaluate: s => (s.easterEggs?.discovered || []).length >= 9,
+    evaluate: s => (s.easterEggs?.discovered || []).length >= 10,
   },
   {
     id: 'egg_speedrunner',
     name: { da: 'Speedrunner', en: 'Speedrunner' },
-    description: { da: 'Opdagede alle 9 påskeæg inden for 7 dage af kontoopretholdelse', en: 'Discover all 9 easter eggs within 7 days of account creation' },
+    description: { da: 'Opdagede alle 10 påskeæg inden for 7 dage af kontoopretholdelse', en: 'Discover all 10 easter eggs within 7 days of account creation' },
     tier: 0, category: 'easter_egg', icon: '⚡',
     evaluate: s => {
       const disc = s.easterEggs?.discovered || []
-      if (disc.length < 9 || !s.accountCreatedAt) return false
+      if (disc.length < 10 || !s.accountCreatedAt) return false
       const ts = s.easterEggs?.firstDiscoveredAt || {}
       const times = Object.values(ts).map(t => new Date(t).getTime()).filter(Boolean)
       if (!times.length) return false
