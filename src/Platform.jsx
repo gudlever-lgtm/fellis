@@ -2387,10 +2387,10 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                       const q = e.target.value
                       setLocationSearchText(q)
                       setLocationResults([])
-                      clearTimeout(locationDebounceRef.current)
+                      clearTimeout(locationDebounce.current)
                       if (q.length < 2) { setLocationSearching(false); return }
                       setLocationSearching(true)
-                      locationDebounceRef.current = setTimeout(async () => {
+                      locationDebounce.current = setTimeout(async () => {
                         const results = await apiGeocode(q, lang)
                         setLocationResults(results || [])
                         setLocationSearching(false)
