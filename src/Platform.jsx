@@ -11496,9 +11496,12 @@ function MarketplaceStatsPanel({ stats, loading, myListings, t, lang }) {
 
   if (!hasAnyData) {
     return (
-      <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>
-        <div style={{ fontSize: 36, marginBottom: 12 }}>📊</div>
-        <div>{t.marketplaceStatsNoData}</div>
+      <div className="p-card" style={{ textAlign: 'center', padding: '40px 24px', color: '#888' }}>
+        <div style={{ fontSize: 40, marginBottom: 12 }}>📊</div>
+        <div style={{ fontWeight: 600, fontSize: 15, color: '#555', marginBottom: 8 }}>
+          {lang === 'da' ? 'Ingen statistik endnu' : 'No statistics yet'}
+        </div>
+        <div style={{ fontSize: 14, lineHeight: 1.6 }}>{t.marketplaceStatsNoData}</div>
       </div>
     )
   }
@@ -11712,7 +11715,7 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
           📋 {t.marketplaceMyListings}
         </button>
         <button className={`p-filter-tab${tab === 'stats' ? ' active' : ''}`} onClick={() => setTab('stats')}>
-          📊 {t.marketplaceStats}
+          📊 {t.marketplaceStats || (lang === 'da' ? 'Statistik' : 'Statistics')}
         </button>
       </div>
 
