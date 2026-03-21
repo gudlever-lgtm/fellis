@@ -1965,6 +1965,22 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     setCommentMedia(prev => { const n = { ...prev }; delete n[postId]; return n })
   }, [commentTexts, commentMedia, currentUser.name, onBadgeCheck])
 
+  const handleCommentLike = useCallback((postId, commentId) => {
+    // Optimistic toggle
+    setPosts(prev => prev.map(p => {
+      if (p.id !== postId) return p
+      return {
+        ...p,
+        comments: p.comments.map(c => {
+          if (c.id !== commentId) return c
+          const liked = !c.liked
+          return { ...c, liked, likes: (c.likes || 0) + (liked ? 1 : -1) }
+        }),
+      }
+    }))
+    apiLikeComment(commentId)
+  }, [])
+
   // Fetch and pin the specific post from a search result click
   useEffect(() => {
     if (!highlightPostId) { setPinnedPost(null); return }
@@ -2951,7 +2967,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
             {showComments && (
               <div className="p-comments">
                 {post.comments.map((c, i) => (
-                  <div key={i} className="p-comment">
+                  <div key={c.id ?? i} className="p-comment">
                     <div className="p-avatar-xs" style={{ background: nameToColor(c.author) }}>
                       {getInitials(c.author)}
                     </div>
@@ -2964,6 +2980,21 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                         </div>
                       )}
                     </div>
+                    {c.id && (
+                      <button
+                        onClick={() => handleCommentLike(post.id, c.id)}
+                        style={{
+                          background: 'none', border: 'none', cursor: 'pointer',
+                          fontSize: 12, color: c.liked ? '#e53935' : '#aaa',
+                          display: 'flex', alignItems: 'center', gap: 3,
+                          padding: '2px 6px', borderRadius: 10,
+                          marginLeft: 4, flexShrink: 0,
+                        }}
+                        title={c.liked ? (lang === 'da' ? 'Fjern like' : 'Unlike') : (lang === 'da' ? 'Like kommentar' : 'Like comment')}
+                      >
+                        {c.liked ? '❤️' : '🤍'}{c.likes > 0 && <span>{c.likes}</span>}
+                      </button>
+                    )}
                   </div>
                 ))}
                 {/* Comment media preview */}
@@ -4336,7 +4367,7 @@ function SettingsLeverandoerer({ lang, t }) {
           <div style={{ ...logoStyle, background: '#7EBC6F', fontSize: 22 }}>🗺️</div>
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 700, fontSize: 15 }}>OpenStreetMap</div>
-            <span style={badgeStyle(false)}>{da ? 'Kommende' : 'Coming soon'}</span>
+            <span style={badgeStyle(true)}>{da ? 'Tilknyttet' : 'Connected'}</span>
           </div>
           <a href="https://www.openstreetmap.org" target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#2D6A4F' }}>openstreetmap.org ↗</a>
         </div>
@@ -11413,6 +11444,142 @@ function MarketplaceMapView({ listings, lang, onSelect }) {
   )
 }
 
+function MarketplaceStatsPanel({ stats, loading, myListings, t, lang }) {
+  const MARKETPLACE_CATEGORIES_LOCAL = [
+    { key: 'electronics', icon: '💻' }, { key: 'clothing', icon: '👗' }, { key: 'furniture', icon: '🪑' },
+    { key: 'books', icon: '📚' }, { key: 'sports', icon: '⚽' }, { key: 'toys', icon: '🧸' },
+    { key: 'home', icon: '🏠' }, { key: 'art', icon: '🎨' }, { key: 'garden', icon: '🌿' },
+    { key: 'vehicles', icon: '🚗' }, { key: 'other', icon: '📦' },
+  ]
+  const catIcon = (key) => MARKETPLACE_CATEGORIES_LOCAL.find(c => c.key === key)?.icon || '📦'
+
+  const s = {
+    grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12, marginBottom: 20 },
+    card: { background: '#fff', borderRadius: 12, padding: '16px 18px', boxShadow: '0 1px 4px rgba(0,0,0,.08)', textAlign: 'center' },
+    val: { fontSize: 28, fontWeight: 800, color: '#2D6A4F', lineHeight: 1.1 },
+    lbl: { fontSize: 12, color: '#888', marginTop: 4, fontWeight: 500 },
+    section: { marginBottom: 20 },
+    sectionTitle: { fontSize: 13, fontWeight: 700, color: '#555', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' },
+    row: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f0f0f0' },
+    barWrap: { background: '#f0f0f0', borderRadius: 4, height: 8, flex: 1, margin: '0 10px', overflow: 'hidden' },
+    bar: (pct, color) => ({ width: `${pct}%`, height: '100%', background: color || '#2D6A4F', borderRadius: 4, transition: 'width 0.4s' }),
+  }
+
+  if (loading) return <div style={{ textAlign: 'center', padding: 40, color: '#888' }}>{lang === 'da' ? 'Henter…' : 'Loading…'}</div>
+
+  // Use local myListings count if server stats not yet available
+  const totalFromLocal = myListings.length
+  const activeFromLocal = myListings.filter(l => !l.sold).length
+  const soldFromLocal = myListings.filter(l => l.sold).length
+
+  const overview = stats?.overview || { total: totalFromLocal, active: activeFromLocal, sold: soldFromLocal, boosted: 0 }
+  const views = stats?.views || { total: 0, last7Days: 0, today: 0 }
+  const topListings = stats?.topListings || []
+  const categories = stats?.categories || []
+  const viewTrend = stats?.viewTrend || []
+
+  // Build last 14 days date labels for trend bar chart
+  const today = new Date()
+  const trendDays = Array.from({ length: 14 }, (_, i) => {
+    const d = new Date(today)
+    d.setDate(d.getDate() - 13 + i)
+    return d.toISOString().slice(0, 10)
+  })
+  const trendMap = Object.fromEntries(viewTrend.map(r => [r.date?.slice(0, 10), r.views]))
+  const trendValues = trendDays.map(d => trendMap[d] || 0)
+  const trendMax = Math.max(...trendValues, 1)
+
+  const maxCatCount = Math.max(...categories.map(c => c.count), 1)
+  const maxViews = Math.max(...topListings.map(l => l.views), 1)
+
+  const hasAnyData = overview.total > 0
+
+  if (!hasAnyData) {
+    return (
+      <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>
+        <div style={{ fontSize: 36, marginBottom: 12 }}>📊</div>
+        <div>{t.marketplaceStatsNoData}</div>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      {/* Overview numbers */}
+      <div style={s.section}>
+        <div style={s.sectionTitle}>{t.marketplaceStatsOverview}</div>
+        <div style={s.grid}>
+          <div style={s.card}><div style={s.val}>{overview.active}</div><div style={s.lbl}>{t.marketplaceStatsActive}</div></div>
+          <div style={s.card}><div style={{ ...s.val, color: '#888' }}>{overview.sold}</div><div style={s.lbl}>{t.marketplaceStatsSold}</div></div>
+          <div style={{ ...s.card }}><div style={{ ...s.val, color: '#F4A261' }}>{overview.boosted}</div><div style={s.lbl}>{t.marketplaceStatsBoosted}</div></div>
+          <div style={s.card}><div style={s.val}>{views.total}</div><div style={s.lbl}>{t.marketplaceStatsTotalViews}</div></div>
+          <div style={s.card}><div style={{ ...s.val, color: '#3498db' }}>{views.last7Days}</div><div style={s.lbl}>{t.marketplaceStatsViews7Days}</div></div>
+          <div style={s.card}><div style={{ ...s.val, color: '#9b59b6' }}>{views.today}</div><div style={s.lbl}>{t.marketplaceStatsViewsToday}</div></div>
+        </div>
+      </div>
+
+      {/* Views trend (last 14 days) */}
+      {viewTrend.length > 0 && (
+        <div style={s.section}>
+          <div style={s.sectionTitle}>{t.marketplaceStatsViewTrend}</div>
+          <div className="p-card" style={{ padding: '12px 16px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 64 }}>
+              {trendValues.map((v, i) => (
+                <div key={i} title={`${trendDays[i]}: ${v}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
+                  <div style={{ width: '100%', background: v > 0 ? '#2D6A4F' : '#e8e8e8', borderRadius: '3px 3px 0 0', height: `${Math.max((v / trendMax) * 100, v > 0 ? 8 : 2)}%`, transition: 'height 0.3s' }} />
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#bbb', marginTop: 4 }}>
+              <span>{trendDays[0]?.slice(5)}</span>
+              <span>{trendDays[6]?.slice(5)}</span>
+              <span>{trendDays[13]?.slice(5)}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Top listings */}
+      {topListings.length > 0 && (
+        <div style={s.section}>
+          <div style={s.sectionTitle}>{t.marketplaceStatsTopListings}</div>
+          <div className="p-card" style={{ padding: '8px 16px' }}>
+            {topListings.map(l => (
+              <div key={l.id} style={s.row}>
+                <span style={{ fontSize: 13, color: l.sold ? '#aaa' : '#333', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {catIcon(l.category)} {l.title}{l.sold ? ` (${t.marketplaceSold || 'solgt'})` : ''}
+                </span>
+                <div style={s.barWrap}>
+                  <div style={s.bar((l.views / maxViews) * 100)} />
+                </div>
+                <span style={{ fontSize: 12, color: '#666', minWidth: 50, textAlign: 'right' }}>{l.views} {t.marketplaceStatsViews}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Category distribution */}
+      {categories.length > 0 && (
+        <div style={s.section}>
+          <div style={s.sectionTitle}>{t.marketplaceStatsCategories}</div>
+          <div className="p-card" style={{ padding: '8px 16px' }}>
+            {categories.map(c => (
+              <div key={c.category} style={s.row}>
+                <span style={{ fontSize: 13, color: '#333', minWidth: 100 }}>{catIcon(c.category)} {c.category}</span>
+                <div style={s.barWrap}>
+                  <div style={s.bar((c.count / maxCatCount) * 100, '#3498db')} />
+                </div>
+                <span style={{ fontSize: 12, color: '#666', minWidth: 30, textAlign: 'right' }}>{c.count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller, onViewProfile }) {
   const [tab, setTab] = useState('browse')
   const [listings, setListings] = useState(MOCK_LISTINGS)
@@ -11425,6 +11592,8 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
   const [boostedIds, setBoostedIds] = useState({})
   const [boostMsg, setBoostMsg] = useState(null)
   const [formError, setFormError] = useState(null)
+  const [marketplaceStats, setMarketplaceStats] = useState(null)
+  const [statsLoading, setStatsLoading] = useState(false)
 
   const catIcon = (key) => MARKETPLACE_CATEGORIES.find(c => c.key === key)?.icon || '📦'
   const catLabel = (key) => { const f = MARKETPLACE_CATEGORIES.find(c => c.key === key); return f ? `${f.icon} ${t[f.labelKey] || key}` : key }
@@ -11443,8 +11612,11 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (tab !== 'mine') return
-    apiFetchMyListings().then(data => { if (data?.listings || Array.isArray(data)) setMyListings(data?.listings || data) })
+    if (tab === 'mine' || tab === 'stats') {
+      apiFetchMyListings().then(data => { if (data?.listings || Array.isArray(data)) setMyListings(data?.listings || data) })
+      setStatsLoading(true)
+      apiGetMarketplaceStats().then(data => { if (data) setMarketplaceStats(data) }).finally(() => setStatsLoading(false))
+    }
   }, [tab])
 
   const filtered = listings.filter(l => {
@@ -11539,6 +11711,9 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
         <button className={`p-filter-tab${tab === 'mine' ? ' active' : ''}`} onClick={() => setTab('mine')}>
           📋 {t.marketplaceMyListings}
         </button>
+        <button className={`p-filter-tab${tab === 'stats' ? ' active' : ''}`} onClick={() => setTab('stats')}>
+          📊 {t.marketplaceStats}
+        </button>
       </div>
 
       {tab === 'browse' && (
@@ -11586,7 +11761,11 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
         <MarketplaceMapView listings={filtered} lang={lang} onSelect={setSelectedListing} />
       )}
 
-      {tab !== 'map' && (tab === 'mine' && myListings.length === 0 ? (
+      {tab === 'stats' && (
+        <MarketplaceStatsPanel stats={marketplaceStats} loading={statsLoading} myListings={myListings} t={t} lang={lang} />
+      )}
+
+      {tab !== 'map' && tab !== 'stats' && (tab === 'mine' && myListings.length === 0 ? (
         <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>
           <div style={{ fontSize: 36, marginBottom: 12 }}>🛍️</div>
           <div style={{ marginBottom: 16 }}>{t.marketplaceNoMyListings}</div>
@@ -11604,7 +11783,7 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
             <div
               key={listing.id}
               className={`p-card p-listing-card${listing.sold ? ' p-listing-sold' : ''}`}
-              onClick={() => setSelectedListing(listing)}
+              onClick={() => { setSelectedListing(listing); if (listing.user_id !== currentUser?.id) apiRecordListingView(listing.id).catch(() => {}) }}
             >
               <div className="p-listing-photo-wrap">
                 {listing.photos?.length > 0 ? (
@@ -11617,7 +11796,7 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
                 ) : (
                   <div className="p-listing-photo-placeholder">{catIcon(listing.category)}</div>
                 )}
-                {listing.sold && <div className="p-listing-sold-badge">{t.marketplaceSold}</div>}
+                {!!listing.sold && <div className="p-listing-sold-badge">{t.marketplaceSold}</div>}
                 {boostedIds[listing.id] && <div className="p-listing-sold-badge" style={{ background: '#F4A261' }}>{t.marketplaceBoosted}</div>}
               </div>
               <div className="p-listing-body">
@@ -11635,6 +11814,14 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
                     {listing.seller}
                   </span>
                 </div>
+                {tab === 'mine' && (() => {
+                  const viewCount = marketplaceStats?.topListings?.find(l => l.id === listing.id)?.views
+                  return viewCount !== undefined ? (
+                    <div style={{ fontSize: 12, color: '#888', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      👁 {viewCount} {t.marketplaceStatsViews}
+                    </div>
+                  ) : null
+                })()}
                 {tab === 'mine' && (
                   <div className="p-listing-actions" onClick={e => e.stopPropagation()}>
                     {!listing.sold && !boostedIds[listing.id] && (
@@ -11647,7 +11834,7 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
                         ✓ {t.marketplaceMarkSold}
                       </button>
                     )}
-                    {listing.sold && (
+                    {!!listing.sold && (
                       <button className="p-listing-action-btn" style={{ color: '#2D6A4F', borderColor: '#2D6A4F' }} onClick={() => handleRelist(listing.id)}>
                         ↺ {lang === 'da' ? 'Genopslå' : 'Relist'}
                       </button>
@@ -11743,7 +11930,9 @@ function ListingDetailModal({ listing, t, lang, currentUser, catLabel, catIcon, 
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="p-listing-detail-modal" onClick={e => e.stopPropagation()}>
-        <button className="p-listing-detail-close" onClick={onClose}>✕</button>
+        <div className="p-listing-detail-close-wrap">
+          <button className="p-listing-detail-close" onClick={onClose}>✕</button>
+        </div>
         {listing.photos?.length > 0 ? (
           <div className={`p-post-media p-post-media-${Math.min(listing.photos.length, 4)} p-listing-detail-photos`}>
             {listing.photos.slice(0, 4).map((p, i) => (
@@ -12391,6 +12580,34 @@ function AdsManagementPage({ lang, t }) {
         <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>📢 {t.adsTitle}</h2>
         <button onClick={openCreate} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>+ {t.adsCreate}</button>
       </div>
+
+      {!loading && ads.length > 0 && (() => {
+        const totalImpressions = ads.reduce((s, a) => s + (a.impressions || 0), 0)
+        const totalClicks = ads.reduce((s, a) => s + (a.clicks || 0), 0)
+        const activeCount = ads.filter(a => a.status === 'active').length
+        const totalPaid = ads.reduce((s, a) => s + (parseFloat(a.paid_amount) || 0), 0)
+        const overallCtr = totalImpressions > 0 ? ((totalClicks / totalImpressions) * 100).toFixed(2) + '%' : '–'
+        const statItems = [
+          { val: totalImpressions.toLocaleString(), lbl: t.adsTotalImpressions, color: '#2D6A4F' },
+          { val: totalClicks.toLocaleString(), lbl: t.adsTotalClicks, color: '#3498db' },
+          { val: overallCtr, lbl: t.adsOverallCTR, color: '#9b59b6' },
+          { val: activeCount, lbl: t.adsActiveCount, color: '#27ae60' },
+          { val: formatPrice(totalPaid), lbl: t.adsTotalPaid, color: '#e67e22' },
+        ]
+        return (
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>{t.adsStatsSummary}</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 10 }}>
+              {statItems.map(item => (
+                <div key={item.lbl} style={{ background: '#fff', borderRadius: 10, padding: '12px 14px', boxShadow: '0 1px 4px rgba(0,0,0,.07)', textAlign: 'center' }}>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: item.color, lineHeight: 1.1 }}>{item.val}</div>
+                  <div style={{ fontSize: 11, color: '#999', marginTop: 3, fontWeight: 500 }}>{item.lbl}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: 40, color: '#888' }}>{lang === 'da' ? 'Henter…' : 'Loading…'}</div>

@@ -243,6 +243,10 @@ export async function apiAddComment(postId, text, mediaFile) {
   })
 }
 
+export async function apiLikeComment(commentId) {
+  return await request(`/api/comments/${commentId}/like`, { method: 'POST' })
+}
+
 export async function apiDeletePost(postId) {
   return await request(`/api/feed/${postId}`, { method: 'DELETE' })
 }
@@ -599,6 +603,14 @@ export async function apiGetBoostedFeedListings() {
 
 export async function apiRelistListing(id) {
   return await request(`/api/marketplace/${id}/relist`, { method: 'POST' })
+}
+
+export async function apiRecordListingView(id) {
+  return await request(`/api/marketplace/${id}/view`, { method: 'POST' })
+}
+
+export async function apiGetMarketplaceStats() {
+  return await request('/api/marketplace/stats')
 }
 
 // ── Admin ──
