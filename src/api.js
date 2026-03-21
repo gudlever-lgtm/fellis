@@ -161,7 +161,7 @@ export async function apiFetchMemories() {
   return await request('/api/feed/memories')
 }
 
-export async function apiCreatePost(text, mediaFiles, scheduledAt, categories, location) {
+export async function apiCreatePost(text, mediaFiles, scheduledAt, categories, location, taggedUsers, linkedContent) {
   if (mediaFiles?.length) {
     // Use FormData for multipart upload
     const form = new FormData()
@@ -171,6 +171,8 @@ export async function apiCreatePost(text, mediaFiles, scheduledAt, categories, l
     if (location?.place_name) form.append('place_name', location.place_name)
     if (location?.geo_lat != null) form.append('geo_lat', location.geo_lat)
     if (location?.geo_lng != null) form.append('geo_lng', location.geo_lng)
+    if (taggedUsers?.length) form.append('tagged_users', JSON.stringify(taggedUsers))
+    if (linkedContent?.type) { form.append('linked_type', linkedContent.type); form.append('linked_id', linkedContent.id) }
     for (const file of mediaFiles) {
       form.append('media', file)
     }
@@ -193,8 +195,19 @@ export async function apiCreatePost(text, mediaFiles, scheduledAt, categories, l
   }
   return await request('/api/feed', {
     method: 'POST',
-    body: JSON.stringify({ text, ...(scheduledAt ? { scheduled_at: scheduledAt } : {}), ...(categories?.length ? { categories } : {}), ...(location?.place_name ? location : {}) }),
+    body: JSON.stringify({
+      text,
+      ...(scheduledAt ? { scheduled_at: scheduledAt } : {}),
+      ...(categories?.length ? { categories } : {}),
+      ...(location?.place_name ? location : {}),
+      ...(taggedUsers?.length ? { tagged_users: taggedUsers } : {}),
+      ...(linkedContent?.type ? { linked_type: linkedContent.type, linked_id: linkedContent.id } : {}),
+    }),
   })
+}
+
+export async function apiGetLinkedContent(type, id) {
+  return await request(`/api/linked-content?type=${encodeURIComponent(type)}&id=${id}`)
 }
 
 export async function apiGetPostLikers(postId) {
@@ -783,10 +796,11 @@ export async function apiFetchReels(offset = 0, limit = 10) {
   return await request(`/api/reels?offset=${offset}&limit=${limit}`)
 }
 
-export async function apiUploadReel(videoFile, caption) {
+export async function apiUploadReel(videoFile, caption, taggedUsers) {
   const form = new FormData()
   form.append('video', videoFile)
   if (caption) form.append('caption', caption)
+  if (taggedUsers?.length) form.append('tagged_users', JSON.stringify(taggedUsers))
   try {
     const res = await fetch(`${API_BASE}/api/reels`, {
       method: 'POST',
@@ -905,6 +919,13 @@ export async function apiSuggestCategory(text) {
 
 export async function apiGetMyJobs() {
   return await request('/api/jobs/mine')
+}
+export async function apiFetchJobs({ q = '', location = '', type = '' } = {}) {
+  const params = new URLSearchParams()
+  if (q) params.set('q', q)
+  if (location) params.set('location', location)
+  if (type) params.set('type', type)
+  return await request(`/api/jobs?${params}`)
 }
 
 // ── Post insights ──
