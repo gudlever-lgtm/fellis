@@ -7381,31 +7381,6 @@ function ReferralDashboard({ t, lang, referralData, badges, leaderboard, inviteL
         )}
       </div>
 
-      {/* Share invite link */}
-      <div className="p-card">
-        <div style={s.cardTitle}>🔗 {t.inviteLinkTitle || t.referralDashShareLink}</div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <input readOnly value={inviteLink || `${siteUrl}/?invite=…`} style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, color: '#444', background: '#fafafa' }} />
-          <button className="p-btn-primary" onClick={() => copyLink(inviteLink)} style={{ whiteSpace: 'nowrap', padding: '8px 14px', fontSize: 13 }}>
-            {copiedShareLink === inviteLink ? t.referralDashShareCopied : t.referralDashShareCopy}
-          </button>
-        </div>
-        <div style={s.shareRow}>
-          <button style={s.shareBtn('#1877F2')} onClick={() => shareOn('facebook', inviteLink, lang === 'da' ? 'Kom med på fellis.eu — Danmarks private sociale netværk!' : 'Join me on fellis.eu — Denmark\'s privacy-first social network!')}>
-            f {t.referralDashShareFb}
-          </button>
-          <button style={s.shareBtn('#000')} onClick={() => shareOn('twitter', inviteLink, lang === 'da' ? 'Tilmeld dig fellis.eu med mit link!' : 'Join fellis.eu with my invite link!')}>
-            𝕏 {t.referralDashShareTwitter}
-          </button>
-          <button style={s.shareBtn('#0A66C2')} onClick={() => shareOn('linkedin', inviteLink, '')}>
-            in {t.referralDashShareLinkedIn}
-          </button>
-          <button style={s.shareBtn('#25D366')} onClick={() => shareOn('whatsapp', inviteLink, lang === 'da' ? 'Kom med på fellis.eu!' : 'Join me on fellis.eu!')}>
-            💬 {t.referralDashShareWhatsApp}
-          </button>
-        </div>
-      </div>
-
       {/* Badges */}
       <div className="p-card">
         <div style={s.cardTitle}>🏅 {t.referralDashBadgesTitle}</div>
@@ -7615,6 +7590,17 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
     window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${shareUrl}`, 'linkedin-share', 'width=600,height=500')
   }, [inviteLink])
 
+  const handleTwitterShare = useCallback(() => {
+    const text = encodeURIComponent(lang === 'da' ? 'Tilmeld dig fellis.eu med mit link!' : 'Join fellis.eu with my invite link!')
+    const shareUrl = encodeURIComponent(inviteLink || 'https://fellis.eu')
+    window.open(`https://twitter.com/intent/tweet?text=${text}&url=${shareUrl}`, 'twitter-share', 'width=580,height=400')
+  }, [inviteLink, lang])
+
+  const handleWhatsAppShare = useCallback(() => {
+    const text = encodeURIComponent((lang === 'da' ? 'Kom med på fellis.eu! ' : 'Join me on fellis.eu! ') + (inviteLink || 'https://fellis.eu'))
+    window.open(`https://wa.me/?text=${text}`, '_blank')
+  }, [inviteLink, lang])
+
   const handleSendEmailInvite = useCallback(async (e) => {
     e.preventDefault()
     if (!inviteEmail.trim()) return
@@ -7781,14 +7767,22 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
             {inviteCopied ? (lang === 'da' ? 'Kopieret!' : 'Copied!') : (lang === 'da' ? 'Kopier' : 'Copy')}
           </button>
         </div>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button className="p-fb-share-btn" onClick={handleFbShare}>
             <span className="fb-icon">f</span>
             {lang === 'da' ? 'Del på Facebook' : 'Share on Facebook'}
           </button>
+          <button className="p-fb-share-btn" onClick={handleTwitterShare} style={{ background: '#000' }}>
+            <span className="fb-icon" style={{ fontFamily: 'serif', fontWeight: 900 }}>𝕏</span>
+            {lang === 'da' ? 'Del på X / Twitter' : 'Share on X / Twitter'}
+          </button>
           <button className="p-fb-share-btn" onClick={handleLinkedInShare} style={{ background: '#0A66C2' }}>
             <span className="fb-icon" style={{ fontWeight: 900, fontSize: 16 }}>in</span>
             {lang === 'da' ? 'Del på LinkedIn' : 'Share on LinkedIn'}
+          </button>
+          <button className="p-fb-share-btn" onClick={handleWhatsAppShare} style={{ background: '#25D366' }}>
+            <span className="fb-icon">💬</span>
+            {lang === 'da' ? 'Del via WhatsApp' : 'Share via WhatsApp'}
           </button>
         </div>
       </div>
