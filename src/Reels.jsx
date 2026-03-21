@@ -329,9 +329,9 @@ function ReelCard({ reel, t, currentUser, onDelete, onViewProfile }) {
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 680
 
   return (
-    <div style={{ display: 'flex', gap: 20, maxWidth: 800, margin: '0 auto 32px', alignItems: 'flex-start', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+    <div style={{ display: 'flex', gap: 20, maxWidth: 800, margin: isMobile ? '0 0 24px' : '0 auto 32px', alignItems: 'flex-start', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
       {/* ── Reel video card ── */}
-      <div style={{ ...s.card, margin: 0, flex: '0 0 auto', width: isMobile ? '100%' : 420 }}>
+      <div style={{ ...s.card, margin: 0, flex: '0 0 auto', width: '100%', maxWidth: isMobile ? '100%' : 420, borderRadius: isMobile ? 0 : 16 }}>
       <div style={s.videoWrap}>
         <video
           ref={videoRef}
@@ -841,11 +841,13 @@ export default function ReelsPage({ t, currentUser, initialReelId, onViewProfile
     setReels(prev => prev.filter(r => r.id !== id))
   }
 
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 680
+
   const s = {
     page: {
-      maxWidth: 480,
-      margin: '0 auto',
-      padding: '24px 16px',
+      maxWidth: isMobile ? '100%' : 480,
+      margin: isMobile ? '0 -8px' : '0 auto',   // cancel out p-content padding on mobile
+      padding: isMobile ? '16px 0' : '24px 16px',
     },
     header: {
       display: 'flex',
