@@ -20,7 +20,7 @@ import MatrixRain from './components/easter-eggs/MatrixRain.jsx'
 import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
 import RickRoll from './components/easter-eggs/RickRoll.jsx'
 import RiddleBanner from './components/easter-eggs/RiddleBanner.jsx'
-import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode } from './api.js'
+import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode } from './api.js'
 import { BADGES, BADGE_BY_ID } from './badges/badgeDefinitions.js'
 import BadgeToastQueue from './components/BadgeToast.jsx'
 import ModeGate from './components/ModeGate.jsx'
@@ -15214,6 +15214,13 @@ function AdminEasterEggsPanel({ lang }) {
   const saveTimerRef = useRef(null)
 
   useEffect(() => {
+    // Load config from server (authoritative) and merge into localStorage
+    apiGetAdminEasterEggConfig().then(d => {
+      if (d?.config && Object.keys(d.config).length) {
+        setCfg(d.config)
+        localStorage.setItem(ADMIN_KEY, JSON.stringify(d.config))
+      }
+    }).catch(() => {})
     apiGetAdminEasterEggStats()
       .then(d => { if (d?.stats) setStats(d.stats) })
       .catch(() => setStatsNote(lang === 'da' ? 'Serverstatistik utilgængelig.' : 'Server stats unavailable.'))

@@ -1287,6 +1287,9 @@ export async function apiGetMyEasterEggs() {
 export async function apiGetAdminEasterEggStats() {
   return await request("/api/admin/easter-eggs/stats")
 }
+export async function apiGetAdminEasterEggConfig() {
+  return await request('/api/admin/easter-eggs/config')
+}
 export async function apiSaveAdminEasterEggConfig(cfg) {
   return await request('/api/admin/easter-eggs/config', { method: 'PUT', body: JSON.stringify(cfg) })
 }
