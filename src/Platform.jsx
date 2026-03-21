@@ -10650,6 +10650,44 @@ function CreateCompanyModal({ t, lang, currentUser, onClose, onCreate }) {
 
 // ── Job Apply Modal ──
 // ── CV Profile Section ────────────────────────────────────────────────────────
+const CV_LANGUAGES = [
+  'Afrikaans','Albanisk','Amharisk','Arabisk','Armensk','Aserbajdsjansk',
+  'Baskisk','Hviderussisk','Bengalsk','Bosnisk','Bulgarsk','Burmesisk',
+  'Catalansk','Cebuansk','Kinesisk (forenklet)','Kinesisk (traditionelt)',
+  'Kroatisk','Tjekkisk','Dansk','Hollandsk','Engelsk','Esperanto','Estisk',
+  'Finsk','Fransk','Galicisk','Georgisk','Tysk','Græsk','Gujarati',
+  'Haitisk kreolsk','Hausa','Hawaiisk','Hebraisk','Hindi','Hmong','Ungarsk',
+  'Islandsk','Igbo','Indonesisk','Irsk','Italiensk','Japansk','Javanesisk',
+  'Kannada','Kasakhisk','Khmer','Koreansk','Kurdisk','Kirgisisk','Laotisk',
+  'Latin','Lettisk','Litauisk','Luxembourgsk','Makedonsk','Malgassisk',
+  'Malaysisk','Malayalamsk','Maltesisk','Maorisisk','Marathisk','Mongolsk',
+  'Nepalesisk','Norsk','Pashto','Persisk','Polsk','Portugisisk','Punjabi',
+  'Rumænsk','Russisk','Samoansk','Serbisk','Singhalesisk','Slovakisk',
+  'Slovensk','Somalisk','Spansk','Sundanesisk','Swahili','Svensk','Tagalog',
+  'Tadsjikisk','Tamil','Telugisk','Thailandsk','Tyrkisk','Ukrainsk','Urdu',
+  'Usbekisk','Vietnamesisk','Walisisk','Xhosa','Jiddisch','Yoruba','Zulu',
+  // English names (for EN UI)
+  'Afrikaans','Albanian','Amharic','Arabic','Armenian','Azerbaijani',
+  'Basque','Belarusian','Bengali','Bosnian','Bulgarian','Burmese',
+  'Catalan','Cebuano','Chinese (Simplified)','Chinese (Traditional)',
+  'Croatian','Czech','Danish','Dutch','English','Esperanto','Estonian',
+  'Finnish','French','Galician','Georgian','German','Greek','Gujarati',
+  'Haitian Creole','Hausa','Hawaiian','Hebrew','Hindi','Hmong','Hungarian',
+  'Icelandic','Igbo','Indonesian','Irish','Italian','Japanese','Javanese',
+  'Kannada','Kazakh','Khmer','Korean','Kurdish','Kyrgyz','Lao',
+  'Latin','Latvian','Lithuanian','Luxembourgish','Macedonian','Malagasy',
+  'Malay','Malayalam','Maltese','Maori','Marathi','Mongolian',
+  'Nepali','Norwegian','Pashto','Persian','Polish','Portuguese','Punjabi',
+  'Romanian','Russian','Samoan','Serbian','Sinhala','Slovak',
+  'Slovenian','Somali','Spanish','Sundanese','Swahili','Swedish','Tagalog',
+  'Tajik','Tamil','Telugu','Thai','Turkish','Ukrainian','Urdu',
+  'Uzbek','Vietnamese','Welsh','Xhosa','Yiddish','Yoruba','Zulu',
+  // Nordic + extra
+  'Færøsk','Grønlandsk','Samisk','Romani','Faroese','Greenlandic','Sami',
+  'Sindhi','Tigrinya','Kinyarwanda','Lingala','Oromo','Twi','Igbo',
+  'Azerbaijani','Belarusian','Bosnian',
+].filter((v, i, a) => a.indexOf(v) === i).sort()
+
 function CVProfileSection({ lang, t, isOwn, userId }) {
   const [data, setData] = useState(null)
   const [cvPublic, setCvPublic] = useState(false)
@@ -10915,8 +10953,18 @@ function CVProfileSection({ lang, t, isOwn, userId }) {
         </div>
         {showLangForm && (
           <div style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <input style={{ ...fS, width: 'auto', flex: 1, minWidth: 100 }} value={langName} onChange={e => setLangName(e.target.value)}
-              placeholder={lang === 'da' ? 'Sprog…' : 'Language…'} autoFocus />
+            <input
+              list="cv-language-list"
+              style={{ ...fS, width: 'auto', flex: 1, minWidth: 140 }}
+              value={langName}
+              onChange={e => setLangName(e.target.value)}
+              placeholder={lang === 'da' ? 'Skriv sprog…' : 'Type language…'}
+              autoFocus
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); saveLang() } }}
+            />
+            <datalist id="cv-language-list">
+              {CV_LANGUAGES.map(l => <option key={l} value={l} />)}
+            </datalist>
             <select style={{ ...fS, width: 'auto' }} value={langProf} onChange={e => setLangProf(e.target.value)}>
               {PROF_LEVELS.map(p => <option key={p} value={p}>{profLabel(p)}</option>)}
             </select>
