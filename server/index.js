@@ -10090,12 +10090,15 @@ app.get('*', async (req, res) => {
       const cfg = (row && Object.keys(JSON.parse(row.key_value || '{}')).length)
         ? JSON.parse(row.key_value)
         : DEFAULT_HINTS
-      const activeHints = Object.entries(cfg)
+      let activeHints = Object.entries(cfg)
         .filter(([, ec]) => ec.hintsEnabled && ec.hintText?.trim())
         .map(([id, ec]) => `    ${EGG_LABELS[id] || id}: ${ec.hintText.trim()}`)
-      const eggComment = activeHints.length
-        ? `<!--\n    👋 Hej nysgerrige! / Hello curious one!\n\n    🥚 Easter egg hints:\n${activeHints.join('\n')}\n  -->`
-        : `<!--\n    👋 Hej nysgerrige! / Hello curious one!\n\n    🥚 Easter eggs — all keyboard triggers work from any page.\n  -->`
+      // If DB config has no active hints, always show the hardcoded defaults
+      if (!activeHints.length) {
+        activeHints = Object.entries(DEFAULT_HINTS)
+          .map(([id, ec]) => `    ${EGG_LABELS[id] || id}: ${ec.hintText.trim()}`)
+      }
+      const eggComment = `<!--\n    👋 Hej nysgerrige! / Hello curious one!\n\n    🥚 Easter egg hints:\n${activeHints.join('\n')}\n  -->`
       html = html.replace(/<!--[\s\S]*?Hej nysgerrige[\s\S]*?-->/, eggComment)
     } catch { /* keep original comment if DB unavailable */ }
 
