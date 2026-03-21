@@ -566,7 +566,7 @@ function App() {
     }
 
     apiCheckSession().then(async data => {
-      if (data) {
+      if (data && !data.__authError) {
         setView('platform')
         if (data.lang) setLang(data.lang)
         localStorage.setItem('fellis_logged_in', 'true')
@@ -575,10 +575,14 @@ function App() {
         if (consentData && !consentData.data_processing?.given) {
           setShowGeneralConsent(true)
         }
-      } else {
-        // Session expired or invalid — clear and go to landing
+      } else if (data?.__authError) {
+        // Genuine 401/403 — session is invalid, clear it
         localStorage.removeItem('fellis_logged_in')
         localStorage.removeItem('fellis_session_id')
+        setView('landing')
+      } else {
+        // null = network error or server unavailable — don't clear session,
+        // just show landing so the user can retry
         setView('landing')
       }
     })
