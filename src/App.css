@@ -1,4 +1,8 @@
 /* ── Layout ── */
+:root {
+  --content-max-width: 800px;
+}
+
 .app {
   min-height: 100vh;
 }
@@ -1099,7 +1103,7 @@
 
 /* ── Content area ── */
 .p-content {
-  max-width: 800px;
+  max-width: var(--content-max-width);
   margin: 0 auto;
   padding: 24px 16px 80px;
 }
@@ -1833,7 +1837,7 @@
 
 /* ── Profile ── */
 .p-profile {
-  max-width: 680px;
+  max-width: var(--content-max-width);
 }
 .p-profile-card {
   padding: 0;
@@ -2804,7 +2808,7 @@
 }
 .p-nav-hamburger:hover { background: #F0FAF4; color: #2D6A4F; }
 .p-search-page {
-  max-width: 680px;
+  max-width: var(--content-max-width);
   margin: 0 auto;
   padding: 0 0 40px;
 }
@@ -4670,7 +4674,7 @@
 
 /* ─── Analytics Page ───────────────────────── */
 .p-analytics {
-  max-width: 800px;
+  max-width: var(--content-max-width);
   margin: 0 auto;
   padding-bottom: 40px;
 }
@@ -5511,7 +5515,7 @@ body.mode-common .p-action-btn {
 
 /* ── Explore page ── */
 .explore-page {
-  max-width: 680px;
+  max-width: var(--content-max-width);
   margin: 0 auto;
   padding: 0 0 80px;
 }
