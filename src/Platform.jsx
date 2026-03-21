@@ -426,35 +426,54 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
               <span className="p-nav-tab-icon">{'⋯'}</span>
               <span className="p-nav-tab-label">{lang === 'da' ? 'Mere' : 'More'}</span>
             </button>
-            {showMoreMenu && (
-              <div style={{
-                position: 'absolute', top: '100%', left: 0, zIndex: 200,
-                background: '#fff', borderRadius: 10, boxShadow: '0 4px 20px rgba(0,0,0,0.13)',
-                border: '1px solid #e8e8e4', minWidth: 160, padding: '6px 0',
-              }}>
-                {[
-                  { id: 'friends', icon: '👥', label: mode === 'business' ? t.connectionsLabel : t.friends },
-                  { id: 'calendar', icon: '🗓️', label: t.calendar || (lang === 'da' ? 'Kalender' : 'Calendar') },
-                  { id: 'marketplace', icon: '🛍️', label: t.marketplace || (lang === 'da' ? 'Marked' : 'Marketplace') },
-                  { id: 'jobs', icon: '💼', label: t.jobs || 'Jobs' },
-                  ...(mode === 'business' ? [
-                    { id: 'company', icon: '🏢', label: t.companies || (lang === 'da' ? 'Virksomheder' : 'Companies') },
-                  ] : []),
-                ].map(item => (
-                  <button key={item.id}
-                    onClick={() => { navigateTo(item.id); setShowMoreMenu(false); setShowMobileMenu(false) }}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-                      padding: '9px 16px', background: page === item.id ? '#f0f7f4' : 'none',
-                      border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: page === item.id ? 700 : 400,
-                      color: page === item.id ? '#2D6A4F' : '#333', textAlign: 'left',
-                    }}
-                  >
-                    <span>{item.icon}</span> {item.label}
-                  </button>
-                ))}
-              </div>
-            )}
+            {showMoreMenu && (() => {
+              const moreItems = [
+                { id: 'friends', icon: '👥', label: mode === 'business' ? t.connectionsLabel : t.friends },
+                { id: 'calendar', icon: '🗓️', label: t.calendar || (lang === 'da' ? 'Kalender' : 'Calendar') },
+                { id: 'marketplace', icon: '🛍️', label: t.marketplace || (lang === 'da' ? 'Marked' : 'Marketplace') },
+                { id: 'jobs', icon: '💼', label: t.jobs || 'Jobs' },
+                ...(mode === 'business' ? [{ id: 'company', icon: '🏢', label: t.companies || (lang === 'da' ? 'Virksomheder' : 'Companies') }] : []),
+              ]
+              // Mobile: inline accordion (absolute dropdown gets clipped by overflow:auto container)
+              if (showMobileMenu) {
+                return (
+                  <div style={{ borderTop: '1px solid #f0ede9' }}>
+                    {moreItems.map(item => (
+                      <button key={item.id}
+                        onClick={() => { navigateTo(item.id); setShowMoreMenu(false); setShowMobileMenu(false) }}
+                        className={`p-nav-tab${page === item.id ? ' active' : ''}`}
+                        style={{ width: '100%', borderRadius: 0, paddingLeft: 36, fontSize: 14 }}
+                      >
+                        <span className="p-nav-tab-icon">{item.icon}</span>
+                        <span className="p-nav-tab-label">{item.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )
+              }
+              // Desktop: absolute dropdown
+              return (
+                <div style={{
+                  position: 'absolute', top: '100%', left: 0, zIndex: 200,
+                  background: '#fff', borderRadius: 10, boxShadow: '0 4px 20px rgba(0,0,0,0.13)',
+                  border: '1px solid #e8e8e4', minWidth: 160, padding: '6px 0',
+                }}>
+                  {moreItems.map(item => (
+                    <button key={item.id}
+                      onClick={() => { navigateTo(item.id); setShowMoreMenu(false); setShowMobileMenu(false) }}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                        padding: '9px 16px', background: page === item.id ? '#f0f7f4' : 'none',
+                        border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: page === item.id ? 700 : 400,
+                        color: page === item.id ? '#2D6A4F' : '#333', textAlign: 'left',
+                      }}
+                    >
+                      <span>{item.icon}</span> {item.label}
+                    </button>
+                  ))}
+                </div>
+              )
+            })()}
           </div>
         </div>
         <div className="p-nav-right">
