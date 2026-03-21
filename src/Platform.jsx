@@ -855,12 +855,16 @@ function extractFirstUrl(text) {
 
 function linkifyText(text) {
   const parts = []
-  const re = /https?:\/\/[^\s<>"']+|@[A-Za-zÀ-ÖØ-öø-ÿ]\w*/g
+  // Match @[Full Name] bracket mentions, plain @word mentions, and URLs
+  const re = /https?:\/\/[^\s<>"']+|@\[([^\]]+)\]|@[A-Za-zÀ-ÖØ-öø-ÿ]\w*/g
   let last = 0, m
   while ((m = re.exec(text)) !== null) {
     const raw = m[0]
     if (m.index > last) parts.push({ t: 'text', v: text.slice(last, m.index) })
-    if (raw.startsWith('@')) {
+    if (raw.startsWith('@[')) {
+      // Bracket mention — m[1] is the name inside brackets
+      parts.push({ t: 'mention', v: `@${m[1]}` })
+    } else if (raw.startsWith('@')) {
       parts.push({ t: 'mention', v: raw })
     } else {
       const url = raw.replace(/[.,!?;:)>]+$/, '')
@@ -1055,7 +1059,9 @@ function useMention(friends) {
 
   const detect = useCallback((text, cursor) => {
     const before = text.slice(0, cursor)
-    const m = before.match(/@([^\s@]*)$/)
+    // Don't trigger inside a completed @[...] bracket
+    if (/@\[[^\]]*$/.test(before)) { setQuery(null); return }
+    const m = before.match(/@([^\s@\[]*)$/)
     if (m) { setQuery(m[1]); setSelIdx(0) } else setQuery(null)
   }, [])
 
@@ -1073,10 +1079,10 @@ function useMention(friends) {
   const buildText = useCallback((text, cursor, friend) => {
     const before = text.slice(0, cursor)
     const atIdx = before.lastIndexOf('@')
-    const firstName = friend.name.split(' ')[0]
-    const newText = before.slice(0, atIdx) + '@' + firstName + ' ' + text.slice(cursor)
+    const tag = `@[${friend.name}]`
+    const newText = before.slice(0, atIdx) + tag + ' ' + text.slice(cursor)
     setQuery(null)
-    return { text: newText, cursor: atIdx + firstName.length + 2 }
+    return { text: newText, cursor: atIdx + tag.length + 1 }
   }, [])
 
   return { query, filtered, selIdx, detect, close, handleKey, buildText }
@@ -1581,6 +1587,9 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const suggestCategoryTimer = useRef(null)
   const hintIconRef = useRef(null)
   const feedMention = useMention(sharePopupFriends || [])
+  const commentMention = useMention(sharePopupFriends || [])
+  const [commentMentionPostId, setCommentMentionPostId] = useState(null)
+  const commentInputRefs = useRef({}) // postId → input el
   const bottomSentinelRef = useRef(null)
   const feedContainerRef = useRef(null)
   const [feedSelectedEvent, setFeedSelectedEvent] = useState(null)
@@ -3335,16 +3344,52 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                     <button className="p-media-preview-remove" onClick={() => removeCommentMedia(post.id)}>✕</button>
                   </div>
                 )}
-                <div className="p-comment-input-row">
+                <div className="p-comment-input-row" style={{ position: 'relative' }}>
                   <div className="p-avatar-xs" style={{ background: nameToColor(currentUser.name) }}>
                     {currentUser.initials || getInitials(currentUser.name)}
                   </div>
+                  {/* Mention dropdown anchored above the input */}
+                  {commentMentionPostId === post.id && commentMention.query !== null && commentMention.filtered.length > 0 && (
+                    <div style={{ position: 'absolute', bottom: '100%', left: 36, right: 80, zIndex: 50, marginBottom: 4 }}>
+                      <MentionDropdown
+                        filtered={commentMention.filtered}
+                        selIdx={commentMention.selIdx}
+                        onSelect={f => {
+                          const el = commentInputRefs.current[post.id]
+                          const cur = el?.selectionStart ?? (commentTexts[post.id] || '').length
+                          const { text, cursor: nc } = commentMention.buildText(commentTexts[post.id] || '', cur, f)
+                          setCommentTexts(prev => ({ ...prev, [post.id]: text }))
+                          setTimeout(() => { el?.focus(); el?.setSelectionRange(nc, nc) }, 0)
+                        }}
+                      />
+                    </div>
+                  )}
                   <input
+                    ref={el => { commentInputRefs.current[post.id] = el }}
                     className="p-comment-input"
-                    placeholder={t.writeComment}
+                    placeholder={`${t.writeComment} — @ ${lang === 'da' ? 'nævn' : 'mention'}, # ${lang === 'da' ? 'tag' : 'tag'}`}
                     value={commentTexts[post.id] || ''}
-                    onChange={e => setCommentTexts(prev => ({ ...prev, [post.id]: e.target.value }))}
-                    onKeyDown={e => e.key === 'Enter' && handleComment(post.id)}
+                    onChange={e => {
+                      const val = e.target.value
+                      setCommentTexts(prev => ({ ...prev, [post.id]: val }))
+                      setCommentMentionPostId(post.id)
+                      commentMention.detect(val, e.target.selectionStart)
+                      // Lazy-load friends for mention if not yet loaded
+                      if (val.includes('@') && sharePopupFriends === null) {
+                        apiFetchFriends().then(d => { if (d) setSharePopupFriends(d) })
+                      }
+                    }}
+                    onKeyDown={e => {
+                      if (commentMentionPostId === post.id && commentMention.handleKey(e, f => {
+                        const el = commentInputRefs.current[post.id]
+                        const cur = el?.selectionStart ?? (commentTexts[post.id] || '').length
+                        const { text, cursor: nc } = commentMention.buildText(commentTexts[post.id] || '', cur, f)
+                        setCommentTexts(prev => ({ ...prev, [post.id]: text }))
+                        setTimeout(() => { el?.focus(); el?.setSelectionRange(nc, nc) }, 0)
+                      })) return
+                      if (e.key === 'Enter') handleComment(post.id)
+                    }}
+                    onBlur={() => { setTimeout(() => commentMention.close(), 150) }}
                   />
                   <MediaPickerButton
                     lang={lang}
