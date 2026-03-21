@@ -1538,7 +1538,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [locationSearchOpen, setLocationSearchOpen] = useState(false)
   const [locationSearchText, setLocationSearchText] = useState('')
   const [locationResults, setLocationResults] = useState([])
-  const [locationLoading, setLocationLoading] = useState(false)
+  const [locationSearching, setLocationSearching] = useState(false)
   const [locationMapPost, setLocationMapPost] = useState(null) // post whose map is shown in modal
 
   const handleJoinGroup = async (groupId) => {
@@ -2168,7 +2168,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   onBlur={e => {
                     // Don't collapse when focus moves to OS file dialog (relatedTarget is null)
                     if (!e.relatedTarget && !newPostText.trim() && !mediaPreviews.length) return
-                    if (!newPostText.trim() && !mediaPreviews.length) setPostExpanded(false)
+                    // Don't collapse when location search is open (autoFocus on search input triggers blur)
+                    if (!newPostText.trim() && !mediaPreviews.length && !locationSearchOpen && !postLocation) setPostExpanded(false)
                     feedMention.close()
                   }}
                   autoFocus={postExpanded && !newPostText}
@@ -2272,48 +2273,18 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                       setLocationSearchText(q)
                       setLocationResults([])
                       if (q.length < 2) return
-                      setLocationLoading(true)
+                      setLocationSearching(true)
                       try {
                         const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=5&accept-language=${lang}`)
                         const j = await r.json()
                         setLocationResults(j)
                       } catch {}
-                      setLocationLoading(false)
+                      setLocationSearching(false)
                     }}
                     placeholder={lang === 'da' ? 'Søg sted…' : 'Search location…'}
                     style={{ flex: 1, padding: '7px 10px', borderRadius: 8, border: '1px solid #1877F2', fontSize: 13, outline: 'none' }}
                   />
-                  <button
-                    type="button"
-                    onMouseDown={e => e.preventDefault()}
-                    title={lang === 'da' ? 'Brug min position' : 'Use my location'}
-                    onClick={() => {
-                      if (!navigator.geolocation) return
-                      setLocationLoading(true)
-                      navigator.geolocation.getCurrentPosition(
-                        async pos => {
-                          const { latitude: lat, longitude: lng } = pos.coords
-                          let name = ''
-                          try {
-                            const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=${lang}`)
-                            const j = await r.json()
-                            name = j.address?.city || j.address?.town || j.address?.village || j.address?.county || j.display_name?.split(',')[0] || ''
-                          } catch {}
-                          setPostLocation({ lat, lng, name })
-                          setLocationSearchOpen(false)
-                          setLocationSearchText('')
-                          setLocationResults([])
-                          setLocationLoading(false)
-                        },
-                        () => setLocationLoading(false),
-                        { timeout: 8000 }
-                      )
-                    }}
-                    style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid #ddd', background: '#f5f5f5', fontSize: 13, cursor: 'pointer' }}
-                  >
-                    {locationLoading ? '⏳' : '🎯'}
-                  </button>
-                  <button
+<button
                     type="button"
                     onMouseDown={e => e.preventDefault()}
                     onClick={() => { setLocationSearchOpen(false); setLocationSearchText(''); setLocationResults([]) }}
