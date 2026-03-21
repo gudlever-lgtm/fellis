@@ -11532,8 +11532,6 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
   useEffect(() => {
     if (tab === 'mine' || tab === 'stats') {
       apiFetchMyListings().then(data => { if (data?.listings || Array.isArray(data)) setMyListings(data?.listings || data) })
-    }
-    if (tab === 'stats') {
       setStatsLoading(true)
       apiGetMarketplaceStats().then(data => { if (data) setMarketplaceStats(data) }).finally(() => setStatsLoading(false))
     }
@@ -11716,7 +11714,7 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
                 ) : (
                   <div className="p-listing-photo-placeholder">{catIcon(listing.category)}</div>
                 )}
-                {listing.sold && <div className="p-listing-sold-badge">{t.marketplaceSold}</div>}
+                {!!listing.sold && <div className="p-listing-sold-badge">{t.marketplaceSold}</div>}
                 {boostedIds[listing.id] && <div className="p-listing-sold-badge" style={{ background: '#F4A261' }}>{t.marketplaceBoosted}</div>}
               </div>
               <div className="p-listing-body">
@@ -11734,6 +11732,14 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
                     {listing.seller}
                   </span>
                 </div>
+                {tab === 'mine' && (() => {
+                  const viewCount = marketplaceStats?.topListings?.find(l => l.id === listing.id)?.views
+                  return viewCount !== undefined ? (
+                    <div style={{ fontSize: 12, color: '#888', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      👁 {viewCount} {t.marketplaceStatsViews}
+                    </div>
+                  ) : null
+                })()}
                 {tab === 'mine' && (
                   <div className="p-listing-actions" onClick={e => e.stopPropagation()}>
                     {!listing.sold && !boostedIds[listing.id] && (
@@ -11746,7 +11752,7 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
                         ✓ {t.marketplaceMarkSold}
                       </button>
                     )}
-                    {listing.sold && (
+                    {!!listing.sold && (
                       <button className="p-listing-action-btn" style={{ color: '#2D6A4F', borderColor: '#2D6A4F' }} onClick={() => handleRelist(listing.id)}>
                         ↺ {lang === 'da' ? 'Genopslå' : 'Relist'}
                       </button>
@@ -11842,7 +11848,9 @@ function ListingDetailModal({ listing, t, lang, currentUser, catLabel, catIcon, 
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="p-listing-detail-modal" onClick={e => e.stopPropagation()}>
-        <button className="p-listing-detail-close" onClick={onClose}>✕</button>
+        <div className="p-listing-detail-close-wrap">
+          <button className="p-listing-detail-close" onClick={onClose}>✕</button>
+        </div>
         {listing.photos?.length > 0 ? (
           <div className={`p-post-media p-post-media-${Math.min(listing.photos.length, 4)} p-listing-detail-photos`}>
             {listing.photos.slice(0, 4).map((p, i) => (
