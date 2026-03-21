@@ -6515,7 +6515,7 @@ app.get('/api/analytics/visitor-stats', authenticate, async (req, res) => {
   }
 })
 
-// GET /api/admin/settings — get Stripe config (admin only)
+// GET /api/admin/settings — get platform config (admin only)
 app.get('/api/admin/settings', authenticate, requireAdmin, async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT key_name, key_value FROM admin_settings')
@@ -6544,6 +6544,71 @@ app.get('/api/admin/settings', authenticate, requireAdmin, async (req, res) => {
   }
 })
 
+// ── Interest categories ───────────────────────────────────────────────────────
+// GET /api/interest-categories — public list of active categories
+app.get('/api/interest-categories', async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT id, da, en, icon FROM interest_categories WHERE active = 1 ORDER BY sort_order, da'
+    )
+    res.json({ categories: rows })
+  } catch {
+    res.json({ categories: [] })
+  }
+})
+
+// GET /api/admin/interest-categories — all categories including inactive (admin)
+app.get('/api/admin/interest-categories', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT * FROM interest_categories ORDER BY sort_order, da'
+    )
+    res.json({ categories: rows })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// POST /api/admin/interest-categories — create
+app.post('/api/admin/interest-categories', authenticate, requireAdmin, async (req, res) => {
+  const { id, da, en, icon, sort_order = 0, active = 1 } = req.body
+  if (!id || !da || !en) return res.status(400).json({ error: 'id, da, en required' })
+  const safeId = id.toLowerCase().replace(/[^a-z0-9-]/g, '-').slice(0, 64)
+  try {
+    await pool.query(
+      'INSERT INTO interest_categories (id, da, en, icon, sort_order, active) VALUES (?, ?, ?, ?, ?, ?)',
+      [safeId, da.slice(0, 128), en.slice(0, 128), (icon || '⭐').slice(0, 8), sort_order, active ? 1 : 0]
+    )
+    res.json({ ok: true, id: safeId })
+  } catch (err) {
+    res.status(400).json({ error: err.message })
+  }
+})
+
+// PUT /api/admin/interest-categories/:id — update
+app.put('/api/admin/interest-categories/:id', authenticate, requireAdmin, async (req, res) => {
+  const { da, en, icon, sort_order, active } = req.body
+  try {
+    await pool.query(
+      'UPDATE interest_categories SET da=?, en=?, icon=?, sort_order=?, active=? WHERE id=?',
+      [da, en, icon || '⭐', sort_order ?? 0, active ? 1 : 0, req.params.id]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// DELETE /api/admin/interest-categories/:id — delete
+app.delete('/api/admin/interest-categories/:id', authenticate, requireAdmin, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM interest_categories WHERE id=?', [req.params.id])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 // GET /api/admin/env-status — check which env vars are set (admin only, no values exposed)
 app.get('/api/admin/env-status', authenticate, requireAdmin, async (req, res) => {
   const ENV_VARS = [
@@ -6561,7 +6626,7 @@ app.get('/api/admin/env-status', authenticate, requireAdmin, async (req, res) =>
   res.json({ status })
 })
 
-// POST /api/admin/settings — save Stripe config (admin only)
+// POST /api/admin/settings — save platform config (admin only)
 app.post('/api/admin/settings', authenticate, requireAdmin, async (req, res) => {
   const allowed = ['stripe_secret_key', 'stripe_pub_key', 'stripe_webhook_secret', 'stripe_price_pro_monthly', 'stripe_price_pro_yearly', 'stripe_price_boost', 'pwd_min_length', 'pwd_require_uppercase', 'pwd_require_lowercase', 'pwd_require_numbers', 'pwd_require_symbols', 'media_max_files', 'marketplace_max_photos', 'registration_open', 'mollie_api_key']
   try {

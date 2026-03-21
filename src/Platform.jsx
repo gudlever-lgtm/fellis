@@ -20,7 +20,7 @@ import MatrixRain from './components/easter-eggs/MatrixRain.jsx'
 import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
 import RickRoll from './components/easter-eggs/RickRoll.jsx'
 import RiddleBanner from './components/easter-eggs/RiddleBanner.jsx'
-import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode, apiGetAdminEnvStatus } from './api.js'
+import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory } from './api.js'
 import { BADGES, BADGE_BY_ID } from './badges/badgeDefinitions.js'
 import BadgeToastQueue from './components/BadgeToast.jsx'
 import ModeGate from './components/ModeGate.jsx'
@@ -3775,6 +3775,11 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
   const [relationshipStatus, setRelationshipStatus] = useState('')
   const [website, setWebsite] = useState('')
   const [extSaveStatus, setExtSaveStatus] = useState(null)
+  const [interestCats, setInterestCats] = useState(INTEREST_CATEGORIES)
+
+  useEffect(() => {
+    apiGetInterestCategories().then(d => { if (d?.categories?.length) setInterestCats(d.categories) }).catch(() => {})
+  }, [])
 
   useEffect(() => {
     apiFetchProfile().then(data => {
@@ -4039,7 +4044,7 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
           <h3 style={{ margin: '0 0 6px', fontSize: 16, fontWeight: 700 }}>🎯 {t.interestsSectionTitle}</h3>
           <p style={{ fontSize: 13, color: '#666', margin: '0 0 12px' }}>{t.interestsSectionDesc}</p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
-            {INTEREST_CATEGORIES.map(cat => {
+            {interestCats.map(cat => {
               const selected = interests.includes(cat.id)
               return (
                 <button
@@ -15712,6 +15717,147 @@ function AdminBadgesPanel({ lang }) {
   )
 }
 
+// ── AdminInterestCategoriesPanel ──────────────────────────────────────────────
+function AdminInterestCategoriesPanel({ lang }) {
+  const da = lang === 'da'
+  const [cats, setCats] = useState(null)
+  const [editId, setEditId] = useState(null) // id being edited, or 'new'
+  const [form, setForm] = useState({ id: '', da: '', en: '', icon: '⭐', sort_order: 0, active: 1 })
+  const [saving, setSaving] = useState(false)
+  const [toast, setToast] = useState(null)
+  const fS = { width: '100%', padding: '7px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13 }
+
+  const load = () => apiAdminGetInterestCategories().then(d => { if (d?.categories) setCats(d.categories) })
+  useEffect(() => { load() }, [])
+
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2500) }
+
+  const startEdit = (cat) => {
+    setForm({ id: cat.id, da: cat.da, en: cat.en, icon: cat.icon || '⭐', sort_order: cat.sort_order || 0, active: cat.active ?? 1 })
+    setEditId(cat.id)
+  }
+
+  const startNew = () => {
+    setForm({ id: '', da: '', en: '', icon: '⭐', sort_order: 0, active: 1 })
+    setEditId('new')
+  }
+
+  const handleSave = async (e) => {
+    e.preventDefault()
+    setSaving(true)
+    if (editId === 'new') {
+      const res = await apiAdminCreateInterestCategory(form)
+      if (res?.ok) { showToast(da ? 'Oprettet ✓' : 'Created ✓'); setEditId(null); load() }
+      else showToast(res?.error || 'Fejl')
+    } else {
+      const res = await apiAdminUpdateInterestCategory(editId, form)
+      if (res?.ok) { showToast(da ? 'Gemt ✓' : 'Saved ✓'); setEditId(null); load() }
+      else showToast(res?.error || 'Fejl')
+    }
+    setSaving(false)
+  }
+
+  const handleDelete = async (id) => {
+    if (!window.confirm(da ? `Slet "${id}"?` : `Delete "${id}"?`)) return
+    await apiAdminDeleteInterestCategory(id)
+    showToast(da ? 'Slettet' : 'Deleted')
+    load()
+  }
+
+  const toggleActive = async (cat) => {
+    await apiAdminUpdateInterestCategory(cat.id, { ...cat, active: cat.active ? 0 : 1 })
+    load()
+  }
+
+  return (
+    <div className="p-card" style={{ marginBottom: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>🎯 {da ? 'Interessekategorier' : 'Interest Categories'}</h3>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {cats && <span style={{ fontSize: 13, color: '#888' }}>{cats.length} {da ? 'kategorier' : 'categories'}</span>}
+          <button onClick={startNew} style={{ padding: '7px 16px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+            + {da ? 'Tilføj' : 'Add'}
+          </button>
+        </div>
+      </div>
+
+      {toast && <div style={{ background: '#F0FAF4', border: '1px solid #c3e6cb', borderRadius: 8, padding: '8px 14px', fontSize: 13, marginBottom: 12 }}>{toast}</div>}
+
+      {/* Edit / New form */}
+      {editId && (
+        <form onSubmit={handleSave} style={{ background: '#FAFAF8', border: '1px solid #e0e0e0', borderRadius: 10, padding: '16px 20px', marginBottom: 16 }}>
+          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>{editId === 'new' ? (da ? 'Ny kategori' : 'New category') : (da ? 'Rediger' : 'Edit') + ` — ${editId}`}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+            {editId === 'new' && (
+              <div style={{ gridColumn: '1/-1' }}>
+                <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>ID (slugified)</label>
+                <input style={fS} value={form.id} onChange={e => setForm(p => ({ ...p, id: e.target.value }))} placeholder="f.eks. sport-og-fitness" required />
+              </div>
+            )}
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Dansk navn</label>
+              <input style={fS} value={form.da} onChange={e => setForm(p => ({ ...p, da: e.target.value }))} required />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>English name</label>
+              <input style={fS} value={form.en} onChange={e => setForm(p => ({ ...p, en: e.target.value }))} required />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Ikon (emoji)</label>
+              <input style={{ ...fS, width: 80 }} value={form.icon} onChange={e => setForm(p => ({ ...p, icon: e.target.value }))} maxLength={8} />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>{da ? 'Sorteringsrækkefølge' : 'Sort order'}</label>
+              <input style={{ ...fS, width: 100 }} type="number" value={form.sort_order} onChange={e => setForm(p => ({ ...p, sort_order: parseInt(e.target.value) || 0 }))} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 20 }}>
+              <input type="checkbox" id="cat-active" checked={!!form.active} onChange={e => setForm(p => ({ ...p, active: e.target.checked ? 1 : 0 }))} />
+              <label htmlFor="cat-active" style={{ fontSize: 13 }}>{da ? 'Aktiv' : 'Active'}</label>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button type="submit" disabled={saving} style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+              {saving ? '…' : (da ? 'Gem' : 'Save')}
+            </button>
+            <button type="button" onClick={() => setEditId(null)} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', fontSize: 13, cursor: 'pointer' }}>
+              {da ? 'Annuller' : 'Cancel'}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* Category list */}
+      {!cats ? (
+        <div style={{ color: '#888', fontSize: 13 }}>…</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+          {/* Header */}
+          <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr 1fr 60px 60px 100px', gap: 8, padding: '6px 8px', background: '#f5f5f5', borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#666', marginBottom: 4 }}>
+            <span></span><span>Dansk</span><span>English</span><span>{da ? 'Order' : 'Order'}</span><span>{da ? 'Aktiv' : 'Active'}</span><span></span>
+          </div>
+          {cats.map(cat => (
+            <div key={cat.id} style={{ display: 'grid', gridTemplateColumns: '40px 1fr 1fr 60px 60px 100px', gap: 8, padding: '7px 8px', borderRadius: 8, fontSize: 13, alignItems: 'center', background: cat.active ? '#fff' : '#f9f9f9', border: '1px solid #f0f0f0' }}>
+              <span style={{ fontSize: 18, textAlign: 'center' }}>{cat.icon}</span>
+              <span style={{ color: cat.active ? '#222' : '#aaa' }}>{cat.da}</span>
+              <span style={{ color: '#888', fontSize: 12 }}>{cat.en}</span>
+              <span style={{ color: '#aaa', fontSize: 12 }}>{cat.sort_order}</span>
+              <span>
+                <button onClick={() => toggleActive(cat)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }} title={cat.active ? (da ? 'Deaktiver' : 'Deactivate') : (da ? 'Aktiver' : 'Activate')}>
+                  {cat.active ? '✅' : '⬜'}
+                </button>
+              </span>
+              <span style={{ display: 'flex', gap: 6 }}>
+                <button onClick={() => startEdit(cat)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #ddd', background: '#fff', fontSize: 12, cursor: 'pointer' }}>{da ? 'Rediger' : 'Edit'}</button>
+                <button onClick={() => handleDelete(cat.id)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #fcc', background: '#fff8f8', color: '#e03131', fontSize: 12, cursor: 'pointer' }}>✕</button>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function AdminPage({ lang, t }) {
   const [adminTab, setAdminTab] = useState('stats')
   const [form, setForm] = useState({
@@ -15877,6 +16023,12 @@ function AdminPage({ lang, t }) {
             tabs: [
               { id: 'easter-eggs', icon: '🥚', label: lang === 'da' ? 'Påskeæg' : 'Easter Eggs' },
               { id: 'badges', icon: '🏅', label: 'Badges' },
+            ],
+          },
+          {
+            label: lang === 'da' ? 'Brugerprofil' : 'User Profile',
+            tabs: [
+              { id: 'interests', icon: '🎯', label: lang === 'da' ? 'Interessekategorier' : 'Interest Categories' },
             ],
           },
         ]
@@ -17046,6 +17198,7 @@ function AdminPage({ lang, t }) {
 
       {adminTab === 'easter-eggs' && <AdminEasterEggsPanel lang={lang} />}
       {adminTab === 'badges' && <AdminBadgesPanel lang={lang} />}
+      {adminTab === 'interests' && <AdminInterestCategoriesPanel lang={lang} />}
     </div>
   )
 }
