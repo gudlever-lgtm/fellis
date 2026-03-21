@@ -10068,13 +10068,24 @@ app.get('*', async (req, res) => {
 
     // Build the easter egg hints comment from admin config
     try {
+      const EGG_LABELS = {
+        chuck:    '🤜 Chuck Norris',
+        matrix:   '🟩 Matrix Rain',
+        flip:     '🌪️ Flip Feed',
+        retro:    '🕹️ Retro Mode',
+        gravity:  '🌍 Gravity',
+        party:    '🎉 Party Mode',
+        rickroll: '📼 Rick Roll',
+        watcher:  '👁️ Skyggefølger',
+        riddler:  '❓ The Riddler',
+      }
       const [[row]] = await pool.query(
         "SELECT key_value FROM admin_settings WHERE key_name = 'easter_egg_config'"
       ).catch(() => [[null]])
       const cfg = row ? JSON.parse(row.key_value || '{}') : {}
       const activeHints = Object.entries(cfg)
         .filter(([, ec]) => ec.hintsEnabled && ec.hintText?.trim())
-        .map(([id, ec]) => `      ${id}: ${ec.hintText.trim()}`)
+        .map(([id, ec]) => `    ${EGG_LABELS[id] || id}: ${ec.hintText.trim()}`)
       const eggComment = activeHints.length
         ? `<!--\n    👋 Hej nysgerrige! / Hello curious one!\n\n    🥚 Easter egg hints:\n${activeHints.join('\n')}\n  -->`
         : `<!--\n    👋 Hej nysgerrige! / Hello curious one!\n\n    🥚 Easter eggs — all keyboard triggers work from any page.\n  -->`
