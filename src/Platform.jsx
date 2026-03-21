@@ -2384,8 +2384,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   onBlur={e => {
                     // Don't collapse when focus moves to OS file dialog (relatedTarget is null)
                     if (!e.relatedTarget && !newPostText.trim() && !mediaPreviews.length) return
-                    // Don't collapse when location search is open (autoFocus on search input triggers blur)
-                    if (!newPostText.trim() && !mediaPreviews.length && !locationSearchOpen && !postLocation) setPostExpanded(false)
+                    // Don't collapse when any composer panel is open or content is attached
+                    if (!newPostText.trim() && !mediaPreviews.length && !locationSearchOpen && !postLocation && !showTagPicker && !showAttachPicker && !taggedUsers.length && !linkedContent) setPostExpanded(false)
                     feedMention.close()
                   }}
                   autoFocus={postExpanded && !newPostText}
@@ -2556,7 +2556,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
             {showTagPicker && (
               <div style={{ margin: '8px 0 0', background: '#FAFAF8', border: '1px solid #e0e0e0', borderRadius: 10, padding: 12 }}>
                 <input
-                  autoFocus
                   type="text"
                   placeholder={lang === 'da' ? '🔍 Søg personer…' : '🔍 Search people…'}
                   value={tagSearch}
