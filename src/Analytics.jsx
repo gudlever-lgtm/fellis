@@ -55,102 +55,187 @@ const TOP_POSTS_LOADING = [
 ]
 
 // ── SVG Line Chart ──
-function LineChart({ data, color = '#2D6A4F', h = 90 }) {
+function LineChart({ data, color = '#2D6A4F', h = 100 }) {
+  const [hover, setHover] = useState(null)
   if (!data || data.length < 2) return null
   const vals = data.map(d => d.value)
   const min = Math.min(...vals)
   const max = Math.max(...vals)
   const range = max - min || 1
   const W = 400
+  const PAD_T = 16, PAD_B = 22, PAD_L = 36
 
-  const pts = data.map((d, i) => [
-    (i / (data.length - 1)) * W,
-    h - ((d.value - min) / range) * (h - 20) - 10,
-  ])
+  const py = v => PAD_T + ((max - v) / range) * (h - PAD_T - PAD_B)
+  const px = i => (i / (data.length - 1)) * W
+
+  const pts = data.map((d, i) => [px(i), py(d.value)])
   const ptStr = pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ')
-  const areaStr = `0,${h} ${ptStr} ${W},${h}`
+  const areaStr = `0,${h - PAD_B} ${ptStr} ${W},${h - PAD_B}`
 
+  const yTicks = [0.25, 0.5, 0.75, 1].map(t => min + t * range)
   const step = Math.max(1, Math.ceil(data.length / 6))
 
   return (
-    <div style={{ position: 'relative', paddingLeft: 28 }}>
-      <div style={{ position: 'absolute', top: 0, left: 0, fontSize: 10, color: '#aaa', lineHeight: 1 }}>{max.toLocaleString()}</div>
-      <div style={{ position: 'absolute', bottom: 20, left: 0, fontSize: 10, color: '#aaa', lineHeight: 1 }}>{min.toLocaleString()}</div>
-      <svg viewBox={`0 0 ${W} ${h + 22}`} style={{ width: '100%', height: h + 22 }}>
-        {[0.25, 0.5, 0.75].map(t => {
-          const y = h - t * (h - 20) - 10
-          return <line key={t} x1={0} y1={y} x2={W} y2={y} stroke="#f0f0f0" strokeWidth="1" />
-        })}
-        <polygon points={areaStr} fill={color} fillOpacity="0.08" />
-        <polyline points={ptStr} fill="none" stroke={color} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
-        {pts.map(([x, y], i) =>
-          i % step === 0 || i === data.length - 1
-            ? <circle key={i} cx={x} cy={y} r="3" fill={color} />
-            : null
-        )}
-        {data.filter((_, i) => i % step === 0 || i === data.length - 1).map((d, _, arr) => {
-          const idx = data.indexOf(d)
-          const x = (idx / (data.length - 1)) * W
+    <div style={{ position: 'relative' }}>
+      <svg viewBox={`0 0 ${W + PAD_L} ${h}`} style={{ width: '100%', height: h, display: 'block', overflow: 'visible' }}
+        onMouseLeave={() => setHover(null)}>
+        {/* Y grid + labels */}
+        {yTicks.map((v, ti) => {
+          const y = py(v)
           return (
-            <text key={idx} x={x} y={h + 18} textAnchor={idx === 0 ? 'start' : idx === data.length - 1 ? 'end' : 'middle'} fontSize="9" fill="#aaa">
-              {d.label}
-            </text>
+            <g key={ti}>
+              <line x1={PAD_L} y1={y} x2={PAD_L + W} y2={y} stroke="#f0f0f0" strokeWidth="1" />
+              <text x={PAD_L - 4} y={y + 3.5} textAnchor="end" fontSize="9" fill="#bbb">{Math.round(v)}</text>
+            </g>
           )
         })}
+        <g transform={`translate(${PAD_L},0)`}>
+          {/* Area fill */}
+          <polygon points={areaStr} fill={color} fillOpacity="0.07" />
+          {/* Line */}
+          <polyline points={ptStr} fill="none" stroke={color} strokeWidth="1.8"
+            strokeLinejoin="round" strokeLinecap="round" />
+          {/* All data points */}
+          {pts.map(([x, y], i) => (
+            <circle key={i} cx={x} cy={y} r={hover === i ? 5 : 3}
+              fill={hover === i ? color : '#fff'}
+              stroke={color} strokeWidth="1.8"
+              style={{ cursor: 'default', transition: 'r 0.1s' }}
+              onMouseEnter={() => setHover(i)} />
+          ))}
+          {/* X axis labels */}
+          {data.map((d, i) => {
+            if (i % step !== 0 && i !== data.length - 1) return null
+            return (
+              <text key={i} x={px(i)} y={h - PAD_B + 13}
+                textAnchor={i === 0 ? 'start' : i === data.length - 1 ? 'end' : 'middle'}
+                fontSize="9" fill="#bbb">
+                {d.label}
+              </text>
+            )
+          })}
+          {/* Hover tooltip */}
+          {hover !== null && (() => {
+            const [x, y] = pts[hover]
+            const d = data[hover]
+            const tipW = 72, tipH = 30
+            const tx = Math.min(Math.max(x - tipW / 2, -PAD_L + 2), W - tipW + 4)
+            const ty = y - tipH - 8 < 0 ? y + 10 : y - tipH - 8
+            return (
+              <g>
+                <rect x={tx} y={ty} width={tipW} height={tipH} rx="5" fill="#1a1a2e" fillOpacity="0.88" />
+                <text x={tx + tipW / 2} y={ty + 11} textAnchor="middle" fontSize="9" fill="#ccc">{d.label}</text>
+                <text x={tx + tipW / 2} y={ty + 23} textAnchor="middle" fontSize="11" fill="#fff" fontWeight="700">{d.value.toLocaleString()}</text>
+              </g>
+            )
+          })()}
+        </g>
       </svg>
     </div>
   )
 }
 
 // ── SVG Dual Line Chart (for competitor view) ──
-function DualLineChart({ data, color1 = '#2D6A4F', color2 = '#E07A5F', h = 90 }) {
+function DualLineChart({ data, color1 = '#2D6A4F', color2 = '#E07A5F', h = 100 }) {
+  const [hover, setHover] = useState(null)
   if (!data || data.length < 2) return null
   const allVals = data.flatMap(d => [d.you, d.industry])
   const min = Math.min(...allVals)
   const max = Math.max(...allVals)
   const range = max - min || 1
   const W = 400
+  const PAD_T = 16, PAD_B = 22, PAD_L = 36
 
-  const line = (key) => data.map((d, i) => [
-    (i / (data.length - 1)) * W,
-    h - ((d[key] - min) / range) * (h - 20) - 10,
-  ]).map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ')
+  const py = v => PAD_T + ((max - v) / range) * (h - PAD_T - PAD_B)
+  const px = i => (i / (data.length - 1)) * W
+  const pts1 = data.map((d, i) => [px(i), py(d.you)])
+  const pts2 = data.map((d, i) => [px(i), py(d.industry)])
+  const line = pts => pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ')
+  const step = Math.max(1, Math.ceil(data.length / 6))
+  const yTicks = [0.25, 0.5, 0.75, 1].map(t => min + t * range)
 
   return (
-    <svg viewBox={`0 0 ${W} ${h}`} style={{ width: '100%', height: h }}>
-      {[0.25, 0.5, 0.75].map(t => {
-        const y = h - t * (h - 20) - 10
-        return <line key={t} x1={0} y1={y} x2={W} y2={y} stroke="#f0f0f0" strokeWidth="1" />
-      })}
-      <polyline points={line('you')} fill="none" stroke={color1} strokeWidth="2.5" strokeLinejoin="round" />
-      <polyline points={line('industry')} fill="none" stroke={color2} strokeWidth="2" strokeDasharray="6 4" strokeLinejoin="round" />
-    </svg>
+    <div style={{ position: 'relative' }}>
+      <svg viewBox={`0 0 ${W + PAD_L} ${h}`} style={{ width: '100%', height: h, display: 'block', overflow: 'visible' }}
+        onMouseLeave={() => setHover(null)}>
+        {yTicks.map((v, ti) => {
+          const y = py(v)
+          return (
+            <g key={ti}>
+              <line x1={PAD_L} y1={y} x2={PAD_L + W} y2={y} stroke="#f0f0f0" strokeWidth="1" />
+              <text x={PAD_L - 4} y={y + 3.5} textAnchor="end" fontSize="9" fill="#bbb">{Math.round(v)}</text>
+            </g>
+          )
+        })}
+        <g transform={`translate(${PAD_L},0)`}>
+          <polyline points={line(pts2)} fill="none" stroke={color2} strokeWidth="1.5"
+            strokeDasharray="5 3" strokeLinejoin="round" />
+          <polyline points={line(pts1)} fill="none" stroke={color1} strokeWidth="1.8"
+            strokeLinejoin="round" strokeLinecap="round" />
+          {pts1.map(([x, y], i) => (
+            <circle key={i} cx={x} cy={y} r={hover === i ? 5 : 2.5}
+              fill={hover === i ? color1 : '#fff'} stroke={color1} strokeWidth="1.8"
+              onMouseEnter={() => setHover(i)} style={{ cursor: 'default' }} />
+          ))}
+          {data.map((d, i) => {
+            if (i % step !== 0 && i !== data.length - 1) return null
+            return (
+              <text key={i} x={px(i)} y={h - PAD_B + 13}
+                textAnchor={i === 0 ? 'start' : i === data.length - 1 ? 'end' : 'middle'}
+                fontSize="9" fill="#bbb">{d.label}</text>
+            )
+          })}
+          {hover !== null && (() => {
+            const [x, y] = pts1[hover]
+            const d = data[hover]
+            const tipW = 100, tipH = 42
+            const tx = Math.min(Math.max(x - tipW / 2, -PAD_L + 2), W - tipW + 4)
+            const ty = y - tipH - 8 < 0 ? y + 10 : y - tipH - 8
+            return (
+              <g>
+                <rect x={tx} y={ty} width={tipW} height={tipH} rx="5" fill="#1a1a2e" fillOpacity="0.88" />
+                <text x={tx + tipW / 2} y={ty + 11} textAnchor="middle" fontSize="9" fill="#ccc">{d.label}</text>
+                <text x={tx + 8} y={ty + 25} fontSize="10" fill={color1} fontWeight="700">You: {d.you.toLocaleString()}</text>
+                <text x={tx + 8} y={ty + 37} fontSize="10" fill={color2}>Avg: {d.industry.toLocaleString()}</text>
+              </g>
+            )
+          })()}
+        </g>
+      </svg>
+    </div>
   )
 }
 
 // ── SVG Bar Chart ──
 function BarChart({ data, color = '#2D6A4F', h = 90 }) {
+  const [hover, setHover] = useState(null)
   if (!data || !data.length) return null
   const max = Math.max(...data.map(d => d.value))
   const W = 400
-  const barW = (W / data.length) * 0.6
+  const PAD_B = 22
+  const barW = Math.min(40, (W / data.length) * 0.55)
   const gap = W / data.length
 
   return (
-    <svg viewBox={`0 0 ${W} ${h + 22}`} style={{ width: '100%', height: h + 22 }}>
+    <svg viewBox={`0 0 ${W} ${h + PAD_B}`} style={{ width: '100%', height: h + PAD_B, display: 'block', overflow: 'visible' }}
+      onMouseLeave={() => setHover(null)}>
       {data.map((d, i) => {
-        const bh = Math.max(4, (d.value / max) * (h - 16))
+        const bh = Math.max(3, (d.value / max) * (h - 10))
         const x = i * gap + (gap - barW) / 2
         const y = h - bh
+        const isHov = hover === i
         return (
-          <g key={i}>
-            <rect x={x} y={y} width={barW} height={bh} rx="3" fill={color} fillOpacity="0.82" />
-            <text x={x + barW / 2} y={y - 3} textAnchor="middle" fontSize="9" fill={color} fontWeight="600">
-              {d.value.toLocaleString()}
-            </text>
-            <text x={x + barW / 2} y={h + 16} textAnchor="middle" fontSize="9" fill="#888">
+          <g key={i} onMouseEnter={() => setHover(i)} style={{ cursor: 'default' }}>
+            <rect x={x} y={y} width={barW} height={bh} rx="3"
+              fill={color} fillOpacity={isHov ? 1 : 0.72} />
+            <text x={x + barW / 2} y={h + PAD_B - 6} textAnchor="middle" fontSize="9" fill="#999">
               {d.label}
             </text>
+            {isHov && (
+              <text x={x + barW / 2} y={y - 5} textAnchor="middle" fontSize="10" fill={color} fontWeight="700">
+                {d.value.toLocaleString()}
+              </text>
+            )}
           </g>
         )
       })}
@@ -162,19 +247,19 @@ function BarChart({ data, color = '#2D6A4F', h = 90 }) {
 function HBarChart({ data, color = '#2D6A4F', valueKey = 'pct', suffix = '' }) {
   const max = Math.max(...data.map(d => d[valueKey] ?? d.value ?? d.pct))
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       {data.map((d, i) => {
         const val = d[valueKey] ?? d.value ?? d.pct
         const pct = (val / max) * 100
         return (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 120, fontSize: 12, color: '#555', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ width: 110, fontSize: 12, color: '#555', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {d.label}
             </div>
-            <div style={{ flex: 1, height: 20, background: '#f5f5f5', borderRadius: 4, overflow: 'hidden' }}>
-              <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 4, transition: 'width 0.4s ease' }} />
+            <div style={{ flex: 1, height: 6, background: '#f0f0f0', borderRadius: 99, overflow: 'hidden' }}>
+              <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 99, transition: 'width 0.4s ease' }} />
             </div>
-            <div style={{ fontSize: 12, color: '#333', fontWeight: 600, minWidth: 44, textAlign: 'right' }}>
+            <div style={{ fontSize: 12, color: '#333', fontWeight: 600, minWidth: 40, textAlign: 'right' }}>
               {typeof val === 'number' && val > 999 ? val.toLocaleString() : val}{suffix}
             </div>
           </div>
