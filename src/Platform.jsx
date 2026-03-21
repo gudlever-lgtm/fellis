@@ -1425,6 +1425,9 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [locationQuery, setLocationQuery] = useState('')
   const [locationSuggestions, setLocationSuggestions] = useState([])
   const [locationSearching, setLocationSearching] = useState(false)
+  const [locationSearchOpen, setLocationSearchOpen] = useState(false)
+  const [locationSearchText, setLocationSearchText] = useState('')
+  const [locationResults, setLocationResults] = useState([])
   const locationDebounce = useRef(null)
   // Signal engine: track dwell time on posts via IntersectionObserver
   const dwellTimers = useRef(new Map())   // postId → { startMs, postId, categories }
@@ -1481,6 +1484,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   // ── 🥚 Easter Eggs ──────────────────────────────────────────────────────────
   // Keyboard/Konami triggers are global (Platform level).
   // FeedPage registers DOM-effect callbacks via feedEggRef so Platform can call them.
+  const { triggerEgg } = useEasterEggs()
   const [riddlerActive,  setRiddlerActive]  = useState(false)
   const flipActiveRef    = useRef(false)
   const retroActiveRef   = useRef(false)

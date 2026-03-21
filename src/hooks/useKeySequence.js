@@ -19,6 +19,10 @@ export default function useKeySequence(sequence, onMatch, timeWindow = 2000, ena
     const keys = sequence.toLowerCase().split('')
 
     const handler = (e) => {
+      // Skip when typing in an input field
+      const tag = e.target?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target?.isContentEditable) return
+
       const key = e.key.toLowerCase()
       const now = Date.now()
       const recent = [
@@ -33,7 +37,8 @@ export default function useKeySequence(sequence, onMatch, timeWindow = 2000, ena
       }
     }
 
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
+    // Capture phase — fires before any element can stopPropagation
+    window.addEventListener('keydown', handler, { capture: true })
+    return () => window.removeEventListener('keydown', handler, { capture: true })
   }, [sequence, timeWindow, enabled])
 }
