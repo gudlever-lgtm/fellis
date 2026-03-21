@@ -1,4 +1,8 @@
 /* ── Layout ── */
+:root {
+  --content-max-width: 800px;
+}
+
 .app {
   min-height: 100vh;
 }
@@ -4670,7 +4674,7 @@
 
 /* ─── Analytics Page ───────────────────────── */
 .p-analytics {
-  max-width: 800px;
+  max-width: var(--content-max-width);
   margin: 0 auto;
   padding-bottom: 40px;
 }
