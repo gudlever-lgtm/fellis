@@ -5560,11 +5560,12 @@ app.get('/api/ads', authenticate, async (req, res) => {
       const [[userRow]] = await pool.query('SELECT ads_free FROM users WHERE id = ?', [req.userId])
       if (userRow?.ads_free) return res.json({ ads: [], ads_free: true })
       const placement = req.query.placement || 'feed'
-      const limitMap = { feed: settings.max_ads_feed, sidebar: settings.max_ads_sidebar, stories: settings.max_ads_stories }
+      // All ads run across all placements — no placement filter
+      const limitMap = { feed: settings.max_ads_feed, sidebar: settings.max_ads_sidebar, stories: settings.max_ads_stories, reels: settings.max_ads_feed }
       const limit = limitMap[placement] || 1
       ;[rows] = await pool.query(
-        `SELECT * FROM ads WHERE status = 'active' AND placement = ? AND (start_date IS NULL OR start_date <= CURDATE()) AND (end_date IS NULL OR end_date >= CURDATE()) ORDER BY RAND() LIMIT ?`,
-        [placement, limit]
+        `SELECT * FROM ads WHERE status = 'active' AND (start_date IS NULL OR start_date <= CURDATE()) AND (end_date IS NULL OR end_date >= CURDATE()) ORDER BY RAND() LIMIT ?`,
+        [limit]
       )
       return res.json({ ads: rows, refresh_interval: settings.refresh_interval_seconds })
     } else {

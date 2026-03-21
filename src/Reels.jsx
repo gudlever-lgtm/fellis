@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { nameToColor, getInitials, REACTIONS } from './data.js'
 import { apiFetchReels, apiUploadReel, apiToggleReelLike, apiFetchReelComments, apiAddReelComment, apiDeleteReel, apiSearchUsers } from './api.js'
+import AdBanner from './AdBanner.jsx'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -329,9 +330,9 @@ function ReelCard({ reel, t, currentUser, onDelete, onViewProfile }) {
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 680
 
   return (
-    <div style={{ display: 'flex', gap: 20, maxWidth: 800, margin: '0 auto 32px', alignItems: 'flex-start', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+    <div style={{ display: 'flex', gap: 20, maxWidth: 800, margin: isMobile ? '0 0 24px' : '0 auto 32px', alignItems: 'flex-start', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
       {/* ── Reel video card ── */}
-      <div style={{ ...s.card, margin: 0, flex: '0 0 auto', width: isMobile ? '100%' : 420 }}>
+      <div style={{ ...s.card, margin: 0, flex: '0 0 auto', width: '100%', maxWidth: isMobile ? '100%' : 420, borderRadius: isMobile ? 0 : 16 }}>
       <div style={s.videoWrap}>
         <video
           ref={videoRef}
@@ -369,8 +370,8 @@ function ReelCard({ reel, t, currentUser, onDelete, onViewProfile }) {
         >
           {looping ? '🔁' : '1️⃣'}
         </button>
-        {/* Info overlay toggle — shows reel details on mobile */}
-        <button
+        {/* Info overlay toggle — only shown in responsive/mobile mode */}
+        {isMobile && <button
           onClick={() => setShowInfoOverlay(v => !v)}
           title="Info"
           style={{
@@ -383,9 +384,9 @@ function ReelCard({ reel, t, currentUser, onDelete, onViewProfile }) {
           }}
         >
           ℹ️
-        </button>
-        {/* Info overlay panel */}
-        {showInfoOverlay && (
+        </button>}
+        {/* Info overlay panel — only on mobile */}
+        {isMobile && showInfoOverlay && (
           <div style={{
             position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
             background: 'rgba(0,0,0,0.75)', zIndex: 5,
@@ -841,11 +842,13 @@ export default function ReelsPage({ t, currentUser, initialReelId, onViewProfile
     setReels(prev => prev.filter(r => r.id !== id))
   }
 
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 680
+
   const s = {
     page: {
-      maxWidth: 480,
-      margin: '0 auto',
-      padding: '24px 16px',
+      maxWidth: isMobile ? '100%' : 480,
+      margin: isMobile ? '0 -8px' : '0 auto',   // cancel out p-content padding on mobile
+      padding: isMobile ? '16px 0' : '24px 16px',
     },
     header: {
       display: 'flex',
@@ -907,7 +910,7 @@ export default function ReelsPage({ t, currentUser, initialReelId, onViewProfile
         <div style={s.empty}>{t.reelsNoReels}</div>
       )}
 
-      {reels.map(reel => (
+      {reels.map((reel, idx) => (
         <div key={reel.id} id={`reel-${reel.id}`}>
           <ReelCard
             reel={reel}
@@ -916,6 +919,12 @@ export default function ReelsPage({ t, currentUser, initialReelId, onViewProfile
             onDelete={handleDelete}
             onViewProfile={onViewProfile}
           />
+          {/* Ad after every 3rd reel */}
+          {(idx + 1) % 3 === 0 && (
+            <div style={{ margin: isMobile ? '0 0 24px' : '0 auto 32px', maxWidth: isMobile ? '100%' : 420 }}>
+              <AdBanner placement="reels" lang={t.lang || 'da'} />
+            </div>
+          )}
         </div>
       ))}
 

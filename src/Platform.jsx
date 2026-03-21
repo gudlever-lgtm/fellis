@@ -426,35 +426,54 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
               <span className="p-nav-tab-icon">{'⋯'}</span>
               <span className="p-nav-tab-label">{lang === 'da' ? 'Mere' : 'More'}</span>
             </button>
-            {showMoreMenu && (
-              <div style={{
-                position: 'absolute', top: '100%', left: 0, zIndex: 200,
-                background: '#fff', borderRadius: 10, boxShadow: '0 4px 20px rgba(0,0,0,0.13)',
-                border: '1px solid #e8e8e4', minWidth: 160, padding: '6px 0',
-              }}>
-                {[
-                  { id: 'friends', icon: '👥', label: mode === 'business' ? t.connectionsLabel : t.friends },
-                  { id: 'calendar', icon: '🗓️', label: t.calendar || (lang === 'da' ? 'Kalender' : 'Calendar') },
-                  { id: 'marketplace', icon: '🛍️', label: t.marketplace || (lang === 'da' ? 'Marked' : 'Marketplace') },
-                  { id: 'jobs', icon: '💼', label: t.jobs || 'Jobs' },
-                  ...(mode === 'business' ? [
-                    { id: 'company', icon: '🏢', label: t.companies || (lang === 'da' ? 'Virksomheder' : 'Companies') },
-                  ] : []),
-                ].map(item => (
-                  <button key={item.id}
-                    onClick={() => { navigateTo(item.id); setShowMoreMenu(false); setShowMobileMenu(false) }}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-                      padding: '9px 16px', background: page === item.id ? '#f0f7f4' : 'none',
-                      border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: page === item.id ? 700 : 400,
-                      color: page === item.id ? '#2D6A4F' : '#333', textAlign: 'left',
-                    }}
-                  >
-                    <span>{item.icon}</span> {item.label}
-                  </button>
-                ))}
-              </div>
-            )}
+            {showMoreMenu && (() => {
+              const moreItems = [
+                { id: 'friends', icon: '👥', label: mode === 'business' ? t.connectionsLabel : t.friends },
+                { id: 'calendar', icon: '🗓️', label: t.calendar || (lang === 'da' ? 'Kalender' : 'Calendar') },
+                { id: 'marketplace', icon: '🛍️', label: t.marketplace || (lang === 'da' ? 'Marked' : 'Marketplace') },
+                { id: 'jobs', icon: '💼', label: t.jobs || 'Jobs' },
+                ...(mode === 'business' ? [{ id: 'company', icon: '🏢', label: t.companies || (lang === 'da' ? 'Virksomheder' : 'Companies') }] : []),
+              ]
+              // Mobile: inline accordion (absolute dropdown gets clipped by overflow:auto container)
+              if (showMobileMenu) {
+                return (
+                  <div style={{ borderTop: '1px solid #f0ede9' }}>
+                    {moreItems.map(item => (
+                      <button key={item.id}
+                        onClick={() => { navigateTo(item.id); setShowMoreMenu(false); setShowMobileMenu(false) }}
+                        className={`p-nav-tab${page === item.id ? ' active' : ''}`}
+                        style={{ width: '100%', borderRadius: 0, paddingLeft: 36, fontSize: 14 }}
+                      >
+                        <span className="p-nav-tab-icon">{item.icon}</span>
+                        <span className="p-nav-tab-label">{item.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )
+              }
+              // Desktop: absolute dropdown
+              return (
+                <div style={{
+                  position: 'absolute', top: '100%', left: 0, zIndex: 200,
+                  background: '#fff', borderRadius: 10, boxShadow: '0 4px 20px rgba(0,0,0,0.13)',
+                  border: '1px solid #e8e8e4', minWidth: 160, padding: '6px 0',
+                }}>
+                  {moreItems.map(item => (
+                    <button key={item.id}
+                      onClick={() => { navigateTo(item.id); setShowMoreMenu(false); setShowMobileMenu(false) }}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                        padding: '9px 16px', background: page === item.id ? '#f0f7f4' : 'none',
+                        border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: page === item.id ? 700 : 400,
+                        color: page === item.id ? '#2D6A4F' : '#333', textAlign: 'left',
+                      }}
+                    >
+                      <span>{item.icon}</span> {item.label}
+                    </button>
+                  ))}
+                </div>
+              )
+            })()}
           </div>
         </div>
         <div className="p-nav-right">
@@ -1520,16 +1539,45 @@ function FeedSidebar({ lang, t, adsFree, onNavigate }) {
   const da = lang === 'da'
   const [events, setEvents] = useState(null)
   const [suggestedFriends, setSuggestedFriends] = useState(null)
+  const [boostedListings, setBoostedListings] = useState(null)
 
   useEffect(() => {
     apiFetchEvents().then(d => { if (d?.events) setEvents(d.events.slice(0, 3)) })
     apiGetSuggestedUsers(4).then(d => { if (d?.users) setSuggestedFriends(d.users) })
+    apiGetBoostedFeedListings().then(d => { if (d?.listings) setBoostedListings(d.listings.slice(0, 4)) })
   }, [])
 
   return (
     <aside style={{ width: 280, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
       {/* Sidebar ad */}
       <AdBanner placement="sidebar" adsFree={adsFree} lang={lang} onGoAdFree={adsFree ? null : () => onNavigate('settings', 'billing')} />
+
+      {/* Boosted marketplace listings */}
+      {boostedListings && boostedListings.length > 0 && (
+        <div style={{ background: '#fff', border: '1px solid #E8E4DF', borderRadius: 12, padding: '14px 16px' }}>
+          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            🛍️ {da ? 'Fremhævet salg' : 'Featured listings'}
+            <button onClick={() => onNavigate('marketplace')} style={{ background: 'none', border: 'none', fontSize: 12, color: '#2D6A4F', cursor: 'pointer', fontWeight: 600 }}>{da ? 'Se alle' : 'See all'} →</button>
+          </div>
+          {boostedListings.map(l => {
+            const photo = Array.isArray(l.photos) ? l.photos[0] : null
+            const API_BASE = import.meta.env.VITE_API_URL || ''
+            const photoSrc = photo ? (photo.startsWith('http') ? photo : `${API_BASE}${photo}`) : null
+            return (
+              <div key={l.id} onClick={() => onNavigate('marketplace')} style={{ display: 'flex', gap: 10, marginBottom: 10, cursor: 'pointer', alignItems: 'center' }}>
+                {photoSrc
+                  ? <img src={photoSrc} alt="" style={{ width: 48, height: 48, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />
+                  : <div style={{ width: 48, height: 48, borderRadius: 8, background: '#f0f0f0', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🛍️</div>
+                }
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.title}</div>
+                  <div style={{ fontSize: 12, color: '#2D6A4F', fontWeight: 700 }}>{l.priceNegotiable ? (da ? 'Pris forhandles' : 'Negotiable') : (typeof l.price === 'number' ? `${l.price.toLocaleString(da ? 'da-DK' : 'en-US')} kr` : l.price)}</div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       {/* Upcoming events */}
       <div style={{ background: '#fff', border: '1px solid #E8E4DF', borderRadius: 12, padding: '14px 16px' }}>
@@ -13664,8 +13712,8 @@ function AdsManagementPage({ lang, t }) {
   const placementLabel = (p) => ({ feed: t.adsFeed, sidebar: t.adsSidebar, stories: t.adsStories }[p] || p)
   const ctr = (imp, cl) => imp > 0 ? ((cl / imp) * 100).toFixed(2) + '%' : '–'
 
-  const openCreate = () => { setForm({ title: '', body: '', image_url: '', target_url: '', placement: 'feed', start_date: '', end_date: '' }); setEditAd(null); setShowCreate(true) }
-  const openEdit = (ad) => { setForm({ title: ad.title, body: ad.body || '', image_url: ad.image_url || '', target_url: ad.target_url, placement: ad.placement, start_date: ad.start_date ? ad.start_date.slice(0,10) : '', end_date: ad.end_date ? ad.end_date.slice(0,10) : '' }); setEditAd(ad); setShowCreate(true) }
+  const openCreate = () => { setForm({ title: '', body: '', image_url: '', target_url: '', start_date: '', end_date: '' }); setEditAd(null); setShowCreate(true) }
+  const openEdit = (ad) => { setForm({ title: ad.title, body: ad.body || '', image_url: ad.image_url || '', target_url: ad.target_url, start_date: ad.start_date ? ad.start_date.slice(0,10) : '', end_date: ad.end_date ? ad.end_date.slice(0,10) : '' }); setEditAd(ad); setShowCreate(true) }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -13813,7 +13861,6 @@ function AdsManagementPage({ lang, t }) {
                   <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{ad.title}</div>
                   {ad.body && <div style={{ fontSize: 13, color: '#555', marginBottom: 6 }}>{ad.body}</div>}
                   <div style={{ display: 'flex', gap: 16, fontSize: 12, color: '#888', flexWrap: 'wrap' }}>
-                    <span>{t.adsPlacement}: <strong>{placementLabel(ad.placement)}</strong></span>
                     <span>{t.adsStatus}: <strong style={{ color: ad.status === 'active' ? '#2D6A4F' : ad.status === 'paused' ? '#e67e22' : '#aaa' }}>{statusLabel(ad.status)}</strong></span>
                     <span>{t.adsImpressions}: <strong>{ad.impressions}</strong></span>
                     <span>{t.adsClicks}: <strong>{ad.clicks}</strong></span>
