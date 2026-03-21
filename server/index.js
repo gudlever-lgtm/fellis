@@ -6653,6 +6653,40 @@ app.delete('/api/admin/interest-categories/:id', authenticate, requireAdmin, asy
   }
 })
 
+// PATCH /api/admin/interest-categories/reorder — bulk update sort_order
+app.patch('/api/admin/interest-categories/reorder', authenticate, requireAdmin, async (req, res) => {
+  const { order } = req.body // array of ids in new order
+  if (!Array.isArray(order)) return res.status(400).json({ error: 'order must be an array' })
+  try {
+    for (let i = 0; i < order.length; i++) {
+      await pool.query('UPDATE interest_categories SET sort_order=? WHERE id=?', [i * 10, order[i]])
+    }
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// POST /api/admin/notify-all — broadcast a system notification to all (or targeted) users
+app.post('/api/admin/notify-all', authenticate, requireAdmin, async (req, res) => {
+  const { message_da, message_en, target = 'all' } = req.body
+  if (!message_da?.trim() || !message_en?.trim()) return res.status(400).json({ error: 'message_da and message_en required' })
+  try {
+    let userRows
+    if (target === 'business') {
+      ;[userRows] = await pool.query("SELECT id FROM users WHERE account_mode = 'business' AND deleted_at IS NULL")
+    } else {
+      ;[userRows] = await pool.query('SELECT id FROM users WHERE deleted_at IS NULL')
+    }
+    for (const u of userRows) {
+      await createNotification(u.id, 'system', message_da.trim(), message_en.trim())
+    }
+    res.json({ ok: true, sent: userRows.length })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 // GET /api/admin/env-status — check which env vars are set (admin only, no values exposed)
 app.get('/api/admin/env-status', authenticate, requireAdmin, async (req, res) => {
   const ENV_VARS = [

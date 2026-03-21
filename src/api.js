@@ -657,6 +657,13 @@ export async function apiAdminUpdateInterestCategory(id, data) {
 export async function apiAdminDeleteInterestCategory(id) {
   return await request(`/api/admin/interest-categories/${id}`, { method: 'DELETE' })
 }
+export async function apiAdminReorderInterestCategories(order) {
+  return await request('/api/admin/interest-categories/reorder', { method: 'PATCH', body: JSON.stringify({ order }) })
+}
+
+export async function apiAdminNotifyAll(messageDa, messageEn, target = 'all') {
+  return await request('/api/admin/notify-all', { method: 'POST', body: JSON.stringify({ message_da: messageDa, message_en: messageEn, target }) })
+}
 
 export async function apiGetAdminStats() {
   return await request('/api/admin/stats')

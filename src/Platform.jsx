@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } f
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { SUPPORTED_LANGS, EUROPEAN_LANGUAGES, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials, getTranslations } from './data.js'
 import { formatPrice } from './utils/currency.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiRevealPassword, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals, apiFetchCalendarReminders, apiCreateCalendarReminder, apiDeleteCalendarReminder, apiGetLinkedContent, apiFetchJobs } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiRevealPassword, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals, apiFetchCalendarReminders, apiCreateCalendarReminder, apiDeleteCalendarReminder, apiGetLinkedContent, apiFetchJobs, apiGetSuggestedUsers, apiAdminNotifyAll } from './api.js'
 import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
 import ReelsPage from './Reels.jsx'
@@ -20,7 +20,7 @@ import MatrixRain from './components/easter-eggs/MatrixRain.jsx'
 import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
 import RickRoll from './components/easter-eggs/RickRoll.jsx'
 import RiddleBanner from './components/easter-eggs/RiddleBanner.jsx'
-import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory } from './api.js'
+import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories } from './api.js'
 import { BADGES, BADGE_BY_ID } from './badges/badgeDefinitions.js'
 import BadgeToastQueue from './components/BadgeToast.jsx'
 import ModeGate from './components/ModeGate.jsx'
@@ -36,17 +36,28 @@ const API_BASE = import.meta.env.VITE_API_URL || ''
 function EggHintsContextMenu({ lang }) {
   const [pos, setPos] = useState(null)       // { x, y } | null
   const [hints, setHints] = useState(null)   // null = not yet fetched
+  const [foundEggs, setFoundEggs] = useState({}) // egg_id → true if discovered
   const menuRef = useRef(null)
 
-  // Fetch hints once on first right-click
+  // Fetch hints + discovered eggs once on first right-click
   const ensureHints = useCallback(async () => {
     if (hints !== null) return
-    const data = await apiGetEasterEggHints().catch(() => null)
-    setHints(data?.hints?.length ? data.hints : [
-      { hint: 'har en mening' },
-      { hint: 'G G' },
-      { hint: 'Going down!' },
+    const [data, eggData] = await Promise.all([
+      apiGetEasterEggHints().catch(() => null),
+      apiGetMyEasterEggs().catch(() => null),
     ])
+    setHints(data?.hints?.length ? data.hints : [
+      { id: 'chuck',    hint: 'har en mening' },
+      { id: 'gravity',  hint: 'G G' },
+      { id: 'rickroll', hint: 'Going down!' },
+    ])
+    if (eggData?.eggs) {
+      const found = {}
+      for (const [id, info] of Object.entries(eggData.eggs)) {
+        if (info.discovered) found[id] = true
+      }
+      setFoundEggs(found)
+    }
   }, [hints])
 
   useEffect(() => {
@@ -81,11 +92,16 @@ function EggHintsContextMenu({ lang }) {
       </div>
       {hints === null
         ? <div style={{ padding: '10px 14px', color: '#888' }}>…</div>
-        : hints.map((h, i) => (
-          <div key={i} style={{ padding: '8px 14px', borderBottom: i < hints.length - 1 ? '1px solid #2a2a2a' : 'none', color: '#e0e0e0' }}>
-            🗝️ {h.hint}
-          </div>
-        ))
+        : hints.map((h, i) => {
+          const found = h.id && foundEggs[h.id]
+          return (
+            <div key={i} style={{ padding: '8px 14px', borderBottom: i < hints.length - 1 ? '1px solid #2a2a2a' : 'none', color: found ? '#F5C842' : '#e0e0e0', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 15 }}>{found ? '🥚' : '🗝️'}</span>
+              <span style={{ flex: 1 }}>{h.hint}</span>
+              {found && <span style={{ fontSize: 10, color: '#F5C842', fontWeight: 700, letterSpacing: 0.3 }}>FUNDET</span>}
+            </div>
+          )
+        })
       }
     </div>
   )
@@ -548,21 +564,24 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
         </div>
       </nav>
 
-      <div className="p-content">
-        <div style={{ display: page === 'feed' ? '' : 'none' }}>
-          <FeedPage lang={lang} t={t} currentUser={currentUser} mode={mode} adsFree={adsFree} highlightPostId={highlightPostId} onHighlightCleared={() => setHighlightPostId(null)}
-            onViewProfile={(uid) => { setViewUserId(uid); navigateTo('view-profile') }}
-            onViewOwnProfile={() => navigateTo('profile')}
-            onNavigate={navigateTo}
-            onBadgeCheck={checkBadges}
-            feedEggRef={feedEggRef}
-            onTriggerChuck={triggerChuckGlobal}
-            onTriggerMatrix={triggerMatrixGlobal}
-            onTriggerRickroll={() => { if (!rickrollGlobalActive && triggerGlobalEgg('rickroll', checkBadges)) setRickrollGlobalActive(true) }}
-            onTriggerParty={triggerPartyGlobal}
-            onTriggerRetro={triggerRetroGlobal}
-            interestCategories={interestCategories}
-          />
+      <div className={page === 'feed' ? 'p-content p-content-feed' : 'p-content'}>
+        <div style={{ display: page === 'feed' ? 'contents' : 'none' }}>
+          <div className="p-feed-main">
+            <FeedPage lang={lang} t={t} currentUser={currentUser} mode={mode} adsFree={adsFree} highlightPostId={highlightPostId} onHighlightCleared={() => setHighlightPostId(null)}
+              onViewProfile={(uid) => { setViewUserId(uid); navigateTo('view-profile') }}
+              onViewOwnProfile={() => navigateTo('profile')}
+              onNavigate={navigateTo}
+              onBadgeCheck={checkBadges}
+              feedEggRef={feedEggRef}
+              onTriggerChuck={triggerChuckGlobal}
+              onTriggerMatrix={triggerMatrixGlobal}
+              onTriggerRickroll={() => { if (!rickrollGlobalActive && triggerGlobalEgg('rickroll', checkBadges)) setRickrollGlobalActive(true) }}
+              onTriggerParty={triggerPartyGlobal}
+              onTriggerRetro={triggerRetroGlobal}
+              interestCategories={interestCategories}
+            />
+          </div>
+          <FeedSidebar lang={lang} t={t} adsFree={adsFree} onNavigate={navigateTo} />
         </div>
         {page === 'reels' && <ReelsPage t={t} currentUser={currentUser} initialReelId={navParam?.reelId} onViewProfile={(userId) => navigateTo('view-profile', { userId })} />}
         {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onBadgeCheck={checkBadges} interestCategories={interestCategories} />}
@@ -855,12 +874,16 @@ function extractFirstUrl(text) {
 
 function linkifyText(text) {
   const parts = []
-  const re = /https?:\/\/[^\s<>"']+|@[A-Za-zÀ-ÖØ-öø-ÿ]\w*/g
+  // Match @[Full Name] bracket mentions, plain @word mentions, and URLs
+  const re = /https?:\/\/[^\s<>"']+|@\[([^\]]+)\]|@[A-Za-zÀ-ÖØ-öø-ÿ]\w*/g
   let last = 0, m
   while ((m = re.exec(text)) !== null) {
     const raw = m[0]
     if (m.index > last) parts.push({ t: 'text', v: text.slice(last, m.index) })
-    if (raw.startsWith('@')) {
+    if (raw.startsWith('@[')) {
+      // Bracket mention — m[1] is the name inside brackets
+      parts.push({ t: 'mention', v: `@${m[1]}` })
+    } else if (raw.startsWith('@')) {
       parts.push({ t: 'mention', v: raw })
     } else {
       const url = raw.replace(/[.,!?;:)>]+$/, '')
@@ -1055,7 +1078,9 @@ function useMention(friends) {
 
   const detect = useCallback((text, cursor) => {
     const before = text.slice(0, cursor)
-    const m = before.match(/@([^\s@]*)$/)
+    // Don't trigger inside a completed @[...] bracket
+    if (/@\[[^\]]*$/.test(before)) { setQuery(null); return }
+    const m = before.match(/@([^\s@\[]*)$/)
     if (m) { setQuery(m[1]); setSelIdx(0) } else setQuery(null)
   }, [])
 
@@ -1073,10 +1098,10 @@ function useMention(friends) {
   const buildText = useCallback((text, cursor, friend) => {
     const before = text.slice(0, cursor)
     const atIdx = before.lastIndexOf('@')
-    const firstName = friend.name.split(' ')[0]
-    const newText = before.slice(0, atIdx) + '@' + firstName + ' ' + text.slice(cursor)
+    const tag = `@[${friend.name}]`
+    const newText = before.slice(0, atIdx) + tag + ' ' + text.slice(cursor)
     setQuery(null)
-    return { text: newText, cursor: atIdx + firstName.length + 2 }
+    return { text: newText, cursor: atIdx + tag.length + 1 }
   }, [])
 
   return { query, filtered, selIdx, detect, close, handleKey, buildText }
@@ -1490,6 +1515,71 @@ function LinkedContentCard({ type, id, lang, onNavigate }) {
   )
 }
 
+// ── FeedSidebar ───────────────────────────────────────────────────────────────
+function FeedSidebar({ lang, t, adsFree, onNavigate }) {
+  const da = lang === 'da'
+  const [events, setEvents] = useState(null)
+  const [suggestedFriends, setSuggestedFriends] = useState(null)
+
+  useEffect(() => {
+    apiFetchEvents().then(d => { if (d?.events) setEvents(d.events.slice(0, 3)) })
+    apiGetSuggestedUsers(4).then(d => { if (d?.users) setSuggestedFriends(d.users) })
+  }, [])
+
+  return (
+    <aside style={{ width: 280, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {/* Sidebar ad */}
+      <AdBanner placement="sidebar" adsFree={adsFree} lang={lang} onGoAdFree={adsFree ? null : () => onNavigate('settings', 'billing')} />
+
+      {/* Upcoming events */}
+      <div style={{ background: '#fff', border: '1px solid #E8E4DF', borderRadius: 12, padding: '14px 16px' }}>
+        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          📅 {da ? 'Kommende begivenheder' : 'Upcoming events'}
+          <button onClick={() => onNavigate('events')} style={{ background: 'none', border: 'none', fontSize: 12, color: '#2D6A4F', cursor: 'pointer', fontWeight: 600 }}>{da ? 'Se alle' : 'See all'} →</button>
+        </div>
+        {!events ? <div style={{ color: '#bbb', fontSize: 13 }}>…</div>
+          : events.length === 0 ? <div style={{ color: '#aaa', fontSize: 13 }}>{da ? 'Ingen kommende begivenheder' : 'No upcoming events'}</div>
+          : events.map(ev => {
+            const title = typeof ev.title === 'string' ? ev.title : (ev.title?.[lang] || ev.title?.da || '')
+            const loc = typeof ev.location === 'string' ? ev.location : (ev.location?.[lang] || ev.location?.da || '')
+            const dt = ev.starts_at ? new Date(ev.starts_at).toLocaleDateString(da ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short' }) : ''
+            return (
+              <div key={ev.id} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'flex-start' }}>
+                <div style={{ background: '#F0FAF4', borderRadius: 8, padding: '4px 8px', fontSize: 11, fontWeight: 700, color: '#2D6A4F', whiteSpace: 'nowrap', minWidth: 40, textAlign: 'center' }}>{dt}</div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#222', lineHeight: 1.3 }}>{title}</div>
+                  {loc && <div style={{ fontSize: 11, color: '#888' }}>📍 {loc}</div>}
+                </div>
+              </div>
+            )
+          })
+        }
+      </div>
+
+      {/* Suggested friends */}
+      {suggestedFriends && suggestedFriends.length > 0 && (
+        <div style={{ background: '#fff', border: '1px solid #E8E4DF', borderRadius: 12, padding: '14px 16px' }}>
+          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10 }}>👥 {da ? 'Måske du kender' : 'People you may know'}</div>
+          {suggestedFriends.map(u => (
+            <div key={u.id} style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 10 }}>
+              <div style={{ width: 36, height: 36, borderRadius: '50%', background: u.avatar_url ? 'none' : nameToColor(u.name), flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff' }}>
+                {u.avatar_url ? <img src={u.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : getInitials(u.name)}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.name}</div>
+                {u.mutual_friends > 0 && <div style={{ fontSize: 11, color: '#888' }}>{u.mutual_friends} {da ? 'fælles venner' : 'mutual friends'}</div>}
+              </div>
+              <button onClick={() => onNavigate('view-profile', { userId: u.id })} style={{ padding: '4px 10px', borderRadius: 7, border: '1px solid #2D6A4F', color: '#2D6A4F', background: '#fff', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                {da ? 'Profil' : 'Profile'}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </aside>
+  )
+}
+
 function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onNavigate, onBadgeCheck, feedEggRef, onTriggerChuck, onTriggerMatrix, onTriggerRickroll, onTriggerParty, onTriggerRetro, interestCategories = INTEREST_CATEGORIES }) {
   const [posts, setPosts] = useState([])
   const [feedCategoryFilter, setFeedCategoryFilter] = useState(null)
@@ -1565,6 +1655,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [postCategories, setPostCategories] = useState(new Set())
   const [autoCategories, setAutoCategories] = useState(new Set())
   const [showCategoryPicker, setShowCategoryPicker] = useState(false)
+  const [catPickerSearch, setCatPickerSearch] = useState('')
   const [providerMediaUrls, setProviderMediaUrls] = useState([])
   // Tag people + link content to post
   const [taggedUsers, setTaggedUsers] = useState([])         // [{id, name, handle, avatar_url}]
@@ -1581,6 +1672,9 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const suggestCategoryTimer = useRef(null)
   const hintIconRef = useRef(null)
   const feedMention = useMention(sharePopupFriends || [])
+  const commentMention = useMention(sharePopupFriends || [])
+  const [commentMentionPostId, setCommentMentionPostId] = useState(null)
+  const commentInputRefs = useRef({}) // postId → input el
   const bottomSentinelRef = useRef(null)
   const feedContainerRef = useRef(null)
   const [feedSelectedEvent, setFeedSelectedEvent] = useState(null)
@@ -1918,6 +2012,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     setLinkedContent(null)
     setShowTagPicker(false)
     setShowAttachPicker(false)
+    setCatPickerSearch('')
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
   }, [mediaPreviews, currentUser.name])
 
@@ -2384,8 +2479,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   onBlur={e => {
                     // Don't collapse when focus moves to OS file dialog (relatedTarget is null)
                     if (!e.relatedTarget && !newPostText.trim() && !mediaPreviews.length) return
-                    // Don't collapse when location search is open (autoFocus on search input triggers blur)
-                    if (!newPostText.trim() && !mediaPreviews.length && !locationSearchOpen && !postLocation) setPostExpanded(false)
+                    // Don't collapse when any composer panel is open or content is attached
+                    if (!newPostText.trim() && !mediaPreviews.length && !locationSearchOpen && !postLocation && !showTagPicker && !showAttachPicker && !taggedUsers.length && !linkedContent) setPostExpanded(false)
                     feedMention.close()
                   }}
                   autoFocus={postExpanded && !newPostText}
@@ -2443,36 +2538,62 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
               </div>
             )}
 
-            {/* Category picker — all 18 categories, multiple allowed */}
+            {/* Category picker — search-as-you-type, shows selected + filtered results */}
             {showCategoryPicker && (
-              <div style={{ padding: '8px 12px', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {interestCategories.map(cat => {
-                  const isActive = postCategories.has(cat.id)
-                  return (
-                    <button
-                      key={cat.id}
-                      onMouseDown={e => e.preventDefault()}
-                      onClick={() => {
-                        setPostCategories(prev => {
-                          const n = new Set(prev)
-                          if (n.has(cat.id)) { n.delete(cat.id); setAutoCategories(a => { const b = new Set(a); b.delete(cat.id); return b }) }
-                          else n.add(cat.id)
-                          return n
-                        })
-                      }}
-                      style={{
-                        fontSize: 12, fontWeight: isActive ? 700 : 400,
-                        color: isActive ? '#fff' : '#444',
-                        background: isActive ? '#2D6A4F' : '#f4f4f4',
-                        border: `1.5px solid ${isActive ? '#2D6A4F' : '#e0e0e0'}`,
-                        borderRadius: 20, padding: '4px 12px', cursor: 'pointer',
-                        transition: 'all 0.12s',
-                      }}
-                    >
-                      {isActive ? '✓ ' : ''}{cat.icon} {cat[lang]}
-                    </button>
-                  )
-                })}
+              <div style={{ padding: '8px 12px 10px' }}>
+                <input
+                  type="text"
+                  placeholder={lang === 'da' ? '🔍 Søg kategori…' : '🔍 Search category…'}
+                  value={catPickerSearch}
+                  onChange={e => setCatPickerSearch(e.target.value)}
+                  style={{ width: '100%', padding: '6px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box', marginBottom: 8, outline: 'none' }}
+                />
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {(() => {
+                    const q = catPickerSearch.trim().toLowerCase()
+                    // Always show selected; show filtered matches when typing
+                    const visible = interestCategories.filter(cat =>
+                      postCategories.has(cat.id) ||
+                      (q.length >= 1 && (cat.da.toLowerCase().includes(q) || cat.en.toLowerCase().includes(q)))
+                    )
+                    if (visible.length === 0) {
+                      return (
+                        <span style={{ fontSize: 12, color: '#aaa' }}>
+                          {q.length === 0
+                            ? (lang === 'da' ? 'Skriv for at søge…' : 'Type to search…')
+                            : (lang === 'da' ? 'Ingen resultater' : 'No results')}
+                        </span>
+                      )
+                    }
+                    return visible.map(cat => {
+                      const isActive = postCategories.has(cat.id)
+                      return (
+                        <button
+                          key={cat.id}
+                          onMouseDown={e => e.preventDefault()}
+                          onClick={() => {
+                            setPostCategories(prev => {
+                              const n = new Set(prev)
+                              if (n.has(cat.id)) { n.delete(cat.id); setAutoCategories(a => { const b = new Set(a); b.delete(cat.id); return b }) }
+                              else n.add(cat.id)
+                              return n
+                            })
+                          }}
+                          style={{
+                            fontSize: 12, fontWeight: isActive ? 700 : 400,
+                            color: isActive ? '#fff' : '#444',
+                            background: isActive ? '#2D6A4F' : '#f4f4f4',
+                            border: `1.5px solid ${isActive ? '#2D6A4F' : '#e0e0e0'}`,
+                            borderRadius: 20, padding: '4px 12px', cursor: 'pointer',
+                            transition: 'all 0.12s',
+                          }}
+                        >
+                          {isActive ? '✓ ' : ''}{cat.icon} {cat[lang]}
+                        </button>
+                      )
+                    })
+                  })()}
+                </div>
               </div>
             )}
 
@@ -2556,7 +2677,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
             {showTagPicker && (
               <div style={{ margin: '8px 0 0', background: '#FAFAF8', border: '1px solid #e0e0e0', borderRadius: 10, padding: 12 }}>
                 <input
-                  autoFocus
                   type="text"
                   placeholder={lang === 'da' ? '🔍 Søg personer…' : '🔍 Search people…'}
                   value={tagSearch}
@@ -2719,10 +2839,10 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                     type="button"
                     onMouseDown={e => e.preventDefault()}
                     onClick={() => { setScheduleEnabled(v => !v); if (scheduleEnabled) setScheduledAt('') }}
-                    style={{ padding: '6px 12px', borderRadius: 8, border: `1px solid ${scheduleEnabled ? '#1877F2' : '#ddd'}`, background: scheduleEnabled ? '#EBF4FF' : '#fff', color: scheduleEnabled ? '#1877F2' : '#555', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                    style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${scheduleEnabled ? '#1877F2' : '#ddd'}`, background: scheduleEnabled ? '#EBF4FF' : '#fff', color: scheduleEnabled ? '#1877F2' : '#555', fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                     title={lang === 'da' ? 'Planlæg opslag' : 'Schedule post'}
                   >
-                    🕐 {lang === 'da' ? 'Planlæg' : 'Schedule'}
+                    🕐
                   </button>
                 )}
                 {scheduleEnabled && (
@@ -2738,8 +2858,11 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   <span className="p-input-hint-icon" ref={hintIconRef} data-egg-hints onClick={handleHintIconClick}>?</span>
                   <span className="p-input-hint-tooltip">{t.postInputHint}</span>
                 </span>
-                <button className="p-post-btn" onMouseDown={e => e.preventDefault()} onClick={handlePost} disabled={!newPostText.trim() && !mediaPreviews.length && !providerMediaUrls.length}>
-                  {scheduleEnabled && scheduledAt ? (lang === 'da' ? 'Planlæg' : 'Schedule') : t.post}
+                <button className="p-post-btn" onMouseDown={e => e.preventDefault()} onClick={handlePost} disabled={!newPostText.trim() && !mediaPreviews.length && !providerMediaUrls.length}
+                  title={scheduleEnabled && scheduledAt ? (lang === 'da' ? 'Planlæg' : 'Schedule') : t.post}
+                  style={{ minWidth: 0, padding: '8px 14px', fontSize: 18, lineHeight: 1 }}
+                >
+                  {scheduleEnabled && scheduledAt ? '🕐' : '→'}
                 </button>
               </div>
             </div>
@@ -3336,16 +3459,52 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                     <button className="p-media-preview-remove" onClick={() => removeCommentMedia(post.id)}>✕</button>
                   </div>
                 )}
-                <div className="p-comment-input-row">
+                <div className="p-comment-input-row" style={{ position: 'relative' }}>
                   <div className="p-avatar-xs" style={{ background: nameToColor(currentUser.name) }}>
                     {currentUser.initials || getInitials(currentUser.name)}
                   </div>
+                  {/* Mention dropdown anchored above the input */}
+                  {commentMentionPostId === post.id && commentMention.query !== null && commentMention.filtered.length > 0 && (
+                    <div style={{ position: 'absolute', bottom: '100%', left: 36, right: 80, zIndex: 50, marginBottom: 4 }}>
+                      <MentionDropdown
+                        filtered={commentMention.filtered}
+                        selIdx={commentMention.selIdx}
+                        onSelect={f => {
+                          const el = commentInputRefs.current[post.id]
+                          const cur = el?.selectionStart ?? (commentTexts[post.id] || '').length
+                          const { text, cursor: nc } = commentMention.buildText(commentTexts[post.id] || '', cur, f)
+                          setCommentTexts(prev => ({ ...prev, [post.id]: text }))
+                          setTimeout(() => { el?.focus(); el?.setSelectionRange(nc, nc) }, 0)
+                        }}
+                      />
+                    </div>
+                  )}
                   <input
+                    ref={el => { commentInputRefs.current[post.id] = el }}
                     className="p-comment-input"
-                    placeholder={t.writeComment}
+                    placeholder={`${t.writeComment} — @ ${lang === 'da' ? 'nævn' : 'mention'}, # ${lang === 'da' ? 'tag' : 'tag'}`}
                     value={commentTexts[post.id] || ''}
-                    onChange={e => setCommentTexts(prev => ({ ...prev, [post.id]: e.target.value }))}
-                    onKeyDown={e => e.key === 'Enter' && handleComment(post.id)}
+                    onChange={e => {
+                      const val = e.target.value
+                      setCommentTexts(prev => ({ ...prev, [post.id]: val }))
+                      setCommentMentionPostId(post.id)
+                      commentMention.detect(val, e.target.selectionStart)
+                      // Lazy-load friends for mention if not yet loaded
+                      if (val.includes('@') && sharePopupFriends === null) {
+                        apiFetchFriends().then(d => { if (d) setSharePopupFriends(d) })
+                      }
+                    }}
+                    onKeyDown={e => {
+                      if (commentMentionPostId === post.id && commentMention.handleKey(e, f => {
+                        const el = commentInputRefs.current[post.id]
+                        const cur = el?.selectionStart ?? (commentTexts[post.id] || '').length
+                        const { text, cursor: nc } = commentMention.buildText(commentTexts[post.id] || '', cur, f)
+                        setCommentTexts(prev => ({ ...prev, [post.id]: text }))
+                        setTimeout(() => { el?.focus(); el?.setSelectionRange(nc, nc) }, 0)
+                      })) return
+                      if (e.key === 'Enter') handleComment(post.id)
+                    }}
+                    onBlur={() => { setTimeout(() => commentMention.close(), 150) }}
                   />
                   <MediaPickerButton
                     lang={lang}
@@ -16013,14 +16172,86 @@ function AdminBadgesPanel({ lang }) {
   )
 }
 
+// ── AdminBroadcastPanel ───────────────────────────────────────────────────────
+function AdminBroadcastPanel({ lang }) {
+  const da = lang === 'da'
+  const [msgDa, setMsgDa] = useState('')
+  const [msgEn, setMsgEn] = useState('')
+  const [target, setTarget] = useState('all')
+  const [sending, setSending] = useState(false)
+  const [result, setResult] = useState(null) // { ok, sent } | { error }
+
+  const handleSend = async (e) => {
+    e.preventDefault()
+    if (!msgDa.trim() || !msgEn.trim()) return
+    if (!window.confirm(da ? `Send notifikation til ${target === 'all' ? 'alle brugere' : 'business-brugere'}?` : `Send notification to ${target === 'all' ? 'all users' : 'business users'}?`)) return
+    setSending(true)
+    setResult(null)
+    const res = await apiAdminNotifyAll(msgDa, msgEn, target)
+    if (res?.ok) {
+      setResult({ ok: true, sent: res.sent })
+      setMsgDa('')
+      setMsgEn('')
+    } else {
+      setResult({ error: res?.error || 'Fejl' })
+    }
+    setSending(false)
+  }
+
+  const fS = { width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }
+
+  return (
+    <div className="p-card" style={{ marginBottom: 20 }}>
+      <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700 }}>📣 {da ? 'Send notifikation til brugere' : 'Broadcast Notification'}</h3>
+      <p style={{ margin: '0 0 16px', fontSize: 13, color: '#888' }}>{da ? 'Notifikationen sendes til alle brugere som en system-besked i notifikationscentret.' : 'Notification is sent to users as a system message in the notification centre.'}</p>
+
+      {result && (
+        <div style={{ background: result.ok ? '#F0FAF4' : '#fff5f5', border: `1px solid ${result.ok ? '#c3e6cb' : '#fcc'}`, borderRadius: 8, padding: '10px 14px', fontSize: 13, marginBottom: 14 }}>
+          {result.ok ? `✓ ${da ? 'Sendt til' : 'Sent to'} ${result.sent} ${da ? 'brugere' : 'users'}` : `✕ ${result.error}`}
+        </div>
+      )}
+
+      <form onSubmit={handleSend}>
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>{da ? 'Modtager' : 'Target'}</label>
+          <div style={{ display: 'flex', gap: 10 }}>
+            {[['all', da ? 'Alle brugere' : 'All users'], ['business', da ? 'Business-brugere' : 'Business users']].map(([val, label]) => (
+              <label key={val} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
+                <input type="radio" name="target" value={val} checked={target === val} onChange={() => setTarget(val)} />
+                {label}
+              </label>
+            ))}
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>🇩🇰 Dansk besked</label>
+            <textarea style={{ ...fS, minHeight: 80 }} value={msgDa} onChange={e => setMsgDa(e.target.value)} placeholder="Skriv besked på dansk…" required />
+          </div>
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>🇬🇧 English message</label>
+            <textarea style={{ ...fS, minHeight: 80 }} value={msgEn} onChange={e => setMsgEn(e.target.value)} placeholder="Write message in English…" required />
+          </div>
+        </div>
+        <button type="submit" disabled={sending || !msgDa.trim() || !msgEn.trim()} style={{ padding: '9px 22px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', opacity: (!msgDa.trim() || !msgEn.trim()) ? 0.5 : 1 }}>
+          {sending ? (da ? 'Sender…' : 'Sending…') : `📣 ${da ? 'Send notifikation' : 'Send notification'}`}
+        </button>
+      </form>
+    </div>
+  )
+}
+
 // ── AdminInterestCategoriesPanel ──────────────────────────────────────────────
 function AdminInterestCategoriesPanel({ lang }) {
   const da = lang === 'da'
   const [cats, setCats] = useState(null)
   const [editId, setEditId] = useState(null) // id being edited, or 'new'
-  const [form, setForm] = useState({ id: '', da: '', en: '', icon: '⭐', sort_order: 0, active: 1 })
+  const [form, setForm] = useState({ id: '', da: '', en: '', icon: '⭐', active: 1 })
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState(null)
+  const [sortDir, setSortDir] = useState(null) // null=drag order, 'az', 'za'
+  const [dragOver, setDragOver] = useState(null) // id of row being dragged over
+  const dragSrc = useRef(null)
   const fS = { width: '100%', padding: '7px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13 }
 
   const load = () => apiAdminGetInterestCategories().then(d => { if (d?.categories) setCats(d.categories) })
@@ -16028,42 +16259,78 @@ function AdminInterestCategoriesPanel({ lang }) {
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2500) }
 
-  const startEdit = (cat) => {
-    setForm({ id: cat.id, da: cat.da, en: cat.en, icon: cat.icon || '⭐', sort_order: cat.sort_order || 0, active: cat.active ?? 1 })
+  const displayCats = cats ? (sortDir === 'az' ? [...cats].sort((a, b) => a.da.localeCompare(b.da)) : sortDir === 'za' ? [...cats].sort((a, b) => b.da.localeCompare(a.da)) : cats) : []
+
+  // Drag-and-drop handlers
+  const onDragStart = (e, id) => { dragSrc.current = id; e.dataTransfer.effectAllowed = 'move' }
+  const onDragOver = (e, id) => { e.preventDefault(); setDragOver(id) }
+  const onDrop = async (e, targetId) => {
+    e.preventDefault()
+    setDragOver(null)
+    if (!dragSrc.current || dragSrc.current === targetId) return
+    const base = sortDir ? displayCats : cats
+    const srcIdx = base.findIndex(c => c.id === dragSrc.current)
+    const tgtIdx = base.findIndex(c => c.id === targetId)
+    const next = [...base]
+    const [moved] = next.splice(srcIdx, 1)
+    next.splice(tgtIdx, 0, moved)
+    setCats(next)
+    setSortDir(null)
+    dragSrc.current = null
+    await apiAdminReorderInterestCategories(next.map(c => c.id))
+    showToast(da ? 'Rækkefølge gemt ✓' : 'Order saved ✓')
+  }
+  const onDragEnd = () => { dragSrc.current = null; setDragOver(null) }
+
+  const startEdit = (e, cat) => {
+    e.stopPropagation()
+    setForm({ id: cat.id, da: cat.da, en: cat.en, icon: cat.icon || '⭐', active: cat.active ?? 1 })
     setEditId(cat.id)
   }
 
   const startNew = () => {
-    setForm({ id: '', da: '', en: '', icon: '⭐', sort_order: 0, active: 1 })
+    setForm({ id: '', da: '', en: '', icon: '⭐', active: 1 })
     setEditId('new')
   }
 
   const handleSave = async (e) => {
     e.preventDefault()
     setSaving(true)
+    const payload = { ...form, sort_order: form.sort_order ?? 0 }
     if (editId === 'new') {
-      const res = await apiAdminCreateInterestCategory(form)
+      const res = await apiAdminCreateInterestCategory(payload)
       if (res?.ok) { showToast(da ? 'Oprettet ✓' : 'Created ✓'); setEditId(null); load() }
       else showToast(res?.error || 'Fejl')
     } else {
-      const res = await apiAdminUpdateInterestCategory(editId, form)
+      const res = await apiAdminUpdateInterestCategory(editId, payload)
       if (res?.ok) { showToast(da ? 'Gemt ✓' : 'Saved ✓'); setEditId(null); load() }
       else showToast(res?.error || 'Fejl')
     }
     setSaving(false)
   }
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (e, id) => {
+    e.stopPropagation()
     if (!window.confirm(da ? `Slet "${id}"?` : `Delete "${id}"?`)) return
     await apiAdminDeleteInterestCategory(id)
     showToast(da ? 'Slettet' : 'Deleted')
     load()
   }
 
-  const toggleActive = async (cat) => {
+  const toggleActive = async (e, cat) => {
+    e.stopPropagation()
     await apiAdminUpdateInterestCategory(cat.id, { ...cat, active: cat.active ? 0 : 1 })
     load()
   }
+
+  // Emoji picker state
+  const COMMON_EMOJIS = ['⭐','🎵','🎸','🎙️','🎻','💃','🎬','🎌','💬','🎤','🎪','🎲','🎮','🏆','⚽','🏀','🎾','⛳','🚴','🏃','🏊','🏋️','🧘','🥋','⛷️','🏄','🧗','🥾','🌿','🏕️','⛺','🎣','🦌','🐕','🐈','🐾','🍕','👨‍🍳','🍰','🔥','🥗','🍷','🍺','☕','✈️','💻','🤖','👨‍💻','🔐','⛓️','🦾','📱','🌌','🔬','🎓','🔢','🏺','🧠','🤔','🗣️','⚖️','🎨','📷','🎥','🖌️','🏛️','✍️','🎞️','🧵','🎭','🖼️','🏠','🌱','🛋️','♻️','🔨','💼','🚀','👔','📣','🤝','👥','💡','🏢','💰','📈','🪙','💳','💪','🥑','🕯️','👨‍👩‍👧‍👦','👶','❤️','✨','🚗','⚡','🏍️','🚂','📰','🏛️','🫶','✊','🏘️','🙏','🇩🇰','🌍','👗','😄','📚']
+  const [emojiOpen, setEmojiOpen] = useState(false)
+  const [emojiSearch, setEmojiSearch] = useState('')
+  const filteredEmojis = emojiSearch ? COMMON_EMOJIS.filter((_, i) => {
+    const names = ['star','music','guitar','microphone','violin','dance','film','anime','comic','standup','festival','boardgame','gaming','esport','football','basketball','tennis','golf','cycling','running','swimming','fitness','yoga','martial','ski','surfing','climbing','hiking','nature','outdoor','camping','fishing','hunting','dog','cat','pet','food','cooking','baking','bbq','vegan','wine','beer','coffee','travel','tech','ai','programming','security','blockchain','robotics','gadgets','space','science','education','math','history','psychology','philosophy','language','law','art','photography','video','design','architecture','writing','animation','crafts','theater','museum','housing','garden','interior','sustainability','diy','business','startup','leadership','marketing','sales','hr','startup','real estate','finance','investing','crypto','personal finance','health','nutrition','meditation','family','children','dating','minimalism','cars','electric','motorcycle','train','news','politics','volunteering','activism','community','religion','danish','nordic','fashion','humor','books']
+    return names[i]?.includes(emojiSearch.toLowerCase())
+  }) : COMMON_EMOJIS
 
   return (
     <div className="p-card" style={{ marginBottom: 20 }}>
@@ -16071,11 +16338,16 @@ function AdminInterestCategoriesPanel({ lang }) {
         <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>🎯 {da ? 'Interessekategorier' : 'Interest Categories'}</h3>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {cats && <span style={{ fontSize: 13, color: '#888' }}>{cats.length} {da ? 'kategorier' : 'categories'}</span>}
+          {/* A-Z / Z-A sort buttons */}
+          <button onClick={() => setSortDir(d => d === 'az' ? null : 'az')} title="A → Z" style={{ padding: '5px 10px', borderRadius: 7, border: `1px solid ${sortDir === 'az' ? '#2D6A4F' : '#ddd'}`, background: sortDir === 'az' ? '#e8f5ee' : '#fff', fontSize: 12, cursor: 'pointer', fontWeight: sortDir === 'az' ? 700 : 400 }}>A→Z</button>
+          <button onClick={() => setSortDir(d => d === 'za' ? null : 'za')} title="Z → A" style={{ padding: '5px 10px', borderRadius: 7, border: `1px solid ${sortDir === 'za' ? '#2D6A4F' : '#ddd'}`, background: sortDir === 'za' ? '#e8f5ee' : '#fff', fontSize: 12, cursor: 'pointer', fontWeight: sortDir === 'za' ? 700 : 400 }}>Z→A</button>
           <button onClick={startNew} style={{ padding: '7px 16px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
             + {da ? 'Tilføj' : 'Add'}
           </button>
         </div>
       </div>
+
+      {sortDir === null && <div style={{ fontSize: 12, color: '#aaa', marginBottom: 8 }}>☰ {da ? 'Træk rækker for at ændre rækkefølge' : 'Drag rows to reorder'}</div>}
 
       {toast && <div style={{ background: '#F0FAF4', border: '1px solid #c3e6cb', borderRadius: 8, padding: '8px 14px', fontSize: 13, marginBottom: 12 }}>{toast}</div>}
 
@@ -16098,13 +16370,28 @@ function AdminInterestCategoriesPanel({ lang }) {
               <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>English name</label>
               <input style={fS} value={form.en} onChange={e => setForm(p => ({ ...p, en: e.target.value }))} required />
             </div>
-            <div>
+            <div style={{ position: 'relative' }}>
               <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Ikon (emoji)</label>
-              <input style={{ ...fS, width: 80 }} value={form.icon} onChange={e => setForm(p => ({ ...p, icon: e.target.value }))} maxLength={8} />
-            </div>
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>{da ? 'Sorteringsrækkefølge' : 'Sort order'}</label>
-              <input style={{ ...fS, width: 100 }} type="number" value={form.sort_order} onChange={e => setForm(p => ({ ...p, sort_order: parseInt(e.target.value) || 0 }))} />
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <span style={{ fontSize: 22 }}>{form.icon}</span>
+                <button type="button" onClick={() => setEmojiOpen(o => !o)} style={{ padding: '6px 12px', borderRadius: 7, border: '1px solid #ddd', background: '#fff', fontSize: 12, cursor: 'pointer' }}>
+                  {da ? 'Vælg emoji' : 'Pick emoji'}
+                </button>
+              </div>
+              {emojiOpen && (
+                <div style={{ position: 'absolute', zIndex: 50, top: '100%', left: 0, background: '#fff', border: '1px solid #ddd', borderRadius: 10, padding: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', width: 280 }}>
+                  <input autoFocus placeholder={da ? 'Søg emoji…' : 'Search emoji…'} value={emojiSearch} onChange={e => setEmojiSearch(e.target.value)}
+                    style={{ width: '100%', padding: '6px 10px', borderRadius: 7, border: '1px solid #ddd', fontSize: 13, marginBottom: 8, boxSizing: 'border-box' }} />
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, maxHeight: 200, overflowY: 'auto' }}>
+                    {filteredEmojis.map((em, i) => (
+                      <button key={i} type="button" onClick={() => { setForm(p => ({ ...p, icon: em })); setEmojiOpen(false); setEmojiSearch('') }}
+                        style={{ fontSize: 20, background: form.icon === em ? '#e8f5ee' : 'none', border: form.icon === em ? '1px solid #2D6A4F' : '1px solid transparent', borderRadius: 6, padding: '3px 5px', cursor: 'pointer' }}>
+                        {em}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 20 }}>
               <input type="checkbox" id="cat-active" checked={!!form.active} onChange={e => setForm(p => ({ ...p, active: e.target.checked ? 1 : 0 }))} />
@@ -16128,23 +16415,31 @@ function AdminInterestCategoriesPanel({ lang }) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
           {/* Header */}
-          <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr 1fr 60px 60px 100px', gap: 8, padding: '6px 8px', background: '#f5f5f5', borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#666', marginBottom: 4 }}>
-            <span></span><span>Dansk</span><span>English</span><span>{da ? 'Order' : 'Order'}</span><span>{da ? 'Aktiv' : 'Active'}</span><span></span>
+          <div style={{ display: 'grid', gridTemplateColumns: '28px 36px 1fr 1fr 52px 100px', gap: 8, padding: '6px 8px', background: '#f5f5f5', borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#666', marginBottom: 4 }}>
+            <span></span><span></span><span>Dansk</span><span>English</span><span>{da ? 'Aktiv' : 'Active'}</span><span></span>
           </div>
-          {cats.map(cat => (
-            <div key={cat.id} style={{ display: 'grid', gridTemplateColumns: '40px 1fr 1fr 60px 60px 100px', gap: 8, padding: '7px 8px', borderRadius: 8, fontSize: 13, alignItems: 'center', background: cat.active ? '#fff' : '#f9f9f9', border: '1px solid #f0f0f0' }}>
+          {displayCats.map(cat => (
+            <div key={cat.id}
+              draggable={sortDir === null}
+              onDragStart={sortDir === null ? e => onDragStart(e, cat.id) : undefined}
+              onDragOver={sortDir === null ? e => onDragOver(e, cat.id) : undefined}
+              onDrop={sortDir === null ? e => onDrop(e, cat.id) : undefined}
+              onDragEnd={sortDir === null ? onDragEnd : undefined}
+              style={{ display: 'grid', gridTemplateColumns: '28px 36px 1fr 1fr 52px 100px', gap: 8, padding: '7px 8px', borderRadius: 8, fontSize: 13, alignItems: 'center', background: dragOver === cat.id ? '#f0f9f4' : cat.active ? '#fff' : '#f9f9f9', border: dragOver === cat.id ? '1px solid #2D6A4F' : '1px solid #f0f0f0', transition: 'background 0.1s' }}>
+              {sortDir === null
+                ? <span style={{ color: '#ccc', cursor: 'grab', fontSize: 14, textAlign: 'center', userSelect: 'none' }}>⠿</span>
+                : <span />}
               <span style={{ fontSize: 18, textAlign: 'center' }}>{cat.icon}</span>
               <span style={{ color: cat.active ? '#222' : '#aaa' }}>{cat.da}</span>
               <span style={{ color: '#888', fontSize: 12 }}>{cat.en}</span>
-              <span style={{ color: '#aaa', fontSize: 12 }}>{cat.sort_order}</span>
               <span>
-                <button onClick={() => toggleActive(cat)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }} title={cat.active ? (da ? 'Deaktiver' : 'Deactivate') : (da ? 'Aktiver' : 'Activate')}>
+                <button onClick={e => toggleActive(e, cat)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }} title={cat.active ? (da ? 'Deaktiver' : 'Deactivate') : (da ? 'Aktiver' : 'Activate')}>
                   {cat.active ? '✅' : '⬜'}
                 </button>
               </span>
               <span style={{ display: 'flex', gap: 6 }}>
-                <button onClick={() => startEdit(cat)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #ddd', background: '#fff', fontSize: 12, cursor: 'pointer' }}>{da ? 'Rediger' : 'Edit'}</button>
-                <button onClick={() => handleDelete(cat.id)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #fcc', background: '#fff8f8', color: '#e03131', fontSize: 12, cursor: 'pointer' }}>✕</button>
+                <button onClick={e => startEdit(e, cat)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #ddd', background: '#fff', fontSize: 12, cursor: 'pointer' }}>{da ? 'Rediger' : 'Edit'}</button>
+                <button onClick={e => handleDelete(e, cat.id)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #fcc', background: '#fff8f8', color: '#e03131', fontSize: 12, cursor: 'pointer' }}>✕</button>
               </span>
             </div>
           ))}
@@ -16325,6 +16620,12 @@ function AdminPage({ lang, t }) {
             label: lang === 'da' ? 'Brugerprofil' : 'User Profile',
             tabs: [
               { id: 'interests', icon: '🎯', label: lang === 'da' ? 'Interessekategorier' : 'Interest Categories' },
+            ],
+          },
+          {
+            label: lang === 'da' ? 'Kommunikation' : 'Communication',
+            tabs: [
+              { id: 'broadcast', icon: '📣', label: lang === 'da' ? 'Send notifikation' : 'Broadcast Notification' },
             ],
           },
         ]
@@ -17495,6 +17796,7 @@ function AdminPage({ lang, t }) {
       {adminTab === 'easter-eggs' && <AdminEasterEggsPanel lang={lang} />}
       {adminTab === 'badges' && <AdminBadgesPanel lang={lang} />}
       {adminTab === 'interests' && <AdminInterestCategoriesPanel lang={lang} />}
+      {adminTab === 'broadcast' && <AdminBroadcastPanel lang={lang} />}
     </div>
   )
 }
