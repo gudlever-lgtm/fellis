@@ -738,6 +738,16 @@ addCol('posts', 'is_public', 'TINYINT(1) NOT NULL DEFAULT 0')
   .catch(err => console.error('Migration (posts.is_public):', err.message))
 addCol('posts', 'share_count', 'INT(11) NOT NULL DEFAULT 0')
   .catch(err => console.error('Migration (posts.share_count):', err.message))
+// Tagging people + linking content to posts
+addCol('posts', 'tagged_users', 'JSON DEFAULT NULL')
+  .catch(err => console.error('Migration (posts.tagged_users):', err.message))
+addCol('posts', 'linked_type', 'VARCHAR(20) DEFAULT NULL')
+  .catch(err => console.error('Migration (posts.linked_type):', err.message))
+addCol('posts', 'linked_id', 'INT DEFAULT NULL')
+  .catch(err => console.error('Migration (posts.linked_id):', err.message))
+// Tagging people in reels
+addCol('reels', 'tagged_users', 'JSON DEFAULT NULL')
+  .catch(err => console.error('Migration (reels.tagged_users):', err.message))
 
 // ── Group suggestions auto-migrations ──
 addCol('conversations', 'is_public', 'TINYINT(1) NOT NULL DEFAULT 0')
@@ -2255,6 +2265,41 @@ app.post('/api/skills/:id/endorse', authenticate, async (req, res) => {
 
 // ── Feed routes ──
 
+// GET /api/linked-content?type=job|listing|event&id=:id — fetch preview card for tagged content
+app.get('/api/linked-content', authenticate, async (req, res) => {
+  const { type, id } = req.query
+  if (!type || !id) return res.status(400).json({ error: 'type and id required' })
+  const numId = parseInt(id)
+  if (!numId) return res.status(400).json({ error: 'invalid id' })
+  try {
+    if (type === 'job') {
+      const [[row]] = await pool.query(
+        `SELECT j.id, j.title, j.location, j.remote, j.type as job_type, c.name as company_name, c.color as company_color
+         FROM jobs j JOIN companies c ON j.company_id = c.id WHERE j.id = ? AND j.active = 1`, [numId])
+      if (!row) return res.status(404).json({ error: 'Not found' })
+      return res.json({ type: 'job', item: row })
+    }
+    if (type === 'listing') {
+      const [[row]] = await pool.query(
+        `SELECT id, title, price, category, location, photos FROM marketplace_listings WHERE id = ? AND sold = 0`, [numId])
+      if (!row) return res.status(404).json({ error: 'Not found' })
+      let photos = null
+      try { photos = row.photos ? (typeof row.photos === 'string' ? JSON.parse(row.photos) : row.photos) : null } catch {}
+      return res.json({ type: 'listing', item: { ...row, photos } })
+    }
+    if (type === 'event') {
+      const [[row]] = await pool.query(
+        `SELECT e.id, e.title, e.date, e.location, e.event_type, e.cover_url, u.name as organizer
+         FROM events e JOIN users u ON e.organizer_id = u.id WHERE e.id = ?`, [numId])
+      if (!row) return res.status(404).json({ error: 'Not found' })
+      return res.json({ type: 'event', item: row })
+    }
+    res.status(400).json({ error: 'unknown type' })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 // GET /api/feed — cursor-based pagination (stable, no duplicate posts on new inserts)
 // Query params:
 //   cursor (optional) — ISO timestamp; load posts older than this (load-more / infinite scroll)
@@ -2274,7 +2319,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
     try {
       ;[posts] = await pool.query(
         `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.categories, p.created_at, p.edited_at,
-                p.place_name, p.geo_lat, p.geo_lng,
+                p.place_name, p.geo_lat, p.geo_lng, p.tagged_users, p.linked_type, p.linked_id,
                 (SELECT COUNT(*) FROM earned_badges WHERE user_id = p.author_id) as author_badge_count
          FROM posts p JOIN users u ON p.author_id = u.id
          WHERE (p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?))
@@ -2288,6 +2333,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
       ;[posts] = await pool.query(
         `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.categories, p.created_at, p.edited_at,
                 NULL as place_name, NULL as geo_lat, NULL as geo_lng,
+                NULL as tagged_users, NULL as linked_type, NULL as linked_id,
                 0 as author_badge_count
          FROM posts p JOIN users u ON p.author_id = u.id
          WHERE (p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?))
@@ -2379,6 +2425,10 @@ app.get('/api/feed', authenticate, async (req, res) => {
       if (p.categories) {
         try { categories = typeof p.categories === 'string' ? JSON.parse(p.categories) : p.categories } catch {}
       }
+      let taggedUsers = null
+      if (p.tagged_users) {
+        try { taggedUsers = typeof p.tagged_users === 'string' ? JSON.parse(p.tagged_users) : p.tagged_users } catch {}
+      }
       return {
         id: p.id,
         author: p.author,
@@ -2398,6 +2448,9 @@ app.get('/api/feed', authenticate, async (req, res) => {
         placeName: p.place_name || null,
         geoLat: p.geo_lat || null,
         geoLng: p.geo_lng || null,
+        taggedUsers,
+        linkedType: p.linked_type || null,
+        linkedId: p.linked_id || null,
       }
     })
     // Track post views (fire-and-forget)
@@ -2476,6 +2529,10 @@ app.post('/api/feed', authenticate, writeLimit, upload.array('media', 4), async 
   const { text, scheduled_at, place_name, geo_lat, geo_lng } = req.body
   const rawCats = req.body.categories
   const categories = rawCats ? (typeof rawCats === 'string' ? JSON.parse(rawCats) : rawCats) : null
+  const rawTagged = req.body.tagged_users
+  const taggedUsers = rawTagged ? (typeof rawTagged === 'string' ? JSON.parse(rawTagged) : rawTagged) : null
+  const linkedType = req.body.linked_type || null
+  const linkedId = req.body.linked_id ? parseInt(req.body.linked_id) : null
   if (!text && !req.files?.length) return res.status(400).json({ error: 'Post text or media required' })
 
   // Keyword filter check
@@ -2511,11 +2568,11 @@ app.post('/api/feed', authenticate, writeLimit, upload.array('media', 4), async 
     const placeName = typeof place_name === 'string' ? place_name.slice(0, 255) : null
     const lat = geo_lat ? parseFloat(geo_lat) : null
     const lng = geo_lng ? parseFloat(geo_lng) : null
+    const taggedJson = Array.isArray(taggedUsers) && taggedUsers.length > 0 ? JSON.stringify(taggedUsers) : null
     const [result] = await pool.query(
-      'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media, scheduled_at, categories, place_name, geo_lat, geo_lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [req.userId, text, text, 'Lige nu', 'Just now', mediaJson, scheduledDate, categoriesJson, placeName, lat, lng]
+      'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media, scheduled_at, categories, place_name, geo_lat, geo_lng, tagged_users, linked_type, linked_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [req.userId, text, text, 'Lige nu', 'Just now', mediaJson, scheduledDate, categoriesJson, placeName, lat, lng, taggedJson, linkedType, linkedId]
     ).catch(() =>
-      // place_name columns not yet migrated — insert without them
       pool.query(
         'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media, scheduled_at, categories) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
         [req.userId, text, text, 'Lige nu', 'Just now', mediaJson, scheduledDate, categoriesJson]
@@ -2552,7 +2609,10 @@ app.post('/api/feed', authenticate, writeLimit, upload.array('media', 4), async 
       likes: 0, liked: false, comments: [],
       media: mediaUrls.length > 0 ? mediaUrls : null,
       categories: categoriesJson ? JSON.parse(categoriesJson) : null,
-      location: locLat ? { lat: locLat, lng: locLng, name: locName } : null,
+      location: lat ? { lat, lng, name: placeName } : null,
+      tagged_users: taggedJson ? JSON.parse(taggedJson) : null,
+      linked_type: linkedType || null,
+      linked_id: linkedId || null,
     })
   } catch (err) {
     res.status(500).json({ error: 'Failed to create post' })
@@ -5049,6 +5109,85 @@ async function initSignalEngine() {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
 
+    // Interest categories — admin-managed list used in profile interests picker
+    await pool.query(`CREATE TABLE IF NOT EXISTS interest_categories (
+      id         VARCHAR(64)  NOT NULL PRIMARY KEY,
+      da         VARCHAR(128) NOT NULL,
+      en         VARCHAR(128) NOT NULL,
+      icon       VARCHAR(8)   NOT NULL DEFAULT '⭐',
+      sort_order INT          NOT NULL DEFAULT 0,
+      active     TINYINT(1)   NOT NULL DEFAULT 1,
+      created_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`)
+    // Seed only if table is empty
+    const [[{ cnt }]] = await pool.query('SELECT COUNT(*) AS cnt FROM interest_categories')
+    if (cnt === 0) {
+      await pool.query(`INSERT IGNORE INTO interest_categories (id, da, en, icon, sort_order) VALUES
+        ('musik','Musik','Music','🎵',10),('koncerter','Koncerter & Livemusik','Concerts & Live Music','🎸',11),
+        ('podcasts','Podcasts','Podcasts','🎙️',12),('opera','Opera & Klassisk musik','Opera & Classical Music','🎻',13),
+        ('dans','Dans','Dance','💃',14),('film','Film & TV','Film & TV','🎬',20),
+        ('anime','Anime & Manga','Anime & Manga','🎌',21),('tegneserier','Tegneserier','Comics','💬',22),
+        ('stand-up','Stand-up komik','Stand-up Comedy','🎤',23),('festivals','Festivaler & Events','Festivals & Events','🎪',24),
+        ('braetspil','Brætspil','Board Games','🎲',25),('gaming','Gaming','Gaming','🎮',30),
+        ('e-sport','E-sport','E-sports','🏆',31),('sport','Sport','Sports','⚽',40),
+        ('fodbold','Fodbold','Football','⚽',41),('basketball','Basketball','Basketball','🏀',42),
+        ('tennis','Tennis','Tennis','🎾',43),('golf','Golf','Golf','⛳',44),
+        ('cykling','Cykling','Cycling','🚴',45),('loeb','Løb','Running','🏃',46),
+        ('svoemning','Svømning','Swimming','🏊',47),('fitness','Fitness & Træning','Fitness & Training','🏋️',48),
+        ('yoga','Yoga','Yoga','🧘',49),('kampsport','Kampsport','Martial Arts','🥋',50),
+        ('ski','Ski & Wintersport','Skiing & Winter Sports','⛷️',51),('surfing','Surfing','Surfing','🏄',52),
+        ('klatring','Klatring','Climbing','🧗',53),('vandring','Vandring','Hiking','🥾',54),
+        ('natur','Natur','Nature','🌿',60),('friluftsliv','Friluftsliv','Outdoor Life','🏕️',61),
+        ('camping','Camping','Camping','⛺',62),('fiskeri','Fiskeri','Fishing','🎣',63),
+        ('jagt','Jagt','Hunting','🦌',64),('hunde','Hunde','Dogs','🐕',65),
+        ('katte','Katte','Cats','🐈',66),('kaeledyr','Kæledyr','Pets','🐾',67),
+        ('mad','Mad','Food','🍕',70),('madlavning','Madlavning','Cooking','👨‍🍳',71),
+        ('bagvaerk','Bagværk & Kage','Baking & Cake','🍰',72),('grillmad','Grillmad & BBQ','BBQ & Grilling','🔥',73),
+        ('vegansk','Vegansk & Plantebaseret','Vegan & Plant-based','🥗',74),('vin','Vin','Wine','🍷',75),
+        ('ol','Øl & Craft beer','Beer & Craft Beer','🍺',76),('kaffe','Kaffe','Coffee','☕',77),
+        ('rejser','Rejser','Travel','✈️',80),('teknologi','Teknologi','Technology','💻',90),
+        ('ai','Kunstig intelligens','Artificial Intelligence','🤖',91),('programmering','Programmering','Programming','👨‍💻',92),
+        ('cybersikkerhed','Cybersikkerhed','Cybersecurity','🔐',93),('blockchain','Blockchain','Blockchain','⛓️',94),
+        ('robotik','Robotik','Robotics','🦾',95),('gadgets','Gadgets','Gadgets','📱',96),
+        ('rum','Rumfart & Astronomi','Space & Astronomy','🌌',97),('videnskab','Videnskab','Science','🔬',100),
+        ('uddannelse','Uddannelse','Education','🎓',101),('matematik','Matematik','Mathematics','🔢',102),
+        ('historie','Historie','History','🏺',103),('psykologi','Psykologi','Psychology','🧠',104),
+        ('filosofi','Filosofi','Philosophy','🤔',105),('sprog','Sprog & Lingvistik','Languages & Linguistics','🗣️',106),
+        ('jura','Jura','Law','⚖️',107),('kunst','Kunst','Art','🎨',110),
+        ('fotografering','Fotografering','Photography','📷',111),('video','Video & Film','Video & Filmmaking','🎥',112),
+        ('design','Design','Design','🖌️',113),('arkitektur','Arkitektur','Architecture','🏛️',114),
+        ('skrivning','Skrivning & Forfatterskab','Writing & Authorship','✍️',115),
+        ('animation','Animation','Animation','🎞️',116),('haandvaerk','Håndværk & Kreativitet','Crafts & Creativity','🧵',117),
+        ('teater','Teater & Scenekunst','Theatre & Performing Arts','🎭',118),
+        ('kunstmuseer','Kunstmuseer & Gallerier','Art Museums & Galleries','🖼️',119),
+        ('bolig','Bolig & Ejendom','Housing & Property','🏠',120),('have','Have & Planter','Garden & Plants','🌱',121),
+        ('indretning','Indretning & Boligindretning','Interior Design','🛋️',122),
+        ('baeredygtighed','Bæredygtighed','Sustainability','♻️',123),('diy','Gør-det-selv','DIY','🔨',124),
+        ('erhverv','Erhverv & Business','Business','💼',130),('ivaerksaetter','Iværksætter','Entrepreneurship','🚀',131),
+        ('ledelse','Ledelse & Management','Leadership & Management','👔',132),
+        ('marketing','Marketing','Marketing','📣',133),('salg','Salg','Sales','🤝',134),
+        ('hr','HR & Personale','HR & People','👥',135),('startup','Startup','Startup','💡',136),
+        ('ejendomme','Ejendomme','Real Estate','🏢',137),('okonomi','Økonomi','Finance','💰',140),
+        ('investering','Investering','Investing','📈',141),('kryptovaluta','Kryptovaluta','Cryptocurrency','🪙',142),
+        ('personlig-okonomi','Personlig økonomi','Personal Finance','💳',143),
+        ('sundhed','Sundhed','Health','💪',150),('mental-sundhed','Mental sundhed','Mental Health','🧘',151),
+        ('kost','Kost & Ernæring','Nutrition & Diet','🥑',152),
+        ('meditation','Meditation & Mindfulness','Meditation & Mindfulness','🕯️',153),
+        ('alternativ-medicin','Naturmedicin','Alternative Medicine','🌿',154),
+        ('familie','Familie','Family','👨‍👩‍👧‍👦',160),('boern','Børn & Forældre','Children & Parenting','👶',161),
+        ('dating','Dating & Kærlighed','Dating & Love','❤️',162),('minimalisme','Minimalisme','Minimalism','✨',163),
+        ('hygge','Hygge','Hygge','🕯️',164),('biler','Biler','Cars','🚗',170),
+        ('elbiler','Elbiler','Electric Cars','⚡',171),('motorcykler','Motorcykler','Motorcycles','🏍️',172),
+        ('tog','Tog & Jernbane','Trains & Railways','🚂',173),('nyheder','Nyheder','News','📰',180),
+        ('politik','Politik','Politics','🏛️',181),('frivillighed','Frivillighed','Volunteering','🫶',182),
+        ('aktivisme','Aktivisme','Activism','✊',183),('lokalsamfund','Lokalsamfund','Local Community','🏘️',184),
+        ('religion','Religion & Spiritualitet','Religion & Spirituality','🙏',185),
+        ('dansk-kultur','Dansk kultur','Danish Culture','🇩🇰',186),
+        ('nordisk-kultur','Nordisk kultur','Nordic Culture','🌍',187),
+        ('mode','Mode','Fashion','👗',190),('humor','Humor','Humor','😄',191),
+        ('boger','Bøger','Books','📚',192)`)
+    }
+
     // Daily decay: reduce weights by 0.5% for interests with no signal in the last 24 hours
     setInterval(async () => {
       try {
@@ -7044,7 +7183,7 @@ app.get('/api/reels', authenticate, async (req, res) => {
     const offset = parseInt(req.query.offset) || 0
     const limit = Math.min(parseInt(req.query.limit) || 10, 50)
     const [rows] = await pool.query(
-      `SELECT r.id, r.video_url, r.caption, r.views_count, r.created_at,
+      `SELECT r.id, r.video_url, r.caption, r.views_count, r.created_at, r.tagged_users,
               u.id AS user_id, u.name AS author_name, u.handle AS author_handle, u.avatar_url AS author_avatar,
               COUNT(DISTINCT rl.user_id) AS likes_count,
               EXISTS(SELECT 1 FROM reel_likes WHERE reel_id = r.id AND user_id = ?) AS liked_by_me,
@@ -7059,7 +7198,11 @@ app.get('/api/reels', authenticate, async (req, res) => {
        LIMIT ? OFFSET ?`,
       [req.userId, req.userId, limit, offset]
     )
-    res.json({ reels: rows.map(r => ({ ...r, liked_by_me: !!r.liked_by_me, my_reaction: r.my_reaction || null })) })
+    res.json({ reels: rows.map(r => {
+      let tagged = null
+      try { tagged = r.tagged_users ? (typeof r.tagged_users === 'string' ? JSON.parse(r.tagged_users) : r.tagged_users) : null } catch {}
+      return { ...r, liked_by_me: !!r.liked_by_me, my_reaction: r.my_reaction || null, tagged_users: tagged }
+    }) })
   } catch (err) {
     console.error('GET /api/reels error:', err.message)
     res.status(500).json({ error: 'Server error' })
@@ -7072,18 +7215,25 @@ app.post('/api/reels', authenticate, reelUpload.single('video'), async (req, res
     if (!req.file) return res.status(400).json({ error: 'No video file provided' })
     const caption = (req.body.caption || '').trim().slice(0, 2000) || null
     const videoUrl = `/uploads/${req.file.filename}`
+    const rawTagged = req.body.tagged_users
+    const taggedUsers = rawTagged ? (() => { try { return JSON.parse(rawTagged) } catch { return null } })() : null
+    const taggedJson = Array.isArray(taggedUsers) && taggedUsers.length > 0 ? JSON.stringify(taggedUsers) : null
     const [result] = await pool.query(
-      'INSERT INTO reels (user_id, video_url, caption) VALUES (?, ?, ?)',
-      [req.userId, videoUrl, caption]
+      'INSERT INTO reels (user_id, video_url, caption, tagged_users) VALUES (?, ?, ?, ?)',
+      [req.userId, videoUrl, caption, taggedJson]
+    ).catch(() =>
+      pool.query('INSERT INTO reels (user_id, video_url, caption) VALUES (?, ?, ?)', [req.userId, videoUrl, caption])
     )
     const [[reel]] = await pool.query(
-      `SELECT r.id, r.video_url, r.caption, r.views_count, r.created_at,
+      `SELECT r.id, r.video_url, r.caption, r.views_count, r.created_at, r.tagged_users,
               u.id AS user_id, u.name AS author_name, u.handle AS author_handle, u.avatar_url AS author_avatar,
               0 AS likes_count, 0 AS liked_by_me, 0 AS comments_count
        FROM reels r JOIN users u ON r.user_id = u.id WHERE r.id = ?`,
       [result.insertId]
     )
-    res.status(201).json({ reel })
+    let tagged = null
+    try { tagged = reel.tagged_users ? (typeof reel.tagged_users === 'string' ? JSON.parse(reel.tagged_users) : reel.tagged_users) : null } catch {}
+    res.status(201).json({ reel: { ...reel, tagged_users: tagged } })
   } catch (err) {
     console.error('POST /api/reels error:', err.message)
     res.status(500).json({ error: 'Server error' })

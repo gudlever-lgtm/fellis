@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } f
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { SUPPORTED_LANGS, EUROPEAN_LANGUAGES, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials, getTranslations } from './data.js'
 import { formatPrice } from './utils/currency.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiRevealPassword, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals, apiFetchCalendarReminders, apiCreateCalendarReminder, apiDeleteCalendarReminder } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiRevealPassword, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals, apiFetchCalendarReminders, apiCreateCalendarReminder, apiDeleteCalendarReminder, apiGetLinkedContent, apiFetchJobs } from './api.js'
 import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
 import ReelsPage from './Reels.jsx'
@@ -1459,6 +1459,37 @@ function BoostedListingCard({ listing, lang, t, onNavigate }) {
   )
 }
 
+// ── LinkedContentCard — renders a job/listing/event card attached to a post ──
+function LinkedContentCard({ type, id, lang, onNavigate }) {
+  const [item, setItem] = useState(null)
+  useEffect(() => {
+    apiGetLinkedContent(type, id).then(d => { if (d?.item) setItem(d.item) }).catch(() => {})
+  }, [type, id])
+  if (!item) return null
+  const icon = type === 'job' ? '💼' : type === 'listing' ? '🛒' : '📅'
+  const subtitle = type === 'job'
+    ? [item.company_name, item.location || (item.remote ? 'Remote' : '')].filter(Boolean).join(' · ')
+    : type === 'listing'
+    ? [item.category, item.location].filter(Boolean).join(' · ')
+    : item.date ? new Date(item.date).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { weekday: 'short', day: 'numeric', month: 'short' }) + (item.location ? ` · ${item.location}` : '') : ''
+  const page = type === 'job' ? 'jobs' : type === 'listing' ? 'marketplace' : 'events'
+  return (
+    <div
+      onClick={() => onNavigate?.(page)}
+      style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '8px 0 2px', padding: '10px 12px', background: '#FAFAF8', border: '1.5px solid #e0e0e0', borderRadius: 10, cursor: onNavigate ? 'pointer' : 'default' }}
+    >
+      <span style={{ fontSize: 24, flexShrink: 0 }}>{icon}</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#333', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title}</div>
+        {subtitle && <div style={{ fontSize: 11, color: '#888', marginTop: 1 }}>{subtitle}</div>}
+      </div>
+      {type === 'job' && item.company_color && (
+        <div style={{ width: 10, height: 10, borderRadius: '50%', background: item.company_color, flexShrink: 0 }} />
+      )}
+    </div>
+  )
+}
+
 function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onNavigate, onBadgeCheck, feedEggRef, onTriggerChuck, onTriggerMatrix, onTriggerRickroll, onTriggerParty, onTriggerRetro, interestCategories = INTEREST_CATEGORIES }) {
   const [posts, setPosts] = useState([])
   const [feedCategoryFilter, setFeedCategoryFilter] = useState(null)
@@ -1535,6 +1566,17 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [autoCategories, setAutoCategories] = useState(new Set())
   const [showCategoryPicker, setShowCategoryPicker] = useState(false)
   const [providerMediaUrls, setProviderMediaUrls] = useState([])
+  // Tag people + link content to post
+  const [taggedUsers, setTaggedUsers] = useState([])         // [{id, name, handle, avatar_url}]
+  const [showTagPicker, setShowTagPicker] = useState(false)
+  const [tagSearch, setTagSearch] = useState('')
+  const [tagSearchResults, setTagSearchResults] = useState([])
+  const tagSearchTimer = useRef(null)
+  const [linkedContent, setLinkedContent] = useState(null)   // {type, id, item} | null
+  const [showAttachPicker, setShowAttachPicker] = useState(false)
+  const [attachTab, setAttachTab] = useState('job')          // 'job' | 'listing' | 'event'
+  const [attachItems, setAttachItems] = useState([])
+  const [attachLoading, setAttachLoading] = useState(false)
   const textareaRef = useRef(null)
   const suggestCategoryTimer = useRef(null)
   const hintIconRef = useRef(null)
@@ -1837,8 +1879,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   }, [])
 
 
-  const doCreatePost = useCallback((text, files, schedAt, categories, loc) => {
-    apiCreatePost(text, files, schedAt || undefined, categories?.size ? [...categories] : undefined, loc || undefined).then(data => {
+  const doCreatePost = useCallback((text, files, schedAt, categories, loc, tagged, linked) => {
+    apiCreatePost(text, files, schedAt || undefined, categories?.size ? [...categories] : undefined, loc || undefined, tagged?.length ? tagged : undefined, linked || undefined).then(data => {
       if (data?.scheduled) {
         // Scheduled post — don't add to feed, just show a toast
         return
@@ -1872,6 +1914,10 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     setPostLocation(null)
     setLocationQuery('')
     setLocationSuggestions([])
+    setTaggedUsers([])
+    setLinkedContent(null)
+    setShowTagPicker(false)
+    setShowAttachPicker(false)
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
   }, [mediaPreviews, currentUser.name])
 
@@ -1886,12 +1932,12 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       return
     }
     const schedAt = scheduleEnabled && scheduledAt ? scheduledAt : null
-    doCreatePost(text, files, schedAt, postCategories, postLocation)
+    doCreatePost(text, files, schedAt, postCategories, postLocation, taggedUsers, linkedContent)
     setNewPostText('')
     setMediaFiles([])
     setMediaPreviews([])
     setPostExpanded(false)
-  }, [newPostText, mediaFiles, providerMediaUrls, doCreatePost, scheduleEnabled, scheduledAt, postCategories, postLocation])
+  }, [newPostText, mediaFiles, providerMediaUrls, doCreatePost, scheduleEnabled, scheduledAt, postCategories, postLocation, taggedUsers, linkedContent])
 
   const toggleLike = useCallback((id, emoji) => {
     const isLiked = likedPosts.has(id)
@@ -2489,13 +2535,127 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 4px 0' }}>
                 <span style={{ fontSize: 13, color: '#1877F2', background: '#EBF4FF', borderRadius: 20, padding: '3px 10px', display: 'flex', alignItems: 'center', gap: 5 }}>
                   📍 {postLocation.name || `${postLocation.lat.toFixed(4)}, ${postLocation.lng.toFixed(4)}`}
-                  <button
-                    type="button"
-                    onClick={() => { setPostLocation(null) }}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', fontSize: 14, lineHeight: 1, padding: 0, marginLeft: 2 }}
-                    title={lang === 'da' ? 'Fjern lokation' : 'Remove location'}
-                  >×</button>
+                  <button type="button" onClick={() => { setPostLocation(null) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', fontSize: 14, lineHeight: 1, padding: 0, marginLeft: 2 }} title={lang === 'da' ? 'Fjern lokation' : 'Remove location'}>×</button>
                 </span>
+              </div>
+            )}
+
+            {/* Tagged users chips */}
+            {taggedUsers.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '6px 4px 0' }}>
+                {taggedUsers.map(u => (
+                  <span key={u.id} style={{ fontSize: 13, color: '#2D6A4F', background: '#F0FAF4', borderRadius: 20, padding: '3px 10px', display: 'flex', alignItems: 'center', gap: 5 }}>
+                    👤 {u.name}
+                    <button type="button" onClick={() => setTaggedUsers(prev => prev.filter(x => x.id !== u.id))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', fontSize: 14, lineHeight: 1, padding: 0, marginLeft: 2 }}>×</button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Tag people picker */}
+            {showTagPicker && (
+              <div style={{ margin: '8px 0 0', background: '#FAFAF8', border: '1px solid #e0e0e0', borderRadius: 10, padding: 12 }}>
+                <input
+                  autoFocus
+                  type="text"
+                  placeholder={lang === 'da' ? '🔍 Søg personer…' : '🔍 Search people…'}
+                  value={tagSearch}
+                  onChange={e => {
+                    setTagSearch(e.target.value)
+                    clearTimeout(tagSearchTimer.current)
+                    if (e.target.value.trim().length >= 1) {
+                      tagSearchTimer.current = setTimeout(() => {
+                        apiSearchUsers(e.target.value.trim()).then(r => setTagSearchResults(r || []))
+                      }, 300)
+                    } else {
+                      setTagSearchResults([])
+                    }
+                  }}
+                  style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box', marginBottom: 8 }}
+                />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 180, overflowY: 'auto' }}>
+                  {tagSearchResults.length === 0 && tagSearch.length >= 1 && (
+                    <div style={{ fontSize: 13, color: '#aaa', padding: '4px 0' }}>{lang === 'da' ? 'Ingen resultater' : 'No results'}</div>
+                  )}
+                  {tagSearchResults.map(u => {
+                    const alreadyTagged = taggedUsers.some(t => t.id === u.id)
+                    return (
+                      <button key={u.id} type="button" onClick={() => {
+                        if (!alreadyTagged) setTaggedUsers(prev => [...prev, { id: u.id, name: u.name, handle: u.handle, avatar_url: u.avatar_url }])
+                        setTagSearch(''); setTagSearchResults([]); setShowTagPicker(false)
+                      }} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: alreadyTagged ? '#F0FAF4' : '#fff', border: '1px solid #eee', borderRadius: 8, cursor: 'pointer', textAlign: 'left' }}>
+                        <div style={{ width: 30, height: 30, borderRadius: '50%', background: nameToColor(u.name), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#fff', fontWeight: 700, flexShrink: 0 }}>
+                          {u.avatar_url ? <img src={u.avatar_url} alt="" style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover' }} /> : getInitials(u.name)}
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: '#333' }}>{u.name}</div>
+                          {u.handle && <div style={{ fontSize: 11, color: '#888' }}>@{u.handle}</div>}
+                        </div>
+                        {alreadyTagged && <span style={{ fontSize: 11, color: '#2D6A4F' }}>✓</span>}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Attach content picker */}
+            {showAttachPicker && (
+              <div style={{ margin: '8px 0 0', background: '#FAFAF8', border: '1px solid #e0e0e0', borderRadius: 10, padding: 12 }}>
+                <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+                  {[{id:'job',label:lang==='da'?'💼 Job':'💼 Job'},{id:'listing',label:lang==='da'?'🛒 Marked':'🛒 Market'},{id:'event',label:lang==='da'?'📅 Event':'📅 Event'}].map(tab => (
+                    <button key={tab.id} type="button" onClick={async () => {
+                      setAttachTab(tab.id)
+                      setAttachLoading(true)
+                      setAttachItems([])
+                      let data = null
+                      if (tab.id === 'job') data = await apiFetchJobs({}).catch(() => null)
+                      else if (tab.id === 'listing') data = await apiFetchListings({}).catch(() => null)
+                      else if (tab.id === 'event') data = await apiFetchEvents().catch(() => null)
+                      if (tab.id === 'job') setAttachItems(data?.jobs || [])
+                      else if (tab.id === 'listing') setAttachItems(data?.listings || [])
+                      else if (tab.id === 'event') setAttachItems(data?.events || [])
+                      setAttachLoading(false)
+                    }} style={{ padding: '5px 12px', borderRadius: 20, border: 'none', fontSize: 13, fontWeight: attachTab === tab.id ? 700 : 500, background: attachTab === tab.id ? '#2D6A4F' : '#e8e8e4', color: attachTab === tab.id ? '#fff' : '#555', cursor: 'pointer' }}>
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+                {attachLoading && <div style={{ fontSize: 13, color: '#888', padding: '8px 0' }}>…</div>}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 200, overflowY: 'auto' }}>
+                  {attachItems.map(item => (
+                    <button key={item.id} type="button" onClick={() => {
+                      setLinkedContent({ type: attachTab, id: item.id, item })
+                      setShowAttachPicker(false)
+                    }} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: '#fff', border: '1px solid #e0e0e0', borderRadius: 8, cursor: 'pointer', textAlign: 'left' }}>
+                      <span style={{ fontSize: 20 }}>{attachTab === 'job' ? '💼' : attachTab === 'listing' ? '🛒' : '📅'}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: '#333', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title}</div>
+                        <div style={{ fontSize: 11, color: '#888' }}>
+                          {attachTab === 'job' && `${item.company_name || ''} · ${item.location || (item.remote ? (lang==='da'?'Remote':'Remote') : '')}`}
+                          {attachTab === 'listing' && `${item.category || ''} · ${item.location || ''}`}
+                          {attachTab === 'event' && `${item.date ? new Date(item.date).toLocaleDateString(lang==='da'?'da-DK':'en-US',{day:'numeric',month:'short'}) : ''} · ${item.location || ''}`}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Linked content preview */}
+            {linkedContent && (
+              <div style={{ margin: '8px 0 0', background: '#FAFAF8', border: '1.5px solid #2D6A4F', borderRadius: 10, padding: '10px 12px', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                <span style={{ fontSize: 22, flexShrink: 0 }}>{linkedContent.type === 'job' ? '💼' : linkedContent.type === 'listing' ? '🛒' : '📅'}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#333' }}>{linkedContent.item?.title}</div>
+                  <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
+                    {linkedContent.type === 'job' && `${linkedContent.item?.company_name || ''} · ${linkedContent.item?.location || ''}`}
+                    {linkedContent.type === 'listing' && `${linkedContent.item?.category || ''} · ${linkedContent.item?.location || ''}`}
+                    {linkedContent.type === 'event' && linkedContent.item?.date ? new Date(linkedContent.item.date).toLocaleDateString(lang==='da'?'da-DK':'en-US',{day:'numeric',month:'short',year:'numeric'}) : ''}
+                  </div>
+                </div>
+                <button type="button" onClick={() => setLinkedContent(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#888', flexShrink: 0 }}>×</button>
               </div>
             )}
 
@@ -2520,6 +2680,37 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   title={lang === 'da' ? 'Tilføj lokation' : 'Add location'}
                 >
                   📍
+                </button>
+                {/* Tag people toggle */}
+                <button
+                  type="button"
+                  onMouseDown={e => e.preventDefault()}
+                  onClick={() => { setShowTagPicker(v => !v); setShowAttachPicker(false); setTagSearch(''); setTagSearchResults([]) }}
+                  style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${showTagPicker || taggedUsers.length > 0 ? '#2D6A4F' : '#ddd'}`, background: showTagPicker || taggedUsers.length > 0 ? '#F0FAF4' : '#fff', color: showTagPicker || taggedUsers.length > 0 ? '#2D6A4F' : '#555', fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                  title={lang === 'da' ? 'Tag personer' : 'Tag people'}
+                >
+                  👤{taggedUsers.length > 0 ? ` ${taggedUsers.length}` : ''}
+                </button>
+                {/* Attach content toggle */}
+                <button
+                  type="button"
+                  onMouseDown={e => e.preventDefault()}
+                  onClick={async () => {
+                    const next = !showAttachPicker
+                    setShowAttachPicker(next)
+                    setShowTagPicker(false)
+                    if (next && attachItems.length === 0) {
+                      setAttachLoading(true)
+                      const data = await apiFetchJobs({}).catch(() => null)
+                      setAttachItems(data?.jobs || [])
+                      setAttachTab('job')
+                      setAttachLoading(false)
+                    }
+                  }}
+                  style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${showAttachPicker || linkedContent ? '#2D6A4F' : '#ddd'}`, background: showAttachPicker || linkedContent ? '#F0FAF4' : '#fff', color: showAttachPicker || linkedContent ? '#2D6A4F' : '#555', fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                  title={lang === 'da' ? 'Vedhæft indhold' : 'Attach content'}
+                >
+                  📎
                 </button>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -2969,6 +3160,19 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
               </>
             )}
             {post.media && <PostMedia media={post.media} />}
+            {/* Tagged users */}
+            {post.taggedUsers?.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, margin: '6px 0 2px' }}>
+                <span style={{ fontSize: 12, color: '#888' }}>{lang === 'da' ? 'Med:' : 'With:'}</span>
+                {post.taggedUsers.map(u => (
+                  <span key={u.id} style={{ fontSize: 12, color: '#2D6A4F', fontWeight: 600, background: '#F0FAF4', borderRadius: 20, padding: '2px 8px' }}>👤 {u.name}</span>
+                ))}
+              </div>
+            )}
+            {/* Linked content card */}
+            {post.linkedType && post.linkedId && (
+              <LinkedContentCard type={post.linkedType} id={post.linkedId} lang={lang} onNavigate={onNavigate} />
+            )}
             {post.location && (
               <div
                 onClick={() => setLocationMapPost(post)}
@@ -3783,6 +3987,7 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
   const [website, setWebsite] = useState('')
   const [extSaveStatus, setExtSaveStatus] = useState(null)
   const [interestCats, setInterestCats] = useState(INTEREST_CATEGORIES)
+  const [interestSearch, setInterestSearch] = useState('')
 
   useEffect(() => {
     apiGetInterestCategories().then(d => { if (d?.categories?.length) setInterestCats(d.categories) }).catch(() => {})
@@ -4048,61 +4253,147 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
 
         {/* Interests picker */}
         <div className="p-card" style={{ marginBottom: 16 }}>
-          <h3 style={{ margin: '0 0 6px', fontSize: 16, fontWeight: 700 }}>🎯 {t.interestsSectionTitle}</h3>
-          <p style={{ fontSize: 13, color: '#666', margin: '0 0 12px' }}>{t.interestsSectionDesc}</p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
-            {interestCats.map(cat => {
-              const selected = interests.includes(cat.id)
-              return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => { setInterestsSavedMsg(''); setInterests(prev => selected ? prev.filter(i => i !== cat.id) : [...prev, cat.id]) }}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 5,
-                    padding: '5px 12px', borderRadius: 20, fontSize: 13, cursor: 'pointer',
-                    border: selected ? '2px solid #2D6A4F' : '2px solid #ddd',
-                    background: selected ? '#F0FAF4' : '#fafafa',
-                    color: selected ? '#2D6A4F' : '#555', fontWeight: selected ? 700 : 400,
-                  }}
-                >
-                  <span>{cat.icon}</span><span>{cat[lang] || cat.da}</span>
-                </button>
-              )
-            })}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>🎯 {t.interestsSectionTitle}</h3>
+            <span style={{ fontSize: 12, color: interests.length >= 3 ? '#2D6A4F' : '#e53935', fontWeight: 600 }}>
+              {interests.length} {lang === 'da' ? 'valgt' : 'selected'}
+            </span>
           </div>
-          {interestsSavedMsg ? (
-            <div style={{ fontSize: 13, color: interestsSaveOk ? '#2D6A4F' : '#e53935', fontWeight: 600, marginBottom: 4 }}>{interestsSavedMsg}</div>
-          ) : interests.length < 3 ? (
-            <div style={{ fontSize: 12, color: '#e53935', marginBottom: 4 }}>{t.interestsMin3}</div>
-          ) : null}
-          <button
-            type="button"
-            disabled={interestsSaving || interests.length < 3}
-            onClick={async () => {
-              setInterestsSaving(true)
-              setInterestsSavedMsg('')
-              try {
-                const res = await apiUpdateInterests(interests)
-                if (res?.ok) {
-                  setInterestsSaveOk(true)
-                  setInterestsSavedMsg(t.interestsSaved)
-                  setTimeout(() => setInterestsSavedMsg(''), 3000)
-                } else {
+          <p style={{ fontSize: 13, color: '#666', margin: '0 0 10px' }}>{t.interestsSectionDesc}</p>
+
+          {/* Selected chips */}
+          {interests.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+              {interests.map(id => {
+                const cat = interestCats.find(c => c.id === id)
+                if (!cat) return null
+                return (
+                  <span key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 20, fontSize: 12, background: '#F0FAF4', border: '1.5px solid #2D6A4F', color: '#2D6A4F', fontWeight: 600 }}>
+                    {cat.icon} {cat[lang] || cat.da}
+                    <button type="button" onClick={() => { setInterestsSavedMsg(''); setInterests(prev => prev.filter(i => i !== id)) }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#2D6A4F', padding: '0 0 0 2px', lineHeight: 1 }}>×</button>
+                  </span>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Search input */}
+          <input
+            type="text"
+            placeholder={lang === 'da' ? '🔍 Søg kategorier…' : '🔍 Search categories…'}
+            value={interestSearch}
+            onChange={e => setInterestSearch(e.target.value)}
+            style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, marginBottom: 10, boxSizing: 'border-box' }}
+          />
+
+          {/* Filtered or grouped list */}
+          {(() => {
+            const q = interestSearch.trim().toLowerCase()
+            const filtered = interestCats.filter(c => !q || c.da.toLowerCase().includes(q) || c.en.toLowerCase().includes(q))
+
+            if (q) {
+              // Flat list when searching
+              return (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, maxHeight: 220, overflowY: 'auto', padding: '2px 0' }}>
+                  {filtered.length === 0 && <span style={{ fontSize: 13, color: '#aaa' }}>{lang === 'da' ? 'Ingen resultater' : 'No results'}</span>}
+                  {filtered.map(cat => {
+                    const selected = interests.includes(cat.id)
+                    return (
+                      <button key={cat.id} type="button"
+                        onClick={() => { setInterestsSavedMsg(''); setInterests(prev => selected ? prev.filter(i => i !== cat.id) : [...prev, cat.id]) }}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 11px', borderRadius: 20, fontSize: 13, cursor: 'pointer', border: selected ? '2px solid #2D6A4F' : '1.5px solid #ddd', background: selected ? '#F0FAF4' : '#fafafa', color: selected ? '#2D6A4F' : '#555', fontWeight: selected ? 700 : 400 }}>
+                        {cat.icon} {cat[lang] || cat.da}
+                      </button>
+                    )
+                  })}
+                </div>
+              )
+            }
+
+            // Grouped by sort_order decade
+            const groups = [
+              { label: lang === 'da' ? '🎵 Musik & Underholdning' : '🎵 Music & Entertainment', min: 10, max: 29 },
+              { label: lang === 'da' ? '🎮 Spil & Events' : '🎮 Games & Events', min: 20, max: 39 },
+              { label: lang === 'da' ? '⚽ Sport & Fitness' : '⚽ Sports & Fitness', min: 40, max: 59 },
+              { label: lang === 'da' ? '🌿 Natur & Dyr' : '🌿 Nature & Animals', min: 60, max: 69 },
+              { label: lang === 'da' ? '🍕 Mad & Drikke' : '🍕 Food & Drink', min: 70, max: 79 },
+              { label: lang === 'da' ? '✈️ Rejser' : '✈️ Travel', min: 80, max: 89 },
+              { label: lang === 'da' ? '💻 Teknologi' : '💻 Technology', min: 90, max: 99 },
+              { label: lang === 'da' ? '🔬 Videnskab & Uddannelse' : '🔬 Science & Education', min: 100, max: 109 },
+              { label: lang === 'da' ? '🎨 Kunst & Kreativitet' : '🎨 Art & Creativity', min: 110, max: 119 },
+              { label: lang === 'da' ? '🏠 Bolig & Have' : '🏠 Home & Garden', min: 120, max: 129 },
+              { label: lang === 'da' ? '💼 Erhverv & Økonomi' : '💼 Business & Finance', min: 130, max: 149 },
+              { label: lang === 'da' ? '💪 Sundhed & Familie' : '💪 Health & Family', min: 150, max: 169 },
+              { label: lang === 'da' ? '🚗 Transport' : '🚗 Transport', min: 170, max: 179 },
+              { label: lang === 'da' ? '🏛️ Samfund & Mode' : '🏛️ Society & Lifestyle', min: 180, max: 999 },
+            ]
+
+            return (
+              <div style={{ maxHeight: 300, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10, padding: '2px 0' }}>
+                {groups.map(group => {
+                  const items = interestCats.filter(c => (c.sort_order || 0) >= group.min && (c.sort_order || 0) < group.max)
+                  if (items.length === 0) return null
+                  const selCount = items.filter(c => interests.includes(c.id)).length
+                  return (
+                    <div key={group.label}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {group.label}
+                        {selCount > 0 && <span style={{ background: '#2D6A4F', color: '#fff', borderRadius: 10, padding: '1px 6px', fontSize: 10 }}>{selCount}</span>}
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                        {items.map(cat => {
+                          const selected = interests.includes(cat.id)
+                          return (
+                            <button key={cat.id} type="button"
+                              onClick={() => { setInterestsSavedMsg(''); setInterests(prev => selected ? prev.filter(i => i !== cat.id) : [...prev, cat.id]) }}
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 20, fontSize: 12, cursor: 'pointer', border: selected ? '2px solid #2D6A4F' : '1.5px solid #ddd', background: selected ? '#F0FAF4' : '#fafafa', color: selected ? '#2D6A4F' : '#555', fontWeight: selected ? 700 : 400 }}>
+                              {cat.icon} {cat[lang] || cat.da}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })()}
+
+          <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button
+              type="button"
+              disabled={interestsSaving || interests.length < 3}
+              onClick={async () => {
+                setInterestsSaving(true)
+                setInterestsSavedMsg('')
+                try {
+                  const res = await apiUpdateInterests(interests)
+                  if (res?.ok) {
+                    setInterestsSaveOk(true)
+                    setInterestsSavedMsg(t.interestsSaved)
+                    setTimeout(() => setInterestsSavedMsg(''), 3000)
+                  } else {
+                    setInterestsSaveOk(false)
+                    setInterestsSavedMsg(lang === 'da' ? 'Kunne ikke gemme – prøv igen' : 'Could not save – try again')
+                  }
+                } catch {
                   setInterestsSaveOk(false)
                   setInterestsSavedMsg(lang === 'da' ? 'Kunne ikke gemme – prøv igen' : 'Could not save – try again')
+                } finally {
+                  setInterestsSaving(false)
                 }
-              } catch {
-                setInterestsSaveOk(false)
-                setInterestsSavedMsg(lang === 'da' ? 'Kunne ikke gemme – prøv igen' : 'Could not save – try again')
-              } finally {
-                setInterestsSaving(false)
-              }
-            }}
-            style={{ padding: '7px 20px', borderRadius: 8, fontSize: 13, fontWeight: 700, background: interests.length >= 3 ? '#2D6A4F' : '#ccc', color: '#fff', border: 'none', cursor: interests.length >= 3 ? 'pointer' : 'not-allowed' }}
-          >
-            {interestsSaving ? '...' : t.interestsSave}
-          </button>
+              }}
+              style={{ padding: '7px 20px', borderRadius: 8, fontSize: 13, fontWeight: 700, background: interests.length >= 3 ? '#2D6A4F' : '#ccc', color: '#fff', border: 'none', cursor: interests.length >= 3 ? 'pointer' : 'not-allowed' }}
+            >
+              {interestsSaving ? '...' : t.interestsSave}
+            </button>
+            {interestsSavedMsg && (
+              <span style={{ fontSize: 13, color: interestsSaveOk ? '#2D6A4F' : '#e53935', fontWeight: 600 }}>{interestsSavedMsg}</span>
+            )}
+            {!interestsSavedMsg && interests.length < 3 && (
+              <span style={{ fontSize: 12, color: '#e53935' }}>{t.interestsMin3}</span>
+            )}
+          </div>
         </div>
 
         {/* Tags, relationship status, website */}

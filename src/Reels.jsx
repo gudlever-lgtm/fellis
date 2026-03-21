@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { nameToColor, getInitials, REACTIONS } from './data.js'
-import { apiFetchReels, apiUploadReel, apiToggleReelLike, apiFetchReelComments, apiAddReelComment, apiDeleteReel } from './api.js'
+import { apiFetchReels, apiUploadReel, apiToggleReelLike, apiFetchReelComments, apiAddReelComment, apiDeleteReel, apiSearchUsers } from './api.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -16,6 +16,7 @@ function ReelCard({ reel, t, currentUser, onDelete, onViewProfile }) {
   const [submitting, setSubmitting] = useState(false)
   const [muted, setMuted] = useState(true)
   const [playing, setPlaying] = useState(false)
+  const [looping, setLooping] = useState(true)
   const [progress, setProgress] = useState(0)      // 0–1
   const [duration, setDuration] = useState(0)
   const [seeking, setSeeking] = useState(false)
@@ -333,7 +334,7 @@ function ReelCard({ reel, t, currentUser, onDelete, onViewProfile }) {
           ref={videoRef}
           src={`${API_BASE}${reel.video_url}`}
           style={s.video}
-          loop
+          loop={looping}
           muted={muted}
           playsInline
           onClick={() => { togglePlay(); setShowReactionPicker(false) }}
@@ -350,6 +351,19 @@ function ReelCard({ reel, t, currentUser, onDelete, onViewProfile }) {
         )}
         <button style={s.muteBtn} onClick={() => setMuted(v => !v)} title={muted ? 'Slå lyd til' : 'Slå lyd fra'}>
           {muted ? '🔇' : '🔊'}
+        </button>
+        {/* Loop / play-once toggle */}
+        <button
+          onClick={() => setLooping(v => !v)}
+          title={looping ? 'Afspil én gang' : 'Loop'}
+          style={{
+            position: 'absolute', top: 44, right: 8, zIndex: 4,
+            background: 'rgba(0,0,0,0.55)', border: 'none', borderRadius: 20,
+            color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+            padding: '3px 9px', lineHeight: 1.4,
+          }}
+        >
+          {looping ? '🔁' : '1️⃣'}
         </button>
         {isOwn && (
           <button style={s.deleteBtn} onClick={handleDelete} title={t.reelsDelete}>
@@ -483,6 +497,16 @@ function ReelCard({ reel, t, currentUser, onDelete, onViewProfile }) {
           </div>
         )}
 
+        {/* Tagged users */}
+        {reel.tagged_users?.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'center' }}>
+            <span style={{ fontSize: 12, color: '#888' }}>Med:</span>
+            {reel.tagged_users.map(u => (
+              <span key={u.id} style={{ fontSize: 12, color: '#2D6A4F', fontWeight: 600, background: '#F0FAF4', borderRadius: 20, padding: '2px 8px' }}>👤 {u.name}</span>
+            ))}
+          </div>
+        )}
+
         {/* Stats */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13, color: '#555' }}>
           {reel.created_at && (
@@ -522,6 +546,11 @@ function UploadModal({ t, onClose, onUploaded }) {
   const [videoFile, setVideoFile] = useState(null)
   const [previewUrl, setPreviewUrl] = useState(null)
   const [caption, setCaption] = useState('')
+  const [taggedUsers, setTaggedUsers] = useState([])
+  const [tagSearch, setTagSearch] = useState('')
+  const [tagResults, setTagResults] = useState([])
+  const [showTagSearch, setShowTagSearch] = useState(false)
+  const tagTimer = useRef(null)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
   const fileInputRef = useRef(null)
@@ -544,7 +573,7 @@ function UploadModal({ t, onClose, onUploaded }) {
     setUploading(true)
     setError('')
     try {
-      const data = await apiUploadReel(videoFile, caption.trim() || '')
+      const data = await apiUploadReel(videoFile, caption.trim() || '', taggedUsers.length ? taggedUsers : undefined)
       if (data?.reel) {
         onUploaded(data.reel)
         onClose()
@@ -658,6 +687,58 @@ function UploadModal({ t, onClose, onUploaded }) {
           maxLength={2000}
           rows={3}
         />
+
+        {/* Tag people */}
+        <div style={{ marginBottom: 14 }}>
+          {taggedUsers.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+              {taggedUsers.map(u => (
+                <span key={u.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 20, fontSize: 12, background: '#2a2a2a', border: '1px solid #2D6A4F', color: '#8ecfad' }}>
+                  👤 {u.name}
+                  <button type="button" onClick={() => setTaggedUsers(prev => prev.filter(x => x.id !== u.id))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', fontSize: 14, lineHeight: 1, padding: 0 }}>×</button>
+                </span>
+              ))}
+            </div>
+          )}
+          <button type="button" onClick={() => setShowTagSearch(v => !v)}
+            style={{ background: 'none', border: '1px solid #444', borderRadius: 8, padding: '6px 12px', color: taggedUsers.length > 0 ? '#8ecfad' : '#aaa', fontSize: 12, cursor: 'pointer' }}>
+            👤 {t.reelsTagPeople || 'Tag people'}
+          </button>
+          {showTagSearch && (
+            <div style={{ marginTop: 8 }}>
+              <input autoFocus type="text" placeholder="🔍 Search…" value={tagSearch}
+                onChange={e => {
+                  setTagSearch(e.target.value)
+                  clearTimeout(tagTimer.current)
+                  if (e.target.value.trim().length >= 1) {
+                    tagTimer.current = setTimeout(() => {
+                      apiSearchUsers(e.target.value.trim()).then(r => setTagResults(r || []))
+                    }, 300)
+                  } else { setTagResults([]) }
+                }}
+                style={{ ...s.input, marginBottom: 6 }}
+              />
+              <div style={{ maxHeight: 150, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {tagResults.map(u => {
+                  const already = taggedUsers.some(x => x.id === u.id)
+                  return (
+                    <button key={u.id} type="button" onClick={() => {
+                      if (!already) setTaggedUsers(prev => [...prev, { id: u.id, name: u.name, handle: u.handle }])
+                      setTagSearch(''); setTagResults([]); setShowTagSearch(false)
+                    }} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: already ? '#1a2e1e' : '#2a2a2a', border: '1px solid #444', borderRadius: 8, cursor: 'pointer', textAlign: 'left', color: '#fff' }}>
+                      <span style={{ width: 28, height: 28, borderRadius: '50%', background: '#444', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, flexShrink: 0 }}>{u.name[0]}</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600 }}>{u.name}</div>
+                        {u.handle && <div style={{ fontSize: 11, color: '#888' }}>@{u.handle}</div>}
+                      </div>
+                      {already && <span style={{ fontSize: 11, color: '#8ecfad' }}>✓</span>}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
 
         {error && <div style={s.error}>{error}</div>}
 
