@@ -62,6 +62,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
   const [notifs, setNotifs] = useState([])
   const [notifTestResult, setNotifTestResult] = useState(null)
   const [friendsRefreshKey, setFriendsRefreshKey] = useState(0)
+  const [msgSsePayload, setMsgSsePayload] = useState(null)
   const [showModeModal, setShowModeModal] = useState(false)
   const [adsFree, setAdsFree] = useState(false)
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('fellis_dark') === '1')
@@ -182,7 +183,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
     return () => clearInterval(interval)
   }, [reloadNotifs])
 
-  // Real-time notification push via SSE
+  // Real-time notification push via SSE (single shared connection for the whole platform)
   useEffect(() => {
     const es = openSSE()
     es.onmessage = (e) => {
@@ -191,6 +192,9 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
         if (payload.type === 'notification') reloadNotifs()
         if (payload.type === 'notification' || payload.type === 'friend_request') {
           setFriendsRefreshKey(k => k + 1)
+        }
+        if (payload.type === 'message' || payload.type === 'read_receipt') {
+          setMsgSsePayload({ ts: Date.now(), ...payload })
         }
       } catch {}
     }
@@ -470,7 +474,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
           navigateTo('messages')
         }} />}
         <div style={{ display: page === 'messages' ? '' : 'none' }}>
-          <MessagesPage lang={lang} t={t} currentUser={currentUser} mode={mode} openConvId={openConvId} onConvOpened={() => setOpenConvId(null)} />
+          <MessagesPage lang={lang} t={t} currentUser={currentUser} mode={mode} openConvId={openConvId} onConvOpened={() => setOpenConvId(null)} ssePayload={msgSsePayload} />
         </div>
         {page === 'events' && <EventsPage lang={lang} t={t} currentUser={currentUser} mode={mode} />}
         {page === 'calendar' && <CalendarPage lang={lang} t={t} currentUser={currentUser} />}
@@ -588,6 +592,7 @@ const NOTIF_ICONS = {
   like: '❤️', comment: '💬', friend_request: '👥', friend_accepted: '🤝',
   friend_declined: '👋', event_rsvp: '📅', listing_boosted: '🚀',
   moderator_granted: '🛡️', mod_result: '📋', moderation: '⚠️', test: '🔔',
+  new_message: '✉️',
 }
 // Navigation target for each notification type (no 'link' column in DB)
 const NOTIF_TYPE_PAGE = {
@@ -595,6 +600,7 @@ const NOTIF_TYPE_PAGE = {
   friend_request: 'friends', friend_accepted: 'friends', friend_declined: 'friends',
   event_rsvp: 'events', listing_boosted: 'marketplace',
   moderator_granted: 'admin', mod_result: 'profile', moderation: 'profile',
+  new_message: 'messages',
 }
 
 function timeAgo(dateStr, lang) {
@@ -3975,6 +3981,7 @@ function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, on
 const NOTIF_PREF_TYPES = [
   { key: 'like',             icon: '❤️' },
   { key: 'comment',          icon: '💬' },
+  { key: 'new_message',      icon: '✉️' },
   { key: 'friend_request',   icon: '👥' },
   { key: 'friend_accepted',  icon: '🤝' },
   { key: 'friend_declined',  icon: '👋' },
@@ -4018,6 +4025,7 @@ function SettingsNotifications({ lang, t }) {
 
   const labelMap = {
     like: t.notifPrefLike, comment: t.notifPrefComment,
+    new_message: t.notifPrefNewMessage,
     friend_request: t.notifPrefFriendRequest, friend_accepted: t.notifPrefFriendAccepted,
     friend_declined: t.notifPrefFriendDeclined,
     event_rsvp: t.notifPrefEventRsvp, listing_boosted: t.notifPrefListingBoosted,
@@ -8145,7 +8153,7 @@ function SearchPage({ lang, t, mode, onNavigateToPost, onNavigateToConv, onNavig
   )
 }
 
-function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened }) {
+function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ssePayload }) {
   const [activeConv, setActiveConv] = useState(0)
   const [conversations, setConversations] = useState([])
   const [friends, setFriends] = useState([])
@@ -8166,37 +8174,32 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened }) 
   useEffect(() => {
     apiFetchConversations().then(data => { if (data) setConversations(data) })
     apiFetchFriends().then(data => { if (data) setFriends(data) })
-
-    // SSE: receive real-time messages from other users
-    const es = openSSE()
-    es.onmessage = (e) => {
-      try {
-        const payload = JSON.parse(e.data)
-        if (payload.type === 'message') {
-          setConversations(prev => prev.map(c => {
-            if (c.id !== payload.convId) return c
-            const msgs = [...c.messages, payload.msg]
-            return {
-              ...c,
-              messages: msgs.length > MSG_PAGE_SIZE ? msgs.slice(-MSG_PAGE_SIZE) : msgs,
-              totalMessages: (c.totalMessages || c.messages.length) + 1,
-              unread: (c.unread || 0) + 1,
-            }
-          }))
-        } else if (payload.type === 'read_receipt') {
-          // Another participant read the conversation — update their lastReadAt
-          setConversations(prev => prev.map(c => {
-            if (c.id !== payload.convId) return c
-            const existing = c.readReceipts || []
-            const updated = existing.filter(r => r.userId !== payload.userId)
-            updated.push({ userId: payload.userId, name: payload.name, lastReadAt: payload.lastReadAt })
-            return { ...c, readReceipts: updated }
-          }))
-        }
-      } catch {}
-    }
-    return () => es.close()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Live updates: handle SSE message/read_receipt events forwarded from Platform's shared SSE
+  useEffect(() => {
+    if (!ssePayload) return
+    if (ssePayload.type === 'message') {
+      setConversations(prev => prev.map(c => {
+        if (c.id !== ssePayload.convId) return c
+        const msgs = [...c.messages, ssePayload.msg]
+        return {
+          ...c,
+          messages: msgs.length > MSG_PAGE_SIZE ? msgs.slice(-MSG_PAGE_SIZE) : msgs,
+          totalMessages: (c.totalMessages || c.messages.length) + 1,
+          unread: (c.unread || 0) + 1,
+        }
+      }))
+    } else if (ssePayload.type === 'read_receipt') {
+      setConversations(prev => prev.map(c => {
+        if (c.id !== ssePayload.convId) return c
+        const existing = c.readReceipts || []
+        const updated = existing.filter(r => r.userId !== ssePayload.userId)
+        updated.push({ userId: ssePayload.userId, name: ssePayload.name, lastReadAt: ssePayload.lastReadAt })
+        return { ...c, readReceipts: updated }
+      }))
+    }
+  }, [ssePayload])
 
   // Open a specific conversation when navigated from elsewhere (search, contact seller, etc.)
   useEffect(() => {

@@ -3188,9 +3188,19 @@ app.post('/api/conversations/:id/messages', authenticate, writeLimit, async (req
       [convId, req.userId, receiverId, text, text, time])
     const [[user]] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
     const msg = { id: ins.insertId, from: user.name, text: { da: text, en: text }, time: formatMsgTime(now), createdAtRaw: now.toISOString() }
-    // Push the new message to all other participants via SSE
+    // Push the new message to all other participants via SSE + create notification
+    const [[conv]] = await pool.query('SELECT name, is_group FROM conversations WHERE id = ?', [convId]).catch(() => [[null]])
     for (const { user_id } of participants) {
-      if (user_id !== req.userId) sseBroadcast(user_id, { type: 'message', convId, msg })
+      if (user_id !== req.userId) {
+        sseBroadcast(user_id, { type: 'message', convId, msg })
+        const msgDa = conv?.is_group && conv?.name
+          ? `${user.name} sendte en besked i ${conv.name}`
+          : `${user.name} sendte dig en besked`
+        const msgEn = conv?.is_group && conv?.name
+          ? `${user.name} sent a message in ${conv.name}`
+          : `${user.name} sent you a message`
+        createNotification(user_id, 'new_message', msgDa, msgEn, req.userId, user.name)
+      }
     }
     res.json(msg)
   } catch (err) {
