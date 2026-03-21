@@ -8050,6 +8050,15 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened }) 
               unread: (c.unread || 0) + 1,
             }
           }))
+        } else if (payload.type === 'read_receipt') {
+          // Another participant read the conversation — update their lastReadAt
+          setConversations(prev => prev.map(c => {
+            if (c.id !== payload.convId) return c
+            const existing = c.readReceipts || []
+            const updated = existing.filter(r => r.userId !== payload.userId)
+            updated.push({ userId: payload.userId, name: payload.name, lastReadAt: payload.lastReadAt })
+            return { ...c, readReceipts: updated }
+          }))
         }
       } catch {}
     }
@@ -8122,10 +8131,11 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened }) 
     const media = msgMedia.length ? msgMedia.map(({ url, type, mime }) => ({ url, type, mime })) : null
     if (!text && !media) return
     const conv = conversations[activeConv]
-    const time = new Date().toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' })
+    const now = new Date()
+    const time = now.toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' })
     setConversations(prev => prev.map((c, i) => {
       if (i !== activeConv) return c
-      const msgs = [...c.messages, { from: currentUser.name, text: { da: text, en: text }, media, time }]
+      const msgs = [...c.messages, { from: currentUser.name, text: { da: text, en: text }, media, time, createdAtRaw: now.toISOString() }]
       return { ...c, messages: msgs.length > MSG_PAGE_SIZE ? msgs.slice(-MSG_PAGE_SIZE) : msgs,
         totalMessages: (c.totalMessages || c.messages.length) + 1, unread: 0 }
     }))
@@ -8372,6 +8382,11 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened }) 
             )}
             {conv.messages.map((msg, i) => {
               const isMe = msg.from === currentUser.name
+              // Read receipt: show below the LAST message I sent that other participants have read
+              const isLastMine = isMe && conv.messages.slice(i + 1).every(m => m.from !== currentUser.name)
+              const readers = isLastMine && msg.createdAtRaw
+                ? (conv.readReceipts || []).filter(r => r.lastReadAt && new Date(r.lastReadAt) >= new Date(msg.createdAtRaw))
+                : []
               return (
                 <div key={i} className={`p-msg-bubble-row${isMe ? ' mine' : ''}`}>
                   {!isMe && (
@@ -8379,25 +8394,44 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened }) 
                       {getInitials(msg.from)}
                     </div>
                   )}
-                  <div className={`p-msg-bubble${isMe ? ' mine' : ''}`}>
-                    {conv.isGroup && !isMe && (
-                      <div className="p-msg-sender-name">{msg.from.split(' ')[0]}</div>
-                    )}
-                    {msg.text[lang] && (
-                      <div style={{ whiteSpace: 'pre-wrap' }}>{linkifyText(msg.text[lang]).map((p, pi) =>
-                        p.t === 'url'
-                          ? <a key={pi} href={p.v} target="_blank" rel="noopener noreferrer" className="post-link">{p.v}</a>
-                          : p.t === 'mention'
-                            ? <span key={pi} className="p-mention">{p.v}</span>
-                            : <span key={pi}>{p.v}</span>
-                      )}</div>
-                    )}
-                    {msg.media?.length > 0 && (
-                      <div style={{ marginTop: msg.text[lang] ? 6 : 0, maxWidth: 260 }}>
-                        <PostMedia media={msg.media} />
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', flex: 1 }}>
+                    <div className={`p-msg-bubble${isMe ? ' mine' : ''}`}>
+                      {conv.isGroup && !isMe && (
+                        <div className="p-msg-sender-name">{msg.from.split(' ')[0]}</div>
+                      )}
+                      {msg.text[lang] && (
+                        <div style={{ whiteSpace: 'pre-wrap' }}>{linkifyText(msg.text[lang]).map((p, pi) =>
+                          p.t === 'url'
+                            ? <a key={pi} href={p.v} target="_blank" rel="noopener noreferrer" className="post-link">{p.v}</a>
+                            : p.t === 'mention'
+                              ? <span key={pi} className="p-mention">{p.v}</span>
+                              : <span key={pi}>{p.v}</span>
+                        )}</div>
+                      )}
+                      {msg.media?.length > 0 && (
+                        <div style={{ marginTop: msg.text[lang] ? 6 : 0, maxWidth: 260 }}>
+                          <PostMedia media={msg.media} />
+                        </div>
+                      )}
+                      <div className="p-msg-time">{msg.time}</div>
+                    </div>
+                    {/* Read receipt indicator */}
+                    {isMe && isLastMine && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 2, marginRight: 2 }}>
+                        {readers.length > 0 ? (
+                          <>
+                            {readers.slice(0, 3).map(r => (
+                              <div key={r.userId} title={r.name} style={{ width: 14, height: 14, borderRadius: '50%', background: nameToColor(r.name), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, color: '#fff', fontWeight: 700 }}>
+                                {getInitials(r.name)[0]}
+                              </div>
+                            ))}
+                            <span style={{ fontSize: 10, color: '#52B788' }}>✓✓</span>
+                          </>
+                        ) : (
+                          <span style={{ fontSize: 10, color: '#aaa' }}>✓</span>
+                        )}
                       </div>
                     )}
-                    <div className="p-msg-time">{msg.time}</div>
                   </div>
                 </div>
               )
