@@ -20,7 +20,7 @@ import MatrixRain from './components/easter-eggs/MatrixRain.jsx'
 import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
 import RickRoll from './components/easter-eggs/RickRoll.jsx'
 import RiddleBanner from './components/easter-eggs/RiddleBanner.jsx'
-import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiEvaluateBadges, apiGetEarnedBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode } from './api.js'
+import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode } from './api.js'
 import { BADGES, BADGE_BY_ID } from './badges/badgeDefinitions.js'
 import BadgeToastQueue from './components/BadgeToast.jsx'
 import ModeGate from './components/ModeGate.jsx'
@@ -91,10 +91,15 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
   useKeySequence('gg',     triggerGravityGlobal, 1000)
   useKeySequence('retro',  triggerRetroGlobal,   3000)
   useKonamiCode(triggerChuckGlobal, !chuckGlobalActive)
+  // Mobile tap triggers on global nav elements (work from any page)
+  useTapCount(navLogoRef,     { 5: triggerPartyGlobal,  10: triggerChuckGlobal  }, 5000, 600)
+  useTapCount(navAvatarTapRef, { 7: triggerMatrixGlobal }, 3000, 600)
   const [showOnboarding, setShowOnboarding] = useState(() => localStorage.getItem('fellis_onboarding') === '1')
   const [onboardingInviterName] = useState(() => localStorage.getItem('fellis_onboarding_inviter') || null)
   const avatarMenuRef = useRef(null)
   const notifRef = useRef(null)
+  const navLogoRef = useRef(null)
+  const navAvatarTapRef = useRef(null)
   const [showMoreMenu, setShowMoreMenu] = useState(false)
   const moreMenuRef = useRef(null)
 
@@ -285,7 +290,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
       {/* Platform nav — only Feed, Friends, Messages in main tabs */}
       <nav className="p-nav">
         <div className="p-nav-left">
-          <div className="nav-logo" style={{ cursor: 'pointer' }} onClick={() => { navigateTo('feed'); window.location.reload() }}>
+          <div ref={navLogoRef} className="nav-logo" style={{ cursor: 'pointer' }} onClick={() => { navigateTo('feed'); window.location.reload() }}>
             <img src="/fellis-logo.jpg" className="nav-logo-icon" alt="" />
             <div className="nav-logo-text">
               <span className="nav-logo-brand">{t.navBrand}</span>
@@ -421,9 +426,9 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
           {/* Avatar with dropdown menu */}
           <div ref={avatarMenuRef} style={{ position: 'relative' }}>
             {avatarSrc ? (
-              <img className="p-nav-avatar-img" src={avatarSrc} alt="" onClick={() => setShowAvatarMenu(v => !v)} />
+              <img ref={navAvatarTapRef} className="p-nav-avatar-img" src={avatarSrc} alt="" onClick={() => setShowAvatarMenu(v => !v)} />
             ) : (
-              <div className="p-nav-avatar" style={{ background: nameToColor(currentUser.name), cursor: 'pointer' }} onClick={() => setShowAvatarMenu(v => !v)}>
+              <div ref={navAvatarTapRef} className="p-nav-avatar" style={{ background: nameToColor(currentUser.name), cursor: 'pointer' }} onClick={() => setShowAvatarMenu(v => !v)}>
                 {currentUser.initials || getInitials(currentUser.name)}
               </div>
             )}
@@ -1522,8 +1527,9 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   // Avatar click — 7 clicks in 3 seconds = Matrix (mobile)
   useAvatarClick(feedContainerRef, 7, 3000, () => { onTriggerMatrix?.() }, true)
 
-  // Feed title tap-count: 2=Gravity, 3=Flip, 5=Party, 10=Chuck (mobile)
-  useTapCount(feedTitleRef, { 2: doGravity, 3: doFlip, 5: () => onTriggerParty?.(), 10: () => onTriggerChuck?.() }, 5000, 600)
+  // Feed title tap-count: 2=Gravity, 3=Flip (feed-specific DOM effects)
+  // Party (5 taps) and Chuck (10 taps) moved to nav logo for global access
+  useTapCount(feedTitleRef, { 2: doGravity, 3: doFlip }, 3000, 600)
 
   // Post hint icon double-tap: manually re-trigger AI category suggestion
   useTapCount(hintIconRef, {
@@ -5239,12 +5245,12 @@ function ModeratorRequestCard({ lang, t, currentUser }) {
 }
 
 const EGG_META = {
-  chuck:    { icon: '🤜', name: 'Chuck Norris', trigger: { da: 'Konami-kode (↑↑↓↓←→←→BA) / 10 tryk på Feed-overskrift', en: 'Konami code (↑↑↓↓←→←→BA) / 10 taps on Feed title' } },
-  matrix:   { icon: '🟩', name: 'Matrix Rain',  trigger: { da: 'Skriv "matrix" / 7 klik på en avatar inden for 3 sek.', en: 'Type "matrix" / 7 clicks on an avatar within 3 sec.' } },
+  chuck:    { icon: '🤜', name: 'Chuck Norris', trigger: { da: 'Konami-kode (↑↑↓↓←→←→BA) / 10 tryk på fellis-logoet', en: 'Konami code (↑↑↓↓←→←→BA) / 10 taps on the fellis logo' } },
+  matrix:   { icon: '🟩', name: 'Matrix Rain',  trigger: { da: 'Skriv "matrix" / 7 tryk på din avatar i navigationslinjen', en: 'Type "matrix" / 7 taps on your avatar in the nav bar' } },
   flip:     { icon: '🔃', name: 'Flip Feed',    trigger: { da: 'Skriv "flip" / 3 tryk på Feed-overskrift', en: 'Type "flip" / 3 taps on Feed title' } },
   retro:    { icon: '📺', name: 'Retro Mode',   trigger: { da: 'Skriv "retro" / hold Feed-overskrift nede 1,5 sek.', en: 'Type "retro" / long-press Feed title 1.5 sec.' } },
   gravity:  { icon: '⬇️', name: 'Gravity',      trigger: { da: 'Tryk G+G / 2 tryk på Feed-overskrift', en: 'Press G+G / 2 taps on Feed title' } },
-  party:    { icon: '🎉', name: 'Party Mode',   trigger: { da: 'Skriv "party" / 5 tryk på Feed-overskrift', en: 'Type "party" / 5 taps on Feed title' } },
+  party:    { icon: '🎉', name: 'Party Mode',   trigger: { da: 'Skriv "party" / 5 tryk på fellis-logoet', en: 'Type "party" / 5 taps on the fellis logo' } },
   rickroll: { icon: '🎵', name: 'Rick Roll',    trigger: { da: 'Rul til bunden og vent 4 sek.', en: 'Scroll to bottom and hold 4 sec.' } },
   watcher:  { icon: '👀', name: 'Skyggefølger', trigger: { da: 'Klik 7 gange på en vens avatar i Vis Profil', en: "Click 7 times on a friend's avatar in View Profile" } },
   riddler:  { icon: '❓', name: 'The Riddler',   trigger: { da: 'Shift+klik på ? hint-ikonet', en: 'Shift+click the ? hint icon' } },
@@ -15205,6 +15211,7 @@ function AdminEasterEggsPanel({ lang }) {
   })
   const [stats, setStats] = useState(null)
   const [statsNote, setStatsNote] = useState(null)
+  const saveTimerRef = useRef(null)
 
   useEffect(() => {
     apiGetAdminEasterEggStats()
@@ -15216,6 +15223,9 @@ function AdminEasterEggsPanel({ lang }) {
     setCfg(prev => {
       const updated = { ...prev, [id]: { ...(prev[id] || {}), [key]: val } }
       localStorage.setItem(ADMIN_KEY, JSON.stringify(updated))
+      // Debounce server save by 800ms so typing hintText doesn't spam
+      clearTimeout(saveTimerRef.current)
+      saveTimerRef.current = setTimeout(() => apiSaveAdminEasterEggConfig(updated), 800)
       return updated
     })
   }
