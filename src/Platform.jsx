@@ -2162,7 +2162,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   onBlur={e => {
                     // Don't collapse when focus moves to OS file dialog (relatedTarget is null)
                     if (!e.relatedTarget && !newPostText.trim() && !mediaPreviews.length) return
-                    if (!newPostText.trim() && !mediaPreviews.length) setPostExpanded(false)
+                    // Don't collapse when location search is open (autoFocus on search input triggers blur)
+                    if (!newPostText.trim() && !mediaPreviews.length && !locationSearchOpen && !postLocation) setPostExpanded(false)
                     feedMention.close()
                   }}
                   autoFocus={postExpanded && !newPostText}
