@@ -8175,6 +8175,12 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
   useEffect(() => {
     apiFetchConversations().then(data => { if (data) setConversations(data) })
     apiFetchFriends().then(data => { if (data) setFriends(data) })
+    // Polling fallback: refresh conversations every 30 s to catch messages
+    // if the SSE connection is temporarily unavailable.
+    const poll = setInterval(() => {
+      apiFetchConversations().then(data => { if (data) setConversations(data) })
+    }, 30_000)
+    return () => clearInterval(poll)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Live updates: handle SSE message/read_receipt events forwarded from Platform's shared SSE

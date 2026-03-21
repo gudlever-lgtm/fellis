@@ -456,22 +456,43 @@ export function openSSE() {
   let timer = null
   const ctrl = { onmessage: null, onreconnect: null }
   let connected = false
+  let failCount = 0
 
-  function connect() {
+  async function connect() {
     if (closed) return
     const sid = getSessionId()
     if (!sid) return // not logged in — nothing to connect to
+
+    // After 3 consecutive failures without ever connecting, probe the endpoint
+    // with a normal fetch to detect a 401 (expired session) and stop retrying.
+    if (failCount >= 3 && !connected) {
+      try {
+        const probe = await fetch(`${API_BASE}/api/sse?sid=${encodeURIComponent(sid)}`, {
+          headers: { Accept: 'text/event-stream' },
+          credentials: 'same-origin',
+          signal: AbortSignal.timeout(5000),
+        })
+        if (probe.status === 401 || probe.status === 403) {
+          probe.body?.cancel()
+          return // session invalid — stop reconnecting silently
+        }
+        probe.body?.cancel()
+      } catch { /* network error — keep trying */ }
+    }
+
     const url = `${API_BASE}/api/sse?sid=${encodeURIComponent(sid)}`
     es = new EventSource(url)
-    es.onmessage = (e) => { if (ctrl.onmessage) ctrl.onmessage(e) }
+    es.onmessage = (e) => { failCount = 0; if (ctrl.onmessage) ctrl.onmessage(e) }
     es.onopen = () => {
       delay = 2000 // reset backoff on successful connect
+      failCount = 0
       if (connected && ctrl.onreconnect) ctrl.onreconnect() // fired on reconnect (not first connect)
       connected = true
     }
     es.onerror = () => {
       es.close()
       es = null
+      failCount++
       if (!closed) {
         timer = setTimeout(() => { delay = Math.min(delay * 2, 64000); connect() }, delay)
       }
