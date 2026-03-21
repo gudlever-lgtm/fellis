@@ -1563,12 +1563,22 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   useLongPress(feedTitleRef, 1500, () => onTriggerRetro?.())
   const handleRetroTrigger = (e) => { if (e.shiftKey) onTriggerRetro?.() }
 
-  // Riddler: Shift+Click on the ? hint icon
+  // Riddler: Shift+Click on the ? hint icon; regular click/tap toggles tooltip
+  const [hintOpen, setHintOpen] = useState(false)
+  const hintCloseRef = useRef(null)
   const handleHintIconClick = (e) => {
     if (e.shiftKey) {
       e.preventDefault()
       if (!riddlerActive && triggerEgg('riddler', onBadgeCheck)) { setRiddlerActive(true) }
+      return
     }
+    setHintOpen(v => {
+      if (!v) {
+        clearTimeout(hintCloseRef.current)
+        hintCloseRef.current = setTimeout(() => setHintOpen(false), 4000)
+      }
+      return !v
+    })
   }
   // ── end easter eggs ─────────────────────────────────────────────────────────
 
@@ -2387,10 +2397,10 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                       const q = e.target.value
                       setLocationSearchText(q)
                       setLocationResults([])
-                      clearTimeout(locationDebounceRef.current)
+                      clearTimeout(locationDebounce.current)
                       if (q.length < 2) { setLocationSearching(false); return }
                       setLocationSearching(true)
-                      locationDebounceRef.current = setTimeout(async () => {
+                      locationDebounce.current = setTimeout(async () => {
                         const results = await apiGeocode(q, lang)
                         setLocationResults(results || [])
                         setLocationSearching(false)
@@ -2534,7 +2544,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                     style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #1877F2', fontSize: 12, color: '#333' }}
                   />
                 )}
-                <span className="p-input-hint-wrap">
+                <span className={`p-input-hint-wrap${hintOpen ? ' active' : ''}`}>
                   <span className="p-input-hint-icon" ref={hintIconRef} onClick={handleHintIconClick}>?</span>
                   <span className="p-input-hint-tooltip">{t.postInputHint}</span>
                 </span>
@@ -8425,6 +8435,17 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
   const msgMention = useMention(friends)
   const topMsgSentinelRef = useRef(null)
   const menuRef = useRef(null)
+  const [msgHintOpen, setMsgHintOpen] = useState(false)
+  const msgHintCloseRef = useRef(null)
+  const handleMsgHintClick = () => {
+    setMsgHintOpen(v => {
+      if (!v) {
+        clearTimeout(msgHintCloseRef.current)
+        msgHintCloseRef.current = setTimeout(() => setMsgHintOpen(false), 4000)
+      }
+      return !v
+    })
+  }
 
   useEffect(() => {
     apiFetchConversations().then(data => { if (data) setConversations(data) })
@@ -8848,8 +8869,8 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
               </div>
             )}
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 0, width: '100%' }}>
-              <span className="p-input-hint-wrap">
-                <span className="p-input-hint-icon">?</span>
+              <span className={`p-input-hint-wrap${msgHintOpen ? ' active' : ''}`}>
+                <span className="p-input-hint-icon" onClick={handleMsgHintClick}>?</span>
                 <span className="p-input-hint-tooltip">{t.msgInputHint}</span>
               </span>
               {/* Attach button */}

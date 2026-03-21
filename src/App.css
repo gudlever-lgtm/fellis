@@ -1278,11 +1278,12 @@
   color: #fff;
   font-size: 12px;
   font-weight: 700;
-  cursor: default;
+  cursor: pointer;
   user-select: none;
   transition: background 0.15s;
 }
-.p-input-hint-wrap:hover .p-input-hint-icon { background: #7A7470; }
+.p-input-hint-wrap:hover .p-input-hint-icon,
+.p-input-hint-wrap.active .p-input-hint-icon { background: #7A7470; }
 .p-input-hint-tooltip {
   position: absolute;
   bottom: calc(100% + 10px);
@@ -1311,7 +1312,8 @@
   border: 6px solid transparent;
   border-top-color: #1A1A1A;
 }
-.p-input-hint-wrap:hover .p-input-hint-tooltip { opacity: 1; }
+.p-input-hint-wrap:hover .p-input-hint-tooltip,
+.p-input-hint-wrap.active .p-input-hint-tooltip { opacity: 1; }
 
 /* ── @mention autocomplete dropdown ── */
 .p-mention-dropdown {
