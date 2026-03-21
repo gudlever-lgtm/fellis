@@ -11122,14 +11122,14 @@ function JobApplyModal({ job, lang, t, onClose, currentUser }) {
   const btnS = { padding: '7px 14px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#444' }
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="p-msg-modal" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
-        <div className="p-msg-modal-header">
+    <div className="modal-backdrop" style={{ alignItems: 'flex-start', padding: '40px 16px 16px' }} onClick={onClose}>
+      <div className="p-msg-modal" style={{ maxWidth: 520, maxHeight: 'calc(100vh - 56px)', margin: '0 auto' }} onClick={e => e.stopPropagation()}>
+        <div className="p-msg-modal-header" style={{ position: 'sticky', top: 0, background: '#fff', zIndex: 1 }}>
           <span>📝 {lang === 'da' ? 'Ansøg om stilling' : 'Apply for position'}</span>
           <button className="p-msg-modal-close" onClick={onClose}>✕</button>
         </div>
         {done ? (
-          <div style={{ padding: '24px 20px', textAlign: 'center' }}>
+          <div style={{ padding: '24px 20px', textAlign: 'center', overflowY: 'auto' }}>
             <div style={{ fontSize: 32, marginBottom: 12 }}>✅</div>
             <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6 }}>
               {lang === 'da' ? 'Ansøgning sendt!' : 'Application sent!'}
@@ -11140,7 +11140,7 @@ function JobApplyModal({ job, lang, t, onClose, currentUser }) {
             <button className="p-events-create-btn" onClick={onClose}>{lang === 'da' ? 'Luk' : 'Close'}</button>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} style={{ padding: '16px 20px', overflowY: 'auto', flex: 1 }}>
+          <form onSubmit={handleSubmit} style={{ padding: '16px 20px', overflowY: 'auto', flex: 1, minHeight: 0 }}>
             <div style={{ fontSize: 13, color: '#555', marginBottom: 12 }}>
               <strong>{typeof job.title === 'string' ? job.title : (job.title?.da || '')}</strong>
               {' '}&middot;{' '}
