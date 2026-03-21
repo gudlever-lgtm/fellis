@@ -1144,6 +1144,21 @@ function MentionDropdown({ filtered, selIdx, onSelect }) {
   )
 }
 
+// Renders text with @[Name] tokens as styled mention chips
+function renderMentionText(text) {
+  if (!text || !text.includes('@[')) return text
+  const parts = text.split(/(@\[[^\]]+\])/)
+  return parts.map((part, i) => {
+    const m = part.match(/^@\[(.+)\]$/)
+    if (m) return (
+      <span key={i} style={{ display: 'inline-block', background: '#e8f5e9', color: '#2D6A4F', borderRadius: 6, padding: '1px 7px', fontSize: '0.92em', fontWeight: 600, lineHeight: 1.5 }}>
+        @{m[1]}
+      </span>
+    )
+    return part
+  })
+}
+
 // ── Reels strip shown at top of feed ──────────────────────────────────────────
 function ReelsStrip({ lang, t, onNavigate }) {
   const [reels, setReels] = useState([])
@@ -1724,6 +1739,12 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const commentMention = useMention(sharePopupFriends || [])
   const [commentMentionPostId, setCommentMentionPostId] = useState(null)
   const commentInputRefs = useRef({}) // postId → input el
+  const companyCommentMention = useMention(sharePopupFriends || [])
+  const [companyCommentMentionPostId, setCompanyCommentMentionPostId] = useState(null)
+  const companyCommentInputRefs = useRef({})
+  const cpFeedCommentMention = useMention(sharePopupFriends || [])
+  const [cpFeedCommentMentionPostId, setCpFeedCommentMentionPostId] = useState(null)
+  const cpFeedCommentInputRefs = useRef({})
   const bottomSentinelRef = useRef(null)
   const feedContainerRef = useRef(null)
   const [feedSelectedEvent, setFeedSelectedEvent] = useState(null)
@@ -2055,8 +2076,9 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     setScheduleEnabled(false)
     setScheduledAt('')
     setPostLocation(null)
-    setLocationQuery('')
-    setLocationSuggestions([])
+    setLocationSearchText('')
+    setLocationResults([])
+    setLocationSearchOpen(false)
     setTaggedUsers([])
     setLinkedContent(null)
     setShowTagPicker(false)
@@ -3026,15 +3048,49 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                 {(cpFeedCommentLists[post.id] || []).map(c => (
                   <div key={c.id} className="p-comment">
                     <div className="p-comment-bubble">
-                      <span className="p-comment-author">{c.author_name}</span> {c.text}
+                      <span className="p-comment-author">{c.author_name}</span> {renderMentionText(c.text)}
                     </div>
                   </div>
                 ))}
-                <div className="p-comment-input-row">
-                  <input className="p-comment-input" placeholder={t.writeComment}
+                <div className="p-comment-input-row" style={{ position: 'relative' }}>
+                  {cpFeedCommentMentionPostId === post.id && cpFeedCommentMention.query !== null && cpFeedCommentMention.filtered.length > 0 && (
+                    <div style={{ position: 'absolute', bottom: '100%', left: 0, right: 60, zIndex: 50, marginBottom: 4 }}>
+                      <MentionDropdown
+                        filtered={cpFeedCommentMention.filtered}
+                        selIdx={cpFeedCommentMention.selIdx}
+                        onSelect={f => {
+                          const el = cpFeedCommentInputRefs.current[post.id]
+                          const cur = el?.selectionStart ?? (cpFeedCommentTexts[post.id] || '').length
+                          const { text, cursor: nc } = cpFeedCommentMention.buildText(cpFeedCommentTexts[post.id] || '', cur, f)
+                          setCpFeedCommentTexts(prev => ({ ...prev, [post.id]: text }))
+                          setTimeout(() => { el?.focus(); el?.setSelectionRange(nc, nc) }, 0)
+                        }}
+                      />
+                    </div>
+                  )}
+                  <input
+                    ref={el => { cpFeedCommentInputRefs.current[post.id] = el }}
+                    className="p-comment-input" placeholder={t.writeComment}
                     value={cpFeedCommentTexts[post.id] || ''}
-                    onChange={e => setCpFeedCommentTexts(prev => ({ ...prev, [post.id]: e.target.value }))}
-                    onKeyDown={e => e.key === 'Enter' && sendComment()} />
+                    onChange={e => {
+                      const val = e.target.value
+                      setCpFeedCommentTexts(prev => ({ ...prev, [post.id]: val }))
+                      setCpFeedCommentMentionPostId(post.id)
+                      cpFeedCommentMention.detect(val, e.target.selectionStart)
+                      if (val.includes('@') && sharePopupFriends === null) apiFetchFriends().then(d => { if (d) setSharePopupFriends(d) })
+                    }}
+                    onKeyDown={e => {
+                      if (cpFeedCommentMentionPostId === post.id && cpFeedCommentMention.handleKey(e, f => {
+                        const el = cpFeedCommentInputRefs.current[post.id]
+                        const cur = el?.selectionStart ?? (cpFeedCommentTexts[post.id] || '').length
+                        const { text, cursor: nc } = cpFeedCommentMention.buildText(cpFeedCommentTexts[post.id] || '', cur, f)
+                        setCpFeedCommentTexts(prev => ({ ...prev, [post.id]: text }))
+                        setTimeout(() => { el?.focus(); el?.setSelectionRange(nc, nc) }, 0)
+                      })) return
+                      if (e.key === 'Enter') sendComment()
+                    }}
+                    onBlur={() => { setTimeout(() => cpFeedCommentMention.close(), 150) }}
+                  />
                   <button className="p-send-btn" onClick={sendComment}>{t.send}</button>
                 </div>
               </div>
@@ -3453,7 +3509,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                     </div>
                     <div className="p-comment-bubble">
                       <span className="p-comment-author">{c.author}</span>
-                      <span>{c.text[lang]}</span>
+                      <span>{renderMentionText(c.text[lang])}</span>
                       {c.media?.length > 0 && (
                         <div className="p-comment-media">
                           <PostMedia media={c.media} />
@@ -10918,15 +10974,49 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
                     {(companyCommentLists[post.id] || []).map(c => (
                       <div key={c.id} className="p-comment">
                         <div className="p-comment-bubble">
-                          <span className="p-comment-author">{c.author_name}</span> {c.text}
+                          <span className="p-comment-author">{c.author_name}</span> {renderMentionText(c.text)}
                         </div>
                       </div>
                     ))}
-                    <div className="p-comment-input-row">
-                      <input className="p-comment-input" placeholder={t.writeComment}
+                    <div className="p-comment-input-row" style={{ position: 'relative' }}>
+                      {companyCommentMentionPostId === post.id && companyCommentMention.query !== null && companyCommentMention.filtered.length > 0 && (
+                        <div style={{ position: 'absolute', bottom: '100%', left: 0, right: 60, zIndex: 50, marginBottom: 4 }}>
+                          <MentionDropdown
+                            filtered={companyCommentMention.filtered}
+                            selIdx={companyCommentMention.selIdx}
+                            onSelect={f => {
+                              const el = companyCommentInputRefs.current[post.id]
+                              const cur = el?.selectionStart ?? (companyCommentInputs[post.id] || '').length
+                              const { text, cursor: nc } = companyCommentMention.buildText(companyCommentInputs[post.id] || '', cur, f)
+                              setCompanyCommentInputs(prev => ({ ...prev, [post.id]: text }))
+                              setTimeout(() => { el?.focus(); el?.setSelectionRange(nc, nc) }, 0)
+                            }}
+                          />
+                        </div>
+                      )}
+                      <input
+                        ref={el => { companyCommentInputRefs.current[post.id] = el }}
+                        className="p-comment-input" placeholder={t.writeComment}
                         value={companyCommentInputs[post.id] || ''}
-                        onChange={e => setCompanyCommentInputs(prev => ({ ...prev, [post.id]: e.target.value }))}
-                        onKeyDown={e => e.key === 'Enter' && addCompanyComment(post.id)} />
+                        onChange={e => {
+                          const val = e.target.value
+                          setCompanyCommentInputs(prev => ({ ...prev, [post.id]: val }))
+                          setCompanyCommentMentionPostId(post.id)
+                          companyCommentMention.detect(val, e.target.selectionStart)
+                          if (val.includes('@') && sharePopupFriends === null) apiFetchFriends().then(d => { if (d) setSharePopupFriends(d) })
+                        }}
+                        onKeyDown={e => {
+                          if (companyCommentMentionPostId === post.id && companyCommentMention.handleKey(e, f => {
+                            const el = companyCommentInputRefs.current[post.id]
+                            const cur = el?.selectionStart ?? (companyCommentInputs[post.id] || '').length
+                            const { text, cursor: nc } = companyCommentMention.buildText(companyCommentInputs[post.id] || '', cur, f)
+                            setCompanyCommentInputs(prev => ({ ...prev, [post.id]: text }))
+                            setTimeout(() => { el?.focus(); el?.setSelectionRange(nc, nc) }, 0)
+                          })) return
+                          if (e.key === 'Enter') addCompanyComment(post.id)
+                        }}
+                        onBlur={() => { setTimeout(() => companyCommentMention.close(), 150) }}
+                      />
                       <button className="p-send-btn" onClick={() => addCompanyComment(post.id)}>{t.send}</button>
                     </div>
                   </div>
