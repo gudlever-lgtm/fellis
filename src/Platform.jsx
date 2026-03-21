@@ -1539,16 +1539,45 @@ function FeedSidebar({ lang, t, adsFree, onNavigate }) {
   const da = lang === 'da'
   const [events, setEvents] = useState(null)
   const [suggestedFriends, setSuggestedFriends] = useState(null)
+  const [boostedListings, setBoostedListings] = useState(null)
 
   useEffect(() => {
     apiFetchEvents().then(d => { if (d?.events) setEvents(d.events.slice(0, 3)) })
     apiGetSuggestedUsers(4).then(d => { if (d?.users) setSuggestedFriends(d.users) })
+    apiGetBoostedFeedListings().then(d => { if (d?.listings) setBoostedListings(d.listings.slice(0, 4)) })
   }, [])
 
   return (
     <aside style={{ width: 280, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
       {/* Sidebar ad */}
       <AdBanner placement="sidebar" adsFree={adsFree} lang={lang} onGoAdFree={adsFree ? null : () => onNavigate('settings', 'billing')} />
+
+      {/* Boosted marketplace listings */}
+      {boostedListings && boostedListings.length > 0 && (
+        <div style={{ background: '#fff', border: '1px solid #E8E4DF', borderRadius: 12, padding: '14px 16px' }}>
+          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            🛍️ {da ? 'Fremhævet salg' : 'Featured listings'}
+            <button onClick={() => onNavigate('marketplace')} style={{ background: 'none', border: 'none', fontSize: 12, color: '#2D6A4F', cursor: 'pointer', fontWeight: 600 }}>{da ? 'Se alle' : 'See all'} →</button>
+          </div>
+          {boostedListings.map(l => {
+            const photo = Array.isArray(l.photos) ? l.photos[0] : null
+            const API_BASE = import.meta.env.VITE_API_URL || ''
+            const photoSrc = photo ? (photo.startsWith('http') ? photo : `${API_BASE}${photo}`) : null
+            return (
+              <div key={l.id} onClick={() => onNavigate('marketplace')} style={{ display: 'flex', gap: 10, marginBottom: 10, cursor: 'pointer', alignItems: 'center' }}>
+                {photoSrc
+                  ? <img src={photoSrc} alt="" style={{ width: 48, height: 48, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />
+                  : <div style={{ width: 48, height: 48, borderRadius: 8, background: '#f0f0f0', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🛍️</div>
+                }
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.title}</div>
+                  <div style={{ fontSize: 12, color: '#2D6A4F', fontWeight: 700 }}>{l.priceNegotiable ? (da ? 'Pris forhandles' : 'Negotiable') : (typeof l.price === 'number' ? `${l.price.toLocaleString(da ? 'da-DK' : 'en-US')} kr` : l.price)}</div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       {/* Upcoming events */}
       <div style={{ background: '#fff', border: '1px solid #E8E4DF', borderRadius: 12, padding: '14px 16px' }}>
