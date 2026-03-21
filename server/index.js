@@ -9114,6 +9114,11 @@ app.put('/api/admin/easter-eggs/config', authenticate, requireAdmin, async (req,
 
 // GET /api/easter-eggs/hints — public; returns eggs where admin enabled hints and set hint text
 app.get('/api/easter-eggs/hints', async (req, res) => {
+  const DEFAULT_HINTS = [
+    { id: 'chuck',    hint: 'har en mening' },
+    { id: 'gravity',  hint: 'G G' },
+    { id: 'rickroll', hint: 'Going down!' },
+  ]
   try {
     const [[row]] = await pool.query(
       "SELECT key_value FROM admin_settings WHERE key_name = 'easter_egg_config'"
@@ -9125,10 +9130,10 @@ app.get('/api/easter-eggs/hints', async (req, res) => {
         hints.push({ id: eggId, hint: ec.hintText.trim() })
       }
     }
-    res.json({ hints })
+    res.json({ hints: hints.length ? hints : DEFAULT_HINTS })
   } catch (err) {
     console.error('GET /api/easter-eggs/hints error:', err.message)
-    res.json({ hints: [] })
+    res.json({ hints: DEFAULT_HINTS })
   }
 })
 
@@ -10062,51 +10067,7 @@ app.get('/api/me/interest-graph/signal-stats', authenticate, async (req, res) =>
   }
 })
 
-// ── SPA fallback — serve index.html with dynamic easter egg hints comment ──
-app.get('*', async (req, res) => {
-  try {
-    let html = readFileSync(path.join(FRONTEND_ROOT, 'index.html'), 'utf8')
-
-    // Build the easter egg hints comment from admin config
-    try {
-      const EGG_LABELS = {
-        chuck:    '🤜 Chuck Norris',
-        matrix:   '🟩 Matrix Rain',
-        flip:     '🌪️ Flip Feed',
-        retro:    '🕹️ Retro Mode',
-        gravity:  '🌍 Gravity',
-        party:    '🎉 Party Mode',
-        rickroll: '📼 Rick Roll',
-        watcher:  '👁️ Skyggefølger',
-        riddler:  '❓ The Riddler',
-        phantom:  '👻 Phantom Visitors',
-      }
-      const DEFAULT_HINTS = {
-        chuck:    { hintsEnabled: true,  hintText: 'har en mening' },
-        gravity:  { hintsEnabled: true,  hintText: 'G G' },
-        rickroll: { hintsEnabled: true,  hintText: 'Going down!' },
-      }
-      const [[row]] = await pool.query(
-        "SELECT key_value FROM admin_settings WHERE key_name = 'easter_egg_config'"
-      ).catch(() => [[null]])
-      const cfg = (row && Object.keys(JSON.parse(row.key_value || '{}')).length)
-        ? JSON.parse(row.key_value)
-        : DEFAULT_HINTS
-      let activeHints = Object.entries(cfg)
-        .filter(([, ec]) => ec.hintsEnabled && ec.hintText?.trim())
-        .map(([id, ec]) => `    ${EGG_LABELS[id] || id}: ${ec.hintText.trim()}`)
-      // If DB config has no active hints, always show the hardcoded defaults
-      if (!activeHints.length) {
-        activeHints = Object.entries(DEFAULT_HINTS)
-          .map(([id, ec]) => `    ${EGG_LABELS[id] || id}: ${ec.hintText.trim()}`)
-      }
-      const eggComment = `<!--\n    👋 Hej nysgerrige! / Hello curious one!\n\n    🥚 Easter egg hints:\n${activeHints.join('\n')}\n  -->`
-      html = html.replace(/<!--[\s\S]*?Hej nysgerrige[\s\S]*?-->/, eggComment)
-    } catch { /* keep original comment if DB unavailable */ }
-
-    res.setHeader('Content-Type', 'text/html')
-    res.send(html)
-  } catch {
-    res.sendFile(path.join(FRONTEND_ROOT, 'index.html'))
-  }
+// ── SPA fallback ──
+app.get('*', (req, res) => {
+  res.sendFile(path.join(FRONTEND_ROOT, 'index.html'))
 })
