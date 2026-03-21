@@ -1,0 +1,47 @@
+{
+  "name": "fellis.eu",
+  "short_name": "fellis",
+  "description": "Et privatliv-først socialt netværk bygget i EU. GDPR-venligt og gratis.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#FAFAF8",
+  "theme_color": "#2D6A4F",
+  "lang": "da",
+  "orientation": "portrait-primary",
+  "categories": ["social", "communication"],
+  "icons": [
+    {
+      "src": "/fellis-logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/fellis-logo.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/fellis-logo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Feed",
+      "short_name": "Feed",
+      "url": "/?page=feed",
+      "description": "Gå til feed"
+    },
+    {
+      "name": "Beskeder",
+      "short_name": "Beskeder",
+      "url": "/?page=messages",
+      "description": "Åbn beskeder"
+    }
+  ]
+}

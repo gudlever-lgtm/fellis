@@ -2254,7 +2254,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
     try {
       ;[posts] = await pool.query(
         `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.categories, p.created_at, p.edited_at,
-                p.location_lat, p.location_lng, p.location_name,
+                p.place_name, p.geo_lat, p.geo_lng,
                 (SELECT COUNT(*) FROM earned_badges WHERE user_id = p.author_id) as author_badge_count
          FROM posts p JOIN users u ON p.author_id = u.id
          WHERE (p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?))
@@ -2267,7 +2267,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
     } catch {
       ;[posts] = await pool.query(
         `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.categories, p.created_at, p.edited_at,
-                p.location_lat, p.location_lng, p.location_name,
+                NULL as place_name, NULL as geo_lat, NULL as geo_lng,
                 0 as author_badge_count
          FROM posts p JOIN users u ON p.author_id = u.id
          WHERE (p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?))
@@ -2285,18 +2285,19 @@ app.get('/api/feed', authenticate, async (req, res) => {
         const [rows] = await pool.query(
           `SELECT c.id, c.post_id, u.name as author, c.text_da, c.text_en, c.media,
                   COUNT(cl.id) AS likes,
-                  MAX(CASE WHEN cl.user_id = ? THEN 1 ELSE 0 END) AS liked
+                  MAX(CASE WHEN cl.user_id = ? THEN 1 ELSE 0 END) AS liked,
+                  MAX(CASE WHEN cl.user_id = ? THEN cl.reaction ELSE NULL END) AS my_reaction
            FROM comments c
            JOIN users u ON c.author_id = u.id
            LEFT JOIN comment_likes cl ON cl.comment_id = c.id
            WHERE c.post_id IN (?)
            GROUP BY c.id, c.post_id, u.name, c.text_da, c.text_en, c.media
            ORDER BY c.created_at ASC`,
-          [req.userId, postIds]
+          [req.userId, req.userId, postIds]
         )
         comments = rows
       } catch {
-        // media column may not exist yet — fall back to query without it
+        // media/reaction column may not exist yet — fall back
         const [rows] = await pool.query(
           `SELECT c.id, c.post_id, u.name as author, c.text_da, c.text_en,
                   COUNT(cl.id) AS likes,
@@ -2347,7 +2348,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
       if (!commentsByPost[c.post_id]) commentsByPost[c.post_id] = []
       let cMedia = null
       if (c.media) { try { cMedia = typeof c.media === 'string' ? JSON.parse(c.media) : c.media } catch {} }
-      commentsByPost[c.post_id].push({ id: c.id, author: c.author, text: { da: c.text_da, en: c.text_en }, media: cMedia, likes: Number(c.likes || 0), liked: !!c.liked })
+      commentsByPost[c.post_id].push({ id: c.id, author: c.author, text: { da: c.text_da, en: c.text_en }, media: cMedia, likes: Number(c.likes || 0), liked: !!c.liked, reaction: c.my_reaction || null })
     }
     const result = posts.map(p => {
       let media = null
@@ -2374,7 +2375,9 @@ app.get('/api/feed', authenticate, async (req, res) => {
         createdAtRaw: p.created_at,
         edited: !!p.edited_at,
         authorBadgeCount: p.author_badge_count || 0,
-        location: p.location_lat ? { lat: Number(p.location_lat), lng: Number(p.location_lng), name: p.location_name } : null,
+        placeName: p.place_name || null,
+        geoLat: p.geo_lat || null,
+        geoLng: p.geo_lng || null,
       }
     })
     // Track post views (fire-and-forget)
@@ -2450,10 +2453,7 @@ app.post('/api/feed/preflight', authenticate, (req, res) => {
 
 // POST /api/feed — create a new post (with optional media)
 app.post('/api/feed', authenticate, writeLimit, upload.array('media', 4), async (req, res) => {
-  const { text, scheduled_at } = req.body
-  const locLat = req.body.location_lat ? parseFloat(req.body.location_lat) : null
-  const locLng = req.body.location_lng ? parseFloat(req.body.location_lng) : null
-  const locName = req.body.location_name ? String(req.body.location_name).slice(0, 255) : null
+  const { text, scheduled_at, place_name, geo_lat, geo_lng } = req.body
   const rawCats = req.body.categories
   const categories = rawCats ? (typeof rawCats === 'string' ? JSON.parse(rawCats) : rawCats) : null
   if (!text && !req.files?.length) return res.status(400).json({ error: 'Post text or media required' })
@@ -2488,9 +2488,18 @@ app.post('/api/feed', authenticate, writeLimit, upload.array('media', 4), async 
     const categoriesJson = Array.isArray(categories) && categories.length > 0 ? JSON.stringify(categories) : null
     const scheduledDate = scheduled_at ? new Date(scheduled_at) : null
     if (scheduledDate && isNaN(scheduledDate.getTime())) return res.status(400).json({ error: 'Invalid scheduled_at' })
+    const placeName = typeof place_name === 'string' ? place_name.slice(0, 255) : null
+    const lat = geo_lat ? parseFloat(geo_lat) : null
+    const lng = geo_lng ? parseFloat(geo_lng) : null
     const [result] = await pool.query(
-      'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media, scheduled_at, categories, location_lat, location_lng, location_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [req.userId, text, text, 'Lige nu', 'Just now', mediaJson, scheduledDate, categoriesJson, locLat, locLng, locName]
+      'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media, scheduled_at, categories, place_name, geo_lat, geo_lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [req.userId, text, text, 'Lige nu', 'Just now', mediaJson, scheduledDate, categoriesJson, placeName, lat, lng]
+    ).catch(() =>
+      // place_name columns not yet migrated — insert without them
+      pool.query(
+        'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media, scheduled_at, categories) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [req.userId, text, text, 'Lige nu', 'Just now', mediaJson, scheduledDate, categoriesJson]
+      )
     )
     const [users] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
     const now = new Date()
@@ -2674,22 +2683,36 @@ app.post('/api/feed/:id/comment', authenticate, writeLimit, upload.single('media
   }
 })
 
-// POST /api/comments/:id/like — toggle like on a comment
+// POST /api/comments/:id/like — toggle reaction on a comment (emoji optional, default ❤️)
 app.post('/api/comments/:id/like', authenticate, async (req, res) => {
   const commentId = parseInt(req.params.id)
+  const emoji = (req.body?.emoji || '❤️').slice(0, 8)
   try {
     const [existing] = await pool.query(
-      'SELECT id FROM comment_likes WHERE comment_id = ? AND user_id = ?',
+      'SELECT id, reaction FROM comment_likes WHERE comment_id = ? AND user_id = ?',
       [commentId, req.userId]
     )
     if (existing.length) {
-      await pool.query('DELETE FROM comment_likes WHERE comment_id = ? AND user_id = ?', [commentId, req.userId])
-      const [[{ n }]] = await pool.query('SELECT COUNT(*) AS n FROM comment_likes WHERE comment_id = ?', [commentId])
-      return res.json({ liked: false, likes: n })
+      const prev = existing[0].reaction || '❤️'
+      if (prev === emoji) {
+        // Same emoji → unlike
+        await pool.query('DELETE FROM comment_likes WHERE comment_id = ? AND user_id = ?', [commentId, req.userId])
+        const [[{ n }]] = await pool.query('SELECT COUNT(*) AS n FROM comment_likes WHERE comment_id = ?', [commentId])
+        return res.json({ liked: false, reaction: null, likes: n })
+      }
+      // Different emoji → update reaction
+      await pool.query('UPDATE comment_likes SET reaction = ? WHERE comment_id = ? AND user_id = ?', [emoji, commentId, req.userId])
+    } else {
+      await pool.query(
+        'INSERT INTO comment_likes (comment_id, user_id, reaction) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE reaction = VALUES(reaction)',
+        [commentId, req.userId, emoji]
+      ).catch(() =>
+        // reaction column may not exist yet on old installs
+        pool.query('INSERT INTO comment_likes (comment_id, user_id) VALUES (?, ?)', [commentId, req.userId])
+      )
     }
-    await pool.query('INSERT INTO comment_likes (comment_id, user_id) VALUES (?, ?)', [commentId, req.userId])
     const [[{ n }]] = await pool.query('SELECT COUNT(*) AS n FROM comment_likes WHERE comment_id = ?', [commentId])
-    res.json({ liked: true, likes: n })
+    res.json({ liked: true, reaction: emoji, likes: n })
   } catch (err) {
     res.status(500).json({ error: 'Failed to toggle comment like' })
   }
@@ -7309,6 +7332,7 @@ app.post('/api/share/track', authenticate, async (req, res) => {
     // Increment post share count if applicable
     if (shareType === 'post' && targetId) {
       await pool.query('UPDATE posts SET share_count = share_count + 1 WHERE id = ? AND author_id = ?', [targetId, req.userId])
+      autoSignalPost(req.userId, targetId, 'share')
     }
     res.json({ ok: true })
   } catch (err) {
@@ -7847,6 +7871,14 @@ app.post('/api/users/:id/block', authenticate, async (req, res) => {
       'INSERT IGNORE INTO user_blocks (blocker_id, blocked_id) VALUES (?, ?)',
       [req.userId, blockedId]
     )
+    // Signal: down-weight interests associated with blocked user's posts
+    const [blockedPosts] = await pool.query(
+      'SELECT id FROM posts WHERE author_id = ? ORDER BY created_at DESC LIMIT 20',
+      [blockedId]
+    ).catch(() => [[]])
+    for (const p of blockedPosts) {
+      autoSignalPost(req.userId, p.id, 'block')
+    }
     res.json({ ok: true })
   } catch (err) {
     console.error('POST /api/users/:id/block error:', err)
