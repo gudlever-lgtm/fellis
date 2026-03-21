@@ -817,6 +817,18 @@ export async function apiFetchCalendarEvents() {
   return await request('/api/calendar/events')
 }
 
+export async function apiFetchCalendarReminders() {
+  return await request('/api/calendar/reminders')
+}
+
+export async function apiCreateCalendarReminder(date, title, note) {
+  return await request('/api/calendar/reminders', { method: 'POST', body: JSON.stringify({ date, title, note }) })
+}
+
+export async function apiDeleteCalendarReminder(id) {
+  return await request(`/api/calendar/reminders/${id}`, { method: 'DELETE' })
+}
+
 export async function apiUpdateBirthday(birthday) {
   return await request('/api/profile/birthday', { method: 'PATCH', body: JSON.stringify({ birthday }) })
 }

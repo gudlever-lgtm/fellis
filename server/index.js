@@ -6827,6 +6827,73 @@ app.get('/api/calendar/events', authenticate, async (req, res) => {
 })
 
 
+// ── Calendar: Private Reminders ─────────────────────────────────────────────
+
+// Ensure table exists (idempotent)
+;(async () => {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS calendar_reminders (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      date DATE NOT NULL,
+      title VARCHAR(255) NOT NULL,
+      note TEXT DEFAULT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_user_date (user_id, date),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+  } catch (e) { console.error('calendar_reminders init:', e.message) }
+})()
+
+// GET /api/calendar/reminders — list all reminders for the authenticated user
+app.get('/api/calendar/reminders', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT id, date, title, note FROM calendar_reminders WHERE user_id = ? ORDER BY date',
+      [req.userId]
+    )
+    res.json({ reminders: rows.map(r => ({ ...r, date: r.date instanceof Date ? r.date.toISOString().slice(0, 10) : String(r.date).slice(0, 10) })) })
+  } catch (err) {
+    console.error('GET /api/calendar/reminders error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/calendar/reminders — create a private reminder
+app.post('/api/calendar/reminders', authenticate, async (req, res) => {
+  const { date, title, note } = req.body
+  if (!date || !title || !title.trim()) return res.status(400).json({ error: 'date and title are required' })
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'Invalid date format' })
+  try {
+    const [result] = await pool.query(
+      'INSERT INTO calendar_reminders (user_id, date, title, note) VALUES (?, ?, ?, ?)',
+      [req.userId, date, title.trim().slice(0, 255), (note || '').trim().slice(0, 1000) || null]
+    )
+    res.json({ id: result.insertId, date, title: title.trim(), note: (note || '').trim() || null })
+  } catch (err) {
+    console.error('POST /api/calendar/reminders error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// DELETE /api/calendar/reminders/:id — delete a reminder (owner only)
+app.delete('/api/calendar/reminders/:id', authenticate, async (req, res) => {
+  const id = parseInt(req.params.id)
+  if (!id) return res.status(400).json({ error: 'Invalid id' })
+  try {
+    const [result] = await pool.query(
+      'DELETE FROM calendar_reminders WHERE id = ? AND user_id = ?',
+      [id, req.userId]
+    )
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Not found' })
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/calendar/reminders/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+
 // ── Reels ──────────────────────────────────────────────────────────────────
 
 const reelUpload = multer({
