@@ -369,8 +369,8 @@ function ReelCard({ reel, t, currentUser, onDelete, onViewProfile }) {
         >
           {looping ? '🔁' : '1️⃣'}
         </button>
-        {/* Info overlay toggle — shows reel details on mobile */}
-        <button
+        {/* Info overlay toggle — only shown in responsive/mobile mode */}
+        {isMobile && <button
           onClick={() => setShowInfoOverlay(v => !v)}
           title="Info"
           style={{
@@ -383,9 +383,9 @@ function ReelCard({ reel, t, currentUser, onDelete, onViewProfile }) {
           }}
         >
           ℹ️
-        </button>
-        {/* Info overlay panel */}
-        {showInfoOverlay && (
+        </button>}
+        {/* Info overlay panel — only on mobile */}
+        {isMobile && showInfoOverlay && (
           <div style={{
             position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
             background: 'rgba(0,0,0,0.75)', zIndex: 5,
