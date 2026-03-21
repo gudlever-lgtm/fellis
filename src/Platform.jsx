@@ -307,7 +307,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
           {/* "Mere" / "More" dropdown for secondary tabs */}
           <div ref={moreMenuRef} style={{ position: 'relative' }}>
             <button
-              className={`p-nav-tab${['friends', 'calendar', 'marketplace', 'jobs', 'company', 'interest-graph'].includes(page) ? ' active' : ''}`}
+              className={`p-nav-tab${['friends', 'calendar', 'marketplace', 'jobs', 'company'].includes(page) ? ' active' : ''}`}
               onClick={() => setShowMoreMenu(v => !v)}
             >
               <span className="p-nav-tab-icon">{'⋯'}</span>
@@ -324,7 +324,6 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
                   { id: 'calendar', icon: '🗓️', label: t.calendar || (lang === 'da' ? 'Kalender' : 'Calendar') },
                   { id: 'marketplace', icon: '🛍️', label: t.marketplace || (lang === 'da' ? 'Marked' : 'Marketplace') },
                   { id: 'jobs', icon: '💼', label: t.jobs || 'Jobs' },
-                  { id: 'interest-graph', icon: '🧠', label: lang === 'da' ? 'Interessegraf' : 'Interest Graph' },
                   ...(mode === 'business' ? [
                     { id: 'company', icon: '🏢', label: t.companies || (lang === 'da' ? 'Virksomheder' : 'Companies') },
                   ] : []),
@@ -491,7 +490,6 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
         {page === 'privacy' && <PrivacySection lang={lang} onLogout={onLogout} />}
         {page === 'visitors' && <VisitorStatsPage lang={lang} />}
         {page === 'about' && <AboutPage lang={lang} />}
-        {page === 'interest-graph' && <InterestGraphPage lang={lang} t={t} currentUser={currentUser} />}
         {page === 'admin' && currentUser.is_admin && <AdminPage lang={lang} t={t} />}
         {page === 'moderation' && (currentUser.is_moderator || currentUser.is_admin) && <ModeratorPage lang={lang} t={t} currentUser={currentUser} />}
         {page === 'payment-success' && <PaymentSuccess lang={lang} onNavigate={navigateTo} />}
@@ -3933,6 +3931,9 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
           {editT.back}
         </button>
       </div>
+
+      {/* Interest Graph — embedded directly in edit profile */}
+      <InterestGraphPage lang={lang} t={t} currentUser={currentUser} />
     </div>
   )
 }

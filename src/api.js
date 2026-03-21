@@ -1245,7 +1245,7 @@ export async function apiGetInterestGraph() {
 }
 // Manually correct a single interest weight (0–100)
 export async function apiCorrectInterest(slug, weight, context = 'hobby') {
-  return await request(`/api/me/interest-graph/${encodeURIComponent(slug)}`, 'PATCH', { weight, context })
+  return await request(`/api/me/interest-graph/${encodeURIComponent(slug)}`, { method: 'PATCH', body: JSON.stringify({ weight, context }) })
 }
 // Get signal stats for transparency UI (last 30 days)
 export async function apiGetSignalStats() {
