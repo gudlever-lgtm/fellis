@@ -3567,6 +3567,7 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
   const [birthday, setBirthday] = useState(currentUser.birthday || '')
   const [birthdaySaveStatus, setBirthdaySaveStatus] = useState(null)
   const [bioSaveStatus, setBioSaveStatus] = useState(null)
+  const [bizSaveStatus, setBizSaveStatus] = useState(null)
   // Extended profile
   const [tags, setTags] = useState([])
   const [tagInput, setTagInput] = useState('')
@@ -3780,6 +3781,19 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
               value={profile.industry || ''}
               onChange={e => setProfile(p => ({ ...p, industry: e.target.value }))}
             />
+            <label style={labelStyle}>{lang === 'da' ? 'Anciennitetsniveau' : 'Seniority level'}</label>
+            <select
+              style={{ ...fieldStyle, cursor: 'pointer' }}
+              value={profile.seniority || ''}
+              onChange={e => setProfile(p => ({ ...p, seniority: e.target.value }))}
+            >
+              <option value="">{lang === 'da' ? '— Vælg (valgfrit) —' : '— Choose (optional) —'}</option>
+              <option value="Junior">{lang === 'da' ? 'Junior' : 'Junior'}</option>
+              <option value="Mid-level">{lang === 'da' ? 'Mellemniveau' : 'Mid-level'}</option>
+              <option value="Senior">{lang === 'da' ? 'Senior' : 'Senior'}</option>
+              <option value="Lead / Manager">{lang === 'da' ? 'Lead / Manager' : 'Lead / Manager'}</option>
+              <option value="Director+">{lang === 'da' ? 'Direktør+' : 'Director+'}</option>
+            </select>
             <label style={labelStyle}>{t.skillsLabel}</label>
             <input
               style={fieldStyle}
@@ -3787,6 +3801,27 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
               value={profile.skills || ''}
               onChange={e => setProfile(p => ({ ...p, skills: e.target.value }))}
             />
+            {/* Save business profile fields */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
+              <button
+                type="button"
+                disabled={bizSaveStatus === 'saving'}
+                onClick={async () => {
+                  setBizSaveStatus('saving')
+                  const res = await apiUpdateProfile({
+                    job_title: profile.jobTitle || '',
+                    company: profile.company || '',
+                    industry: profile.industry || '',
+                    seniority: profile.seniority || '',
+                  })
+                  setBizSaveStatus(res?.ok ? 'saved' : 'error')
+                  setTimeout(() => setBizSaveStatus(null), 2000)
+                }}
+                style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: bizSaveStatus === 'saved' ? '#40916C' : '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+              >
+                {bizSaveStatus === 'saving' ? '…' : bizSaveStatus === 'saved' ? editT.savedInfo : editT.saveInfo}
+              </button>
+            </div>
           </>
         )}
 
