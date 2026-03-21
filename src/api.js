@@ -222,6 +222,10 @@ export async function apiAddComment(postId, text, mediaFile) {
   })
 }
 
+export async function apiLikeComment(commentId) {
+  return await request(`/api/comments/${commentId}/like`, { method: 'POST' })
+}
+
 export async function apiDeletePost(postId) {
   return await request(`/api/feed/${postId}`, { method: 'DELETE' })
 }
