@@ -3199,7 +3199,7 @@ app.post('/api/conversations/:id/messages', authenticate, writeLimit, async (req
         const msgEn = conv?.is_group && conv?.name
           ? `${user.name} sent a message in ${conv.name}`
           : `${user.name} sent you a message`
-        createNotification(user_id, 'new_message', msgDa, msgEn, req.userId, user.name)
+        createNotification(user_id, 'new_message', msgDa, msgEn, req.userId, user.name, convId)
       }
     }
     res.json(msg)

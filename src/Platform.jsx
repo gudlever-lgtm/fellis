@@ -373,7 +373,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
                 t={t}
                 lang={lang}
                 onMarkAllRead={markAllRead}
-                onNavigate={(page) => { navigateTo(page); setShowNotifPanel(false) }}
+                onNavigate={(page, param) => { if (param?.convId) setOpenConvId(param.convId); navigateTo(page); setShowNotifPanel(false) }}
                 onMarkRead={(id) => {
                   setNotifs(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
                   apiMarkNotificationRead(id).catch(() => {})
@@ -619,6 +619,7 @@ function normaliseNotif(n, lang) {
     icon: NOTIF_ICONS[n.type] || '🔔',
     message: lang === 'en' ? (n.message_en || n.message_da) : (n.message_da || n.message_en),
     page: NOTIF_TYPE_PAGE[n.type] || null,
+    convId: n.type === 'new_message' && n.post_id ? n.post_id : null,
     read: Boolean(n.is_read),  // DB uses is_read (0/1), not read_at
     time: timeAgo(n.created_at, lang),
   }
@@ -628,7 +629,7 @@ function NotificationsPanel({ notifs, t, lang, onMarkAllRead, onMarkRead, onNavi
   const unread = notifs.filter(n => !n.read).length
   const handleClick = (n) => {
     onMarkRead(n.id)
-    if (n.page && onNavigate) onNavigate(n.page)
+    if (n.page && onNavigate) onNavigate(n.page, n.convId ? { convId: n.convId } : null)
   }
   return (
     <div className="notif-panel">
