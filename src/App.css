@@ -4351,11 +4351,18 @@
   position: relative;
   box-shadow: 0 8px 40px rgba(0,0,0,0.18);
 }
+.p-listing-detail-close-wrap {
+  position: sticky;
+  top: 0;
+  height: 0;
+  z-index: 20;
+  pointer-events: none;
+}
 .p-listing-detail-close {
   position: absolute;
   top: 12px;
   right: 12px;
-  z-index: 10;
+  pointer-events: all;
   background: rgba(0,0,0,0.45);
   color: #fff;
   border: none;

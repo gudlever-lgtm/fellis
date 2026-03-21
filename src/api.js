@@ -125,8 +125,19 @@ export async function apiUpdatePhone(phone) {
 }
 
 export async function apiCheckSession() {
-  // Try session check even without localStorage — cookie may carry the session
-  return await request('/api/auth/session')
+  // Use raw fetch so we can distinguish auth failures (401/403) from network errors.
+  // request() returns null for both, but only auth failures should clear the session.
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/session`, {
+      headers: headers(),
+      credentials: 'same-origin',
+    })
+    if (res.status === 401 || res.status === 403) return { __authError: true }
+    if (!res.ok) return null // server error — treat as network issue, keep session
+    return await res.json()
+  } catch {
+    return null // network unreachable — keep session
+  }
 }
 
 export async function apiLogout() {
@@ -150,13 +161,18 @@ export async function apiFetchMemories() {
   return await request('/api/feed/memories')
 }
 
-export async function apiCreatePost(text, mediaFiles, scheduledAt, categories) {
+export async function apiCreatePost(text, mediaFiles, scheduledAt, categories, location) {
   if (mediaFiles?.length) {
     // Use FormData for multipart upload
     const form = new FormData()
     form.append('text', text)
     if (scheduledAt) form.append('scheduled_at', scheduledAt)
     if (categories?.length) form.append('categories', JSON.stringify(categories))
+    if (location) {
+      form.append('location_lat', location.lat)
+      form.append('location_lng', location.lng)
+      if (location.name) form.append('location_name', location.name)
+    }
     for (const file of mediaFiles) {
       form.append('media', file)
     }
@@ -179,7 +195,12 @@ export async function apiCreatePost(text, mediaFiles, scheduledAt, categories) {
   }
   return await request('/api/feed', {
     method: 'POST',
-    body: JSON.stringify({ text, ...(scheduledAt ? { scheduled_at: scheduledAt } : {}), ...(categories?.length ? { categories } : {}) }),
+    body: JSON.stringify({
+      text,
+      ...(scheduledAt ? { scheduled_at: scheduledAt } : {}),
+      ...(categories?.length ? { categories } : {}),
+      ...(location ? { location_lat: location.lat, location_lng: location.lng, location_name: location.name } : {}),
+    }),
   })
 }
 
@@ -580,6 +601,14 @@ export async function apiRelistListing(id) {
   return await request(`/api/marketplace/${id}/relist`, { method: 'POST' })
 }
 
+export async function apiRecordListingView(id) {
+  return await request(`/api/marketplace/${id}/view`, { method: 'POST' })
+}
+
+export async function apiGetMarketplaceStats() {
+  return await request('/api/marketplace/stats')
+}
+
 // ── Admin ──
 export async function apiGetAdminSettings() {
   return await request('/api/admin/settings')
@@ -670,6 +699,10 @@ export async function apiGetLeaderboard() {
 
 export async function apiGetBadges() {
   return await request('/api/badges')
+}
+
+export async function apiGeocode(q, lang = 'da') {
+  return await request(`/api/geocode?q=${encodeURIComponent(q)}&lang=${lang}`)
 }
 
 export async function apiGetPublicProfile(handle) {

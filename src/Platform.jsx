@@ -20,7 +20,7 @@ import MatrixRain from './components/easter-eggs/MatrixRain.jsx'
 import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
 import RickRoll from './components/easter-eggs/RickRoll.jsx'
 import RiddleBanner from './components/easter-eggs/RiddleBanner.jsx'
-import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiEvaluateBadges, apiGetEarnedBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences } from './api.js'
+import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiEvaluateBadges, apiGetEarnedBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode } from './api.js'
 import { BADGES, BADGE_BY_ID } from './badges/badgeDefinitions.js'
 import BadgeToastQueue from './components/BadgeToast.jsx'
 import ModeGate from './components/ModeGate.jsx'
@@ -62,6 +62,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
   const [notifs, setNotifs] = useState([])
   const [notifTestResult, setNotifTestResult] = useState(null)
   const [friendsRefreshKey, setFriendsRefreshKey] = useState(0)
+  const [msgSsePayload, setMsgSsePayload] = useState(null)
   const [showModeModal, setShowModeModal] = useState(false)
   const [adsFree, setAdsFree] = useState(false)
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('fellis_dark') === '1')
@@ -182,7 +183,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
     return () => clearInterval(interval)
   }, [reloadNotifs])
 
-  // Real-time notification push via SSE
+  // Real-time notification push via SSE (single shared connection for the whole platform)
   useEffect(() => {
     const es = openSSE()
     es.onmessage = (e) => {
@@ -191,6 +192,9 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
         if (payload.type === 'notification') reloadNotifs()
         if (payload.type === 'notification' || payload.type === 'friend_request') {
           setFriendsRefreshKey(k => k + 1)
+        }
+        if (payload.type === 'message' || payload.type === 'read_receipt') {
+          setMsgSsePayload({ ts: Date.now(), ...payload })
         }
       } catch {}
     }
@@ -369,7 +373,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
                 t={t}
                 lang={lang}
                 onMarkAllRead={markAllRead}
-                onNavigate={(page) => { navigateTo(page); setShowNotifPanel(false) }}
+                onNavigate={(page, param) => { if (param?.convId) setOpenConvId(param.convId); navigateTo(page); setShowNotifPanel(false) }}
                 onMarkRead={(id) => {
                   setNotifs(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
                   apiMarkNotificationRead(id).catch(() => {})
@@ -470,7 +474,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
           navigateTo('messages')
         }} />}
         <div style={{ display: page === 'messages' ? '' : 'none' }}>
-          <MessagesPage lang={lang} t={t} currentUser={currentUser} mode={mode} openConvId={openConvId} onConvOpened={() => setOpenConvId(null)} />
+          <MessagesPage lang={lang} t={t} currentUser={currentUser} mode={mode} openConvId={openConvId} onConvOpened={() => setOpenConvId(null)} ssePayload={msgSsePayload} />
         </div>
         {page === 'events' && <EventsPage lang={lang} t={t} currentUser={currentUser} mode={mode} />}
         {page === 'calendar' && <CalendarPage lang={lang} t={t} currentUser={currentUser} />}
@@ -588,6 +592,7 @@ const NOTIF_ICONS = {
   like: '❤️', comment: '💬', friend_request: '👥', friend_accepted: '🤝',
   friend_declined: '👋', event_rsvp: '📅', listing_boosted: '🚀',
   moderator_granted: '🛡️', mod_result: '📋', moderation: '⚠️', test: '🔔',
+  new_message: '✉️',
 }
 // Navigation target for each notification type (no 'link' column in DB)
 const NOTIF_TYPE_PAGE = {
@@ -595,6 +600,7 @@ const NOTIF_TYPE_PAGE = {
   friend_request: 'friends', friend_accepted: 'friends', friend_declined: 'friends',
   event_rsvp: 'events', listing_boosted: 'marketplace',
   moderator_granted: 'admin', mod_result: 'profile', moderation: 'profile',
+  new_message: 'messages',
 }
 
 function timeAgo(dateStr, lang) {
@@ -613,6 +619,7 @@ function normaliseNotif(n, lang) {
     icon: NOTIF_ICONS[n.type] || '🔔',
     message: lang === 'en' ? (n.message_en || n.message_da) : (n.message_da || n.message_en),
     page: NOTIF_TYPE_PAGE[n.type] || null,
+    convId: n.type === 'new_message' && n.post_id ? n.post_id : null,
     read: Boolean(n.is_read),  // DB uses is_read (0/1), not read_at
     time: timeAgo(n.created_at, lang),
   }
@@ -622,7 +629,7 @@ function NotificationsPanel({ notifs, t, lang, onMarkAllRead, onMarkRead, onNavi
   const unread = notifs.filter(n => !n.read).length
   const handleClick = (n) => {
     onMarkRead(n.id)
-    if (n.page && onNavigate) onNavigate(n.page)
+    if (n.page && onNavigate) onNavigate(n.page, n.convId ? { convId: n.convId } : null)
   }
   return (
     <div className="notif-panel">
@@ -1532,6 +1539,13 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const mediaMaxFilesRef = useRef(4)
   const [scheduleEnabled, setScheduleEnabled] = useState(false)
   const [scheduledAt, setScheduledAt] = useState('')
+  const [postLocation, setPostLocation] = useState(null)       // { lat, lng, name } or null
+  const [locationSearchOpen, setLocationSearchOpen] = useState(false)
+  const [locationSearchText, setLocationSearchText] = useState('')
+  const [locationResults, setLocationResults] = useState([])
+  const [locationSearching, setLocationSearching] = useState(false)
+  const [locationMapPost, setLocationMapPost] = useState(null) // post whose map is shown in modal
+  const locationDebounceRef = useRef(null)
 
   const handleJoinGroup = async (groupId) => {
     setJoinedGroupIds(prev => new Set([...prev, groupId]))
@@ -1676,8 +1690,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     })
   }, [])
 
-  const doCreatePost = useCallback((text, files, schedAt, categories) => {
-    apiCreatePost(text, files, schedAt || undefined, categories?.size ? [...categories] : undefined).then(data => {
+  const doCreatePost = useCallback((text, files, schedAt, categories, location) => {
+    apiCreatePost(text, files, schedAt || undefined, categories?.size ? [...categories] : undefined, location || undefined).then(data => {
       if (data?.scheduled) {
         // Scheduled post — don't add to feed, just show a toast
         return
@@ -1708,6 +1722,10 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     setShowCategoryPicker(false)
     setScheduleEnabled(false)
     setScheduledAt('')
+    setPostLocation(null)
+    setLocationSearchOpen(false)
+    setLocationSearchText('')
+    setLocationResults([])
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
   }, [mediaPreviews, currentUser.name])
 
@@ -1718,16 +1736,16 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     const check = await apiPreflightPost(text)
     if (check?.blocked) return // server will also block — just in case
     if (check?.flagged) {
-      setKeywordWarning({ keyword: check.keyword, category: check.category, notes: check.notes, text, files, categories: postCategories })
+      setKeywordWarning({ keyword: check.keyword, category: check.category, notes: check.notes, text, files, categories: postCategories, location: postLocation })
       return
     }
     const schedAt = scheduleEnabled && scheduledAt ? scheduledAt : null
-    doCreatePost(text, files, schedAt, postCategories)
+    doCreatePost(text, files, schedAt, postCategories, postLocation)
     setNewPostText('')
     setMediaFiles([])
     setMediaPreviews([])
     setPostExpanded(false)
-  }, [newPostText, mediaFiles, providerMediaUrls, doCreatePost, scheduleEnabled, scheduledAt, postCategories])
+  }, [newPostText, mediaFiles, providerMediaUrls, doCreatePost, scheduleEnabled, scheduledAt, postCategories, postLocation])
 
   const toggleLike = useCallback((id, emoji) => {
     const isLiked = likedPosts.has(id)
@@ -1940,6 +1958,33 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
 
   return (
     <div className="p-feed" ref={feedContainerRef}>
+      {/* Location map modal */}
+      {locationMapPost && (
+        <div className="modal-backdrop" onClick={() => setLocationMapPost(null)}>
+          <div className="p-msg-modal" style={{ maxWidth: 520, padding: 0, overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
+            <div className="p-msg-modal-header" style={{ padding: '12px 16px' }}>
+              <span>📍 {locationMapPost.location?.name || (lang === 'da' ? 'Lokation' : 'Location')}</span>
+              <button className="p-msg-modal-close" onClick={() => setLocationMapPost(null)}>✕</button>
+            </div>
+            <iframe
+              title="OpenStreetMap"
+              src={`https://www.openstreetmap.org/export/embed.html?bbox=${locationMapPost.location.lng - 0.015},${locationMapPost.location.lat - 0.01},${locationMapPost.location.lng + 0.015},${locationMapPost.location.lat + 0.01}&layer=mapnik&marker=${locationMapPost.location.lat},${locationMapPost.location.lng}`}
+              style={{ width: '100%', height: 300, border: 'none', display: 'block' }}
+            />
+            <div style={{ padding: '10px 16px', textAlign: 'right' }}>
+              <a
+                href={`https://www.openstreetmap.org/?mlat=${locationMapPost.location.lat}&mlon=${locationMapPost.location.lng}#map=15/${locationMapPost.location.lat}/${locationMapPost.location.lng}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ fontSize: 12, color: '#1877F2' }}
+              >
+                {lang === 'da' ? 'Åbn i OpenStreetMap ↗' : 'Open in OpenStreetMap ↗'}
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Likers modal */}
       {likersModal && (
         <div className="modal-backdrop" onClick={() => setLikersModal(null)}>
@@ -2018,9 +2063,9 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
               </button>
               <button
                 onClick={() => {
-                  const { text, files, categories: kwCats } = keywordWarning
+                  const { text, files, categories: kwCats, location: kwLoc } = keywordWarning
                   setKeywordWarning(null)
-                  doCreatePost(text, files, null, kwCats)
+                  doCreatePost(text, files, null, kwCats, kwLoc)
                   setNewPostText('')
                   setMediaFiles([])
                   setMediaPreviews([])
@@ -2145,7 +2190,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   onBlur={e => {
                     // Don't collapse when focus moves to OS file dialog (relatedTarget is null)
                     if (!e.relatedTarget && !newPostText.trim() && !mediaPreviews.length) return
-                    if (!newPostText.trim() && !mediaPreviews.length) setPostExpanded(false)
+                    // Don't collapse when location search is open (autoFocus on search input triggers blur)
+                    if (!newPostText.trim() && !mediaPreviews.length && !locationSearchOpen && !postLocation) setPostExpanded(false)
                     feedMention.close()
                   }}
                   autoFocus={postExpanded && !newPostText}
@@ -2236,6 +2282,75 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
               </div>
             )}
 
+            {/* Location search panel */}
+            {locationSearchOpen && !postLocation && (
+              <div style={{ padding: '8px 4px 4px', position: 'relative' }}>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <input
+                    autoFocus
+                    type="text"
+                    value={locationSearchText}
+                    onChange={e => {
+                      const q = e.target.value
+                      setLocationSearchText(q)
+                      setLocationResults([])
+                      clearTimeout(locationDebounceRef.current)
+                      if (q.length < 2) { setLocationSearching(false); return }
+                      setLocationSearching(true)
+                      locationDebounceRef.current = setTimeout(async () => {
+                        const results = await apiGeocode(q, lang)
+                        setLocationResults(results || [])
+                        setLocationSearching(false)
+                      }, 500)
+                    }}
+                    placeholder={lang === 'da' ? 'Søg sted…' : 'Search location…'}
+                    style={{ flex: 1, padding: '7px 10px', borderRadius: 8, border: '1px solid #1877F2', fontSize: 13, outline: 'none' }}
+                  />
+<button
+                    type="button"
+                    onMouseDown={e => e.preventDefault()}
+                    onClick={() => { setLocationSearchOpen(false); setLocationSearchText(''); setLocationResults([]) }}
+                    style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid #ddd', background: '#f5f5f5', fontSize: 13, cursor: 'pointer' }}
+                  >✕</button>
+                </div>
+                {locationResults.length > 0 && (
+                  <div style={{ position: 'absolute', left: 4, right: 4, background: '#fff', border: '1px solid #ddd', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 100, marginTop: 4 }}>
+                    {locationResults.map((r, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onMouseDown={e => e.preventDefault()}
+                        onClick={() => {
+                          setPostLocation({ lat: parseFloat(r.lat), lng: parseFloat(r.lon), name: r.display_name.split(',')[0] })
+                          setLocationSearchOpen(false)
+                          setLocationSearchText('')
+                          setLocationResults([])
+                        }}
+                        style={{ display: 'block', width: '100%', textAlign: 'left', padding: '9px 14px', background: 'none', border: 'none', borderBottom: i < locationResults.length - 1 ? '1px solid #f0f0f0' : 'none', cursor: 'pointer', fontSize: 13, color: '#333' }}
+                      >
+                        📍 {r.display_name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Selected location chip */}
+            {postLocation && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 4px 0' }}>
+                <span style={{ fontSize: 13, color: '#1877F2', background: '#EBF4FF', borderRadius: 20, padding: '3px 10px', display: 'flex', alignItems: 'center', gap: 5 }}>
+                  📍 {postLocation.name || `${postLocation.lat.toFixed(4)}, ${postLocation.lng.toFixed(4)}`}
+                  <button
+                    type="button"
+                    onClick={() => { setPostLocation(null) }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', fontSize: 14, lineHeight: 1, padding: 0, marginLeft: 2 }}
+                    title={lang === 'da' ? 'Fjern lokation' : 'Remove location'}
+                  >×</button>
+                </span>
+              </div>
+            )}
+
             <div className="p-new-post-actions">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 {/* Media attachment popup */}
@@ -2243,6 +2358,21 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   lang={lang}
                   onFiles={files => handleFileSelect({ target: { files } })}
                 />
+                {/* Location picker toggle */}
+                <button
+                  type="button"
+                  onMouseDown={e => e.preventDefault()}
+                  onClick={() => {
+                    if (postLocation) { setPostLocation(null); return }
+                    setLocationSearchOpen(v => !v)
+                    setLocationSearchText('')
+                    setLocationResults([])
+                  }}
+                  style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${postLocation || locationSearchOpen ? '#1877F2' : '#ddd'}`, background: postLocation || locationSearchOpen ? '#EBF4FF' : '#fff', color: postLocation || locationSearchOpen ? '#1877F2' : '#555', fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                  title={lang === 'da' ? 'Tilføj lokation' : 'Add location'}
+                >
+                  📍
+                </button>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 {mode === 'business' && (
@@ -2684,6 +2814,15 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
               </>
             )}
             {post.media && <PostMedia media={post.media} />}
+            {post.location && (
+              <div
+                onClick={() => setLocationMapPost(post)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, margin: '6px 0 2px', fontSize: 12, color: '#1877F2', cursor: 'pointer', padding: '3px 10px', background: '#EBF4FF', borderRadius: 20, width: 'fit-content' }}
+                title={lang === 'da' ? 'Vis på kort' : 'View on map'}
+              >
+                📍 {post.location.name || `${post.location.lat.toFixed(4)}, ${post.location.lng.toFixed(4)}`}
+              </div>
+            )}
             <div className="p-post-stats">
               <span className="p-reaction-summary" onClick={() => openLikersModal(post.id)} style={{ cursor: 'pointer' }}>
                 {post.reactions?.length > 0
@@ -3459,6 +3598,7 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
   const [birthday, setBirthday] = useState(currentUser.birthday || '')
   const [birthdaySaveStatus, setBirthdaySaveStatus] = useState(null)
   const [bioSaveStatus, setBioSaveStatus] = useState(null)
+  const [bizSaveStatus, setBizSaveStatus] = useState(null)
   // Extended profile
   const [tags, setTags] = useState([])
   const [tagInput, setTagInput] = useState('')
@@ -3672,6 +3812,19 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
               value={profile.industry || ''}
               onChange={e => setProfile(p => ({ ...p, industry: e.target.value }))}
             />
+            <label style={labelStyle}>{lang === 'da' ? 'Anciennitetsniveau' : 'Seniority level'}</label>
+            <select
+              style={{ ...fieldStyle, cursor: 'pointer' }}
+              value={profile.seniority || ''}
+              onChange={e => setProfile(p => ({ ...p, seniority: e.target.value }))}
+            >
+              <option value="">{lang === 'da' ? '— Vælg (valgfrit) —' : '— Choose (optional) —'}</option>
+              <option value="Junior">{lang === 'da' ? 'Junior' : 'Junior'}</option>
+              <option value="Mid-level">{lang === 'da' ? 'Mellemniveau' : 'Mid-level'}</option>
+              <option value="Senior">{lang === 'da' ? 'Senior' : 'Senior'}</option>
+              <option value="Lead / Manager">{lang === 'da' ? 'Lead / Manager' : 'Lead / Manager'}</option>
+              <option value="Director+">{lang === 'da' ? 'Direktør+' : 'Director+'}</option>
+            </select>
             <label style={labelStyle}>{t.skillsLabel}</label>
             <input
               style={fieldStyle}
@@ -3679,6 +3832,27 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
               value={profile.skills || ''}
               onChange={e => setProfile(p => ({ ...p, skills: e.target.value }))}
             />
+            {/* Save business profile fields */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
+              <button
+                type="button"
+                disabled={bizSaveStatus === 'saving'}
+                onClick={async () => {
+                  setBizSaveStatus('saving')
+                  const res = await apiUpdateProfile({
+                    job_title: profile.jobTitle || '',
+                    company: profile.company || '',
+                    industry: profile.industry || '',
+                    seniority: profile.seniority || '',
+                  })
+                  setBizSaveStatus(res?.ok ? 'saved' : 'error')
+                  setTimeout(() => setBizSaveStatus(null), 2000)
+                }}
+                style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: bizSaveStatus === 'saved' ? '#40916C' : '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+              >
+                {bizSaveStatus === 'saving' ? '…' : bizSaveStatus === 'saved' ? editT.savedInfo : editT.saveInfo}
+              </button>
+            </div>
           </>
         )}
 
@@ -3874,6 +4048,7 @@ function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, on
 const NOTIF_PREF_TYPES = [
   { key: 'like',             icon: '❤️' },
   { key: 'comment',          icon: '💬' },
+  { key: 'new_message',      icon: '✉️' },
   { key: 'friend_request',   icon: '👥' },
   { key: 'friend_accepted',  icon: '🤝' },
   { key: 'friend_declined',  icon: '👋' },
@@ -3917,6 +4092,7 @@ function SettingsNotifications({ lang, t }) {
 
   const labelMap = {
     like: t.notifPrefLike, comment: t.notifPrefComment,
+    new_message: t.notifPrefNewMessage,
     friend_request: t.notifPrefFriendRequest, friend_accepted: t.notifPrefFriendAccepted,
     friend_declined: t.notifPrefFriendDeclined,
     event_rsvp: t.notifPrefEventRsvp, listing_boosted: t.notifPrefListingBoosted,
@@ -4140,7 +4316,7 @@ function SettingsLeverandoerer({ lang, t }) {
           <div style={{ ...logoStyle, background: '#7EBC6F', fontSize: 22 }}>🗺️</div>
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 700, fontSize: 15 }}>OpenStreetMap</div>
-            <span style={badgeStyle(false)}>{da ? 'Kommende' : 'Coming soon'}</span>
+            <span style={badgeStyle(true)}>{da ? 'Tilknyttet' : 'Connected'}</span>
           </div>
           <a href="https://www.openstreetmap.org" target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#2D6A4F' }}>openstreetmap.org ↗</a>
         </div>
@@ -8044,7 +8220,7 @@ function SearchPage({ lang, t, mode, onNavigateToPost, onNavigateToConv, onNavig
   )
 }
 
-function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened }) {
+function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ssePayload }) {
   const [activeConv, setActiveConv] = useState(0)
   const [conversations, setConversations] = useState([])
   const [friends, setFriends] = useState([])
@@ -8065,37 +8241,32 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened }) 
   useEffect(() => {
     apiFetchConversations().then(data => { if (data) setConversations(data) })
     apiFetchFriends().then(data => { if (data) setFriends(data) })
-
-    // SSE: receive real-time messages from other users
-    const es = openSSE()
-    es.onmessage = (e) => {
-      try {
-        const payload = JSON.parse(e.data)
-        if (payload.type === 'message') {
-          setConversations(prev => prev.map(c => {
-            if (c.id !== payload.convId) return c
-            const msgs = [...c.messages, payload.msg]
-            return {
-              ...c,
-              messages: msgs.length > MSG_PAGE_SIZE ? msgs.slice(-MSG_PAGE_SIZE) : msgs,
-              totalMessages: (c.totalMessages || c.messages.length) + 1,
-              unread: (c.unread || 0) + 1,
-            }
-          }))
-        } else if (payload.type === 'read_receipt') {
-          // Another participant read the conversation — update their lastReadAt
-          setConversations(prev => prev.map(c => {
-            if (c.id !== payload.convId) return c
-            const existing = c.readReceipts || []
-            const updated = existing.filter(r => r.userId !== payload.userId)
-            updated.push({ userId: payload.userId, name: payload.name, lastReadAt: payload.lastReadAt })
-            return { ...c, readReceipts: updated }
-          }))
-        }
-      } catch {}
-    }
-    return () => es.close()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Live updates: handle SSE message/read_receipt events forwarded from Platform's shared SSE
+  useEffect(() => {
+    if (!ssePayload) return
+    if (ssePayload.type === 'message') {
+      setConversations(prev => prev.map(c => {
+        if (c.id !== ssePayload.convId) return c
+        const msgs = [...c.messages, ssePayload.msg]
+        return {
+          ...c,
+          messages: msgs.length > MSG_PAGE_SIZE ? msgs.slice(-MSG_PAGE_SIZE) : msgs,
+          totalMessages: (c.totalMessages || c.messages.length) + 1,
+          unread: (c.unread || 0) + 1,
+        }
+      }))
+    } else if (ssePayload.type === 'read_receipt') {
+      setConversations(prev => prev.map(c => {
+        if (c.id !== ssePayload.convId) return c
+        const existing = c.readReceipts || []
+        const updated = existing.filter(r => r.userId !== ssePayload.userId)
+        updated.push({ userId: ssePayload.userId, name: ssePayload.name, lastReadAt: ssePayload.lastReadAt })
+        return { ...c, readReceipts: updated }
+      }))
+    }
+  }, [ssePayload])
 
   // Open a specific conversation when navigated from elsewhere (search, contact seller, etc.)
   useEffect(() => {
@@ -9038,6 +9209,12 @@ function EventDetailModal({ event, t, lang, mode, myRsvp, extras, onRsvp, onExtr
         </div>
 
         <p style={{ fontSize: 14, color: '#444', lineHeight: 1.6, marginBottom: 20 }}>{getDesc(event)}</p>
+
+        {getLocation(event) && (
+          <div style={{ marginBottom: 20 }}>
+            <OsmMap location={getLocation(event)} height={200} lang={lang} />
+          </div>
+        )}
 
         {/* RSVP */}
         <div className="p-event-detail-rsvp" style={isExpired ? { pointerEvents: 'none' } : {}}>
@@ -11082,6 +11259,78 @@ function CreateJobModal({ t, lang, companies, onClose, onCreate, editJob }) {
   )
 }
 
+// ── OpenStreetMap (CDN Leaflet — no npm dependency) ──
+const _osmGeoCache = new Map()
+async function _osmGeocode(location) {
+  if (!location) return null
+  if (_osmGeoCache.has(location)) return _osmGeoCache.get(location)
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1`,
+      { headers: { 'Accept-Language': 'da,en' } }
+    )
+    const data = await res.json()
+    const result = data[0] ? { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) } : null
+    _osmGeoCache.set(location, result)
+    return result
+  } catch { return null }
+}
+
+let _leafletPromise = null
+function _loadLeaflet() {
+  if (_leafletPromise) return _leafletPromise
+  _leafletPromise = new Promise((resolve) => {
+    if (window.L) { resolve(window.L); return }
+    const link = document.createElement('link')
+    link.rel = 'stylesheet'
+    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
+    document.head.appendChild(link)
+    const script = document.createElement('script')
+    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
+    script.onload = () => resolve(window.L)
+    document.head.appendChild(script)
+  })
+  return _leafletPromise
+}
+
+function OsmMap({ location, height = 220, lang }) {
+  const containerRef = useRef(null)
+  const instanceRef = useRef(null)
+  const [status, setStatus] = useState('loading')
+  useEffect(() => {
+    if (!location) { setStatus('none'); return }
+    let cancelled = false
+    setStatus('loading')
+    Promise.all([_loadLeaflet(), _osmGeocode(location)]).then(([L, coords]) => {
+      if (cancelled || !containerRef.current) return
+      if (!coords) { setStatus('notfound'); return }
+      if (instanceRef.current) { instanceRef.current.remove(); instanceRef.current = null }
+      const map = L.map(containerRef.current, { scrollWheelZoom: false }).setView([coords.lat, coords.lon], 13)
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+      }).addTo(map)
+      L.marker([coords.lat, coords.lon]).addTo(map).bindPopup(location)
+      instanceRef.current = map
+      setStatus('ok')
+    })
+    return () => {
+      cancelled = true
+      if (instanceRef.current) { instanceRef.current.remove(); instanceRef.current = null }
+    }
+  }, [location])
+  if (!location || status === 'none' || status === 'notfound') return null
+  return (
+    <div style={{ position: 'relative', height, borderRadius: 10, overflow: 'hidden' }}>
+      {status === 'loading' && (
+        <div style={{ position: 'absolute', inset: 0, background: '#f0ede8', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa', fontSize: 13, gap: 6, zIndex: 1 }}>
+          🗺️ {lang === 'da' ? 'Indlæser kort…' : 'Loading map…'}
+        </div>
+      )}
+      <div ref={containerRef} style={{ height, width: '100%' }} />
+    </div>
+  )
+}
+
 // ── Marketplace ──
 const MARKETPLACE_CATEGORIES = [
   { key: 'electronics', icon: '🖥️', labelKey: 'marketplaceCatElectronics' },
@@ -11103,6 +11352,183 @@ const MOCK_LISTINGS = [
   { id: 6, title: { da: 'Weber kuglegrill — 57 cm', en: 'Weber kettle grill — 57 cm' }, price: 600, priceNegotiable: true, description: { da: 'Weber One-Touch 57 cm. Brugt 2 sæsoner, ellers i perfekt stand.', en: 'Weber One-Touch 57cm. Used 2 seasons, otherwise in perfect condition.' }, category: 'garden', location: 'Hellerup', photos: [], seller: 'Liam Madsen', sellerId: 'mock-liam', postedAt: '2026-02-12', sold: false },
 ]
 
+function MarketplaceMapView({ listings, lang, onSelect }) {
+  const containerRef = useRef(null)
+  const instanceRef = useRef(null)
+  const listingTitle = (l) => typeof l.title === 'string' ? l.title : (l.title?.[lang] || l.title?.da || '')
+  useEffect(() => {
+    const withLocation = listings.filter(l => l.location && !l.sold)
+    if (!withLocation.length || !containerRef.current) return
+    let cancelled = false
+    Promise.all([
+      _loadLeaflet(),
+      Promise.all(withLocation.map(l => _osmGeocode(l.location).then(c => c ? { listing: l, lat: c.lat, lon: c.lon } : null)))
+    ]).then(([L, results]) => {
+      if (cancelled || !containerRef.current) return
+      const markers = results.filter(Boolean)
+      if (instanceRef.current) { instanceRef.current.remove(); instanceRef.current = null }
+      const map = L.map(containerRef.current, { scrollWheelZoom: true }).setView([55.676, 12.568], 9)
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+      }).addTo(map)
+      markers.forEach(({ listing, lat, lon }) => {
+        const popup = `<strong>${listingTitle(listing)}</strong><br>📍 ${listing.location}<br>${listing.price ? listing.price.toLocaleString() + ' kr.' : (lang === 'da' ? 'Pris forhandles' : 'Negotiable')}`
+        L.marker([lat, lon]).addTo(map).bindPopup(popup).on('click', () => onSelect(listing))
+      })
+      if (markers.length) {
+        const group = L.featureGroup(markers.map(({ lat, lon }) => L.marker([lat, lon])))
+        map.fitBounds(group.getBounds().pad(0.2))
+      }
+      instanceRef.current = map
+    })
+    return () => {
+      cancelled = true
+      if (instanceRef.current) { instanceRef.current.remove(); instanceRef.current = null }
+    }
+  }, [listings]) // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <div style={{ borderRadius: 12, overflow: 'hidden', marginBottom: 16 }}>
+      <div ref={containerRef} style={{ height: 480, width: '100%' }} />
+    </div>
+  )
+}
+
+function MarketplaceStatsPanel({ stats, loading, myListings, t, lang }) {
+  const MARKETPLACE_CATEGORIES_LOCAL = [
+    { key: 'electronics', icon: '💻' }, { key: 'clothing', icon: '👗' }, { key: 'furniture', icon: '🪑' },
+    { key: 'books', icon: '📚' }, { key: 'sports', icon: '⚽' }, { key: 'toys', icon: '🧸' },
+    { key: 'home', icon: '🏠' }, { key: 'art', icon: '🎨' }, { key: 'garden', icon: '🌿' },
+    { key: 'vehicles', icon: '🚗' }, { key: 'other', icon: '📦' },
+  ]
+  const catIcon = (key) => MARKETPLACE_CATEGORIES_LOCAL.find(c => c.key === key)?.icon || '📦'
+
+  const s = {
+    grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12, marginBottom: 20 },
+    card: { background: '#fff', borderRadius: 12, padding: '16px 18px', boxShadow: '0 1px 4px rgba(0,0,0,.08)', textAlign: 'center' },
+    val: { fontSize: 28, fontWeight: 800, color: '#2D6A4F', lineHeight: 1.1 },
+    lbl: { fontSize: 12, color: '#888', marginTop: 4, fontWeight: 500 },
+    section: { marginBottom: 20 },
+    sectionTitle: { fontSize: 13, fontWeight: 700, color: '#555', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' },
+    row: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f0f0f0' },
+    barWrap: { background: '#f0f0f0', borderRadius: 4, height: 8, flex: 1, margin: '0 10px', overflow: 'hidden' },
+    bar: (pct, color) => ({ width: `${pct}%`, height: '100%', background: color || '#2D6A4F', borderRadius: 4, transition: 'width 0.4s' }),
+  }
+
+  if (loading) return <div style={{ textAlign: 'center', padding: 40, color: '#888' }}>{lang === 'da' ? 'Henter…' : 'Loading…'}</div>
+
+  // Use local myListings count if server stats not yet available
+  const totalFromLocal = myListings.length
+  const activeFromLocal = myListings.filter(l => !l.sold).length
+  const soldFromLocal = myListings.filter(l => l.sold).length
+
+  const overview = stats?.overview || { total: totalFromLocal, active: activeFromLocal, sold: soldFromLocal, boosted: 0 }
+  const views = stats?.views || { total: 0, last7Days: 0, today: 0 }
+  const topListings = stats?.topListings || []
+  const categories = stats?.categories || []
+  const viewTrend = stats?.viewTrend || []
+
+  // Build last 14 days date labels for trend bar chart
+  const today = new Date()
+  const trendDays = Array.from({ length: 14 }, (_, i) => {
+    const d = new Date(today)
+    d.setDate(d.getDate() - 13 + i)
+    return d.toISOString().slice(0, 10)
+  })
+  const trendMap = Object.fromEntries(viewTrend.map(r => [r.date?.slice(0, 10), r.views]))
+  const trendValues = trendDays.map(d => trendMap[d] || 0)
+  const trendMax = Math.max(...trendValues, 1)
+
+  const maxCatCount = Math.max(...categories.map(c => c.count), 1)
+  const maxViews = Math.max(...topListings.map(l => l.views), 1)
+
+  const hasAnyData = overview.total > 0
+
+  if (!hasAnyData) {
+    return (
+      <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>
+        <div style={{ fontSize: 36, marginBottom: 12 }}>📊</div>
+        <div>{t.marketplaceStatsNoData}</div>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      {/* Overview numbers */}
+      <div style={s.section}>
+        <div style={s.sectionTitle}>{t.marketplaceStatsOverview}</div>
+        <div style={s.grid}>
+          <div style={s.card}><div style={s.val}>{overview.active}</div><div style={s.lbl}>{t.marketplaceStatsActive}</div></div>
+          <div style={s.card}><div style={{ ...s.val, color: '#888' }}>{overview.sold}</div><div style={s.lbl}>{t.marketplaceStatsSold}</div></div>
+          <div style={{ ...s.card }}><div style={{ ...s.val, color: '#F4A261' }}>{overview.boosted}</div><div style={s.lbl}>{t.marketplaceStatsBoosted}</div></div>
+          <div style={s.card}><div style={s.val}>{views.total}</div><div style={s.lbl}>{t.marketplaceStatsTotalViews}</div></div>
+          <div style={s.card}><div style={{ ...s.val, color: '#3498db' }}>{views.last7Days}</div><div style={s.lbl}>{t.marketplaceStatsViews7Days}</div></div>
+          <div style={s.card}><div style={{ ...s.val, color: '#9b59b6' }}>{views.today}</div><div style={s.lbl}>{t.marketplaceStatsViewsToday}</div></div>
+        </div>
+      </div>
+
+      {/* Views trend (last 14 days) */}
+      {viewTrend.length > 0 && (
+        <div style={s.section}>
+          <div style={s.sectionTitle}>{t.marketplaceStatsViewTrend}</div>
+          <div className="p-card" style={{ padding: '12px 16px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 64 }}>
+              {trendValues.map((v, i) => (
+                <div key={i} title={`${trendDays[i]}: ${v}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
+                  <div style={{ width: '100%', background: v > 0 ? '#2D6A4F' : '#e8e8e8', borderRadius: '3px 3px 0 0', height: `${Math.max((v / trendMax) * 100, v > 0 ? 8 : 2)}%`, transition: 'height 0.3s' }} />
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#bbb', marginTop: 4 }}>
+              <span>{trendDays[0]?.slice(5)}</span>
+              <span>{trendDays[6]?.slice(5)}</span>
+              <span>{trendDays[13]?.slice(5)}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Top listings */}
+      {topListings.length > 0 && (
+        <div style={s.section}>
+          <div style={s.sectionTitle}>{t.marketplaceStatsTopListings}</div>
+          <div className="p-card" style={{ padding: '8px 16px' }}>
+            {topListings.map(l => (
+              <div key={l.id} style={s.row}>
+                <span style={{ fontSize: 13, color: l.sold ? '#aaa' : '#333', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {catIcon(l.category)} {l.title}{l.sold ? ` (${t.marketplaceSold || 'solgt'})` : ''}
+                </span>
+                <div style={s.barWrap}>
+                  <div style={s.bar((l.views / maxViews) * 100)} />
+                </div>
+                <span style={{ fontSize: 12, color: '#666', minWidth: 50, textAlign: 'right' }}>{l.views} {t.marketplaceStatsViews}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Category distribution */}
+      {categories.length > 0 && (
+        <div style={s.section}>
+          <div style={s.sectionTitle}>{t.marketplaceStatsCategories}</div>
+          <div className="p-card" style={{ padding: '8px 16px' }}>
+            {categories.map(c => (
+              <div key={c.category} style={s.row}>
+                <span style={{ fontSize: 13, color: '#333', minWidth: 100 }}>{catIcon(c.category)} {c.category}</span>
+                <div style={s.barWrap}>
+                  <div style={s.bar((c.count / maxCatCount) * 100, '#3498db')} />
+                </div>
+                <span style={{ fontSize: 12, color: '#666', minWidth: 30, textAlign: 'right' }}>{c.count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller, onViewProfile }) {
   const [tab, setTab] = useState('browse')
   const [listings, setListings] = useState(MOCK_LISTINGS)
@@ -11115,6 +11541,8 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
   const [boostedIds, setBoostedIds] = useState({})
   const [boostMsg, setBoostMsg] = useState(null)
   const [formError, setFormError] = useState(null)
+  const [marketplaceStats, setMarketplaceStats] = useState(null)
+  const [statsLoading, setStatsLoading] = useState(false)
 
   const catIcon = (key) => MARKETPLACE_CATEGORIES.find(c => c.key === key)?.icon || '📦'
   const catLabel = (key) => { const f = MARKETPLACE_CATEGORIES.find(c => c.key === key); return f ? `${f.icon} ${t[f.labelKey] || key}` : key }
@@ -11133,8 +11561,11 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (tab !== 'mine') return
-    apiFetchMyListings().then(data => { if (data?.listings || Array.isArray(data)) setMyListings(data?.listings || data) })
+    if (tab === 'mine' || tab === 'stats') {
+      apiFetchMyListings().then(data => { if (data?.listings || Array.isArray(data)) setMyListings(data?.listings || data) })
+      setStatsLoading(true)
+      apiGetMarketplaceStats().then(data => { if (data) setMarketplaceStats(data) }).finally(() => setStatsLoading(false))
+    }
   }, [tab])
 
   const filtered = listings.filter(l => {
@@ -11223,8 +11654,14 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
         <button className={`p-filter-tab${tab === 'browse' ? ' active' : ''}`} onClick={() => setTab('browse')}>
           🔍 {t.marketplaceBrowse}
         </button>
+        <button className={`p-filter-tab${tab === 'map' ? ' active' : ''}`} onClick={() => setTab('map')}>
+          🗺️ {lang === 'da' ? 'Kortvisning' : 'Map view'}
+        </button>
         <button className={`p-filter-tab${tab === 'mine' ? ' active' : ''}`} onClick={() => setTab('mine')}>
           📋 {t.marketplaceMyListings}
+        </button>
+        <button className={`p-filter-tab${tab === 'stats' ? ' active' : ''}`} onClick={() => setTab('stats')}>
+          📊 {t.marketplaceStats}
         </button>
       </div>
 
@@ -11269,7 +11706,15 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
         </div>
       )}
 
-      {tab === 'mine' && myListings.length === 0 ? (
+      {tab === 'map' && (
+        <MarketplaceMapView listings={filtered} lang={lang} onSelect={setSelectedListing} />
+      )}
+
+      {tab === 'stats' && (
+        <MarketplaceStatsPanel stats={marketplaceStats} loading={statsLoading} myListings={myListings} t={t} lang={lang} />
+      )}
+
+      {tab !== 'map' && tab !== 'stats' && (tab === 'mine' && myListings.length === 0 ? (
         <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>
           <div style={{ fontSize: 36, marginBottom: 12 }}>🛍️</div>
           <div style={{ marginBottom: 16 }}>{t.marketplaceNoMyListings}</div>
@@ -11287,7 +11732,7 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
             <div
               key={listing.id}
               className={`p-card p-listing-card${listing.sold ? ' p-listing-sold' : ''}`}
-              onClick={() => setSelectedListing(listing)}
+              onClick={() => { setSelectedListing(listing); if (listing.user_id !== currentUser?.id) apiRecordListingView(listing.id).catch(() => {}) }}
             >
               <div className="p-listing-photo-wrap">
                 {listing.photos?.length > 0 ? (
@@ -11300,7 +11745,7 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
                 ) : (
                   <div className="p-listing-photo-placeholder">{catIcon(listing.category)}</div>
                 )}
-                {listing.sold && <div className="p-listing-sold-badge">{t.marketplaceSold}</div>}
+                {!!listing.sold && <div className="p-listing-sold-badge">{t.marketplaceSold}</div>}
                 {boostedIds[listing.id] && <div className="p-listing-sold-badge" style={{ background: '#F4A261' }}>{t.marketplaceBoosted}</div>}
               </div>
               <div className="p-listing-body">
@@ -11318,6 +11763,14 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
                     {listing.seller}
                   </span>
                 </div>
+                {tab === 'mine' && (() => {
+                  const viewCount = marketplaceStats?.topListings?.find(l => l.id === listing.id)?.views
+                  return viewCount !== undefined ? (
+                    <div style={{ fontSize: 12, color: '#888', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      👁 {viewCount} {t.marketplaceStatsViews}
+                    </div>
+                  ) : null
+                })()}
                 {tab === 'mine' && (
                   <div className="p-listing-actions" onClick={e => e.stopPropagation()}>
                     {!listing.sold && !boostedIds[listing.id] && (
@@ -11330,7 +11783,7 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
                         ✓ {t.marketplaceMarkSold}
                       </button>
                     )}
-                    {listing.sold && (
+                    {!!listing.sold && (
                       <button className="p-listing-action-btn" style={{ color: '#2D6A4F', borderColor: '#2D6A4F' }} onClick={() => handleRelist(listing.id)}>
                         ↺ {lang === 'da' ? 'Genopslå' : 'Relist'}
                       </button>
@@ -11347,7 +11800,7 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
             </div>
           ))}
         </div>
-      )}
+      ))}
 
       {deleteConfirmId && (
         <div className="modal-backdrop" onClick={() => setDeleteConfirmId(null)}>
@@ -11426,7 +11879,9 @@ function ListingDetailModal({ listing, t, lang, currentUser, catLabel, catIcon, 
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="p-listing-detail-modal" onClick={e => e.stopPropagation()}>
-        <button className="p-listing-detail-close" onClick={onClose}>✕</button>
+        <div className="p-listing-detail-close-wrap">
+          <button className="p-listing-detail-close" onClick={onClose}>✕</button>
+        </div>
         {listing.photos?.length > 0 ? (
           <div className={`p-post-media p-post-media-${Math.min(listing.photos.length, 4)} p-listing-detail-photos`}>
             {listing.photos.slice(0, 4).map((p, i) => (
@@ -11470,6 +11925,12 @@ function ListingDetailModal({ listing, t, lang, currentUser, catLabel, catIcon, 
             )}
           </div>
           {listingDesc(listing) && <p className="p-listing-detail-desc">{listingDesc(listing)}</p>}
+
+          {listing.location && (
+            <div style={{ marginTop: 12 }}>
+              <OsmMap location={listing.location} height={200} lang={lang} />
+            </div>
+          )}
 
           {/* Owner actions */}
           {isOwn && (
@@ -11746,30 +12207,53 @@ function genViews(days, base, seed) {
   return Array.from({ length: days }, (_, i) => Math.round(base + r() * base * 0.6 - base * 0.3 + Math.sin(i / 3) * base * 0.2))
 }
 
-function MiniLineChart({ data, color = '#1877F2', height = 80 }) {
+function MiniLineChart({ data, color = '#1877F2', height = 100 }) {
+  const [hover, setHover] = useState(null)
   if (!data || data.length < 2) return null
-  const w = 280, h = height
+  const W = 400, h = height
+  const PAD_T = 14, PAD_B = 8, PAD_L = 32
   const min = Math.min(...data), max = Math.max(...data)
   const range = max - min || 1
-  const pts = data.map((v, i) => {
-    const x = (i / (data.length - 1)) * (w - 20) + 10
-    const y = h - 10 - ((v - min) / range) * (h - 20)
-    return `${x},${y}`
-  })
-  const area = `M${pts.join('L')}L${(data.length - 1) / (data.length - 1) * (w - 20) + 10},${h}L10,${h}Z`
+  const py = v => PAD_T + ((max - v) / range) * (h - PAD_T - PAD_B)
+  const px = i => (i / (data.length - 1)) * W
+  const pts = data.map((v, i) => [px(i), py(v)])
+  const ptStr = pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ')
+  const areaStr = `0,${h - PAD_B} ${ptStr} ${W},${h - PAD_B}`
+  const yTicks = [0.5, 1].map(t => min + t * range)
   return (
-    <svg width="100%" viewBox={`0 0 ${w} ${h}`} style={{ display: 'block' }}>
-      <defs>
-        <linearGradient id="lc-grad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.25" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={area} fill="url(#lc-grad)" />
-      <polyline points={pts.join(' ')} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" />
-      {pts.map((pt, i) => i === data.length - 1 ? (
-        <circle key={i} cx={pt.split(',')[0]} cy={pt.split(',')[1]} r="3" fill={color} />
-      ) : null)}
+    <svg viewBox={`0 0 ${W + PAD_L} ${h}`} style={{ width: '100%', height: h, display: 'block', overflow: 'visible' }}
+      onMouseLeave={() => setHover(null)}>
+      {yTicks.map((v, ti) => {
+        const y = py(v)
+        return (
+          <g key={ti}>
+            <line x1={PAD_L} y1={y} x2={PAD_L + W} y2={y} stroke="#f0f0f0" strokeWidth="1" />
+            <text x={PAD_L - 4} y={y + 3.5} textAnchor="end" fontSize="9" fill="#ccc">{Math.round(v)}</text>
+          </g>
+        )
+      })}
+      <g transform={`translate(${PAD_L},0)`}>
+        <polygon points={areaStr} fill={color} fillOpacity="0.07" />
+        <polyline points={ptStr} fill="none" stroke={color} strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" />
+        {pts.map(([x, y], i) => (
+          <circle key={i} cx={x} cy={y} r={hover === i ? 5 : 2.5}
+            fill={hover === i ? color : '#fff'} stroke={color} strokeWidth="1.8"
+            style={{ cursor: 'default' }} onMouseEnter={() => setHover(i)} />
+        ))}
+        {hover !== null && (() => {
+          const [x, y] = pts[hover]
+          const v = data[hover]
+          const tipW = 56, tipH = 26
+          const tx = Math.min(Math.max(x - tipW / 2, -PAD_L + 2), W - tipW + 4)
+          const ty = y - tipH - 8 < 0 ? y + 8 : y - tipH - 8
+          return (
+            <g>
+              <rect x={tx} y={ty} width={tipW} height={tipH} rx="4" fill="#1a1a2e" fillOpacity="0.88" />
+              <text x={tx + tipW / 2} y={ty + 17} textAnchor="middle" fontSize="11" fill="#fff" fontWeight="700">{v.toLocaleString()}</text>
+            </g>
+          )
+        })()}
+      </g>
     </svg>
   )
 }
@@ -11777,14 +12261,14 @@ function MiniLineChart({ data, color = '#1877F2', height = 80 }) {
 function HBarChart({ items, color = '#1877F2' }) {
   const max = Math.max(...items.map(i => i.value), 1)
   return (
-    <div className="p-analytics-hbar-list">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       {items.map((item, i) => (
-        <div key={i} className="p-analytics-hbar-row">
-          <div className="p-analytics-hbar-label">{item.label}</div>
-          <div className="p-analytics-hbar-track">
-            <div className="p-analytics-hbar-fill" style={{ width: `${(item.value / max) * 100}%`, background: color }} />
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ width: 110, fontSize: 12, color: '#555', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</div>
+          <div style={{ flex: 1, height: 6, background: '#f0f0f0', borderRadius: 99, overflow: 'hidden' }}>
+            <div style={{ width: `${(item.value / max) * 100}%`, height: '100%', background: color, borderRadius: 99, transition: 'width 0.4s ease' }} />
           </div>
-          <div className="p-analytics-hbar-val">{item.value.toLocaleString()}</div>
+          <div style={{ fontSize: 12, color: '#333', fontWeight: 600, minWidth: 40, textAlign: 'right' }}>{typeof item.value === 'number' && item.value > 999 ? item.value.toLocaleString() : item.value}</div>
         </div>
       ))}
     </div>
@@ -11801,26 +12285,29 @@ function StatCard({ label, value, sub, color }) {
   )
 }
 
-function HeatmapGrid({ lang }) {
+function HeatmapGrid({ lang, data }) {
   const days = lang === 'da' ? ['Man', 'Tir', 'Ons', 'Tor', 'Fre', 'Lør', 'Søn'] : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-  const hours = ['8', '10', '12', '14', '16', '18', '20']
-  const r = seededRand(42)
-  const heat = days.map(() => hours.map(() => r()))
-  const peak = (d, h) => heat[d][h]
+  // Show every other hour (0,2,4,...,22) to keep it compact
+  const hourIdxs = [8, 10, 12, 14, 16, 18, 20]
+  const max = data ? Math.max(...data.flat(), 1) : 1
   return (
     <div className="p-analytics-heatmap">
       <div className="p-analytics-heatmap-inner">
         <div className="p-analytics-heatmap-row p-analytics-heatmap-header">
           <div className="p-analytics-heatmap-corner" />
-          {hours.map(h => <div key={h} className="p-analytics-heatmap-cell p-analytics-heatmap-hour">{h}h</div>)}
+          {hourIdxs.map(h => <div key={h} className="p-analytics-heatmap-cell p-analytics-heatmap-hour">{h}h</div>)}
         </div>
         {days.map((d, di) => (
           <div key={d} className="p-analytics-heatmap-row">
             <div className="p-analytics-heatmap-cell p-analytics-heatmap-day">{d}</div>
-            {hours.map((h, hi) => {
-              const v = peak(di, hi)
-              const opacity = 0.1 + v * 0.85
-              return <div key={hi} className="p-analytics-heatmap-cell p-analytics-heatmap-dot" style={{ background: `rgba(24,119,242,${opacity.toFixed(2)})` }} title={`${d} ${h}h`} />
+            {hourIdxs.map(hi => {
+              const v = data ? data[di][hi] : 0
+              const intensity = v / max
+              return (
+                <div key={hi} className="p-analytics-heatmap-cell p-analytics-heatmap-dot"
+                  title={`${d} ${hi}:00 — ${v}`}
+                  style={{ background: intensity > 0.03 ? `rgba(24,119,242,${(0.12 + intensity * 0.88).toFixed(2)})` : '#f0f0f0' }} />
+              )
             })}
           </div>
         ))}
@@ -12042,6 +12529,34 @@ function AdsManagementPage({ lang, t }) {
         <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>📢 {t.adsTitle}</h2>
         <button onClick={openCreate} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>+ {t.adsCreate}</button>
       </div>
+
+      {!loading && ads.length > 0 && (() => {
+        const totalImpressions = ads.reduce((s, a) => s + (a.impressions || 0), 0)
+        const totalClicks = ads.reduce((s, a) => s + (a.clicks || 0), 0)
+        const activeCount = ads.filter(a => a.status === 'active').length
+        const totalPaid = ads.reduce((s, a) => s + (parseFloat(a.paid_amount) || 0), 0)
+        const overallCtr = totalImpressions > 0 ? ((totalClicks / totalImpressions) * 100).toFixed(2) + '%' : '–'
+        const statItems = [
+          { val: totalImpressions.toLocaleString(), lbl: t.adsTotalImpressions, color: '#2D6A4F' },
+          { val: totalClicks.toLocaleString(), lbl: t.adsTotalClicks, color: '#3498db' },
+          { val: overallCtr, lbl: t.adsOverallCTR, color: '#9b59b6' },
+          { val: activeCount, lbl: t.adsActiveCount, color: '#27ae60' },
+          { val: formatPrice(totalPaid), lbl: t.adsTotalPaid, color: '#e67e22' },
+        ]
+        return (
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>{t.adsStatsSummary}</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 10 }}>
+              {statItems.map(item => (
+                <div key={item.lbl} style={{ background: '#fff', borderRadius: 10, padding: '12px 14px', boxShadow: '0 1px 4px rgba(0,0,0,.07)', textAlign: 'center' }}>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: item.color, lineHeight: 1.1 }}>{item.val}</div>
+                  <div style={{ fontSize: 11, color: '#999', marginTop: 3, fontWeight: 500 }}>{item.lbl}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: 40, color: '#888' }}>{lang === 'da' ? 'Henter…' : 'Loading…'}</div>
@@ -12502,44 +13017,43 @@ function AnalyticsPage({ lang, t, currentUser }) {
         { label: lang === 'da' ? 'Video' : 'Video', value: 11.2 },
       ]
 
-  // ── Audience demographics — estimated (no demographic fields in profiles yet) ──
-  const industryData = [
-    { label: lang === 'da' ? 'Teknologi' : 'Technology', value: 34 },
-    { label: lang === 'da' ? 'Marketing' : 'Marketing', value: 22 },
-    { label: lang === 'da' ? 'Finans' : 'Finance', value: 17 },
-    { label: lang === 'da' ? 'Sundhed' : 'Healthcare', value: 14 },
-    { label: lang === 'da' ? 'Andet' : 'Other', value: 13 },
-  ]
-  const cityData = [
-    { label: 'København', value: 412 },
-    { label: 'Aarhus', value: 187 },
-    { label: 'Odense', value: 98 },
-    { label: 'Aalborg', value: 74 },
-    { label: 'Esbjerg', value: 31 },
-  ]
-  const seniorityData = [
-    { label: lang === 'da' ? 'Senior' : 'Senior', value: 38 },
-    { label: lang === 'da' ? 'Leder' : 'Manager', value: 27 },
-    { label: lang === 'da' ? 'Direktør' : 'Director', value: 18 },
-    { label: lang === 'da' ? 'Junior' : 'Junior', value: 17 },
-  ]
-  const growthSource = [
-    { label: lang === 'da' ? 'Søgning' : 'Search', value: 41 },
-    { label: lang === 'da' ? 'Forslag' : 'Suggestions', value: 33 },
-    { label: lang === 'da' ? 'Opslag' : 'Posts', value: 26 },
-  ]
-  const topics = [
-    { label: '#innovation', value: 12.3 },
-    { label: '#leadership', value: 9.7 },
-    { label: '#startup', value: 8.1 },
-    { label: '#ai', value: 14.5 },
-    { label: '#fellis', value: 6.2 },
-  ]
-  const competitors = [
-    { label: lang === 'da' ? 'Dig' : 'You', value: 4.7, color: '#1877F2' },
-    { label: lang === 'da' ? 'Branchegennemsnit' : 'Industry avg', value: 3.2, color: '#aaa' },
-    { label: lang === 'da' ? 'Top 10%' : 'Top 10%', value: 7.9, color: '#2D6A4F' },
-  ]
+  // ── Audience demographics — from real API data ──
+  const industryData = analytics?.industryDist?.length
+    ? analytics.industryDist.map(d => ({ label: d.label, value: d.pct }))
+    : null
+
+  const cityData = analytics?.audienceLocations?.length
+    ? analytics.audienceLocations.map(d => ({ label: d.label, value: d.pct }))
+    : null
+
+  const seniorityData = analytics?.seniorityDist?.length
+    ? analytics.seniorityDist.map(d => ({ label: d.label, value: d.pct }))
+    : null
+
+  const gs = analytics?.growthSource
+  const growthSource = gs && gs.total > 0
+    ? [
+        gs.organic > 0 && { label: lang === 'da' ? 'Organisk' : 'Organic', value: gs.organic },
+        gs.viaInvite > 0 && { label: lang === 'da' ? 'Via invitationer' : 'Via invites', value: gs.viaInvite },
+      ].filter(Boolean)
+    : null
+
+  const topics = analytics?.hashtagPerformance?.length
+    ? analytics.hashtagPerformance
+    : null
+
+  // Competitor benchmarking: user's avg daily conn growth vs platform avg
+  const platformAvg = analytics?.platformAvgConnGrowth
+  const userAvgDaily = totalConns > 0 ? (totalConns / range) : 0
+  const platformAvgDaily = platformAvg?.length
+    ? platformAvg.reduce((s, r) => s + r.value, 0) / platformAvg.length
+    : null
+  const competitors = platformAvgDaily !== null
+    ? [
+        { label: lang === 'da' ? 'Dig (dagligt snit)' : 'You (daily avg)', value: Math.round(userAvgDaily * 10) / 10 },
+        { label: lang === 'da' ? 'Platformsgennemsnit' : 'Platform average', value: Math.round(platformAvgDaily * 10) / 10 },
+      ]
+    : null
 
   // Total connections (real)
   const totalConnectionsVal = analytics?.totalConnections ?? currentUser?.friendCount ?? 0
@@ -12598,35 +13112,38 @@ function AnalyticsPage({ lang, t, currentUser }) {
       {/* ── Advanced analytics — available for all business users ── */}
       <div>
         <div className="p-analytics-section">
-          <div className="p-analytics-section-title">{t.analyticsAudienceTitle} <span style={{ fontSize: 11, color: '#aaa', fontWeight: 400 }}>{lang === 'da' ? '(estimeret)' : '(estimated)'}</span></div>
+          <div className="p-analytics-section-title">{t.analyticsAudienceTitle}</div>
           <div className="p-analytics-subsection-grid">
             <div>
               <div className="p-analytics-subsection-label">{t.analyticsAudienceIndustry}</div>
-              <HBarChart items={industryData} color="#1877F2" />
+              {industryData
+                ? <HBarChart items={industryData} color="#1877F2" />
+                : <p style={{ fontSize: 12, color: '#aaa', margin: 0 }}>{analytics ? (lang === 'da' ? 'Ingen data endnu' : 'No data yet') : '…'}</p>}
             </div>
             <div>
               <div className="p-analytics-subsection-label">{t.analyticsAudienceCities}</div>
-              <HBarChart items={cityData} color="#2D6A4F" />
+              {cityData
+                ? <HBarChart items={cityData} color="#2D6A4F" />
+                : <p style={{ fontSize: 12, color: '#aaa', margin: 0 }}>{analytics ? (lang === 'da' ? 'Ingen data endnu' : 'No data yet') : '…'}</p>}
             </div>
           </div>
           <div className="p-analytics-subsection-grid" style={{ marginTop: 16 }}>
             <div>
               <div className="p-analytics-subsection-label">{t.analyticsAudienceSeniority}</div>
-              <HBarChart items={seniorityData} color="#F4A261" />
+              {seniorityData
+                ? <HBarChart items={seniorityData} color="#F4A261" />
+                : <p style={{ fontSize: 12, color: '#aaa', margin: 0 }}>{analytics ? (lang === 'da' ? 'Ingen data endnu' : 'No data yet') : '…'}</p>}
             </div>
             <div>
               <div className="p-analytics-subsection-label">{t.analyticsAudienceGrowthSource}</div>
-              <HBarChart items={growthSource} color="#7E57C2" />
+              {growthSource
+                ? <HBarChart items={growthSource} color="#7E57C2" />
+                : <p style={{ fontSize: 12, color: '#aaa', margin: 0 }}>{analytics ? (lang === 'da' ? 'Ingen data endnu' : 'No data yet') : '…'}</p>}
             </div>
           </div>
           <div style={{ marginTop: 20 }}>
-            <div className="p-analytics-subsection-label">
-              {t.analyticsAudienceBestTime}
-              <span style={{ fontSize: 10, color: '#a07000', background: '#fff8e1', border: '1px solid #f0cc60', borderRadius: 3, padding: '1px 5px', marginLeft: 6, fontWeight: 500 }}>
-                {lang === 'da' ? 'demodata' : 'demo data'}
-              </span>
-            </div>
-            <HeatmapGrid lang={lang} />
+            <div className="p-analytics-subsection-label">{t.analyticsAudienceBestTime}</div>
+            <HeatmapGrid lang={lang} data={analytics?.heatmap || null} />
           </div>
         </div>
 
@@ -12634,16 +13151,13 @@ function AnalyticsPage({ lang, t, currentUser }) {
           <div className="p-analytics-section-title">{t.analyticsContentTitle}</div>
           <div className="p-analytics-subsection-label">{t.analyticsContentPostType}</div>
           <HBarChart items={postTypeItems} color="#1877F2" />
-          <div className="p-analytics-subsection-label" style={{ marginTop: 16 }}>
-            {t.analyticsContentTopics}
-            <span style={{ fontSize: 10, color: '#a07000', background: '#fff8e1', border: '1px solid #f0cc60', borderRadius: 3, padding: '1px 5px', marginLeft: 6, fontWeight: 500 }}>
-              {lang === 'da' ? 'demodata' : 'demo data'}
-            </span>
-          </div>
-          <HBarChart items={topics.map(p => ({ label: p.label, value: p.value }))} color="#F4A261" />
+          <div className="p-analytics-subsection-label" style={{ marginTop: 16 }}>{t.analyticsContentTopics}</div>
+          {topics
+            ? <HBarChart items={topics} color="#F4A261" />
+            : <p style={{ fontSize: 12, color: '#aaa', margin: 0 }}>{analytics ? (lang === 'da' ? 'Ingen data endnu — brug hashtags i dine opslag' : 'No data yet — use hashtags in your posts') : '…'}</p>}
           <div className="p-analytics-subsection-label" style={{ marginTop: 16 }}>{t.analyticsContentEngTrend}</div>
           <div className="p-analytics-chart-wrap">
-            <MiniLineChart data={engTrend.some(v => v > 0) ? engTrend : genViews(range, 2, 333)} color="#F4A261" height={80} />
+            <MiniLineChart data={engTrend.some(v => v > 0) ? engTrend : null} color="#F4A261" height={80} />
           </div>
         </div>
 
@@ -12663,10 +13177,14 @@ function AnalyticsPage({ lang, t, currentUser }) {
 
         <div className="p-analytics-section">
           <div className="p-analytics-section-title">{t.analyticsCompetitorTitle}</div>
-          <HBarChart items={competitors.map(c => ({ label: c.label, value: c.value }))} color="#1877F2" />
-          <p style={{ fontSize: 12, color: '#aaa', margin: '8px 0 0' }}>
-            {lang === 'da' ? 'Baseret på anonymiserede branchedata.' : 'Based on anonymised industry data.'}
-          </p>
+          {competitors
+            ? <>
+                <HBarChart items={competitors} color="#1877F2" />
+                <p style={{ fontSize: 12, color: '#aaa', margin: '8px 0 0' }}>
+                  {lang === 'da' ? 'Baseret på reelle forbindelsestal fra fellis.eu.' : 'Based on real connection data from fellis.eu.'}
+                </p>
+              </>
+            : <p style={{ fontSize: 12, color: '#aaa', margin: 0 }}>{analytics ? (lang === 'da' ? 'Ingen data endnu' : 'No data yet') : '…'}</p>}
         </div>
 
         <div className="p-analytics-section">

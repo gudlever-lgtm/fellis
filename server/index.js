@@ -1663,6 +1663,7 @@ app.get('/api/profile/:id', authenticate, async (req, res) => {
   try {
     const [users] = await pool.query(
       `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url,
+        u.industry, u.seniority, u.job_title, u.company,
         (SELECT COUNT(*) FROM friendships WHERE user_id = u.id) as friend_count,
         (SELECT COUNT(*) FROM posts WHERE author_id = u.id) as post_count,
         (SELECT COUNT(*) FROM friendships f1
@@ -1685,8 +1686,13 @@ app.get('/api/profile/:id', authenticate, async (req, res) => {
       isBlocked = blockRow.cnt > 0
     } catch { /* table not yet created */ }
     // Log profile view (fire-and-forget, skip self-views)
+    // source_post_id tracks which post led to the visit (for analytics)
     if (targetId !== req.userId) {
-      pool.query('INSERT INTO profile_views (viewer_id, profile_id) VALUES (?, ?)', [req.userId, targetId]).catch(() => {})
+      const sourcePostId = parseInt(req.query.source_post_id) || null
+      pool.query(
+        'INSERT INTO profile_views (viewer_id, profile_id, source_post_id) VALUES (?, ?, ?)',
+        [req.userId, targetId, sourcePostId]
+      ).catch(() => {})
     }
     // Fetch earned badges for the target user
     let badges = []
@@ -1707,6 +1713,10 @@ app.get('/api/profile/:id', authenticate, async (req, res) => {
       bio: { da: u.bio_da || '', en: u.bio_en || '' },
       location: u.location, joinDate: u.join_date,
       avatarUrl: u.avatar_url || null,
+      industry: u.industry || null,
+      seniority: u.seniority || null,
+      jobTitle: u.job_title || null,
+      company: u.company || null,
       friendCount: u.friend_count, postCount: u.post_count, photoCount: u.photo_count || 0,
       mutualCount: u.mutual_count || 0,
       isFriend: !!u.is_friend,
@@ -1778,6 +1788,7 @@ app.get('/api/profile', authenticate, async (req, res) => {
         u.profile_public, u.reputation_score, u.referral_count, u.interests, u.tags,
         u.relationship_status, u.website,
         u.phone, u.mfa_enabled,
+        u.industry, u.seniority, u.job_title, u.company,
         (SELECT COUNT(*) FROM friendships WHERE user_id = u.id) as friend_count,
         (SELECT COUNT(*) FROM posts WHERE author_id = u.id) as post_count
        FROM users u WHERE u.id = ?`,
@@ -1794,6 +1805,10 @@ app.get('/api/profile', authenticate, async (req, res) => {
       bio: { da: u.bio_da || '', en: u.bio_en || '' },
       location: u.location, joinDate: u.join_date,
       avatarUrl: u.avatar_url || null,
+      industry: u.industry || null,
+      seniority: u.seniority || null,
+      jobTitle: u.job_title || null,
+      company: u.company || null,
       friendCount: u.friend_count, postCount: u.post_count, photoCount: u.photo_count || 0,
       email: u.email || null,
       loginMethod: u.facebook_id ? 'facebook' : 'email',
@@ -2239,6 +2254,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
     try {
       ;[posts] = await pool.query(
         `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.categories, p.created_at, p.edited_at,
+                p.location_lat, p.location_lng, p.location_name,
                 (SELECT COUNT(*) FROM earned_badges WHERE user_id = p.author_id) as author_badge_count
          FROM posts p JOIN users u ON p.author_id = u.id
          WHERE (p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?))
@@ -2251,6 +2267,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
     } catch {
       ;[posts] = await pool.query(
         `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.categories, p.created_at, p.edited_at,
+                p.location_lat, p.location_lng, p.location_name,
                 0 as author_badge_count
          FROM posts p JOIN users u ON p.author_id = u.id
          WHERE (p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?))
@@ -2357,6 +2374,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
         createdAtRaw: p.created_at,
         edited: !!p.edited_at,
         authorBadgeCount: p.author_badge_count || 0,
+        location: p.location_lat ? { lat: Number(p.location_lat), lng: Number(p.location_lng), name: p.location_name } : null,
       }
     })
     // Track post views (fire-and-forget)
@@ -2433,6 +2451,9 @@ app.post('/api/feed/preflight', authenticate, (req, res) => {
 // POST /api/feed — create a new post (with optional media)
 app.post('/api/feed', authenticate, writeLimit, upload.array('media', 4), async (req, res) => {
   const { text, scheduled_at } = req.body
+  const locLat = req.body.location_lat ? parseFloat(req.body.location_lat) : null
+  const locLng = req.body.location_lng ? parseFloat(req.body.location_lng) : null
+  const locName = req.body.location_name ? String(req.body.location_name).slice(0, 255) : null
   const rawCats = req.body.categories
   const categories = rawCats ? (typeof rawCats === 'string' ? JSON.parse(rawCats) : rawCats) : null
   if (!text && !req.files?.length) return res.status(400).json({ error: 'Post text or media required' })
@@ -2468,8 +2489,8 @@ app.post('/api/feed', authenticate, writeLimit, upload.array('media', 4), async 
     const scheduledDate = scheduled_at ? new Date(scheduled_at) : null
     if (scheduledDate && isNaN(scheduledDate.getTime())) return res.status(400).json({ error: 'Invalid scheduled_at' })
     const [result] = await pool.query(
-      'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media, scheduled_at, categories) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [req.userId, text, text, 'Lige nu', 'Just now', mediaJson, scheduledDate, categoriesJson]
+      'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media, scheduled_at, categories, location_lat, location_lng, location_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [req.userId, text, text, 'Lige nu', 'Just now', mediaJson, scheduledDate, categoriesJson, locLat, locLng, locName]
     )
     const [users] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
     const now = new Date()
@@ -2502,6 +2523,7 @@ app.post('/api/feed', authenticate, writeLimit, upload.array('media', 4), async 
       likes: 0, liked: false, comments: [],
       media: mediaUrls.length > 0 ? mediaUrls : null,
       categories: categoriesJson ? JSON.parse(categoriesJson) : null,
+      location: locLat ? { lat: locLat, lng: locLng, name: locName } : null,
     })
   } catch (err) {
     res.status(500).json({ error: 'Failed to create post' })
@@ -3212,9 +3234,19 @@ app.post('/api/conversations/:id/messages', authenticate, writeLimit, async (req
       [convId, req.userId, receiverId, text, text, time])
     const [[user]] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
     const msg = { id: ins.insertId, from: user.name, text: { da: text, en: text }, time: formatMsgTime(now), createdAtRaw: now.toISOString() }
-    // Push the new message to all other participants via SSE
+    // Push the new message to all other participants via SSE + create notification
+    const [[conv]] = await pool.query('SELECT name, is_group FROM conversations WHERE id = ?', [convId]).catch(() => [[null]])
     for (const { user_id } of participants) {
-      if (user_id !== req.userId) sseBroadcast(user_id, { type: 'message', convId, msg })
+      if (user_id !== req.userId) {
+        sseBroadcast(user_id, { type: 'message', convId, msg })
+        const msgDa = conv?.is_group && conv?.name
+          ? `${user.name} sendte en besked i ${conv.name}`
+          : `${user.name} sendte dig en besked`
+        const msgEn = conv?.is_group && conv?.name
+          ? `${user.name} sent a message in ${conv.name}`
+          : `${user.name} sent you a message`
+        createNotification(user_id, 'new_message', msgDa, msgEn, req.userId, user.name, convId)
+      }
     }
     res.json(msg)
   } catch (err) {
@@ -3851,6 +3883,15 @@ async function initMarketplace() {
       INDEX idx_user_id (user_id),
       INDEX idx_category (category)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+    await pool.query(`CREATE TABLE IF NOT EXISTS listing_views (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      listing_id INT NOT NULL,
+      viewer_id INT NOT NULL,
+      viewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_listing_id (listing_id),
+      INDEX idx_viewer_id (viewer_id),
+      FOREIGN KEY (listing_id) REFERENCES marketplace_listings(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
   } catch (err) {
     console.error('initMarketplace error:', err.message)
   }
@@ -4036,6 +4077,98 @@ app.post('/api/marketplace/:id/relist', authenticate, async (req, res) => {
     await pool.query('UPDATE marketplace_listings SET sold = 0, created_at = NOW() WHERE id = ?', [req.params.id])
     res.json({ ok: true })
   } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/marketplace/:id/view — record a listing view (skip owner, deduplicate per hour)
+app.post('/api/marketplace/:id/view', authenticate, async (req, res) => {
+  try {
+    const listingId = parseInt(req.params.id)
+    const [[listing]] = await pool.query('SELECT user_id FROM marketplace_listings WHERE id = ?', [listingId])
+    if (!listing) return res.status(404).json({ error: 'Not found' })
+    if (listing.user_id === req.userId) return res.json({ ok: true }) // don't count owner views
+    await pool.query(
+      `INSERT INTO listing_views (listing_id, viewer_id)
+       SELECT ?, ? WHERE NOT EXISTS (
+         SELECT 1 FROM listing_views
+         WHERE listing_id = ? AND viewer_id = ? AND viewed_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
+       )`,
+      [listingId, req.userId, listingId, req.userId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/marketplace/:id/view error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/marketplace/stats — stats for current user's listings
+app.get('/api/marketplace/stats', authenticate, async (req, res) => {
+  try {
+    const [[overview]] = await pool.query(
+      `SELECT
+        COUNT(*) AS total,
+        SUM(CASE WHEN sold = 0 THEN 1 ELSE 0 END) AS active,
+        SUM(CASE WHEN sold = 1 THEN 1 ELSE 0 END) AS sold_count,
+        SUM(CASE WHEN boosted_until > NOW() THEN 1 ELSE 0 END) AS boosted
+       FROM marketplace_listings WHERE user_id = ?`,
+      [req.userId]
+    )
+    const [[viewStats]] = await pool.query(
+      `SELECT
+        COUNT(*) AS total_views,
+        SUM(CASE WHEN lv.viewed_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) THEN 1 ELSE 0 END) AS views_last_7_days,
+        SUM(CASE WHEN lv.viewed_at >= DATE_SUB(NOW(), INTERVAL 1 DAY) THEN 1 ELSE 0 END) AS views_today
+       FROM listing_views lv
+       JOIN marketplace_listings l ON lv.listing_id = l.id
+       WHERE l.user_id = ?`,
+      [req.userId]
+    )
+    const [topListings] = await pool.query(
+      `SELECT l.id, l.title, l.sold, l.category, COUNT(lv.id) AS views
+       FROM marketplace_listings l
+       LEFT JOIN listing_views lv ON l.id = lv.listing_id
+       WHERE l.user_id = ?
+       GROUP BY l.id, l.title, l.sold, l.category
+       ORDER BY views DESC, l.created_at DESC`,
+      [req.userId]
+    )
+    const [categories] = await pool.query(
+      `SELECT category, COUNT(*) AS count
+       FROM marketplace_listings WHERE user_id = ?
+       GROUP BY category ORDER BY count DESC`,
+      [req.userId]
+    )
+    const [viewTrend] = await pool.query(
+      `SELECT DATE(lv.viewed_at) AS date, COUNT(*) AS views
+       FROM listing_views lv
+       JOIN marketplace_listings l ON lv.listing_id = l.id
+       WHERE l.user_id = ? AND lv.viewed_at >= DATE_SUB(NOW(), INTERVAL 14 DAY)
+       GROUP BY DATE(lv.viewed_at)
+       ORDER BY date ASC`,
+      [req.userId]
+    )
+    res.json({
+      overview: {
+        total: Number(overview.total) || 0,
+        active: Number(overview.active) || 0,
+        sold: Number(overview.sold_count) || 0,
+        boosted: Number(overview.boosted) || 0,
+      },
+      views: {
+        total: Number(viewStats.total_views) || 0,
+        last7Days: Number(viewStats.views_last_7_days) || 0,
+        today: Number(viewStats.views_today) || 0,
+      },
+      topListings: topListings.map(l => ({
+        id: l.id, title: l.title, sold: !!l.sold, category: l.category, views: Number(l.views) || 0,
+      })),
+      categories: categories.map(c => ({ category: c.category, count: Number(c.count) })),
+      viewTrend: viewTrend.map(r => ({ date: r.date, views: Number(r.views) })),
+    })
+  } catch (err) {
+    console.error('GET /api/marketplace/stats error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })
@@ -5862,12 +5995,22 @@ async function initAnalytics() {
       id INT AUTO_INCREMENT PRIMARY KEY,
       viewer_id INT NOT NULL,
       profile_id INT NOT NULL,
+      source_post_id INT DEFAULT NULL,
       viewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       INDEX idx_pv_profile (profile_id, viewed_at),
       INDEX idx_pv_viewer (viewer_id),
+      INDEX idx_pv_source_post (source_post_id),
       FOREIGN KEY (profile_id) REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY (viewer_id) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+    // Add source_post_id to existing installs (ignore if already exists)
+    await pool.query(`ALTER TABLE profile_views ADD COLUMN IF NOT EXISTS source_post_id INT DEFAULT NULL`).catch(() => {})
+    // Add audience insight columns to users (ignore if already exists)
+    await pool.query(`ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS industry  VARCHAR(100) DEFAULT NULL,
+      ADD COLUMN IF NOT EXISTS seniority VARCHAR(50)  DEFAULT NULL,
+      ADD COLUMN IF NOT EXISTS job_title VARCHAR(100) DEFAULT NULL,
+      ADD COLUMN IF NOT EXISTS company   VARCHAR(100) DEFAULT NULL`).catch(() => {})
   } catch (err) {
     console.error('initAnalytics error:', err.message)
   }
@@ -6053,6 +6196,83 @@ app.get('/api/analytics', authenticate, async (req, res) => {
     const viaInvite = Math.min(Number(growthStats.via_invite), totalC)
     const organic = totalC - viaInvite
 
+    // Industry distribution of connections (requires migrate-audience-insights.sql)
+    let industryDist = []
+    try {
+      const [industryRows] = await pool.query(
+        `SELECT u.industry, COUNT(*) AS count
+         FROM friendships f
+         JOIN users u ON u.id = IF(f.user_id = ?, f.friend_id, f.user_id)
+         WHERE (f.user_id = ? OR f.friend_id = ?)
+           AND u.industry IS NOT NULL AND u.industry != ''
+         GROUP BY u.industry ORDER BY count DESC LIMIT 8`,
+        [req.userId, req.userId, req.userId]
+      )
+      const indTotal = industryRows.reduce((s, r) => s + Number(r.count), 0) || 1
+      industryDist = industryRows.map(r => ({
+        label: r.industry,
+        pct: Math.round((Number(r.count) / indTotal) * 100),
+      }))
+    } catch { /* column not yet added */ }
+
+    // Seniority distribution of connections (requires migrate-audience-insights.sql)
+    let seniorityDist = []
+    try {
+      const [seniorityRows] = await pool.query(
+        `SELECT u.seniority, COUNT(*) AS count
+         FROM friendships f
+         JOIN users u ON u.id = IF(f.user_id = ?, f.friend_id, f.user_id)
+         WHERE (f.user_id = ? OR f.friend_id = ?)
+           AND u.seniority IS NOT NULL AND u.seniority != ''
+         GROUP BY u.seniority ORDER BY count DESC`,
+        [req.userId, req.userId, req.userId]
+      )
+      const senTotal = seniorityRows.reduce((s, r) => s + Number(r.count), 0) || 1
+      seniorityDist = seniorityRows.map(r => ({
+        label: r.seniority,
+        pct: Math.round((Number(r.count) / senTotal) * 100),
+      }))
+    } catch { /* column not yet added */ }
+
+    // Posts driving profile visits (requires migrate-audience-insights.sql)
+    let postsDrivingVisits = []
+    try {
+      const [drivingRows] = await pool.query(
+        `SELECT p.id,
+                SUBSTRING(COALESCE(NULLIF(p.text_da,''), NULLIF(p.text_en,''), ''), 1, 50) AS text,
+                COUNT(*) AS visits
+         FROM profile_views pv
+         JOIN posts p ON p.id = pv.source_post_id
+         WHERE pv.profile_id = ?
+           AND pv.source_post_id IS NOT NULL
+           AND pv.viewed_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+         GROUP BY pv.source_post_id ORDER BY visits DESC LIMIT 5`,
+        [req.userId, days]
+      )
+      postsDrivingVisits = drivingRows.map(r => ({
+        label: (r.text || '').trim().slice(0, 40) || `Post #${r.id}`,
+        value: Number(r.visits),
+      }))
+    } catch { /* column not yet added */ }
+
+    // Platform average new connections per user per day (for competitor benchmarking)
+    let platformAvgConnGrowth = []
+    try {
+      const [platformRows] = await pool.query(
+        `SELECT DATE(created_at) AS date, COUNT(*) AS total_new
+         FROM friendships
+         WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+         GROUP BY DATE(created_at) ORDER BY date ASC`,
+        [days]
+      )
+      const [[{ user_count }]] = await pool.query('SELECT COUNT(*) AS user_count FROM users')
+      const uc = Math.max(Number(user_count), 1)
+      platformAvgConnGrowth = platformRows.map(r => ({
+        date: r.date.toISOString().slice(0, 10),
+        value: Math.round((Number(r.total_new) / uc) * 10) / 10,
+      }))
+    } catch { /* ignore */ }
+
     res.json({
       days,
       views: viewRows,
@@ -6074,6 +6294,10 @@ app.get('/api/analytics', authenticate, async (req, res) => {
       hashtagPerformance,
       audienceLocations,
       growthSource: { viaInvite, organic, total: totalC },
+      industryDist,
+      seniorityDist,
+      postsDrivingVisits,
+      platformAvgConnGrowth,
     })
   } catch (err) {
     console.error('GET /api/analytics error:', err.message)
@@ -7232,13 +7456,17 @@ app.post('/api/me/heartbeat', authenticate, async (req, res) => {
 
 // ── Profile update ────────────────────────────────────────────────────────────
 app.patch('/api/profile', authenticate, async (req, res) => {
-  const { name, bio_da, bio_en, location } = req.body
+  const { name, bio_da, bio_en, location, industry, seniority, job_title, company } = req.body
   try {
     const fields = [], vals = []
-    if (name !== undefined)     { fields.push('name = ?');     vals.push(name.trim()) }
-    if (bio_da !== undefined)   { fields.push('bio_da = ?');   vals.push(bio_da) }
-    if (bio_en !== undefined)   { fields.push('bio_en = ?');   vals.push(bio_en) }
-    if (location !== undefined) { fields.push('location = ?'); vals.push(location) }
+    if (name !== undefined)      { fields.push('name = ?');      vals.push(name.trim()) }
+    if (bio_da !== undefined)    { fields.push('bio_da = ?');    vals.push(bio_da) }
+    if (bio_en !== undefined)    { fields.push('bio_en = ?');    vals.push(bio_en) }
+    if (location !== undefined)  { fields.push('location = ?');  vals.push(location) }
+    if (industry !== undefined)  { fields.push('industry = ?');  vals.push(industry ? String(industry).trim().slice(0, 100) : null) }
+    if (seniority !== undefined) { fields.push('seniority = ?'); vals.push(seniority || null) }
+    if (job_title !== undefined) { fields.push('job_title = ?'); vals.push(job_title ? String(job_title).trim().slice(0, 100) : null) }
+    if (company !== undefined)   { fields.push('company = ?');   vals.push(company ? String(company).trim().slice(0, 100) : null) }
     if (!fields.length) return res.status(400).json({ error: 'Nothing to update' })
     vals.push(req.userId)
     await pool.query(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`, vals)
@@ -8617,6 +8845,27 @@ app.patch('/api/admin/badges/:badgeId', authenticate, requireAdmin, async (req, 
   } catch (err) {
     console.error('PATCH /api/admin/badges/:badgeId error:', err.message)
     res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// Nominatim geocode proxy — avoids browser User-Agent restrictions and rate-limits by IP
+let nominatimLastCall = 0
+app.get('/api/geocode', async (req, res) => {
+  const q = req.query.q
+  const lang = req.query.lang || 'da'
+  if (!q || q.length < 2) return res.json([])
+  const now = Date.now()
+  const wait = 1100 - (now - nominatimLastCall)
+  if (wait > 0) await new Promise(r => setTimeout(r, wait))
+  nominatimLastCall = Date.now()
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=5&accept-language=${lang}`
+    const r = await fetch(url, { headers: { 'User-Agent': 'fellis.eu/1.0 (contact@fellis.eu)' } })
+    if (!r.ok) return res.status(r.status).json([])
+    const data = await r.json()
+    res.json(data)
+  } catch {
+    res.status(502).json([])
   }
 })
 

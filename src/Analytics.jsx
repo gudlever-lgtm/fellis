@@ -47,176 +47,195 @@ function generateHeatmap() {
   )
 }
 
-// ── Static mock datasets ──
-const TOP_POSTS = [
-  { text: 'Mit nye designprojekt er færdigt!', reach: 2847, likes: 47, comments: 12, shares: 8 },
-  { text: 'Smukkeste solnedgang over Nyhavn...', reach: 2341, likes: 89, comments: 6, shares: 23 },
-  { text: 'Ny opskrift: Rugbrødsburger med remoulade', reach: 1923, likes: 56, comments: 18, shares: 4 },
-  { text: 'Første dag på den nye kystrute (45 km!)', reach: 1654, likes: 41, comments: 3, shares: 12 },
-  { text: 'Koncert i Vega — nogen med?', reach: 1432, likes: 23, comments: 14, shares: 5 },
-]
-
-const INDUSTRY_DIST = [
-  { label: 'Technology', pct: 28 },
-  { label: 'Design & Creative', pct: 22 },
-  { label: 'Marketing', pct: 15 },
-  { label: 'Education', pct: 12 },
-  { label: 'Finance', pct: 10 },
-  { label: 'Other', pct: 13 },
-]
-
-const TOP_LOCATIONS = [
-  { label: 'Copenhagen', pct: 41 },
-  { label: 'Aarhus', pct: 18 },
-  { label: 'Odense', pct: 11 },
-  { label: 'Aalborg', pct: 8 },
-  { label: 'Berlin', pct: 6 },
-]
-
-const SENIORITY = [
-  { label: 'Junior', pct: 18 },
-  { label: 'Mid-level', pct: 35 },
-  { label: 'Senior', pct: 28 },
-  { label: 'Lead / Manager', pct: 12 },
-  { label: 'Director+', pct: 7 },
-]
-
-const GROWTH_SOURCE = [
-  { label: 'Organic', value: 312, pct: 62 },
-  { label: 'Via shares', value: 124, pct: 25 },
-  { label: 'Company page', value: 65, pct: 13 },
-]
-
-const POST_TYPE_PERF = [
-  { label: 'Video', value: 3120 },
-  { label: 'Image', value: 2340 },
-  { label: 'Text', value: 1450 },
-  { label: 'Link', value: 980 },
-]
-
-const HASHTAG_PERF = [
-  { label: '#design', value: 4230 },
-  { label: '#copenhagen', value: 3810 },
-  { label: '#fellis', value: 3240 },
-  { label: '#ux', value: 2780 },
-  { label: '#photography', value: 2340 },
-]
-
-const FUNNEL = [
-  { label: 'Profile views', value: 847 },
-  { label: 'Connection requests', value: 124 },
-  { label: 'Accepted', value: 89 },
-]
-
-const FUNNEL_DA = [
-  { label: 'Profilvisninger', value: 847 },
-  { label: 'Forbindelsesanmodninger', value: 124 },
-  { label: 'Accepteret', value: 89 },
-]
-
-const POSTS_DRIVING_VISITS = [
-  { label: 'Mit nye designprojekt...', value: 142 },
-  { label: 'Solnedgang over Nyhavn...', value: 98 },
-  { label: 'Rugbrødsburger opskrift...', value: 67 },
+// ── Loading fallback for top posts (while API data loads) ──
+const TOP_POSTS_LOADING = [
+  { text: '…', reach: null, likes: null, comments: null, shares: null },
+  { text: '…', reach: null, likes: null, comments: null, shares: null },
+  { text: '…', reach: null, likes: null, comments: null, shares: null },
 ]
 
 // ── SVG Line Chart ──
-function LineChart({ data, color = '#2D6A4F', h = 90 }) {
+function LineChart({ data, color = '#2D6A4F', h = 100 }) {
+  const [hover, setHover] = useState(null)
   if (!data || data.length < 2) return null
   const vals = data.map(d => d.value)
   const min = Math.min(...vals)
   const max = Math.max(...vals)
   const range = max - min || 1
   const W = 400
+  const PAD_T = 16, PAD_B = 22, PAD_L = 36
 
-  const pts = data.map((d, i) => [
-    (i / (data.length - 1)) * W,
-    h - ((d.value - min) / range) * (h - 20) - 10,
-  ])
+  const py = v => PAD_T + ((max - v) / range) * (h - PAD_T - PAD_B)
+  const px = i => (i / (data.length - 1)) * W
+
+  const pts = data.map((d, i) => [px(i), py(d.value)])
   const ptStr = pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ')
-  const areaStr = `0,${h} ${ptStr} ${W},${h}`
+  const areaStr = `0,${h - PAD_B} ${ptStr} ${W},${h - PAD_B}`
 
+  const yTicks = [0.25, 0.5, 0.75, 1].map(t => min + t * range)
   const step = Math.max(1, Math.ceil(data.length / 6))
 
   return (
-    <div style={{ position: 'relative', paddingLeft: 28 }}>
-      <div style={{ position: 'absolute', top: 0, left: 0, fontSize: 10, color: '#aaa', lineHeight: 1 }}>{max.toLocaleString()}</div>
-      <div style={{ position: 'absolute', bottom: 20, left: 0, fontSize: 10, color: '#aaa', lineHeight: 1 }}>{min.toLocaleString()}</div>
-      <svg viewBox={`0 0 ${W} ${h + 22}`} style={{ width: '100%', height: h + 22 }}>
-        {[0.25, 0.5, 0.75].map(t => {
-          const y = h - t * (h - 20) - 10
-          return <line key={t} x1={0} y1={y} x2={W} y2={y} stroke="#f0f0f0" strokeWidth="1" />
-        })}
-        <polygon points={areaStr} fill={color} fillOpacity="0.08" />
-        <polyline points={ptStr} fill="none" stroke={color} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
-        {pts.map(([x, y], i) =>
-          i % step === 0 || i === data.length - 1
-            ? <circle key={i} cx={x} cy={y} r="3" fill={color} />
-            : null
-        )}
-        {data.filter((_, i) => i % step === 0 || i === data.length - 1).map((d, _, arr) => {
-          const idx = data.indexOf(d)
-          const x = (idx / (data.length - 1)) * W
+    <div style={{ position: 'relative' }}>
+      <svg viewBox={`0 0 ${W + PAD_L} ${h}`} style={{ width: '100%', height: h, display: 'block', overflow: 'visible' }}
+        onMouseLeave={() => setHover(null)}>
+        {/* Y grid + labels */}
+        {yTicks.map((v, ti) => {
+          const y = py(v)
           return (
-            <text key={idx} x={x} y={h + 18} textAnchor={idx === 0 ? 'start' : idx === data.length - 1 ? 'end' : 'middle'} fontSize="9" fill="#aaa">
-              {d.label}
-            </text>
+            <g key={ti}>
+              <line x1={PAD_L} y1={y} x2={PAD_L + W} y2={y} stroke="#f0f0f0" strokeWidth="1" />
+              <text x={PAD_L - 4} y={y + 3.5} textAnchor="end" fontSize="9" fill="#bbb">{Math.round(v)}</text>
+            </g>
           )
         })}
+        <g transform={`translate(${PAD_L},0)`}>
+          {/* Area fill */}
+          <polygon points={areaStr} fill={color} fillOpacity="0.07" />
+          {/* Line */}
+          <polyline points={ptStr} fill="none" stroke={color} strokeWidth="1.8"
+            strokeLinejoin="round" strokeLinecap="round" />
+          {/* All data points */}
+          {pts.map(([x, y], i) => (
+            <circle key={i} cx={x} cy={y} r={hover === i ? 5 : 3}
+              fill={hover === i ? color : '#fff'}
+              stroke={color} strokeWidth="1.8"
+              style={{ cursor: 'default', transition: 'r 0.1s' }}
+              onMouseEnter={() => setHover(i)} />
+          ))}
+          {/* X axis labels */}
+          {data.map((d, i) => {
+            if (i % step !== 0 && i !== data.length - 1) return null
+            return (
+              <text key={i} x={px(i)} y={h - PAD_B + 13}
+                textAnchor={i === 0 ? 'start' : i === data.length - 1 ? 'end' : 'middle'}
+                fontSize="9" fill="#bbb">
+                {d.label}
+              </text>
+            )
+          })}
+          {/* Hover tooltip */}
+          {hover !== null && (() => {
+            const [x, y] = pts[hover]
+            const d = data[hover]
+            const tipW = 72, tipH = 30
+            const tx = Math.min(Math.max(x - tipW / 2, -PAD_L + 2), W - tipW + 4)
+            const ty = y - tipH - 8 < 0 ? y + 10 : y - tipH - 8
+            return (
+              <g>
+                <rect x={tx} y={ty} width={tipW} height={tipH} rx="5" fill="#1a1a2e" fillOpacity="0.88" />
+                <text x={tx + tipW / 2} y={ty + 11} textAnchor="middle" fontSize="9" fill="#ccc">{d.label}</text>
+                <text x={tx + tipW / 2} y={ty + 23} textAnchor="middle" fontSize="11" fill="#fff" fontWeight="700">{d.value.toLocaleString()}</text>
+              </g>
+            )
+          })()}
+        </g>
       </svg>
     </div>
   )
 }
 
 // ── SVG Dual Line Chart (for competitor view) ──
-function DualLineChart({ data, color1 = '#2D6A4F', color2 = '#E07A5F', h = 90 }) {
+function DualLineChart({ data, color1 = '#2D6A4F', color2 = '#E07A5F', h = 100 }) {
+  const [hover, setHover] = useState(null)
   if (!data || data.length < 2) return null
   const allVals = data.flatMap(d => [d.you, d.industry])
   const min = Math.min(...allVals)
   const max = Math.max(...allVals)
   const range = max - min || 1
   const W = 400
+  const PAD_T = 16, PAD_B = 22, PAD_L = 36
 
-  const line = (key) => data.map((d, i) => [
-    (i / (data.length - 1)) * W,
-    h - ((d[key] - min) / range) * (h - 20) - 10,
-  ]).map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ')
+  const py = v => PAD_T + ((max - v) / range) * (h - PAD_T - PAD_B)
+  const px = i => (i / (data.length - 1)) * W
+  const pts1 = data.map((d, i) => [px(i), py(d.you)])
+  const pts2 = data.map((d, i) => [px(i), py(d.industry)])
+  const line = pts => pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ')
+  const step = Math.max(1, Math.ceil(data.length / 6))
+  const yTicks = [0.25, 0.5, 0.75, 1].map(t => min + t * range)
 
   return (
-    <svg viewBox={`0 0 ${W} ${h}`} style={{ width: '100%', height: h }}>
-      {[0.25, 0.5, 0.75].map(t => {
-        const y = h - t * (h - 20) - 10
-        return <line key={t} x1={0} y1={y} x2={W} y2={y} stroke="#f0f0f0" strokeWidth="1" />
-      })}
-      <polyline points={line('you')} fill="none" stroke={color1} strokeWidth="2.5" strokeLinejoin="round" />
-      <polyline points={line('industry')} fill="none" stroke={color2} strokeWidth="2" strokeDasharray="6 4" strokeLinejoin="round" />
-    </svg>
+    <div style={{ position: 'relative' }}>
+      <svg viewBox={`0 0 ${W + PAD_L} ${h}`} style={{ width: '100%', height: h, display: 'block', overflow: 'visible' }}
+        onMouseLeave={() => setHover(null)}>
+        {yTicks.map((v, ti) => {
+          const y = py(v)
+          return (
+            <g key={ti}>
+              <line x1={PAD_L} y1={y} x2={PAD_L + W} y2={y} stroke="#f0f0f0" strokeWidth="1" />
+              <text x={PAD_L - 4} y={y + 3.5} textAnchor="end" fontSize="9" fill="#bbb">{Math.round(v)}</text>
+            </g>
+          )
+        })}
+        <g transform={`translate(${PAD_L},0)`}>
+          <polyline points={line(pts2)} fill="none" stroke={color2} strokeWidth="1.5"
+            strokeDasharray="5 3" strokeLinejoin="round" />
+          <polyline points={line(pts1)} fill="none" stroke={color1} strokeWidth="1.8"
+            strokeLinejoin="round" strokeLinecap="round" />
+          {pts1.map(([x, y], i) => (
+            <circle key={i} cx={x} cy={y} r={hover === i ? 5 : 2.5}
+              fill={hover === i ? color1 : '#fff'} stroke={color1} strokeWidth="1.8"
+              onMouseEnter={() => setHover(i)} style={{ cursor: 'default' }} />
+          ))}
+          {data.map((d, i) => {
+            if (i % step !== 0 && i !== data.length - 1) return null
+            return (
+              <text key={i} x={px(i)} y={h - PAD_B + 13}
+                textAnchor={i === 0 ? 'start' : i === data.length - 1 ? 'end' : 'middle'}
+                fontSize="9" fill="#bbb">{d.label}</text>
+            )
+          })}
+          {hover !== null && (() => {
+            const [x, y] = pts1[hover]
+            const d = data[hover]
+            const tipW = 100, tipH = 42
+            const tx = Math.min(Math.max(x - tipW / 2, -PAD_L + 2), W - tipW + 4)
+            const ty = y - tipH - 8 < 0 ? y + 10 : y - tipH - 8
+            return (
+              <g>
+                <rect x={tx} y={ty} width={tipW} height={tipH} rx="5" fill="#1a1a2e" fillOpacity="0.88" />
+                <text x={tx + tipW / 2} y={ty + 11} textAnchor="middle" fontSize="9" fill="#ccc">{d.label}</text>
+                <text x={tx + 8} y={ty + 25} fontSize="10" fill={color1} fontWeight="700">You: {d.you.toLocaleString()}</text>
+                <text x={tx + 8} y={ty + 37} fontSize="10" fill={color2}>Avg: {d.industry.toLocaleString()}</text>
+              </g>
+            )
+          })()}
+        </g>
+      </svg>
+    </div>
   )
 }
 
 // ── SVG Bar Chart ──
 function BarChart({ data, color = '#2D6A4F', h = 90 }) {
+  const [hover, setHover] = useState(null)
   if (!data || !data.length) return null
   const max = Math.max(...data.map(d => d.value))
   const W = 400
-  const barW = (W / data.length) * 0.6
+  const PAD_B = 22
+  const barW = Math.min(40, (W / data.length) * 0.55)
   const gap = W / data.length
 
   return (
-    <svg viewBox={`0 0 ${W} ${h + 22}`} style={{ width: '100%', height: h + 22 }}>
+    <svg viewBox={`0 0 ${W} ${h + PAD_B}`} style={{ width: '100%', height: h + PAD_B, display: 'block', overflow: 'visible' }}
+      onMouseLeave={() => setHover(null)}>
       {data.map((d, i) => {
-        const bh = Math.max(4, (d.value / max) * (h - 16))
+        const bh = Math.max(3, (d.value / max) * (h - 10))
         const x = i * gap + (gap - barW) / 2
         const y = h - bh
+        const isHov = hover === i
         return (
-          <g key={i}>
-            <rect x={x} y={y} width={barW} height={bh} rx="3" fill={color} fillOpacity="0.82" />
-            <text x={x + barW / 2} y={y - 3} textAnchor="middle" fontSize="9" fill={color} fontWeight="600">
-              {d.value.toLocaleString()}
-            </text>
-            <text x={x + barW / 2} y={h + 16} textAnchor="middle" fontSize="9" fill="#888">
+          <g key={i} onMouseEnter={() => setHover(i)} style={{ cursor: 'default' }}>
+            <rect x={x} y={y} width={barW} height={bh} rx="3"
+              fill={color} fillOpacity={isHov ? 1 : 0.72} />
+            <text x={x + barW / 2} y={h + PAD_B - 6} textAnchor="middle" fontSize="9" fill="#999">
               {d.label}
             </text>
+            {isHov && (
+              <text x={x + barW / 2} y={y - 5} textAnchor="middle" fontSize="10" fill={color} fontWeight="700">
+                {d.value.toLocaleString()}
+              </text>
+            )}
           </g>
         )
       })}
@@ -228,19 +247,19 @@ function BarChart({ data, color = '#2D6A4F', h = 90 }) {
 function HBarChart({ data, color = '#2D6A4F', valueKey = 'pct', suffix = '' }) {
   const max = Math.max(...data.map(d => d[valueKey] ?? d.value ?? d.pct))
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       {data.map((d, i) => {
         const val = d[valueKey] ?? d.value ?? d.pct
         const pct = (val / max) * 100
         return (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 120, fontSize: 12, color: '#555', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ width: 110, fontSize: 12, color: '#555', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {d.label}
             </div>
-            <div style={{ flex: 1, height: 20, background: '#f5f5f5', borderRadius: 4, overflow: 'hidden' }}>
-              <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 4, transition: 'width 0.4s ease' }} />
+            <div style={{ flex: 1, height: 6, background: '#f0f0f0', borderRadius: 99, overflow: 'hidden' }}>
+              <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 99, transition: 'width 0.4s ease' }} />
             </div>
-            <div style={{ fontSize: 12, color: '#333', fontWeight: 600, minWidth: 44, textAlign: 'right' }}>
+            <div style={{ fontSize: 12, color: '#333', fontWeight: 600, minWidth: 40, textAlign: 'right' }}>
               {typeof val === 'number' && val > 999 ? val.toLocaleString() : val}{suffix}
             </div>
           </div>
@@ -576,11 +595,6 @@ export default function AnalyticsPage({ lang, currentPlan, onUpgradePlan }) {
     [analyticsData, dateRange, fillDays, profileViews]
   )
 
-  // Competitor chart: "you" line uses real connection data; industry line is estimated
-  const compData = useMemo(
-    () => connGrowth.map(fg => ({ label: fg.label, you: fg.value, industry: Math.round(fg.value * 0.81) })),
-    [connGrowth]
-  )
 
   // Heatmap: real API data when loaded; seeded fallback while loading
   const heatmapData = useMemo(
@@ -588,33 +602,31 @@ export default function AnalyticsPage({ lang, currentPlan, onUpgradePlan }) {
     [analyticsData]
   )
 
-  // Top posts: real API data when loaded; seeded fallback while loading; empty state if no posts
+  // Top posts: real API data when loaded; loading skeleton while fetching; empty state if no posts
   const topPostsData = useMemo(() => {
     if (analyticsData?.topPosts?.length) {
       // API returns {label, value} — label=post text, value=total engagement count
       return analyticsData.topPosts.map(p => ({ text: p.label, reach: p.value, likes: null, comments: null, shares: null }))
     }
     if (analyticsData) return [] // loaded, but user has no posts yet
-    return TOP_POSTS // seeded fallback while loading
+    return TOP_POSTS_LOADING // skeleton while loading
   }, [analyticsData])
 
-  // Funnel: real API data when available; seeded fallback otherwise
+  // Funnel: real API data when available; null while loading
   const funnelData = useMemo(() => {
     const fv = analyticsData?.funnel
-    if (fv) {
-      return lang === 'da'
-        ? [
-            { label: 'Profilvisninger', value: fv.views },
-            { label: 'Forbindelsesanmodninger', value: fv.requests },
-            { label: 'Accepteret', value: fv.connections },
-          ]
-        : [
-            { label: 'Profile views', value: fv.views },
-            { label: 'Connection requests', value: fv.requests },
-            { label: 'Accepted', value: fv.connections },
-          ]
-    }
-    return lang === 'da' ? FUNNEL_DA : FUNNEL
+    if (!fv) return null
+    return lang === 'da'
+      ? [
+          { label: 'Profilvisninger', value: fv.views },
+          { label: 'Forbindelsesanmodninger', value: fv.requests },
+          { label: 'Accepteret', value: fv.connections },
+        ]
+      : [
+          { label: 'Profile views', value: fv.views },
+          { label: 'Connection requests', value: fv.requests },
+          { label: 'Accepted', value: fv.connections },
+        ]
   }, [analyticsData, lang])
 
   // Post types: real API data (text vs. media); null = backend returned nothing yet
@@ -659,16 +671,6 @@ export default function AnalyticsPage({ lang, currentPlan, onUpgradePlan }) {
 
   const handleExportPDF = () => window.print()
 
-  // Visible badge appended to section titles that still use placeholder data
-  const demoTag = (
-    <span style={{
-      fontSize: 11, color: '#a07000', background: '#fff8e1',
-      border: '1px solid #f0cc60', borderRadius: 4,
-      padding: '1px 6px', marginLeft: 8, fontWeight: 500,
-    }}>
-      {lang === 'da' ? 'demodata' : 'demo data'}
-    </span>
-  )
 
   // Audience locations: real API data (friends' locations); fallback to demo
   const audienceLocations = useMemo(() => {
@@ -693,6 +695,39 @@ export default function AnalyticsPage({ lang, currentPlan, onUpgradePlan }) {
     }
     return null
   }, [analyticsData, lang])
+
+  // Industry distribution of connections (real DB data)
+  const industryDistData = useMemo(() => {
+    if (analyticsData?.industryDist?.length) return analyticsData.industryDist
+    return null
+  }, [analyticsData])
+
+  // Seniority distribution of connections (real DB data)
+  const seniorityDistData = useMemo(() => {
+    if (analyticsData?.seniorityDist?.length) return analyticsData.seniorityDist
+    return null
+  }, [analyticsData])
+
+  // Posts driving profile visits (real DB data — source_post_id tracking)
+  const postsDrivingVisitsData = useMemo(() => {
+    if (analyticsData?.postsDrivingVisits?.length) return analyticsData.postsDrivingVisits
+    return null
+  }, [analyticsData])
+
+  // Competitor benchmarking: platform avg new connections per user per day
+  const compData = useMemo(() => {
+    const platformAvg = analyticsData?.platformAvgConnGrowth
+    if (platformAvg?.length) {
+      // Both arrays cover the same date range with the same number of days — align by position
+      return connGrowth.map((fg, i) => ({
+        label: fg.label,
+        you: fg.value,
+        industry: platformAvg[i]?.value ?? 0,
+      }))
+    }
+    // No platform avg yet — single-line chart only
+    return connGrowth.map(fg => ({ label: fg.label, you: fg.value, industry: null }))
+  }, [analyticsData, connGrowth])
 
   const card = {
     background: '#fff', borderRadius: 12, padding: 20, marginBottom: 16,
@@ -733,14 +768,15 @@ export default function AnalyticsPage({ lang, currentPlan, onUpgradePlan }) {
     funnelDesc: 'Fra profilvisning til accepteret forbindelsesanmodning',
     postsDriving: 'Opslag der driver profilbesøg',
     competitor: 'Konkurrentbenchmarking',
-    compFollower: 'Forbindelsesvækst — dig vs. branchegennemsnit',
-    compNote: '* Branchelinjen er et estimeret gennemsnit — ingen individuelle konkurrentdata vises.',
+    compFollower: 'Forbindelsesvækst — dig vs. platformsgennemsnit',
+    compNote: '* Platformslinjen er et gennemsnit af nye forbindelser pr. bruger pr. dag på fellis.eu.',
     youLabel: 'Dig',
-    industryLabel: 'Branche-gns. (est.)',
+    industryLabel: 'Platforms-gns.',
     exportTitle: 'Eksporter data',
     exportCSV: 'Download CSV',
     exportPDF: 'Download PDF',
     loading: 'Henter…',
+    noDataYet: 'Ingen data endnu — udfyld din profil og opret forbindelser for at se indsigter her.',
     avgEng: 'Gns. engagement/opslag',
     newConns: 'nye forbindelser',
   } : {
@@ -773,14 +809,15 @@ export default function AnalyticsPage({ lang, currentPlan, onUpgradePlan }) {
     funnelDesc: 'From profile view to accepted connection request',
     postsDriving: 'Posts driving profile visits',
     competitor: 'Competitor Benchmarking',
-    compFollower: 'Connection growth — you vs. industry average',
-    compNote: '* The industry line is an estimated average — no individual competitor data is shown.',
+    compFollower: 'Connection growth — you vs. platform average',
+    compNote: '* The platform line is the average new connections per user per day on fellis.eu.',
     youLabel: 'You',
-    industryLabel: 'Industry avg. (est.)',
+    industryLabel: 'Platform avg.',
     exportTitle: 'Export Data',
     exportCSV: 'Download CSV',
     exportPDF: 'Download PDF',
     loading: 'Loading…',
+    noDataYet: 'No data yet — fill in your profile and make connections to see insights here.',
     avgEng: 'Avg. engagement/post',
     newConns: 'new connections',
   }
@@ -897,24 +934,28 @@ export default function AnalyticsPage({ lang, currentPlan, onUpgradePlan }) {
         <PlanGate plan="business_pro" currentPlan={currentPlan} onUpgrade={() => setShowUpgrade(true)} lang={lang}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 20 }}>
             <div>
-              <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: '#444' }}>{t.industryDist} {demoTag}</p>
-              <HBarChart data={INDUSTRY_DIST} valueKey="pct" suffix="%" />
+              <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: '#444' }}>{t.industryDist}</p>
+              {industryDistData
+                ? <HBarChart data={industryDistData} valueKey="pct" suffix="%" />
+                : <p style={{ fontSize: 13, color: '#aaa' }}>{analyticsData ? t.noDataYet : t.loading}</p>}
             </div>
             <div>
-              <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: '#444' }}>
-                {t.topLoc}{!audienceLocations && <>{' '}{demoTag}</>}
-              </p>
-              <HBarChart data={audienceLocations || TOP_LOCATIONS} valueKey="pct" suffix="%" color="#40916C" />
+              <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: '#444' }}>{t.topLoc}</p>
+              {audienceLocations
+                ? <HBarChart data={audienceLocations} valueKey="pct" suffix="%" color="#40916C" />
+                : <p style={{ fontSize: 13, color: '#aaa' }}>{analyticsData ? t.noDataYet : t.loading}</p>}
             </div>
           </div>
-          <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: '#444' }}>{t.seniority} {demoTag}</p>
-          <HBarChart data={SENIORITY} valueKey="pct" suffix="%" color="#6C63FF" />
+          <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: '#444' }}>{t.seniority}</p>
+          {seniorityDistData
+            ? <HBarChart data={seniorityDistData} valueKey="pct" suffix="%" color="#6C63FF" />
+            : <p style={{ fontSize: 13, color: '#aaa' }}>{analyticsData ? t.noDataYet : t.loading}</p>}
         </PlanGate>
       </div>
 
       {/* ── PRO: Best Time to Post (real data: engagement by day × hour of user's posts) ── */}
       <div style={card}>
-        <h3 style={sTitle}>{t.bestTime}{!analyticsData?.heatmap && <>{' '}{demoTag}</>}</h3>
+        <h3 style={sTitle}>{t.bestTime}</h3>
         <p style={sub}>{t.bestTimeDesc}</p>
         <PlanGate plan="business_pro" currentPlan={currentPlan} onUpgrade={() => setShowUpgrade(true)} lang={lang}>
           <PostingHeatmap data={heatmapData} lang={lang} />
@@ -923,20 +964,24 @@ export default function AnalyticsPage({ lang, currentPlan, onUpgradePlan }) {
 
       {/* ── PRO: Audience Growth Source (real: invite vs organic connections) ── */}
       <div style={card}>
-        <h3 style={sTitle}>{t.growthSrc}{!growthSourceData && <>{' '}{demoTag}</>}</h3>
+        <h3 style={sTitle}>{t.growthSrc}</h3>
         <PlanGate plan="business_pro" currentPlan={currentPlan} onUpgrade={() => setShowUpgrade(true)} lang={lang}>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            {(growthSourceData || GROWTH_SOURCE).map((s, i) => (
-              <div key={i} style={{
-                flex: 1, minWidth: 100, padding: '16px 12px',
-                borderRadius: 10, border: '1px solid #E8E4DF', textAlign: 'center',
-              }}>
-                <div style={{ fontSize: 26, fontWeight: 700, color: '#2D6A4F' }}>{s.pct}%</div>
-                <div style={{ fontSize: 13, color: '#555', marginTop: 4, fontWeight: 500 }}>{s.label}</div>
-                <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>+{s.value} {lang === 'da' ? 'forbindelser' : 'connections'}</div>
+          {growthSourceData
+            ? (
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                {growthSourceData.map((s, i) => (
+                  <div key={i} style={{
+                    flex: 1, minWidth: 100, padding: '16px 12px',
+                    borderRadius: 10, border: '1px solid #E8E4DF', textAlign: 'center',
+                  }}>
+                    <div style={{ fontSize: 26, fontWeight: 700, color: '#2D6A4F' }}>{s.pct}%</div>
+                    <div style={{ fontSize: 13, color: '#555', marginTop: 4, fontWeight: 500 }}>{s.label}</div>
+                    <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>+{s.value} {lang === 'da' ? 'forbindelser' : 'connections'}</div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            )
+            : <p style={{ fontSize: 13, color: '#aaa' }}>{analyticsData ? t.noDataYet : t.loading}</p>}
         </PlanGate>
       </div>
 
@@ -944,19 +989,16 @@ export default function AnalyticsPage({ lang, currentPlan, onUpgradePlan }) {
       <div style={card}>
         <h3 style={sTitle}>{t.contentPerf}</h3>
         <PlanGate plan="business_pro" currentPlan={currentPlan} onUpgrade={() => setShowUpgrade(true)} lang={lang}>
-          {/* Post types: real SQL data when available, demo fallback otherwise */}
-          <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: '#444' }}>
-            {t.postType}{!postTypeData && <>{' '}{demoTag}</>}
-          </p>
-          <BarChart data={postTypeData || POST_TYPE_PERF} />
+          <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: '#444' }}>{t.postType}</p>
+          {postTypeData
+            ? <BarChart data={postTypeData} />
+            : <p style={{ fontSize: 13, color: '#aaa' }}>{analyticsData ? t.noDataYet : t.loading}</p>}
 
-          {/* Hashtag performance: real data parsed from user's posts */}
-          <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, marginTop: 24, color: '#444' }}>
-            {t.hashtagPerf}{!hashtagData && <>{' '}{demoTag}</>}
-          </p>
-          <HBarChart data={hashtagData || HASHTAG_PERF} valueKey="value" color="#6C63FF" />
+          <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, marginTop: 24, color: '#444' }}>{t.hashtagPerf}</p>
+          {hashtagData
+            ? <HBarChart data={hashtagData} valueKey="value" color="#6C63FF" />
+            : <p style={{ fontSize: 13, color: '#aaa' }}>{analyticsData ? t.noDataYet : t.loading}</p>}
 
-          {/* Engagement trend: real SQL data */}
           <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, marginTop: 24, color: '#444' }}>{t.engTrend}</p>
           <LineChart data={engRate} color="#E07A5F" />
         </PlanGate>
@@ -967,32 +1009,40 @@ export default function AnalyticsPage({ lang, currentPlan, onUpgradePlan }) {
         <h3 style={sTitle}>{t.funnel}</h3>
         <p style={sub}>{t.funnelDesc}</p>
         <PlanGate plan="business_pro" currentPlan={currentPlan} onUpgrade={() => setShowUpgrade(true)} lang={lang}>
-          <FunnelChart data={funnelData} />
-          {/* Posts driving visits: no referrer tracking yet */}
-          <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, marginTop: 24, color: '#444' }}>
-            {t.postsDriving} {demoTag}
-          </p>
-          <HBarChart data={POSTS_DRIVING_VISITS} valueKey="value" color="#D4A574" />
+          {funnelData
+            ? <FunnelChart data={funnelData} />
+            : <p style={{ fontSize: 13, color: '#aaa' }}>{t.loading}</p>}
+          <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, marginTop: 24, color: '#444' }}>{t.postsDriving}</p>
+          {postsDrivingVisitsData
+            ? <HBarChart data={postsDrivingVisitsData} valueKey="value" color="#D4A574" />
+            : <p style={{ fontSize: 13, color: '#aaa' }}>{analyticsData ? t.noDataYet : t.loading}</p>}
         </PlanGate>
       </div>
 
-      {/* ── PRO: Competitor Benchmarking ("you" line = real data; industry line = estimated) ── */}
+      {/* ── PRO: Competitor Benchmarking (you vs. platform average) ── */}
       <div style={card}>
         <h3 style={sTitle}>{t.competitor}</h3>
         <PlanGate plan="business_pro" currentPlan={currentPlan} onUpgrade={() => setShowUpgrade(true)} lang={lang}>
           <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: '#444' }}>{t.compFollower}</p>
-          <DualLineChart data={compData} />
-          <div style={{ display: 'flex', gap: 20, fontSize: 12, marginTop: 8 }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ display: 'inline-block', width: 20, height: 3, background: '#2D6A4F', borderRadius: 2 }} />
-              {t.youLabel}
-            </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ display: 'inline-block', width: 20, height: 2, borderTop: '2px dashed #E07A5F' }} />
-              {t.industryLabel}
-            </span>
-          </div>
-          <p style={{ fontSize: 11, color: '#aaa', marginTop: 14 }}>{t.compNote}</p>
+          {compData.some(d => d.industry !== null)
+            ? <>
+                <DualLineChart data={compData.map(d => ({ ...d, industry: d.industry ?? 0 }))} />
+                <div style={{ display: 'flex', gap: 20, fontSize: 12, marginTop: 8 }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ display: 'inline-block', width: 20, height: 3, background: '#2D6A4F', borderRadius: 2 }} />
+                    {t.youLabel}
+                  </span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ display: 'inline-block', width: 20, height: 2, borderTop: '2px dashed #E07A5F' }} />
+                    {t.industryLabel}
+                  </span>
+                </div>
+                <p style={{ fontSize: 11, color: '#aaa', marginTop: 14 }}>{t.compNote}</p>
+              </>
+            : <>
+                <LineChart data={connGrowth} />
+                <p style={{ fontSize: 11, color: '#aaa', marginTop: 8 }}>{t.compNote}</p>
+              </>}
         </PlanGate>
       </div>
 
