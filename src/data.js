@@ -826,6 +826,8 @@ export const PT = {
     marketplaceBoostBtn: '⚡ Boost opslag',
     marketplaceBoosted: '⚡ Boosted',
     marketplaceBoostSuccess: 'Dit opslag er nu boosted i 7 dage!',
+    feedBoostedLabel: '⚡ Sponsoreret annonce',
+    feedBoostedCta: 'Se på markedsplads',
     // Admin
     adminTitle: 'Administration',
     adminStripeTitle: 'Stripe konfiguration',
@@ -1629,6 +1631,8 @@ export const PT = {
     marketplaceBoostBtn: '⚡ Boost listing',
     marketplaceBoosted: '⚡ Boosted',
     marketplaceBoostSuccess: 'Your listing is now boosted for 7 days!',
+    feedBoostedLabel: '⚡ Sponsored listing',
+    feedBoostedCta: 'View on marketplace',
     // Admin
     adminTitle: 'Administration',
     adminStripeTitle: 'Stripe configuration',

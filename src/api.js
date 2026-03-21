@@ -593,6 +593,10 @@ export async function apiBoostListing(id) {
   return await request(`/api/marketplace/${id}/boost`, { method: 'POST' })
 }
 
+export async function apiGetBoostedFeedListings() {
+  return await request('/api/marketplace/boosted-feed')
+}
+
 export async function apiRelistListing(id) {
   return await request(`/api/marketplace/${id}/relist`, { method: 'POST' })
 }
