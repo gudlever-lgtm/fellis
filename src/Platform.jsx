@@ -12415,7 +12415,7 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
     if (res?.checkoutUrl) {
       window.location.href = res.checkoutUrl
     } else {
-      // Stripe not yet configured — show info message
+      // Mollie not yet configured — show info message
       setBoostedIds(prev => ({ ...prev, [id]: true }))
       setBoostMsg(t.marketplaceBoostSuccess)
       setTimeout(() => setBoostMsg(null), 4000)
@@ -13467,8 +13467,6 @@ function AdminAdSettingsPanel({ lang, t }) {
       max_ads_stories: parseInt(settings.max_ads_stories),
       refresh_interval_seconds: parseInt(settings.refresh_interval_seconds),
       ads_enabled: settings.ads_enabled ? 1 : 0,
-      stripe_price_adfree_private: settings.stripe_price_adfree_private || '',
-      stripe_price_adfree_business: settings.stripe_price_adfree_business || '',
     }).catch(() => {})
     setSaving(false); setSaved(true)
     setTimeout(() => setSaved(false), 2500)
