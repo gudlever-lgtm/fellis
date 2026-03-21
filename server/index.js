@@ -3852,6 +3852,15 @@ async function initMarketplace() {
       INDEX idx_user_id (user_id),
       INDEX idx_category (category)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+    await pool.query(`CREATE TABLE IF NOT EXISTS listing_views (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      listing_id INT NOT NULL,
+      viewer_id INT NOT NULL,
+      viewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_listing_id (listing_id),
+      INDEX idx_viewer_id (viewer_id),
+      FOREIGN KEY (listing_id) REFERENCES marketplace_listings(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
   } catch (err) {
     console.error('initMarketplace error:', err.message)
   }
@@ -4037,6 +4046,99 @@ app.post('/api/marketplace/:id/relist', authenticate, async (req, res) => {
     await pool.query('UPDATE marketplace_listings SET sold = 0, created_at = NOW() WHERE id = ?', [req.params.id])
     res.json({ ok: true })
   } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/marketplace/:id/view — record a listing view (skip owner, deduplicate per hour)
+app.post('/api/marketplace/:id/view', authenticate, async (req, res) => {
+  try {
+    const listingId = parseInt(req.params.id)
+    const [[listing]] = await pool.query('SELECT user_id FROM marketplace_listings WHERE id = ?', [listingId])
+    if (!listing) return res.status(404).json({ error: 'Not found' })
+    if (listing.user_id === req.userId) return res.json({ ok: true }) // don't count owner views
+    await pool.query(
+      `INSERT INTO listing_views (listing_id, viewer_id)
+       SELECT ?, ? WHERE NOT EXISTS (
+         SELECT 1 FROM listing_views
+         WHERE listing_id = ? AND viewer_id = ? AND viewed_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
+       )`,
+      [listingId, req.userId, listingId, req.userId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/marketplace/:id/view error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/marketplace/stats — stats for current user's listings
+app.get('/api/marketplace/stats', authenticate, async (req, res) => {
+  try {
+    const [[overview]] = await pool.query(
+      `SELECT
+        COUNT(*) AS total,
+        SUM(CASE WHEN sold = 0 THEN 1 ELSE 0 END) AS active,
+        SUM(CASE WHEN sold = 1 THEN 1 ELSE 0 END) AS sold_count,
+        SUM(CASE WHEN boosted_until > NOW() THEN 1 ELSE 0 END) AS boosted
+       FROM marketplace_listings WHERE user_id = ?`,
+      [req.userId]
+    )
+    const [[viewStats]] = await pool.query(
+      `SELECT
+        COUNT(*) AS total_views,
+        SUM(CASE WHEN lv.viewed_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) THEN 1 ELSE 0 END) AS views_last_7_days,
+        SUM(CASE WHEN lv.viewed_at >= DATE_SUB(NOW(), INTERVAL 1 DAY) THEN 1 ELSE 0 END) AS views_today
+       FROM listing_views lv
+       JOIN marketplace_listings l ON lv.listing_id = l.id
+       WHERE l.user_id = ?`,
+      [req.userId]
+    )
+    const [topListings] = await pool.query(
+      `SELECT l.id, l.title, l.sold, l.category, COUNT(lv.id) AS views
+       FROM marketplace_listings l
+       LEFT JOIN listing_views lv ON l.id = lv.listing_id
+       WHERE l.user_id = ?
+       GROUP BY l.id, l.title, l.sold, l.category
+       ORDER BY views DESC, l.created_at DESC
+       LIMIT 5`,
+      [req.userId]
+    )
+    const [categories] = await pool.query(
+      `SELECT category, COUNT(*) AS count
+       FROM marketplace_listings WHERE user_id = ?
+       GROUP BY category ORDER BY count DESC`,
+      [req.userId]
+    )
+    const [viewTrend] = await pool.query(
+      `SELECT DATE(lv.viewed_at) AS date, COUNT(*) AS views
+       FROM listing_views lv
+       JOIN marketplace_listings l ON lv.listing_id = l.id
+       WHERE l.user_id = ? AND lv.viewed_at >= DATE_SUB(NOW(), INTERVAL 14 DAY)
+       GROUP BY DATE(lv.viewed_at)
+       ORDER BY date ASC`,
+      [req.userId]
+    )
+    res.json({
+      overview: {
+        total: Number(overview.total) || 0,
+        active: Number(overview.active) || 0,
+        sold: Number(overview.sold_count) || 0,
+        boosted: Number(overview.boosted) || 0,
+      },
+      views: {
+        total: Number(viewStats.total_views) || 0,
+        last7Days: Number(viewStats.views_last_7_days) || 0,
+        today: Number(viewStats.views_today) || 0,
+      },
+      topListings: topListings.map(l => ({
+        id: l.id, title: l.title, sold: !!l.sold, category: l.category, views: Number(l.views) || 0,
+      })),
+      categories: categories.map(c => ({ category: c.category, count: Number(c.count) })),
+      viewTrend: viewTrend.map(r => ({ date: r.date, views: Number(r.views) })),
+    })
+  } catch (err) {
+    console.error('GET /api/marketplace/stats error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })
