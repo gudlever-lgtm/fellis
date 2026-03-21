@@ -113,6 +113,7 @@ cd server && npm run seed
 | `46ELKS_PASSWORD` | 46elks API password (SMS MFA) | _(optional)_ |
 | `46ELKS_SENDER` | SMS sender name/number | `fellis.eu` |
 | `UPLOADS_DIR` | Media upload directory | `/var/www/fellis.eu/uploads` |
+| `MISTRAL_API_KEY` | Mistral AI key for CV/cover letter generation (console.mistral.ai) | _(optional, falls back to template)_ |
 
 The server reads `.env` manually at startup (not via `--env-file`) for PM2 compatibility.
 

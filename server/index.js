@@ -150,6 +150,7 @@ if (process.env.MAIL_HOST) {
 }
 
 const UPLOADS_DIR = process.env.UPLOADS_DIR || '/var/www/fellis.eu/uploads'
+const MISTRAL_API_KEY = process.env.MISTRAL_API_KEY || null
 
 // Ensure uploads directory exists
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true })
@@ -8156,7 +8157,28 @@ app.delete('/api/cv/languages/:id', authenticate, async (req, res) => {
   }
 })
 
-// POST /api/cv/generate — generate CV text + application letter template from profile data
+// ── Mistral AI helper ─────────────────────────────────────────────────────────
+async function callMistral(systemPrompt, userPrompt) {
+  if (!MISTRAL_API_KEY) return null
+  const resp = await fetch('https://api.mistral.ai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${MISTRAL_API_KEY}` },
+    body: JSON.stringify({
+      model: 'mistral-small-latest',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.7,
+      max_tokens: 1200,
+    }),
+  })
+  if (!resp.ok) { console.error('Mistral error:', resp.status, await resp.text()); return null }
+  const data = await resp.json()
+  return data.choices?.[0]?.message?.content?.trim() || null
+}
+
+// POST /api/cv/generate — generate CV text + cover letter (AI-powered if MISTRAL_API_KEY set, else template)
 app.post('/api/cv/generate', authenticate, async (req, res) => {
   try {
     const { job_id, type } = req.body // type: 'cv' | 'letter' | 'both'
@@ -8178,83 +8200,134 @@ app.post('/api/cv/generate', authenticate, async (req, res) => {
     ).then(([[row]]) => row || {}).catch(() => ({}))
     let job = null
     if (job_id) {
-      const [[j]] = await pool.query('SELECT title, description, requirements, company_id FROM jobs WHERE id = ?', [job_id])
+      const [[j]] = await pool.query('SELECT title, description, requirements, company_id FROM jobs WHERE id = ?', [job_id]).catch(() => [[null]])
       if (j) {
-        const [[c]] = await pool.query('SELECT name FROM companies WHERE id = ?', [j.company_id])
+        const [[c]] = await pool.query('SELECT name FROM companies WHERE id = ?', [j.company_id]).catch(() => [[null]])
         job = { ...j, company_name: c?.name || '' }
       }
     }
 
     const skillsList = me.skills ? me.skills.split(',').map(s => s.trim()).filter(Boolean) : []
     const langList = languages.map(l => `${l.language} (${l.proficiency})`).join(', ')
+    const hasProfile = !!(experience.length || edu.length || skillsList.length)
 
-    // Build CV text
+    // ── Build structured profile summary (used by both AI and template paths) ──
+    const profileSummary = [
+      `Name: ${me.name || ''}`,
+      me.location ? `Location: ${me.location}` : '',
+      me.job_title ? `Current title: ${[me.seniority, me.job_title].filter(Boolean).join(' ')}` : '',
+      me.company ? `Current company: ${me.company}` : '',
+      me.industry ? `Industry: ${me.industry}` : '',
+      (me.bio_da || me.bio_en) ? `Bio: ${me.bio_da || me.bio_en}` : '',
+      skillsList.length ? `Skills: ${skillsList.join(', ')}` : '',
+      langList ? `Languages: ${langList}` : '',
+      experience.length ? '\nWork experience:\n' + experience.map(e => {
+        const from = e.start_date ? new Date(e.start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short' }) : ''
+        const to = e.is_current ? 'present' : (e.end_date ? new Date(e.end_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short' }) : '')
+        return `  - ${e.title} at ${e.company}${from || to ? ` (${[from, to].filter(Boolean).join(' – ')})` : ''}${e.description ? ': ' + e.description : ''}`
+      }).join('\n') : '',
+      edu.length ? '\nEducation:\n' + edu.map(e =>
+        `  - ${[e.degree, e.field].filter(Boolean).join(', ')}${e.degree || e.field ? ' at ' : ''}${e.institution}${e.start_year || e.end_year ? ` (${[e.start_year, e.end_year].filter(Boolean).join('–')})` : ''}`
+      ).join('\n') : '',
+    ].filter(Boolean).join('\n')
+
+    const jobContext = job ? [
+      `Job title: ${typeof job.title === 'string' ? job.title : job.title?.da || ''}`,
+      `Company: ${job.company_name}`,
+      job.description ? `Description: ${job.description}` : '',
+      job.requirements ? `Requirements: ${job.requirements}` : '',
+    ].filter(Boolean).join('\n') : ''
+
     let cvText = ''
-    if (!type || type === 'cv' || type === 'both') {
-      cvText = `# ${me.name}\n`
-      if (me.location) cvText += `📍 ${me.location}\n`
-      if (me.job_title || me.company) cvText += `💼 ${[me.job_title, me.company].filter(Boolean).join(' · ')}\n`
-      cvText += '\n'
-      if (me.bio_da || me.bio_en) {
-        cvText += `## Om mig / About\n${me.bio_da || me.bio_en}\n\n`
-      }
-      if (experience.length) {
-        cvText += `## Erhvervserfaring / Work Experience\n`
-        for (const e of experience) {
-          const from = e.start_date ? new Date(e.start_date).toLocaleDateString('da-DK', { year: 'numeric', month: 'short' }) : ''
-          const to = e.is_current ? 'nu / present' : (e.end_date ? new Date(e.end_date).toLocaleDateString('da-DK', { year: 'numeric', month: 'short' }) : '')
-          cvText += `\n### ${e.title} — ${e.company}\n`
-          if (from || to) cvText += `_${from}${from && to ? ' – ' : ''}${to}_\n`
-          if (e.description) cvText += `${e.description}\n`
-        }
-        cvText += '\n'
-      }
-      if (edu.length) {
-        cvText += `## Uddannelse / Education\n`
-        for (const e of edu) {
-          const years = [e.start_year, e.end_year].filter(Boolean).join('–')
-          cvText += `\n### ${[e.degree, e.field].filter(Boolean).join(', ')} — ${e.institution}\n`
-          if (years) cvText += `_${years}_\n`
-          if (e.description) cvText += `${e.description}\n`
-        }
-        cvText += '\n'
-      }
-      if (skillsList.length) cvText += `## Kompetencer / Skills\n${skillsList.join(' · ')}\n\n`
-      if (langList) cvText += `## Sprog / Languages\n${langList}\n\n`
-    }
-
-    // Build application letter template
     let letterText = ''
-    if (type === 'letter' || type === 'both') {
-      const jobTitle = job ? (typeof job.title === 'string' ? job.title : job.title?.da || '') : '[Stilling / Position]'
-      const companyName = job?.company_name || '[Virksomhed / Company]'
-      const today = new Date().toLocaleDateString('da-DK', { day: 'numeric', month: 'long', year: 'numeric' })
-      letterText = `${me.location || ''}, ${today}\n\n`
-      letterText += `Kære ${companyName},\n\n`
-      letterText += `Jeg ansøger hermed om stillingen som ${jobTitle}. `
-      if (me.job_title || me.seniority) {
-        letterText += `Som ${[me.seniority, me.job_title].filter(Boolean).join(' ')} `
-        if (me.company) letterText += `hos ${me.company} `
+
+    // ── CV generation ─────────────────────────────────────────────────────────
+    if (!type || type === 'cv' || type === 'both') {
+      if (MISTRAL_API_KEY && hasProfile) {
+        const system = `You are a professional CV writer. Write a clean, concise, professional CV in the same language as the user's profile (use Danish if bio/name suggests Danish, otherwise English). Format in plain text with clear sections. Be specific and impactful, not generic. Output only the CV text, nothing else.`
+        const prompt = `Write a professional CV for this person:\n\n${profileSummary}${jobContext ? `\n\nTargeted at this job:\n${jobContext}` : ''}`
+        const aiResult = await callMistral(system, prompt)
+        cvText = aiResult || buildTemplateCV(me, experience, edu, skillsList, langList)
+      } else {
+        cvText = buildTemplateCV(me, experience, edu, skillsList, langList)
       }
-      letterText += `bringer jeg relevant erfaring og kompetencer til rollen.\n\n`
-      if (experience.length) {
-        const latest = experience[0]
-        letterText += `I min rolle som ${latest.title} hos ${latest.company} har jeg opnået solid erfaring inden for ${me.industry || 'branchen'}. `
-      }
-      if (skillsList.length) {
-        letterText += `Mine kernekompetencer inkluderer ${skillsList.slice(0, 4).join(', ')}. `
-      }
-      letterText += `\n\nJeg er motiveret af [udfyld din motivation] og ser frem til muligheden for at bidrage til ${companyName}.\n\n`
-      letterText += `Venlig hilsen,\n${me.name}\n`
-      if (langList) letterText += `\n---\n_Sprog / Languages: ${langList}_\n`
     }
 
-    res.json({ cv: cvText, letter: letterText, hasProfile: !!(experience.length || edu.length || skillsList.length) })
+    // ── Cover letter generation ───────────────────────────────────────────────
+    if (type === 'letter' || type === 'both') {
+      if (MISTRAL_API_KEY && hasProfile) {
+        const jobTitle = job ? (typeof job.title === 'string' ? job.title : job.title?.da || '') : ''
+        const companyName = job?.company_name || ''
+        const system = `You are an expert cover letter writer. Write a compelling, personalized cover letter in Danish (always use Danish unless the job posting is clearly in English). It should be warm, confident, and specific — not generic. 3–4 paragraphs. Output only the letter text, nothing else.`
+        const prompt = [
+          `Write a cover letter for this applicant:`,
+          profileSummary,
+          jobContext ? `\nThey are applying for:\n${jobContext}` : '',
+          `\nToday's date: ${new Date().toLocaleDateString('da-DK', { day: 'numeric', month: 'long', year: 'numeric' })}`,
+          `Address it to: ${companyName || 'the hiring team'}`,
+          jobTitle ? `Position applied for: ${jobTitle}` : '',
+        ].filter(Boolean).join('\n')
+        const aiResult = await callMistral(system, prompt)
+        letterText = aiResult || buildTemplateLetter(me, experience, skillsList, langList, job)
+      } else {
+        letterText = buildTemplateLetter(me, experience, skillsList, langList, job)
+      }
+    }
+
+    res.json({ cv: cvText, letter: letterText, hasProfile, aiPowered: !!(MISTRAL_API_KEY && hasProfile) })
   } catch (err) {
     console.error('POST /api/cv/generate error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })
+
+function buildTemplateCV(me, experience, edu, skillsList, langList) {
+  let t = `# ${me.name || ''}\n`
+  if (me.location) t += `📍 ${me.location}\n`
+  if (me.job_title || me.company) t += `💼 ${[me.job_title, me.company].filter(Boolean).join(' · ')}\n`
+  t += '\n'
+  if (me.bio_da || me.bio_en) t += `## Om mig\n${me.bio_da || me.bio_en}\n\n`
+  if (experience.length) {
+    t += `## Erhvervserfaring\n`
+    for (const e of experience) {
+      const from = e.start_date ? new Date(e.start_date).toLocaleDateString('da-DK', { year: 'numeric', month: 'short' }) : ''
+      const to = e.is_current ? 'nu' : (e.end_date ? new Date(e.end_date).toLocaleDateString('da-DK', { year: 'numeric', month: 'short' }) : '')
+      t += `\n### ${e.title} — ${e.company}\n`
+      if (from || to) t += `_${[from, to].filter(Boolean).join(' – ')}_\n`
+      if (e.description) t += `${e.description}\n`
+    }
+    t += '\n'
+  }
+  if (edu.length) {
+    t += `## Uddannelse\n`
+    for (const e of edu) {
+      t += `\n### ${[e.degree, e.field].filter(Boolean).join(', ') || e.institution}\n`
+      if (e.degree || e.field) t += `${e.institution}\n`
+      if (e.start_year || e.end_year) t += `_${[e.start_year, e.end_year].filter(Boolean).join('–')}_\n`
+      if (e.description) t += `${e.description}\n`
+    }
+    t += '\n'
+  }
+  if (skillsList.length) t += `## Kompetencer\n${skillsList.join(' · ')}\n\n`
+  if (langList) t += `## Sprog\n${langList}\n\n`
+  return t
+}
+
+function buildTemplateLetter(me, experience, skillsList, langList, job) {
+  const jobTitle = job ? (typeof job.title === 'string' ? job.title : job.title?.da || '') : '[Stilling]'
+  const companyName = job?.company_name || '[Virksomhed]'
+  const today = new Date().toLocaleDateString('da-DK', { day: 'numeric', month: 'long', year: 'numeric' })
+  let t = `${me.location || ''}, ${today}\n\nKære ${companyName},\n\n`
+  t += `Jeg ansøger hermed om stillingen som ${jobTitle}. `
+  if (me.job_title || me.seniority) {
+    t += `Som ${[me.seniority, me.job_title].filter(Boolean).join(' ')}${me.company ? ` hos ${me.company}` : ''} bringer jeg relevant erfaring til rollen.\n\n`
+  }
+  if (experience.length) t += `I min rolle som ${experience[0].title} hos ${experience[0].company} har jeg opnået solid erfaring inden for ${me.industry || 'branchen'}. `
+  if (skillsList.length) t += `Mine kernekompetencer inkluderer ${skillsList.slice(0, 4).join(', ')}. `
+  t += `\n\nJeg er motiveret af [udfyld din motivation] og ser frem til muligheden for at bidrage til ${companyName}.\n\nVenlig hilsen,\n${me.name || ''}\n`
+  if (langList) t += `\n---\n_Sprog: ${langList}_\n`
+  return t
+}
 
 // ── Post insights (real data) ─────────────────────────────────────────────────
 app.get('/api/posts/:id/insights', authenticate, async (req, res) => {

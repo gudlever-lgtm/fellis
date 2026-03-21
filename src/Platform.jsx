@@ -4155,6 +4155,9 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
 
       {/* Interest Graph — embedded directly in edit profile */}
       <InterestGraphPage lang={lang} t={t} currentUser={currentUser} />
+
+      {/* CV / Work profile — always shown in edit profile */}
+      <CVProfileSection lang={lang} t={t} isOwn={true} userId={currentUser.id} />
     </div>
   )
 }
@@ -10647,6 +10650,44 @@ function CreateCompanyModal({ t, lang, currentUser, onClose, onCreate }) {
 
 // ── Job Apply Modal ──
 // ── CV Profile Section ────────────────────────────────────────────────────────
+const CV_LANGUAGES = [
+  'Afrikaans','Albanisk','Amharisk','Arabisk','Armensk','Aserbajdsjansk',
+  'Baskisk','Hviderussisk','Bengalsk','Bosnisk','Bulgarsk','Burmesisk',
+  'Catalansk','Cebuansk','Kinesisk (forenklet)','Kinesisk (traditionelt)',
+  'Kroatisk','Tjekkisk','Dansk','Hollandsk','Engelsk','Esperanto','Estisk',
+  'Finsk','Fransk','Galicisk','Georgisk','Tysk','Græsk','Gujarati',
+  'Haitisk kreolsk','Hausa','Hawaiisk','Hebraisk','Hindi','Hmong','Ungarsk',
+  'Islandsk','Igbo','Indonesisk','Irsk','Italiensk','Japansk','Javanesisk',
+  'Kannada','Kasakhisk','Khmer','Koreansk','Kurdisk','Kirgisisk','Laotisk',
+  'Latin','Lettisk','Litauisk','Luxembourgsk','Makedonsk','Malgassisk',
+  'Malaysisk','Malayalamsk','Maltesisk','Maorisisk','Marathisk','Mongolsk',
+  'Nepalesisk','Norsk','Pashto','Persisk','Polsk','Portugisisk','Punjabi',
+  'Rumænsk','Russisk','Samoansk','Serbisk','Singhalesisk','Slovakisk',
+  'Slovensk','Somalisk','Spansk','Sundanesisk','Swahili','Svensk','Tagalog',
+  'Tadsjikisk','Tamil','Telugisk','Thailandsk','Tyrkisk','Ukrainsk','Urdu',
+  'Usbekisk','Vietnamesisk','Walisisk','Xhosa','Jiddisch','Yoruba','Zulu',
+  // English names (for EN UI)
+  'Afrikaans','Albanian','Amharic','Arabic','Armenian','Azerbaijani',
+  'Basque','Belarusian','Bengali','Bosnian','Bulgarian','Burmese',
+  'Catalan','Cebuano','Chinese (Simplified)','Chinese (Traditional)',
+  'Croatian','Czech','Danish','Dutch','English','Esperanto','Estonian',
+  'Finnish','French','Galician','Georgian','German','Greek','Gujarati',
+  'Haitian Creole','Hausa','Hawaiian','Hebrew','Hindi','Hmong','Hungarian',
+  'Icelandic','Igbo','Indonesian','Irish','Italian','Japanese','Javanese',
+  'Kannada','Kazakh','Khmer','Korean','Kurdish','Kyrgyz','Lao',
+  'Latin','Latvian','Lithuanian','Luxembourgish','Macedonian','Malagasy',
+  'Malay','Malayalam','Maltese','Maori','Marathi','Mongolian',
+  'Nepali','Norwegian','Pashto','Persian','Polish','Portuguese','Punjabi',
+  'Romanian','Russian','Samoan','Serbian','Sinhala','Slovak',
+  'Slovenian','Somali','Spanish','Sundanese','Swahili','Swedish','Tagalog',
+  'Tajik','Tamil','Telugu','Thai','Turkish','Ukrainian','Urdu',
+  'Uzbek','Vietnamese','Welsh','Xhosa','Yiddish','Yoruba','Zulu',
+  // Nordic + extra
+  'Færøsk','Grønlandsk','Samisk','Romani','Faroese','Greenlandic','Sami',
+  'Sindhi','Tigrinya','Kinyarwanda','Lingala','Oromo','Twi','Igbo',
+  'Azerbaijani','Belarusian','Bosnian',
+].filter((v, i, a) => a.indexOf(v) === i).sort()
+
 function CVProfileSection({ lang, t, isOwn, userId }) {
   const [data, setData] = useState(null)
   const [cvPublic, setCvPublic] = useState(false)
@@ -10912,8 +10953,18 @@ function CVProfileSection({ lang, t, isOwn, userId }) {
         </div>
         {showLangForm && (
           <div style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <input style={{ ...fS, width: 'auto', flex: 1, minWidth: 100 }} value={langName} onChange={e => setLangName(e.target.value)}
-              placeholder={lang === 'da' ? 'Sprog…' : 'Language…'} autoFocus />
+            <input
+              list="cv-language-list"
+              style={{ ...fS, width: 'auto', flex: 1, minWidth: 140 }}
+              value={langName}
+              onChange={e => setLangName(e.target.value)}
+              placeholder={lang === 'da' ? 'Skriv sprog…' : 'Type language…'}
+              autoFocus
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); saveLang() } }}
+            />
+            <datalist id="cv-language-list">
+              {CV_LANGUAGES.map(l => <option key={l} value={l} />)}
+            </datalist>
             <select style={{ ...fS, width: 'auto' }} value={langProf} onChange={e => setLangProf(e.target.value)}>
               {PROF_LEVELS.map(p => <option key={p} value={p}>{profLabel(p)}</option>)}
             </select>
@@ -11071,14 +11122,14 @@ function JobApplyModal({ job, lang, t, onClose, currentUser }) {
   const btnS = { padding: '7px 14px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#444' }
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="p-msg-modal" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
-        <div className="p-msg-modal-header">
+    <div className="modal-backdrop" style={{ alignItems: 'flex-start', padding: '40px 16px 16px' }} onClick={onClose}>
+      <div className="p-msg-modal" style={{ maxWidth: 520, maxHeight: 'calc(100vh - 56px)', margin: '0 auto' }} onClick={e => e.stopPropagation()}>
+        <div className="p-msg-modal-header" style={{ position: 'sticky', top: 0, background: '#fff', zIndex: 1 }}>
           <span>📝 {lang === 'da' ? 'Ansøg om stilling' : 'Apply for position'}</span>
           <button className="p-msg-modal-close" onClick={onClose}>✕</button>
         </div>
         {done ? (
-          <div style={{ padding: '24px 20px', textAlign: 'center' }}>
+          <div style={{ padding: '24px 20px', textAlign: 'center', overflowY: 'auto' }}>
             <div style={{ fontSize: 32, marginBottom: 12 }}>✅</div>
             <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6 }}>
               {lang === 'da' ? 'Ansøgning sendt!' : 'Application sent!'}
@@ -11089,7 +11140,7 @@ function JobApplyModal({ job, lang, t, onClose, currentUser }) {
             <button className="p-events-create-btn" onClick={onClose}>{lang === 'da' ? 'Luk' : 'Close'}</button>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} style={{ padding: '16px 20px' }}>
+          <form onSubmit={handleSubmit} style={{ padding: '16px 20px', overflowY: 'auto', flex: 1, minHeight: 0 }}>
             <div style={{ fontSize: 13, color: '#555', marginBottom: 12 }}>
               <strong>{typeof job.title === 'string' ? job.title : (job.title?.da || '')}</strong>
               {' '}&middot;{' '}
