@@ -245,6 +245,12 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
     return () => clearTimeout(timer)
   }, [checkBadges])
 
+  // Load interest categories from API (falls back to static list)
+  const [interestCategories, setInterestCategories] = useState(INTEREST_CATEGORIES)
+  useEffect(() => {
+    apiGetInterestCategories().then(d => { if (d?.categories?.length) setInterestCategories(d.categories) }).catch(() => {})
+  }, [])
+
   const reloadNotifs = useCallback(() => {
     apiGetNotifications().then(data => {
       const list = data?.notifications ?? (Array.isArray(data) ? data : null)
@@ -555,10 +561,11 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
             onTriggerRickroll={() => { if (!rickrollGlobalActive && triggerGlobalEgg('rickroll', checkBadges)) setRickrollGlobalActive(true) }}
             onTriggerParty={triggerPartyGlobal}
             onTriggerRetro={triggerRetroGlobal}
+            interestCategories={interestCategories}
           />
         </div>
         {page === 'reels' && <ReelsPage t={t} currentUser={currentUser} initialReelId={navParam?.reelId} onViewProfile={(userId) => navigateTo('view-profile', { userId })} />}
-        {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onBadgeCheck={checkBadges} />}
+        {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onBadgeCheck={checkBadges} interestCategories={interestCategories} />}
         {page === 'view-profile' && viewUserId && <FriendProfilePage userId={viewUserId} lang={lang} t={t} currentUser={currentUser} onBack={() => navigateTo('feed')} onBadgeCheck={checkBadges} onMessage={async (prof) => { const data = await apiCreateConversation([prof.id], null, false, false).catch(() => null); if (data?.id) setOpenConvId(data.id); navigateTo('messages') }} />}
         {page === 'edit-profile' && <EditProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onBadgeCheck={checkBadges} />}
         {page === 'friends' && <FriendsPage lang={lang} t={t} mode={mode} sseRefreshKey={friendsRefreshKey} onBadgeCheck={checkBadges} onMessage={async (friend) => {
@@ -1452,7 +1459,7 @@ function BoostedListingCard({ listing, lang, t, onNavigate }) {
   )
 }
 
-function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onNavigate, onBadgeCheck, feedEggRef, onTriggerChuck, onTriggerMatrix, onTriggerRickroll, onTriggerParty, onTriggerRetro }) {
+function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onNavigate, onBadgeCheck, feedEggRef, onTriggerChuck, onTriggerMatrix, onTriggerRickroll, onTriggerParty, onTriggerRetro, interestCategories = INTEREST_CATEGORIES }) {
   const [posts, setPosts] = useState([])
   const [feedCategoryFilter, setFeedCategoryFilter] = useState(null)
   const [pinnedPost, setPinnedPost] = useState(null)
@@ -2360,7 +2367,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                     <span style={{ fontSize: 12, color: '#aaa' }}>{t.postCategoryNone}</span>
                   )}
                   {[...postCategories].map(catId => {
-                    const catInfo = INTEREST_CATEGORIES.find(c => c.id === catId)
+                    const catInfo = interestCategories.find(c => c.id === catId)
                     if (!catInfo) return null
                     const isAuto = autoCategories.has(catId)
                     return (
@@ -2393,7 +2400,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
             {/* Category picker — all 18 categories, multiple allowed */}
             {showCategoryPicker && (
               <div style={{ padding: '8px 12px', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {INTEREST_CATEGORIES.map(cat => {
+                {interestCategories.map(cat => {
                   const isActive = postCategories.has(cat.id)
                   return (
                     <button
@@ -2784,7 +2791,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
 
       {/* Active category filter indicator */}
       {feedCategoryFilter && (() => {
-        const catInfo = INTEREST_CATEGORIES.find(c => c.id === feedCategoryFilter)
+        const catInfo = interestCategories.find(c => c.id === feedCategoryFilter)
         if (!catInfo) return null
         return (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', background: '#eaf4ef', borderBottom: '1px solid #b7dfc9' }}>
@@ -2875,7 +2882,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                           </div>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                             {post.categories.map(catId => {
-                              const catInfo = INTEREST_CATEGORIES.find(c => c.id === catId)
+                              const catInfo = interestCategories.find(c => c.id === catId)
                               if (!catInfo) return null
                               const isActive = feedCategoryFilter === catId
                               return (
@@ -3237,7 +3244,7 @@ const MOCK_FB_PHOTOS = [
 ]
 
 // ── Profile (clean — read-only view) ──
-function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onBadgeCheck }) {
+function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onBadgeCheck, interestCategories = INTEREST_CATEGORIES }) {
   const [profile, setProfile] = useState({ ...currentUser })
   const [userPosts, setUserPosts] = useState([])
   const [familyGroups, setFamilyGroups] = useState([])
