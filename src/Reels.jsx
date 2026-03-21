@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { nameToColor, getInitials, REACTIONS } from './data.js'
 import { apiFetchReels, apiUploadReel, apiToggleReelLike, apiFetchReelComments, apiAddReelComment, apiDeleteReel, apiSearchUsers } from './api.js'
+import AdBanner from './AdBanner.jsx'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -909,7 +910,7 @@ export default function ReelsPage({ t, currentUser, initialReelId, onViewProfile
         <div style={s.empty}>{t.reelsNoReels}</div>
       )}
 
-      {reels.map(reel => (
+      {reels.map((reel, idx) => (
         <div key={reel.id} id={`reel-${reel.id}`}>
           <ReelCard
             reel={reel}
@@ -918,6 +919,12 @@ export default function ReelsPage({ t, currentUser, initialReelId, onViewProfile
             onDelete={handleDelete}
             onViewProfile={onViewProfile}
           />
+          {/* Ad after every 3rd reel */}
+          {(idx + 1) % 3 === 0 && (
+            <div style={{ margin: isMobile ? '0 0 24px' : '0 auto 32px', maxWidth: isMobile ? '100%' : 420 }}>
+              <AdBanner placement="reels" lang={t.lang || 'da'} />
+            </div>
+          )}
         </div>
       ))}
 

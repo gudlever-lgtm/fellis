@@ -13683,8 +13683,8 @@ function AdsManagementPage({ lang, t }) {
   const placementLabel = (p) => ({ feed: t.adsFeed, sidebar: t.adsSidebar, stories: t.adsStories }[p] || p)
   const ctr = (imp, cl) => imp > 0 ? ((cl / imp) * 100).toFixed(2) + '%' : '–'
 
-  const openCreate = () => { setForm({ title: '', body: '', image_url: '', target_url: '', placement: 'feed', start_date: '', end_date: '' }); setEditAd(null); setShowCreate(true) }
-  const openEdit = (ad) => { setForm({ title: ad.title, body: ad.body || '', image_url: ad.image_url || '', target_url: ad.target_url, placement: ad.placement, start_date: ad.start_date ? ad.start_date.slice(0,10) : '', end_date: ad.end_date ? ad.end_date.slice(0,10) : '' }); setEditAd(ad); setShowCreate(true) }
+  const openCreate = () => { setForm({ title: '', body: '', image_url: '', target_url: '', start_date: '', end_date: '' }); setEditAd(null); setShowCreate(true) }
+  const openEdit = (ad) => { setForm({ title: ad.title, body: ad.body || '', image_url: ad.image_url || '', target_url: ad.target_url, start_date: ad.start_date ? ad.start_date.slice(0,10) : '', end_date: ad.end_date ? ad.end_date.slice(0,10) : '' }); setEditAd(ad); setShowCreate(true) }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -13832,7 +13832,6 @@ function AdsManagementPage({ lang, t }) {
                   <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{ad.title}</div>
                   {ad.body && <div style={{ fontSize: 13, color: '#555', marginBottom: 6 }}>{ad.body}</div>}
                   <div style={{ display: 'flex', gap: 16, fontSize: 12, color: '#888', flexWrap: 'wrap' }}>
-                    <span>{t.adsPlacement}: <strong>{placementLabel(ad.placement)}</strong></span>
                     <span>{t.adsStatus}: <strong style={{ color: ad.status === 'active' ? '#2D6A4F' : ad.status === 'paused' ? '#e67e22' : '#aaa' }}>{statusLabel(ad.status)}</strong></span>
                     <span>{t.adsImpressions}: <strong>{ad.impressions}</strong></span>
                     <span>{t.adsClicks}: <strong>{ad.clicks}</strong></span>
