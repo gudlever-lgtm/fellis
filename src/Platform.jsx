@@ -31,6 +31,66 @@ const API_BASE = import.meta.env.VITE_API_URL || ''
 
 // ── Mock notifications ──
 
+// ── Easter egg hints context menu ───────────────────────────────────────────
+// Right-click on any element with data-egg-hints attribute to show hints.
+function EggHintsContextMenu({ lang }) {
+  const [pos, setPos] = useState(null)       // { x, y } | null
+  const [hints, setHints] = useState(null)   // null = not yet fetched
+  const menuRef = useRef(null)
+
+  // Fetch hints once on first right-click
+  const ensureHints = useCallback(async () => {
+    if (hints !== null) return
+    const data = await apiGetEasterEggHints().catch(() => null)
+    setHints(data?.hints?.length ? data.hints : [
+      { hint: 'har en mening' },
+      { hint: 'G G' },
+      { hint: 'Going down!' },
+    ])
+  }, [hints])
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (!e.target.closest('[data-egg-hints]')) return
+      e.preventDefault()
+      ensureHints()
+      // Keep menu inside viewport
+      const x = Math.min(e.clientX, window.innerWidth - 220)
+      const y = Math.min(e.clientY, window.innerHeight - 160)
+      setPos({ x, y })
+    }
+    window.addEventListener('contextmenu', handler)
+    return () => window.removeEventListener('contextmenu', handler)
+  }, [ensureHints])
+
+  useEffect(() => {
+    if (!pos) return
+    const close = (e) => { if (!menuRef.current?.contains(e.target)) setPos(null) }
+    const esc   = (e) => { if (e.key === 'Escape') setPos(null) }
+    document.addEventListener('mousedown', close)
+    document.addEventListener('keydown', esc)
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', esc) }
+  }, [pos])
+
+  if (!pos) return null
+
+  return (
+    <div ref={menuRef} style={{ position: 'fixed', top: pos.y, left: pos.x, zIndex: 9999, background: '#1A1A1A', color: '#F0F0F0', borderRadius: 12, padding: '12px 0', minWidth: 200, boxShadow: '0 8px 32px rgba(0,0,0,0.4)', fontSize: 13 }}>
+      <div style={{ padding: '0 14px 8px', fontWeight: 700, fontSize: 12, color: '#aaa', letterSpacing: 0.5, borderBottom: '1px solid #333' }}>
+        🥚 {lang === 'da' ? 'Easter egg hints' : 'Easter egg hints'}
+      </div>
+      {hints === null
+        ? <div style={{ padding: '10px 14px', color: '#888' }}>…</div>
+        : hints.map((h, i) => (
+          <div key={i} style={{ padding: '8px 14px', borderBottom: i < hints.length - 1 ? '1px solid #2a2a2a' : 'none', color: '#e0e0e0' }}>
+            🗝️ {h.hint}
+          </div>
+        ))
+      }
+    </div>
+  )
+}
+
 export default function Platform({ lang: initialLang, onLogout, initialPostId, initialPage }) {
   const [lang, setLang] = useState(initialLang || 'da')
   const [page, setPage] = useState(initialPage || 'feed')
@@ -289,6 +349,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
 
   return (
     <div className="platform">
+      <EggHintsContextMenu lang={lang} />
       {/* Platform nav — only Feed, Friends, Messages in main tabs */}
       <nav className="p-nav">
         <div className="p-nav-left">
@@ -430,9 +491,9 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
           {/* Avatar with dropdown menu */}
           <div ref={avatarMenuRef} style={{ position: 'relative' }}>
             {avatarSrc ? (
-              <img ref={navAvatarTapRef} className="p-nav-avatar-img" src={avatarSrc} alt="" onClick={() => setShowAvatarMenu(v => !v)} />
+              <img ref={navAvatarTapRef} className="p-nav-avatar-img" src={avatarSrc} alt="" data-egg-hints onClick={() => setShowAvatarMenu(v => !v)} />
             ) : (
-              <div ref={navAvatarTapRef} className="p-nav-avatar" style={{ background: nameToColor(currentUser.name), cursor: 'pointer' }} onClick={() => setShowAvatarMenu(v => !v)}>
+              <div ref={navAvatarTapRef} className="p-nav-avatar" data-egg-hints style={{ background: nameToColor(currentUser.name), cursor: 'pointer' }} onClick={() => setShowAvatarMenu(v => !v)}>
                 {currentUser.initials || getInitials(currentUser.name)}
               </div>
             )}
@@ -2476,7 +2537,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   />
                 )}
                 <span className={`p-input-hint-wrap${hintOpen ? ' active' : ''}`}>
-                  <span className="p-input-hint-icon" ref={hintIconRef} onClick={handleHintIconClick}>?</span>
+                  <span className="p-input-hint-icon" ref={hintIconRef} data-egg-hints onClick={handleHintIconClick}>?</span>
                   <span className="p-input-hint-tooltip">{t.postInputHint}</span>
                 </span>
                 <button className="p-post-btn" onMouseDown={e => e.preventDefault()} onClick={handlePost} disabled={!newPostText.trim() && !mediaPreviews.length && !providerMediaUrls.length}>
@@ -8845,7 +8906,7 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
             )}
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 0, width: '100%' }}>
               <span className={`p-input-hint-wrap${msgHintOpen ? ' active' : ''}`}>
-                <span className="p-input-hint-icon" onClick={handleMsgHintClick}>?</span>
+                <span className="p-input-hint-icon" data-egg-hints onClick={handleMsgHintClick}>?</span>
                 <span className="p-input-hint-tooltip">{t.msgInputHint}</span>
               </span>
               {/* Attach button */}
