@@ -1540,6 +1540,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [locationResults, setLocationResults] = useState([])
   const [locationSearching, setLocationSearching] = useState(false)
   const [locationMapPost, setLocationMapPost] = useState(null) // post whose map is shown in modal
+  const locationDebounceRef = useRef(null)
 
   const handleJoinGroup = async (groupId) => {
     setJoinedGroupIds(prev => new Set([...prev, groupId]))
@@ -2268,18 +2269,26 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                     autoFocus
                     type="text"
                     value={locationSearchText}
-                    onChange={async e => {
+                    onChange={e => {
                       const q = e.target.value
                       setLocationSearchText(q)
                       setLocationResults([])
-                      if (q.length < 2) return
+                      clearTimeout(locationDebounceRef.current)
+                      if (q.length < 2) { setLocationSearching(false); return }
                       setLocationSearching(true)
-                      try {
-                        const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=5&accept-language=${lang}`)
-                        const j = await r.json()
-                        setLocationResults(j)
-                      } catch {}
-                      setLocationSearching(false)
+                      locationDebounceRef.current = setTimeout(async () => {
+                        try {
+                          const r = await fetch(
+                            `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=5&accept-language=${lang}`,
+                            { headers: { 'User-Agent': 'fellis.eu/1.0 (contact@fellis.eu)' } }
+                          )
+                          if (r.ok) {
+                            const j = await r.json()
+                            setLocationResults(j)
+                          }
+                        } catch {}
+                        setLocationSearching(false)
+                      }, 500)
                     }}
                     placeholder={lang === 'da' ? 'Søg sted…' : 'Search location…'}
                     style={{ flex: 1, padding: '7px 10px', borderRadius: 8, border: '1px solid #1877F2', fontSize: 13, outline: 'none' }}
