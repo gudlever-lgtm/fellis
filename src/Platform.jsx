@@ -12699,7 +12699,7 @@ function AdsManagementPage({ lang, t }) {
               {statItems.map(item => (
                 <div key={item.lbl} style={{ background: '#fff', borderRadius: 10, padding: '12px 14px', boxShadow: '0 1px 4px rgba(0,0,0,.07)', textAlign: 'center' }}>
                   <div style={{ fontSize: 22, fontWeight: 800, color: item.color, lineHeight: 1.1 }}>{item.val}</div>
-                  <div style={{ fontSize: 11, color: '#999', marginTop: 3, fontWeight: 500 }}>{item.lbl}</div>
+                  <div style={{ fontSize: 12, color: '#555', marginTop: 5, fontWeight: 600 }}>{item.lbl}</div>
                 </div>
               ))}
             </div>
