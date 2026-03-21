@@ -15218,11 +15218,15 @@ function AdminEasterEggsPanel({ lang }) {
   const saveTimerRef = useRef(null)
 
   useEffect(() => {
-    // Load config from server (authoritative) and merge into localStorage
+    // Load config from server; if server is empty, push localStorage config up to seed the DB
     apiGetAdminEasterEggConfig().then(d => {
       if (d?.config && Object.keys(d.config).length) {
         setCfg(d.config)
         localStorage.setItem(ADMIN_KEY, JSON.stringify(d.config))
+      } else {
+        // DB has no config yet — push current localStorage config to server now
+        const local = (() => { try { return JSON.parse(localStorage.getItem(ADMIN_KEY) || '{}') } catch { return {} } })()
+        if (Object.keys(local).length) apiSaveAdminEasterEggConfig(local).catch(() => {})
       }
     }).catch(() => {})
     apiGetAdminEasterEggStats()
@@ -15295,7 +15299,7 @@ function AdminEasterEggsPanel({ lang }) {
           </tbody>
         </table>
         <p style={{ fontSize: 11, color: '#aaa', margin: '10px 0 0' }}>
-          {lang === 'da' ? '⚠ Konfiguration gemmes i localStorage på denne enhed.' : '⚠ Configuration is stored in localStorage on this device.'}
+          {lang === 'da' ? '✓ Konfiguration synkroniseres til serveren og vises i HTML-kildekoden.' : '✓ Configuration is synced to the server and shown in the HTML source.'}
         </p>
       </div>
 
