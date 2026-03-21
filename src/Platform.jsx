@@ -1571,6 +1571,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [postCategories, setPostCategories] = useState(new Set())
   const [autoCategories, setAutoCategories] = useState(new Set())
   const [showCategoryPicker, setShowCategoryPicker] = useState(false)
+  const [catPickerSearch, setCatPickerSearch] = useState('')
   const [providerMediaUrls, setProviderMediaUrls] = useState([])
   // Tag people + link content to post
   const [taggedUsers, setTaggedUsers] = useState([])         // [{id, name, handle, avatar_url}]
@@ -1927,6 +1928,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     setLinkedContent(null)
     setShowTagPicker(false)
     setShowAttachPicker(false)
+    setCatPickerSearch('')
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
   }, [mediaPreviews, currentUser.name])
 
@@ -2452,36 +2454,62 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
               </div>
             )}
 
-            {/* Category picker — all 18 categories, multiple allowed */}
+            {/* Category picker — search-as-you-type, shows selected + filtered results */}
             {showCategoryPicker && (
-              <div style={{ padding: '8px 12px', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {interestCategories.map(cat => {
-                  const isActive = postCategories.has(cat.id)
-                  return (
-                    <button
-                      key={cat.id}
-                      onMouseDown={e => e.preventDefault()}
-                      onClick={() => {
-                        setPostCategories(prev => {
-                          const n = new Set(prev)
-                          if (n.has(cat.id)) { n.delete(cat.id); setAutoCategories(a => { const b = new Set(a); b.delete(cat.id); return b }) }
-                          else n.add(cat.id)
-                          return n
-                        })
-                      }}
-                      style={{
-                        fontSize: 12, fontWeight: isActive ? 700 : 400,
-                        color: isActive ? '#fff' : '#444',
-                        background: isActive ? '#2D6A4F' : '#f4f4f4',
-                        border: `1.5px solid ${isActive ? '#2D6A4F' : '#e0e0e0'}`,
-                        borderRadius: 20, padding: '4px 12px', cursor: 'pointer',
-                        transition: 'all 0.12s',
-                      }}
-                    >
-                      {isActive ? '✓ ' : ''}{cat.icon} {cat[lang]}
-                    </button>
-                  )
-                })}
+              <div style={{ padding: '8px 12px 10px' }}>
+                <input
+                  type="text"
+                  placeholder={lang === 'da' ? '🔍 Søg kategori…' : '🔍 Search category…'}
+                  value={catPickerSearch}
+                  onChange={e => setCatPickerSearch(e.target.value)}
+                  style={{ width: '100%', padding: '6px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box', marginBottom: 8, outline: 'none' }}
+                />
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {(() => {
+                    const q = catPickerSearch.trim().toLowerCase()
+                    // Always show selected; show filtered matches when typing
+                    const visible = interestCategories.filter(cat =>
+                      postCategories.has(cat.id) ||
+                      (q.length >= 1 && (cat.da.toLowerCase().includes(q) || cat.en.toLowerCase().includes(q)))
+                    )
+                    if (visible.length === 0) {
+                      return (
+                        <span style={{ fontSize: 12, color: '#aaa' }}>
+                          {q.length === 0
+                            ? (lang === 'da' ? 'Skriv for at søge…' : 'Type to search…')
+                            : (lang === 'da' ? 'Ingen resultater' : 'No results')}
+                        </span>
+                      )
+                    }
+                    return visible.map(cat => {
+                      const isActive = postCategories.has(cat.id)
+                      return (
+                        <button
+                          key={cat.id}
+                          onMouseDown={e => e.preventDefault()}
+                          onClick={() => {
+                            setPostCategories(prev => {
+                              const n = new Set(prev)
+                              if (n.has(cat.id)) { n.delete(cat.id); setAutoCategories(a => { const b = new Set(a); b.delete(cat.id); return b }) }
+                              else n.add(cat.id)
+                              return n
+                            })
+                          }}
+                          style={{
+                            fontSize: 12, fontWeight: isActive ? 700 : 400,
+                            color: isActive ? '#fff' : '#444',
+                            background: isActive ? '#2D6A4F' : '#f4f4f4',
+                            border: `1.5px solid ${isActive ? '#2D6A4F' : '#e0e0e0'}`,
+                            borderRadius: 20, padding: '4px 12px', cursor: 'pointer',
+                            transition: 'all 0.12s',
+                          }}
+                        >
+                          {isActive ? '✓ ' : ''}{cat.icon} {cat[lang]}
+                        </button>
+                      )
+                    })
+                  })()}
+                </div>
               </div>
             )}
 
