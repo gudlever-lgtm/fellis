@@ -3960,6 +3960,25 @@ app.post('/api/marketplace', authenticate, upload.array('photos', 10), async (re
   }
 })
 
+// GET /api/marketplace/boosted-feed — return active boosted listings for feed injection
+app.get('/api/marketplace/boosted-feed', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT l.id, l.title, l.price, l.priceNegotiable, l.category, l.location, l.photos,
+              u.name AS seller_name, u.avatar_url AS seller_avatar
+       FROM marketplace_listings l
+       JOIN users u ON l.user_id = u.id
+       WHERE l.boosted_until > NOW() AND l.sold = 0
+       ORDER BY RAND()
+       LIMIT 5`
+    )
+    res.json({ listings: rows.map(parseListingPhotos) })
+  } catch (err) {
+    console.error('GET /api/marketplace/boosted-feed error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 app.put('/api/marketplace/:id', authenticate, upload.array('photos', 10), async (req, res) => {
   try {
     const { title, price, priceNegotiable, category, location, description, mobilepay, contact_phone, contact_email } = req.body

@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } f
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { SUPPORTED_LANGS, EUROPEAN_LANGUAGES, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials, getTranslations } from './data.js'
 import { formatPrice } from './utils/currency.js'
-import { apiFetchFeed, apiCreatePost, apiLikeComment, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJob, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiRevealPassword, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiCreateAdFreeCheckout, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJob, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiRevealPassword, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals } from './api.js'
 import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
 import ReelsPage from './Reels.jsx'
@@ -1313,6 +1313,47 @@ function SuggestedPostCard({ post, lang, onViewProfile }) {
   )
 }
 
+const BOOST_FEED_EVERY = 7 // inject a boosted listing card after every N posts
+
+function BoostedListingCard({ listing, lang, t, onNavigate }) {
+  const title = listing.title_da || listing.title_en || listing.title || ''
+  const photo = listing.photos?.[0]?.url || null
+  const catIcons = { electronics: '💻', clothing: '👗', furniture: '🛋️', sports: '⚽', books: '📚', toys: '🧸', vehicles: '🚗', other: '📦' }
+  const icon = catIcons[listing.category] || '📦'
+
+  const s = {
+    card: { background: 'linear-gradient(135deg, #fffbf0 0%, #fff 100%)', border: '1.5px solid #F4A261', borderRadius: 12, padding: '12px 14px', cursor: 'pointer' },
+    badge: { display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: '#C07228', background: '#FEE9D0', padding: '3px 9px', borderRadius: 20, marginBottom: 10 },
+    row: { display: 'flex', gap: 12, alignItems: 'center' },
+    photo: { width: 64, height: 64, borderRadius: 8, objectFit: 'cover', flexShrink: 0, background: '#f0ece6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 },
+    info: { flex: 1, minWidth: 0 },
+    title: { fontWeight: 700, fontSize: 15, color: '#1a1a1a', marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+    meta: { fontSize: 12, color: '#888' },
+    price: { fontWeight: 700, fontSize: 15, color: '#2D6A4F', marginTop: 4 },
+    cta: { marginTop: 10, padding: '6px 14px', borderRadius: 8, background: '#F4A261', color: '#fff', border: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' },
+  }
+
+  return (
+    <div style={s.card} onClick={() => onNavigate?.('marketplace')}>
+      <div style={s.badge}>{t.feedBoostedLabel}</div>
+      <div style={s.row}>
+        {photo
+          ? <img src={photo} alt="" style={{ ...s.photo, display: 'block' }} />
+          : <div style={s.photo}>{icon}</div>
+        }
+        <div style={s.info}>
+          <div style={s.title}>{title}</div>
+          <div style={s.meta}>{listing.location || ''}{listing.seller_name ? ` · ${listing.seller_name}` : ''}</div>
+          {listing.price && <div style={s.price}>{listing.priceNegotiable ? (lang === 'da' ? 'Pris forhandles' : 'Price negotiable') : listing.price}</div>}
+        </div>
+      </div>
+      <button style={s.cta} onClick={e => { e.stopPropagation(); onNavigate?.('marketplace') }}>
+        {t.feedBoostedCta}
+      </button>
+    </div>
+  )
+}
+
 function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onNavigate, onBadgeCheck }) {
   const [posts, setPosts] = useState([])
   const [feedCategoryFilter, setFeedCategoryFilter] = useState(null)
@@ -1534,6 +1575,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [joinedGroupIds, setJoinedGroupIds] = useState(new Set())
   const [dismissedGroupIds, setDismissedGroupIds] = useState(new Set())
   const [suggestedPosts, setSuggestedPosts] = useState([])
+  const [boostedFeedListings, setBoostedFeedListings] = useState([])
   const [showScrollTop, setShowScrollTop] = useState(false)
   const [mediaMaxFiles, setMediaMaxFiles] = useState(4)
   const mediaMaxFilesRef = useRef(4)
@@ -1618,6 +1660,11 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     // Load suggested posts pool (tag-overlap based)
     apiGetSuggestedPosts().then(data => {
       if (data?.posts?.length) setSuggestedPosts(data.posts)
+    })
+
+    // Load boosted marketplace listings for feed injection
+    apiGetBoostedFeedListings().then(data => {
+      if (data?.listings?.length) setBoostedFeedListings(data.listings)
     })
 
     // Load recent company posts from followed companies
@@ -2667,6 +2714,10 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
             {postIdx >= SUGGEST_EVERY && postIdx % SUGGEST_EVERY === 0 && (() => {
               const sp = suggestedPosts[Math.floor(postIdx / SUGGEST_EVERY) - 1]
               return sp ? <SuggestedPostCard key={`sug-${sp.id}`} post={sp} lang={lang} onViewProfile={onViewProfile} /> : null
+            })()}
+            {boostedFeedListings.length > 0 && postIdx > 0 && postIdx % BOOST_FEED_EVERY === 0 && (() => {
+              const bl = boostedFeedListings[Math.floor(postIdx / BOOST_FEED_EVERY - 1) % boostedFeedListings.length]
+              return bl ? <BoostedListingCard key={`boost-${bl.id}-${postIdx}`} listing={bl} lang={lang} t={t} onNavigate={onNavigate} /> : null
             })()}
           <div className="p-card p-post"
             data-post-id={post.id}
