@@ -403,6 +403,10 @@ async function initConversations() {
     // Add conversation_id column (safe — fails silently if already present)
     await pool.query('ALTER TABLE messages ADD COLUMN conversation_id INT(11) DEFAULT NULL AFTER id').catch(() => {})
     await pool.query('ALTER TABLE messages ADD INDEX idx_msg_conv (conversation_id)').catch(() => {})
+    // Read receipts: track when each participant last read the conversation
+    await addCol('conversation_participants', 'last_read_at', 'TIMESTAMP NULL DEFAULT NULL')
+    // Family group flag
+    await addCol('conversations', 'is_family_group', 'TINYINT(1) NOT NULL DEFAULT 0')
     // Clean up broken 1:1 conversations created with null/missing participants
     await pool.query(`
       DELETE c FROM conversations c
@@ -3028,17 +3032,17 @@ app.patch('/api/friends/:userId/family', authenticate, async (req, res) => {
 // Helper: fetch a full conversation object for the current user
 async function getConversationForUser(convId, userId, myName) {
   const [participants] = await pool.query(
-    `SELECT u.id, u.name FROM users u
+    `SELECT u.id, u.name, cp.last_read_at FROM users u
      JOIN conversation_participants cp ON cp.user_id = u.id
      WHERE cp.conversation_id = ?`, [convId])
   const [msgs] = await pool.query(
-    `SELECT u.name as from_name, m.text_da, m.text_en, m.time, m.is_read, m.created_at
+    `SELECT m.id, u.name as from_name, m.text_da, m.text_en, m.time, m.is_read, m.created_at
      FROM messages m JOIN users u ON m.sender_id = u.id
      WHERE m.conversation_id = ? ORDER BY m.created_at DESC LIMIT 20`, [convId])
   msgs.reverse()
   const [[{ total }]] = await pool.query('SELECT COUNT(*) as total FROM messages WHERE conversation_id = ?', [convId])
   const [[conv]] = await pool.query(
-    `SELECT c.name, c.is_group, cp.muted_until FROM conversations c
+    `SELECT c.name, c.is_group, c.is_family_group, cp.muted_until FROM conversations c
      JOIN conversation_participants cp ON cp.conversation_id = c.id AND cp.user_id = ?
      WHERE c.id = ?`, [userId, convId])
   const unread = msgs.filter(m => !m.is_read && m.from_name !== myName).length
@@ -3047,16 +3051,28 @@ async function getConversationForUser(convId, userId, myName) {
   const displayName = conv.is_group
     ? (conv.name || participants.filter(p => p.id !== userId).map(p => p.name.split(' ')[0]).join(', '))
     : (otherParticipant?.name || fallbackName || 'Ukendt')
+  // Build read receipts for other participants (not the requesting user)
+  const readReceipts = participants
+    .filter(p => p.id !== userId && p.last_read_at)
+    .map(p => ({ userId: p.id, name: p.name, lastReadAt: p.last_read_at }))
   return {
     id: convId,
     name: displayName,
     isGroup: conv.is_group === 1,
+    isFamilyGroup: conv.is_family_group === 1,
     groupName: conv.name,
     participants: participants.map(p => ({ id: p.id, name: p.name })),
-    messages: msgs.map(m => ({ from: m.from_name, text: { da: m.text_da, en: m.text_en }, time: m.created_at ? formatMsgTime(m.created_at) : m.time })),
+    messages: msgs.map(m => ({
+      id: m.id,
+      from: m.from_name,
+      text: { da: m.text_da, en: m.text_en },
+      time: m.created_at ? formatMsgTime(m.created_at) : m.time,
+      createdAtRaw: m.created_at,
+    })),
     totalMessages: total,
     unread,
     mutedUntil: conv.muted_until,
+    readReceipts,
   }
 }
 
@@ -3167,11 +3183,11 @@ app.post('/api/conversations/:id/messages', authenticate, writeLimit, async (req
     const [participants] = await pool.query(
       'SELECT user_id FROM conversation_participants WHERE conversation_id = ?', [convId])
     const receiverId = participants.find(p => p.user_id !== req.userId)?.user_id ?? req.userId
-    await pool.query(
+    const [ins] = await pool.query(
       'INSERT INTO messages (conversation_id, sender_id, receiver_id, text_da, text_en, time) VALUES (?, ?, ?, ?, ?, ?)',
       [convId, req.userId, receiverId, text, text, time])
     const [[user]] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
-    const msg = { from: user.name, text: { da: text, en: text }, time: formatMsgTime(now) }
+    const msg = { id: ins.insertId, from: user.name, text: { da: text, en: text }, time: formatMsgTime(now), createdAtRaw: now.toISOString() }
     // Push the new message to all other participants via SSE
     for (const { user_id } of participants) {
       if (user_id !== req.userId) sseBroadcast(user_id, { type: 'message', convId, msg })
@@ -3182,13 +3198,32 @@ app.post('/api/conversations/:id/messages', authenticate, writeLimit, async (req
   }
 })
 
-// POST /api/conversations/:id/read — mark all messages in conversation as read for current user
+// POST /api/conversations/:id/read — mark messages as read + update last_read_at for receipt
 app.post('/api/conversations/:id/read', authenticate, async (req, res) => {
   const convId = parseInt(req.params.id)
   try {
     await pool.query(
       'UPDATE messages SET is_read = 1 WHERE conversation_id = ? AND sender_id != ?',
       [convId, req.userId])
+    await pool.query(
+      'UPDATE conversation_participants SET last_read_at = NOW() WHERE conversation_id = ? AND user_id = ?',
+      [convId, req.userId]
+    ).catch(() => {}) // column may not exist on older installs — safe to ignore
+    // Push read receipt to other participants via SSE so they see ✓✓ instantly
+    const [participants] = await pool.query(
+      'SELECT user_id FROM conversation_participants WHERE conversation_id = ?', [convId])
+    const [[me]] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
+    for (const { user_id } of participants) {
+      if (user_id !== req.userId) {
+        sseBroadcast(user_id, {
+          type: 'read_receipt',
+          convId,
+          userId: req.userId,
+          name: me.name,
+          lastReadAt: new Date().toISOString(),
+        })
+      }
+    }
     res.json({ ok: true })
   } catch (err) {
     res.status(500).json({ error: 'Failed to mark as read' })
