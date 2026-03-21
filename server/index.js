@@ -7935,23 +7935,26 @@ app.get('/api/jobs/mine', authenticate, async (req, res) => {
 // GET /api/cv/profile — get full CV data for current user
 app.get('/api/cv/profile', authenticate, async (req, res) => {
   try {
-    const [experience] = await pool.query(
+    const experience = await pool.query(
       'SELECT * FROM work_experience WHERE user_id = ? ORDER BY is_current DESC, sort_order ASC, start_date DESC',
       [req.userId]
-    )
-    const [edu] = await pool.query(
+    ).then(([rows]) => rows).catch(() => [])
+    const edu = await pool.query(
       'SELECT * FROM education WHERE user_id = ? ORDER BY sort_order ASC, start_year DESC',
       [req.userId]
-    )
-    const [languages] = await pool.query(
+    ).then(([rows]) => rows).catch(() => [])
+    const languages = await pool.query(
       'SELECT * FROM user_languages WHERE user_id = ? ORDER BY created_at ASC',
       [req.userId]
-    )
-    const [[me]] = await pool.query(
-      'SELECT job_title, company, industry, seniority, skills, cv_public, bio_da, bio_en, name, location FROM users WHERE id = ?',
+    ).then(([rows]) => rows).catch(() => [])
+    const me = await pool.query(
+      'SELECT job_title, company, industry, seniority, skills, bio_da, bio_en, name, location FROM users WHERE id = ?',
       [req.userId]
-    )
-    res.json({ experience, education: edu, languages, profile: me })
+    ).then(([[row]]) => row || {}).catch(() => ({}))
+    // cv_public fetched separately — column may not exist on all installs yet
+    const cvPublic = await pool.query('SELECT cv_public FROM users WHERE id = ?', [req.userId])
+      .then(([[row]]) => row?.cv_public ?? 0).catch(() => 0)
+    res.json({ experience, education: edu, languages, profile: { ...me, cv_public: cvPublic } })
   } catch (err) {
     console.error('GET /api/cv/profile error:', err.message)
     res.status(500).json({ error: 'Server error' })
@@ -7961,28 +7964,32 @@ app.get('/api/cv/profile', authenticate, async (req, res) => {
 // GET /api/cv/profile/:userId — public CV view (respects cv_public flag)
 app.get('/api/cv/profile/:userId', authenticate, async (req, res) => {
   try {
-    const [[owner]] = await pool.query('SELECT cv_public FROM users WHERE id = ?', [req.params.userId])
+    const [[owner]] = await pool.query(
+      'SELECT id FROM users WHERE id = ?', [req.params.userId]
+    )
     if (!owner) return res.status(404).json({ error: 'Not found' })
-    if (!owner.cv_public && req.userId !== Number(req.params.userId)) {
+    const cvPublic = await pool.query('SELECT cv_public FROM users WHERE id = ?', [req.params.userId])
+      .then(([[row]]) => row?.cv_public ?? 0).catch(() => 0)
+    if (!cvPublic && req.userId !== Number(req.params.userId)) {
       return res.status(403).json({ error: 'Profile not public' })
     }
-    const [experience] = await pool.query(
+    const experience = await pool.query(
       'SELECT * FROM work_experience WHERE user_id = ? ORDER BY is_current DESC, sort_order ASC, start_date DESC',
       [req.params.userId]
-    )
-    const [edu] = await pool.query(
+    ).then(([rows]) => rows).catch(() => [])
+    const edu = await pool.query(
       'SELECT * FROM education WHERE user_id = ? ORDER BY sort_order ASC, start_year DESC',
       [req.params.userId]
-    )
-    const [languages] = await pool.query(
+    ).then(([rows]) => rows).catch(() => [])
+    const languages = await pool.query(
       'SELECT * FROM user_languages WHERE user_id = ? ORDER BY created_at ASC',
       [req.params.userId]
-    )
-    const [[profile]] = await pool.query(
+    ).then(([rows]) => rows).catch(() => [])
+    const profile = await pool.query(
       'SELECT job_title, company, industry, seniority, skills, bio_da, bio_en, name, location FROM users WHERE id = ?',
       [req.params.userId]
-    )
-    res.json({ experience, education: edu, languages, profile })
+    ).then(([[row]]) => row || {}).catch(() => ({}))
+    res.json({ experience, education: edu, languages, profile: { ...profile, cv_public: cvPublic } })
   } catch (err) {
     console.error('GET /api/cv/profile/:userId error:', err.message)
     res.status(500).json({ error: 'Server error' })
@@ -8153,22 +8160,22 @@ app.delete('/api/cv/languages/:id', authenticate, async (req, res) => {
 app.post('/api/cv/generate', authenticate, async (req, res) => {
   try {
     const { job_id, type } = req.body // type: 'cv' | 'letter' | 'both'
-    const [experience] = await pool.query(
+    const experience = await pool.query(
       'SELECT * FROM work_experience WHERE user_id = ? ORDER BY is_current DESC, start_date DESC',
       [req.userId]
-    )
-    const [edu] = await pool.query(
+    ).then(([rows]) => rows).catch(() => [])
+    const edu = await pool.query(
       'SELECT * FROM education WHERE user_id = ? ORDER BY start_year DESC',
       [req.userId]
-    )
-    const [languages] = await pool.query(
+    ).then(([rows]) => rows).catch(() => [])
+    const languages = await pool.query(
       'SELECT language, proficiency FROM user_languages WHERE user_id = ? ORDER BY proficiency DESC',
       [req.userId]
-    )
-    const [[me]] = await pool.query(
+    ).then(([rows]) => rows).catch(() => [])
+    const me = await pool.query(
       'SELECT name, job_title, company, industry, seniority, skills, bio_da, bio_en, location FROM users WHERE id = ?',
       [req.userId]
-    )
+    ).then(([[row]]) => row || {}).catch(() => ({}))
     let job = null
     if (job_id) {
       const [[j]] = await pool.query('SELECT title, description, requirements, company_id FROM jobs WHERE id = ?', [job_id])
