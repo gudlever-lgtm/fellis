@@ -1422,9 +1422,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [commentReactionPopup, setCommentReactionPopup] = useState(null) // `${postId}:${commentId}` | null
   // Location picker state
   const [postLocation, setPostLocation] = useState(null) // { place_name, geo_lat, geo_lng } | null
-  const [locationQuery, setLocationQuery] = useState('')
-  const [locationSuggestions, setLocationSuggestions] = useState([])
-  const [locationSearching, setLocationSearching] = useState(false)
   const [locationSearchOpen, setLocationSearchOpen] = useState(false)
   const [locationSearchText, setLocationSearchText] = useState('')
   const [locationResults, setLocationResults] = useState([])
@@ -1771,26 +1768,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     })
   }, [])
 
-  const searchLocation = useCallback((q) => {
-    setLocationQuery(q)
-    clearTimeout(locationDebounce.current)
-    if (!q.trim()) { setLocationSuggestions([]); return }
-    locationDebounce.current = setTimeout(async () => {
-      setLocationSearching(true)
-      try {
-        const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=5`, {
-          headers: { 'Accept-Language': 'da,en', 'User-Agent': 'fellis.eu/1.0' }
-        })
-        const data = await r.json()
-        setLocationSuggestions(data.map(p => ({
-          place_name: p.display_name.split(',').slice(0, 3).join(','),
-          geo_lat: parseFloat(p.lat),
-          geo_lng: parseFloat(p.lon),
-        })))
-      } catch { setLocationSuggestions([]) }
-      setLocationSearching(false)
-    }, 500)
-  }, [])
 
   const doCreatePost = useCallback((text, files, schedAt, categories, loc) => {
     apiCreatePost(text, files, schedAt || undefined, categories?.size ? [...categories] : undefined, loc || undefined).then(data => {
@@ -2478,52 +2455,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                 </button>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                {/* Location picker */}
-                <div style={{ position: 'relative' }}>
-                  {postLocation ? (
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#2D6A4F', background: '#f0f7f4', border: '1px solid #b7e4c7', borderRadius: 8, padding: '4px 10px' }}>
-                      📍 {postLocation.place_name}
-                      <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => { setPostLocation(null); setLocationQuery(''); setLocationSuggestions([]) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', fontSize: 13, padding: 0, lineHeight: 1, marginLeft: 2 }}>✕</button>
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      onMouseDown={e => e.preventDefault()}
-                      onClick={() => setLocationQuery(q => q === null ? '' : (q === '' ? ' ' : q))}
-                      style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', color: '#555', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-                      title={lang === 'da' ? 'Tilføj sted' : 'Add location'}
-                    >
-                      📍 {lang === 'da' ? 'Sted' : 'Location'}
-                    </button>
-                  )}
-                  {!postLocation && locationQuery.trim() !== '' && (
-                    <div style={{ position: 'absolute', bottom: '110%', left: 0, zIndex: 300, background: '#fff', border: '1px solid #e0e0e0', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.1)', minWidth: 260, padding: '6px 0' }}>
-                      <div style={{ display: 'flex', gap: 6, padding: '6px 10px', borderBottom: '1px solid #f0f0f0' }}>
-                        <input
-                          autoFocus
-                          value={locationQuery.trim() === '' ? '' : locationQuery}
-                          onChange={e => searchLocation(e.target.value)}
-                          placeholder={lang === 'da' ? 'Søg sted…' : 'Search place…'}
-                          style={{ flex: 1, border: '1px solid #ddd', borderRadius: 6, padding: '5px 8px', fontSize: 13 }}
-                        />
-                        {locationSearching && <span style={{ fontSize: 12, color: '#999', alignSelf: 'center' }}>…</span>}
-                      </div>
-                      {locationSuggestions.map((s, i) => (
-                        <button
-                          key={i} type="button"
-                          onMouseDown={e => e.preventDefault()}
-                          onClick={() => { setPostLocation(s); setLocationQuery(''); setLocationSuggestions([]) }}
-                          style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 13, color: '#333' }}
-                        >
-                          📍 {s.place_name}
-                        </button>
-                      ))}
-                      {!locationSearching && locationSuggestions.length === 0 && locationQuery.trim().length > 1 && (
-                        <div style={{ padding: '8px 12px', fontSize: 12, color: '#aaa' }}>{lang === 'da' ? 'Ingen resultater' : 'No results'}</div>
-                      )}
-                    </div>
-                  )}
-                </div>
                 {mode === 'business' && (
                   <button
                     type="button"

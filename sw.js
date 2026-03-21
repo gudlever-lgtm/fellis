@@ -52,9 +52,11 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then(res => {
-          // Only cache complete responses — 206 Partial Content is not cacheable
+          // Clone synchronously before any async operation — body is consumed lazily
+          // and caches.open() is async, so cloning inside its .then() is too late.
           if (res.status === 200) {
-            caches.open(CACHE_NAME).then(cache => cache.put(request, res.clone()))
+            const clone = res.clone()
+            caches.open(CACHE_NAME).then(cache => cache.put(request, clone))
           }
           return res
         })
