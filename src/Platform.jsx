@@ -10397,10 +10397,15 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
     const r = c.member_role || c.role
     return r === 'owner' || r === 'admin' || r === 'editor'
   })
+  const ownedCompanies = companies.filter(c => {
+    const r = c.member_role || c.role
+    return r === 'owner'
+  })
   const followingCompanies = companies.filter(c =>
     (c.is_following || c.role === 'following') && !myCompanies.find(m => m.id === c.id)
   )
   const displayCompanies = tab === 'my' ? myCompanies : followingCompanies
+  const canCreateCompany = ownedCompanies.length === 0
 
   const toggleFollow = (id) => {
     fetch(`/api/companies/${id}/follow`, { method: 'POST', credentials: 'include' })
@@ -10454,9 +10459,15 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
     <div className="p-events" style={{ maxWidth: 720 }}>
       <div className="p-events-header">
         <h2 className="p-section-title" style={{ margin: 0 }}>🏢 {t.companies}</h2>
-        <button className="p-events-create-btn" onClick={() => setShowCreate(true)}>
-          + {t.createCompany}
-        </button>
+        {canCreateCompany ? (
+          <button className="p-events-create-btn" onClick={() => setShowCreate(true)}>
+            + {t.createCompany}
+          </button>
+        ) : (
+          <div style={{ fontSize: 12, color: '#888', fontStyle: 'italic' }}>
+            {lang === 'da' ? '✓ Du ejer allerede en virksomhed' : '✓ You already own a company'}
+          </div>
+        )}
       </div>
 
       <div className="p-filter-tabs" style={{ marginBottom: 16 }}>
