@@ -6533,10 +6533,10 @@ function MiniWorldMap({ countries, lang }) {
 
   const maxCount = Math.max(1, ...countries.map(c => c.count))
 
-  const handleMoveEnd = ({ coordinates, zoom: z }) => {
+  const handleMoveEnd = useCallback(({ coordinates, zoom: z }) => {
     setCenter(coordinates)
     setZoom(z)
-  }
+  }, [])
 
   const zBtn = {
     width: 28, height: 28, borderRadius: 6, border: '1px solid #ddd',
