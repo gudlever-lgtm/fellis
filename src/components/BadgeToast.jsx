@@ -53,6 +53,11 @@ function Toast({ badge, lang, onDone }) {
         <div style={{ fontSize: 12, color: 'var(--text-muted, #666)', marginTop: 2, lineHeight: 1.3 }}>
           {badge.description}
         </div>
+        {badge.adfreeAdded > 0 && (
+          <div style={{ fontSize: 11, fontWeight: 600, color: '#2196F3', marginTop: 4, paddingTop: 4, borderTop: '1px solid rgba(33, 150, 243, 0.2)' }}>
+            📅 {badge.adfreeAdded} {lang === 'da' ? 'dag(e) banked!' : 'day(s) banked!'}
+          </div>
+        )}
       </div>
     </div>
   )

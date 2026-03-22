@@ -49,7 +49,7 @@ import fs from 'fs'
 import multer from 'multer'
 import pool from './db.js'
 import { sendSms } from './sms.js'
-import { BADGES, BADGE_BY_ID, PLATFORM_LAUNCH_DATE } from '../src/badges/badgeDefinitions.js'
+import { BADGES, BADGE_BY_ID, PLATFORM_LAUNCH_DATE, BADGE_AD_FREE_DAYS } from '../src/badges/badgeDefinitions.js'
 import { evaluateBadges } from '../src/badges/badgeEngine.js'
 
 // MySQL 8.x compatible ADD COLUMN helper — ignores duplicate column error (errno 1060)
@@ -9571,7 +9571,7 @@ app.post('/api/badges/evaluate', authenticate, async (req, res) => {
         )
         const def = BADGE_BY_ID[badgeId]
         if (def) {
-          newBadges.push({
+          const badge = {
             id: badgeId,
             name: def.name[lang] || def.name.da,
             description: def.description[lang] || def.description.da,
@@ -9579,7 +9579,23 @@ app.post('/api/badges/evaluate', authenticate, async (req, res) => {
             category: def.category,
             icon: def.icon,
             awardedAt: now,
-          })
+          }
+
+          // Award ad-free days if this badge has a day value
+          const daysToAward = BADGE_AD_FREE_DAYS[badgeId] || 0
+          if (daysToAward > 0) {
+            await pool.query(
+              `INSERT INTO adfree_days_bank (user_id, days_banked, last_updated)
+               VALUES (?, ?, NOW())
+               ON DUPLICATE KEY UPDATE
+               days_banked = days_banked + VALUES(days_banked),
+               last_updated = NOW()`,
+              [userId, daysToAward]
+            )
+            badge.adfreeAdded = daysToAward
+          }
+
+          newBadges.push(badge)
         }
       } catch { /* INSERT IGNORE handles duplicates */ }
     }
@@ -9637,6 +9653,175 @@ app.get('/api/badges/all', authenticate, async (req, res) => {
     res.json({ badges: defs })
   } catch (err) {
     console.error('GET /api/badges/all error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Ad-Free Days: Badge-Based Rewards ─────────────────────────────────────────
+
+// GET /api/adfree/bank — get user's banked ad-free days
+app.get('/api/adfree/bank', authenticate, async (req, res) => {
+  try {
+    const userId = req.userId
+    const [rows] = await pool.query(
+      'SELECT days_banked, last_updated FROM adfree_days_bank WHERE user_id = ?',
+      [userId]
+    )
+    const bankDays = rows.length > 0 ? rows[0].days_banked : 0
+    const lastUpdated = rows.length > 0 ? rows[0].last_updated : null
+    res.json({ bankDays, lastUpdated })
+  } catch (err) {
+    console.error('GET /api/adfree/bank error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/adfree/assignments — get assigned ad-free date ranges
+app.get('/api/adfree/assignments', authenticate, async (req, res) => {
+  try {
+    const userId = req.userId
+    const { startDate, endDate } = req.query
+    const today = new Date().toISOString().split('T')[0]
+
+    let query = 'SELECT id, start_date, end_date, days_used, created_at FROM adfree_day_assignments WHERE user_id = ?'
+    const params = [userId]
+
+    if (startDate) {
+      query += ' AND end_date >= ?'
+      params.push(startDate)
+    }
+    if (endDate) {
+      query += ' AND start_date <= ?'
+      params.push(endDate)
+    }
+
+    query += ' ORDER BY start_date DESC'
+
+    const [rows] = await pool.query(query, params)
+
+    // Find active period (if today falls within any assignment)
+    let activePeriod = null
+    for (const row of rows) {
+      const start = new Date(row.start_date).toISOString().split('T')[0]
+      const end = new Date(row.end_date).toISOString().split('T')[0]
+      if (start <= today && today <= end) {
+        activePeriod = { startDate: start, endDate: end }
+        break
+      }
+    }
+
+    const assignments = rows.map(r => ({
+      id: r.id,
+      startDate: new Date(r.start_date).toISOString().split('T')[0],
+      endDate: new Date(r.end_date).toISOString().split('T')[0],
+      daysUsed: r.days_used,
+      createdAt: r.created_at,
+    }))
+
+    res.json({ assignments, activePeriod })
+  } catch (err) {
+    console.error('GET /api/adfree/assignments error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/adfree/is-active — check if a specific date is ad-free
+app.get('/api/adfree/is-active', authenticate, async (req, res) => {
+  try {
+    const userId = req.userId
+    const { date } = req.query
+    if (!date) return res.status(400).json({ error: 'date parameter required' })
+
+    const [rows] = await pool.query(
+      `SELECT 1 FROM adfree_day_assignments
+       WHERE user_id = ? AND start_date <= ? AND end_date >= ?`,
+      [userId, date, date]
+    )
+
+    const isAdFree = rows.length > 0
+    res.json({ isAdFree })
+  } catch (err) {
+    console.error('GET /api/adfree/is-active error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/adfree/assign — assign banked days to a date range
+app.post('/api/adfree/assign', authenticate, async (req, res) => {
+  try {
+    const userId = req.userId
+    const { startDate, endDate } = req.body
+
+    if (!startDate || !endDate) {
+      return res.status(400).json({ error: 'startDate and endDate required' })
+    }
+
+    if (startDate > endDate) {
+      return res.status(400).json({ error: 'startDate must be <= endDate' })
+    }
+
+    // Calculate days needed
+    const start = new Date(startDate)
+    const end = new Date(endDate)
+    const daysNeeded = Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1
+
+    // Check if user has enough days in bank
+    const [bankRows] = await pool.query(
+      'SELECT days_banked FROM adfree_days_bank WHERE user_id = ?',
+      [userId]
+    )
+
+    const bankDays = bankRows.length > 0 ? bankRows[0].days_banked : 0
+    if (bankDays < daysNeeded) {
+      return res.status(400).json({
+        error: 'Insufficient ad-free days',
+        available: bankDays,
+        needed: daysNeeded,
+      })
+    }
+
+    // Create assignment
+    const now = new Date()
+    const [result] = await pool.query(
+      `INSERT INTO adfree_day_assignments (user_id, start_date, end_date, days_used, created_at)
+       VALUES (?, ?, ?, ?, ?)`,
+      [userId, startDate, endDate, daysNeeded, now]
+    )
+
+    // Deduct from bank
+    await pool.query(
+      `UPDATE adfree_days_bank SET days_banked = days_banked - ?, last_updated = NOW()
+       WHERE user_id = ?`,
+      [daysNeeded, userId]
+    )
+
+    // If assignment covers today, set ads_free = 1
+    const today = new Date().toISOString().split('T')[0]
+    if (startDate <= today && today <= endDate) {
+      await pool.query(
+        'UPDATE users SET ads_free = 1, adfree_active_until = ? WHERE id = ?',
+        [new Date(endDate + ' 23:59:59'), userId]
+      )
+    }
+
+    // Get updated bank
+    const [newBankRows] = await pool.query(
+      'SELECT days_banked FROM adfree_days_bank WHERE user_id = ?',
+      [userId]
+    )
+    const newBank = newBankRows.length > 0 ? newBankRows[0].days_banked : 0
+
+    const assignment = {
+      id: result.insertId,
+      startDate,
+      endDate,
+      daysUsed: daysNeeded,
+      createdAt: now,
+    }
+
+    res.json({ success: true, newBank, assignment })
+  } catch (err) {
+    console.error('POST /api/adfree/assign error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })
