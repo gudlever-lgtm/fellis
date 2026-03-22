@@ -4780,7 +4780,7 @@ app.get('/api/companies/:id', authenticate, async (req, res) => {
     const [jobs] = await pool.query(
       `SELECT j.*,
               (SELECT COUNT(*) > 0 FROM job_saves WHERE job_id = j.id AND user_id = ?) AS saved,
-              (SELECT COUNT(DISTINCT shared_with_user_id) FROM shared_jobs WHERE job_id = j.id) AS share_count
+              (SELECT COUNT(DISTINCT sj.shared_with_user_id) FROM shared_jobs sj JOIN users u ON sj.shared_with_user_id = u.id WHERE sj.job_id = j.id) AS share_count
        FROM jobs j
        WHERE j.company_id = ? AND j.active = 1
        ORDER BY j.created_at DESC`,
@@ -8495,7 +8495,7 @@ app.get('/api/jobs/mine', authenticate, async (req, res) => {
   try {
     const [rows] = await pool.query(`
       SELECT j.*, c.name AS company_name, c.handle AS company_handle, c.color AS company_color, c.logo_url AS company_logo,
-             (SELECT COUNT(DISTINCT shared_with_user_id) FROM shared_jobs WHERE job_id = j.id) AS share_count
+             (SELECT COUNT(DISTINCT sj.shared_with_user_id) FROM shared_jobs sj JOIN users u ON sj.shared_with_user_id = u.id WHERE sj.job_id = j.id) AS share_count
       FROM jobs j
       JOIN companies c ON c.id = j.company_id
       WHERE j.created_by_user_id = ?
@@ -9849,7 +9849,7 @@ async function computeUserStats(userId) {
       )) AS mutualFollowCount,
       (SELECT COUNT(DISTINCT profile_id) FROM profile_views WHERE viewer_id = ?) AS profilesVisited,
       (SELECT COALESCE(COUNT(*), 0) FROM share_events s WHERE s.user_id = ? AND s.share_type = 'post') +
-      COALESCE((SELECT COUNT(DISTINCT shared_with_user_id) FROM shared_jobs WHERE shared_by_user_id = ?), 0) AS shareCount,
+      COALESCE((SELECT COUNT(DISTINCT sj.shared_with_user_id) FROM shared_jobs sj JOIN users u ON sj.shared_with_user_id = u.id WHERE sj.shared_by_user_id = ?), 0) AS shareCount,
       (SELECT COUNT(*) FROM posts WHERE author_id = ? AND likes >= 10) AS postsWithTenPlusLikes,
       (SELECT COALESCE(MAX(likes), 0) FROM posts WHERE author_id = ?) AS maxLikesOnSinglePost,
       (SELECT COUNT(DISTINCT cl.comment_id) FROM comment_likes cl JOIN comments c ON c.id = cl.comment_id WHERE c.author_id = ?) AS commentsWithLikes,
