@@ -12079,14 +12079,14 @@ function JobCard({ job, t, lang, onSaveToggle, onTrackChange, currentUser, onSha
                 padding: '8px 14px',
                 borderRadius: 8,
                 border: `1px solid ${job.share_count > 0 ? '#2D6A4F' : '#ddd'}`,
-                background: job.share_count > 0 ? '#F0FAF4' : '#fff',
+                background: job.share_count > 0 ? '#F0FAF4' : '#f5f5f5',
                 color: job.share_count > 0 ? '#2D6A4F' : '#555',
                 fontWeight: 600,
                 fontSize: 13,
                 cursor: 'pointer'
               }}
             >
-              {job.share_count > 0 ? `✓ 🔗 ${lang === 'da' ? 'Delt' : 'Shared'}` : `🔗 ${lang === 'da' ? 'Del' : 'Share'}`}
+              {job.share_count > 0 ? `✓ 🔗 ${lang === 'da' ? 'Delt' : 'Shared'} (${job.share_count})` : `🔗 ${lang === 'da' ? 'Del' : 'Share'}`}
             </button>
           </div>
           {/* Personal tracking status */}
