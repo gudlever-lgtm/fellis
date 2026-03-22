@@ -1413,7 +1413,7 @@ function SuggestedPostCard({ post, lang, onViewProfile }) {
     try {
       await fetch(`/api/friends/request/${post.author_id}`, {
         method: 'POST',
-        headers: { 'X-Session-Id': localStorage.getItem('fellis_session_id') },
+        credentials: 'same-origin', // Session cookie sent automatically
       })
     } catch { /* network */ }
   }

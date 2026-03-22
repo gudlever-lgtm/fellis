@@ -490,7 +490,7 @@ function App() {
 
     if (fbSession) {
       // Returning from Facebook OAuth — store session
-      localStorage.setItem('fellis_session_id', fbSession)
+      // Session ID now stored in HTTP-only cookie by server (fellis_sid)
       localStorage.setItem('fellis_logged_in', 'true')
       if (fbLang) {
         localStorage.setItem('fellis_lang', fbLang)
@@ -518,7 +518,7 @@ function App() {
     const googleSession = params.get('google_session')
     const googleConnected = params.get('google_connected')
     if (googleSession) {
-      localStorage.setItem('fellis_session_id', googleSession)
+      // Session stored in HTTP-only cookie
       localStorage.setItem('fellis_logged_in', 'true')
       setView('platform')
       window.history.replaceState({}, '', window.location.pathname)
@@ -532,7 +532,7 @@ function App() {
     const linkedinSession = params.get('linkedin_session')
     const linkedinConnected = params.get('linkedin_connected')
     if (linkedinSession) {
-      localStorage.setItem('fellis_session_id', linkedinSession)
+      // Session stored in HTTP-only cookie
       localStorage.setItem('fellis_logged_in', 'true')
       setView('platform')
       window.history.replaceState({}, '', window.location.pathname)
@@ -593,7 +593,7 @@ function App() {
         // Genuine 401/403 — session is invalid, clear it
         const hadSession = localStorage.getItem('fellis_logged_in') === 'true'
         localStorage.removeItem('fellis_logged_in')
-        localStorage.removeItem('fellis_session_id')
+        // Session cookie automatically managed by browser
         localStorage.removeItem('fellis_csrf_token')
         if (hadSession) setSessionExpired(true)
         setView('landing')
@@ -629,7 +629,7 @@ function App() {
     setView('landing')
     localStorage.removeItem('fellis_logged_in')
     localStorage.removeItem('fellis_lang')
-    localStorage.removeItem('fellis_session_id')
+    // Session cookie automatically managed by browser
     localStorage.removeItem('fellis_csrf_token')
     localStorage.removeItem(USER_LS_KEY)
     apiLogout().catch(() => {})

@@ -58,9 +58,7 @@ function SuggestedCard({ user, lang, onViewProfile }) {
     try {
       await fetch(`/api/friends/request/${user.id}`, {
         method: 'POST',
-        headers: {
-          'X-Session-Id': localStorage.getItem('fellis_session_id'),
-        },
+        credentials: 'same-origin',
       })
       setFollowing(true)
     } catch { /* network unavailable */ }
@@ -119,20 +117,18 @@ export default function ExplorePage({ lang, onViewProfile }) {
   const [loading, setLoading] = useState(false)
   const [hasMore, setHasMore] = useState(true)
   const sentinelRef = useRef(null)
-  const sessionId = localStorage.getItem('fellis_session_id')
-  const headers = { 'X-Session-Id': sessionId }
 
   // Fetch trending tags + suggested on mount
   useEffect(() => {
-    fetch('/api/explore/trending-tags', { headers })
+    fetch('/api/explore/trending-tags', { credentials: 'same-origin' })
       .then(r => r.ok ? r.json() : [])
       .then(d => setTags(Array.isArray(d) ? d : []))
       .catch(() => {})
-    fetch('/api/users/suggested?limit=6', { headers })
+    fetch('/api/users/suggested?limit=6', { credentials: 'same-origin' })
       .then(r => r.ok ? r.json() : [])
       .then(d => setSuggested(Array.isArray(d) ? d : []))
       .catch(() => {})
-  }, []) // headers is stable (session id doesn't change mid-session)
+  }, []) // Session cookie stable across requests
 
   const fetchPosts = useCallback(async (reset = false) => {
     if (loading) return
@@ -140,7 +136,7 @@ export default function ExplorePage({ lang, onViewProfile }) {
     try {
       const cursorParam = reset ? '' : cursor ? `&cursor=${cursor}` : ''
       const tagParam = activeTag ? `&tag=${encodeURIComponent(activeTag)}` : ''
-      const res = await fetch(`/api/explore/feed?filter=${filter}${cursorParam}${tagParam}`, { headers })
+      const res = await fetch(`/api/explore/feed?filter=${filter}${cursorParam}${tagParam}`, { credentials: 'same-origin' })
       if (!res.ok) throw new Error('fetch failed')
       const data = await res.json()
       const newPosts = data.posts || []

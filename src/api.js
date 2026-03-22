@@ -1,11 +1,8 @@
 // API client for fellis.eu backend
 // Falls back to null when the server is unavailable (demo mode uses mock data)
+// Session ID now uses HTTP-only cookies (fellis_sid) — no longer in localStorage
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
-
-function getSessionId() {
-  return localStorage.getItem('fellis_session_id')
-}
 
 function getCsrfToken() {
   return localStorage.getItem('fellis_csrf_token')
@@ -13,19 +10,18 @@ function getCsrfToken() {
 
 function headers() {
   const h = { 'Content-Type': 'application/json' }
-  const sid = getSessionId()
-  if (sid) h['X-Session-Id'] = sid
+  // Session ID is now automatically sent via HTTP-only cookie (fellis_sid)
+  // No need to manually send X-Session-Id header
   const csrf = getCsrfToken()
   if (csrf) h['X-CSRF-Token'] = csrf
   return h
 }
 
-// For FormData/multipart requests: only include X-Session-Id if we actually have one.
-// Passing null/undefined would send the literal string "null" as the header value,
-// which causes the server to reject the request as "Session expired".
+// For FormData/multipart requests: CSRF token if available
+// Session cookie is automatically included by browser
 function formHeaders() {
-  const sid = getSessionId()
-  return sid ? { 'X-Session-Id': sid } : {}
+  const csrf = getCsrfToken()
+  return csrf ? { 'X-CSRF-Token': csrf } : {}
 }
 
 async function request(path, options = {}) {
@@ -53,9 +49,7 @@ export async function apiLogin(email, password, lang) {
     method: 'POST',
     body: JSON.stringify({ email, password, lang }),
   })
-  if (data?.sessionId) {
-    localStorage.setItem('fellis_session_id', data.sessionId)
-  }
+  // Session ID now stored in HTTP-only cookie by server
   return data
 }
 
@@ -64,9 +58,7 @@ export async function apiRegister(name, email, password, lang, inviteToken) {
     method: 'POST',
     body: JSON.stringify({ name, email, password, lang, inviteToken: inviteToken || undefined }),
   })
-  if (data?.sessionId) {
-    localStorage.setItem('fellis_session_id', data.sessionId)
-  }
+  // Session ID now stored in HTTP-only cookie by server
   return data
 }
 
@@ -82,9 +74,7 @@ export async function apiResetPassword(token, password) {
     method: 'POST',
     body: JSON.stringify({ token, password }),
   })
-  if (data?.sessionId) {
-    localStorage.setItem('fellis_session_id', data.sessionId)
-  }
+  // Session ID now stored in HTTP-only cookie by server
   return data
 }
 
@@ -93,9 +83,7 @@ export async function apiVerifyMfa(userId, code, lang) {
     method: 'POST',
     body: JSON.stringify({ userId, code, lang }),
   })
-  if (data?.sessionId) {
-    localStorage.setItem('fellis_session_id', data.sessionId)
-  }
+  // Session ID now stored in HTTP-only cookie by server
   return data
 }
 
@@ -149,7 +137,7 @@ export async function apiGetCsrfToken() {
 
 export async function apiLogout() {
   await request('/api/auth/logout', { method: 'POST' })
-  localStorage.removeItem('fellis_session_id')
+  // Session cookie automatically managed by browser
 }
 
 // Feed

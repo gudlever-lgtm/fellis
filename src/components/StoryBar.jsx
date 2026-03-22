@@ -13,7 +13,7 @@ export default function StoryBar({ currentUser, lang, onStoriesChange }) {
   const timerRef = useRef(null)
 
   useEffect(() => {
-    fetch('/api/stories/feed', { headers: { 'X-Session-Id': localStorage.getItem('fellis_session_id') } })
+    fetch('/api/stories/feed', { credentials: 'same-origin' })
       .then(r => r.ok ? r.json() : [])
       .then(data => setStories(Array.isArray(data) ? data : []))
       .catch(() => {})
@@ -38,8 +38,8 @@ export default function StoryBar({ currentUser, lang, onStoriesChange }) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Session-Id': localStorage.getItem('fellis_session_id'),
         },
+        credentials: 'same-origin',
         body: JSON.stringify({ content_text: draftText.trim(), bg_color: draftColor }),
       })
       if (res.ok) {
@@ -58,7 +58,7 @@ export default function StoryBar({ currentUser, lang, onStoriesChange }) {
     try {
       await fetch(`/api/stories/${id}`, {
         method: 'DELETE',
-        headers: { 'X-Session-Id': localStorage.getItem('fellis_session_id') },
+        credentials: 'same-origin',
       })
       setStories(prev => prev.filter(s => s.id !== id))
     } catch { /* network unavailable */ }
