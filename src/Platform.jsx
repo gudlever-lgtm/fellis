@@ -4254,10 +4254,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
             <AdfreeCalendar
               bankDays={adfreeBank}
               assignments={adfreeAssignments || []}
-              onAssignmentChange={(updated, newBank) => {
-                setAdfreeAssignments(updated)
-                if (newBank !== undefined) setAdfreeBank(newBank)
-              }}
+              onAssignmentChange={(updated) => setAdfreeAssignments(updated)}
               lang={lang}
             />
           )}
