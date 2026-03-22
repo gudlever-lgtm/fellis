@@ -4819,6 +4819,28 @@ app.put('/api/companies/:id', authenticate, async (req, res) => {
   }
 })
 
+// DELETE /api/companies/:id — delete company (owner only)
+app.delete('/api/companies/:id', authenticate, async (req, res) => {
+  try {
+    const [[member]] = await pool.query(
+      "SELECT role FROM company_members WHERE company_id = ? AND user_id = ? AND role = 'owner'",
+      [req.params.id, req.userId]
+    )
+    if (!member) return res.status(403).json({ error: 'Forbidden' })
+
+    // Delete company and all related data
+    await pool.query('DELETE FROM company_members WHERE company_id = ?', [req.params.id])
+    await pool.query('DELETE FROM company_follows WHERE company_id = ?', [req.params.id])
+    await pool.query('DELETE FROM jobs WHERE company_id = ?', [req.params.id])
+    await pool.query('DELETE FROM companies WHERE id = ?', [req.params.id])
+
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/companies/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // POST /api/companies/:id/follow — follow or unfollow
 app.post('/api/companies/:id/follow', authenticate, async (req, res) => {
   try {

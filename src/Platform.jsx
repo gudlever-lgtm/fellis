@@ -11169,6 +11169,29 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
               <div><span style={{ color: '#888' }}>LinkedIn:</span> <a href={company.linkedin} target="_blank" rel="noopener noreferrer" style={{ color: '#1877F2' }}>{lang === 'da' ? 'Profil' : 'Profile'}</a></div>
             )}
           </div>
+          {isOwner && (
+            <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid #eee' }}>
+              <button
+                onClick={() => {
+                  if (confirm(lang === 'da' ? `Slet virksomheden "${company.name}" permanent? Dette kan ikke fortrydes.` : `Delete company "${company.name}" permanently? This cannot be undone.`)) {
+                    fetch(`/api/companies/${company.id}`, {
+                      method: 'DELETE',
+                      credentials: 'include',
+                    })
+                      .then(r => {
+                        if (r.ok) {
+                          navigateTo('company')
+                        }
+                      })
+                      .catch(() => alert(lang === 'da' ? 'Fejl ved sletning' : 'Error deleting company'))
+                  }
+                }}
+                style={{ padding: '8px 14px', borderRadius: 6, border: '1px solid #e74c3c', background: '#fff5f5', color: '#e74c3c', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}
+              >
+                🗑️ {lang === 'da' ? 'Slet virksomhed' : 'Delete company'}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
