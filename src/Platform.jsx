@@ -10681,6 +10681,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
   const [sharesLoading, setSharesLoading] = useState(false)
   const [leadsLoading, setLeadsLoading] = useState(false)
   const [editingJob, setEditingJob] = useState(null)
+  const [editingCompany, setEditingCompany] = useState(false)
 
   useEffect(() => {
     setPostsLoading(true)
@@ -11065,7 +11066,17 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
 
       {tab === 'about' && (
         <div className="p-card">
-          <h4 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 700 }}>{lang === 'da' ? 'Om' : 'About'} {company.name}</h4>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <h4 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{lang === 'da' ? 'Om' : 'About'} {company.name}</h4>
+            {isOwner && (
+              <button
+                onClick={() => setEditingCompany(true)}
+                style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #ddd', background: '#fff', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}
+              >
+                ✏️ {lang === 'da' ? 'Ret' : 'Edit'}
+              </button>
+            )}
+          </div>
           {company.description && (
             <p style={{ fontSize: 14, color: '#444', lineHeight: 1.6, margin: '0 0 16px' }}>{company.description}</p>
           )}
@@ -11377,6 +11388,22 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
         />
       )}
 
+      {/* Edit company modal */}
+      {editingCompany && (
+        <CreateCompanyModal
+          t={t}
+          lang={lang}
+          currentUser={currentUser}
+          onClose={() => setEditingCompany(false)}
+          onCreate={() => {
+            setEditingCompany(false)
+            // Reload company data
+            window.location.reload()
+          }}
+          editCompany={company}
+        />
+      )}
+
       {/* Lead capture modal */}
       {showLeadForm && (
         <CompanyLeadModal company={company} t={t} lang={lang} onClose={() => setShowLeadForm(false)} />
@@ -11385,21 +11412,22 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
   )
 }
 
-function CreateCompanyModal({ t, lang, currentUser, onClose, onCreate }) {
-  const [name, setName] = useState('')
-  const [tagline, setTagline] = useState('')
-  const [website, setWebsite] = useState('')
-  const [industry, setIndustry] = useState('')
-  const [size, setSize] = useState('')
-  const [description, setDescription] = useState('')
-  const [cvr, setCvr] = useState('')
-  const [companyType, setCompanyType] = useState('')
-  const [address, setAddress] = useState('')
-  const [phone, setPhone] = useState('')
-  const [email, setEmail] = useState('')
-  const [linkedin, setLinkedin] = useState('')
-  const [foundedYear, setFoundedYear] = useState('')
-  const [logoUrl, setLogoUrl] = useState('')
+function CreateCompanyModal({ t, lang, currentUser, onClose, onCreate, editCompany }) {
+  const isEdit = !!editCompany
+  const [name, setName] = useState(editCompany?.name || '')
+  const [tagline, setTagline] = useState(editCompany?.tagline || '')
+  const [website, setWebsite] = useState(editCompany?.website || '')
+  const [industry, setIndustry] = useState(editCompany?.industry || '')
+  const [size, setSize] = useState(editCompany?.size || '')
+  const [description, setDescription] = useState(editCompany?.description || '')
+  const [cvr, setCvr] = useState(editCompany?.cvr || '')
+  const [companyType, setCompanyType] = useState(editCompany?.company_type || '')
+  const [address, setAddress] = useState(editCompany?.address || '')
+  const [phone, setPhone] = useState(editCompany?.phone || '')
+  const [email, setEmail] = useState(editCompany?.email || '')
+  const [linkedin, setLinkedin] = useState(editCompany?.linkedin || '')
+  const [foundedYear, setFoundedYear] = useState(editCompany?.founded_year || '')
+  const [logoUrl, setLogoUrl] = useState(editCompany?.logo_url || '')
 
   useEffect(() => {
     const h = (e) => { if (e.key === 'Escape') onClose() }
@@ -11414,40 +11442,60 @@ function CreateCompanyModal({ t, lang, currentUser, onClose, onCreate }) {
     e.preventDefault()
     if (!name.trim()) return
     try {
-      const handle = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-      const res = await fetch('/api/companies', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: name.trim(),
-          handle: `@${handle}`,
-          tagline: tagline.trim() || null,
-          website: website.trim() || null,
-          industry: industry.trim() || null,
-          size: size || null,
-          description: description.trim() || null,
-          color: nameToColor(name),
-          cvr: cvr.trim() || null,
-          company_type: companyType || null,
-          address: address.trim() || null,
-          phone: phone.trim() || null,
-          email: email.trim() || null,
-          linkedin: linkedin.trim() || null,
-          founded_year: foundedYear ? Number(foundedYear) : null,
-          logo_url: logoUrl.trim() || null,
-        }),
-      })
-      if (!res.ok) { const e = await res.json(); alert(e.error || 'Fejl'); return }
-      const company = await res.json()
-      onCreate({ ...company, member_role: 'owner', followers_count: 0 })
+      const payload = {
+        tagline: tagline.trim() || null,
+        website: website.trim() || null,
+        industry: industry.trim() || null,
+        size: size || null,
+        description: description.trim() || null,
+        cvr: cvr.trim() || null,
+        company_type: companyType || null,
+        address: address.trim() || null,
+        phone: phone.trim() || null,
+        email: email.trim() || null,
+        linkedin: linkedin.trim() || null,
+        founded_year: foundedYear ? Number(foundedYear) : null,
+        logo_url: logoUrl.trim() || null,
+      }
+
+      if (isEdit) {
+        // Edit existing company
+        payload.name = name.trim()
+        const res = await fetch(`/api/companies/${editCompany.id}`, {
+          method: 'PUT',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+        if (!res.ok) { const e = await res.json(); alert(e.error || 'Fejl'); return }
+        onCreate()
+      } else {
+        // Create new company
+        const handle = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+        const res = await fetch('/api/companies', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...payload,
+            name: name.trim(),
+            handle: `@${handle}`,
+            color: nameToColor(name),
+          }),
+        })
+        if (!res.ok) { const e = await res.json(); alert(e.error || 'Fejl'); return }
+        const company = await res.json()
+        onCreate({ ...company, member_role: 'owner', followers_count: 0 })
+      }
     } catch { alert(lang === 'da' ? 'Netværksfejl' : 'Network error') }
   }
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="p-event-create-modal" onClick={e => e.stopPropagation()}>
-        <h3 style={{ margin: '0 0 20px', fontSize: 18, fontWeight: 700 }}>🏢 {t.createCompany}</h3>
+        <h3 style={{ margin: '0 0 20px', fontSize: 18, fontWeight: 700 }}>
+          🏢 {isEdit ? (lang === 'da' ? 'Ret virksomhed' : 'Edit company') : t.createCompany}
+        </h3>
         <form onSubmit={handleSubmit}>
           <label style={lS}>{t.companyName} *</label>
           <input style={fS} value={name} onChange={e => setName(e.target.value)} required placeholder="Acme Corp" />
