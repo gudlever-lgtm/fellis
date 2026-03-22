@@ -12143,6 +12143,7 @@ function JobsPage({ lang, t, currentUser, mode }) {
   const [shareJobId, setShareJobId] = useState(null) // job being shared
   const [shareQuery, setShareQuery] = useState('') // search term for users to share with
   const [shareUsers, setShareUsers] = useState([]) // search results
+  const [sharedWithUsers, setSharedWithUsers] = useState([]) // users job is already shared with
   const [sharingSending, setShareSending] = useState(false)
 
   useEffect(() => {
@@ -12183,6 +12184,12 @@ function JobsPage({ lang, t, currentUser, mode }) {
       apiGetMyJobs().then(data => setMyJobs(data?.jobs || []))
     }
   }, [mode])
+
+  useEffect(() => {
+    if (shareJobId) {
+      apiGetJobSharedWith(shareJobId).then(data => setSharedWithUsers(data?.sharedWith || [])).catch(() => {})
+    }
+  }, [shareJobId])
 
   const refreshMyJobs = () => apiGetMyJobs().then(data => setMyJobs(data?.jobs || []))
 
@@ -12452,6 +12459,33 @@ function JobsPage({ lang, t, currentUser, mode }) {
               <button className="p-msg-modal-close" onClick={() => { setShareJobId(null); setShareQuery(''); setShareUsers([]) }}>✕</button>
             </div>
             <div style={{ padding: '20px' }}>
+              {/* Already shared with */}
+              {sharedWithUsers.length > 0 && (
+                <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid #eee' }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: '#666', marginBottom: 10 }}>
+                    {lang === 'da' ? 'Delt med' : 'Shared with'} ({sharedWithUsers.length})
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {sharedWithUsers.map(user => (
+                      <div key={user.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 10px', borderRadius: 8, background: '#F0FAF4' }}>
+                        <div className="p-avatar-sm" style={{ background: nameToColor(user.name), flexShrink: 0 }}>{getInitials(user.name)}</div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 600, fontSize: 14 }}>{user.name}</div>
+                          <div style={{ fontSize: 12, color: '#888' }}>@{user.handle || user.username}</div>
+                        </div>
+                        <span style={{ padding: '4px 10px', borderRadius: 4, background: '#2D6A4F', color: '#fff', fontSize: 11, fontWeight: 600, flexShrink: 0 }}>
+                          {lang === 'da' ? 'Delt' : 'Shared'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Search for more users */}
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#666', marginBottom: 10 }}>
+                {lang === 'da' ? 'Del med anden bruger' : 'Share with another user'}
+              </div>
               <input
                 type="text"
                 placeholder={lang === 'da' ? 'Søg efter bruger...' : 'Search for user...'}
@@ -12474,33 +12508,36 @@ function JobsPage({ lang, t, currentUser, mode }) {
                   {lang === 'da' ? 'Ingen brugere fundet' : 'No users found'}
                 </div>
               )}
-              <div style={{ maxHeight: 300, overflowY: 'auto' }}>
-                {shareUsers.map(user => (
-                  <div key={user.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px', borderRadius: 8, cursor: 'pointer', background: '#f9f9f9', marginBottom: 8 }}>
-                    <div className="p-avatar-sm" style={{ background: nameToColor(user.name), flexShrink: 0 }}>{getInitials(user.name)}</div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, fontSize: 14 }}>{user.name}</div>
-                      <div style={{ fontSize: 12, color: '#888' }}>@{user.handle || user.username}</div>
+              <div style={{ maxHeight: 250, overflowY: 'auto' }}>
+                {shareUsers.map(user => {
+                  const isAlreadyShared = sharedWithUsers.some(u => u.id === user.id)
+                  return (
+                    <div key={user.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px', borderRadius: 8, background: isAlreadyShared ? '#f5f5f5' : '#f9f9f9', marginBottom: 8, opacity: isAlreadyShared ? 0.6 : 1 }}>
+                      <div className="p-avatar-sm" style={{ background: nameToColor(user.name), flexShrink: 0 }}>{getInitials(user.name)}</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, fontSize: 14 }}>{user.name}</div>
+                        <div style={{ fontSize: 12, color: '#888' }}>@{user.handle || user.username}</div>
+                      </div>
+                      <button
+                        disabled={sharingSending || isAlreadyShared}
+                        onClick={() => {
+                          setShareSending(true)
+                          apiShareJob(shareJobId, user.id).then(data => {
+                            if (data) {
+                              setSharedWithUsers(prev => [...prev, user])
+                              setShareQuery('')
+                              setShareUsers([])
+                            }
+                            setShareSending(false)
+                          }).catch(() => setShareSending(false))
+                        }}
+                        style={{ padding: '6px 14px', borderRadius: 6, border: 'none', background: isAlreadyShared ? '#ccc' : '#2D6A4F', color: '#fff', fontSize: 12, fontWeight: 600, cursor: isAlreadyShared ? 'default' : 'pointer', flexShrink: 0, opacity: sharingSending ? 0.7 : 1 }}
+                      >
+                        {isAlreadyShared ? (lang === 'da' ? '✓ Delt' : '✓ Shared') : (sharingSending ? '⏳' : lang === 'da' ? 'Del' : 'Share')}
+                      </button>
                     </div>
-                    <button
-                      disabled={sharingSending}
-                      onClick={() => {
-                        setShareSending(true)
-                        apiShareJob(shareJobId, user.id).then(data => {
-                          if (data) {
-                            setShareJobId(null)
-                            setShareQuery('')
-                            setShareUsers([])
-                          }
-                          setShareSending(false)
-                        }).catch(() => setShareSending(false))
-                      }}
-                      style={{ padding: '6px 14px', borderRadius: 6, border: 'none', background: '#2D6A4F', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0, opacity: sharingSending ? 0.7 : 1 }}
-                    >
-                      {sharingSending ? '⏳' : lang === 'da' ? 'Del' : 'Share'}
-                    </button>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           </div>

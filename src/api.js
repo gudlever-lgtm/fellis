@@ -1209,6 +1209,10 @@ export async function apiGetSharedJobs() {
   return await request('/api/jobs/shared')
 }
 
+export async function apiGetJobSharedWith(jobId) {
+  return await request(`/api/jobs/${jobId}/shared-with`)
+}
+
 export async function apiApplyToJobFull(jobId, { name, email, message }, cvFile, letterFile) {
   const form = new FormData()
   form.append('name', name)
