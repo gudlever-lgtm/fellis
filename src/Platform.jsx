@@ -20,9 +20,10 @@ import MatrixRain from './components/easter-eggs/MatrixRain.jsx'
 import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
 import RickRoll from './components/easter-eggs/RickRoll.jsx'
 import RiddleBanner from './components/easter-eggs/RiddleBanner.jsx'
-import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories } from './api.js'
+import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments } from './api.js'
 import { BADGES, BADGE_BY_ID } from './badges/badgeDefinitions.js'
 import BadgeToastQueue from './components/BadgeToast.jsx'
+import AdfreeCalendar from './components/AdfreeCalendar.jsx'
 import ModeGate from './components/ModeGate.jsx'
 import StoryBar from './components/StoryBar.jsx'
 
@@ -3731,6 +3732,8 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
   const [scheduledPosts, setScheduledPosts] = useState(null) // null = not loaded
   const [allNotes, setAllNotes] = useState(null) // null = not loaded
   const [earnedBadges, setEarnedBadges] = useState(null) // null = not loaded
+  const [adfreeBank, setAdfreeBank] = useState(null) // null = not loaded
+  const [adfreeAssignments, setAdfreeAssignments] = useState(null) // null = not loaded
   const [photos, setPhotos] = useState([])
   const [lightbox, setLightbox] = useState(null)
   const { rels } = useContactRelationships()
@@ -3745,6 +3748,18 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
     }
     if (profileTab === 'badges' && earnedBadges === null) {
       apiGetEarnedBadges().then(data => setEarnedBadges(data?.badges || [])).catch(() => setEarnedBadges([]))
+    }
+    if (profileTab === 'adfree' && adfreeBank === null) {
+      Promise.all([
+        apiGetAdfreeBank(),
+        apiGetAdfreeAssignments(),
+      ]).then(([bankData, assignData]) => {
+        setAdfreeBank(bankData?.bankDays || 0)
+        setAdfreeAssignments(assignData?.assignments || [])
+      }).catch(() => {
+        setAdfreeBank(0)
+        setAdfreeAssignments([])
+      })
     }
   }, [profileTab]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -3878,6 +3893,9 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
         )}
         <button className={`p-filter-tab${profileTab === 'badges' ? ' active' : ''}`} onClick={() => setProfileTab('badges')}>
           🏅 {lang === 'da' ? 'Badges' : 'Badges'}{earnedBadges !== null ? ` (${earnedBadges.length})` : ''}
+        </button>
+        <button className={`p-filter-tab${profileTab === 'adfree' ? ' active' : ''}`} onClick={() => setProfileTab('adfree')}>
+          📅 {lang === 'da' ? 'Ad-Frit' : 'Ad-Free'}{adfreeBank !== null ? ` (${adfreeBank})` : ''}
         </button>
       </div>
 
@@ -4224,6 +4242,24 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
                 </div>
               ))}
             </div>
+          )}
+        </div>
+      )}
+
+      {profileTab === 'adfree' && (
+        <div className="p-card">
+          {adfreeBank === null ? (
+            <div style={{ textAlign: 'center', padding: 32, color: '#888' }}>⏳</div>
+          ) : (
+            <AdfreeCalendar
+              bankDays={adfreeBank}
+              assignments={adfreeAssignments || []}
+              onAssignmentChange={(updated, newBank) => {
+                setAdfreeAssignments(updated)
+                if (newBank !== undefined) setAdfreeBank(newBank)
+              }}
+              lang={lang}
+            />
           )}
         </div>
       )}

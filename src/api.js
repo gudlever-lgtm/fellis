@@ -1367,6 +1367,26 @@ export async function apiToggleBadge(badgeId, enabled) {
   })
 }
 
+// ── Ad-Free Days: Badge-Based Rewards ──────────────────────────────────────────
+export async function apiGetAdfreeBank() {
+  return await request('/api/adfree/bank')
+}
+export async function apiGetAdfreeAssignments(startDate, endDate) {
+  const params = new URLSearchParams()
+  if (startDate) params.append('startDate', startDate)
+  if (endDate) params.append('endDate', endDate)
+  return await request(`/api/adfree/assignments?${params}`)
+}
+export async function apiCheckAdfreeDate(date) {
+  return await request(`/api/adfree/is-active?date=${date}`)
+}
+export async function apiAssignAdfreedays(startDate, endDate) {
+  return await request('/api/adfree/assign', {
+    method: 'POST',
+    body: JSON.stringify({ startDate, endDate }),
+  })
+}
+
 // ── Stories ───────────────────────────────────────────────────────────────────
 export async function apiGetStoriesFeed() {
   return await request('/api/stories/feed')

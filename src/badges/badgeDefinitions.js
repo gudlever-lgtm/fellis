@@ -485,3 +485,66 @@ export const BADGES = [
 // Convenience lookups
 export const BADGE_BY_ID = Object.fromEntries(BADGES.map(b => [b.id, b]))
 export const BADGE_IDS = BADGES.map(b => b.id)
+
+// Ad-free days earned per badge (Tier 1 = 1 day, Tier 2 = 3 days, Tier 3 = 7 days, Easter eggs = 0)
+export const BADGE_AD_FREE_DAYS = {
+  // Tier 1 (bronze) = 1 day each
+  't1_first_steps': 1,
+  't1_say_hello': 1,
+  't1_welcomed': 1,
+  't1_profile_complete': 1,
+  't1_early_bird': 1,
+  't1_connected': 1,
+  't1_follower': 1,
+  't1_curious': 1,
+  't1_sharer': 1,
+  't1_comeback': 1,
+  't1_reel_debut': 1,
+  't1_reel_liked': 1,
+
+  // Tier 2 (silver) = 3 days each
+  't2_regular': 3,
+  't2_conversationalist': 3,
+  't2_popular': 3,
+  't2_social_butterfly': 3,
+  't2_influencer': 3,
+  't2_explorer': 3,
+  't2_dedicated': 3,
+  't2_appreciated': 3,
+  't2_networker': 3,
+  't2_contributor': 3,
+  't2_reel_creator': 3,
+  't2_reel_popular': 3,
+  't2_reel_viewed': 3,
+  't2_collector': 3,
+
+  // Tier 3 (gold) = 7 days each
+  't3_veteran': 7,
+  't3_prolific': 7,
+  't3_voice': 7,
+  't3_beloved': 7,
+  't3_trendsetter': 7,
+  't3_mentor': 7,
+  't3_streak_master': 7,
+  't3_viral': 7,
+  't3_community_pillar': 7,
+  't3_legend': 7,
+  't3_reel_producer': 7,
+  't3_reel_sensation': 7,
+  't3_reel_viral': 7,
+  't3_completionist': 7,
+
+  // Easter eggs = 0 days (no reward)
+  'egg_rule_breaker': 0,
+  'egg_matrix': 0,
+  'egg_chuck': 0,
+  'egg_inception': 0,
+  'egg_404': 0,
+  'egg_binary': 0,
+  'egg_lorem': 0,
+  'egg_konami': 0,
+  'egg_speedrunner': 0,
+  'egg_collector': 0,
+  'egg_obsessed': 0,
+  'egg_day_one': 0,
+}
