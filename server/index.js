@@ -6033,17 +6033,7 @@ app.post('/api/mollie/payment/webhook', express.urlencoded({ extended: false }),
           }
         }
       } else {
-        // adfree plan: set flag and record a purchased period
         await pool.query('UPDATE users SET ads_free = 1 WHERE id = ?', [sub.user_id])
-        if (sub.plan === 'adfree') {
-          const periodStart = new Date().toISOString().split('T')[0]
-          const periodEnd = expiresAt ? expiresAt.toISOString().split('T')[0] : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-          await pool.query(
-            `INSERT INTO adfree_purchased_periods (user_id, start_date, end_date, subscription_id)
-             VALUES (?, ?, ?, ?)`,
-            [sub.user_id, periodStart, periodEnd, sub.id]
-          ).catch(() => {}) // table may not exist on old installs until migration runs
-        }
       }
 
       // After first payment of a recurring plan: create a Mollie Subscription
@@ -9392,43 +9382,6 @@ async function initBadges() {
       UNIQUE KEY unique_comment_like (comment_id, user_id),
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
-
-    // adfree_days_bank — user's banked ad-free days (earned via badges)
-    await pool.query(`CREATE TABLE IF NOT EXISTS adfree_days_bank (
-      id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
-      user_id INT(11) NOT NULL,
-      days_banked INT NOT NULL DEFAULT 0,
-      last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      UNIQUE KEY unique_user_bank (user_id),
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
-
-    // adfree_day_assignments — date ranges assigned from the bank (source: earned)
-    await pool.query(`CREATE TABLE IF NOT EXISTS adfree_day_assignments (
-      id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
-      user_id INT(11) NOT NULL,
-      start_date DATE NOT NULL,
-      end_date DATE NOT NULL,
-      days_used INT NOT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      INDEX idx_user_dates (user_id, start_date, end_date),
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
-
-    // adfree_purchased_periods — ad-free periods from paid Mollie subscriptions (source: purchased)
-    await pool.query(`CREATE TABLE IF NOT EXISTS adfree_purchased_periods (
-      id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
-      user_id INT(11) NOT NULL,
-      start_date DATE NOT NULL,
-      end_date DATE NOT NULL,
-      subscription_id INT(11) DEFAULT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      INDEX idx_user_dates (user_id, start_date, end_date),
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
-
-    // Add adfree_active_until column to users if not present
-    await addCol('users', 'adfree_active_until', 'DATETIME DEFAULT NULL')
   } catch (err) {
     console.error('initBadges error:', err.message)
   }
@@ -9723,67 +9676,47 @@ app.get('/api/adfree/bank', authenticate, async (req, res) => {
   }
 })
 
-// GET /api/adfree/assignments — get assigned ad-free date ranges (earned + purchased)
+// GET /api/adfree/assignments — get assigned ad-free date ranges
 app.get('/api/adfree/assignments', authenticate, async (req, res) => {
   try {
     const userId = req.userId
     const { startDate, endDate } = req.query
     const today = new Date().toISOString().split('T')[0]
 
-    // Build optional date filters
-    let earnedWhere = 'WHERE user_id = ?'
-    let purchasedWhere = 'WHERE user_id = ?'
-    const earnedParams = [userId]
-    const purchasedParams = [userId]
+    let query = 'SELECT id, start_date, end_date, days_used, created_at FROM adfree_day_assignments WHERE user_id = ?'
+    const params = [userId]
 
     if (startDate) {
-      earnedWhere += ' AND end_date >= ?'
-      purchasedWhere += ' AND end_date >= ?'
-      earnedParams.push(startDate)
-      purchasedParams.push(startDate)
+      query += ' AND end_date >= ?'
+      params.push(startDate)
     }
     if (endDate) {
-      earnedWhere += ' AND start_date <= ?'
-      purchasedWhere += ' AND start_date <= ?'
-      earnedParams.push(endDate)
-      purchasedParams.push(endDate)
+      query += ' AND start_date <= ?'
+      params.push(endDate)
     }
 
-    const [earnedRows] = await pool.query(
-      `SELECT id, start_date, end_date, days_used, created_at FROM adfree_day_assignments ${earnedWhere} ORDER BY start_date DESC`,
-      earnedParams
-    )
+    query += ' ORDER BY start_date DESC'
 
-    let purchasedRows = []
-    try {
-      ;[purchasedRows] = await pool.query(
-        `SELECT id, start_date, end_date, DATEDIFF(end_date, start_date) + 1 AS days_used, created_at
-         FROM adfree_purchased_periods ${purchasedWhere} ORDER BY start_date DESC`,
-        purchasedParams
-      )
-    } catch { /* table may not exist yet if migration not run */ }
+    const [rows] = await pool.query(query, params)
 
-    const toAssignment = (r, source) => ({
+    // Find active period (if today falls within any assignment)
+    let activePeriod = null
+    for (const row of rows) {
+      const start = new Date(row.start_date).toISOString().split('T')[0]
+      const end = new Date(row.end_date).toISOString().split('T')[0]
+      if (start <= today && today <= end) {
+        activePeriod = { startDate: start, endDate: end }
+        break
+      }
+    }
+
+    const assignments = rows.map(r => ({
       id: r.id,
       startDate: new Date(r.start_date).toISOString().split('T')[0],
       endDate: new Date(r.end_date).toISOString().split('T')[0],
       daysUsed: r.days_used,
-      source,
       createdAt: r.created_at,
-    })
-
-    const assignments = [
-      ...earnedRows.map(r => toAssignment(r, 'earned')),
-      ...purchasedRows.map(r => toAssignment(r, 'purchased')),
-    ].sort((a, b) => (a.startDate < b.startDate ? 1 : -1))
-
-    // Find active period — purchased takes priority
-    let activePeriod = null
-    for (const a of assignments) {
-      if (a.startDate <= today && today <= a.endDate) {
-        if (!activePeriod || a.source === 'purchased') activePeriod = a
-      }
-    }
+    }))
 
     res.json({ assignments, activePeriod })
   } catch (err) {
@@ -9792,32 +9725,21 @@ app.get('/api/adfree/assignments', authenticate, async (req, res) => {
   }
 })
 
-// GET /api/adfree/is-active — check if a specific date is ad-free (purchased takes priority)
+// GET /api/adfree/is-active — check if a specific date is ad-free
 app.get('/api/adfree/is-active', authenticate, async (req, res) => {
   try {
     const userId = req.userId
     const { date } = req.query
     if (!date) return res.status(400).json({ error: 'date parameter required' })
 
-    // Check purchased first (higher priority)
-    let purchasedRows = []
-    try {
-      ;[purchasedRows] = await pool.query(
-        `SELECT 1 FROM adfree_purchased_periods WHERE user_id = ? AND start_date <= ? AND end_date >= ?`,
-        [userId, date, date]
-      )
-    } catch { /* table may not exist yet */ }
-
-    if (purchasedRows.length > 0) {
-      return res.json({ isAdFree: true, source: 'purchased' })
-    }
-
-    const [earnedRows] = await pool.query(
-      `SELECT 1 FROM adfree_day_assignments WHERE user_id = ? AND start_date <= ? AND end_date >= ?`,
+    const [rows] = await pool.query(
+      `SELECT 1 FROM adfree_day_assignments
+       WHERE user_id = ? AND start_date <= ? AND end_date >= ?`,
       [userId, date, date]
     )
 
-    res.json({ isAdFree: earnedRows.length > 0, source: earnedRows.length > 0 ? 'earned' : null })
+    const isAdFree = rows.length > 0
+    res.json({ isAdFree })
   } catch (err) {
     console.error('GET /api/adfree/is-active error:', err.message)
     res.status(500).json({ error: 'Server error' })
