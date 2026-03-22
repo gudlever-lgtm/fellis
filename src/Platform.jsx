@@ -11321,14 +11321,20 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
                     <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                       {user.cv_public && (
                         <button
-                          onClick={() => window.location.href = `/${user.handle}/cv`}
+                          onClick={() => {
+                            setShareJobModal(null)
+                            setTimeout(() => window.location.href = `/@${user.handle}/cv`, 100)
+                          }}
                           style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #1877F2', background: '#EBF4FF', color: '#1877F2', fontSize: 12, cursor: 'pointer', fontWeight: 600, textDecoration: 'none', display: 'inline-block' }}
                         >
                           📄 CV
                         </button>
                       )}
                       <button
-                        onClick={() => window.location.href = `/${user.handle}`}
+                        onClick={() => {
+                          setShareJobModal(null)
+                          setTimeout(() => window.location.href = `/@${user.handle}`, 100)
+                        }}
                         style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #ddd', background: '#fff', color: '#555', fontSize: 12, cursor: 'pointer', fontWeight: 600, textDecoration: 'none', display: 'inline-block' }}
                       >
                         👤 {lang === 'da' ? 'Profil' : 'Profile'}
@@ -12278,14 +12284,20 @@ function JobCard({ job, t, lang, onSaveToggle, onTrackChange, currentUser, onSha
                     <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                       {user.cv_public && (
                         <button
-                          onClick={() => window.location.href = `/${user.handle}/cv`}
+                          onClick={() => {
+                            setShowSharesModal(false)
+                            setTimeout(() => window.location.href = `/@${user.handle}/cv`, 100)
+                          }}
                           style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #1877F2', background: '#EBF4FF', color: '#1877F2', fontSize: 12, cursor: 'pointer', fontWeight: 600, textDecoration: 'none', display: 'inline-block' }}
                         >
                           📄 CV
                         </button>
                       )}
                       <button
-                        onClick={() => window.location.href = `/${user.handle}`}
+                        onClick={() => {
+                          setShowSharesModal(false)
+                          setTimeout(() => window.location.href = `/@${user.handle}`, 100)
+                        }}
                         style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #ddd', background: '#fff', color: '#555', fontSize: 12, cursor: 'pointer', fontWeight: 600, textDecoration: 'none', display: 'inline-block' }}
                       >
                         👤 {lang === 'da' ? 'Profil' : 'Profile'}
