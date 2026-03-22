@@ -12461,7 +12461,7 @@ function JobsPage({ lang, t, currentUser, mode }) {
                   if (e.target.value.length > 0) {
                     fetch(`/api/users/search?q=${encodeURIComponent(e.target.value)}`, { credentials: 'include' })
                       .then(r => r.ok ? r.json() : null)
-                      .then(data => setShareUsers(data?.users || []))
+                      .then(data => setShareUsers(Array.isArray(data) ? data : data?.users || []))
                       .catch(() => {})
                   } else {
                     setShareUsers([])
