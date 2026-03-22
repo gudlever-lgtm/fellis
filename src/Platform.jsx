@@ -11046,9 +11046,12 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ user_id: userId, role: 'editor' }),
                 })
-                  .then(r => r.ok && r.json())
+                  .then(r => {
+                    if (!r.ok) throw new Error('Failed to add member')
+                    return r.json()
+                  })
                   .then(data => {
-                    if (data) setCompanyMembers(prev => [...prev, data])
+                    setCompanyMembers(prev => [...prev, data])
                   })
                   .catch(() => alert(lang === 'da' ? 'Fejl ved tilføjelse' : 'Error adding member'))
               }}
