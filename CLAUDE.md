@@ -238,6 +238,12 @@ mysql -u root fellis_eu < server/migrate-google-linkedin-oauth.sql
 
 # Interest Graph Signal Engine (creates interest_signals + interest_scores tables)
 mysql -u root fellis_eu < server/migrate-signal-engine.sql
+
+# Phone number column for SMS MFA (adds phone to users — fixes login 500 if missing)
+mysql -u root fellis_eu < server/migrate-add-phone.sql
+
+# Account lockout columns for brute force protection (adds failed_login_attempts, locked_until to users)
+mysql -u root fellis_eu < server/migrate-account-lockout.sql
 ```
 
 ---
