@@ -627,7 +627,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
           }
           navigateTo('messages')
         }} onViewProfile={(uid) => { setViewUserId(uid); navigateTo('view-profile') }} />}
-        {page === 'jobs' && <JobsPage lang={lang} t={t} currentUser={currentUser} mode={mode} />}
+        {page === 'jobs' && <JobsPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={(target, param) => { if (target === 'companies') { setCompanyView(param); navigateTo('company'); } else navigateTo(target) }} />}
         {page === 'ads' && mode === 'business' && <AdsManagementPage lang={lang} t={t} />}
         {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} initialCompanyId={navParam?.companyId} />}
         {page === 'analytics' && <AnalyticsPage lang={lang} t={t} currentUser={currentUser} />}
@@ -12002,7 +12002,7 @@ const JOB_TRACK_STATUSES = [
   { value: 'not_interested', color: '#aaa', bg: '#f9f9f9', key: 'jobTrackNotInterested' },
 ]
 
-function JobCard({ job, t, lang, onSaveToggle, onTrackChange, currentUser, onShare }) {
+function JobCard({ job, t, lang, onSaveToggle, onTrackChange, currentUser, onShare, onViewCompany, onContactCompany }) {
   const [isSaved, setIsSaved] = useState(!!job.saved)
   const [trackStatus, setTrackStatus] = useState(job.track_status || null)
   const [showApplyModal, setShowApplyModal] = useState(false)
@@ -12040,9 +12040,12 @@ function JobCard({ job, t, lang, onSaveToggle, onTrackChange, currentUser, onSha
   return (
     <div className="p-card p-job-card">
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-        <div style={{ width: 44, height: 44, borderRadius: 10, background: companyColor, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 20, flexShrink: 0 }}>
+        <button
+          onClick={() => onViewCompany?.(job.company_id)}
+          style={{ width: 44, height: 44, borderRadius: 10, background: companyColor, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 20, flexShrink: 0, border: 'none', cursor: 'pointer', padding: 0 }}
+        >
           {companyName[0]}
-        </div>
+        </button>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
             <h3 style={{ margin: '0 0 2px', fontSize: 16, fontWeight: 700 }}>{title}</h3>
@@ -12098,6 +12101,12 @@ function JobCard({ job, t, lang, onSaveToggle, onTrackChange, currentUser, onSha
               style={{ padding: '8px 18px', fontSize: 13 }}
             >
               {t.jobApply}
+            </button>
+            <button
+              onClick={() => onContactCompany?.(job.company_id)}
+              style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', color: '#555', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
+            >
+              💬 {lang === 'da' ? 'Kontakt' : 'Contact'}
             </button>
             {job.contact_email && (
               <a
@@ -12160,7 +12169,7 @@ function JobCard({ job, t, lang, onSaveToggle, onTrackChange, currentUser, onSha
   )
 }
 
-function JobsPage({ lang, t, currentUser, mode }) {
+function JobsPage({ lang, t, currentUser, mode, onNavigate }) {
   const [jobs, setJobs] = useState([])
   const [savedJobs, setSavedJobs] = useState([])
   const [trackedJobs, setTrackedJobs] = useState([])
@@ -12182,6 +12191,7 @@ function JobsPage({ lang, t, currentUser, mode }) {
   const [shareUsers, setShareUsers] = useState([]) // search results
   const [sharedWithUsers, setSharedWithUsers] = useState([]) // users job is already shared with
   const [sharingSending, setShareSending] = useState(false)
+  const [contactCompanyLead, setContactCompanyLead] = useState(null) // company being contacted
 
   useEffect(() => {
     const params = new URLSearchParams()
@@ -12407,6 +12417,18 @@ function JobsPage({ lang, t, currentUser, mode }) {
                 }
               }}
               onShare={(jobId) => setShareJobId(jobId)}
+              onViewCompany={(companyId) => {
+                onNavigate?.('companies', companyId)
+              }}
+              onContactCompany={(companyId) => {
+                // Fetch company to show lead modal
+                fetch(`/api/companies/${companyId}`, { credentials: 'include' })
+                  .then(r => r.ok ? r.json() : null)
+                  .then(data => {
+                    if (data) setContactCompanyLead(data)
+                  })
+                  .catch(() => {})
+              }}
             />
           ))}
         </div>
@@ -12584,6 +12606,10 @@ function JobsPage({ lang, t, currentUser, mode }) {
             </div>
           </div>
         </div>
+      )}
+
+      {contactCompanyLead && (
+        <CompanyLeadModal company={contactCompanyLead} t={t} lang={lang} onClose={() => setContactCompanyLead(null)} />
       )}
     </div>
   )
