@@ -700,8 +700,8 @@ async function auditLog(req, action, resourceType = null, resourceId = null, {
   details = null,
 } = {}) {
   const userId = req.userId || null
-  const ipAddress = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null
-  const userAgent = req.headers['user-agent'] || null
+  const ipAddress = req.headers?.['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null
+  const userAgent = req.headers?.['user-agent'] || null
 
   try {
     await pool.query(
