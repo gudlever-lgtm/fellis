@@ -11133,12 +11133,6 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
                       {isOwner && (
                         <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                           <button
-                            onClick={() => setEditJob(job)}
-                            style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #ddd', background: '#fff', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}
-                          >
-                            ✏️ {lang === 'da' ? 'Ret' : 'Edit'}
-                          </button>
-                          <button
                             onClick={() => {
                               if (confirm(lang === 'da' ? 'Slet denne annonce?' : 'Delete this job?')) {
                                 fetch(`/api/jobs/${job.id}`, { method: 'DELETE', credentials: 'include' })
@@ -11318,6 +11312,9 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
               <div style={{ textAlign: 'center', color: '#888', padding: 20 }}>{lang === 'da' ? 'Ingen sharing data' : 'No sharing data'}</div>
             ) : (
               <div>
+                <div style={{ fontSize: 12, color: '#888', marginBottom: 12, fontStyle: 'italic' }}>
+                  {lang === 'da' ? '💡 Kun profiler med offentlig profil vises' : '💡 Only profiles with public profiles shown'}
+                </div>
                 {sharedWithUsers.map(user => (
                   <div key={user.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid #f0f0f0' }}>
                     <div className="p-avatar-sm" style={{ background: nameToColor(user.name), flexShrink: 0, width: 40, height: 40, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 16, fontWeight: 700 }}>
@@ -11329,25 +11326,23 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
                     </div>
                     <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                       {user.cv_public && (
-                        <button
-                          onClick={() => {
-                            setShareJobModal(null)
-                            setTimeout(() => window.location.href = `/@${user.handle}/cv`, 100)
-                          }}
+                        <a
+                          href={`/@${user.handle}/cv`}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #1877F2', background: '#EBF4FF', color: '#1877F2', fontSize: 12, cursor: 'pointer', fontWeight: 600, textDecoration: 'none', display: 'inline-block' }}
                         >
                           📄 CV
-                        </button>
+                        </a>
                       )}
-                      <button
-                        onClick={() => {
-                          setShareJobModal(null)
-                          setTimeout(() => window.location.href = `/@${user.handle}`, 100)
-                        }}
+                      <a
+                        href={`/@${user.handle}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #ddd', background: '#fff', color: '#555', fontSize: 12, cursor: 'pointer', fontWeight: 600, textDecoration: 'none', display: 'inline-block' }}
                       >
                         👤 {lang === 'da' ? 'Profil' : 'Profile'}
-                      </button>
+                      </a>
                     </div>
                   </div>
                 ))}
@@ -12281,6 +12276,9 @@ function JobCard({ job, t, lang, onSaveToggle, onTrackChange, currentUser, onSha
               <div style={{ textAlign: 'center', color: '#888', padding: 20 }}>{lang === 'da' ? 'Ingen sharing data' : 'No sharing data'}</div>
             ) : (
               <div>
+                <div style={{ fontSize: 12, color: '#888', marginBottom: 12, fontStyle: 'italic' }}>
+                  {lang === 'da' ? '💡 Kun profiler med offentlig profil vises' : '💡 Only profiles with public profiles shown'}
+                </div>
                 {sharedWithData.map(user => (
                   <div key={user.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid #f0f0f0' }}>
                     <div className="p-avatar-sm" style={{ background: nameToColor(user.name), flexShrink: 0, width: 40, height: 40, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 16, fontWeight: 700 }}>
@@ -12292,25 +12290,23 @@ function JobCard({ job, t, lang, onSaveToggle, onTrackChange, currentUser, onSha
                     </div>
                     <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                       {user.cv_public && (
-                        <button
-                          onClick={() => {
-                            setShowSharesModal(false)
-                            setTimeout(() => window.location.href = `/@${user.handle}/cv`, 100)
-                          }}
+                        <a
+                          href={`/@${user.handle}/cv`}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #1877F2', background: '#EBF4FF', color: '#1877F2', fontSize: 12, cursor: 'pointer', fontWeight: 600, textDecoration: 'none', display: 'inline-block' }}
                         >
                           📄 CV
-                        </button>
+                        </a>
                       )}
-                      <button
-                        onClick={() => {
-                          setShowSharesModal(false)
-                          setTimeout(() => window.location.href = `/@${user.handle}`, 100)
-                        }}
+                      <a
+                        href={`/@${user.handle}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #ddd', background: '#fff', color: '#555', fontSize: 12, cursor: 'pointer', fontWeight: 600, textDecoration: 'none', display: 'inline-block' }}
                       >
                         👤 {lang === 'da' ? 'Profil' : 'Profile'}
-                      </button>
+                      </a>
                     </div>
                   </div>
                 ))}
