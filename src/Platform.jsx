@@ -6525,8 +6525,9 @@ function MiniWorldMap({ countries, lang }) {
   const [zoom, setZoom] = useState(1)
   const [center, setCenter] = useState([10, 52]) // default: center on Europe
 
-  // Ensure countries is an array
-  if (!Array.isArray(countries) || countries.length === 0) {
+  // Ensure countries is an array before processing
+  const isValidData = Array.isArray(countries) && countries.length > 0
+  if (!isValidData) {
     return null
   }
 
@@ -6559,7 +6560,7 @@ function MiniWorldMap({ countries, lang }) {
         <ZoomableGroup zoom={zoom} center={center} onMoveEnd={handleMoveEnd}>
           <Geographies geography={GEO_URL}>
             {({ geographies }) =>
-              geographies.map((geo) => (
+              Array.isArray(geographies) ? geographies.map((geo) => (
                 <Geography
                   key={geo.rsmKey}
                   geography={geo}
@@ -6572,7 +6573,7 @@ function MiniWorldMap({ countries, lang }) {
                     pressed: { outline: 'none' },
                   }}
                 />
-              ))
+              )) : null
             }
           </Geographies>
           {countries.map(d => {
@@ -6976,6 +6977,9 @@ function VisitorStatsPage({ lang, onBadgeCheck }) {
   }
 
   const BarChart = ({ data, label }) => {
+    if (!Array.isArray(data) || data.length === 0) {
+      return <div className="p-card" style={{ padding: 20, marginBottom: 16 }}><div style={{ fontSize: 13, color: '#aaa' }}>{t.noData}</div></div>
+    }
     const maxVal = Math.max(1, ...data.map(d => d.count))
     return (
       <div className="p-card" style={{ padding: 20, marginBottom: 16 }}>
