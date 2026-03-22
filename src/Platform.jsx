@@ -12130,15 +12130,15 @@ function JobCard({ job, t, lang, onSaveToggle, onTrackChange, currentUser, onSha
               style={{
                 padding: '8px 14px',
                 borderRadius: 8,
-                border: `1px solid ${shareJobId === job.id && sharedWithUsers.length > 0 ? '#2D6A4F' : '#ddd'}`,
-                background: shareJobId === job.id && sharedWithUsers.length > 0 ? '#F0FAF4' : '#fff',
-                color: shareJobId === job.id && sharedWithUsers.length > 0 ? '#2D6A4F' : '#555',
+                border: `1px solid ${job.share_count > 0 ? '#2D6A4F' : '#ddd'}`,
+                background: job.share_count > 0 ? '#F0FAF4' : '#fff',
+                color: job.share_count > 0 ? '#2D6A4F' : '#555',
                 fontWeight: 600,
                 fontSize: 13,
                 cursor: 'pointer'
               }}
             >
-              {shareJobId === job.id && sharedWithUsers.length > 0 ? `✓ 🔗 ${lang === 'da' ? 'Delt' : 'Shared'}` : `🔗 ${lang === 'da' ? 'Del' : 'Share'}`}
+              {job.share_count > 0 ? `✓ 🔗 ${lang === 'da' ? 'Delt' : 'Shared'}` : `🔗 ${lang === 'da' ? 'Del' : 'Share'}`}
             </button>
           </div>
           {/* Personal tracking status */}
