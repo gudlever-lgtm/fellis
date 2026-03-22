@@ -2798,6 +2798,17 @@ app.post('/api/upload', authenticate, fileUploadLimit, upload.single('file'), as
   }
 
   const type = req.file.mimetype.startsWith('video/') ? 'video' : 'image'
+  // Audit log: file uploaded
+  await auditLog(req, 'file_upload', 'file', null, {
+    status: 'success',
+    details: {
+      filename: req.file.filename,
+      originalname: req.file.originalname,
+      size: req.file.size,
+      mimetype: req.file.mimetype,
+      type: type
+    }
+  })
   res.json({ url: `/uploads/${req.file.filename}`, type, mime: req.file.mimetype })
 })
 
@@ -7077,7 +7088,11 @@ app.post('/api/admin/users/:userId/force-disable-mfa', authenticate, requireAdmi
       'UPDATE users SET mfa_enabled = 0, mfa_code = NULL, mfa_code_expires = NULL WHERE id = ?',
       [userId]
     )
-    console.log(`Admin (user ${req.userId}) force-disabled MFA for user ${userId} (${user.name})`)
+    // Audit log: admin force-disabled MFA for user
+    await auditLog(req, 'admin_force_disable_mfa', 'user', parseInt(userId), {
+      status: 'success',
+      details: { target_user: user.name, reason: 'admin_action' }
+    })
     res.json({ ok: true })
   } catch (err) {
     console.error('POST /api/admin/users/:userId/force-disable-mfa error:', err.message)
@@ -9049,6 +9064,11 @@ app.post('/api/admin/moderation/content/remove', authenticate, requireModerator,
       'INSERT INTO moderation_actions (admin_id, action_type, target_type, target_id, reason) VALUES (?, "remove_content", ?, ?, ?)',
       [req.userId, type, target_id, reason || null]
     )
+    // Audit log: content removed by moderator
+    await auditLog(req, 'moderation_remove_content', type, parseInt(target_id), {
+      status: 'success',
+      details: { report_id: report_id || null, reason: reason || null }
+    })
     res.json({ ok: true })
   } catch (err) {
     console.error('POST /api/admin/moderation/content/remove error:', err)
@@ -9092,6 +9112,11 @@ app.post('/api/admin/moderation/users/:id/warn', authenticate, requireModerator,
         }).catch(() => {})
       }
     }
+    // Audit log: user warned by moderator
+    await auditLog(req, 'moderation_warn_user', 'user', targetId, {
+      status: 'success',
+      details: { report_id: report_id || null, reason: reason || null }
+    })
     res.json({ ok: true })
   } catch (err) {
     console.error('POST /api/admin/moderation/users/:id/warn error:', err)
@@ -9137,6 +9162,11 @@ app.post('/api/admin/moderation/users/:id/suspend', authenticate, requireAdmin, 
         }).catch(() => {})
       }
     }
+    // Audit log: user suspended by admin
+    await auditLog(req, 'moderation_suspend_user', 'user', targetId, {
+      status: 'success',
+      details: { days: days, report_id: report_id || null, reason: reason || null, suspended_until: suspendedUntil.toISOString() }
+    })
     res.json({ ok: true })
   } catch (err) {
     console.error('POST /api/admin/moderation/users/:id/suspend error:', err)
@@ -9172,6 +9202,11 @@ app.post('/api/admin/moderation/users/:id/ban', authenticate, requireAdmin, asyn
         }).catch(() => {})
       }
     }
+    // Audit log: user banned by admin
+    await auditLog(req, 'moderation_ban_user', 'user', targetId, {
+      status: 'success',
+      details: { report_id: report_id || null, reason: reason || null, permanent: true }
+    })
     res.json({ ok: true })
   } catch (err) {
     console.error('POST /api/admin/moderation/users/:id/ban error:', err)
