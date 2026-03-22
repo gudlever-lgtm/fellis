@@ -687,6 +687,41 @@ function validateCsrf(req, res, next) {
   }
 }
 
+// ── Audit Logging Helper ───────────────────────────────────────────────────
+// Logs security-relevant events for compliance and monitoring
+async function auditLog(req, action, resourceType = null, resourceId = null, {
+  status = 'success',
+  oldValue = null,
+  newValue = null,
+  details = null,
+} = {}) {
+  const userId = req.userId || null
+  const ipAddress = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null
+  const userAgent = req.headers['user-agent'] || null
+
+  try {
+    await pool.query(
+      `INSERT INTO audit_logs (user_id, action, resource_type, resource_id, old_value, new_value, ip_address, user_agent, status, details)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        userId,
+        action,
+        resourceType,
+        resourceId,
+        oldValue ? JSON.stringify(oldValue) : null,
+        newValue ? JSON.stringify(newValue) : null,
+        ipAddress,
+        userAgent,
+        status,
+        details ? JSON.stringify(details) : null,
+      ]
+    )
+  } catch (err) {
+    console.error(`[AUDIT LOG ERROR] ${action}:`, err.message)
+    // Don't throw — logging failures shouldn't break the main operation
+  }
+}
+
 function getSessionIdFromRequest(req) {
   // Header takes priority, then cookie, then query param (for SSE/EventSource).
   // Guard against the literal strings "null"/"undefined" that JS sends when the
@@ -1094,6 +1129,14 @@ app.post('/api/auth/login', strictLimit, async (req, res) => {
       [sessionId, user.id, lang || 'da', ua, ip]
     )
     setSessionCookie(res, sessionId)
+    // Audit log: successful login
+    await auditLog(
+      { ...req, userId: user.id },
+      'login',
+      'user',
+      user.id,
+      { status: 'success', details: { mfa_enabled: !!user.mfa_enabled } }
+    )
     res.json({ sessionId, userId: user.id })
   } catch (err) {
     res.status(500).json({ error: 'Login failed' })
@@ -1311,6 +1354,8 @@ app.post('/api/auth/enable-mfa', authenticate, writeLimit, async (req, res) => {
     if (rows.length === 0) return res.status(404).json({ error: 'User not found' })
     if (!rows[0].phone) return res.status(400).json({ error: 'A phone number is required to enable MFA' })
     await pool.query('UPDATE users SET mfa_enabled = 1 WHERE id = ?', [req.userId])
+    // Audit log: MFA enabled
+    await auditLog(req, 'mfa_enable', 'user', req.userId, { status: 'success' })
     res.json({ ok: true, mfa_enabled: true })
   } catch (err) {
     res.status(500).json({ error: 'Failed to enable MFA' })
@@ -1324,6 +1369,8 @@ app.post('/api/auth/disable-mfa', authenticate, writeLimit, async (req, res) => 
       'UPDATE users SET mfa_enabled = 0, mfa_code = NULL, mfa_code_expires = NULL WHERE id = ?',
       [req.userId]
     )
+    // Audit log: MFA disabled
+    await auditLog(req, 'mfa_disable', 'user', req.userId, { status: 'success' })
     res.json({ ok: true, mfa_enabled: false })
   } catch (err) {
     res.status(500).json({ error: 'Failed to disable MFA' })
@@ -2170,6 +2217,8 @@ app.patch('/api/profile/password', authenticate, async (req, res) => {
     }
     const newHash = await bcrypt.hash(newPassword, 10)
     await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [newHash, req.userId])
+    // Audit log: password changed
+    await auditLog(req, 'password_change', 'user', req.userId, { status: 'success' })
     res.json({ ok: true })
   } catch (err) {
     console.error('PATCH /api/profile/password error:', err.message)
