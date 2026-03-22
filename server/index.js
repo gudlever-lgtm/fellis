@@ -4548,13 +4548,11 @@ app.get('/api/companies/:id', authenticate, async (req, res) => {
     const [jobs] = await pool.query(
       `SELECT j.*,
               (SELECT COUNT(*) > 0 FROM job_saves WHERE job_id = j.id AND user_id = ?) AS saved,
-              COUNT(DISTINCT sj.shared_with_user_id) AS share_count
+              (SELECT COUNT(DISTINCT shared_with_user_id) FROM shared_jobs WHERE job_id = j.id) AS share_count
        FROM jobs j
-       LEFT JOIN shared_jobs sj ON j.id = sj.job_id AND sj.shared_by_user_id = ?
        WHERE j.company_id = ? AND j.active = 1
-       GROUP BY j.id
        ORDER BY j.created_at DESC`,
-      [req.userId, req.userId, req.params.id]
+      [req.userId, req.params.id]
     )
 
     res.json({ company, posts, jobs })
@@ -8262,17 +8260,18 @@ app.get('/api/jobs/mine', authenticate, async (req, res) => {
   try {
     const [rows] = await pool.query(`
       SELECT j.*, c.name AS company_name, c.handle AS company_handle, c.color AS company_color, c.logo_url AS company_logo,
-             COUNT(DISTINCT sj.shared_with_user_id) AS share_count
+             (SELECT COUNT(DISTINCT shared_with_user_id) FROM shared_jobs WHERE job_id = j.id) AS share_count
       FROM jobs j
       JOIN companies c ON c.id = j.company_id
-      LEFT JOIN shared_jobs sj ON j.id = sj.job_id AND sj.shared_by_user_id = ?
       WHERE j.created_by_user_id = ?
-      GROUP BY j.id
       ORDER BY j.created_at DESC
-    `, [req.userId, req.userId])
+    `, [req.userId])
     res.json({ jobs: rows || [] })
   } catch (err) {
     console.error('GET /api/jobs/mine error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
     res.status(500).json({ error: 'Server error' })
   }
 })
@@ -9597,8 +9596,8 @@ async function computeUserStats(userId) {
         SELECT 1 FROM friendships f2 WHERE f2.user_id = f1.friend_id AND f2.friend_id = ?
       )) AS mutualFollowCount,
       (SELECT COUNT(DISTINCT profile_id) FROM profile_views WHERE viewer_id = ?) AS profilesVisited,
-      (SELECT COUNT(*) FROM share_events s WHERE s.user_id = ? AND s.share_type = 'post') +
-      (SELECT COUNT(DISTINCT shared_with_user_id) FROM shared_jobs WHERE shared_by_user_id = ?) AS shareCount,
+      (SELECT COALESCE(COUNT(*), 0) FROM share_events s WHERE s.user_id = ? AND s.share_type = 'post') +
+      COALESCE((SELECT COUNT(DISTINCT shared_with_user_id) FROM shared_jobs WHERE shared_by_user_id = ?), 0) AS shareCount,
       (SELECT COUNT(*) FROM posts WHERE author_id = ? AND likes >= 10) AS postsWithTenPlusLikes,
       (SELECT COALESCE(MAX(likes), 0) FROM posts WHERE author_id = ?) AS maxLikesOnSinglePost,
       (SELECT COUNT(DISTINCT cl.comment_id) FROM comment_likes cl JOIN comments c ON c.id = cl.comment_id WHERE c.author_id = ?) AS commentsWithLikes,
