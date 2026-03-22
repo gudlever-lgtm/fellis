@@ -53,7 +53,7 @@ const ALL_T1_IDS = [
 const ALL_T2_IDS = [
   't2_regular', 't2_conversationalist', 't2_popular', 't2_social_butterfly',
   't2_influencer', 't2_explorer', 't2_dedicated', 't2_appreciated', 't2_networker', 't2_contributor',
-  't2_reel_creator', 't2_reel_popular', 't2_reel_viewed', 't2_collector',
+  't2_reel_creator', 't2_reel_popular', 't2_reel_viewed', 't2_collector', 't2_generous_sharer',
 ]
 
 export const BADGES = [
@@ -480,6 +480,22 @@ export const BADGES = [
       return (minTs - new Date(s.accountCreatedAt).getTime()) <= 24 * 60 * 60 * 1000
     },
   },
+
+  // ── Job Sharing Rewards ───────────────────────────────────────────────
+  {
+    id: 't2_generous_sharer',
+    name: { da: 'Generøs deler', en: 'Generous Sharer' },
+    description: { da: 'Del 5 job opslag', en: 'Share 5 job postings' },
+    tier: 2, category: 'activity', icon: '🎁',
+    evaluate: s => (s.shareCount || 0) >= 5,
+  },
+  {
+    id: 't3_job_ambassador',
+    name: { da: 'Job-ambassadør', en: 'Job Ambassador' },
+    description: { da: 'Del 10 job opslag', en: 'Share 10 job postings' },
+    tier: 3, category: 'activity', icon: '🌟',
+    evaluate: s => (s.shareCount || 0) >= 10,
+  },
 ]
 
 // Convenience lookups
@@ -517,6 +533,7 @@ export const BADGE_AD_FREE_DAYS = {
   't2_reel_popular': 3,
   't2_reel_viewed': 3,
   't2_collector': 3,
+  't2_generous_sharer': 3,
 
   // Tier 3 (gold) = 7 days each
   't3_veteran': 7,
@@ -533,6 +550,7 @@ export const BADGE_AD_FREE_DAYS = {
   't3_reel_sensation': 7,
   't3_reel_viral': 7,
   't3_completionist': 7,
+  't3_job_ambassador': 7,
 
   // Easter eggs = 0 days (no reward)
   'egg_rule_breaker': 0,

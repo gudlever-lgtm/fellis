@@ -9597,13 +9597,14 @@ async function computeUserStats(userId) {
         SELECT 1 FROM friendships f2 WHERE f2.user_id = f1.friend_id AND f2.friend_id = ?
       )) AS mutualFollowCount,
       (SELECT COUNT(DISTINCT profile_id) FROM profile_views WHERE viewer_id = ?) AS profilesVisited,
-      (SELECT COUNT(*) FROM share_events s WHERE s.user_id = ? AND s.share_type = 'post') AS shareCount,
+      (SELECT COUNT(*) FROM share_events s WHERE s.user_id = ? AND s.share_type = 'post') +
+      (SELECT COUNT(DISTINCT shared_with_user_id) FROM shared_jobs WHERE shared_by_user_id = ?) AS shareCount,
       (SELECT COUNT(*) FROM posts WHERE author_id = ? AND likes >= 10) AS postsWithTenPlusLikes,
       (SELECT COALESCE(MAX(likes), 0) FROM posts WHERE author_id = ?) AS maxLikesOnSinglePost,
       (SELECT COUNT(DISTINCT cl.comment_id) FROM comment_likes cl JOIN comments c ON c.id = cl.comment_id WHERE c.author_id = ?) AS commentsWithLikes,
       (SELECT COUNT(*) FROM friendships f JOIN users u ON u.id = f.user_id WHERE f.friend_id = ?
         AND f.created_at <= DATE_ADD(u.created_at, INTERVAL 7 DAY)) AS followersJoinedWithinFirstWeek
-  `, [userId, userId, userId, userId, userId, userId, userId, userId, userId, userId, userId, userId, userId, userId])
+  `, [userId, userId, userId, userId, userId, userId, userId, userId, userId, userId, userId, userId, userId, userId, userId])
 
   // Reel stats
   const [[reelStats]] = await pool.query(`
