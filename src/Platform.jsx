@@ -15758,6 +15758,78 @@ function AdminViralStats({ viralStats, viralDays, setViralDays, lang }) {
   )
 }
 
+// ── Admin: Locked Accounts Tab ──
+function AdminLockedAccountsPanel({ lang }) {
+  const da = lang === 'da'
+  const [lockedUsers, setLockedUsers] = useState(null)
+  const [unlocking, setUnlocking] = useState({})
+
+  const load = () => {
+    apiAdminGetLockedUsers().then(d => setLockedUsers(d?.users ?? []))
+  }
+
+  useEffect(() => { load() }, [])
+
+  const handleUnlock = async (userId) => {
+    setUnlocking(u => ({ ...u, [userId]: true }))
+    await apiAdminUnlockUser(userId)
+    setLockedUsers(prev => prev.filter(u => u.id !== userId))
+    setUnlocking(u => ({ ...u, [userId]: false }))
+  }
+
+  return (
+    <div style={{ maxWidth: 600 }}>
+      <div className="p-card" style={{ marginBottom: 16 }}>
+        <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700 }}>🔓 {da ? 'Låste konti' : 'Locked Accounts'}</h3>
+        <p style={{ margin: '0 0 16px', fontSize: 13, color: '#888' }}>
+          {da
+            ? 'Konti der er midlertidigt låst efter for mange fejlede loginforsøg (brute-force beskyttelse).'
+            : 'Accounts temporarily locked after too many failed login attempts (brute-force protection).'}
+        </p>
+
+        {lockedUsers === null && (
+          <p style={{ fontSize: 13, color: '#888' }}>{da ? 'Indlæser…' : 'Loading…'}</p>
+        )}
+
+        {lockedUsers !== null && lockedUsers.length === 0 && (
+          <div style={{ padding: '20px 0', textAlign: 'center', color: '#2D6A4F', fontSize: 14, fontWeight: 600 }}>
+            ✓ {da ? 'Ingen låste konti.' : 'No locked accounts.'}
+          </div>
+        )}
+
+        {lockedUsers !== null && lockedUsers.length > 0 && lockedUsers.map(u => {
+          const until = new Date(u.locked_until)
+          const mins = Math.max(1, Math.ceil((until - Date.now()) / 60000))
+          return (
+            <div key={u.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', background: '#FFF5F5', border: '1px solid #f5b7b1', borderRadius: 10, marginBottom: 10, gap: 12 }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>{u.name}</div>
+                <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{u.email}</div>
+                <div style={{ fontSize: 12, color: '#C0392B', marginTop: 3, fontWeight: 600 }}>
+                  {u.failed_login_attempts} {da ? 'fejlede forsøg' : 'failed attempts'} · {da ? `låst ${mins} min endnu` : `locked ${mins} min remaining`}
+                </div>
+              </div>
+              <button
+                onClick={() => handleUnlock(u.id)}
+                disabled={unlocking[u.id]}
+                style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+              >
+                {unlocking[u.id] ? '…' : (da ? 'Lås op' : 'Unlock')}
+              </button>
+            </div>
+          )
+        })}
+
+        {lockedUsers !== null && (
+          <button onClick={load} style={{ marginTop: 8, padding: '6px 14px', borderRadius: 7, border: '1px solid #ddd', background: '#fff', fontSize: 12, cursor: 'pointer', color: '#555' }}>
+            ↻ {da ? 'Opdater liste' : 'Refresh'}
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Admin: MFA Users Tab ──
 function AdminMfaPanel({ lang }) {
   const da = lang === 'da'
@@ -15886,19 +15958,6 @@ function AdminMfaPanel({ lang }) {
 // ── Admin: Security & GDPR Tab ──
 function AdminSecurityGdpr({ viralStats, lang }) {
   const da = lang === 'da'
-  const [lockedUsers, setLockedUsers] = useState(null)
-  const [unlocking, setUnlocking] = useState({})
-
-  useEffect(() => {
-    apiAdminGetLockedUsers().then(d => { if (d) setLockedUsers(d.users) })
-  }, [])
-
-  const handleUnlock = async (userId) => {
-    setUnlocking(u => ({ ...u, [userId]: true }))
-    await apiAdminUnlockUser(userId)
-    setLockedUsers(prev => prev.filter(u => u.id !== userId))
-    setUnlocking(u => ({ ...u, [userId]: false }))
-  }
 
   const section = (icon, title, children) => (
     <div className="p-card" style={{ marginBottom: 16 }}>
@@ -16095,44 +16154,6 @@ function AdminSecurityGdpr({ viralStats, lang }) {
               <div style={{ fontSize: 11, fontFamily: 'monospace', color: '#888', marginTop: 2 }}>{item.endpoint}</div>
             </div>
           ))}
-        </div>
-      ))}
-
-      {/* Locked accounts */}
-      {section('🔒', da ? 'Låste konti (for mange fejlede loginforsøg)' : 'Locked accounts (too many failed login attempts)', (
-        <div>
-          {lockedUsers === null && <p style={{ fontSize: 13, color: '#888' }}>{da ? 'Indlæser…' : 'Loading…'}</p>}
-          {lockedUsers !== null && lockedUsers.length === 0 && (
-            <p style={{ fontSize: 13, color: '#2D6A4F' }}>✓ {da ? 'Ingen låste konti.' : 'No locked accounts.'}</p>
-          )}
-          {lockedUsers !== null && lockedUsers.length > 0 && (
-            <div>
-              <p style={{ fontSize: 13, color: '#555', marginBottom: 12 }}>
-                {da
-                  ? `${lockedUsers.length} konto${lockedUsers.length !== 1 ? 'er' : ''} er midlertidigt låst. Lås op ved at klikke på knappen.`
-                  : `${lockedUsers.length} account${lockedUsers.length !== 1 ? 's' : ''} temporarily locked. Click to unlock.`}
-              </p>
-              {lockedUsers.map(u => {
-                const until = new Date(u.locked_until)
-                const mins = Math.ceil((until - Date.now()) / 60000)
-                return (
-                  <div key={u.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: '#FFF5F5', border: '1px solid #f5b7b1', borderRadius: 8, marginBottom: 8, gap: 12 }}>
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: 13 }}>{u.name}</div>
-                      <div style={{ fontSize: 12, color: '#888' }}>{u.email} · {u.failed_login_attempts} {da ? 'forsøg' : 'attempts'} · {da ? `låst ${mins} min endnu` : `locked ${mins} min remaining`}</div>
-                    </div>
-                    <button
-                      onClick={() => handleUnlock(u.id)}
-                      disabled={unlocking[u.id]}
-                      style={{ padding: '6px 14px', borderRadius: 7, border: 'none', background: '#2D6A4F', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
-                    >
-                      {unlocking[u.id] ? '…' : (da ? 'Lås op' : 'Unlock')}
-                    </button>
-                  </div>
-                )
-              })}
-            </div>
-          )}
         </div>
       ))}
 
@@ -17358,6 +17379,7 @@ function AdminPage({ lang, t }) {
             tabs: [
               { id: 'platform', icon: '🛠️', label: lang === 'da' ? 'Indstillinger' : 'Settings' },
               { id: 'security', icon: '🔒', label: lang === 'da' ? 'Sikkerhed & GDPR' : 'Security & GDPR' },
+              { id: 'locked-accounts', icon: '🔓', label: lang === 'da' ? 'Låste konti' : 'Locked Accounts' },
               { id: 'mfa-admin', icon: '📱', label: lang === 'da' ? '2FA-brugere' : 'MFA Users' },
             ],
           },
@@ -17625,6 +17647,8 @@ function AdminPage({ lang, t }) {
       {adminTab === 'security' && (
         <AdminSecurityGdpr viralStats={viralStats} lang={lang} />
       )}
+
+      {adminTab === 'locked-accounts' && <AdminLockedAccountsPanel lang={lang} />}
 
       {adminTab === 'mfa-admin' && <AdminMfaPanel lang={lang} />}
 
