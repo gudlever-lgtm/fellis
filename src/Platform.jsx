@@ -11105,33 +11105,83 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
             <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>⏳</div>
           ) : companyJobs.length === 0 ? (
             <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>{t.jobNoJobs}</div>
-          ) : companyJobs.map(job => (
-            <div key={job.id} className="p-card" style={{ opacity: job.active ? 1 : 0.55 }}>
-              <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                <div style={{ width: 40, height: 40, borderRadius: 8, background: company.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 18, flexShrink: 0 }}>
-                  {company.name[0]}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <span style={{ fontWeight: 700, fontSize: 15 }}>{job.title}</span>
+          ) : companyJobs.map(job => {
+            const typeLabels = { fulltime: t.jobTypeFullTime, parttime: t.jobTypePartTime, freelance: t.jobTypeFreelance, internship: t.jobTypeInternship }
+            const jobDescription = typeof job.description === 'string' ? job.description : (job.description?.[lang] || job.description?.da || '')
+            const postedDate = job.created_at ? new Date(job.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short' }) : ''
+            return (
+              <div key={job.id} className="p-card" style={{ opacity: job.active ? 1 : 0.55 }}>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 8, background: company.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 18, flexShrink: 0 }}>
+                    {company.name[0]}
                   </div>
-                  <div style={{ fontSize: 13, color: '#666', marginTop: 2 }}>
-                    {company.name} · {job.location || '—'}{job.remote ? ` · ${t.jobRemote}` : ''}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                      <h3 style={{ margin: '0 0 2px', fontSize: 16, fontWeight: 700 }}>{job.title}</h3>
+                      {isOwner && (
+                        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                          <button
+                            onClick={() => setEditJob(job)}
+                            style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #ddd', background: '#fff', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}
+                          >
+                            ✏️ {lang === 'da' ? 'Ret' : 'Edit'}
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (confirm(lang === 'da' ? 'Slet denne annonce?' : 'Delete this job?')) {
+                                fetch(`/api/jobs/${job.id}`, { method: 'DELETE', credentials: 'include' })
+                                  .then(r => r.ok && setCompanyJobs(prev => prev.filter(j => j.id !== job.id)))
+                                  .catch(() => {})
+                              }
+                            }}
+                            style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #e74c3c', background: '#fff5f5', color: '#e74c3c', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}
+                          >
+                            🗑 {lang === 'da' ? 'Slet' : 'Delete'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 13, color: '#666', marginBottom: 6 }}>
+                      {company.name} · {job.location || '—'}{job.remote ? ` · ${t.jobRemote}` : ''} · {typeLabels[job.type] || job.type}
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+                      {job.active ? (
+                        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: '#F0FAF4', color: '#2D6A4F', fontWeight: 600 }}>{t.jobStatusActive || 'Aktiv'}</span>
+                      ) : (
+                        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: '#f5f5f5', color: '#888', fontWeight: 600 }}>{t.jobStatusClosed || 'Lukket'}</span>
+                      )}
+                      {postedDate && <span style={{ fontSize: 12, color: '#999' }}>{postedDate}</span>}
+                    </div>
+                    {(job.salary_min || job.salary_max) && (
+                      <div style={{ fontSize: 13, color: '#2D6A4F', fontWeight: 600, marginBottom: 8 }}>
+                        💰 {job.salary_min ? job.salary_min.toLocaleString() : '?'} – {job.salary_max ? job.salary_max.toLocaleString() : '?'} {job.salary_currency || 'DKK'} / {job.salary_period === 'annual' ? (lang === 'da' ? 'år' : 'year') : (lang === 'da' ? 'md.' : 'mo.')}
+                      </div>
+                    )}
+                    {jobDescription && (
+                      <p style={{ fontSize: 13, color: '#555', lineHeight: 1.5, margin: '0 0 8px' }}>
+                        {jobDescription.slice(0, 300)}{jobDescription.length > 300 ? '…' : ''}
+                      </p>
+                    )}
+                    {job.deadline && (
+                      <div style={{ fontSize: 12, color: '#c0392b', fontWeight: 600, marginBottom: 6 }}>
+                        ⏳ {t.jobDeadline}: {new Date(job.deadline).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'long' })}
+                      </div>
+                    )}
+                    {job.collective_agreement && (
+                      <div style={{ fontSize: 12, color: '#555', marginBottom: 6 }}>
+                        📋 {t.jobCollectiveAgreement}: <strong>{job.collective_agreement}</strong>
+                      </div>
+                    )}
+                    {job.share_count > 0 && (
+                      <div style={{ fontSize: 12, color: '#666' }}>
+                        🔗 {lang === 'da' ? `Delt ${job.share_count} ${job.share_count === 1 ? 'gang' : 'gange'}` : `Shared ${job.share_count} ${job.share_count === 1 ? 'time' : 'times'}`}
+                      </div>
+                    )}
                   </div>
-                  {(job.salary_min || job.salary_max) && (
-                    <div style={{ fontSize: 13, color: '#2D6A4F', fontWeight: 600, marginTop: 4 }}>
-                      💰 {job.salary_min ? job.salary_min.toLocaleString() : '?'} – {job.salary_max ? job.salary_max.toLocaleString() : '?'} {job.salary_currency || 'DKK'} / {job.salary_period === 'annual' ? (lang === 'da' ? 'år' : 'year') : (lang === 'da' ? 'md.' : 'mo.')}
-                    </div>
-                  )}
-                  {job.share_count > 0 && (
-                    <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
-                      🔗 {lang === 'da' ? `Delt ${job.share_count} ${job.share_count === 1 ? 'gang' : 'gange'}` : `Shared ${job.share_count} ${job.share_count === 1 ? 'time' : 'times'}`}
-                    </div>
-                  )}
                 </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
