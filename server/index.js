@@ -5278,6 +5278,82 @@ app.patch('/api/jobs/:id/applications/:appId', authenticate, async (req, res) =>
   }
 })
 
+// POST /api/jobs/:id/share — share a job with another user
+app.post('/api/jobs/:id/share', authenticate, async (req, res) => {
+  try {
+    const { userId: recipientId } = req.body
+    if (!recipientId) return res.status(400).json({ error: 'userId required' })
+    if (recipientId === req.userId) return res.status(400).json({ error: 'Cannot share with yourself' })
+
+    // Verify job exists
+    const [[job]] = await pool.query('SELECT id FROM jobs WHERE id = ?', [req.params.id])
+    if (!job) return res.status(404).json({ error: 'Job not found' })
+
+    // Verify recipient exists
+    const [[recipient]] = await pool.query('SELECT id FROM users WHERE id = ?', [recipientId])
+    if (!recipient) return res.status(404).json({ error: 'User not found' })
+
+    // Create or update share record
+    try {
+      await pool.query(
+        `INSERT INTO shared_jobs (job_id, shared_by_user_id, shared_with_user_id)
+         VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE shared_at = NOW()`,
+        [req.params.id, req.userId, recipientId]
+      )
+    } catch (e) {
+      // Table may not exist yet, skip
+      if (e.code !== 'ER_NO_SUCH_TABLE') throw e
+    }
+
+    res.json({ ok: true, jobId: req.params.id, sharedWith: recipientId })
+  } catch (err) {
+    console.error('POST /api/jobs/:id/share error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// DELETE /api/jobs/:id/share/:userId — unshare job
+app.delete('/api/jobs/:id/share/:userId', authenticate, async (req, res) => {
+  try {
+    try {
+      await pool.query(
+        'DELETE FROM shared_jobs WHERE job_id = ? AND shared_by_user_id = ? AND shared_with_user_id = ?',
+        [req.params.id, req.userId, req.params.userId]
+      )
+    } catch (e) {
+      if (e.code !== 'ER_NO_SUCH_TABLE') throw e
+    }
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/jobs/:id/share/:userId error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/jobs/shared — get jobs shared with me
+app.get('/api/jobs/shared', authenticate, async (req, res) => {
+  try {
+    let sharedJobs = []
+    try {
+      const [rows] = await pool.query(`
+        SELECT DISTINCT j.*, u.name as shared_by_name
+        FROM jobs j
+        JOIN shared_jobs sj ON j.id = sj.job_id
+        JOIN users u ON sj.shared_by_user_id = u.id
+        WHERE sj.shared_with_user_id = ?
+        ORDER BY sj.shared_at DESC
+      `, [req.userId])
+      sharedJobs = rows || []
+    } catch (e) {
+      if (e.code !== 'ER_NO_SUCH_TABLE') throw e
+    }
+    res.json({ jobs: sharedJobs })
+  } catch (err) {
+    console.error('GET /api/jobs/shared error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // ── Contact Notes (CRM) ───────────────────────────────────────────────────────
 
 // GET /api/contact-notes/:userId — get my private note for a specific contact
@@ -7129,7 +7205,16 @@ app.get('/api/calendar/reminders', authenticate, async (req, res) => {
       'SELECT id, date, title, note FROM calendar_reminders WHERE user_id = ? ORDER BY date',
       [req.userId]
     )
-    res.json({ reminders: rows.map(r => ({ ...r, date: r.date instanceof Date ? r.date.toISOString().slice(0, 10) : String(r.date).slice(0, 10) })) })
+    // Format DATE as YYYY-MM-DD without timezone conversion (DATE columns are always local)
+    const reminders = rows.map(r => {
+      let dateStr = String(r.date).slice(0, 10)
+      // If it's a Date object, use getUTC* to avoid timezone shifts
+      if (r.date instanceof Date) {
+        dateStr = `${r.date.getUTCFullYear()}-${String(r.date.getUTCMonth() + 1).padStart(2, '0')}-${String(r.date.getUTCDate()).padStart(2, '0')}`
+      }
+      return { ...r, date: dateStr }
+    })
+    res.json({ reminders })
   } catch (err) {
     console.error('GET /api/calendar/reminders error:', err.message)
     res.status(500).json({ error: 'Server error' })

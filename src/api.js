@@ -1197,6 +1197,18 @@ export async function apiGetTrackedJobs() {
   return await request('/api/jobs/tracked')
 }
 
+export async function apiShareJob(jobId, userId) {
+  return await request(`/api/jobs/${jobId}/share`, { method: 'POST', body: JSON.stringify({ userId }) })
+}
+
+export async function apiUnshareJob(jobId, userId) {
+  return await request(`/api/jobs/${jobId}/share/${userId}`, { method: 'DELETE' })
+}
+
+export async function apiGetSharedJobs() {
+  return await request('/api/jobs/shared')
+}
+
 export async function apiApplyToJobFull(jobId, { name, email, message }, cvFile, letterFile) {
   const form = new FormData()
   form.append('name', name)
