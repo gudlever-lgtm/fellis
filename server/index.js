@@ -8272,9 +8272,6 @@ app.get('/api/jobs/mine', authenticate, async (req, res) => {
     res.status(500).json({ error: 'Server error' })
   }
 })
-    res.status(500).json({ error: 'Server error' })
-  }
-})
 
 // ── CV Profile ────────────────────────────────────────────────────────────────
 // GET /api/cv/profile — get full CV data for current user
