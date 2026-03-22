@@ -8,6 +8,12 @@ function getCsrfToken() {
   return localStorage.getItem('fellis_csrf_token')
 }
 
+function getSessionId() {
+  // Session ID is now in HTTP-only cookie (fellis_sid), sent automatically by browser
+  // This function kept for backward compatibility with SSE endpoint
+  return localStorage.getItem('fellis_session_id') || ''
+}
+
 function headers() {
   const h = { 'Content-Type': 'application/json' }
   // Session ID is now automatically sent via HTTP-only cookie (fellis_sid)
