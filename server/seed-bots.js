@@ -1,4 +1,5 @@
 import crypto from 'crypto'
+import bcrypt from 'bcrypt'
 import pool from './db.js'
 
 // Bot users — privat + business
@@ -45,7 +46,6 @@ const BOTS = [
   },
 ]
 
-const BOT_PASSWORD_HASH = crypto.createHash('sha256').update('bot123').digest('hex')
 const BOT_HANDLES = BOTS.map(b => b.handle)
 
 // ─── varied comments for regular posts ───────────────────────────────────────
@@ -233,6 +233,7 @@ function makeMarketplaceListings(botIds) {
 }
 
 async function seedBots() {
+  const BOT_PASSWORD_HASH = await bcrypt.hash('bot123', 10)
   const conn = await pool.getConnection()
   try {
     const botIds = []
