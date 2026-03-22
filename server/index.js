@@ -45,6 +45,7 @@ function formatMsgTime(createdAt) {
 
 import express from 'express'
 import crypto from 'crypto'
+import bcrypt from 'bcrypt'
 import fs from 'fs'
 import multer from 'multer'
 import pool from './db.js'
@@ -53,7 +54,34 @@ import { BADGES, BADGE_BY_ID, PLATFORM_LAUNCH_DATE, BADGE_AD_FREE_DAYS } from '.
 import { evaluateBadges } from '../src/badges/badgeEngine.js'
 
 // MySQL 8.x compatible ADD COLUMN helper — ignores duplicate column error (errno 1060)
+// SECURITY: Validates table and column names to prevent SQL injection
 async function addCol(table, col, def) {
+  // Whitelist table names used in migrations
+  const VALID_TABLES = ['users', 'posts', 'comments', 'friendships', 'companies',
+    'admin_ad_settings', 'admin_settings', 'reels', 'marketplace_listings', 'jobs',
+    'shared_jobs', 'earned_badges', 'user_badges', 'badge_config']
+
+  // Validate table name
+  if (!VALID_TABLES.includes(table)) {
+    throw new Error(`Invalid table name: ${table}`)
+  }
+
+  // Validate column name: alphanumeric + underscore only
+  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(col)) {
+    throw new Error(`Invalid column name: ${col}`)
+  }
+
+  // Validate column definition: basic check for common SQL keywords
+  const def_lower = def.toLowerCase()
+  const ALLOWED_KEYWORDS = ['varchar', 'int', 'bigint', 'timestamp', 'boolean', 'text', 'datetime',
+    'decimal', 'not null', 'null', 'default', 'unique', 'current_timestamp']
+  const isValid = ALLOWED_KEYWORDS.some(kw => def_lower.includes(kw)) &&
+                  !def.includes(';') && !def.includes('--') && !def.includes('/*')
+
+  if (!isValid) {
+    throw new Error(`Invalid column definition: ${def}`)
+  }
+
   try {
     await pool.query(`ALTER TABLE \`${table}\` ADD COLUMN \`${col}\` ${def}`)
   } catch (e) {
@@ -949,12 +977,21 @@ app.post('/api/auth/login', strictLimit, async (req, res) => {
     )
     if (users.length === 0) return res.status(401).json({ error: 'Invalid credentials' })
     const user = users[0]
-    const hash = crypto.createHash('sha256').update(password).digest('hex')
-    if (hash !== user.password_hash) return res.status(401).json({ error: 'Invalid credentials' })
-    // Backfill password_plain if missing (for users created before this column existed)
-    if (!user.password_plain) {
-      await pool.query('UPDATE users SET password_plain = ? WHERE id = ?', [password, user.id])
+
+    // Verify password (support both bcrypt hash and legacy plaintext)
+    let passwordValid = false
+    if (user.password_hash && user.password_hash.startsWith('$2')) {
+      // Bcrypt hash
+      passwordValid = await bcrypt.compare(password, user.password_hash)
+    } else if (user.password_plain === password) {
+      // Legacy plaintext match
+      passwordValid = true
+      // Migrate to bcrypt: hash the password and store new hash
+      const bcryptHash = await bcrypt.hash(password, 10)
+      await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [bcryptHash, user.id])
     }
+
+    if (!passwordValid) return res.status(401).json({ error: 'Invalid credentials' })
 
     // MFA: if enabled and user has a phone number, send SMS code
     if (user.mfa_enabled && user.phone) {
@@ -995,13 +1032,13 @@ app.post('/api/auth/register', strictLimit, async (req, res) => {
   const regPwdErrors = validatePasswordStrength(password, regPolicy, lang || 'da')
   if (regPwdErrors.length > 0) return res.status(400).json({ error: regPwdErrors.join('. ') })
   try {
-    const hash = crypto.createHash('sha256').update(password).digest('hex')
+    const bcryptHash = await bcrypt.hash(password, 10)
     const handle = '@' + name.toLowerCase().replace(/\s+/g, '.')
     const initials = name.split(' ').map(n => n[0]).join('').toUpperCase()
     const userInviteToken = crypto.randomBytes(32).toString('hex')
     const [result] = await pool.query(
-      'INSERT INTO users (name, handle, initials, email, password_hash, password_plain, join_date, invite_token) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [name, handle, initials, email, hash, password, new Date().toISOString(), userInviteToken]
+      'INSERT INTO users (name, handle, initials, email, password_hash, join_date, invite_token) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [name, handle, initials, email, bcryptHash, new Date().toISOString(), userInviteToken]
     )
     const newUserId = result.insertId
     const sessionId = crypto.randomUUID()
@@ -1136,11 +1173,11 @@ app.post('/api/auth/reset-password', async (req, res) => {
     )
     if (rows.length === 0) return res.status(400).json({ error: 'Invalid or expired reset token' })
     const userId = rows[0].id
-    const hash = crypto.createHash('sha256').update(password).digest('hex')
+    const bcryptHash = await bcrypt.hash(password, 10)
     // Update password and clear reset token atomically
     await pool.query(
-      'UPDATE users SET password_hash = ?, password_plain = ?, reset_token = NULL, reset_token_expires = NULL WHERE id = ?',
-      [hash, password, userId]
+      'UPDATE users SET password_hash = ?, reset_token = NULL, reset_token_expires = NULL WHERE id = ?',
+      [bcryptHash, userId]
     )
     // Create a new login session
     const sessionId = crypto.randomUUID()
@@ -2052,8 +2089,8 @@ app.patch('/api/profile/password', authenticate, async (req, res) => {
     // If user has no password yet (imported from Facebook), allow setting without current password
     if (user.password_hash) {
       if (!currentPassword) return res.status(400).json({ error: 'currentPassword required' })
-      const currentHash = crypto.createHash('sha256').update(currentPassword).digest('hex')
-      if (currentHash !== user.password_hash) return res.status(401).json({ error: 'Wrong current password' })
+      const passwordMatch = await bcrypt.compare(currentPassword, user.password_hash)
+      if (!passwordMatch) return res.status(401).json({ error: 'Wrong current password' })
     }
     // MFA check
     if (user.mfa_enabled) {
@@ -2061,8 +2098,8 @@ app.patch('/api/profile/password', authenticate, async (req, res) => {
       const mfaOk = await verifySettingsMfaCode(req.userId, mfaCode)
       if (!mfaOk) return res.status(401).json({ error: 'Invalid or expired MFA code' })
     }
-    const newHash = crypto.createHash('sha256').update(newPassword).digest('hex')
-    await pool.query('UPDATE users SET password_hash = ?, password_plain = ? WHERE id = ?', [newHash, newPassword, req.userId])
+    const newHash = await bcrypt.hash(newPassword, 10)
+    await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [newHash, req.userId])
     res.json({ ok: true })
   } catch (err) {
     console.error('PATCH /api/profile/password error:', err.message)
@@ -6861,8 +6898,8 @@ app.post('/api/admin/settings/reveal-key', authenticate, requireAdmin, async (re
   try {
     // Verify admin password
     const [[user]] = await pool.query('SELECT password_hash FROM users WHERE id = ?', [req.userId])
-    const hash = crypto.createHash('sha256').update(password).digest('hex')
-    if (hash !== user?.password_hash) return res.status(401).json({ error: 'Forkert adgangskode' })
+    const passwordMatch = await bcrypt.compare(password, user?.password_hash || '')
+    if (!passwordMatch) return res.status(401).json({ error: 'Forkert adgangskode' })
     // Return full value: env var or DB
     let value = null
     if (key_name === 'mollie_api_key') value = process.env.MOLLIE_API_KEY || null
@@ -8011,10 +8048,6 @@ app.get('/api/config', async (req, res) => {
     )
     const cfg = {}
     for (const r of rows) cfg[r.key_name] = r.key_value
-    if (process.env.FB_APP_ID) {
-      cfg.fb_app_id = process.env.FB_APP_ID
-      cfg.facebookEnabled = true
-    }
     if (cfg.media_max_files) cfg.mediaMaxFiles = parseInt(cfg.media_max_files, 10) || 4
     if (cfg.marketplace_max_photos) cfg.marketplaceMaxPhotos = parseInt(cfg.marketplace_max_photos, 10) || 4
     res.json({ config: cfg, facebookEnabled: !!process.env.FB_APP_ID })
@@ -8269,9 +8302,6 @@ app.get('/api/jobs/mine', authenticate, async (req, res) => {
     res.json({ jobs: rows || [] })
   } catch (err) {
     console.error('GET /api/jobs/mine error:', err.message)
-    res.status(500).json({ error: 'Server error' })
-  }
-})
     res.status(500).json({ error: 'Server error' })
   }
 })
