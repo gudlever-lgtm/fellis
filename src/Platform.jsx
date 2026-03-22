@@ -108,7 +108,7 @@ function EggHintsContextMenu({ lang }) {
   )
 }
 
-export default function Platform({ lang: initialLang, onLogout, initialPostId, initialPage }) {
+export default function Platform({ lang: initialLang, onLogout, initialPostId, initialPage, initialProfileUserId, initialProfileSubpage }) {
   const [lang, setLang] = useState(initialLang || 'da')
   const [page, setPage] = useState(initialPage || 'feed')
   const [currentUser, setCurrentUser] = useState({ name: '', handle: '', initials: '' })
@@ -125,6 +125,15 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
     if (initialPage) setPage(initialPage)
   }, [initialPage])
   const [viewUserId, setViewUserId] = useState(null)
+  // Handle /@handle profile URL routing
+  useEffect(() => {
+    if (initialProfileUserId) {
+      setViewUserId(initialProfileUserId)
+      setPage('view-profile')
+      sessionStorage.removeItem('fellis_profile_userId')
+      sessionStorage.removeItem('fellis_profile_subpage')
+    }
+  }, [initialProfileUserId])
   const [mode, setMode] = useState(() => {
     const stored = localStorage.getItem('fellis_mode') || 'privat'
     if (stored === 'common') { localStorage.setItem('fellis_mode', 'privat'); return 'privat' }

@@ -2086,6 +2086,22 @@ app.get('/api/profile', authenticate, async (req, res) => {
   }
 })
 
+// GET /api/user/handle/:handle — get user by handle (public, no auth required)
+app.get('/api/user/handle/:handle', async (req, res) => {
+  const handle = req.params.handle.toLowerCase()
+  try {
+    const [users] = await pool.query(
+      `SELECT u.id, u.name FROM users u WHERE LOWER(u.handle) = ?`,
+      [handle]
+    )
+    if (users.length === 0) return res.status(404).json({ error: 'User not found' })
+    res.json({ id: users[0].id })
+  } catch (err) {
+    console.error('GET /api/user/handle/:handle error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // PATCH /api/me/mode — update user mode (privat / business)
 app.patch('/api/me/mode', authenticate, async (req, res) => {
   const { mode } = req.body
