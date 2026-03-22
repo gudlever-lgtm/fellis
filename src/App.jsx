@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import Landing from './Landing.jsx'
 import Platform from './Platform.jsx'
-import { apiCheckSession, apiLogout, apiGiveConsent, apiGetInviteInfo, apiTrackVisit, apiGetConsentStatus, apiGetCsrfToken } from './api.js'
+import { apiCheckSession, apiLogout, apiGiveConsent, apiGetInviteInfo, apiTrackVisit, apiGetConsentStatus, apiGetCsrfToken, apiGetUserByHandle } from './api.js'
 import { SUPPORTED_LANGS, detectLang, detectLangFromIP } from './data.js'
 import { USER_LS_KEY } from './hooks/useEasterEggs.js'
 import './App.css'
@@ -469,6 +469,29 @@ function App() {
   // On mount: check for Facebook OAuth callback, invite links, or validate existing session
   useEffect(() => {
     apiTrackVisit()
+
+    // Check for /@handle URL pattern (public profile)
+    const handleMatch = window.location.pathname.match(/^\/@([^\/]+)(?:\/(.+))?$/)
+    if (handleMatch) {
+      const handle = handleMatch[1]
+      const subpage = handleMatch[2] // 'cv' or undefined
+      ;(async () => {
+        try {
+          const userData = await apiGetUserByHandle(handle)
+          if (userData?.id) {
+            // Store userId to show profile after auth check completes
+            sessionStorage.setItem('fellis_profile_userId', userData.id)
+            if (subpage) sessionStorage.setItem('fellis_profile_subpage', subpage)
+            // Replace URL to clean it up
+            window.history.replaceState({}, '', '/')
+          }
+        } catch (err) {
+          // Handle not found — just proceed normally
+          window.history.replaceState({}, '', '/')
+        }
+      })()
+    }
+
     const params = new URLSearchParams(window.location.search)
     const postId = params.get('post')
     if (postId) {
@@ -665,7 +688,14 @@ function App() {
             }}
           />
         )}
-        <Platform lang={lang} onLogout={handleLogout} initialPostId={initialPostId} initialPage={initialPage} />
+        <Platform
+          lang={lang}
+          onLogout={handleLogout}
+          initialPostId={initialPostId}
+          initialPage={initialPage}
+          initialProfileUserId={parseInt(sessionStorage.getItem('fellis_profile_userId') || '0') || null}
+          initialProfileSubpage={sessionStorage.getItem('fellis_profile_subpage')}
+        />
       </>
     )
   }

@@ -1452,3 +1452,8 @@ export async function apiCorrectInterest(slug, weight, context = 'hobby') {
 export async function apiGetSignalStats() {
   return await request('/api/me/interest-graph/signal-stats')
 }
+
+// Get user ID by handle (no auth required for public profile discovery)
+export async function apiGetUserByHandle(handle) {
+  return await request(`/api/user/handle/${encodeURIComponent(handle)}`)
+}
