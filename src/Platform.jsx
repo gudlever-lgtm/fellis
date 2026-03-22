@@ -10397,10 +10397,15 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
     const r = c.member_role || c.role
     return r === 'owner' || r === 'admin' || r === 'editor'
   })
+  const ownedCompanies = companies.filter(c => {
+    const r = c.member_role || c.role
+    return r === 'owner'
+  })
   const followingCompanies = companies.filter(c =>
     (c.is_following || c.role === 'following') && !myCompanies.find(m => m.id === c.id)
   )
   const displayCompanies = tab === 'my' ? myCompanies : followingCompanies
+  const canCreateCompany = ownedCompanies.length === 0
 
   const toggleFollow = (id) => {
     fetch(`/api/companies/${id}/follow`, { method: 'POST', credentials: 'include' })
@@ -10454,9 +10459,15 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
     <div className="p-events" style={{ maxWidth: 720 }}>
       <div className="p-events-header">
         <h2 className="p-section-title" style={{ margin: 0 }}>🏢 {t.companies}</h2>
-        <button className="p-events-create-btn" onClick={() => setShowCreate(true)}>
-          + {t.createCompany}
-        </button>
+        {canCreateCompany ? (
+          <button className="p-events-create-btn" onClick={() => setShowCreate(true)}>
+            + {t.createCompany}
+          </button>
+        ) : (
+          <div style={{ fontSize: 12, color: '#888', fontStyle: 'italic' }}>
+            {lang === 'da' ? '✓ Du ejer allerede en virksomhed' : '✓ You already own a company'}
+          </div>
+        )}
       </div>
 
       <div className="p-filter-tabs" style={{ marginBottom: 16 }}>
@@ -10680,6 +10691,8 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
   const [sharedWithUsers, setSharedWithUsers] = useState([])
   const [sharesLoading, setSharesLoading] = useState(false)
   const [leadsLoading, setLeadsLoading] = useState(false)
+  const [editingJob, setEditingJob] = useState(null)
+  const [editingCompany, setEditingCompany] = useState(false)
 
   useEffect(() => {
     setPostsLoading(true)
@@ -11022,6 +11035,28 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
 
       {tab === 'members' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {isOwner && (
+            <button
+              onClick={() => {
+                const userId = prompt(lang === 'da' ? 'Bruger ID (eller e-mail) at tilføje:' : 'User ID (or email) to add:')
+                if (!userId) return
+                fetch(`/api/companies/${company.id}/members`, {
+                  method: 'POST',
+                  credentials: 'include',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ user_id: userId, role: 'editor' }),
+                })
+                  .then(r => r.ok && r.json())
+                  .then(data => {
+                    if (data) setCompanyMembers(prev => [...prev, data])
+                  })
+                  .catch(() => alert(lang === 'da' ? 'Fejl ved tilføjelse' : 'Error adding member'))
+              }}
+              style={{ padding: '10px 16px', borderRadius: 8, border: '1px solid #2D6A4F', background: '#fff', color: '#2D6A4F', cursor: 'pointer', fontWeight: 600, fontSize: 14 }}
+            >
+              + {lang === 'da' ? 'Tilføj medlem' : 'Add member'}
+            </button>
+          )}
           {membersLoading ? (
             <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>⏳</div>
           ) : companyMembers.length === 0 ? (
@@ -11044,18 +11079,39 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
                     {member.role === 'owner' ? t.companyRoleOwner : member.role === 'admin' ? t.companyRoleAdmin : t.companyRoleEditor}
                   </div>
                 </div>
-                {!isSelf && (
-                  connectStatus === 'friend' ? (
-                    <span style={{ fontSize: 12, color: '#2D6A4F', fontWeight: 600 }}>✓ {mode === 'business' ? t.connectionsLabel : t.friendsLabel}</span>
-                  ) : connectStatus === 'sent' ? (
-                    <span style={{ fontSize: 12, color: '#888' }}>{t.requestSent}</span>
-                  ) : (
-                    <button className="p-friend-add-btn p-friend-msg-btn" style={{ padding: '6px 14px', fontSize: 13 }}
-                      onClick={() => connectWithMember(member.id)}>
-                      + {mode === 'business' ? t.connectBtn : t.addFriend}
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  {!isSelf && (
+                    connectStatus === 'friend' ? (
+                      <span style={{ fontSize: 12, color: '#2D6A4F', fontWeight: 600 }}>✓ {mode === 'business' ? t.connectionsLabel : t.friendsLabel}</span>
+                    ) : connectStatus === 'sent' ? (
+                      <span style={{ fontSize: 12, color: '#888' }}>{t.requestSent}</span>
+                    ) : (
+                      <button className="p-friend-add-btn p-friend-msg-btn" style={{ padding: '6px 14px', fontSize: 13 }}
+                        onClick={() => connectWithMember(member.id)}>
+                        + {mode === 'business' ? t.connectBtn : t.addFriend}
+                      </button>
+                    )
+                  )}
+                  {isOwner && !isSelf && (
+                    <button
+                      onClick={() => {
+                        if (confirm(lang === 'da' ? `Fjern ${member.name}?` : `Remove ${member.name}?`)) {
+                          fetch(`/api/companies/${company.id}/members/${member.id}`, {
+                            method: 'DELETE',
+                            credentials: 'include',
+                          })
+                            .then(r => {
+                              if (r.ok) setCompanyMembers(prev => prev.filter(m => m.id !== member.id))
+                            })
+                            .catch(() => {})
+                        }
+                      }}
+                      style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #e74c3c', background: '#fff5f5', color: '#e74c3c', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}
+                    >
+                      ✕ {lang === 'da' ? 'Fjern' : 'Remove'}
                     </button>
-                  )
-                )}
+                  )}
+                </div>
               </div>
             )
           })}
@@ -11064,7 +11120,17 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
 
       {tab === 'about' && (
         <div className="p-card">
-          <h4 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 700 }}>{lang === 'da' ? 'Om' : 'About'} {company.name}</h4>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <h4 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{lang === 'da' ? 'Om' : 'About'} {company.name}</h4>
+            {isOwner && (
+              <button
+                onClick={() => setEditingCompany(true)}
+                style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #ddd', background: '#fff', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}
+              >
+                ✏️ {lang === 'da' ? 'Ret' : 'Edit'}
+              </button>
+            )}
+          </div>
           {company.description && (
             <p style={{ fontSize: 14, color: '#444', lineHeight: 1.6, margin: '0 0 16px' }}>{company.description}</p>
           )}
@@ -11132,6 +11198,12 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
                       <h3 style={{ margin: '0 0 2px', fontSize: 16, fontWeight: 700 }}>{job.title}</h3>
                       {isOwner && (
                         <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                          <button
+                            onClick={() => setEditingJob(job)}
+                            style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #ddd', background: '#fff', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}
+                          >
+                            ✏️ {lang === 'da' ? 'Ret' : 'Edit'}
+                          </button>
                           <button
                             onClick={() => {
                               if (confirm(lang === 'da' ? 'Slet denne annonce?' : 'Delete this job?')) {
@@ -11352,6 +11424,40 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
         </div>
       )}
 
+      {/* Edit job modal */}
+      {editingJob && (
+        <CreateJobModal
+          t={t}
+          lang={lang}
+          companies={[company]}
+          editJob={editingJob}
+          onClose={() => setEditingJob(null)}
+          onCreate={() => {
+            setEditingJob(null)
+            fetch(`/api/companies/${company.id}`, { credentials: 'include' })
+              .then(r => r.ok ? r.json() : null)
+              .then(data => setCompanyJobs(data?.jobs || []))
+              .catch(() => {})
+          }}
+        />
+      )}
+
+      {/* Edit company modal */}
+      {editingCompany && (
+        <CreateCompanyModal
+          t={t}
+          lang={lang}
+          currentUser={currentUser}
+          onClose={() => setEditingCompany(false)}
+          onCreate={() => {
+            setEditingCompany(false)
+            // Reload company data
+            window.location.reload()
+          }}
+          editCompany={company}
+        />
+      )}
+
       {/* Lead capture modal */}
       {showLeadForm && (
         <CompanyLeadModal company={company} t={t} lang={lang} onClose={() => setShowLeadForm(false)} />
@@ -11360,21 +11466,22 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
   )
 }
 
-function CreateCompanyModal({ t, lang, currentUser, onClose, onCreate }) {
-  const [name, setName] = useState('')
-  const [tagline, setTagline] = useState('')
-  const [website, setWebsite] = useState('')
-  const [industry, setIndustry] = useState('')
-  const [size, setSize] = useState('')
-  const [description, setDescription] = useState('')
-  const [cvr, setCvr] = useState('')
-  const [companyType, setCompanyType] = useState('')
-  const [address, setAddress] = useState('')
-  const [phone, setPhone] = useState('')
-  const [email, setEmail] = useState('')
-  const [linkedin, setLinkedin] = useState('')
-  const [foundedYear, setFoundedYear] = useState('')
-  const [logoUrl, setLogoUrl] = useState('')
+function CreateCompanyModal({ t, lang, currentUser, onClose, onCreate, editCompany }) {
+  const isEdit = !!editCompany
+  const [name, setName] = useState(editCompany?.name || '')
+  const [tagline, setTagline] = useState(editCompany?.tagline || '')
+  const [website, setWebsite] = useState(editCompany?.website || '')
+  const [industry, setIndustry] = useState(editCompany?.industry || '')
+  const [size, setSize] = useState(editCompany?.size || '')
+  const [description, setDescription] = useState(editCompany?.description || '')
+  const [cvr, setCvr] = useState(editCompany?.cvr || '')
+  const [companyType, setCompanyType] = useState(editCompany?.company_type || '')
+  const [address, setAddress] = useState(editCompany?.address || '')
+  const [phone, setPhone] = useState(editCompany?.phone || '')
+  const [email, setEmail] = useState(editCompany?.email || '')
+  const [linkedin, setLinkedin] = useState(editCompany?.linkedin || '')
+  const [foundedYear, setFoundedYear] = useState(editCompany?.founded_year || '')
+  const [logoUrl, setLogoUrl] = useState(editCompany?.logo_url || '')
 
   useEffect(() => {
     const h = (e) => { if (e.key === 'Escape') onClose() }
@@ -11389,40 +11496,60 @@ function CreateCompanyModal({ t, lang, currentUser, onClose, onCreate }) {
     e.preventDefault()
     if (!name.trim()) return
     try {
-      const handle = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-      const res = await fetch('/api/companies', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: name.trim(),
-          handle: `@${handle}`,
-          tagline: tagline.trim() || null,
-          website: website.trim() || null,
-          industry: industry.trim() || null,
-          size: size || null,
-          description: description.trim() || null,
-          color: nameToColor(name),
-          cvr: cvr.trim() || null,
-          company_type: companyType || null,
-          address: address.trim() || null,
-          phone: phone.trim() || null,
-          email: email.trim() || null,
-          linkedin: linkedin.trim() || null,
-          founded_year: foundedYear ? Number(foundedYear) : null,
-          logo_url: logoUrl.trim() || null,
-        }),
-      })
-      if (!res.ok) { const e = await res.json(); alert(e.error || 'Fejl'); return }
-      const company = await res.json()
-      onCreate({ ...company, member_role: 'owner', followers_count: 0 })
+      const payload = {
+        tagline: tagline.trim() || null,
+        website: website.trim() || null,
+        industry: industry.trim() || null,
+        size: size || null,
+        description: description.trim() || null,
+        cvr: cvr.trim() || null,
+        company_type: companyType || null,
+        address: address.trim() || null,
+        phone: phone.trim() || null,
+        email: email.trim() || null,
+        linkedin: linkedin.trim() || null,
+        founded_year: foundedYear ? Number(foundedYear) : null,
+        logo_url: logoUrl.trim() || null,
+      }
+
+      if (isEdit) {
+        // Edit existing company
+        payload.name = name.trim()
+        const res = await fetch(`/api/companies/${editCompany.id}`, {
+          method: 'PUT',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+        if (!res.ok) { const e = await res.json(); alert(e.error || 'Fejl'); return }
+        onCreate()
+      } else {
+        // Create new company
+        const handle = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+        const res = await fetch('/api/companies', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...payload,
+            name: name.trim(),
+            handle: `@${handle}`,
+            color: nameToColor(name),
+          }),
+        })
+        if (!res.ok) { const e = await res.json(); alert(e.error || 'Fejl'); return }
+        const company = await res.json()
+        onCreate({ ...company, member_role: 'owner', followers_count: 0 })
+      }
     } catch { alert(lang === 'da' ? 'Netværksfejl' : 'Network error') }
   }
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="p-event-create-modal" onClick={e => e.stopPropagation()}>
-        <h3 style={{ margin: '0 0 20px', fontSize: 18, fontWeight: 700 }}>🏢 {t.createCompany}</h3>
+        <h3 style={{ margin: '0 0 20px', fontSize: 18, fontWeight: 700 }}>
+          🏢 {isEdit ? (lang === 'da' ? 'Ret virksomhed' : 'Edit company') : t.createCompany}
+        </h3>
         <form onSubmit={handleSubmit}>
           <label style={lS}>{t.companyName} *</label>
           <input style={fS} value={name} onChange={e => setName(e.target.value)} required placeholder="Acme Corp" />
