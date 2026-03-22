@@ -7,10 +7,16 @@ function getSessionId() {
   return localStorage.getItem('fellis_session_id')
 }
 
+function getCsrfToken() {
+  return localStorage.getItem('fellis_csrf_token')
+}
+
 function headers() {
   const h = { 'Content-Type': 'application/json' }
   const sid = getSessionId()
   if (sid) h['X-Session-Id'] = sid
+  const csrf = getCsrfToken()
+  if (csrf) h['X-CSRF-Token'] = csrf
   return h
 }
 
@@ -134,6 +140,11 @@ export async function apiCheckSession() {
   } catch {
     return null // network unreachable — keep session
   }
+}
+
+// Get CSRF token for authenticated requests
+export async function apiGetCsrfToken() {
+  return await request('/api/csrf-token', { method: 'GET' })
 }
 
 export async function apiLogout() {
