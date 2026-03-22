@@ -1188,6 +1188,7 @@ app.post('/api/auth/login', strictLimit, async (req, res) => {
     )
     res.json({ sessionId, userId: user.id })
   } catch (err) {
+    console.error('[/api/auth/login] 500 error:', err)
     res.status(500).json({ error: 'Login failed' })
   }
 })
