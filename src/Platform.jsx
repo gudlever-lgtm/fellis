@@ -6524,6 +6524,12 @@ const GEO_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json'
 function MiniWorldMap({ countries, lang }) {
   const [zoom, setZoom] = useState(1)
   const [center, setCenter] = useState([10, 52]) // default: center on Europe
+
+  // Ensure countries is an array
+  if (!Array.isArray(countries) || countries.length === 0) {
+    return null
+  }
+
   const maxCount = Math.max(1, ...countries.map(c => c.count))
 
   const handleMoveEnd = ({ coordinates, zoom: z }) => {
@@ -6809,6 +6815,11 @@ function _fmtDay(dateStr) {
 
 function DailyBarChart({ data, color = '#2D6A4F', lang }) {
   const da = lang === 'da'
+
+  // Ensure data is an array
+  if (!Array.isArray(data) || data.length === 0) {
+    return null
+  }
 
   // Group by ISO week
   const weeks = []
