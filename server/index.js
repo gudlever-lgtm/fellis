@@ -4859,6 +4859,72 @@ app.get('/api/companies/:id/members', authenticate, async (req, res) => {
   }
 })
 
+// POST /api/companies/:id/members — add member to company
+app.post('/api/companies/:id/members', authenticate, async (req, res) => {
+  try {
+    // Check if requester is owner or admin
+    const [[isOwner]] = await pool.query(
+      "SELECT 1 FROM company_members WHERE company_id = ? AND user_id = ? AND role IN ('owner','admin')",
+      [req.params.id, req.userId]
+    )
+    if (!isOwner) return res.status(403).json({ error: 'Forbidden' })
+
+    const { user_id, role } = req.body
+    if (!user_id || !role) return res.status(400).json({ error: 'Missing user_id or role' })
+
+    // Find user by ID or email
+    let [[user]] = await pool.query('SELECT id FROM users WHERE id = ? OR email = ?', [user_id, user_id])
+    if (!user) return res.status(404).json({ error: 'User not found' })
+
+    // Add member
+    await pool.query(
+      'INSERT INTO company_members (company_id, user_id, role) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE role = ?',
+      [req.params.id, user.id, role, role]
+    )
+
+    // Return member with info
+    const [[member]] = await pool.query(
+      `SELECT u.id, u.name, u.handle, u.avatar_url, cm.role
+       FROM company_members cm JOIN users u ON u.id = cm.user_id
+       WHERE cm.company_id = ? AND cm.user_id = ?`,
+      [req.params.id, user.id]
+    )
+    res.json(member)
+  } catch (err) {
+    console.error('POST /api/companies/:id/members error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// DELETE /api/companies/:id/members/:userId — remove member from company
+app.delete('/api/companies/:id/members/:userId', authenticate, async (req, res) => {
+  try {
+    // Check if requester is owner or admin
+    const [[isOwner]] = await pool.query(
+      "SELECT 1 FROM company_members WHERE company_id = ? AND user_id = ? AND role IN ('owner','admin')",
+      [req.params.id, req.userId]
+    )
+    if (!isOwner) return res.status(403).json({ error: 'Forbidden' })
+
+    // Don't allow removing the owner
+    const [[isTargetOwner]] = await pool.query(
+      "SELECT 1 FROM company_members WHERE company_id = ? AND user_id = ? AND role = 'owner'",
+      [req.params.id, req.params.userId]
+    )
+    if (isTargetOwner) return res.status(400).json({ error: 'Cannot remove owner' })
+
+    // Remove member
+    await pool.query(
+      'DELETE FROM company_members WHERE company_id = ? AND user_id = ?',
+      [req.params.id, req.params.userId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/companies/:id/members/:userId error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // GET /api/companies/:id/followers — list of users following this company
 app.get('/api/companies/:id/followers', authenticate, async (req, res) => {
   try {
