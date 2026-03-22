@@ -89,6 +89,10 @@ async function addCol(table, col, def) {
   }
 }
 
+// ── Account Lockout — brute force protection ───────────────────────────────
+const MAX_LOGIN_ATTEMPTS = 5
+const LOCKOUT_DURATION_MINUTES = 15
+
 // ── Signal Engine — constants ─────────────────────────────────────────────────
 const SIGNAL_VALUES = {
   click: 3, dwell_short: 5, dwell_long: 10,
@@ -1092,10 +1096,18 @@ app.post('/api/auth/login', strictLimit, async (req, res) => {
   if (!email || !password) return res.status(400).json({ error: 'Email and password required' })
   try {
     const [users] = await pool.query(
-      'SELECT id, password_hash, password_plain, mfa_enabled, phone FROM users WHERE email = ?', [email]
+      'SELECT id, password_hash, password_plain, mfa_enabled, phone, failed_login_attempts, locked_until FROM users WHERE email = ?', [email]
     )
     if (users.length === 0) return res.status(401).json({ error: 'Invalid credentials' })
     const user = users[0]
+
+    // Check if account is locked due to brute force attempts
+    if (user.locked_until && new Date(user.locked_until) > new Date()) {
+      const minutesRemaining = Math.ceil((new Date(user.locked_until) - new Date()) / 60000)
+      return res.status(429).json({
+        error: `Account locked due to too many failed login attempts. Try again in ${minutesRemaining} minute${minutesRemaining !== 1 ? 's' : ''}.`
+      })
+    }
 
     // Verify password (support both bcrypt hash and legacy plaintext)
     let passwordValid = false
@@ -1110,7 +1122,36 @@ app.post('/api/auth/login', strictLimit, async (req, res) => {
       await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [bcryptHash, user.id])
     }
 
-    if (!passwordValid) return res.status(401).json({ error: 'Invalid credentials' })
+    if (!passwordValid) {
+      // Increment failed login attempts
+      const newAttempts = (user.failed_login_attempts || 0) + 1
+      const update = newAttempts >= MAX_LOGIN_ATTEMPTS
+        ? 'UPDATE users SET failed_login_attempts = ?, locked_until = DATE_ADD(NOW(), INTERVAL ? MINUTE) WHERE id = ?'
+        : 'UPDATE users SET failed_login_attempts = ? WHERE id = ?'
+
+      if (newAttempts >= MAX_LOGIN_ATTEMPTS) {
+        await pool.query(update, [newAttempts, LOCKOUT_DURATION_MINUTES, user.id])
+        // Audit log: account locked
+        await auditLog({ ...req, userId: user.id }, 'login_failed_account_locked', 'user', user.id, {
+          status: 'failure',
+          details: { attempts: newAttempts, reason: 'brute_force_protection' }
+        })
+        return res.status(429).json({
+          error: `Too many failed login attempts. Account locked for ${LOCKOUT_DURATION_MINUTES} minutes.`
+        })
+      } else {
+        await pool.query(update, [newAttempts, user.id])
+        // Audit log: failed login attempt
+        await auditLog({ ...req, userId: user.id }, 'login_failed', 'user', user.id, {
+          status: 'failure',
+          details: { attempts: newAttempts, remaining_before_lockout: MAX_LOGIN_ATTEMPTS - newAttempts }
+        })
+        return res.status(401).json({ error: 'Invalid credentials' })
+      }
+    }
+
+    // Password valid: reset failed attempts counter
+    await pool.query('UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = ?', [user.id])
 
     // MFA: if enabled and user has a phone number, send SMS code
     if (user.mfa_enabled && user.phone) {
@@ -2798,6 +2839,17 @@ app.post('/api/upload', authenticate, fileUploadLimit, upload.single('file'), as
   }
 
   const type = req.file.mimetype.startsWith('video/') ? 'video' : 'image'
+  // Audit log: file uploaded
+  await auditLog(req, 'file_upload', 'file', null, {
+    status: 'success',
+    details: {
+      filename: req.file.filename,
+      originalname: req.file.originalname,
+      size: req.file.size,
+      mimetype: req.file.mimetype,
+      type: type
+    }
+  })
   res.json({ url: `/uploads/${req.file.filename}`, type, mime: req.file.mimetype })
 })
 
@@ -7077,7 +7129,11 @@ app.post('/api/admin/users/:userId/force-disable-mfa', authenticate, requireAdmi
       'UPDATE users SET mfa_enabled = 0, mfa_code = NULL, mfa_code_expires = NULL WHERE id = ?',
       [userId]
     )
-    console.log(`Admin (user ${req.userId}) force-disabled MFA for user ${userId} (${user.name})`)
+    // Audit log: admin force-disabled MFA for user
+    await auditLog(req, 'admin_force_disable_mfa', 'user', parseInt(userId), {
+      status: 'success',
+      details: { target_user: user.name, reason: 'admin_action' }
+    })
     res.json({ ok: true })
   } catch (err) {
     console.error('POST /api/admin/users/:userId/force-disable-mfa error:', err.message)
@@ -9049,6 +9105,11 @@ app.post('/api/admin/moderation/content/remove', authenticate, requireModerator,
       'INSERT INTO moderation_actions (admin_id, action_type, target_type, target_id, reason) VALUES (?, "remove_content", ?, ?, ?)',
       [req.userId, type, target_id, reason || null]
     )
+    // Audit log: content removed by moderator
+    await auditLog(req, 'moderation_remove_content', type, parseInt(target_id), {
+      status: 'success',
+      details: { report_id: report_id || null, reason: reason || null }
+    })
     res.json({ ok: true })
   } catch (err) {
     console.error('POST /api/admin/moderation/content/remove error:', err)
@@ -9092,6 +9153,11 @@ app.post('/api/admin/moderation/users/:id/warn', authenticate, requireModerator,
         }).catch(() => {})
       }
     }
+    // Audit log: user warned by moderator
+    await auditLog(req, 'moderation_warn_user', 'user', targetId, {
+      status: 'success',
+      details: { report_id: report_id || null, reason: reason || null }
+    })
     res.json({ ok: true })
   } catch (err) {
     console.error('POST /api/admin/moderation/users/:id/warn error:', err)
@@ -9137,6 +9203,11 @@ app.post('/api/admin/moderation/users/:id/suspend', authenticate, requireAdmin, 
         }).catch(() => {})
       }
     }
+    // Audit log: user suspended by admin
+    await auditLog(req, 'moderation_suspend_user', 'user', targetId, {
+      status: 'success',
+      details: { days: days, report_id: report_id || null, reason: reason || null, suspended_until: suspendedUntil.toISOString() }
+    })
     res.json({ ok: true })
   } catch (err) {
     console.error('POST /api/admin/moderation/users/:id/suspend error:', err)
@@ -9172,6 +9243,11 @@ app.post('/api/admin/moderation/users/:id/ban', authenticate, requireAdmin, asyn
         }).catch(() => {})
       }
     }
+    // Audit log: user banned by admin
+    await auditLog(req, 'moderation_ban_user', 'user', targetId, {
+      status: 'success',
+      details: { report_id: report_id || null, reason: reason || null, permanent: true }
+    })
     res.json({ ok: true })
   } catch (err) {
     console.error('POST /api/admin/moderation/users/:id/ban error:', err)

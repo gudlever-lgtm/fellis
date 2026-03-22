@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import Landing from './Landing.jsx'
 import Platform from './Platform.jsx'
-import { apiCheckSession, apiLogout, apiGiveConsent, apiGetInviteInfo, apiTrackVisit, apiGetConsentStatus } from './api.js'
+import { apiCheckSession, apiLogout, apiGiveConsent, apiGetInviteInfo, apiTrackVisit, apiGetConsentStatus, apiGetCsrfToken } from './api.js'
 import { SUPPORTED_LANGS, detectLang, detectLangFromIP } from './data.js'
 import { USER_LS_KEY } from './hooks/useEasterEggs.js'
 import './App.css'
@@ -490,7 +490,7 @@ function App() {
 
     if (fbSession) {
       // Returning from Facebook OAuth — store session
-      localStorage.setItem('fellis_session_id', fbSession)
+      // Session ID now stored in HTTP-only cookie by server (fellis_sid)
       localStorage.setItem('fellis_logged_in', 'true')
       if (fbLang) {
         localStorage.setItem('fellis_lang', fbLang)
@@ -518,7 +518,7 @@ function App() {
     const googleSession = params.get('google_session')
     const googleConnected = params.get('google_connected')
     if (googleSession) {
-      localStorage.setItem('fellis_session_id', googleSession)
+      // Session stored in HTTP-only cookie
       localStorage.setItem('fellis_logged_in', 'true')
       setView('platform')
       window.history.replaceState({}, '', window.location.pathname)
@@ -532,7 +532,7 @@ function App() {
     const linkedinSession = params.get('linkedin_session')
     const linkedinConnected = params.get('linkedin_connected')
     if (linkedinSession) {
-      localStorage.setItem('fellis_session_id', linkedinSession)
+      // Session stored in HTTP-only cookie
       localStorage.setItem('fellis_logged_in', 'true')
       setView('platform')
       window.history.replaceState({}, '', window.location.pathname)
@@ -579,6 +579,11 @@ function App() {
         setView('platform')
         if (data.lang) setLang(data.lang)
         localStorage.setItem('fellis_logged_in', 'true')
+        // Fetch CSRF token for authenticated requests
+        const csrfData = await apiGetCsrfToken().catch(() => null)
+        if (csrfData?.csrfToken) {
+          localStorage.setItem('fellis_csrf_token', csrfData.csrfToken)
+        }
         // Check if user has given data_processing consent — show dialog if not
         const consentData = await apiGetConsentStatus().catch(() => null)
         if (consentData && !consentData.data_processing?.given) {
@@ -588,7 +593,8 @@ function App() {
         // Genuine 401/403 — session is invalid, clear it
         const hadSession = localStorage.getItem('fellis_logged_in') === 'true'
         localStorage.removeItem('fellis_logged_in')
-        localStorage.removeItem('fellis_session_id')
+        // Session cookie automatically managed by browser
+        localStorage.removeItem('fellis_csrf_token')
         if (hadSession) setSessionExpired(true)
         setView('landing')
       } else {
@@ -607,6 +613,12 @@ function App() {
     localStorage.removeItem('fellis_invite_token')
     setInviteToken(null)
     setInviterName(null)
+    // Fetch CSRF token for authenticated requests
+    apiGetCsrfToken().then(csrfData => {
+      if (csrfData?.csrfToken) {
+        localStorage.setItem('fellis_csrf_token', csrfData.csrfToken)
+      }
+    }).catch(() => {})
     // Check if existing user has given data_processing consent
     apiGetConsentStatus().then(data => {
       if (data && !data.data_processing?.given) setShowGeneralConsent(true)
@@ -617,7 +629,8 @@ function App() {
     setView('landing')
     localStorage.removeItem('fellis_logged_in')
     localStorage.removeItem('fellis_lang')
-    localStorage.removeItem('fellis_session_id')
+    // Session cookie automatically managed by browser
+    localStorage.removeItem('fellis_csrf_token')
     localStorage.removeItem(USER_LS_KEY)
     apiLogout().catch(() => {})
   }, [])
