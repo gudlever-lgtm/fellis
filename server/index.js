@@ -1153,11 +1153,10 @@ app.post('/api/auth/login', strictLimit, async (req, res) => {
       // Bcrypt hash
       passwordValid = await bcrypt.compare(password, user.password_hash)
     } else if (user.password_plain === password) {
-      // Legacy plaintext match
+      // Legacy plaintext match — migrate to bcrypt and clear plaintext
       passwordValid = true
-      // Migrate to bcrypt: hash the password and store new hash
       const bcryptHash = await bcrypt.hash(password, 10)
-      await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [bcryptHash, user.id])
+      await pool.query('UPDATE users SET password_hash = ?, password_plain = NULL WHERE id = ?', [bcryptHash, user.id])
     }
 
     if (!passwordValid) {
@@ -2294,8 +2293,8 @@ app.patch('/api/profile/email', authenticate, async (req, res) => {
   try {
     const [[user]] = await pool.query('SELECT password_hash, mfa_enabled FROM users WHERE id = ?', [req.userId])
     if (!user) return res.status(404).json({ error: 'User not found' })
-    const hash = crypto.createHash('sha256').update(password).digest('hex')
-    if (hash !== user.password_hash) return res.status(401).json({ error: 'Wrong password' })
+    const passwordMatch = user.password_hash && await bcrypt.compare(password, user.password_hash)
+    if (!passwordMatch) return res.status(401).json({ error: 'Wrong password' })
     // MFA check
     if (user.mfa_enabled) {
       if (!mfaCode) return res.status(403).json({ error: 'mfa_required' })
