@@ -105,10 +105,6 @@ export async function apiSendSettingsMfa() {
   return await request('/api/auth/send-settings-mfa', { method: 'POST' })
 }
 
-export async function apiRevealPassword(mfaCode) {
-  return await request('/api/auth/reveal-password', { method: 'POST', body: JSON.stringify({ mfaCode }) })
-}
-
 export async function apiGetAdminMfaUsers() {
   return await request('/api/admin/mfa-users')
 }

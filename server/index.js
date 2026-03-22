@@ -517,6 +517,29 @@ const FB_DATA_RETENTION_DAYS = parseInt(process.env.FB_DATA_RETENTION_DAYS || '9
 const app = express()
 app.use(express.json())
 
+// ── CORS Configuration — explicit whitelist ────────────────────────────────
+const ALLOWED_ORIGINS = [
+  'https://fellis.eu',
+  'https://www.fellis.eu',
+  'http://localhost:5173',    // Vite dev server
+  'http://localhost:3000',    // Alternative dev server
+  process.env.SITE_URL,       // From environment
+].filter(Boolean)
+
+app.use((req, res, next) => {
+  const origin = req.headers.origin
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    res.set('Access-Control-Allow-Origin', origin)
+    res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
+    res.set('Access-Control-Allow-Headers', 'Content-Type, X-Session-Id, Authorization')
+    res.set('Access-Control-Allow-Credentials', 'true')
+    res.set('Access-Control-Max-Age', '86400') // 24 hours
+  }
+  // Always handle preflight
+  if (req.method === 'OPTIONS') return res.sendStatus(204)
+  next()
+})
+
 // ── Rate limiting — in-memory, per IP + per user ──────────────────────────
 // Buckets: Map<key, { count, resetAt }>
 const _rl = new Map()
@@ -608,7 +631,54 @@ function setSessionCookie(res, sessionId) {
 }
 
 function clearSessionCookie(res) {
-  res.clearCookie(COOKIE_NAME, { path: '/' })
+  res.clearCookie(COOKIE_NAME, {
+    path: '/',
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+  })
+}
+
+// ── CSRF Token Helpers ─────────────────────────────────────────────────────
+const CSRF_SECRET = process.env.CSRF_SECRET || crypto.randomBytes(32).toString('hex')
+
+function generateCsrfToken(sessionId) {
+  // Generate CSRF token: HMAC-SHA256(session_id, secret)
+  return crypto
+    .createHmac('sha256', CSRF_SECRET)
+    .update(sessionId)
+    .digest('hex')
+}
+
+function verifyCsrfToken(sessionId, token) {
+  // Timing-safe comparison
+  const expected = generateCsrfToken(sessionId)
+  return crypto.timingSafeEqual(
+    Buffer.from(token || ''),
+    Buffer.from(expected)
+  ).valueOf()
+}
+
+// CSRF validation middleware for state-changing requests
+function validateCsrf(req, res, next) {
+  // Skip CSRF for GET/HEAD/OPTIONS
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next()
+
+  const sessionId = getSessionIdFromRequest(req)
+  if (!sessionId) return res.status(401).json({ error: 'Not authenticated' })
+
+  const csrfToken = req.headers['x-csrf-token'] || req.body?.csrf_token
+  if (!csrfToken) return res.status(403).json({ error: 'CSRF token required' })
+
+  try {
+    if (!verifyCsrfToken(sessionId, csrfToken)) {
+      return res.status(403).json({ error: 'Invalid CSRF token' })
+    }
+    next()
+  } catch (err) {
+    // Timing safe comparison may fail if token is malformed
+    res.status(403).json({ error: 'Invalid CSRF token' })
+  }
 }
 
 function getSessionIdFromRequest(req) {
@@ -1306,6 +1376,18 @@ app.post('/api/auth/logout', authenticate, async (req, res) => {
   await pool.query('DELETE FROM sessions WHERE id = ?', [sessionId])
   clearSessionCookie(res)
   res.json({ ok: true })
+})
+
+// GET /api/csrf-token — get CSRF token for this session (must be authenticated)
+app.get('/api/csrf-token', authenticate, async (req, res) => {
+  try {
+    const sessionId = getSessionIdFromRequest(req)
+    if (!sessionId) return res.status(401).json({ error: 'Not authenticated' })
+    const csrfToken = generateCsrfToken(sessionId)
+    res.json({ csrfToken })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to generate CSRF token' })
+  }
 })
 
 // GET /api/auth/session — check if session is valid
@@ -2032,24 +2114,6 @@ async function verifySettingsMfaCode(userId, mfaCode) {
   await pool.query('UPDATE users SET mfa_code = NULL, mfa_code_expires = NULL WHERE id = ?', [userId])
   return true
 }
-
-// POST /api/auth/reveal-password — return plaintext password after MFA verification
-app.post('/api/auth/reveal-password', authenticate, async (req, res) => {
-  const { mfaCode } = req.body
-  try {
-    const [[user]] = await pool.query('SELECT mfa_enabled, password_plain FROM users WHERE id = ?', [req.userId])
-    if (!user) return res.status(404).json({ error: 'User not found' })
-    if (!user.mfa_enabled) return res.status(403).json({ error: 'MFA must be enabled to reveal password' })
-    if (!mfaCode) return res.status(403).json({ error: 'mfa_required' })
-    const mfaOk = await verifySettingsMfaCode(req.userId, mfaCode)
-    if (!mfaOk) return res.status(401).json({ error: 'Invalid or expired MFA code' })
-    if (!user.password_plain) return res.status(404).json({ error: 'No stored password' })
-    res.json({ password: user.password_plain })
-  } catch (err) {
-    console.error('POST /api/auth/reveal-password error:', err.message)
-    res.status(500).json({ error: 'Server error' })
-  }
-})
 
 // PATCH /api/profile/email — change email address
 app.patch('/api/profile/email', authenticate, async (req, res) => {
