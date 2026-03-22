@@ -916,6 +916,20 @@ addCol('conversations', 'description_da', 'TEXT DEFAULT NULL')
 addCol('conversations', 'description_en', 'TEXT DEFAULT NULL')
   .catch(err => console.error('Migration (conversations.description_en):', err.message))
 
+// Platform ads table
+pool.query(`CREATE TABLE IF NOT EXISTS platform_ads (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  title VARCHAR(255) NOT NULL,
+  image_url VARCHAR(2000) DEFAULT NULL,
+  link_url VARCHAR(2000) NOT NULL,
+  zone VARCHAR(50) DEFAULT 'display',
+  mode VARCHAR(20) DEFAULT 'all',
+  status ENUM('active','inactive') DEFAULT 'active',
+  start_date DATE DEFAULT NULL,
+  end_date DATE DEFAULT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)`).catch(err => console.error('Migration (platform_ads table):', err.message))
+
 // Serve uploads with security headers (no script execution, no sniffing)
 app.use('/uploads', (req, res, next) => {
   // Block anything that isn't GET
@@ -7256,6 +7270,92 @@ app.post('/api/admin/users/:userId/force-disable-mfa', authenticate, requireAdmi
     res.json({ ok: true })
   } catch (err) {
     console.error('POST /api/admin/users/:userId/force-disable-mfa error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/admin/locked-users — list accounts locked due to brute-force (admin only)
+app.get('/api/admin/locked-users', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, name, email, failed_login_attempts, locked_until
+       FROM users
+       WHERE locked_until IS NOT NULL AND locked_until > NOW()
+       ORDER BY locked_until DESC`
+    )
+    res.json({ users: rows })
+  } catch (err) {
+    console.error('GET /api/admin/locked-users error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/admin/users/:userId/unlock — reset login lock for a user (admin only)
+app.post('/api/admin/users/:userId/unlock', authenticate, requireAdmin, async (req, res) => {
+  const userId = parseInt(req.params.userId)
+  if (!userId) return res.status(400).json({ error: 'Invalid user id' })
+  try {
+    const [[user]] = await pool.query('SELECT id, name FROM users WHERE id = ?', [userId])
+    if (!user) return res.status(404).json({ error: 'User not found' })
+    await pool.query('UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = ?', [userId])
+    await auditLog(req, 'admin_unlock_account', 'user', userId, {
+      status: 'success',
+      details: { target_user: user.name, reason: 'admin_manual_unlock' }
+    })
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/admin/users/:userId/unlock error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Platform ads (admin-managed) ─────────────────────────────────────────────
+app.get('/api/admin/platform-ads', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [ads] = await pool.query(
+      'SELECT * FROM platform_ads ORDER BY created_at DESC'
+    ).catch(() => [[]])
+    res.json({ ads })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.post('/api/admin/platform-ads', authenticate, requireAdmin, async (req, res) => {
+  const { title, image_url, link_url, zone, mode, active, start_date, end_date } = req.body
+  if (!title || !link_url) return res.status(400).json({ error: 'title and link_url required' })
+  try {
+    const [result] = await pool.query(
+      'INSERT INTO platform_ads (title, image_url, link_url, zone, mode, status, start_date, end_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [title, image_url || null, link_url, zone || 'display', mode || 'all', active ? 'active' : 'inactive', start_date || null, end_date || null]
+    )
+    res.json({ ok: true, id: result.insertId })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.put('/api/admin/platform-ads/:id', authenticate, requireAdmin, async (req, res) => {
+  const id = parseInt(req.params.id)
+  const { title, image_url, link_url, zone, mode, active, start_date, end_date } = req.body
+  if (!title || !link_url) return res.status(400).json({ error: 'title and link_url required' })
+  try {
+    await pool.query(
+      'UPDATE platform_ads SET title=?, image_url=?, link_url=?, zone=?, mode=?, status=?, start_date=?, end_date=? WHERE id=?',
+      [title, image_url || null, link_url, zone || 'display', mode || 'all', active ? 'active' : 'inactive', start_date || null, end_date || null, id]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.delete('/api/admin/platform-ads/:id', authenticate, requireAdmin, async (req, res) => {
+  const id = parseInt(req.params.id)
+  try {
+    await pool.query('DELETE FROM platform_ads WHERE id = ?', [id])
+    res.json({ ok: true })
+  } catch (err) {
     res.status(500).json({ error: 'Server error' })
   }
 })
