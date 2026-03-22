@@ -517,6 +517,29 @@ const FB_DATA_RETENTION_DAYS = parseInt(process.env.FB_DATA_RETENTION_DAYS || '9
 const app = express()
 app.use(express.json())
 
+// ── CORS Configuration — explicit whitelist ────────────────────────────────
+const ALLOWED_ORIGINS = [
+  'https://fellis.eu',
+  'https://www.fellis.eu',
+  'http://localhost:5173',    // Vite dev server
+  'http://localhost:3000',    // Alternative dev server
+  process.env.SITE_URL,       // From environment
+].filter(Boolean)
+
+app.use((req, res, next) => {
+  const origin = req.headers.origin
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    res.set('Access-Control-Allow-Origin', origin)
+    res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
+    res.set('Access-Control-Allow-Headers', 'Content-Type, X-Session-Id, Authorization')
+    res.set('Access-Control-Allow-Credentials', 'true')
+    res.set('Access-Control-Max-Age', '86400') // 24 hours
+  }
+  // Always handle preflight
+  if (req.method === 'OPTIONS') return res.sendStatus(204)
+  next()
+})
+
 // ── Rate limiting — in-memory, per IP + per user ──────────────────────────
 // Buckets: Map<key, { count, resetAt }>
 const _rl = new Map()
@@ -549,6 +572,12 @@ const strictLimit = rateLimit({ windowMs: 60_000, max: 30 })
 const writeLimit = rateLimit({
   windowMs: 60_000, max: 60,
   keyFn: (req) => (req.userId ? `u:${req.userId}` : req.ip),
+})
+// File upload limiter: 10 uploads/hour per user (to prevent DoS/storage exhaustion)
+const fileUploadLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, max: 10,
+  keyFn: (req) => (req.userId ? `u:${req.userId}` : req.ip),
+  message: 'Too many file uploads — max 10 per hour'
 })
 
 // ── Serve built frontend (assets/, index.html, public/) ───────────────────
@@ -608,7 +637,89 @@ function setSessionCookie(res, sessionId) {
 }
 
 function clearSessionCookie(res) {
-  res.clearCookie(COOKIE_NAME, { path: '/' })
+  res.clearCookie(COOKIE_NAME, {
+    path: '/',
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+  })
+}
+
+// ── CSRF Token Helpers ─────────────────────────────────────────────────────
+const CSRF_SECRET = process.env.CSRF_SECRET || crypto.randomBytes(32).toString('hex')
+
+function generateCsrfToken(sessionId) {
+  // Generate CSRF token: HMAC-SHA256(session_id, secret)
+  return crypto
+    .createHmac('sha256', CSRF_SECRET)
+    .update(sessionId)
+    .digest('hex')
+}
+
+function verifyCsrfToken(sessionId, token) {
+  // Timing-safe comparison
+  const expected = generateCsrfToken(sessionId)
+  return crypto.timingSafeEqual(
+    Buffer.from(token || ''),
+    Buffer.from(expected)
+  ).valueOf()
+}
+
+// CSRF validation middleware for state-changing requests
+function validateCsrf(req, res, next) {
+  // Skip CSRF for GET/HEAD/OPTIONS
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next()
+
+  const sessionId = getSessionIdFromRequest(req)
+  if (!sessionId) return res.status(401).json({ error: 'Not authenticated' })
+
+  const csrfToken = req.headers['x-csrf-token'] || req.body?.csrf_token
+  if (!csrfToken) return res.status(403).json({ error: 'CSRF token required' })
+
+  try {
+    if (!verifyCsrfToken(sessionId, csrfToken)) {
+      return res.status(403).json({ error: 'Invalid CSRF token' })
+    }
+    next()
+  } catch (err) {
+    // Timing safe comparison may fail if token is malformed
+    res.status(403).json({ error: 'Invalid CSRF token' })
+  }
+}
+
+// ── Audit Logging Helper ───────────────────────────────────────────────────
+// Logs security-relevant events for compliance and monitoring
+async function auditLog(req, action, resourceType = null, resourceId = null, {
+  status = 'success',
+  oldValue = null,
+  newValue = null,
+  details = null,
+} = {}) {
+  const userId = req.userId || null
+  const ipAddress = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null
+  const userAgent = req.headers['user-agent'] || null
+
+  try {
+    await pool.query(
+      `INSERT INTO audit_logs (user_id, action, resource_type, resource_id, old_value, new_value, ip_address, user_agent, status, details)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        userId,
+        action,
+        resourceType,
+        resourceId,
+        oldValue ? JSON.stringify(oldValue) : null,
+        newValue ? JSON.stringify(newValue) : null,
+        ipAddress,
+        userAgent,
+        status,
+        details ? JSON.stringify(details) : null,
+      ]
+    )
+  } catch (err) {
+    console.error(`[AUDIT LOG ERROR] ${action}:`, err.message)
+    // Don't throw — logging failures shouldn't break the main operation
+  }
 }
 
 function getSessionIdFromRequest(req) {
@@ -874,6 +985,14 @@ async function authenticate(req, res, next) {
       }
     }
 
+    // Load admin role from admin_roles table (replaces hardcoded user.id === 1)
+    const [adminRows] = await pool.query(
+      'SELECT role FROM admin_roles WHERE user_id = ?', [req.userId]
+    ).catch(() => []) // Silently fail if table doesn't exist yet
+    req.adminRole = adminRows.length > 0 ? adminRows[0].role : null
+    // Backward compatibility: Grant super_admin to original admin
+    if (req.userId === 1 && !req.adminRole) req.adminRole = 'super_admin'
+
     // Track site visit once per session per calendar day
     const todayKey = `${sessionId}:${new Date().toISOString().slice(0, 10)}`
     if (!visitedSessions.has(todayKey)) {
@@ -1018,6 +1137,14 @@ app.post('/api/auth/login', strictLimit, async (req, res) => {
       [sessionId, user.id, lang || 'da', ua, ip]
     )
     setSessionCookie(res, sessionId)
+    // Audit log: successful login
+    await auditLog(
+      { ...req, userId: user.id },
+      'login',
+      'user',
+      user.id,
+      { status: 'success', details: { mfa_enabled: !!user.mfa_enabled } }
+    )
     res.json({ sessionId, userId: user.id })
   } catch (err) {
     res.status(500).json({ error: 'Login failed' })
@@ -1159,7 +1286,7 @@ app.post('/api/auth/forgot-password', strictLimit, async (req, res) => {
 })
 
 // POST /api/auth/reset-password — set new password using reset token
-app.post('/api/auth/reset-password', async (req, res) => {
+app.post('/api/auth/reset-password', strictLimit, async (req, res) => {
   const { token, password, lang: resetLang } = req.body
   if (!token || !password) return res.status(400).json({ error: 'Token and password required' })
   const resetPolicy = await getPasswordPolicy()
@@ -1229,12 +1356,14 @@ app.post('/api/auth/verify-mfa', strictLimit, async (req, res) => {
 })
 
 // POST /api/auth/enable-mfa — enable SMS MFA for current user (requires phone on account)
-app.post('/api/auth/enable-mfa', authenticate, async (req, res) => {
+app.post('/api/auth/enable-mfa', authenticate, writeLimit, async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT phone FROM users WHERE id = ?', [req.userId])
     if (rows.length === 0) return res.status(404).json({ error: 'User not found' })
     if (!rows[0].phone) return res.status(400).json({ error: 'A phone number is required to enable MFA' })
     await pool.query('UPDATE users SET mfa_enabled = 1 WHERE id = ?', [req.userId])
+    // Audit log: MFA enabled
+    await auditLog(req, 'mfa_enable', 'user', req.userId, { status: 'success' })
     res.json({ ok: true, mfa_enabled: true })
   } catch (err) {
     res.status(500).json({ error: 'Failed to enable MFA' })
@@ -1242,12 +1371,14 @@ app.post('/api/auth/enable-mfa', authenticate, async (req, res) => {
 })
 
 // POST /api/auth/disable-mfa — disable SMS MFA for current user
-app.post('/api/auth/disable-mfa', authenticate, async (req, res) => {
+app.post('/api/auth/disable-mfa', authenticate, writeLimit, async (req, res) => {
   try {
     await pool.query(
       'UPDATE users SET mfa_enabled = 0, mfa_code = NULL, mfa_code_expires = NULL WHERE id = ?',
       [req.userId]
     )
+    // Audit log: MFA disabled
+    await auditLog(req, 'mfa_disable', 'user', req.userId, { status: 'success' })
     res.json({ ok: true, mfa_enabled: false })
   } catch (err) {
     res.status(500).json({ error: 'Failed to disable MFA' })
@@ -1255,7 +1386,7 @@ app.post('/api/auth/disable-mfa', authenticate, async (req, res) => {
 })
 
 // POST /api/auth/send-settings-mfa — send SMS MFA code for sensitive settings changes
-app.post('/api/auth/send-settings-mfa', authenticate, async (req, res) => {
+app.post('/api/auth/send-settings-mfa', authenticate, writeLimit, async (req, res) => {
   try {
     const [[user]] = await pool.query('SELECT phone, mfa_enabled FROM users WHERE id = ?', [req.userId])
     if (!user) return res.status(404).json({ error: 'User not found' })
@@ -1306,6 +1437,18 @@ app.post('/api/auth/logout', authenticate, async (req, res) => {
   await pool.query('DELETE FROM sessions WHERE id = ?', [sessionId])
   clearSessionCookie(res)
   res.json({ ok: true })
+})
+
+// GET /api/csrf-token — get CSRF token for this session (must be authenticated)
+app.get('/api/csrf-token', authenticate, async (req, res) => {
+  try {
+    const sessionId = getSessionIdFromRequest(req)
+    if (!sessionId) return res.status(401).json({ error: 'Not authenticated' })
+    const csrfToken = generateCsrfToken(sessionId)
+    res.json({ csrfToken })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to generate CSRF token' })
+  }
 })
 
 // GET /api/auth/session — check if session is valid
@@ -1993,7 +2136,7 @@ app.patch('/api/me/profile-extended', authenticate, async (req, res) => {
 })
 
 // POST /api/profile/avatar — upload profile picture
-app.post('/api/profile/avatar', authenticate, upload.single('avatar'), async (req, res) => {
+app.post('/api/profile/avatar', authenticate, fileUploadLimit, upload.single('avatar'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' })
   // Validate magic bytes
   const header = Buffer.alloc(16)
@@ -2032,24 +2175,6 @@ async function verifySettingsMfaCode(userId, mfaCode) {
   await pool.query('UPDATE users SET mfa_code = NULL, mfa_code_expires = NULL WHERE id = ?', [userId])
   return true
 }
-
-// POST /api/auth/reveal-password — return plaintext password after MFA verification
-app.post('/api/auth/reveal-password', authenticate, async (req, res) => {
-  const { mfaCode } = req.body
-  try {
-    const [[user]] = await pool.query('SELECT mfa_enabled, password_plain FROM users WHERE id = ?', [req.userId])
-    if (!user) return res.status(404).json({ error: 'User not found' })
-    if (!user.mfa_enabled) return res.status(403).json({ error: 'MFA must be enabled to reveal password' })
-    if (!mfaCode) return res.status(403).json({ error: 'mfa_required' })
-    const mfaOk = await verifySettingsMfaCode(req.userId, mfaCode)
-    if (!mfaOk) return res.status(401).json({ error: 'Invalid or expired MFA code' })
-    if (!user.password_plain) return res.status(404).json({ error: 'No stored password' })
-    res.json({ password: user.password_plain })
-  } catch (err) {
-    console.error('POST /api/auth/reveal-password error:', err.message)
-    res.status(500).json({ error: 'Server error' })
-  }
-})
 
 // PATCH /api/profile/email — change email address
 app.patch('/api/profile/email', authenticate, async (req, res) => {
@@ -2100,6 +2225,8 @@ app.patch('/api/profile/password', authenticate, async (req, res) => {
     }
     const newHash = await bcrypt.hash(newPassword, 10)
     await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [newHash, req.userId])
+    // Audit log: password changed
+    await auditLog(req, 'password_change', 'user', req.userId, { status: 'success' })
     res.json({ ok: true })
   } catch (err) {
     console.error('PATCH /api/profile/password error:', err.message)
@@ -2657,7 +2784,7 @@ app.post('/api/feed', authenticate, writeLimit, upload.array('media', 4), async 
 })
 
 // POST /api/upload — standalone upload endpoint (for drag-and-drop preview)
-app.post('/api/upload', authenticate, upload.single('file'), async (req, res) => {
+app.post('/api/upload', authenticate, fileUploadLimit, upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' })
 
   // Validate magic bytes
@@ -6397,7 +6524,10 @@ async function getFeedWeights() {
 
 function requireAdmin(req, res, next) {
   if (!req.userId) return res.status(401).json({ error: 'Not authenticated' })
-  if (req.userId !== 1) return res.status(403).json({ error: 'Admin only' })
+  // Allow super_admin or admin roles (backward compat: user ID 1 always admin)
+  if (req.userId !== 1 && (!req.adminRole || !['super_admin', 'admin'].includes(req.adminRole))) {
+    return res.status(403).json({ error: 'Admin only' })
+  }
   next()
 }
 
@@ -7419,7 +7549,7 @@ app.get('/api/reels', authenticate, async (req, res) => {
 })
 
 // POST /api/reels — upload a reel
-app.post('/api/reels', authenticate, reelUpload.single('video'), async (req, res) => {
+app.post('/api/reels', authenticate, fileUploadLimit, reelUpload.single('video'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No video file provided' })
     const caption = (req.body.caption || '').trim().slice(0, 2000) || null
