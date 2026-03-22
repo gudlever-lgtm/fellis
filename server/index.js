@@ -4547,9 +4547,14 @@ app.get('/api/companies/:id', authenticate, async (req, res) => {
 
     const [jobs] = await pool.query(
       `SELECT j.*,
-              (SELECT COUNT(*) > 0 FROM job_saves WHERE job_id = j.id AND user_id = ?) AS saved
-       FROM jobs j WHERE j.company_id = ? AND j.active = 1 ORDER BY j.created_at DESC`,
-      [req.userId, req.params.id]
+              (SELECT COUNT(*) > 0 FROM job_saves WHERE job_id = j.id AND user_id = ?) AS saved,
+              COUNT(DISTINCT sj.shared_with_user_id) AS share_count
+       FROM jobs j
+       LEFT JOIN shared_jobs sj ON j.id = sj.job_id AND sj.shared_by_user_id = ?
+       WHERE j.company_id = ? AND j.active = 1
+       GROUP BY j.id
+       ORDER BY j.created_at DESC`,
+      [req.userId, req.userId, req.params.id]
     )
 
     res.json({ company, posts, jobs })
