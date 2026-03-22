@@ -10680,6 +10680,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
   const [sharedWithUsers, setSharedWithUsers] = useState([])
   const [sharesLoading, setSharesLoading] = useState(false)
   const [leadsLoading, setLeadsLoading] = useState(false)
+  const [editingJob, setEditingJob] = useState(null)
 
   useEffect(() => {
     setPostsLoading(true)
@@ -11133,6 +11134,12 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
                       {isOwner && (
                         <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                           <button
+                            onClick={() => setEditingJob(job)}
+                            style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #ddd', background: '#fff', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}
+                          >
+                            ✏️ {lang === 'da' ? 'Ret' : 'Edit'}
+                          </button>
+                          <button
                             onClick={() => {
                               if (confirm(lang === 'da' ? 'Slet denne annonce?' : 'Delete this job?')) {
                                 fetch(`/api/jobs/${job.id}`, { method: 'DELETE', credentials: 'include' })
@@ -11350,6 +11357,24 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
             )}
           </div>
         </div>
+      )}
+
+      {/* Edit job modal */}
+      {editingJob && (
+        <CreateJobModal
+          t={t}
+          lang={lang}
+          companies={[company]}
+          editJob={editingJob}
+          onClose={() => setEditingJob(null)}
+          onCreate={() => {
+            setEditingJob(null)
+            fetch(`/api/companies/${company.id}`, { credentials: 'include' })
+              .then(r => r.ok ? r.json() : null)
+              .then(data => setCompanyJobs(data?.jobs || []))
+              .catch(() => {})
+          }}
+        />
       )}
 
       {/* Lead capture modal */}
