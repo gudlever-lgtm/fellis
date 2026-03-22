@@ -6816,6 +6816,8 @@ function _fmtDay(dateStr) {
 
 function DailyBarChart({ data, color = '#2D6A4F', lang }) {
   const da = lang === 'da'
+  const [weekIdx, setWeekIdx] = useState(0)
+  const [zoomedOut, setZoomedOut] = useState(false)
 
   // Ensure data is an array
   if (!Array.isArray(data) || data.length === 0) {
@@ -6833,10 +6835,8 @@ function DailyBarChart({ data, color = '#2D6A4F', lang }) {
     weekMap[key].days.push(d)
   })
 
-  const [weekIdx, setWeekIdx] = useState(weeks.length - 1)
-  const [zoomedOut, setZoomedOut] = useState(false)
-
-  const currentWeek = weeks[Math.min(weekIdx, weeks.length - 1)]
+  const correctedWeekIdx = Math.min(weekIdx, weeks.length - 1)
+  const currentWeek = weeks[correctedWeekIdx]
   const allMax = Math.max(1, ...data.map(d => d.count))
   const weekMax = currentWeek ? Math.max(1, ...currentWeek.days.map(d => d.count)) : 1
 
@@ -6885,14 +6885,14 @@ function DailyBarChart({ data, color = '#2D6A4F', lang }) {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        {navBtn(weekIdx === 0, () => setWeekIdx(i => Math.max(0, i - 1)), '‹')}
+        {navBtn(correctedWeekIdx === 0, () => setWeekIdx(i => Math.max(0, i - 1)), '‹')}
         <div style={{ textAlign: 'center', fontSize: 13, fontWeight: 700, color: '#555' }}>
           {da ? `Uge ${currentWeek.week}` : `Week ${currentWeek.week}`}
           <span style={{ fontWeight: 400, fontSize: 11, color: '#aaa', marginLeft: 6 }}>
             ({_fmtDay(currentWeek.days[0].date)}{currentWeek.days.length > 1 ? ` – ${_fmtDay(currentWeek.days[currentWeek.days.length - 1].date)}` : ''})
           </span>
         </div>
-        {navBtn(weekIdx >= weeks.length - 1, () => setWeekIdx(i => Math.min(weeks.length - 1, i + 1)), '›')}
+        {navBtn(correctedWeekIdx >= weeks.length - 1, () => setWeekIdx(i => Math.min(weeks.length - 1, i + 1)), '›')}
       </div>
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 80 }}>
         {currentWeek.days.map(d => (
