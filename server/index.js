@@ -985,6 +985,14 @@ async function authenticate(req, res, next) {
       }
     }
 
+    // Load admin role from admin_roles table (replaces hardcoded user.id === 1)
+    const [adminRows] = await pool.query(
+      'SELECT role FROM admin_roles WHERE user_id = ?', [req.userId]
+    ).catch(() => []) // Silently fail if table doesn't exist yet
+    req.adminRole = adminRows.length > 0 ? adminRows[0].role : null
+    // Backward compatibility: Grant super_admin to original admin
+    if (req.userId === 1 && !req.adminRole) req.adminRole = 'super_admin'
+
     // Track site visit once per session per calendar day
     const todayKey = `${sessionId}:${new Date().toISOString().slice(0, 10)}`
     if (!visitedSessions.has(todayKey)) {
@@ -6516,7 +6524,10 @@ async function getFeedWeights() {
 
 function requireAdmin(req, res, next) {
   if (!req.userId) return res.status(401).json({ error: 'Not authenticated' })
-  if (req.userId !== 1) return res.status(403).json({ error: 'Admin only' })
+  // Allow super_admin or admin roles (backward compat: user ID 1 always admin)
+  if (req.userId !== 1 && (!req.adminRole || !['super_admin', 'admin'].includes(req.adminRole))) {
+    return res.status(403).json({ error: 'Admin only' })
+  }
   next()
 }
 
