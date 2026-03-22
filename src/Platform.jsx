@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } f
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { SUPPORTED_LANGS, EUROPEAN_LANGUAGES, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials, getTranslations } from './data.js'
 import { formatPrice } from './utils/currency.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiShareJob, apiUnshareJob, apiGetSharedJobs, apiGetJobSharedWith, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals, apiFetchCalendarReminders, apiCreateCalendarReminder, apiDeleteCalendarReminder, apiGetLinkedContent, apiFetchJobs, apiGetSuggestedUsers, apiAdminNotifyAll } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiShareJob, apiUnshareJob, apiGetSharedJobs, apiGetJobSharedWith, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals, apiFetchCalendarReminders, apiCreateCalendarReminder, apiDeleteCalendarReminder, apiGetLinkedContent, apiFetchJobs, apiGetSuggestedUsers, apiAdminNotifyAll, apiLikeComment, apiAdminGetPlatformAds, apiAdminCreatePlatformAd, apiAdminUpdatePlatformAd, apiAdminDeletePlatformAd, apiAdminGetLockedUsers, apiAdminUnlockUser } from './api.js'
 import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
 import ReelsPage from './Reels.jsx'
@@ -15886,6 +15886,19 @@ function AdminMfaPanel({ lang }) {
 // ── Admin: Security & GDPR Tab ──
 function AdminSecurityGdpr({ viralStats, lang }) {
   const da = lang === 'da'
+  const [lockedUsers, setLockedUsers] = useState(null)
+  const [unlocking, setUnlocking] = useState({})
+
+  useEffect(() => {
+    apiAdminGetLockedUsers().then(d => { if (d) setLockedUsers(d.users) })
+  }, [])
+
+  const handleUnlock = async (userId) => {
+    setUnlocking(u => ({ ...u, [userId]: true }))
+    await apiAdminUnlockUser(userId)
+    setLockedUsers(prev => prev.filter(u => u.id !== userId))
+    setUnlocking(u => ({ ...u, [userId]: false }))
+  }
 
   const section = (icon, title, children) => (
     <div className="p-card" style={{ marginBottom: 16 }}>
@@ -16082,6 +16095,44 @@ function AdminSecurityGdpr({ viralStats, lang }) {
               <div style={{ fontSize: 11, fontFamily: 'monospace', color: '#888', marginTop: 2 }}>{item.endpoint}</div>
             </div>
           ))}
+        </div>
+      ))}
+
+      {/* Locked accounts */}
+      {section('🔒', da ? 'Låste konti (for mange fejlede loginforsøg)' : 'Locked accounts (too many failed login attempts)', (
+        <div>
+          {lockedUsers === null && <p style={{ fontSize: 13, color: '#888' }}>{da ? 'Indlæser…' : 'Loading…'}</p>}
+          {lockedUsers !== null && lockedUsers.length === 0 && (
+            <p style={{ fontSize: 13, color: '#2D6A4F' }}>✓ {da ? 'Ingen låste konti.' : 'No locked accounts.'}</p>
+          )}
+          {lockedUsers !== null && lockedUsers.length > 0 && (
+            <div>
+              <p style={{ fontSize: 13, color: '#555', marginBottom: 12 }}>
+                {da
+                  ? `${lockedUsers.length} konto${lockedUsers.length !== 1 ? 'er' : ''} er midlertidigt låst. Lås op ved at klikke på knappen.`
+                  : `${lockedUsers.length} account${lockedUsers.length !== 1 ? 's' : ''} temporarily locked. Click to unlock.`}
+              </p>
+              {lockedUsers.map(u => {
+                const until = new Date(u.locked_until)
+                const mins = Math.ceil((until - Date.now()) / 60000)
+                return (
+                  <div key={u.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: '#FFF5F5', border: '1px solid #f5b7b1', borderRadius: 8, marginBottom: 8, gap: 12 }}>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 13 }}>{u.name}</div>
+                      <div style={{ fontSize: 12, color: '#888' }}>{u.email} · {u.failed_login_attempts} {da ? 'forsøg' : 'attempts'} · {da ? `låst ${mins} min endnu` : `locked ${mins} min remaining`}</div>
+                    </div>
+                    <button
+                      onClick={() => handleUnlock(u.id)}
+                      disabled={unlocking[u.id]}
+                      style={{ padding: '6px 14px', borderRadius: 7, border: 'none', background: '#2D6A4F', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                    >
+                      {unlocking[u.id] ? '…' : (da ? 'Lås op' : 'Unlock')}
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       ))}
 

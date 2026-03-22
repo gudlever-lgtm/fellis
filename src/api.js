@@ -1457,3 +1457,25 @@ export async function apiGetSignalStats() {
 export async function apiGetUserByHandle(handle) {
   return await request(`/api/user/handle/${encodeURIComponent(handle)}`)
 }
+
+// Platform ads (admin-managed)
+export async function apiAdminGetPlatformAds() {
+  return await request('/api/admin/platform-ads')
+}
+export async function apiAdminCreatePlatformAd(payload) {
+  return await request('/api/admin/platform-ads', { method: 'POST', body: JSON.stringify(payload) })
+}
+export async function apiAdminUpdatePlatformAd(id, payload) {
+  return await request(`/api/admin/platform-ads/${id}`, { method: 'PUT', body: JSON.stringify(payload) })
+}
+export async function apiAdminDeletePlatformAd(id) {
+  return await request(`/api/admin/platform-ads/${id}`, { method: 'DELETE' })
+}
+
+// Unlock locked account (admin only)
+export async function apiAdminGetLockedUsers() {
+  return await request('/api/admin/locked-users')
+}
+export async function apiAdminUnlockUser(userId) {
+  return await request(`/api/admin/users/${userId}/unlock`, { method: 'POST' })
+}
