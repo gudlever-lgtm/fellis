@@ -14891,11 +14891,11 @@ function CalendarPage({ lang, t, currentUser }) {
       {/* Legend */}
       <div style={s.legend}>
         <div style={s.legendItem}><span style={{ ...s.dot(HOLIDAY_COLOR), width: 10, height: 10 }} />{t.calendarHolidays}</div>
-        <div style={s.legendItem}><span style={{ ...s.dot(DST_COLOR), width: 10, height: 10 }} />Sommer-/vintertid</div>
+        <div style={s.legendItem}><span style={{ ...s.dot(DST_COLOR), width: 10, height: 10 }} />{t.calendarLegendDst}</div>
         <div style={s.legendItem}><span style={{ ...s.dot(BIRTHDAY_COLOR), width: 10, height: 10 }} />{t.calendarBirthdays}</div>
-        <div style={s.legendItem}><span style={{ ...s.dot(EVENT_COLOR_ORGANIZER), width: 10, height: 10 }} />{lang === 'da' ? 'Oprettet af dig' : 'Created by you'}</div>
-        <div style={s.legendItem}><span style={{ ...s.dot(EVENT_COLOR_GOING), width: 10, height: 10 }} />{lang === 'da' ? 'Du deltager' : 'Attending'}</div>
-        <div style={s.legendItem}><span style={{ ...s.dot(EVENT_COLOR_MAYBE), width: 10, height: 10 }} />{lang === 'da' ? 'Måske' : 'Maybe'}</div>
+        <div style={s.legendItem}><span style={{ ...s.dot(EVENT_COLOR_ORGANIZER), width: 10, height: 10 }} />{t.calendarLegendYouCreated}</div>
+        <div style={s.legendItem}><span style={{ ...s.dot(EVENT_COLOR_GOING), width: 10, height: 10 }} />{t.calendarLegendYouAttending}</div>
+        <div style={s.legendItem}><span style={{ ...s.dot(EVENT_COLOR_MAYBE), width: 10, height: 10 }} />{t.calendarLegendMaybe}</div>
         <div style={s.legendItem}><span style={{ ...s.dot(REMINDER_COLOR), width: 10, height: 10 }} />{t.calendarReminders}</div>
       </div>
 
