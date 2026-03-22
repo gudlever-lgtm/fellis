@@ -10667,6 +10667,9 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
   const [followers, setFollowers] = useState(null)
   const [showLeadForm, setShowLeadForm] = useState(false)
   const [leads, setLeads] = useState(null)
+  const [shareJobModal, setShareJobModal] = useState(null) // job ID being viewed for shares
+  const [sharedWithUsers, setSharedWithUsers] = useState([])
+  const [sharesLoading, setSharesLoading] = useState(false)
   const [leadsLoading, setLeadsLoading] = useState(false)
 
   useEffect(() => {
@@ -11173,9 +11176,23 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
                       </div>
                     )}
                     {job.share_count > 0 && (
-                      <div style={{ fontSize: 12, color: '#666' }}>
+                      <button
+                        onClick={() => {
+                          setShareJobModal(job.id)
+                          setSharesLoading(true)
+                          apiGetJobSharedWith(job.id)
+                            .then(data => {
+                              setSharedWithUsers(data?.sharedWith || [])
+                              setSharesLoading(false)
+                            })
+                            .catch(() => {
+                              setSharesLoading(false)
+                            })
+                        }}
+                        style={{ fontSize: 12, color: '#0369A1', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline', fontWeight: 500 }}
+                      >
                         🔗 {lang === 'da' ? `Delt ${job.share_count} ${job.share_count === 1 ? 'gang' : 'gange'}` : `Shared ${job.share_count} ${job.share_count === 1 ? 'time' : 'times'}`}
-                      </div>
+                      </button>
                     )}
                   </div>
                 </div>
@@ -11272,6 +11289,59 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Job sharing modal */}
+      {shareJobModal && (
+        <div className="modal-backdrop" onClick={() => setShareJobModal(null)}>
+          <div className="p-card" onClick={e => e.stopPropagation()} style={{ padding: 24, maxWidth: 500, width: '90%', maxHeight: '70vh', overflowY: 'auto', borderRadius: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>
+                {lang === 'da' ? 'Delt med' : 'Shared with'}
+              </h3>
+              <button onClick={() => setShareJobModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#888' }}>✕</button>
+            </div>
+            {sharesLoading ? (
+              <div style={{ textAlign: 'center', color: '#888', padding: 20 }}>⏳</div>
+            ) : !sharedWithUsers || sharedWithUsers.length === 0 ? (
+              <div style={{ textAlign: 'center', color: '#888', padding: 20 }}>{lang === 'da' ? 'Ingen sharing data' : 'No sharing data'}</div>
+            ) : (
+              <div>
+                {sharedWithUsers.map(user => (
+                  <div key={user.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid #f0f0f0' }}>
+                    <div className="p-avatar-sm" style={{ background: nameToColor(user.name), flexShrink: 0, width: 40, height: 40, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 16, fontWeight: 700 }}>
+                      {getInitials(user.name)}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: 14 }}>{user.name}</div>
+                      {user.location && <div style={{ fontSize: 12, color: '#888' }}>{user.location}</div>}
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                      {user.cv_public && (
+                        <a
+                          href={`/${user.handle}/cv`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #1877F2', background: '#EBF4FF', color: '#1877F2', fontSize: 12, cursor: 'pointer', fontWeight: 600, textDecoration: 'none', display: 'inline-block' }}
+                        >
+                          📄 CV
+                        </a>
+                      )}
+                      <a
+                        href={`/${user.handle}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #ddd', background: '#fff', color: '#555', fontSize: 12, cursor: 'pointer', fontWeight: 600, textDecoration: 'none', display: 'inline-block' }}
+                      >
+                        👤 {lang === 'da' ? 'Profil' : 'Profile'}
+                      </a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
