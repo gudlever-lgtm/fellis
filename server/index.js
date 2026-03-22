@@ -5286,12 +5286,16 @@ app.post('/api/jobs/:id/share', authenticate, async (req, res) => {
     if (recipientId === req.userId) return res.status(400).json({ error: 'Cannot share with yourself' })
 
     // Verify job exists
-    const [[job]] = await pool.query('SELECT id FROM jobs WHERE id = ?', [req.params.id])
+    const [[job]] = await pool.query('SELECT title FROM jobs WHERE id = ?', [req.params.id])
     if (!job) return res.status(404).json({ error: 'Job not found' })
 
     // Verify recipient exists
     const [[recipient]] = await pool.query('SELECT id FROM users WHERE id = ?', [recipientId])
     if (!recipient) return res.status(404).json({ error: 'User not found' })
+
+    // Get current user name for notification
+    const [[currentUser]] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
+    const senderName = currentUser?.name || 'Someone'
 
     // Create or update share record
     try {
@@ -5304,6 +5308,18 @@ app.post('/api/jobs/:id/share', authenticate, async (req, res) => {
       // Table may not exist yet, skip
       if (e.code !== 'ER_NO_SUCH_TABLE') throw e
     }
+
+    // Send notification to recipient
+    const jobTitle = typeof job.title === 'object' ? (job.title.da || job.title.en || job.title) : job.title
+    await createNotification(
+      recipientId,
+      'job_shared',
+      `${senderName} har delt jobbet "${jobTitle}" med dig`,
+      `${senderName} shared the job "${jobTitle}" with you`,
+      req.userId,
+      senderName,
+      null
+    )
 
     res.json({ ok: true, jobId: req.params.id, sharedWith: recipientId })
   } catch (err) {

@@ -12444,6 +12444,68 @@ function JobsPage({ lang, t, currentUser, mode }) {
           </div>
         </div>
       )}
+      {shareJobId && (
+        <div className="modal-backdrop" onClick={() => { setShareJobId(null); setShareQuery(''); setShareUsers([]) }}>
+          <div className="p-msg-modal" style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()}>
+            <div className="p-msg-modal-header">
+              <span>🔗 {lang === 'da' ? 'Del job' : 'Share job'}</span>
+              <button className="p-msg-modal-close" onClick={() => { setShareJobId(null); setShareQuery(''); setShareUsers([]) }}>✕</button>
+            </div>
+            <div style={{ padding: '20px' }}>
+              <input
+                type="text"
+                placeholder={lang === 'da' ? 'Søg efter bruger...' : 'Search for user...'}
+                value={shareQuery}
+                onChange={e => {
+                  setShareQuery(e.target.value)
+                  if (e.target.value.length > 0) {
+                    fetch(`/api/users/search?q=${encodeURIComponent(e.target.value)}`, { credentials: 'include' })
+                      .then(r => r.ok ? r.json() : null)
+                      .then(data => setShareUsers(data?.users || []))
+                      .catch(() => {})
+                  } else {
+                    setShareUsers([])
+                  }
+                }}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, marginBottom: 12 }}
+              />
+              {shareUsers.length === 0 && shareQuery.length > 0 && (
+                <div style={{ padding: 20, textAlign: 'center', color: '#888', fontSize: 13 }}>
+                  {lang === 'da' ? 'Ingen brugere fundet' : 'No users found'}
+                </div>
+              )}
+              <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+                {shareUsers.map(user => (
+                  <div key={user.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px', borderRadius: 8, cursor: 'pointer', background: '#f9f9f9', marginBottom: 8 }}>
+                    <div className="p-avatar-sm" style={{ background: nameToColor(user.name), flexShrink: 0 }}>{getInitials(user.name)}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: 14 }}>{user.name}</div>
+                      <div style={{ fontSize: 12, color: '#888' }}>@{user.handle || user.username}</div>
+                    </div>
+                    <button
+                      disabled={sharingSending}
+                      onClick={() => {
+                        setShareSending(true)
+                        apiShareJob(shareJobId, user.id).then(data => {
+                          if (data) {
+                            setShareJobId(null)
+                            setShareQuery('')
+                            setShareUsers([])
+                          }
+                          setShareSending(false)
+                        }).catch(() => setShareSending(false))
+                      }}
+                      style={{ padding: '6px 14px', borderRadius: 6, border: 'none', background: '#2D6A4F', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0, opacity: sharingSending ? 0.7 : 1 }}
+                    >
+                      {sharingSending ? '⏳' : lang === 'da' ? 'Del' : 'Share'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -14707,6 +14769,7 @@ function CalendarPage({ lang, t, currentUser }) {
   const [reminderTitle, setReminderTitle] = useState('')
   const [reminderNote, setReminderNote] = useState('')
   const [reminderSaving, setReminderSaving] = useState(false)
+  const [tooltipVisible, setTooltipVisible] = useState(null)
 
   useEffect(() => {
     apiFetchCalendarEvents().then(data => { if (data) setCalData(data) })
@@ -14821,7 +14884,8 @@ function CalendarPage({ lang, t, currentUser }) {
     itemLabel: { fontSize: 14, color: 'var(--text, #111)' },
     avatar: (color) => ({ width: 28, height: 28, borderRadius: '50%', background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff', flexShrink: 0 }),
     legend: { display: 'flex', gap: 16, marginTop: 16, flexWrap: 'wrap' },
-    legendItem: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-muted, #888)' },
+    legendItem: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-muted, #888)', cursor: 'help', position: 'relative' },
+    legendTooltip: { position: 'absolute', bottom: 'calc(100% + 8px)', left: 0, background: '#222', color: '#fff', padding: '6px 10px', borderRadius: 4, fontSize: 11, whiteSpace: 'nowrap', zIndex: 1000, pointerEvents: 'none' },
   }
 
   const HOLIDAY_COLOR = '#1877F2'
@@ -14890,13 +14954,34 @@ function CalendarPage({ lang, t, currentUser }) {
 
       {/* Legend */}
       <div style={s.legend}>
-        <div style={s.legendItem}><span style={{ ...s.dot(HOLIDAY_COLOR), width: 10, height: 10 }} />{t.calendarHolidays}</div>
-        <div style={s.legendItem}><span style={{ ...s.dot(DST_COLOR), width: 10, height: 10 }} />{t.calendarLegendDst}</div>
-        <div style={s.legendItem}><span style={{ ...s.dot(BIRTHDAY_COLOR), width: 10, height: 10 }} />{t.calendarBirthdays}</div>
-        <div style={s.legendItem}><span style={{ ...s.dot(EVENT_COLOR_ORGANIZER), width: 10, height: 10 }} />{t.calendarLegendYouCreated}</div>
-        <div style={s.legendItem}><span style={{ ...s.dot(EVENT_COLOR_GOING), width: 10, height: 10 }} />{t.calendarLegendYouAttending}</div>
-        <div style={s.legendItem}><span style={{ ...s.dot(EVENT_COLOR_MAYBE), width: 10, height: 10 }} />{t.calendarLegendMaybe}</div>
-        <div style={s.legendItem}><span style={{ ...s.dot(REMINDER_COLOR), width: 10, height: 10 }} />{t.calendarReminders}</div>
+        <div style={s.legendItem} onMouseEnter={() => setTooltipVisible('holidays')} onMouseLeave={() => setTooltipVisible(null)}>
+          <span style={{ ...s.dot(HOLIDAY_COLOR), width: 10, height: 10 }} />{t.calendarHolidays}
+          {tooltipVisible === 'holidays' && <span style={s.legendTooltip}>{t.calendarTooltipHolidays}</span>}
+        </div>
+        <div style={s.legendItem} onMouseEnter={() => setTooltipVisible('dst')} onMouseLeave={() => setTooltipVisible(null)}>
+          <span style={{ ...s.dot(DST_COLOR), width: 10, height: 10 }} />{t.calendarLegendDst}
+          {tooltipVisible === 'dst' && <span style={s.legendTooltip}>{t.calendarTooltipDst}</span>}
+        </div>
+        <div style={s.legendItem} onMouseEnter={() => setTooltipVisible('birthdays')} onMouseLeave={() => setTooltipVisible(null)}>
+          <span style={{ ...s.dot(BIRTHDAY_COLOR), width: 10, height: 10 }} />{t.calendarBirthdays}
+          {tooltipVisible === 'birthdays' && <span style={s.legendTooltip}>{t.calendarTooltipBirthdays}</span>}
+        </div>
+        <div style={s.legendItem} onMouseEnter={() => setTooltipVisible('your_events')} onMouseLeave={() => setTooltipVisible(null)}>
+          <span style={{ ...s.dot(EVENT_COLOR_ORGANIZER), width: 10, height: 10 }} />{t.calendarLegendYouCreated}
+          {tooltipVisible === 'your_events' && <span style={s.legendTooltip}>{t.calendarTooltipYourEvents}</span>}
+        </div>
+        <div style={s.legendItem} onMouseEnter={() => setTooltipVisible('attending')} onMouseLeave={() => setTooltipVisible(null)}>
+          <span style={{ ...s.dot(EVENT_COLOR_GOING), width: 10, height: 10 }} />{t.calendarLegendYouAttending}
+          {tooltipVisible === 'attending' && <span style={s.legendTooltip}>{t.calendarTooltipAttending}</span>}
+        </div>
+        <div style={s.legendItem} onMouseEnter={() => setTooltipVisible('maybe')} onMouseLeave={() => setTooltipVisible(null)}>
+          <span style={{ ...s.dot(EVENT_COLOR_MAYBE), width: 10, height: 10 }} />{t.calendarLegendMaybe}
+          {tooltipVisible === 'maybe' && <span style={s.legendTooltip}>{t.calendarTooltipMaybe}</span>}
+        </div>
+        <div style={s.legendItem} onMouseEnter={() => setTooltipVisible('reminders')} onMouseLeave={() => setTooltipVisible(null)}>
+          <span style={{ ...s.dot(REMINDER_COLOR), width: 10, height: 10 }} />{t.calendarReminders}
+          {tooltipVisible === 'reminders' && <span style={s.legendTooltip}>{t.calendarTooltipReminders}</span>}
+        </div>
       </div>
 
       {/* Day detail panel */}
