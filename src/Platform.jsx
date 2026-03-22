@@ -627,7 +627,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
           }
           navigateTo('messages')
         }} onViewProfile={(uid) => { setViewUserId(uid); navigateTo('view-profile') }} />}
-        {page === 'jobs' && <JobsPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={(target, param) => { if (target === 'companies') { setCompanyView(param); navigateTo('company'); } else navigateTo(target) }} />}
+        {page === 'jobs' && <JobsPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={(target, param) => { if (target === 'companies') { navigateTo('company', { companyId: param }); } else navigateTo(target) }} />}
         {page === 'ads' && mode === 'business' && <AdsManagementPage lang={lang} t={t} />}
         {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} initialCompanyId={navParam?.companyId} />}
         {page === 'analytics' && <AnalyticsPage lang={lang} t={t} currentUser={currentUser} />}
@@ -12006,6 +12006,9 @@ function JobCard({ job, t, lang, onSaveToggle, onTrackChange, currentUser, onSha
   const [isSaved, setIsSaved] = useState(!!job.saved)
   const [trackStatus, setTrackStatus] = useState(job.track_status || null)
   const [showApplyModal, setShowApplyModal] = useState(false)
+  const [showSharesModal, setShowSharesModal] = useState(false)
+  const [sharedWithData, setSharedWithData] = useState(null)
+  const [sharesLoading, setSharesLoading] = useState(false)
   const companyName = job.company_name || job.companyName || ''
   const companyColor = job.company_color || job.companyColor || '#1877F2'
   const title = typeof job.title === 'string' ? job.title : (job.title?.[lang] || job.title?.da || '')
@@ -12133,7 +12136,23 @@ function JobCard({ job, t, lang, onSaveToggle, onTrackChange, currentUser, onSha
               {isSaved ? `★ ${t.jobSaved}` : `☆ ${t.jobSave}`}
             </button>
             <button
-              onClick={() => onShare?.(job.id)}
+              onClick={() => {
+                if (job.share_count > 0) {
+                  // Show shares modal
+                  setSharesLoading(true)
+                  setShowSharesModal(true)
+                  apiGetJobSharedWith(job.id)
+                    .then(data => {
+                      setSharedWithData(data?.sharedWith || [])
+                      setSharesLoading(false)
+                    })
+                    .catch(() => {
+                      setSharesLoading(false)
+                    })
+                } else {
+                  onShare?.(job.id)
+                }
+              }}
               style={{
                 padding: '8px 14px',
                 borderRadius: 8,
@@ -12165,6 +12184,58 @@ function JobCard({ job, t, lang, onSaveToggle, onTrackChange, currentUser, onSha
         </div>
       </div>
       {showApplyModal && <JobApplyModal job={job} lang={lang} t={t} onClose={() => setShowApplyModal(false)} currentUser={currentUser} />}
+
+      {showSharesModal && (
+        <div className="modal-backdrop" onClick={() => setShowSharesModal(false)}>
+          <div className="p-card" onClick={e => e.stopPropagation()} style={{ padding: 24, maxWidth: 500, width: '90%', maxHeight: '70vh', overflowY: 'auto', borderRadius: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>
+                {lang === 'da' ? `Delt med ${job.share_count} ${job.share_count === 1 ? 'person' : 'personer'}` : `Shared with ${job.share_count} ${job.share_count === 1 ? 'person' : 'people'}`}
+              </h3>
+              <button onClick={() => setShowSharesModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#888' }}>✕</button>
+            </div>
+            {sharesLoading ? (
+              <div style={{ textAlign: 'center', color: '#888', padding: 20 }}>⏳</div>
+            ) : !sharedWithData || sharedWithData.length === 0 ? (
+              <div style={{ textAlign: 'center', color: '#888', padding: 20 }}>{lang === 'da' ? 'Ingen sharing data' : 'No sharing data'}</div>
+            ) : (
+              <div>
+                {sharedWithData.map(user => (
+                  <div key={user.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid #f0f0f0' }}>
+                    <div className="p-avatar-sm" style={{ background: nameToColor(user.name), flexShrink: 0, width: 40, height: 40, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 16, fontWeight: 700 }}>
+                      {getInitials(user.name)}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: 14 }}>{user.name}</div>
+                      {user.location && <div style={{ fontSize: 12, color: '#888' }}>{user.location}</div>}
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                      {user.cv_public && (
+                        <a
+                          href={`/${user.handle}/cv`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #1877F2', background: '#EBF4FF', color: '#1877F2', fontSize: 12, cursor: 'pointer', fontWeight: 600, textDecoration: 'none', display: 'inline-block' }}
+                        >
+                          📄 CV
+                        </a>
+                      )}
+                      <a
+                        href={`/${user.handle}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #ddd', background: '#fff', color: '#555', fontSize: 12, cursor: 'pointer', fontWeight: 600, textDecoration: 'none', display: 'inline-block' }}
+                      >
+                        👤 {lang === 'da' ? 'Profil' : 'Profile'}
+                      </a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
