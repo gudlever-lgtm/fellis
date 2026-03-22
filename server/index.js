@@ -573,6 +573,12 @@ const writeLimit = rateLimit({
   windowMs: 60_000, max: 60,
   keyFn: (req) => (req.userId ? `u:${req.userId}` : req.ip),
 })
+// File upload limiter: 10 uploads/hour per user (to prevent DoS/storage exhaustion)
+const fileUploadLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, max: 10,
+  keyFn: (req) => (req.userId ? `u:${req.userId}` : req.ip),
+  message: 'Too many file uploads — max 10 per hour'
+})
 
 // ── Serve built frontend (assets/, index.html, public/) ───────────────────
 const FRONTEND_ROOT = path.resolve(__dirname, '..')
@@ -1229,7 +1235,7 @@ app.post('/api/auth/forgot-password', strictLimit, async (req, res) => {
 })
 
 // POST /api/auth/reset-password — set new password using reset token
-app.post('/api/auth/reset-password', async (req, res) => {
+app.post('/api/auth/reset-password', strictLimit, async (req, res) => {
   const { token, password, lang: resetLang } = req.body
   if (!token || !password) return res.status(400).json({ error: 'Token and password required' })
   const resetPolicy = await getPasswordPolicy()
@@ -1299,7 +1305,7 @@ app.post('/api/auth/verify-mfa', strictLimit, async (req, res) => {
 })
 
 // POST /api/auth/enable-mfa — enable SMS MFA for current user (requires phone on account)
-app.post('/api/auth/enable-mfa', authenticate, async (req, res) => {
+app.post('/api/auth/enable-mfa', authenticate, writeLimit, async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT phone FROM users WHERE id = ?', [req.userId])
     if (rows.length === 0) return res.status(404).json({ error: 'User not found' })
@@ -1312,7 +1318,7 @@ app.post('/api/auth/enable-mfa', authenticate, async (req, res) => {
 })
 
 // POST /api/auth/disable-mfa — disable SMS MFA for current user
-app.post('/api/auth/disable-mfa', authenticate, async (req, res) => {
+app.post('/api/auth/disable-mfa', authenticate, writeLimit, async (req, res) => {
   try {
     await pool.query(
       'UPDATE users SET mfa_enabled = 0, mfa_code = NULL, mfa_code_expires = NULL WHERE id = ?',
@@ -1325,7 +1331,7 @@ app.post('/api/auth/disable-mfa', authenticate, async (req, res) => {
 })
 
 // POST /api/auth/send-settings-mfa — send SMS MFA code for sensitive settings changes
-app.post('/api/auth/send-settings-mfa', authenticate, async (req, res) => {
+app.post('/api/auth/send-settings-mfa', authenticate, writeLimit, async (req, res) => {
   try {
     const [[user]] = await pool.query('SELECT phone, mfa_enabled FROM users WHERE id = ?', [req.userId])
     if (!user) return res.status(404).json({ error: 'User not found' })
@@ -2075,7 +2081,7 @@ app.patch('/api/me/profile-extended', authenticate, async (req, res) => {
 })
 
 // POST /api/profile/avatar — upload profile picture
-app.post('/api/profile/avatar', authenticate, upload.single('avatar'), async (req, res) => {
+app.post('/api/profile/avatar', authenticate, fileUploadLimit, upload.single('avatar'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' })
   // Validate magic bytes
   const header = Buffer.alloc(16)
@@ -2721,7 +2727,7 @@ app.post('/api/feed', authenticate, writeLimit, upload.array('media', 4), async 
 })
 
 // POST /api/upload — standalone upload endpoint (for drag-and-drop preview)
-app.post('/api/upload', authenticate, upload.single('file'), async (req, res) => {
+app.post('/api/upload', authenticate, fileUploadLimit, upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' })
 
   // Validate magic bytes
@@ -7483,7 +7489,7 @@ app.get('/api/reels', authenticate, async (req, res) => {
 })
 
 // POST /api/reels — upload a reel
-app.post('/api/reels', authenticate, reelUpload.single('video'), async (req, res) => {
+app.post('/api/reels', authenticate, fileUploadLimit, reelUpload.single('video'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No video file provided' })
     const caption = (req.body.caption || '').trim().slice(0, 2000) || null
