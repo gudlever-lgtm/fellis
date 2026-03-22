@@ -12025,11 +12025,18 @@ function JobCard({ job, t, lang, onSaveToggle, onTrackChange, currentUser, onSha
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
             <h3 style={{ margin: '0 0 2px', fontSize: 16, fontWeight: 700 }}>{title}</h3>
-            {trackInfo && (
-              <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: trackInfo.bg, color: trackInfo.color, flexShrink: 0 }}>
-                {t[trackInfo.key]}
-              </span>
-            )}
+            <div style={{ display: 'flex', gap: 6, flexShrink: 0, flexWrap: 'wrap' }}>
+              {trackInfo && (
+                <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: trackInfo.bg, color: trackInfo.color }}>
+                  {t[trackInfo.key]}
+                </span>
+              )}
+              {job.share_count > 0 && (
+                <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: '#E0F2FE', color: '#0369A1' }}>
+                  🔗 {lang === 'da' ? 'Delt' : 'Shared'}
+                </span>
+              )}
+            </div>
           </div>
           <div style={{ fontSize: 13, color: '#666', marginBottom: 6 }}>
             {companyName} · {job.location}
@@ -12307,6 +12314,11 @@ function JobsPage({ lang, t, currentUser, mode }) {
                     {(job.salary_min || job.salary_max) && (
                       <div style={{ fontSize: 13, color: '#2D6A4F', fontWeight: 600, marginTop: 4 }}>
                         💰 {job.salary_min ? job.salary_min.toLocaleString() : '?'} – {job.salary_max ? job.salary_max.toLocaleString() : '?'} {job.salary_currency || 'DKK'} / {job.salary_period === 'annual' ? (lang === 'da' ? 'år' : 'year') : (lang === 'da' ? 'md.' : 'mo.')}
+                      </div>
+                    )}
+                    {job.share_count > 0 && (
+                      <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
+                        🔗 {lang === 'da' ? `Delt ${job.share_count} ${job.share_count === 1 ? 'gang' : 'gange'}` : `Shared ${job.share_count} ${job.share_count === 1 ? 'time' : 'times'}`}
                       </div>
                     )}
                     <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
