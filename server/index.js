@@ -479,7 +479,7 @@ async function initConversations() {
 }
 
 // ── GDPR Compliance: Audit logging (Art. 30 — records of processing) ──
-async function auditLog(userId, action, details = null, ipAddress = null) {
+async function auditLogGdpr(userId, action, details = null, ipAddress = null) {
   try {
     await pool.query(
       'INSERT INTO audit_log (user_id, action, details, ip_address) VALUES (?, ?, ?, ?)',
@@ -504,7 +504,7 @@ async function recordConsent(userId, consentType, ipAddress = null, userAgent = 
     'INSERT INTO gdpr_consent (user_id, consent_type, consent_given, ip_address, user_agent) VALUES (?, ?, 1, ?, ?)',
     [userId, consentType, ipAddress, userAgent]
   )
-  await auditLog(userId, 'consent_given', { consent_type: consentType }, ipAddress)
+  await auditLogGdpr(userId, 'consent_given', { consent_type: consentType }, ipAddress)
 }
 
 async function withdrawConsent(userId, consentType, ipAddress = null) {
@@ -512,7 +512,7 @@ async function withdrawConsent(userId, consentType, ipAddress = null) {
     'UPDATE gdpr_consent SET consent_given = 0, withdrawn_at = NOW() WHERE user_id = ? AND consent_type = ? AND consent_given = 1',
     [userId, consentType]
   )
-  await auditLog(userId, 'consent_withdrawn', { consent_type: consentType }, ipAddress)
+  await auditLogGdpr(userId, 'consent_withdrawn', { consent_type: consentType }, ipAddress)
 }
 
 // Data retention: Facebook tokens expire after 90 days (configurable)
@@ -1761,7 +1761,7 @@ app.get('/api/auth/facebook/callback', async (req, res) => {
 
     // Audit log: Facebook authentication (no data import yet — that requires consent)
     const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress
-    await auditLog(userId, 'fb_auth_success', { facebook_id: fbProfile.id }, clientIp)
+    await auditLogGdpr(userId, 'fb_auth_success', { facebook_id: fbProfile.id }, clientIp)
 
     // GDPR CHANGE: Do NOT import Facebook data here.
     // Data import is deferred until user gives explicit consent via POST /api/gdpr/consent.
@@ -1789,7 +1789,7 @@ app.get('/api/auth/facebook/callback', async (req, res) => {
 // GDPR Art. 6 & 7: This function MUST only be called after verified consent.
 // GDPR Art. 5(1)(c): Only imports data strictly necessary for app functionality.
 async function importFacebookData(userId, fbToken) {
-  await auditLog(userId, 'fb_import_start', { timestamp: new Date().toISOString() })
+  await auditLogGdpr(userId, 'fb_import_start', { timestamp: new Date().toISOString() })
 
   let friendsImported = 0, postsImported = 0, photosImported = 0
 
@@ -1901,7 +1901,7 @@ async function importFacebookData(userId, fbToken) {
   // Update import timestamp for data retention tracking
   await pool.query('UPDATE users SET fb_data_imported_at = NOW() WHERE id = ?', [userId])
 
-  await auditLog(userId, 'fb_import_complete', {
+  await auditLogGdpr(userId, 'fb_import_complete', {
     friends: friendsImported, posts: postsImported, photos: photosImported
   })
 }
