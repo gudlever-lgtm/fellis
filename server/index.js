@@ -8254,7 +8254,22 @@ app.get('/api/feed/suggest-category', authenticate, async (req, res) => {
 
 // ── Jobs ──────────────────────────────────────────────────────────────────────
 app.get('/api/jobs/mine', authenticate, async (req, res) => {
-  res.json({ jobs: [] })
+  try {
+    const [rows] = await pool.query(`
+      SELECT j.*, c.name AS company_name, c.handle AS company_handle, c.color AS company_color, c.logo_url AS company_logo,
+             COUNT(DISTINCT sj.shared_with_user_id) AS share_count
+      FROM jobs j
+      JOIN companies c ON c.id = j.company_id
+      LEFT JOIN shared_jobs sj ON j.id = sj.job_id AND sj.shared_by_user_id = ?
+      WHERE j.created_by_user_id = ?
+      GROUP BY j.id
+      ORDER BY j.created_at DESC
+    `, [req.userId, req.userId])
+    res.json({ jobs: rows || [] })
+  } catch (err) {
+    console.error('GET /api/jobs/mine error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
 })
 
 // ── CV Profile ────────────────────────────────────────────────────────────────
