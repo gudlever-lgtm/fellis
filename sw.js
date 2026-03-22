@@ -5,7 +5,7 @@
 //   - Offline fallback: serve cached index.html for navigation requests when offline
 
 // Bump version string when deploying a breaking change to force cache eviction
-const CACHE_NAME = 'fellis-shell-v2'
+const CACHE_NAME = 'fellis-shell-v3'
 
 // Resources to precache on install (the app shell)
 const PRECACHE_URLS = [
@@ -52,15 +52,15 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then(res => {
-          // Clone synchronously before any async operation — body is consumed lazily
-          // and caches.open() is async, so cloning inside its .then() is too late.
+          // Only cache complete responses — 206 Partial Content is not cacheable
           if (res.status === 200) {
-            const clone = res.clone()
-            caches.open(CACHE_NAME).then(cache => cache.put(request, clone))
+            caches.open(CACHE_NAME).then(cache => cache.put(request, res.clone()))
           }
           return res
         })
-        .catch(() => caches.match('/'))
+        .catch(() =>
+          caches.match('/').then(r => r || new Response('Offline', { status: 503, headers: { 'Content-Type': 'text/plain' } }))
+        )
     )
     return
   }
@@ -73,7 +73,9 @@ self.addEventListener('fetch', (event) => {
         // Only cache status 200 — never cache 206 Partial Content (range requests)
         if (res.status === 200) cache.put(request, res.clone())
         return res
-      }).catch(() => cached)
+      // If network fails and there is no cached copy either, return a 503 so
+      // event.respondWith() always receives a valid Response (never undefined).
+      }).catch(() => cached || new Response('', { status: 503 }))
       // Return cached immediately if available; network updates it in background
       return cached || networkFetch
     })
