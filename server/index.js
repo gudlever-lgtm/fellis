@@ -1124,7 +1124,7 @@ app.post('/api/auth/login', strictLimit, async (req, res) => {
   if (!email || !password) return res.status(400).json({ error: 'Email and password required' })
   try {
     const [users] = await pool.query(
-      'SELECT id, password_hash, password_plain, mfa_enabled, phone, failed_login_attempts, locked_until FROM users WHERE email = ?', [email]
+      'SELECT * FROM users WHERE email = ?', [email]
     )
     if (users.length === 0) return res.status(401).json({ error: 'Invalid credentials' })
     const user = users[0]
