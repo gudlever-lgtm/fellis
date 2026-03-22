@@ -11035,6 +11035,28 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
 
       {tab === 'members' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {isOwner && (
+            <button
+              onClick={() => {
+                const userId = prompt(lang === 'da' ? 'Bruger ID (eller e-mail) at tilføje:' : 'User ID (or email) to add:')
+                if (!userId) return
+                fetch(`/api/companies/${company.id}/members`, {
+                  method: 'POST',
+                  credentials: 'include',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ user_id: userId, role: 'editor' }),
+                })
+                  .then(r => r.ok && r.json())
+                  .then(data => {
+                    if (data) setCompanyMembers(prev => [...prev, data])
+                  })
+                  .catch(() => alert(lang === 'da' ? 'Fejl ved tilføjelse' : 'Error adding member'))
+              }}
+              style={{ padding: '10px 16px', borderRadius: 8, border: '1px solid #2D6A4F', background: '#fff', color: '#2D6A4F', cursor: 'pointer', fontWeight: 600, fontSize: 14 }}
+            >
+              + {lang === 'da' ? 'Tilføj medlem' : 'Add member'}
+            </button>
+          )}
           {membersLoading ? (
             <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>⏳</div>
           ) : companyMembers.length === 0 ? (
@@ -11057,18 +11079,39 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
                     {member.role === 'owner' ? t.companyRoleOwner : member.role === 'admin' ? t.companyRoleAdmin : t.companyRoleEditor}
                   </div>
                 </div>
-                {!isSelf && (
-                  connectStatus === 'friend' ? (
-                    <span style={{ fontSize: 12, color: '#2D6A4F', fontWeight: 600 }}>✓ {mode === 'business' ? t.connectionsLabel : t.friendsLabel}</span>
-                  ) : connectStatus === 'sent' ? (
-                    <span style={{ fontSize: 12, color: '#888' }}>{t.requestSent}</span>
-                  ) : (
-                    <button className="p-friend-add-btn p-friend-msg-btn" style={{ padding: '6px 14px', fontSize: 13 }}
-                      onClick={() => connectWithMember(member.id)}>
-                      + {mode === 'business' ? t.connectBtn : t.addFriend}
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  {!isSelf && (
+                    connectStatus === 'friend' ? (
+                      <span style={{ fontSize: 12, color: '#2D6A4F', fontWeight: 600 }}>✓ {mode === 'business' ? t.connectionsLabel : t.friendsLabel}</span>
+                    ) : connectStatus === 'sent' ? (
+                      <span style={{ fontSize: 12, color: '#888' }}>{t.requestSent}</span>
+                    ) : (
+                      <button className="p-friend-add-btn p-friend-msg-btn" style={{ padding: '6px 14px', fontSize: 13 }}
+                        onClick={() => connectWithMember(member.id)}>
+                        + {mode === 'business' ? t.connectBtn : t.addFriend}
+                      </button>
+                    )
+                  )}
+                  {isOwner && !isSelf && (
+                    <button
+                      onClick={() => {
+                        if (confirm(lang === 'da' ? `Fjern ${member.name}?` : `Remove ${member.name}?`)) {
+                          fetch(`/api/companies/${company.id}/members/${member.id}`, {
+                            method: 'DELETE',
+                            credentials: 'include',
+                          })
+                            .then(r => {
+                              if (r.ok) setCompanyMembers(prev => prev.filter(m => m.id !== member.id))
+                            })
+                            .catch(() => {})
+                        }
+                      }}
+                      style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #e74c3c', background: '#fff5f5', color: '#e74c3c', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}
+                    >
+                      ✕ {lang === 'da' ? 'Fjern' : 'Remove'}
                     </button>
-                  )
-                )}
+                  )}
+                </div>
               </div>
             )
           })}
