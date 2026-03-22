@@ -11320,23 +11320,19 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
                     </div>
                     <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                       {user.cv_public && (
-                        <a
-                          href={`/${user.handle}/cv`}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button
+                          onClick={() => window.location.href = `/${user.handle}/cv`}
                           style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #1877F2', background: '#EBF4FF', color: '#1877F2', fontSize: 12, cursor: 'pointer', fontWeight: 600, textDecoration: 'none', display: 'inline-block' }}
                         >
                           📄 CV
-                        </a>
+                        </button>
                       )}
-                      <a
-                        href={`/${user.handle}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        onClick={() => window.location.href = `/${user.handle}`}
                         style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #ddd', background: '#fff', color: '#555', fontSize: 12, cursor: 'pointer', fontWeight: 600, textDecoration: 'none', display: 'inline-block' }}
                       >
                         👤 {lang === 'da' ? 'Profil' : 'Profile'}
-                      </a>
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -12281,23 +12277,19 @@ function JobCard({ job, t, lang, onSaveToggle, onTrackChange, currentUser, onSha
                     </div>
                     <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                       {user.cv_public && (
-                        <a
-                          href={`/${user.handle}/cv`}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button
+                          onClick={() => window.location.href = `/${user.handle}/cv`}
                           style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #1877F2', background: '#EBF4FF', color: '#1877F2', fontSize: 12, cursor: 'pointer', fontWeight: 600, textDecoration: 'none', display: 'inline-block' }}
                         >
                           📄 CV
-                        </a>
+                        </button>
                       )}
-                      <a
-                        href={`/${user.handle}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        onClick={() => window.location.href = `/${user.handle}`}
                         style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #ddd', background: '#fff', color: '#555', fontSize: 12, cursor: 'pointer', fontWeight: 600, textDecoration: 'none', display: 'inline-block' }}
                       >
                         👤 {lang === 'da' ? 'Profil' : 'Profile'}
-                      </a>
+                      </button>
                     </div>
                   </div>
                 ))}
