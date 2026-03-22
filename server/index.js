@@ -1149,21 +1149,13 @@ app.post('/api/auth/login', strictLimit, async (req, res) => {
 
     // Verify password (support bcrypt, legacy SHA-256, and legacy plaintext)
     let passwordValid = false
-    const hashVal = user.password_hash || ''
-    const hashType = hashVal.startsWith('$2') ? 'bcrypt'
-      : /^[0-9a-f]{64}$/.test(hashVal) ? 'sha256'
-      : hashVal ? 'unknown'
-      : 'none'
-    console.log(`[LOGIN DEBUG] user=${user.email} id=${user.id} hash_type=${hashType} hash_prefix=${hashVal.slice(0,12) || '(empty)'} plain=${user.password_plain ? 'set' : 'null'} locked_until=${user.locked_until || 'none'}`)
     if (user.password_hash && user.password_hash.startsWith('$2')) {
       // Bcrypt hash — try direct compare first
       passwordValid = await bcrypt.compare(password, user.password_hash)
-      console.log(`[LOGIN DEBUG] bcrypt.compare(plain) result: ${passwordValid}`)
       if (!passwordValid) {
         // Fallback: previous migration may have stored bcrypt(sha256(password))
         const sha256hex = crypto.createHash('sha256').update(password).digest('hex')
         passwordValid = await bcrypt.compare(sha256hex, user.password_hash)
-        console.log(`[LOGIN DEBUG] bcrypt.compare(sha256) result: ${passwordValid}`)
         if (passwordValid) {
           // Re-hash properly as bcrypt(plaintext) going forward
           const bcryptHash = await bcrypt.hash(password, 10)
