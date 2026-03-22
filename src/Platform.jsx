@@ -12106,7 +12106,7 @@ function JobCard({ job, t, lang, onSaveToggle, onTrackChange, currentUser, onSha
               {t.jobApply}
             </button>
             <button
-              onClick={() => onContactCompany?.(job.company_id)}
+              onClick={() => onContactCompany?.(job.company_id || job.companyId)}
               style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', color: '#555', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
             >
               💬 {lang === 'da' ? 'Kontakt' : 'Contact'}
