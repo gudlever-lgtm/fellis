@@ -930,6 +930,12 @@ pool.query(`CREATE TABLE IF NOT EXISTS platform_ads (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )`).catch(err => console.error('Migration (platform_ads table):', err.message))
 
+// Sessions table columns needed by login handler — must exist before first request
+addCol('sessions', 'user_agent', 'VARCHAR(500) DEFAULT NULL')
+  .catch(err => console.error('Migration (sessions.user_agent):', err.message))
+addCol('sessions', 'ip_address', 'VARCHAR(50) DEFAULT NULL')
+  .catch(err => console.error('Migration (sessions.ip_address):', err.message))
+
 // Serve uploads with security headers (no script execution, no sniffing)
 app.use('/uploads', (req, res, next) => {
   // Block anything that isn't GET
@@ -1178,8 +1184,9 @@ app.post('/api/auth/login', strictLimit, async (req, res) => {
       }
     }
 
-    // Password valid: reset failed attempts counter
+    // Password valid: reset failed attempts counter (columns may not exist on older installs)
     await pool.query('UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = ?', [user.id])
+      .catch(() => {}) // ignore if columns don't exist yet
 
     // MFA: if enabled and user has a phone number, send SMS code
     if (user.mfa_enabled && user.phone) {
@@ -1201,9 +1208,15 @@ app.post('/api/auth/login', strictLimit, async (req, res) => {
     const sessionId = crypto.randomUUID()
     const ua = req.headers['user-agent'] || null
     const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null
+    // Try with user_agent/ip_address columns; fall back if they don't exist yet
     await pool.query(
       'INSERT INTO sessions (id, user_id, lang, expires_at, user_agent, ip_address) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY), ?, ?)',
       [sessionId, user.id, lang || 'da', ua, ip]
+    ).catch(() =>
+      pool.query(
+        'INSERT INTO sessions (id, user_id, lang, expires_at) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY))',
+        [sessionId, user.id, lang || 'da']
+      )
     )
     setSessionCookie(res, sessionId)
     // Audit log: successful login
@@ -1244,6 +1257,11 @@ app.post('/api/auth/register', strictLimit, async (req, res) => {
     await pool.query(
       'INSERT INTO sessions (id, user_id, lang, expires_at, user_agent, ip_address) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY), ?, ?)',
       [sessionId, newUserId, lang || 'da', ua, ip]
+    ).catch(() =>
+      pool.query(
+        'INSERT INTO sessions (id, user_id, lang, expires_at) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY))',
+        [sessionId, newUserId, lang || 'da']
+      )
     )
 
     // If registered via invite link, auto-connect with inviter + record referral
