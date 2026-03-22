@@ -930,11 +930,15 @@ pool.query(`CREATE TABLE IF NOT EXISTS platform_ads (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )`).catch(err => console.error('Migration (platform_ads table):', err.message))
 
-// Sessions table columns needed by login handler — must exist before first request
+// Columns needed by login handler — must exist before first request
 addCol('sessions', 'user_agent', 'VARCHAR(500) DEFAULT NULL')
   .catch(err => console.error('Migration (sessions.user_agent):', err.message))
 addCol('sessions', 'ip_address', 'VARCHAR(50) DEFAULT NULL')
   .catch(err => console.error('Migration (sessions.ip_address):', err.message))
+addCol('users', 'failed_login_attempts', 'INT NOT NULL DEFAULT 0')
+  .catch(err => console.error('Migration (users.failed_login_attempts):', err.message))
+addCol('users', 'locked_until', 'DATETIME DEFAULT NULL')
+  .catch(err => console.error('Migration (users.locked_until):', err.message))
 
 // Serve uploads with security headers (no script execution, no sniffing)
 app.use('/uploads', (req, res, next) => {
@@ -1157,14 +1161,14 @@ app.post('/api/auth/login', strictLimit, async (req, res) => {
     }
 
     if (!passwordValid) {
-      // Increment failed login attempts
+      // Increment failed login attempts (columns may not exist on older installs — ignore errors)
       const newAttempts = (user.failed_login_attempts || 0) + 1
-      const update = newAttempts >= MAX_LOGIN_ATTEMPTS
-        ? 'UPDATE users SET failed_login_attempts = ?, locked_until = DATE_ADD(NOW(), INTERVAL ? MINUTE) WHERE id = ?'
-        : 'UPDATE users SET failed_login_attempts = ? WHERE id = ?'
 
       if (newAttempts >= MAX_LOGIN_ATTEMPTS) {
-        await pool.query(update, [newAttempts, LOCKOUT_DURATION_MINUTES, user.id])
+        await pool.query(
+          'UPDATE users SET failed_login_attempts = ?, locked_until = DATE_ADD(NOW(), INTERVAL ? MINUTE) WHERE id = ?',
+          [newAttempts, LOCKOUT_DURATION_MINUTES, user.id]
+        ).catch(() => {})
         // Audit log: account locked
         await auditLog({ ...req, userId: user.id }, 'login_failed_account_locked', 'user', user.id, {
           status: 'failure',
@@ -1174,7 +1178,10 @@ app.post('/api/auth/login', strictLimit, async (req, res) => {
           error: `Too many failed login attempts. Account locked for ${LOCKOUT_DURATION_MINUTES} minutes.`
         })
       } else {
-        await pool.query(update, [newAttempts, user.id])
+        await pool.query(
+          'UPDATE users SET failed_login_attempts = ? WHERE id = ?',
+          [newAttempts, user.id]
+        ).catch(() => {})
         // Audit log: failed login attempt
         await auditLog({ ...req, userId: user.id }, 'login_failed', 'user', user.id, {
           status: 'failure',
