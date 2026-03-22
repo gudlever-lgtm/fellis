@@ -1149,14 +1149,22 @@ app.post('/api/auth/login', strictLimit, async (req, res) => {
 
     // Verify password (support bcrypt, legacy SHA-256, and legacy plaintext)
     let passwordValid = false
+    const hashVal = user.password_hash || ''
+    const hashType = hashVal.startsWith('$2') ? 'bcrypt'
+      : /^[0-9a-f]{64}$/.test(hashVal) ? 'sha256'
+      : hashVal ? 'unknown'
+      : 'none'
+    console.log(`[LOGIN DEBUG] user=${user.email} id=${user.id} hash_type=${hashType} hash_prefix=${hashVal.slice(0,12) || '(empty)'} plain=${user.password_plain ? 'set' : 'null'} locked_until=${user.locked_until || 'none'}`)
     if (user.password_hash && user.password_hash.startsWith('$2')) {
       // Bcrypt hash
       passwordValid = await bcrypt.compare(password, user.password_hash)
+      console.log(`[LOGIN DEBUG] bcrypt.compare result: ${passwordValid}`)
     } else if (user.password_hash && /^[0-9a-f]{64}$/.test(user.password_hash)) {
       // Legacy SHA-256 hash — verify and migrate to bcrypt
       const sha256 = crypto.createHash('sha256').update(password).digest('hex')
-      if (sha256 === user.password_hash) {
-        passwordValid = true
+      passwordValid = sha256 === user.password_hash
+      console.log(`[LOGIN DEBUG] sha256 match: ${passwordValid}`)
+      if (passwordValid) {
         const bcryptHash = await bcrypt.hash(password, 10)
         await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [bcryptHash, user.id])
       }
