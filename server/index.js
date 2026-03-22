@@ -5346,6 +5346,29 @@ app.delete('/api/jobs/:id/share/:userId', authenticate, async (req, res) => {
   }
 })
 
+// GET /api/jobs/:id/shared-with — get list of users job is shared with (by current user)
+app.get('/api/jobs/:id/shared-with', authenticate, async (req, res) => {
+  try {
+    let sharedWith = []
+    try {
+      const [rows] = await pool.query(`
+        SELECT u.id, u.name, u.handle
+        FROM shared_jobs sj
+        JOIN users u ON sj.shared_with_user_id = u.id
+        WHERE sj.job_id = ? AND sj.shared_by_user_id = ?
+        ORDER BY sj.shared_at DESC
+      `, [req.params.id, req.userId])
+      sharedWith = rows || []
+    } catch (e) {
+      if (e.code !== 'ER_NO_SUCH_TABLE') throw e
+    }
+    res.json({ sharedWith })
+  } catch (err) {
+    console.error('GET /api/jobs/:id/shared-with error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // GET /api/jobs/shared — get jobs shared with me
 app.get('/api/jobs/shared', authenticate, async (req, res) => {
   try {
