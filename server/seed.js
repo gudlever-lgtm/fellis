@@ -1,4 +1,5 @@
 import crypto from 'crypto'
+import bcrypt from 'bcrypt'
 import pool from './db.js'
 
 // Same mock data from the frontend, now inserted into MySQL
@@ -17,13 +18,12 @@ const USERS = [
   { name: 'Liam Madsen', handle: '@liam.madsen', initials: 'LM', bio_da: '', bio_en: '', location: 'Vejle, Danmark', join_date: '2026', photo_count: 0, email: 'liam@fellis.eu' },
 ]
 
-// Default password for all seed users
-const DEFAULT_PASSWORD_HASH = crypto.createHash('sha256').update('password123').digest('hex')
-
 // Map user name -> id (filled after insert)
 const userIdMap = {}
 
 async function seed() {
+  // Default password for all seed users (bcrypt, generated once)
+  const DEFAULT_PASSWORD_HASH = await bcrypt.hash('password123', 10)
   const conn = await pool.getConnection()
   try {
     // Insert users

@@ -1147,11 +1147,19 @@ app.post('/api/auth/login', strictLimit, async (req, res) => {
       })
     }
 
-    // Verify password (support both bcrypt hash and legacy plaintext)
+    // Verify password (support bcrypt, legacy SHA-256, and legacy plaintext)
     let passwordValid = false
     if (user.password_hash && user.password_hash.startsWith('$2')) {
       // Bcrypt hash
       passwordValid = await bcrypt.compare(password, user.password_hash)
+    } else if (user.password_hash && /^[0-9a-f]{64}$/.test(user.password_hash)) {
+      // Legacy SHA-256 hash — verify and migrate to bcrypt
+      const sha256 = crypto.createHash('sha256').update(password).digest('hex')
+      if (sha256 === user.password_hash) {
+        passwordValid = true
+        const bcryptHash = await bcrypt.hash(password, 10)
+        await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [bcryptHash, user.id])
+      }
     } else if (user.password_plain === password) {
       // Legacy plaintext match — migrate to bcrypt and clear plaintext
       passwordValid = true
