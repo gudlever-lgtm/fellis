@@ -1,128 +1,37 @@
 import { useState } from 'react'
 import { apiAssignAdfreedays, apiGetAdfreeAssignments } from '../api'
-import { PT } from '../data'
 
 const s = {
-  container: {
-    padding: '16px',
-    backgroundColor: '#f9f9f9',
-    borderRadius: '8px',
-    border: '1px solid #ddd',
-  },
-  header: {
-    marginBottom: '20px',
-  },
+  container: { padding: '16px' },
   bankSection: {
     backgroundColor: '#fff',
-    padding: '12px',
-    borderRadius: '6px',
+    padding: '12px 16px',
+    borderRadius: '8px',
     marginBottom: '16px',
     border: '1px solid #e0e0e0',
   },
-  bankText: {
-    fontSize: '14px',
-    color: '#666',
-    margin: '0 0 8px 0',
-  },
-  bankDays: {
-    fontSize: '24px',
-    fontWeight: 'bold',
-    color: '#2196F3',
-  },
-  dateInputs: {
-    display: 'flex',
-    gap: '12px',
-    marginBottom: '16px',
-    flexWrap: 'wrap',
-  },
-  dateInput: {
-    flex: 1,
-    minWidth: '150px',
-    padding: '8px 12px',
-    border: '1px solid #ddd',
-    borderRadius: '4px',
-    fontSize: '14px',
-  },
-  assignBtn: {
-    padding: '8px 16px',
-    backgroundColor: '#2196F3',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '14px',
-    fontWeight: '500',
-  },
-  assignBtnDisabled: {
-    opacity: 0.5,
-    cursor: 'not-allowed',
-  },
-  error: {
-    color: '#d32f2f',
-    fontSize: '13px',
-    padding: '8px 12px',
-    backgroundColor: '#ffebee',
-    borderRadius: '4px',
-    marginBottom: '12px',
-  },
-  success: {
-    color: '#388e3c',
-    fontSize: '13px',
-    padding: '8px 12px',
-    backgroundColor: '#e8f5e9',
-    borderRadius: '4px',
-    marginBottom: '12px',
-  },
-  assignmentsList: {
-    marginTop: '20px',
-  },
-  assignmentItem: {
-    backgroundColor: '#fff',
-    padding: '12px',
-    borderRadius: '6px',
-    marginBottom: '8px',
-    border: '1px solid #e0e0e0',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  assignmentActive: {
-    borderColor: '#4caf50',
-    backgroundColor: '#f1f8e9',
-  },
-  assignmentInfo: {
-    flex: 1,
-  },
-  assignmentDates: {
-    fontSize: '14px',
-    fontWeight: '500',
-    color: '#333',
-  },
-  assignmentMeta: {
-    fontSize: '12px',
-    color: '#999',
-    marginTop: '4px',
-  },
-  assignmentBadge: {
-    display: 'inline-block',
-    backgroundColor: '#4caf50',
-    color: '#fff',
-    padding: '4px 8px',
-    borderRadius: '3px',
-    fontSize: '11px',
-    fontWeight: '500',
-  },
-  emptyState: {
-    textAlign: 'center',
-    padding: '20px',
-    color: '#999',
-    fontSize: '14px',
-  },
-  loadingText: {
-    color: '#999',
-    fontSize: '13px',
-    marginTop: '8px',
-  },
+  bankDays: { fontSize: '26px', fontWeight: 'bold', color: '#2196F3', lineHeight: 1 },
+  bankText: { fontSize: '13px', color: '#666', margin: 0 },
+  legend: { display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' },
+  legendItem: { display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#555' },
+  legendDot: { width: '12px', height: '12px', borderRadius: '3px', flexShrink: 0 },
+  assignBox: { backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '14px 16px', marginBottom: '16px' },
+  assignTitle: { fontSize: '13px', fontWeight: '600', color: '#444', margin: '0 0 10px 0' },
+  dateRow: { display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'flex-end' },
+  dateField: { flex: 1, minWidth: '140px' },
+  dateLabel: { fontSize: '11px', color: '#888', display: 'block', marginBottom: '4px' },
+  dateInput: { width: '100%', padding: '7px 10px', border: '1px solid #ddd', borderRadius: '5px', fontSize: '14px', boxSizing: 'border-box' },
+  assignBtn: { padding: '8px 18px', backgroundColor: '#2196F3', color: '#fff', border: 'none', borderRadius: '5px', cursor: 'pointer', fontSize: '14px', fontWeight: '500', whiteSpace: 'nowrap' },
+  preview: { marginTop: '8px', fontSize: '12px', color: '#666' },
+  error: { color: '#d32f2f', fontSize: '13px', padding: '8px 12px', backgroundColor: '#ffebee', borderRadius: '5px', marginTop: '10px' },
+  success: { color: '#388e3c', fontSize: '13px', padding: '8px 12px', backgroundColor: '#e8f5e9', borderRadius: '5px', marginTop: '10px' },
+  listTitle: { fontSize: '13px', fontWeight: '600', color: '#666', margin: '0 0 10px 0' },
+  assignmentItem: { padding: '11px 14px', borderRadius: '7px', marginBottom: '8px', border: '1px solid #ddd', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' },
+  assignmentDates: { fontSize: '14px', fontWeight: '600', color: '#222' },
+  assignmentMeta: { fontSize: '12px', color: '#888', marginTop: '3px' },
+  activePill: { display: 'inline-block', padding: '3px 9px', borderRadius: '12px', fontSize: '11px', fontWeight: '700', color: '#fff', whiteSpace: 'nowrap', backgroundColor: '#4caf50' },
+  sourcePill: { display: 'inline-block', padding: '3px 9px', borderRadius: '12px', fontSize: '11px', fontWeight: '600', whiteSpace: 'nowrap' },
+  emptyState: { textAlign: 'center', padding: '24px 16px', color: '#aaa', fontSize: '14px', backgroundColor: '#fafafa', borderRadius: '7px' },
 }
 
 export default function AdfreeCalendar({ bankDays = 0, assignments = [], onAssignmentChange, lang = 'da' }) {
@@ -134,6 +43,10 @@ export default function AdfreeCalendar({ bankDays = 0, assignments = [], onAssig
 
   const today = new Date().toISOString().split('T')[0]
 
+  const daysNeeded = startDate && endDate && startDate <= endDate
+    ? Math.floor((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) + 1
+    : 0
+
   const handleAssign = async () => {
     setError('')
     setSuccess('')
@@ -142,20 +55,12 @@ export default function AdfreeCalendar({ bankDays = 0, assignments = [], onAssig
       setError(lang === 'da' ? 'Vælg både start- og slutdato' : 'Select both start and end dates')
       return
     }
-
     if (startDate > endDate) {
       setError(lang === 'da' ? 'Startdato skal være før slutdato' : 'Start date must be before end date')
       return
     }
-
-    const daysNeeded = Math.floor((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) + 1
-
     if (daysNeeded > bankDays) {
-      setError(
-        lang === 'da'
-          ? `Du har kun ${bankDays} dage, men har brug for ${daysNeeded}`
-          : `You only have ${bankDays} days, but need ${daysNeeded}`
-      )
+      setError(lang === 'da' ? `Du har kun ${bankDays} dag(e) men perioden kræver ${daysNeeded}` : `You only have ${bankDays} day(s) but need ${daysNeeded}`)
       return
     }
 
@@ -163,14 +68,12 @@ export default function AdfreeCalendar({ bankDays = 0, assignments = [], onAssig
     try {
       const result = await apiAssignAdfreedays(startDate, endDate)
       if (result?.success) {
-        setSuccess(lang === 'da' ? '✓ Dage tildelt!' : '✓ Days assigned!')
+        setSuccess(lang === 'da' ? `✓ ${daysNeeded} dag(e) tildelt!` : `✓ ${daysNeeded} day(s) assigned!`)
         setStartDate('')
         setEndDate('')
-
-        // Refresh assignments if callback provided
         if (onAssignmentChange) {
           const updated = await apiGetAdfreeAssignments()
-          onAssignmentChange(updated?.assignments || [])
+          onAssignmentChange(updated?.assignments || [], updated?.newBank)
         }
       } else {
         setError(result?.error || (lang === 'da' ? 'Noget gik galt' : 'Something went wrong'))
@@ -182,106 +85,84 @@ export default function AdfreeCalendar({ bankDays = 0, assignments = [], onAssig
     }
   }
 
-  const isActive = (assignment) => {
-    return assignment.startDate <= today && today <= assignment.endDate
-  }
-
+  const isActive = (a) => a.startDate <= today && today <= a.endDate
   const formatDate = (dateStr) => {
     const d = new Date(dateStr + 'T00:00:00')
-    if (lang === 'da') {
-      return d.toLocaleDateString('da-DK', { weekday: 'short', month: 'short', day: 'numeric' })
-    } else {
-      return d.toLocaleDateString('en-GB', { weekday: 'short', month: 'short', day: 'numeric' })
-    }
+    return d.toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
   }
+
+  const hasPurchased = assignments.some(a => a.source === 'purchased')
+  const hasEarned = assignments.some(a => a.source === 'earned')
 
   return (
     <div style={s.container}>
-      <div style={s.header}>
-        <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#333' }}>
-          {lang === 'da' ? '📅 Annoncefrie dage' : '📅 Ad-Free Days'}
-        </h3>
-
-        <div style={s.bankSection}>
-          <p style={s.bankText}>{lang === 'da' ? 'Banked dage:' : 'Banked days:'}</p>
-          <div style={s.bankDays}>{bankDays}</div>
-        </div>
-
-        {error && <div style={s.error}>{error}</div>}
-        {success && <div style={s.success}>{success}</div>}
-
-        <div style={s.dateInputs}>
-          <div style={{ flex: 1, minWidth: '150px' }}>
-            <label style={{ fontSize: '12px', color: '#666', display: 'block', marginBottom: '4px' }}>
-              {lang === 'da' ? 'Fra dato' : 'Start date'}
-            </label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              min={today}
-              style={s.dateInput}
-            />
-          </div>
-          <div style={{ flex: 1, minWidth: '150px' }}>
-            <label style={{ fontSize: '12px', color: '#666', display: 'block', marginBottom: '4px' }}>
-              {lang === 'da' ? 'Til dato' : 'End date'}
-            </label>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              min={startDate || today}
-              style={s.dateInput}
-            />
-          </div>
-          <button
-            onClick={handleAssign}
-            disabled={loading || !startDate || !endDate}
-            style={{
-              ...s.assignBtn,
-              ...(loading || !startDate || !endDate ? s.assignBtnDisabled : {}),
-            }}
-          >
-            {loading
-              ? lang === 'da'
-                ? 'Tildeler...'
-                : 'Assigning...'
-              : lang === 'da'
-                ? 'Tildel'
-                : 'Assign'}
-          </button>
-        </div>
+      {/* Bank balance */}
+      <div style={s.bankSection}>
+        <div style={s.bankDays}>{bankDays}</div>
+        <p style={s.bankText}>
+          {lang === 'da' ? 'Optjente dage i banken' : 'Earned days in bank'}
+        </p>
       </div>
 
-      {loading && <p style={s.loadingText}>{lang === 'da' ? 'Behandler...' : 'Processing...'}</p>}
-
-      {assignments && assignments.length > 0 ? (
-        <div style={s.assignmentsList}>
-          <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', color: '#666' }}>
-            {lang === 'da' ? 'Dine tildelte perioder' : 'Your assigned periods'}
-          </h4>
-          {assignments.map((a) => (
-            <div key={a.id} style={{ ...s.assignmentItem, ...(isActive(a) ? s.assignmentActive : {}) }}>
-              <div style={s.assignmentInfo}>
-                <div style={s.assignmentDates}>
-                  {formatDate(a.startDate)} – {formatDate(a.endDate)}
-                </div>
-                <div style={s.assignmentMeta}>
-                  {a.daysUsed} {lang === 'da' ? 'dag(e)' : 'day(s)'} •{' '}
-                  {lang === 'da'
-                    ? new Date(a.createdAt).toLocaleDateString('da-DK')
-                    : new Date(a.createdAt).toLocaleDateString('en-GB')}
-                </div>
-              </div>
-              {isActive(a) && (
-                <div style={s.assignmentBadge}>{lang === 'da' ? '✓ Aktiv' : '✓ Active'}</div>
-              )}
+      {/* Legend */}
+      {(hasPurchased || hasEarned) && (
+        <div style={s.legend}>
+          {hasEarned && (
+            <div style={s.legendItem}>
+              <div style={{ ...s.legendDot, backgroundColor: '#4caf50' }} />
+              {lang === 'da' ? 'Optjent via badges' : 'Earned via badges'}
             </div>
-          ))}
+          )}
+          {hasPurchased && (
+            <div style={s.legendItem}>
+              <div style={{ ...s.legendDot, backgroundColor: '#9c27b0' }} />
+              {lang === 'da' ? 'Købt via abonnement' : 'Purchased via subscription'}
+            </div>
+          )}
         </div>
+      )}
+
+      {/* Assign form */}
+      <div style={s.assignBox}>
+        <p style={s.assignTitle}>{lang === 'da' ? '📅 Tildel banked dage' : '📅 Assign banked days'}</p>
+        <div style={s.dateRow}>
+          <div style={s.dateField}>
+            <label style={s.dateLabel}>{lang === 'da' ? 'Fra dato' : 'Start date'}</label>
+            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} min={today} style={s.dateInput} />
+          </div>
+          <div style={s.dateField}>
+            <label style={s.dateLabel}>{lang === 'da' ? 'Til dato' : 'End date'}</label>
+            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} min={startDate || today} style={s.dateInput} />
+          </div>
+          <button onClick={handleAssign} disabled={loading || !startDate || !endDate || daysNeeded > bankDays} style={{ ...s.assignBtn, opacity: (loading || !startDate || !endDate || daysNeeded > bankDays) ? 0.5 : 1, cursor: (loading || !startDate || !endDate || daysNeeded > bankDays) ? 'not-allowed' : 'pointer' }}>
+            {loading ? (lang === 'da' ? 'Tildeler…' : 'Assigning…') : (lang === 'da' ? 'Tildel' : 'Assign')}
+          </button>
+        </div>
+        {daysNeeded > 0 && <p style={{ ...s.preview, color: daysNeeded > bankDays ? '#d32f2f' : '#388e3c' }}>{lang === 'da' ? `${daysNeeded} dag(e) nødvendige · ${bankDays} tilgængelige` : `${daysNeeded} day(s) needed · ${bankDays} available`}</p>}
+        {error && <div style={s.error}>{error}</div>}
+        {success && <div style={s.success}>{success}</div>}
+      </div>
+
+      {/* Assignments list */}
+      {assignments.length > 0 ? (
+        <>
+          <p style={s.listTitle}>{lang === 'da' ? 'Dine ad-frie perioder' : 'Your ad-free periods'}</p>
+          {assignments.map((a) => {
+            const theme = a.source === 'purchased' ? { bg: '#f3e5f5', border: '#9c27b0', label: lang === 'da' ? '✨ Købt' : '✨ Purchased' } : { bg: '#e8f5e9', border: '#4caf50', label: lang === 'da' ? '🏆 Optjent' : '🏆 Earned' }
+            const active = isActive(a)
+            return (
+              <div key={`${a.source}-${a.id}`} style={{ ...s.assignmentItem, backgroundColor: theme.bg, borderColor: active ? theme.border : '#ddd', borderWidth: active ? '2px' : '1px' }}>
+                <div>
+                  <div style={s.assignmentDates}>{formatDate(a.startDate)} – {formatDate(a.endDate)}</div>
+                  <div style={s.assignmentMeta}>{a.daysUsed} {lang === 'da' ? 'dag(e)' : 'day(s)'} · <span style={{ ...s.sourcePill, color: theme.border }}>{theme.label}</span></div>
+                </div>
+                {active && <div style={s.activePill}>{lang === 'da' ? '✓ Aktiv' : '✓ Active'}</div>}
+              </div>
+            )
+          })}
+        </>
       ) : (
-        <div style={s.emptyState}>{lang === 'da' ? 'Ingen tildelte perioder' : 'No assigned periods'}</div>
+        <div style={s.emptyState}>{lang === 'da' ? 'Ingen perioder endnu. Optjen badges for at banke dage!' : 'No periods yet. Earn badges to bank days!'}</div>
       )}
     </div>
   )
