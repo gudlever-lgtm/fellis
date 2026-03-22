@@ -6558,24 +6558,26 @@ function MiniWorldMap({ countries, lang }) {
         style={{ width: '100%', height: 'auto', display: 'block' }}
       >
         <ZoomableGroup zoom={zoom} center={center} onMoveEnd={handleMoveEnd}>
-          <Geographies geography={GEO_URL}>
-            {({ geographies }) =>
-              Array.isArray(geographies) ? geographies.map((geo) => (
-                <Geography
-                  key={geo.rsmKey}
-                  geography={geo}
-                  fill="#D4E6B5"
-                  stroke="#B5C99A"
-                  strokeWidth={0.4}
-                  style={{
-                    default: { outline: 'none' },
-                    hover: { fill: '#c0dba0', outline: 'none' },
-                    pressed: { outline: 'none' },
-                  }}
-                />
-              )) : null
-            }
-          </Geographies>
+          {Array.isArray(countries) && countries.length > 0 && (
+            <Geographies geography={GEO_URL}>
+              {({ geographies }) =>
+                geographies && geographies.map((geo) => (
+                  <Geography
+                    key={geo.rsmKey}
+                    geography={geo}
+                    fill="#D4E6B5"
+                    stroke="#B5C99A"
+                    strokeWidth={0.4}
+                    style={{
+                      default: { outline: 'none' },
+                      hover: { fill: '#c0dba0', outline: 'none' },
+                      pressed: { outline: 'none' },
+                    }}
+                  />
+                ))
+              }
+            </Geographies>
+          )}
           {countries.map(d => {
             const coords = COUNTRY_CENTROIDS[d.country_code]
             if (!coords) return null
