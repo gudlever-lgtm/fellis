@@ -11180,7 +11180,9 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
                     })
                       .then(r => {
                         if (r.ok) {
-                          navigateTo('company')
+                          onBack()
+                        } else {
+                          alert(lang === 'da' ? 'Fejl ved sletning' : 'Error deleting company')
                         }
                       })
                       .catch(() => alert(lang === 'da' ? 'Fejl ved sletning' : 'Error deleting company'))
