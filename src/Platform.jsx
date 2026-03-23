@@ -15203,10 +15203,12 @@ function CalendarPage({ lang, t, currentUser }) {
   const [reminderNote, setReminderNote] = useState('')
   const [reminderSaving, setReminderSaving] = useState(false)
   const [tooltipVisible, setTooltipVisible] = useState(null)
+  const [adfreeAssignments, setAdfreeAssignments] = useState([])
 
   useEffect(() => {
     apiFetchCalendarEvents().then(data => { if (data) setCalData(data) })
     apiFetchCalendarReminders().then(data => { if (data?.reminders) setReminders(data.reminders) })
+    apiGetAdfreeAssignments().then(data => { if (data?.assignments) setAdfreeAssignments(data.assignments) })
   }, [])
 
   const handleAddReminder = async (e) => {
@@ -15227,6 +15229,8 @@ function CalendarPage({ lang, t, currentUser }) {
     await apiDeleteCalendarReminder(id)
     setReminders(prev => prev.filter(r => r.id !== id))
   }
+
+  const isAdfreeDate = (dateKey) => adfreeAssignments.some(a => a.startDate <= dateKey && dateKey <= a.endDate)
 
   const holidays = getDanishHolidays(year, lang)
 
@@ -15294,13 +15298,13 @@ function CalendarPage({ lang, t, currentUser }) {
     monthLabel: { fontSize: 18, fontWeight: 700, minWidth: 180, textAlign: 'center' },
     grid: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 },
     dayHeader: { textAlign: 'center', fontSize: 12, fontWeight: 700, color: 'var(--text-muted, #888)', padding: '4px 0', textTransform: 'uppercase' },
-    dayCell: (isToday, isSelected, isOtherMonth) => ({
+    dayCell: (isToday, isSelected, isOtherMonth, isAdfree) => ({
       minHeight: 64,
       borderRadius: 8,
       padding: '6px 4px 4px',
       cursor: isOtherMonth ? 'default' : 'pointer',
-      background: isSelected ? '#1877F2' : isToday ? '#e8f0fe' : 'var(--card-bg, #fff)',
-      border: isToday && !isSelected ? '2px solid #1877F2' : '1px solid var(--border, #eee)',
+      background: isSelected ? '#1877F2' : isToday ? '#e8f0fe' : isAdfree ? '#e8f5ee' : 'var(--card-bg, #fff)',
+      border: isSelected ? '1px solid var(--border, #eee)' : isToday ? '2px solid #1877F2' : isAdfree ? '1px solid #b7dfc9' : '1px solid var(--border, #eee)',
       transition: 'background 0.15s',
       display: 'flex',
       flexDirection: 'column',
@@ -15328,6 +15332,7 @@ function CalendarPage({ lang, t, currentUser }) {
   const EVENT_COLOR_GOING = '#22c55e'       // du deltager
   const EVENT_COLOR_MAYBE = '#f97316'       // måske
   const REMINDER_COLOR = '#ec4899'          // privat påmindelse
+  const ADFREE_BG = '#e8f5ee'              // ad-fri periode
 
   return (
     <div style={s.page}>
@@ -15353,6 +15358,7 @@ function CalendarPage({ lang, t, currentUser }) {
           const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`
           const isToday = year === today.getFullYear() && month === today.getMonth() && dayNum === today.getDate()
           const isSelected = selectedDay === dayNum
+          const isAdfree = isAdfreeDate(dateKey)
           const hols = holidayMap[dateKey] || []
           const bdays = birthdayMap[dateKey] || []
           const evts = eventMap[dateKey] || []
@@ -15361,7 +15367,7 @@ function CalendarPage({ lang, t, currentUser }) {
           return (
             <div
               key={i}
-              style={s.dayCell(isToday, isSelected, false)}
+              style={s.dayCell(isToday, isSelected, false, isAdfree)}
               onClick={() => { setSelectedDay(isSelected ? null : dayNum); setShowReminderForm(false) }}
             >
               <span style={s.dayNum(isSelected)}>{dayNum}</span>
@@ -15415,6 +15421,13 @@ function CalendarPage({ lang, t, currentUser }) {
           <span style={{ ...s.dot(REMINDER_COLOR), width: 10, height: 10 }} />{t.calendarReminders}
           {tooltipVisible === 'reminders' && <span style={s.legendTooltip}>{t.calendarTooltipReminders}</span>}
         </div>
+        {adfreeAssignments.length > 0 && (
+          <div style={s.legendItem} onMouseEnter={() => setTooltipVisible('adfree')} onMouseLeave={() => setTooltipVisible(null)}>
+            <span style={{ width: 14, height: 14, borderRadius: 3, background: ADFREE_BG, border: '1px solid #b7dfc9', flexShrink: 0, display: 'inline-block' }} />
+            {t.calendarLegendAdfree}
+            {tooltipVisible === 'adfree' && <span style={s.legendTooltip}>{t.calendarTooltipAdfree}</span>}
+          </div>
+        )}
       </div>
 
       {/* Day detail panel */}
@@ -15423,7 +15436,13 @@ function CalendarPage({ lang, t, currentUser }) {
           <div style={s.panelTitle}>
             {selectedDateKey && new Date(selectedDateKey + 'T12:00:00').toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </div>
-          {!hasSelected && (
+          {selectedDateKey && isAdfreeDate(selectedDateKey) && (
+            <div style={{ ...s.item, marginBottom: 10 }}>
+              <span style={{ ...s.itemDot('#2D6A4F'), width: 14, height: 14, borderRadius: 3, background: ADFREE_BG, border: '1px solid #b7dfc9' }} />
+              <span style={{ ...s.itemLabel, color: '#2D6A4F', fontWeight: 600 }}>✓ {t.calendarLegendAdfree}</span>
+            </div>
+          )}
+          {!hasSelected && !(selectedDateKey && isAdfreeDate(selectedDateKey)) && (
             <p style={{ color: 'var(--text-muted, #888)', fontSize: 14, margin: 0 }}>{t.calendarNothingToday}</p>
           )}
           {selectedHolidays.map((h, i) => (
