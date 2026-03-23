@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { apiAssignAdfreedays, apiGetAdfreeAssignments } from '../api'
 
-// Date input that shows dd-mm-yyyy to the user but works with YYYY-MM-DD internally
-function DateInput({ value, onChange, style, placeholder = 'dd-mm-yyyy' }) {
+// Date input with dd-mm-yyyy format and a calendar popup
+function DateInput({ value, onChange, style, lang = 'da', minDate = '' }) {
   const toDisplay = (iso) => (iso ? iso.split('-').reverse().join('-') : '')
   const toIso = (disp) => {
     const m = disp.match(/^(\d{2})-(\d{2})-(\d{4})$/)
@@ -10,31 +10,119 @@ function DateInput({ value, onChange, style, placeholder = 'dd-mm-yyyy' }) {
   }
 
   const [text, setText] = useState(() => toDisplay(value))
+  const [open, setOpen] = useState(false)
+  const initD = value ? new Date(value + 'T00:00:00') : new Date()
+  const [calYear, setCalYear] = useState(initD.getFullYear())
+  const [calMonth, setCalMonth] = useState(initD.getMonth())
+  const ref = useRef(null)
 
   useEffect(() => {
     const expected = toDisplay(value)
     if (text !== expected) setText(expected)
+    if (value) {
+      const d = new Date(value + 'T00:00:00')
+      setCalYear(d.getFullYear())
+      setCalMonth(d.getMonth())
+    }
   }, [value]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleChange = (e) => {
+  useEffect(() => {
+    if (!open) return
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  const handleTextChange = (e) => {
     let raw = e.target.value.replace(/[^\d-]/g, '')
-    // Auto-insert dashes after day and month digits
-    if (/^\d{2}$/.test(raw) && text.length === 1) raw = raw + '-'
-    if (/^\d{2}-\d{2}$/.test(raw) && text.length === 4) raw = raw + '-'
+    if (/^\d{2}$/.test(raw) && text.length === 1) raw += '-'
+    if (/^\d{2}-\d{2}$/.test(raw) && text.length === 4) raw += '-'
     setText(raw)
-    onChange(toIso(raw))
+    const iso = toIso(raw)
+    if (iso) onChange(iso)
+    else if (!raw) onChange('')
   }
 
+  const selectDay = (day) => {
+    const iso = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    if (minDate && iso < minDate) return
+    onChange(iso)
+    setOpen(false)
+  }
+
+  const prevMonth = () => calMonth === 0 ? (setCalYear(y => y - 1), setCalMonth(11)) : setCalMonth(m => m - 1)
+  const nextMonth = () => calMonth === 11 ? (setCalYear(y => y + 1), setCalMonth(0)) : setCalMonth(m => m + 1)
+
+  const firstDayMon = (new Date(calYear, calMonth, 1).getDay() + 6) % 7
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate()
+  const cells = [...Array(firstDayMon).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)]
+
+  const todayIso = new Date().toLocaleDateString('sv-SE')
+  const monthNames = lang === 'da'
+    ? ['januar','februar','marts','april','maj','juni','juli','august','september','oktober','november','december']
+    : ['January','February','March','April','May','June','July','August','September','October','November','December']
+  const weekDays = lang === 'da' ? ['Ma','Ti','On','To','Fr','Lø','Sø'] : ['Mo','Tu','We','Th','Fr','Sa','Su']
+
   return (
-    <input
-      type="text"
-      placeholder={placeholder}
-      value={text}
-      style={style}
-      onChange={handleChange}
-      maxLength={10}
-      inputMode="numeric"
-    />
+    <div ref={ref} style={{ position: 'relative' }}>
+      <input
+        type="text"
+        placeholder="dd-mm-yyyy"
+        value={text}
+        style={{ ...style, cursor: 'pointer' }}
+        onChange={handleTextChange}
+        onFocus={() => setOpen(true)}
+        maxLength={10}
+        inputMode="numeric"
+        readOnly
+        onClick={() => setOpen(o => !o)}
+      />
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 9999,
+          background: '#fff', border: '1px solid #ddd', borderRadius: 8,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.14)', padding: '10px 8px', width: 230,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+            <button onMouseDown={e => { e.preventDefault(); prevMonth() }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, padding: '0 6px', color: '#555' }}>‹</button>
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#333' }}>{monthNames[calMonth]} {calYear}</span>
+            <button onMouseDown={e => { e.preventDefault(); nextMonth() }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, padding: '0 6px', color: '#555' }}>›</button>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1, marginBottom: 4 }}>
+            {weekDays.map(d => (
+              <div key={d} style={{ textAlign: 'center', fontSize: 10, fontWeight: 700, color: '#aaa', paddingBottom: 2 }}>{d}</div>
+            ))}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1 }}>
+            {cells.map((day, i) => {
+              if (!day) return <div key={i} />
+              const iso = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+              const isSelected = iso === value
+              const isToday = iso === todayIso
+              const disabled = minDate && iso < minDate
+              return (
+                <div
+                  key={i}
+                  onMouseDown={e => { e.preventDefault(); if (!disabled) selectDay(day) }}
+                  style={{
+                    textAlign: 'center', padding: '5px 2px', borderRadius: 5, fontSize: 12,
+                    cursor: disabled ? 'default' : 'pointer',
+                    background: isSelected ? '#2196F3' : isToday ? '#e3f2fd' : 'transparent',
+                    color: isSelected ? '#fff' : disabled ? '#ccc' : isToday ? '#1565c0' : '#222',
+                    fontWeight: isSelected || isToday ? 700 : 400,
+                    transition: 'background 0.1s',
+                  }}
+                  onMouseEnter={e => { if (!disabled && !isSelected) e.currentTarget.style.background = '#f0f0f0' }}
+                  onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = isToday ? '#e3f2fd' : 'transparent' }}
+                >
+                  {day}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -78,7 +166,7 @@ export default function AdfreeCalendar({ bankDays = 0, assignments = [], onAssig
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = new Date().toLocaleDateString('sv-SE')
 
   const daysNeeded = startDate && endDate && startDate <= endDate
     ? Math.floor((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) + 1
@@ -165,11 +253,11 @@ export default function AdfreeCalendar({ bankDays = 0, assignments = [], onAssig
         <div style={s.dateRow}>
           <div style={s.dateField}>
             <label style={s.dateLabel}>{lang === 'da' ? 'Fra dato' : 'Start date'}</label>
-            <DateInput value={startDate} onChange={setStartDate} style={s.dateInput} />
+            <DateInput value={startDate} onChange={setStartDate} style={s.dateInput} lang={lang} minDate={today} />
           </div>
           <div style={s.dateField}>
             <label style={s.dateLabel}>{lang === 'da' ? 'Til dato' : 'End date'}</label>
-            <DateInput value={endDate} onChange={setEndDate} style={s.dateInput} />
+            <DateInput value={endDate} onChange={setEndDate} style={s.dateInput} lang={lang} minDate={startDate || today} />
           </div>
           <button onClick={handleAssign} disabled={loading || !startDate || !endDate || daysNeeded > bankDays} style={{ ...s.assignBtn, opacity: (loading || !startDate || !endDate || daysNeeded > bankDays) ? 0.5 : 1, cursor: (loading || !startDate || !endDate || daysNeeded > bankDays) ? 'not-allowed' : 'pointer' }}>
             {loading ? (lang === 'da' ? 'Tildeler…' : 'Assigning…') : (lang === 'da' ? 'Tildel' : 'Assign')}
