@@ -1671,6 +1671,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [reactions, setReactions] = useState({})   // postId → emoji
   const [likePopup, setLikePopup] = useState(null) // postId with open reaction popup
   const [expandedComments, setExpandedComments] = useState(new Set())
+  const [collapsedPosts, setCollapsedPosts] = useState(new Set()) // postId set for compressed posts
   const [likersModal, setLikersModal] = useState(null) // { postId, likers } | null
   const [commentTexts, setCommentTexts] = useState({})
   const [commentMedia, setCommentMedia] = useState({})
@@ -3238,6 +3239,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         const showComments = expandedComments.has(post.id)
         const isOwn = post.author === currentUser.name
         const menuOpen = postMenu === post.id
+        const isCollapsed = collapsedPosts.has(post.id)
         return (
           <Fragment key={post.id}>
             {(postIdx === 1 || (postIdx > 1 && postIdx % 4 === 0)) && <AdBanner placement="feed" adsFree={adsFree} lang={lang} onGoAdFree={adsFree ? null : () => onNavigate('settings', 'billing')} />}
@@ -3258,7 +3260,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
               <div
                 className="p-avatar-sm"
                 style={{ background: nameToColor(post.author), cursor: 'pointer' }}
-                onClick={() => isOwn ? onViewOwnProfile?.() : (post.authorId && onViewProfile?.(post.authorId))}
+                onClick={() => setCollapsedPosts(prev => { const n = new Set(prev); n.has(post.id) ? n.delete(post.id) : n.add(post.id); return n })}
               >
                 {getInitials(post.author)}
               </div>
@@ -3374,6 +3376,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                 )}
               </div>
             </div>
+            {!isCollapsed && (
+            <>
             {editingPostId === post.id ? (
               <div style={{ marginTop: 8 }}>
                 <textarea
@@ -3630,6 +3634,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   <button className="p-send-btn" onClick={() => handleComment(post.id)}>{t.send}</button>
                 </div>
               </div>
+            )}
+            </>
             )}
           </div>
           </Fragment>
