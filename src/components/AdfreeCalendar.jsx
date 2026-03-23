@@ -122,8 +122,8 @@ export default function AdfreeCalendar({ bankDays = 0, assignments = [], onAssig
         </div>
       )}
 
-      {/* Assign form */}
-      <div style={s.assignBox}>
+      {/* Assign form — only shown when the bank has days available */}
+      {bankDays > 0 && <div style={s.assignBox}>
         <p style={s.assignTitle}>{lang === 'da' ? '📅 Tildel banked dage' : '📅 Assign banked days'}</p>
         <div style={s.dateRow}>
           <div style={s.dateField}>
@@ -141,7 +141,7 @@ export default function AdfreeCalendar({ bankDays = 0, assignments = [], onAssig
         {daysNeeded > 0 && <p style={{ ...s.preview, color: daysNeeded > bankDays ? '#d32f2f' : '#388e3c' }}>{lang === 'da' ? `${daysNeeded} dag(e) nødvendige · ${bankDays} tilgængelige` : `${daysNeeded} day(s) needed · ${bankDays} available`}</p>}
         {error && <div style={s.error}>{error}</div>}
         {success && <div style={s.success}>{success}</div>}
-      </div>
+      </div>}
 
       {/* Assignments list */}
       {assignments.length > 0 ? (

@@ -1569,7 +1569,18 @@ app.get('/api/auth/session', authenticate, async (req, res) => {
   try {
     const [users] = await pool.query('SELECT id, name, handle, initials, avatar_url, mode, ads_free, is_moderator FROM users WHERE id = ?', [req.userId])
     if (users.length === 0) return res.status(404).json({ error: 'User not found' })
-    const user = { ...users[0], mode: users[0].mode || 'privat', ads_free: Boolean(users[0].ads_free), is_admin: users[0].id === 1, is_moderator: Boolean(users[0].is_moderator) || users[0].id === 1 }
+    // Compute ads_free dynamically: active paid subscription OR active earned-day assignment for today
+    const today = new Date().toISOString().split('T')[0]
+    const [[subRow]] = await pool.query(
+      `SELECT COUNT(*) AS cnt FROM subscriptions WHERE user_id = ? AND status = 'paid' AND plan != 'ad_activation' AND (expires_at IS NULL OR expires_at > NOW())`,
+      [req.userId]
+    ).catch(() => [[{ cnt: 0 }]])
+    const [[earnedRow]] = await pool.query(
+      'SELECT COUNT(*) AS cnt FROM adfree_day_assignments WHERE user_id = ? AND start_date <= ? AND end_date >= ?',
+      [req.userId, today, today]
+    ).catch(() => [[{ cnt: 0 }]])
+    const ads_free = subRow.cnt > 0 || earnedRow.cnt > 0
+    const user = { ...users[0], mode: users[0].mode || 'privat', ads_free, is_admin: users[0].id === 1, is_moderator: Boolean(users[0].is_moderator) || users[0].id === 1 }
     res.json({ user, lang: req.lang })
   } catch (err) {
     res.status(500).json({ error: 'Session check failed' })
