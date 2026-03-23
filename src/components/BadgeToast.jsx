@@ -1,5 +1,35 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 
+const badgeToastStyles = `
+  .badge-toast-container {
+    position: fixed;
+    bottom: 90px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+    padding: 0 16px;
+    max-width: 100%;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .badge-toast {
+    width: 100%;
+    max-width: 340px;
+  }
+
+  @media (max-width: 699px) {
+    .badge-toast {
+      max-width: calc(100vw - 32px);
+    }
+  }
+`
+
 const TIER_COLORS = {
   1: { bg: '#7C4A0040', border: '#CD7F32', label: '#CD7F32' },  // bronze
   2: { bg: '#80808040', border: '#A8A9AD', label: '#A8A9AD' },  // silver
@@ -28,6 +58,7 @@ function Toast({ badge, lang, onDone }) {
 
   return (
     <div
+      className="badge-toast"
       style={{
         display: 'flex', alignItems: 'center', gap: 12,
         background: 'var(--card-bg, #fff)',
@@ -35,7 +66,7 @@ function Toast({ badge, lang, onDone }) {
         borderRadius: 14,
         boxShadow: `0 4px 24px rgba(0,0,0,0.18), 0 0 0 4px ${colors.bg}`,
         padding: '12px 18px',
-        minWidth: 280, maxWidth: 340,
+        minWidth: 280,
         transform: visible ? 'translateY(0) scale(1)' : 'translateY(30px) scale(0.95)',
         opacity: visible ? 1 : 0,
         transition: 'transform 0.35s cubic-bezier(.22,1,.36,1), opacity 0.35s ease',
@@ -118,12 +149,11 @@ export default function BadgeToastQueue({ lang, queueRef }) {
   if (!current) return null
 
   return (
-    <div style={{
-      position: 'fixed', bottom: 90, left: '50%', transform: 'translateX(-50%)',
-      zIndex: 9999, pointerEvents: 'none',
-      display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center',
-    }}>
-      <Toast key={current.id + current.awardedAt} badge={current} lang={lang} onDone={showNext} />
-    </div>
+    <>
+      <style>{badgeToastStyles}</style>
+      <div className="badge-toast-container">
+        <Toast key={current.id + current.awardedAt} badge={current} lang={lang} onDone={showNext} />
+      </div>
+    </>
   )
 }
