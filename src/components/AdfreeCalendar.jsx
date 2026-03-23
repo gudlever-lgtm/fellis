@@ -1,5 +1,42 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { apiAssignAdfreedays, apiGetAdfreeAssignments } from '../api'
+
+// Date input that shows dd-mm-yyyy to the user but works with YYYY-MM-DD internally
+function DateInput({ value, onChange, style, placeholder = 'dd-mm-yyyy' }) {
+  const toDisplay = (iso) => (iso ? iso.split('-').reverse().join('-') : '')
+  const toIso = (disp) => {
+    const m = disp.match(/^(\d{2})-(\d{2})-(\d{4})$/)
+    return m ? `${m[3]}-${m[2]}-${m[1]}` : ''
+  }
+
+  const [text, setText] = useState(() => toDisplay(value))
+
+  useEffect(() => {
+    const expected = toDisplay(value)
+    if (text !== expected) setText(expected)
+  }, [value]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleChange = (e) => {
+    let raw = e.target.value.replace(/[^\d-]/g, '')
+    // Auto-insert dashes after day and month digits
+    if (/^\d{2}$/.test(raw) && text.length === 1) raw = raw + '-'
+    if (/^\d{2}-\d{2}$/.test(raw) && text.length === 4) raw = raw + '-'
+    setText(raw)
+    onChange(toIso(raw))
+  }
+
+  return (
+    <input
+      type="text"
+      placeholder={placeholder}
+      value={text}
+      style={style}
+      onChange={handleChange}
+      maxLength={10}
+      inputMode="numeric"
+    />
+  )
+}
 
 const s = {
   container: { padding: '16px' },
@@ -35,8 +72,8 @@ const s = {
 }
 
 export default function AdfreeCalendar({ bankDays = 0, assignments = [], onAssignmentChange, lang = 'da' }) {
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
+  const [startDate, setStartDate] = useState('') // YYYY-MM-DD
+  const [endDate, setEndDate] = useState('')     // YYYY-MM-DD
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
@@ -128,11 +165,11 @@ export default function AdfreeCalendar({ bankDays = 0, assignments = [], onAssig
         <div style={s.dateRow}>
           <div style={s.dateField}>
             <label style={s.dateLabel}>{lang === 'da' ? 'Fra dato' : 'Start date'}</label>
-            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} min={today} style={s.dateInput} />
+            <DateInput value={startDate} onChange={setStartDate} style={s.dateInput} />
           </div>
           <div style={s.dateField}>
             <label style={s.dateLabel}>{lang === 'da' ? 'Til dato' : 'End date'}</label>
-            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} min={startDate || today} style={s.dateInput} />
+            <DateInput value={endDate} onChange={setEndDate} style={s.dateInput} />
           </div>
           <button onClick={handleAssign} disabled={loading || !startDate || !endDate || daysNeeded > bankDays} style={{ ...s.assignBtn, opacity: (loading || !startDate || !endDate || daysNeeded > bankDays) ? 0.5 : 1, cursor: (loading || !startDate || !endDate || daysNeeded > bankDays) ? 'not-allowed' : 'pointer' }}>
             {loading ? (lang === 'da' ? 'Tildeler…' : 'Assigning…') : (lang === 'da' ? 'Tildel' : 'Assign')}
