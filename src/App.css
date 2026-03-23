@@ -3628,17 +3628,6 @@
   .p-nav-search-btn { padding: 4px 6px; font-size: 18px; }
   .p-nav-avatar, .p-nav-avatar-img { width: 30px; height: 30px; font-size: 12px; }
 
-  /* ── Notification panel — full width fixed on mobile ── */
-  .notif-panel {
-    position: fixed;
-    top: 48px;
-    left: 8px;
-    right: 8px;
-    width: auto;
-    max-height: calc(100vh - 64px);
-    border-radius: 12px;
-  }
-
   /* ── Messaging ── */
   .p-msg-sidebar { width: 48px; }
 
@@ -3983,7 +3972,7 @@
 @media (max-width: 540px) {
   .p-event-card-body { flex-wrap: wrap; }
   .p-event-detail-modal, .p-event-create-modal, .mode-modal { padding: 20px 16px; }
-  .notif-panel { left: 8px; right: 8px; width: auto; }
+  .notif-panel { position: fixed; top: 48px; left: 8px; right: 8px; width: auto; max-height: calc(100vh - 64px); border-radius: 12px; }
 }
 
 /* ── Company pages ── */
