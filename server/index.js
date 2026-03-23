@@ -1569,17 +1569,18 @@ app.get('/api/auth/session', authenticate, async (req, res) => {
   try {
     const [users] = await pool.query('SELECT id, name, handle, initials, avatar_url, mode, ads_free, is_moderator FROM users WHERE id = ?', [req.userId])
     if (users.length === 0) return res.status(404).json({ error: 'User not found' })
-    // Compute ads_free dynamically: active paid subscription OR active earned-day assignment for today
+    // Compute ads_free dynamically: today must fall within an active earned-day assignment
+    // OR an active purchased period — never rely on the static users.ads_free column
     const today = new Date().toISOString().split('T')[0]
-    const [[subRow]] = await pool.query(
-      `SELECT COUNT(*) AS cnt FROM subscriptions WHERE user_id = ? AND status = 'paid' AND plan != 'ad_activation' AND (expires_at IS NULL OR expires_at > NOW())`,
-      [req.userId]
-    ).catch(() => [[{ cnt: 0 }]])
-    const [[earnedRow]] = await pool.query(
-      'SELECT COUNT(*) AS cnt FROM adfree_day_assignments WHERE user_id = ? AND start_date <= ? AND end_date >= ?',
-      [req.userId, today, today]
-    ).catch(() => [[{ cnt: 0 }]])
-    const ads_free = subRow.cnt > 0 || earnedRow.cnt > 0
+    const [[activeRow]] = await pool.query(`
+      SELECT (
+        (SELECT COUNT(*) FROM adfree_day_assignments
+         WHERE user_id = ? AND start_date <= ? AND end_date >= ?) +
+        (SELECT COUNT(*) FROM adfree_purchased_periods
+         WHERE user_id = ? AND start_date <= ? AND end_date >= ?)
+      ) AS total
+    `, [req.userId, today, today, req.userId, today, today]).catch(() => [[{ total: 0 }]])
+    const ads_free = (activeRow?.total ?? 0) > 0
     const user = { ...users[0], mode: users[0].mode || 'privat', ads_free, is_admin: users[0].id === 1, is_moderator: Boolean(users[0].is_moderator) || users[0].id === 1 }
     res.json({ user, lang: req.lang })
   } catch (err) {
@@ -6077,9 +6078,15 @@ app.get('/api/ads', authenticate, async (req, res) => {
       // Serve ads — fetch enabled ad for placement (respects ads_enabled setting)
       const [[settings]] = await pool.query('SELECT ads_enabled, max_ads_feed, max_ads_sidebar, max_ads_stories, refresh_interval_seconds FROM admin_ad_settings WHERE id = 1').catch(() => [[null]])
       if (!settings || !settings.ads_enabled) return res.json({ ads: [] })
-      // Check if user is ads_free
-      const [[userRow]] = await pool.query('SELECT ads_free FROM users WHERE id = ?', [req.userId])
-      if (userRow?.ads_free) return res.json({ ads: [], ads_free: true })
+      // Check if user is ads_free for today (period-based, not stale column)
+      const todayAd = new Date().toISOString().split('T')[0]
+      const [[adFreeRow]] = await pool.query(`
+        SELECT (
+          (SELECT COUNT(*) FROM adfree_day_assignments WHERE user_id = ? AND start_date <= ? AND end_date >= ?) +
+          (SELECT COUNT(*) FROM adfree_purchased_periods WHERE user_id = ? AND start_date <= ? AND end_date >= ?)
+        ) AS total
+      `, [req.userId, todayAd, todayAd, req.userId, todayAd, todayAd]).catch(() => [[{ total: 0 }]])
+      if ((adFreeRow?.total ?? 0) > 0) return res.json({ ads: [], ads_free: true })
       const placement = req.query.placement || 'feed'
       // All ads run across all placements — no placement filter
       const limitMap = { feed: settings.max_ads_feed, sidebar: settings.max_ads_sidebar, stories: settings.max_ads_stories, reels: settings.max_ads_feed }
