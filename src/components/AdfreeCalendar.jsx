@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { apiAssignAdfreedays, apiGetAdfreeAssignments } from '../api'
 
 // Date input with dd-mm-yyyy format and a calendar popup
-function DateInput({ value, onChange, style, lang = 'da', minDate = '' }) {
+function DateInput({ value, onChange, style, lang = 'da', minDate = '', align = 'left' }) {
   const toDisplay = (iso) => (iso ? iso.split('-').reverse().join('-') : '')
   const toIso = (disp) => {
     const m = disp.match(/^(\d{2})-(\d{2})-(\d{4})$/)
@@ -79,7 +79,7 @@ function DateInput({ value, onChange, style, lang = 'da', minDate = '' }) {
       />
       {open && (
         <div style={{
-          position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 9999,
+          position: 'absolute', top: 'calc(100% + 4px)', ...(align === 'right' ? { right: 0 } : { left: 0 }), zIndex: 9999,
           background: '#fff', border: '1px solid #ddd', borderRadius: 8,
           boxShadow: '0 4px 16px rgba(0,0,0,0.14)', padding: '10px 8px', width: 230,
         }}>
@@ -257,7 +257,7 @@ export default function AdfreeCalendar({ bankDays = 0, assignments = [], onAssig
           </div>
           <div style={s.dateField}>
             <label style={s.dateLabel}>{lang === 'da' ? 'Til dato' : 'End date'}</label>
-            <DateInput value={endDate} onChange={setEndDate} style={s.dateInput} lang={lang} minDate={startDate || today} />
+            <DateInput value={endDate} onChange={setEndDate} style={s.dateInput} lang={lang} minDate={startDate || today} align="right" />
           </div>
           <button onClick={handleAssign} disabled={loading || !startDate || !endDate || daysNeeded > bankDays} style={{ ...s.assignBtn, opacity: (loading || !startDate || !endDate || daysNeeded > bankDays) ? 0.5 : 1, cursor: (loading || !startDate || !endDate || daysNeeded > bankDays) ? 'not-allowed' : 'pointer' }}>
             {loading ? (lang === 'da' ? 'Tildeler…' : 'Assigning…') : (lang === 'da' ? 'Tildel' : 'Assign')}
