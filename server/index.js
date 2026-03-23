@@ -10410,12 +10410,17 @@ app.get('/api/adfree/assignments', authenticate, async (req, res) => {
       ;[purchasedRows] = await pool.query(purchasedQuery, purchasedParams)
     } catch (e) { /* table may not exist yet */ }
 
-    // Map to response format
+    // Map to response format — use local-time getters to avoid UTC offset shifting dates
+    const localDateStr = (d) => {
+      if (!d) return null
+      const dt = d instanceof Date ? d : new Date(d)
+      return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
+    }
     const toAssignment = (r, source) => ({
       id: r.id,
       source,
-      startDate: new Date(r.start_date).toISOString().split('T')[0],
-      endDate: new Date(r.end_date).toISOString().split('T')[0],
+      startDate: localDateStr(r.start_date),
+      endDate: localDateStr(r.end_date),
       daysUsed: r.days_used,
       createdAt: r.created_at,
     })
