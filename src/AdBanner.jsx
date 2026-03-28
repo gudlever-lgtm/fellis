@@ -10,40 +10,37 @@ import { apiServeAds, apiRecordAdImpression, apiRecordAdClick } from './api.js'
  *   currentUser optional user object (ads_free is checked server-side too)
  */
 
-// Module-level ad cache — shared across all AdBanner instances with same placement.
-// Avoids N simultaneous requests when multiple ad slots render at once (e.g. feed).
-const _adCache = {} // placement → { ads, refresh_interval, fetchedAt, promise }
+// Module-level in-flight deduplication — prevents N simultaneous fetches
+// when multiple AdBanner instances mount at once (e.g. several feed slots).
+// Does NOT cache results across renders; each interval tick fetches fresh data.
+const _inflight = {} // placement → Promise | null
 
-// Call this after creating, deleting, or updating any ad so the next render re-fetches.
+// Subscribers notified on invalidation so active AdBanner instances refetch immediately.
+let _revision = 0
+const _listeners = new Set()
+
+// Call this after creating, deleting, or updating any ad so all active banners refetch.
 export function invalidateAdCache() {
-  Object.keys(_adCache).forEach(k => delete _adCache[k])
+  Object.keys(_inflight).forEach(k => delete _inflight[k])
+  _revision++
+  _listeners.forEach(fn => fn(_revision))
 }
 
 async function fetchAds(placement) {
-  const now = Date.now()
-  const cached = _adCache[placement]
-  // Return cached data if still fresh (within 90% of the refresh interval)
-  if (cached && !cached.promise) {
-    const ttl = (cached.refresh_interval || 300) * 900 // 90% of interval in ms
-    if (now - cached.fetchedAt < ttl) return cached
-  }
-  // If a fetch is already in flight, share that promise instead of firing another
-  if (cached?.promise) return cached.promise
+  // If a fetch is already in flight for this placement, reuse the same promise
+  if (_inflight[placement]) return _inflight[placement]
   const promise = apiServeAds(placement).then(data => {
-    const result = {
+    delete _inflight[placement]
+    return {
       ads: data?.ads || [],
       ads_free: data?.ads_free || false,
       refresh_interval: data?.refresh_interval || 300,
-      fetchedAt: Date.now(),
-      promise: null,
     }
-    _adCache[placement] = result
-    return result
   }).catch(() => {
-    delete _adCache[placement]
-    return { ads: [], refresh_interval: 300, fetchedAt: Date.now(), promise: null }
+    delete _inflight[placement]
+    return { ads: [], refresh_interval: 300 }
   })
-  _adCache[placement] = { ...cached, promise }
+  _inflight[placement] = promise
   return promise
 }
 
@@ -69,7 +66,10 @@ export default function AdBanner({ placement = 'feed', adsFree = false, onGoAdFr
 
     load()
     const interval = setInterval(load, refreshInterval * 1000)
-    return () => { cancelled = true; clearInterval(interval) }
+
+    // Refetch immediately whenever invalidateAdCache() is called
+    _listeners.add(load)
+    return () => { cancelled = true; clearInterval(interval); _listeners.delete(load) }
   }, [placement, adsFree]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const ad = ads[adIndex % (ads.length || 1)]
