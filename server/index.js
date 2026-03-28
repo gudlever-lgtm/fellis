@@ -89,9 +89,11 @@ async function addCol(table, col, def) {
   }
 }
 
+function todayISO() { return new Date().toISOString().split('T')[0] }
+
 // Check if a user has active ad-free coverage today (earned or purchased)
 async function isUserAdsFreeToday(userId) {
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayISO()
   const [[row]] = await pool.query(`
     SELECT (
       (SELECT COUNT(*) FROM adfree_day_assignments WHERE user_id = ? AND start_date <= ? AND end_date >= ?) +
@@ -1048,7 +1050,7 @@ async function authenticate(req, res, next) {
     if (req.userId === 1 && !req.adminRole) req.adminRole = 'super_admin'
 
     // Track site visit once per session per calendar day
-    const todayKey = `${sessionId}:${new Date().toISOString().slice(0, 10)}`
+    const todayKey = `${sessionId}:${todayISO()}`
     if (!visitedSessions.has(todayKey)) {
       visitedSessions.add(todayKey)
       const ip = (req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || '').replace(/^::ffff:/, '')
@@ -1077,7 +1079,7 @@ const visitedAnonIps = new Set() // in-memory: anonymous IPs tracked this server
 app.post('/api/visit', async (req, res) => {
   try {
     const ip = (req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || '').replace(/^::ffff:/, '')
-    const today = new Date().toISOString().slice(0, 10)
+    const today = todayISO()
     const key = `${ip}:${today}`
     if (ip && !visitedAnonIps.has(key)) {
       visitedAnonIps.add(key)
@@ -1579,7 +1581,7 @@ app.get('/api/csrf-token', authenticate, async (req, res) => {
 // GET /api/auth/session — check if session is valid
 app.get('/api/auth/session', authenticate, async (req, res) => {
   try {
-    const [users] = await pool.query('SELECT id, name, handle, initials, avatar_url, mode, ads_free, is_moderator FROM users WHERE id = ?', [req.userId])
+    const [users] = await pool.query('SELECT id, name, handle, initials, avatar_url, mode, is_moderator FROM users WHERE id = ?', [req.userId])
     if (users.length === 0) return res.status(404).json({ error: 'User not found' })
     const ads_free = await isUserAdsFreeToday(req.userId)
     const user = { ...users[0], mode: users[0].mode || 'privat', ads_free, is_admin: users[0].id === 1, is_moderator: Boolean(users[0].is_moderator) || users[0].id === 1 }
@@ -6271,7 +6273,7 @@ app.get('/api/admin/ad-stats', authenticate, requireAdmin, async (req, res) => {
 // GET /api/me/subscription — get current user's ads_free status + Mollie subscription details
 app.get('/api/me/subscription', authenticate, async (req, res) => {
   try {
-    const [[user]] = await pool.query('SELECT ads_free, mode FROM users WHERE id = ?', [req.userId])
+    const [[user]] = await pool.query('SELECT mode FROM users WHERE id = ?', [req.userId])
     if (!user) return res.status(404).json({ error: 'User not found' })
     const [[adSettings]] = await pool.query('SELECT adfree_price_private, adfree_price_business, adfree_recurring_pct, currency, ads_enabled FROM admin_ad_settings WHERE id = 1').catch(() => [[{ adfree_price_private: 29, adfree_price_business: 49, adfree_recurring_pct: 100, currency: 'EUR', ads_enabled: 1 }]])
     const price = parseFloat(user.mode === 'business' ? adSettings?.adfree_price_business : adSettings?.adfree_price_private) || 29
@@ -6287,7 +6289,7 @@ app.get('/api/me/subscription', authenticate, async (req, res) => {
     ).catch(() => [[null]])
 
     res.json({
-      ads_free: Boolean(user.ads_free),
+      ads_free: await isUserAdsFreeToday(req.userId),
       price,
       recurring_price: recurringPrice,
       recurring_pct: recurringPct,
@@ -6557,7 +6559,7 @@ app.post('/api/mollie/payment/webhook', express.urlencoded({ extended: false }),
         // adfree plan: set flag and record a purchased period
         await pool.query('UPDATE users SET ads_free = 1 WHERE id = ?', [sub.user_id])
         if (sub.plan === 'adfree') {
-          const periodStart = new Date().toISOString().split('T')[0]
+          const periodStart = todayISO()
           const periodEnd = expiresAt ? expiresAt.toISOString().split('T')[0] : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
           await pool.query(
             `INSERT INTO adfree_purchased_periods (user_id, start_date, end_date, subscription_id)
@@ -6616,10 +6618,6 @@ app.post('/api/mollie/payment/webhook', express.urlencoded({ extended: false }),
 // GET /api/mollie/payment/status — current user's Mollie subscription status
 app.get('/api/mollie/payment/status', authenticate, async (req, res) => {
   try {
-    const [[user]] = await pool.query('SELECT ads_free, mode FROM users WHERE id = ?', [req.userId])
-    if (!user) return res.status(404).json({ error: 'User not found' })
-
-    // Get the most recent active or pending subscription (prefer recurring+active)
     const [[sub]] = await pool.query(
       `SELECT plan, status, expires_at, recurring, mollie_subscription_id
        FROM subscriptions WHERE user_id = ?
@@ -6628,7 +6626,7 @@ app.get('/api/mollie/payment/status', authenticate, async (req, res) => {
     )
 
     res.json({
-      ads_free: Boolean(user.ads_free),
+      ads_free: await isUserAdsFreeToday(req.userId),
       plan: sub?.plan || null,
       status: sub?.status || null,
       expires_at: sub?.expires_at || null,
@@ -10381,7 +10379,7 @@ app.get('/api/adfree/assignments', authenticate, async (req, res) => {
   try {
     const userId = req.userId
     const { startDate, endDate } = req.query
-    const today = new Date().toISOString().split('T')[0]
+    const today = todayISO()
 
     // Get earned assignments
     let earnedQuery = 'SELECT id, start_date, end_date, days_used, created_at FROM adfree_day_assignments WHERE user_id = ?'
@@ -10520,7 +10518,7 @@ app.post('/api/adfree/assign', authenticate, async (req, res) => {
     )
 
     // If assignment covers today, set ads_free = 1
-    const today = new Date().toISOString().split('T')[0]
+    const today = todayISO()
     if (startDate <= today && today <= endDate) {
       await pool.query(
         'UPDATE users SET ads_free = 1, adfree_active_until = ? WHERE id = ?',
