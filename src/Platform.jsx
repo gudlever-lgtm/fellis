@@ -1640,16 +1640,11 @@ function FeedSidebar({ lang, t, adsFree, onNavigate }) {
         {locationPopup && (
           <>
             <div onClick={() => setLocationPopup(null)} style={{ position: 'fixed', inset: 0, zIndex: 299, background: 'rgba(0,0,0,0.35)' }} />
-            <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 300, background: '#fff', borderRadius: 14, boxShadow: '0 8px 32px rgba(0,0,0,0.18)', padding: '20px 24px', minWidth: 280, maxWidth: 360 }}>
-              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>📍 {da ? 'Lokation' : 'Location'}</div>
-              <div style={{ fontSize: 14, color: '#333', marginBottom: 16 }}>{locationPopup.loc}</div>
-              <a
-                href={`https://www.openstreetmap.org/search?query=${encodeURIComponent(locationPopup.loc)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ display: 'inline-block', padding: '7px 16px', background: '#2D6A4F', color: '#fff', borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: 'none', marginBottom: 8 }}
-              >{da ? 'Åbn kort' : 'Open map'}</a>
-              <button onClick={() => setLocationPopup(null)} style={{ display: 'block', marginTop: 8, background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 13 }}>{da ? 'Luk' : 'Close'}</button>
+            <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 300, background: '#fff', borderRadius: 14, boxShadow: '0 8px 32px rgba(0,0,0,0.18)', padding: '20px 24px', minWidth: 300, maxWidth: 380, width: '90vw' }}>
+              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>📍 {da ? 'Lokation' : 'Location'}</div>
+              <div style={{ fontSize: 14, color: '#333', marginBottom: 12 }}>{locationPopup.loc}</div>
+              <OsmMap location={locationPopup.loc} lang={lang} height={180} />
+              <button onClick={() => setLocationPopup(null)} style={{ display: 'block', marginTop: 12, background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 13 }}>{da ? 'Luk' : 'Close'}</button>
             </div>
           </>
         )}
