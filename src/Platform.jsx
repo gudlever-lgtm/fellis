@@ -1777,6 +1777,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [locationSearchOpen, setLocationSearchOpen] = useState(false)
   const [locationSearchText, setLocationSearchText] = useState('')
   const [locationResults, setLocationResults] = useState([])
+  const [locationSearching, setLocationSearching] = useState(false)
   const locationDebounce = useRef(null)
   // Signal engine: track dwell time on posts via IntersectionObserver
   const dwellTimers = useRef(new Map())   // postId → { startMs, postId, categories }
