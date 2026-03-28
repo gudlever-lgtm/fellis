@@ -13471,7 +13471,7 @@ function MarketplaceStatsPanel({ stats, loading, myListings, t, lang }) {
 
 function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller, onViewProfile }) {
   const [tab, setTab] = useState('browse')
-  const [listings, setListings] = useState(MOCK_LISTINGS)
+  const [listings, setListings] = useState([])
   const [myListings, setMyListings] = useState([])
   const [filters, setFilters] = useState({ category: '', location: '', q: '' })
   const [selectedListing, setSelectedListing] = useState(null)
@@ -13493,11 +13493,7 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
   useEffect(() => {
     apiFetchListings(filters).then(data => {
       const apiListings = data?.listings || (Array.isArray(data) ? data : null)
-      if (apiListings) {
-        // Merge: real DB listings first, then mock placeholders not already in DB (by id)
-        const apiIds = new Set(apiListings.map(l => l.id))
-        setListings([...apiListings, ...MOCK_LISTINGS.filter(m => !apiIds.has(m.id))])
-      }
+      if (apiListings) setListings(apiListings)
     })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
