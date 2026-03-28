@@ -5068,6 +5068,36 @@ app.get('/api/companies/:id/posts', authenticate, async (req, res) => {
   }
 })
 
+// GET /api/feed/company-posts — recent posts from all companies the user follows or owns
+// Used to interleave company content chronologically in the main feed.
+// Only returns posts created within the last 14 days so stale content doesn't reappear.
+app.get('/api/feed/company-posts', authenticate, async (req, res) => {
+  try {
+    const [posts] = await pool.query(
+      `SELECT cp.*, c.name AS company_name, c.handle AS company_handle, c.color AS company_color,
+              u.name AS author_name,
+              (SELECT COUNT(*) > 0 FROM company_post_likes WHERE post_id = cp.id AND user_id = ?) AS liked,
+              (SELECT COUNT(*) FROM company_post_comments WHERE post_id = cp.id) AS comment_count
+       FROM company_posts cp
+       JOIN companies c ON c.id = cp.company_id
+       JOIN users u ON u.id = cp.author_id
+       WHERE cp.company_id IN (
+         SELECT company_id FROM company_follows WHERE user_id = ?
+         UNION
+         SELECT company_id FROM company_members WHERE user_id = ?
+       )
+       AND cp.created_at >= NOW() - INTERVAL 14 DAY
+       ORDER BY cp.created_at DESC
+       LIMIT 20`,
+      [req.userId, req.userId, req.userId]
+    )
+    res.json({ posts })
+  } catch (err) {
+    console.error('GET /api/feed/company-posts error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // POST /api/companies/:id/posts — create post
 app.post('/api/companies/:id/posts', authenticate, async (req, res) => {
   try {
@@ -7553,6 +7583,7 @@ app.get('/api/events', authenticate, async (req, res) => {
       going: e.going_names ? e.going_names.split(',') : [],
       maybe: e.maybe_names ? e.maybe_names.split(',') : [],
       myRsvp: e.my_rsvp || null,
+      createdAt: e.created_at,
     }))
     res.json({ events })
   } catch (err) {
