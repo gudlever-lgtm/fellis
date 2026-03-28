@@ -1372,6 +1372,10 @@ export async function apiEvaluateBadges() {
 export async function apiGetEarnedBadges() {
   return await request('/api/badges/earned')
 }
+// Get earned badges for any user (for hover tooltips).
+export async function apiGetUserBadges(userId) {
+  return await request(`/api/users/${userId}/badges`)
+}
 // Get all badge definitions with enabled state (auth required).
 export async function apiGetAllBadges() {
   return await request('/api/badges/all')
