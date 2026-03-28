@@ -599,6 +599,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
             <FeedPage lang={lang} t={t} currentUser={currentUser} mode={mode} adsFree={adsFree} highlightPostId={highlightPostId} onHighlightCleared={() => setHighlightPostId(null)}
               onViewProfile={(uid) => { setViewUserId(uid); navigateTo('view-profile') }}
               onViewOwnProfile={() => navigateTo('profile')}
+              onViewBadges={(uid) => { if (!uid) { navigateTo('profile', { tab: 'badges' }) } else { setViewUserId(uid); navigateTo('view-profile') } }}
               onNavigate={navigateTo}
               onBadgeCheck={checkBadges}
               feedEggRef={feedEggRef}
@@ -613,7 +614,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
           <FeedSidebar lang={lang} t={t} adsFree={adsFree} onNavigate={navigateTo} />
         </div>
         {page === 'reels' && <ReelsPage t={t} currentUser={currentUser} initialReelId={navParam?.reelId} onViewProfile={(userId) => navigateTo('view-profile', { userId })} />}
-        {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onBadgeCheck={checkBadges} interestCategories={interestCategories} />}
+        {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onBadgeCheck={checkBadges} interestCategories={interestCategories} initialTab={navParam?.tab} />}
         {page === 'view-profile' && viewUserId && <FriendProfilePage userId={viewUserId} lang={lang} t={t} currentUser={currentUser} onBack={() => navigateTo('feed')} onBadgeCheck={checkBadges} onMessage={async (prof) => { const data = await apiCreateConversation([prof.id], null, false, false).catch(() => null); if (data?.id) setOpenConvId(data.id); navigateTo('messages') }} />}
         {page === 'edit-profile' && <EditProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onBadgeCheck={checkBadges} />}
         {page === 'friends' && <FriendsPage lang={lang} t={t} mode={mode} sseRefreshKey={friendsRefreshKey} onBadgeCheck={checkBadges} onMessage={async (friend) => {
@@ -1053,7 +1054,7 @@ function openCamera(onFile) {
 
 // ── Post avatar with badge tooltip ────────────────────────────────────────
 const _badgeCache = new Map()
-function PostAvatarWithBadge({ post, lang, isOwn, onViewProfile, onViewOwnProfile }) {
+function PostAvatarWithBadge({ post, lang, isOwn, onViewProfile, onViewOwnProfile, onViewBadges }) {
   const [badges, setBadges] = useState(null)
   const [showTooltip, setShowTooltip] = useState(false)
   const [hoveredBadgeId, setHoveredBadgeId] = useState(null)
@@ -1086,7 +1087,10 @@ function PostAvatarWithBadge({ post, lang, isOwn, onViewProfile, onViewOwnProfil
           🏅{post.authorBadgeCount}
           {showTooltip && badges && badges.length > 0 && (
             <div style={{ position: 'absolute', bottom: 'calc(100% + 6px)', left: '50%', transform: 'translateX(-50%)', background: '#fff', border: '1px solid #E8E4DF', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.13)', padding: '8px 4px', zIndex: 300, minWidth: 180, whiteSpace: 'normal', fontSize: 11, color: '#333', pointerEvents: 'auto' }}>
-              <div style={{ fontWeight: 700, marginBottom: 4, color: '#2D6A4F', fontSize: 12, padding: '0 10px 4px', borderBottom: '1px solid #f0ede9' }}>🏅 {lang === 'da' ? 'Badges' : 'Badges'}</div>
+              <div
+                onClick={() => { setShowTooltip(false); onViewBadges?.(isOwn ? null : post.authorId) }}
+                style={{ fontWeight: 700, marginBottom: 4, color: '#2D6A4F', fontSize: 12, padding: '0 10px 4px', borderBottom: '1px solid #f0ede9', cursor: onViewBadges ? 'pointer' : 'default' }}
+              >🏅 {lang === 'da' ? 'Badges' : 'Badges'} <span style={{ fontSize: 10, fontWeight: 400, color: '#A09890' }}>→</span></div>
               {badges.map(b => (
                 <div
                   key={b.id}
@@ -1734,7 +1738,7 @@ function FeedSidebar({ lang, t, adsFree, onNavigate }) {
   )
 }
 
-function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onNavigate, onBadgeCheck, feedEggRef, onTriggerChuck, onTriggerMatrix, onTriggerRickroll, onTriggerParty, onTriggerRetro, interestCategories = INTEREST_CATEGORIES }) {
+function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onViewBadges, onNavigate, onBadgeCheck, feedEggRef, onTriggerChuck, onTriggerMatrix, onTriggerRickroll, onTriggerParty, onTriggerRetro, interestCategories = INTEREST_CATEGORIES }) {
   const [posts, setPosts] = useState([])
   const [feedCategoryFilter, setFeedCategoryFilter] = useState(null)
   const [pinnedPost, setPinnedPost] = useState(null)
@@ -3289,6 +3293,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                 isOwn={isOwn}
                 onViewProfile={onViewProfile}
                 onViewOwnProfile={onViewOwnProfile}
+                onViewBadges={onViewBadges}
               />
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -3820,12 +3825,12 @@ const MOCK_FB_PHOTOS = [
 ]
 
 // ── Profile (clean — read-only view) ──
-function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onBadgeCheck, interestCategories = INTEREST_CATEGORIES }) {
+function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onBadgeCheck, interestCategories = INTEREST_CATEGORIES, initialTab }) {
   const [profile, setProfile] = useState({ ...currentUser })
   const [userPosts, setUserPosts] = useState([])
   const [familyGroups, setFamilyGroups] = useState([])
   const [familyFriends, setFamilyFriends] = useState([])
-  const [profileTab, setProfileTab] = useState('about')
+  const [profileTab, setProfileTab] = useState(initialTab || 'about')
   const [myCompanies, setMyCompanies] = useState([])
   const [interests, setInterests] = useState([])
   const [interestsSaving, setInterestsSaving] = useState(false)
@@ -16858,7 +16863,7 @@ function BadgesProfileSection({ lang, earnedBadges, onBadgeCheck, setEarnedBadge
                 const adminHint = adminEgg.hintsEnabled && adminEgg.hintText ? adminEgg.hintText : ''
                 const displayName = isEgg && !isEarned ? '???' : badge.name[lang] || badge.name.da
                 const displayDesc = isEgg && !isEarned
-                  ? (adminHint ? `💡 ${adminHint}` : (da ? 'Hemmeligt — opdage det selv!' : 'Secret — discover it yourself!'))
+                  ? (adminHint ? `💡 ${adminHint}` : (da ? 'Hemmeligt — opdag det selv!' : 'Secret — discover it yourself!'))
                   : badge.description[lang] || badge.description.da
 
                 const eggId = isEgg ? BADGE_TO_EGG[badge.id] : null
