@@ -20,7 +20,7 @@ import MatrixRain from './components/easter-eggs/MatrixRain.jsx'
 import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
 import RickRoll from './components/easter-eggs/RickRoll.jsx'
 import RiddleBanner from './components/easter-eggs/RiddleBanner.jsx'
-import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments } from './api.js'
+import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments } from './api.js'
 import { BADGES, BADGE_BY_ID } from './badges/badgeDefinitions.js'
 import BadgeToastQueue from './components/BadgeToast.jsx'
 import AdfreeCalendar from './components/AdfreeCalendar.jsx'
@@ -1049,6 +1049,55 @@ function openCamera(onFile) {
   inp.addEventListener('change', (e) => { onFile(e); cleanup() }, { once: true })
   inp.addEventListener('cancel', cleanup, { once: true })
   inp.click()
+}
+
+// ── Post avatar with badge tooltip ────────────────────────────────────────
+const _badgeCache = new Map()
+function PostAvatarWithBadge({ post, lang, isOwn, onViewProfile, onViewOwnProfile }) {
+  const [badges, setBadges] = useState(null)
+  const [showTooltip, setShowTooltip] = useState(false)
+
+  const loadBadges = async () => {
+    if (!post.authorId || badges !== null) return
+    const cached = _badgeCache.get(post.authorId)
+    if (cached) { setBadges(cached); return }
+    const data = await apiGetUserBadges(post.authorId).catch(() => null)
+    const b = data?.badges || []
+    _badgeCache.set(post.authorId, b)
+    setBadges(b)
+  }
+
+  return (
+    <div style={{ position: 'relative', flexShrink: 0 }}>
+      <div
+        className="p-avatar-sm"
+        style={{ background: nameToColor(post.author), cursor: 'pointer' }}
+        onClick={() => isOwn ? onViewOwnProfile?.() : (post.authorId && onViewProfile?.(post.authorId))}
+      >
+        {getInitials(post.author)}
+      </div>
+      {post.authorBadgeCount > 0 && (
+        <span
+          onMouseEnter={() => { setShowTooltip(true); loadBadges() }}
+          onMouseLeave={() => setShowTooltip(false)}
+          style={{ position: 'absolute', bottom: -3, right: -6, fontSize: 9, fontWeight: 700, background: '#FFD700', color: '#7a5f00', borderRadius: 7, padding: '0 3px', lineHeight: '13px', border: '1.5px solid #fff', cursor: 'default', whiteSpace: 'nowrap', zIndex: 1 }}
+        >
+          🏅{post.authorBadgeCount}
+          {showTooltip && badges && badges.length > 0 && (
+            <div style={{ position: 'absolute', bottom: 'calc(100% + 6px)', left: '50%', transform: 'translateX(-50%)', background: '#fff', border: '1px solid #E8E4DF', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.13)', padding: '8px 12px', zIndex: 300, minWidth: 160, whiteSpace: 'normal', fontSize: 11, color: '#333', pointerEvents: 'none' }}>
+              <div style={{ fontWeight: 700, marginBottom: 6, color: '#2D6A4F', fontSize: 12 }}>🏅 {lang === 'da' ? 'Badges' : 'Badges'}</div>
+              {badges.map(b => (
+                <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <span style={{ fontSize: 15 }}>{b.icon}</span>
+                  <span style={{ lineHeight: 1.3 }}>{b.name}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </span>
+      )}
+    </div>
+  )
 }
 
 // ── Shared media picker button ─────────────────────────────────────────────
@@ -3223,20 +3272,13 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
             data-categories={post.categories?.length ? JSON.stringify(post.categories) : undefined}
           >
             <div className="p-post-header">
-              <div style={{ position: 'relative', flexShrink: 0 }}>
-              <div
-                className="p-avatar-sm"
-                style={{ background: nameToColor(post.author), cursor: 'pointer' }}
-                onClick={() => setCollapsedPosts(prev => { const n = new Set(prev); n.has(post.id) ? n.delete(post.id) : n.add(post.id); return n })}
-              >
-                {getInitials(post.author)}
-              </div>
-              {post.authorBadgeCount > 0 && (
-                <span style={{ position: 'absolute', bottom: -3, right: -6, fontSize: 9, fontWeight: 700, background: '#FFD700', color: '#7a5f00', borderRadius: 7, padding: '0 3px', lineHeight: '13px', border: '1.5px solid #fff', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
-                  🏅{post.authorBadgeCount}
-                </span>
-              )}
-            </div>
+              <PostAvatarWithBadge
+                post={post}
+                lang={lang}
+                isOwn={isOwn}
+                onViewProfile={onViewProfile}
+                onViewOwnProfile={onViewOwnProfile}
+              />
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <div

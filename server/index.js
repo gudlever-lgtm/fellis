@@ -10389,6 +10389,27 @@ app.get('/api/badges/earned', authenticate, async (req, res) => {
   }
 })
 
+// GET /api/users/:id/badges — earned badges for any user (used for hover tooltips in feed)
+app.get('/api/users/:id/badges', authenticate, async (req, res) => {
+  const targetId = parseInt(req.params.id)
+  if (isNaN(targetId)) return res.status(400).json({ error: 'Invalid user id' })
+  try {
+    const lang = req.lang || 'da'
+    const [rows] = await pool.query(
+      'SELECT badge_id FROM earned_badges WHERE user_id = ? ORDER BY awarded_at ASC',
+      [targetId]
+    )
+    const badges = rows.map(r => {
+      const def = BADGE_BY_ID[r.badge_id]
+      if (!def) return null
+      return { id: r.badge_id, icon: def.icon, name: def.name[lang] || def.name.da, tier: def.tier }
+    }).filter(Boolean)
+    res.json({ badges })
+  } catch {
+    res.json({ badges: [] })
+  }
+})
+
 // GET /api/badges/all — all badge definitions (for admin overview)
 app.get('/api/badges/all', authenticate, async (req, res) => {
   try {
