@@ -14,6 +14,11 @@ import { apiServeAds, apiRecordAdImpression, apiRecordAdClick } from './api.js'
 // Avoids N simultaneous requests when multiple ad slots render at once (e.g. feed).
 const _adCache = {} // placement → { ads, refresh_interval, fetchedAt, promise }
 
+// Call this after creating, deleting, or updating any ad so the next render re-fetches.
+export function invalidateAdCache() {
+  Object.keys(_adCache).forEach(k => delete _adCache[k])
+}
+
 async function fetchAds(placement) {
   const now = Date.now()
   const cached = _adCache[placement]
