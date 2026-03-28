@@ -1264,11 +1264,13 @@
 }
 /* Media popup panel — opens upward.
    Post composer: button is left-aligned → anchor left.
-   Comment row: button is right-aligned → anchor right to stay on screen. */
+   Comment row: button is right-aligned → anchor right to stay on screen.
+   Uses Y-only animation so left/right offset stays correct. */
 .p-media-popup {
   left: 0;
   transform: none;
   min-width: 180px;
+  animation: mediaPopUp 0.14s ease;
 }
 .p-media-popup-right {
   left: auto;
@@ -1279,6 +1281,15 @@
 .p-media-popup-down {
   bottom: auto;
   top: calc(100% + 8px);
+  animation: mediaPopDown 0.14s ease;
+}
+@keyframes mediaPopUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes mediaPopDown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 /* Round brand-coloured icon inside each media popup option */
 .p-media-popup-icon {
