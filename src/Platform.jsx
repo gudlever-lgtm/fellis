@@ -1057,7 +1057,7 @@ function openCamera(onFile) {
 //   lang, onFiles(files[]), accept, multiple
 //   align = 'left' | 'right'               — popup direction
 //   buttonContent                           — optional custom button label/icon
-function MediaPickerButton({ lang, onFiles, accept = 'image/*,video/*', multiple = true, align = 'left', buttonContent }) {
+function MediaPickerButton({ lang, onFiles, accept = 'image/*,video/*', multiple = true, align = 'left', direction = 'up', buttonContent }) {
   const [open, setOpen] = useState(false)
   const fileRef = useRef(null)
   const pickGallery = () => { fileRef.current?.click(); setOpen(false) }
@@ -1074,7 +1074,7 @@ function MediaPickerButton({ lang, onFiles, accept = 'image/*,video/*', multiple
       {open && (
         <>
           <div className="p-share-backdrop" onClick={() => setOpen(false)} />
-          <div className={`p-share-popup p-media-popup${align === 'right' ? ' p-media-popup-right' : ''}`}>
+          <div className={`p-share-popup p-media-popup${align === 'right' ? ' p-media-popup-right' : ''}${direction === 'down' ? ' p-media-popup-down' : ''}`}>
             <button className="p-share-option" type="button" onMouseDown={e => e.preventDefault()} onClick={pickGallery}>
               <span className="p-media-popup-icon">🖼️</span>
               {lang === 'da' ? 'Galleri' : 'Gallery'}
@@ -1565,6 +1565,7 @@ function FeedSidebar({ lang, t, adsFree, onNavigate }) {
   const [events, setEvents] = useState(null)
   const [suggestedFriends, setSuggestedFriends] = useState(null)
   const [boostedListings, setBoostedListings] = useState(null)
+  const [locationPopup, setLocationPopup] = useState(null) // { loc: string }
 
   useEffect(() => {
     apiFetchEvents().then(d => { if (d?.events) setEvents(d.events.slice(0, 3)) })
@@ -1616,18 +1617,42 @@ function FeedSidebar({ lang, t, adsFree, onNavigate }) {
           : events.map(ev => {
             const title = typeof ev.title === 'string' ? ev.title : (ev.title?.[lang] || ev.title?.da || '')
             const loc = typeof ev.location === 'string' ? ev.location : (ev.location?.[lang] || ev.location?.da || '')
-            const dt = ev.starts_at ? new Date(ev.starts_at).toLocaleDateString(da ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short' }) : ''
+            const dt = ev.date ? new Date(ev.date).toLocaleDateString(da ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short' }) : ''
             return (
               <div key={ev.id} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'flex-start' }}>
                 <div style={{ background: '#F0FAF4', borderRadius: 8, padding: '4px 8px', fontSize: 11, fontWeight: 700, color: '#2D6A4F', whiteSpace: 'nowrap', minWidth: 40, textAlign: 'center' }}>{dt}</div>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: '#222', lineHeight: 1.3 }}>{title}</div>
-                  {loc && <div style={{ fontSize: 11, color: '#888' }}>📍 {loc}</div>}
+                  {loc && <div style={{ fontSize: 11, color: '#888' }}>
+                    <button
+                      type="button"
+                      onClick={() => setLocationPopup({ loc })}
+                      style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#888', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 2 }}
+                      title={da ? 'Vis lokation' : 'Show location'}
+                    >📍</button>
+                    {' '}{loc}
+                  </div>}
                 </div>
               </div>
             )
           })
         }
+        {locationPopup && (
+          <>
+            <div onClick={() => setLocationPopup(null)} style={{ position: 'fixed', inset: 0, zIndex: 299, background: 'rgba(0,0,0,0.35)' }} />
+            <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 300, background: '#fff', borderRadius: 14, boxShadow: '0 8px 32px rgba(0,0,0,0.18)', padding: '20px 24px', minWidth: 280, maxWidth: 360 }}>
+              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>📍 {da ? 'Lokation' : 'Location'}</div>
+              <div style={{ fontSize: 14, color: '#333', marginBottom: 16 }}>{locationPopup.loc}</div>
+              <a
+                href={`https://www.openstreetmap.org/search?query=${encodeURIComponent(locationPopup.loc)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: 'inline-block', padding: '7px 16px', background: '#2D6A4F', color: '#fff', borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: 'none', marginBottom: 8 }}
+              >{da ? 'Åbn kort' : 'Open map'}</a>
+              <button onClick={() => setLocationPopup(null)} style={{ display: 'block', marginTop: 8, background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 13 }}>{da ? 'Luk' : 'Close'}</button>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Suggested friends */}
@@ -2471,6 +2496,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
               lang={lang}
               onFiles={files => handleFileSelect({ target: { files } })}
               align="right"
+              direction="down"
             />
           </div>
         ) : (

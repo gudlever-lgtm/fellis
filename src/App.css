@@ -1275,6 +1275,11 @@
   right: 0;
   transform: none;
 }
+/* Opens downward instead of upward (for buttons near the top of the viewport) */
+.p-media-popup-down {
+  bottom: auto;
+  top: calc(100% + 8px);
+}
 /* Round brand-coloured icon inside each media popup option */
 .p-media-popup-icon {
   width: 32px;
