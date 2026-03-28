@@ -8620,19 +8620,35 @@ async function initNotifications() {
       await pool.query('ALTER TABLE notifications ADD COLUMN message_en TEXT NOT NULL AFTER message_da')
       console.log('✓ notifications: added message_en')
     }
-    // actor_id / actor_name — make nullable if NOT NULL (so system notifications can omit them)
-    if (colMap['actor_id'] && colMap['actor_id'].IS_NULLABLE === 'NO') {
+    // actor_id / actor_name / post_id — add if missing, fix nullability if needed
+    if (!colMap['actor_id']) {
+      await pool.query('ALTER TABLE notifications ADD COLUMN actor_id INT(11) DEFAULT NULL')
+      console.log('✓ notifications: added actor_id')
+    } else if (colMap['actor_id'].IS_NULLABLE === 'NO') {
       await pool.query('ALTER TABLE notifications MODIFY actor_id INT(11) DEFAULT NULL')
       console.log('✓ notifications: actor_id made nullable')
     }
-    if (colMap['actor_name'] && colMap['actor_name'].IS_NULLABLE === 'NO') {
+    if (!colMap['actor_name']) {
+      await pool.query('ALTER TABLE notifications ADD COLUMN actor_name VARCHAR(255) DEFAULT NULL')
+      console.log('✓ notifications: added actor_name')
+    } else if (colMap['actor_name'].IS_NULLABLE === 'NO') {
       await pool.query('ALTER TABLE notifications MODIFY actor_name VARCHAR(255) DEFAULT NULL')
       console.log('✓ notifications: actor_name made nullable')
     }
-    // is_read — add if missing (old schema may use read_at instead)
-    if (!colMap['is_read'] && !colMap['read_at']) {
-      await pool.query('ALTER TABLE notifications ADD COLUMN is_read TINYINT(1) NOT NULL DEFAULT 0 AFTER post_id')
-      console.log('✓ notifications: added is_read')
+    if (!colMap['post_id']) {
+      await pool.query('ALTER TABLE notifications ADD COLUMN post_id INT(11) DEFAULT NULL')
+      console.log('✓ notifications: added post_id')
+    }
+    // is_read — add if missing (old schema used read_at instead)
+    if (!colMap['is_read']) {
+      await pool.query('ALTER TABLE notifications ADD COLUMN is_read TINYINT(1) NOT NULL DEFAULT 0')
+      if (colMap['read_at']) {
+        // Migrate existing read state from read_at → is_read
+        await pool.query('UPDATE notifications SET is_read = 1 WHERE read_at IS NOT NULL')
+        console.log('✓ notifications: added is_read, migrated from read_at')
+      } else {
+        console.log('✓ notifications: added is_read')
+      }
     }
 
     const [[nRow]] = await pool.query('SELECT COUNT(*) as c FROM notifications')
