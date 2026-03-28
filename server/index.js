@@ -8793,7 +8793,7 @@ app.get('/api/jobs/mine', authenticate, async (req, res) => {
              (SELECT COUNT(DISTINCT sj.shared_with_user_id) FROM shared_jobs sj JOIN users u ON sj.shared_with_user_id = u.id WHERE sj.job_id = j.id) AS share_count
       FROM jobs j
       JOIN companies c ON c.id = j.company_id
-      WHERE j.created_by_user_id = ?
+      JOIN company_members cm ON cm.company_id = j.company_id AND cm.user_id = ? AND cm.role IN ('owner','admin','editor')
       ORDER BY j.created_at DESC
     `, [req.userId])
     res.json({ jobs: rows || [] })
