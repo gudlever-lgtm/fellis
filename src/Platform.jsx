@@ -1058,6 +1058,10 @@ function PostAvatarWithBadge({ post, lang, isOwn, onViewProfile, onViewOwnProfil
   const [badges, setBadges] = useState(null)
   const [showTooltip, setShowTooltip] = useState(false)
   const [hoveredBadgeId, setHoveredBadgeId] = useState(null)
+  const leaveTimer = useRef(null)
+
+  const handleEnter = () => { clearTimeout(leaveTimer.current); setShowTooltip(true); loadBadges() }
+  const handleLeave = () => { leaveTimer.current = setTimeout(() => { setShowTooltip(false); setHoveredBadgeId(null) }, 120) }
 
   const loadBadges = async () => {
     if (!post.authorId || badges !== null) return
@@ -1080,13 +1084,13 @@ function PostAvatarWithBadge({ post, lang, isOwn, onViewProfile, onViewOwnProfil
       </div>
       {post.authorBadgeCount > 0 && (
         <span
-          onMouseEnter={() => { setShowTooltip(true); loadBadges() }}
-          onMouseLeave={() => { setShowTooltip(false); setHoveredBadgeId(null) }}
+          onMouseEnter={handleEnter}
+          onMouseLeave={handleLeave}
           style={{ position: 'absolute', bottom: -3, right: -6, fontSize: 9, fontWeight: 700, background: '#FFD700', color: '#7a5f00', borderRadius: 7, padding: '0 3px', lineHeight: '13px', border: '1.5px solid #fff', cursor: 'default', whiteSpace: 'nowrap', zIndex: 1 }}
         >
           🏅{post.authorBadgeCount}
           {showTooltip && badges && badges.length > 0 && (
-            <div style={{ position: 'absolute', bottom: 'calc(100% + 6px)', left: '50%', transform: 'translateX(-50%)', background: '#fff', border: '1px solid #E8E4DF', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.13)', padding: '8px 4px', zIndex: 300, minWidth: 180, whiteSpace: 'normal', fontSize: 11, color: '#333', pointerEvents: 'auto' }}>
+            <div onMouseEnter={handleEnter} onMouseLeave={handleLeave} style={{ position: 'absolute', bottom: 'calc(100% + 6px)', left: '50%', transform: 'translateX(-50%)', background: '#fff', border: '1px solid #E8E4DF', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.13)', padding: '8px 4px', zIndex: 300, minWidth: 180, whiteSpace: 'normal', fontSize: 11, color: '#333', pointerEvents: 'auto' }}>
               <div
                 onClick={() => { setShowTooltip(false); onViewBadges?.(isOwn ? null : post.authorId) }}
                 style={{ fontWeight: 700, marginBottom: 4, color: '#2D6A4F', fontSize: 12, padding: '0 10px 4px', borderBottom: '1px solid #f0ede9', cursor: onViewBadges ? 'pointer' : 'default' }}
