@@ -431,6 +431,10 @@ export async function apiCancelInvite(id) {
   return await request(`/api/invites/${id}`, { method: 'DELETE' })
 }
 
+export async function apiFeedCompanyPosts() {
+  return await request('/api/feed/company-posts')
+}
+
 // Events
 export async function apiFetchEvents() {
   return await request('/api/events')

@@ -2,12 +2,12 @@ import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } f
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { SUPPORTED_LANGS, EUROPEAN_LANGUAGES, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials, getTranslations } from './data.js'
 import { formatPrice } from './utils/currency.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiShareJob, apiUnshareJob, apiGetSharedJobs, apiGetJobSharedWith, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals, apiFetchCalendarReminders, apiCreateCalendarReminder, apiDeleteCalendarReminder, apiGetLinkedContent, apiFetchJobs, apiGetSuggestedUsers, apiAdminNotifyAll, apiLikeComment, apiAdminGetPlatformAds, apiAdminCreatePlatformAd, apiAdminUpdatePlatformAd, apiAdminDeletePlatformAd, apiAdminGetLockedUsers, apiAdminUnlockUser } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiShareJob, apiUnshareJob, apiGetSharedJobs, apiGetJobSharedWith, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals, apiFetchCalendarReminders, apiCreateCalendarReminder, apiDeleteCalendarReminder, apiGetLinkedContent, apiFetchJobs, apiGetSuggestedUsers, apiAdminNotifyAll, apiLikeComment, apiAdminGetPlatformAds, apiAdminCreatePlatformAd, apiAdminUpdatePlatformAd, apiAdminDeletePlatformAd, apiAdminGetLockedUsers, apiAdminUnlockUser, apiFeedCompanyPosts } from './api.js'
 import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
 import ReelsPage from './Reels.jsx'
 import InterestGraphPage from './InterestGraphPage.jsx'
-import AdBanner from './AdBanner.jsx'
+import AdBanner, { invalidateAdCache } from './AdBanner.jsx'
 import useKonamiCode from './hooks/useKonamiCode.js'
 import useKeySequence from './hooks/useKeySequence.js'
 import useScrollHold from './hooks/useScrollHold.js'
@@ -1983,20 +1983,10 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       if (data?.listings?.length) setBoostedFeedListings(data.listings)
     })
 
-    // Load recent company posts from followed companies
-    fetch('/api/companies', { credentials: 'include' })
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        const allCompanies = data?.companies || []
-        const followed = allCompanies.filter(c => c.is_following || c.role === 'following' || c.member_role === 'owner' || c.role === 'owner')
-        if (!followed.length) return
-        return fetch(`/api/companies/${followed[0].id}/posts?limit=2`, { credentials: 'include' })
-          .then(r => r.ok ? r.json() : null)
-          .then(pd => {
-            setCpFeedPosts((pd?.posts || []).map(p => ({ ...p, company: followed[0] })))
-          })
-      })
-      .catch(() => {})
+    // Load recent company posts from all followed/owned companies
+    apiFeedCompanyPosts().then(data => {
+      if (data?.posts?.length) setCpFeedPosts(data.posts)
+    })
   }, [])
 
   // Bottom sentinel — infinite scroll: load next page when user reaches the end
@@ -2985,15 +2975,46 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         )
       })()}
 
-      {/* Company posts feed items — shown chronologically within the feed */}
-      {cpFeedPosts.map(post => {
-        const cp = post.company
+      {/* Company posts feed items — rendered inline via merged loop below */}
+      {/* Event activity feed items — rendered inline via merged loop below */}
+
+      {/* Posts — interleaved with company posts and recent events by created_at */}
+      {(() => {
+        // Build sorted extras list from company posts + recently-created events (14-day window)
+        const CUTOFF_MS = 14 * 24 * 60 * 60 * 1000
+        const now = Date.now()
+        const extras = [
+          ...cpFeedPosts.map(p => ({ _type: 'company_post', _ts: new Date(p.created_at).getTime(), _data: p })),
+          ...feedEvents
+            .filter(ev => ev.createdAt && (now - new Date(ev.createdAt).getTime()) < CUTOFF_MS)
+            .map(ev => ({ _type: 'event', _ts: new Date(ev.createdAt).getTime(), _data: ev })),
+        ].sort((a, b) => b._ts - a._ts)
+
+        const filteredPosts = posts.filter(post => !hiddenPosts.has(post.id) && (!feedCategoryFilter || (Array.isArray(post.categories) && post.categories.includes(feedCategoryFilter))))
+
+        // Merge extras into chronological positions between posts
+        const items = []
+        let extraIdx = 0
+        for (let i = 0; i <= filteredPosts.length; i++) {
+          const postTs = i < filteredPosts.length ? new Date(filteredPosts[i].created_at).getTime() : -Infinity
+          while (extraIdx < extras.length && extras[extraIdx]._ts >= postTs) {
+            items.push({ kind: extras[extraIdx]._type, data: extras[extraIdx]._data })
+            extraIdx++
+          }
+          if (i < filteredPosts.length) items.push({ kind: 'post', data: filteredPosts[i] })
+        }
+
+        let postIdx = 0
+        return items.map((item, itemIdx) => {
+
+        if (item.kind === 'company_post') {
+        const post = item.data
         const liked = !!post.liked
         const showComments = cpFeedExpanded.has(post.id)
         const postText = lang === 'da' ? (post.text_da || post.text_en) : (post.text_en || post.text_da)
         const timeAgo = new Date(post.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short' })
         const toggleLike = () => {
-          fetch(`/api/companies/${cp.id}/posts/${post.id}/like`, { method: 'POST', credentials: 'include' })
+          fetch(`/api/companies/${post.company_id}/posts/${post.id}/like`, { method: 'POST', credentials: 'include' })
             .then(r => r.ok ? r.json() : null)
             .then(data => { if (!data) return; setCpFeedPosts(prev => prev.map(p => p.id === post.id
               ? { ...p, liked: data.liked ? 1 : 0, likes: data.liked ? p.likes + 1 : Math.max(0, p.likes - 1) }
@@ -3003,7 +3024,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         const toggleComments = () => {
           setCpFeedExpanded(prev => { const n = new Set(prev); n.has(post.id) ? n.delete(post.id) : n.add(post.id); return n })
           if (!cpFeedCommentLists[post.id]) {
-            fetch(`/api/companies/${cp.id}/posts/${post.id}/comments`, { credentials: 'include' })
+            fetch(`/api/companies/${post.company_id}/posts/${post.id}/comments`, { credentials: 'include' })
               .then(r => r.ok ? r.json() : null)
               .then(data => setCpFeedCommentLists(prev => ({ ...prev, [post.id]: data?.comments || [] })))
               .catch(() => {})
@@ -3012,7 +3033,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         const sendComment = () => {
           const text = cpFeedCommentTexts[post.id]?.trim()
           if (!text) return
-          fetch(`/api/companies/${cp.id}/posts/${post.id}/comments`, {
+          fetch(`/api/companies/${post.company_id}/posts/${post.id}/comments`, {
             method: 'POST', credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text }),
@@ -3029,14 +3050,14 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         return (
           <div key={post.id} className="p-card p-post">
             <div className="p-post-header">
-              <div className="p-company-logo-sm" style={{ background: cp.color, borderRadius: 8, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 16, flexShrink: 0 }}>
-                {cp.name[0]}
+              <div className="p-company-logo-sm" style={{ background: post.company_color || '#2D6A4F', borderRadius: 8, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 16, flexShrink: 0 }}>
+                {(post.company_name || '?')[0]}
               </div>
               <div>
                 <button className="p-post-author" style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textDecoration: 'underline', textDecorationColor: 'transparent' }}
                   onMouseEnter={e => e.currentTarget.style.textDecorationColor = 'currentColor'}
                   onMouseLeave={e => e.currentTarget.style.textDecorationColor = 'transparent'}
-                  onClick={() => onNavigate('company', { companyId: cp.id })}>{cp.name}</button>
+                  onClick={() => onNavigate('company', { companyId: post.company_id })}>{post.company_name}</button>
                 <div className="p-post-time" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span className="p-event-type-badge" style={{ padding: '1px 6px', fontSize: 10 }}>{t.companyFeedLabel}</span>
                   <span>{timeAgo}</span>
@@ -3108,38 +3129,33 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
             )}
           </div>
         )
-      })}
+        } // end company_post branch
 
-      {/* Event activity feed items — upcoming events only (not expired) */}
-      {feedEvents.filter(ev => new Date(ev.date) > new Date()).slice(0, 2).map((ev, idx) => {
-        const item = { id: `ea${idx}`, event: ev, verb: idx === 0 ? 'going' : 'created',
-          actor: ev.going?.[0] || ev.organizer,
-          time: { da: 'For nylig', en: 'Recently' } }
-        return item
-      }).map(item => {
-        const title = typeof item.event.title === 'string' ? item.event.title : (item.event.title[lang] || item.event.title.da)
-        const loc = typeof item.event.location === 'string' ? item.event.location : (item.event.location[lang] || item.event.location.da)
-        const action = item.verb === 'going' ? t.eventFeedRsvpd : t.eventFeedCreated
+        if (item.kind === 'event') {
+        const ev = item.data
+        const title = typeof ev.title === 'string' ? ev.title : (ev.title?.[lang] || ev.title?.da || '')
+        const loc = typeof ev.location === 'string' ? ev.location : (ev.location?.[lang] || ev.location?.da || '')
+        const actor = ev.going?.[0] || ev.organizer
         return (
-          <div key={item.id} className="p-card p-post p-event-feed-card" style={{ cursor: 'pointer' }} onClick={() => setFeedSelectedEvent(item.event)}>
+          <div key={`ev-${ev.id}`} className="p-card p-post p-event-feed-card" style={{ cursor: 'pointer' }} onClick={() => setFeedSelectedEvent(ev)}>
             <div className="p-post-header">
-              <div className="p-avatar-sm" style={{ background: nameToColor(item.actor) }}>{getInitials(item.actor)}</div>
+              <div className="p-avatar-sm" style={{ background: nameToColor(actor) }}>{getInitials(actor)}</div>
               <div>
-                <div className="p-post-author">{item.actor} <span style={{ fontWeight: 400, color: '#888' }}>{action}</span></div>
-                <div className="p-post-time">{item.time[lang]}</div>
+                <div className="p-post-author">{actor} <span style={{ fontWeight: 400, color: '#888' }}>{t.eventFeedCreated}</span></div>
+                <div className="p-post-time">{new Date(ev.createdAt).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short' })}</div>
               </div>
               <span className="p-event-type-badge" style={{ marginLeft: 'auto' }}>{t.eventFeedLabel}</span>
             </div>
             <div className="p-event-feed-body" style={{ alignItems: 'flex-start' }}>
               <div className="p-event-date-col" style={{ minWidth: 54, flexDirection: 'row', alignItems: 'baseline', gap: 3, padding: '6px 8px' }}>
-                <span className="p-event-day" style={{ fontSize: 17, lineHeight: 1 }}>{new Date(item.event.date).getDate()}</span>
-                <span className="p-event-month">{new Date(item.event.date).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { month: 'short' }).toUpperCase()}</span>
+                <span className="p-event-day" style={{ fontSize: 17, lineHeight: 1 }}>{new Date(ev.date).getDate()}</span>
+                <span className="p-event-month">{new Date(ev.date).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { month: 'short' }).toUpperCase()}</span>
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{title}</div>
                 <div style={{ fontSize: 13, color: '#777' }}>📍 {loc}</div>
                 <div style={{ fontSize: 12, color: '#aaa', marginTop: 2, marginBottom: 10 }}>
-                  ✅ {item.event.going.length} {t.eventAttendees}
+                  ✅ {ev.going.length} {t.eventAttendees}
                 </div>
                 <div style={{ display: 'flex', gap: 6 }} onClick={e => e.stopPropagation()}>
                   {[
@@ -3147,9 +3163,9 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                     { key: 'maybe', icon: '❓', label: t.eventMaybe },
                     { key: 'notGoing', icon: '❌', label: t.eventNotGoing },
                   ].map(({ key, icon, label }) => {
-                    const isActive = feedRsvpMap[item.event.id] === key
+                    const isActive = feedRsvpMap[ev.id] === key
                     return (
-                      <button key={key} onClick={() => handleFeedRsvp(item.event.id, key)} title={label}
+                      <button key={key} onClick={() => handleFeedRsvp(ev.id, key)} title={label}
                         style={{ background: isActive ? '#2D6A4F' : '#f0f0f0', color: isActive ? '#fff' : '#777', border: `1.5px solid ${isActive ? '#2D6A4F' : '#e0e0e0'}`, borderRadius: 6, fontSize: 11, padding: '3px 8px', cursor: 'pointer', fontWeight: isActive ? 700 : 400, transition: 'all 0.12s' }}>
                         {icon} {label}
                       </button>
@@ -3160,96 +3176,26 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
             </div>
           </div>
         )
-      })}
+        } // end event branch
 
-      {/* Dynamic group suggestion card — shown when suggestions exist */}
-      {(() => {
-        const visible = groupSuggestions.filter(g => !dismissedGroupIds.has(g.id) && !joinedGroupIds.has(g.id))
-        if (!visible.length) return null
-        return (
-          <div className="p-card p-post" style={{ background: 'linear-gradient(135deg, #f0faf4 0%, #fff 100%)', border: '1.5px solid #d4edda' }}>
-            <div className="p-post-header">
-              <div className="p-avatar-sm" style={{ background: '#2D6A4F', fontSize: 13, fontWeight: 900, letterSpacing: '-0.5px', flexShrink: 0 }}>
-                f
-              </div>
-              <div style={{ flex: 1 }}>
-                <div className="p-post-author">fellis.eu</div>
-                <div className="p-post-time">{t.groupSuggestionsSubtitle}</div>
-              </div>
-              <span style={{ fontSize: 11, color: '#2D6A4F', fontWeight: 700, background: '#d4edda', padding: '3px 8px', borderRadius: 20 }}>
-                💡 {lang === 'da' ? 'Forslag' : 'Suggested'}
-              </span>
-            </div>
-            <div style={{ marginTop: 10 }}>
-              {visible.slice(0, 3).map((group, idx) => (
-                <div key={group.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderTop: idx > 0 ? '1px solid #eef5f0' : 'none' }}>
-                  <div style={{ flex: 1, minWidth: 0, paddingRight: 10 }}>
-                    <div style={{ fontWeight: 600, fontSize: 14, color: '#1a1a1a' }}>
-                      👥 {group.name}
-                    </div>
-                    <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
-                      {Number(group.shared_members) > 0 ? t.groupSuggestionFriendsBased : t.groupSuggestionPopular}
-                      {' · '}
-                      {group.member_count} {Number(group.member_count) === 1 ? t.groupMember : t.groupMembers}
-                    </div>
-                    {(lang === 'da' ? group.description_da : group.description_en) && (
-                      <div style={{ fontSize: 12, color: '#555', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {lang === 'da' ? group.description_da : group.description_en}
-                      </div>
-                    )}
-                  </div>
-                  <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                    <button
-                      onClick={() => setDismissedGroupIds(prev => new Set([...prev, group.id]))}
-                      style={{ background: 'none', border: '1px solid #ddd', borderRadius: 8, fontSize: 12, padding: '5px 10px', cursor: 'pointer', color: '#888' }}
-                    >
-                      {t.groupSuggestionDismiss}
-                    </button>
-                    <button
-                      onClick={() => handleJoinGroup(group.id)}
-                      style={{ background: '#2D6A4F', color: '#fff', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, padding: '5px 12px', cursor: 'pointer' }}
-                    >
-                      {t.groupJoin}
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )
-      })()}
-
-      {/* Active category filter indicator */}
-      {feedCategoryFilter && (() => {
-        const catInfo = interestCategories.find(c => c.id === feedCategoryFilter)
-        if (!catInfo) return null
-        return (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', background: '#eaf4ef', borderBottom: '1px solid #b7dfc9' }}>
-            <span style={{ fontSize: 13, color: '#2D6A4F' }}>{t.feedCategoryFilterLabel}: <strong>{catInfo.icon} {catInfo[lang]}</strong></span>
-            <button onClick={() => setFeedCategoryFilter(null)} style={{ marginLeft: 'auto', fontSize: 12, color: '#2D6A4F', background: 'none', border: '1px solid #b7dfc9', borderRadius: 20, padding: '2px 10px', cursor: 'pointer', fontFamily: 'inherit' }}>
-              {t.feedCategoryFilterClear}
-            </button>
-          </div>
-        )
-      })()}
-
-      {/* Posts — max PAGE_SIZE in DOM */}
-      {posts.filter(post => !hiddenPosts.has(post.id) && (!feedCategoryFilter || (Array.isArray(post.categories) && post.categories.includes(feedCategoryFilter)))).map((post, postIdx) => {
+        // kind === 'post'
+        const post = item.data
         const liked = likedPosts.has(post.id)
         const showComments = expandedComments.has(post.id)
         const isOwn = post.author === currentUser.name
         const menuOpen = postMenu === post.id
         const isCollapsed = collapsedPosts.has(post.id)
+        const pi = postIdx++
         return (
           <Fragment key={post.id}>
-            {(postIdx === 1 || (postIdx > 1 && postIdx % 4 === 0)) && <AdBanner placement="feed" adsFree={adsFree} lang={lang} onGoAdFree={adsFree ? null : () => onNavigate('settings', 'billing')} />}
-            {postIdx >= SUGGEST_EVERY && postIdx % SUGGEST_EVERY === 0 && (() => {
-              const sp = suggestedPosts[Math.floor(postIdx / SUGGEST_EVERY) - 1]
+            {(pi === 1 || (pi > 1 && pi % 4 === 0)) && <AdBanner placement="feed" adsFree={adsFree} lang={lang} onGoAdFree={adsFree ? null : () => onNavigate('settings', 'billing')} />}
+            {pi >= SUGGEST_EVERY && pi % SUGGEST_EVERY === 0 && (() => {
+              const sp = suggestedPosts[Math.floor(pi / SUGGEST_EVERY) - 1]
               return sp ? <SuggestedPostCard key={`sug-${sp.id}`} post={sp} lang={lang} onViewProfile={onViewProfile} /> : null
             })()}
-            {boostedFeedListings.length > 0 && postIdx > 0 && postIdx % BOOST_FEED_EVERY === 0 && (() => {
-              const bl = boostedFeedListings[Math.floor(postIdx / BOOST_FEED_EVERY - 1) % boostedFeedListings.length]
-              return bl ? <BoostedListingCard key={`boost-${bl.id}-${postIdx}`} listing={bl} lang={lang} t={t} onNavigate={onNavigate} /> : null
+            {boostedFeedListings.length > 0 && pi > 0 && pi % BOOST_FEED_EVERY === 0 && (() => {
+              const bl = boostedFeedListings[Math.floor(pi / BOOST_FEED_EVERY - 1) % boostedFeedListings.length]
+              return bl ? <BoostedListingCard key={`boost-${bl.id}-${pi}`} listing={bl} lang={lang} t={t} onNavigate={onNavigate} /> : null
             })()}
           <div className="p-card p-post"
             data-post-id={post.id}
@@ -3640,7 +3586,79 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
           </div>
           </Fragment>
         )
-      })}
+      }) /* close items.map */
+      })()}
+
+      {/* Dynamic group suggestion card — shown when suggestions exist */}
+      {(() => {
+        const visible = groupSuggestions.filter(g => !dismissedGroupIds.has(g.id) && !joinedGroupIds.has(g.id))
+        if (!visible.length) return null
+        return (
+          <div className="p-card p-post" style={{ background: 'linear-gradient(135deg, #f0faf4 0%, #fff 100%)', border: '1.5px solid #d4edda' }}>
+            <div className="p-post-header">
+              <div className="p-avatar-sm" style={{ background: '#2D6A4F', fontSize: 13, fontWeight: 900, letterSpacing: '-0.5px', flexShrink: 0 }}>
+                f
+              </div>
+              <div style={{ flex: 1 }}>
+                <div className="p-post-author">fellis.eu</div>
+                <div className="p-post-time">{t.groupSuggestionsSubtitle}</div>
+              </div>
+              <span style={{ fontSize: 11, color: '#2D6A4F', fontWeight: 700, background: '#d4edda', padding: '3px 8px', borderRadius: 20 }}>
+                💡 {lang === 'da' ? 'Forslag' : 'Suggested'}
+              </span>
+            </div>
+            <div style={{ marginTop: 10 }}>
+              {visible.slice(0, 3).map((group, idx) => (
+                <div key={group.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderTop: idx > 0 ? '1px solid #eef5f0' : 'none' }}>
+                  <div style={{ flex: 1, minWidth: 0, paddingRight: 10 }}>
+                    <div style={{ fontWeight: 600, fontSize: 14, color: '#1a1a1a' }}>
+                      👥 {group.name}
+                    </div>
+                    <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
+                      {Number(group.shared_members) > 0 ? t.groupSuggestionFriendsBased : t.groupSuggestionPopular}
+                      {' · '}
+                      {group.member_count} {Number(group.member_count) === 1 ? t.groupMember : t.groupMembers}
+                    </div>
+                    {(lang === 'da' ? group.description_da : group.description_en) && (
+                      <div style={{ fontSize: 12, color: '#555', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {lang === 'da' ? group.description_da : group.description_en}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                    <button
+                      onClick={() => setDismissedGroupIds(prev => new Set([...prev, group.id]))}
+                      style={{ background: 'none', border: '1px solid #ddd', borderRadius: 8, fontSize: 12, padding: '5px 10px', cursor: 'pointer', color: '#888' }}
+                    >
+                      {t.groupSuggestionDismiss}
+                    </button>
+                    <button
+                      onClick={() => handleJoinGroup(group.id)}
+                      style={{ background: '#2D6A4F', color: '#fff', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, padding: '5px 12px', cursor: 'pointer' }}
+                    >
+                      {t.groupJoin}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* Active category filter indicator */}
+      {feedCategoryFilter && (() => {
+        const catInfo = interestCategories.find(c => c.id === feedCategoryFilter)
+        if (!catInfo) return null
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', background: '#eaf4ef', borderBottom: '1px solid #b7dfc9' }}>
+            <span style={{ fontSize: 13, color: '#2D6A4F' }}>{t.feedCategoryFilterLabel}: <strong>{catInfo.icon} {catInfo[lang]}</strong></span>
+            <button onClick={() => setFeedCategoryFilter(null)} style={{ marginLeft: 'auto', fontSize: 12, color: '#2D6A4F', background: 'none', border: '1px solid #b7dfc9', borderRadius: 20, padding: '2px 10px', cursor: 'pointer', fontFamily: 'inherit' }}>
+              {t.feedCategoryFilterClear}
+            </button>
+          </div>
+        )
+      })()}
 
       {/* Ad banner — always shown after posts list */}
       <AdBanner placement="feed" adsFree={adsFree} lang={lang} onGoAdFree={adsFree ? null : () => onNavigate('settings', 'billing')} />
@@ -14363,6 +14381,7 @@ function AdsManagementPage({ lang, t }) {
     } else {
       await apiCreateAd(payload).catch(() => {})
     }
+    invalidateAdCache()
     setSaving(false); setShowCreate(false); reload()
   }
 
@@ -14370,7 +14389,7 @@ function AdsManagementPage({ lang, t }) {
 
   const handleStatus = (ad, status) => {
     if (status === 'active' && !isPaidAndActive(ad)) { setPaymentAd(ad); setPaymentError(null); return }
-    apiUpdateAd(ad.id, { status }).catch(() => {}).then(() => reload())
+    apiUpdateAd(ad.id, { status }).catch(() => {}).then(() => { invalidateAdCache(); reload() })
   }
 
   const handlePayAndActivate = async () => {
@@ -14387,6 +14406,7 @@ function AdsManagementPage({ lang, t }) {
   const handleDelete = async (ad) => {
     if (!window.confirm(lang === 'da' ? `Slet annoncen "${ad.title}" permanent? Dette kan ikke fortrydes.` : `Permanently delete the ad "${ad.title}"? This cannot be undone.`)) return
     await apiDeleteAd(ad.id).catch(() => {})
+    invalidateAdCache()
     reload()
   }
 
@@ -16398,6 +16418,7 @@ function AdminPlatformAdsPanel({ lang }) {
   const handleDelete = async (id) => {
     if (!window.confirm(da ? 'Slet denne annonce?' : 'Delete this ad?')) return
     await apiAdminDeletePlatformAd(id).catch(() => {})
+    invalidateAdCache()
     load()
   }
 
@@ -16421,6 +16442,7 @@ function AdminPlatformAdsPanel({ lang }) {
       : await apiAdminCreatePlatformAd(payload).catch(() => null)
     setSaving(false)
     if (!res) { setError(da ? 'Kunne ikke gemme' : 'Could not save'); return }
+    invalidateAdCache()
     setShowForm(false)
     setEditingId(null)
     load()
