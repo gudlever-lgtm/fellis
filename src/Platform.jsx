@@ -1056,6 +1056,7 @@ const _badgeCache = new Map()
 function PostAvatarWithBadge({ post, lang, isOwn, onViewProfile, onViewOwnProfile }) {
   const [badges, setBadges] = useState(null)
   const [showTooltip, setShowTooltip] = useState(false)
+  const [hoveredBadgeId, setHoveredBadgeId] = useState(null)
 
   const loadBadges = async () => {
     if (!post.authorId || badges !== null) return
@@ -1079,17 +1080,27 @@ function PostAvatarWithBadge({ post, lang, isOwn, onViewProfile, onViewOwnProfil
       {post.authorBadgeCount > 0 && (
         <span
           onMouseEnter={() => { setShowTooltip(true); loadBadges() }}
-          onMouseLeave={() => setShowTooltip(false)}
+          onMouseLeave={() => { setShowTooltip(false); setHoveredBadgeId(null) }}
           style={{ position: 'absolute', bottom: -3, right: -6, fontSize: 9, fontWeight: 700, background: '#FFD700', color: '#7a5f00', borderRadius: 7, padding: '0 3px', lineHeight: '13px', border: '1.5px solid #fff', cursor: 'default', whiteSpace: 'nowrap', zIndex: 1 }}
         >
           🏅{post.authorBadgeCount}
           {showTooltip && badges && badges.length > 0 && (
-            <div style={{ position: 'absolute', bottom: 'calc(100% + 6px)', left: '50%', transform: 'translateX(-50%)', background: '#fff', border: '1px solid #E8E4DF', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.13)', padding: '8px 12px', zIndex: 300, minWidth: 160, whiteSpace: 'normal', fontSize: 11, color: '#333', pointerEvents: 'none' }}>
-              <div style={{ fontWeight: 700, marginBottom: 6, color: '#2D6A4F', fontSize: 12 }}>🏅 {lang === 'da' ? 'Badges' : 'Badges'}</div>
+            <div style={{ position: 'absolute', bottom: 'calc(100% + 6px)', left: '50%', transform: 'translateX(-50%)', background: '#fff', border: '1px solid #E8E4DF', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.13)', padding: '8px 4px', zIndex: 300, minWidth: 180, whiteSpace: 'normal', fontSize: 11, color: '#333', pointerEvents: 'auto' }}>
+              <div style={{ fontWeight: 700, marginBottom: 4, color: '#2D6A4F', fontSize: 12, padding: '0 10px 4px', borderBottom: '1px solid #f0ede9' }}>🏅 {lang === 'da' ? 'Badges' : 'Badges'}</div>
               {badges.map(b => (
-                <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                  <span style={{ fontSize: 15 }}>{b.icon}</span>
+                <div
+                  key={b.id}
+                  onMouseEnter={() => setHoveredBadgeId(b.id)}
+                  onMouseLeave={() => setHoveredBadgeId(null)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 6, background: hoveredBadgeId === b.id ? '#F0FAF4' : 'transparent', cursor: 'default', position: 'relative' }}
+                >
+                  <span style={{ fontSize: 15, flexShrink: 0 }}>{b.icon}</span>
                   <span style={{ lineHeight: 1.3 }}>{b.name}</span>
+                  {hoveredBadgeId === b.id && b.description && (
+                    <div style={{ position: 'absolute', left: 'calc(100% + 8px)', top: '50%', transform: 'translateY(-50%)', background: '#2D6A4F', color: '#fff', borderRadius: 8, padding: '6px 10px', fontSize: 11, whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(0,0,0,0.18)', zIndex: 301, pointerEvents: 'none', maxWidth: 220, whiteSpace: 'normal' }}>
+                      {b.description}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

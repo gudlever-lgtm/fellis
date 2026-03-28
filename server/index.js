@@ -10402,7 +10402,13 @@ app.get('/api/users/:id/badges', authenticate, async (req, res) => {
     const badges = rows.map(r => {
       const def = BADGE_BY_ID[r.badge_id]
       if (!def) return null
-      return { id: r.badge_id, icon: def.icon, name: def.name[lang] || def.name.da, tier: def.tier }
+      return {
+        id: r.badge_id,
+        icon: def.icon,
+        name: def.name[lang] || def.name.da,
+        description: (def.description?.[lang] || def.description?.da) || null,
+        tier: def.tier,
+      }
     }).filter(Boolean)
     res.json({ badges })
   } catch {
