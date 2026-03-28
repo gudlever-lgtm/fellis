@@ -1266,31 +1266,6 @@
    Post composer: button is left-aligned → anchor left.
    Comment row: button is right-aligned → anchor right to stay on screen.
    Uses Y-only animation so left/right offset stays correct. */
-.p-media-popup {
-  left: 0;
-  transform: none;
-  min-width: 180px;
-  animation: mediaPopUp 0.14s ease;
-}
-.p-media-popup-right {
-  left: auto;
-  right: 0;
-  transform: none;
-}
-/* Opens downward instead of upward (for buttons near the top of the viewport) */
-.p-media-popup-down {
-  bottom: auto;
-  top: calc(100% + 8px);
-  animation: mediaPopDown 0.14s ease;
-}
-@keyframes mediaPopUp {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes mediaPopDown {
-  from { opacity: 0; transform: translateY(-6px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
 /* Round brand-coloured icon inside each media popup option */
 .p-media-popup-icon {
   width: 32px;
@@ -1743,6 +1718,33 @@
 @keyframes sharePopIn {
   from { opacity: 0; transform: translateX(-50%) translateY(6px); }
   to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+/* Media popup overrides — must come AFTER .p-share-popup to win the cascade.
+   .p-share-popup uses left:50%/translateX(-50%) for centering; these classes
+   reset that so the popup anchors left or right relative to the button. */
+.p-media-popup {
+  left: 0;
+  transform: none;
+  min-width: 180px;
+  animation: mediaPopUp 0.14s ease;
+}
+.p-media-popup-right {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+.p-media-popup-down {
+  bottom: auto;
+  top: calc(100% + 8px);
+  animation: mediaPopDown 0.14s ease;
+}
+@keyframes mediaPopUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes mediaPopDown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 .p-share-option {
   display: flex;
