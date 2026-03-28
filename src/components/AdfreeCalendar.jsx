@@ -1,15 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { apiAssignAdfreedays, apiGetAdfreeAssignments } from '../api'
 
-// Date input with dd-mm-yyyy format and a calendar popup
 function DateInput({ value, onChange, style, lang = 'da', minDate = '', align = 'left' }) {
   const toDisplay = (iso) => (iso ? iso.split('-').reverse().join('-') : '')
-  const toIso = (disp) => {
-    const m = disp.match(/^(\d{2})-(\d{2})-(\d{4})$/)
-    return m ? `${m[3]}-${m[2]}-${m[1]}` : ''
-  }
 
-  const [text, setText] = useState(() => toDisplay(value))
   const [open, setOpen] = useState(false)
   const initD = value ? new Date(value + 'T00:00:00') : new Date()
   const [calYear, setCalYear] = useState(initD.getFullYear())
@@ -17,14 +11,12 @@ function DateInput({ value, onChange, style, lang = 'da', minDate = '', align = 
   const ref = useRef(null)
 
   useEffect(() => {
-    const expected = toDisplay(value)
-    if (text !== expected) setText(expected)
     if (value) {
       const d = new Date(value + 'T00:00:00')
       setCalYear(d.getFullYear())
       setCalMonth(d.getMonth())
     }
-  }, [value]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [value])
 
   useEffect(() => {
     if (!open) return
@@ -32,16 +24,6 @@ function DateInput({ value, onChange, style, lang = 'da', minDate = '', align = 
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [open])
-
-  const handleTextChange = (e) => {
-    let raw = e.target.value.replace(/[^\d-]/g, '')
-    if (/^\d{2}$/.test(raw) && text.length === 1) raw += '-'
-    if (/^\d{2}-\d{2}$/.test(raw) && text.length === 4) raw += '-'
-    setText(raw)
-    const iso = toIso(raw)
-    if (iso) onChange(iso)
-    else if (!raw) onChange('')
-  }
 
   const selectDay = (day) => {
     const iso = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
@@ -68,12 +50,8 @@ function DateInput({ value, onChange, style, lang = 'da', minDate = '', align = 
       <input
         type="text"
         placeholder="dd-mm-yyyy"
-        value={text}
+        value={toDisplay(value)}
         style={{ ...style, cursor: 'pointer' }}
-        onChange={handleTextChange}
-        onFocus={() => setOpen(true)}
-        maxLength={10}
-        inputMode="numeric"
         readOnly
         onClick={() => setOpen(o => !o)}
       />
@@ -160,8 +138,8 @@ const s = {
 }
 
 export default function AdfreeCalendar({ bankDays = 0, assignments = [], onAssignmentChange, lang = 'da' }) {
-  const [startDate, setStartDate] = useState('') // YYYY-MM-DD
-  const [endDate, setEndDate] = useState('')     // YYYY-MM-DD
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
@@ -221,7 +199,6 @@ export default function AdfreeCalendar({ bankDays = 0, assignments = [], onAssig
 
   return (
     <div style={s.container}>
-      {/* Bank balance */}
       <div style={s.bankSection}>
         <div style={s.bankDays}>{bankDays}</div>
         <p style={s.bankText}>
@@ -229,7 +206,6 @@ export default function AdfreeCalendar({ bankDays = 0, assignments = [], onAssig
         </p>
       </div>
 
-      {/* Legend */}
       {(hasPurchased || hasEarned) && (
         <div style={s.legend}>
           {hasEarned && (
@@ -247,7 +223,6 @@ export default function AdfreeCalendar({ bankDays = 0, assignments = [], onAssig
         </div>
       )}
 
-      {/* Assign form — only shown when the bank has days available */}
       {bankDays > 0 && <div style={s.assignBox}>
         <p style={s.assignTitle}>{lang === 'da' ? '📅 Tildel banked dage' : '📅 Assign banked days'}</p>
         <div style={s.dateRow}>
@@ -259,7 +234,7 @@ export default function AdfreeCalendar({ bankDays = 0, assignments = [], onAssig
             <label style={s.dateLabel}>{lang === 'da' ? 'Til dato' : 'End date'}</label>
             <DateInput value={endDate} onChange={setEndDate} style={s.dateInput} lang={lang} minDate={startDate || today} align="right" />
           </div>
-          <button onClick={handleAssign} disabled={loading || !startDate || !endDate || daysNeeded > bankDays} style={{ ...s.assignBtn, opacity: (loading || !startDate || !endDate || daysNeeded > bankDays) ? 0.5 : 1, cursor: (loading || !startDate || !endDate || daysNeeded > bankDays) ? 'not-allowed' : 'pointer' }}>
+          <button onClick={handleAssign} disabled={loading || !startDate || !endDate || daysNeeded > bankDays} style={{ ...s.assignBtn, ...(loading || !startDate || !endDate || daysNeeded > bankDays ? { opacity: 0.5, cursor: 'not-allowed' } : {}) }}>
             {loading ? (lang === 'da' ? 'Tildeler…' : 'Assigning…') : (lang === 'da' ? 'Tildel' : 'Assign')}
           </button>
         </div>
@@ -268,7 +243,6 @@ export default function AdfreeCalendar({ bankDays = 0, assignments = [], onAssig
         {success && <div style={s.success}>{success}</div>}
       </div>}
 
-      {/* Assignments list */}
       {assignments.length > 0 ? (
         <>
           <p style={s.listTitle}>{lang === 'da' ? 'Dine ad-frie perioder' : 'Your ad-free periods'}</p>
