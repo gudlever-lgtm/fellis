@@ -1081,7 +1081,7 @@ export async function apiCreateAd(data) {
   return await request('/api/ads', { method: 'POST', body: JSON.stringify(data) })
 }
 export async function apiGetMyAds() {
-  return await request('/api/ads')
+  return await request('/api/ads/mine')
 }
 export async function apiGetAd(id) {
   return await request(`/api/ads/${id}`)
@@ -1089,8 +1089,23 @@ export async function apiGetAd(id) {
 export async function apiUpdateAd(id, data) {
   return await request(`/api/ads/${id}`, { method: 'PUT', body: JSON.stringify(data) })
 }
+export async function apiPatchAd(id, data) {
+  return await request(`/api/ads/${id}`, { method: 'PATCH', body: JSON.stringify(data) })
+}
 export async function apiDeleteAd(id) {
   return await request(`/api/ads/${id}`, { method: 'DELETE' })
+}
+export async function apiPayForAd(id) {
+  return await request(`/api/ads/${id}/pay`, { method: 'POST' })
+}
+export async function apiBoostPost(postId) {
+  return await request(`/api/posts/${postId}/boost`, { method: 'POST' })
+}
+export async function apiTrackAdImpression(id) {
+  return await request(`/api/ads/${id}/impression`, { method: 'POST' })
+}
+export async function apiTrackAdClick(id) {
+  return await request(`/api/ads/${id}/click`, { method: 'POST' })
 }
 export async function apiRecordAdImpression(id) {
   return await request(`/api/ads/${id}/impression`, { method: 'POST' })

@@ -20,9 +20,10 @@ import MatrixRain from './components/easter-eggs/MatrixRain.jsx'
 import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
 import RickRoll from './components/easter-eggs/RickRoll.jsx'
 import RiddleBanner from './components/easter-eggs/RiddleBanner.jsx'
-import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness } from './api.js'
+import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness, apiPayForAd, apiBoostPost, apiTrackAdImpression, apiTrackAdClick } from './api.js'
 import BusinessBadge from './components/BusinessBadge.jsx'
 import BusinessDirectory from './pages/BusinessDirectory.jsx'
+import AdManager from './pages/AdManager.jsx'
 import { BADGES, BADGE_BY_ID } from './badges/badgeDefinitions.js'
 import BadgeToastQueue from './components/BadgeToast.jsx'
 import AdfreeCalendar from './components/AdfreeCalendar.jsx'
@@ -642,7 +643,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
         }} onViewProfile={(uid) => { setViewUserId(uid); navigateTo('view-profile') }} />}
         {page === 'jobs' && <JobsPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={(target, param) => { if (target === 'companies') { navigateTo('company', { companyId: param }); } else navigateTo(target) }} />}
         {page === 'businesses' && <BusinessDirectory lang={lang} t={t} onViewProfile={(biz) => { setViewUserId(biz.id); navigateTo('view-profile') }} />}
-        {page === 'ads' && mode === 'business' && <AdsManagementPage lang={lang} t={t} />}
+        {page === 'ads' && mode === 'business' && <AdManager lang={lang} t={t} posts={posts} />}
         {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} initialCompanyId={navParam?.companyId} />}
         {page === 'analytics' && <AnalyticsPage lang={lang} t={t} currentUser={currentUser} />}
         {page === 'settings' && <SettingsPage lang={lang} t={t} currentUser={currentUser} mode={mode} adsFree={adsFree} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onLogout={onLogout} onOpenModeModal={() => setShowModeModal(true)} darkMode={darkMode} onToggleDark={() => setDarkMode(d => !d)} initialTab={navParam} />}
@@ -3294,7 +3295,13 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
           <div className="p-card p-post"
             data-post-id={post.id}
             data-categories={post.categories?.length ? JSON.stringify(post.categories) : undefined}
+            ref={post.isSponsored && post.adId ? (el) => { if (el) { apiTrackAdImpression(post.adId).catch(() => {}) } } : undefined}
           >
+            {post.isSponsored && (
+              <div style={{ fontSize: 11, color: '#888', fontWeight: 600, marginBottom: 6, letterSpacing: '0.02em' }}>
+                {t.sponsored || (lang === 'da' ? 'Sponsoreret' : 'Sponsored')}
+              </div>
+            )}
             <div className="p-post-header">
               <PostAvatarWithBadge
                 post={post}
@@ -15368,6 +15375,76 @@ function AnalyticsPage({ lang, t, currentUser }) {
             <MiniLineChart data={connViews.some(v => v > 0) ? connViews : genViews(range, 1, 555)} color="#2D6A4F" height={80} />
           </div>
         </div>
+
+        {/* Business performance section — only shown for business mode */}
+        {analytics?.businessStats && (() => {
+          const bs = analytics.businessStats
+          const followerGrowthData = Array.from({ length: range }, (_, i) => {
+            const d = new Date(); d.setDate(d.getDate() - (range - 1 - i))
+            const key = d.toISOString().slice(0, 10)
+            const row = (bs.followerGrowth || []).find(r => (r.date || '').slice(0, 10) === key)
+            return row ? Number(row.new_followers) : 0
+          })
+          return (
+            <>
+              <div className="p-analytics-section">
+                <div className="p-analytics-section-title">
+                  🏢 {lang === 'da' ? 'Virksomhedsstatistik' : 'Business Performance'}
+                </div>
+                <div className="p-analytics-stat-row">
+                  <StatCard label={t.followers || (lang === 'da' ? 'Følgere' : 'Followers')} value={bs.followerCount.toLocaleString()} color="#4338CA" />
+                  <StatCard label={t.communityScore || (lang === 'da' ? 'Community score' : 'Community score')} value={bs.communityScore.toLocaleString()} color="#F59E0B" />
+                  <StatCard label={lang === 'da' ? 'Nye følgere' : 'New followers'} value={followerGrowthData.reduce((a, b) => a + b, 0)} sub={`${range}d`} color="#2D6A4F" />
+                </div>
+                {followerGrowthData.some(v => v > 0) && (
+                  <div className="p-analytics-chart-wrap" style={{ marginTop: 12 }}>
+                    <MiniLineChart data={followerGrowthData} color="#4338CA" height={80} />
+                  </div>
+                )}
+              </div>
+
+              {bs.adPerformance?.length > 0 && (
+                <div className="p-analytics-section">
+                  <div className="p-analytics-section-title">
+                    📢 {t.adManager || (lang === 'da' ? 'Annonceoversigt' : 'Ad Performance')}
+                  </div>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid #E8E4DF' }}>
+                          {[t.adTitle || 'Titel', t.adStatus || 'Status', t.adImpressions || 'Visninger', t.adClicks || 'Klik', t.adCTR || 'CTR', t.adReach || 'Rækkevidde', t.adSpent || 'Brugt'].map(h => (
+                            <th key={h} style={{ textAlign: 'left', padding: '6px 8px', fontWeight: 700, color: '#555', fontSize: 11 }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {bs.adPerformance.map(ad => (
+                          <tr key={ad.id} style={{ borderBottom: '1px solid #F0EDE8' }}>
+                            <td style={{ padding: '6px 8px', color: '#1a1a1a', fontWeight: 600 }}>
+                              {ad.isBoostedPost ? '🚀 ' : '📢 '}{(ad.title || '').slice(0, 30)}
+                            </td>
+                            <td style={{ padding: '6px 8px' }}>
+                              <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 8,
+                                background: ad.status === 'active' ? '#D1FAE5' : '#F3F4F6',
+                                color: ad.status === 'active' ? '#065F46' : '#374151' }}>
+                                {ad.status}
+                              </span>
+                            </td>
+                            <td style={{ padding: '6px 8px' }}>{ad.impressions.toLocaleString()}</td>
+                            <td style={{ padding: '6px 8px' }}>{ad.clicks.toLocaleString()}</td>
+                            <td style={{ padding: '6px 8px' }}>{ad.ctr}%</td>
+                            <td style={{ padding: '6px 8px' }}>{ad.reach.toLocaleString()}</td>
+                            <td style={{ padding: '6px 8px' }}>{formatPrice(ad.spent)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </>
+          )
+        })()}
       </div>
     </div>
   )
