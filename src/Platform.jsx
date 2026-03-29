@@ -24,6 +24,7 @@ import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConf
 import BusinessBadge from './components/BusinessBadge.jsx'
 import BusinessDirectory from './pages/BusinessDirectory.jsx'
 import AdManager from './pages/AdManager.jsx'
+import LocationAutocomplete from './components/LocationAutocomplete.jsx'
 import { BADGES, BADGE_BY_ID } from './badges/badgeDefinitions.js'
 import BadgeToastQueue from './components/BadgeToast.jsx'
 import AdfreeCalendar from './components/AdfreeCalendar.jsx'
@@ -4550,11 +4551,13 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
 
         {/* Location */}
         <label style={labelStyle}>{editT.locationLabel}</label>
-        <input
-          style={fieldStyle}
+        <LocationAutocomplete
           value={profile.location || ''}
-          onChange={e => setProfile(p => ({ ...p, location: e.target.value }))}
+          onChange={text => setProfile(p => ({ ...p, location: text }))}
+          onSelect={loc => loc && setProfile(p => ({ ...p, location: loc.name }))}
+          lang={lang}
           placeholder={lang === 'da' ? 'By, land…' : 'City, country…'}
+          inputStyle={fieldStyle}
         />
 
         {/* Save bio + location */}
@@ -10447,8 +10450,15 @@ function CreateEventModal({ t, lang, mode, currentUser, onClose, onCreate, initi
           <input style={fieldStyle} type="datetime-local" value={date} onChange={e => setDate(e.target.value)} required />
 
           <label style={labelStyle}>{t.eventLocation} <span className="req">*</span></label>
-          <input style={fieldStyle} value={location} onChange={e => setLocation(e.target.value)} required
-            placeholder={lang === 'da' ? 'Adresse eller "Online"' : 'Address or "Online"'} />
+          <LocationAutocomplete
+            value={location}
+            onChange={setLocation}
+            onSelect={loc => loc && setLocation(loc.name)}
+            lang={lang}
+            placeholder={lang === 'da' ? 'Adresse eller "Online"' : 'Address or "Online"'}
+            required
+            inputStyle={fieldStyle}
+          />
 
           <label style={labelStyle}>{t.eventDescription}</label>
           <textarea style={{ ...fieldStyle, minHeight: 80, resize: 'vertical' }} value={description} onChange={e => setDescription(e.target.value)}
@@ -13326,7 +13336,15 @@ function CreateJobModal({ t, lang, companies, onClose, onCreate, editJob }) {
           <label style={lS}>{t.jobTitle} <span className="req">*</span></label>
           <input style={fS} value={title} onChange={e => setTitle(e.target.value)} required placeholder={lang === 'da' ? 'f.eks. Senior Designer' : 'e.g. Senior Designer'} />
           <label style={lS}>{t.jobLocation} <span className="req">*</span></label>
-          <input style={fS} value={location} onChange={e => setLocation(e.target.value)} required placeholder={lang === 'da' ? 'By, Land eller "Remote"' : 'City, Country or "Remote"'} />
+          <LocationAutocomplete
+            value={location}
+            onChange={setLocation}
+            onSelect={loc => loc && setLocation(loc.name)}
+            lang={lang}
+            placeholder={lang === 'da' ? 'By, Land eller "Remote"' : 'City, Country or "Remote"'}
+            required
+            inputStyle={fS}
+          />
           <label style={{ ...lS, display: 'flex', alignItems: 'center', gap: 8 }}>
             <input type="checkbox" checked={remote} onChange={e => setRemote(e.target.checked)} />
             {t.jobRemote}
@@ -14307,7 +14325,15 @@ function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, formErr
           </div>
 
           <label style={lS}>{t.marketplaceFieldLocation}</label>
-          <input style={fS} value={location} onChange={e => setLocation(e.target.value)} placeholder={lang === 'da' ? 'f.eks. Nørrebro, København' : 'e.g. Nørrebro, Copenhagen'} required />
+          <LocationAutocomplete
+            value={location}
+            onChange={setLocation}
+            onSelect={loc => loc && setLocation(loc.name)}
+            lang={lang}
+            placeholder={lang === 'da' ? 'f.eks. Nørrebro, København' : 'e.g. Nørrebro, Copenhagen'}
+            required
+            inputStyle={fS}
+          />
 
           <div style={{ marginTop: 8, marginBottom: 4 }}>
             <label style={lS}>{lang === 'da' ? 'Ekstra kontaktmuligheder (valgfrit)' : 'Extra contact options (optional)'}</label>
