@@ -1,5 +1,5 @@
 export default function BusinessBadge({ lang, size = 'sm', onClick }) {
-  const label = lang === 'da' ? 'Virksomhed' : 'Business'
+  const label = 'Business'
   const s = {
     display: 'inline-flex',
     alignItems: 'center',
