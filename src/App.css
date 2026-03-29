@@ -1155,6 +1155,11 @@
   font-size: 14px;
   flex-shrink: 0;
 }
+/* Business-type ring on avatar */
+.p-avatar--business {
+  outline: 2.5px solid #4338CA;
+  outline-offset: 2px;
+}
 .p-avatar-xs {
   width: 28px;
   height: 28px;

@@ -620,7 +620,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
         </div>
         {page === 'reels' && <ReelsPage t={t} currentUser={currentUser} initialReelId={navParam?.reelId} onViewProfile={(userId) => navigateTo('view-profile', { userId })} />}
         {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onBadgeCheck={checkBadges} interestCategories={interestCategories} initialTab={navParam?.tab} />}
-        {page === 'view-profile' && viewUserId && <FriendProfilePage userId={viewUserId} lang={lang} t={t} currentUser={currentUser} onBack={() => navigateTo('feed')} onBadgeCheck={checkBadges} onMessage={async (prof) => { const data = await apiCreateConversation([prof.id], null, false, false).catch(() => null); if (data?.id) setOpenConvId(data.id); navigateTo('messages') }} />}
+        {page === 'view-profile' && viewUserId && <FriendProfilePage userId={viewUserId} lang={lang} t={t} currentUser={currentUser} onBack={() => navigateTo('feed')} onNavigate={navigateTo} onBadgeCheck={checkBadges} onMessage={async (prof) => { const data = await apiCreateConversation([prof.id], null, false, false).catch(() => null); if (data?.id) setOpenConvId(data.id); navigateTo('messages') }} />}
         {page === 'edit-profile' && <EditProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onBadgeCheck={checkBadges} />}
         {page === 'friends' && <FriendsPage lang={lang} t={t} mode={mode} sseRefreshKey={friendsRefreshKey} onBadgeCheck={checkBadges} onMessage={async (friend) => {
           if (friend?.id) {
@@ -1082,7 +1082,7 @@ function PostAvatarWithBadge({ post, lang, isOwn, onViewProfile, onViewOwnProfil
   return (
     <div style={{ position: 'relative', flexShrink: 0 }}>
       <div
-        className="p-avatar-sm"
+        className={`p-avatar-sm${post.authorMode === 'business' ? ' p-avatar--business' : ''}`}
         style={{ background: nameToColor(post.author), cursor: 'pointer' }}
         onClick={() => isOwn ? onViewOwnProfile?.() : (post.authorId && onViewProfile?.(post.authorId))}
       >
@@ -3319,7 +3319,13 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                     style={{ cursor: 'pointer' }}
                     onClick={() => isOwn ? onViewOwnProfile?.() : (post.authorId && onViewProfile?.(post.authorId))}
                   >{post.author}</div>
-                  {post.authorMode === 'business' && <BusinessBadge lang={lang} size="xs" />}
+                  {post.authorMode === 'business' && (
+                    <BusinessBadge
+                      lang={lang}
+                      size="xs"
+                      onClick={() => isOwn ? onViewOwnProfile?.() : (post.authorId && onViewProfile?.(post.authorId))}
+                    />
+                  )}
                   {(() => {
                     const relType = !isOwn && post.authorId && rels[String(post.authorId)]
                     // Use server-supplied isFamily if local rels don't reflect it yet
@@ -3960,7 +3966,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
             <h2 className="p-profile-name" style={{ margin: 0 }}>{profile.name}</h2>
-            {mode === 'business' && <BusinessBadge lang={lang} />}
+            {mode === 'business' && <BusinessBadge lang={lang} onClick={() => onNavigate('businesses')} />}
           </div>
           <p className="p-profile-handle">{profile.handle}</p>
           <p className="p-profile-bio">{profile.bio?.[lang] || profile.bio?.da || ''}</p>
@@ -7679,7 +7685,7 @@ function PrivacySection({ lang, onLogout }) {
 }
 
 // ── Friend Profile (full page) ──
-function FriendProfilePage({ userId, lang, t, currentUser, onBack, onMessage, onBadgeCheck }) {
+function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, onMessage, onBadgeCheck }) {
   const [profile, setProfile] = useState(null)
   const [photos, setPhotos] = useState([])
   const [userPosts, setUserPosts] = useState([])
@@ -7764,7 +7770,7 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onMessage, on
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
               <h2 className="p-profile-name" style={{ margin: 0 }}>{profile.name}</h2>
-              {profile.mode === 'business' && <BusinessBadge lang={lang} />}
+              {profile.mode === 'business' && <BusinessBadge lang={lang} onClick={() => onNavigate?.('businesses')} />}
             </div>
             {profile.handle && <p className="p-profile-handle">@{profile.handle}</p>}
             {profile.bio?.[lang] && <p className="p-profile-bio">{profile.bio[lang]}</p>}
