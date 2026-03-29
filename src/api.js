@@ -1081,7 +1081,7 @@ export async function apiCreateAd(data) {
   return await request('/api/ads', { method: 'POST', body: JSON.stringify(data) })
 }
 export async function apiGetMyAds() {
-  return await request('/api/ads')
+  return await request('/api/ads/mine')
 }
 export async function apiGetAd(id) {
   return await request(`/api/ads/${id}`)
@@ -1089,8 +1089,23 @@ export async function apiGetAd(id) {
 export async function apiUpdateAd(id, data) {
   return await request(`/api/ads/${id}`, { method: 'PUT', body: JSON.stringify(data) })
 }
+export async function apiPatchAd(id, data) {
+  return await request(`/api/ads/${id}`, { method: 'PATCH', body: JSON.stringify(data) })
+}
 export async function apiDeleteAd(id) {
   return await request(`/api/ads/${id}`, { method: 'DELETE' })
+}
+export async function apiPayForAd(id) {
+  return await request(`/api/ads/${id}/pay`, { method: 'POST' })
+}
+export async function apiBoostPost(postId) {
+  return await request(`/api/posts/${postId}/boost`, { method: 'POST' })
+}
+export async function apiTrackAdImpression(id) {
+  return await request(`/api/ads/${id}/impression`, { method: 'POST' })
+}
+export async function apiTrackAdClick(id) {
+  return await request(`/api/ads/${id}/click`, { method: 'POST' })
 }
 export async function apiRecordAdImpression(id) {
   return await request(`/api/ads/${id}/impression`, { method: 'POST' })
@@ -1486,4 +1501,32 @@ export async function apiAdminGetLockedUsers() {
 }
 export async function apiAdminUnlockUser(userId) {
   return await request(`/api/admin/users/${userId}/unlock`, { method: 'POST' })
+}
+
+// Business profile fields (business mode only)
+export async function apiUpdateBusinessProfile(data) {
+  return await request('/api/me/business-profile', { method: 'PATCH', body: JSON.stringify(data) })
+}
+
+// ── Business Discovery ────────────────────────────────────────────────────────
+export async function apiGetBusinesses(params = {}) {
+  const qs = new URLSearchParams()
+  if (params.category) qs.set('category', params.category)
+  if (params.q) qs.set('q', params.q)
+  if (params.limit) qs.set('limit', params.limit)
+  if (params.offset) qs.set('offset', params.offset)
+  const query = qs.toString()
+  return await request(`/api/businesses${query ? '?' + query : ''}`)
+}
+export async function apiGetSuggestedBusinesses() {
+  return await request('/api/businesses/suggested')
+}
+export async function apiFollowBusiness(id) {
+  return await request(`/api/businesses/${id}/follow`, { method: 'POST' })
+}
+export async function apiUnfollowBusiness(id) {
+  return await request(`/api/businesses/${id}/follow`, { method: 'DELETE' })
+}
+export async function apiGetBusinessProfile(handle) {
+  return await request(`/api/businesses/${encodeURIComponent(handle)}`)
 }

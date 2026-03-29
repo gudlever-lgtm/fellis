@@ -20,7 +20,10 @@ import MatrixRain from './components/easter-eggs/MatrixRain.jsx'
 import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
 import RickRoll from './components/easter-eggs/RickRoll.jsx'
 import RiddleBanner from './components/easter-eggs/RiddleBanner.jsx'
-import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments } from './api.js'
+import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness, apiPayForAd, apiBoostPost, apiTrackAdImpression, apiTrackAdClick } from './api.js'
+import BusinessBadge from './components/BusinessBadge.jsx'
+import BusinessDirectory from './pages/BusinessDirectory.jsx'
+import AdManager from './pages/AdManager.jsx'
 import { BADGES, BADGE_BY_ID } from './badges/badgeDefinitions.js'
 import BadgeToastQueue from './components/BadgeToast.jsx'
 import AdfreeCalendar from './components/AdfreeCalendar.jsx'
@@ -430,7 +433,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
           {/* "Mere" / "More" dropdown for secondary tabs */}
           <div ref={moreMenuRef} style={{ position: 'relative' }}>
             <button
-              className={`p-nav-tab${['friends', 'calendar', 'marketplace', 'jobs', 'company'].includes(page) ? ' active' : ''}`}
+              className={`p-nav-tab${['friends', 'calendar', 'marketplace', 'jobs', 'company', 'businesses'].includes(page) ? ' active' : ''}`}
               onClick={() => setShowMoreMenu(v => !v)}
             >
               <span className="p-nav-tab-icon">{'⋯'}</span>
@@ -442,7 +445,8 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
                 { id: 'calendar', icon: '🗓️', label: t.calendar || (lang === 'da' ? 'Kalender' : 'Calendar') },
                 { id: 'marketplace', icon: '🛍️', label: t.marketplace || (lang === 'da' ? 'Marked' : 'Marketplace') },
                 { id: 'jobs', icon: '💼', label: t.jobs || 'Jobs' },
-                ...(mode === 'business' ? [{ id: 'company', icon: '🏢', label: t.companies || (lang === 'da' ? 'Virksomheder' : 'Companies') }] : []),
+                { id: 'businesses', icon: '🏢', label: t.businesses || (lang === 'da' ? 'Virksomheder' : 'Businesses') },
+                ...(mode === 'business' ? [{ id: 'company', icon: '🏬', label: t.companies || (lang === 'da' ? 'Min virksomhed' : 'My company') }] : []),
               ]
               // Mobile: inline accordion (absolute dropdown gets clipped by overflow:auto container)
               if (showMobileMenu) {
@@ -638,7 +642,8 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
           navigateTo('messages')
         }} onViewProfile={(uid) => { setViewUserId(uid); navigateTo('view-profile') }} />}
         {page === 'jobs' && <JobsPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={(target, param) => { if (target === 'companies') { navigateTo('company', { companyId: param }); } else navigateTo(target) }} />}
-        {page === 'ads' && mode === 'business' && <AdsManagementPage lang={lang} t={t} />}
+        {page === 'businesses' && <BusinessDirectory lang={lang} t={t} onViewProfile={(biz) => { setViewUserId(biz.id); navigateTo('view-profile') }} />}
+        {page === 'ads' && mode === 'business' && <AdManager lang={lang} t={t} posts={posts} />}
         {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} initialCompanyId={navParam?.companyId} />}
         {page === 'analytics' && <AnalyticsPage lang={lang} t={t} currentUser={currentUser} />}
         {page === 'settings' && <SettingsPage lang={lang} t={t} currentUser={currentUser} mode={mode} adsFree={adsFree} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onLogout={onLogout} onOpenModeModal={() => setShowModeModal(true)} darkMode={darkMode} onToggleDark={() => setDarkMode(d => !d)} initialTab={navParam} />}
@@ -3290,7 +3295,13 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
           <div className="p-card p-post"
             data-post-id={post.id}
             data-categories={post.categories?.length ? JSON.stringify(post.categories) : undefined}
+            ref={post.isSponsored && post.adId ? (el) => { if (el) { apiTrackAdImpression(post.adId).catch(() => {}) } } : undefined}
           >
+            {post.isSponsored && (
+              <div style={{ fontSize: 11, color: '#888', fontWeight: 600, marginBottom: 6, letterSpacing: '0.02em' }}>
+                {t.sponsored || (lang === 'da' ? 'Sponsoreret' : 'Sponsored')}
+              </div>
+            )}
             <div className="p-post-header">
               <PostAvatarWithBadge
                 post={post}
@@ -3307,6 +3318,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                     style={{ cursor: 'pointer' }}
                     onClick={() => isOwn ? onViewOwnProfile?.() : (post.authorId && onViewProfile?.(post.authorId))}
                   >{post.author}</div>
+                  {post.authorMode === 'business' && <BusinessBadge lang={lang} size="xs" />}
                   {(() => {
                     const relType = !isOwn && post.authorId && rels[String(post.authorId)]
                     // Use server-supplied isFamily if local rels don't reflect it yet
@@ -3947,10 +3959,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
             <h2 className="p-profile-name" style={{ margin: 0 }}>{profile.name}</h2>
-            {mode === 'business' && <span style={{
-              fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 10,
-              background: '#F0FAF4', color: '#2D6A4F', border: '1px solid #2D6A4F', flexShrink: 0,
-            }}>Business</span>}
+            {mode === 'business' && <BusinessBadge lang={lang} />}
           </div>
           <p className="p-profile-handle">{profile.handle}</p>
           <p className="p-profile-bio">{profile.bio?.[lang] || profile.bio?.da || ''}</p>
@@ -4402,6 +4411,13 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
   const [extSaveStatus, setExtSaveStatus] = useState(null)
   const [interestCats, setInterestCats] = useState(INTEREST_CATEGORIES)
   const [interestSearch, setInterestSearch] = useState('')
+  // Business profile extra fields
+  const [bizCategory, setBizCategory] = useState('')
+  const [bizWebsite, setBizWebsite] = useState('')
+  const [bizHours, setBizHours] = useState('')
+  const [bizDescDa, setBizDescDa] = useState('')
+  const [bizDescEn, setBizDescEn] = useState('')
+  const [bizProfileSaveStatus, setBizProfileSaveStatus] = useState(null)
 
   useEffect(() => {
     apiGetInterestCategories().then(d => { if (d?.categories?.length) setInterestCats(d.categories) }).catch(() => {})
@@ -4416,6 +4432,11 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
         if (data.relationship_status) setRelationshipStatus(data.relationship_status)
         if (data.website) setWebsite(data.website)
         setBirthday(data.birthday ? data.birthday.slice(0, 10) : '')
+        if (data.businessCategory) setBizCategory(data.businessCategory)
+        if (data.businessWebsite) setBizWebsite(data.businessWebsite)
+        if (data.businessHours) setBizHours(data.businessHours)
+        if (data.businessDescription?.da) setBizDescDa(data.businessDescription.da)
+        if (data.businessDescription?.en) setBizDescEn(data.businessDescription.en)
       }
     })
   }, [])
@@ -4655,6 +4676,80 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
               </button>
             </div>
           </>
+        )}
+
+        {/* Business profile — extra fields */}
+        {mode === 'business' && (
+          <div style={{ margin: '20px 0 0', borderTop: '2px solid #EEF2FF', paddingTop: 20 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#4338CA', marginBottom: 4 }}>
+              🏢 {t.businessProfile}
+            </div>
+            <p style={{ fontSize: 12, color: '#888', margin: '0 0 10px' }}>
+              {lang === 'da' ? 'Synligt på din virksomhedsprofil' : 'Visible on your business profile'}
+            </p>
+            <label style={labelStyle}>{t.businessCategory}</label>
+            <input
+              style={fieldStyle}
+              value={bizCategory}
+              onChange={e => setBizCategory(e.target.value)}
+              placeholder={lang === 'da' ? 'f.eks. IT & Software, Detailhandel…' : 'e.g. IT & Software, Retail…'}
+            />
+            <label style={labelStyle}>{t.businessWebsite}</label>
+            <input
+              type="url"
+              style={fieldStyle}
+              value={bizWebsite}
+              onChange={e => setBizWebsite(e.target.value)}
+              placeholder="https://"
+            />
+            <label style={labelStyle}>{t.businessHours}</label>
+            <input
+              style={fieldStyle}
+              value={bizHours}
+              onChange={e => setBizHours(e.target.value)}
+              placeholder={lang === 'da' ? 'f.eks. Man–Fre 09–17' : 'e.g. Mon–Fri 9am–5pm'}
+            />
+            <label style={labelStyle}>{t.businessDescription} (dansk)</label>
+            <textarea
+              style={{ ...fieldStyle, minHeight: 70, resize: 'vertical' }}
+              value={bizDescDa}
+              onChange={e => setBizDescDa(e.target.value)}
+              placeholder={lang === 'da' ? 'Beskriv virksomheden på dansk…' : 'Describe the business in Danish…'}
+            />
+            <label style={labelStyle}>{t.businessDescription} (English)</label>
+            <textarea
+              style={{ ...fieldStyle, minHeight: 70, resize: 'vertical' }}
+              value={bizDescEn}
+              onChange={e => setBizDescEn(e.target.value)}
+              placeholder={lang === 'da' ? 'Beskriv virksomheden på engelsk…' : 'Describe the business in English…'}
+            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
+              <button
+                type="button"
+                disabled={bizProfileSaveStatus === 'saving'}
+                onClick={async () => {
+                  setBizProfileSaveStatus('saving')
+                  const res = await apiUpdateBusinessProfile({
+                    business_category: bizCategory || null,
+                    business_website: bizWebsite || null,
+                    business_hours: bizHours || null,
+                    business_description_da: bizDescDa || null,
+                    business_description_en: bizDescEn || null,
+                  })
+                  setBizProfileSaveStatus(res?.ok ? 'saved' : 'error')
+                  setTimeout(() => setBizProfileSaveStatus(null), 2500)
+                }}
+                style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: bizProfileSaveStatus === 'saved' ? '#40916C' : '#4338CA', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+              >
+                {bizProfileSaveStatus === 'saving' ? '…' : bizProfileSaveStatus === 'saved' ? t.businessProfileSaved : t.saveBusinessProfile}
+              </button>
+              {bizProfileSaveStatus === 'error' && (
+                <span style={{ fontSize: 12, color: '#e53935' }}>
+                  {lang === 'da' ? 'Gem fejlede' : 'Save failed'}
+                </span>
+              )}
+            </div>
+          </div>
         )}
 
         {/* Skills management */}
@@ -7591,6 +7686,9 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onMessage, on
   const [showReport, setShowReport] = useState(false)
   const [reportReason, setReportReason] = useState('')
   const [reportSent, setReportSent] = useState(false)
+  const [isFollowing, setIsFollowing] = useState(false)
+  const [followerCount, setFollowerCount] = useState(0)
+  const [followBusy, setFollowBusy] = useState(false)
   const { triggerEgg } = useEasterEggs()
   const avatarClickCount = useRef(0)
   const avatarClickTimer = useRef(null)
@@ -7603,6 +7701,10 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onMessage, on
         setProfile(data)
         setRequestSent(!!data.requestSent)
         setIsBlocked(!!data.isBlocked)
+        if (data.mode === 'business') {
+          setIsFollowing(!!data.isFollowing)
+          setFollowerCount(Number(data.followerCount || 0))
+        }
         setTimeout(onBadgeCheck, 800)
       }
     })
@@ -7657,7 +7759,10 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onMessage, on
                 </div>
               )}
             </div>
-            <h2 className="p-profile-name">{profile.name}</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+              <h2 className="p-profile-name" style={{ margin: 0 }}>{profile.name}</h2>
+              {profile.mode === 'business' && <BusinessBadge lang={lang} />}
+            </div>
             {profile.handle && <p className="p-profile-handle">@{profile.handle}</p>}
             {profile.bio?.[lang] && <p className="p-profile-bio">{profile.bio[lang]}</p>}
             <div className="p-profile-meta">
@@ -7668,8 +7773,59 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onMessage, on
               <div className="p-friend-profile-stat"><strong>{profile.friendCount}</strong><span>{t.friendsLabel}</span></div>
               {profile.mutualCount > 0 && <div className="p-friend-profile-stat"><strong>{profile.mutualCount}</strong><span>{t.mutualFriends}</span></div>}
               <div className="p-friend-profile-stat"><strong>{profile.postCount}</strong><span>{t.postsLabel}</span></div>
+              {profile.mode === 'business' && (
+                <div className="p-friend-profile-stat"><strong>{followerCount}</strong><span>{t.followers}</span></div>
+              )}
             </div>
+
+            {/* Business fields */}
+            {profile.mode === 'business' && (
+              <div style={{ margin: '12px 0', padding: '10px 14px', background: '#F5F3FF', borderRadius: 10, border: '1px solid #C7D2FE', fontSize: 13, color: '#3730A3', display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                {profile.businessCategory && <span>🏷 {profile.businessCategory}</span>}
+                {profile.businessHours && <span>🕐 {profile.businessHours}</span>}
+                {profile.businessWebsite && (
+                  <a href={profile.businessWebsite} target="_blank" rel="noopener noreferrer" style={{ color: '#4338CA', fontWeight: 600 }} onClick={e => e.stopPropagation()}>
+                    🌐 {profile.businessWebsite.replace(/^https?:\/\//, '')}
+                  </a>
+                )}
+                {(profile.businessDescription?.da || profile.businessDescription?.en) && (
+                  <span style={{ width: '100%', color: '#555', fontStyle: 'italic' }}>
+                    {profile.businessDescription?.[lang] || profile.businessDescription?.da || ''}
+                  </span>
+                )}
+                {profile.communityScore >= 10 && (
+                  <span style={{ color: '#059669', fontWeight: 600 }}>⭐ {t.activeInCommunity}</span>
+                )}
+              </div>
+            )}
+
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 16, flexWrap: 'wrap' }}>
+              {/* Follow/unfollow for business profiles */}
+              {profile.mode === 'business' && profile.id !== currentUser.id && (
+                <button
+                  className="p-friend-msg-btn"
+                  disabled={followBusy}
+                  style={{
+                    background: isFollowing ? '#EEF2FF' : '#4338CA',
+                    color: isFollowing ? '#4338CA' : '#fff',
+                    border: `1px solid ${isFollowing ? '#C7D2FE' : '#4338CA'}`,
+                    opacity: followBusy ? 0.7 : 1,
+                  }}
+                  onClick={async () => {
+                    setFollowBusy(true)
+                    if (isFollowing) {
+                      const res = await apiUnfollowBusiness(profile.id)
+                      if (res !== null) { setIsFollowing(false); setFollowerCount(c => Math.max(0, c - 1)) }
+                    } else {
+                      const res = await apiFollowBusiness(profile.id)
+                      if (res !== null) { setIsFollowing(true); setFollowerCount(c => c + 1) }
+                    }
+                    setFollowBusy(false)
+                  }}
+                >
+                  {isFollowing ? `✓ ${t.unfollowBusiness}` : `+ ${t.followBusiness}`}
+                </button>
+              )}
               {!isBlocked && profile.isFriend ? (
                 <button className="p-friend-msg-btn" onClick={() => onMessage(profile)}>
                   💬 {t.message}
@@ -15219,6 +15375,76 @@ function AnalyticsPage({ lang, t, currentUser }) {
             <MiniLineChart data={connViews.some(v => v > 0) ? connViews : genViews(range, 1, 555)} color="#2D6A4F" height={80} />
           </div>
         </div>
+
+        {/* Business performance section — only shown for business mode */}
+        {analytics?.businessStats && (() => {
+          const bs = analytics.businessStats
+          const followerGrowthData = Array.from({ length: range }, (_, i) => {
+            const d = new Date(); d.setDate(d.getDate() - (range - 1 - i))
+            const key = d.toISOString().slice(0, 10)
+            const row = (bs.followerGrowth || []).find(r => (r.date || '').slice(0, 10) === key)
+            return row ? Number(row.new_followers) : 0
+          })
+          return (
+            <>
+              <div className="p-analytics-section">
+                <div className="p-analytics-section-title">
+                  🏢 {lang === 'da' ? 'Virksomhedsstatistik' : 'Business Performance'}
+                </div>
+                <div className="p-analytics-stat-row">
+                  <StatCard label={t.followers || (lang === 'da' ? 'Følgere' : 'Followers')} value={bs.followerCount.toLocaleString()} color="#4338CA" />
+                  <StatCard label={t.communityScore || (lang === 'da' ? 'Community score' : 'Community score')} value={bs.communityScore.toLocaleString()} color="#F59E0B" />
+                  <StatCard label={lang === 'da' ? 'Nye følgere' : 'New followers'} value={followerGrowthData.reduce((a, b) => a + b, 0)} sub={`${range}d`} color="#2D6A4F" />
+                </div>
+                {followerGrowthData.some(v => v > 0) && (
+                  <div className="p-analytics-chart-wrap" style={{ marginTop: 12 }}>
+                    <MiniLineChart data={followerGrowthData} color="#4338CA" height={80} />
+                  </div>
+                )}
+              </div>
+
+              {bs.adPerformance?.length > 0 && (
+                <div className="p-analytics-section">
+                  <div className="p-analytics-section-title">
+                    📢 {t.adManager || (lang === 'da' ? 'Annonceoversigt' : 'Ad Performance')}
+                  </div>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid #E8E4DF' }}>
+                          {[t.adTitle || 'Titel', t.adStatus || 'Status', t.adImpressions || 'Visninger', t.adClicks || 'Klik', t.adCTR || 'CTR', t.adReach || 'Rækkevidde', t.adSpent || 'Brugt'].map(h => (
+                            <th key={h} style={{ textAlign: 'left', padding: '6px 8px', fontWeight: 700, color: '#555', fontSize: 11 }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {bs.adPerformance.map(ad => (
+                          <tr key={ad.id} style={{ borderBottom: '1px solid #F0EDE8' }}>
+                            <td style={{ padding: '6px 8px', color: '#1a1a1a', fontWeight: 600 }}>
+                              {ad.isBoostedPost ? '🚀 ' : '📢 '}{(ad.title || '').slice(0, 30)}
+                            </td>
+                            <td style={{ padding: '6px 8px' }}>
+                              <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 8,
+                                background: ad.status === 'active' ? '#D1FAE5' : '#F3F4F6',
+                                color: ad.status === 'active' ? '#065F46' : '#374151' }}>
+                                {ad.status}
+                              </span>
+                            </td>
+                            <td style={{ padding: '6px 8px' }}>{ad.impressions.toLocaleString()}</td>
+                            <td style={{ padding: '6px 8px' }}>{ad.clicks.toLocaleString()}</td>
+                            <td style={{ padding: '6px 8px' }}>{ad.ctr}%</td>
+                            <td style={{ padding: '6px 8px' }}>{ad.reach.toLocaleString()}</td>
+                            <td style={{ padding: '6px 8px' }}>{formatPrice(ad.spent)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </>
+          )
+        })()}
       </div>
     </div>
   )

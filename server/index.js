@@ -1999,6 +1999,9 @@ app.get('/api/profile/:id', authenticate, async (req, res) => {
     const [users] = await pool.query(
       `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url,
         u.industry, u.seniority, u.job_title, u.company,
+        u.mode, u.follower_count, u.community_score,
+        u.business_category, u.business_website, u.business_hours,
+        u.business_description_da, u.business_description_en,
         (SELECT COUNT(*) FROM friendships WHERE user_id = u.id) as friend_count,
         (SELECT COUNT(*) FROM posts WHERE author_id = u.id) as post_count,
         (SELECT COUNT(*) FROM friendships f1
@@ -2043,11 +2046,12 @@ app.get('/api/profile/:id', authenticate, async (req, res) => {
         return { id: r.badge_id, icon: def.icon, name: def.name[lang] || def.name.da, tier: def.tier, awardedAt: r.awarded_at }
       }).filter(Boolean)
     } catch { /* badges table may not exist yet */ }
-    res.json({
+    const profilePayload = {
       id: u.id, name: u.name, handle: u.handle, initials: u.initials,
       bio: { da: u.bio_da || '', en: u.bio_en || '' },
       location: u.location, joinDate: u.join_date,
       avatarUrl: u.avatar_url || null,
+      mode: u.mode || 'privat',
       industry: u.industry || null,
       seniority: u.seniority || null,
       jobTitle: u.job_title || null,
@@ -2058,7 +2062,26 @@ app.get('/api/profile/:id', authenticate, async (req, res) => {
       requestSent: !!u.request_sent,
       isBlocked,
       badges,
-    })
+    }
+    if (u.mode === 'business') {
+      profilePayload.businessCategory = u.business_category || null
+      profilePayload.businessWebsite = u.business_website || null
+      profilePayload.businessHours = u.business_hours || null
+      profilePayload.businessDescription = { da: u.business_description_da || '', en: u.business_description_en || '' }
+      profilePayload.followerCount = Number(u.follower_count || 0)
+      profilePayload.communityScore = Number(u.community_score || 0)
+      // Check if the requesting user is following this business
+      let isFollowing = false
+      try {
+        const [[fRow]] = await pool.query(
+          'SELECT 1 FROM business_follows WHERE follower_id = ? AND business_id = ?',
+          [req.userId, targetId]
+        )
+        isFollowing = !!fRow
+      } catch {}
+      profilePayload.isFollowing = isFollowing
+    }
+    res.json(profilePayload)
   } catch (err) {
     res.status(500).json({ error: 'Failed to load profile' })
   }
@@ -2124,6 +2147,9 @@ app.get('/api/profile', authenticate, async (req, res) => {
         u.relationship_status, u.website,
         u.phone, u.mfa_enabled,
         u.industry, u.seniority, u.job_title, u.company,
+        u.mode,
+        u.business_category, u.business_website, u.business_hours,
+        u.business_description_da, u.business_description_en,
         (SELECT COUNT(*) FROM friendships WHERE user_id = u.id) as friend_count,
         (SELECT COUNT(*) FROM posts WHERE author_id = u.id) as post_count
        FROM users u WHERE u.id = ?`,
@@ -2135,11 +2161,12 @@ app.get('/api/profile', authenticate, async (req, res) => {
     try { interests = typeof u.interests === 'string' ? JSON.parse(u.interests) : (u.interests || []) } catch {}
     let tags = []
     try { tags = typeof u.tags === 'string' ? JSON.parse(u.tags) : (u.tags || []) } catch {}
-    res.json({
+    const payload = {
       id: u.id, name: u.name, handle: u.handle, initials: u.initials,
       bio: { da: u.bio_da || '', en: u.bio_en || '' },
       location: u.location, joinDate: u.join_date,
       avatarUrl: u.avatar_url || null,
+      mode: u.mode || 'privat',
       industry: u.industry || null,
       seniority: u.seniority || null,
       jobTitle: u.job_title || null,
@@ -2164,7 +2191,14 @@ app.get('/api/profile', authenticate, async (req, res) => {
       },
       phone: u.phone || null,
       mfaEnabled: !!u.mfa_enabled,
-    })
+    }
+    if (u.mode === 'business') {
+      payload.businessCategory = u.business_category || null
+      payload.businessWebsite = u.business_website || null
+      payload.businessHours = u.business_hours || null
+      payload.businessDescription = { da: u.business_description_da || '', en: u.business_description_en || '' }
+    }
+    res.json(payload)
   } catch (err) {
     res.status(500).json({ error: 'Failed to load profile' })
   }
@@ -2273,6 +2307,292 @@ app.patch('/api/me/profile-extended', authenticate, async (req, res) => {
     res.json({ ok: true })
   } catch (err) {
     res.status(500).json({ error: 'Failed to update profile' })
+  }
+})
+
+// PATCH /api/me/business-profile — update business-only profile fields
+app.patch('/api/me/business-profile', authenticate, async (req, res) => {
+  const { business_category, business_website, business_hours, business_description_da, business_description_en } = req.body
+  try {
+    const [[user]] = await pool.query('SELECT mode FROM users WHERE id = ?', [req.userId])
+    if (!user) return res.status(404).json({ error: 'User not found' })
+    if (user.mode !== 'business') return res.status(403).json({ error: 'Business account required' })
+    if (business_website) {
+      try { new URL(business_website) } catch {
+        return res.status(400).json({ error: 'Invalid URL' })
+      }
+    }
+    await pool.query(
+      `UPDATE users SET
+        business_category = ?,
+        business_website = ?,
+        business_hours = ?,
+        business_description_da = ?,
+        business_description_en = ?
+       WHERE id = ?`,
+      [
+        business_category || null,
+        business_website || null,
+        business_hours || null,
+        business_description_da || null,
+        business_description_en || null,
+        req.userId,
+      ]
+    )
+    res.json({
+      ok: true,
+      businessCategory: business_category || null,
+      businessWebsite: business_website || null,
+      businessHours: business_hours || null,
+      businessDescription: {
+        da: business_description_da || '',
+        en: business_description_en || '',
+      },
+    })
+  } catch (err) {
+    console.error('PATCH /api/me/business-profile error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Business Discovery ────────────────────────────────────────────────────────
+
+// GET /api/businesses — paginated list of business accounts
+app.get('/api/businesses', async (req, res) => {
+  const { category, q, limit: limitRaw, offset: offsetRaw } = req.query
+  const limit = Math.min(parseInt(limitRaw) || 20, 50)
+  const offset = parseInt(offsetRaw) || 0
+  // Optional auth — determine if caller is logged in
+  let callerId = null
+  try {
+    const sessionId = req.cookies?.fellis_sid
+    if (sessionId) {
+      const [[sess]] = await pool.query(
+        'SELECT user_id FROM sessions WHERE id = ? AND expires_at > NOW()',
+        [sessionId]
+      )
+      if (sess) callerId = sess.user_id
+    }
+  } catch {}
+  try {
+    const conditions = ["u.mode = 'business'"]
+    const params = []
+    if (category) { conditions.push('u.business_category = ?'); params.push(category) }
+    if (q) { conditions.push('(u.name LIKE ? OR u.business_category LIKE ?)'); params.push(`%${q}%`, `%${q}%`) }
+    const where = conditions.join(' AND ')
+    const [rows] = await pool.query(
+      `SELECT u.id, u.name, u.handle, u.avatar_url, u.business_category,
+              u.business_website, u.business_hours, u.bio_da, u.bio_en,
+              u.follower_count, u.community_score
+       FROM users u
+       WHERE ${where}
+       ORDER BY u.community_score DESC, u.follower_count DESC
+       LIMIT ? OFFSET ?`,
+      [...params, limit, offset]
+    )
+    let followedSet = new Set()
+    if (callerId && rows.length) {
+      const ids = rows.map(r => r.id)
+      const [fRows] = await pool.query(
+        `SELECT business_id FROM business_follows WHERE follower_id = ? AND business_id IN (?)`,
+        [callerId, ids]
+      ).catch(() => [[]])
+      followedSet = new Set(fRows.map(r => r.business_id))
+    }
+    res.json({
+      businesses: rows.map(r => ({
+        id: r.id, name: r.name, handle: r.handle,
+        avatarUrl: r.avatar_url || null,
+        businessCategory: r.business_category || null,
+        businessWebsite: r.business_website || null,
+        businessHours: r.business_hours || null,
+        bio: { da: r.bio_da || '', en: r.bio_en || '' },
+        followerCount: Number(r.follower_count || 0),
+        communityScore: Number(r.community_score || 0),
+        isFollowing: followedSet.has(r.id),
+      })),
+      total: rows.length,
+      limit,
+      offset,
+    })
+  } catch (err) {
+    console.error('GET /api/businesses error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/businesses/suggested — businesses matched to user interests
+app.get('/api/businesses/suggested', authenticate, async (req, res) => {
+  try {
+    const [[user]] = await pool.query('SELECT id FROM users WHERE id = ?', [req.userId])
+    if (!user) return res.status(404).json({ error: 'User not found' })
+    // Try to match businesses by user's top interest slugs
+    let rows = []
+    try {
+      ;[rows] = await pool.query(
+        `SELECT DISTINCT u.id, u.name, u.handle, u.avatar_url, u.business_category,
+                u.business_website, u.business_hours, u.bio_da, u.bio_en,
+                u.follower_count, u.community_score
+         FROM users u
+         JOIN interest_scores iss ON iss.user_id = ?
+           AND (u.business_category LIKE CONCAT('%', iss.interest_slug, '%')
+                OR iss.interest_slug LIKE CONCAT('%', u.business_category, '%'))
+         WHERE u.mode = 'business'
+           AND u.id != ?
+           AND iss.weight > 10
+         ORDER BY iss.weight DESC, u.community_score DESC
+         LIMIT 10`,
+        [req.userId, req.userId]
+      )
+    } catch {}
+    // Fall back to top businesses by community_score
+    if (!rows.length) {
+      ;[rows] = await pool.query(
+        `SELECT u.id, u.name, u.handle, u.avatar_url, u.business_category,
+                u.business_website, u.business_hours, u.bio_da, u.bio_en,
+                u.follower_count, u.community_score
+         FROM users u
+         WHERE u.mode = 'business' AND u.id != ?
+         ORDER BY u.community_score DESC, u.follower_count DESC
+         LIMIT 10`,
+        [req.userId]
+      )
+    }
+    const ids = rows.map(r => r.id)
+    let followedSet = new Set()
+    if (ids.length) {
+      const [fRows] = await pool.query(
+        'SELECT business_id FROM business_follows WHERE follower_id = ? AND business_id IN (?)',
+        [req.userId, ids]
+      ).catch(() => [[]])
+      followedSet = new Set(fRows.map(r => r.business_id))
+    }
+    res.json(rows.map(r => ({
+      id: r.id, name: r.name, handle: r.handle,
+      avatarUrl: r.avatar_url || null,
+      businessCategory: r.business_category || null,
+      businessWebsite: r.business_website || null,
+      businessHours: r.business_hours || null,
+      bio: { da: r.bio_da || '', en: r.bio_en || '' },
+      followerCount: Number(r.follower_count || 0),
+      communityScore: Number(r.community_score || 0),
+      isFollowing: followedSet.has(r.id),
+    })))
+  } catch (err) {
+    console.error('GET /api/businesses/suggested error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/businesses/:handle — public business profile
+app.get('/api/businesses/:handle', async (req, res) => {
+  const handle = req.params.handle.startsWith('@') ? req.params.handle : '@' + req.params.handle
+  // Optional auth
+  let callerId = null
+  try {
+    const sessionId = req.cookies?.fellis_sid
+    if (sessionId) {
+      const [[sess]] = await pool.query(
+        'SELECT user_id FROM sessions WHERE id = ? AND expires_at > NOW()',
+        [sessionId]
+      )
+      if (sess) callerId = sess.user_id
+    }
+  } catch {}
+  try {
+    const [rows] = await pool.query(
+      `SELECT u.id, u.name, u.handle, u.avatar_url, u.bio_da, u.bio_en, u.location, u.join_date,
+              u.business_category, u.business_website, u.business_hours,
+              u.business_description_da, u.business_description_en,
+              u.follower_count, u.community_score, u.mode
+       FROM users u WHERE u.handle = ? AND u.mode = 'business'`,
+      [handle]
+    )
+    if (!rows.length) return res.status(404).json({ error: 'Business not found' })
+    const biz = rows[0]
+    // Recent posts
+    const [posts] = await pool.query(
+      `SELECT p.id, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.created_at
+       FROM posts p WHERE p.author_id = ? AND (p.scheduled_at IS NULL OR p.scheduled_at <= NOW())
+       ORDER BY p.created_at DESC LIMIT 5`,
+      [biz.id]
+    )
+    let isFollowing = false
+    if (callerId) {
+      const [[fRow]] = await pool.query(
+        'SELECT 1 FROM business_follows WHERE follower_id = ? AND business_id = ?',
+        [callerId, biz.id]
+      ).catch(() => [[null]])
+      isFollowing = !!fRow
+    }
+    res.json({
+      id: biz.id, name: biz.name, handle: biz.handle,
+      avatarUrl: biz.avatar_url || null,
+      bio: { da: biz.bio_da || '', en: biz.bio_en || '' },
+      location: biz.location || null,
+      joinDate: biz.join_date,
+      businessCategory: biz.business_category || null,
+      businessWebsite: biz.business_website || null,
+      businessHours: biz.business_hours || null,
+      businessDescription: { da: biz.business_description_da || '', en: biz.business_description_en || '' },
+      followerCount: Number(biz.follower_count || 0),
+      communityScore: Number(biz.community_score || 0),
+      isFollowing,
+      posts: posts.map(p => ({
+        id: p.id,
+        text: { da: p.text_da, en: p.text_en },
+        time: { da: p.time_da, en: p.time_en },
+        likes: p.likes,
+        media: p.media,
+        createdAt: p.created_at,
+      })),
+    })
+  } catch (err) {
+    console.error('GET /api/businesses/:handle error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/businesses/:id/follow — follow a business account
+app.post('/api/businesses/:id/follow', authenticate, async (req, res) => {
+  const bizId = parseInt(req.params.id)
+  try {
+    const [[biz]] = await pool.query("SELECT id FROM users WHERE id = ? AND mode = 'business'", [bizId])
+    if (!biz) return res.status(404).json({ error: 'Business not found' })
+    try {
+      await pool.query(
+        'INSERT INTO business_follows (follower_id, business_id) VALUES (?, ?)',
+        [req.userId, bizId]
+      )
+      await pool.query('UPDATE users SET follower_count = follower_count + 1 WHERE id = ?', [bizId])
+    } catch (e) {
+      if (e.code === 'ER_DUP_ENTRY') return res.json({ following: true }) // already following — idempotent
+      throw e
+    }
+    res.json({ following: true })
+  } catch (err) {
+    console.error('POST /api/businesses/:id/follow error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// DELETE /api/businesses/:id/follow — unfollow a business account
+app.delete('/api/businesses/:id/follow', authenticate, async (req, res) => {
+  const bizId = parseInt(req.params.id)
+  try {
+    const [[biz]] = await pool.query("SELECT id FROM users WHERE id = ? AND mode = 'business'", [bizId])
+    if (!biz) return res.status(404).json({ error: 'Business not found' })
+    const [result] = await pool.query(
+      'DELETE FROM business_follows WHERE follower_id = ? AND business_id = ?',
+      [req.userId, bizId]
+    )
+    if (result.affectedRows > 0) {
+      await pool.query('UPDATE users SET follower_count = GREATEST(follower_count - 1, 0) WHERE id = ?', [bizId])
+    }
+    res.json({ following: false })
+  } catch (err) {
+    console.error('DELETE /api/businesses/:id/follow error:', err.message)
+    res.status(500).json({ error: 'Server error' })
   }
 })
 
@@ -2623,7 +2943,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
     let posts
     try {
       ;[posts] = await pool.query(
-        `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.categories, p.created_at, p.edited_at,
+        `SELECT p.id, p.author_id, u.name as author, u.mode as author_mode, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.categories, p.created_at, p.edited_at,
                 p.place_name, p.geo_lat, p.geo_lng, p.tagged_users, p.linked_type, p.linked_id,
                 (SELECT COUNT(*) FROM earned_badges WHERE user_id = p.author_id) as author_badge_count
          FROM posts p JOIN users u ON p.author_id = u.id
@@ -2636,7 +2956,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
       )
     } catch {
       ;[posts] = await pool.query(
-        `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.categories, p.created_at, p.edited_at,
+        `SELECT p.id, p.author_id, u.name as author, u.mode as author_mode, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.categories, p.created_at, p.edited_at,
                 NULL as place_name, NULL as geo_lat, NULL as geo_lng,
                 NULL as tagged_users, NULL as linked_type, NULL as linked_id,
                 0 as author_badge_count
@@ -2738,6 +3058,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
         id: p.id,
         author: p.author,
         authorId: p.author_id,
+        authorMode: p.author_mode || 'privat',
         time: { da: formatPostTime(p.created_at, 'da'), en: formatPostTime(p.created_at, 'en') },
         text: { da: p.text_da, en: p.text_en },
         likes: p.likes,
@@ -2768,6 +3089,53 @@ app.get('/api/feed', authenticate, async (req, res) => {
         viewValues.flat()
       ).catch(() => {})
     }
+
+    // Inject boosted posts at positions 5 and 15 for non-adfree users (first page only, no cursor)
+    if (!cursor && result.length > 0) {
+      try {
+        const todayFeed = new Date().toISOString().split('T')[0]
+        const [[adFreeRow]] = await pool.query(`
+          SELECT (
+            (SELECT COUNT(*) FROM adfree_day_assignments WHERE user_id = ? AND start_date <= ? AND end_date >= ?) +
+            (SELECT COUNT(*) FROM adfree_purchased_periods WHERE user_id = ? AND start_date <= ? AND end_date >= ?)
+          ) AS total
+        `, [req.userId, todayFeed, todayFeed, req.userId, todayFeed, todayFeed]).catch(() => [[{ total: 0 }]])
+        const isAdFree = (adFreeRow?.total ?? 0) > 0
+
+        if (!isAdFree) {
+          const [boostedAds] = await pool.query(
+            `SELECT a.id as ad_id, a.boosted_post_id,
+                    p.id, p.author_id, u.name as author, u.mode as author_mode,
+                    p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.created_at,
+                    p.tagged_users, p.linked_type, p.linked_id
+             FROM ads a
+             JOIN posts p ON p.id = a.boosted_post_id
+             JOIN users u ON u.id = p.author_id
+             WHERE a.status = 'active' AND a.boosted_post_id IS NOT NULL
+               AND (a.start_date IS NULL OR a.start_date <= CURDATE())
+               AND (a.end_date IS NULL OR a.end_date >= CURDATE())
+             ORDER BY RAND() LIMIT 2`
+          ).catch(() => [[]])
+          const boostedPosts = (Array.isArray(boostedAds) ? boostedAds : []).map(b => ({
+            id: b.id,
+            author: b.author,
+            authorId: b.author_id,
+            authorMode: b.author_mode || 'business',
+            time: { da: formatPostTime(b.created_at, 'da'), en: formatPostTime(b.created_at, 'en') },
+            text: { da: b.text_da, en: b.text_en },
+            likes: b.likes,
+            liked: false, userReaction: null, reactions: [],
+            media: (() => { try { return b.media ? (typeof b.media === 'string' ? JSON.parse(b.media) : b.media) : [] } catch { return [] } })(),
+            categories: [], comments: [], createdAtRaw: b.created_at, edited: false, authorBadgeCount: 0,
+            placeName: null, geoLat: null, geoLng: null, taggedUsers: null, linkedType: null, linkedId: null,
+            isSponsored: true, adId: b.ad_id,
+          }))
+          if (boostedPosts[0] && result.length >= 5) result.splice(4, 0, boostedPosts[0])
+          if (boostedPosts[1] && result.length >= 16) result.splice(15, 0, boostedPosts[1])
+        }
+      } catch { /* boosted injection is non-critical */ }
+    }
+
     // nextCursor = created_at of the oldest post in this page (use as ?cursor= to load the next page)
     // null when fewer posts were returned than requested — no more pages exist
     const nextCursor = result.length === limit
@@ -2816,6 +3184,67 @@ app.get('/api/feed/memories', authenticate, async (req, res) => {
     res.json({ memories })
   } catch (err) {
     console.error('GET /api/feed/memories error:', err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/posts/:id/boost — business pays to boost a post as a sponsored ad
+app.post('/api/posts/:id/boost', authenticate, attachUserMode, requireBusiness, async (req, res) => {
+  try {
+    const postId = parseInt(req.params.id)
+    const [[post]] = await pool.query('SELECT id, author_id FROM posts WHERE id = ?', [postId])
+    if (!post) return res.status(404).json({ error: 'Post not found' })
+    if (post.author_id !== req.userId) return res.status(403).json({ error: 'You can only boost your own posts' })
+
+    const [[settings]] = await pool.query('SELECT post_boost_price, post_boost_days, currency FROM admin_ad_settings WHERE id = 1').catch(() => [[null]])
+    const boostPrice = parseFloat(settings?.post_boost_price) || 19
+    const boostDays = parseInt(settings?.post_boost_days) || 7
+    const currency = settings?.currency || 'EUR'
+
+    const endDate = new Date()
+    endDate.setDate(endDate.getDate() + boostDays)
+
+    const mollie = await getMollieClient()
+    const origin = req.headers.origin || process.env.SITE_URL || 'https://fellis.eu'
+
+    // Create the boost ad record
+    const [[adSettings]] = await pool.query('SELECT ad_price_cpm FROM admin_ad_settings WHERE id = 1').catch(() => [[null]])
+    const cpmRate = parseFloat(adSettings?.ad_price_cpm) || 50
+    const [result] = await pool.query(
+      `INSERT INTO ads (advertiser_id, title, target_url, placement, start_date, end_date, cpm_rate, boosted_post_id, budget)
+       VALUES (?, ?, ?, 'feed', NOW(), ?, ?, ?, ?)`,
+      [req.userId, `Boosted post #${postId}`, `/post/${postId}`, endDate, cpmRate, postId, boostPrice]
+    )
+    const adId = result.insertId
+
+    if (!mollie) {
+      // Dev fallback: activate immediately
+      await pool.query(
+        "UPDATE ads SET status = 'active', payment_status = 'paid', paid_at = NOW(), paid_until = ? WHERE id = ?",
+        [endDate, adId]
+      )
+      await pool.query(
+        'INSERT INTO subscriptions (user_id, plan, status, ad_id) VALUES (?, ?, ?, ?)',
+        [req.userId, 'post_boost', 'paid', adId]
+      )
+      return res.json({ activated: true, ad_id: adId, checkout_url: null })
+    }
+
+    const siteUrl = process.env.SITE_URL || 'https://fellis.eu'
+    const payment = await mollie.payments.create({
+      amount: { currency, value: boostPrice.toFixed(2) },
+      description: `fellis.eu — post boost #${postId}`,
+      redirectUrl: `${origin}/?mollie_payment=success&plan=post_boost&ad_id=${adId}`,
+      webhookUrl: `${siteUrl}/api/mollie/payment/webhook`,
+      metadata: { user_id: String(req.userId), plan: 'post_boost', ad_id: String(adId) },
+    })
+    await pool.query(
+      'INSERT INTO subscriptions (user_id, mollie_payment_id, plan, status, ad_id) VALUES (?, ?, ?, ?, ?)',
+      [req.userId, payment.id, 'post_boost', payment.status, adId]
+    )
+    res.json({ checkout_url: payment.getCheckoutUrl(), ad_id: adId, activated: false })
+  } catch (err) {
+    console.error('POST /api/posts/:id/boost error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })
@@ -2903,6 +3332,8 @@ app.post('/api/feed', authenticate, writeLimit, upload.array('media', 4), async 
         [req.userId, 'post', postId, 'keyword_flag', `Auto-flagged: keyword "${autoFlagKeyword}"`]
       ).catch(() => {})
     }
+    // Business community score: increment when a business user publishes a post
+    pool.query("UPDATE users SET community_score = LEAST(community_score + 1, 9999) WHERE id = ? AND mode = 'business'", [req.userId]).catch(() => {})
     if (scheduledDate) {
       return res.json({ id: postId, scheduled: true, scheduledAt: scheduledDate })
     }
@@ -2996,6 +3427,8 @@ app.post('/api/feed/:id/like', authenticate, async (req, res) => {
         }
       }
       autoSignalPost(req.userId, postId, 'like')
+      // Business community score: author gains +1 when their post receives a like
+      if (post) pool.query("UPDATE users SET community_score = LEAST(community_score + 1, 9999) WHERE id = ? AND mode = 'business'", [post.user_id]).catch(() => {})
       res.json({ liked: true, reaction })
     }
   } catch (err) {
@@ -3073,6 +3506,8 @@ app.post('/api/feed/:id/comment', authenticate, writeLimit, upload.single('media
       )
     }
     autoSignalPost(req.userId, postId, 'comment')
+    // Business community score: increment when a business user adds a comment
+    pool.query("UPDATE users SET community_score = LEAST(community_score + 1, 9999) WHERE id = ? AND mode = 'business'", [req.userId]).catch(() => {})
     res.json({ author: users[0].name, text: { da: text, en: text }, media })
   } catch (err) {
     res.status(500).json({ error: 'Failed to add comment' })
@@ -6078,12 +6513,17 @@ async function attachUserMode(req, res, next) {
 
 // POST /api/ads — create ad (business only)
 app.post('/api/ads', authenticate, attachUserMode, requireBusiness, async (req, res) => {
-  const { title, body, image_url, target_url, placement = 'feed', start_date, end_date } = req.body
+  const { title, body, image_url, target_url, placement = 'feed', start_date, end_date, budget, target_interests } = req.body
   if (!title || !target_url) return res.status(400).json({ error: 'title and target_url required' })
   try {
+    // Snapshot current CPM rate at ad creation time
+    const [[settings]] = await pool.query('SELECT ad_price_cpm FROM admin_ad_settings WHERE id = 1').catch(() => [[null]])
+    const cpmRate = parseFloat(settings?.ad_price_cpm) || 50
+    const budgetVal = budget ? parseFloat(budget) : null
+    const interestsVal = target_interests ? JSON.stringify(target_interests) : null
     const [result] = await pool.query(
-      'INSERT INTO ads (advertiser_id, title, body, image_url, target_url, placement, start_date, end_date) VALUES (?,?,?,?,?,?,?,?)',
-      [req.userId, title, body || null, image_url || null, target_url, placement, start_date || null, end_date || null]
+      'INSERT INTO ads (advertiser_id, title, body, image_url, target_url, placement, start_date, end_date, budget, cpm_rate, target_interests) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+      [req.userId, title, body || null, image_url || null, target_url, placement, start_date || null, end_date || null, budgetVal, cpmRate, interestsVal]
     )
     const [[ad]] = await pool.query('SELECT * FROM ads WHERE id = ?', [result.insertId])
     res.status(201).json({ ad })
@@ -6133,6 +6573,24 @@ app.get('/api/ads', authenticate, async (req, res) => {
     res.json({ ads: rows })
   } catch (err) {
     console.error('GET /api/ads error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/ads/mine — business user's own ads with full monetisation fields
+// NOTE: must be registered BEFORE /api/ads/:id
+app.get('/api/ads/mine', authenticate, attachUserMode, requireBusiness, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, title, body, image_url, target_url, placement, status, start_date, end_date,
+              budget, spent, cpm_rate, reach, impressions, clicks, boosted_post_id,
+              target_interests, payment_status, paid_until, created_at
+       FROM ads WHERE advertiser_id = ? ORDER BY created_at DESC`,
+      [req.userId]
+    )
+    res.json({ ads: rows })
+  } catch (err) {
+    console.error('GET /api/ads/mine error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })
@@ -6195,12 +6653,43 @@ app.put('/api/ads/:id', authenticate, async (req, res) => {
   }
 })
 
-// DELETE /api/ads/:id — permanently delete ad
+// PATCH /api/ads/:id — partial update of ad metadata (blocks placement/cpm_rate changes)
+app.patch('/api/ads/:id', authenticate, async (req, res) => {
+  try {
+    const [[ad]] = await pool.query('SELECT * FROM ads WHERE id = ?', [req.params.id])
+    if (!ad) return res.status(404).json({ error: 'Ad not found' })
+    if (ad.advertiser_id !== req.userId && req.userId !== 1) return res.status(403).json({ error: 'Forbidden' })
+    const { title, body, image_url, target_url, start_date, end_date, budget, target_interests } = req.body
+    // placement and cpm_rate cannot be changed via PATCH — use PUT for admin changes
+    await pool.query(
+      `UPDATE ads SET
+        title = COALESCE(?,title), body = COALESCE(?,body),
+        image_url = COALESCE(?,image_url), target_url = COALESCE(?,target_url),
+        start_date = COALESCE(?,start_date), end_date = COALESCE(?,end_date),
+        budget = COALESCE(?,budget),
+        target_interests = COALESCE(?,target_interests)
+       WHERE id = ?`,
+      [title||null, body||null, image_url||null, target_url||null,
+       start_date||null, end_date||null,
+       budget != null ? parseFloat(budget) : null,
+       target_interests ? JSON.stringify(target_interests) : null,
+       req.params.id]
+    )
+    const [[updated]] = await pool.query('SELECT * FROM ads WHERE id = ?', [req.params.id])
+    res.json({ ad: updated })
+  } catch (err) {
+    console.error('PATCH /api/ads/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// DELETE /api/ads/:id — permanently delete ad (only allowed when status = 'draft')
 app.delete('/api/ads/:id', authenticate, async (req, res) => {
   try {
     const [[ad]] = await pool.query('SELECT * FROM ads WHERE id = ?', [req.params.id])
     if (!ad) return res.status(404).json({ error: 'Ad not found' })
     if (ad.advertiser_id !== req.userId && req.userId !== 1) return res.status(403).json({ error: 'Forbidden' })
+    if (ad.status !== 'draft' && req.userId !== 1) return res.status(409).json({ error: 'Only draft ads can be deleted' })
     await pool.query('DELETE FROM ads WHERE id = ?', [req.params.id])
     res.json({ ok: true })
   } catch (err) {
@@ -6209,12 +6698,96 @@ app.delete('/api/ads/:id', authenticate, async (req, res) => {
   }
 })
 
-// POST /api/ads/:id/impression — record impression
+// POST /api/ads/:id/pay — create Mollie payment to activate an ad
+app.post('/api/ads/:id/pay', authenticate, attachUserMode, requireBusiness, async (req, res) => {
+  try {
+    const adId = parseInt(req.params.id)
+    const [[ad]] = await pool.query('SELECT * FROM ads WHERE id = ?', [adId])
+    if (!ad) return res.status(404).json({ error: 'Ad not found' })
+    if (ad.advertiser_id !== req.userId) return res.status(403).json({ error: 'Forbidden' })
+
+    const [[settings]] = await pool.query('SELECT ad_price_cpm, currency FROM admin_ad_settings WHERE id = 1').catch(() => [[null]])
+    const cpmRate = parseFloat(ad.cpm_rate || settings?.ad_price_cpm) || 50
+    const budget = parseFloat(ad.budget) || cpmRate // default to 1 CPM unit
+    const currency = settings?.currency || 'EUR'
+    const amount = budget.toFixed(2)
+
+    const mollie = await getMollieClient()
+    const origin = req.headers.origin || process.env.SITE_URL || 'https://fellis.eu'
+    if (!mollie) {
+      // Dev fallback: immediately activate without payment
+      await pool.query(
+        "UPDATE ads SET status = 'active', payment_status = 'paid', paid_at = NOW(), paid_until = DATE_ADD(NOW(), INTERVAL 30 DAY) WHERE id = ?",
+        [adId]
+      )
+      await pool.query(
+        'INSERT INTO subscriptions (user_id, plan, status, ad_id) VALUES (?, ?, ?, ?)',
+        [req.userId, 'ad_activation', 'paid', adId]
+      )
+      return res.json({ activated: true, checkout_url: null })
+    }
+
+    const siteUrl = process.env.SITE_URL || 'https://fellis.eu'
+    const payment = await mollie.payments.create({
+      amount: { currency, value: amount },
+      description: `fellis.eu — annonce aktivering #${adId}`,
+      redirectUrl: `${origin}/?mollie_payment=success&plan=ad_activation&ad_id=${adId}`,
+      webhookUrl: `${siteUrl}/api/mollie/payment/webhook`,
+      metadata: { user_id: String(req.userId), plan: 'ad_activation', ad_id: String(adId) },
+    })
+    await pool.query(
+      'INSERT INTO subscriptions (user_id, mollie_payment_id, plan, status, ad_id) VALUES (?, ?, ?, ?, ?)',
+      [req.userId, payment.id, 'ad_activation', payment.status, adId]
+    )
+    res.json({ checkout_url: payment.getCheckoutUrl(), activated: false })
+  } catch (err) {
+    console.error('POST /api/ads/:id/pay error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/ads/:id/impression — record impression with CPM deduction and reach tracking
 app.post('/api/ads/:id/impression', authenticate, async (req, res) => {
   try {
-    const [[ad]] = await pool.query('SELECT id FROM ads WHERE id = ?', [req.params.id])
+    const adId = parseInt(req.params.id)
+    const [[ad]] = await pool.query('SELECT id, cpm_rate, budget, spent, status FROM ads WHERE id = ?', [adId])
     if (!ad) return res.status(404).json({ error: 'Ad not found' })
-    await pool.query('UPDATE ads SET impressions = impressions + 1 WHERE id = ?', [req.params.id])
+
+    // Dedup: one impression per user per ad per hour
+    const hourBucket = new Date()
+    hourBucket.setMinutes(0, 0, 0)
+    try {
+      await pool.query(
+        'INSERT INTO ad_impressions (ad_id, user_id, hour_bucket) VALUES (?, ?, ?)',
+        [adId, req.userId, hourBucket]
+      )
+    } catch (dupErr) {
+      if (dupErr.code === 'ER_DUP_ENTRY') return res.json({ ok: true, duplicate: true })
+      throw dupErr
+    }
+
+    // Increment impressions and reach (reach = distinct users)
+    await pool.query('UPDATE ads SET impressions = impressions + 1 WHERE id = ?', [adId])
+    // reach = count distinct users who have seen this ad
+    const [[{ rc }]] = await pool.query('SELECT COUNT(DISTINCT user_id) AS rc FROM ad_impressions WHERE ad_id = ?', [adId])
+    await pool.query('UPDATE ads SET reach = ? WHERE id = ?', [rc, adId])
+
+    // CPM spend deduction
+    if (ad.cpm_rate && ad.cpm_rate > 0) {
+      const costPerImpression = parseFloat(ad.cpm_rate) / 1000
+      await pool.query(
+        'UPDATE ads SET spent = spent + ? WHERE id = ?',
+        [costPerImpression, adId]
+      )
+      // Autopause when spent >= budget
+      if (ad.budget && ad.budget > 0) {
+        const newSpent = parseFloat(ad.spent) + costPerImpression
+        if (newSpent >= parseFloat(ad.budget)) {
+          await pool.query("UPDATE ads SET status = 'paused' WHERE id = ? AND status = 'active'", [adId])
+        }
+      }
+    }
+
     res.json({ ok: true })
   } catch (err) {
     console.error('POST /api/ads/:id/impression error:', err.message)
@@ -6590,6 +7163,23 @@ app.post('/api/mollie/payment/webhook', express.urlencoded({ extended: false }),
             )
           }
         }
+      } else if (sub.plan === 'post_boost') {
+        // Activate the boosted post ad
+        const adId = sub.ad_id || payment.metadata?.ad_id
+        if (adId) {
+          const [[adRow]] = await pool.query('SELECT boosted_post_id FROM ads WHERE id = ?', [adId]).catch(() => [[null]])
+          await pool.query(
+            "UPDATE ads SET status = 'active', payment_status = 'paid', paid_at = NOW(), paid_until = DATE_ADD(NOW(), INTERVAL 7 DAY) WHERE id = ?",
+            [adId]
+          ).catch(() => {})
+          if (adRow?.boosted_post_id) {
+            createNotification(sub.user_id, 'post_boosted',
+              `Dit opslag er nu boostet i 7 dage`,
+              `Your post is now boosted for 7 days`,
+              sub.user_id, null
+            )
+          }
+        }
       } else {
         // adfree plan: set flag and record a purchased period
         await pool.query('UPDATE users SET ads_free = 1 WHERE id = ?', [sub.user_id])
@@ -6628,7 +7218,7 @@ app.post('/api/mollie/payment/webhook', express.urlencoded({ extended: false }),
         }
       }
     } else if (['expired', 'canceled', 'failed'].includes(status)) {
-      if (sub.plan === 'ad_activation') {
+      if (sub.plan === 'ad_activation' || sub.plan === 'post_boost') {
         const adId = sub.ad_id || payment.metadata?.ad_id
         if (adId) await pool.query(
           "UPDATE ads SET payment_status = 'failed' WHERE id = ? AND payment_status != 'paid'",
@@ -7038,6 +7628,66 @@ app.get('/api/analytics', authenticate, async (req, res) => {
       }))
     } catch { /* ignore */ }
 
+    // Business-specific stats (only for business mode users)
+    let businessStats = null
+    try {
+      const [[userMode]] = await pool.query('SELECT mode, follower_count, community_score FROM users WHERE id = ?', [req.userId])
+      if (userMode?.mode === 'business') {
+        // Follower growth per day
+        const [followerGrowth] = await pool.query(
+          `SELECT DATE(created_at) AS date, COUNT(*) AS new_followers
+           FROM business_follows WHERE business_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+           GROUP BY DATE(created_at) ORDER BY date ASC`,
+          [req.userId, days]
+        ).catch(() => [[]])
+
+        // Ad performance summary
+        const [adPerf] = await pool.query(
+          `SELECT id, title, status, impressions, clicks, reach, spent, budget, cpm_rate, boosted_post_id, created_at
+           FROM ads WHERE advertiser_id = ? ORDER BY created_at DESC LIMIT 10`,
+          [req.userId]
+        ).catch(() => [[]])
+
+        // Post boost stats
+        const [boostStats] = await pool.query(
+          `SELECT a.id, a.boosted_post_id, a.impressions, a.clicks, a.reach, a.spent, a.status,
+                  SUBSTRING(COALESCE(NULLIF(p.text_da,''), NULLIF(p.text_en,''), ''), 1, 50) AS post_text
+           FROM ads a LEFT JOIN posts p ON p.id = a.boosted_post_id
+           WHERE a.advertiser_id = ? AND a.boosted_post_id IS NOT NULL
+           ORDER BY a.created_at DESC LIMIT 5`,
+          [req.userId]
+        ).catch(() => [[]])
+
+        businessStats = {
+          followerCount: Number(userMode.follower_count || 0),
+          communityScore: Number(userMode.community_score || 0),
+          followerGrowth,
+          adPerformance: (Array.isArray(adPerf) ? adPerf : []).map(a => ({
+            id: a.id,
+            title: a.title,
+            status: a.status,
+            impressions: Number(a.impressions || 0),
+            clicks: Number(a.clicks || 0),
+            reach: Number(a.reach || 0),
+            spent: parseFloat(a.spent || 0),
+            budget: a.budget ? parseFloat(a.budget) : null,
+            ctr: a.impressions > 0 ? Math.round((a.clicks / a.impressions) * 10000) / 100 : 0,
+            isBoostedPost: !!a.boosted_post_id,
+          })),
+          postBoostStats: (Array.isArray(boostStats) ? boostStats : []).map(b => ({
+            adId: b.id,
+            postId: b.boosted_post_id,
+            postText: b.post_text || `Post #${b.boosted_post_id}`,
+            impressions: Number(b.impressions || 0),
+            clicks: Number(b.clicks || 0),
+            reach: Number(b.reach || 0),
+            spent: parseFloat(b.spent || 0),
+            status: b.status,
+          })),
+        }
+      }
+    } catch { /* business stats are non-critical */ }
+
     res.json({
       days,
       views: viewRows,
@@ -7063,6 +7713,7 @@ app.get('/api/analytics', authenticate, async (req, res) => {
       seniorityDist,
       postsDrivingVisits,
       platformAvgConnGrowth,
+      businessStats,
     })
   } catch (err) {
     console.error('GET /api/analytics error:', err.message)
@@ -8172,6 +8823,9 @@ app.get('/api/public/profile/:handle', async (req, res) => {
     const [rows] = await pool.query(
       `SELECT u.id, u.name, u.handle, u.bio_da, u.bio_en, u.location, u.avatar_url, u.join_date,
               u.profile_public, u.reputation_score, u.referral_count,
+              u.mode,
+              u.business_category, u.business_website, u.business_hours,
+              u.business_description_da, u.business_description_en,
               (SELECT COUNT(*) FROM friendships WHERE user_id = u.id) as friend_count,
               (SELECT COUNT(*) FROM posts WHERE author_id = u.id AND is_public = 1) as public_post_count
        FROM users u WHERE u.handle = ?`,
@@ -8190,7 +8844,7 @@ app.get('/api/public/profile/:handle', async (req, res) => {
       [user.id]
     )
 
-    res.json({
+    const publicProfile = {
       id: user.id,
       name: user.name,
       handle: user.handle,
@@ -8198,6 +8852,7 @@ app.get('/api/public/profile/:handle', async (req, res) => {
       location: user.location,
       avatarUrl: user.avatar_url,
       joinDate: user.join_date,
+      mode: user.mode || 'privat',
       friendCount: Number(user.friend_count),
       publicPostCount: Number(user.public_post_count),
       reputationScore: Number(user.reputation_score),
@@ -8211,7 +8866,14 @@ app.get('/api/public/profile/:handle', async (req, res) => {
         shareCount: p.share_count,
         createdAt: p.created_at,
       })),
-    })
+    }
+    if (user.mode === 'business') {
+      publicProfile.businessCategory = user.business_category || null
+      publicProfile.businessWebsite = user.business_website || null
+      publicProfile.businessHours = user.business_hours || null
+      publicProfile.businessDescription = { da: user.business_description_da || '', en: user.business_description_en || '' }
+    }
+    res.json(publicProfile)
   } catch (err) {
     console.error('GET /api/public/profile/:handle error:', err.message)
     res.status(500).json({ error: 'Server error' })
