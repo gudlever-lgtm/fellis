@@ -235,11 +235,11 @@ export default function AdManager({ lang, t, currentUser }) {
           <form onSubmit={handleCreate}>
             <div style={s.twoCol}>
               <div style={s.formRow}>
-                <label style={s.label}>{t.adTitle} *</label>
+                <label style={s.label}>{t.adTitle} <span className="req">*</span></label>
                 <input style={s.input} value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} required />
               </div>
               <div style={s.formRow}>
-                <label style={s.label}>{t.adTargetUrl} *</label>
+                <label style={s.label}>{t.adTargetUrl} <span className="req">*</span></label>
                 <input style={s.input} type="url" value={form.target_url} onChange={e => setForm(p => ({ ...p, target_url: e.target.value }))} required />
               </div>
             </div>

@@ -10439,14 +10439,14 @@ function CreateEventModal({ t, lang, mode, currentUser, onClose, onCreate, initi
           {isEdit ? t.eventEdit : t.createEvent}
         </h3>
         <form onSubmit={handleSubmit}>
-          <label style={labelStyle}>{t.eventTitle} *</label>
+          <label style={labelStyle}>{t.eventTitle} <span className="req">*</span></label>
           <input style={fieldStyle} value={title} onChange={e => setTitle(e.target.value)} required
             placeholder={lang === 'da' ? 'Begivenhedens navn' : 'Event name'} />
 
-          <label style={labelStyle}>{t.eventDate} *</label>
+          <label style={labelStyle}>{t.eventDate} <span className="req">*</span></label>
           <input style={fieldStyle} type="datetime-local" value={date} onChange={e => setDate(e.target.value)} required />
 
-          <label style={labelStyle}>{t.eventLocation} *</label>
+          <label style={labelStyle}>{t.eventLocation} <span className="req">*</span></label>
           <input style={fieldStyle} value={location} onChange={e => setLocation(e.target.value)} required
             placeholder={lang === 'da' ? 'Adresse eller "Online"' : 'Address or "Online"'} />
 
@@ -11860,7 +11860,7 @@ function CreateCompanyModal({ t, lang, currentUser, onClose, onCreate, editCompa
           🏢 {isEdit ? (lang === 'da' ? 'Ret virksomhed' : 'Edit company') : t.createCompany}
         </h3>
         <form onSubmit={handleSubmit}>
-          <label style={lS}>{t.companyName} *</label>
+          <label style={lS}>{t.companyName} <span className="req">*</span></label>
           <input style={fS} value={name} onChange={e => setName(e.target.value)} required placeholder="Acme Corp" />
           <label style={lS}>{t.companyTagline}</label>
           <input style={fS} value={tagline} onChange={e => setTagline(e.target.value)} placeholder={lang === 'da' ? 'Kort slogan...' : 'Short tagline...'} />
@@ -12254,9 +12254,9 @@ function CVProfileSection({ lang, t, isOwn, userId }) {
 function CVExpForm({ form, setForm, fS, lS, t, lang, onSave, onCancel, onDelete, saving, isNew }) {
   return (
     <div style={{ background: '#fafafa', borderRadius: 8, padding: '10px 12px', border: '1px solid #eee', marginBottom: 4 }}>
-      <label style={lS}>{t.cvJobTitle} *</label>
+      <label style={lS}>{t.cvJobTitle} <span className="req">*</span></label>
       <input style={fS} value={form.title || ''} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder={lang === 'da' ? 'f.eks. Senior Designer' : 'e.g. Senior Designer'} autoFocus />
-      <label style={lS}>{t.cvCompany} *</label>
+      <label style={lS}>{t.cvCompany} <span className="req">*</span></label>
       <input style={fS} value={form.company || ''} onChange={e => setForm(f => ({ ...f, company: e.target.value }))} placeholder={lang === 'da' ? 'Virksomhedsnavn' : 'Company name'} />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
         <div>
@@ -12288,7 +12288,7 @@ function CVExpForm({ form, setForm, fS, lS, t, lang, onSave, onCancel, onDelete,
 function CVEduForm({ form, setForm, fS, lS, t, onSave, onCancel, onDelete, saving, isNew }) {
   return (
     <div style={{ background: '#fafafa', borderRadius: 8, padding: '10px 12px', border: '1px solid #eee', marginBottom: 4 }}>
-      <label style={lS}>{t.cvInstitution} *</label>
+      <label style={lS}>{t.cvInstitution} <span className="req">*</span></label>
       <input style={fS} value={form.institution || ''} onChange={e => setForm(f => ({ ...f, institution: e.target.value }))} autoFocus />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
         <div>
@@ -12421,9 +12421,9 @@ function JobApplyModal({ job, lang, t, onClose, currentUser }) {
               {job.company_name || job.companyName || ''}
             </div>
 
-            <label style={lS}>{lang === 'da' ? 'Dit navn' : 'Your name'} *</label>
+            <label style={lS}>{lang === 'da' ? 'Dit navn' : 'Your name'} <span className="req">*</span></label>
             <input style={fS} value={name} onChange={e => setName(e.target.value)} required autoFocus />
-            <label style={lS}>{lang === 'da' ? 'E-mail' : 'Email'} *</label>
+            <label style={lS}>{lang === 'da' ? 'E-mail' : 'Email'} <span className="req">*</span></label>
             <input style={fS} type="email" value={email} onChange={e => setEmail(e.target.value)} required />
             <label style={lS}>{lang === 'da' ? 'Kort besked' : 'Short message'}</label>
             <textarea style={{ ...fS, minHeight: 70, resize: 'vertical' }} value={message} onChange={e => setMessage(e.target.value)} placeholder={lang === 'da' ? 'Fortæl lidt om dig selv...' : 'Tell a bit about yourself...'} />
@@ -13323,9 +13323,9 @@ function CreateJobModal({ t, lang, companies, onClose, onCreate, editJob }) {
               </select>
             </>
           )}
-          <label style={lS}>{t.jobTitle} *</label>
+          <label style={lS}>{t.jobTitle} <span className="req">*</span></label>
           <input style={fS} value={title} onChange={e => setTitle(e.target.value)} required placeholder={lang === 'da' ? 'f.eks. Senior Designer' : 'e.g. Senior Designer'} />
-          <label style={lS}>{t.jobLocation} *</label>
+          <label style={lS}>{t.jobLocation} <span className="req">*</span></label>
           <input style={fS} value={location} onChange={e => setLocation(e.target.value)} required placeholder={lang === 'da' ? 'By, Land eller "Remote"' : 'City, Country or "Remote"'} />
           <label style={{ ...lS, display: 'flex', alignItems: 'center', gap: 8 }}>
             <input type="checkbox" checked={remote} onChange={e => setRemote(e.target.checked)} />
@@ -14789,13 +14789,13 @@ function AdsManagementPage({ lang, t }) {
           <div className="p-card" style={{ width: '100%', maxWidth: 500, padding: 24 }} onClick={e => e.stopPropagation()}>
             <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 700 }}>{editAd ? t.adsEdit : t.adsCreate}</h3>
             <form onSubmit={handleSubmit}>
-              <label style={labelStyle}>{t.adsAdTitle} *</label>
+              <label style={labelStyle}>{t.adsAdTitle} <span className="req">*</span></label>
               <input required style={fieldStyle} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
               <label style={labelStyle}>{t.adsAdBody}</label>
               <textarea style={{ ...fieldStyle, minHeight: 60 }} value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))} />
               <label style={labelStyle}>{t.adsAdImage}</label>
               <ImageUrlInput value={form.image_url} onChange={v => setForm(f => ({ ...f, image_url: v }))} lang={lang} style={fieldStyle} />
-              <label style={labelStyle}>{t.adsAdTarget} *</label>
+              <label style={labelStyle}>{t.adsAdTarget} <span className="req">*</span></label>
               <input required style={fieldStyle} value={form.target_url} onChange={e => setForm(f => ({ ...f, target_url: e.target.value }))} placeholder="https://..." />
               <label style={labelStyle}>{t.adsAdStartDate}</label>
               {editAd && isPaidAndActive(editAd) ? (
@@ -16771,11 +16771,11 @@ function AdminPlatformAdsPanel({ lang }) {
           <h4 style={{ margin: '0 0 4px', fontSize: 14, fontWeight: 700 }}>
             {editingId ? (da ? 'Rediger annonce' : 'Edit ad') : (da ? 'Ny annonce' : 'New ad')}
           </h4>
-          <label style={lS}>{da ? 'Titel' : 'Title'} *</label>
+          <label style={lS}>{da ? 'Titel' : 'Title'} <span className="req">*</span></label>
           <input style={iS} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} required />
           <label style={lS}>{da ? 'Billede-URL' : 'Image URL'}</label>
           <ImageUrlInput value={form.image_url} onChange={v => setForm(f => ({ ...f, image_url: v }))} lang={da ? 'da' : 'en'} style={iS} />
-          <label style={lS}>{da ? 'Destination-URL' : 'Link URL'} *</label>
+          <label style={lS}>{da ? 'Destination-URL' : 'Link URL'} <span className="req">*</span></label>
           <input style={iS} type="url" value={form.link_url} onChange={e => setForm(f => ({ ...f, link_url: e.target.value }))} placeholder="https://..." required />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
             <div>
