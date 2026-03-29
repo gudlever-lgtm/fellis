@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } f
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { SUPPORTED_LANGS, EUROPEAN_LANGUAGES, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials, getTranslations } from './data.js'
 import { formatPrice } from './utils/currency.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiShareJob, apiUnshareJob, apiGetSharedJobs, apiGetJobSharedWith, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals, apiFetchCalendarReminders, apiCreateCalendarReminder, apiDeleteCalendarReminder, apiGetLinkedContent, apiFetchJobs, apiGetSuggestedUsers, apiAdminNotifyAll, apiLikeComment, apiAdminGetPlatformAds, apiAdminCreatePlatformAd, apiAdminUpdatePlatformAd, apiAdminDeletePlatformAd, apiAdminGetLockedUsers, apiAdminUnlockUser, apiFeedCompanyPosts } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiRemoveConversationParticipant, apiMuteConversationParticipant, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiShareJob, apiUnshareJob, apiGetSharedJobs, apiGetJobSharedWith, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals, apiFetchCalendarReminders, apiCreateCalendarReminder, apiDeleteCalendarReminder, apiGetLinkedContent, apiFetchJobs, apiGetSuggestedUsers, apiAdminNotifyAll, apiLikeComment, apiAdminGetPlatformAds, apiAdminCreatePlatformAd, apiAdminUpdatePlatformAd, apiAdminDeletePlatformAd, apiAdminGetLockedUsers, apiAdminUnlockUser, apiFeedCompanyPosts } from './api.js'
 import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
 import ReelsPage from './Reels.jsx'
@@ -9079,11 +9079,16 @@ function NewConvModal({ t, lang, mode, friends, existingParticipantIds = [], isG
 }
 
 // ── Conversation Header Menu ──
-function ConvMenu({ t, lang, conv, onClose, onInvite, onMute, onRename, onLeave }) {
+function ConvMenu({ t, lang, conv, onClose, onInvite, onMute, onRename, onLeave, onShowMembers }) {
   const isMuted = conv.mutedUntil && new Date(conv.mutedUntil) > new Date()
 
   return (
     <div className="p-msg-conv-menu" onClick={e => e.stopPropagation()}>
+      {conv.isGroup && (
+        <button className="p-msg-conv-menu-item" onClick={() => { onShowMembers(); onClose() }}>
+          <span>👥</span> {t.showMembers}
+        </button>
+      )}
       <button className="p-msg-conv-menu-item" onClick={() => { onInvite(); onClose() }}>
         <span>👤+</span> {t.invitePeople}
       </button>
@@ -9155,6 +9160,102 @@ function RenameModal({ t, current, onClose, onRename }) {
             {t.renameBtn}
           </button>
         </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Group Members Panel ──
+function MembersModal({ t, lang, conv, currentUser, onClose, onRemove, onMuteMember }) {
+  const isCreator = conv.createdBy === currentUser.id
+  const [muteTarget, setMuteTarget] = useState(null) // participant object to mute
+  const now = new Date()
+
+  const muteOptions = [
+    { label: t.mute1h, minutes: 60 },
+    { label: t.mute8h, minutes: 480 },
+    { label: t.mute24h, minutes: 1440 },
+    { label: t.mute1w, minutes: 10080 },
+    { label: t.muteOff, minutes: null },
+  ]
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="p-msg-modal" style={{ maxWidth: 380 }} onClick={e => e.stopPropagation()}>
+        <div className="p-msg-modal-header">
+          <span>{t.membersTitle}</span>
+          <button className="p-msg-modal-close" onClick={onClose}>✕</button>
+        </div>
+
+        {muteTarget ? (
+          <>
+            <div style={{ padding: '8px 16px 4px', fontSize: 13, color: '#555' }}>
+              {t.muteMemberTitle} <strong>{muteTarget.name.split(' ')[0]}</strong>
+            </div>
+            <div className="p-msg-modal-list">
+              {muteOptions.map(o => (
+                <button
+                  key={o.label}
+                  className="p-msg-modal-item mute-option"
+                  onClick={() => { onMuteMember(muteTarget.id, o.minutes); setMuteTarget(null) }}
+                >
+                  {o.label}
+                </button>
+              ))}
+              <button className="p-msg-modal-item" onClick={() => setMuteTarget(null)} style={{ color: '#888' }}>
+                {t.cancel}
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="p-msg-modal-list" style={{ maxHeight: 360, overflowY: 'auto' }}>
+            {conv.participants.map(p => {
+              const isMe = p.id === currentUser.id
+              const isConvCreator = p.id === conv.createdBy
+              const adminMuted = p.adminMutedUntil && new Date(p.adminMutedUntil) > now
+              return (
+                <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 16px' }}>
+                  <div className="p-avatar-xs" style={{ background: nameToColor(p.name), flexShrink: 0 }}>
+                    {getInitials(p.name)}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {p.name}
+                      {isConvCreator && (
+                        <span style={{ fontSize: 11, color: '#52B788', fontWeight: 400 }}>{t.youAreCreator}</span>
+                      )}
+                    </div>
+                    {adminMuted && (
+                      <div style={{ fontSize: 11, color: '#e07b39' }}>{t.memberMuted}</div>
+                    )}
+                  </div>
+                  {isCreator && !isMe && (
+                    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                      <button
+                        className="p-msg-modal-btn secondary"
+                        style={{ padding: '3px 8px', fontSize: 12 }}
+                        title={adminMuted ? t.unmuteMember : t.muteMember}
+                        onClick={() => setMuteTarget(p)}
+                      >
+                        {adminMuted ? '🔔' : '🔇'}
+                      </button>
+                      <button
+                        className="p-msg-modal-btn danger"
+                        style={{ padding: '3px 8px', fontSize: 12 }}
+                        title={t.removeMember}
+                        onClick={() => {
+                          if (window.confirm(`${t.removeMemberConfirm}\n${p.name}`)) onRemove(p.id)
+                        }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -9539,6 +9640,28 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
     setActiveConv(0)
   }
 
+  // Remove participant (creator only)
+  const handleRemoveMember = async (userId) => {
+    const conv = conversations[activeConv]
+    if (!conv) return
+    await apiRemoveConversationParticipant(conv.id, userId)
+    setConversations(prev => prev.map((c, i) =>
+      i === activeConv ? { ...c, participants: c.participants.filter(p => p.id !== userId) } : c))
+  }
+
+  // Admin-mute participant (creator only)
+  const handleMuteMember = async (userId, minutes) => {
+    const conv = conversations[activeConv]
+    if (!conv) return
+    const result = await apiMuteConversationParticipant(conv.id, userId, minutes)
+    if (result) {
+      setConversations(prev => prev.map((c, i) =>
+        i === activeConv
+          ? { ...c, participants: c.participants.map(p => p.id === userId ? { ...p, adminMutedUntil: result.adminMutedUntil } : p) }
+          : c))
+    }
+  }
+
   const conv = conversations[activeConv]
   const isMuted = conv?.mutedUntil && new Date(conv.mutedUntil) > new Date()
 
@@ -9679,6 +9802,7 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
                   onMute={() => setModal('mute')}
                   onRename={() => setModal('rename')}
                   onLeave={handleLeave}
+                  onShowMembers={() => setModal('members')}
                 />
               )}
             </div>
@@ -9868,6 +9992,17 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
       {modal === 'mute' && <MuteModal t={t} onClose={() => setModal(null)} onMute={handleMute} />}
       {modal === 'rename' && conv && (
         <RenameModal t={t} current={conv.groupName} onClose={() => setModal(null)} onRename={handleRename} />
+      )}
+      {modal === 'members' && conv && (
+        <MembersModal
+          t={t}
+          lang={lang}
+          conv={conv}
+          currentUser={currentUser}
+          onClose={() => setModal(null)}
+          onRemove={(userId) => { handleRemoveMember(userId) }}
+          onMuteMember={(userId, minutes) => { handleMuteMember(userId, minutes) }}
+        />
       )}
     </div>
   )

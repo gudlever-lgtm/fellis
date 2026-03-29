@@ -4002,7 +4002,7 @@ app.patch('/api/friends/:userId/family', authenticate, async (req, res) => {
 // Helper: fetch a full conversation object for the current user
 async function getConversationForUser(convId, userId, myName) {
   const [participants] = await pool.query(
-    `SELECT u.id, u.name, cp.last_read_at FROM users u
+    `SELECT u.id, u.name, cp.last_read_at, cp.admin_muted_until FROM users u
      JOIN conversation_participants cp ON cp.user_id = u.id
      WHERE cp.conversation_id = ?`, [convId])
   const [msgs] = await pool.query(
@@ -4012,7 +4012,7 @@ async function getConversationForUser(convId, userId, myName) {
   msgs.reverse()
   const [[{ total }]] = await pool.query('SELECT COUNT(*) as total FROM messages WHERE conversation_id = ?', [convId])
   const [[conv]] = await pool.query(
-    `SELECT c.name, c.is_group, c.is_family_group, cp.muted_until FROM conversations c
+    `SELECT c.name, c.is_group, c.is_family_group, c.created_by, cp.muted_until FROM conversations c
      JOIN conversation_participants cp ON cp.conversation_id = c.id AND cp.user_id = ?
      WHERE c.id = ?`, [userId, convId])
   const unread = msgs.filter(m => !m.is_read && m.from_name !== myName).length
@@ -4031,7 +4031,12 @@ async function getConversationForUser(convId, userId, myName) {
     isGroup: conv.is_group === 1,
     isFamilyGroup: conv.is_family_group === 1,
     groupName: conv.name,
-    participants: participants.map(p => ({ id: p.id, name: p.name })),
+    createdBy: conv.created_by,
+    participants: participants.map(p => ({
+      id: p.id,
+      name: p.name,
+      adminMutedUntil: p.admin_muted_until || null,
+    })),
     messages: msgs.map(m => ({
       id: m.id,
       from: m.from_name,
@@ -4146,8 +4151,10 @@ app.post('/api/conversations/:id/messages', authenticate, writeLimit, async (req
   if (!text) return res.status(400).json({ error: 'Message text required' })
   try {
     const [check] = await pool.query(
-      'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, req.userId])
+      'SELECT admin_muted_until FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, req.userId])
     if (!check.length) return res.status(403).json({ error: 'Not a participant' })
+    if (check[0].admin_muted_until && new Date(check[0].admin_muted_until) > new Date())
+      return res.status(403).json({ error: 'You are muted in this conversation', mutedUntil: check[0].admin_muted_until })
     const now = new Date()
     const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
     const [participants] = await pool.query(
@@ -4273,6 +4280,48 @@ app.patch('/api/conversations/:id', authenticate, async (req, res) => {
     res.json({ ok: true })
   } catch (err) {
     res.status(500).json({ error: 'Failed to rename conversation' })
+  }
+})
+
+// DELETE /api/conversations/:id/participants/:userId — remove a member (creator only)
+app.delete('/api/conversations/:id/participants/:userId', authenticate, async (req, res) => {
+  const convId = parseInt(req.params.id)
+  const targetId = parseInt(req.params.userId)
+  if (isNaN(targetId) || targetId === req.userId)
+    return res.status(400).json({ error: 'Invalid target user' })
+  try {
+    const [[conv]] = await pool.query('SELECT created_by FROM conversations WHERE id = ?', [convId])
+    if (!conv) return res.status(404).json({ error: 'Conversation not found' })
+    if (conv.created_by !== req.userId) return res.status(403).json({ error: 'Only the conversation creator can remove members' })
+    await pool.query(
+      'DELETE FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, targetId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to remove participant' })
+  }
+})
+
+// POST /api/conversations/:id/participants/:userId/mute — admin-mute a member (creator only)
+app.post('/api/conversations/:id/participants/:userId/mute', authenticate, async (req, res) => {
+  const convId = parseInt(req.params.id)
+  const targetId = parseInt(req.params.userId)
+  if (isNaN(targetId) || targetId === req.userId)
+    return res.status(400).json({ error: 'Invalid target user' })
+  const { minutes } = req.body
+  try {
+    const [[conv]] = await pool.query('SELECT created_by FROM conversations WHERE id = ?', [convId])
+    if (!conv) return res.status(404).json({ error: 'Conversation not found' })
+    if (conv.created_by !== req.userId) return res.status(403).json({ error: 'Only the conversation creator can mute members' })
+    const [check] = await pool.query(
+      'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, targetId])
+    if (!check.length) return res.status(404).json({ error: 'User is not a participant' })
+    const adminMutedUntil = (minutes && minutes > 0) ? new Date(Date.now() + minutes * 60 * 1000) : null
+    await pool.query(
+      'UPDATE conversation_participants SET admin_muted_until = ? WHERE conversation_id = ? AND user_id = ?',
+      [adminMutedUntil, convId, targetId])
+    res.json({ ok: true, adminMutedUntil })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to mute participant' })
   }
 })
 

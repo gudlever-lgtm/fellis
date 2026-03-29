@@ -365,6 +365,17 @@ export async function apiRenameConversation(conversationId, name) {
   })
 }
 
+export async function apiRemoveConversationParticipant(conversationId, userId) {
+  return await request(`/api/conversations/${conversationId}/participants/${userId}`, { method: 'DELETE' })
+}
+
+export async function apiMuteConversationParticipant(conversationId, userId, minutes) {
+  return await request(`/api/conversations/${conversationId}/participants/${userId}/mute`, {
+    method: 'POST',
+    body: JSON.stringify({ minutes }),
+  })
+}
+
 // Facebook OAuth
 export function getFacebookAuthUrl(lang) {
   return `${API_BASE}/api/auth/facebook?lang=${lang}`
