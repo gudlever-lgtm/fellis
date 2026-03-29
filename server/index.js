@@ -1996,22 +1996,44 @@ async function importFacebookData(userId, fbToken) {
 app.get('/api/profile/:id', authenticate, async (req, res) => {
   const targetId = parseInt(req.params.id)
   try {
-    const [users] = await pool.query(
-      `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url,
-        u.industry, u.seniority, u.job_title, u.company,
-        u.mode, u.follower_count, u.community_score,
-        u.business_category, u.business_website, u.business_hours,
-        u.business_description_da, u.business_description_en,
-        (SELECT COUNT(*) FROM friendships WHERE user_id = u.id) as friend_count,
-        (SELECT COUNT(*) FROM posts WHERE author_id = u.id) as post_count,
-        (SELECT COUNT(*) FROM friendships f1
-           JOIN friendships f2 ON f1.friend_id = f2.friend_id
-           WHERE f1.user_id = ? AND f2.user_id = u.id) as mutual_count,
-        (SELECT COUNT(*) FROM friendships WHERE user_id = ? AND friend_id = u.id) as is_friend,
-        (SELECT COUNT(*) FROM friend_requests WHERE from_user_id = ? AND to_user_id = u.id AND status = 'pending') as request_sent
-       FROM users u WHERE u.id = ?`,
-      [req.userId, req.userId, req.userId, targetId]
-    )
+    let users
+    try {
+      ;[users] = await pool.query(
+        `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url,
+          u.industry, u.seniority, u.job_title, u.company,
+          u.mode, u.follower_count, u.community_score,
+          u.business_category, u.business_website, u.business_hours,
+          u.business_description_da, u.business_description_en,
+          (SELECT COUNT(*) FROM friendships WHERE user_id = u.id) as friend_count,
+          (SELECT COUNT(*) FROM posts WHERE author_id = u.id) as post_count,
+          (SELECT COUNT(*) FROM friendships f1
+             JOIN friendships f2 ON f1.friend_id = f2.friend_id
+             WHERE f1.user_id = ? AND f2.user_id = u.id) as mutual_count,
+          (SELECT COUNT(*) FROM friendships WHERE user_id = ? AND friend_id = u.id) as is_friend,
+          (SELECT COUNT(*) FROM friend_requests WHERE from_user_id = ? AND to_user_id = u.id AND status = 'pending') as request_sent
+         FROM users u WHERE u.id = ?`,
+        [req.userId, req.userId, req.userId, targetId]
+      )
+    } catch {
+      // Phase 1/2 migration columns not yet applied — fall back without them
+      ;[users] = await pool.query(
+        `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url,
+          u.industry, u.seniority, u.job_title, u.company,
+          u.mode,
+          0 AS follower_count, 0 AS community_score,
+          NULL AS business_category, NULL AS business_website, NULL AS business_hours,
+          NULL AS business_description_da, NULL AS business_description_en,
+          (SELECT COUNT(*) FROM friendships WHERE user_id = u.id) as friend_count,
+          (SELECT COUNT(*) FROM posts WHERE author_id = u.id) as post_count,
+          (SELECT COUNT(*) FROM friendships f1
+             JOIN friendships f2 ON f1.friend_id = f2.friend_id
+             WHERE f1.user_id = ? AND f2.user_id = u.id) as mutual_count,
+          (SELECT COUNT(*) FROM friendships WHERE user_id = ? AND friend_id = u.id) as is_friend,
+          (SELECT COUNT(*) FROM friend_requests WHERE from_user_id = ? AND to_user_id = u.id AND status = 'pending') as request_sent
+         FROM users u WHERE u.id = ?`,
+        [req.userId, req.userId, req.userId, targetId]
+      )
+    }
     if (users.length === 0) return res.status(404).json({ error: 'User not found' })
     const u = users[0]
     // Check block status separately (user_blocks table is optional — added via migrate-moderation.sql)
@@ -2140,21 +2162,41 @@ app.get('/api/profile/:id/posts', authenticate, async (req, res) => {
 // GET /api/profile — current user profile
 app.get('/api/profile', authenticate, async (req, res) => {
   try {
-    const [users] = await pool.query(
-      `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url,
-        u.email, u.facebook_id, u.google_id, u.linkedin_id, u.password_hash, u.password_plain, u.created_at, u.birthday,
-        u.profile_public, u.reputation_score, u.referral_count, u.interests, u.tags,
-        u.relationship_status, u.website,
-        u.phone, u.mfa_enabled,
-        u.industry, u.seniority, u.job_title, u.company,
-        u.mode,
-        u.business_category, u.business_website, u.business_hours,
-        u.business_description_da, u.business_description_en,
-        (SELECT COUNT(*) FROM friendships WHERE user_id = u.id) as friend_count,
-        (SELECT COUNT(*) FROM posts WHERE author_id = u.id) as post_count
-       FROM users u WHERE u.id = ?`,
-      [req.userId]
-    )
+    let users
+    try {
+      ;[users] = await pool.query(
+        `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url,
+          u.email, u.facebook_id, u.google_id, u.linkedin_id, u.password_hash, u.password_plain, u.created_at, u.birthday,
+          u.profile_public, u.reputation_score, u.referral_count, u.interests, u.tags,
+          u.relationship_status, u.website,
+          u.phone, u.mfa_enabled,
+          u.industry, u.seniority, u.job_title, u.company,
+          u.mode,
+          u.business_category, u.business_website, u.business_hours,
+          u.business_description_da, u.business_description_en,
+          (SELECT COUNT(*) FROM friendships WHERE user_id = u.id) as friend_count,
+          (SELECT COUNT(*) FROM posts WHERE author_id = u.id) as post_count
+         FROM users u WHERE u.id = ?`,
+        [req.userId]
+      )
+    } catch {
+      // Phase 1 migration columns not yet applied — fall back without business_* columns
+      ;[users] = await pool.query(
+        `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url,
+          u.email, u.facebook_id, u.google_id, u.linkedin_id, u.password_hash, u.password_plain, u.created_at, u.birthday,
+          u.profile_public, u.reputation_score, u.referral_count, u.interests, u.tags,
+          u.relationship_status, u.website,
+          u.phone, u.mfa_enabled,
+          u.industry, u.seniority, u.job_title, u.company,
+          u.mode,
+          NULL AS business_category, NULL AS business_website, NULL AS business_hours,
+          NULL AS business_description_da, NULL AS business_description_en,
+          (SELECT COUNT(*) FROM friendships WHERE user_id = u.id) as friend_count,
+          (SELECT COUNT(*) FROM posts WHERE author_id = u.id) as post_count
+         FROM users u WHERE u.id = ?`,
+        [req.userId]
+      )
+    }
     if (users.length === 0) return res.status(404).json({ error: 'User not found' })
     const u = users[0]
     let interests = []
