@@ -2380,16 +2380,31 @@ app.get('/api/businesses', async (req, res) => {
     if (category) { conditions.push('u.business_category = ?'); params.push(category) }
     if (q) { conditions.push('(u.name LIKE ? OR u.business_category LIKE ?)'); params.push(`%${q}%`, `%${q}%`) }
     const where = conditions.join(' AND ')
-    const [rows] = await pool.query(
-      `SELECT u.id, u.name, u.handle, u.avatar_url, u.business_category,
-              u.business_website, u.business_hours, u.bio_da, u.bio_en,
-              u.follower_count, u.community_score
-       FROM users u
-       WHERE ${where}
-       ORDER BY u.community_score DESC, u.follower_count DESC
-       LIMIT ? OFFSET ?`,
-      [...params, limit, offset]
-    )
+    let rows
+    try {
+      ;[rows] = await pool.query(
+        `SELECT u.id, u.name, u.handle, u.avatar_url, u.business_category,
+                u.business_website, u.business_hours, u.bio_da, u.bio_en,
+                u.follower_count, u.community_score
+         FROM users u
+         WHERE ${where}
+         ORDER BY u.community_score DESC, u.follower_count DESC
+         LIMIT ? OFFSET ?`,
+        [...params, limit, offset]
+      )
+    } catch {
+      // Phase 2 migration not yet applied — fall back without new columns
+      ;[rows] = await pool.query(
+        `SELECT u.id, u.name, u.handle, u.avatar_url, u.business_category,
+                u.business_website, u.business_hours, u.bio_da, u.bio_en,
+                0 AS follower_count, 0 AS community_score
+         FROM users u
+         WHERE ${where}
+         ORDER BY u.created_at DESC
+         LIMIT ? OFFSET ?`,
+        [...params, limit, offset]
+      )
+    }
     let followedSet = new Set()
     if (callerId && rows.length) {
       const ids = rows.map(r => r.id)
@@ -2445,18 +2460,31 @@ app.get('/api/businesses/suggested', authenticate, async (req, res) => {
         [req.userId, req.userId]
       )
     } catch {}
-    // Fall back to top businesses by community_score
+    // Fall back to top businesses by community_score (graceful if Phase 2 migration not yet run)
     if (!rows.length) {
-      ;[rows] = await pool.query(
-        `SELECT u.id, u.name, u.handle, u.avatar_url, u.business_category,
-                u.business_website, u.business_hours, u.bio_da, u.bio_en,
-                u.follower_count, u.community_score
-         FROM users u
-         WHERE u.mode = 'business' AND u.id != ?
-         ORDER BY u.community_score DESC, u.follower_count DESC
-         LIMIT 10`,
-        [req.userId]
-      )
+      try {
+        ;[rows] = await pool.query(
+          `SELECT u.id, u.name, u.handle, u.avatar_url, u.business_category,
+                  u.business_website, u.business_hours, u.bio_da, u.bio_en,
+                  u.follower_count, u.community_score
+           FROM users u
+           WHERE u.mode = 'business' AND u.id != ?
+           ORDER BY u.community_score DESC, u.follower_count DESC
+           LIMIT 10`,
+          [req.userId]
+        )
+      } catch {
+        ;[rows] = await pool.query(
+          `SELECT u.id, u.name, u.handle, u.avatar_url, u.business_category,
+                  u.business_website, u.business_hours, u.bio_da, u.bio_en,
+                  0 AS follower_count, 0 AS community_score
+           FROM users u
+           WHERE u.mode = 'business' AND u.id != ?
+           ORDER BY u.created_at DESC
+           LIMIT 10`,
+          [req.userId]
+        )
+      }
     }
     const ids = rows.map(r => r.id)
     let followedSet = new Set()
@@ -6581,13 +6609,26 @@ app.get('/api/ads', authenticate, async (req, res) => {
 // NOTE: must be registered BEFORE /api/ads/:id
 app.get('/api/ads/mine', authenticate, attachUserMode, requireBusiness, async (req, res) => {
   try {
-    const [rows] = await pool.query(
-      `SELECT id, title, body, image_url, target_url, placement, status, start_date, end_date,
-              budget, spent, cpm_rate, reach, impressions, clicks, boosted_post_id,
-              target_interests, payment_status, paid_until, created_at
-       FROM ads WHERE advertiser_id = ? ORDER BY created_at DESC`,
-      [req.userId]
-    )
+    let rows
+    try {
+      ;[rows] = await pool.query(
+        `SELECT id, title, body, image_url, target_url, placement, status, start_date, end_date,
+                budget, spent, cpm_rate, reach, impressions, clicks, boosted_post_id,
+                target_interests, payment_status, paid_until, created_at
+         FROM ads WHERE advertiser_id = ? ORDER BY created_at DESC`,
+        [req.userId]
+      )
+    } catch {
+      // Phase 3 migration not yet applied — fall back without new columns
+      ;[rows] = await pool.query(
+        `SELECT id, title, body, image_url, target_url, placement, status, start_date, end_date,
+                NULL AS budget, 0 AS spent, NULL AS cpm_rate, 0 AS reach,
+                impressions, clicks, NULL AS boosted_post_id,
+                NULL AS target_interests, payment_status, paid_until, created_at
+         FROM ads WHERE advertiser_id = ? ORDER BY created_at DESC`,
+        [req.userId]
+      )
+    }
     res.json({ ads: rows })
   } catch (err) {
     console.error('GET /api/ads/mine error:', err.message)
@@ -6753,24 +6794,29 @@ app.post('/api/ads/:id/impression', authenticate, async (req, res) => {
     const [[ad]] = await pool.query('SELECT id, cpm_rate, budget, spent, status FROM ads WHERE id = ?', [adId])
     if (!ad) return res.status(404).json({ error: 'Ad not found' })
 
-    // Dedup: one impression per user per ad per hour
-    const hourBucket = new Date()
-    hourBucket.setMinutes(0, 0, 0)
+    // Dedup: one impression per user per ad per hour (graceful if migration not yet run)
+    let isDuplicate = false
     try {
-      await pool.query(
-        'INSERT INTO ad_impressions (ad_id, user_id, hour_bucket) VALUES (?, ?, ?)',
-        [adId, req.userId, hourBucket]
-      )
-    } catch (dupErr) {
-      if (dupErr.code === 'ER_DUP_ENTRY') return res.json({ ok: true, duplicate: true })
-      throw dupErr
-    }
+      const hourBucket = new Date()
+      hourBucket.setMinutes(0, 0, 0)
+      try {
+        await pool.query(
+          'INSERT INTO ad_impressions (ad_id, user_id, hour_bucket) VALUES (?, ?, ?)',
+          [adId, req.userId, hourBucket]
+        )
+      } catch (dupErr) {
+        if (dupErr.code === 'ER_DUP_ENTRY') { isDuplicate = true }
+        else if (dupErr.code !== 'ER_NO_SUCH_TABLE') throw dupErr
+      }
+      if (isDuplicate) return res.json({ ok: true, duplicate: true })
 
-    // Increment impressions and reach (reach = distinct users)
+      // reach = count distinct users who have seen this ad
+      const [[{ rc }]] = await pool.query('SELECT COUNT(DISTINCT user_id) AS rc FROM ad_impressions WHERE ad_id = ?', [adId])
+      await pool.query('UPDATE ads SET reach = ? WHERE id = ?', [rc, adId])
+    } catch { /* ad_impressions table not yet migrated — skip dedup and reach */ }
+
+    // Increment impressions
     await pool.query('UPDATE ads SET impressions = impressions + 1 WHERE id = ?', [adId])
-    // reach = count distinct users who have seen this ad
-    const [[{ rc }]] = await pool.query('SELECT COUNT(DISTINCT user_id) AS rc FROM ad_impressions WHERE ad_id = ?', [adId])
-    await pool.query('UPDATE ads SET reach = ? WHERE id = ?', [rc, adId])
 
     // CPM spend deduction
     if (ad.cpm_rate && ad.cpm_rate > 0) {

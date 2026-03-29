@@ -643,7 +643,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
         }} onViewProfile={(uid) => { setViewUserId(uid); navigateTo('view-profile') }} />}
         {page === 'jobs' && <JobsPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={(target, param) => { if (target === 'companies') { navigateTo('company', { companyId: param }); } else navigateTo(target) }} />}
         {page === 'businesses' && <BusinessDirectory lang={lang} t={t} onViewProfile={(biz) => { setViewUserId(biz.id); navigateTo('view-profile') }} />}
-        {page === 'ads' && mode === 'business' && <AdManager lang={lang} t={t} posts={posts} />}
+        {page === 'ads' && mode === 'business' && <AdManager lang={lang} t={t} currentUser={currentUser} />}
         {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} initialCompanyId={navParam?.companyId} />}
         {page === 'analytics' && <AnalyticsPage lang={lang} t={t} currentUser={currentUser} />}
         {page === 'settings' && <SettingsPage lang={lang} t={t} currentUser={currentUser} mode={mode} adsFree={adsFree} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onLogout={onLogout} onOpenModeModal={() => setShowModeModal(true)} darkMode={darkMode} onToggleDark={() => setDarkMode(d => !d)} initialTab={navParam} />}
