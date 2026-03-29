@@ -4004,9 +4004,14 @@ app.patch('/api/friends/:userId/family', authenticate, async (req, res) => {
 // Helper: fetch a full conversation object for the current user
 async function getConversationForUser(convId, userId, myName) {
   const [participants] = await pool.query(
-    `SELECT u.id, u.name, cp.last_read_at, cp.admin_muted_until FROM users u
+    `SELECT u.id, u.name, cp.last_read_at FROM users u
      JOIN conversation_participants cp ON cp.user_id = u.id
      WHERE cp.conversation_id = ?`, [convId])
+  // admin_muted_until is loaded separately — safe fallback if column doesn't exist yet
+  const [adminMutes] = await pool.query(
+    `SELECT user_id, admin_muted_until FROM conversation_participants WHERE conversation_id = ?`, [convId]
+  ).catch(() => [[]])
+  const adminMuteMap = Object.fromEntries(adminMutes.map(r => [r.user_id, r.admin_muted_until ?? null]))
   const [msgs] = await pool.query(
     `SELECT m.id, u.name as from_name, m.text_da, m.text_en, m.time, m.is_read, m.created_at
      FROM messages m JOIN users u ON m.sender_id = u.id
@@ -4037,7 +4042,7 @@ async function getConversationForUser(convId, userId, myName) {
     participants: participants.map(p => ({
       id: p.id,
       name: p.name,
-      adminMutedUntil: p.admin_muted_until ?? null,
+      adminMutedUntil: adminMuteMap[p.id] ?? null,
     })),
     messages: msgs.map(m => ({
       id: m.id,
