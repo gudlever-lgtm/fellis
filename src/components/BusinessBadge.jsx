@@ -1,4 +1,4 @@
-export default function BusinessBadge({ lang, size = 'sm' }) {
+export default function BusinessBadge({ lang, size = 'sm', onClick }) {
   const label = lang === 'da' ? 'Virksomhed' : 'Business'
   const s = {
     display: 'inline-flex',
@@ -14,6 +14,19 @@ export default function BusinessBadge({ lang, size = 'sm' }) {
     flexShrink: 0,
     whiteSpace: 'nowrap',
     textTransform: 'uppercase',
+    ...(onClick ? { cursor: 'pointer', textDecoration: 'none' } : {}),
   }
-  return <span style={s}>{label}</span>
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        style={{ ...s, background: '#EEF2FF', outline: 'none', fontFamily: 'inherit' }}
+        onClick={onClick}
+        title={lang === 'da' ? 'Gå til virksomhedsside' : 'Go to business page'}
+      >
+        🏢 {label}
+      </button>
+    )
+  }
+  return <span style={s}>🏢 {label}</span>
 }
