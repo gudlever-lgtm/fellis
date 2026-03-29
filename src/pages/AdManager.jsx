@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { apiGetMyAds, apiCreateAd, apiPatchAd, apiDeleteAd, apiPayForAd, apiBoostPost } from '../api.js'
+import { apiGetMyAds, apiCreateAd, apiPatchAd, apiDeleteAd, apiPayForAd, apiBoostPost, apiFetchUserPosts } from '../api.js'
 import { formatPrice } from '../utils/currency.js'
 
 const STATUS_COLORS = {
@@ -9,9 +9,10 @@ const STATUS_COLORS = {
   archived: { bg: '#FEE2E2', color: '#991B1B' },
 }
 
-export default function AdManager({ lang, t, posts = [] }) {
+export default function AdManager({ lang, t, currentUser }) {
   const [ads, setAds] = useState([])
   const [loading, setLoading] = useState(true)
+  const [ownPosts, setOwnPosts] = useState([])
   const [showCreate, setShowCreate] = useState(false)
   const [showBoost, setShowBoost] = useState(false)
   const [activating, setActivating] = useState(null)
@@ -32,6 +33,15 @@ export default function AdManager({ lang, t, posts = [] }) {
   }, [])
 
   useEffect(() => { loadAds() }, [loadAds])
+
+  // Load own posts for the "boost a post" section
+  useEffect(() => {
+    if (!currentUser?.id) return
+    apiFetchUserPosts(currentUser.id).then(data => {
+      const rows = data?.posts || data || []
+      setOwnPosts(rows)
+    }).catch(() => {})
+  }, [currentUser?.id])
 
   const handleCreate = async (e) => {
     e.preventDefault()
@@ -250,10 +260,10 @@ export default function AdManager({ lang, t, posts = [] }) {
         <div style={s.formWrap}>
           <div style={s.formTitle}>🚀 {t.boostPost}</div>
           <p style={{ fontSize: 13, color: '#666', marginBottom: 12 }}>{t.boostPostDesc}</p>
-          {posts.length === 0 ? (
+          {ownPosts.length === 0 ? (
             <div style={s.empty}>{t.selectPostToBoost}</div>
           ) : (
-            posts.slice(0, 10).map(post => {
+            ownPosts.slice(0, 10).map(post => {
               const text = post.text?.[lang] || post.text?.da || ''
               return (
                 <div key={post.id} style={s.boostPost}>
