@@ -1492,3 +1492,26 @@ export async function apiAdminUnlockUser(userId) {
 export async function apiUpdateBusinessProfile(data) {
   return await request('/api/me/business-profile', { method: 'PATCH', body: JSON.stringify(data) })
 }
+
+// ── Business Discovery ────────────────────────────────────────────────────────
+export async function apiGetBusinesses(params = {}) {
+  const qs = new URLSearchParams()
+  if (params.category) qs.set('category', params.category)
+  if (params.q) qs.set('q', params.q)
+  if (params.limit) qs.set('limit', params.limit)
+  if (params.offset) qs.set('offset', params.offset)
+  const query = qs.toString()
+  return await request(`/api/businesses${query ? '?' + query : ''}`)
+}
+export async function apiGetSuggestedBusinesses() {
+  return await request('/api/businesses/suggested')
+}
+export async function apiFollowBusiness(id) {
+  return await request(`/api/businesses/${id}/follow`, { method: 'POST' })
+}
+export async function apiUnfollowBusiness(id) {
+  return await request(`/api/businesses/${id}/follow`, { method: 'DELETE' })
+}
+export async function apiGetBusinessProfile(handle) {
+  return await request(`/api/businesses/${encodeURIComponent(handle)}`)
+}

@@ -20,8 +20,9 @@ import MatrixRain from './components/easter-eggs/MatrixRain.jsx'
 import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
 import RickRoll from './components/easter-eggs/RickRoll.jsx'
 import RiddleBanner from './components/easter-eggs/RiddleBanner.jsx'
-import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiUpdateBusinessProfile } from './api.js'
+import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness } from './api.js'
 import BusinessBadge from './components/BusinessBadge.jsx'
+import BusinessDirectory from './pages/BusinessDirectory.jsx'
 import { BADGES, BADGE_BY_ID } from './badges/badgeDefinitions.js'
 import BadgeToastQueue from './components/BadgeToast.jsx'
 import AdfreeCalendar from './components/AdfreeCalendar.jsx'
@@ -431,7 +432,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
           {/* "Mere" / "More" dropdown for secondary tabs */}
           <div ref={moreMenuRef} style={{ position: 'relative' }}>
             <button
-              className={`p-nav-tab${['friends', 'calendar', 'marketplace', 'jobs', 'company'].includes(page) ? ' active' : ''}`}
+              className={`p-nav-tab${['friends', 'calendar', 'marketplace', 'jobs', 'company', 'businesses'].includes(page) ? ' active' : ''}`}
               onClick={() => setShowMoreMenu(v => !v)}
             >
               <span className="p-nav-tab-icon">{'⋯'}</span>
@@ -443,7 +444,8 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
                 { id: 'calendar', icon: '🗓️', label: t.calendar || (lang === 'da' ? 'Kalender' : 'Calendar') },
                 { id: 'marketplace', icon: '🛍️', label: t.marketplace || (lang === 'da' ? 'Marked' : 'Marketplace') },
                 { id: 'jobs', icon: '💼', label: t.jobs || 'Jobs' },
-                ...(mode === 'business' ? [{ id: 'company', icon: '🏢', label: t.companies || (lang === 'da' ? 'Virksomheder' : 'Companies') }] : []),
+                { id: 'businesses', icon: '🏢', label: t.businesses || (lang === 'da' ? 'Virksomheder' : 'Businesses') },
+                ...(mode === 'business' ? [{ id: 'company', icon: '🏬', label: t.companies || (lang === 'da' ? 'Min virksomhed' : 'My company') }] : []),
               ]
               // Mobile: inline accordion (absolute dropdown gets clipped by overflow:auto container)
               if (showMobileMenu) {
@@ -639,6 +641,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
           navigateTo('messages')
         }} onViewProfile={(uid) => { setViewUserId(uid); navigateTo('view-profile') }} />}
         {page === 'jobs' && <JobsPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={(target, param) => { if (target === 'companies') { navigateTo('company', { companyId: param }); } else navigateTo(target) }} />}
+        {page === 'businesses' && <BusinessDirectory lang={lang} t={t} onViewProfile={(biz) => { setViewUserId(biz.id); navigateTo('view-profile') }} />}
         {page === 'ads' && mode === 'business' && <AdsManagementPage lang={lang} t={t} />}
         {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} initialCompanyId={navParam?.companyId} />}
         {page === 'analytics' && <AnalyticsPage lang={lang} t={t} currentUser={currentUser} />}
@@ -7676,6 +7679,9 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onMessage, on
   const [showReport, setShowReport] = useState(false)
   const [reportReason, setReportReason] = useState('')
   const [reportSent, setReportSent] = useState(false)
+  const [isFollowing, setIsFollowing] = useState(false)
+  const [followerCount, setFollowerCount] = useState(0)
+  const [followBusy, setFollowBusy] = useState(false)
   const { triggerEgg } = useEasterEggs()
   const avatarClickCount = useRef(0)
   const avatarClickTimer = useRef(null)
@@ -7688,6 +7694,10 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onMessage, on
         setProfile(data)
         setRequestSent(!!data.requestSent)
         setIsBlocked(!!data.isBlocked)
+        if (data.mode === 'business') {
+          setIsFollowing(!!data.isFollowing)
+          setFollowerCount(Number(data.followerCount || 0))
+        }
         setTimeout(onBadgeCheck, 800)
       }
     })
@@ -7756,8 +7766,59 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onMessage, on
               <div className="p-friend-profile-stat"><strong>{profile.friendCount}</strong><span>{t.friendsLabel}</span></div>
               {profile.mutualCount > 0 && <div className="p-friend-profile-stat"><strong>{profile.mutualCount}</strong><span>{t.mutualFriends}</span></div>}
               <div className="p-friend-profile-stat"><strong>{profile.postCount}</strong><span>{t.postsLabel}</span></div>
+              {profile.mode === 'business' && (
+                <div className="p-friend-profile-stat"><strong>{followerCount}</strong><span>{t.followers}</span></div>
+              )}
             </div>
+
+            {/* Business fields */}
+            {profile.mode === 'business' && (
+              <div style={{ margin: '12px 0', padding: '10px 14px', background: '#F5F3FF', borderRadius: 10, border: '1px solid #C7D2FE', fontSize: 13, color: '#3730A3', display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                {profile.businessCategory && <span>🏷 {profile.businessCategory}</span>}
+                {profile.businessHours && <span>🕐 {profile.businessHours}</span>}
+                {profile.businessWebsite && (
+                  <a href={profile.businessWebsite} target="_blank" rel="noopener noreferrer" style={{ color: '#4338CA', fontWeight: 600 }} onClick={e => e.stopPropagation()}>
+                    🌐 {profile.businessWebsite.replace(/^https?:\/\//, '')}
+                  </a>
+                )}
+                {(profile.businessDescription?.da || profile.businessDescription?.en) && (
+                  <span style={{ width: '100%', color: '#555', fontStyle: 'italic' }}>
+                    {profile.businessDescription?.[lang] || profile.businessDescription?.da || ''}
+                  </span>
+                )}
+                {profile.communityScore >= 10 && (
+                  <span style={{ color: '#059669', fontWeight: 600 }}>⭐ {t.activeInCommunity}</span>
+                )}
+              </div>
+            )}
+
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 16, flexWrap: 'wrap' }}>
+              {/* Follow/unfollow for business profiles */}
+              {profile.mode === 'business' && profile.id !== currentUser.id && (
+                <button
+                  className="p-friend-msg-btn"
+                  disabled={followBusy}
+                  style={{
+                    background: isFollowing ? '#EEF2FF' : '#4338CA',
+                    color: isFollowing ? '#4338CA' : '#fff',
+                    border: `1px solid ${isFollowing ? '#C7D2FE' : '#4338CA'}`,
+                    opacity: followBusy ? 0.7 : 1,
+                  }}
+                  onClick={async () => {
+                    setFollowBusy(true)
+                    if (isFollowing) {
+                      const res = await apiUnfollowBusiness(profile.id)
+                      if (res !== null) { setIsFollowing(false); setFollowerCount(c => Math.max(0, c - 1)) }
+                    } else {
+                      const res = await apiFollowBusiness(profile.id)
+                      if (res !== null) { setIsFollowing(true); setFollowerCount(c => c + 1) }
+                    }
+                    setFollowBusy(false)
+                  }}
+                >
+                  {isFollowing ? `✓ ${t.unfollowBusiness}` : `+ ${t.followBusiness}`}
+                </button>
+              )}
               {!isBlocked && profile.isFriend ? (
                 <button className="p-friend-msg-btn" onClick={() => onMessage(profile)}>
                   💬 {t.message}

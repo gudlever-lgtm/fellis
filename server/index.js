@@ -1999,7 +1999,7 @@ app.get('/api/profile/:id', authenticate, async (req, res) => {
     const [users] = await pool.query(
       `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url,
         u.industry, u.seniority, u.job_title, u.company,
-        u.mode,
+        u.mode, u.follower_count, u.community_score,
         u.business_category, u.business_website, u.business_hours,
         u.business_description_da, u.business_description_en,
         (SELECT COUNT(*) FROM friendships WHERE user_id = u.id) as friend_count,
@@ -2068,6 +2068,18 @@ app.get('/api/profile/:id', authenticate, async (req, res) => {
       profilePayload.businessWebsite = u.business_website || null
       profilePayload.businessHours = u.business_hours || null
       profilePayload.businessDescription = { da: u.business_description_da || '', en: u.business_description_en || '' }
+      profilePayload.followerCount = Number(u.follower_count || 0)
+      profilePayload.communityScore = Number(u.community_score || 0)
+      // Check if the requesting user is following this business
+      let isFollowing = false
+      try {
+        const [[fRow]] = await pool.query(
+          'SELECT 1 FROM business_follows WHERE follower_id = ? AND business_id = ?',
+          [req.userId, targetId]
+        )
+        isFollowing = !!fRow
+      } catch {}
+      profilePayload.isFollowing = isFollowing
     }
     res.json(profilePayload)
   } catch (err) {
@@ -2339,6 +2351,247 @@ app.patch('/api/me/business-profile', authenticate, async (req, res) => {
     })
   } catch (err) {
     console.error('PATCH /api/me/business-profile error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Business Discovery ────────────────────────────────────────────────────────
+
+// GET /api/businesses — paginated list of business accounts
+app.get('/api/businesses', async (req, res) => {
+  const { category, q, limit: limitRaw, offset: offsetRaw } = req.query
+  const limit = Math.min(parseInt(limitRaw) || 20, 50)
+  const offset = parseInt(offsetRaw) || 0
+  // Optional auth — determine if caller is logged in
+  let callerId = null
+  try {
+    const sessionId = req.cookies?.fellis_sid
+    if (sessionId) {
+      const [[sess]] = await pool.query(
+        'SELECT user_id FROM sessions WHERE id = ? AND expires_at > NOW()',
+        [sessionId]
+      )
+      if (sess) callerId = sess.user_id
+    }
+  } catch {}
+  try {
+    const conditions = ["u.mode = 'business'"]
+    const params = []
+    if (category) { conditions.push('u.business_category = ?'); params.push(category) }
+    if (q) { conditions.push('(u.name LIKE ? OR u.business_category LIKE ?)'); params.push(`%${q}%`, `%${q}%`) }
+    const where = conditions.join(' AND ')
+    const [rows] = await pool.query(
+      `SELECT u.id, u.name, u.handle, u.avatar_url, u.business_category,
+              u.business_website, u.business_hours, u.bio_da, u.bio_en,
+              u.follower_count, u.community_score
+       FROM users u
+       WHERE ${where}
+       ORDER BY u.community_score DESC, u.follower_count DESC
+       LIMIT ? OFFSET ?`,
+      [...params, limit, offset]
+    )
+    let followedSet = new Set()
+    if (callerId && rows.length) {
+      const ids = rows.map(r => r.id)
+      const [fRows] = await pool.query(
+        `SELECT business_id FROM business_follows WHERE follower_id = ? AND business_id IN (?)`,
+        [callerId, ids]
+      ).catch(() => [[]])
+      followedSet = new Set(fRows.map(r => r.business_id))
+    }
+    res.json({
+      businesses: rows.map(r => ({
+        id: r.id, name: r.name, handle: r.handle,
+        avatarUrl: r.avatar_url || null,
+        businessCategory: r.business_category || null,
+        businessWebsite: r.business_website || null,
+        businessHours: r.business_hours || null,
+        bio: { da: r.bio_da || '', en: r.bio_en || '' },
+        followerCount: Number(r.follower_count || 0),
+        communityScore: Number(r.community_score || 0),
+        isFollowing: followedSet.has(r.id),
+      })),
+      total: rows.length,
+      limit,
+      offset,
+    })
+  } catch (err) {
+    console.error('GET /api/businesses error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/businesses/suggested — businesses matched to user interests
+app.get('/api/businesses/suggested', authenticate, async (req, res) => {
+  try {
+    const [[user]] = await pool.query('SELECT id FROM users WHERE id = ?', [req.userId])
+    if (!user) return res.status(404).json({ error: 'User not found' })
+    // Try to match businesses by user's top interest slugs
+    let rows = []
+    try {
+      ;[rows] = await pool.query(
+        `SELECT DISTINCT u.id, u.name, u.handle, u.avatar_url, u.business_category,
+                u.business_website, u.business_hours, u.bio_da, u.bio_en,
+                u.follower_count, u.community_score
+         FROM users u
+         JOIN interest_scores iss ON iss.user_id = ?
+           AND (u.business_category LIKE CONCAT('%', iss.interest_slug, '%')
+                OR iss.interest_slug LIKE CONCAT('%', u.business_category, '%'))
+         WHERE u.mode = 'business'
+           AND u.id != ?
+           AND iss.weight > 10
+         ORDER BY iss.weight DESC, u.community_score DESC
+         LIMIT 10`,
+        [req.userId, req.userId]
+      )
+    } catch {}
+    // Fall back to top businesses by community_score
+    if (!rows.length) {
+      ;[rows] = await pool.query(
+        `SELECT u.id, u.name, u.handle, u.avatar_url, u.business_category,
+                u.business_website, u.business_hours, u.bio_da, u.bio_en,
+                u.follower_count, u.community_score
+         FROM users u
+         WHERE u.mode = 'business' AND u.id != ?
+         ORDER BY u.community_score DESC, u.follower_count DESC
+         LIMIT 10`,
+        [req.userId]
+      )
+    }
+    const ids = rows.map(r => r.id)
+    let followedSet = new Set()
+    if (ids.length) {
+      const [fRows] = await pool.query(
+        'SELECT business_id FROM business_follows WHERE follower_id = ? AND business_id IN (?)',
+        [req.userId, ids]
+      ).catch(() => [[]])
+      followedSet = new Set(fRows.map(r => r.business_id))
+    }
+    res.json(rows.map(r => ({
+      id: r.id, name: r.name, handle: r.handle,
+      avatarUrl: r.avatar_url || null,
+      businessCategory: r.business_category || null,
+      businessWebsite: r.business_website || null,
+      businessHours: r.business_hours || null,
+      bio: { da: r.bio_da || '', en: r.bio_en || '' },
+      followerCount: Number(r.follower_count || 0),
+      communityScore: Number(r.community_score || 0),
+      isFollowing: followedSet.has(r.id),
+    })))
+  } catch (err) {
+    console.error('GET /api/businesses/suggested error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/businesses/:handle — public business profile
+app.get('/api/businesses/:handle', async (req, res) => {
+  const handle = req.params.handle.startsWith('@') ? req.params.handle : '@' + req.params.handle
+  // Optional auth
+  let callerId = null
+  try {
+    const sessionId = req.cookies?.fellis_sid
+    if (sessionId) {
+      const [[sess]] = await pool.query(
+        'SELECT user_id FROM sessions WHERE id = ? AND expires_at > NOW()',
+        [sessionId]
+      )
+      if (sess) callerId = sess.user_id
+    }
+  } catch {}
+  try {
+    const [rows] = await pool.query(
+      `SELECT u.id, u.name, u.handle, u.avatar_url, u.bio_da, u.bio_en, u.location, u.join_date,
+              u.business_category, u.business_website, u.business_hours,
+              u.business_description_da, u.business_description_en,
+              u.follower_count, u.community_score, u.mode
+       FROM users u WHERE u.handle = ? AND u.mode = 'business'`,
+      [handle]
+    )
+    if (!rows.length) return res.status(404).json({ error: 'Business not found' })
+    const biz = rows[0]
+    // Recent posts
+    const [posts] = await pool.query(
+      `SELECT p.id, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.created_at
+       FROM posts p WHERE p.author_id = ? AND (p.scheduled_at IS NULL OR p.scheduled_at <= NOW())
+       ORDER BY p.created_at DESC LIMIT 5`,
+      [biz.id]
+    )
+    let isFollowing = false
+    if (callerId) {
+      const [[fRow]] = await pool.query(
+        'SELECT 1 FROM business_follows WHERE follower_id = ? AND business_id = ?',
+        [callerId, biz.id]
+      ).catch(() => [[null]])
+      isFollowing = !!fRow
+    }
+    res.json({
+      id: biz.id, name: biz.name, handle: biz.handle,
+      avatarUrl: biz.avatar_url || null,
+      bio: { da: biz.bio_da || '', en: biz.bio_en || '' },
+      location: biz.location || null,
+      joinDate: biz.join_date,
+      businessCategory: biz.business_category || null,
+      businessWebsite: biz.business_website || null,
+      businessHours: biz.business_hours || null,
+      businessDescription: { da: biz.business_description_da || '', en: biz.business_description_en || '' },
+      followerCount: Number(biz.follower_count || 0),
+      communityScore: Number(biz.community_score || 0),
+      isFollowing,
+      posts: posts.map(p => ({
+        id: p.id,
+        text: { da: p.text_da, en: p.text_en },
+        time: { da: p.time_da, en: p.time_en },
+        likes: p.likes,
+        media: p.media,
+        createdAt: p.created_at,
+      })),
+    })
+  } catch (err) {
+    console.error('GET /api/businesses/:handle error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/businesses/:id/follow — follow a business account
+app.post('/api/businesses/:id/follow', authenticate, async (req, res) => {
+  const bizId = parseInt(req.params.id)
+  try {
+    const [[biz]] = await pool.query("SELECT id FROM users WHERE id = ? AND mode = 'business'", [bizId])
+    if (!biz) return res.status(404).json({ error: 'Business not found' })
+    try {
+      await pool.query(
+        'INSERT INTO business_follows (follower_id, business_id) VALUES (?, ?)',
+        [req.userId, bizId]
+      )
+      await pool.query('UPDATE users SET follower_count = follower_count + 1 WHERE id = ?', [bizId])
+    } catch (e) {
+      if (e.code === 'ER_DUP_ENTRY') return res.json({ following: true }) // already following — idempotent
+      throw e
+    }
+    res.json({ following: true })
+  } catch (err) {
+    console.error('POST /api/businesses/:id/follow error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// DELETE /api/businesses/:id/follow — unfollow a business account
+app.delete('/api/businesses/:id/follow', authenticate, async (req, res) => {
+  const bizId = parseInt(req.params.id)
+  try {
+    const [[biz]] = await pool.query("SELECT id FROM users WHERE id = ? AND mode = 'business'", [bizId])
+    if (!biz) return res.status(404).json({ error: 'Business not found' })
+    const [result] = await pool.query(
+      'DELETE FROM business_follows WHERE follower_id = ? AND business_id = ?',
+      [req.userId, bizId]
+    )
+    if (result.affectedRows > 0) {
+      await pool.query('UPDATE users SET follower_count = GREATEST(follower_count - 1, 0) WHERE id = ?', [bizId])
+    }
+    res.json({ following: false })
+  } catch (err) {
+    console.error('DELETE /api/businesses/:id/follow error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })
@@ -2971,6 +3224,8 @@ app.post('/api/feed', authenticate, writeLimit, upload.array('media', 4), async 
         [req.userId, 'post', postId, 'keyword_flag', `Auto-flagged: keyword "${autoFlagKeyword}"`]
       ).catch(() => {})
     }
+    // Business community score: increment when a business user publishes a post
+    pool.query("UPDATE users SET community_score = LEAST(community_score + 1, 9999) WHERE id = ? AND mode = 'business'", [req.userId]).catch(() => {})
     if (scheduledDate) {
       return res.json({ id: postId, scheduled: true, scheduledAt: scheduledDate })
     }
@@ -3064,6 +3319,8 @@ app.post('/api/feed/:id/like', authenticate, async (req, res) => {
         }
       }
       autoSignalPost(req.userId, postId, 'like')
+      // Business community score: author gains +1 when their post receives a like
+      if (post) pool.query("UPDATE users SET community_score = LEAST(community_score + 1, 9999) WHERE id = ? AND mode = 'business'", [post.user_id]).catch(() => {})
       res.json({ liked: true, reaction })
     }
   } catch (err) {
@@ -3141,6 +3398,8 @@ app.post('/api/feed/:id/comment', authenticate, writeLimit, upload.single('media
       )
     }
     autoSignalPost(req.userId, postId, 'comment')
+    // Business community score: increment when a business user adds a comment
+    pool.query("UPDATE users SET community_score = LEAST(community_score + 1, 9999) WHERE id = ? AND mode = 'business'", [req.userId]).catch(() => {})
     res.json({ author: users[0].name, text: { da: text, en: text }, media })
   } catch (err) {
     res.status(500).json({ error: 'Failed to add comment' })
