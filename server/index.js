@@ -438,6 +438,8 @@ async function initConversations() {
     await pool.query('ALTER TABLE messages ADD INDEX idx_msg_conv (conversation_id)').catch(() => {})
     // Read receipts: track when each participant last read the conversation
     await addCol('conversation_participants', 'last_read_at', 'TIMESTAMP NULL DEFAULT NULL')
+    // Admin mute: conversation creator can mute individual members
+    await addCol('conversation_participants', 'admin_muted_until', 'DATETIME DEFAULT NULL')
     // Family group flag
     await addCol('conversations', 'is_family_group', 'TINYINT(1) NOT NULL DEFAULT 0')
     // Clean up broken 1:1 conversations created with null/missing participants
@@ -4035,7 +4037,7 @@ async function getConversationForUser(convId, userId, myName) {
     participants: participants.map(p => ({
       id: p.id,
       name: p.name,
-      adminMutedUntil: p.admin_muted_until || null,
+      adminMutedUntil: p.admin_muted_until ?? null,
     })),
     messages: msgs.map(m => ({
       id: m.id,
@@ -4151,10 +4153,14 @@ app.post('/api/conversations/:id/messages', authenticate, writeLimit, async (req
   if (!text) return res.status(400).json({ error: 'Message text required' })
   try {
     const [check] = await pool.query(
-      'SELECT admin_muted_until FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, req.userId])
+      'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, req.userId])
     if (!check.length) return res.status(403).json({ error: 'Not a participant' })
-    if (check[0].admin_muted_until && new Date(check[0].admin_muted_until) > new Date())
-      return res.status(403).json({ error: 'You are muted in this conversation', mutedUntil: check[0].admin_muted_until })
+    // Check if sender is admin-muted (column may not exist on older installs)
+    const [muteCheck] = await pool.query(
+      'SELECT admin_muted_until FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, req.userId]
+    ).catch(() => [[{}]])
+    if (muteCheck[0]?.admin_muted_until && new Date(muteCheck[0].admin_muted_until) > new Date())
+      return res.status(403).json({ error: 'You are muted in this conversation', mutedUntil: muteCheck[0].admin_muted_until })
     const now = new Date()
     const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
     const [participants] = await pool.query(
