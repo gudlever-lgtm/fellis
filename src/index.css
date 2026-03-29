@@ -6,6 +6,12 @@
   padding: 0;
 }
 
+/* Required field marker — red asterisk used across all forms */
+.req {
+  color: #DC2626;
+  font-weight: 700;
+}
+
 body {
   font-family: 'DM Sans', sans-serif;
   background: #FAFAF7;
