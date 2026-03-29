@@ -1110,7 +1110,7 @@ function PostAvatarWithBadge({ post, lang, isOwn, onViewProfile, onViewOwnProfil
                   <span style={{ fontSize: 15, flexShrink: 0 }}>{b.icon}</span>
                   <span style={{ lineHeight: 1.3 }}>{b.name}</span>
                   {hoveredBadgeId === b.id && b.description && (
-                    <div style={{ position: 'absolute', left: 'calc(100% + 8px)', top: '50%', transform: 'translateY(-50%)', background: '#2D6A4F', color: '#fff', borderRadius: 8, padding: '6px 10px', fontSize: 11, whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(0,0,0,0.18)', zIndex: 301, pointerEvents: 'none', maxWidth: 220, whiteSpace: 'normal' }}>
+                    <div style={{ position: 'absolute', left: 'calc(100% + 8px)', top: '50%', transform: 'translateY(-50%)', background: '#2D6A4F', color: '#fff', borderRadius: 8, padding: '6px 10px', fontSize: 11, boxShadow: '0 2px 8px rgba(0,0,0,0.18)', zIndex: 301, pointerEvents: 'none', maxWidth: 220, whiteSpace: 'normal' }}>
                       {b.description}
                     </div>
                   )}
