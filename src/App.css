@@ -2707,6 +2707,7 @@
 .p-msg-modal-btn.primary { background: #2D6A4F; color: #fff; }
 .p-msg-modal-btn.primary:disabled { opacity: 0.4; cursor: not-allowed; }
 .p-msg-modal-btn.secondary { background: #F0EDE8; color: #2D3436; }
+.p-msg-modal-btn.danger { background: #FFF0EE; color: #C0392B; }
 .p-msg-modal-btn:hover:not(:disabled) { opacity: 0.88; }
 
 /* ── Family Group ── */
