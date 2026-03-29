@@ -1,0 +1,345 @@
+import { useState, useEffect, useCallback } from 'react'
+import { apiGetMyAds, apiCreateAd, apiPatchAd, apiDeleteAd, apiPayForAd, apiBoostPost } from '../api.js'
+import { formatPrice } from '../utils/currency.js'
+
+const STATUS_COLORS = {
+  active: { bg: '#D1FAE5', color: '#065F46' },
+  draft: { bg: '#F3F4F6', color: '#374151' },
+  paused: { bg: '#FEF3C7', color: '#92400E' },
+  archived: { bg: '#FEE2E2', color: '#991B1B' },
+}
+
+export default function AdManager({ lang, t, posts = [] }) {
+  const [ads, setAds] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [showCreate, setShowCreate] = useState(false)
+  const [showBoost, setShowBoost] = useState(false)
+  const [activating, setActivating] = useState(null)
+  const [boosting, setBoosting] = useState(null)
+  const [form, setForm] = useState({
+    title: '', body: '', image_url: '', target_url: '',
+    budget: '', target_interests: '', start_date: '', end_date: '',
+  })
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+
+  const loadAds = useCallback(async () => {
+    setLoading(true)
+    const data = await apiGetMyAds()
+    if (data?.ads) setAds(data.ads)
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { loadAds() }, [loadAds])
+
+  const handleCreate = async (e) => {
+    e.preventDefault()
+    if (!form.title || !form.target_url) return setError(lang === 'da' ? 'Titel og destinations-URL er påkrævet' : 'Title and destination URL are required')
+    setSaving(true)
+    setError('')
+    const payload = {
+      title: form.title,
+      body: form.body || undefined,
+      image_url: form.image_url || undefined,
+      target_url: form.target_url,
+      budget: form.budget ? parseFloat(form.budget) : undefined,
+      target_interests: form.target_interests
+        ? form.target_interests.split(',').map(s => s.trim()).filter(Boolean)
+        : undefined,
+      start_date: form.start_date || undefined,
+      end_date: form.end_date || undefined,
+    }
+    const res = await apiCreateAd(payload)
+    setSaving(false)
+    if (res?.ad) {
+      setAds(prev => [res.ad, ...prev])
+      setForm({ title: '', body: '', image_url: '', target_url: '', budget: '', target_interests: '', start_date: '', end_date: '' })
+      setShowCreate(false)
+      setSuccess(lang === 'da' ? 'Annonce oprettet' : 'Ad created')
+      setTimeout(() => setSuccess(''), 3000)
+    } else {
+      setError(lang === 'da' ? 'Kunne ikke oprette annonce' : 'Could not create ad')
+    }
+  }
+
+  const handleDelete = async (id) => {
+    if (!confirm(lang === 'da' ? 'Slet denne annonce?' : 'Delete this ad?')) return
+    const res = await apiDeleteAd(id)
+    if (res?.ok) setAds(prev => prev.filter(a => a.id !== id))
+  }
+
+  const handleActivate = async (id) => {
+    setActivating(id)
+    const res = await apiPayForAd(id)
+    setActivating(null)
+    if (res?.activated || res?.checkout_url) {
+      if (res.checkout_url) {
+        window.location.href = res.checkout_url
+      } else {
+        setAds(prev => prev.map(a => a.id === id ? { ...a, status: 'active', payment_status: 'paid' } : a))
+        setSuccess(lang === 'da' ? 'Annonce aktiveret!' : 'Ad activated!')
+        setTimeout(() => setSuccess(''), 3000)
+      }
+    } else {
+      setError(lang === 'da' ? 'Aktivering mislykkedes' : 'Activation failed')
+      setTimeout(() => setError(''), 4000)
+    }
+  }
+
+  const handleBoost = async (postId) => {
+    setBoosting(postId)
+    const res = await apiBoostPost(postId)
+    setBoosting(null)
+    if (res?.activated || res?.checkout_url) {
+      if (res.checkout_url) {
+        window.location.href = res.checkout_url
+      } else {
+        setSuccess(t.postBoosted || (lang === 'da' ? 'Opslag boosted!' : 'Post boosted!'))
+        setTimeout(() => setSuccess(''), 3000)
+        loadAds()
+      }
+      setShowBoost(false)
+    } else {
+      setError(lang === 'da' ? 'Boost mislykkedes' : 'Boost failed')
+      setTimeout(() => setError(''), 4000)
+    }
+  }
+
+  const statusLabel = (status) => {
+    const map = { active: t.adActive, draft: t.adDraft, paused: t.adPaused, archived: t.adArchived }
+    return map[status] || status
+  }
+
+  const s = {
+    wrap: { maxWidth: 900, margin: '0 auto', paddingBottom: 40 },
+    header: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
+    title: { fontSize: 22, fontWeight: 800, color: '#1a1a1a', margin: 0 },
+    subtitle: { fontSize: 14, color: '#888', marginTop: 4 },
+    btnPrimary: {
+      padding: '9px 20px', borderRadius: 10, border: 'none',
+      background: '#4338CA', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer',
+    },
+    btnSecondary: {
+      padding: '9px 20px', borderRadius: 10,
+      border: '1.5px solid #4338CA', background: '#EEF2FF',
+      color: '#4338CA', fontWeight: 700, fontSize: 14, cursor: 'pointer',
+    },
+    btnRow: { display: 'flex', gap: 8, marginBottom: 16 },
+    card: { background: '#fff', borderRadius: 14, border: '1px solid #E8E4DF', padding: '16px 20px', marginBottom: 12 },
+    adRow: { display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' },
+    adInfo: { flex: 1, minWidth: 200 },
+    adName: { fontSize: 15, fontWeight: 700, color: '#1a1a1a', margin: '0 0 4px' },
+    adUrl: { fontSize: 12, color: '#888', marginBottom: 6 },
+    badge: (status) => ({
+      display: 'inline-block', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 8,
+      ...(STATUS_COLORS[status] || STATUS_COLORS.draft),
+    }),
+    stats: { display: 'flex', gap: 16, marginTop: 10, flexWrap: 'wrap' },
+    stat: { textAlign: 'center' },
+    statVal: { fontSize: 16, fontWeight: 800, color: '#1a1a1a', display: 'block' },
+    statLabel: { fontSize: 11, color: '#888' },
+    actions: { display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center', marginTop: 8 },
+    btnDanger: {
+      padding: '6px 12px', borderRadius: 8,
+      border: '1.5px solid #FCA5A5', background: '#FEF2F2',
+      color: '#DC2626', fontWeight: 600, fontSize: 12, cursor: 'pointer',
+    },
+    btnActivate: {
+      padding: '6px 14px', borderRadius: 8,
+      border: 'none', background: '#4338CA',
+      color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer',
+    },
+    formWrap: { background: '#fff', borderRadius: 14, border: '1px solid #E8E4DF', padding: '20px', marginBottom: 16 },
+    formTitle: { fontSize: 16, fontWeight: 700, marginBottom: 14, color: '#1a1a1a' },
+    formRow: { marginBottom: 12 },
+    label: { display: 'block', fontSize: 13, fontWeight: 600, color: '#444', marginBottom: 4 },
+    input: { width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #DDD', fontSize: 14, boxSizing: 'border-box', outline: 'none' },
+    twoCol: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 },
+    alert: (type) => ({
+      padding: '10px 14px', borderRadius: 8, fontSize: 13, marginBottom: 12,
+      background: type === 'error' ? '#FEF2F2' : '#D1FAE5',
+      color: type === 'error' ? '#DC2626' : '#065F46',
+      border: `1px solid ${type === 'error' ? '#FCA5A5' : '#6EE7B7'}`,
+    }),
+    empty: { textAlign: 'center', padding: '40px 20px', color: '#aaa', fontSize: 14 },
+    spinner: { textAlign: 'center', padding: '40px 20px', color: '#aaa', fontSize: 14 },
+    boostPost: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid #F0EDE8' },
+    boostPostText: { fontSize: 13, color: '#333', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginRight: 12 },
+  }
+
+  return (
+    <div style={s.wrap}>
+      <div className="p-card" style={{ padding: '20px 20px 16px', marginBottom: 16 }}>
+        <div style={s.header}>
+          <div>
+            <h2 style={s.title}>📢 {t.adManager}</h2>
+            <p style={s.subtitle}>{t.adManagerSubtitle}</p>
+          </div>
+        </div>
+        <div style={s.btnRow}>
+          <button style={s.btnPrimary} onClick={() => { setShowCreate(v => !v); setShowBoost(false) }}>
+            {showCreate ? '✕' : '+ ' + t.createAd}
+          </button>
+          <button style={s.btnSecondary} onClick={() => { setShowBoost(v => !v); setShowCreate(false) }}>
+            {showBoost ? '✕' : '🚀 ' + t.boostPost}
+          </button>
+        </div>
+      </div>
+
+      {error && <div style={s.alert('error')}>{error}</div>}
+      {success && <div style={s.alert('success')}>{success}</div>}
+
+      {/* Create form */}
+      {showCreate && (
+        <div style={s.formWrap}>
+          <div style={s.formTitle}>{t.createAd}</div>
+          <form onSubmit={handleCreate}>
+            <div style={s.twoCol}>
+              <div style={s.formRow}>
+                <label style={s.label}>{t.adTitle} *</label>
+                <input style={s.input} value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} required />
+              </div>
+              <div style={s.formRow}>
+                <label style={s.label}>{t.adTargetUrl} *</label>
+                <input style={s.input} type="url" value={form.target_url} onChange={e => setForm(p => ({ ...p, target_url: e.target.value }))} required />
+              </div>
+            </div>
+            <div style={s.formRow}>
+              <label style={s.label}>{t.adBody}</label>
+              <input style={s.input} value={form.body} onChange={e => setForm(p => ({ ...p, body: e.target.value }))} />
+            </div>
+            <div style={s.twoCol}>
+              <div style={s.formRow}>
+                <label style={s.label}>{t.adImageUrl}</label>
+                <input style={s.input} type="url" value={form.image_url} onChange={e => setForm(p => ({ ...p, image_url: e.target.value }))} />
+              </div>
+              <div style={s.formRow}>
+                <label style={s.label}>{t.adBudget}</label>
+                <input style={s.input} type="number" min="1" step="0.01" value={form.budget} onChange={e => setForm(p => ({ ...p, budget: e.target.value }))} />
+              </div>
+            </div>
+            <div style={s.formRow}>
+              <label style={s.label}>{t.adTargetInterests}</label>
+              <input style={s.input} value={form.target_interests} onChange={e => setForm(p => ({ ...p, target_interests: e.target.value }))} placeholder={lang === 'da' ? 'f.eks. teknologi, design, sundhed' : 'e.g. technology, design, health'} />
+            </div>
+            <div style={s.twoCol}>
+              <div style={s.formRow}>
+                <label style={s.label}>{t.adStartDate}</label>
+                <input style={s.input} type="date" value={form.start_date} onChange={e => setForm(p => ({ ...p, start_date: e.target.value }))} />
+              </div>
+              <div style={s.formRow}>
+                <label style={s.label}>{t.adEndDate}</label>
+                <input style={s.input} type="date" value={form.end_date} onChange={e => setForm(p => ({ ...p, end_date: e.target.value }))} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="submit" style={s.btnPrimary} disabled={saving}>
+                {saving ? '…' : t.createAd}
+              </button>
+              <button type="button" style={s.btnSecondary} onClick={() => setShowCreate(false)}>
+                {lang === 'da' ? 'Annuller' : 'Cancel'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Boost post section */}
+      {showBoost && (
+        <div style={s.formWrap}>
+          <div style={s.formTitle}>🚀 {t.boostPost}</div>
+          <p style={{ fontSize: 13, color: '#666', marginBottom: 12 }}>{t.boostPostDesc}</p>
+          {posts.length === 0 ? (
+            <div style={s.empty}>{t.selectPostToBoost}</div>
+          ) : (
+            posts.slice(0, 10).map(post => {
+              const text = post.text?.[lang] || post.text?.da || ''
+              return (
+                <div key={post.id} style={s.boostPost}>
+                  <span style={s.boostPostText}>{text.slice(0, 80) || `Post #${post.id}`}</span>
+                  <button
+                    style={{ ...s.btnPrimary, padding: '5px 14px', fontSize: 12 }}
+                    disabled={boosting === post.id}
+                    onClick={() => handleBoost(post.id)}
+                  >
+                    {boosting === post.id ? '…' : '🚀 ' + t.boostPost}
+                  </button>
+                </div>
+              )
+            })
+          )}
+        </div>
+      )}
+
+      {/* Ad list */}
+      <div className="p-card" style={{ padding: '16px 20px' }}>
+        {loading ? (
+          <div style={s.spinner}>…</div>
+        ) : ads.length === 0 ? (
+          <div style={s.empty}>{lang === 'da' ? 'Ingen annoncer endnu. Opret din første annonce ovenfor.' : 'No ads yet. Create your first ad above.'}</div>
+        ) : (
+          ads.map(ad => {
+            const ctr = ad.impressions > 0 ? ((ad.clicks / ad.impressions) * 100).toFixed(1) : '0.0'
+            const spentPct = ad.budget > 0 ? Math.min(100, Math.round((ad.spent / ad.budget) * 100)) : 0
+            return (
+              <div key={ad.id} style={s.card}>
+                <div style={s.adRow}>
+                  <div style={s.adInfo}>
+                    <p style={s.adName}>
+                      {ad.boosted_post_id ? '🚀 ' : '📢 '}
+                      {ad.title}
+                    </p>
+                    <p style={s.adUrl}>{ad.target_url}</p>
+                    <span style={s.badge(ad.status)}>{statusLabel(ad.status)}</span>
+                    {ad.budget > 0 && (
+                      <div style={{ marginTop: 8 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#888', marginBottom: 3 }}>
+                          <span>{t.adSpent}: {formatPrice(ad.spent || 0)}</span>
+                          <span>{t.adBudgetLabel}: {formatPrice(ad.budget)}</span>
+                        </div>
+                        <div style={{ height: 4, borderRadius: 4, background: '#E5E7EB', overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${spentPct}%`, background: spentPct >= 90 ? '#EF4444' : '#4338CA', borderRadius: 4 }} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div style={s.stats}>
+                    <div style={s.stat}>
+                      <span style={s.statVal}>{(ad.impressions || 0).toLocaleString()}</span>
+                      <span style={s.statLabel}>{t.adImpressions}</span>
+                    </div>
+                    <div style={s.stat}>
+                      <span style={s.statVal}>{(ad.clicks || 0).toLocaleString()}</span>
+                      <span style={s.statLabel}>{t.adClicks}</span>
+                    </div>
+                    <div style={s.stat}>
+                      <span style={s.statVal}>{ctr}%</span>
+                      <span style={s.statLabel}>{t.adCTR}</span>
+                    </div>
+                    <div style={s.stat}>
+                      <span style={s.statVal}>{(ad.reach || 0).toLocaleString()}</span>
+                      <span style={s.statLabel}>{t.adReach}</span>
+                    </div>
+                  </div>
+                  <div style={s.actions}>
+                    {ad.status === 'draft' && (
+                      <button style={s.btnActivate} disabled={activating === ad.id} onClick={() => handleActivate(ad.id)}>
+                        {activating === ad.id ? (t.adActivating || '…') : t.activateAd}
+                      </button>
+                    )}
+                    {ad.status === 'draft' && (
+                      <button style={s.btnDanger} onClick={() => handleDelete(ad.id)}>
+                        {lang === 'da' ? 'Slet' : 'Delete'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          })
+        )}
+      </div>
+    </div>
+  )
+}
