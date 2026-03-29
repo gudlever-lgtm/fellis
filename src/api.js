@@ -1487,3 +1487,8 @@ export async function apiAdminGetLockedUsers() {
 export async function apiAdminUnlockUser(userId) {
   return await request(`/api/admin/users/${userId}/unlock`, { method: 'POST' })
 }
+
+// Business profile fields (business mode only)
+export async function apiUpdateBusinessProfile(data) {
+  return await request('/api/me/business-profile', { method: 'PATCH', body: JSON.stringify(data) })
+}

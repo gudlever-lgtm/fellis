@@ -20,7 +20,8 @@ import MatrixRain from './components/easter-eggs/MatrixRain.jsx'
 import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
 import RickRoll from './components/easter-eggs/RickRoll.jsx'
 import RiddleBanner from './components/easter-eggs/RiddleBanner.jsx'
-import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments } from './api.js'
+import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiUpdateBusinessProfile } from './api.js'
+import BusinessBadge from './components/BusinessBadge.jsx'
 import { BADGES, BADGE_BY_ID } from './badges/badgeDefinitions.js'
 import BadgeToastQueue from './components/BadgeToast.jsx'
 import AdfreeCalendar from './components/AdfreeCalendar.jsx'
@@ -3307,6 +3308,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                     style={{ cursor: 'pointer' }}
                     onClick={() => isOwn ? onViewOwnProfile?.() : (post.authorId && onViewProfile?.(post.authorId))}
                   >{post.author}</div>
+                  {post.authorMode === 'business' && <BusinessBadge lang={lang} size="xs" />}
                   {(() => {
                     const relType = !isOwn && post.authorId && rels[String(post.authorId)]
                     // Use server-supplied isFamily if local rels don't reflect it yet
@@ -3947,10 +3949,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
             <h2 className="p-profile-name" style={{ margin: 0 }}>{profile.name}</h2>
-            {mode === 'business' && <span style={{
-              fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 10,
-              background: '#F0FAF4', color: '#2D6A4F', border: '1px solid #2D6A4F', flexShrink: 0,
-            }}>Business</span>}
+            {mode === 'business' && <BusinessBadge lang={lang} />}
           </div>
           <p className="p-profile-handle">{profile.handle}</p>
           <p className="p-profile-bio">{profile.bio?.[lang] || profile.bio?.da || ''}</p>
@@ -4402,6 +4401,13 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
   const [extSaveStatus, setExtSaveStatus] = useState(null)
   const [interestCats, setInterestCats] = useState(INTEREST_CATEGORIES)
   const [interestSearch, setInterestSearch] = useState('')
+  // Business profile extra fields
+  const [bizCategory, setBizCategory] = useState('')
+  const [bizWebsite, setBizWebsite] = useState('')
+  const [bizHours, setBizHours] = useState('')
+  const [bizDescDa, setBizDescDa] = useState('')
+  const [bizDescEn, setBizDescEn] = useState('')
+  const [bizProfileSaveStatus, setBizProfileSaveStatus] = useState(null)
 
   useEffect(() => {
     apiGetInterestCategories().then(d => { if (d?.categories?.length) setInterestCats(d.categories) }).catch(() => {})
@@ -4416,6 +4422,11 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
         if (data.relationship_status) setRelationshipStatus(data.relationship_status)
         if (data.website) setWebsite(data.website)
         setBirthday(data.birthday ? data.birthday.slice(0, 10) : '')
+        if (data.businessCategory) setBizCategory(data.businessCategory)
+        if (data.businessWebsite) setBizWebsite(data.businessWebsite)
+        if (data.businessHours) setBizHours(data.businessHours)
+        if (data.businessDescription?.da) setBizDescDa(data.businessDescription.da)
+        if (data.businessDescription?.en) setBizDescEn(data.businessDescription.en)
       }
     })
   }, [])
@@ -4655,6 +4666,80 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
               </button>
             </div>
           </>
+        )}
+
+        {/* Business profile — extra fields */}
+        {mode === 'business' && (
+          <div style={{ margin: '20px 0 0', borderTop: '2px solid #EEF2FF', paddingTop: 20 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#4338CA', marginBottom: 4 }}>
+              🏢 {t.businessProfile}
+            </div>
+            <p style={{ fontSize: 12, color: '#888', margin: '0 0 10px' }}>
+              {lang === 'da' ? 'Synligt på din virksomhedsprofil' : 'Visible on your business profile'}
+            </p>
+            <label style={labelStyle}>{t.businessCategory}</label>
+            <input
+              style={fieldStyle}
+              value={bizCategory}
+              onChange={e => setBizCategory(e.target.value)}
+              placeholder={lang === 'da' ? 'f.eks. IT & Software, Detailhandel…' : 'e.g. IT & Software, Retail…'}
+            />
+            <label style={labelStyle}>{t.businessWebsite}</label>
+            <input
+              type="url"
+              style={fieldStyle}
+              value={bizWebsite}
+              onChange={e => setBizWebsite(e.target.value)}
+              placeholder="https://"
+            />
+            <label style={labelStyle}>{t.businessHours}</label>
+            <input
+              style={fieldStyle}
+              value={bizHours}
+              onChange={e => setBizHours(e.target.value)}
+              placeholder={lang === 'da' ? 'f.eks. Man–Fre 09–17' : 'e.g. Mon–Fri 9am–5pm'}
+            />
+            <label style={labelStyle}>{t.businessDescription} (dansk)</label>
+            <textarea
+              style={{ ...fieldStyle, minHeight: 70, resize: 'vertical' }}
+              value={bizDescDa}
+              onChange={e => setBizDescDa(e.target.value)}
+              placeholder={lang === 'da' ? 'Beskriv virksomheden på dansk…' : 'Describe the business in Danish…'}
+            />
+            <label style={labelStyle}>{t.businessDescription} (English)</label>
+            <textarea
+              style={{ ...fieldStyle, minHeight: 70, resize: 'vertical' }}
+              value={bizDescEn}
+              onChange={e => setBizDescEn(e.target.value)}
+              placeholder={lang === 'da' ? 'Beskriv virksomheden på engelsk…' : 'Describe the business in English…'}
+            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
+              <button
+                type="button"
+                disabled={bizProfileSaveStatus === 'saving'}
+                onClick={async () => {
+                  setBizProfileSaveStatus('saving')
+                  const res = await apiUpdateBusinessProfile({
+                    business_category: bizCategory || null,
+                    business_website: bizWebsite || null,
+                    business_hours: bizHours || null,
+                    business_description_da: bizDescDa || null,
+                    business_description_en: bizDescEn || null,
+                  })
+                  setBizProfileSaveStatus(res?.ok ? 'saved' : 'error')
+                  setTimeout(() => setBizProfileSaveStatus(null), 2500)
+                }}
+                style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: bizProfileSaveStatus === 'saved' ? '#40916C' : '#4338CA', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+              >
+                {bizProfileSaveStatus === 'saving' ? '…' : bizProfileSaveStatus === 'saved' ? t.businessProfileSaved : t.saveBusinessProfile}
+              </button>
+              {bizProfileSaveStatus === 'error' && (
+                <span style={{ fontSize: 12, color: '#e53935' }}>
+                  {lang === 'da' ? 'Gem fejlede' : 'Save failed'}
+                </span>
+              )}
+            </div>
+          </div>
         )}
 
         {/* Skills management */}
@@ -7657,7 +7742,10 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onMessage, on
                 </div>
               )}
             </div>
-            <h2 className="p-profile-name">{profile.name}</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+              <h2 className="p-profile-name" style={{ margin: 0 }}>{profile.name}</h2>
+              {profile.mode === 'business' && <BusinessBadge lang={lang} />}
+            </div>
             {profile.handle && <p className="p-profile-handle">@{profile.handle}</p>}
             {profile.bio?.[lang] && <p className="p-profile-bio">{profile.bio[lang]}</p>}
             <div className="p-profile-meta">

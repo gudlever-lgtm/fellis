@@ -452,6 +452,15 @@ export const PT = {
     modeCurrentLabel: 'Kontotype',
     modeCommonTag: 'Privat konto',
     modeBusinessTag: 'Business',
+    // Business profile
+    businessBadge: 'Virksomhed',
+    businessProfile: 'Virksomhedsprofil',
+    businessCategory: 'Kategori',
+    businessWebsite: 'Hjemmeside',
+    businessHours: 'Åbningstider',
+    businessDescription: 'Beskrivelse',
+    saveBusinessProfile: 'Gem virksomhedsprofil',
+    businessProfileSaved: 'Gemt!',
     // Moderator request card
     modRequestTitle: 'Bliv moderator',
     modRequestDescription: 'Moderatorer hjælper med at holde fællesskabet trygt. Skriv kort om, hvorfor du gerne vil bidrage som moderator.',
@@ -1357,6 +1366,15 @@ export const PT = {
     modeCurrentLabel: 'Account type',
     modeCommonTag: 'Personal account',
     modeBusinessTag: 'Business',
+    // Business profile
+    businessBadge: 'Business',
+    businessProfile: 'Business profile',
+    businessCategory: 'Category',
+    businessWebsite: 'Website',
+    businessHours: 'Business hours',
+    businessDescription: 'Description',
+    saveBusinessProfile: 'Save business profile',
+    businessProfileSaved: 'Saved!',
     // Ads-free subscription
     adFreeTitle: 'Ad-free experience',
     adFreeDesc: 'Remove all ads from your feed, sidebar and stories. Cancel any time.',

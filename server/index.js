@@ -1999,6 +1999,9 @@ app.get('/api/profile/:id', authenticate, async (req, res) => {
     const [users] = await pool.query(
       `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url,
         u.industry, u.seniority, u.job_title, u.company,
+        u.mode,
+        u.business_category, u.business_website, u.business_hours,
+        u.business_description_da, u.business_description_en,
         (SELECT COUNT(*) FROM friendships WHERE user_id = u.id) as friend_count,
         (SELECT COUNT(*) FROM posts WHERE author_id = u.id) as post_count,
         (SELECT COUNT(*) FROM friendships f1
@@ -2043,11 +2046,12 @@ app.get('/api/profile/:id', authenticate, async (req, res) => {
         return { id: r.badge_id, icon: def.icon, name: def.name[lang] || def.name.da, tier: def.tier, awardedAt: r.awarded_at }
       }).filter(Boolean)
     } catch { /* badges table may not exist yet */ }
-    res.json({
+    const profilePayload = {
       id: u.id, name: u.name, handle: u.handle, initials: u.initials,
       bio: { da: u.bio_da || '', en: u.bio_en || '' },
       location: u.location, joinDate: u.join_date,
       avatarUrl: u.avatar_url || null,
+      mode: u.mode || 'privat',
       industry: u.industry || null,
       seniority: u.seniority || null,
       jobTitle: u.job_title || null,
@@ -2058,7 +2062,14 @@ app.get('/api/profile/:id', authenticate, async (req, res) => {
       requestSent: !!u.request_sent,
       isBlocked,
       badges,
-    })
+    }
+    if (u.mode === 'business') {
+      profilePayload.businessCategory = u.business_category || null
+      profilePayload.businessWebsite = u.business_website || null
+      profilePayload.businessHours = u.business_hours || null
+      profilePayload.businessDescription = { da: u.business_description_da || '', en: u.business_description_en || '' }
+    }
+    res.json(profilePayload)
   } catch (err) {
     res.status(500).json({ error: 'Failed to load profile' })
   }
@@ -2124,6 +2135,9 @@ app.get('/api/profile', authenticate, async (req, res) => {
         u.relationship_status, u.website,
         u.phone, u.mfa_enabled,
         u.industry, u.seniority, u.job_title, u.company,
+        u.mode,
+        u.business_category, u.business_website, u.business_hours,
+        u.business_description_da, u.business_description_en,
         (SELECT COUNT(*) FROM friendships WHERE user_id = u.id) as friend_count,
         (SELECT COUNT(*) FROM posts WHERE author_id = u.id) as post_count
        FROM users u WHERE u.id = ?`,
@@ -2135,11 +2149,12 @@ app.get('/api/profile', authenticate, async (req, res) => {
     try { interests = typeof u.interests === 'string' ? JSON.parse(u.interests) : (u.interests || []) } catch {}
     let tags = []
     try { tags = typeof u.tags === 'string' ? JSON.parse(u.tags) : (u.tags || []) } catch {}
-    res.json({
+    const payload = {
       id: u.id, name: u.name, handle: u.handle, initials: u.initials,
       bio: { da: u.bio_da || '', en: u.bio_en || '' },
       location: u.location, joinDate: u.join_date,
       avatarUrl: u.avatar_url || null,
+      mode: u.mode || 'privat',
       industry: u.industry || null,
       seniority: u.seniority || null,
       jobTitle: u.job_title || null,
@@ -2164,7 +2179,14 @@ app.get('/api/profile', authenticate, async (req, res) => {
       },
       phone: u.phone || null,
       mfaEnabled: !!u.mfa_enabled,
-    })
+    }
+    if (u.mode === 'business') {
+      payload.businessCategory = u.business_category || null
+      payload.businessWebsite = u.business_website || null
+      payload.businessHours = u.business_hours || null
+      payload.businessDescription = { da: u.business_description_da || '', en: u.business_description_en || '' }
+    }
+    res.json(payload)
   } catch (err) {
     res.status(500).json({ error: 'Failed to load profile' })
   }
@@ -2273,6 +2295,51 @@ app.patch('/api/me/profile-extended', authenticate, async (req, res) => {
     res.json({ ok: true })
   } catch (err) {
     res.status(500).json({ error: 'Failed to update profile' })
+  }
+})
+
+// PATCH /api/me/business-profile — update business-only profile fields
+app.patch('/api/me/business-profile', authenticate, async (req, res) => {
+  const { business_category, business_website, business_hours, business_description_da, business_description_en } = req.body
+  try {
+    const [[user]] = await pool.query('SELECT mode FROM users WHERE id = ?', [req.userId])
+    if (!user) return res.status(404).json({ error: 'User not found' })
+    if (user.mode !== 'business') return res.status(403).json({ error: 'Business account required' })
+    if (business_website) {
+      try { new URL(business_website) } catch {
+        return res.status(400).json({ error: 'Invalid URL' })
+      }
+    }
+    await pool.query(
+      `UPDATE users SET
+        business_category = ?,
+        business_website = ?,
+        business_hours = ?,
+        business_description_da = ?,
+        business_description_en = ?
+       WHERE id = ?`,
+      [
+        business_category || null,
+        business_website || null,
+        business_hours || null,
+        business_description_da || null,
+        business_description_en || null,
+        req.userId,
+      ]
+    )
+    res.json({
+      ok: true,
+      businessCategory: business_category || null,
+      businessWebsite: business_website || null,
+      businessHours: business_hours || null,
+      businessDescription: {
+        da: business_description_da || '',
+        en: business_description_en || '',
+      },
+    })
+  } catch (err) {
+    console.error('PATCH /api/me/business-profile error:', err.message)
+    res.status(500).json({ error: 'Server error' })
   }
 })
 
@@ -2623,7 +2690,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
     let posts
     try {
       ;[posts] = await pool.query(
-        `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.categories, p.created_at, p.edited_at,
+        `SELECT p.id, p.author_id, u.name as author, u.mode as author_mode, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.categories, p.created_at, p.edited_at,
                 p.place_name, p.geo_lat, p.geo_lng, p.tagged_users, p.linked_type, p.linked_id,
                 (SELECT COUNT(*) FROM earned_badges WHERE user_id = p.author_id) as author_badge_count
          FROM posts p JOIN users u ON p.author_id = u.id
@@ -2636,7 +2703,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
       )
     } catch {
       ;[posts] = await pool.query(
-        `SELECT p.id, p.author_id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.categories, p.created_at, p.edited_at,
+        `SELECT p.id, p.author_id, u.name as author, u.mode as author_mode, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.categories, p.created_at, p.edited_at,
                 NULL as place_name, NULL as geo_lat, NULL as geo_lng,
                 NULL as tagged_users, NULL as linked_type, NULL as linked_id,
                 0 as author_badge_count
@@ -2738,6 +2805,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
         id: p.id,
         author: p.author,
         authorId: p.author_id,
+        authorMode: p.author_mode || 'privat',
         time: { da: formatPostTime(p.created_at, 'da'), en: formatPostTime(p.created_at, 'en') },
         text: { da: p.text_da, en: p.text_en },
         likes: p.likes,
@@ -8172,6 +8240,9 @@ app.get('/api/public/profile/:handle', async (req, res) => {
     const [rows] = await pool.query(
       `SELECT u.id, u.name, u.handle, u.bio_da, u.bio_en, u.location, u.avatar_url, u.join_date,
               u.profile_public, u.reputation_score, u.referral_count,
+              u.mode,
+              u.business_category, u.business_website, u.business_hours,
+              u.business_description_da, u.business_description_en,
               (SELECT COUNT(*) FROM friendships WHERE user_id = u.id) as friend_count,
               (SELECT COUNT(*) FROM posts WHERE author_id = u.id AND is_public = 1) as public_post_count
        FROM users u WHERE u.handle = ?`,
@@ -8190,7 +8261,7 @@ app.get('/api/public/profile/:handle', async (req, res) => {
       [user.id]
     )
 
-    res.json({
+    const publicProfile = {
       id: user.id,
       name: user.name,
       handle: user.handle,
@@ -8198,6 +8269,7 @@ app.get('/api/public/profile/:handle', async (req, res) => {
       location: user.location,
       avatarUrl: user.avatar_url,
       joinDate: user.join_date,
+      mode: user.mode || 'privat',
       friendCount: Number(user.friend_count),
       publicPostCount: Number(user.public_post_count),
       reputationScore: Number(user.reputation_score),
@@ -8211,7 +8283,14 @@ app.get('/api/public/profile/:handle', async (req, res) => {
         shareCount: p.share_count,
         createdAt: p.created_at,
       })),
-    })
+    }
+    if (user.mode === 'business') {
+      publicProfile.businessCategory = user.business_category || null
+      publicProfile.businessWebsite = user.business_website || null
+      publicProfile.businessHours = user.business_hours || null
+      publicProfile.businessDescription = { da: user.business_description_da || '', en: user.business_description_en || '' }
+    }
+    res.json(publicProfile)
   } catch (err) {
     console.error('GET /api/public/profile/:handle error:', err.message)
     res.status(500).json({ error: 'Server error' })
