@@ -7781,7 +7781,7 @@ app.get('/api/analytics', authenticate, async (req, res) => {
     try {
       const [[userMode]] = await pool.query('SELECT mode, follower_count, community_score FROM users WHERE id = ?', [req.userId])
       if (userMode?.mode === 'business') {
-        // Follower growth per day
+        // Follower growth per day + 7d/30d aggregates
         const [followerGrowth] = await pool.query(
           `SELECT DATE(created_at) AS date, COUNT(*) AS new_followers
            FROM business_follows WHERE business_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
@@ -7789,16 +7789,40 @@ app.get('/api/analytics', authenticate, async (req, res) => {
           [req.userId, days]
         ).catch(() => [[]])
 
-        // Ad performance summary
+        const [[follower7d]] = await pool.query(
+          'SELECT COUNT(*) AS cnt FROM business_follows WHERE business_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)',
+          [req.userId]
+        ).catch(() => [[{ cnt: 0 }]])
+
+        const [[follower30d]] = await pool.query(
+          'SELECT COUNT(*) AS cnt FROM business_follows WHERE business_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)',
+          [req.userId]
+        ).catch(() => [[{ cnt: 0 }]])
+
+        const [[totalFollowers]] = await pool.query(
+          'SELECT COUNT(*) AS cnt FROM business_follows WHERE business_id = ?',
+          [req.userId]
+        ).catch(() => [[{ cnt: 0 }]])
+
+        // Ad performance summary (with paid_until and is_active)
         const [adPerf] = await pool.query(
-          `SELECT id, title, status, impressions, clicks, reach, spent, budget, cpm_rate, boosted_post_id, created_at
+          `SELECT id, title, status, impressions, clicks, reach, spent, budget, cpm_rate, boosted_post_id, paid_until, created_at
            FROM ads WHERE advertiser_id = ? ORDER BY created_at DESC LIMIT 10`,
           [req.userId]
         ).catch(() => [[]])
 
-        // Post boost stats
+        // Post boost aggregate stats
+        const [[boostAgg]] = await pool.query(
+          `SELECT
+            SUM(CASE WHEN status = 'active' AND (paid_until IS NULL OR paid_until > NOW()) THEN 1 ELSE 0 END) AS active_count,
+            COALESCE(SUM(impressions), 0) AS total_impressions
+           FROM ads WHERE advertiser_id = ? AND boosted_post_id IS NOT NULL`,
+          [req.userId]
+        ).catch(() => [[{ active_count: 0, total_impressions: 0 }]])
+
+        // Post boost per-item list
         const [boostStats] = await pool.query(
-          `SELECT a.id, a.boosted_post_id, a.impressions, a.clicks, a.reach, a.spent, a.status,
+          `SELECT a.id, a.boosted_post_id, a.impressions, a.clicks, a.reach, a.spent, a.status, a.paid_until,
                   SUBSTRING(COALESCE(NULLIF(p.text_da,''), NULLIF(p.text_en,''), ''), 1, 50) AS post_text
            FROM ads a LEFT JOIN posts p ON p.id = a.boosted_post_id
            WHERE a.advertiser_id = ? AND a.boosted_post_id IS NOT NULL
@@ -7807,9 +7831,14 @@ app.get('/api/analytics', authenticate, async (req, res) => {
         ).catch(() => [[]])
 
         businessStats = {
-          followerCount: Number(userMode.follower_count || 0),
+          followerCount: Number(totalFollowers?.cnt || userMode.follower_count || 0),
           communityScore: Number(userMode.community_score || 0),
           followerGrowth,
+          followerStats: {
+            total_followers: Number(totalFollowers?.cnt || 0),
+            new_followers_7d: Number(follower7d?.cnt || 0),
+            new_followers_30d: Number(follower30d?.cnt || 0),
+          },
           adPerformance: (Array.isArray(adPerf) ? adPerf : []).map(a => ({
             id: a.id,
             title: a.title,
@@ -7820,18 +7849,25 @@ app.get('/api/analytics', authenticate, async (req, res) => {
             spent: parseFloat(a.spent || 0),
             budget: a.budget ? parseFloat(a.budget) : null,
             ctr: a.impressions > 0 ? Math.round((a.clicks / a.impressions) * 10000) / 100 : 0,
+            paid_until: a.paid_until ? new Date(a.paid_until).toISOString() : null,
+            is_active: a.status === 'active' && (!a.paid_until || new Date(a.paid_until) > new Date()),
             isBoostedPost: !!a.boosted_post_id,
           })),
-          postBoostStats: (Array.isArray(boostStats) ? boostStats : []).map(b => ({
-            adId: b.id,
-            postId: b.boosted_post_id,
-            postText: b.post_text || `Post #${b.boosted_post_id}`,
-            impressions: Number(b.impressions || 0),
-            clicks: Number(b.clicks || 0),
-            reach: Number(b.reach || 0),
-            spent: parseFloat(b.spent || 0),
-            status: b.status,
-          })),
+          postBoostStats: {
+            boosted_posts_active: Number(boostAgg?.active_count || 0),
+            total_boosted_impressions: Number(boostAgg?.total_impressions || 0),
+            items: (Array.isArray(boostStats) ? boostStats : []).map(b => ({
+              adId: b.id,
+              postId: b.boosted_post_id,
+              postText: b.post_text || `Post #${b.boosted_post_id}`,
+              impressions: Number(b.impressions || 0),
+              clicks: Number(b.clicks || 0),
+              reach: Number(b.reach || 0),
+              spent: parseFloat(b.spent || 0),
+              status: b.status,
+              paid_until: b.paid_until ? new Date(b.paid_until).toISOString() : null,
+            })),
+          },
         }
       }
     } catch { /* business stats are non-critical */ }
