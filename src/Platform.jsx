@@ -646,7 +646,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
         {page === 'businesses' && <BusinessDirectory lang={lang} t={t} onViewProfile={(biz) => { setViewUserId(biz.id); navigateTo('view-profile') }} />}
         {page === 'ads' && mode === 'business' && <AdManager lang={lang} t={t} currentUser={currentUser} />}
         {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} initialCompanyId={navParam?.companyId} />}
-        {page === 'analytics' && <AnalyticsPage lang={lang} t={t} currentUser={currentUser} />}
+        {page === 'analytics' && <AnalyticsPage lang={lang} t={t} currentUser={currentUser} onNavigate={navigateTo} />}
         {page === 'settings' && <SettingsPage lang={lang} t={t} currentUser={currentUser} mode={mode} adsFree={adsFree} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onLogout={onLogout} onOpenModeModal={() => setShowModeModal(true)} darkMode={darkMode} onToggleDark={() => setDarkMode(d => !d)} initialTab={navParam} />}
         {page === 'privacy' && <PrivacySection lang={lang} onLogout={onLogout} />}
         {page === 'visitors' && <VisitorStatsPage lang={lang} onBadgeCheck={checkBadges} />}
@@ -15297,7 +15297,8 @@ function UpgradeModal({ lang, t, onUpgrade, onClose }) {
 
 const ANALYTICS_RANGES = [7, 30, 90]
 
-function AnalyticsPage({ lang, t, currentUser }) {
+function AnalyticsPage({ lang, t, currentUser, onNavigate }) {
+  const navigateTo = onNavigate || (() => {})
   const [range, setRange] = useState(30)
   const [analytics, setAnalytics] = useState(null)
 
@@ -15552,16 +15553,19 @@ function AnalyticsPage({ lang, t, currentUser }) {
             const row = (bs.followerGrowth || []).find(r => (r.date || '').slice(0, 10) === key)
             return row ? Number(row.new_followers) : 0
           })
+          const fs = bs.followerStats || {}
+          const pbs = bs.postBoostStats || {}
           return (
             <>
               <div className="p-analytics-section">
                 <div className="p-analytics-section-title">
-                  🏢 {lang === 'da' ? 'Virksomhedsstatistik' : 'Business Performance'}
+                  🏢 {t.businessPerformance || (lang === 'da' ? 'Virksomhedsstatistik' : 'Business Performance')}
                 </div>
                 <div className="p-analytics-stat-row">
-                  <StatCard label={t.followers || (lang === 'da' ? 'Følgere' : 'Followers')} value={bs.followerCount.toLocaleString()} color="#4338CA" />
-                  <StatCard label={t.communityScore || (lang === 'da' ? 'Community score' : 'Community score')} value={bs.communityScore.toLocaleString()} color="#F59E0B" />
-                  <StatCard label={lang === 'da' ? 'Nye følgere' : 'New followers'} value={followerGrowthData.reduce((a, b) => a + b, 0)} sub={`${range}d`} color="#2D6A4F" />
+                  <StatCard label={t.totalFollowers || (lang === 'da' ? 'Følgere i alt' : 'Total followers')} value={(fs.total_followers ?? bs.followerCount ?? 0).toLocaleString()} color="#4338CA" />
+                  <StatCard label={`${t.newFollowers || (lang === 'da' ? 'Nye følgere' : 'New followers')} (7d)`} value={(fs.new_followers_7d ?? 0).toLocaleString()} color="#2D6A4F" />
+                  <StatCard label={`${t.newFollowers || (lang === 'da' ? 'Nye følgere' : 'New followers')} (30d)`} value={(fs.new_followers_30d ?? 0).toLocaleString()} color="#2D6A4F" />
+                  <StatCard label={t.communityScoreLabel || (lang === 'da' ? 'Community score' : 'Community score')} value={bs.communityScore.toLocaleString()} color="#F59E0B" />
                 </div>
                 {followerGrowthData.some(v => v > 0) && (
                   <div className="p-analytics-chart-wrap" style={{ marginTop: 12 }}>
@@ -15570,16 +15574,30 @@ function AnalyticsPage({ lang, t, currentUser }) {
                 )}
               </div>
 
-              {bs.adPerformance?.length > 0 && (
+              {/* Post boost aggregate stats */}
+              {(pbs.boosted_posts_active > 0 || pbs.total_boosted_impressions > 0) && (
                 <div className="p-analytics-section">
                   <div className="p-analytics-section-title">
-                    📢 {t.adManager || (lang === 'da' ? 'Annonceoversigt' : 'Ad Performance')}
+                    🚀 {t.postBoostStats || (lang === 'da' ? 'Boostede opslag' : 'Boosted posts')}
                   </div>
+                  <div className="p-analytics-stat-row">
+                    <StatCard label={lang === 'da' ? 'Aktive boosts' : 'Active boosts'} value={(pbs.boosted_posts_active ?? 0).toLocaleString()} color="#7C3AED" />
+                    <StatCard label={t.adImpressions || (lang === 'da' ? 'Visninger' : 'Impressions')} value={(pbs.total_boosted_impressions ?? 0).toLocaleString()} color="#7C3AED" />
+                  </div>
+                </div>
+              )}
+
+              {/* Ad performance table */}
+              <div className="p-analytics-section">
+                <div className="p-analytics-section-title">
+                  📢 {t.adManager || (lang === 'da' ? 'Annonceoversigt' : 'Ad Performance')}
+                </div>
+                {bs.adPerformance?.length > 0 ? (
                   <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                       <thead>
                         <tr style={{ borderBottom: '1px solid #E8E4DF' }}>
-                          {[t.adTitle || 'Titel', t.adStatus || 'Status', t.adImpressions || 'Visninger', t.adClicks || 'Klik', t.adCTR || 'CTR', t.adReach || 'Rækkevidde', t.adSpent || 'Brugt'].map(h => (
+                          {[t.adTitle || 'Titel', t.adStatus || 'Status', t.adImpressions || 'Visninger', t.adClicks || 'Klik', t.adCTR || 'CTR', t.adReach || 'Rækkevidde', t.adSpent || 'Brugt', lang === 'da' ? 'Aktiv til' : 'Active until'].map(h => (
                             <th key={h} style={{ textAlign: 'left', padding: '6px 8px', fontWeight: 700, color: '#555', fontSize: 11 }}>{h}</th>
                           ))}
                         </tr>
@@ -15592,23 +15610,37 @@ function AnalyticsPage({ lang, t, currentUser }) {
                             </td>
                             <td style={{ padding: '6px 8px' }}>
                               <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 8,
-                                background: ad.status === 'active' ? '#D1FAE5' : '#F3F4F6',
-                                color: ad.status === 'active' ? '#065F46' : '#374151' }}>
+                                background: ad.is_active ? '#D1FAE5' : '#F3F4F6',
+                                color: ad.is_active ? '#065F46' : '#374151' }}>
                                 {ad.status}
                               </span>
                             </td>
                             <td style={{ padding: '6px 8px' }}>{ad.impressions.toLocaleString()}</td>
                             <td style={{ padding: '6px 8px' }}>{ad.clicks.toLocaleString()}</td>
-                            <td style={{ padding: '6px 8px' }}>{ad.ctr}%</td>
+                            <td style={{ padding: '6px 8px' }}>{ad.ctr.toFixed(1)}%</td>
                             <td style={{ padding: '6px 8px' }}>{ad.reach.toLocaleString()}</td>
                             <td style={{ padding: '6px 8px' }}>{formatPrice(ad.spent)}</td>
+                            <td style={{ padding: '6px 8px', fontSize: 11, color: '#666' }}>
+                              {ad.paid_until ? new Date(ad.paid_until).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-GB') : '—'}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div style={{ color: '#888', fontSize: 13, padding: '12px 0' }}>
+                    {t.noAdsYet || (lang === 'da' ? 'Ingen annoncer endnu' : 'No ads yet')}
+                    {' — '}
+                    <button
+                      onClick={() => navigateTo('ads')}
+                      style={{ background: 'none', border: 'none', color: '#2D6A4F', cursor: 'pointer', textDecoration: 'underline', fontSize: 13, padding: 0 }}
+                    >
+                      {t.goToAdManager || (lang === 'da' ? 'Gå til annoncestyring' : 'Go to Ad Manager')}
+                    </button>
+                  </div>
+                )}
+              </div>
             </>
           )
         })()}
