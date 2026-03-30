@@ -1211,6 +1211,8 @@ export const PT = {
     memoriesDismiss: 'Skjul',
     memoriesShared: 'Delt!',
     explore: 'Udforsk',
+    openLink: 'Åbn link',
+    removeLink: 'Fjern link (behold tekst)',
   },
   en: {
     feed: 'Feed',
@@ -2182,6 +2184,8 @@ export const PT = {
     memoriesDismiss: 'Dismiss',
     memoriesShared: 'Shared!',
     explore: 'Explore',
+    openLink: 'Open link',
+    removeLink: 'Remove link (keep text)',
   },
   de: {
     feed: 'Feed', profile: 'Profil', friends: 'Freunde', messages: 'Nachrichten',

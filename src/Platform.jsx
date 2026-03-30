@@ -991,20 +991,59 @@ function LinkPreview({ url }) {
   )
 }
 
+function LinkWithMenu({ href, lang, onRemove }) {
+  const [menu, setMenu] = useState(null)
+  const menuRef = useRef(null)
+  const t = getTranslations(lang)
+
+  useEffect(() => {
+    if (!menu) return
+    const close = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setMenu(null) }
+    window.addEventListener('mousedown', close)
+    return () => window.removeEventListener('mousedown', close)
+  }, [menu])
+
+  return (
+    <>
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="post-link"
+        onContextMenu={(e) => { e.preventDefault(); setMenu({ x: e.clientX, y: e.clientY }) }}
+      >
+        {href}
+      </a>
+      {menu && (
+        <div ref={menuRef} className="link-ctx-menu" style={{ position: 'fixed', left: menu.x, top: menu.y }}>
+          <button className="link-ctx-item" onClick={() => { window.open(href, '_blank', 'noopener,noreferrer'); setMenu(null) }}>
+            {t.openLink}
+          </button>
+          <button className="link-ctx-item" onClick={() => { onRemove(); setMenu(null) }}>
+            {t.removeLink}
+          </button>
+        </div>
+      )}
+    </>
+  )
+}
+
 function PostText({ text, lang }) {
+  const [removedUrls, setRemovedUrls] = useState(new Set())
   const str = text[lang] || text.da || ''
   const parts = linkifyText(str)
-  const firstUrl = parts.find(p => p.t === 'url')?.v
+  const firstUrl = parts.find(p => p.t === 'url' && !removedUrls.has(p.v))?.v
   return (
     <>
       <div className="p-post-body">
-        {parts.map((p, i) =>
-          p.t === 'url'
-            ? <a key={i} href={p.v} target="_blank" rel="noopener noreferrer" className="post-link">{p.v}</a>
-            : p.t === 'mention'
-              ? <span key={i} className="p-mention">{p.v}</span>
-              : <span key={i}>{p.v}</span>
-        )}
+        {parts.map((p, i) => {
+          if (p.t === 'url') {
+            if (removedUrls.has(p.v)) return <span key={i}>{p.v}</span>
+            return <LinkWithMenu key={i} href={p.v} lang={lang} onRemove={() => setRemovedUrls(prev => new Set([...prev, p.v]))} />
+          }
+          if (p.t === 'mention') return <span key={i} className="p-mention">{p.v}</span>
+          return <span key={i}>{p.v}</span>
+        })}
       </div>
       {firstUrl && <LinkPreview url={firstUrl} />}
     </>
@@ -1228,19 +1267,26 @@ function MentionDropdown({ filtered, selIdx, onSelect }) {
   )
 }
 
-// Renders text with @[Name] tokens as styled mention chips
-function renderMentionText(text) {
-  if (!text || !text.includes('@[')) return text
-  const parts = text.split(/(@\[[^\]]+\])/)
-  return parts.map((part, i) => {
-    const m = part.match(/^@\[(.+)\]$/)
-    if (m) return (
-      <span key={i} style={{ display: 'inline-block', background: '#e8f5e9', color: '#2D6A4F', borderRadius: 6, padding: '1px 7px', fontSize: '0.92em', fontWeight: 600, lineHeight: 1.5 }}>
-        @{m[1]}
-      </span>
-    )
-    return part
-  })
+// Renders text with mentions and linkified URLs; supports right-click link removal
+function CommentText({ text, lang }) {
+  const [removedUrls, setRemovedUrls] = useState(new Set())
+  const parts = linkifyText(text || '')
+  return (
+    <>
+      {parts.map((p, i) => {
+        if (p.t === 'url') {
+          if (removedUrls.has(p.v)) return <span key={i}>{p.v}</span>
+          return <LinkWithMenu key={i} href={p.v} lang={lang} onRemove={() => setRemovedUrls(prev => new Set([...prev, p.v]))} />
+        }
+        if (p.t === 'mention') return (
+          <span key={i} style={{ display: 'inline-block', background: '#e8f5e9', color: '#2D6A4F', borderRadius: 6, padding: '1px 7px', fontSize: '0.92em', fontWeight: 600, lineHeight: 1.5 }}>
+            {p.v}
+          </span>
+        )
+        return <span key={i}>{p.v}</span>
+      })}
+    </>
+  )
 }
 
 // ── Reels strip shown at top of feed ──────────────────────────────────────────
@@ -3176,7 +3222,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                 {(cpFeedCommentLists[post.id] || []).map(c => (
                   <div key={c.id} className="p-comment">
                     <div className="p-comment-bubble">
-                      <span className="p-comment-author">{c.author_name}</span> {renderMentionText(c.text)}
+                      <span className="p-comment-author">{c.author_name}</span> <CommentText text={c.text} lang={lang} />
                     </div>
                   </div>
                 ))}
@@ -3572,7 +3618,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                     </div>
                     <div className="p-comment-bubble">
                       <span className="p-comment-author">{c.author}</span>
-                      <span>{renderMentionText(c.text[lang])}</span>
+                      <span><CommentText text={c.text[lang]} lang={lang} /></span>
                       {c.media?.length > 0 && (
                         <div className="p-comment-media">
                           <PostMedia media={c.media} />
@@ -11412,7 +11458,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
                     {(companyCommentLists[post.id] || []).map(c => (
                       <div key={c.id} className="p-comment">
                         <div className="p-comment-bubble">
-                          <span className="p-comment-author">{c.author_name}</span> {renderMentionText(c.text)}
+                          <span className="p-comment-author">{c.author_name}</span> <CommentText text={c.text} lang={lang} />
                         </div>
                       </div>
                     ))}
