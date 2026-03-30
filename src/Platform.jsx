@@ -1083,18 +1083,92 @@ function PostMedia({ media }) {
   )
 }
 
-// ── Camera helper — must be in DOM before .click() for iOS Safari capture to work ──
-function openCamera(onFile) {
-  const inp = document.createElement('input')
-  inp.type = 'file'
-  inp.accept = 'image/*,video/*'
-  inp.setAttribute('capture', 'environment')
-  inp.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;'
-  document.body.appendChild(inp)
-  const cleanup = () => { if (inp.parentNode) inp.parentNode.removeChild(inp) }
-  inp.addEventListener('change', (e) => { onFile(e); cleanup() }, { once: true })
-  inp.addEventListener('cancel', cleanup, { once: true })
-  inp.click()
+// ── Camera modal — uses getUserMedia for desktop + mobile browser camera ──────
+function CameraModal({ lang, onCapture, onClose }) {
+  const videoRef = useRef(null)
+  const streamRef = useRef(null)
+  const [ready, setReady] = useState(false)
+  const [error, setError] = useState(null)
+  const [facingMode, setFacingMode] = useState('environment')
+
+  useEffect(() => {
+    let cancelled = false
+    async function startCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode }, audio: false })
+        if (cancelled) { stream.getTracks().forEach(t => t.stop()); return }
+        streamRef.current = stream
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream
+          videoRef.current.onloadedmetadata = () => { if (!cancelled) setReady(true) }
+        }
+      } catch (err) {
+        if (!cancelled) setError(err.message || String(err))
+      }
+    }
+    startCamera()
+    return () => {
+      cancelled = true
+      streamRef.current?.getTracks().forEach(t => t.stop())
+      streamRef.current = null
+    }
+  }, [facingMode])
+
+  const capture = () => {
+    const video = videoRef.current
+    if (!video || !ready) return
+    const canvas = document.createElement('canvas')
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    canvas.getContext('2d').drawImage(video, 0, 0)
+    canvas.toBlob(blob => {
+      if (!blob) return
+      const file = new File([blob], `photo-${Date.now()}.jpg`, { type: 'image/jpeg' })
+      streamRef.current?.getTracks().forEach(t => t.stop())
+      onCapture(file)
+    }, 'image/jpeg', 0.92)
+  }
+
+  const flipCamera = () => {
+    streamRef.current?.getTracks().forEach(t => t.stop())
+    streamRef.current = null
+    setReady(false)
+    setError(null)
+    setFacingMode(f => f === 'environment' ? 'user' : 'environment')
+  }
+
+  const s = {
+    overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.88)', zIndex: 9999, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 16 },
+    video: { maxWidth: '100%', maxHeight: '65vh', borderRadius: 12, background: '#111', display: 'block' },
+    row: { display: 'flex', gap: 10, marginTop: 18, alignItems: 'center' },
+    btnCancel: { padding: '10px 20px', borderRadius: 8, background: 'rgba(255,255,255,0.15)', color: '#fff', border: '1px solid rgba(255,255,255,0.25)', cursor: 'pointer', fontSize: 14 },
+    btnFlip: { padding: '10px 14px', borderRadius: 8, background: 'rgba(255,255,255,0.15)', color: '#fff', border: '1px solid rgba(255,255,255,0.25)', cursor: 'pointer', fontSize: 18 },
+    btnCapture: { padding: '12px 28px', borderRadius: 8, background: ready ? '#2D6A4F' : '#555', color: '#fff', border: 'none', cursor: ready ? 'pointer' : 'default', fontSize: 15, fontWeight: 700 },
+    errorText: { color: '#fff', textAlign: 'center', maxWidth: 360 },
+  }
+
+  return (
+    <div style={s.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
+      {error ? (
+        <div style={s.errorText}>
+          <div style={{ fontSize: 17, marginBottom: 10 }}>{lang === 'da' ? 'Kamera ikke tilgængeligt' : 'Camera not available'}</div>
+          <div style={{ fontSize: 13, opacity: 0.65, marginBottom: 20 }}>{error}</div>
+          <button onClick={onClose} style={s.btnCancel}>{lang === 'da' ? 'Luk' : 'Close'}</button>
+        </div>
+      ) : (
+        <>
+          <video ref={videoRef} autoPlay playsInline muted style={s.video} />
+          <div style={s.row}>
+            <button onClick={onClose} style={s.btnCancel}>{lang === 'da' ? 'Annuller' : 'Cancel'}</button>
+            <button onClick={flipCamera} style={s.btnFlip} title={lang === 'da' ? 'Skift kamera' : 'Flip camera'}>🔄</button>
+            <button onClick={capture} disabled={!ready} style={s.btnCapture}>
+              {lang === 'da' ? 'Tag billede' : 'Take photo'}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  )
 }
 
 // ── Post avatar with badge tooltip ────────────────────────────────────────
@@ -1172,9 +1246,10 @@ function PostAvatarWithBadge({ post, lang, isOwn, onViewProfile, onViewOwnProfil
 //   buttonContent                           — optional custom button label/icon
 function MediaPickerButton({ lang, onFiles, accept = 'image/*,video/*', multiple = true, align = 'left', direction = 'up', buttonContent }) {
   const [open, setOpen] = useState(false)
+  const [showCamera, setShowCamera] = useState(false)
   const fileRef = useRef(null)
   const pickGallery = () => { fileRef.current?.click(); setOpen(false) }
-  const pickCamera = () => { setOpen(false); openCamera(e => onFiles(Array.from(e.target.files).filter(Boolean))) }
+  const pickCamera = () => { setOpen(false); setShowCamera(true) }
   return (
     <div className="p-media-popup-wrap">
       <button
@@ -1201,6 +1276,13 @@ function MediaPickerButton({ lang, onFiles, accept = 'image/*,video/*', multiple
       )}
       <input ref={fileRef} type="file" accept={accept} multiple={multiple} style={{ display: 'none' }}
         onChange={e => { onFiles(Array.from(e.target.files).filter(Boolean)); e.target.value = '' }} />
+      {showCamera && (
+        <CameraModal
+          lang={lang}
+          onCapture={file => { setShowCamera(false); onFiles([file]) }}
+          onClose={() => setShowCamera(false)}
+        />
+      )}
     </div>
   )
 }
