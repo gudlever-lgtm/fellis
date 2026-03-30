@@ -1446,6 +1446,33 @@
   color: #1a5438;
 }
 
+/* ── Link context menu ── */
+.link-ctx-menu {
+  background: #fff;
+  border: 1px solid #E8E4DF;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  z-index: 9999;
+  min-width: 190px;
+  overflow: hidden;
+  padding: 4px 0;
+}
+.link-ctx-item {
+  display: block;
+  width: 100%;
+  padding: 9px 14px;
+  background: none;
+  border: none;
+  text-align: left;
+  font-size: 14px;
+  cursor: pointer;
+  color: #222;
+  font-family: inherit;
+}
+.link-ctx-item:hover {
+  background: #f5f0eb;
+}
+
 /* ── Link preview cards ── */
 .link-preview {
   display: block;
