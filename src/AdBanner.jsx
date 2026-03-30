@@ -72,6 +72,15 @@ export default function AdBanner({ placement = 'feed', adsFree = false, onGoAdFr
     return () => { cancelled = true; clearInterval(interval); _listeners.delete(load) }
   }, [placement, adsFree]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Rotate through multiple ads every 10 seconds when more than one is available
+  useEffect(() => {
+    if (ads.length <= 1) return
+    const rotateInterval = setInterval(() => {
+      setAdIndex(i => i + 1)
+    }, 10000)
+    return () => clearInterval(rotateInterval)
+  }, [ads.length])
+
   const ad = ads[adIndex % (ads.length || 1)]
 
   useEffect(() => {
