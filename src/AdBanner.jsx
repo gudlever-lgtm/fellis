@@ -44,7 +44,7 @@ async function fetchAds(placement) {
   return promise
 }
 
-export default function AdBanner({ placement = 'feed', adsFree = false, onGoAdFree, lang = 'da' }) {
+export default function AdBanner({ placement = 'feed', adsFree = false, onGoAdFree, lang = 'da', count = 1 }) {
   const [ads, setAds] = useState([])
   const [refreshInterval, setRefreshInterval] = useState(300)
   const [adIndex, setAdIndex] = useState(0)
@@ -72,63 +72,72 @@ export default function AdBanner({ placement = 'feed', adsFree = false, onGoAdFr
     return () => { cancelled = true; clearInterval(interval); _listeners.delete(load) }
   }, [placement, adsFree]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Rotate through multiple ads every 10 seconds when more than one is available
+  // Rotate through ads every 10 seconds when more than one is available.
+  // Advance by `count` so the next rotation shows a fresh pair/single.
   useEffect(() => {
     if (ads.length <= 1) return
     const rotateInterval = setInterval(() => {
-      setAdIndex(i => i + 1)
+      setAdIndex(i => i + count)
     }, 10000)
     return () => clearInterval(rotateInterval)
-  }, [ads.length])
+  }, [ads.length, count])
 
-  const ad = ads[adIndex % (ads.length || 1)]
+  const len = ads.length || 1
+  const ad = ads[adIndex % len]
+  const ad2 = count >= 2 && ads.length >= 2 ? ads[(adIndex + 1) % len] : null
 
   useEffect(() => {
-    if (!ad || impressedRef.current.has(ad.id)) return
-    impressedRef.current.add(ad.id)
-    apiRecordAdImpression(ad.id).catch(() => {})
-  }, [ad])
+    if (ad && !impressedRef.current.has(ad.id)) {
+      impressedRef.current.add(ad.id)
+      apiRecordAdImpression(ad.id).catch(() => {})
+    }
+    if (ad2 && !impressedRef.current.has(ad2.id)) {
+      impressedRef.current.add(ad2.id)
+      apiRecordAdImpression(ad2.id).catch(() => {})
+    }
+  }, [ad, ad2])
 
   if (adsFree || !ad) return null
 
-  const handleClick = () => {
-    apiRecordAdClick(ad.id).catch(() => {})
-    if (ad.target_url) window.open(ad.target_url, '_blank', 'noopener,noreferrer')
+  const handleClick = (a) => {
+    apiRecordAdClick(a.id).catch(() => {})
+    if (a.target_url) window.open(a.target_url, '_blank', 'noopener,noreferrer')
   }
 
   if (placement === 'feed') {
-    return (
+    const FeedCard = ({ a, showAdFreeBtn }) => (
       <div
         style={{
           background: '#f9f6f2',
           border: '1px solid #e8e4df',
           borderRadius: 12,
           padding: '12px 16px',
-          margin: '8px 0',
           cursor: 'pointer',
           position: 'relative',
+          flex: 1,
+          minWidth: 0,
         }}
-        onClick={handleClick}
+        onClick={() => handleClick(a)}
         role="button"
         tabIndex={0}
-        onKeyDown={e => e.key === 'Enter' && handleClick()}
+        onKeyDown={e => e.key === 'Enter' && handleClick(a)}
       >
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-          {ad.image_url && (
+          {a.image_url && (
             <img
-              src={ad.image_url}
+              src={a.image_url}
               alt=""
-              style={{ width: 80, height: 60, objectFit: 'cover', borderRadius: 8, flexShrink: 0 }}
+              style={{ width: 64, height: 50, objectFit: 'cover', borderRadius: 8, flexShrink: 0 }}
             />
           )}
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 3 }}>{ad.title}</div>
-            {ad.body && <div style={{ fontSize: 13, color: '#555', lineHeight: 1.5 }}>{ad.body}</div>}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.title}</div>
+            {a.body && <div style={{ fontSize: 12, color: '#555', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{a.body}</div>}
           </div>
         </div>
-        <div style={{ position: 'absolute', top: 8, right: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ position: 'absolute', top: 6, right: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: 10, color: '#aaa', fontWeight: 600, letterSpacing: 0.5 }}>Sponsoreret</span>
-          {onGoAdFree && (
+          {showAdFreeBtn && onGoAdFree && (
             <button
               onClick={e => { e.stopPropagation(); onGoAdFree() }}
               title={lang === 'da' ? 'Fjern annoncer' : 'Remove ads'}
@@ -138,6 +147,21 @@ export default function AdBanner({ placement = 'feed', adsFree = false, onGoAdFr
             </button>
           )}
         </div>
+      </div>
+    )
+
+    if (ad2) {
+      return (
+        <div style={{ display: 'flex', gap: 8, margin: '8px 0' }}>
+          <FeedCard a={ad} showAdFreeBtn={true} />
+          <FeedCard a={ad2} showAdFreeBtn={false} />
+        </div>
+      )
+    }
+
+    return (
+      <div style={{ margin: '8px 0' }}>
+        <FeedCard a={ad} showAdFreeBtn={true} />
       </div>
     )
   }
@@ -153,10 +177,10 @@ export default function AdBanner({ placement = 'feed', adsFree = false, onGoAdFr
           cursor: 'pointer',
           fontSize: 13,
         }}
-        onClick={handleClick}
+        onClick={() => handleClick(ad)}
         role="button"
         tabIndex={0}
-        onKeyDown={e => e.key === 'Enter' && handleClick()}
+        onKeyDown={e => e.key === 'Enter' && handleClick(ad)}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
           <span style={{ fontSize: 10, color: '#aaa', fontWeight: 600 }}>SPONSORERET</span>
@@ -188,10 +212,10 @@ export default function AdBanner({ placement = 'feed', adsFree = false, onGoAdFr
         position: 'relative',
         overflow: 'hidden',
       }}
-      onClick={handleClick}
+      onClick={() => handleClick(ad)}
       role="button"
       tabIndex={0}
-      onKeyDown={e => e.key === 'Enter' && handleClick()}
+      onKeyDown={e => e.key === 'Enter' && handleClick(ad)}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
         <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, opacity: 0.7 }}>SPONSORERET</span>

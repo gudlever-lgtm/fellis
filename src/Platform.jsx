@@ -3284,7 +3284,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         const pi = postIdx++
         return (
           <Fragment key={post.id}>
-            {(pi === 1 || (pi > 1 && pi % 4 === 0)) && <AdBanner placement="feed" adsFree={adsFree} lang={lang} onGoAdFree={adsFree ? null : () => onNavigate('settings', 'billing')} />}
+            {(pi === 1 || (pi > 1 && pi % 4 === 0)) && <AdBanner placement="feed" count={2} adsFree={adsFree} lang={lang} onGoAdFree={adsFree ? null : () => onNavigate('settings', 'billing')} />}
             {pi >= SUGGEST_EVERY && pi % SUGGEST_EVERY === 0 && (() => {
               const sp = suggestedPosts[Math.floor(pi / SUGGEST_EVERY) - 1]
               return sp ? <SuggestedPostCard key={`sug-${sp.id}`} post={sp} lang={lang} onViewProfile={onViewProfile} /> : null
@@ -3764,7 +3764,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       })()}
 
       {/* Ad banner — always shown after posts list */}
-      <AdBanner placement="feed" adsFree={adsFree} lang={lang} onGoAdFree={adsFree ? null : () => onNavigate('settings', 'billing')} />
+      <AdBanner placement="feed" count={2} adsFree={adsFree} lang={lang} onGoAdFree={adsFree ? null : () => onNavigate('settings', 'billing')} />
 
       {/* Bottom sentinel — triggers loading next page (infinite scroll) */}
       {hasMore && (
