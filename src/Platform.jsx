@@ -1147,21 +1147,26 @@ function CameraModal({ lang, onCapture, onClose }) {
     errorText: { color: '#fff', textAlign: 'center', maxWidth: 360 },
   }
 
+  // onMouseDown preventDefault on all buttons keeps textarea focus intact,
+  // preventing the post composer from collapsing (and unmounting this modal)
+  // before the click handler fires.
+  const noBlur = e => e.preventDefault()
+
   return (
-    <div style={s.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
+    <div style={s.overlay} onMouseDown={noBlur} onClick={e => e.target === e.currentTarget && onClose()}>
       {error ? (
         <div style={s.errorText}>
           <div style={{ fontSize: 17, marginBottom: 10 }}>{lang === 'da' ? 'Kamera ikke tilgængeligt' : 'Camera not available'}</div>
           <div style={{ fontSize: 13, opacity: 0.65, marginBottom: 20 }}>{error}</div>
-          <button onClick={onClose} style={s.btnCancel}>{lang === 'da' ? 'Luk' : 'Close'}</button>
+          <button onMouseDown={noBlur} onClick={onClose} style={s.btnCancel}>{lang === 'da' ? 'Luk' : 'Close'}</button>
         </div>
       ) : (
         <>
           <video ref={videoRef} autoPlay playsInline muted style={s.video} />
           <div style={s.row}>
-            <button onClick={onClose} style={s.btnCancel}>{lang === 'da' ? 'Annuller' : 'Cancel'}</button>
-            <button onClick={flipCamera} style={s.btnFlip} title={lang === 'da' ? 'Skift kamera' : 'Flip camera'}>🔄</button>
-            <button onClick={capture} disabled={!ready} style={s.btnCapture}>
+            <button onMouseDown={noBlur} onClick={onClose} style={s.btnCancel}>{lang === 'da' ? 'Annuller' : 'Cancel'}</button>
+            <button onMouseDown={noBlur} onClick={flipCamera} style={s.btnFlip} title={lang === 'da' ? 'Skift kamera' : 'Flip camera'}>🔄</button>
+            <button onMouseDown={noBlur} onClick={capture} disabled={!ready} style={s.btnCapture}>
               {lang === 'da' ? 'Tag billede' : 'Take photo'}
             </button>
           </div>
