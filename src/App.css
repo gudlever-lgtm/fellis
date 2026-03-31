@@ -1110,7 +1110,7 @@
 
 /* Feed page: two-column layout with sidebar */
 .p-content-feed {
-  max-width: 1140px;
+  max-width: 1060px;
   display: flex;
   align-items: flex-start;
   gap: 24px;
