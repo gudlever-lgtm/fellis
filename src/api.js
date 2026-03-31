@@ -658,6 +658,10 @@ export async function apiGetLivestreamSettings() {
   return await request('/api/admin/livestream/settings')
 }
 
+export async function apiGetLivestreamStats() {
+  return await request('/api/admin/livestream/stats')
+}
+
 export async function apiSaveLivestreamSettings(data) {
   return await request('/api/admin/livestream/settings', {
     method: 'POST',
