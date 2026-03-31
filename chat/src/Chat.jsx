@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   apiGetConversations, apiGetMessages, apiSendMessage,
   apiUploadFile, apiRenameConversation, apiAddParticipants, apiSearchUsers,
+  apiLeaveConversation, apiMuteConversation,
 } from './api.js'
 import { t } from './data.js'
 
@@ -270,6 +271,36 @@ function AddPeopleModal({ lang, onAdd, onClose }) {
   )
 }
 
+// ── Members modal ─────────────────────────────────────────────────────────────
+function MembersModal({ lang, participants, onClose }) {
+  const s = {
+    overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 },
+    box: { background: '#fff', borderRadius: 12, padding: 24, width: '100%', maxWidth: 320, boxShadow: '0 4px 24px rgba(0,0,0,0.14)', maxHeight: '70vh', display: 'flex', flexDirection: 'column' },
+    title: { fontWeight: 700, fontSize: 16, marginBottom: 14, flexShrink: 0 },
+    list: { flex: 1, overflowY: 'auto' },
+    item: { display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid #f4f4f4' },
+    avatar: (name) => ({ width: 34, height: 34, borderRadius: '50%', background: strColor(name), display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 13, flexShrink: 0 }),
+    name: { fontSize: 14, fontWeight: 500 },
+    closeBtn: { marginTop: 16, padding: '9px 0', width: '100%', borderRadius: 8, border: '1.5px solid #ddd', background: '#fff', cursor: 'pointer', fontSize: 14, flexShrink: 0 },
+  }
+  return (
+    <div style={s.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={s.box}>
+        <div style={s.title}>{t(lang, 'members')} ({participants?.length ?? 0})</div>
+        <div style={s.list}>
+          {(participants || []).map(p => (
+            <div key={p.id} style={s.item}>
+              <div style={s.avatar(p.name)}>{initials(p.name)}</div>
+              <span style={s.name}>{p.name}</span>
+            </div>
+          ))}
+        </div>
+        <button style={s.closeBtn} onClick={onClose}>{t(lang, 'cancel')}</button>
+      </div>
+    </div>
+  )
+}
+
 // ── helpers ───────────────────────────────────────────────────────────────────
 function initials(name = '') {
   return name.split(' ').slice(0, 2).map(w => w[0]?.toUpperCase()).join('')
@@ -305,7 +336,7 @@ export default function Chat({ lang, user, onLogout }) {
   const [sendError, setSendError] = useState('')
   const [media, setMedia] = useState([]) // [{url, type, mime, preview}]
   const [uploading, setUploading] = useState(false)
-  const [modal, setModal] = useState(null) // null | 'rename' | 'addPeople'
+  const [modal, setModal] = useState(null) // null | 'rename' | 'addPeople' | 'members'
   const messagesEndRef = useRef(null)
   const pollRef = useRef(null)
   const isMobile = useIsMobile()
@@ -409,6 +440,28 @@ export default function Chat({ lang, user, onLogout }) {
     return res
   }
 
+  async function handleLeave() {
+    const conv = selectedConv
+    if (!conv) return
+    const confirmKey = conv.isGroup ? 'leaveConfirm' : 'deleteConfirm'
+    if (!window.confirm(t(lang, confirmKey))) return
+    await apiLeaveConversation(selectedId)
+    setSelectedId(null)
+    await loadConversations()
+  }
+
+  async function handleMute() {
+    const conv = selectedConv
+    if (!conv) return
+    const isMuted = conv.mutedUntil && new Date(conv.mutedUntil) > new Date()
+    // unmute = null, mute = 525600 minutes (1 year ≈ indefinite)
+    const res = await apiMuteConversation(conv.id, isMuted ? null : 525600)
+    if (res && !res.error) {
+      setConversations(prev => prev.map(c =>
+        c.id === conv.id ? { ...c, mutedUntil: isMuted ? null : res.mutedUntil } : c))
+    }
+  }
+
   const selectedConv = conversations.find(c => c.id === selectedId)
   const myName = user?.name || ''
 
@@ -504,11 +557,26 @@ export default function Chat({ lang, user, onLogout }) {
                   <>
                     <div style={{ position: 'fixed', inset: 0, zIndex: 99 }} onClick={() => setMenuOpen(false)} />
                     <div style={s.menuDropdown}>
-                      <button style={s.menuItem} onClick={() => { setModal('rename'); setMenuOpen(false) }}>
-                        ✏️ {t(lang, 'rename')}
-                      </button>
+                      {selectedConv?.isGroup && (
+                        <button style={s.menuItem} onClick={() => { setModal('members'); setMenuOpen(false) }}>
+                          👥 {t(lang, 'viewMembers')}
+                        </button>
+                      )}
                       <button style={s.menuItem} onClick={() => { setModal('addPeople'); setMenuOpen(false) }}>
-                        👤 {t(lang, 'addPeople')}
+                        👤+ {t(lang, 'addPeople')}
+                      </button>
+                      {selectedConv?.isGroup && (
+                        <button style={s.menuItem} onClick={() => { setModal('rename'); setMenuOpen(false) }}>
+                          ✏️ {t(lang, 'rename')}
+                        </button>
+                      )}
+                      <button style={s.menuItem} onClick={() => { handleMute(); setMenuOpen(false) }}>
+                        🔔 {selectedConv?.mutedUntil && new Date(selectedConv.mutedUntil) > new Date()
+                          ? t(lang, 'unmuteNotifications')
+                          : t(lang, 'muteNotifications')}
+                      </button>
+                      <button style={{ ...s.menuItem, color: '#d32f2f' }} onClick={() => { handleLeave(); setMenuOpen(false) }}>
+                        🚪 {selectedConv?.isGroup ? t(lang, 'leaveGroup') : t(lang, 'deleteChat')}
                       </button>
                     </div>
                   </>
@@ -581,6 +649,11 @@ export default function Chat({ lang, user, onLogout }) {
         </div>
       </div>
 
+      {modal === 'members' && (
+        <MembersModal lang={lang}
+          participants={selectedConv?.participants}
+          onClose={() => setModal(null)} />
+      )}
       {modal === 'rename' && (
         <RenameModal lang={lang}
           currentName={selectedConv?.groupName || selectedConv?.name || ''}
