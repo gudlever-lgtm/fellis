@@ -414,6 +414,17 @@ function ReelCard({ reel, t, currentUser, onDelete, onViewProfile }) {
             </div>
           </div>
         )}
+        {reel.source === 'live' && (
+          <div style={{
+            position: 'absolute', top: 12, left: isOwn ? 56 : 12, zIndex: 4,
+            background: '#e03131', color: '#fff',
+            fontSize: 11, fontWeight: 800, letterSpacing: '0.08em',
+            padding: '3px 8px', borderRadius: 4,
+            boxShadow: '0 1px 6px rgba(0,0,0,0.4)',
+          }}>
+            {t.reelsLiveBadge}
+          </div>
+        )}
         {isOwn && (
           <button style={s.deleteBtn} onClick={handleDelete} title={t.reelsDelete}>
             🗑️
