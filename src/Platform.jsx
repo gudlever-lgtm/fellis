@@ -2705,10 +2705,20 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         ) : (
           /* Expanded composer */
           <>
-            <div className="p-new-post-row">
+            <div className="p-new-post-row" style={{ position: 'relative' }}>
               <div className="p-avatar-sm" style={{ background: nameToColor(currentUser.name) }}>
                 {currentUser.initials || getInitials(currentUser.name)}
               </div>
+              <button
+                onClick={() => setPostExpanded(false)}
+                title={lang === 'da' ? 'Luk' : 'Close'}
+                style={{
+                  position: 'absolute', top: 0, right: 0,
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  fontSize: 18, color: '#aaa', lineHeight: 1,
+                  padding: '2px 4px', borderRadius: 4,
+                }}
+              >✕</button>
               <div style={{ position: 'relative', flex: 1 }}>
                 {feedMention.query !== null && (
                   <MentionDropdown
