@@ -52,6 +52,7 @@ import pool from './db.js'
 import { sendSms } from './sms.js'
 import { BADGES, BADGE_BY_ID, PLATFORM_LAUNCH_DATE, BADGE_AD_FREE_DAYS } from '../src/badges/badgeDefinitions.js'
 import { evaluateBadges } from '../src/badges/badgeEngine.js'
+import { createReelFromLivestream, LIVESTREAM_DEFAULTS } from './livestream.js'
 
 // MySQL 8.x compatible ADD COLUMN helper — ignores duplicate column error (errno 1060)
 // SECURITY: Validates table and column names to prevent SQL injection
@@ -59,7 +60,7 @@ async function addCol(table, col, def) {
   // Whitelist table names used in migrations
   const VALID_TABLES = ['users', 'posts', 'comments', 'friendships', 'companies',
     'admin_ad_settings', 'admin_settings', 'reels', 'marketplace_listings', 'jobs',
-    'shared_jobs', 'earned_badges', 'user_badges', 'badge_config']
+    'shared_jobs', 'earned_badges', 'user_badges', 'badge_config', 'livestreams']
 
   // Validate table name
   if (!VALID_TABLES.includes(table)) {
@@ -7484,6 +7485,15 @@ async function initAdminSettings() {
       "INSERT IGNORE INTO admin_settings (key_name, key_value) VALUES ('easter_egg_config', ?)",
       [JSON.stringify(defaultEggCfg)]
     )
+    // Seed default livestream limits
+    await pool.query(
+      "INSERT IGNORE INTO admin_settings (key_name, key_value) VALUES ('reel_max_duration_seconds', ?)",
+      [String(LIVESTREAM_DEFAULTS.reel_max_duration_seconds)]
+    )
+    await pool.query(
+      "INSERT IGNORE INTO admin_settings (key_name, key_value) VALUES ('streaming_max_duration_seconds', ?)",
+      [String(LIVESTREAM_DEFAULTS.streaming_max_duration_seconds)]
+    )
   } catch (err) {
     console.error('initAdminSettings error:', err.message)
   }
@@ -8695,6 +8705,24 @@ async function initReels() {
       INDEX idx_created_at (created_at),
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+    // Live-reel columns (added by migrate-livereel-settings.sql; addCol here as safety net)
+    await pool.query(`ALTER TABLE reels
+      ADD COLUMN IF NOT EXISTS source   ENUM('upload','live') NOT NULL DEFAULT 'upload',
+      ADD COLUMN IF NOT EXISTS title_da VARCHAR(500) DEFAULT NULL,
+      ADD COLUMN IF NOT EXISTS title_en VARCHAR(500) DEFAULT NULL`).catch(() => {})
+    // Livestreams table for tracking live recordings
+    await pool.query(`CREATE TABLE IF NOT EXISTS livestreams (
+      id             INT          NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      user_id        INT          NOT NULL,
+      started_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      ended_at       TIMESTAMP    NULL     DEFAULT NULL,
+      recording_path VARCHAR(500) DEFAULT NULL,
+      reel_file_url  VARCHAR(500) DEFAULT NULL,
+      status         ENUM('live','ended','archived') NOT NULL DEFAULT 'live',
+      INDEX idx_ls_user_id    (user_id),
+      INDEX idx_ls_started_at (started_at),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`).catch(() => {})
     await pool.query(`CREATE TABLE IF NOT EXISTS reel_likes (
       reel_id INT NOT NULL,
       user_id INT NOT NULL,
@@ -8725,6 +8753,7 @@ app.get('/api/reels', authenticate, async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit) || 10, 50)
     const [rows] = await pool.query(
       `SELECT r.id, r.video_url, r.caption, r.views_count, r.created_at, r.tagged_users,
+              COALESCE(r.source, 'upload') AS source, r.title_da, r.title_en,
               u.id AS user_id, u.name AS author_name, u.handle AS author_handle, u.avatar_url AS author_avatar,
               COUNT(DISTINCT rl.user_id) AS likes_count,
               EXISTS(SELECT 1 FROM reel_likes WHERE reel_id = r.id AND user_id = ?) AS liked_by_me,
@@ -12087,6 +12116,52 @@ app.get('/api/me/interest-graph/signal-stats', authenticate, async (req, res) =>
     `, [req.userId])
     res.json({ stats })
   } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Livestream admin settings ─────────────────────────────────────────────────
+
+// GET /api/admin/livestream/settings — get streaming + reel duration limits
+app.get('/api/admin/livestream/settings', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      "SELECT key_name, key_value FROM admin_settings WHERE key_name IN ('streaming_max_duration_seconds','reel_max_duration_seconds')"
+    )
+    const settings = {
+      streaming_max_duration_seconds: LIVESTREAM_DEFAULTS.streaming_max_duration_seconds,
+      reel_max_duration_seconds: LIVESTREAM_DEFAULTS.reel_max_duration_seconds,
+    }
+    for (const row of rows) {
+      const v = parseInt(row.key_value, 10)
+      if (Number.isFinite(v) && v > 0) settings[row.key_name] = v
+    }
+    res.json({ settings })
+  } catch (err) {
+    console.error('GET /api/admin/livestream/settings error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/admin/livestream/settings — update streaming + reel duration limits
+app.post('/api/admin/livestream/settings', authenticate, requireAdmin, async (req, res) => {
+  const { streaming_max_duration_seconds, reel_max_duration_seconds } = req.body
+  const toSave = []
+  const streamSecs = parseInt(streaming_max_duration_seconds, 10)
+  const reelSecs   = parseInt(reel_max_duration_seconds, 10)
+  if (Number.isFinite(streamSecs) && streamSecs > 0) toSave.push(['streaming_max_duration_seconds', String(streamSecs)])
+  if (Number.isFinite(reelSecs)   && reelSecs   > 0) toSave.push(['reel_max_duration_seconds',      String(reelSecs)])
+  if (toSave.length === 0) return res.status(400).json({ error: 'No valid settings provided' })
+  try {
+    for (const [key, value] of toSave) {
+      await pool.query(
+        'INSERT INTO admin_settings (key_name, key_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE key_value = VALUES(key_value)',
+        [key, value]
+      )
+    }
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/admin/livestream/settings error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })

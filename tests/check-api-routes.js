@@ -89,7 +89,6 @@ console.log(`Client calls found   : ${clientCalls.length}`)
 
 if (errors.length === 0) {
   console.log(`\n${GREEN}✓ All ${clientCalls.length} client API calls have matching server routes.${RESET}\n`)
-  process.exit(0)
 } else {
   console.log(`\n${RED}✗ ${errors.length} client API call(s) have NO matching server route:${RESET}\n`)
   for (const e of errors) {
@@ -98,3 +97,35 @@ if (errors.length === 0) {
   console.log()
   process.exit(1)
 }
+
+// ── 6. Livestream / live-reel endpoint declarations ───────────────────────────
+//
+// The following routes MUST exist on the server and return the listed status
+// codes when hit at runtime (admin-auth required → 200 authenticated, 401 not).
+//
+//   GET  /api/admin/livestream/settings  → 200 (admin) | 401 (unauthenticated) — never 404/500
+//   POST /api/admin/livestream/settings  → 200 (admin) | 401 (unauthenticated) — never 404/500
+//   GET  /api/reels                      → 200 (authenticated)                  — never 404/500
+//
+// Verify these are present in the server route set:
+const REQUIRED_LIVESTREAM_ROUTES = [
+  'GET /api/admin/livestream/settings',
+  'POST /api/admin/livestream/settings',
+  'GET /api/reels',
+]
+
+const missingLsRoutes = REQUIRED_LIVESTREAM_ROUTES.filter(r => {
+  const [method, p] = r.split(' ')
+  return !normServerRoutes.has(`${method} ${normaliseServerPath(p)}`)
+})
+
+if (missingLsRoutes.length > 0) {
+  console.log(`${RED}✗ Missing required livestream/reel server routes:${RESET}`)
+  for (const r of missingLsRoutes) console.log(`  ${RED}${r}${RESET}`)
+  console.log()
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ All required livestream/reel routes are registered on the server.${RESET}\n`)
+}
+
+process.exit(0)
