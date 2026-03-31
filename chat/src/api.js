@@ -12,6 +12,11 @@ function headers() {
   }
 }
 
+function formHeaders() {
+  const sid = getSessionId()
+  return sid ? { 'X-Session-Id': sid } : {}
+}
+
 async function request(path, options = {}) {
   try {
     const res = await fetch(`${BASE}${path}`, {
@@ -52,12 +57,54 @@ export async function apiGetMessages(conversationId) {
   return request(`/conversations/${conversationId}/messages`)
 }
 
-export async function apiSendMessage(conversationId, text, lang = 'da') {
-  const body = lang === 'en'
-    ? { text_en: text, text_da: text }
-    : { text_da: text, text_en: text }
+export async function apiSendMessage(conversationId, text, media, lang = 'da') {
+  const body = {}
+  if (text) {
+    if (lang === 'en') { body.text_en = text; body.text_da = text }
+    else { body.text_da = text; body.text_en = text }
+    body.text = text
+  }
+  if (media?.length) body.media = media
   return request(`/conversations/${conversationId}/messages`, {
     method: 'POST',
     body: JSON.stringify(body),
   })
+}
+
+export async function apiUploadFile(file) {
+  const form = new FormData()
+  form.append('file', file)
+  form.append('type', 'message')
+  try {
+    const res = await fetch(`${BASE}/upload/file`, {
+      method: 'POST',
+      headers: formHeaders(),
+      credentials: 'include',
+      body: form,
+    })
+    if (!res.ok) return null
+    return await res.json()
+  } catch { return null }
+}
+
+export async function apiRenameConversation(conversationId, name) {
+  return request(`/conversations/${conversationId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ name }),
+  })
+}
+
+export async function apiAddParticipants(conversationId, userIds) {
+  return request(`/conversations/${conversationId}/invite`, {
+    method: 'POST',
+    body: JSON.stringify({ userIds }),
+  })
+}
+
+export async function apiSearchUsers(q) {
+  return request(`/users/search?q=${encodeURIComponent(q)}`)
+}
+
+export async function apiFetchFriends() {
+  return request('/friends')
 }

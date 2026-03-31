@@ -31,6 +31,33 @@ export const PT = {
     errorLoadConversations: 'Kunne ikke indlæse samtaler.',
     errorLoadMessages: 'Kunne ikke indlæse beskeder.',
     retry: 'Prøv igen',
+    unknown: 'Ukendt',
+    // Media
+    addMedia: 'Tilføj medie',
+    gallery: 'Galleri',
+    camera: 'Kamera',
+    uploading: 'Uploader...',
+    pasteHint: 'Du kan også indsætte billeder med Ctrl+V',
+    cameraNotAvailable: 'Kamera ikke tilgængeligt',
+    close: 'Luk',
+    capture: 'Tag billede',
+    flipCamera: 'Skift kamera',
+    // Rename
+    renameConversation: 'Omdøb samtale',
+    rename: 'Omdøb',
+    newName: 'Nyt navn',
+    // Add people
+    addPeople: 'Tilføj personer',
+    searchUsers: 'Søg efter brugere...',
+    add: 'Tilføj',
+    adding: 'Tilføjer...',
+    addError: 'Kunne ikke tilføje personen.',
+    noUsersFound: 'Ingen brugere fundet.',
+    // Options menu
+    options: 'Indstillinger',
+    cancel: 'Annuller',
+    save: 'Gem',
+    saving: 'Gemmer...',
   },
   en: {
     appName: 'fellis chat',
@@ -63,6 +90,33 @@ export const PT = {
     errorLoadConversations: 'Could not load conversations.',
     errorLoadMessages: 'Could not load messages.',
     retry: 'Try again',
+    unknown: 'Unknown',
+    // Media
+    addMedia: 'Add media',
+    gallery: 'Gallery',
+    camera: 'Camera',
+    uploading: 'Uploading...',
+    pasteHint: 'You can also paste images with Ctrl+V',
+    cameraNotAvailable: 'Camera not available',
+    close: 'Close',
+    capture: 'Take photo',
+    flipCamera: 'Flip camera',
+    // Rename
+    renameConversation: 'Rename conversation',
+    rename: 'Rename',
+    newName: 'New name',
+    // Add people
+    addPeople: 'Add people',
+    searchUsers: 'Search users...',
+    add: 'Add',
+    adding: 'Adding...',
+    addError: 'Could not add person.',
+    noUsersFound: 'No users found.',
+    // Options menu
+    options: 'Options',
+    cancel: 'Cancel',
+    save: 'Save',
+    saving: 'Saving...',
   },
 }
 
