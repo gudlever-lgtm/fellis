@@ -641,6 +641,7 @@ function setSessionCookie(res, sessionId) {
     path: '/',
     maxAge: COOKIE_MAX_AGE,
     secure: process.env.NODE_ENV === 'production',
+    domain: process.env.NODE_ENV === 'production' ? '.fellis.eu' : undefined,
   })
 }
 
@@ -650,6 +651,7 @@ function clearSessionCookie(res) {
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
+    domain: process.env.NODE_ENV === 'production' ? '.fellis.eu' : undefined,
   })
 }
 
@@ -4077,6 +4079,26 @@ app.get('/api/conversations', authenticate, async (req, res) => {
   } catch (err) {
     console.error('GET /api/conversations error:', err)
     res.status(500).json({ error: 'Failed to load conversations' })
+  }
+})
+
+// GET /api/conversations/:id/messages — recent messages for a conversation
+app.get('/api/conversations/:id/messages', authenticate, async (req, res) => {
+  const convId = parseInt(req.params.id)
+  try {
+    const [check] = await pool.query(
+      'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, req.userId])
+    if (!check.length) return res.status(403).json({ error: 'Not a participant' })
+    const [msgs] = await pool.query(
+      `SELECT u.name as from_name, m.text_da, m.text_en, m.time, m.created_at
+       FROM messages m JOIN users u ON m.sender_id = u.id
+       WHERE m.conversation_id = ? ORDER BY m.created_at DESC LIMIT 50`,
+      [convId])
+    msgs.reverse()
+    res.json({ messages: msgs.map(m => ({ from: m.from_name, text: { da: m.text_da, en: m.text_en }, time: m.created_at ? formatMsgTime(m.created_at) : m.time })) })
+  } catch (err) {
+    console.error('GET /api/conversations/:id/messages error:', err)
+    res.status(500).json({ error: 'Failed to load messages' })
   }
 })
 
