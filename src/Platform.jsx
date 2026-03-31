@@ -2710,10 +2710,10 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                 {currentUser.initials || getInitials(currentUser.name)}
               </div>
               <button
-                onClick={() => setPostExpanded(false)}
+                onMouseDown={e => { e.preventDefault(); setPostExpanded(false) }}
                 title={lang === 'da' ? 'Luk' : 'Close'}
                 style={{
-                  position: 'absolute', top: 0, right: 0,
+                  position: 'absolute', top: 0, right: 0, zIndex: 2,
                   background: 'none', border: 'none', cursor: 'pointer',
                   fontSize: 18, color: '#aaa', lineHeight: 1,
                   padding: '2px 4px', borderRadius: 4,
