@@ -322,10 +322,12 @@ export async function apiMarkConversationRead(conversationId) {
   return await request(`/api/conversations/${conversationId}/read`, { method: 'POST' })
 }
 
-export async function apiSendConversationMessage(conversationId, text) {
+export async function apiSendConversationMessage(conversationId, text, media = null) {
+  const body = { text }
+  if (media?.length) body.media = media
   return await request(`/api/conversations/${conversationId}/messages`, {
     method: 'POST',
-    body: JSON.stringify({ text }),
+    body: JSON.stringify(body),
   })
 }
 
