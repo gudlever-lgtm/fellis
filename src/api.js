@@ -1560,3 +1560,17 @@ export async function apiUnfollowBusiness(id) {
 export async function apiGetBusinessProfile(handle) {
   return await request(`/api/businesses/${encodeURIComponent(handle)}`)
 }
+
+// ── mediamtx / RTMP streaming ─────────────────────────────────────────────────
+
+export async function apiGetStreamKey() {
+  return await request('/api/stream/key')
+}
+
+export async function apiRegenerateStreamKey() {
+  return await request('/api/stream/key/regenerate', { method: 'POST' })
+}
+
+export async function apiGetActiveStreams() {
+  return await request('/api/stream/active')
+}
