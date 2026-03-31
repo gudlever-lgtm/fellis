@@ -921,6 +921,8 @@ addCol('conversations', 'description_da', 'TEXT DEFAULT NULL')
   .catch(err => console.error('Migration (conversations.description_da):', err.message))
 addCol('conversations', 'description_en', 'TEXT DEFAULT NULL')
   .catch(err => console.error('Migration (conversations.description_en):', err.message))
+addCol('messages', 'media', 'JSON DEFAULT NULL')
+  .catch(err => console.error('Migration (messages.media):', err.message))
 
 // Platform ads table
 pool.query(`CREATE TABLE IF NOT EXISTS platform_ads (
@@ -4017,7 +4019,7 @@ async function getConversationForUser(convId, userId, myName) {
   ).catch(() => [[]])
   const adminMuteMap = Object.fromEntries(adminMutes.map(r => [r.user_id, r.admin_muted_until ?? null]))
   const [msgs] = await pool.query(
-    `SELECT m.id, u.name as from_name, m.text_da, m.text_en, m.time, m.is_read, m.created_at
+    `SELECT m.id, u.name as from_name, m.text_da, m.text_en, m.time, m.is_read, m.created_at, m.media
      FROM messages m JOIN users u ON m.sender_id = u.id
      WHERE m.conversation_id = ? ORDER BY m.created_at DESC LIMIT 20`, [convId])
   msgs.reverse()
@@ -4054,6 +4056,7 @@ async function getConversationForUser(convId, userId, myName) {
       text: { da: m.text_da, en: m.text_en },
       time: m.created_at ? formatMsgTime(m.created_at) : m.time,
       createdAtRaw: m.created_at,
+      media: (() => { try { return m.media ? JSON.parse(m.media) : null } catch { return null } })(),
     })),
     totalMessages: total,
     unread,
@@ -4090,12 +4093,17 @@ app.get('/api/conversations/:id/messages', authenticate, async (req, res) => {
       'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, req.userId])
     if (!check.length) return res.status(403).json({ error: 'Not a participant' })
     const [msgs] = await pool.query(
-      `SELECT u.name as from_name, m.text_da, m.text_en, m.time, m.created_at
+      `SELECT u.name as from_name, m.text_da, m.text_en, m.time, m.created_at, m.media
        FROM messages m JOIN users u ON m.sender_id = u.id
        WHERE m.conversation_id = ? ORDER BY m.created_at DESC LIMIT 50`,
       [convId])
     msgs.reverse()
-    res.json({ messages: msgs.map(m => ({ from: m.from_name, text: { da: m.text_da, en: m.text_en }, time: m.created_at ? formatMsgTime(m.created_at) : m.time })) })
+    res.json({ messages: msgs.map(m => ({
+      from: m.from_name,
+      text: { da: m.text_da, en: m.text_en },
+      time: m.created_at ? formatMsgTime(m.created_at) : m.time,
+      media: (() => { try { return m.media ? JSON.parse(m.media) : null } catch { return null } })(),
+    })) })
   } catch (err) {
     console.error('GET /api/conversations/:id/messages error:', err)
     res.status(500).json({ error: 'Failed to load messages' })
@@ -4178,8 +4186,8 @@ app.get('/api/sse', authenticate, (req, res) => {
 // POST /api/conversations/:id/messages — send a message
 app.post('/api/conversations/:id/messages', authenticate, writeLimit, async (req, res) => {
   const convId = parseInt(req.params.id)
-  const { text } = req.body
-  if (!text) return res.status(400).json({ error: 'Message text required' })
+  const { text, media } = req.body
+  if (!text && !media?.length) return res.status(400).json({ error: 'Message text or media required' })
   try {
     const [check] = await pool.query(
       'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, req.userId])
@@ -4195,11 +4203,12 @@ app.post('/api/conversations/:id/messages', authenticate, writeLimit, async (req
     const [participants] = await pool.query(
       'SELECT user_id FROM conversation_participants WHERE conversation_id = ?', [convId])
     const receiverId = participants.find(p => p.user_id !== req.userId)?.user_id ?? req.userId
+    const mediaJson = media?.length ? JSON.stringify(media) : null
     const [ins] = await pool.query(
-      'INSERT INTO messages (conversation_id, sender_id, receiver_id, text_da, text_en, time) VALUES (?, ?, ?, ?, ?, ?)',
-      [convId, req.userId, receiverId, text, text, time])
+      'INSERT INTO messages (conversation_id, sender_id, receiver_id, text_da, text_en, time, media) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [convId, req.userId, receiverId, text || '', text || '', time, mediaJson])
     const [[user]] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
-    const msg = { id: ins.insertId, from: user.name, text: { da: text, en: text }, time: formatMsgTime(now), createdAtRaw: now.toISOString() }
+    const msg = { id: ins.insertId, from: user.name, text: { da: text || '', en: text || '' }, media: media || null, time: formatMsgTime(now), createdAtRaw: now.toISOString() }
     // Push the new message to all other participants via SSE + create notification
     const [[conv]] = await pool.query('SELECT name, is_group FROM conversations WHERE id = ?', [convId]).catch(() => [[null]])
     for (const { user_id } of participants) {
