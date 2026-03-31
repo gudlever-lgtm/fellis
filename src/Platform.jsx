@@ -2,7 +2,8 @@ import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } f
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { SUPPORTED_LANGS, EUROPEAN_LANGUAGES, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials, getTranslations } from './data.js'
 import { formatPrice } from './utils/currency.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiRemoveConversationParticipant, apiMuteConversationParticipant, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiShareJob, apiUnshareJob, apiGetSharedJobs, apiGetJobSharedWith, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals, apiFetchCalendarReminders, apiCreateCalendarReminder, apiDeleteCalendarReminder, apiGetLinkedContent, apiFetchJobs, apiGetSuggestedUsers, apiAdminNotifyAll, apiLikeComment, apiAdminGetPlatformAds, apiAdminCreatePlatformAd, apiAdminUpdatePlatformAd, apiAdminDeletePlatformAd, apiAdminGetLockedUsers, apiAdminUnlockUser, apiFeedCompanyPosts, apiGetLivestreamSettings, apiSaveLivestreamSettings, apiGetLivestreamStats, apiGetLivestreamStatus } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiRemoveConversationParticipant, apiMuteConversationParticipant, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiShareJob, apiUnshareJob, apiGetSharedJobs, apiGetJobSharedWith, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals, apiFetchCalendarReminders, apiCreateCalendarReminder, apiDeleteCalendarReminder, apiGetLinkedContent, apiFetchJobs, apiGetSuggestedUsers, apiAdminNotifyAll, apiLikeComment, apiAdminGetPlatformAds, apiAdminCreatePlatformAd, apiAdminUpdatePlatformAd, apiAdminDeletePlatformAd, apiAdminGetLockedUsers, apiAdminUnlockUser, apiFeedCompanyPosts, apiGetLivestreamSettings, apiSaveLivestreamSettings, apiGetLivestreamStats, apiGetLivestreamStatus,
+  apiGetStreamKey, apiRegenerateStreamKey } from './api.js'
 import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
 import ReelsPage from './Reels.jsx'
@@ -6062,6 +6063,83 @@ function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenM
           {mfaSettingsSending && <div style={{ marginTop: 8, fontSize: 12, color: '#888' }}>{lang === 'da' ? 'Sender kode…' : 'Sending code…'}</div>}
         </div>
       )}
+
+      <StreamKeySettings lang={lang} t={t} />
+    </div>
+  )
+}
+
+function StreamKeySettings({ lang, t }) {
+  const [streamKey, setStreamKey] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [copied, setCopied] = useState(false)
+  const [regen, setRegen] = useState(false)
+
+  const s = {
+    section: { borderTop: '1px solid #eee', paddingTop: 20, marginTop: 20 },
+    title: { fontSize: 14, fontWeight: 700, color: '#333', marginBottom: 4 },
+    desc: { fontSize: 13, color: '#666', marginBottom: 14 },
+    label: { display: 'block', fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 4 },
+    row: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 },
+    keyBox: { flex: 1, fontFamily: 'monospace', fontSize: 13, padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', background: '#F8F8F8', color: '#222', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+    btn: { padding: '8px 14px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', cursor: 'pointer', fontSize: 13, whiteSpace: 'nowrap' },
+    regenBtn: { marginTop: 4, padding: '8px 14px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600 },
+  }
+
+  useEffect(() => {
+    apiGetStreamKey().then(data => {
+      if (data?.stream_key) setStreamKey(data.stream_key)
+      setLoading(false)
+    })
+  }, [])
+
+  const handleCopy = (text) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  const handleRegenerate = async () => {
+    if (!window.confirm(t.streamKeyRegenerateConfirm)) return
+    setRegen(true)
+    const data = await apiRegenerateStreamKey()
+    if (data?.stream_key) setStreamKey(data.stream_key)
+    setRegen(false)
+  }
+
+  const rtmpUrl = `rtmp://${window.location.hostname}/live/${streamKey || ''}`
+
+  return (
+    <div style={s.section}>
+      <div style={s.title}>📡 {t.streamKeyTitle}</div>
+      <div style={s.desc}>{t.streamKeyDesc}</div>
+
+      {loading ? (
+        <div style={{ fontSize: 13, color: '#888' }}>{t.streamKeyLoading}</div>
+      ) : !streamKey ? (
+        <div style={{ fontSize: 13, color: '#c0392b' }}>{t.streamKeyError}</div>
+      ) : (<>
+        <label style={s.label}>{t.streamKeyLabel}</label>
+        <div style={s.row}>
+          <div style={s.keyBox}>{streamKey}</div>
+          <button style={s.btn} onClick={() => handleCopy(streamKey)}>
+            {copied ? t.streamKeyCopied : t.streamKeyCopy}
+          </button>
+        </div>
+
+        <label style={s.label}>{t.streamKeyUrlLabel}</label>
+        <div style={s.row}>
+          <div style={s.keyBox}>{rtmpUrl}</div>
+          <button style={s.btn} onClick={() => handleCopy(rtmpUrl)}>
+            {t.streamKeyCopy}
+          </button>
+        </div>
+
+        <button style={{ ...s.regenBtn, opacity: regen ? 0.7 : 1 }} onClick={handleRegenerate} disabled={regen}>
+          {t.streamKeyRegenerate}
+        </button>
+      </>)}
     </div>
   )
 }
