@@ -7494,6 +7494,9 @@ async function initAdminSettings() {
       "INSERT IGNORE INTO admin_settings (key_name, key_value) VALUES ('streaming_max_duration_seconds', ?)",
       [String(LIVESTREAM_DEFAULTS.streaming_max_duration_seconds)]
     )
+    await pool.query(
+      "INSERT IGNORE INTO admin_settings (key_name, key_value) VALUES ('livestream_enabled', '0')"
+    )
   } catch (err) {
     console.error('initAdminSettings error:', err.message)
   }
@@ -12122,35 +12125,61 @@ app.get('/api/me/interest-graph/signal-stats', authenticate, async (req, res) =>
 
 // ── Livestream admin settings ─────────────────────────────────────────────────
 
-// GET /api/admin/livestream/settings — get streaming + reel duration limits
+// GET /api/livestream/status — public: is live streaming enabled on this platform?
+app.get('/api/livestream/status', async (req, res) => {
+  try {
+    const [[row]] = await pool.query(
+      "SELECT key_value FROM admin_settings WHERE key_name = 'livestream_enabled'"
+    )
+    res.json({ enabled: row?.key_value === '1' })
+  } catch {
+    res.json({ enabled: false })
+  }
+})
+
+// GET /api/admin/livestream/settings — get streaming + reel duration limits + enabled flag
 app.get('/api/admin/livestream/settings', authenticate, requireAdmin, async (req, res) => {
   try {
     const [rows] = await pool.query(
-      "SELECT key_name, key_value FROM admin_settings WHERE key_name IN ('streaming_max_duration_seconds','reel_max_duration_seconds')"
+      "SELECT key_name, key_value FROM admin_settings WHERE key_name IN ('streaming_max_duration_seconds','reel_max_duration_seconds','livestream_enabled')"
     )
     const settings = {
       streaming_max_duration_seconds: LIVESTREAM_DEFAULTS.streaming_max_duration_seconds,
       reel_max_duration_seconds: LIVESTREAM_DEFAULTS.reel_max_duration_seconds,
+      livestream_enabled: false,
     }
     for (const row of rows) {
-      const v = parseInt(row.key_value, 10)
-      if (Number.isFinite(v) && v > 0) settings[row.key_name] = v
+      if (row.key_name === 'livestream_enabled') {
+        settings.livestream_enabled = row.key_value === '1'
+      } else {
+        const v = parseInt(row.key_value, 10)
+        if (Number.isFinite(v) && v > 0) settings[row.key_name] = v
+      }
     }
-    res.json({ settings })
+    // Check whether ffmpeg is available on this server
+    let ffmpegAvailable = false
+    try {
+      await import('child_process').then(({ execFile }) =>
+        new Promise((resolve, reject) => execFile('ffmpeg', ['-version'], resolve))
+      )
+      ffmpegAvailable = true
+    } catch { ffmpegAvailable = false }
+    res.json({ settings, server: { ffmpeg: ffmpegAvailable } })
   } catch (err) {
     console.error('GET /api/admin/livestream/settings error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })
 
-// POST /api/admin/livestream/settings — update streaming + reel duration limits
+// POST /api/admin/livestream/settings — update streaming + reel duration limits + enabled flag
 app.post('/api/admin/livestream/settings', authenticate, requireAdmin, async (req, res) => {
-  const { streaming_max_duration_seconds, reel_max_duration_seconds } = req.body
+  const { streaming_max_duration_seconds, reel_max_duration_seconds, livestream_enabled } = req.body
   const toSave = []
   const streamSecs = parseInt(streaming_max_duration_seconds, 10)
   const reelSecs   = parseInt(reel_max_duration_seconds, 10)
   if (Number.isFinite(streamSecs) && streamSecs > 0) toSave.push(['streaming_max_duration_seconds', String(streamSecs)])
   if (Number.isFinite(reelSecs)   && reelSecs   > 0) toSave.push(['reel_max_duration_seconds',      String(reelSecs)])
+  if (livestream_enabled !== undefined) toSave.push(['livestream_enabled', livestream_enabled ? '1' : '0'])
   if (toSave.length === 0) return res.status(400).json({ error: 'No valid settings provided' })
   try {
     for (const [key, value] of toSave) {
