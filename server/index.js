@@ -53,6 +53,7 @@ import { sendSms } from './sms.js'
 import { BADGES, BADGE_BY_ID, PLATFORM_LAUNCH_DATE, BADGE_AD_FREE_DAYS } from '../src/badges/badgeDefinitions.js'
 import { evaluateBadges } from '../src/badges/badgeEngine.js'
 import { createReelFromLivestream, LIVESTREAM_DEFAULTS } from './livestream.js'
+import { listActivePaths, getStreamStats } from './mediamtx.js'
 
 // MySQL 8.x compatible ADD COLUMN helper — ignores duplicate column error (errno 1060)
 // SECURITY: Validates table and column names to prevent SQL injection
@@ -12252,6 +12253,243 @@ app.get('/api/admin/livestream/stats', authenticate, requireAdmin, async (req, r
     })
   } catch (err) {
     console.error('GET /api/admin/livestream/stats error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── mediamtx / RTMP streaming routes ─────────────────────────────────────────
+
+const RECORDINGS_DIR = process.env.RECORDINGS_DIR || '/var/recordings'
+
+/**
+ * Generate a random 32-character hex stream key.
+ */
+function generateStreamKey() {
+  return crypto.randomBytes(16).toString('hex')
+}
+
+/**
+ * POST /api/stream/auth
+ * Called by mediamtx on_publish hook when a client starts publishing.
+ * Body (mediamtx v3): { action, id, name, query, sourceType, sourceID }
+ * The `name` field is the RTMP path, which equals the user's stream_key.
+ *
+ * Returns 200 to allow the stream, 401 to reject it.
+ */
+app.post('/api/stream/auth', async (req, res) => {
+  try {
+    // mediamtx may also pass Authorization header; support both sources
+    const streamKey = req.body?.name || req.body?.key || null
+    if (!streamKey) return res.status(401).json({ error: 'Missing stream key' })
+
+    // Look up the user owning this stream key
+    const [rows] = await pool.query(
+      'SELECT id, mode, streaming_access FROM users WHERE stream_key = ? AND status = "active"',
+      [streamKey]
+    ).catch(() =>
+      // Fallback if streaming_access column does not yet exist
+      pool.query(
+        'SELECT id, mode FROM users WHERE stream_key = ? AND status = "active"',
+        [streamKey]
+      )
+    )
+
+    if (rows.length === 0) return res.status(401).json({ error: 'Invalid stream key' })
+
+    const user = rows[0]
+
+    // Business accounts: check optional streaming_access flag
+    if (user.mode === 'business' && user.streaming_access === 0) {
+      return res.status(401).json({ error: 'Streaming access not enabled' })
+    }
+
+    // Record the stream start in livestreams table (best-effort)
+    await pool.query(
+      `INSERT INTO livestreams (user_id, stream_key, status, started_at)
+       VALUES (?, ?, 'live', NOW())
+       ON DUPLICATE KEY UPDATE status = 'live', started_at = NOW()`,
+      [user.id, streamKey]
+    ).catch(() =>
+      pool.query(
+        `INSERT INTO livestreams (user_id, status, started_at) VALUES (?, 'live', NOW())`,
+        [user.id]
+      ).catch(() => {})
+    )
+
+    res.status(200).json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/stream/auth error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+/**
+ * POST /api/stream/end
+ * Called by mediamtx on_done hook when a publisher disconnects.
+ * Body: { action, id, name, ... }  — `name` equals the stream_key.
+ *
+ * Updates livestreams, triggers ffmpeg encode, inserts reel.
+ */
+app.post('/api/stream/end', async (req, res) => {
+  const streamKey = req.body?.name || req.body?.key || null
+  if (!streamKey) return res.status(400).json({ error: 'Missing stream key' })
+
+  // Acknowledge to mediamtx immediately — encoding happens async
+  res.status(200).json({ ok: true })
+
+  try {
+    // Find the user and the livestream record
+    const [userRows] = await pool.query(
+      'SELECT id FROM users WHERE stream_key = ?',
+      [streamKey]
+    )
+    if (userRows.length === 0) return
+    const userId = userRows[0].id
+
+    // Update livestreams: mark ended
+    const [lsRows] = await pool.query(
+      `UPDATE livestreams SET status = 'ended', ended_at = NOW()
+       WHERE user_id = ? AND status = 'live'
+       ORDER BY id DESC LIMIT 1`,
+      [userId]
+    ).catch(() => [[]])
+
+    // Derive the livestream row id for reel linking
+    const [[lsRow]] = await pool.query(
+      'SELECT id FROM livestreams WHERE user_id = ? ORDER BY id DESC LIMIT 1',
+      [userId]
+    ).catch(() => [[null]])
+    const livestreamId = lsRow?.id ?? null
+
+    // Encode recording: /var/recordings/<streamKey>.flv → uploads/reels/<streamKey>.mp4
+    const flvPath = path.join(RECORDINGS_DIR, `${streamKey}.flv`)
+    const reelsDir = path.join(UPLOADS_DIR, 'reels')
+    if (!fs.existsSync(reelsDir)) fs.mkdirSync(reelsDir, { recursive: true })
+    const mp4Path = path.join(reelsDir, `${streamKey}.mp4`)
+
+    if (!fs.existsSync(flvPath)) {
+      console.log(`[stream/end] No recording found at ${flvPath}, skipping reel creation`)
+      return
+    }
+
+    // Convert FLV → MP4
+    const { execFile } = await import('child_process')
+    const { promisify } = await import('util')
+    const execFileAsync = promisify(execFile)
+
+    try {
+      await execFileAsync('ffmpeg', [
+        '-y', '-i', flvPath,
+        '-c:v', 'copy', '-c:a', 'aac',
+        '-movflags', '+faststart',
+        mp4Path,
+      ])
+    } catch (ffErr) {
+      console.error('[stream/end] ffmpeg FLV→MP4 failed:', ffErr.message)
+      return
+    }
+
+    // Delete .flv after successful encode
+    fs.unlink(flvPath, err => {
+      if (err) console.warn('[stream/end] Could not delete FLV:', err.message)
+    })
+
+    // Create reel entry (handles trimming + DB insert via shared livestream.js logic)
+    await createReelFromLivestream({
+      userId,
+      livestreamId,
+      recordingPath: mp4Path,
+      uploadsDir: UPLOADS_DIR,
+      pool,
+    })
+  } catch (err) {
+    console.error('POST /api/stream/end async error:', err.message)
+  }
+})
+
+/**
+ * GET /api/stream/active
+ * Returns currently active streams from mediamtx, enriched with user info.
+ * Requires authentication.
+ */
+app.get('/api/stream/active', authenticate, async (req, res) => {
+  try {
+    const paths = await listActivePaths()
+
+    // Only paths that have an active publisher
+    const active = paths.filter(p => p.ready === true || p.readyTime != null)
+
+    if (active.length === 0) return res.json({ streams: [] })
+
+    // Resolve stream keys → user info
+    const keys = active.map(p => p.name).filter(Boolean)
+    let userMap = {}
+    if (keys.length > 0) {
+      const placeholders = keys.map(() => '?').join(',')
+      const [userRows] = await pool.query(
+        `SELECT id, name, handle, avatar_url, stream_key
+         FROM users WHERE stream_key IN (${placeholders})`,
+        keys
+      ).catch(() => [[]])
+      for (const u of userRows) userMap[u.stream_key] = u
+    }
+
+    const streams = active.map(p => ({
+      path: p.name,
+      readyTime: p.readyTime,
+      bytesReceived: p.bytesReceived ?? 0,
+      user: userMap[p.name]
+        ? {
+            id: userMap[p.name].id,
+            name: userMap[p.name].name,
+            handle: userMap[p.name].handle,
+            avatar_url: userMap[p.name].avatar_url,
+          }
+        : null,
+    }))
+
+    res.json({ streams })
+  } catch (err) {
+    console.error('GET /api/stream/active error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+/**
+ * GET /api/stream/key
+ * Returns the current user's stream key, creating one if it doesn't exist yet.
+ */
+app.get('/api/stream/key', authenticate, async (req, res) => {
+  try {
+    const [[user]] = await pool.query(
+      'SELECT stream_key FROM users WHERE id = ?',
+      [req.userId]
+    )
+
+    let key = user?.stream_key
+    if (!key) {
+      key = generateStreamKey()
+      await pool.query('UPDATE users SET stream_key = ? WHERE id = ?', [key, req.userId])
+    }
+
+    res.json({ stream_key: key })
+  } catch (err) {
+    console.error('GET /api/stream/key error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+/**
+ * POST /api/stream/key/regenerate
+ * Generates a new random stream key for the authenticated user.
+ */
+app.post('/api/stream/key/regenerate', authenticate, async (req, res) => {
+  try {
+    const key = generateStreamKey()
+    await pool.query('UPDATE users SET stream_key = ? WHERE id = ?', [key, req.userId])
+    res.json({ stream_key: key })
+  } catch (err) {
+    console.error('POST /api/stream/key/regenerate error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })
