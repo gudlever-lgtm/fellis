@@ -63,7 +63,9 @@ async function addCol(table, col, def) {
     'admin_ad_settings', 'admin_settings', 'reels', 'marketplace_listings', 'jobs',
     'shared_jobs', 'earned_badges', 'user_badges', 'badge_config', 'livestreams',
     'messages', 'conversations', 'sessions', 'invitations', 'post_likes',
-    'reel_likes', 'reel_comments', 'stories', 'events', 'notifications']
+    'reel_likes', 'reel_comments', 'stories', 'events', 'notifications',
+    'conversation_participants', 'ads', 'subscriptions', 'job_saves',
+    'event_rsvps', 'job_applications']
 
   // Validate table name
   if (!VALID_TABLES.includes(table)) {
@@ -6018,7 +6020,7 @@ async function initBusinessFeatures() {
       id INT AUTO_INCREMENT PRIMARY KEY,
       author_id INT NOT NULL,
       contact_id INT NOT NULL,
-      note TEXT NOT NULL DEFAULT '',
+      note TEXT NOT NULL,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       UNIQUE KEY uq_cn_author_contact (author_id, contact_id),
       INDEX idx_cn_author (author_id),
