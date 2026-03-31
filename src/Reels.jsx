@@ -817,6 +817,117 @@ function UploadModal({ t, onClose, onUploaded }) {
   )
 }
 
+// ── Live Reel Info Modal ──────────────────────────────────────────────────────
+function LiveReelModal({ t, onClose }) {
+  const s = {
+    overlay: {
+      position: 'fixed', inset: 0,
+      background: 'rgba(0,0,0,0.75)',
+      zIndex: 1000,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: '16px',
+    },
+    modal: {
+      background: '#1a1a1a',
+      borderRadius: 16,
+      padding: '24px 24px 20px',
+      width: '100%',
+      maxWidth: 460,
+      color: '#fff',
+      boxShadow: '0 8px 40px rgba(0,0,0,0.6)',
+      maxHeight: '90vh',
+      overflowY: 'auto',
+    },
+    header: {
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      marginBottom: 18,
+    },
+    title: { fontSize: 18, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 },
+    liveDot: {
+      display: 'inline-block', width: 10, height: 10, borderRadius: '50%',
+      background: '#e03131',
+      boxShadow: '0 0 0 0 rgba(224,49,49,0.6)',
+      animation: 'livePulse 1.4s infinite',
+    },
+    closeBtn: {
+      background: 'none', border: 'none', color: '#aaa', cursor: 'pointer',
+      fontSize: 20, lineHeight: 1, padding: '2px 4px',
+    },
+    section: { marginBottom: 18 },
+    sectionTitle: { fontSize: 13, fontWeight: 700, color: '#e03131', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 },
+    body: { fontSize: 14, color: '#ccc', lineHeight: 1.6 },
+    stepList: { paddingLeft: 0, margin: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 8 },
+    step: { display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 14, color: '#ccc', lineHeight: 1.5 },
+    stepNum: {
+      flexShrink: 0, width: 22, height: 22, borderRadius: '50%',
+      background: '#e03131', color: '#fff', fontSize: 12, fontWeight: 700,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      marginTop: 1,
+    },
+    notReady: {
+      background: 'rgba(255,200,0,0.1)', border: '1px solid rgba(255,200,0,0.3)',
+      borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#ffd43b',
+      marginBottom: 18,
+    },
+    footer: { display: 'flex', justifyContent: 'flex-end', marginTop: 4 },
+    closeFooterBtn: {
+      background: '#2a2a2a', border: 'none', borderRadius: 8,
+      padding: '10px 20px', color: '#ccc', cursor: 'pointer', fontSize: 14, fontWeight: 600,
+    },
+  }
+
+  const steps = [
+    t.reelsStartLiveStep1,
+    t.reelsStartLiveStep2,
+    t.reelsStartLiveStep3,
+    t.reelsStartLiveStep4,
+    t.reelsStartLiveStep5,
+  ]
+
+  return (
+    <div style={s.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
+      <style>{`@keyframes livePulse{0%{box-shadow:0 0 0 0 rgba(224,49,49,0.6)}70%{box-shadow:0 0 0 8px rgba(224,49,49,0)}100%{box-shadow:0 0 0 0 rgba(224,49,49,0)}}`}</style>
+      <div style={s.modal}>
+        <div style={s.header}>
+          <div style={s.title}>
+            <span style={s.liveDot} />
+            {t.reelsStartLiveModalTitle}
+          </div>
+          <button style={s.closeBtn} onMouseDown={e => { e.preventDefault(); onClose() }}>✕</button>
+        </div>
+
+        <div style={s.notReady}>ℹ️ {t.reelsStartLiveNotReady}</div>
+
+        <div style={s.section}>
+          <div style={s.sectionTitle}>{t.reelsStartLiveWhat}</div>
+          <div style={s.body}>{t.reelsStartLiveWhatBody}</div>
+        </div>
+
+        <div style={s.section}>
+          <div style={s.sectionTitle}>{t.reelsStartLiveHow}</div>
+          <ol style={s.stepList}>
+            {steps.map((step, i) => (
+              <li key={i} style={s.step}>
+                <span style={s.stepNum}>{i + 1}</span>
+                <span>{step}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+
+        <div style={s.section}>
+          <div style={s.sectionTitle}>{t.reelsStartLiveLimits}</div>
+          <div style={s.body}>{t.reelsStartLiveLimitsBody}</div>
+        </div>
+
+        <div style={s.footer}>
+          <button style={s.closeFooterBtn} onClick={onClose}>{t.reelsStartLiveClose}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Main ReelsPage ────────────────────────────────────────────────────────────
 export default function ReelsPage({ t, currentUser, initialReelId, onViewProfile }) {
   const [reels, setReels] = useState([])
@@ -824,6 +935,8 @@ export default function ReelsPage({ t, currentUser, initialReelId, onViewProfile
   const [offset, setOffset] = useState(0)
   const [hasMore, setHasMore] = useState(true)
   const [showUpload, setShowUpload] = useState(false)
+  const [showLiveInfo, setShowLiveInfo] = useState(false)
+  const [liveTooltip, setLiveTooltip] = useState(false)
   const LIMIT = 10
 
   const loadReels = useCallback(async (off = 0) => {
@@ -884,6 +997,42 @@ export default function ReelsPage({ t, currentUser, initialReelId, onViewProfile
       alignItems: 'center',
       gap: 6,
     },
+    liveBtn: {
+      background: '#e03131',
+      border: 'none',
+      borderRadius: 20,
+      padding: '10px 16px',
+      color: '#fff',
+      cursor: 'pointer',
+      fontSize: 14,
+      fontWeight: 700,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 7,
+      position: 'relative',
+    },
+    liveDotBtn: {
+      display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
+      background: '#fff',
+      flexShrink: 0,
+    },
+    infoIcon: {
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      width: 18, height: 18, borderRadius: '50%',
+      background: 'rgba(255,255,255,0.25)',
+      fontSize: 11, fontWeight: 700, lineHeight: 1,
+      cursor: 'pointer', flexShrink: 0,
+    },
+    tooltip: {
+      position: 'absolute', top: 'calc(100% + 8px)', right: 0,
+      background: '#111', color: '#eee',
+      fontSize: 12, lineHeight: 1.5,
+      padding: '8px 12px', borderRadius: 8,
+      whiteSpace: 'nowrap',
+      boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+      zIndex: 50,
+      pointerEvents: 'none',
+    },
     empty: {
       textAlign: 'center',
       color: '#888',
@@ -910,11 +1059,30 @@ export default function ReelsPage({ t, currentUser, initialReelId, onViewProfile
 
   return (
     <div style={s.page}>
+      <style>{`@keyframes livePulse{0%{box-shadow:0 0 0 0 rgba(255,255,255,0.5)}70%{box-shadow:0 0 0 6px rgba(255,255,255,0)}100%{box-shadow:0 0 0 0 rgba(255,255,255,0)}}`}</style>
       <div style={s.header}>
         <div style={s.title}>{t.reelsTitle}</div>
-        <button style={s.uploadBtn} onClick={() => setShowUpload(true)}>
-          🎬 {t.reelsUpload}
-        </button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {/* Live Reel button */}
+          <div style={{ position: 'relative' }}>
+            <button
+              style={s.liveBtn}
+              onClick={() => setShowLiveInfo(true)}
+              onMouseEnter={() => setLiveTooltip(true)}
+              onMouseLeave={() => setLiveTooltip(false)}
+            >
+              <span style={{ ...s.liveDotBtn, animation: 'livePulse 1.4s infinite' }} />
+              {t.reelsStartLive}
+              <span style={s.infoIcon} title="">ℹ</span>
+            </button>
+            {liveTooltip && (
+              <div style={s.tooltip}>{t.reelsStartLiveWhatBody}</div>
+            )}
+          </div>
+          <button style={s.uploadBtn} onClick={() => setShowUpload(true)}>
+            🎬 {t.reelsUpload}
+          </button>
+        </div>
       </div>
 
       {!loading && reels.length === 0 && (
@@ -953,6 +1121,10 @@ export default function ReelsPage({ t, currentUser, initialReelId, onViewProfile
           onClose={() => setShowUpload(false)}
           onUploaded={handleUploaded}
         />
+      )}
+
+      {showLiveInfo && (
+        <LiveReelModal t={t} onClose={() => setShowLiveInfo(false)} />
       )}
     </div>
   )
