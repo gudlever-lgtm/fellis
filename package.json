@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "node tests/check-api-routes.js && rm -rf assets && vite build",
+    "build": "node tests/check-api-routes.js && rm -rf assets && npx vite build",
     "test": "node tests/check-api-routes.js",
     "lint": "eslint .",
     "preview": "vite preview",
