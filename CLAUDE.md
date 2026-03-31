@@ -8,9 +8,12 @@
 - **Frontend:** React 19, Vite 7, JavaScript (JSX) — no TypeScript
 - **Backend:** Node.js (ESM), Express 4, MySQL2/MariaDB
 - **Database:** MariaDB 11.8+ / MySQL 8+
-- **Auth:** Session-based (`X-Session-Id` header + localStorage), Facebook OAuth
+- **Auth:** Session-based (`X-Session-Id` header + localStorage), Facebook / Google / LinkedIn OAuth
+- **Payments:** Mollie (subscriptions, ad payments, ad-free tier)
 - **File uploads:** Multer (images/media)
 - **Email:** Nodemailer (optional, only when `MAIL_HOST` is configured)
+- **SMS:** 46elks (optional, SMS MFA)
+- **AI:** Mistral AI (optional, CV + cover letter generation)
 
 ---
 
@@ -24,25 +27,63 @@ fellis/
 │   ├── Landing.jsx         # Unauthenticated landing/login/register page
 │   ├── Platform.jsx        # Main authenticated app shell (all pages)
 │   ├── Analytics.jsx       # Business analytics dashboard component
+│   ├── Reels.jsx           # Short-video reels page
+│   ├── InterestGraphPage.jsx  # Interest signal visualization page
+│   ├── BusinessDirectory.jsx  # Business discovery and follow page
+│   ├── AdManager.jsx       # Ad campaign management for business accounts
+│   ├── ExplorePage.jsx     # Explore/discovery page (trending, suggested)
+│   ├── PaymentSuccess.jsx  # Mollie payment success handler
+│   ├── PaymentFailed.jsx   # Mollie payment failure handler
 │   ├── api.js              # All API client functions (single source of truth)
 │   ├── data.js             # Mock/fallback data + shared utilities (nameToColor, getInitials, PT translations)
 │   ├── App.css             # Global styles
 │   ├── index.css           # Base CSS reset/fonts
-│   └── index.html          # HTML template (Vite entry)
+│   ├── index.html          # HTML template (Vite entry)
+│   ├── components/         # Shared UI components
+│   │   ├── AdBanner.jsx          # Platform ad display
+│   │   ├── BadgeToast.jsx        # Badge achievement notification toast
+│   │   ├── BusinessBadge.jsx     # Business account indicator badge
+│   │   ├── BusinessCard.jsx      # Business profile card
+│   │   ├── LocationAutocomplete.jsx  # Location search input
+│   │   ├── ModeGate.jsx          # Feature gate by account mode (privat/business)
+│   │   ├── StoryBar.jsx          # Stories timeline bar
+│   │   └── easter-eggs/          # Easter egg components (ChuckBanner, MatrixRain, PartyConfetti, RickRoll, RiddleBanner)
+│   ├── hooks/              # Custom React hooks
+│   │   ├── useEasterEggs.js      # Easter egg state management
+│   │   ├── useKonamiCode.js      # Konami code detection
+│   │   ├── useKeySequence.js     # Key sequence detection
+│   │   ├── useLongPress.js       # Long press gesture
+│   │   ├── useTapCount.js        # Multiple tap detection
+│   │   ├── useScrollHold.js      # Scroll hold detection
+│   │   └── useAvatarClick.js     # Avatar click interaction
+│   ├── badges/             # Badge system
+│   │   ├── badgeDefinitions.js   # Badge catalogue
+│   │   └── badgeEngine.js        # Badge evaluation logic
+│   └── utils/
+│       └── currency.js     # formatPrice() helper (EUR, de-DE locale)
 ├── server/                 # Backend Express server (separate Node project)
 │   ├── index.js            # Main Express server — all API routes defined here
 │   ├── db.js               # MySQL2 connection pool (lazy proxy)
+│   ├── sms.js              # 46elks SMS service helper
+│   ├── migrate.js          # Migration runner (tracks and applies migrate-*.sql in order)
+│   ├── run-migrations.js   # CI/startup migration executor
 │   ├── schema.sql          # Full database schema (initial setup)
 │   ├── seed.js             # Database seed script (demo data)
 │   ├── seed-bots.js        # Bot/fake-user seeder
 │   ├── cleanup-bots.js     # Remove bot accounts
-│   ├── migrate-*.sql       # Incremental database migrations
+│   ├── cleanup-ads.js      # Remove expired ad data
+│   ├── cleanup-jobs.js     # Remove stale job listings
+│   ├── cleanup-marketplace.js  # Remove stale marketplace listings
+│   ├── import-keyword-lists.js # Import moderation keyword filters
+│   ├── migrate-bcrypt-passwords.js  # One-time bcrypt password migration script
+│   ├── migrate-*.sql       # Incremental database migrations (48 files)
 │   ├── package.json        # Server-only dependencies
 │   └── .env.example        # Environment variable template
 ├── tests/
 │   └── check-api-routes.js # Static API route checker (runs on build)
 ├── assets/                 # Compiled frontend output (generated by Vite build)
-├── public/                 # Static public files
+├── public/
+│   └── sw.js               # Service worker (PWA shell caching)
 ├── index.html              # Root HTML (served in production)
 ├── package.json            # Frontend dependencies + npm scripts
 ├── vite.config.js          # Vite configuration
@@ -79,9 +120,11 @@ npm run start        # node --env-file=.env index.js (port 3001 by default)
 # Initial setup
 mysql -u root < server/schema.sql
 
+# Apply all migrations (idempotent — safe to re-run)
+cd server && npm run migrate
+
 # Seed with demo data
 cd server && npm run seed
-# or: node --env-file=.env seed.js
 ```
 
 ### Environment Variables (`server/.env`)
@@ -108,12 +151,16 @@ cd server && npm run seed
 | `MAIL_SECURE` | Use TLS | `false` |
 | `MAIL_USER` | SMTP username | _(optional)_ |
 | `MAIL_PASS` | SMTP password | _(optional)_ |
-| `SITE_URL` | Base URL for reset links in emails | `https://fellis.eu` |
+| `MAIL_FROM` | From address for outgoing emails | _(optional)_ |
+| `SITE_URL` | Base URL for reset links, invite links, Mollie webhooks | `https://fellis.eu` |
 | `46ELKS_USERNAME` | 46elks API username (SMS MFA) | _(optional)_ |
 | `46ELKS_PASSWORD` | 46elks API password (SMS MFA) | _(optional)_ |
 | `46ELKS_SENDER` | SMS sender name/number | `fellis.eu` |
 | `UPLOADS_DIR` | Media upload directory | `/var/www/fellis.eu/uploads` |
 | `MISTRAL_API_KEY` | Mistral AI key for CV/cover letter generation (console.mistral.ai) | _(optional, falls back to template)_ |
+| `MOLLIE_API_KEY` | Mollie payment API key (ad payments, subscriptions, ad-free purchases) | _(optional)_ |
+| `NODE_ENV` | Set to `production` to enable production-only behaviour | _(optional)_ |
+| `CSRF_SECRET` | Secret for CSRF token signing — auto-generated on first start if unset | _(auto)_ |
 
 The server reads `.env` manually at startup (not via `--env-file`) for PM2 compatibility.
 
@@ -207,43 +254,72 @@ Vite builds from `src/` as root into `assets/` at the repo root:
 
 | Table | Purpose |
 |-------|---------|
-| `users` | User accounts (email/password + Facebook OAuth) |
+| `users` | User accounts (email/password + Facebook/Google/LinkedIn OAuth) |
 | `sessions` | Auth sessions (30-day expiry) |
 | `friendships` | Bidirectional friend connections |
 | `friend_requests` | Pending/accepted/declined friend requests |
+| `user_blocks` | Blocked user pairs |
 | `posts` | Feed posts (bilingual text + JSON media array) |
 | `post_likes` | Like tracking per user/post |
+| `post_views` | View count per post |
 | `comments` | Post comments (bilingual) |
+| `comment_reactions` | Reactions on individual comments |
+| `stories` | 24-hour ephemeral story posts |
+| `story_views` | Story view tracking |
+| `reels` | Short-video reel posts |
+| `reel_likes` | Like tracking per reel |
+| `reel_comments` | Comments on reels |
 | `messages` | Legacy direct messages |
 | `conversations` | Group/DM conversation threads |
 | `conversation_participants` | Per-user membership + mute state |
 | `invitations` | Invite links for bringing new users |
+| `notifications` | Per-user notification log |
+| `notification_preferences` | Per-user notification opt-in/out settings |
+| `marketplace_listings` | Marketplace item listings (EUR pricing) |
+| `events` | Platform events |
+| `event_rsvps` | Per-user RSVP status per event |
+| `calendar_reminders` | Personal calendar reminders |
+| `jobs` | Job listings |
+| `job_applications` | Applications per job per user |
+| `cv_experience` | Work experience entries per user |
+| `cv_education` | Education entries per user |
+| `cv_languages` | Language proficiency entries per user |
+| `companies` | Company profiles |
+| `company_members` | Company membership + role |
+| `company_followers` | Company follow relationships |
+| `company_posts` | Posts authored by companies |
+| `company_leads` | CRM-style lead tracking per company |
+| `contact_notes` | Personal notes on other users |
+| `skills` | User skills |
+| `skill_endorsements` | Skill endorsements between users |
+| `ads` | Ad campaigns |
+| `ad_impressions` | Impression tracking per ad per user |
+| `ad_clicks` | Click tracking per ad |
+| `mollie_payments` | Payment records from Mollie |
+| `interest_categories` | Admin-managed interest category taxonomy |
+| `user_interests` | Per-user interest selections |
+| `interest_signals` | Raw behavioural signals for interest graph |
+| `interest_scores` | Computed interest scores per user |
+| `badges` | Badge definitions |
+| `badge_earned` | Per-user earned badges |
+| `referrals` | Referral tracking per invite |
+| `moderation_reports` | User-submitted content reports |
+| `moderation_actions` | Admin/moderator action log |
+| `keyword_filters` | Moderation keyword list |
+| `audit_log` | Admin audit trail |
+| `user_settings` | Per-user settings (dark mode, notification prefs, etc.) |
 
 ### Migrations
-- Schema changes use standalone `server/migrate-*.sql` files
-- Run migrations manually against the DB; there is no migration runner
-- Comments in `schema.sql` show the `ALTER TABLE` equivalent for existing installs
-
-**Required migrations for existing installs:**
+- Schema changes use standalone `server/migrate-*.sql` files (48 files total)
+- `server/migrate.js` tracks which migrations have been applied and runs pending ones in order
+- `server/run-migrations.js` can be called at deploy/startup to auto-apply pending migrations
+- Use the npm scripts instead of running SQL manually:
 
 ```bash
-# MFA + password reset columns (adds reset_token, mfa_code, mfa_enabled to users)
-mysql -u root fellis_eu < server/migrate-mfa-reset.sql
-
-# EUR currency support (adds currency/price_eur to marketplace_listings, updates admin_ad_settings)
-mysql -u root fellis_eu < server/migrate-currency.sql
-
-# Google & LinkedIn OAuth columns (adds google_id, linkedin_id to users + unique indexes)
-mysql -u root fellis_eu < server/migrate-google-linkedin-oauth.sql
-
-# Interest Graph Signal Engine (creates interest_signals + interest_scores tables)
-mysql -u root fellis_eu < server/migrate-signal-engine.sql
-
-# Phone number column for SMS MFA (adds phone to users — fixes login 500 if missing)
-mysql -u root fellis_eu < server/migrate-add-phone.sql
-
-# Account lockout columns for brute force protection (adds failed_login_attempts, locked_until to users)
-mysql -u root fellis_eu < server/migrate-account-lockout.sql
+cd server
+npm run migrate:status    # see what's applied and what's pending
+npm run migrate:dry-run   # preview what would run
+npm run migrate           # apply all pending migrations
 ```
 
 ---
@@ -252,19 +328,46 @@ mysql -u root fellis_eu < server/migrate-account-lockout.sql
 
 The `Platform.jsx` component renders these pages (controlled by `page` state):
 
-- **feed** — Post creation, feed with reactions, comments, media, link previews
-- **friends** — Friend list, friend requests, user search, invite system
+- **feed** — Post creation, feed with reactions, comments, media, link previews, scheduled posts
+- **friends** — Friend list, friend requests, user search, invite system, blocking
 - **messages** — Conversations (DM + group chats), mute, rename, leave
-- **profile** — User profile, avatar upload, bio, GDPR data tools
-- **marketplace** — Listings with categories, location filter, boost
-- **events** — Event creation and RSVP
+- **profile** — User profile, avatar upload, bio, skills, interests, GDPR data tools
+- **edit-profile** — Extended profile editor
+- **settings** — Privacy, sessions, notifications, language, dark mode, billing/subscription
+- **marketplace** — Listings with categories, location filter, boost, EUR pricing
+- **events** — Event creation, RSVP, cover image
+- **calendar** — Personal calendar with event view and reminders
+- **jobs** — Job listings, applications, saved jobs, tracked jobs, job sharing
+- **cv** — AI-assisted CV builder (experience, education, languages, cover letter generation)
+- **reels** — Short-video reel creation, like, comment (`Reels.jsx`)
+- **stories** — 24-hour ephemeral story posts (via `StoryBar.jsx`)
+- **explore** — Trending hashtags, suggested posts, discovery feed (`ExplorePage.jsx`)
+- **search** — Global search across posts, users, companies
+- **companies** — Company profiles, members, followers, posts, leads
+- **business-directory** — Browse and follow businesses (`BusinessDirectory.jsx`)
+- **ad-manager** — Ad campaign management for business accounts (`AdManager.jsx`)
+- **interest-graph** — Interest signal visualization and score tuning (`InterestGraphPage.jsx`)
 - **analytics** — Business analytics dashboard (profile views, engagement, post insights)
-- **admin** — Admin settings and platform stats
+- **visitor-stats** — Per-profile visitor analytics
+- **notifications** — Notification feed and preferences
+- **badges** — Earned badges and achievement progress
+- **referrals** — Referral dashboard and leaderboard
+- **moderation** — Moderation queue, keyword filters, user actions (moderators only)
+- **admin** — Admin settings, platform stats, environment status, feed weight config
 
 ### User Modes
 - **privat** — Standard personal account mode
-- **business** — Business account mode (unlocks analytics, endorsements, profile views)
+- **business** — Business account mode (unlocks analytics, endorsements, profile views, ads, leads)
 - Stored in `localStorage` as `fellis_mode` and synced to server via `PATCH /api/me/mode`
+
+### Easter Eggs
+Five hidden interactions are implemented (see `src/components/easter-eggs/` and `src/hooks/`):
+- Konami code → party confetti
+- Long-press avatar → Chuck Norris joke
+- Multiple rapid taps → Matrix rain
+- Key sequence → riddle banner
+- Specific scroll hold → Rick Roll
+Admin can configure which are active via `PUT /api/admin/easter-eggs/config`.
 
 ---
 
