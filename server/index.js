@@ -9432,6 +9432,7 @@ app.get('/api/config', async (req, res) => {
 
 // ── Changelog ─────────────────────────────────────────────────────────────────
 const CHANGELOG_ENTRIES = [
+  { date: '2026-03', icon: '📡', da: 'RTMP livestreaming via mediamtx — stream live med OBS eller Streamlabs direkte til fellis.eu. Optagelsen gemmes automatisk som et reel, når du stopper.', en: 'RTMP livestreaming via mediamtx — go live with OBS or Streamlabs directly to fellis.eu. The recording is automatically saved as a reel when you stop.' },
   { date: '2026-03', icon: '📄', da: 'CV-profil og jobansøgning — tilføj erhvervserfaring, uddannelse og sprog til din profil og vedhæft CV og ansøgningsbrev direkte i jobopslag. AI-assistance via Mistral hjælper dig med at skrive dem.', en: 'CV profile and job applications — add work experience, education and languages to your profile and attach a CV and cover letter directly in job listings. AI assistance via Mistral helps you write them.' },
   { date: '2026-03', icon: '🌍', da: 'Flersproget infrastruktur — sitet er klar til nye sprog', en: 'Multi-language infrastructure — site is ready for new languages' },
   { date: '2026-03', icon: '💳', da: 'Mollie betalingsgateway — betal for reklamefrit abonnement via MobilePay, Visa, Mastercard m.fl.', en: 'Mollie payment gateway — pay for ad-free subscription via MobilePay, Visa, Mastercard etc.' },
