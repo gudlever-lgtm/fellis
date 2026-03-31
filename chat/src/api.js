@@ -94,6 +94,17 @@ export async function apiRenameConversation(conversationId, name) {
   })
 }
 
+export async function apiLeaveConversation(conversationId) {
+  return request(`/conversations/${conversationId}/leave`, { method: 'DELETE' })
+}
+
+export async function apiMuteConversation(conversationId, minutes) {
+  return request(`/conversations/${conversationId}/mute`, {
+    method: 'POST',
+    body: JSON.stringify({ minutes }),
+  })
+}
+
 export async function apiAddParticipants(conversationId, userIds) {
   return request(`/conversations/${conversationId}/invite`, {
     method: 'POST',

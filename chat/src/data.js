@@ -58,6 +58,18 @@ export const PT = {
     cancel: 'Annuller',
     save: 'Gem',
     saving: 'Gemmer...',
+    // Members
+    viewMembers: 'Vis medlemmer',
+    members: 'Medlemmer',
+    // Mute
+    muteNotifications: 'Sluk notifikationer',
+    unmuteNotifications: 'Tænd notifikationer',
+    muted: 'Lydløs',
+    // Leave / delete
+    leaveGroup: 'Forlad gruppe',
+    deleteChat: 'Slet samtale',
+    leaveConfirm: 'Er du sikker på, at du vil forlade denne samtale?',
+    deleteConfirm: 'Er du sikker på, at du vil slette denne samtale?',
   },
   en: {
     appName: 'fellis chat',
@@ -117,6 +129,18 @@ export const PT = {
     cancel: 'Cancel',
     save: 'Save',
     saving: 'Saving...',
+    // Members
+    viewMembers: 'View members',
+    members: 'Members',
+    // Mute
+    muteNotifications: 'Mute notifications',
+    unmuteNotifications: 'Unmute notifications',
+    muted: 'Muted',
+    // Leave / delete
+    leaveGroup: 'Leave group',
+    deleteChat: 'Delete conversation',
+    leaveConfirm: 'Are you sure you want to leave this conversation?',
+    deleteConfirm: 'Are you sure you want to delete this conversation?',
   },
 }
 
