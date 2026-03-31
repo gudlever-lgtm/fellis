@@ -654,6 +654,10 @@ export async function apiRevealAdminKey(keyName, password) {
   })
 }
 
+export async function apiGetLivestreamStatus() {
+  return await request('/api/livestream/status')
+}
+
 export async function apiGetLivestreamSettings() {
   return await request('/api/admin/livestream/settings')
 }
