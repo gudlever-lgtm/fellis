@@ -3,6 +3,7 @@ import {
   apiGetConversations, apiGetMessages, apiSendMessage,
   apiUploadFile, apiRenameConversation, apiAddParticipants, apiSearchUsers,
   apiLeaveConversation, apiMuteConversation,
+  apiRemoveParticipant, apiMuteParticipant,
 } from './api.js'
 import { t } from './data.js'
 
@@ -271,27 +272,72 @@ function AddPeopleModal({ lang, onAdd, onClose }) {
   )
 }
 
+const MUTE_OPTIONS = [
+  { key: 'min30',  minutes: 30 },
+  { key: 'hour1',  minutes: 60 },
+  { key: 'hours4', minutes: 240 },
+  { key: 'day1',   minutes: 1440 },
+  { key: 'week1',  minutes: 10080 },
+]
+
 // ── Members modal ─────────────────────────────────────────────────────────────
-function MembersModal({ lang, participants, onClose }) {
+function MembersModal({ lang, participants, convId, myUserId, onRemove, onMute, onClose }) {
+  const [muteMenu, setMuteMenu] = useState(null) // participant id showing mute submenu
+
   const s = {
     overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 },
-    box: { background: '#fff', borderRadius: 12, padding: 24, width: '100%', maxWidth: 320, boxShadow: '0 4px 24px rgba(0,0,0,0.14)', maxHeight: '70vh', display: 'flex', flexDirection: 'column' },
-    title: { fontWeight: 700, fontSize: 16, marginBottom: 14, flexShrink: 0 },
+    box: { background: '#fff', borderRadius: 12, padding: '20px 16px', width: '100%', maxWidth: 340, boxShadow: '0 4px 24px rgba(0,0,0,0.14)', maxHeight: '80vh', display: 'flex', flexDirection: 'column' },
+    title: { fontWeight: 700, fontSize: 16, marginBottom: 12, flexShrink: 0, paddingLeft: 4 },
     list: { flex: 1, overflowY: 'auto' },
-    item: { display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid #f4f4f4' },
-    avatar: (name) => ({ width: 34, height: 34, borderRadius: '50%', background: strColor(name), display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 13, flexShrink: 0 }),
-    name: { fontSize: 14, fontWeight: 500 },
-    closeBtn: { marginTop: 16, padding: '9px 0', width: '100%', borderRadius: 8, border: '1.5px solid #ddd', background: '#fff', cursor: 'pointer', fontSize: 14, flexShrink: 0 },
+    item: { display: 'flex', alignItems: 'center', gap: 10, padding: '8px 4px', borderBottom: '1px solid #f4f4f4' },
+    avatar: (name) => ({ width: 36, height: 36, borderRadius: '50%', background: strColor(name), display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 13, flexShrink: 0 }),
+    nameWrap: { flex: 1, minWidth: 0 },
+    name: { fontSize: 14, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+    profileLink: { fontSize: 11, color: '#1877f2', textDecoration: 'none', display: 'block', marginTop: 1 },
+    actions: { display: 'flex', gap: 6, flexShrink: 0 },
+    muteBtn: { padding: '4px 8px', borderRadius: 6, background: '#f0f0f0', border: 'none', fontSize: 12, cursor: 'pointer', color: '#555' },
+    removeBtn: { padding: '4px 8px', borderRadius: 6, background: '#fdecea', border: 'none', fontSize: 12, cursor: 'pointer', color: '#d32f2f' },
+    mutePopup: { position: 'absolute', right: 0, top: '100%', background: '#fff', borderRadius: 8, boxShadow: '0 4px 14px rgba(0,0,0,0.14)', zIndex: 10, minWidth: 140, overflow: 'hidden' },
+    muteOption: { display: 'block', width: '100%', textAlign: 'left', border: 'none', background: 'none', padding: '10px 14px', fontSize: 13, cursor: 'pointer', color: '#222' },
+    closeBtn: { marginTop: 14, padding: '9px 0', width: '100%', borderRadius: 8, border: '1.5px solid #ddd', background: '#fff', cursor: 'pointer', fontSize: 14, flexShrink: 0 },
   }
+
   return (
     <div style={s.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
       <div style={s.box}>
         <div style={s.title}>{t(lang, 'members')} ({participants?.length ?? 0})</div>
         <div style={s.list}>
           {(participants || []).map(p => (
-            <div key={p.id} style={s.item}>
+            <div key={p.id} style={{ ...s.item, position: 'relative' }}>
               <div style={s.avatar(p.name)}>{initials(p.name)}</div>
-              <span style={s.name}>{p.name}</span>
+              <div style={s.nameWrap}>
+                <div style={s.name}>{p.name}</div>
+                <a href={`https://fellis.eu/?profile=${p.id}`} target="_blank" rel="noopener noreferrer" style={s.profileLink}>
+                  {lang === 'da' ? 'Vis profil' : 'View profile'}
+                </a>
+              </div>
+              {p.id !== myUserId && (
+                <div style={s.actions}>
+                  <div style={{ position: 'relative' }}>
+                    <button style={s.muteBtn} onClick={() => setMuteMenu(muteMenu === p.id ? null : p.id)}>
+                      🔇
+                    </button>
+                    {muteMenu === p.id && (
+                      <>
+                        <div style={{ position: 'fixed', inset: 0, zIndex: 9 }} onClick={() => setMuteMenu(null)} />
+                        <div style={s.mutePopup}>
+                          {MUTE_OPTIONS.map(o => (
+                            <button key={o.key} style={s.muteOption} onClick={() => { onMute(p.id, o.minutes); setMuteMenu(null) }}>
+                              {t(lang, o.key)}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  <button style={s.removeBtn} onClick={() => onRemove(p.id)}>✕</button>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -438,6 +484,19 @@ export default function Chat({ lang, user, onLogout }) {
     const res = await apiAddParticipants(selectedId, userIds)
     setModal(null)
     return res
+  }
+
+  async function handleRemoveMember(userId) {
+    if (!selectedId) return
+    if (!window.confirm(t(lang, 'removeConfirm'))) return
+    await apiRemoveParticipant(selectedId, userId)
+    setConversations(prev => prev.map(c =>
+      c.id === selectedId ? { ...c, participants: c.participants.filter(p => p.id !== userId) } : c))
+  }
+
+  async function handleMuteMember(userId, minutes) {
+    if (!selectedId) return
+    await apiMuteParticipant(selectedId, userId, minutes)
   }
 
   async function handleLeave() {
@@ -592,9 +651,20 @@ export default function Chat({ lang, user, onLogout }) {
                 {messages.map((msg, i) => {
                   const mine = msg.from === myName
                   const text = msg.text?.[lang] || msg.text?.da || msg.text?.en || ''
+                  const showAvatar = !mine && (i === 0 || messages[i - 1]?.from !== msg.from)
                   return (
-                    <div key={i} style={s.bubble(mine)}>
-                      {!mine && <div style={s.senderName}>{msg.from}</div>}
+                    <div key={i} style={{ display: 'flex', alignItems: 'flex-end', gap: 6, flexDirection: mine ? 'row-reverse' : 'row' }}>
+                      {!mine && (
+                        <div style={{ width: 28, flexShrink: 0 }}>
+                          {showAvatar && (
+                            <div style={{ width: 28, height: 28, borderRadius: '50%', background: strColor(msg.from), display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 11 }}>
+                              {initials(msg.from)}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    <div style={s.bubble(mine)}>
+                      {!mine && showAvatar && <div style={s.senderName}>{msg.from}</div>}
                       {text && <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{text}</div>}
                       {msg.media?.length > 0 && msg.media.map((m, mi) => (
                         m.type === 'video'
@@ -603,6 +673,7 @@ export default function Chat({ lang, user, onLogout }) {
                               onClick={() => window.open(mediaUrl(m.url), '_blank')} />
                       ))}
                       <div style={s.bubbleMeta}>{msg.time}</div>
+                    </div>
                     </div>
                   )
                 })}
@@ -652,6 +723,10 @@ export default function Chat({ lang, user, onLogout }) {
       {modal === 'members' && (
         <MembersModal lang={lang}
           participants={selectedConv?.participants}
+          convId={selectedId}
+          myUserId={user?.id}
+          onRemove={handleRemoveMember}
+          onMute={handleMuteMember}
           onClose={() => setModal(null)} />
       )}
       {modal === 'rename' && (

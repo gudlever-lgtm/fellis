@@ -61,6 +61,15 @@ export const PT = {
     // Members
     viewMembers: 'Vis medlemmer',
     members: 'Medlemmer',
+    removeMember: 'Fjern',
+    muteMember: 'Sluk lyd',
+    muteMemberFor: 'Sluk lyd i',
+    min30: '30 minutter',
+    hour1: '1 time',
+    hours4: '4 timer',
+    day1: '1 dag',
+    week1: '1 uge',
+    removeConfirm: 'Fjern denne person fra samtalen?',
     // Mute
     muteNotifications: 'Sluk notifikationer',
     unmuteNotifications: 'Tænd notifikationer',
@@ -132,6 +141,15 @@ export const PT = {
     // Members
     viewMembers: 'View members',
     members: 'Members',
+    removeMember: 'Remove',
+    muteMember: 'Mute',
+    muteMemberFor: 'Mute for',
+    min30: '30 minutes',
+    hour1: '1 hour',
+    hours4: '4 hours',
+    day1: '1 day',
+    week1: '1 week',
+    removeConfirm: 'Remove this person from the conversation?',
     // Mute
     muteNotifications: 'Mute notifications',
     unmuteNotifications: 'Unmute notifications',
