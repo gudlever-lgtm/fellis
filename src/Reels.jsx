@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { nameToColor, getInitials, REACTIONS } from './data.js'
-import { apiFetchReels, apiUploadReel, apiToggleReelLike, apiFetchReelComments, apiAddReelComment, apiDeleteReel, apiSearchUsers } from './api.js'
+import { apiFetchReels, apiUploadReel, apiToggleReelLike, apiFetchReelComments, apiAddReelComment, apiDeleteReel, apiSearchUsers, apiGetLivestreamStatus } from './api.js'
 import AdBanner from './AdBanner.jsx'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
@@ -818,7 +818,7 @@ function UploadModal({ t, onClose, onUploaded }) {
 }
 
 // ── Live Reel Info Modal ──────────────────────────────────────────────────────
-function LiveReelModal({ t, onClose }) {
+function LiveReelModal({ t, onClose, liveEnabled }) {
   const s = {
     overlay: {
       position: 'fixed', inset: 0,
@@ -896,7 +896,14 @@ function LiveReelModal({ t, onClose }) {
           <button style={s.closeBtn} onMouseDown={e => { e.preventDefault(); onClose() }}>✕</button>
         </div>
 
-        <div style={s.notReady}>ℹ️ {t.reelsStartLiveNotReady}</div>
+        {!liveEnabled && (
+          <div style={s.notReady}>⚠️ {t.reelsStartLiveDisabled}</div>
+        )}
+        {liveEnabled && (
+          <div style={{ ...s.notReady, background: 'rgba(45,106,79,0.15)', border: '1px solid rgba(45,106,79,0.35)', color: '#69db7c' }}>
+            🟢 {t.reelsStartLiveWhatBody}
+          </div>
+        )}
 
         <div style={s.section}>
           <div style={s.sectionTitle}>{t.reelsStartLiveWhat}</div>
@@ -937,6 +944,7 @@ export default function ReelsPage({ t, currentUser, initialReelId, onViewProfile
   const [showUpload, setShowUpload] = useState(false)
   const [showLiveInfo, setShowLiveInfo] = useState(false)
   const [liveTooltip, setLiveTooltip] = useState(false)
+  const [liveEnabled, setLiveEnabled] = useState(false)
   const LIMIT = 10
 
   const loadReels = useCallback(async (off = 0) => {
@@ -951,6 +959,7 @@ export default function ReelsPage({ t, currentUser, initialReelId, onViewProfile
   }, [])
 
   useEffect(() => { loadReels(0) }, [loadReels])
+  useEffect(() => { apiGetLivestreamStatus().then(d => { if (d) setLiveEnabled(d.enabled) }) }, [])
 
   useEffect(() => {
     if (!initialReelId || loading || reels.length === 0) return
@@ -1066,17 +1075,19 @@ export default function ReelsPage({ t, currentUser, initialReelId, onViewProfile
           {/* Live Reel button */}
           <div style={{ position: 'relative' }}>
             <button
-              style={s.liveBtn}
+              style={{ ...s.liveBtn, opacity: liveEnabled ? 1 : 0.55 }}
               onClick={() => setShowLiveInfo(true)}
               onMouseEnter={() => setLiveTooltip(true)}
               onMouseLeave={() => setLiveTooltip(false)}
             >
-              <span style={{ ...s.liveDotBtn, animation: 'livePulse 1.4s infinite' }} />
+              <span style={{ ...s.liveDotBtn, animation: liveEnabled ? 'livePulse 1.4s infinite' : 'none' }} />
               {t.reelsStartLive}
-              <span style={s.infoIcon} title="">ℹ</span>
+              <span style={s.infoIcon}>ℹ</span>
             </button>
             {liveTooltip && (
-              <div style={s.tooltip}>{t.reelsStartLiveWhatBody}</div>
+              <div style={s.tooltip}>
+                {liveEnabled ? t.reelsStartLiveWhatBody : t.reelsStartLiveDisabled}
+              </div>
             )}
           </div>
           <button style={s.uploadBtn} onClick={() => setShowUpload(true)}>
@@ -1124,7 +1135,7 @@ export default function ReelsPage({ t, currentUser, initialReelId, onViewProfile
       )}
 
       {showLiveInfo && (
-        <LiveReelModal t={t} onClose={() => setShowLiveInfo(false)} />
+        <LiveReelModal t={t} onClose={() => setShowLiveInfo(false)} liveEnabled={liveEnabled} />
       )}
     </div>
   )
