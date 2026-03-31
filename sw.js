@@ -34,6 +34,15 @@ self.addEventListener('activate', (event) => {
   self.clients.claim()
 })
 
+// Handle messages from the page (e.g. "SKIP_WAITING" sent by update prompts).
+// Without this listener the browser logs "message port closed before a response
+// was received" when any caller uses a MessageChannel to talk to the SW.
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting()
+  }
+})
+
 self.addEventListener('fetch', (event) => {
   const { request } = event
   const url = new URL(request.url)
