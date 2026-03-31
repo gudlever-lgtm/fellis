@@ -61,7 +61,9 @@ async function addCol(table, col, def) {
   // Whitelist table names used in migrations
   const VALID_TABLES = ['users', 'posts', 'comments', 'friendships', 'companies',
     'admin_ad_settings', 'admin_settings', 'reels', 'marketplace_listings', 'jobs',
-    'shared_jobs', 'earned_badges', 'user_badges', 'badge_config', 'livestreams']
+    'shared_jobs', 'earned_badges', 'user_badges', 'badge_config', 'livestreams',
+    'messages', 'conversations', 'sessions', 'invitations', 'post_likes',
+    'reel_likes', 'reel_comments', 'stories', 'events', 'notifications']
 
   // Validate table name
   if (!VALID_TABLES.includes(table)) {
