@@ -3979,18 +3979,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   )
 }
 
-// ── Profile mock photos (FB import + local) ──
-const MOCK_FB_PHOTOS = [
-  { id: 1, source: 'facebook', caption: { da: 'Sommerferie på Bornholm', en: 'Summer holiday on Bornholm' }, color: '#4ECDC4' },
-  { id: 2, source: 'facebook', caption: { da: 'Designkonference 2025', en: 'Design conference 2025' }, color: '#FF6B6B' },
-  { id: 3, source: 'facebook', caption: { da: 'Nyt kontor — første dag!', en: 'New office — first day!' }, color: '#FFD166' },
-  { id: 4, source: 'facebook', caption: { da: 'Påskefrokost med familien', en: 'Easter lunch with the family' }, color: '#95E1D3' },
-  { id: 5, source: 'facebook', caption: { da: 'Kvindernes internationale kampdag', en: "International Women's Day" }, color: '#F38181' },
-  { id: 6, source: 'facebook', caption: { da: 'Valentinsdag ❤️', en: 'Valentine\'s Day ❤️' }, color: '#FCE38A' },
-  { id: 7, source: 'fellis', caption: { da: 'Mit designprojekt', en: 'My design project' }, color: '#EAFFD0' },
-  { id: 8, source: 'fellis', caption: { da: 'Vinter i København', en: 'Winter in Copenhagen' }, color: '#C4F1F9' },
-  { id: 9, source: 'facebook', caption: { da: 'Juleaften 🎄', en: 'Christmas Eve 🎄' }, color: '#A29BFE' },
-]
 
 // ── Profile (clean — read-only view) ──
 function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onBadgeCheck, interestCategories = INTEREST_CATEGORIES, initialTab }) {
@@ -13898,15 +13886,6 @@ const MARKETPLACE_CATEGORIES = [
   { key: 'garden',      icon: '🌱', labelKey: 'marketplaceCatGarden' },
   { key: 'vehicles',    icon: '🚗', labelKey: 'marketplaceCatVehicles' },
   { key: 'other',       icon: '📦', labelKey: 'marketplaceCatOther' },
-]
-
-const MOCK_LISTINGS = [
-  { id: 1, title: { da: 'iPhone 13 Pro — næsten ny', en: 'iPhone 13 Pro — nearly new' }, price: 3200, priceNegotiable: false, description: { da: 'Sælger min iPhone 13 Pro 256GB. Ingen ridser, altid haft cover og skærmbeskytter. Original æske medfølger.', en: 'Selling my iPhone 13 Pro 256GB. No scratches, always had a case and screen protector. Original box included.' }, category: 'electronics', location: 'Frederiksberg', photos: [], seller: 'Magnus Jensen', sellerId: 'mock-magnus', postedAt: '2026-02-18', sold: false, mobilepay: '20123456' },
-  { id: 2, title: { da: 'IKEA KALLAX hylde 2×4 — hvid', en: 'IKEA KALLAX shelf unit 2×4 — white' }, price: 450, priceNegotiable: true, description: { da: 'Velholdt KALLAX hylde med 8 rum. Afhentes i Valby.', en: 'Well-kept KALLAX shelf with 8 compartments. Pick-up in Valby.' }, category: 'furniture', location: 'Valby, København', photos: [], seller: 'Clara Johansen', sellerId: 'mock-clara', postedAt: '2026-02-17', sold: false, mobilepay: '31456789' },
-  { id: 3, title: { da: 'Vintage vinterjjakke — str. M', en: 'Vintage winter jacket — size M' }, price: 280, priceNegotiable: true, description: { da: 'Fed vintage jakke fra 90erne. Str. M, svarer til 38–40.', en: 'Cool vintage jacket from the 90s. Size M, fits 38–40.' }, category: 'clothing', location: 'Nørrebro, København', photos: [], seller: 'Astrid Poulsen', sellerId: 'mock-astrid', postedAt: '2026-02-15', sold: false },
-  { id: 4, title: { da: 'Trek MTB cykel — 26 tommer', en: 'Trek MTB bicycle — 26 inch' }, price: 1800, priceNegotiable: false, description: { da: 'Trek Marlin 5, 2020-model. Ny kæde og bremser i 2025. Sælges pga. opgradering.', en: 'Trek Marlin 5, 2020 model. New chain and brakes in 2025. Selling due to upgrade.' }, category: 'sports', location: 'Aarhus C', photos: [], seller: 'Emil Larsen', sellerId: 'mock-emil', postedAt: '2026-02-14', sold: false },
-  { id: 5, title: { da: 'Harry Potter — komplet boksæt (DA)', en: 'Harry Potter — complete box set (DK edition)' }, price: 150, priceNegotiable: false, description: { da: 'Alle 7 bøger på dansk i original boks. Lidt slidte, men komplette.', en: 'All 7 books in Danish in original box. Slightly worn but complete.' }, category: 'books', location: 'Odense', photos: [], seller: 'Alma Hansen', sellerId: 'mock-alma', postedAt: '2026-02-13', sold: true },
-  { id: 6, title: { da: 'Weber kuglegrill — 57 cm', en: 'Weber kettle grill — 57 cm' }, price: 600, priceNegotiable: true, description: { da: 'Weber One-Touch 57 cm. Brugt 2 sæsoner, ellers i perfekt stand.', en: 'Weber One-Touch 57cm. Used 2 seasons, otherwise in perfect condition.' }, category: 'garden', location: 'Hellerup', photos: [], seller: 'Liam Madsen', sellerId: 'mock-liam', postedAt: '2026-02-12', sold: false },
 ]
 
 function MarketplaceMapView({ listings, lang, onSelect }) {
