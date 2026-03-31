@@ -112,6 +112,17 @@ export async function apiAddParticipants(conversationId, userIds) {
   })
 }
 
+export async function apiRemoveParticipant(conversationId, userId) {
+  return request(`/conversations/${conversationId}/participants/${userId}`, { method: 'DELETE' })
+}
+
+export async function apiMuteParticipant(conversationId, userId, minutes) {
+  return request(`/conversations/${conversationId}/participants/${userId}/mute`, {
+    method: 'POST',
+    body: JSON.stringify({ minutes }),
+  })
+}
+
 export async function apiSearchUsers(q) {
   return request(`/users/search?q=${encodeURIComponent(q)}`)
 }
