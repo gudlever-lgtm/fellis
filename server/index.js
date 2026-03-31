@@ -12166,6 +12166,67 @@ app.post('/api/admin/livestream/settings', authenticate, requireAdmin, async (re
   }
 })
 
+// GET /api/admin/livestream/stats — real livestream statistics (admin only)
+app.get('/api/admin/livestream/stats', authenticate, requireAdmin, async (req, res) => {
+  try {
+    // Aggregate counts
+    const [[counts]] = await pool.query(`
+      SELECT
+        COUNT(*)                                                      AS total_streams,
+        SUM(status = 'live')                                          AS currently_live,
+        SUM(status = 'ended')                                         AS ended_streams,
+        SUM(status = 'archived')                                      AS archived_streams,
+        SUM(started_at >= NOW() - INTERVAL 7  DAY)                   AS streams_7d,
+        SUM(started_at >= NOW() - INTERVAL 30 DAY)                   AS streams_30d,
+        SUM(reel_file_url IS NOT NULL)                                AS with_reel,
+        ROUND(AVG(TIMESTAMPDIFF(SECOND, started_at,
+          COALESCE(ended_at, NOW()))), 0)                             AS avg_duration_seconds,
+        ROUND(SUM(TIMESTAMPDIFF(SECOND, started_at,
+          COALESCE(ended_at, NOW()))), 0)                             AS total_duration_seconds
+      FROM livestreams
+    `)
+
+    // Recent 20 streams with user info
+    const [recent] = await pool.query(`
+      SELECT ls.id, ls.status, ls.started_at, ls.ended_at, ls.reel_file_url,
+             TIMESTAMPDIFF(SECOND, ls.started_at, COALESCE(ls.ended_at, NOW())) AS duration_seconds,
+             u.id AS user_id, u.name AS user_name, u.handle AS user_handle, u.avatar_url
+      FROM livestreams ls
+      JOIN users u ON ls.user_id = u.id
+      ORDER BY ls.started_at DESC
+      LIMIT 20
+    `)
+
+    // Daily stream count for last 30 days
+    const [daily] = await pool.query(`
+      SELECT DATE(started_at) AS day, COUNT(*) AS count
+      FROM livestreams
+      WHERE started_at >= NOW() - INTERVAL 30 DAY
+      GROUP BY DATE(started_at)
+      ORDER BY day ASC
+    `)
+
+    res.json({
+      counts: {
+        total_streams:        Number(counts.total_streams        || 0),
+        currently_live:       Number(counts.currently_live       || 0),
+        ended_streams:        Number(counts.ended_streams        || 0),
+        archived_streams:     Number(counts.archived_streams     || 0),
+        streams_7d:           Number(counts.streams_7d           || 0),
+        streams_30d:          Number(counts.streams_30d          || 0),
+        with_reel:            Number(counts.with_reel            || 0),
+        avg_duration_seconds: Number(counts.avg_duration_seconds || 0),
+        total_duration_seconds: Number(counts.total_duration_seconds || 0),
+      },
+      recent,
+      daily,
+    })
+  } catch (err) {
+    console.error('GET /api/admin/livestream/stats error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // ── SPA fallback ──
 app.get('*', (req, res) => {
   res.sendFile(path.join(FRONTEND_ROOT, 'index.html'))

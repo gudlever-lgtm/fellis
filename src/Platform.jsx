@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } f
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { SUPPORTED_LANGS, EUROPEAN_LANGUAGES, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials, getTranslations } from './data.js'
 import { formatPrice } from './utils/currency.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiRemoveConversationParticipant, apiMuteConversationParticipant, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiShareJob, apiUnshareJob, apiGetSharedJobs, apiGetJobSharedWith, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals, apiFetchCalendarReminders, apiCreateCalendarReminder, apiDeleteCalendarReminder, apiGetLinkedContent, apiFetchJobs, apiGetSuggestedUsers, apiAdminNotifyAll, apiLikeComment, apiAdminGetPlatformAds, apiAdminCreatePlatformAd, apiAdminUpdatePlatformAd, apiAdminDeletePlatformAd, apiAdminGetLockedUsers, apiAdminUnlockUser, apiFeedCompanyPosts, apiGetLivestreamSettings, apiSaveLivestreamSettings } from './api.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiRemoveConversationParticipant, apiMuteConversationParticipant, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiShareJob, apiUnshareJob, apiGetSharedJobs, apiGetJobSharedWith, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals, apiFetchCalendarReminders, apiCreateCalendarReminder, apiDeleteCalendarReminder, apiGetLinkedContent, apiFetchJobs, apiGetSuggestedUsers, apiAdminNotifyAll, apiLikeComment, apiAdminGetPlatformAds, apiAdminCreatePlatformAd, apiAdminUpdatePlatformAd, apiAdminDeletePlatformAd, apiAdminGetLockedUsers, apiAdminUnlockUser, apiFeedCompanyPosts, apiGetLivestreamSettings, apiSaveLivestreamSettings, apiGetLivestreamStats } from './api.js'
 import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
 import ReelsPage from './Reels.jsx'
@@ -17907,6 +17907,180 @@ function AdminInterestCategoriesPanel({ lang }) {
   )
 }
 
+function AdminLivestreamStatsPanel({ lang, t }) {
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    setLoading(true)
+    apiGetLivestreamStats().then(d => { setData(d || null); setLoading(false) })
+  }, [])
+
+  const fmtDuration = (secs) => {
+    if (!secs || secs <= 0) return '—'
+    const h = Math.floor(secs / 3600)
+    const m = Math.floor((secs % 3600) / 60)
+    const s = Math.floor(secs % 60)
+    if (h > 0) return `${h}t ${m}m`
+    if (m > 0) return `${m}m ${s}s`
+    return `${s}s`
+  }
+
+  const fmtDate = (iso) => {
+    if (!iso) return '—'
+    return new Date(iso).toLocaleString(lang === 'da' ? 'da-DK' : 'en-GB', {
+      day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    })
+  }
+
+  const statusLabel = (status) => {
+    if (status === 'live')     return t.adminLivestreamStatsLive
+    if (status === 'ended')    return t.adminLivestreamStatsEnded
+    if (status === 'archived') return t.adminLivestreamStatsArchived
+    return status
+  }
+
+  const statusColor = (status) => {
+    if (status === 'live') return { background: '#e03131', color: '#fff' }
+    if (status === 'ended') return { background: '#e8f5e9', color: '#2D6A4F' }
+    return { background: '#f0f0f0', color: '#666' }
+  }
+
+  const s = {
+    grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12, marginBottom: 20 },
+    statCard: { background: '#f8f8f6', border: '1px solid #e8e8e4', borderRadius: 10, padding: '16px 14px', textAlign: 'center' },
+    statVal: { fontSize: 28, fontWeight: 800, color: '#2D6A4F', marginBottom: 4 },
+    statLabel: { fontSize: 12, color: '#888', fontWeight: 500 },
+    liveVal: { fontSize: 28, fontWeight: 800, color: '#e03131', marginBottom: 4 },
+    tableWrap: { overflowX: 'auto' },
+    table: { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
+    th: { textAlign: 'left', padding: '8px 10px', borderBottom: '2px solid #e8e8e4', fontWeight: 600, color: '#555', whiteSpace: 'nowrap' },
+    td: { padding: '8px 10px', borderBottom: '1px solid #f0f0f0', color: '#333', verticalAlign: 'middle' },
+    badge: { display: 'inline-block', padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' },
+  }
+
+  if (loading) return (
+    <div className="p-card" style={{ padding: 40, textAlign: 'center', color: '#aaa' }}>
+      {lang === 'da' ? 'Henter statistik…' : 'Loading statistics…'}
+    </div>
+  )
+
+  if (!data) return (
+    <div className="p-card" style={{ padding: 40, textAlign: 'center', color: '#aaa' }}>
+      {lang === 'da' ? 'Kunne ikke hente data.' : 'Could not load data.'}
+    </div>
+  )
+
+  const { counts, recent, daily } = data
+
+  // Build a simple bar chart for daily activity
+  const maxDay = daily.length > 0 ? Math.max(...daily.map(d => d.count), 1) : 1
+
+  return (
+    <div>
+      <div className="p-card" style={{ marginBottom: 16, padding: '20px 24px' }}>
+        <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 700 }}>📊 {t.adminLivestreamStatsTitle}</h3>
+
+        {/* KPI grid */}
+        <div style={s.grid}>
+          <div style={s.statCard}>
+            <div style={counts.currently_live > 0 ? s.liveVal : s.statVal}>{counts.currently_live}</div>
+            <div style={s.statLabel}>{t.adminLivestreamStatsCurrentlyLive}</div>
+          </div>
+          <div style={s.statCard}>
+            <div style={s.statVal}>{counts.total_streams}</div>
+            <div style={s.statLabel}>{t.adminLivestreamStatsTotal}</div>
+          </div>
+          <div style={s.statCard}>
+            <div style={s.statVal}>{counts.streams_7d}</div>
+            <div style={s.statLabel}>{t.adminLivestreamStats7d}</div>
+          </div>
+          <div style={s.statCard}>
+            <div style={s.statVal}>{counts.streams_30d}</div>
+            <div style={s.statLabel}>{t.adminLivestreamStats30d}</div>
+          </div>
+          <div style={s.statCard}>
+            <div style={s.statVal}>{counts.with_reel}</div>
+            <div style={s.statLabel}>{t.adminLivestreamStatsWithReel}</div>
+          </div>
+          <div style={s.statCard}>
+            <div style={s.statVal}>{fmtDuration(counts.avg_duration_seconds)}</div>
+            <div style={s.statLabel}>{t.adminLivestreamStatsAvgDuration}</div>
+          </div>
+          <div style={s.statCard}>
+            <div style={s.statVal}>{fmtDuration(counts.total_duration_seconds)}</div>
+            <div style={s.statLabel}>{t.adminLivestreamStatsTotalDuration}</div>
+          </div>
+        </div>
+
+        {/* Daily bar chart */}
+        {daily.length > 0 && (
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#555', marginBottom: 8 }}>{t.adminLivestreamStatsDailyTitle}</div>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 60, borderBottom: '1px solid #e8e8e4' }}>
+              {daily.map(d => {
+                const pct = Math.max(4, Math.round((d.count / maxDay) * 100))
+                return (
+                  <div key={d.day} title={`${d.day}: ${d.count}`} style={{ flex: 1, minWidth: 4, height: `${pct}%`, background: '#2D6A4F', borderRadius: '2px 2px 0 0', opacity: 0.8 }} />
+                )
+              })}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#bbb', marginTop: 3 }}>
+              <span>{daily[0]?.day}</span>
+              <span>{daily[daily.length - 1]?.day}</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Recent streams table */}
+      <div className="p-card" style={{ padding: '20px 24px' }}>
+        <h3 style={{ margin: '0 0 14px', fontSize: 15, fontWeight: 700 }}>{t.adminLivestreamStatsRecent}</h3>
+        {recent.length === 0 ? (
+          <p style={{ color: '#aaa', fontSize: 13 }}>{t.adminLivestreamStatsNoStreams}</p>
+        ) : (
+          <div style={s.tableWrap}>
+            <table style={s.table}>
+              <thead>
+                <tr>
+                  <th style={s.th}>{lang === 'da' ? 'Bruger' : 'User'}</th>
+                  <th style={s.th}>{lang === 'da' ? 'Start' : 'Started'}</th>
+                  <th style={s.th}>{lang === 'da' ? 'Varighed' : 'Duration'}</th>
+                  <th style={s.th}>{lang === 'da' ? 'Status' : 'Status'}</th>
+                  <th style={s.th}>{lang === 'da' ? 'Reel' : 'Reel'}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recent.map(row => (
+                  <tr key={row.id}>
+                    <td style={s.td}>
+                      <div style={{ fontWeight: 600 }}>{row.user_name}</div>
+                      <div style={{ fontSize: 11, color: '#999' }}>{row.user_handle}</div>
+                    </td>
+                    <td style={s.td} title={fmtDate(row.started_at)}>{fmtDate(row.started_at)}</td>
+                    <td style={s.td}>{fmtDuration(row.duration_seconds)}</td>
+                    <td style={s.td}>
+                      <span style={{ ...s.badge, ...statusColor(row.status) }}>
+                        {statusLabel(row.status)}
+                      </span>
+                    </td>
+                    <td style={s.td}>
+                      {row.reel_file_url
+                        ? <span style={{ fontSize: 12, color: '#2D6A4F', fontWeight: 600 }}>✓ {t.adminLivestreamStatsHasReel}</span>
+                        : <span style={{ fontSize: 12, color: '#ccc' }}>—</span>
+                      }
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function AdminLivestreamSettingsPanel({ lang, t }) {
   const [streamMaxMin, setStreamMaxMin] = useState('')
   const [reelMaxMin, setReelMaxMin] = useState('')
@@ -18183,6 +18357,7 @@ function AdminPage({ lang, t }) {
           {
             label: lang === 'da' ? 'Video' : 'Video',
             tabs: [
+              { id: 'livestream-stats', icon: '📺', label: t.adminLivestreamStatsTab },
               { id: 'livestream', icon: '📡', label: t.adminLivestreamTab },
             ],
           },
@@ -19357,6 +19532,7 @@ function AdminPage({ lang, t }) {
       {adminTab === 'badges' && <AdminBadgesPanel lang={lang} />}
       {adminTab === 'interests' && <AdminInterestCategoriesPanel lang={lang} />}
       {adminTab === 'broadcast' && <AdminBroadcastPanel lang={lang} />}
+      {adminTab === 'livestream-stats' && <AdminLivestreamStatsPanel lang={lang} t={t} />}
       {adminTab === 'livestream' && <AdminLivestreamSettingsPanel lang={lang} t={t} />}
     </div>
   )
