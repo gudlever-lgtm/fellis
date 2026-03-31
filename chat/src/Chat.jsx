@@ -368,6 +368,33 @@ function mediaUrl(url) {
   return `${API_BASE}${url}`
 }
 
+// ── Lightbox modal ────────────────────────────────────────────────────────────
+function LightboxModal({ src, onClose }) {
+  useEffect(() => {
+    const handler = (e) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [onClose])
+
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+      onClick={onClose}
+    >
+      <img
+        src={src}
+        alt=""
+        style={{ maxWidth: '94vw', maxHeight: '92vh', borderRadius: 8, boxShadow: '0 8px 40px rgba(0,0,0,0.5)', objectFit: 'contain' }}
+        onClick={e => e.stopPropagation()}
+      />
+      <button
+        onClick={onClose}
+        style={{ position: 'fixed', top: 16, right: 18, background: 'none', border: 'none', color: '#fff', fontSize: 28, cursor: 'pointer', lineHeight: 1, opacity: 0.8 }}
+      >×</button>
+    </div>
+  )
+}
+
 // ── Main Chat component ───────────────────────────────────────────────────────
 export default function Chat({ lang, user, onLogout }) {
   const [conversations, setConversations] = useState([])
@@ -383,6 +410,7 @@ export default function Chat({ lang, user, onLogout }) {
   const [media, setMedia] = useState([]) // [{url, type, mime, preview}]
   const [uploading, setUploading] = useState(false)
   const [modal, setModal] = useState(null) // null | 'rename' | 'addPeople' | 'members'
+  const [lightbox, setLightbox] = useState(null) // url string or null
   const messagesEndRef = useRef(null)
   const pollRef = useRef(null)
   const isMobile = useIsMobile()
@@ -669,8 +697,8 @@ export default function Chat({ lang, user, onLogout }) {
                       {msg.media?.length > 0 && msg.media.map((m, mi) => (
                         m.type === 'video'
                           ? <video key={mi} src={mediaUrl(m.url)} style={s.mediaVideo} controls />
-                          : <img key={mi} src={mediaUrl(m.url)} style={s.mediaImg} alt=""
-                              onClick={() => window.open(mediaUrl(m.url), '_blank')} />
+                          : <img key={mi} src={mediaUrl(m.url)} style={{ ...s.mediaImg, cursor: 'zoom-in' }} alt=""
+                              onClick={() => setLightbox(mediaUrl(m.url))} />
                       ))}
                       <div style={s.bubbleMeta}>{msg.time}</div>
                     </div>
@@ -740,6 +768,7 @@ export default function Chat({ lang, user, onLogout }) {
           onAdd={handleAddPeople}
           onClose={() => setModal(null)} />
       )}
+      {lightbox && <LightboxModal src={lightbox} onClose={() => setLightbox(null)} />}
     </div>
   )
 }
