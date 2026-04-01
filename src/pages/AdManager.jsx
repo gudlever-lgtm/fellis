@@ -22,6 +22,8 @@ export default function AdManager({ lang, t, currentUser }) {
   const [editingAdId, setEditingAdId] = useState(null)
   const [editForm, setEditForm] = useState({})
   const [editSaving, setEditSaving] = useState(false)
+  const [editUploading, setEditUploading] = useState(false)
+  const editFileInputRef = useRef(null)
   const [form, setForm] = useState({
     title: '', body: '', image_url: '', target_url: '',
     budget: '', target_interests: '', start_date: '', end_date: '',
@@ -31,6 +33,31 @@ export default function AdManager({ lang, t, currentUser }) {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const fileInputRef = useRef(null)
+
+  const handleEditImageUpload = async (file) => {
+    if (!file || !file.type.startsWith('image/')) return
+    setEditUploading(true)
+    const res = await apiUploadFile(file, 'post')
+    setEditUploading(false)
+    if (res?.url) {
+      setEditForm(p => ({ ...p, image_url: res.url }))
+    } else {
+      setError(PT[lang].couldNotUploadImage)
+      setTimeout(() => setError(''), 4000)
+    }
+  }
+
+  const handleEditImagePaste = (e) => {
+    const items = e.clipboardData?.items
+    if (!items) return
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault()
+        handleEditImageUpload(item.getAsFile())
+        return
+      }
+    }
+  }
 
   const handleImageUpload = async (file) => {
     if (!file || !file.type.startsWith('image/')) return
@@ -534,7 +561,38 @@ export default function AdManager({ lang, t, currentUser }) {
                     <div style={s.twoCol}>
                       <div style={s.formRow}>
                         <label style={s.label}>{t.adImageUrl}</label>
-                        <input style={s.input} value={editForm.image_url} onChange={e => setEditForm(p => ({ ...p, image_url: e.target.value }))} />
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                          <input
+                            style={{ ...s.input, flex: 1 }}
+                            value={editForm.image_url}
+                            placeholder={PT[lang].pasteURLOrImage}
+                            onChange={e => setEditForm(p => ({ ...p, image_url: e.target.value }))}
+                            onPaste={handleEditImagePaste}
+                          />
+                          <button
+                            type="button"
+                            title={PT[lang].uploadFile}
+                            style={{ padding: '8px 12px', borderRadius: 8, border: '1.5px solid #DDD', background: '#F9F9F9', cursor: 'pointer', fontSize: 16, flexShrink: 0, opacity: editUploading ? 0.5 : 1 }}
+                            disabled={editUploading}
+                            onClick={() => editFileInputRef.current?.click()}
+                          >{editUploading ? '…' : '📁'}</button>
+                          <input
+                            ref={editFileInputRef}
+                            type="file"
+                            accept="image/*"
+                            style={{ display: 'none' }}
+                            onChange={e => { const f = e.target.files?.[0]; if (f) handleEditImageUpload(f); e.target.value = '' }}
+                          />
+                        </div>
+                        {editForm.image_url && (
+                          <img
+                            src={editForm.image_url}
+                            alt=""
+                            style={{ marginTop: 6, maxHeight: 80, maxWidth: '100%', borderRadius: 6, objectFit: 'cover', border: '1px solid #E8E4DF' }}
+                            onError={e => { e.target.style.display = 'none' }}
+                            onLoad={e => { e.target.style.display = 'block' }}
+                          />
+                        )}
                       </div>
                       <div style={s.formRow}>
                         <label style={s.label}>{t.adBudget}</label>
@@ -543,11 +601,23 @@ export default function AdManager({ lang, t, currentUser }) {
                     </div>
                     <div style={s.twoCol}>
                       <div style={s.formRow}>
-                        <label style={s.label}>{t.adStartDate}</label>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                          <label style={{ ...s.label, margin: 0 }}>{t.adStartDate}</label>
+                          <button type="button" style={{ fontSize: 11, fontWeight: 600, color: '#4338CA', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                            onClick={() => setEditForm(p => ({ ...p, start_date: new Date().toISOString().slice(0, 10) }))}>
+                            {PT[lang].calendarToday}
+                          </button>
+                        </div>
                         <input style={s.input} type="date" value={editForm.start_date} onChange={e => setEditForm(p => ({ ...p, start_date: e.target.value }))} />
                       </div>
                       <div style={s.formRow}>
-                        <label style={s.label}>{t.adEndDate}</label>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                          <label style={{ ...s.label, margin: 0 }}>{t.adEndDate}</label>
+                          <button type="button" style={{ fontSize: 11, fontWeight: 600, color: '#4338CA', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                            onClick={() => { const d = new Date(); d.setDate(d.getDate() + 30); setEditForm(p => ({ ...p, end_date: d.toISOString().slice(0, 10) })) }}>
+                            +30 {PT[lang].days}
+                          </button>
+                        </div>
                         <input style={s.input} type="date" value={editForm.end_date} onChange={e => setEditForm(p => ({ ...p, end_date: e.target.value }))} />
                       </div>
                     </div>
