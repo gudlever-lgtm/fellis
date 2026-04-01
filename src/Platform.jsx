@@ -4617,7 +4617,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
             <div style={{ textAlign: 'center', padding: 32, color: '#888' }}>⏳</div>
           ) : allNotes.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 32, color: '#888' }}>
-              {t.noNotesYetOpenAConnections profile to add notes.'}
+              {t.noNotesYetOpenAConnection}
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
