@@ -18222,7 +18222,9 @@ function AdminLivestreamSettingsPanel({ lang, t }) {
             </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={s.chip(false)}>{t.adminLivestreamNoRtmp}</span>
+            <span style={s.chip(server?.mediamtx)}>
+              {server?.mediamtx ? t.adminLivestreamMediamtxOk : t.adminLivestreamMediamtxMissing}
+            </span>
           </div>
           {server?.rtmp_url && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
@@ -18235,6 +18237,13 @@ function AdminLivestreamSettingsPanel({ lang, t }) {
               {lang === 'da'
                 ? 'Installer ffmpeg på serveren for at aktivere optagelse og reel-konvertering.'
                 : 'Install ffmpeg on the server to enable recording and reel conversion.'}
+            </p>
+          )}
+          {server && !server.mediamtx && (
+            <p style={{ margin: '4px 0 0', fontSize: 12, color: '#888' }}>
+              {lang === 'da'
+                ? 'mediamtx er ikke tilgængelig — start servicen for at modtage RTMP-streams.'
+                : 'mediamtx is not reachable — start the service to accept RTMP streams.'}
             </p>
           )}
         </div>
