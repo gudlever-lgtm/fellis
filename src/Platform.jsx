@@ -622,12 +622,6 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
                 <button className="avatar-dropdown-item" onClick={() => navigateTo('settings')}>
                   <span>⚙️</span> {menuT.settings}
                 </button>
-                <button className="avatar-dropdown-item" onClick={() => navigateTo('privacy')}>
-                  <span>🔒</span> {menuT.privacy}
-                </button>
-                <button className="avatar-dropdown-item" onClick={() => navigateTo('about')}>
-                  <span>💡</span> {menuT.about}
-                </button>
                 {(currentUser.is_moderator || currentUser.is_admin) && !currentUser.is_admin && (
                   <button className="avatar-dropdown-item" onClick={() => navigateTo('moderation')}>
                     <span>🛡️</span> {t.modPageTitle}
@@ -638,6 +632,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
                     <span>⚙️</span> {t.adminTitle}
                   </button>
                 )}
+                <div className="avatar-dropdown-divider" />
                 <button className="avatar-dropdown-item" onClick={() => { setShowAvatarMenu(false); navigateTo('saved-posts') }}>
                   <span>🔖</span> {lang === 'da' ? 'Gemte opslag' : 'Saved posts'}
                 </button>
@@ -646,6 +641,13 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
                 </button>
                 <button className="avatar-dropdown-item" onClick={() => { setShowAvatarMenu(false); setShowKeyboardHelp(true) }}>
                   <span>⌨️</span> {lang === 'da' ? 'Tastaturgenveje' : 'Keyboard shortcuts'}
+                </button>
+                <div className="avatar-dropdown-divider" />
+                <button className="avatar-dropdown-item" onClick={() => navigateTo('about')}>
+                  <span>💡</span> {menuT.about}
+                </button>
+                <button className="avatar-dropdown-item" onClick={() => navigateTo('privacy')}>
+                  <span>🔒</span> {menuT.privacy}
                 </button>
                 <div className="avatar-dropdown-divider" />
                 <button className="avatar-dropdown-item avatar-dropdown-danger" onClick={() => { setShowAvatarMenu(false); onLogout() }}>
@@ -18891,27 +18893,17 @@ function AdminPage({ lang, t }) {
             ],
           },
           {
-            label: lang === 'da' ? 'Sjov & Gamification' : 'Fun & Gamification',
+            label: lang === 'da' ? 'Gamification & Brugere' : 'Gamification & Users',
             tabs: [
               { id: 'easter-eggs', icon: '🥚', label: lang === 'da' ? 'Påskeæg' : 'Easter Eggs' },
               { id: 'badges', icon: '🏅', label: 'Badges' },
-            ],
-          },
-          {
-            label: lang === 'da' ? 'Brugerprofil' : 'User Profile',
-            tabs: [
               { id: 'interests', icon: '🎯', label: lang === 'da' ? 'Interessekategorier' : 'Interest Categories' },
             ],
           },
           {
-            label: lang === 'da' ? 'Kommunikation' : 'Communication',
+            label: lang === 'da' ? 'Kommunikation & Video' : 'Communication & Video',
             tabs: [
               { id: 'broadcast', icon: '📣', label: lang === 'da' ? 'Send notifikation' : 'Broadcast Notification' },
-            ],
-          },
-          {
-            label: lang === 'da' ? 'Video' : 'Video',
-            tabs: [
               { id: 'livestream-stats', icon: '📺', label: t.adminLivestreamStatsTab },
               { id: 'livestream', icon: '📡', label: t.adminLivestreamTab },
             ],
