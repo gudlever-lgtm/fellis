@@ -12693,6 +12693,938 @@ app.post('/api/stream/key/regenerate', authenticate, async (req, res) => {
   }
 })
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// ── NEW FEATURES ──────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Run migration for new feature tables on startup
+async function initNewFeatures() {
+  try {
+    const migPath = path.join(__dirname, 'migrate-new-features.sql')
+    if (!fs.existsSync(migPath)) return
+    const sql = fs.readFileSync(migPath, 'utf8')
+    // Split on semicolons, filter empties and comments
+    const statements = sql.split(';')
+      .map(s => s.trim())
+      .filter(s => s.length > 5 && !s.startsWith('--'))
+    for (const stmt of statements) {
+      await pool.query(stmt).catch(() => {}) // ignore if already exists
+    }
+  } catch (err) {
+    console.warn('initNewFeatures:', err.message)
+  }
+}
+initNewFeatures()
+
+// ── Share / Repost ────────────────────────────────────────────────────────────
+
+app.post('/api/posts/:id/share', authenticate, writeLimit, async (req, res) => {
+  try {
+    const { comment } = req.body
+    const [[post]] = await pool.query('SELECT id FROM posts WHERE id=?', [req.params.id])
+    if (!post) return res.status(404).json({ error: 'Post not found' })
+    await pool.query(
+      'INSERT INTO post_shares (user_id, original_post_id, comment) VALUES (?,?,?) ON DUPLICATE KEY UPDATE comment=VALUES(comment)',
+      [req.userId, req.params.id, comment || null]
+    )
+    await pool.query('UPDATE posts SET share_count = share_count + 1 WHERE id=?', [req.params.id])
+    // Notify original author
+    const [[orig]] = await pool.query('SELECT user_id FROM posts WHERE id=?', [req.params.id])
+    if (orig && orig.user_id !== req.userId) {
+      const [[sharer]] = await pool.query('SELECT name FROM users WHERE id=?', [req.userId])
+      await pool.query(
+        `INSERT INTO notifications (user_id, type, actor_id, entity_type, entity_id, message_da, message_en)
+         VALUES (?,?,?,?,?,?,?)`,
+        [orig.user_id, 'post_share', req.userId, 'post', req.params.id,
+          `${sharer?.name || 'En bruger'} delte dit opslag`,
+          `${sharer?.name || 'Someone'} shared your post`]
+      ).catch(() => {})
+    }
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/posts/:id/share error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.delete('/api/posts/:id/share', authenticate, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM post_shares WHERE user_id=? AND original_post_id=?', [req.userId, req.params.id])
+    await pool.query('UPDATE posts SET share_count = GREATEST(share_count - 1, 0) WHERE id=?', [req.params.id])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Saved posts / Bookmarks ───────────────────────────────────────────────────
+
+app.post('/api/posts/:id/save', authenticate, writeLimit, async (req, res) => {
+  try {
+    await pool.query(
+      'INSERT IGNORE INTO saved_posts (user_id, post_id) VALUES (?,?)',
+      [req.userId, req.params.id]
+    )
+    res.json({ ok: true, saved: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.delete('/api/posts/:id/save', authenticate, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM saved_posts WHERE user_id=? AND post_id=?', [req.userId, req.params.id])
+    res.json({ ok: true, saved: false })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.get('/api/saved-posts', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT p.*, u.name AS author_name, u.handle AS author_handle, u.avatar_url AS author_avatar,
+             sp.created_at AS saved_at,
+             (SELECT COUNT(*) FROM post_likes WHERE post_id=p.id) AS like_count,
+             (SELECT COUNT(*) FROM comments WHERE post_id=p.id AND parent_id IS NULL) AS comment_count
+      FROM saved_posts sp
+      JOIN posts p ON p.id = sp.post_id
+      JOIN users u ON u.id = p.user_id
+      WHERE sp.user_id = ?
+      ORDER BY sp.created_at DESC
+      LIMIT 100
+    `, [req.userId])
+    res.json({ posts: rows })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Polls ─────────────────────────────────────────────────────────────────────
+
+app.post('/api/posts/:id/poll', authenticate, writeLimit, async (req, res) => {
+  try {
+    const { options, ends_in_hours } = req.body
+    if (!Array.isArray(options) || options.length < 2 || options.length > 4)
+      return res.status(400).json({ error: 'Polls need 2–4 options' })
+    // Verify post belongs to user
+    const [[post]] = await pool.query('SELECT user_id FROM posts WHERE id=?', [req.params.id])
+    if (!post || post.user_id !== req.userId)
+      return res.status(403).json({ error: 'Forbidden' })
+    const endsAt = ends_in_hours ? new Date(Date.now() + ends_in_hours * 3600_000) : null
+    const [pr] = await pool.query(
+      'INSERT INTO post_polls (post_id, ends_at) VALUES (?,?)',
+      [req.params.id, endsAt]
+    )
+    const pollId = pr.insertId
+    for (let i = 0; i < options.length; i++) {
+      await pool.query(
+        'INSERT INTO poll_options (poll_id, text_da, text_en, sort_order) VALUES (?,?,?,?)',
+        [pollId, options[i].da || options[i], options[i].en || options[i], i]
+      )
+    }
+    res.json({ ok: true, poll_id: pollId })
+  } catch (err) {
+    console.error('POST poll error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.get('/api/posts/:id/poll', authenticate, async (req, res) => {
+  try {
+    const [[poll]] = await pool.query('SELECT * FROM post_polls WHERE post_id=?', [req.params.id])
+    if (!poll) return res.json({ poll: null })
+    const [options] = await pool.query(
+      'SELECT po.*, COUNT(pv.id) AS vote_count FROM poll_options po LEFT JOIN poll_votes pv ON pv.option_id=po.id WHERE po.poll_id=? GROUP BY po.id ORDER BY po.sort_order',
+      [poll.id]
+    )
+    const [[userVote]] = await pool.query(
+      'SELECT option_id FROM poll_votes WHERE poll_id=? AND user_id=?',
+      [poll.id, req.userId]
+    )
+    res.json({ poll: { ...poll, options, user_vote: userVote?.option_id || null } })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.post('/api/polls/:pollId/vote', authenticate, writeLimit, async (req, res) => {
+  try {
+    const { option_id } = req.body
+    const [[poll]] = await pool.query('SELECT * FROM post_polls WHERE id=?', [req.params.pollId])
+    if (!poll) return res.status(404).json({ error: 'Poll not found' })
+    if (poll.ends_at && new Date(poll.ends_at) < new Date())
+      return res.status(400).json({ error: 'Poll has ended' })
+    await pool.query(
+      'INSERT INTO poll_votes (poll_id, option_id, user_id) VALUES (?,?,?) ON DUPLICATE KEY UPDATE option_id=VALUES(option_id)',
+      [req.params.pollId, option_id, req.userId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Nested comment replies ────────────────────────────────────────────────────
+
+app.post('/api/comments/:id/reply', authenticate, writeLimit, async (req, res) => {
+  try {
+    const { text } = req.body
+    if (!text?.trim()) return res.status(400).json({ error: 'Text required' })
+    const [[parent]] = await pool.query('SELECT post_id, user_id FROM comments WHERE id=?', [req.params.id])
+    if (!parent) return res.status(404).json({ error: 'Comment not found' })
+    const [r] = await pool.query(
+      'INSERT INTO comments (post_id, user_id, text, parent_id) VALUES (?,?,?,?)',
+      [parent.post_id, req.userId, text.trim(), req.params.id]
+    )
+    // Notify parent comment author
+    if (parent.user_id !== req.userId) {
+      const [[replier]] = await pool.query('SELECT name FROM users WHERE id=?', [req.userId])
+      await pool.query(
+        `INSERT INTO notifications (user_id, type, actor_id, entity_type, entity_id, message_da, message_en)
+         VALUES (?,?,?,?,?,?,?)`,
+        [parent.user_id, 'comment_reply', req.userId, 'comment', r.insertId,
+          `${replier?.name || 'En bruger'} svarede på din kommentar`,
+          `${replier?.name || 'Someone'} replied to your comment`]
+      ).catch(() => {})
+    }
+    const [[reply]] = await pool.query(
+      `SELECT c.*, u.name AS author_name, u.handle AS author_handle, u.avatar_url AS author_avatar
+       FROM comments c JOIN users u ON u.id=c.user_id WHERE c.id=?`,
+      [r.insertId]
+    )
+    res.json({ reply })
+  } catch (err) {
+    console.error('POST /api/comments/:id/reply error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.get('/api/comments/:id/replies', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT c.*, u.name AS author_name, u.handle AS author_handle, u.avatar_url AS author_avatar
+       FROM comments c JOIN users u ON u.id=c.user_id
+       WHERE c.parent_id=? ORDER BY c.created_at ASC`,
+      [req.params.id]
+    )
+    res.json({ replies: rows })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Message reactions ─────────────────────────────────────────────────────────
+
+app.post('/api/messages/:id/react', authenticate, writeLimit, async (req, res) => {
+  try {
+    const { emoji } = req.body
+    if (!emoji) return res.status(400).json({ error: 'Emoji required' })
+    // Verify user is participant in the conversation
+    const [[msg]] = await pool.query('SELECT conversation_id FROM messages WHERE id=?', [req.params.id])
+    if (!msg) return res.status(404).json({ error: 'Message not found' })
+    const [[member]] = await pool.query(
+      'SELECT 1 FROM conversation_participants WHERE conversation_id=? AND user_id=?',
+      [msg.conversation_id, req.userId]
+    )
+    if (!member) return res.status(403).json({ error: 'Forbidden' })
+    await pool.query(
+      'INSERT INTO message_reactions (message_id, user_id, emoji) VALUES (?,?,?) ON DUPLICATE KEY UPDATE emoji=VALUES(emoji)',
+      [req.params.id, req.userId, emoji]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.delete('/api/messages/:id/react', authenticate, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM message_reactions WHERE message_id=? AND user_id=?', [req.params.id, req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Profile cover photo ───────────────────────────────────────────────────────
+
+const coverUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, UPLOADS_DIR),
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname) || '.jpg'
+      cb(null, `cover_${req.userId}_${Date.now()}${ext}`)
+    },
+  }),
+  limits: { fileSize: 8 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (!file.mimetype.startsWith('image/')) return cb(new Error('Images only'))
+    cb(null, true)
+  },
+})
+
+app.post('/api/profile/cover', authenticate, fileUploadLimit, coverUpload.single('cover'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' })
+    const url = `/uploads/${req.file.filename}`
+    await pool.query('UPDATE users SET cover_photo_url=? WHERE id=?', [url, req.userId])
+    res.json({ ok: true, cover_photo_url: url })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.delete('/api/profile/cover', authenticate, async (req, res) => {
+  try {
+    await pool.query('UPDATE users SET cover_photo_url=NULL WHERE id=?', [req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Pinned post ───────────────────────────────────────────────────────────────
+
+app.patch('/api/profile/pinned-post', authenticate, async (req, res) => {
+  try {
+    const { post_id } = req.body
+    if (post_id) {
+      const [[post]] = await pool.query('SELECT user_id FROM posts WHERE id=?', [post_id])
+      if (!post || post.user_id !== req.userId)
+        return res.status(403).json({ error: 'Forbidden' })
+    }
+    await pool.query('UPDATE users SET pinned_post_id=? WHERE id=?', [post_id || null, req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Hashtag follows ───────────────────────────────────────────────────────────
+
+app.get('/api/me/hashtag-follows', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT hashtag, created_at FROM hashtag_follows WHERE user_id=? ORDER BY hashtag ASC',
+      [req.userId]
+    )
+    res.json({ hashtags: rows.map(r => r.hashtag) })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.post('/api/hashtags/:tag/follow', authenticate, writeLimit, async (req, res) => {
+  try {
+    const tag = req.params.tag.toLowerCase().replace(/^#/, '')
+    await pool.query(
+      'INSERT IGNORE INTO hashtag_follows (user_id, hashtag) VALUES (?,?)',
+      [req.userId, tag]
+    )
+    res.json({ ok: true, following: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.delete('/api/hashtags/:tag/follow', authenticate, async (req, res) => {
+  try {
+    const tag = req.params.tag.toLowerCase().replace(/^#/, '')
+    await pool.query('DELETE FROM hashtag_follows WHERE user_id=? AND hashtag=?', [req.userId, tag])
+    res.json({ ok: true, following: false })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Story highlights ──────────────────────────────────────────────────────────
+
+app.get('/api/me/story-highlights', authenticate, async (req, res) => {
+  try {
+    const [highlights] = await pool.query(
+      'SELECT * FROM story_highlights WHERE user_id=? ORDER BY created_at DESC',
+      [req.userId]
+    )
+    for (const h of highlights) {
+      const [items] = await pool.query(
+        `SELECT shi.story_id, s.content_text, s.bg_color, s.created_at
+         FROM story_highlight_items shi
+         JOIN stories s ON s.id=shi.story_id
+         WHERE shi.highlight_id=?
+         ORDER BY s.created_at DESC`,
+        [h.id]
+      )
+      h.stories = items
+    }
+    res.json({ highlights })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.get('/api/users/:userId/story-highlights', authenticate, async (req, res) => {
+  try {
+    const [highlights] = await pool.query(
+      'SELECT * FROM story_highlights WHERE user_id=? ORDER BY created_at DESC',
+      [req.params.userId]
+    )
+    for (const h of highlights) {
+      const [items] = await pool.query(
+        `SELECT shi.story_id, s.content_text, s.bg_color, s.created_at
+         FROM story_highlight_items shi
+         JOIN stories s ON s.id=shi.story_id
+         WHERE shi.highlight_id=?
+         ORDER BY s.created_at DESC`,
+        [h.id]
+      )
+      h.stories = items
+    }
+    res.json({ highlights })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.post('/api/story-highlights', authenticate, writeLimit, async (req, res) => {
+  try {
+    const { title, cover_emoji } = req.body
+    if (!title?.trim()) return res.status(400).json({ error: 'Title required' })
+    const [r] = await pool.query(
+      'INSERT INTO story_highlights (user_id, title, cover_emoji) VALUES (?,?,?)',
+      [req.userId, title.trim(), cover_emoji || '⭐']
+    )
+    res.json({ ok: true, id: r.insertId })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.post('/api/story-highlights/:id/stories/:storyId', authenticate, writeLimit, async (req, res) => {
+  try {
+    const [[hl]] = await pool.query('SELECT user_id FROM story_highlights WHERE id=?', [req.params.id])
+    if (!hl || hl.user_id !== req.userId) return res.status(403).json({ error: 'Forbidden' })
+    await pool.query(
+      'INSERT IGNORE INTO story_highlight_items (highlight_id, story_id) VALUES (?,?)',
+      [req.params.id, req.params.storyId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.delete('/api/story-highlights/:id', authenticate, async (req, res) => {
+  try {
+    const [[hl]] = await pool.query('SELECT user_id FROM story_highlights WHERE id=?', [req.params.id])
+    if (!hl || hl.user_id !== req.userId) return res.status(403).json({ error: 'Forbidden' })
+    await pool.query('DELETE FROM story_highlights WHERE id=?', [req.params.id])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Story reactions ───────────────────────────────────────────────────────────
+
+app.post('/api/stories/:id/react', authenticate, writeLimit, async (req, res) => {
+  try {
+    const { emoji } = req.body
+    if (!emoji) return res.status(400).json({ error: 'Emoji required' })
+    const [[story]] = await pool.query('SELECT user_id FROM stories WHERE id=?', [req.params.id])
+    if (!story) return res.status(404).json({ error: 'Story not found' })
+    await pool.query(
+      'INSERT INTO story_reactions (story_id, user_id, emoji) VALUES (?,?,?) ON DUPLICATE KEY UPDATE emoji=VALUES(emoji)',
+      [req.params.id, req.userId, emoji]
+    )
+    // Notify story author
+    if (story.user_id !== req.userId) {
+      const [[reactor]] = await pool.query('SELECT name FROM users WHERE id=?', [req.userId])
+      await pool.query(
+        `INSERT INTO notifications (user_id, type, actor_id, entity_type, entity_id, message_da, message_en)
+         VALUES (?,?,?,?,?,?,?)`,
+        [story.user_id, 'story_reaction', req.userId, 'story', req.params.id,
+          `${reactor?.name || 'En bruger'} reagerede på din historie med ${emoji}`,
+          `${reactor?.name || 'Someone'} reacted to your story with ${emoji}`]
+      ).catch(() => {})
+    }
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.get('/api/stories/:id/reactions', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT sr.emoji, u.id AS user_id, u.name, u.avatar_url
+       FROM story_reactions sr JOIN users u ON u.id=sr.user_id
+       WHERE sr.story_id=? ORDER BY sr.created_at DESC`,
+      [req.params.id]
+    )
+    res.json({ reactions: rows })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Event ICS export ──────────────────────────────────────────────────────────
+
+app.get('/api/events/:id/ics', authenticate, async (req, res) => {
+  try {
+    const [[event]] = await pool.query(
+      `SELECT e.*, u.name AS organizer_name
+       FROM events e JOIN users u ON u.id=e.organizer_id
+       WHERE e.id=?`,
+      [req.params.id]
+    )
+    if (!event) return res.status(404).json({ error: 'Event not found' })
+
+    const dtStart = new Date(event.date)
+    const dtEnd = new Date(dtStart.getTime() + 2 * 3600_000) // default 2hr duration
+
+    function fmtDt(d) {
+      return d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
+    }
+
+    const uid = `fellis-event-${event.id}@fellis.eu`
+    const ics = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//fellis.eu//Fellis//EN',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH',
+      'BEGIN:VEVENT',
+      `UID:${uid}`,
+      `DTSTART:${fmtDt(dtStart)}`,
+      `DTEND:${fmtDt(dtEnd)}`,
+      `SUMMARY:${event.title.replace(/\n/g, ' ')}`,
+      event.description ? `DESCRIPTION:${event.description.replace(/\n/g, '\\n')}` : '',
+      event.location ? `LOCATION:${event.location}` : '',
+      `ORGANIZER;CN="${event.organizer_name}":mailto:noreply@fellis.eu`,
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ].filter(Boolean).join('\r\n')
+
+    res.set('Content-Type', 'text/calendar; charset=utf-8')
+    res.set('Content-Disposition', `attachment; filename="event-${event.id}.ics"`)
+    res.send(ics)
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Marketplace wishlist ──────────────────────────────────────────────────────
+
+app.post('/api/marketplace/:id/save', authenticate, writeLimit, async (req, res) => {
+  try {
+    await pool.query(
+      'INSERT IGNORE INTO marketplace_saved (user_id, listing_id) VALUES (?,?)',
+      [req.userId, req.params.id]
+    )
+    res.json({ ok: true, saved: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.delete('/api/marketplace/:id/save', authenticate, async (req, res) => {
+  try {
+    await pool.query(
+      'DELETE FROM marketplace_saved WHERE user_id=? AND listing_id=?',
+      [req.userId, req.params.id]
+    )
+    res.json({ ok: true, saved: false })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.get('/api/marketplace/saved', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT ml.*, ms.created_at AS saved_at,
+              u.name AS seller_name, u.handle AS seller_handle, u.avatar_url AS seller_avatar
+       FROM marketplace_saved ms
+       JOIN marketplace_listings ml ON ml.id=ms.listing_id
+       JOIN users u ON u.id=ml.user_id
+       WHERE ms.user_id=? AND ml.status != 'sold'
+       ORDER BY ms.created_at DESC
+       LIMIT 100`,
+      [req.userId]
+    )
+    res.json({ listings: rows })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Marketplace price offers ──────────────────────────────────────────────────
+
+app.post('/api/marketplace/:id/offers', authenticate, writeLimit, async (req, res) => {
+  try {
+    const { amount, message } = req.body
+    if (!amount || isNaN(amount) || parseFloat(amount) <= 0)
+      return res.status(400).json({ error: 'Invalid amount' })
+    const [[listing]] = await pool.query('SELECT user_id, title, status FROM marketplace_listings WHERE id=?', [req.params.id])
+    if (!listing) return res.status(404).json({ error: 'Listing not found' })
+    if (listing.status === 'sold') return res.status(400).json({ error: 'Item already sold' })
+    if (listing.user_id === req.userId) return res.status(400).json({ error: 'Cannot offer on own listing' })
+    const [r] = await pool.query(
+      'INSERT INTO marketplace_offers (listing_id, buyer_id, amount, message) VALUES (?,?,?,?)',
+      [req.params.id, req.userId, parseFloat(amount), message || null]
+    )
+    // Notify seller
+    const [[buyer]] = await pool.query('SELECT name FROM users WHERE id=?', [req.userId])
+    await pool.query(
+      `INSERT INTO notifications (user_id, type, actor_id, entity_type, entity_id, message_da, message_en)
+       VALUES (?,?,?,?,?,?,?)`,
+      [listing.user_id, 'marketplace_offer', req.userId, 'listing', req.params.id,
+        `${buyer?.name || 'En bruger'} har sendt et bud på "${listing.title}"`,
+        `${buyer?.name || 'Someone'} sent an offer on "${listing.title}"`]
+    ).catch(() => {})
+    res.json({ ok: true, id: r.insertId })
+  } catch (err) {
+    console.error('POST /api/marketplace/:id/offers error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.get('/api/marketplace/:id/offers', authenticate, async (req, res) => {
+  try {
+    const [[listing]] = await pool.query('SELECT user_id FROM marketplace_listings WHERE id=?', [req.params.id])
+    if (!listing) return res.status(404).json({ error: 'Not found' })
+    // Seller sees all offers; buyers see their own
+    let rows
+    if (listing.user_id === req.userId) {
+      ;[rows] = await pool.query(
+        `SELECT mo.*, u.name AS buyer_name, u.avatar_url AS buyer_avatar
+         FROM marketplace_offers mo JOIN users u ON u.id=mo.buyer_id
+         WHERE mo.listing_id=? ORDER BY mo.created_at DESC`,
+        [req.params.id]
+      )
+    } else {
+      ;[rows] = await pool.query(
+        'SELECT * FROM marketplace_offers WHERE listing_id=? AND buyer_id=? ORDER BY created_at DESC',
+        [req.params.id, req.userId]
+      )
+    }
+    res.json({ offers: rows })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.patch('/api/marketplace/offers/:offerId', authenticate, async (req, res) => {
+  try {
+    const { status } = req.body
+    if (!['accepted', 'declined', 'withdrawn'].includes(status))
+      return res.status(400).json({ error: 'Invalid status' })
+    const [[offer]] = await pool.query(
+      `SELECT mo.*, ml.user_id AS seller_id FROM marketplace_offers mo
+       JOIN marketplace_listings ml ON ml.id=mo.listing_id
+       WHERE mo.id=?`,
+      [req.params.offerId]
+    )
+    if (!offer) return res.status(404).json({ error: 'Offer not found' })
+    // Only seller can accept/decline; only buyer can withdraw
+    if (status === 'withdrawn' && offer.buyer_id !== req.userId)
+      return res.status(403).json({ error: 'Forbidden' })
+    if (['accepted', 'declined'].includes(status) && offer.seller_id !== req.userId)
+      return res.status(403).json({ error: 'Forbidden' })
+    await pool.query('UPDATE marketplace_offers SET status=? WHERE id=?', [status, req.params.offerId])
+    // Notify buyer on accept/decline
+    if (['accepted', 'declined'].includes(status)) {
+      const [[seller]] = await pool.query('SELECT name FROM users WHERE id=?', [req.userId])
+      const msgDa = status === 'accepted'
+        ? `${seller?.name || 'Sælger'} accepterede dit bud`
+        : `${seller?.name || 'Sælger'} afslog dit bud`
+      const msgEn = status === 'accepted'
+        ? `${seller?.name || 'Seller'} accepted your offer`
+        : `${seller?.name || 'Seller'} declined your offer`
+      await pool.query(
+        `INSERT INTO notifications (user_id, type, actor_id, entity_type, entity_id, message_da, message_en)
+         VALUES (?,?,?,?,?,?,?)`,
+        [offer.buyer_id, `offer_${status}`, req.userId, 'offer', offer.id, msgDa, msgEn]
+      ).catch(() => {})
+    }
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Job alerts ────────────────────────────────────────────────────────────────
+
+app.get('/api/me/job-alerts', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT * FROM job_alerts WHERE user_id=? ORDER BY created_at DESC',
+      [req.userId]
+    )
+    res.json({ alerts: rows })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.post('/api/me/job-alerts', authenticate, writeLimit, async (req, res) => {
+  try {
+    const { query, location, job_type, frequency } = req.body
+    const [r] = await pool.query(
+      'INSERT INTO job_alerts (user_id, query, location, job_type, frequency) VALUES (?,?,?,?,?)',
+      [req.userId, query || null, location || null, job_type || null, frequency || 'weekly']
+    )
+    res.json({ ok: true, id: r.insertId })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.delete('/api/me/job-alerts/:id', authenticate, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM job_alerts WHERE id=? AND user_id=?', [req.params.id, req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Company reviews ───────────────────────────────────────────────────────────
+
+app.get('/api/companies/:id/reviews', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT cr.*, u.name AS reviewer_name, u.handle AS reviewer_handle, u.avatar_url AS reviewer_avatar
+       FROM company_reviews cr JOIN users u ON u.id=cr.user_id
+       WHERE cr.company_id=? ORDER BY cr.created_at DESC`,
+      [req.params.id]
+    )
+    const [[stats]] = await pool.query(
+      'SELECT COUNT(*) AS total, AVG(rating) AS avg_rating FROM company_reviews WHERE company_id=?',
+      [req.params.id]
+    )
+    res.json({ reviews: rows, stats })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.post('/api/companies/:id/reviews', authenticate, writeLimit, async (req, res) => {
+  try {
+    const { rating, title, body } = req.body
+    if (!rating || rating < 1 || rating > 5) return res.status(400).json({ error: 'Rating 1–5 required' })
+    await pool.query(
+      `INSERT INTO company_reviews (company_id, user_id, rating, title, body)
+       VALUES (?,?,?,?,?)
+       ON DUPLICATE KEY UPDATE rating=VALUES(rating), title=VALUES(title), body=VALUES(body), updated_at=NOW()`,
+      [req.params.id, req.userId, rating, title || null, body || null]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.delete('/api/companies/:id/reviews', authenticate, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM company_reviews WHERE company_id=? AND user_id=?', [req.params.id, req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Company business hours ────────────────────────────────────────────────────
+
+app.get('/api/companies/:id/hours', async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT * FROM company_business_hours WHERE company_id=? ORDER BY day_of_week',
+      [req.params.id]
+    )
+    res.json({ hours: rows })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.put('/api/companies/:id/hours', authenticate, async (req, res) => {
+  try {
+    const { hours } = req.body // array of { day_of_week, open_time, close_time, is_closed }
+    // Verify user is member of company
+    const [[member]] = await pool.query(
+      'SELECT role FROM company_members WHERE company_id=? AND user_id=?',
+      [req.params.id, req.userId]
+    )
+    if (!member) return res.status(403).json({ error: 'Not a company member' })
+    await pool.query('DELETE FROM company_business_hours WHERE company_id=?', [req.params.id])
+    for (const h of (hours || [])) {
+      await pool.query(
+        'INSERT INTO company_business_hours (company_id, day_of_week, open_time, close_time, is_closed) VALUES (?,?,?,?,?)',
+        [req.params.id, h.day_of_week, h.open_time || null, h.close_time || null, h.is_closed ? 1 : 0]
+      )
+    }
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Company Q&A ───────────────────────────────────────────────────────────────
+
+app.get('/api/companies/:id/qa', async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT cq.*,
+              a.name AS asker_name, a.avatar_url AS asker_avatar,
+              ab.name AS answerer_name
+       FROM company_qa cq
+       JOIN users a ON a.id=cq.asker_id
+       LEFT JOIN users ab ON ab.id=cq.answered_by
+       WHERE cq.company_id=?
+       ORDER BY cq.created_at DESC`,
+      [req.params.id]
+    )
+    res.json({ questions: rows })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.post('/api/companies/:id/qa', authenticate, writeLimit, async (req, res) => {
+  try {
+    const { question } = req.body
+    if (!question?.trim()) return res.status(400).json({ error: 'Question required' })
+    const [r] = await pool.query(
+      'INSERT INTO company_qa (company_id, asker_id, question) VALUES (?,?,?)',
+      [req.params.id, req.userId, question.trim()]
+    )
+    res.json({ ok: true, id: r.insertId })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.patch('/api/companies/:companyId/qa/:qaId/answer', authenticate, async (req, res) => {
+  try {
+    const { answer } = req.body
+    if (!answer?.trim()) return res.status(400).json({ error: 'Answer required' })
+    const [[member]] = await pool.query(
+      'SELECT role FROM company_members WHERE company_id=? AND user_id=?',
+      [req.params.companyId, req.userId]
+    )
+    if (!member) return res.status(403).json({ error: 'Not a company member' })
+    await pool.query(
+      'UPDATE company_qa SET answer=?, answered_by=?, answered_at=NOW() WHERE id=? AND company_id=?',
+      [answer.trim(), req.userId, req.params.qaId, req.params.companyId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.delete('/api/companies/:companyId/qa/:qaId', authenticate, async (req, res) => {
+  try {
+    const [[qa]] = await pool.query('SELECT asker_id FROM company_qa WHERE id=? AND company_id=?', [req.params.qaId, req.params.companyId])
+    if (!qa) return res.status(404).json({ error: 'Not found' })
+    // Only asker or company member can delete
+    const [[member]] = await pool.query('SELECT role FROM company_members WHERE company_id=? AND user_id=?', [req.params.companyId, req.userId])
+    if (qa.asker_id !== req.userId && !member)
+      return res.status(403).json({ error: 'Forbidden' })
+    await pool.query('DELETE FROM company_qa WHERE id=?', [req.params.qaId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Profile portfolio ─────────────────────────────────────────────────────────
+
+app.get('/api/me/portfolio', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT * FROM user_portfolio WHERE user_id=? ORDER BY sort_order ASC, created_at DESC',
+      [req.userId]
+    )
+    res.json({ items: rows })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.get('/api/users/:userId/portfolio', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT * FROM user_portfolio WHERE user_id=? ORDER BY sort_order ASC, created_at DESC',
+      [req.params.userId]
+    )
+    res.json({ items: rows })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.post('/api/me/portfolio', authenticate, writeLimit, async (req, res) => {
+  try {
+    const { title, description, url, image_url } = req.body
+    if (!title?.trim()) return res.status(400).json({ error: 'Title required' })
+    const [[maxOrder]] = await pool.query(
+      'SELECT COALESCE(MAX(sort_order),0)+1 AS next FROM user_portfolio WHERE user_id=?',
+      [req.userId]
+    )
+    const [r] = await pool.query(
+      'INSERT INTO user_portfolio (user_id, title, description, url, image_url, sort_order) VALUES (?,?,?,?,?,?)',
+      [req.userId, title.trim(), description || null, url || null, image_url || null, maxOrder.next]
+    )
+    res.json({ ok: true, id: r.insertId })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.put('/api/me/portfolio/:id', authenticate, async (req, res) => {
+  try {
+    const { title, description, url, image_url } = req.body
+    await pool.query(
+      'UPDATE user_portfolio SET title=?, description=?, url=?, image_url=? WHERE id=? AND user_id=?',
+      [title, description || null, url || null, image_url || null, req.params.id, req.userId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.delete('/api/me/portfolio/:id', authenticate, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM user_portfolio WHERE id=? AND user_id=?', [req.params.id, req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Reel → feed share ─────────────────────────────────────────────────────────
+
+app.post('/api/reels/:id/share-to-feed', authenticate, writeLimit, async (req, res) => {
+  try {
+    const [[reel]] = await pool.query('SELECT * FROM reels WHERE id=? AND user_id=?', [req.params.id, req.userId])
+    if (!reel) return res.status(403).json({ error: 'Forbidden' })
+    const text = reel.caption || ''
+    const media = JSON.stringify([{ type: 'video', url: reel.video_url }])
+    const [r] = await pool.query(
+      'INSERT INTO posts (user_id, text, media, created_at) VALUES (?,?,?,NOW())',
+      [req.userId, text, media]
+    )
+    await pool.query('UPDATE reels SET shared_as_post_id=? WHERE id=?', [r.insertId, req.params.id])
+    res.json({ ok: true, post_id: r.insertId })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // ── SPA fallback ──
 app.get('*', (req, res) => {
   res.sendFile(path.join(FRONTEND_ROOT, 'index.html'))

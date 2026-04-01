@@ -4,6 +4,24 @@ import { SUPPORTED_LANGS, EUROPEAN_LANGUAGES, INTEREST_CATEGORIES, REACTIONS, na
 import { formatPrice } from './utils/currency.js'
 import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiRemoveConversationParticipant, apiMuteConversationParticipant, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiShareJob, apiUnshareJob, apiGetSharedJobs, apiGetJobSharedWith, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals, apiFetchCalendarReminders, apiCreateCalendarReminder, apiDeleteCalendarReminder, apiGetLinkedContent, apiFetchJobs, apiGetSuggestedUsers, apiAdminNotifyAll, apiLikeComment, apiAdminGetPlatformAds, apiAdminCreatePlatformAd, apiAdminUpdatePlatformAd, apiAdminDeletePlatformAd, apiAdminGetLockedUsers, apiAdminUnlockUser, apiFeedCompanyPosts, apiGetLivestreamSettings, apiSaveLivestreamSettings, apiGetLivestreamStats, apiGetLivestreamStatus,
   apiGetStreamKey, apiRegenerateStreamKey } from './api.js'
+import {
+  apiSharePost, apiUnsharePost, apiSavePost, apiUnsavePost, apiGetSavedPosts,
+  apiGetPoll, apiVotePoll, apiCreatePoll,
+  apiReplyToComment, apiGetCommentReplies,
+  apiReactToMessage, apiRemoveMessageReaction,
+  apiUploadCoverPhoto, apiDeleteCoverPhoto, apiSetPinnedPost,
+  apiGetHashtagFollows, apiFollowHashtag, apiUnfollowHashtag,
+  apiGetMyStoryHighlights, apiGetUserStoryHighlights, apiCreateStoryHighlight, apiAddStoryToHighlight, apiDeleteStoryHighlight,
+  apiReactToStory, apiGetStoryReactions, apiGetEventIcsUrl,
+  apiSaveListing, apiUnsaveListing, apiGetSavedListings,
+  apiMakeOffer, apiGetOffers, apiRespondToOffer,
+  apiGetJobAlerts, apiCreateJobAlert, apiDeleteJobAlert,
+  apiGetCompanyReviews, apiCreateCompanyReview, apiDeleteCompanyReview,
+  apiGetCompanyHours, apiSaveCompanyHours,
+  apiGetCompanyQA, apiAskCompanyQuestion, apiAnswerCompanyQuestion, apiDeleteCompanyQuestion,
+  apiGetMyPortfolio, apiGetUserPortfolio, apiCreatePortfolioItem, apiUpdatePortfolioItem, apiDeletePortfolioItem,
+  apiShareReelToFeed,
+} from './api.js'
 import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
 import ReelsPage from './Reels.jsx'
@@ -31,6 +49,20 @@ import BadgeToastQueue from './components/BadgeToast.jsx'
 import AdfreeCalendar from './components/AdfreeCalendar.jsx'
 import ModeGate from './components/ModeGate.jsx'
 import StoryBar from './components/StoryBar.jsx'
+import SavedPosts from './components/SavedPosts.jsx'
+import PollWidget from './components/PollWidget.jsx'
+import CreatePollModal from './components/CreatePollModal.jsx'
+import QRCodeProfile from './components/QRCodeProfile.jsx'
+import JobAlertsPanel from './components/JobAlertsPanel.jsx'
+import CompanyReviews from './components/CompanyReviews.jsx'
+import CompanyBusinessHours from './components/CompanyBusinessHours.jsx'
+import CompanyQA from './components/CompanyQA.jsx'
+import PortfolioSection from './components/PortfolioSection.jsx'
+import HashtagFollows from './components/HashtagFollows.jsx'
+import MarketplaceWishlist from './components/MarketplaceWishlist.jsx'
+import MakeOfferModal from './components/MakeOfferModal.jsx'
+import KeyboardShortcutsHelp from './components/KeyboardShortcutsHelp.jsx'
+import useKeyboardShortcuts from './hooks/useKeyboardShortcuts.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -189,6 +221,23 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
   useTapCount(navSearchRef,    { 5: triggerPartyGlobal,  10: triggerChuckGlobal  }, 5000, 600)
   useTapCount(navAvatarTapRef, { 7: triggerMatrixGlobal }, 3000, 600)
   useTapCount(notifTitleRef,   { 5: triggerPartyGlobal,  10: triggerChuckGlobal  }, 5000, 600)
+  // ── New feature state ───────────────────────────────────────────────────────
+  const [showKeyboardHelp, setShowKeyboardHelp] = useState(false)
+  const [showQRCode, setShowQRCode] = useState(false)
+  const [pollModalPostId, setPollModalPostId] = useState(null)
+  const [makeOfferListing, setMakeOfferListing] = useState(null)
+  const [feedTypeFilter, setFeedTypeFilter] = useState('all') // all | posts | reels | events | media
+  const navSearchInputRef = useRef(null)
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    enabled: !showKeyboardHelp,
+    onNavigate: (p) => setPage(p),
+    onToggleNotifs: () => setShowNotifPanel(v => !v),
+    onFocusSearch: () => { setPage('search'); setTimeout(() => navSearchInputRef.current?.focus(), 100) },
+    onShowHelp: () => setShowKeyboardHelp(true),
+  })
+
   const [showOnboarding, setShowOnboarding] = useState(() => localStorage.getItem('fellis_onboarding') === '1')
   const [onboardingInviterName] = useState(() => localStorage.getItem('fellis_onboarding_inviter') || null)
   const avatarMenuRef = useRef(null)
@@ -589,6 +638,15 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
                     <span>⚙️</span> {t.adminTitle}
                   </button>
                 )}
+                <button className="avatar-dropdown-item" onClick={() => { setShowAvatarMenu(false); navigateTo('saved-posts') }}>
+                  <span>🔖</span> {lang === 'da' ? 'Gemte opslag' : 'Saved posts'}
+                </button>
+                <button className="avatar-dropdown-item" onClick={() => { setShowAvatarMenu(false); setShowQRCode(true) }}>
+                  <span>📱</span> {lang === 'da' ? 'Del profil (QR)' : 'Share profile (QR)'}
+                </button>
+                <button className="avatar-dropdown-item" onClick={() => { setShowAvatarMenu(false); setShowKeyboardHelp(true) }}>
+                  <span>⌨️</span> {lang === 'da' ? 'Tastaturgenveje' : 'Keyboard shortcuts'}
+                </button>
                 <div className="avatar-dropdown-divider" />
                 <button className="avatar-dropdown-item avatar-dropdown-danger" onClick={() => { setShowAvatarMenu(false); onLogout() }}>
                   <span>🚪</span> {menuT.logout}
@@ -642,7 +700,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
             if (data?.id) setOpenConvId(data.id)
           }
           navigateTo('messages')
-        }} onViewProfile={(uid) => { setViewUserId(uid); navigateTo('view-profile') }} />}
+        }} onViewProfile={(uid) => { setViewUserId(uid); navigateTo('view-profile') }} onMakeOffer={(listing) => setMakeOfferListing(listing)} />}
         {page === 'jobs' && <JobsPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={(target, param) => { if (target === 'companies') { navigateTo('company', { companyId: param }); } else navigateTo(target) }} />}
         {page === 'businesses' && <BusinessDirectory lang={lang} t={t} onViewProfile={(biz) => { setViewUserId(biz.id); navigateTo('view-profile') }} />}
         {page === 'ads' && mode === 'business' && <AdManager lang={lang} t={t} currentUser={currentUser} />}
@@ -654,6 +712,11 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
         {page === 'about' && <AboutPage lang={lang} />}
         {page === 'admin' && currentUser.is_admin && <AdminPage lang={lang} t={t} />}
         {page === 'moderation' && (currentUser.is_moderator || currentUser.is_admin) && <ModeratorPage lang={lang} t={t} currentUser={currentUser} />}
+        {page === 'saved-posts' && (
+          <div style={{ maxWidth: 680, margin: '0 auto', padding: '0 4px' }}>
+            <SavedPosts lang={lang} onViewPost={(id) => { setHighlightPostId(id); navigateTo('feed') }} />
+          </div>
+        )}
         {page === 'payment-success' && <PaymentSuccess lang={lang} onNavigate={navigateTo} />}
         {page === 'payment-failed' && <PaymentFailed lang={lang} onNavigate={navigateTo} />}
         {page === 'search' && (
@@ -722,6 +785,34 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
       {chuckGlobalActive  && <ChuckBanner   onDismiss={() => setChuckGlobalActive(false)} />}
       {matrixGlobalActive && <MatrixRain    onDismiss={() => setMatrixGlobalActive(false)} />}
       {rickrollGlobalActive && <RickRoll    onDismiss={() => setRickrollGlobalActive(false)} />}
+
+      {/* ⌨️ Keyboard shortcuts help */}
+      {showKeyboardHelp && <KeyboardShortcutsHelp lang={lang} onClose={() => setShowKeyboardHelp(false)} />}
+
+      {/* 📱 QR code modal */}
+      {showQRCode && currentUser.handle && (
+        <QRCodeProfile handle={currentUser.handle} lang={lang} onClose={() => setShowQRCode(false)} />
+      )}
+
+      {/* 📊 Poll creation modal */}
+      {pollModalPostId && (
+        <CreatePollModal
+          postId={pollModalPostId}
+          lang={lang}
+          onClose={() => setPollModalPostId(null)}
+          onCreated={() => setPollModalPostId(null)}
+        />
+      )}
+
+      {/* 💸 Make offer modal */}
+      {makeOfferListing && (
+        <MakeOfferModal
+          listing={makeOfferListing}
+          lang={lang}
+          onClose={() => setMakeOfferListing(null)}
+          onSent={() => setMakeOfferListing(null)}
+        />
+      )}
 
       {/* 🏅 Badge toast notifications */}
       <BadgeToastQueue queueRef={badgeQueueRef} lang={lang} />
@@ -1896,6 +1987,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [mediaFiles, setMediaFiles] = useState([])
   const [mediaPreviews, setMediaPreviews] = useState([])
   const [likedPosts, setLikedPosts] = useState(new Set())
+  const [savedPostIds, setSavedPostIds] = useState(new Set()) // bookmarked post IDs
   const [reactions, setReactions] = useState({})   // postId → emoji
   const [likePopup, setLikePopup] = useState(null) // postId with open reaction popup
   const [expandedComments, setExpandedComments] = useState(new Set())
@@ -2189,6 +2281,10 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         setHasMore(data.nextCursor != null)
       }
     })
+    // Load saved post IDs for bookmark UI
+    apiGetSavedPosts().then(d => {
+      if (d?.posts) setSavedPostIds(new Set(d.posts.map(p => p.id)))
+    }).catch(() => {})
     apiFetchEvents().then(data => {
       if (data?.events?.length) {
         setFeedEvents(data.events)
@@ -3698,6 +3794,17 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   </>
                 )}
               </div>
+              <button
+                className="p-action-btn"
+                title={lang === 'da' ? 'Gem opslag' : 'Save post'}
+                onClick={async () => {
+                  const isSaved = savedPostIds.has(post.id)
+                  if (isSaved) { await apiUnsavePost(post.id); setSavedPostIds(s => { const n = new Set(s); n.delete(post.id); return n }) }
+                  else { await apiSavePost(post.id); setSavedPostIds(s => new Set([...s, post.id])) }
+                }}
+              >
+                {savedPostIds.has(post.id) ? '🔖' : '📌'} {savedPostIds.has(post.id) ? (lang === 'da' ? 'Gemt' : 'Saved') : (lang === 'da' ? 'Gem' : 'Save')}
+              </button>
               {mode === 'business' && post.author === currentUser.name && (
                 <button className="p-action-btn p-action-btn-insights" onClick={() => setInsightsPostId(p => p === post.id ? null : post.id)}>
                   📊 {t.analyticsPostInsights}
@@ -4162,6 +4269,12 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
         <button className={`p-filter-tab${profileTab === 'adfree' ? ' active' : ''}`} onClick={() => setProfileTab('adfree')}>
           📅 {lang === 'da' ? 'Ad-Frit' : 'Ad-Free'}{adfreeBank !== null ? ` (${adfreeBank})` : ''}
         </button>
+        <button className={`p-filter-tab${profileTab === 'portfolio' ? ' active' : ''}`} onClick={() => setProfileTab('portfolio')}>
+          🗂️ {lang === 'da' ? 'Portfolio' : 'Portfolio'}
+        </button>
+        <button className={`p-filter-tab${profileTab === 'hashtags' ? ' active' : ''}`} onClick={() => setProfileTab('hashtags')}>
+          🏷️ {lang === 'da' ? 'Emner' : 'Topics'}
+        </button>
       </div>
 
       {/* About tab */}
@@ -4523,6 +4636,18 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
               lang={lang}
             />
           )}
+        </div>
+      )}
+
+      {profileTab === 'portfolio' && (
+        <div className="p-card" style={{ padding: '20px 24px' }}>
+          <PortfolioSection userId={currentUser.id} isOwn={true} lang={lang} />
+        </div>
+      )}
+
+      {profileTab === 'hashtags' && (
+        <div className="p-card" style={{ padding: '20px 24px' }}>
+          <HashtagFollows lang={lang} />
         </div>
       )}
     </div>
@@ -10426,6 +10551,14 @@ function EventsPage({ lang, t, currentUser, mode }) {
                       onClick={e => { e.stopPropagation(); setShareEventId(ev.id) }}
                       style={{ fontSize: 12 }}
                     >📤</button>}
+                    <a
+                      href={apiGetEventIcsUrl(ev.id)}
+                      download={`event-${ev.id}.ics`}
+                      className="p-event-rsvp-btn"
+                      title={lang === 'da' ? 'Eksportér til kalender (.ics)' : 'Export to calendar (.ics)'}
+                      onClick={e => e.stopPropagation()}
+                      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', fontSize: 12 }}
+                    >📅</a>
                     {isOrganizer && (
                       <div style={{ position: 'relative' }}>
                         <button
@@ -11520,9 +11653,16 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
 
       {/* Tabs */}
       <div className="p-filter-tabs" style={{ marginBottom: 16 }}>
-        {['posts', 'members', 'about', 'jobs', ...(isOwner || company.role === 'admin' ? ['leads'] : [])].map(tp => (
+        {['posts', 'members', 'about', 'jobs', 'reviews', 'hours', 'qa', ...(isOwner || company.role === 'admin' ? ['leads'] : [])].map(tp => (
           <button key={tp} className={`p-filter-tab${tab === tp ? ' active' : ''}`} onClick={() => setTab(tp)}>
-            {tp === 'posts' ? t.companyPosts : tp === 'members' ? t.companyMembers : tp === 'about' ? t.companyAbout : tp === 'jobs' ? t.jobs : (lang === 'da' ? '📬 Leads' : '📬 Leads')}
+            {tp === 'posts' ? t.companyPosts
+              : tp === 'members' ? t.companyMembers
+              : tp === 'about' ? t.companyAbout
+              : tp === 'jobs' ? t.jobs
+              : tp === 'reviews' ? (lang === 'da' ? '⭐ Anmeldelser' : '⭐ Reviews')
+              : tp === 'hours' ? (lang === 'da' ? '🕐 Åbningstider' : '🕐 Hours')
+              : tp === 'qa' ? (lang === 'da' ? '💬 Q&A' : '💬 Q&A')
+              : (lang === 'da' ? '📬 Leads' : '📬 Leads')}
             {tp === 'jobs' && companyJobs.length > 0 && <span style={{ marginLeft: 4, fontSize: 11 }}>({companyJobs.length})</span>}
             {tp === 'leads' && leads && leads.filter(l => l.status === 'new').length > 0 && (
               <span style={{ marginLeft: 4, fontSize: 11, background: '#c0392b', color: '#fff', borderRadius: 10, padding: '1px 5px' }}>
@@ -11995,6 +12135,36 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Company Reviews tab */}
+      {tab === 'reviews' && (
+        <div className="p-card" style={{ padding: '20px 24px' }}>
+          <CompanyReviews companyId={company.id} currentUserId={currentUser.id} lang={lang} />
+        </div>
+      )}
+
+      {/* Business Hours tab */}
+      {tab === 'hours' && (
+        <div className="p-card" style={{ padding: '20px 24px' }}>
+          <CompanyBusinessHours
+            companyId={company.id}
+            isMember={isOwner || company.role === 'admin' || company.role === 'editor'}
+            lang={lang}
+          />
+        </div>
+      )}
+
+      {/* Q&A tab */}
+      {tab === 'qa' && (
+        <div className="p-card" style={{ padding: '20px 24px' }}>
+          <CompanyQA
+            companyId={company.id}
+            currentUserId={currentUser.id}
+            isMember={isOwner || company.role === 'admin' || company.role === 'editor'}
+            lang={lang}
+          />
         </div>
       )}
 
@@ -13273,7 +13443,17 @@ function JobsPage({ lang, t, currentUser, mode, onNavigate }) {
             {t.jobMyListings} ({myJobs.length})
           </button>
         )}
+        <button className={`p-filter-tab${tab === 'alerts' ? ' active' : ''}`} onClick={() => setTab('alerts')}>
+          🔔 {lang === 'da' ? 'Adviseringer' : 'Alerts'}
+        </button>
       </div>
+
+      {/* Job Alerts tab */}
+      {tab === 'alerts' && (
+        <div className="p-card" style={{ padding: '20px 24px' }}>
+          <JobAlertsPanel lang={lang} />
+        </div>
+      )}
 
       {/* Mine Opslag — business management tab */}
       {tab === 'mine' ? (
@@ -14068,7 +14248,7 @@ function MarketplaceStatsPanel({ stats, loading, myListings, t, lang }) {
   )
 }
 
-function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller, onViewProfile }) {
+function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller, onViewProfile, onMakeOffer }) {
   const [tab, setTab] = useState('browse')
   const [listings, setListings] = useState([])
   const [myListings, setMyListings] = useState([])
@@ -14199,6 +14379,9 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
         <button className={`p-filter-tab${tab === 'stats' ? ' active' : ''}`} onClick={() => setTab('stats')}>
           📊 {t.marketplaceStats || (lang === 'da' ? 'Statistik' : 'Statistics')}
         </button>
+        <button className={`p-filter-tab${tab === 'wishlist' ? ' active' : ''}`} onClick={() => setTab('wishlist')}>
+          ❤️ {lang === 'da' ? 'Ønskeliste' : 'Wishlist'}
+        </button>
       </div>
 
       {tab === 'browse' && (
@@ -14250,7 +14433,15 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
         <MarketplaceStatsPanel stats={marketplaceStats} loading={statsLoading} myListings={myListings} t={t} lang={lang} />
       )}
 
-      {tab !== 'map' && tab !== 'stats' && (tab === 'mine' && myListings.length === 0 ? (
+      {tab === 'wishlist' && (
+        <MarketplaceWishlist lang={lang} onViewListing={(id) => {
+          const l = listings.find(x => x.id === id)
+          if (l) setSelectedListing(l)
+          else setTab('browse')
+        }} />
+      )}
+
+      {tab !== 'map' && tab !== 'stats' && tab !== 'wishlist' && (tab === 'mine' && myListings.length === 0 ? (
         <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>
           <div style={{ fontSize: 36, marginBottom: 12 }}>🛍️</div>
           <div style={{ marginBottom: 16 }}>{t.marketplaceNoMyListings}</div>
@@ -14381,6 +14572,7 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
             await handleMarkSold(selectedListing.id)
             setSelectedListing(null) // close modal — listing disappears from browse
           }}
+          onMakeOffer={onMakeOffer}
         />
       )}
 
@@ -14401,7 +14593,7 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
   )
 }
 
-function ListingDetailModal({ listing, t, lang, currentUser, catLabel, catIcon, listingTitle, listingDesc, onClose, onContactSeller, onViewProfile, onEdit, onMarkSold }) {
+function ListingDetailModal({ listing, t, lang, currentUser, catLabel, catIcon, listingTitle, listingDesc, onClose, onContactSeller, onViewProfile, onEdit, onMarkSold, onMakeOffer }) {
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', handler)
@@ -14497,13 +14689,33 @@ function ListingDetailModal({ listing, t, lang, currentUser, catLabel, catIcon, 
               {/* Send message button — only for other users */}
               {!isOwn && (
                 typeof listing.sellerId === 'number' && listing.sellerId > 0 ? (
-                  <button
-                    className="p-marketplace-create-btn"
-                    style={{ width: '100%', justifyContent: 'center' }}
-                    onClick={() => { onContactSeller(listing.sellerId); onClose() }}
-                  >
-                    💬 {t.marketplaceContactSeller}
-                  </button>
+                  <>
+                    <button
+                      className="p-marketplace-create-btn"
+                      style={{ width: '100%', justifyContent: 'center' }}
+                      onClick={() => { onContactSeller(listing.sellerId); onClose() }}
+                    >
+                      💬 {t.marketplaceContactSeller}
+                    </button>
+                    {!listing.sold && (
+                      <button
+                        style={{ width: '100%', padding: '11px', borderRadius: 10, border: '2px solid #1877F2', background: 'transparent', color: '#1877F2', fontWeight: 700, fontSize: 15, cursor: 'pointer', marginTop: 8 }}
+                        onClick={() => { onMakeOffer?.(listing); onClose() }}
+                      >
+                        💸 {lang === 'da' ? 'Send bud' : 'Make an offer'}
+                      </button>
+                    )}
+                    <button
+                      style={{ width: '100%', padding: '9px', borderRadius: 10, border: '1px solid var(--border,#ddd)', background: 'transparent', color: '#888', fontSize: 14, cursor: 'pointer', marginTop: 6 }}
+                      onClick={async () => {
+                        if (listing._saved) { await apiUnsaveListing(listing.id); listing._saved = false }
+                        else { await apiSaveListing(listing.id); listing._saved = true }
+                        onClose()
+                      }}
+                    >
+                      {listing._saved ? '🔖 ' : '📌 '}{lang === 'da' ? 'Gem til ønskeliste' : 'Save to wishlist'}
+                    </button>
+                  </>
                 ) : (
                   <div style={{ textAlign: 'center', color: '#aaa', fontSize: 13, padding: '4px 0' }}>
                     {lang === 'da' ? 'Sælgeren er ikke på Fellis' : 'Seller is not on Fellis'}
