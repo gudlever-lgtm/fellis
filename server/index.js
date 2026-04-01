@@ -12796,7 +12796,8 @@ app.get('/api/saved-posts', authenticate, async (req, res) => {
     `, [req.userId])
     res.json({ posts: rows })
   } catch (err) {
-    res.status(500).json({ error: 'Server error' })
+    console.error('[saved-posts]', err.message)
+    res.status(500).json({ error: 'Server error', detail: err.message })
   }
 })
 
