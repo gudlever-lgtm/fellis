@@ -44,7 +44,7 @@ async function main() {
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME || 'fellis_eu',
-    multipleStatements: true,
+    multipleStatements: false,
   })
 
   // Ensure tracking table exists
@@ -86,22 +86,69 @@ async function main() {
   console.log(`\n── Running ${pending.length} pending migration(s) ─────────`)
   if (DRY_RUN) console.log('   (dry-run — no changes will be made)\n')
 
+  // MySQL error codes that mean "already done" — safe to skip
+  const SKIP_CODES = new Set([
+    1060, // Duplicate column name (ADD COLUMN but column already exists)
+    1061, // Duplicate key name (ADD INDEX but index already exists)
+    1050, // Table already exists (without IF NOT EXISTS)
+    1091, // Can't DROP; column/key doesn't exist
+    1068, // Multiple primary key defined
+  ])
+
+  // Split a SQL file into individual statements (naïve but sufficient for
+  // migration files that don't embed semicolons inside string literals).
+  function splitStatements(sql) {
+    return sql
+      .split(/;[ \t]*(?:\r?\n|$)/)
+      .map(s => s.trim())
+      .filter(s => s.length > 0 && !s.replace(/--[^\n]*/g, '').trim().match(/^\/\*.*\*\/$/s))
+  }
+
+  // MySQL 8 doesn't support ADD COLUMN IF NOT EXISTS / DROP COLUMN IF EXISTS
+  // (those are MariaDB extensions). Strip the IF [NOT] EXISTS clause so the
+  // statement can run, then let the error-code filter handle duplicates/missing.
+  function mysqlCompatible(stmt) {
+    return stmt
+      .replace(/\bADD COLUMN IF NOT EXISTS\b/gi, 'ADD COLUMN')
+      .replace(/\bADD INDEX IF NOT EXISTS\b/gi, 'ADD INDEX')
+      .replace(/\bADD KEY IF NOT EXISTS\b/gi, 'ADD KEY')
+      .replace(/\bADD UNIQUE(?: INDEX| KEY)? IF NOT EXISTS\b/gi, m => m.replace(/ IF NOT EXISTS/i, ''))
+      .replace(/\bDROP COLUMN IF EXISTS\b/gi, 'DROP COLUMN')
+      .replace(/\bDROP INDEX IF EXISTS\b/gi, 'DROP INDEX')
+      .replace(/\bDROP KEY IF EXISTS\b/gi, 'DROP KEY')
+  }
+
   let ok = 0
   let failed = 0
   for (const file of pending) {
     const sql = readFileSync(path.join(__dirname, file), 'utf8')
     console.log(`  ▶  ${file}`)
     if (DRY_RUN) { ok++; continue }
-    try {
-      await conn.query(sql)
+
+    const stmts = splitStatements(sql)
+    let fileFailed = false
+
+    for (const rawStmt of stmts) {
+      const stmt = mysqlCompatible(rawStmt)
+      try {
+        await conn.query(stmt)
+      } catch (err) {
+        if (SKIP_CODES.has(err.errno)) {
+          // Already applied / already exists — not a real error
+          continue
+        }
+        console.error(`     ❌ FAILED: ${err.message}`)
+        console.error(`        Statement: ${stmt.slice(0, 120).replace(/\s+/g, ' ')}`)
+        fileFailed = true
+      }
+    }
+
+    if (!fileFailed) {
       await conn.query('INSERT IGNORE INTO _migrations (name) VALUES (?)', [file])
       console.log(`     ✅ done`)
       ok++
-    } catch (err) {
-      console.error(`     ❌ FAILED: ${err.message}`)
+    } else {
       failed++
-      // Continue with remaining migrations — partial runs are safe because
-      // each file is only re-tried on the next run if it was not recorded.
     }
   }
 
