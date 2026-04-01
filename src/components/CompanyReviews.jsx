@@ -48,7 +48,7 @@ export default function CompanyReviews({ companyId, currentUserId, lang }) {
   }
 
   const handleDelete = async () => {
-    if (!confirm(lang === 'da' ? 'Slet din anmeldelse?' : 'Delete your review?')) return
+    if (!confirm(PT[lang].deleteYourReview)) return
     await apiDeleteCompanyReview(companyId)
     load()
   }

@@ -711,7 +711,7 @@ function App() {
           maxWidth: 'calc(100vw - 32px)',
         }}>
           <span>🔒</span>
-          <span>{lang === 'da' ? 'Din session er udløbet — log venligst ind igen.' : 'Your session has expired — please log in again.'}</span>
+          <span>{PT[lang].yourSessionHasExpiredPleaseLogInAgain}</span>
           <button
             onClick={() => setSessionExpired(false)}
             style={{ background: 'none', border: 'none', color: '#aaa', cursor: 'pointer', fontSize: 16, lineHeight: 1, marginLeft: 4, padding: 0 }}

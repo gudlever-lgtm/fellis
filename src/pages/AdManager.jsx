@@ -39,7 +39,7 @@ export default function AdManager({ lang, t, currentUser }) {
     if (res?.url) {
       setForm(p => ({ ...p, image_url: res.url }))
     } else {
-      setError(lang === 'da' ? 'Kunne ikke uploade billedet' : 'Could not upload image')
+      setError(PT[lang].couldNotUploadImage)
       setTimeout(() => setError(''), 4000)
     }
   }
@@ -77,7 +77,7 @@ export default function AdManager({ lang, t, currentUser }) {
 
   const handleCreate = async (e) => {
     e.preventDefault()
-    if (!form.title || !form.target_url) return setError(lang === 'da' ? 'Titel og destinations-URL er påkrævet' : 'Title and destination URL are required')
+    if (!form.title || !form.target_url) return setError(PT[lang].titleAndDestinationURLAreRequired)
     setSaving(true)
     setError('')
     const payload = {
@@ -98,15 +98,15 @@ export default function AdManager({ lang, t, currentUser }) {
       setAds(prev => [res.ad, ...prev])
       setForm({ title: '', body: '', image_url: '', target_url: '', budget: '', target_interests: '', start_date: '', end_date: '' })
       setShowCreate(false)
-      setSuccess(lang === 'da' ? 'Annonce oprettet' : 'Ad created')
+      setSuccess(PT[lang].adCreated)
       setTimeout(() => setSuccess(''), 3000)
     } else {
-      setError(lang === 'da' ? 'Kunne ikke oprette annonce' : 'Could not create ad')
+      setError(PT[lang].couldNotCreateAd)
     }
   }
 
   const handleDelete = async (id) => {
-    if (!confirm(lang === 'da' ? 'Slet denne annonce?' : 'Delete this ad?')) return
+    if (!confirm(PT[lang].deleteThisAd)) return
     const res = await apiDeleteAd(id)
     if (res?.ok) setAds(prev => prev.filter(a => a.id !== id))
   }
@@ -120,11 +120,11 @@ export default function AdManager({ lang, t, currentUser }) {
         window.location.href = res.checkout_url
       } else {
         setAds(prev => prev.map(a => a.id === id ? { ...a, status: 'active', payment_status: 'paid' } : a))
-        setSuccess(lang === 'da' ? 'Annonce aktiveret!' : 'Ad activated!')
+        setSuccess(PT[lang].adActivated)
         setTimeout(() => setSuccess(''), 3000)
       }
     } else {
-      setError(lang === 'da' ? 'Aktivering mislykkedes' : 'Activation failed')
+      setError(PT[lang].activationFailed2)
       setTimeout(() => setError(''), 4000)
     }
   }
@@ -191,13 +191,13 @@ export default function AdManager({ lang, t, currentUser }) {
       if (res.checkout_url) {
         window.location.href = res.checkout_url
       } else {
-        setSuccess(t.postBoosted || (lang === 'da' ? 'Opslag boosted!' : 'Post boosted!'))
+        setSuccess(t.postBoosted || (PT[lang].postBoosted))
         setTimeout(() => setSuccess(''), 3000)
         loadAds()
       }
       setShowBoost(false)
     } else {
-      setError(lang === 'da' ? 'Boost mislykkedes' : 'Boost failed')
+      setError(PT[lang].boostFailed)
       setTimeout(() => setError(''), 4000)
     }
   }
@@ -332,13 +332,13 @@ export default function AdManager({ lang, t, currentUser }) {
                   <input
                     style={{ ...s.input, flex: 1 }}
                     value={form.image_url}
-                    placeholder={lang === 'da' ? 'Indsæt URL eller billede…' : 'Paste URL or image…'}
+                    placeholder={PT[lang].pasteURLOrImage}
                     onChange={e => setForm(p => ({ ...p, image_url: e.target.value }))}
                     onPaste={handleImagePaste}
                   />
                   <button
                     type="button"
-                    title={lang === 'da' ? 'Upload fil' : 'Upload file'}
+                    title={PT[lang].uploadFile}
                     style={{ padding: '8px 12px', borderRadius: 8, border: '1.5px solid #DDD', background: '#F9F9F9', cursor: 'pointer', fontSize: 16, flexShrink: 0, opacity: uploading ? 0.5 : 1 }}
                     disabled={uploading}
                     onClick={() => fileInputRef.current?.click()}
@@ -368,7 +368,7 @@ export default function AdManager({ lang, t, currentUser }) {
             </div>
             <div style={s.formRow}>
               <label style={s.label}>{t.adTargetInterests}</label>
-              <input style={s.input} value={form.target_interests} onChange={e => setForm(p => ({ ...p, target_interests: e.target.value }))} placeholder={lang === 'da' ? 'f.eks. teknologi, design, sundhed' : 'e.g. technology, design, health'} />
+              <input style={s.input} value={form.target_interests} onChange={e => setForm(p => ({ ...p, target_interests: e.target.value }))} placeholder={PT[lang].eGTechnologyDesignHealth} />
             </div>
             <div style={s.twoCol}>
               <div style={s.formRow}>
@@ -376,7 +376,7 @@ export default function AdManager({ lang, t, currentUser }) {
                   <label style={{ ...s.label, margin: 0 }}>{t.adStartDate}</label>
                   <button type="button" style={{ fontSize: 11, fontWeight: 600, color: '#4338CA', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                     onClick={() => setForm(p => ({ ...p, start_date: new Date().toISOString().slice(0, 10) }))}>
-                    {lang === 'da' ? 'I dag' : 'Today'}
+                    {PT[lang].calendarToday}
                   </button>
                 </div>
                 <input style={s.input} type="date" value={form.start_date} onChange={e => setForm(p => ({ ...p, start_date: e.target.value }))} />
@@ -386,7 +386,7 @@ export default function AdManager({ lang, t, currentUser }) {
                   <label style={{ ...s.label, margin: 0 }}>{t.adEndDate}</label>
                   <button type="button" style={{ fontSize: 11, fontWeight: 600, color: '#4338CA', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                     onClick={() => { const d = new Date(); d.setDate(d.getDate() + 30); setForm(p => ({ ...p, end_date: d.toISOString().slice(0, 10) })) }}>
-                    +30 {lang === 'da' ? 'dage' : 'days'}
+                    +30 {PT[lang].days}
                   </button>
                 </div>
                 <input style={s.input} type="date" value={form.end_date} onChange={e => setForm(p => ({ ...p, end_date: e.target.value }))} />
@@ -397,7 +397,7 @@ export default function AdManager({ lang, t, currentUser }) {
                 {saving ? '…' : t.createAd}
               </button>
               <button type="button" style={s.btnSecondary} onClick={() => setShowCreate(false)}>
-                {lang === 'da' ? 'Annuller' : 'Cancel'}
+                {PT[lang].adminModKeywordCancel}
               </button>
             </div>
           </form>
@@ -436,7 +436,7 @@ export default function AdManager({ lang, t, currentUser }) {
         {loading ? (
           <div style={s.spinner}>…</div>
         ) : ads.length === 0 ? (
-          <div style={s.empty}>{lang === 'da' ? 'Ingen annoncer endnu. Opret din første annonce ovenfor.' : 'No ads yet. Create your first ad above.'}</div>
+          <div style={s.empty}>{PT[lang].noAdsYetCreateYourFirstAdAbove}</div>
         ) : (
           ads.map(ad => {
             const ctr = ad.impressions > 0 ? ((ad.clicks / ad.impressions) * 100).toFixed(1) : '0.0'
@@ -509,7 +509,7 @@ export default function AdManager({ lang, t, currentUser }) {
                     )}
                     {(ad.status === 'draft' || ad.status === 'paused' || ad.status === 'archived') && (
                       <button style={s.btnDanger} onClick={() => handleDelete(ad.id)}>
-                        {lang === 'da' ? 'Slet' : 'Delete'}
+                        {PT[lang].adminModKeywordDelete}
                       </button>
                     )}
                   </div>

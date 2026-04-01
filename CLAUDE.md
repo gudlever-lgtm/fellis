@@ -198,6 +198,8 @@ Vite builds from `src/` as root into `assets/` at the repo root:
 - Database stores bilingual content in parallel columns: `text_da` / `text_en`, `bio_da` / `bio_en`, `time_da` / `time_en`
 - The `PT` object in `data.js` holds all UI string translations — always add both `da` and `en` keys when adding new UI strings
 - Default language is Danish (`da`)
+- **Never hardcode UI strings inline.** Do NOT write `lang === 'da' ? 'Dansk tekst' : 'English text'` in components — always add a key to `PT.da` and `PT.en` in `data.js` and reference it as `t.keyName` (where `const t = PT[lang]`)
+- The only accepted exceptions are: locale strings for JS date APIs (`'da-DK'`/`'en-US'`), bilingual DB field selectors (`.text_da`/`.text_en`), and large long-form content blocks (privacy policy, about page)
 
 ### Currency Formatting
 - All prices are displayed in **EUR** using the `formatPrice()` helper from `src/utils/currency.js`

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { apiAssignAdfreedays, apiGetAdfreeAssignments } from '../api'
+import { PT } from '../data'
 
 // Date input with dd-mm-yyyy format and a calendar popup
 function DateInput({ value, onChange, style, lang = 'da', minDate = '', align = 'left' }) {
@@ -58,10 +59,8 @@ function DateInput({ value, onChange, style, lang = 'da', minDate = '', align = 
   const cells = [...Array(firstDayMon).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)]
 
   const todayIso = new Date().toLocaleDateString('sv-SE')
-  const monthNames = lang === 'da'
-    ? ['januar','februar','marts','april','maj','juni','juli','august','september','oktober','november','december']
-    : ['January','February','March','April','May','June','July','August','September','October','November','December']
-  const weekDays = lang === 'da' ? ['Ma','Ti','On','To','Fr','Lø','Sø'] : ['Mo','Tu','We','Th','Fr','Sa','Su']
+  const monthNames = PT[lang].calendarMonths.map(m => lang === 'da' ? m.toLowerCase() : m)
+  const weekDays = PT[lang].calendarWeekdaysShort
 
   return (
     <div ref={ref} style={{ position: 'relative' }}>
@@ -177,15 +176,15 @@ export default function AdfreeCalendar({ bankDays = 0, assignments = [], onAssig
     setSuccess('')
 
     if (!startDate || !endDate) {
-      setError(lang === 'da' ? 'Vælg både start- og slutdato' : 'Select both start and end dates')
+      setError(PT[lang].selectBothStartAndEndDates)
       return
     }
     if (startDate > endDate) {
-      setError(lang === 'da' ? 'Startdato skal være før slutdato' : 'Start date must be before end date')
+      setError(PT[lang].startDateMustBeBeforeEndDate)
       return
     }
     if (daysNeeded > bankDays) {
-      setError(lang === 'da' ? `Du har kun ${bankDays} dag(e) men perioden kræver ${daysNeeded}` : `You only have ${bankDays} day(s) but need ${daysNeeded}`)
+      setError(PT[lang].adfreeDaysError.replace('{bankDays}', bankDays).replace('{daysNeeded}', daysNeeded))
       return
     }
 
@@ -193,7 +192,7 @@ export default function AdfreeCalendar({ bankDays = 0, assignments = [], onAssig
     try {
       const result = await apiAssignAdfreedays(startDate, endDate)
       if (result?.success) {
-        setSuccess(lang === 'da' ? `✓ ${daysNeeded} dag(e) tildelt!` : `✓ ${daysNeeded} day(s) assigned!`)
+        setSuccess(PT[lang].adfreeDaysAssignedSuccess.replace('{daysNeeded}', daysNeeded))
         setStartDate('')
         setEndDate('')
         if (onAssignmentChange) {
@@ -201,10 +200,10 @@ export default function AdfreeCalendar({ bankDays = 0, assignments = [], onAssig
           onAssignmentChange(updated?.assignments || [], updated?.newBank)
         }
       } else {
-        setError(result?.error || (lang === 'da' ? 'Noget gik galt' : 'Something went wrong'))
+        setError(result?.error || (PT[lang].somethingWentWrong))
       }
     } catch (err) {
-      setError(lang === 'da' ? 'Fejl ved tildeling' : 'Error assigning days')
+      setError(PT[lang].errorAssigningDays)
     } finally {
       setLoading(false)
     }
@@ -225,7 +224,7 @@ export default function AdfreeCalendar({ bankDays = 0, assignments = [], onAssig
       <div style={s.bankSection}>
         <div style={s.bankDays}>{bankDays}</div>
         <p style={s.bankText}>
-          {lang === 'da' ? 'Optjente dage i banken' : 'Earned days in bank'}
+          {PT[lang].earnedDaysInBank}
         </p>
       </div>
 
@@ -235,13 +234,13 @@ export default function AdfreeCalendar({ bankDays = 0, assignments = [], onAssig
           {hasEarned && (
             <div style={s.legendItem}>
               <div style={{ ...s.legendDot, backgroundColor: '#4caf50' }} />
-              {lang === 'da' ? 'Optjent via badges' : 'Earned via badges'}
+              {PT[lang].earnedViaBadges}
             </div>
           )}
           {hasPurchased && (
             <div style={s.legendItem}>
               <div style={{ ...s.legendDot, backgroundColor: '#9c27b0' }} />
-              {lang === 'da' ? 'Købt via abonnement' : 'Purchased via subscription'}
+              {PT[lang].purchasedViaSubscription}
             </div>
           )}
         </div>
@@ -249,21 +248,21 @@ export default function AdfreeCalendar({ bankDays = 0, assignments = [], onAssig
 
       {/* Assign form — only shown when the bank has days available */}
       {bankDays > 0 && <div style={s.assignBox}>
-        <p style={s.assignTitle}>{lang === 'da' ? '📅 Tildel banked dage' : '📅 Assign banked days'}</p>
+        <p style={s.assignTitle}>{PT[lang].assignBankedDays}</p>
         <div style={s.dateRow}>
           <div style={s.dateField}>
-            <label style={s.dateLabel}>{lang === 'da' ? 'Fra dato' : 'Start date'}</label>
+            <label style={s.dateLabel}>{PT[lang].startDate}</label>
             <DateInput value={startDate} onChange={setStartDate} style={s.dateInput} lang={lang} minDate={today} />
           </div>
           <div style={s.dateField}>
-            <label style={s.dateLabel}>{lang === 'da' ? 'Til dato' : 'End date'}</label>
+            <label style={s.dateLabel}>{PT[lang].endDate}</label>
             <DateInput value={endDate} onChange={setEndDate} style={s.dateInput} lang={lang} minDate={startDate || today} align="right" />
           </div>
           <button onClick={handleAssign} disabled={loading || !startDate || !endDate || daysNeeded > bankDays} style={{ ...s.assignBtn, opacity: (loading || !startDate || !endDate || daysNeeded > bankDays) ? 0.5 : 1, cursor: (loading || !startDate || !endDate || daysNeeded > bankDays) ? 'not-allowed' : 'pointer' }}>
-            {loading ? (lang === 'da' ? 'Tildeler…' : 'Assigning…') : (lang === 'da' ? 'Tildel' : 'Assign')}
+            {loading ? (PT[lang].assigning) : (PT[lang].assign)}
           </button>
         </div>
-        {daysNeeded > 0 && <p style={{ ...s.preview, color: daysNeeded > bankDays ? '#d32f2f' : '#388e3c' }}>{lang === 'da' ? `${daysNeeded} dag(e) nødvendige · ${bankDays} tilgængelige` : `${daysNeeded} day(s) needed · ${bankDays} available`}</p>}
+        {daysNeeded > 0 && <p style={{ ...s.preview, color: daysNeeded > bankDays ? '#d32f2f' : '#388e3c' }}>{PT[lang].adfreeDaysPreview.replace('{daysNeeded}', daysNeeded).replace('{bankDays}', bankDays)}</p>}
         {error && <div style={s.error}>{error}</div>}
         {success && <div style={s.success}>{success}</div>}
       </div>}
@@ -271,23 +270,23 @@ export default function AdfreeCalendar({ bankDays = 0, assignments = [], onAssig
       {/* Assignments list */}
       {assignments.length > 0 ? (
         <>
-          <p style={s.listTitle}>{lang === 'da' ? 'Dine ad-frie perioder' : 'Your ad-free periods'}</p>
+          <p style={s.listTitle}>{PT[lang].yourAdFreePeriods}</p>
           {assignments.map((a) => {
-            const theme = a.source === 'purchased' ? { bg: '#f3e5f5', border: '#9c27b0', label: lang === 'da' ? '✨ Købt' : '✨ Purchased' } : { bg: '#e8f5e9', border: '#4caf50', label: lang === 'da' ? '🏆 Optjent' : '🏆 Earned' }
+            const theme = a.source === 'purchased' ? { bg: '#f3e5f5', border: '#9c27b0', label: PT[lang].purchased } : { bg: '#e8f5e9', border: '#4caf50', label: PT[lang].earned }
             const active = isActive(a)
             return (
               <div key={`${a.source}-${a.id}`} style={{ ...s.assignmentItem, backgroundColor: theme.bg, borderColor: active ? theme.border : '#ddd', borderWidth: active ? '2px' : '1px' }}>
                 <div>
                   <div style={s.assignmentDates}>{formatDate(a.startDate)} – {formatDate(a.endDate)}</div>
-                  <div style={s.assignmentMeta}>{a.daysUsed} {lang === 'da' ? 'dag(e)' : 'day(s)'} · <span style={{ ...s.sourcePill, color: theme.border }}>{theme.label}</span></div>
+                  <div style={s.assignmentMeta}>{a.daysUsed} {PT[lang].dayS} · <span style={{ ...s.sourcePill, color: theme.border }}>{theme.label}</span></div>
                 </div>
-                {active && <div style={s.activePill}>{lang === 'da' ? '✓ Aktiv' : '✓ Active'}</div>}
+                {active && <div style={s.activePill}>{PT[lang].active}</div>}
               </div>
             )
           })}
         </>
       ) : (
-        <div style={s.emptyState}>{lang === 'da' ? 'Ingen perioder endnu. Optjen badges for at banke dage!' : 'No periods yet. Earn badges to bank days!'}</div>
+        <div style={s.emptyState}>{PT[lang].noPeriodsYetEarnBadgesToBankDays}</div>
       )}
     </div>
   )

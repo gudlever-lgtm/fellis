@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { apiVotePoll } from '../api.js'
+import { PT } from '../data.js'
 
 export default function PollWidget({ poll, lang, onVoted }) {
   const [voting, setVoting] = useState(false)
@@ -24,13 +25,13 @@ export default function PollWidget({ poll, lang, onVoted }) {
     <div style={{ marginTop: 12, borderRadius: 12, border: '1px solid var(--border,#e5e7eb)', padding: '12px 14px', background: 'var(--card,#fff)' }}>
       <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>
         {ended
-          ? (lang === 'da' ? 'Afstemningen er slut' : 'Poll ended')
+          ? (PT[lang].pollEnded)
           : hasVoted
-            ? (lang === 'da' ? 'Du har stemt' : 'You voted')
-            : (lang === 'da' ? 'Stem' : 'Vote')}
+            ? (PT[lang].youVoted)
+            : (PT[lang].vote)}
         {poll.ends_at && !ended && (
           <span style={{ marginLeft: 6 }}>
-            · {lang === 'da' ? 'Slutter' : 'Ends'} {new Date(poll.ends_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US')}
+            · {PT[lang].ends} {new Date(poll.ends_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US')}
           </span>
         )}
       </div>
@@ -71,7 +72,7 @@ export default function PollWidget({ poll, lang, onVoted }) {
         )
       })}
       <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
-        {totalVotes} {lang === 'da' ? (totalVotes === 1 ? 'stemme' : 'stemmer') : (totalVotes === 1 ? 'vote' : 'votes')}
+        {totalVotes} {totalVotes === 1 ? PT[lang].vote : PT[lang].votes}
       </div>
     </div>
   )

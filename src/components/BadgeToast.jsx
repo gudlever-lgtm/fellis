@@ -76,7 +76,7 @@ function Toast({ badge, lang, onDone }) {
       <div style={{ fontSize: 36, lineHeight: 1, flexShrink: 0 }}>{badge.icon}</div>
       <div style={{ flex: 1, overflow: 'hidden' }}>
         <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: colors.label, marginBottom: 2 }}>
-          {lang === 'da' ? '🏅 Badge optjent' : '🏅 Badge earned'} · {tierLabel}
+          {PT[lang].badgeEarned} · {tierLabel}
         </div>
         <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text, #111)', lineHeight: 1.2 }}>
           {badge.name}
@@ -86,7 +86,7 @@ function Toast({ badge, lang, onDone }) {
         </div>
         {badge.adfreeAdded > 0 && (
           <div style={{ fontSize: 11, fontWeight: 600, color: '#2196F3', marginTop: 4, paddingTop: 4, borderTop: '1px solid rgba(33, 150, 243, 0.2)' }}>
-            📅 {badge.adfreeAdded} {lang === 'da' ? 'dag(e) banked!' : 'day(s) banked!'}
+            📅 {badge.adfreeAdded} {PT[lang].daySBanked}
           </div>
         )}
       </div>

@@ -131,10 +131,10 @@ export default function AdBanner({ placement = 'feed', adsFree = false, onGoAdFr
           {onGoAdFree && (
             <button
               onClick={e => { e.stopPropagation(); onGoAdFree() }}
-              title={lang === 'da' ? 'Fjern annoncer' : 'Remove ads'}
+              title={PT[lang].removeAds}
               style={{ background: 'none', border: '1px solid #ddd', borderRadius: 20, padding: '1px 7px', fontSize: 10, color: '#aaa', cursor: 'pointer', lineHeight: 1.6 }}
             >
-              🚫 {lang === 'da' ? 'Reklamefri' : 'Ad-free'}
+              🚫 {PT[lang].adFree2}
             </button>
           )}
         </div>
@@ -163,7 +163,7 @@ export default function AdBanner({ placement = 'feed', adsFree = false, onGoAdFr
           {onGoAdFree && (
             <button onClick={e => { e.stopPropagation(); onGoAdFree() }}
               style={{ background: 'none', border: '1px solid #eee', borderRadius: 20, padding: '1px 7px', fontSize: 10, color: '#aaa', cursor: 'pointer' }}>
-              🚫 {lang === 'da' ? 'Reklamefri' : 'Ad-free'}
+              🚫 {PT[lang].adFree2}
             </button>
           )}
         </div>
@@ -198,7 +198,7 @@ export default function AdBanner({ placement = 'feed', adsFree = false, onGoAdFr
         {onGoAdFree && (
           <button onClick={e => { e.stopPropagation(); onGoAdFree() }}
             style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 20, padding: '1px 7px', fontSize: 10, color: '#fff', cursor: 'pointer' }}>
-            🚫 {lang === 'da' ? 'Reklamefri' : 'Ad-free'}
+            🚫 {PT[lang].adFree2}
           </button>
         )}
       </div>
