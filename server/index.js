@@ -4340,7 +4340,7 @@ app.delete('/api/conversations/:id/participants/:userId', authenticate, async (r
   try {
     const [[conv]] = await pool.query('SELECT created_by FROM conversations WHERE id = ?', [convId])
     if (!conv) return res.status(404).json({ error: 'Conversation not found' })
-    if (conv.created_by !== req.userId) return res.status(403).json({ error: 'Only the conversation creator can remove members' })
+    if (conv.created_by != null && conv.created_by !== req.userId) return res.status(403).json({ error: 'Only the conversation creator can remove members' })
     await pool.query(
       'DELETE FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, targetId])
     res.json({ ok: true })
@@ -4359,7 +4359,7 @@ app.post('/api/conversations/:id/participants/:userId/mute', authenticate, async
   try {
     const [[conv]] = await pool.query('SELECT created_by FROM conversations WHERE id = ?', [convId])
     if (!conv) return res.status(404).json({ error: 'Conversation not found' })
-    if (conv.created_by !== req.userId) return res.status(403).json({ error: 'Only the conversation creator can mute members' })
+    if (conv.created_by != null && conv.created_by !== req.userId) return res.status(403).json({ error: 'Only the conversation creator can mute members' })
     const [check] = await pool.query(
       'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, targetId])
     if (!check.length) return res.status(404).json({ error: 'User is not a participant' })

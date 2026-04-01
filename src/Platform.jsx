@@ -9376,7 +9376,7 @@ function RenameModal({ t, current, onClose, onRename }) {
 
 // ── Group Members Panel ──
 function MembersModal({ t, lang, conv, currentUser, onClose, onRemove, onMuteMember }) {
-  const isCreator = conv.createdBy === currentUser.id
+  const isCreator = conv.createdBy === currentUser.id || conv.createdBy == null
   const [muteTarget, setMuteTarget] = useState(null) // participant object to mute
   const now = new Date()
 
