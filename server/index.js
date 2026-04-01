@@ -11670,8 +11670,8 @@ app.listen(PORT, () => {
   initBadges()
   initStoriesHashtags()
   initSignalEngine()
-  // Start RTMP server (no-op if node-media-server is not installed)
-  startRtmpServer(pool).catch(err => console.error('[rtmp] startup error:', err.message))
+  // RTMP is handled by mediamtx (external service on port 1935).
+  // node-media-server startup is intentionally disabled to avoid port conflicts.
 })
 
 app.all('/api/stub/:fn', authenticate, (req, res) => res.json({ ok: true }))
@@ -12244,11 +12244,18 @@ app.get('/api/admin/livestream/settings', authenticate, requireAdmin, async (req
       ffmpegAvailable = true
     } catch { ffmpegAvailable = false }
 
+    // Check whether mediamtx is running (probes its REST API on port 9997)
+    let mediamtxAvailable = false
+    try {
+      const r = await fetch('http://localhost:9997/v3/paths/list', { signal: AbortSignal.timeout(1500) })
+      mediamtxAvailable = r.ok
+    } catch { mediamtxAvailable = false }
+
     const siteUrl  = process.env.SITE_URL || 'https://fellis.eu'
     const rtmpHost = (() => { try { return new URL(siteUrl).hostname } catch { return 'localhost' } })()
     res.json({
       settings,
-      server: { ffmpeg: ffmpegAvailable, rtmp_port: RTMP_PORT, rtmp_url: `rtmp://${rtmpHost}:${RTMP_PORT}/live` },
+      server: { ffmpeg: ffmpegAvailable, mediamtx: mediamtxAvailable, rtmp_port: RTMP_PORT, rtmp_url: `rtmp://${rtmpHost}:${RTMP_PORT}/live` },
     })
   } catch (err) {
     console.error('GET /api/admin/livestream/settings error:', err.message)
