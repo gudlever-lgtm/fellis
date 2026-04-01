@@ -457,16 +457,15 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
             </button>
           ))}
           {/* Business-only primary tabs */}
-          {mode === 'business' && ['analytics', 'ads'].map(p => (
+          {mode === 'business' && (
             <button
-              key={p}
-              className={`p-nav-tab${page === p ? ' active' : ''}`}
-              onClick={() => { navigateTo(p); setShowMobileMenu(false) }}
+              className={`p-nav-tab${page === 'ads' ? ' active' : ''}`}
+              onClick={() => { navigateTo('ads'); setShowMobileMenu(false) }}
             >
-              <span className="p-nav-tab-icon">{p === 'analytics' ? '📊' : '📢'}</span>
-              <span className="p-nav-tab-label">{p === 'analytics' ? t.analyticsNav : t.adsTitle}</span>
+              <span className="p-nav-tab-icon">📢</span>
+              <span className="p-nav-tab-label">{t.adsTitle}</span>
             </button>
-          ))}
+          )}
           {/* "Mere" / "More" dropdown for secondary tabs */}
           <div ref={moreMenuRef} style={{ position: 'relative' }}>
             <button
@@ -659,11 +658,16 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
                   <span>⌨️</span> {t.keyboardShortcuts}
                 </button>
                 <div className="avatar-dropdown-divider" />
+                {mode === 'business' && (
+                  <button className="avatar-dropdown-item" onClick={() => { setShowAvatarMenu(false); navigateTo('analytics') }}>
+                    <span>📊</span> {t.analyticsNav}
+                  </button>
+                )}
                 <button className="avatar-dropdown-item" onClick={() => navigateTo('about')}>
-                  <span>💡</span> {menuT.about}
+                  <span>💡</span> {menuT.aboutMenu}
                 </button>
                 <button className="avatar-dropdown-item" onClick={() => navigateTo('privacy')}>
-                  <span>🔒</span> {menuT.privacy}
+                  <span>🔒</span> {menuT.privacyMenu}
                 </button>
                 <div className="avatar-dropdown-divider" />
                 <button className="avatar-dropdown-item avatar-dropdown-danger" onClick={() => { setShowAvatarMenu(false); onLogout() }}>
