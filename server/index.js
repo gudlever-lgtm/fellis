@@ -53,6 +53,7 @@ import { sendSms } from './sms.js'
 import { BADGES, BADGE_BY_ID, PLATFORM_LAUNCH_DATE, BADGE_AD_FREE_DAYS } from '../src/badges/badgeDefinitions.js'
 import { evaluateBadges } from '../src/badges/badgeEngine.js'
 import { createReelFromLivestream, LIVESTREAM_DEFAULTS } from './livestream.js'
+import { startRtmpServer, RTMP_PORT } from './rtmp.js'
 
 // MySQL 8.x compatible ADD COLUMN helper — ignores duplicate column error (errno 1060)
 // SECURITY: Validates table and column names to prevent SQL injection
@@ -8713,6 +8714,10 @@ async function initReels() {
       ADD COLUMN IF NOT EXISTS source   ENUM('upload','live') NOT NULL DEFAULT 'upload',
       ADD COLUMN IF NOT EXISTS title_da VARCHAR(500) DEFAULT NULL,
       ADD COLUMN IF NOT EXISTS title_en VARCHAR(500) DEFAULT NULL`).catch(() => {})
+    // stream_key on users — unique token for RTMP authentication
+    await pool.query(
+      'ALTER TABLE users ADD COLUMN IF NOT EXISTS stream_key VARCHAR(64) DEFAULT NULL'
+    ).catch(() => {})
     // Livestreams table for tracking live recordings
     await pool.query(`CREATE TABLE IF NOT EXISTS livestreams (
       id             INT          NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -11629,6 +11634,8 @@ app.listen(PORT, () => {
   initBadges()
   initStoriesHashtags()
   initSignalEngine()
+  // Start RTMP server (no-op if node-media-server is not installed)
+  startRtmpServer(pool).catch(err => console.error('[rtmp] startup error:', err.message))
 })
 
 app.all('/api/stub/:fn', authenticate, (req, res) => res.json({ ok: true }))
@@ -12125,6 +12132,42 @@ app.get('/api/me/interest-graph/signal-stats', authenticate, async (req, res) =>
 
 // ── Livestream admin settings ─────────────────────────────────────────────────
 
+// ── Stream key endpoints ──────────────────────────────────────────────────────
+
+// GET /api/me/stream-key — get (or auto-generate) the caller's RTMP stream key
+app.get('/api/me/stream-key', authenticate, async (req, res) => {
+  try {
+    let [[user]] = await pool.query('SELECT stream_key FROM users WHERE id = ?', [req.userId])
+    if (!user.stream_key) {
+      const key = crypto.randomBytes(24).toString('hex')
+      await pool.query('UPDATE users SET stream_key = ? WHERE id = ?', [key, req.userId])
+      user = { stream_key: key }
+    }
+    const siteUrl   = process.env.SITE_URL || 'https://fellis.eu'
+    const rtmpHost  = new URL(siteUrl).hostname
+    const rtmpUrl   = `rtmp://${rtmpHost}:${RTMP_PORT}/live`
+    res.json({ stream_key: user.stream_key, rtmp_url: rtmpUrl })
+  } catch (err) {
+    console.error('GET /api/me/stream-key error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/me/stream-key/regenerate — issue a new stream key (invalidates old one)
+app.post('/api/me/stream-key/regenerate', authenticate, async (req, res) => {
+  try {
+    const key = crypto.randomBytes(24).toString('hex')
+    await pool.query('UPDATE users SET stream_key = ? WHERE id = ?', [key, req.userId])
+    const siteUrl  = process.env.SITE_URL || 'https://fellis.eu'
+    const rtmpHost = new URL(siteUrl).hostname
+    const rtmpUrl  = `rtmp://${rtmpHost}:${RTMP_PORT}/live`
+    res.json({ stream_key: key, rtmp_url: rtmpUrl })
+  } catch (err) {
+    console.error('POST /api/me/stream-key/regenerate error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // GET /api/livestream/status — public: is live streaming enabled on this platform?
 app.get('/api/livestream/status', async (req, res) => {
   try {
@@ -12160,11 +12203,17 @@ app.get('/api/admin/livestream/settings', authenticate, requireAdmin, async (req
     let ffmpegAvailable = false
     try {
       await import('child_process').then(({ execFile }) =>
-        new Promise((resolve, reject) => execFile('ffmpeg', ['-version'], resolve))
+        new Promise(resolve => execFile('ffmpeg', ['-version'], resolve))
       )
       ffmpegAvailable = true
     } catch { ffmpegAvailable = false }
-    res.json({ settings, server: { ffmpeg: ffmpegAvailable } })
+
+    const siteUrl  = process.env.SITE_URL || 'https://fellis.eu'
+    const rtmpHost = (() => { try { return new URL(siteUrl).hostname } catch { return 'localhost' } })()
+    res.json({
+      settings,
+      server: { ffmpeg: ffmpegAvailable, rtmp_port: RTMP_PORT, rtmp_url: `rtmp://${rtmpHost}:${RTMP_PORT}/live` },
+    })
   } catch (err) {
     console.error('GET /api/admin/livestream/settings error:', err.message)
     res.status(500).json({ error: 'Server error' })

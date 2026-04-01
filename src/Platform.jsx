@@ -18167,6 +18167,12 @@ function AdminLivestreamSettingsPanel({ lang, t }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={s.chip(false)}>{t.adminLivestreamNoRtmp}</span>
           </div>
+          {server?.rtmp_url && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+              <span style={{ fontSize: 12, color: '#888' }}>RTMP:</span>
+              <code style={{ fontSize: 12, background: '#f4f4f0', padding: '2px 8px', borderRadius: 4, color: '#333' }}>{server.rtmp_url}</code>
+            </div>
+          )}
           {server && !server.ffmpeg && (
             <p style={{ margin: '8px 0 0', fontSize: 12, color: '#888' }}>
               {lang === 'da'
