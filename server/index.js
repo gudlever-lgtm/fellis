@@ -12789,7 +12789,7 @@ app.get('/api/saved-posts', authenticate, async (req, res) => {
              (SELECT COUNT(*) FROM comments WHERE post_id=p.id AND parent_id IS NULL) AS comment_count
       FROM saved_posts sp
       JOIN posts p ON p.id = sp.post_id
-      JOIN users u ON u.id = p.user_id
+      JOIN users u ON u.id = p.author_id
       WHERE sp.user_id = ?
       ORDER BY sp.created_at DESC
       LIMIT 100
