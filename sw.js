@@ -63,7 +63,8 @@ self.addEventListener('fetch', (event) => {
         .then(res => {
           // Only cache complete responses — 206 Partial Content is not cacheable
           if (res.status === 200) {
-            caches.open(CACHE_NAME).then(cache => cache.put(request, res.clone()))
+            const resClone = res.clone()
+            caches.open(CACHE_NAME).then(cache => cache.put(request, resClone))
           }
           return res
         })
