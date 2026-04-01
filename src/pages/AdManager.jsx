@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { apiGetMyAds, apiCreateAd, apiPatchAd, apiDeleteAd, apiPayForAd, apiBoostPost, apiFetchUserPosts, apiUploadFile } from '../api.js'
+import { apiGetMyAds, apiCreateAd, apiUpdateAd, apiPatchAd, apiDeleteAd, apiPayForAd, apiBoostPost, apiFetchUserPosts, apiUploadFile } from '../api.js'
 import { formatPrice } from '../utils/currency.js'
 
 const STATUS_COLORS = {
@@ -17,6 +17,10 @@ export default function AdManager({ lang, t, currentUser }) {
   const [showBoost, setShowBoost] = useState(false)
   const [activating, setActivating] = useState(null)
   const [boosting, setBoosting] = useState(null)
+  const [statusChanging, setStatusChanging] = useState(null)
+  const [editingAdId, setEditingAdId] = useState(null)
+  const [editForm, setEditForm] = useState({})
+  const [editSaving, setEditSaving] = useState(false)
   const [form, setForm] = useState({
     title: '', body: '', image_url: '', target_url: '',
     budget: '', target_interests: '', start_date: '', end_date: '',
@@ -125,6 +129,60 @@ export default function AdManager({ lang, t, currentUser }) {
     }
   }
 
+  const handleStatusChange = async (id, newStatus) => {
+    setStatusChanging(id)
+    const res = await apiUpdateAd(id, { status: newStatus })
+    setStatusChanging(null)
+    if (res?.ad) {
+      setAds(prev => prev.map(a => a.id === id ? res.ad : a))
+    } else {
+      setError(lang === 'da' ? 'Statusændring mislykkedes' : 'Status change failed')
+      setTimeout(() => setError(''), 4000)
+    }
+  }
+
+  const handleEditOpen = (ad) => {
+    setEditingAdId(ad.id)
+    setEditForm({
+      title: ad.title || '',
+      body: ad.body || '',
+      image_url: ad.image_url || '',
+      target_url: ad.target_url || '',
+      budget: ad.budget != null ? String(ad.budget) : '',
+      target_interests: Array.isArray(ad.target_interests) ? ad.target_interests.join(', ') : (ad.target_interests || ''),
+      start_date: ad.start_date ? ad.start_date.slice(0, 10) : '',
+      end_date: ad.end_date ? ad.end_date.slice(0, 10) : '',
+    })
+  }
+
+  const handleEditSave = async (e, id) => {
+    e.preventDefault()
+    setEditSaving(true)
+    const payload = {
+      title: editForm.title || undefined,
+      body: editForm.body || undefined,
+      image_url: editForm.image_url || undefined,
+      target_url: editForm.target_url || undefined,
+      budget: editForm.budget ? parseFloat(editForm.budget) : undefined,
+      target_interests: editForm.target_interests
+        ? editForm.target_interests.split(',').map(s => s.trim()).filter(Boolean)
+        : undefined,
+      start_date: editForm.start_date || undefined,
+      end_date: editForm.end_date || undefined,
+    }
+    const res = await apiPatchAd(id, payload)
+    setEditSaving(false)
+    if (res?.ad) {
+      setAds(prev => prev.map(a => a.id === id ? res.ad : a))
+      setEditingAdId(null)
+      setSuccess(lang === 'da' ? 'Annonce gemt' : 'Ad saved')
+      setTimeout(() => setSuccess(''), 3000)
+    } else {
+      setError(lang === 'da' ? 'Kunne ikke gemme ændringer' : 'Could not save changes')
+      setTimeout(() => setError(''), 4000)
+    }
+  }
+
   const handleBoost = async (postId) => {
     setBoosting(postId)
     const res = await apiBoostPost(postId)
@@ -187,6 +245,26 @@ export default function AdManager({ lang, t, currentUser }) {
       padding: '6px 14px', borderRadius: 8,
       border: 'none', background: '#4338CA',
       color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer',
+    },
+    btnEdit: {
+      padding: '6px 12px', borderRadius: 8,
+      border: '1.5px solid #D1D5DB', background: '#F9FAFB',
+      color: '#374151', fontWeight: 600, fontSize: 12, cursor: 'pointer',
+    },
+    btnPause: {
+      padding: '6px 12px', borderRadius: 8,
+      border: '1.5px solid #FDE68A', background: '#FFFBEB',
+      color: '#92400E', fontWeight: 600, fontSize: 12, cursor: 'pointer',
+    },
+    btnReactivate: {
+      padding: '6px 12px', borderRadius: 8,
+      border: '1.5px solid #6EE7B7', background: '#ECFDF5',
+      color: '#065F46', fontWeight: 600, fontSize: 12, cursor: 'pointer',
+    },
+    btnArchive: {
+      padding: '6px 12px', borderRadius: 8,
+      border: '1.5px solid #FED7AA', background: '#FFF7ED',
+      color: '#C2410C', fontWeight: 600, fontSize: 12, cursor: 'pointer',
     },
     formWrap: { background: '#fff', borderRadius: 14, border: '1px solid #E8E4DF', padding: '20px', marginBottom: 16 },
     formTitle: { fontSize: 16, fontWeight: 700, marginBottom: 14, color: '#1a1a1a' },
@@ -409,13 +487,79 @@ export default function AdManager({ lang, t, currentUser }) {
                         {activating === ad.id ? (t.adActivating || '…') : t.activateAd}
                       </button>
                     )}
-                    {ad.status === 'draft' && (
+                    {ad.status === 'paused' && (
+                      <button style={s.btnReactivate} disabled={statusChanging === ad.id} onClick={() => handleStatusChange(ad.id, 'active')}>
+                        {statusChanging === ad.id ? '…' : t.reactivateAd}
+                      </button>
+                    )}
+                    {ad.status === 'active' && (
+                      <button style={s.btnPause} disabled={statusChanging === ad.id} onClick={() => handleStatusChange(ad.id, 'paused')}>
+                        {statusChanging === ad.id ? '…' : t.pauseAd}
+                      </button>
+                    )}
+                    {(ad.status === 'draft' || ad.status === 'paused') && (
+                      <button style={s.btnEdit} onClick={() => editingAdId === ad.id ? setEditingAdId(null) : handleEditOpen(ad)}>
+                        {editingAdId === ad.id ? (lang === 'da' ? 'Luk' : 'Close') : t.editAd}
+                      </button>
+                    )}
+                    {(ad.status === 'active' || ad.status === 'paused') && (
+                      <button style={s.btnArchive} disabled={statusChanging === ad.id} onClick={() => handleStatusChange(ad.id, 'archived')}>
+                        {t.archiveAd}
+                      </button>
+                    )}
+                    {(ad.status === 'draft' || ad.status === 'paused' || ad.status === 'archived') && (
                       <button style={s.btnDanger} onClick={() => handleDelete(ad.id)}>
                         {lang === 'da' ? 'Slet' : 'Delete'}
                       </button>
                     )}
                   </div>
                 </div>
+                {editingAdId === ad.id && (
+                  <form onSubmit={e => handleEditSave(e, ad.id)} style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid #F0EDE8' }}>
+                    <div style={s.twoCol}>
+                      <div style={s.formRow}>
+                        <label style={s.label}>{t.adTitle}</label>
+                        <input style={s.input} value={editForm.title} onChange={e => setEditForm(p => ({ ...p, title: e.target.value }))} required />
+                      </div>
+                      <div style={s.formRow}>
+                        <label style={s.label}>{t.adTargetUrl}</label>
+                        <input style={s.input} type="url" value={editForm.target_url} onChange={e => setEditForm(p => ({ ...p, target_url: e.target.value }))} required />
+                      </div>
+                    </div>
+                    <div style={s.formRow}>
+                      <label style={s.label}>{t.adBody}</label>
+                      <input style={s.input} value={editForm.body} onChange={e => setEditForm(p => ({ ...p, body: e.target.value }))} />
+                    </div>
+                    <div style={s.twoCol}>
+                      <div style={s.formRow}>
+                        <label style={s.label}>{t.adImageUrl}</label>
+                        <input style={s.input} value={editForm.image_url} onChange={e => setEditForm(p => ({ ...p, image_url: e.target.value }))} />
+                      </div>
+                      <div style={s.formRow}>
+                        <label style={s.label}>{t.adBudget}</label>
+                        <input style={s.input} type="number" min="1" step="0.01" value={editForm.budget} onChange={e => setEditForm(p => ({ ...p, budget: e.target.value }))} />
+                      </div>
+                    </div>
+                    <div style={s.twoCol}>
+                      <div style={s.formRow}>
+                        <label style={s.label}>{t.adStartDate}</label>
+                        <input style={s.input} type="date" value={editForm.start_date} onChange={e => setEditForm(p => ({ ...p, start_date: e.target.value }))} />
+                      </div>
+                      <div style={s.formRow}>
+                        <label style={s.label}>{t.adEndDate}</label>
+                        <input style={s.input} type="date" value={editForm.end_date} onChange={e => setEditForm(p => ({ ...p, end_date: e.target.value }))} />
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button type="submit" style={s.btnPrimary} disabled={editSaving}>
+                        {editSaving ? '…' : t.adsSave}
+                      </button>
+                      <button type="button" style={s.btnSecondary} onClick={() => setEditingAdId(null)}>
+                        {lang === 'da' ? 'Annuller' : 'Cancel'}
+                      </button>
+                    </div>
+                  </form>
+                )}
               </div>
             )
           })
