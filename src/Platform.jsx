@@ -8042,6 +8042,10 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
   const [isFollowing, setIsFollowing] = useState(false)
   const [followerCount, setFollowerCount] = useState(0)
   const [followBusy, setFollowBusy] = useState(false)
+  const [crmNote, setCrmNote] = useState('')
+  const [crmNoteUpdatedAt, setCrmNoteUpdatedAt] = useState(null)
+  const [crmSaveStatus, setCrmSaveStatus] = useState(null)
+  const crmTimerRef = useRef(null)
   const { triggerEgg } = useEasterEggs()
   const avatarClickCount = useRef(0)
   const avatarClickTimer = useRef(null)
@@ -8067,7 +8071,23 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
     apiFetchUserPosts(userId).then(data => {
       if (Array.isArray(data)) setUserPosts(data)
     })
+    apiGetContactNote(userId).then(data => {
+      if (data) { setCrmNote(data.note || ''); setCrmNoteUpdatedAt(data.updatedAt) }
+    }).catch(() => {})
   }, [userId, onBadgeCheck])
+
+  const handleCrmNoteChange = (val) => {
+    setCrmNote(val)
+    clearTimeout(crmTimerRef.current)
+    setCrmSaveStatus('saving')
+    crmTimerRef.current = setTimeout(async () => {
+      try {
+        const res = await apiSaveContactNote(userId, val)
+        if (res?.ok) { setCrmNoteUpdatedAt(res.updatedAt); setCrmSaveStatus('saved') }
+        else setCrmSaveStatus(null)
+      } catch { setCrmSaveStatus(null) }
+    }, 800)
+  }
 
   const handleAvatarClick = useCallback(() => {
     avatarClickCount.current += 1
@@ -8328,6 +8348,28 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
               )
             })}
           </div>
+        </div>
+      )}
+
+      {/* Private note */}
+      {profile && (
+        <div className="p-card" style={{ marginTop: 12, padding: '14px 18px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#555' }}>🔒 {t.privateNote}</span>
+            {crmSaveStatus === 'saving' && <span style={{ fontSize: 11, color: '#aaa' }}>{t.saving}</span>}
+            {crmSaveStatus === 'saved' && <span style={{ fontSize: 11, color: '#2D6A4F' }}>✓ {t.jobSaved}</span>}
+          </div>
+          <textarea
+            value={crmNote}
+            onChange={e => handleCrmNoteChange(e.target.value)}
+            placeholder={t.writeAPrivateNoteAboutThisContact}
+            style={{ width: '100%', minHeight: 80, padding: '8px 10px', borderRadius: 8, border: '1px solid #e0e0e0', fontSize: 13, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box', lineHeight: 1.5, color: '#333' }}
+          />
+          {crmNoteUpdatedAt && (
+            <div style={{ fontSize: 11, color: '#bbb', marginTop: 4 }}>
+              {t.lastUpdated}: {new Date(crmNoteUpdatedAt).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+            </div>
+          )}
         </div>
       )}
 
