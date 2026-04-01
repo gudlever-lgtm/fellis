@@ -26,6 +26,7 @@ import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
 import ReelsPage from './Reels.jsx'
 import InterestGraphPage from './InterestGraphPage.jsx'
+import ExplorePage from './pages/ExplorePage.jsx'
 import AdBanner, { invalidateAdCache } from './AdBanner.jsx'
 import useKonamiCode from './hooks/useKonamiCode.js'
 import useKeySequence from './hooks/useKeySequence.js'
@@ -695,6 +696,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
           <FeedSidebar lang={lang} t={t} adsFree={adsFree} onNavigate={navigateTo} />
         </div>
         {page === 'reels' && <ReelsPage t={t} currentUser={currentUser} initialReelId={navParam?.reelId} onViewProfile={(userId) => navigateTo('view-profile', { userId })} />}
+        {page === 'explore' && <ExplorePage lang={lang} onViewProfile={(userId) => navigateTo('view-profile', { userId })} />}
         {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onBadgeCheck={checkBadges} interestCategories={interestCategories} initialTab={navParam?.tab} />}
         {page === 'view-profile' && viewUserId && <FriendProfilePage userId={viewUserId} lang={lang} t={t} currentUser={currentUser} onBack={() => navigateTo('feed')} onNavigate={navigateTo} onBadgeCheck={checkBadges} onMessage={async (prof) => { const data = await apiCreateConversation([prof.id], null, false, false).catch(() => null); if (data?.id) setOpenConvId(data.id); navigateTo('messages') }} />}
         {page === 'edit-profile' && <EditProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onBadgeCheck={checkBadges} />}
