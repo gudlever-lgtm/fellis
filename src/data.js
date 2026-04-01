@@ -3158,7 +3158,7 @@ export const PT = {
     noInterestsSelectedYet: 'No interests selected yet.',
     noKeywordFiltersYet: 'No keyword filters yet',
     noLeadsYet: 'No leads yet.',
-    noNotesYetOpenAConnection: 'No notes yet. Open a connection\\',
+    noNotesYetOpenAConnection: "No notes yet. Open a connection's profile to add notes.",
     noOneOnTheLeaderboardYet: 'No one on the leaderboard yet.',
     noPeriodsYetEarnBadgesToBankDays: 'No periods yet. Earn badges to bank days!',
     noPostsYet: 'No posts yet',
