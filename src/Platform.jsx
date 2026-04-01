@@ -72,6 +72,7 @@ const API_BASE = import.meta.env.VITE_API_URL || ''
 // ── Easter egg hints context menu ───────────────────────────────────────────
 // Right-click on any element with data-egg-hints attribute to show hints.
 function EggHintsContextMenu({ lang }) {
+  const t = getTranslations(lang)
   const [pos, setPos] = useState(null)       // { x, y } | null
   const [hints, setHints] = useState(null)   // null = not yet fetched
   const [foundEggs, setFoundEggs] = useState({}) // egg_id → true if discovered
@@ -1194,6 +1195,7 @@ function PostMedia({ media }) {
 
 // ── Camera modal — uses getUserMedia for desktop + mobile browser camera ──────
 function CameraModal({ lang, onCapture, onClose }) {
+  const t = getTranslations(lang)
   const videoRef = useRef(null)
   const streamRef = useRef(null)
   const [ready, setReady] = useState(false)
@@ -1288,6 +1290,7 @@ function CameraModal({ lang, onCapture, onClose }) {
 // ── Post avatar with badge tooltip ────────────────────────────────────────
 const _badgeCache = new Map()
 function PostAvatarWithBadge({ post, lang, isOwn, onViewProfile, onViewOwnProfile, onViewBadges }) {
+  const t = getTranslations(lang)
   const [badges, setBadges] = useState(null)
   const [showTooltip, setShowTooltip] = useState(false)
   const [hoveredBadgeId, setHoveredBadgeId] = useState(null)
@@ -1359,6 +1362,7 @@ function PostAvatarWithBadge({ post, lang, isOwn, onViewProfile, onViewOwnProfil
 //   align = 'left' | 'right'               — popup direction
 //   buttonContent                           — optional custom button label/icon
 function MediaPickerButton({ lang, onFiles, accept = 'image/*,video/*', multiple = true, align = 'left', direction = 'up', buttonContent }) {
+  const t = getTranslations(lang)
   const [open, setOpen] = useState(false)
   const [showCamera, setShowCamera] = useState(false)
   const fileRef = useRef(null)
@@ -1729,6 +1733,7 @@ function MemoriesCard({ lang, t, onShare }) {
 const SUGGEST_EVERY = 5 // inject one suggested post after every N friend posts
 
 function SuggestedPostCard({ post, lang, onViewProfile }) {
+  const t = getTranslations(lang)
   const [friendReqSent, setFriendReqSent] = useState(false)
   const text = post.text?.[lang] || post.text?.da || ''
   const truncated = text.length > 180 ? text.slice(0, 180).trimEnd() + '…' : text
@@ -5688,6 +5693,7 @@ function SettingsLeverandoerer({ lang, t }) {
 }
 
 function PasswordStrengthIndicator({ password, lang }) {
+  const t = getTranslations(lang)
   const [policy, setPolicy] = useState(null)
   useEffect(() => {
     fetch('/api/auth/password-policy').then(r => r.ok ? r.json() : null).then(p => { if (p) setPolicy(p) }).catch(() => {})
@@ -5734,6 +5740,7 @@ function PasswordStrengthIndicator({ password, lang }) {
 }
 
 function SettingsSikkerhed({ lang, fS, lS }) {
+  const t = getTranslations(lang)
   const [profile, setProfile] = useState(null)
   const [phone, setPhone] = useState('')
   const [phoneMsg, setPhoneMsg] = useState(null)
@@ -6583,6 +6590,7 @@ const EGG_INTERVIEW = {
 }
 
 function EasterEggSettings({ lang }) {
+  const t = getTranslations(lang)
   const { eggs, syncFromServer } = useEasterEggs()
   const adminConfig = loadAdminEggs()
   const [selectedEggId, setSelectedEggId] = useState(null)
@@ -7063,6 +7071,7 @@ const COUNTRY_CENTROIDS = {
 const GEO_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json'
 
 function MiniWorldMap({ countries, lang }) {
+  const t = getTranslations(lang)
   const [zoom, setZoom] = useState(1)
   const [center, setCenter] = useState([10, 52]) // default: center on Europe
 
@@ -7149,6 +7158,7 @@ function MiniWorldMap({ countries, lang }) {
 // ── Om Fellis / About Fellis ──
 // Philosophy, purpose, and implemented changelog
 function AboutPage({ lang }) {
+  const t = getTranslations(lang)
   const [changelog, setChangelog] = useState([])
 
   useEffect(() => {
@@ -7463,6 +7473,7 @@ function DailyBarChart({ data, color = '#2D6A4F', lang }) {
 }
 
 function VisitorStatsPage({ lang, onBadgeCheck }) {
+  const t = getTranslations(lang)
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
   const [phantomActive, setPhantomActive] = useState(false)
@@ -7631,6 +7642,7 @@ function VisitorStatsPage({ lang, onBadgeCheck }) {
 // ── GDPR Privacy & Data Management ──
 // Full page for exercising GDPR rights and managing Facebook data
 function PrivacySection({ lang, onLogout }) {
+  const t = getTranslations(lang)
   const [loading, setLoading] = useState(null)
   const [message, setMessage] = useState('')
   const [consents, setConsents] = useState(null)
@@ -14014,6 +14026,7 @@ function _loadLeaflet() {
 }
 
 function OsmMap({ location, height = 220, lang }) {
+  const t = getTranslations(lang)
   const containerRef = useRef(null)
   const instanceRef = useRef(null)
   const [status, setStatus] = useState('loading')
@@ -14064,6 +14077,7 @@ const MARKETPLACE_CATEGORIES = [
 ]
 
 function MarketplaceMapView({ listings, lang, onSelect }) {
+  const t = getTranslations(lang)
   const containerRef = useRef(null)
   const instanceRef = useRef(null)
   const listingTitle = (l) => typeof l.title === 'string' ? l.title : (l.title?.[lang] || l.title?.da || '')
@@ -15038,6 +15052,7 @@ function StatCard({ label, value, sub, color }) {
 }
 
 function HeatmapGrid({ lang, data }) {
+  const t = getTranslations(lang)
   const days = t.calendarWeekdays
   // Show every other hour (0,2,4,...,22) to keep it compact
   const hourIdxs = [8, 10, 12, 14, 16, 18, 20]
@@ -15118,6 +15133,7 @@ function PostInsightsPanel({ t, post, onClose }) {
 // Paste an image (Ctrl+V) → uploads via apiUploadFile → fills URL automatically.
 // Falls back to plain text input if no image is in clipboard.
 function ImageUrlInput({ value, onChange, lang, style, placeholder }) {
+  const t = getTranslations(lang)
   const [uploading, setUploading] = useState(false)
 
   const handlePaste = async (e) => {
@@ -16914,6 +16930,7 @@ function AdminMfaPanel({ lang }) {
 
 // ── Admin: Banned Users Panel ──
 function AdminBannedUsersPanel({ lang, bannedUsers, onUnban }) {
+  const t = getTranslations(lang)
   const [pending, setPending] = useState({})
   const [toast, setToast] = useState(null)
 
@@ -16991,6 +17008,7 @@ function AdminBannedUsersPanel({ lang, bannedUsers, onUnban }) {
 
 // ── Admin: Audit Log Panel ──
 function AdminAuditLogPanel({ lang, rows, total, offset, filter, onFilterChange, onPage }) {
+  const t = getTranslations(lang)
   const PAGE = 50
   const actionColors = {
     login: '#2D6A4F', logout: '#888', register: '#1877F2',
@@ -17660,6 +17678,7 @@ function AdminPlatformAdsPanel({ lang }) {
 }
 
 function AdminEasterEggsPanel({ lang }) {
+  const t = getTranslations(lang)
   const ADMIN_KEY = ADMIN_LS_KEY
   const [cfg, setCfg] = useState(() => {
     try { return JSON.parse(localStorage.getItem(ADMIN_KEY) || '{}') } catch { return {} }
