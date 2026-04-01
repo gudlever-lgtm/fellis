@@ -11300,8 +11300,8 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
       ) : displayCompanies.length === 0 ? (
         <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>
           🏢 {tab === 'my'
-            ? (t.youDont manage any pages yet.')
-            : (t.youDon2t follow any pages yet.')
+            ? t.youDon
+            : t.youDon2
           }
         </div>
       ) : (

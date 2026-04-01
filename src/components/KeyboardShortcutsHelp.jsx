@@ -50,7 +50,7 @@ export default function KeyboardShortcutsHelp({ lang, onClose }) {
           </div>
         ))}
         <div style={{ marginTop: 16, fontSize: 12, color: '#aaa' }}>
-          {PT[lang].shortcutsDont fire when typing in a text field.'}
+          {PT[lang].shortcutsDon}
         </div>
       </div>
     </div>
