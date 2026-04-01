@@ -1542,6 +1542,21 @@ export async function apiAdminGetLockedUsers() {
 export async function apiAdminUnlockUser(userId) {
   return await request(`/api/admin/users/${userId}/unlock`, { method: 'POST' })
 }
+export async function apiAdminGrowth(days = 30) {
+  return await request(`/api/admin/growth?days=${days}`)
+}
+export async function apiAdminOnlineNow() {
+  return await request('/api/admin/online-now')
+}
+export async function apiAdminGetBannedUsers() {
+  return await request('/api/admin/banned-users')
+}
+export async function apiAdminGetAuditLog({ limit = 50, offset = 0, action, userId } = {}) {
+  const params = new URLSearchParams({ limit, offset })
+  if (action) params.set('action', action)
+  if (userId) params.set('userId', userId)
+  return await request(`/api/admin/audit-log?${params}`)
+}
 
 // Business profile fields (business mode only)
 export async function apiUpdateBusinessProfile(data) {

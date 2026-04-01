@@ -8388,6 +8388,114 @@ app.get('/api/admin/stats/list', authenticate, requireAdmin, async (req, res) =>
 })
 
 // GET /api/admin/feed-weights — get current feed algorithm weights
+// GET /api/admin/growth — daily new-user signups for the last N days (default 30)
+app.get('/api/admin/growth', authenticate, requireAdmin, async (req, res) => {
+  const days = Math.min(parseInt(req.query.days) || 30, 90)
+  try {
+    const [rows] = await pool.query(
+      `SELECT DATE(created_at) as day, COUNT(*) as count
+       FROM users
+       WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+       GROUP BY DATE(created_at)
+       ORDER BY day ASC`,
+      [days]
+    )
+    // Fill in zeros for days with no signups
+    const map = {}
+    for (const r of rows) map[r.day instanceof Date ? r.day.toISOString().slice(0, 10) : String(r.day).slice(0, 10)] = Number(r.count)
+    const result = []
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(); d.setDate(d.getDate() - i)
+      const key = d.toISOString().slice(0, 10)
+      result.push({ day: key, count: map[key] || 0 })
+    }
+    res.json({ days: result })
+  } catch (err) {
+    console.error('GET /api/admin/growth error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/admin/online-now — count of sessions active in the last 15 minutes
+app.get('/api/admin/online-now', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [[{ online }]] = await pool.query(
+      "SELECT COUNT(DISTINCT user_id) as online FROM sessions WHERE last_active >= DATE_SUB(NOW(), INTERVAL 15 MINUTE)"
+    ).catch(async () => {
+      // Fallback: last_active column may not exist — count sessions created/refreshed recently
+      const [[r]] = await pool.query(
+        "SELECT COUNT(DISTINCT user_id) as online FROM sessions WHERE expires_at > NOW()"
+      )
+      return [[r]]
+    })
+    res.json({ online: Number(online) })
+  } catch (err) {
+    console.error('GET /api/admin/online-now error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/admin/banned-users — list all currently banned users
+app.get('/api/admin/banned-users', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT u.id, u.name, u.handle, u.email, u.mode, u.strike_count,
+              ma.reason, ma.created_at as banned_at, ma.actor_id,
+              admin_u.name as banned_by
+       FROM users u
+       LEFT JOIN moderation_actions ma ON ma.target_user_id = u.id AND ma.action_type = 'ban'
+         AND ma.created_at = (SELECT MAX(ma2.created_at) FROM moderation_actions ma2 WHERE ma2.target_user_id = u.id AND ma2.action_type = 'ban')
+       LEFT JOIN users admin_u ON admin_u.id = ma.actor_id
+       WHERE u.is_banned = 1
+       ORDER BY ma.created_at DESC`
+    ).catch(async () => {
+      // Fallback if moderation_actions doesn't have the expected columns
+      const [r] = await pool.query(
+        `SELECT id, name, handle, email, mode, strike_count FROM users WHERE is_banned = 1 ORDER BY id DESC`
+      )
+      return [r]
+    })
+    res.json({ users: rows })
+  } catch (err) {
+    console.error('GET /api/admin/banned-users error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/admin/audit-log — recent entries from audit_logs table
+app.get('/api/admin/audit-log', authenticate, requireAdmin, async (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit) || 50, 200)
+  const offset = parseInt(req.query.offset) || 0
+  const { action, userId } = req.query
+  try {
+    const conditions = []
+    const params = []
+    if (action) { conditions.push('al.action = ?'); params.push(action) }
+    if (userId) { conditions.push('al.user_id = ?'); params.push(parseInt(userId)) }
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
+    const [rows] = await pool.query(
+      `SELECT al.id, al.user_id, u.name as user_name, u.email as user_email,
+              al.action, al.resource_type, al.resource_id,
+              al.status, al.ip_address, al.created_at,
+              al.details
+       FROM audit_logs al
+       LEFT JOIN users u ON u.id = al.user_id
+       ${where}
+       ORDER BY al.created_at DESC
+       LIMIT ? OFFSET ?`,
+      [...params, limit, offset]
+    )
+    const [[{ total }]] = await pool.query(
+      `SELECT COUNT(*) as total FROM audit_logs al ${where}`,
+      params
+    )
+    res.json({ rows, total: Number(total), limit, offset })
+  } catch (err) {
+    console.error('GET /api/admin/audit-log error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 app.get('/api/admin/feed-weights', authenticate, requireAdmin, async (req, res) => {
   const weights = await getFeedWeights()
   res.json({ weights })
