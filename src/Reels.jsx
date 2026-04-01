@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { nameToColor, getInitials, REACTIONS } from './data.js'
-import { apiFetchReels, apiUploadReel, apiToggleReelLike, apiFetchReelComments, apiAddReelComment, apiDeleteReel, apiSearchUsers, apiGetLivestreamStatus } from './api.js'
+import { apiFetchReels, apiUploadReel, apiToggleReelLike, apiFetchReelComments, apiAddReelComment, apiDeleteReel, apiSearchUsers, apiGetLivestreamStatus, apiGetStreamKey, apiRegenerateStreamKey } from './api.js'
 import AdBanner from './AdBanner.jsx'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
@@ -818,7 +818,43 @@ function UploadModal({ t, onClose, onUploaded }) {
 }
 
 // ── Live Reel Info Modal ──────────────────────────────────────────────────────
+function CopyButton({ text, label, copiedLabel }) {
+  const [copied, setCopied] = useState(false)
+  const handleCopy = () => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }).catch(() => {})
+  }
+  return (
+    <button
+      onClick={handleCopy}
+      style={{
+        background: copied ? '#2D6A4F' : '#333', border: 'none', borderRadius: 6,
+        padding: '4px 10px', color: '#fff', fontSize: 12, cursor: 'pointer', fontWeight: 600,
+        flexShrink: 0,
+      }}
+    >{copied ? copiedLabel : label}</button>
+  )
+}
+
 function LiveReelModal({ t, onClose, liveEnabled }) {
+  const [streamKey, setStreamKey] = useState(null)  // { stream_key, rtmp_url }
+  const [keyLoading, setKeyLoading] = useState(false)
+
+  useEffect(() => {
+    if (!liveEnabled) return
+    setKeyLoading(true)
+    apiGetStreamKey().then(d => { if (d) setStreamKey(d); setKeyLoading(false) })
+  }, [liveEnabled])
+
+  const handleRegen = async () => {
+    if (!window.confirm(t.reelsStreamKeyRegenConfirm)) return
+    setKeyLoading(true)
+    const d = await apiRegenerateStreamKey()
+    if (d) setStreamKey(d)
+    setKeyLoading(false)
+  }
   const s = {
     overlay: {
       position: 'fixed', inset: 0,
@@ -909,6 +945,42 @@ function LiveReelModal({ t, onClose, liveEnabled }) {
           <div style={s.sectionTitle}>{t.reelsStartLiveWhat}</div>
           <div style={s.body}>{t.reelsStartLiveWhatBody}</div>
         </div>
+
+        {liveEnabled && (
+          <div style={s.section}>
+            <div style={s.sectionTitle}>{t.reelsStreamKeyTitle}</div>
+            {keyLoading && <div style={{ ...s.body, color: '#888' }}>…</div>}
+            {!keyLoading && streamKey && (() => {
+              const rowStyle = {
+                background: '#111', borderRadius: 8, padding: '8px 12px',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                gap: 10, marginBottom: 8,
+              }
+              const valStyle = {
+                fontFamily: 'monospace', fontSize: 13, color: '#e8e8e8',
+                wordBreak: 'break-all', flex: 1,
+              }
+              return (
+                <>
+                  <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>{t.reelsStreamKeyLabel}</div>
+                  <div style={rowStyle}>
+                    <span style={valStyle}>{streamKey.rtmp_url}</span>
+                    <CopyButton text={streamKey.rtmp_url} label={t.reelsStreamKeyCopy} copiedLabel={t.reelsStreamKeyCopied} />
+                  </div>
+                  <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>{t.reelsStreamKeyKeyLabel}</div>
+                  <div style={rowStyle}>
+                    <span style={{ ...valStyle, letterSpacing: '0.05em' }}>{'•'.repeat(12) + streamKey.stream_key.slice(-6)}</span>
+                    <CopyButton text={streamKey.stream_key} label={t.reelsStreamKeyCopy} copiedLabel={t.reelsStreamKeyCopied} />
+                  </div>
+                  <div style={{ fontSize: 12, color: '#888', lineHeight: 1.5, marginBottom: 6 }}>{t.reelsStreamKeyHint}</div>
+                  <button onClick={handleRegen} style={{ background: 'none', border: '1px solid #444', borderRadius: 6, padding: '5px 12px', color: '#aaa', fontSize: 12, cursor: 'pointer' }}>
+                    🔄 {t.reelsStreamKeyRegen}
+                  </button>
+                </>
+              )
+            })()}
+          </div>
+        )}
 
         <div style={s.section}>
           <div style={s.sectionTitle}>{t.reelsStartLiveHow}</div>

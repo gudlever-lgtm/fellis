@@ -660,6 +660,14 @@ export async function apiGetLivestreamStatus() {
   return await request('/api/livestream/status')
 }
 
+export async function apiGetStreamKey() {
+  return await request('/api/me/stream-key')
+}
+
+export async function apiRegenerateStreamKey() {
+  return await request('/api/me/stream-key/regenerate', { method: 'POST' })
+}
+
 export async function apiGetLivestreamSettings() {
   return await request('/api/admin/livestream/settings')
 }
