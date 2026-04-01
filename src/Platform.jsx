@@ -21,7 +21,7 @@ import MatrixRain from './components/easter-eggs/MatrixRain.jsx'
 import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
 import RickRoll from './components/easter-eggs/RickRoll.jsx'
 import RiddleBanner from './components/easter-eggs/RiddleBanner.jsx'
-import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness, apiPayForAd, apiBoostPost, apiTrackAdImpression, apiTrackAdClick } from './api.js'
+import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness, apiPayForAd, apiBoostPost, apiTrackAdImpression, apiTrackAdClick, apiAdminGrowth, apiAdminOnlineNow, apiAdminGetBannedUsers, apiAdminGetAuditLog } from './api.js'
 import BusinessBadge from './components/BusinessBadge.jsx'
 import BusinessDirectory from './pages/BusinessDirectory.jsx'
 import AdManager from './pages/AdManager.jsx'
@@ -16705,6 +16705,188 @@ function AdminMfaPanel({ lang }) {
   )
 }
 
+// ── Admin: Banned Users Panel ──
+function AdminBannedUsersPanel({ lang, bannedUsers, onUnban }) {
+  const [pending, setPending] = useState({})
+  const [toast, setToast] = useState(null)
+
+  const handleUnban = async (userId) => {
+    setPending(p => ({ ...p, [userId]: true }))
+    await onUnban(userId)
+    setToast(lang === 'da' ? 'Bruger genaktiveret' : 'User unbanned')
+    setTimeout(() => setToast(null), 3000)
+    setPending(p => ({ ...p, [userId]: false }))
+  }
+
+  return (
+    <div>
+      <div className="p-card" style={{ marginBottom: 16 }}>
+        <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700 }}>🚫 {lang === 'da' ? 'Bannede brugere' : 'Banned Users'}</h3>
+        <p style={{ margin: 0, fontSize: 13, color: '#888' }}>
+          {lang === 'da' ? 'Alle brugere med permanent ban.' : 'All users with an active ban.'}
+        </p>
+      </div>
+      {!bannedUsers ? (
+        <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#aaa' }}>
+          {lang === 'da' ? 'Henter…' : 'Loading…'}
+        </div>
+      ) : bannedUsers.length === 0 ? (
+        <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#aaa' }}>
+          {lang === 'da' ? 'Ingen bannede brugere.' : 'No banned users.'}
+        </div>
+      ) : (
+        <div className="p-card" style={{ padding: 0, overflow: 'hidden' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: '#f8f8f6', borderBottom: '1px solid #eee' }}>
+                <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: '#555' }}>{lang === 'da' ? 'Bruger' : 'User'}</th>
+                <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: '#555' }}>{lang === 'da' ? 'Begrundelse' : 'Reason'}</th>
+                <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: '#555' }}>{lang === 'da' ? 'Banned af' : 'Banned by'}</th>
+                <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: '#555' }}>{lang === 'da' ? 'Dato' : 'Date'}</th>
+                <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: '#555' }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {bannedUsers.map(u => (
+                <tr key={u.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                  <td style={{ padding: '10px 14px' }}>
+                    <div style={{ fontWeight: 600 }}>{u.name}</div>
+                    <div style={{ fontSize: 11, color: '#aaa' }}>{u.handle ? `@${u.handle}` : ''} {u.email}</div>
+                    {u.strike_count > 0 && <div style={{ fontSize: 11, color: '#e07b39' }}>⚠️ {u.strike_count} {lang === 'da' ? 'advarsler' : 'strikes'}</div>}
+                  </td>
+                  <td style={{ padding: '10px 14px', color: '#555', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {u.reason || <span style={{ color: '#ccc' }}>—</span>}
+                  </td>
+                  <td style={{ padding: '10px 14px', color: '#555' }}>{u.banned_by || <span style={{ color: '#ccc' }}>—</span>}</td>
+                  <td style={{ padding: '10px 14px', color: '#888', fontSize: 12 }}>
+                    {u.banned_at ? new Date(u.banned_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-GB') : '—'}
+                  </td>
+                  <td style={{ padding: '10px 14px' }}>
+                    <button onClick={() => handleUnban(u.id)} disabled={pending[u.id]}
+                      style={{ fontSize: 12, padding: '5px 12px', borderRadius: 6, border: '1px solid #b7dfca', background: '#f0faf4', color: '#2D6A4F', cursor: 'pointer', fontWeight: 600 }}>
+                      {pending[u.id] ? '…' : (lang === 'da' ? 'Ophæv ban' : 'Unban')}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {toast && (
+        <div style={{ position: 'fixed', bottom: 24, right: 24, background: '#2D6A4F', color: '#fff', padding: '10px 18px', borderRadius: 10, fontSize: 14, zIndex: 9999 }}>
+          ✓ {toast}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Admin: Audit Log Panel ──
+function AdminAuditLogPanel({ lang, rows, total, offset, filter, onFilterChange, onPage }) {
+  const PAGE = 50
+  const actionColors = {
+    login: '#2D6A4F', logout: '#888', register: '#1877F2',
+    delete_account: '#c0392b', export_data: '#8e44ad',
+    password_change: '#e07b39', mfa_enable: '#27ae60', mfa_disable: '#e74c3c',
+  }
+
+  return (
+    <div>
+      <div className="p-card" style={{ marginBottom: 16 }}>
+        <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700 }}>📋 {lang === 'da' ? 'Audit log' : 'Audit Log'}</h3>
+        <p style={{ margin: '0 0 12px', fontSize: 13, color: '#888' }}>
+          {lang === 'da' ? 'Sikkerhedsrelevante hændelser registreret i systemet.' : 'Security-relevant events recorded in the system.'}
+        </p>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <input value={filter} onChange={e => onFilterChange(e.target.value)}
+            placeholder={lang === 'da' ? 'Filtrer efter handling (f.eks. login)…' : 'Filter by action (e.g. login)…'}
+            style={{ flex: 1, padding: '7px 10px', borderRadius: 7, border: '1px solid #E8E4DF', fontSize: 13, fontFamily: 'inherit' }} />
+          {filter && (
+            <button onClick={() => onFilterChange('')}
+              style={{ padding: '7px 12px', borderRadius: 7, border: '1px solid #ddd', background: '#f5f5f5', fontSize: 13, cursor: 'pointer' }}>
+              ✕
+            </button>
+          )}
+          <span style={{ fontSize: 12, color: '#aaa', whiteSpace: 'nowrap' }}>
+            {lang === 'da' ? `${total} hændelser` : `${total} events`}
+          </span>
+        </div>
+      </div>
+
+      {!rows ? (
+        <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#aaa' }}>
+          {lang === 'da' ? 'Henter…' : 'Loading…'}
+        </div>
+      ) : rows.length === 0 ? (
+        <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#aaa' }}>
+          {lang === 'da' ? 'Ingen hændelser fundet.' : 'No events found.'}
+        </div>
+      ) : (
+        <>
+          <div className="p-card" style={{ padding: 0, overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: '#f8f8f6', borderBottom: '1px solid #eee' }}>
+                  <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: '#555' }}>{lang === 'da' ? 'Bruger' : 'User'}</th>
+                  <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: '#555' }}>{lang === 'da' ? 'Handling' : 'Action'}</th>
+                  <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: '#555' }}>{lang === 'da' ? 'Ressource' : 'Resource'}</th>
+                  <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: '#555' }}>IP</th>
+                  <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: '#555' }}>{lang === 'da' ? 'Tidspunkt' : 'Time'}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map(r => (
+                  <tr key={r.id} style={{ borderBottom: '1px solid #f5f5f5' }}>
+                    <td style={{ padding: '8px 14px' }}>
+                      <div style={{ fontWeight: 600 }}>{r.user_name || `#${r.user_id}`}</div>
+                      {r.user_email && <div style={{ fontSize: 11, color: '#aaa' }}>{r.user_email}</div>}
+                    </td>
+                    <td style={{ padding: '8px 14px' }}>
+                      <span style={{
+                        display: 'inline-block', padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700,
+                        background: `${actionColors[r.action] || '#888'}18`,
+                        color: actionColors[r.action] || '#555',
+                      }}>
+                        {r.action}
+                      </span>
+                      {r.status && r.status !== 'success' && (
+                        <span style={{ fontSize: 11, color: '#e74c3c', marginLeft: 6 }}>({r.status})</span>
+                      )}
+                    </td>
+                    <td style={{ padding: '8px 14px', color: '#888', fontSize: 12 }}>
+                      {r.resource_type ? `${r.resource_type}${r.resource_id ? ` #${r.resource_id}` : ''}` : <span style={{ color: '#ddd' }}>—</span>}
+                    </td>
+                    <td style={{ padding: '8px 14px', color: '#aaa', fontSize: 12, fontFamily: 'monospace' }}>{r.ip_address || '—'}</td>
+                    <td style={{ padding: '8px 14px', color: '#888', fontSize: 12, whiteSpace: 'nowrap' }}>
+                      {new Date(r.created_at).toLocaleString(lang === 'da' ? 'da-DK' : 'en-GB', { dateStyle: 'short', timeStyle: 'short' })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {total > PAGE && (
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 12 }}>
+              <button onClick={() => onPage(Math.max(0, offset - PAGE))} disabled={offset === 0}
+                style={{ padding: '6px 14px', borderRadius: 7, border: '1px solid #ddd', background: offset === 0 ? '#f5f5f5' : '#fff', cursor: offset === 0 ? 'default' : 'pointer', fontSize: 13 }}>
+                ← {lang === 'da' ? 'Forrige' : 'Prev'}
+              </button>
+              <span style={{ lineHeight: '32px', fontSize: 12, color: '#888' }}>
+                {offset + 1}–{Math.min(offset + PAGE, total)} / {total}
+              </span>
+              <button onClick={() => onPage(offset + PAGE)} disabled={offset + PAGE >= total}
+                style={{ padding: '6px 14px', borderRadius: 7, border: '1px solid #ddd', background: offset + PAGE >= total ? '#f5f5f5' : '#fff', cursor: offset + PAGE >= total ? 'default' : 'pointer', fontSize: 13 }}>
+                {lang === 'da' ? 'Næste' : 'Next'} →
+              </button>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
 // ── Admin: Security & GDPR Tab ──
 function AdminSecurityGdpr({ viralStats, lang }) {
   const da = lang === 'da'
@@ -18357,6 +18539,17 @@ function AdminPage({ lang, t }) {
   const [replaceKeyMode, setReplaceKeyMode] = useState(false)
   const [newKeyValue, setNewKeyValue] = useState('')
   const [envStatus, setEnvStatus] = useState(null)
+  // Growth chart + online now
+  const [growthData, setGrowthData] = useState(null)
+  const [growthDays, setGrowthDays] = useState(30)
+  const [onlineNow, setOnlineNow] = useState(null)
+  // Banned users
+  const [bannedUsers, setBannedUsers] = useState(null)
+  // Audit log
+  const [auditLog, setAuditLog] = useState(null)
+  const [auditLogOffset, setAuditLogOffset] = useState(0)
+  const [auditLogTotal, setAuditLogTotal] = useState(0)
+  const [auditLogFilter, setAuditLogFilter] = useState('')
 
   function showModToast(msg) { setModToast(msg); setTimeout(() => setModToast(null), 3000) }
 
@@ -18367,6 +18560,8 @@ function AdminPage({ lang, t }) {
     apiGetAdminStats().then(data => { if (data) setStats(data) })
     apiGetFeedWeights().then(data => { if (data?.weights) setWeights(data.weights) })
     apiGetInterestStats().then(data => { if (data) setInterestStats(data) })
+    apiAdminOnlineNow().then(data => { if (data) setOnlineNow(data.online) })
+    apiAdminGrowth(30).then(data => { if (data) setGrowthData(data.days) })
   }, [])
 
   useEffect(() => {
@@ -18376,6 +18571,10 @@ function AdminPage({ lang, t }) {
     }, modUserSearch ? 300 : 0)
     return () => clearTimeout(timer)
   }, [modUserSearch, adminTab])
+
+  useEffect(() => {
+    apiAdminGrowth(growthDays).then(data => { if (data) setGrowthData(data.days) })
+  }, [growthDays])
 
   useEffect(() => {
     if (adminTab === 'viral' || adminTab === 'security') {
@@ -18395,7 +18594,16 @@ function AdminPage({ lang, t }) {
     if (adminTab === 'payment') {
       apiGetAdminEnvStatus().then(data => { if (data?.status) setEnvStatus(data.status) })
     }
-  }, [adminTab, viralDays])
+    if (adminTab === 'banned-users') {
+      apiAdminGetBannedUsers().then(data => { if (data) setBannedUsers(data.users) })
+    }
+    if (adminTab === 'audit-log') {
+      setAuditLog(null)
+      apiAdminGetAuditLog({ limit: 50, offset: auditLogOffset, action: auditLogFilter || undefined }).then(data => {
+        if (data) { setAuditLog(data.rows); setAuditLogTotal(data.total) }
+      })
+    }
+  }, [adminTab, viralDays, auditLogOffset, auditLogFilter])
 
   const handleSave = async (e) => {
     e.preventDefault()
@@ -18418,6 +18626,7 @@ function AdminPage({ lang, t }) {
     { icon: '✅', label: lang === 'da' ? 'Tilmeldinger (going)' : 'Event RSVPs (going)', value: stats.rsvps },
     { icon: '🛍️', label: lang === 'da' ? 'Aktive annoncer' : 'Active listings', value: stats.listings, detailType: 'listings' },
     { icon: '🤝', label: lang === 'da' ? 'Forbindelser' : 'Friendships', value: stats.friendships, detailType: 'friendships' },
+    { icon: '🟡', label: lang === 'da' ? 'Online nu (15 min)' : 'Online now (15 min)', value: onlineNow ?? '…' },
   ] : []
 
   const handleStatClick = (s) => {
@@ -18465,6 +18674,8 @@ function AdminPage({ lang, t }) {
               { id: 'security', icon: '🔒', label: lang === 'da' ? 'Sikkerhed & GDPR' : 'Security & GDPR' },
               { id: 'locked-accounts', icon: '🔓', label: lang === 'da' ? 'Låste konti' : 'Locked Accounts' },
               { id: 'mfa-admin', icon: '📱', label: lang === 'da' ? '2FA-brugere' : 'MFA Users' },
+              { id: 'banned-users', icon: '🚫', label: lang === 'da' ? 'Bannede brugere' : 'Banned Users' },
+              { id: 'audit-log', icon: '📋', label: lang === 'da' ? 'Audit log' : 'Audit Log' },
             ],
           },
           {
@@ -18633,6 +18844,56 @@ function AdminPage({ lang, t }) {
                 )
               })()}
             </div>
+
+            {/* Growth chart */}
+            {growthData && (
+              <div className="p-card" style={{ marginTop: 16, padding: '20px 24px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                  <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>
+                    📈 {lang === 'da' ? 'Nye brugere per dag' : 'New users per day'}
+                  </h3>
+                  <select value={growthDays} onChange={e => setGrowthDays(Number(e.target.value))}
+                    style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid #ddd', cursor: 'pointer' }}>
+                    <option value={14}>{lang === 'da' ? '14 dage' : '14 days'}</option>
+                    <option value={30}>{lang === 'da' ? '30 dage' : '30 days'}</option>
+                    <option value={60}>{lang === 'da' ? '60 dage' : '60 days'}</option>
+                    <option value={90}>{lang === 'da' ? '90 dage' : '90 days'}</option>
+                  </select>
+                </div>
+                {(() => {
+                  const maxCount = Math.max(...growthData.map(d => d.count), 1)
+                  const total = growthData.reduce((s, d) => s + d.count, 0)
+                  const avg = total / growthData.length
+                  return (
+                    <>
+                      <div style={{ display: 'flex', gap: 2, alignItems: 'flex-end', height: 80, marginBottom: 6 }}>
+                        {growthData.map((d, i) => {
+                          const pct = (d.count / maxCount) * 100
+                          const isToday = i === growthData.length - 1
+                          return (
+                            <div key={d.day} title={`${d.day}: ${d.count}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center' }}>
+                              <div style={{
+                                width: '100%', height: `${Math.max(pct, d.count > 0 ? 4 : 1)}%`,
+                                background: isToday ? '#2D6A4F' : d.count > avg ? '#52B788' : '#b7dfca',
+                                borderRadius: '3px 3px 0 0', transition: 'height 0.3s',
+                                minHeight: d.count > 0 ? 3 : 1,
+                              }} />
+                            </div>
+                          )
+                        })}
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#bbb' }}>
+                        <span>{growthData[0]?.day?.slice(5)}</span>
+                        <span style={{ color: '#555', fontWeight: 600 }}>
+                          {lang === 'da' ? `I alt: ${total} · Snit: ${avg.toFixed(1)}/dag` : `Total: ${total} · Avg: ${avg.toFixed(1)}/day`}
+                        </span>
+                        <span>{growthData[growthData.length - 1]?.day?.slice(5)}</span>
+                      </div>
+                    </>
+                  )
+                })()}
+              </div>
+            )}
             </>
           )}
         </div>
@@ -19666,6 +19927,29 @@ function AdminPage({ lang, t }) {
       {adminTab === 'broadcast' && <AdminBroadcastPanel lang={lang} />}
       {adminTab === 'livestream-stats' && <AdminLivestreamStatsPanel lang={lang} t={t} />}
       {adminTab === 'livestream' && <AdminLivestreamSettingsPanel lang={lang} t={t} />}
+
+      {adminTab === 'banned-users' && (
+        <AdminBannedUsersPanel
+          lang={lang}
+          bannedUsers={bannedUsers}
+          onUnban={async (userId) => {
+            await apiUnbanUser(userId)
+            apiAdminGetBannedUsers().then(data => { if (data) setBannedUsers(data.users) })
+          }}
+        />
+      )}
+
+      {adminTab === 'audit-log' && (
+        <AdminAuditLogPanel
+          lang={lang}
+          rows={auditLog}
+          total={auditLogTotal}
+          offset={auditLogOffset}
+          filter={auditLogFilter}
+          onFilterChange={v => { setAuditLogFilter(v); setAuditLogOffset(0) }}
+          onPage={off => setAuditLogOffset(off)}
+        />
+      )}
     </div>
   )
 }
