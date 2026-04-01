@@ -6928,7 +6928,7 @@ function SettingsSessions({ lang, t, onLogout }) {
               {s.ip_address && <span>🌐 {s.ip_address}</span>}
               {createdDate && <span>🕐 {t.created}: {fmtDate(createdDate)}</span>}
               {expiresDate && <span>⏳ {t.molliePaymentExpires}: {fmtDate(expiresDate)}</span>}
-              {s.lang && <span>🗣️ {s.t.english}</span>}
+              {s.lang && <span>🗣️ {PT[s.lang]?.english ?? s.lang}</span>}
             </div>
           </div>
           {!s.is_current && (
