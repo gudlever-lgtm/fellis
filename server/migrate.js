@@ -95,24 +95,44 @@ async function main() {
     1068, // Multiple primary key defined
   ])
 
-  // Split a SQL file into individual statements (naïve but sufficient for
-  // migration files that don't embed semicolons inside string literals).
+  // Split a SQL file into individual statements.
+  // Handles DELIMITER // blocks used for stored procedures — DELIMITER is a
+  // MySQL CLI directive not understood by mysql2; we parse it out and treat
+  // the delimited block content as a single statement.
   function splitStatements(sql) {
-    return sql
+    // Replace DELIMITER X ... DELIMITER ; blocks: each statement inside the
+    // block (split by the custom delimiter) becomes one semicolon-terminated unit.
+    const processed = sql.replace(
+      /DELIMITER\s+(\S+)\s*[\r\n]+([\s\S]*?)[\r\n]+DELIMITER\s+;\s*(?:[\r\n]|$)/gi,
+      (_, delim, block) => {
+        const esc = delim.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        return block
+          .split(new RegExp('\\s*' + esc + '\\s*(?:[\\r\\n]|$)'))
+          .map(s => s.trim())
+          .filter(s => s.length > 0)
+          .map(s => s + ';')
+          .join('\n') + '\n'
+      }
+    )
+
+    return processed
       .split(/;[ \t]*(?:\r?\n|$)/)
       .map(s => s.trim())
-      .filter(s => s.length > 0 && !s.replace(/--[^\n]*/g, '').trim().match(/^\/\*.*\*\/$/s))
+      .filter(s => s.length > 0)
   }
 
-  // MySQL 8 doesn't support ADD COLUMN IF NOT EXISTS / DROP COLUMN IF EXISTS
-  // (those are MariaDB extensions). Strip the IF [NOT] EXISTS clause so the
-  // statement can run, then let the error-code filter handle duplicates/missing.
+  // MySQL 8 doesn't support ADD/CREATE INDEX/COLUMN IF NOT EXISTS or
+  // DROP COLUMN/INDEX IF EXISTS (those are MariaDB extensions). Strip the
+  // IF [NOT] EXISTS clause so the statement can run, then let the error-code
+  // filter handle duplicates/missing items.
   function mysqlCompatible(stmt) {
     return stmt
       .replace(/\bADD COLUMN IF NOT EXISTS\b/gi, 'ADD COLUMN')
       .replace(/\bADD INDEX IF NOT EXISTS\b/gi, 'ADD INDEX')
       .replace(/\bADD KEY IF NOT EXISTS\b/gi, 'ADD KEY')
       .replace(/\bADD UNIQUE(?: INDEX| KEY)? IF NOT EXISTS\b/gi, m => m.replace(/ IF NOT EXISTS/i, ''))
+      .replace(/\bCREATE INDEX IF NOT EXISTS\b/gi, 'CREATE INDEX')
+      .replace(/\bCREATE UNIQUE INDEX IF NOT EXISTS\b/gi, 'CREATE UNIQUE INDEX')
       .replace(/\bDROP COLUMN IF EXISTS\b/gi, 'DROP COLUMN')
       .replace(/\bDROP INDEX IF EXISTS\b/gi, 'DROP INDEX')
       .replace(/\bDROP KEY IF EXISTS\b/gi, 'DROP KEY')
