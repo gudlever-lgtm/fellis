@@ -7158,7 +7158,6 @@ function MiniWorldMap({ countries, lang }) {
 // ── Om Fellis / About Fellis ──
 // Philosophy, purpose, and implemented changelog
 function AboutPage({ lang }) {
-  const t = getTranslations(lang)
   const [changelog, setChangelog] = useState([])
 
   useEffect(() => {
@@ -7473,7 +7472,6 @@ function DailyBarChart({ data, color = '#2D6A4F', lang }) {
 }
 
 function VisitorStatsPage({ lang, onBadgeCheck }) {
-  const t = getTranslations(lang)
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
   const [phantomActive, setPhantomActive] = useState(false)
@@ -7642,7 +7640,6 @@ function VisitorStatsPage({ lang, onBadgeCheck }) {
 // ── GDPR Privacy & Data Management ──
 // Full page for exercising GDPR rights and managing Facebook data
 function PrivacySection({ lang, onLogout }) {
-  const t = getTranslations(lang)
   const [loading, setLoading] = useState(null)
   const [message, setMessage] = useState('')
   const [consents, setConsents] = useState(null)
