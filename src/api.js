@@ -1576,3 +1576,253 @@ export async function apiGetBusinessProfile(handle) {
 export async function apiGetActiveStreams() {
   return await request('/api/stream/active')
 }
+
+// ── Share / Repost ────────────────────────────────────────────────────────────
+export async function apiSharePost(postId, comment) {
+  return await request(`/api/posts/${postId}/share`, {
+    method: 'POST',
+    body: JSON.stringify({ comment }),
+  })
+}
+export async function apiUnsharePost(postId) {
+  return await request(`/api/posts/${postId}/share`, { method: 'DELETE' })
+}
+
+// ── Saved posts / Bookmarks ───────────────────────────────────────────────────
+export async function apiSavePost(postId) {
+  return await request(`/api/posts/${postId}/save`, { method: 'POST' })
+}
+export async function apiUnsavePost(postId) {
+  return await request(`/api/posts/${postId}/save`, { method: 'DELETE' })
+}
+export async function apiGetSavedPosts() {
+  return await request('/api/saved-posts')
+}
+
+// ── Polls ─────────────────────────────────────────────────────────────────────
+export async function apiCreatePoll(postId, options, endsInHours) {
+  return await request(`/api/posts/${postId}/poll`, {
+    method: 'POST',
+    body: JSON.stringify({ options, ends_in_hours: endsInHours }),
+  })
+}
+export async function apiGetPoll(postId) {
+  return await request(`/api/posts/${postId}/poll`)
+}
+export async function apiVotePoll(pollId, optionId) {
+  return await request(`/api/polls/${pollId}/vote`, {
+    method: 'POST',
+    body: JSON.stringify({ option_id: optionId }),
+  })
+}
+
+// ── Nested comment replies ────────────────────────────────────────────────────
+export async function apiReplyToComment(commentId, text) {
+  return await request(`/api/comments/${commentId}/reply`, {
+    method: 'POST',
+    body: JSON.stringify({ text }),
+  })
+}
+export async function apiGetCommentReplies(commentId) {
+  return await request(`/api/comments/${commentId}/replies`)
+}
+
+// ── Message reactions ─────────────────────────────────────────────────────────
+export async function apiReactToMessage(messageId, emoji) {
+  return await request(`/api/messages/${messageId}/react`, {
+    method: 'POST',
+    body: JSON.stringify({ emoji }),
+  })
+}
+export async function apiRemoveMessageReaction(messageId) {
+  return await request(`/api/messages/${messageId}/react`, { method: 'DELETE' })
+}
+
+// ── Profile cover photo ───────────────────────────────────────────────────────
+export async function apiUploadCoverPhoto(file) {
+  const form = new FormData()
+  form.append('cover', file)
+  try {
+    const res = await fetch(`${API_BASE}/api/profile/cover`, {
+      method: 'POST',
+      headers: formHeaders(),
+      credentials: 'same-origin',
+      body: form,
+    })
+    if (!res.ok) return null
+    return await res.json()
+  } catch { return null }
+}
+export async function apiDeleteCoverPhoto() {
+  return await request('/api/profile/cover', { method: 'DELETE' })
+}
+
+// ── Pinned post ───────────────────────────────────────────────────────────────
+export async function apiSetPinnedPost(postId) {
+  return await request('/api/profile/pinned-post', {
+    method: 'PATCH',
+    body: JSON.stringify({ post_id: postId }),
+  })
+}
+
+// ── Hashtag follows ───────────────────────────────────────────────────────────
+export async function apiGetHashtagFollows() {
+  return await request('/api/me/hashtag-follows')
+}
+export async function apiFollowHashtag(tag) {
+  return await request(`/api/hashtags/${encodeURIComponent(tag)}/follow`, { method: 'POST' })
+}
+export async function apiUnfollowHashtag(tag) {
+  return await request(`/api/hashtags/${encodeURIComponent(tag)}/follow`, { method: 'DELETE' })
+}
+
+// ── Story highlights ──────────────────────────────────────────────────────────
+export async function apiGetMyStoryHighlights() {
+  return await request('/api/me/story-highlights')
+}
+export async function apiGetUserStoryHighlights(userId) {
+  return await request(`/api/users/${userId}/story-highlights`)
+}
+export async function apiCreateStoryHighlight(title, coverEmoji) {
+  return await request('/api/story-highlights', {
+    method: 'POST',
+    body: JSON.stringify({ title, cover_emoji: coverEmoji }),
+  })
+}
+export async function apiAddStoryToHighlight(highlightId, storyId) {
+  return await request(`/api/story-highlights/${highlightId}/stories/${storyId}`, { method: 'POST' })
+}
+export async function apiDeleteStoryHighlight(highlightId) {
+  return await request(`/api/story-highlights/${highlightId}`, { method: 'DELETE' })
+}
+
+// ── Story reactions ───────────────────────────────────────────────────────────
+export async function apiReactToStory(storyId, emoji) {
+  return await request(`/api/stories/${storyId}/react`, {
+    method: 'POST',
+    body: JSON.stringify({ emoji }),
+  })
+}
+export async function apiGetStoryReactions(storyId) {
+  return await request(`/api/stories/${storyId}/reactions`)
+}
+
+// ── Event ICS export ──────────────────────────────────────────────────────────
+export function apiGetEventIcsUrl(eventId) {
+  return `${API_BASE}/api/events/${eventId}/ics`
+}
+
+// ── Marketplace wishlist ──────────────────────────────────────────────────────
+export async function apiSaveListing(listingId) {
+  return await request(`/api/marketplace/${listingId}/save`, { method: 'POST' })
+}
+export async function apiUnsaveListing(listingId) {
+  return await request(`/api/marketplace/${listingId}/save`, { method: 'DELETE' })
+}
+export async function apiGetSavedListings() {
+  return await request('/api/marketplace/saved')
+}
+
+// ── Marketplace price offers ──────────────────────────────────────────────────
+export async function apiMakeOffer(listingId, amount, message) {
+  return await request(`/api/marketplace/${listingId}/offers`, {
+    method: 'POST',
+    body: JSON.stringify({ amount, message }),
+  })
+}
+export async function apiGetOffers(listingId) {
+  return await request(`/api/marketplace/${listingId}/offers`)
+}
+export async function apiRespondToOffer(offerId, status) {
+  return await request(`/api/marketplace/offers/${offerId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  })
+}
+
+// ── Job alerts ────────────────────────────────────────────────────────────────
+export async function apiGetJobAlerts() {
+  return await request('/api/me/job-alerts')
+}
+export async function apiCreateJobAlert(query, location, jobType, frequency) {
+  return await request('/api/me/job-alerts', {
+    method: 'POST',
+    body: JSON.stringify({ query, location, job_type: jobType, frequency }),
+  })
+}
+export async function apiDeleteJobAlert(id) {
+  return await request(`/api/me/job-alerts/${id}`, { method: 'DELETE' })
+}
+
+// ── Company reviews ───────────────────────────────────────────────────────────
+export async function apiGetCompanyReviews(companyId) {
+  return await request(`/api/companies/${companyId}/reviews`)
+}
+export async function apiCreateCompanyReview(companyId, rating, title, body) {
+  return await request(`/api/companies/${companyId}/reviews`, {
+    method: 'POST',
+    body: JSON.stringify({ rating, title, body }),
+  })
+}
+export async function apiDeleteCompanyReview(companyId) {
+  return await request(`/api/companies/${companyId}/reviews`, { method: 'DELETE' })
+}
+
+// ── Company business hours ────────────────────────────────────────────────────
+export async function apiGetCompanyHours(companyId) {
+  return await request(`/api/companies/${companyId}/hours`)
+}
+export async function apiSaveCompanyHours(companyId, hours) {
+  return await request(`/api/companies/${companyId}/hours`, {
+    method: 'PUT',
+    body: JSON.stringify({ hours }),
+  })
+}
+
+// ── Company Q&A ───────────────────────────────────────────────────────────────
+export async function apiGetCompanyQA(companyId) {
+  return await request(`/api/companies/${companyId}/qa`)
+}
+export async function apiAskCompanyQuestion(companyId, question) {
+  return await request(`/api/companies/${companyId}/qa`, {
+    method: 'POST',
+    body: JSON.stringify({ question }),
+  })
+}
+export async function apiAnswerCompanyQuestion(companyId, qaId, answer) {
+  return await request(`/api/companies/${companyId}/qa/${qaId}/answer`, {
+    method: 'PATCH',
+    body: JSON.stringify({ answer }),
+  })
+}
+export async function apiDeleteCompanyQuestion(companyId, qaId) {
+  return await request(`/api/companies/${companyId}/qa/${qaId}`, { method: 'DELETE' })
+}
+
+// ── Profile portfolio ─────────────────────────────────────────────────────────
+export async function apiGetMyPortfolio() {
+  return await request('/api/me/portfolio')
+}
+export async function apiGetUserPortfolio(userId) {
+  return await request(`/api/users/${userId}/portfolio`)
+}
+export async function apiCreatePortfolioItem(title, description, url, imageUrl) {
+  return await request('/api/me/portfolio', {
+    method: 'POST',
+    body: JSON.stringify({ title, description, url, image_url: imageUrl }),
+  })
+}
+export async function apiUpdatePortfolioItem(id, title, description, url, imageUrl) {
+  return await request(`/api/me/portfolio/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ title, description, url, image_url: imageUrl }),
+  })
+}
+export async function apiDeletePortfolioItem(id) {
+  return await request(`/api/me/portfolio/${id}`, { method: 'DELETE' })
+}
+
+// ── Reel → feed share ─────────────────────────────────────────────────────────
+export async function apiShareReelToFeed(reelId) {
+  return await request(`/api/reels/${reelId}/share-to-feed`, { method: 'POST' })
+}
