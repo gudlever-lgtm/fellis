@@ -96,29 +96,48 @@ async function main() {
   ])
 
   // Split a SQL file into individual statements.
-  // Handles DELIMITER // blocks used for stored procedures — DELIMITER is a
-  // MySQL CLI directive not understood by mysql2; we parse it out and treat
-  // the delimited block content as a single statement.
+  // Uses a line-by-line parser so DELIMITER // blocks (used for stored
+  // procedures) are handled correctly: while the delimiter is '//', internal
+  // semicolons are treated as part of the statement body, not as terminators.
   function splitStatements(sql) {
-    // Replace DELIMITER X ... DELIMITER ; blocks: each statement inside the
-    // block (split by the custom delimiter) becomes one semicolon-terminated unit.
-    const processed = sql.replace(
-      /DELIMITER\s+(\S+)\s*[\r\n]+([\s\S]*?)[\r\n]+DELIMITER\s+;\s*(?:[\r\n]|$)/gi,
-      (_, delim, block) => {
-        const esc = delim.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-        return block
-          .split(new RegExp('\\s*' + esc + '\\s*(?:[\\r\\n]|$)'))
-          .map(s => s.trim())
-          .filter(s => s.length > 0)
-          .map(s => s + ';')
-          .join('\n') + '\n'
-      }
-    )
+    const stmts = []
+    let delimiter = ';'
+    let current = ''
 
-    return processed
-      .split(/;[ \t]*(?:\r?\n|$)/)
-      .map(s => s.trim())
-      .filter(s => s.length > 0)
+    for (const line of sql.split(/\r?\n/)) {
+      const trimmed = line.trim()
+
+      // DELIMITER directive — switch the active delimiter, don't accumulate
+      const delimMatch = trimmed.match(/^DELIMITER\s+(\S+)\s*$/i)
+      if (delimMatch) {
+        delimiter = delimMatch[1]
+        continue
+      }
+
+      current += (current ? '\n' : '') + line
+
+      if (delimiter === ';') {
+        // Normal mode: flush when line (minus inline comment) ends with ';'
+        const stripped = trimmed.replace(/--.*$/, '').trimEnd()
+        if (stripped.endsWith(';')) {
+          const stmt = current.trim().replace(/;[\s]*$/, '').trim()
+          if (stmt) stmts.push(stmt)
+          current = ''
+        }
+      } else {
+        // Custom delimiter mode (e.g. '//'):
+        // flush when the line ends with the custom delimiter
+        const esc = delimiter.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        if (new RegExp(esc + '\\s*$').test(trimmed)) {
+          const stmt = current.replace(new RegExp('\\s*' + esc + '\\s*$'), '').trim()
+          if (stmt) stmts.push(stmt)
+          current = ''
+        }
+      }
+    }
+
+    if (current.trim()) stmts.push(current.trim())
+    return stmts
   }
 
   // MySQL 8 doesn't support ADD/CREATE INDEX/COLUMN IF NOT EXISTS or
