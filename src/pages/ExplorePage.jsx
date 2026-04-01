@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { nameToColor, getInitials } from '../data.js'
+import { nameToColor, getInitials, PT } from '../data.js'
 
 const FILTERS = ['all', 'images']
 

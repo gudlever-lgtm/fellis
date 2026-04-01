@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { apiGetCompanyReviews, apiCreateCompanyReview, apiDeleteCompanyReview } from '../api.js'
-import { nameToColor, getInitials } from '../data.js'
+import { nameToColor, getInitials, PT } from '../data.js'
 
 function StarRating({ value, onChange, readonly = false }) {
   const [hover, setHover] = useState(0)

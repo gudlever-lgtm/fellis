@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { PT } from '../data.js'
 
 const badgeToastStyles = `
   .badge-toast-container {

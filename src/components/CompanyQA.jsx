@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { apiGetCompanyQA, apiAskCompanyQuestion, apiAnswerCompanyQuestion, apiDeleteCompanyQuestion } from '../api.js'
-import { nameToColor, getInitials } from '../data.js'
+import { nameToColor, getInitials, PT } from '../data.js'
 
 export default function CompanyQA({ companyId, currentUserId, isMember, lang }) {
   const [questions, setQuestions] = useState(null)

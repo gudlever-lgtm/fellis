@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { apiGetMyAds, apiCreateAd, apiUpdateAd, apiPatchAd, apiDeleteAd, apiPayForAd, apiBoostPost, apiFetchUserPosts, apiUploadFile } from '../api.js'
 import { formatPrice } from '../utils/currency.js'
+import { PT } from '../data.js'
 
 const STATUS_COLORS = {
   active: { bg: '#D1FAE5', color: '#065F46' },

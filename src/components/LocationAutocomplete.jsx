@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { apiGeocode } from '../api.js'
+import { PT } from '../data.js'
 
 /**
  * LocationAutocomplete — OpenStreetMap/Nominatim location picker.

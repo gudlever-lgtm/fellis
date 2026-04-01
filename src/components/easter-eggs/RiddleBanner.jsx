@@ -1,3 +1,4 @@
+import { PT } from '../../data.js'
 import { useState, useEffect } from 'react'
 
 const RIDDLES = [

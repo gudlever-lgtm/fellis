@@ -1,3 +1,4 @@
+import { PT } from '../data.js'
 export default function KeyboardShortcutsHelp({ lang, onClose }) {
   const shortcuts = lang === 'da'
     ? [

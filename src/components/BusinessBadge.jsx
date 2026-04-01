@@ -1,3 +1,4 @@
+import { PT } from '../data.js'
 export default function BusinessBadge({ lang, size = 'sm', onClick }) {
   const label = 'Business'
   const s = {
