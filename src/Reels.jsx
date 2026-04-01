@@ -652,6 +652,7 @@ function UploadModal({ t, onClose, onUploaded }) {
       background: 'rgba(0,0,0,0.7)',
       zIndex: 1000,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: 16,
     },
     modal: {
       background: '#1a1a1a',

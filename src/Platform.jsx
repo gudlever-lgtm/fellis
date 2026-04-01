@@ -1104,7 +1104,7 @@ function LinkWithMenu({ href, lang, onRemove }) {
         target="_blank"
         rel="noopener noreferrer"
         className="post-link"
-        onContextMenu={(e) => { e.preventDefault(); setMenu({ x: e.clientX, y: e.clientY }) }}
+        onContextMenu={(e) => { e.preventDefault(); setMenu({ x: Math.min(e.clientX, window.innerWidth - 210), y: Math.min(e.clientY, window.innerHeight - 100) }) }}
       >
         {href}
       </a>
