@@ -322,10 +322,12 @@ export async function apiMarkConversationRead(conversationId) {
   return await request(`/api/conversations/${conversationId}/read`, { method: 'POST' })
 }
 
-export async function apiSendConversationMessage(conversationId, text) {
+export async function apiSendConversationMessage(conversationId, text, media = null) {
+  const body = { text }
+  if (media?.length) body.media = media
   return await request(`/api/conversations/${conversationId}/messages`, {
     method: 'POST',
-    body: JSON.stringify({ text }),
+    body: JSON.stringify(body),
   })
 }
 
@@ -1567,4 +1569,18 @@ export async function apiUnfollowBusiness(id) {
 }
 export async function apiGetBusinessProfile(handle) {
   return await request(`/api/businesses/${encodeURIComponent(handle)}`)
+}
+
+// ── mediamtx / RTMP streaming ─────────────────────────────────────────────────
+
+export async function apiGetStreamKey() {
+  return await request('/api/stream/key')
+}
+
+export async function apiRegenerateStreamKey() {
+  return await request('/api/stream/key/regenerate', { method: 'POST' })
+}
+
+export async function apiGetActiveStreams() {
+  return await request('/api/stream/active')
 }

@@ -61,7 +61,11 @@ async function addCol(table, col, def) {
   // Whitelist table names used in migrations
   const VALID_TABLES = ['users', 'posts', 'comments', 'friendships', 'companies',
     'admin_ad_settings', 'admin_settings', 'reels', 'marketplace_listings', 'jobs',
-    'shared_jobs', 'earned_badges', 'user_badges', 'badge_config', 'livestreams']
+    'shared_jobs', 'earned_badges', 'user_badges', 'badge_config', 'livestreams',
+    'messages', 'conversations', 'sessions', 'invitations', 'post_likes',
+    'reel_likes', 'reel_comments', 'stories', 'events', 'notifications',
+    'conversation_participants', 'ads', 'subscriptions', 'job_saves',
+    'event_rsvps', 'job_applications']
 
   // Validate table name
   if (!VALID_TABLES.includes(table)) {
@@ -641,6 +645,7 @@ function setSessionCookie(res, sessionId) {
     path: '/',
     maxAge: COOKIE_MAX_AGE,
     secure: process.env.NODE_ENV === 'production',
+    domain: process.env.NODE_ENV === 'production' ? '.fellis.eu' : undefined,
   })
 }
 
@@ -650,6 +655,7 @@ function clearSessionCookie(res) {
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
+    domain: process.env.NODE_ENV === 'production' ? '.fellis.eu' : undefined,
   })
 }
 
@@ -919,6 +925,8 @@ addCol('conversations', 'description_da', 'TEXT DEFAULT NULL')
   .catch(err => console.error('Migration (conversations.description_da):', err.message))
 addCol('conversations', 'description_en', 'TEXT DEFAULT NULL')
   .catch(err => console.error('Migration (conversations.description_en):', err.message))
+addCol('messages', 'media', 'JSON DEFAULT NULL')
+  .catch(err => console.error('Migration (messages.media):', err.message))
 
 // Platform ads table
 pool.query(`CREATE TABLE IF NOT EXISTS platform_ads (
@@ -4015,7 +4023,7 @@ async function getConversationForUser(convId, userId, myName) {
   ).catch(() => [[]])
   const adminMuteMap = Object.fromEntries(adminMutes.map(r => [r.user_id, r.admin_muted_until ?? null]))
   const [msgs] = await pool.query(
-    `SELECT m.id, u.name as from_name, m.text_da, m.text_en, m.time, m.is_read, m.created_at
+    `SELECT m.id, u.name as from_name, m.text_da, m.text_en, m.time, m.is_read, m.created_at, m.media
      FROM messages m JOIN users u ON m.sender_id = u.id
      WHERE m.conversation_id = ? ORDER BY m.created_at DESC LIMIT 20`, [convId])
   msgs.reverse()
@@ -4052,6 +4060,7 @@ async function getConversationForUser(convId, userId, myName) {
       text: { da: m.text_da, en: m.text_en },
       time: m.created_at ? formatMsgTime(m.created_at) : m.time,
       createdAtRaw: m.created_at,
+      media: (() => { try { return m.media ? JSON.parse(m.media) : null } catch { return null } })(),
     })),
     totalMessages: total,
     unread,
@@ -4077,6 +4086,31 @@ app.get('/api/conversations', authenticate, async (req, res) => {
   } catch (err) {
     console.error('GET /api/conversations error:', err)
     res.status(500).json({ error: 'Failed to load conversations' })
+  }
+})
+
+// GET /api/conversations/:id/messages — recent messages for a conversation
+app.get('/api/conversations/:id/messages', authenticate, async (req, res) => {
+  const convId = parseInt(req.params.id)
+  try {
+    const [check] = await pool.query(
+      'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, req.userId])
+    if (!check.length) return res.status(403).json({ error: 'Not a participant' })
+    const [msgs] = await pool.query(
+      `SELECT u.name as from_name, m.text_da, m.text_en, m.time, m.created_at, m.media
+       FROM messages m JOIN users u ON m.sender_id = u.id
+       WHERE m.conversation_id = ? ORDER BY m.created_at DESC LIMIT 50`,
+      [convId])
+    msgs.reverse()
+    res.json({ messages: msgs.map(m => ({
+      from: m.from_name,
+      text: { da: m.text_da, en: m.text_en },
+      time: m.created_at ? formatMsgTime(m.created_at) : m.time,
+      media: (() => { try { return m.media ? JSON.parse(m.media) : null } catch { return null } })(),
+    })) })
+  } catch (err) {
+    console.error('GET /api/conversations/:id/messages error:', err)
+    res.status(500).json({ error: 'Failed to load messages' })
   }
 })
 
@@ -4156,8 +4190,8 @@ app.get('/api/sse', authenticate, (req, res) => {
 // POST /api/conversations/:id/messages — send a message
 app.post('/api/conversations/:id/messages', authenticate, writeLimit, async (req, res) => {
   const convId = parseInt(req.params.id)
-  const { text } = req.body
-  if (!text) return res.status(400).json({ error: 'Message text required' })
+  const { text, media } = req.body
+  if (!text && !media?.length) return res.status(400).json({ error: 'Message text or media required' })
   try {
     const [check] = await pool.query(
       'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, req.userId])
@@ -4173,11 +4207,12 @@ app.post('/api/conversations/:id/messages', authenticate, writeLimit, async (req
     const [participants] = await pool.query(
       'SELECT user_id FROM conversation_participants WHERE conversation_id = ?', [convId])
     const receiverId = participants.find(p => p.user_id !== req.userId)?.user_id ?? req.userId
+    const mediaJson = media?.length ? JSON.stringify(media) : null
     const [ins] = await pool.query(
-      'INSERT INTO messages (conversation_id, sender_id, receiver_id, text_da, text_en, time) VALUES (?, ?, ?, ?, ?, ?)',
-      [convId, req.userId, receiverId, text, text, time])
+      'INSERT INTO messages (conversation_id, sender_id, receiver_id, text_da, text_en, time, media) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [convId, req.userId, receiverId, text || '', text || '', time, mediaJson])
     const [[user]] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
-    const msg = { id: ins.insertId, from: user.name, text: { da: text, en: text }, time: formatMsgTime(now), createdAtRaw: now.toISOString() }
+    const msg = { id: ins.insertId, from: user.name, text: { da: text || '', en: text || '' }, media: media || null, time: formatMsgTime(now), createdAtRaw: now.toISOString() }
     // Push the new message to all other participants via SSE + create notification
     const [[conv]] = await pool.query('SELECT name, is_group FROM conversations WHERE id = ?', [convId]).catch(() => [[null]])
     for (const { user_id } of participants) {
@@ -4305,7 +4340,7 @@ app.delete('/api/conversations/:id/participants/:userId', authenticate, async (r
   try {
     const [[conv]] = await pool.query('SELECT created_by FROM conversations WHERE id = ?', [convId])
     if (!conv) return res.status(404).json({ error: 'Conversation not found' })
-    if (conv.created_by !== req.userId) return res.status(403).json({ error: 'Only the conversation creator can remove members' })
+    if (conv.created_by != null && conv.created_by !== req.userId) return res.status(403).json({ error: 'Only the conversation creator can remove members' })
     await pool.query(
       'DELETE FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, targetId])
     res.json({ ok: true })
@@ -4324,7 +4359,7 @@ app.post('/api/conversations/:id/participants/:userId/mute', authenticate, async
   try {
     const [[conv]] = await pool.query('SELECT created_by FROM conversations WHERE id = ?', [convId])
     if (!conv) return res.status(404).json({ error: 'Conversation not found' })
-    if (conv.created_by !== req.userId) return res.status(403).json({ error: 'Only the conversation creator can mute members' })
+    if (conv.created_by != null && conv.created_by !== req.userId) return res.status(403).json({ error: 'Only the conversation creator can mute members' })
     const [check] = await pool.query(
       'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, targetId])
     if (!check.length) return res.status(404).json({ error: 'User is not a participant' })
@@ -5985,7 +6020,7 @@ async function initBusinessFeatures() {
       id INT AUTO_INCREMENT PRIMARY KEY,
       author_id INT NOT NULL,
       contact_id INT NOT NULL,
-      note TEXT NOT NULL DEFAULT '',
+      note TEXT NOT NULL,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       UNIQUE KEY uq_cn_author_contact (author_id, contact_id),
       INDEX idx_cn_author (author_id),
@@ -9436,6 +9471,7 @@ app.get('/api/config', async (req, res) => {
 
 // ── Changelog ─────────────────────────────────────────────────────────────────
 const CHANGELOG_ENTRIES = [
+  { date: '2026-03', icon: '📡', da: 'RTMP livestreaming via mediamtx — stream live med OBS eller Streamlabs direkte til fellis.eu. Optagelsen gemmes automatisk som et reel, når du stopper.', en: 'RTMP livestreaming via mediamtx — go live with OBS or Streamlabs directly to fellis.eu. The recording is automatically saved as a reel when you stop.' },
   { date: '2026-03', icon: '📄', da: 'CV-profil og jobansøgning — tilføj erhvervserfaring, uddannelse og sprog til din profil og vedhæft CV og ansøgningsbrev direkte i jobopslag. AI-assistance via Mistral hjælper dig med at skrive dem.', en: 'CV profile and job applications — add work experience, education and languages to your profile and attach a CV and cover letter directly in job listings. AI assistance via Mistral helps you write them.' },
   { date: '2026-03', icon: '🌍', da: 'Flersproget infrastruktur — sitet er klar til nye sprog', en: 'Multi-language infrastructure — site is ready for new languages' },
   { date: '2026-03', icon: '💳', da: 'Mollie betalingsgateway — betal for reklamefrit abonnement via MobilePay, Visa, Mastercard m.fl.', en: 'Mollie payment gateway — pay for ad-free subscription via MobilePay, Visa, Mastercard etc.' },
@@ -12301,6 +12337,243 @@ app.get('/api/admin/livestream/stats', authenticate, requireAdmin, async (req, r
     })
   } catch (err) {
     console.error('GET /api/admin/livestream/stats error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── mediamtx / RTMP streaming routes ─────────────────────────────────────────
+
+const RECORDINGS_DIR = process.env.RECORDINGS_DIR || '/var/recordings'
+
+/**
+ * Generate a random 32-character hex stream key.
+ */
+function generateStreamKey() {
+  return crypto.randomBytes(16).toString('hex')
+}
+
+/**
+ * POST /api/stream/auth
+ * Called by mediamtx on_publish hook when a client starts publishing.
+ * Body (mediamtx v3): { action, id, name, query, sourceType, sourceID }
+ * The `name` field is the RTMP path, which equals the user's stream_key.
+ *
+ * Returns 200 to allow the stream, 401 to reject it.
+ */
+app.post('/api/stream/auth', async (req, res) => {
+  try {
+    // mediamtx may also pass Authorization header; support both sources
+    const streamKey = req.body?.name || req.body?.key || null
+    if (!streamKey) return res.status(401).json({ error: 'Missing stream key' })
+
+    // Look up the user owning this stream key
+    const [rows] = await pool.query(
+      'SELECT id, mode, streaming_access FROM users WHERE stream_key = ? AND status = "active"',
+      [streamKey]
+    ).catch(() =>
+      // Fallback if streaming_access column does not yet exist
+      pool.query(
+        'SELECT id, mode FROM users WHERE stream_key = ? AND status = "active"',
+        [streamKey]
+      )
+    )
+
+    if (rows.length === 0) return res.status(401).json({ error: 'Invalid stream key' })
+
+    const user = rows[0]
+
+    // Business accounts: check optional streaming_access flag
+    if (user.mode === 'business' && user.streaming_access === 0) {
+      return res.status(401).json({ error: 'Streaming access not enabled' })
+    }
+
+    // Record the stream start in livestreams table (best-effort)
+    await pool.query(
+      `INSERT INTO livestreams (user_id, stream_key, status, started_at)
+       VALUES (?, ?, 'live', NOW())
+       ON DUPLICATE KEY UPDATE status = 'live', started_at = NOW()`,
+      [user.id, streamKey]
+    ).catch(() =>
+      pool.query(
+        `INSERT INTO livestreams (user_id, status, started_at) VALUES (?, 'live', NOW())`,
+        [user.id]
+      ).catch(() => {})
+    )
+
+    res.status(200).json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/stream/auth error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+/**
+ * POST /api/stream/end
+ * Called by mediamtx on_done hook when a publisher disconnects.
+ * Body: { action, id, name, ... }  — `name` equals the stream_key.
+ *
+ * Updates livestreams, triggers ffmpeg encode, inserts reel.
+ */
+app.post('/api/stream/end', async (req, res) => {
+  const streamKey = req.body?.name || req.body?.key || null
+  if (!streamKey) return res.status(400).json({ error: 'Missing stream key' })
+
+  // Acknowledge to mediamtx immediately — encoding happens async
+  res.status(200).json({ ok: true })
+
+  try {
+    // Find the user and the livestream record
+    const [userRows] = await pool.query(
+      'SELECT id FROM users WHERE stream_key = ?',
+      [streamKey]
+    )
+    if (userRows.length === 0) return
+    const userId = userRows[0].id
+
+    // Update livestreams: mark ended
+    const [lsRows] = await pool.query(
+      `UPDATE livestreams SET status = 'ended', ended_at = NOW()
+       WHERE user_id = ? AND status = 'live'
+       ORDER BY id DESC LIMIT 1`,
+      [userId]
+    ).catch(() => [[]])
+
+    // Derive the livestream row id for reel linking
+    const [[lsRow]] = await pool.query(
+      'SELECT id FROM livestreams WHERE user_id = ? ORDER BY id DESC LIMIT 1',
+      [userId]
+    ).catch(() => [[null]])
+    const livestreamId = lsRow?.id ?? null
+
+    // Encode recording: /var/recordings/<streamKey>.flv → uploads/reels/<streamKey>.mp4
+    const flvPath = path.join(RECORDINGS_DIR, `${streamKey}.flv`)
+    const reelsDir = path.join(UPLOADS_DIR, 'reels')
+    if (!fs.existsSync(reelsDir)) fs.mkdirSync(reelsDir, { recursive: true })
+    const mp4Path = path.join(reelsDir, `${streamKey}.mp4`)
+
+    if (!fs.existsSync(flvPath)) {
+      console.log(`[stream/end] No recording found at ${flvPath}, skipping reel creation`)
+      return
+    }
+
+    // Convert FLV → MP4
+    const { execFile } = await import('child_process')
+    const { promisify } = await import('util')
+    const execFileAsync = promisify(execFile)
+
+    try {
+      await execFileAsync('ffmpeg', [
+        '-y', '-i', flvPath,
+        '-c:v', 'copy', '-c:a', 'aac',
+        '-movflags', '+faststart',
+        mp4Path,
+      ])
+    } catch (ffErr) {
+      console.error('[stream/end] ffmpeg FLV→MP4 failed:', ffErr.message)
+      return
+    }
+
+    // Delete .flv after successful encode
+    fs.unlink(flvPath, err => {
+      if (err) console.warn('[stream/end] Could not delete FLV:', err.message)
+    })
+
+    // Create reel entry (handles trimming + DB insert via shared livestream.js logic)
+    await createReelFromLivestream({
+      userId,
+      livestreamId,
+      recordingPath: mp4Path,
+      uploadsDir: UPLOADS_DIR,
+      pool,
+    })
+  } catch (err) {
+    console.error('POST /api/stream/end async error:', err.message)
+  }
+})
+
+/**
+ * GET /api/stream/active
+ * Returns currently active streams from mediamtx, enriched with user info.
+ * Requires authentication.
+ */
+app.get('/api/stream/active', authenticate, async (req, res) => {
+  try {
+    const paths = await listActivePaths()
+
+    // Only paths that have an active publisher
+    const active = paths.filter(p => p.ready === true || p.readyTime != null)
+
+    if (active.length === 0) return res.json({ streams: [] })
+
+    // Resolve stream keys → user info
+    const keys = active.map(p => p.name).filter(Boolean)
+    let userMap = {}
+    if (keys.length > 0) {
+      const placeholders = keys.map(() => '?').join(',')
+      const [userRows] = await pool.query(
+        `SELECT id, name, handle, avatar_url, stream_key
+         FROM users WHERE stream_key IN (${placeholders})`,
+        keys
+      ).catch(() => [[]])
+      for (const u of userRows) userMap[u.stream_key] = u
+    }
+
+    const streams = active.map(p => ({
+      path: p.name,
+      readyTime: p.readyTime,
+      bytesReceived: p.bytesReceived ?? 0,
+      user: userMap[p.name]
+        ? {
+            id: userMap[p.name].id,
+            name: userMap[p.name].name,
+            handle: userMap[p.name].handle,
+            avatar_url: userMap[p.name].avatar_url,
+          }
+        : null,
+    }))
+
+    res.json({ streams })
+  } catch (err) {
+    console.error('GET /api/stream/active error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+/**
+ * GET /api/stream/key
+ * Returns the current user's stream key, creating one if it doesn't exist yet.
+ */
+app.get('/api/stream/key', authenticate, async (req, res) => {
+  try {
+    const [[user]] = await pool.query(
+      'SELECT stream_key FROM users WHERE id = ?',
+      [req.userId]
+    )
+
+    let key = user?.stream_key
+    if (!key) {
+      key = generateStreamKey()
+      await pool.query('UPDATE users SET stream_key = ? WHERE id = ?', [key, req.userId])
+    }
+
+    res.json({ stream_key: key })
+  } catch (err) {
+    console.error('GET /api/stream/key error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+/**
+ * POST /api/stream/key/regenerate
+ * Generates a new random stream key for the authenticated user.
+ */
+app.post('/api/stream/key/regenerate', authenticate, async (req, res) => {
+  try {
+    const key = generateStreamKey()
+    await pool.query('UPDATE users SET stream_key = ? WHERE id = ?', [key, req.userId])
+    res.json({ stream_key: key })
+  } catch (err) {
+    console.error('POST /api/stream/key/regenerate error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })
