@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { apiGetBusinesses, apiGetSuggestedBusinesses } from '../api.js'
+import { PT } from '../data.js'
 import BusinessCard from '../components/BusinessCard.jsx'
 
 const CATEGORIES = [

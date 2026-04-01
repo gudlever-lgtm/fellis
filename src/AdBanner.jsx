@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { apiServeAds, apiRecordAdImpression, apiRecordAdClick } from './api.js'
+import { PT } from './data.js'
 
 /**
  * AdBanner — renders a platform ad for a given placement.

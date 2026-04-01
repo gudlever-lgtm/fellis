@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { apiGetMyPortfolio, apiGetUserPortfolio, apiCreatePortfolioItem, apiUpdatePortfolioItem, apiDeletePortfolioItem } from '../api.js'
+import { PT } from '../data.js'
 
 function PortfolioCard({ item, isOwn, onEdit, onDelete, lang }) {
   return (

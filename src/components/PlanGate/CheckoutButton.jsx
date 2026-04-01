@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { apiCreateMolliePayment } from '../../api.js'
+import { PT } from '../../data.js'
 
 // Props: plan (string), amount (number), label (string), currency (string), lang (string)
 export default function CheckoutButton({ plan, amount, label, currency = 'DKK', lang = 'da' }) {

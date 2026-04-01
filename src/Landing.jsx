@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { nameToColor, getInitials, SUPPORTED_LANGS, detectLang } from './data.js'
+import { nameToColor, getInitials, SUPPORTED_LANGS, detectLang, PT } from './data.js'
 
 // Placeholder friends for the invite step (migration wizard only)
 const INVITE_FRIENDS = [
