@@ -24,12 +24,12 @@ export default function QRCodeProfile({ handle, lang, onClose }) {
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
       onClick={e => { if (e.target === e.currentTarget) onClose?.() }}>
-      <div style={{ background: 'var(--card,#fff)', borderRadius: 20, padding: 28, textAlign: 'center', width: 280 }}>
+      <div style={{ background: 'var(--card,#fff)', borderRadius: 20, padding: 28, textAlign: 'center', width: 280, maxWidth: '90vw', boxSizing: 'border-box' }}>
         <h3 style={{ margin: '0 0 16px', fontSize: 17, fontWeight: 700 }}>📱 {t.title}</h3>
         <img
           src={qrSrc}
           alt="QR code"
-          style={{ width: 200, height: 200, borderRadius: 12, display: 'block', margin: '0 auto 12px' }}
+          style={{ width: '100%', maxWidth: 200, height: 'auto', aspectRatio: '1', borderRadius: 12, display: 'block', margin: '0 auto 12px' }}
         />
         <div style={{ fontSize: 12, color: '#888', marginBottom: 16 }}>{t.scan}</div>
         <div style={{ fontSize: 13, color: '#555', marginBottom: 16, wordBreak: 'break-all' }}>

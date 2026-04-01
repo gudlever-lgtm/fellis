@@ -523,6 +523,25 @@
   .step1-divider {
     padding: 4px 0;
   }
+  .migration-visual {
+    gap: 12px;
+  }
+  .brand-box {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    font-size: 22px;
+  }
+  .dots-container {
+    gap: 4px;
+  }
+  .dot {
+    width: 7px;
+    height: 7px;
+  }
+  .arrow-icon {
+    font-size: 18px;
+  }
 }
 
 /* ── Facebook connect ── */
@@ -3526,6 +3545,34 @@
     flex-direction: column;
     gap: 4px;
   }
+  .landing h1 {
+    font-size: 26px;
+  }
+  .landing {
+    padding: 40px 14px 60px;
+  }
+  .migration-visual {
+    gap: 8px;
+  }
+  .brand-box {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    font-size: 18px;
+  }
+  .dots-container {
+    gap: 3px;
+  }
+  .dot {
+    width: 5px;
+    height: 5px;
+  }
+  .arrow-icon {
+    font-size: 14px;
+  }
+  .step-container {
+    padding: 24px 12px 40px;
+  }
 }
 
 /* ── Business Analytics ── */
@@ -3685,11 +3732,37 @@
   /* ── Friends grid single column ── */
   .p-friends-grid { grid-template-columns: 1fr 1fr; }
 
+  /* ── Modal backdrop padding: keep modals off screen edges ── */
+  .modal-backdrop { padding: 12px; }
+
   /* ── Company header ── */
   .p-company-card { gap: 10px; }
 
   /* ── Prevent horizontal overflow ── */
   .p-events, .p-jobs-page, .p-search-page { max-width: 100%; }
+
+  /* ── Reaction & share popups: switch to fixed + viewport-centred ── */
+  /* They're inside narrow flex-1 wrappers (~100px each), so absolute
+     left:50% / translateX(-50%) overflows the viewport on phones. */
+  .p-reaction-popup {
+    position: fixed;
+    bottom: 72px;
+    left: 50%;
+    transform: translateX(-50%);
+    top: auto;
+    z-index: 500;
+    max-width: calc(100vw - 24px);
+  }
+  .p-share-popup {
+    position: fixed;
+    bottom: 72px;
+    left: 50%;
+    transform: translateX(-50%);
+    top: auto;
+    z-index: 500;
+    max-width: calc(100vw - 24px);
+    min-width: min(260px, calc(100vw - 32px));
+  }
 }
 
 @media print {
@@ -5033,16 +5106,28 @@ body.dark select:focus {
 }
 
 /* Notif panel */
-body.dark .p-notif-panel {
+body.dark .notif-panel {
   background: #1C1C20;
   border-color: #333338;
   box-shadow: 0 8px 24px rgba(0,0,0,0.4);
 }
-body.dark .p-notif-item {
+body.dark .notif-item {
   border-bottom-color: #333338;
 }
-body.dark .p-notif-item:hover {
+body.dark .notif-item:hover {
   background: #28282C;
+}
+body.dark .notif-item-unread {
+  background: #1a2e23;
+}
+body.dark .notif-item-unread:hover {
+  background: #1e3528;
+}
+body.dark .notif-panel-header {
+  border-bottom-color: #333338;
+}
+body.dark .notif-mark-all {
+  color: #52B788;
 }
 
 /* Post composer */
