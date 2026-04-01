@@ -35,7 +35,7 @@ export default function CheckoutButton({ plan, amount, label, currency = 'DKK', 
     try {
       const result = await apiCreateMolliePayment(plan, amount, currency)
       if (!result?.checkoutUrl) {
-        setError(lang === 'da' ? 'Kunne ikke oprette betaling. Prøv igen.' : 'Could not create payment. Please try again.')
+        setError(PT[lang].mollieCheckoutError)
         return
       }
       window.location.href = result.checkoutUrl
@@ -47,7 +47,7 @@ export default function CheckoutButton({ plan, amount, label, currency = 'DKK', 
   return (
     <div>
       <button style={s.btn} onClick={handleClick} disabled={loading}>
-        {loading ? (lang === 'da' ? 'Henter...' : 'Loading...') : label}
+        {loading ? (PT[lang].mollieCheckoutLoading) : label}
       </button>
       {error && <p style={s.error}>{error}</p>}
     </div>

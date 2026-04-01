@@ -34,7 +34,7 @@ export default function KeyboardShortcutsHelp({ lang, onClose }) {
       onClick={e => { if (e.target === e.currentTarget) onClose?.() }}>
       <div style={{ background: 'var(--card,#fff)', borderRadius: 20, padding: 28, width: 400, maxWidth: '90vw', maxHeight: '80vh', overflow: 'auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-          <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>⌨️ {lang === 'da' ? 'Tastaturgenveje' : 'Keyboard shortcuts'}</h3>
+          <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>⌨️ {PT[lang].keyboardShortcuts}</h3>
           <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#888', padding: '2px 6px' }}>✕</button>
         </div>
         {shortcuts.map((s, i) => (
@@ -50,7 +50,7 @@ export default function KeyboardShortcutsHelp({ lang, onClose }) {
           </div>
         ))}
         <div style={{ marginTop: 16, fontSize: 12, color: '#aaa' }}>
-          {lang === 'da' ? 'Genveje virker ikke, når du skriver i et tekstfelt.' : 'Shortcuts don\'t fire when typing in a text field.'}
+          {PT[lang].shortcutsDont fire when typing in a text field.'}
         </div>
       </div>
     </div>

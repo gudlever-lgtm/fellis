@@ -456,7 +456,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
   const handleForgotResetPw = useCallback(async (e) => {
     e.preventDefault()
     if (!forgotNewPw.trim() || forgotNewPw.length < 6) {
-      setForgotError(lang === 'da' ? 'Adgangskode skal være mindst 6 tegn' : 'Password must be at least 6 characters')
+      setForgotError(PT[lang].passwordMustBeAtLeast6Characters)
       return
     }
     setForgotLoading(true)
@@ -502,7 +502,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
       return
     }
     if (regPassword.length < 6) {
-      setRegError(lang === 'da' ? 'Adgangskode skal være mindst 6 tegn' : 'Password must be at least 6 characters')
+      setRegError(PT[lang].passwordMustBeAtLeast6Characters)
       return
     }
     if (regPassword !== regPasswordRepeat) {
@@ -874,7 +874,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
               </div>
 
               <div className="invite-divider">
-                <span>{lang === 'da' ? 'eller vælg venner' : 'or select friends'}</span>
+                <span>{PT[lang].orSelectFriends}</span>
               </div>
 
               <div className="friends-header">
@@ -1096,10 +1096,10 @@ function PasswordStrengthIndicator({ password, lang }) {
   const ratio = checks.length ? passed / checks.length : 0
   const barColor = ratio < 0.4 ? '#e74c3c' : ratio < 0.75 ? '#f39c12' : '#2D6A4F'
   const barLabel = ratio < 0.4
-    ? (lang === 'da' ? 'Svag' : 'Weak')
+    ? (PT[lang].weak)
     : ratio < 0.75
-    ? (lang === 'da' ? 'Middel' : 'Fair')
-    : (lang === 'da' ? 'Stærk' : 'Strong')
+    ? (PT[lang].fair)
+    : (PT[lang].strong)
 
   return (
     <div style={{ marginTop: 8, marginBottom: 4 }}>

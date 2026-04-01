@@ -36,7 +36,7 @@ export default function CompanyQA({ companyId, currentUserId, isMember, lang }) 
   }
 
   const handleDelete = async (qaId) => {
-    if (!confirm(lang === 'da' ? 'Slet dette spørgsmål?' : 'Delete this question?')) return
+    if (!confirm(PT[lang].deleteThisQuestion)) return
     await apiDeleteCompanyQuestion(companyId, qaId)
     load()
   }

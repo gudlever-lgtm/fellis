@@ -31,7 +31,7 @@ export default function LocationAutocomplete({
   const debounce = useRef(null)
   const wrapRef = useRef(null)
 
-  const ph = placeholder ?? (lang === 'da' ? 'Søg sted…' : 'Search location…')
+  const ph = placeholder ?? (PT[lang].searchLocation)
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -122,7 +122,7 @@ export default function LocationAutocomplete({
           style={s.input}
         />
         {value && (
-          <button type="button" onClick={handleClear} style={s.clearBtn} title={lang === 'da' ? 'Ryd' : 'Clear'}>✕</button>
+          <button type="button" onClick={handleClear} style={s.clearBtn} title={PT[lang].clear}>✕</button>
         )}
       </div>
 

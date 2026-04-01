@@ -44,8 +44,8 @@ function PostCard({ post, lang, onViewProfile }) {
         </div>
       )}
       <div className="p-post-stats" style={{ marginTop: 10, fontSize: 13, color: '#A09890', display: 'flex', gap: 12 }}>
-        <span>{post.likes} {lang === 'da' ? 'synes godt om' : 'likes'}</span>
-        {post.comment_count > 0 && <span>{post.comment_count} {lang === 'da' ? 'kommentarer' : 'comments'}</span>}
+        <span>{post.likes} {PT[lang].likes}</span>
+        {post.comment_count > 0 && <span>{post.comment_count} {PT[lang].reelsComments}</span>}
       </div>
     </div>
   )
@@ -77,15 +77,15 @@ function SuggestedCard({ user, lang, onViewProfile }) {
       </div>
       <div className="explore-suggested-name">{user.name}</div>
       <div className="explore-suggested-followers">
-        {user.follower_count} {lang === 'da' ? 'venner' : 'friends'}
-        {user.shared_interests > 0 && ` · ${user.shared_interests} ${lang === 'da' ? 'fælles' : 'shared'}`}
+        {user.follower_count} {PT[lang].friends2}
+        {user.shared_interests > 0 && ` · ${user.shared_interests} ${PT[lang].shared3}`}
       </div>
       <button
         className={`explore-follow-btn${following ? ' following' : ''}`}
         onClick={handleFollow}
         disabled={following}
       >
-        {following ? (lang === 'da' ? 'Anmodning sendt' : 'Request sent') : (lang === 'da' ? 'Tilføj ven' : 'Add friend')}
+        {following ? (PT[lang].requestSent) : (PT[lang].addFriend)}
       </button>
     </div>
   )

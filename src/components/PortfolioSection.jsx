@@ -100,7 +100,7 @@ export default function PortfolioSection({ userId, isOwn, lang }) {
   }
 
   const handleDelete = async (id) => {
-    if (!confirm(lang === 'da' ? 'Slet dette projekt?' : 'Delete this project?')) return
+    if (!confirm(PT[lang].deleteThisProject)) return
     await apiDeletePortfolioItem(id)
     load()
   }
