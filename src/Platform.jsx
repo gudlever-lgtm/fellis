@@ -484,26 +484,44 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
           {/* "Mere" / "More" dropdown for secondary tabs */}
           <div ref={moreMenuRef} style={{ position: 'relative' }}>
             <button
-              className={`p-nav-tab${['friends', 'calendar', 'marketplace', 'jobs', 'company', 'businesses'].includes(page) ? ' active' : ''}`}
+              className={`p-nav-tab${['friends', 'calendar', 'marketplace', 'jobs', 'company', 'businesses', 'explore', 'saved-posts'].includes(page) ? ' active' : ''}`}
               onClick={() => setShowMoreMenu(v => !v)}
             >
               <span className="p-nav-tab-icon">{'⋯'}</span>
               <span className="p-nav-tab-label">{lang === 'da' ? 'Mere' : 'More'}</span>
             </button>
             {showMoreMenu && (() => {
-              const moreItems = [
-                { id: 'friends', icon: '👥', label: mode === 'business' ? t.connectionsLabel : t.friends },
-                { id: 'calendar', icon: '🗓️', label: t.calendar || (lang === 'da' ? 'Kalender' : 'Calendar') },
-                { id: 'marketplace', icon: '🛍️', label: t.marketplace || (lang === 'da' ? 'Marked' : 'Marketplace') },
-                { id: 'jobs', icon: '💼', label: t.jobs || 'Jobs' },
-                { id: 'businesses', icon: '🏢', label: t.businesses || (lang === 'da' ? 'Virksomheder' : 'Businesses') },
-                ...(mode === 'business' ? [{ id: 'company', icon: '🏬', label: t.companies || (lang === 'da' ? 'Min virksomhed' : 'My company') }] : []),
+              const moreGroups = [
+                {
+                  label: lang === 'da' ? 'Socialt' : 'Social',
+                  items: [
+                    { id: 'friends', icon: '👥', label: mode === 'business' ? t.connectionsLabel : t.friends },
+                    { id: 'explore', icon: '🔭', label: t.explore || (lang === 'da' ? 'Udforsk' : 'Explore') },
+                    { id: 'calendar', icon: '🗓️', label: t.calendar || (lang === 'da' ? 'Kalender' : 'Calendar') },
+                    { id: 'saved-posts', icon: '🔖', label: lang === 'da' ? 'Gemte opslag' : 'Saved posts' },
+                  ],
+                },
+                {
+                  label: lang === 'da' ? 'Handel & Arbejde' : 'Commerce & Work',
+                  items: [
+                    { id: 'marketplace', icon: '🛍️', label: t.marketplace || (lang === 'da' ? 'Marked' : 'Marketplace') },
+                    { id: 'jobs', icon: '💼', label: t.jobs || 'Jobs' },
+                  ],
+                },
+                {
+                  label: lang === 'da' ? 'Virksomheder' : 'Businesses',
+                  items: [
+                    { id: 'businesses', icon: '🏢', label: t.businesses || (lang === 'da' ? 'Virksomheder' : 'Businesses') },
+                    ...(mode === 'business' ? [{ id: 'company', icon: '🏬', label: t.companies || (lang === 'da' ? 'Min virksomhed' : 'My company') }] : []),
+                  ],
+                },
               ]
-              // Mobile: inline accordion (absolute dropdown gets clipped by overflow:auto container)
+              const allItems = moreGroups.flatMap(g => g.items)
+              // Mobile: inline accordion
               if (showMobileMenu) {
                 return (
                   <div style={{ borderTop: '1px solid #f0ede9' }}>
-                    {moreItems.map(item => (
+                    {allItems.map(item => (
                       <button key={item.id}
                         onClick={() => { navigateTo(item.id); setShowMoreMenu(false); setShowMobileMenu(false) }}
                         className={`p-nav-tab${page === item.id ? ' active' : ''}`}
@@ -516,25 +534,40 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
                   </div>
                 )
               }
-              // Desktop: absolute dropdown
+              // Desktop: grouped dropdown
               return (
                 <div style={{
                   position: 'absolute', top: '100%', left: 0, zIndex: 200,
-                  background: '#fff', borderRadius: 10, boxShadow: '0 4px 20px rgba(0,0,0,0.13)',
-                  border: '1px solid #e8e8e4', minWidth: 160, padding: '6px 0',
+                  background: '#fff', borderRadius: 12, boxShadow: '0 6px 24px rgba(0,0,0,0.13)',
+                  border: '1px solid #e8e8e4', minWidth: 260, padding: '10px 0',
                 }}>
-                  {moreItems.map(item => (
-                    <button key={item.id}
-                      onClick={() => { navigateTo(item.id); setShowMoreMenu(false); setShowMobileMenu(false) }}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-                        padding: '9px 16px', background: page === item.id ? '#f0f7f4' : 'none',
-                        border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: page === item.id ? 700 : 400,
-                        color: page === item.id ? '#2D6A4F' : '#333', textAlign: 'left',
-                      }}
-                    >
-                      <span>{item.icon}</span> {item.label}
-                    </button>
+                  {moreGroups.map((group, gi) => (
+                    <div key={group.label}>
+                      {gi > 0 && <div style={{ height: 1, background: '#f0ede9', margin: '6px 0' }} />}
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.07em', padding: '2px 14px 6px' }}>
+                        {group.label}
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 0', padding: '0 6px' }}>
+                        {group.items.map(item => (
+                          <button key={item.id}
+                            onClick={() => { navigateTo(item.id); setShowMoreMenu(false); setShowMobileMenu(false) }}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 8,
+                              padding: '8px 10px', borderRadius: 8,
+                              background: page === item.id ? '#f0f7f4' : 'none',
+                              border: 'none', cursor: 'pointer', fontSize: 13,
+                              fontWeight: page === item.id ? 700 : 400,
+                              color: page === item.id ? '#2D6A4F' : '#333', textAlign: 'left',
+                              transition: 'background 0.12s',
+                            }}
+                            onMouseEnter={e => { if (page !== item.id) e.currentTarget.style.background = '#f7f7f5' }}
+                            onMouseLeave={e => { if (page !== item.id) e.currentTarget.style.background = 'none' }}
+                          >
+                            <span style={{ fontSize: 16 }}>{item.icon}</span> {item.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
               )
@@ -633,9 +666,6 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
                   </button>
                 )}
                 <div className="avatar-dropdown-divider" />
-                <button className="avatar-dropdown-item" onClick={() => { setShowAvatarMenu(false); navigateTo('saved-posts') }}>
-                  <span>🔖</span> {lang === 'da' ? 'Gemte opslag' : 'Saved posts'}
-                </button>
                 <button className="avatar-dropdown-item" onClick={() => { setShowAvatarMenu(false); setShowQRCode(true) }}>
                   <span>📱</span> {lang === 'da' ? 'Del profil (QR)' : 'Share profile (QR)'}
                 </button>
