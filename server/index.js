@@ -1826,15 +1826,20 @@ const oauthStateTokens = new Map()
 app.get('/api/auth/facebook', (req, res) => {
   if (!FB_APP_ID) return res.status(500).json({ error: 'Facebook integration not configured' })
   const lang = req.query.lang || 'da'
+  const inviteToken = req.query.invite_token || null
   // Security: CSRF protection — generate a cryptographic state token and verify on callback
   const stateToken = crypto.randomUUID()
-  oauthStateTokens.set(stateToken, { lang, created: Date.now() })
+  oauthStateTokens.set(stateToken, { lang, inviteToken, created: Date.now() })
   // Clean up stale tokens (older than 10 minutes)
   for (const [key, val] of oauthStateTokens) {
     if (Date.now() - val.created > 600000) oauthStateTokens.delete(key)
   }
   const state = stateToken + ':' + lang
-  const url = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${FB_APP_ID}&redirect_uri=${encodeURIComponent(FB_REDIRECT_URI)}&scope=${FB_SCOPES}&state=${state}&response_type=code`
+  // Use display=touch for mobile browsers to get the mobile-optimised dialog
+  const ua = req.headers['user-agent'] || ''
+  const isMobile = /Mobile|Android|iPhone|iPad/i.test(ua)
+  const display = isMobile ? '&display=touch' : ''
+  const url = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${FB_APP_ID}&redirect_uri=${encodeURIComponent(FB_REDIRECT_URI)}&scope=${FB_SCOPES}&state=${state}&response_type=code${display}`
   res.redirect(url)
 })
 
@@ -1852,6 +1857,8 @@ app.get('/api/auth/facebook/callback', async (req, res) => {
     console.error('OAuth CSRF validation failed: invalid state token')
     return res.redirect('/?fb_error=csrf')
   }
+  const stateData = oauthStateTokens.get(stateToken)
+  const inviteToken = stateData?.inviteToken || null
   oauthStateTokens.delete(stateToken)
 
   try {
@@ -1874,6 +1881,7 @@ app.get('/api/auth/facebook/callback', async (req, res) => {
 
     // Check if user already exists (by email or facebook_id)
     let userId
+    let isNewUser = false
     const [existing] = await pool.query('SELECT id FROM users WHERE email = ? OR facebook_id = ?', [fbProfile.email, fbProfile.id])
 
     if (existing.length > 0) {
@@ -1884,6 +1892,7 @@ app.get('/api/auth/facebook/callback', async (req, res) => {
         [fbProfile.id, encryptedToken, tokenExpiry, userId]
       )
     } else {
+      isNewUser = true
       // Create new user from Facebook data (minimal: name, email, avatar only)
       // Generate a unique handle — append numeric suffix if base handle already exists
       let baseHandle = '@' + (fbProfile.name || 'user').toLowerCase().replace(/\s+/g, '.').replace(/[^a-z0-9_.]/g, '')
@@ -1903,6 +1912,53 @@ app.get('/api/auth/facebook/callback', async (req, res) => {
         [fbProfile.name, handle, initials, fbProfile.email || null, new Date().toISOString(), avatarUrl, fbProfile.id, encryptedToken, tokenExpiry, userInviteToken]
       )
       userId = result.insertId
+
+      // Process invite token: auto-connect with inviter, record referral
+      if (inviteToken) {
+        try {
+          let referrerId = null
+          let invitationId = null
+          let inviteSource = 'link'
+
+          // Check personal invite token (user.invite_token)
+          const [inviter] = await pool.query('SELECT id FROM users WHERE invite_token = ?', [inviteToken])
+          if (inviter.length > 0) {
+            referrerId = inviter[0].id
+            await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [userId, referrerId])
+            await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [referrerId, userId])
+          }
+
+          // Check per-email invitation token
+          const [invitation] = await pool.query(
+            'SELECT id, inviter_id, invite_source FROM invitations WHERE invite_token = ? AND status = ?',
+            [inviteToken, 'pending']
+          )
+          if (invitation.length > 0) {
+            referrerId = invitation[0].inviter_id
+            invitationId = invitation[0].id
+            inviteSource = invitation[0].invite_source || 'email'
+            await pool.query('UPDATE invitations SET status = ?, accepted_by = ? WHERE id = ?', ['accepted', userId, invitationId])
+            await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [userId, referrerId])
+            await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [referrerId, userId])
+          }
+
+          if (referrerId) {
+            await pool.query(
+              'INSERT IGNORE INTO referrals (referrer_id, referred_id, invitation_id, invite_source) VALUES (?, ?, ?, ?)',
+              [referrerId, userId, invitationId, inviteSource]
+            )
+            await pool.query('UPDATE users SET referral_count = referral_count + 1 WHERE id = ?', [referrerId])
+            await checkAndAwardBadges(referrerId)
+            createNotification(referrerId, 'friend_accepted',
+              `${fbProfile.name} accepterede din invitation og er nu din ven`,
+              `${fbProfile.name} accepted your invitation and is now your friend`,
+              userId, fbProfile.name
+            )
+          }
+        } catch (err) {
+          console.error('FB invite auto-connect error:', err)
+        }
+      }
     }
 
     const isNewUser = existing.length === 0
