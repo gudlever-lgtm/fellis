@@ -5948,7 +5948,6 @@ function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenM
   const [passwordMsg, setPasswordMsg] = useState(null)
   const [currentPwdError, setCurrentPwdError] = useState(null)
   const [passwordLoading, setPasswordLoading] = useState(false)
-  const [showCurrent, setShowCurrent] = useState(false)
   const [showNew, setShowNew] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   // MFA verification for sensitive changes
@@ -6094,18 +6093,15 @@ function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenM
           )}
           {hasPassword && (<>
             <label style={lS}>{t.settingsCurrentPassword}</label>
-            <div style={{ position: 'relative' }}>
-              <input
-                style={{ ...fS, paddingRight: 44, borderColor: currentPwdError ? '#c0392b' : undefined }}
-                type={showCurrent ? 'text' : 'password'}
-                value={currentPassword}
-                onChange={e => { setCurrentPassword(e.target.value); if (currentPwdError) setCurrentPwdError(null) }}
-                onBlur={() => { if (!currentPassword) setCurrentPwdError(t.required) }}
-                autoComplete="current-password"
-                required placeholder="••••••••"
-              />
-              <button type="button" onClick={() => setShowCurrent(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#888' }}>{showCurrent ? '🙈' : '👁️'}</button>
-            </div>
+            <input
+              style={{ ...fS, borderColor: currentPwdError ? '#c0392b' : undefined }}
+              type="password"
+              value={currentPassword}
+              onChange={e => { setCurrentPassword(e.target.value); if (currentPwdError) setCurrentPwdError(null) }}
+              onBlur={() => { if (!currentPassword) setCurrentPwdError(t.required) }}
+              autoComplete="current-password"
+              required placeholder="••••••••"
+            />
             {currentPwdError && <div style={{ marginTop: 4, fontSize: 12, fontWeight: 600, color: '#c0392b' }}>✗ {currentPwdError}</div>}
           </>)}
           <label style={lS}>{hasPassword ? t.newPasswordLabel : t.passwordFieldLabel}</label>
