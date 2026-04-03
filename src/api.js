@@ -406,8 +406,18 @@ export async function apiDeleteFacebookData() {
   return await request('/api/gdpr/facebook-data', { method: 'DELETE' })
 }
 
-export async function apiDeleteAccount() {
-  return await request('/api/gdpr/account', { method: 'DELETE' })
+export async function apiRequestAccountDelete(password) {
+  return await request('/api/gdpr/account/request-delete', {
+    method: 'POST',
+    body: JSON.stringify({ password }),
+  })
+}
+
+export async function apiDeleteAccount({ password, smsCode } = {}) {
+  return await request('/api/gdpr/account', {
+    method: 'DELETE',
+    body: JSON.stringify({ password, sms_code: smsCode }),
+  })
 }
 
 export async function apiExportData() {

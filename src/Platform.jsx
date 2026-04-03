@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } f
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { SUPPORTED_LANGS, EUROPEAN_LANGUAGES, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials, getTranslations } from './data.js'
 import { formatPrice } from './utils/currency.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiRemoveConversationParticipant, apiMuteConversationParticipant, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiShareJob, apiUnshareJob, apiGetSharedJobs, apiGetJobSharedWith, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals, apiFetchCalendarReminders, apiCreateCalendarReminder, apiDeleteCalendarReminder, apiGetLinkedContent, apiFetchJobs, apiGetSuggestedUsers, apiAdminNotifyAll, apiLikeComment, apiAdminGetPlatformAds, apiAdminCreatePlatformAd, apiAdminUpdatePlatformAd, apiAdminDeletePlatformAd, apiAdminGetLockedUsers, apiAdminUnlockUser, apiFeedCompanyPosts, apiGetLivestreamSettings, apiSaveLivestreamSettings, apiGetLivestreamStats, apiGetLivestreamStatus,
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiRemoveConversationParticipant, apiMuteConversationParticipant, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiRequestAccountDelete, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiShareJob, apiUnshareJob, apiGetSharedJobs, apiGetJobSharedWith, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals, apiFetchCalendarReminders, apiCreateCalendarReminder, apiDeleteCalendarReminder, apiGetLinkedContent, apiFetchJobs, apiGetSuggestedUsers, apiAdminNotifyAll, apiLikeComment, apiAdminGetPlatformAds, apiAdminCreatePlatformAd, apiAdminUpdatePlatformAd, apiAdminDeletePlatformAd, apiAdminGetLockedUsers, apiAdminUnlockUser, apiFeedCompanyPosts, apiGetLivestreamSettings, apiSaveLivestreamSettings, apiGetLivestreamStats, apiGetLivestreamStatus,
   apiGetStreamKey, apiRegenerateStreamKey } from './api.js'
 import {
   apiSharePost, apiUnsharePost, apiSavePost, apiUnsavePost, apiGetSavedPosts,
@@ -7650,6 +7650,10 @@ function PrivacySection({ lang, onLogout }) {
   const [message, setMessage] = useState('')
   const [consents, setConsents] = useState(null)
   const [fbDeleted, setFbDeleted] = useState(false)
+  const [deleteStep, setDeleteStep] = useState(null) // null | 'password' | 'sms'
+  const [deletePassword, setDeletePassword] = useState('')
+  const [deleteSmsCode, setDeleteSmsCode] = useState('')
+  const [deleteError, setDeleteError] = useState('')
 
   // Load consent status on mount
   useEffect(() => {
@@ -7728,6 +7732,19 @@ function PrivacySection({ lang, onLogout }) {
     rightErasureDesc: 'Slet din konto og alle tilknyttede data permanent. Dette inkluderer alle opslag, kommentarer, beskeder, venskaber og uploadede filer.',
     deleteAccountBtn: 'Slet min konto permanent',
     confirmDeleteAccount: 'ADVARSEL: Dette sletter din konto og ALLE dine data permanent. Dette kan ikke fortrydes.\n\nDine opslag, kommentarer, beskeder, venskaber, uploadede filer og samtykkehistorik vil blive slettet.\n\nEr du helt sikker?',
+    // Account deletion multi-step confirmation
+    deleteConfirmTitle: 'Bekræft sletning af konto',
+    deleteConfirmDesc: 'Denne handling er permanent og kan ikke fortrydes. Bekræft din identitet for at fortsætte.',
+    deletePasswordLabel: 'Nuværende adgangskode',
+    deletePasswordPlaceholder: '••••••••',
+    deleteContinueBtn: 'Fortsæt',
+    deleteCancelBtn: 'Annuller',
+    deleteSmsLabel: 'SMS-bekræftelseskode',
+    deleteSmsDesc: 'En 6-cifret kode er sendt til dit registrerede telefonnummer. Koden udløber om 5 minutter.',
+    deleteSmsPlaceholder: '123456',
+    deleteFinalBtn: 'Slet min konto permanent',
+    deleteWrongPassword: 'Forkert adgangskode. Prøv igen.',
+    deleteSmsInvalid: 'Ugyldig eller udløbet SMS-kode. Prøv igen.',
     // Contact
     contactTitle: 'Kontakt databeskyttelsesansvarlig',
     contactDesc: 'Har du spørgsmål om dine data eller vil du udøve en rettighed, der ikke er dækket her, kan du kontakte os på:',
@@ -7806,6 +7823,19 @@ function PrivacySection({ lang, onLogout }) {
     rightErasureDesc: 'Permanently delete your account and all associated data. This includes all posts, comments, messages, friendships, and uploaded files.',
     deleteAccountBtn: 'Delete my account permanently',
     confirmDeleteAccount: 'WARNING: This will permanently delete your account and ALL your data. This cannot be undone.\n\nYour posts, comments, messages, friendships, uploaded files, and consent history will be deleted.\n\nAre you absolutely sure?',
+    // Account deletion multi-step confirmation
+    deleteConfirmTitle: 'Confirm account deletion',
+    deleteConfirmDesc: 'This action is permanent and cannot be undone. Confirm your identity to proceed.',
+    deletePasswordLabel: 'Current password',
+    deletePasswordPlaceholder: '••••••••',
+    deleteContinueBtn: 'Continue',
+    deleteCancelBtn: 'Cancel',
+    deleteSmsLabel: 'SMS verification code',
+    deleteSmsDesc: 'A 6-digit code has been sent to your registered phone number. The code expires in 5 minutes.',
+    deleteSmsPlaceholder: '123456',
+    deleteFinalBtn: 'Delete my account permanently',
+    deleteWrongPassword: 'Wrong password. Please try again.',
+    deleteSmsInvalid: 'Invalid or expired SMS code. Please try again.',
     // Contact
     contactTitle: 'Contact Data Protection Officer',
     contactDesc: 'If you have questions about your data or want to exercise a right not covered here, contact us at:',
@@ -7854,17 +7884,47 @@ function PrivacySection({ lang, onLogout }) {
     setLoading(null)
   }
 
-  const handleDeleteAccount = async () => {
-    if (!confirm(t.confirmDeleteAccount)) return
-    setLoading('deleteAccount')
+  const resetDeleteForm = () => {
+    setDeleteStep(null)
+    setDeletePassword('')
+    setDeleteSmsCode('')
+    setDeleteError('')
+  }
+
+  // Step 1: verify password, send SMS if 2FA is on
+  const handleDeleteVerify = async () => {
+    setLoading('deleteVerify')
+    setDeleteError('')
     try {
-      await apiDeleteAccount()
-      localStorage.clear()
-      window.location.href = '/'
+      const data = await apiRequestAccountDelete(deletePassword)
+      if (!data) { setDeleteError(t.error); setLoading(null); return }
+      if (data.error === 'Wrong password') { setDeleteError(t.deleteWrongPassword); setLoading(null); return }
+      if (data.mfa_required) {
+        setDeleteStep('sms')
+      } else {
+        // No MFA — proceed straight to deletion
+        const result = await apiDeleteAccount({ password: deletePassword })
+        if (result?.ok) { localStorage.clear(); window.location.href = '/'; return }
+        setDeleteError(t.error)
+      }
     } catch {
-      setMessage(t.error)
-      setLoading(null)
+      setDeleteError(t.error)
     }
+    setLoading(null)
+  }
+
+  // Step 2 (when MFA enabled): verify SMS code and delete
+  const handleDeleteFinal = async () => {
+    setLoading('deleteAccount')
+    setDeleteError('')
+    try {
+      const result = await apiDeleteAccount({ password: deletePassword, smsCode: deleteSmsCode })
+      if (result?.ok) { localStorage.clear(); window.location.href = '/'; return }
+      setDeleteError(t.deleteSmsInvalid)
+    } catch {
+      setDeleteError(t.deleteSmsInvalid)
+    }
+    setLoading(null)
   }
 
   const handleWithdrawConsent = async (consentType) => {
@@ -8017,13 +8077,85 @@ function PrivacySection({ lang, onLogout }) {
         <div style={{ borderTop: '1px solid #eee', paddingTop: 12, marginTop: 12 }}>
           <p style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, color: '#c0392b' }}>{t.rightErasure}</p>
           <p style={{ fontSize: 13, color: '#555', marginBottom: 8 }}>{t.rightErasureDesc}</p>
-          <button
-            style={{ ...dangerBtnStyle, borderColor: '#c0392b', color: '#c0392b' }}
-            onClick={handleDeleteAccount}
-            disabled={loading === 'deleteAccount'}
-          >
-            <strong>{loading === 'deleteAccount' ? '...' : t.deleteAccountBtn}</strong>
-          </button>
+
+          {deleteStep === null ? (
+            <button
+              style={{ ...dangerBtnStyle, borderColor: '#c0392b', color: '#c0392b' }}
+              onClick={() => setDeleteStep('password')}
+            >
+              <strong>{t.deleteAccountBtn}</strong>
+            </button>
+          ) : (
+            <div style={{ padding: 16, borderRadius: 8, background: '#fff5f5', border: '1px solid #f5c6cb' }}>
+              <p style={{ fontSize: 14, fontWeight: 700, color: '#c0392b', marginBottom: 4 }}>{t.deleteConfirmTitle}</p>
+              <p style={{ fontSize: 13, color: '#555', marginBottom: 12 }}>{t.deleteConfirmDesc}</p>
+
+              {deleteStep === 'password' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: '#333' }}>{t.deletePasswordLabel}</label>
+                  <input
+                    type="password"
+                    value={deletePassword}
+                    onChange={e => setDeletePassword(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleDeleteVerify()}
+                    placeholder={t.deletePasswordPlaceholder}
+                    autoFocus
+                    style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #ddd', fontSize: 14, width: '100%', boxSizing: 'border-box' }}
+                  />
+                </div>
+              )}
+
+              {deleteStep === 'sms' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: '#333' }}>{t.deleteSmsLabel}</label>
+                  <p style={{ fontSize: 12, color: '#666', margin: 0 }}>{t.deleteSmsDesc}</p>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={deleteSmsCode}
+                    onChange={e => setDeleteSmsCode(e.target.value.replace(/\D/g, ''))}
+                    onKeyDown={e => e.key === 'Enter' && handleDeleteFinal()}
+                    placeholder={t.deleteSmsPlaceholder}
+                    autoFocus
+                    style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #ddd', fontSize: 18, letterSpacing: 6, width: 140 }}
+                  />
+                </div>
+              )}
+
+              {deleteError && (
+                <p style={{ fontSize: 13, color: '#c0392b', margin: '8px 0 0', fontWeight: 600 }}>{deleteError}</p>
+              )}
+
+              <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+                {deleteStep === 'password' && (
+                  <button
+                    style={{ padding: '9px 18px', borderRadius: 6, border: 'none', background: '#c0392b', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}
+                    onClick={handleDeleteVerify}
+                    disabled={loading === 'deleteVerify'}
+                  >
+                    {loading === 'deleteVerify' ? '...' : t.deleteContinueBtn}
+                  </button>
+                )}
+                {deleteStep === 'sms' && (
+                  <button
+                    style={{ padding: '9px 18px', borderRadius: 6, border: 'none', background: '#c0392b', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}
+                    onClick={handleDeleteFinal}
+                    disabled={loading === 'deleteAccount'}
+                  >
+                    {loading === 'deleteAccount' ? '...' : t.deleteFinalBtn}
+                  </button>
+                )}
+                <button
+                  style={{ padding: '9px 18px', borderRadius: 6, border: '1px solid #ddd', background: '#fff', color: '#555', fontSize: 14, cursor: 'pointer' }}
+                  onClick={resetDeleteForm}
+                  disabled={loading === 'deleteVerify' || loading === 'deleteAccount'}
+                >
+                  {t.deleteCancelBtn}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
