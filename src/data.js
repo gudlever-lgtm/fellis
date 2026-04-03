@@ -434,6 +434,9 @@ export const PT = {
     adFreeBtn: 'Bliv reklamefri',
     adFreePrice: 'Pris',
     adFreeMonth: 'md.',
+    adFreeYear: 'år',
+    adFreeAnnual: '📅 Årsabonnement',
+    adFreeAnnualSave: 'spar',
     adFreeLoading: 'Sender dig til betaling...',
     adFreeAlready: 'Du er allerede reklamefri',
     // Ads management
@@ -2088,6 +2091,9 @@ export const PT = {
     adFreeBtn: 'Go ad-free',
     adFreePrice: 'Price',
     adFreeMonth: '/mo.',
+    adFreeYear: 'yr',
+    adFreeAnnual: '📅 Annual subscription',
+    adFreeAnnualSave: 'save',
     adFreeLoading: 'Redirecting to checkout...',
     adFreeAlready: 'You are already ad-free',
     // Ads management
