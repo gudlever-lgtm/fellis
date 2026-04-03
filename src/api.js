@@ -387,8 +387,9 @@ export async function apiMuteConversationParticipant(conversationId, userId, min
 }
 
 // Facebook OAuth
-export function getFacebookAuthUrl(lang) {
-  return `${API_BASE}/api/auth/facebook?lang=${lang}`
+export function getFacebookAuthUrl(lang, inviteToken) {
+  const base = `${API_BASE}/api/auth/facebook?lang=${lang}`
+  return inviteToken ? `${base}&invite_token=${encodeURIComponent(inviteToken)}` : base
 }
 
 // GDPR Compliance endpoints
