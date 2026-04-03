@@ -4813,7 +4813,7 @@ app.delete('/api/gdpr/account', authenticate, async (req, res) => {
     }
 
     // Log before deletion (user_id will be preserved in audit log for legal compliance)
-    await auditLog(req.userId, 'account_delete_request', null, clientIp)
+    await auditLog(req, 'account_delete_request', null, null)
 
     // Delete uploaded media files owned by this user
     const [userPosts] = await pool.query('SELECT media FROM posts WHERE author_id = ?', [req.userId])
@@ -4842,7 +4842,7 @@ app.delete('/api/gdpr/account', authenticate, async (req, res) => {
     // all have ON DELETE CASCADE foreign keys referencing users(id)
     await pool.query('DELETE FROM users WHERE id = ?', [req.userId])
 
-    await auditLog(null, 'account_deleted', { former_user_id: req.userId }, clientIp)
+    await auditLog(req, 'account_deleted', 'user', req.userId)
 
     res.json({ ok: true })
   } catch (err) {
