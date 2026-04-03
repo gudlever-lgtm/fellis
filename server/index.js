@@ -552,6 +552,23 @@ app.use((req, res, next) => {
   next()
 })
 
+// ── Security headers ──────────────────────────────────────────────────────
+// Permissions-Policy: only standardised, widely-recognised feature names.
+// Experimental Privacy-Sandbox names (browsing-topics, attribution-reporting,
+// interest-cohort, private-state-token-*, shared-storage, otp-credentials)
+// are intentionally omitted — they cause "Unrecognized feature" browser
+// warnings and have no stable specification yet.
+app.use((_req, res, next) => {
+  res.setHeader(
+    'Permissions-Policy',
+    'accelerometer=(), autoplay=(self), camera=(), display-capture=(), ' +
+    'encrypted-media=(self), fullscreen=(self), geolocation=(), gyroscope=(), ' +
+    'magnetometer=(), microphone=(), midi=(), payment=(self), ' +
+    'picture-in-picture=(self), usb=(), web-share=(self), xr-spatial-tracking=()',
+  )
+  next()
+})
+
 // ── Rate limiting — in-memory, per IP + per user ──────────────────────────
 // Buckets: Map<key, { count, resetAt }>
 const _rl = new Map()
