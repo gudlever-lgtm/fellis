@@ -1894,7 +1894,15 @@ app.get('/api/auth/facebook/callback', async (req, res) => {
     } else {
       isNewUser = true
       // Create new user from Facebook data (minimal: name, email, avatar only)
-      const handle = '@' + (fbProfile.name || 'user').toLowerCase().replace(/\s+/g, '.')
+      // Generate a unique handle — append numeric suffix if base handle already exists
+      let baseHandle = '@' + (fbProfile.name || 'user').toLowerCase().replace(/\s+/g, '.').replace(/[^a-z0-9_.]/g, '')
+      if (baseHandle === '@') baseHandle = '@user'
+      let handle = baseHandle
+      for (let suffix = 1; suffix <= 99; suffix++) {
+        const [dup] = await pool.query('SELECT id FROM users WHERE handle = ?', [handle])
+        if (dup.length === 0) break
+        handle = baseHandle + '.' + suffix
+      }
       const initials = (fbProfile.name || 'U').split(' ').map(n => n[0]).join('').toUpperCase()
       const avatarUrl = fbProfile.picture?.data?.url || null
       const userInviteToken = crypto.randomBytes(32).toString('hex')
@@ -1953,6 +1961,8 @@ app.get('/api/auth/facebook/callback', async (req, res) => {
       }
     }
 
+    const isNewUser = existing.length === 0
+
     // Audit log: Facebook authentication (no data import yet — that requires consent)
     const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress
     await auditLogGdpr(userId, 'fb_auth_success', { facebook_id: fbProfile.id }, clientIp)
@@ -1970,10 +1980,19 @@ app.get('/api/auth/facebook/callback', async (req, res) => {
       [sessionId, userId, lang, ua, ip]
     )
 
-    // Redirect to frontend — frontend will show consent dialog before importing
+    // Only show consent dialog if user hasn't given data_processing consent yet
+    const [consentRows] = await pool.query(
+      'SELECT id FROM gdpr_consent WHERE user_id = ? AND consent_type = ? AND consent_given = 1 AND withdrawn_at IS NULL',
+      [userId, 'data_processing']
+    ).catch(() => [[]])
+    const needsConsent = consentRows.length === 0
+
+    // Redirect to frontend
+    const redirectParams = new URLSearchParams({ fb_session: sessionId, fb_lang: lang })
+    if (needsConsent) redirectParams.set('fb_needs_consent', 'true')
+    if (isNewUser) redirectParams.set('fb_new_user', '1')
     setSessionCookie(res, sessionId)
-    const newUserParam = isNewUser ? '&fb_new_user=1' : ''
-    res.redirect(`/?fb_session=${sessionId}&fb_lang=${lang}&fb_needs_consent=true${newUserParam}`)
+    res.redirect(`/?${redirectParams}`)
   } catch (err) {
     console.error('Facebook callback error:', err)
     res.redirect('/?fb_error=server')
