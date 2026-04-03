@@ -19618,15 +19618,21 @@ function AdminPage({ lang, t }) {
                         <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                           <button
                             type="button"
-                            disabled={!newKeyValue.trim()}
-                            onClick={() => {
-                              setForm(prev => ({ ...prev, mollie_api_key: newKeyValue.trim() }))
+                            disabled={!newKeyValue.trim() || status === 'saving'}
+                            onClick={async () => {
+                              const trimmed = newKeyValue.trim()
+                              if (!trimmed) return
+                              setStatus('saving')
+                              await apiSaveAdminSettings({ mollie_api_key: trimmed }).catch(() => {})
+                              setForm(prev => ({ ...prev, mollie_api_key: trimmed.slice(0, 4) + '•'.repeat(Math.max(0, trimmed.length - 4)) }))
                               setReplaceKeyMode(false)
                               setNewKeyValue('')
+                              setStatus('saved')
+                              setTimeout(() => setStatus('idle'), 3000)
                             }}
                             style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
                           >
-                            {t.setNewKey}
+                            {status === 'saving' ? '…' : t.setNewKey}
                           </button>
                           <button
                             type="button"
