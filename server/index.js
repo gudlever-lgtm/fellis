@@ -1961,8 +1961,6 @@ app.get('/api/auth/facebook/callback', async (req, res) => {
       }
     }
 
-    const isNewUser = existing.length === 0
-
     // Audit log: Facebook authentication (no data import yet — that requires consent)
     const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress
     await auditLogGdpr(userId, 'fb_auth_success', { facebook_id: fbProfile.id }, clientIp)
@@ -1990,7 +1988,7 @@ app.get('/api/auth/facebook/callback', async (req, res) => {
     // Redirect to frontend
     const redirectParams = new URLSearchParams({ fb_session: sessionId, fb_lang: lang })
     if (needsConsent) redirectParams.set('fb_needs_consent', 'true')
-    if (isNewUser) redirectParams.set('fb_new_user', '1')
+    if (existing.length === 0) redirectParams.set('fb_new_user', '1')
     setSessionCookie(res, sessionId)
     res.redirect(`/?${redirectParams}`)
   } catch (err) {
