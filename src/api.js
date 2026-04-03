@@ -1182,8 +1182,9 @@ export async function apiGetSubscription() {
 }
 
 // ── Mollie payments ───────────────────────────────────────────────────────────
-export async function apiCreateMolliePayment(plan, amount, currency, adId, recurring = false) {
+export async function apiCreateMolliePayment(plan, amount, currency, adId, recurring = false, interval = 'monthly') {
   const body = { plan, recurring: !!recurring }
+  if (recurring) body.interval = interval
   if (amount != null) body.amount = parseFloat(amount).toFixed(2)
   if (currency) body.currency = currency
   if (adId) body.ad_id = adId

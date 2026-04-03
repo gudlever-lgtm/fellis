@@ -5417,7 +5417,7 @@ function SettingsNotifications({ lang, t }) {
 function BillingSettings({ lang, t }) {
   const [sub, setSub] = useState(null)
   const [loading, setLoading] = useState(false)
-  const [recurring, setRecurring] = useState(false)
+  const [plan, setPlan] = useState('once') // 'once' | 'monthly' | 'annual'
   const [cancelLoading, setCancelLoading] = useState(false)
   const [cancelMsg, setCancelMsg] = useState(null)
   const [mollieLoading, setMollieLoading] = useState(false)
@@ -5430,7 +5430,8 @@ function BillingSettings({ lang, t }) {
   const handleMollieCheckout = async () => {
     setMollieError(null)
     setMollieLoading(true)
-    const data = await apiCreateMolliePayment('adfree', null, null, null, recurring).catch(() => null)
+    const recurring = plan === 'monthly' || plan === 'annual'
+    const data = await apiCreateMolliePayment('adfree', null, null, null, recurring, plan === 'annual' ? 'annual' : 'monthly').catch(() => null)
     setMollieLoading(false)
     if (data?.checkoutUrl) {
       window.location.href = data.checkoutUrl
@@ -5456,7 +5457,9 @@ function BillingSettings({ lang, t }) {
 
   const price = sub.price || 29
   const monthlyPrice = sub.recurring_price ?? price
-  const displayPrice = recurring ? monthlyPrice : price
+  const annualPrice = sub.annual_price ?? (monthlyPrice * 12)
+  const annualDiscountPct = sub.annual_discount_pct ?? 0
+  const displayPrice = plan === 'monthly' ? monthlyPrice : plan === 'annual' ? annualPrice : price
 
   return (
     <div>
@@ -5495,14 +5498,16 @@ function BillingSettings({ lang, t }) {
                 {t.adsAreCurrentlyDisabledOnThePlatform}
               </div>
             )}
-            {/* Recurring toggle */}
-            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-              {[false, true].map(r => (
-                <button key={String(r)} onClick={() => setRecurring(r)}
-                  style={{ flex: 1, padding: '9px 0', borderRadius: 8, border: `1.5px solid ${recurring === r ? '#2D6A4F' : '#ddd'}`, background: recurring === r ? '#eaf5ef' : '#fff', color: recurring === r ? '#2D6A4F' : '#555', fontWeight: recurring === r ? 700 : 400, fontSize: 13, cursor: 'pointer' }}>
-                  {r
-                    ? `🔁 ${t.jobSalaryMonthly} — ${formatPrice(monthlyPrice)}/${t.adFreeMonth}`
-                    : `1× ${t.oneTimePayment} — ${formatPrice(price)}`}
+            {/* Plan toggle */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+              {[
+                { key: 'once', label: `1× ${t.oneTimePayment} — ${formatPrice(price)}` },
+                { key: 'monthly', label: `🔁 ${t.jobSalaryMonthly} — ${formatPrice(monthlyPrice)}/${t.adFreeMonth}` },
+                { key: 'annual', label: `${t.adFreeAnnual} — ${formatPrice(annualPrice)}/${t.adFreeYear}${annualDiscountPct > 0 ? ` (${t.adFreeAnnualSave} ${annualDiscountPct}%)` : ''}` },
+              ].map(({ key, label }) => (
+                <button key={key} onClick={() => setPlan(key)}
+                  style={{ flex: 1, minWidth: 140, padding: '9px 8px', borderRadius: 8, border: `1.5px solid ${plan === key ? '#2D6A4F' : '#ddd'}`, background: plan === key ? '#eaf5ef' : '#fff', color: plan === key ? '#2D6A4F' : '#555', fontWeight: plan === key ? 700 : 400, fontSize: 13, cursor: 'pointer', textAlign: 'center' }}>
+                  {label}
                 </button>
               ))}
             </div>
@@ -5515,8 +5520,8 @@ function BillingSettings({ lang, t }) {
               {mollieLoading
                 ? (t.loading2)
                 : (lang === 'da'
-                    ? (recurring ? `Opret abonnement — ${formatPrice(monthlyPrice)}/md.` : `Betal ${formatPrice(displayPrice)}`)
-                    : (recurring ? `Subscribe — ${formatPrice(monthlyPrice)}/mo.` : `Pay ${formatPrice(displayPrice)}`))}
+                    ? (plan === 'annual' ? `Opret årsabonnement — ${formatPrice(annualPrice)}/år` : plan === 'monthly' ? `Opret abonnement — ${formatPrice(monthlyPrice)}/md.` : `Betal ${formatPrice(displayPrice)}`)
+                    : (plan === 'annual' ? `Subscribe annually — ${formatPrice(annualPrice)}/yr` : plan === 'monthly' ? `Subscribe — ${formatPrice(monthlyPrice)}/mo.` : `Pay ${formatPrice(displayPrice)}`))}
             </button>
             {mollieError && <p style={{ fontSize: 13, color: '#e03131', margin: '0 0 12px' }}>{mollieError}</p>}
 
@@ -17638,6 +17643,8 @@ function AdminPricingPanel({ lang }) {
       boost_price: parseFloat(settings.boost_price) || 9,
       ad_price_cpm: parseFloat(settings.ad_price_cpm) || 50,
       currency: settings.currency || 'EUR',
+      adfree_recurring_pct: parseInt(settings.adfree_recurring_pct ?? 100),
+      adfree_annual_discount_pct: parseInt(settings.adfree_annual_discount_pct ?? 0),
     }).catch(() => {})
     setSaving(false); setSaved(true)
     setTimeout(() => setSaved(false), 2500)
@@ -17668,6 +17675,27 @@ function AdminPricingPanel({ lang }) {
             <input type="number" step="0.01" min="0" style={iS} value={settings.adfree_price_business || ''} onChange={e => handle('adfree_price_business', e.target.value)} />
             <span style={{ fontSize: 13, color: '#888' }}>{settings.currency || 'EUR'}</span>
             <span style={{ fontSize: 12, color: '#aaa' }}>→ {formatPrice(parseFloat(settings.adfree_price_business) || 49)}</span>
+          </div>
+          <label style={lS}>{da ? 'Månedlig abonnementspris (% af éngangspris)' : 'Monthly subscription price (% of one-time price)'}</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input type="number" step="1" min="0" max="100" style={{ ...iS, width: 80 }} value={settings.adfree_recurring_pct ?? 100} onChange={e => handle('adfree_recurring_pct', e.target.value)} />
+            <span style={{ fontSize: 13, color: '#888' }}>%</span>
+            <span style={{ fontSize: 12, color: '#aaa' }}>
+              {da ? '→ privat' : '→ personal'}: {formatPrice(Math.round((parseFloat(settings.adfree_price_private) || 29) * (parseInt(settings.adfree_recurring_pct ?? 100)) / 100 * 100) / 100)}/{da ? 'md.' : 'mo.'}
+            </span>
+          </div>
+          <label style={lS}>{da ? 'Rabat ved årsabonnement (%)' : 'Annual subscription discount (%)'}</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input type="number" step="1" min="0" max="100" style={{ ...iS, width: 80 }} value={settings.adfree_annual_discount_pct ?? 0} onChange={e => handle('adfree_annual_discount_pct', e.target.value)} />
+            <span style={{ fontSize: 13, color: '#888' }}>%</span>
+            {(() => {
+              const monthlyPct = parseInt(settings.adfree_recurring_pct ?? 100)
+              const annualDiscount = parseInt(settings.adfree_annual_discount_pct ?? 0)
+              const basePrivate = parseFloat(settings.adfree_price_private) || 29
+              const monthlyPrivate = Math.round(basePrivate * monthlyPct / 100 * 100) / 100
+              const annualPrivate = Math.round(monthlyPrivate * 12 * (1 - annualDiscount / 100) * 100) / 100
+              return <span style={{ fontSize: 12, color: '#aaa' }}>→ {formatPrice(annualPrivate)}/{da ? 'år (privat)' : 'yr (personal)'}</span>
+            })()}
           </div>
         </div>
 

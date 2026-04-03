@@ -6861,6 +6861,7 @@ async function initAdminAdSettings() {
     await addCol('admin_ad_settings', 'adfree_recurring_pct', 'INT NOT NULL DEFAULT 100')
     await addCol('admin_ad_settings', 'ad_recurring_pct', 'INT NOT NULL DEFAULT 100')
     await addCol('admin_ad_settings', 'boost_price', 'DECIMAL(10,2) NOT NULL DEFAULT 9.00')
+    await addCol('admin_ad_settings', 'adfree_annual_discount_pct', 'INT NOT NULL DEFAULT 0')
     // Ensure a default row always exists
     await pool.query(`INSERT IGNORE INTO admin_ad_settings (id) VALUES (1)`)
     // Fix NULL ads_enabled on existing rows (should default to enabled)
@@ -7220,7 +7221,7 @@ app.get('/api/admin/ad-settings', authenticate, requireAdmin, async (req, res) =
 
 // PUT /api/admin/ad-settings — update ad pricing & display settings (admin only)
 app.put('/api/admin/ad-settings', authenticate, requireAdmin, async (req, res) => {
-  const allowed = ['adfree_price_private', 'adfree_price_business', 'ad_price_cpm', 'boost_price', 'currency', 'max_ads_feed', 'max_ads_sidebar', 'max_ads_stories', 'refresh_interval_seconds', 'ads_enabled', 'adfree_recurring_pct', 'ad_recurring_pct']
+  const allowed = ['adfree_price_private', 'adfree_price_business', 'ad_price_cpm', 'boost_price', 'currency', 'max_ads_feed', 'max_ads_sidebar', 'max_ads_stories', 'refresh_interval_seconds', 'ads_enabled', 'adfree_recurring_pct', 'ad_recurring_pct', 'adfree_annual_discount_pct']
   const updates = {}
   for (const key of allowed) {
     if (key in req.body) updates[key] = req.body[key]
@@ -7279,10 +7280,12 @@ app.get('/api/me/subscription', authenticate, async (req, res) => {
   try {
     const [[user]] = await pool.query('SELECT ads_free, mode FROM users WHERE id = ?', [req.userId])
     if (!user) return res.status(404).json({ error: 'User not found' })
-    const [[adSettings]] = await pool.query('SELECT adfree_price_private, adfree_price_business, adfree_recurring_pct, currency, ads_enabled FROM admin_ad_settings WHERE id = 1').catch(() => [[{ adfree_price_private: 29, adfree_price_business: 49, adfree_recurring_pct: 100, currency: 'EUR', ads_enabled: 1 }]])
+    const [[adSettings]] = await pool.query('SELECT adfree_price_private, adfree_price_business, adfree_recurring_pct, adfree_annual_discount_pct, currency, ads_enabled FROM admin_ad_settings WHERE id = 1').catch(() => [[{ adfree_price_private: 29, adfree_price_business: 49, adfree_recurring_pct: 100, adfree_annual_discount_pct: 0, currency: 'EUR', ads_enabled: 1 }]])
     const price = parseFloat(user.mode === 'business' ? adSettings?.adfree_price_business : adSettings?.adfree_price_private) || 29
     const recurringPct = parseInt(adSettings?.adfree_recurring_pct ?? 100)
     const recurringPrice = Math.round(price * recurringPct / 100 * 100) / 100
+    const annualDiscountPct = parseInt(adSettings?.adfree_annual_discount_pct ?? 0)
+    const annualPrice = Math.round(recurringPrice * 12 * (1 - annualDiscountPct / 100) * 100) / 100
 
     // Include Mollie subscription status
     const [[sub]] = await pool.query(
@@ -7297,6 +7300,8 @@ app.get('/api/me/subscription', authenticate, async (req, res) => {
       price,
       recurring_price: recurringPrice,
       recurring_pct: recurringPct,
+      annual_price: annualPrice,
+      annual_discount_pct: annualDiscountPct,
       currency: adSettings?.currency || 'EUR',
       ads_enabled: Boolean(adSettings?.ads_enabled),
       plan: sub?.plan || null,
@@ -7385,7 +7390,7 @@ async function getMollieClient() {
 // POST /api/mollie/payment/create — create a Mollie payment and return checkout URL
 app.post('/api/mollie/payment/create', authenticate, async (req, res) => {
   try {
-    const { plan, currency: reqCurrency, ad_id: adId, recurring = false } = req.body || {}
+    const { plan, currency: reqCurrency, ad_id: adId, recurring = false, interval = 'monthly' } = req.body || {}
     if (!plan) return res.status(400).json({ error: 'Missing required field: plan' })
 
     const mollie = await getMollieClient()
@@ -7397,11 +7402,16 @@ app.post('/api/mollie/payment/create', authenticate, async (req, res) => {
     // Resolve amount from admin_ad_settings
     let resolvedAmount = null
     let resolvedCurrency = reqCurrency || 'EUR'
-    const [[adS]] = await pool.query('SELECT adfree_price_private, adfree_price_business, adfree_recurring_pct, ad_price_cpm, ad_recurring_pct, currency FROM admin_ad_settings WHERE id = 1').catch(() => [[null]])
+    const [[adS]] = await pool.query('SELECT adfree_price_private, adfree_price_business, adfree_recurring_pct, adfree_annual_discount_pct, ad_price_cpm, ad_recurring_pct, currency FROM admin_ad_settings WHERE id = 1').catch(() => [[null]])
     resolvedCurrency = adS?.currency || 'EUR'
     if (plan === 'adfree') {
       const oneTimePrice = parseFloat(user.mode === 'business' ? adS?.adfree_price_business : adS?.adfree_price_private) || 29
-      if (recurring) {
+      if (recurring && interval === 'annual') {
+        const recurringPct = parseInt(adS?.adfree_recurring_pct ?? 100)
+        const monthlyPrice = Math.round(oneTimePrice * recurringPct / 100 * 100) / 100
+        const annualDiscountPct = parseInt(adS?.adfree_annual_discount_pct ?? 0)
+        resolvedAmount = Math.round(monthlyPrice * 12 * (1 - annualDiscountPct / 100) * 100) / 100
+      } else if (recurring) {
         const pct = parseInt(adS?.adfree_recurring_pct ?? 100)
         resolvedAmount = Math.round(oneTimePrice * pct / 100 * 100) / 100
       } else {
@@ -7442,7 +7452,7 @@ app.post('/api/mollie/payment/create', authenticate, async (req, res) => {
       description: `fellis.eu — ${plan}${recurring ? ' (abonnement)' : ''}`,
       redirectUrl,
       webhookUrl,
-      metadata: { user_id: String(req.userId), plan, recurring: String(!!recurring), ...(adId ? { ad_id: String(adId) } : {}) },
+      metadata: { user_id: String(req.userId), plan, recurring: String(!!recurring), interval: recurring ? interval : 'once', ...(adId ? { ad_id: String(adId) } : {}) },
     }
     if (recurring && mollieCustomerId) {
       paymentParams.customerId = mollieCustomerId
@@ -7593,7 +7603,8 @@ app.post('/api/mollie/payment/webhook', express.urlencoded({ extended: false }),
       // After first payment of a recurring plan: create a Mollie Subscription
       if (isRecurringFirstPayment && payment.customerId) {
         try {
-          const interval = sub.plan === 'ad_activation' ? '30 days' : '1 month'
+          const billingInterval = sub.plan === 'ad_activation' ? '30 days' : (payment.metadata?.interval === 'annual' ? '12 months' : '1 month')
+          const interval = billingInterval
           const mollieSubscription = await mollie.customers.subscriptions.create(payment.customerId, {
             amount: { currency: payment.amount.currency, value: payment.amount.value },
             interval,
