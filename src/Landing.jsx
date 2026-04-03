@@ -93,6 +93,7 @@ const T = {
     loginSubmit: 'Log ind',
     loginCancel: 'Annuller',
     loginError: 'Ugyldig e-mail eller adgangskode',
+    loginErrorSocialOnly: 'Denne konto er oprettet via Facebook eller Google. Brug den tilsvarende login-knap.',
     loginNoAccount: 'Har du ikke en konto?',
     loginSignup: 'Kom i gang',
     forgotPassword: 'Glemt adgangskode?',
@@ -228,6 +229,7 @@ const T = {
     loginSubmit: 'Log in',
     loginCancel: 'Cancel',
     loginError: 'Invalid email or password',
+    loginErrorSocialOnly: 'This account was created via Facebook or Google. Please use the corresponding login button.',
     loginNoAccount: "Don't have an account?",
     loginSignup: 'Get started',
     forgotPassword: 'Forgotten password?',
@@ -403,6 +405,8 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
         setMfaUserId(data.userId)
         setMfaCode('')
         setMfaError('')
+      } else if (data?.error === 'social_login_only') {
+        setLoginError(t.loginErrorSocialOnly)
       } else {
         setLoginError(t.loginError)
       }
@@ -595,10 +599,16 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
 
       {/* Login Modal */}
       {showLoginModal && (
-        <div className="modal-backdrop" onClick={() => { setShowLoginModal(false); setForgotMode(null); setMfaUserId(null) }}>
-          <div className="fb-modal" onClick={e => e.stopPropagation()}>
-            <div className="fb-modal-header" style={{ background: '#2D6A4F' }}>
+        <div className="modal-backdrop">
+          <div className="fb-modal">
+            <div className="fb-modal-header" style={{ background: '#2D6A4F', position: 'relative' }}>
               <div className="fb-modal-logo" style={{ color: '#fff', fontFamily: "'Playfair Display', serif" }}>fellis.eu</div>
+              <button
+                type="button"
+                onClick={() => { setShowLoginModal(false); setForgotMode(null); setMfaUserId(null) }}
+                style={{ position: 'absolute', top: 12, right: 14, background: 'none', border: 'none', color: '#fff', fontSize: 22, lineHeight: 1, cursor: 'pointer', opacity: 0.8, padding: '2px 6px' }}
+                aria-label="Close"
+              >&#x2715;</button>
             </div>
 
             {/* Normal login */}

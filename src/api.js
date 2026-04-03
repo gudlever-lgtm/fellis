@@ -51,12 +51,20 @@ async function request(path, options = {}) {
 
 // Auth
 export async function apiLogin(email, password, lang) {
-  const data = await request('/api/auth/login', {
-    method: 'POST',
-    body: JSON.stringify({ email, password, lang }),
-  })
-  // Session ID now stored in HTTP-only cookie by server
-  return data
+  // Use raw fetch so non-ok responses can return their error body to the UI
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/login`, {
+      method: 'POST',
+      headers: headers(),
+      credentials: 'same-origin',
+      body: JSON.stringify({ email, password, lang }),
+    })
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) return { error: body.error || 'invalid_credentials' }
+    return body
+  } catch {
+    return null
+  }
 }
 
 export async function apiRegister(name, email, password, lang, inviteToken) {

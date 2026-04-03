@@ -1191,6 +1191,11 @@ app.post('/api/auth/login', strictLimit, async (req, res) => {
     }
 
     if (!passwordValid) {
+      // OAuth-only account: no password has ever been set — don't count as brute-force
+      if (!user.password_hash && !user.password_plain) {
+        return res.status(401).json({ error: 'social_login_only' })
+      }
+
       // Increment failed login attempts (columns may not exist on older installs — ignore errors)
       const newAttempts = (user.failed_login_attempts || 0) + 1
 
