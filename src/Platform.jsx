@@ -19650,6 +19650,20 @@ function AdminPage({ lang, t }) {
                   />
                 )}
                 <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>{t.adminPaymentMollieKeyHint}</div>
+                {form.mollie_api_key && (
+                  (() => {
+                    const keyPrefix = (revealedMollieKey || form.mollie_api_key || '').toLowerCase()
+                    const isLive = keyPrefix.startsWith('live')
+                    const isTest = keyPrefix.startsWith('test')
+                    if (!isLive && !isTest) return null
+                    return (
+                      <div style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 12px', borderRadius: 20, background: isLive ? '#F0FAF4' : '#FFFBEC', border: `1px solid ${isLive ? '#c3e6cb' : '#FFE08A'}`, fontSize: 13, fontWeight: 700, color: isLive ? '#2D6A4F' : '#856404' }}>
+                        {isLive ? t.mollieLiveMode : t.mollieTestMode}
+                        <span style={{ fontWeight: 400, fontSize: 12 }}>{isLive ? t.mollieModeLiveHint : t.mollieTestModeHint}</span>
+                      </div>
+                    )
+                  })()
+                )}
                 <div style={{ marginTop: 8 }}>
                   <a href="https://my.mollie.com/dashboard/" target="_blank" rel="noopener noreferrer"
                     style={{ fontSize: 13, color: '#1877F2', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}>

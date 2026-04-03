@@ -7349,10 +7349,15 @@ async function initMollie() {
 }
 
 async function getMollieKey() {
-  // 1. Process env (set at startup from .env file)
+  // 1. DB admin_settings takes priority — respects keys set via admin UI without server restart
+  try {
+    const [[row]] = await pool.query("SELECT key_value FROM admin_settings WHERE key_name = 'mollie_api_key'")
+    if (row?.key_value && !row.key_value.includes('•')) return row.key_value
+  } catch {}
+  // 2. Process env (set at startup from .env file)
   const envKey = (process.env.MOLLIE_API_KEY || '').replace(/^["']|["']$/g, '').trim()
   if (envKey) return envKey
-  // 2. Re-read .env file directly as fallback (handles PM2 env not updating)
+  // 3. Re-read .env file directly as fallback (handles PM2 env not updating)
   try {
     const { readFileSync } = await import('fs')
     const envFile = readFileSync(path.join(__dirname, '.env'), 'utf8')
@@ -7366,11 +7371,6 @@ async function getMollieKey() {
         if (val) return val
       }
     }
-  } catch {}
-  // 3. DB admin_settings fallback
-  try {
-    const [[row]] = await pool.query("SELECT key_value FROM admin_settings WHERE key_name = 'mollie_api_key'")
-    if (row?.key_value && !row.key_value.startsWith('••')) return row.key_value
   } catch {}
   return null
 }
@@ -8389,9 +8389,10 @@ app.post('/api/admin/settings', authenticate, requireAdmin, async (req, res) => 
     for (const [key, value] of Object.entries(req.body)) {
       if (!allowed.includes(key)) continue
       // pwd_, media_, registration_ keys are always saved (value can be '0'/'')
-      const alwaysSave = key.startsWith('pwd_') || key.startsWith('media_') || key.startsWith('registration_') || key === 'mollie_api_key'
+      const alwaysSave = key.startsWith('pwd_') || key.startsWith('media_') || key.startsWith('registration_')
       if (!alwaysSave) {
         if (!value || value === '••••••••' + (value || '').slice(-4)) continue // skip masked/empty
+        if (key === 'mollie_api_key' && value.includes('•')) continue // skip masked display value
       }
       await pool.query('INSERT INTO admin_settings (key_name, key_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE key_value = VALUES(key_value)', [key, value])
     }
