@@ -7645,18 +7645,20 @@ function PrivacySection({ lang, onLogout }) {
   const [loading, setLoading] = useState(null)
   const [message, setMessage] = useState('')
   const [consents, setConsents] = useState(null)
-  const [fbDeleted, setFbDeleted] = useState(false)
   const [deleteStep, setDeleteStep] = useState(null) // null | 'password' | 'sms'
   const [deletePassword, setDeletePassword] = useState('')
   const [deleteSmsCode, setDeleteSmsCode] = useState('')
   const [deleteError, setDeleteError] = useState('')
 
-  // Load consent status on mount
+  // Load consent status on mount — also determines fbDeleted from server data
   useEffect(() => {
     apiGetConsentStatus().then(data => {
       if (data) setConsents(data)
     })
   }, [])
+
+  // fbDeleted is true when the server confirms no FB posts remain
+  const fbDeleted = consents !== null && !consents._fb_has_data && !!consents.facebook_import?.withdrawn_at
 
   const t = lang === 'da' ? {
     // Page header
@@ -7869,7 +7871,6 @@ function PrivacySection({ lang, onLogout }) {
     setMessage('')
     try {
       await apiDeleteFacebookData()
-      setFbDeleted(true)
       setMessage(t.done)
       // Refresh consent status
       const data = await apiGetConsentStatus()

@@ -4630,6 +4630,12 @@ app.get('/api/gdpr/consent', authenticate, async (req, res) => {
         }
       }
     }
+    // Check whether any Facebook-sourced data still exists for this user
+    const [[fbRow]] = await pool.query(
+      "SELECT COUNT(*) AS cnt FROM posts WHERE author_id = ? AND source IN ('facebook_post', 'facebook_photo')",
+      [req.userId]
+    )
+    status._fb_has_data = fbRow.cnt > 0
     res.json(status)
   } catch (err) {
     res.status(500).json({ error: 'Failed to check consent' })
