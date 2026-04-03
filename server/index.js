@@ -8605,8 +8605,9 @@ app.get('/api/admin/users', authenticate, requireAdmin, async (req, res) => {
     const q = req.query.q ? `%${req.query.q}%` : '%'
     const [rows] = await pool.query(
       `SELECT u.id, u.name, u.handle, u.email, u.mode, u.plan, u.status,
-              u.strike_count, u.suspended_until, u.is_moderator, u.is_admin,
-              u.mfa_enabled, u.created_at, u.last_seen,
+              u.strike_count, u.suspended_until, u.is_moderator,
+              u.mfa_enabled, u.created_at,
+              (u.id = 1) AS is_admin,
               (SELECT COUNT(*) FROM sessions s WHERE s.user_id = u.id AND s.expires_at > NOW()) AS active_sessions,
               (SELECT COUNT(*) FROM posts p WHERE p.author_id = u.id) AS post_count
        FROM users u
