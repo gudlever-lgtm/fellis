@@ -246,6 +246,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
   const notifRef = useRef(null)
   const [showMoreMenu, setShowMoreMenu] = useState(false)
   const moreMenuRef = useRef(null)
+  const [navFaded, setNavFaded] = useState(false)
 
   // 🏅 Badge system — evaluate and show toasts for newly earned badges
   const badgeQueueRef = useRef(null)
@@ -262,6 +263,21 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
     document.body.classList.toggle('dark', darkMode)
     localStorage.setItem('fellis_dark', darkMode ? '1' : '0')
   }, [darkMode])
+
+  useEffect(() => {
+    let lastY = window.scrollY
+    const onScroll = () => {
+      const y = window.scrollY
+      if (y > lastY && y > 80) {
+        setNavFaded(true)
+      } else if (y < lastY) {
+        setNavFaded(false)
+      }
+      lastY = y
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   const unreadCount = notifs.filter(n => !n.read).length
 
@@ -423,7 +439,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
     <div className="platform">
       <EggHintsContextMenu lang={lang} />
       {/* Platform nav — only Feed, Friends, Messages in main tabs */}
-      <nav className="p-nav">
+      <nav className={`p-nav${navFaded ? ' p-nav--faded' : ''}`} onMouseEnter={() => setNavFaded(false)}>
         <div className="p-nav-left">
           <div className="nav-logo" style={{ cursor: 'pointer' }} onClick={() => { navigateTo('feed'); window.location.reload() }}>
             <img src="/fellis-logo.jpg" className="nav-logo-icon" alt="" />
