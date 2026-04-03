@@ -4717,12 +4717,101 @@ app.delete('/api/gdpr/facebook-data', authenticate, async (req, res) => {
   }
 })
 
+// POST /api/gdpr/account/request-delete — Step 1: verify password and optionally send SMS MFA
+// Returns { ok, mfa_required, has_password } so the client knows what step comes next.
+app.post('/api/gdpr/account/request-delete', authenticate, writeLimit, async (req, res) => {
+  const { password } = req.body
+  try {
+    const [[user]] = await pool.query(
+      'SELECT password_hash, password_plain, mfa_enabled, phone FROM users WHERE id = ?',
+      [req.userId]
+    )
+    if (!user) return res.status(404).json({ error: 'User not found' })
+
+    const hasPassword = !!(user.password_hash || user.password_plain)
+
+    // Verify password when the account has one
+    if (hasPassword) {
+      let passwordValid = false
+      if (user.password_hash?.startsWith('$2')) {
+        passwordValid = await bcrypt.compare(password || '', user.password_hash)
+        if (!passwordValid) {
+          const sha256hex = crypto.createHash('sha256').update(password || '').digest('hex')
+          passwordValid = await bcrypt.compare(sha256hex, user.password_hash)
+        }
+      } else if (user.password_hash && /^[0-9a-f]{64}$/.test(user.password_hash)) {
+        const sha256 = crypto.createHash('sha256').update(password || '').digest('hex')
+        passwordValid = sha256 === user.password_hash
+      } else if (user.password_plain) {
+        passwordValid = user.password_plain === (password || '')
+      }
+      if (!passwordValid) return res.status(401).json({ error: 'Wrong password' })
+    }
+
+    // Send SMS MFA code if 2FA is enabled
+    if (user.mfa_enabled && user.phone) {
+      const rawCode = String(Math.floor(100000 + Math.random() * 900000))
+      const hashedCode = crypto.createHash('sha256').update(rawCode).digest('hex')
+      await pool.query(
+        'UPDATE users SET mfa_code = ?, mfa_code_expires = DATE_ADD(NOW(), INTERVAL 5 MINUTE) WHERE id = ?',
+        [hashedCode, req.userId]
+      )
+      const smsSent = await sendSms(user.phone, `Din Fellis-kode er: ${rawCode} (udløber om 5 minutter)`)
+      if (!smsSent) {
+        console.error(`Account delete MFA SMS failed for user ${req.userId}`)
+        return res.status(503).json({ error: 'SMS service unavailable' })
+      }
+      return res.json({ ok: true, mfa_required: true, has_password: hasPassword })
+    }
+
+    res.json({ ok: true, mfa_required: false, has_password: hasPassword })
+  } catch (err) {
+    console.error('POST /api/gdpr/account/request-delete error:', err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // DELETE /api/gdpr/account — Full account deletion (GDPR Art. 17 — Right to be forgotten)
+// Requires password (if set) and SMS MFA code (if enabled) in the request body.
 // Deletes the user and ALL associated data. This is irreversible.
 app.delete('/api/gdpr/account', authenticate, async (req, res) => {
+  const { password, sms_code } = req.body || {}
   const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress
 
   try {
+    // Re-verify credentials before deletion (defence in depth)
+    const [[user]] = await pool.query(
+      'SELECT password_hash, password_plain, mfa_enabled, mfa_code, mfa_code_expires FROM users WHERE id = ?',
+      [req.userId]
+    )
+    if (!user) return res.status(404).json({ error: 'User not found' })
+
+    // Verify password when the account has one
+    const hasPassword = !!(user.password_hash || user.password_plain)
+    if (hasPassword) {
+      let passwordValid = false
+      if (user.password_hash?.startsWith('$2')) {
+        passwordValid = await bcrypt.compare(password || '', user.password_hash)
+        if (!passwordValid) {
+          const sha256hex = crypto.createHash('sha256').update(password || '').digest('hex')
+          passwordValid = await bcrypt.compare(sha256hex, user.password_hash)
+        }
+      } else if (user.password_hash && /^[0-9a-f]{64}$/.test(user.password_hash)) {
+        const sha256 = crypto.createHash('sha256').update(password || '').digest('hex')
+        passwordValid = sha256 === user.password_hash
+      } else if (user.password_plain) {
+        passwordValid = user.password_plain === (password || '')
+      }
+      if (!passwordValid) return res.status(401).json({ error: 'Wrong password' })
+    }
+
+    // Verify SMS MFA code when 2FA is enabled
+    if (user.mfa_enabled) {
+      if (!sms_code) return res.status(403).json({ error: 'SMS code required' })
+      const mfaOk = await verifySettingsMfaCode(req.userId, sms_code)
+      if (!mfaOk) return res.status(401).json({ error: 'Invalid or expired SMS code' })
+    }
+
     // Log before deletion (user_id will be preserved in audit log for legal compliance)
     await auditLog(req.userId, 'account_delete_request', null, clientIp)
 
