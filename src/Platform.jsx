@@ -439,7 +439,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
     <div className="platform">
       <EggHintsContextMenu lang={lang} />
       {/* Platform nav — only Feed, Friends, Messages in main tabs */}
-      <nav className={`p-nav${navFaded ? ' p-nav--faded' : ''}`} onMouseEnter={() => setNavFaded(false)}>
+      <nav className={`p-nav${navFaded ? ' p-nav--faded' : ''}`} onMouseEnter={() => setNavFaded(false)} onClick={() => setNavFaded(false)}>
         <div className="p-nav-left">
           <div className="nav-logo" style={{ cursor: 'pointer' }} onClick={() => { navigateTo('feed'); window.location.reload() }}>
             <img src="/fellis-logo.jpg" className="nav-logo-icon" alt="" />
