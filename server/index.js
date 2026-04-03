@@ -1813,7 +1813,7 @@ app.get('/api/auth/linkedin/callback', async (req, res) => {
 const FB_APP_ID = process.env.FB_APP_ID
 const FB_APP_SECRET = process.env.FB_APP_SECRET
 const FB_REDIRECT_URI = process.env.FB_REDIRECT_URI || 'https://fellis.eu/api/auth/facebook/callback'
-const FB_GRAPH_URL = 'https://graph.facebook.com/v21.0'
+const FB_GRAPH_URL = 'https://graph.facebook.com/v22.0'
 
 // Scopes: basic profile only — no extended permissions required, app can go Live without App Review
 const FB_SCOPES = 'public_profile,email'
@@ -1835,11 +1835,7 @@ app.get('/api/auth/facebook', (req, res) => {
     if (Date.now() - val.created > 600000) oauthStateTokens.delete(key)
   }
   const state = stateToken + ':' + lang
-  // Use display=touch for mobile browsers to get the mobile-optimised dialog
-  const ua = req.headers['user-agent'] || ''
-  const isMobile = /Mobile|Android|iPhone|iPad/i.test(ua)
-  const display = isMobile ? '&display=touch' : ''
-  const url = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${FB_APP_ID}&redirect_uri=${encodeURIComponent(FB_REDIRECT_URI)}&scope=${FB_SCOPES}&state=${state}&response_type=code${display}`
+  const url = `https://www.facebook.com/v22.0/dialog/oauth?client_id=${FB_APP_ID}&redirect_uri=${encodeURIComponent(FB_REDIRECT_URI)}&scope=${FB_SCOPES}&state=${state}&response_type=code`
   res.redirect(url)
 })
 
