@@ -302,6 +302,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
   const [loginPassword, setLoginPassword] = useState('')
   const [loginError, setLoginError] = useState('')
   const [loginLoading, setLoginLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   // Forgot password state
   const [forgotMode, setForgotMode] = useState(null) // null | 'email' | 'reset' | 'done'
@@ -623,13 +624,34 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
                   className="fb-input"
                   autoFocus
                 />
-                <input
-                  type="password"
-                  placeholder={t.loginPassword}
-                  value={loginPassword}
-                  onChange={e => setLoginPassword(e.target.value)}
-                  className="fb-input"
-                />
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder={t.loginPassword}
+                    value={loginPassword}
+                    onChange={e => setLoginPassword(e.target.value)}
+                    className="fb-input"
+                    style={{ paddingRight: 40 }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(v => !v)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#888', padding: 2, display: 'flex', alignItems: 'center' }}
+                  >
+                    {showPassword ? (
+                      <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/>
+                        <line x1="1" y1="1" x2="23" y2="23"/>
+                      </svg>
+                    ) : (
+                      <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                      </svg>
+                    )}
+                  </button>
+                </div>
                 {loginError && <div className="fb-error">{loginError}</div>}
                 <button type="submit" className="fb-login-submit" style={{ background: '#2D6A4F' }} disabled={loginLoading}>
                   {loginLoading ? '...' : t.loginSubmit}
