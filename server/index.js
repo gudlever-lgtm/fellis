@@ -1877,7 +1877,7 @@ app.get('/api/auth/facebook/callback', async (req, res) => {
 
     // GDPR Art. 32 — Encrypt the token before storage
     const encryptedToken = encryptToken(fbToken)
-    const tokenExpiry = new Date(Date.now() + FB_DATA_RETENTION_DAYS * 86400000).toISOString()
+    const tokenExpiry = new Date(Date.now() + FB_DATA_RETENTION_DAYS * 86400000).toISOString().slice(0, 19).replace('T', ' ')
 
     // Check if user already exists (by email or facebook_id)
     let userId
@@ -1909,7 +1909,7 @@ app.get('/api/auth/facebook/callback', async (req, res) => {
       const [result] = await pool.query(
         `INSERT INTO users (name, handle, initials, email, join_date, avatar_url, facebook_id, fb_access_token, fb_token_expires_at, invite_token)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [fbProfile.name, handle, initials, fbProfile.email || null, new Date().toISOString(), avatarUrl, fbProfile.id, encryptedToken, tokenExpiry, userInviteToken]
+        [fbProfile.name, handle, initials, fbProfile.email || null, new Date().toISOString().slice(0, 19).replace('T', ' '), avatarUrl, fbProfile.id, encryptedToken, tokenExpiry, userInviteToken]
       )
       userId = result.insertId
 
