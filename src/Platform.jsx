@@ -16312,6 +16312,13 @@ function isoDate(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+function getISOWeek(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7))
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
+  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7)
+}
+
 function getDanishHolidays(year, lang) {
   const easter = computeEaster(year)
   const holidays = []
@@ -16445,8 +16452,10 @@ function CalendarPage({ lang, t, currentUser }) {
     navBtn: { background: 'none', border: '1px solid var(--border, #ddd)', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 18, color: 'var(--text, #111)' },
     todayBtn: { background: 'none', border: '1px solid var(--border, #ddd)', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: 'var(--text, #111)', marginLeft: 8 },
     monthLabel: { fontSize: 18, fontWeight: 700, minWidth: 180, textAlign: 'center' },
-    grid: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 },
+    grid: { display: 'grid', gridTemplateColumns: '32px repeat(7, 1fr)', gap: 2 },
     dayHeader: { textAlign: 'center', fontSize: 12, fontWeight: 700, color: 'var(--text-muted, #888)', padding: '4px 0', textTransform: 'uppercase' },
+    weekNumHeader: { textAlign: 'center', fontSize: 11, fontWeight: 700, color: 'var(--text-muted, #bbb)', padding: '4px 0', textTransform: 'uppercase' },
+    weekNumCell: { display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, color: 'var(--text-muted, #bbb)', userSelect: 'none' },
     dayCell: (isToday, isSelected, isOtherMonth, isAdfree) => ({
       minHeight: 64,
       borderRadius: 8,
@@ -16497,46 +16506,58 @@ function CalendarPage({ lang, t, currentUser }) {
 
       {/* Weekday headers */}
       <div style={s.grid}>
+        <div style={s.weekNumHeader}>{t.calendarWeek}</div>
         {t.calendarWeekdays.map(d => (
           <div key={d} style={s.dayHeader}>{d}</div>
         ))}
 
-        {/* Day cells */}
-        {cells.map((dayNum, i) => {
-          if (!dayNum) return <div key={i} />
-          const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`
-          const isToday = year === today.getFullYear() && month === today.getMonth() && dayNum === today.getDate()
-          const isSelected = selectedDay === dayNum
-          const isAdfree = isAdfreeDate(dateKey)
-          const hols = holidayMap[dateKey] || []
-          const bdays = birthdayMap[dateKey] || []
-          const evts = eventMap[dateKey] || []
-          const rems = reminderMap[dateKey] || []
+        {/* Rows: week number + 7 day cells */}
+        {Array.from({ length: cells.length / 7 }, (_, row) => {
+          const rowCells = cells.slice(row * 7, row * 7 + 7)
+          const firstDayInRow = rowCells.find(d => d !== null)
+          const weekNum = firstDayInRow != null
+            ? getISOWeek(new Date(year, month, firstDayInRow))
+            : getISOWeek(new Date(year, month, 1 - dowFirst + row * 7))
 
-          return (
-            <div
-              key={i}
-              style={s.dayCell(isToday, isSelected, false, isAdfree)}
-              onClick={() => { setSelectedDay(isSelected ? null : dayNum); setShowReminderForm(false) }}
-            >
-              <span style={s.dayNum(isSelected)}>{dayNum}</span>
-              <div style={s.dots}>
-                {hols.map((h, j) => (
-                  <span key={j} style={s.dot(h.dst ? DST_COLOR : HOLIDAY_COLOR)} title={h.label[lang]} />
-                ))}
-                {bdays.map((b, j) => (
-                  <span key={j} style={s.dot(BIRTHDAY_COLOR)} title={b.name} />
-                ))}
-                {evts.map((e, j) => {
-                  const evtColor = e.isOrganizer ? EVENT_COLOR_ORGANIZER : e.myRsvp === 'going' ? EVENT_COLOR_GOING : EVENT_COLOR_MAYBE
-                  return <span key={j} style={s.dot(evtColor)} title={typeof e.title === 'string' ? e.title : (e.title[lang] || e.title.da)} />
-                })}
-                {rems.map((r, j) => (
-                  <span key={j} style={s.dot(REMINDER_COLOR)} title={r.title} />
-                ))}
-              </div>
-            </div>
-          )
+          return [
+            <div key={`w${row}`} style={s.weekNumCell}>{weekNum}</div>,
+            ...rowCells.map((dayNum, col) => {
+              if (!dayNum) return <div key={`e${row}-${col}`} />
+              const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`
+              const isToday = year === today.getFullYear() && month === today.getMonth() && dayNum === today.getDate()
+              const isSelected = selectedDay === dayNum
+              const isAdfree = isAdfreeDate(dateKey)
+              const hols = holidayMap[dateKey] || []
+              const bdays = birthdayMap[dateKey] || []
+              const evts = eventMap[dateKey] || []
+              const rems = reminderMap[dateKey] || []
+
+              return (
+                <div
+                  key={`d${row}-${col}`}
+                  style={s.dayCell(isToday, isSelected, false, isAdfree)}
+                  onClick={() => { setSelectedDay(isSelected ? null : dayNum); setShowReminderForm(false) }}
+                >
+                  <span style={s.dayNum(isSelected)}>{dayNum}</span>
+                  <div style={s.dots}>
+                    {hols.map((h, j) => (
+                      <span key={j} style={s.dot(h.dst ? DST_COLOR : HOLIDAY_COLOR)} title={h.label[lang]} />
+                    ))}
+                    {bdays.map((b, j) => (
+                      <span key={j} style={s.dot(BIRTHDAY_COLOR)} title={b.name} />
+                    ))}
+                    {evts.map((e, j) => {
+                      const evtColor = e.isOrganizer ? EVENT_COLOR_ORGANIZER : e.myRsvp === 'going' ? EVENT_COLOR_GOING : EVENT_COLOR_MAYBE
+                      return <span key={j} style={s.dot(evtColor)} title={typeof e.title === 'string' ? e.title : (e.title[lang] || e.title.da)} />
+                    })}
+                    {rems.map((r, j) => (
+                      <span key={j} style={s.dot(REMINDER_COLOR)} title={r.title} />
+                    ))}
+                  </div>
+                </div>
+              )
+            })
+          ]
         })}
       </div>
 
