@@ -631,7 +631,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
                     value={loginPassword}
                     onChange={e => setLoginPassword(e.target.value)}
                     className="fb-input"
-                    style={{ paddingRight: 40 }}
+                    style={{ paddingRight: 40, width: '100%', boxSizing: 'border-box' }}
                   />
                   <button
                     type="button"
