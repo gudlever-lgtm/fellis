@@ -998,6 +998,7 @@
 .platform {
   min-height: 100vh;
   background: #FAFAF7;
+  padding-top: 60px;
 }
 
 /* ── Platform Nav ── */
@@ -1009,8 +1010,10 @@
   height: 60px;
   background: #fff;
   border-bottom: 1px solid #E8E4DF;
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 120;
   transition: opacity 0.15s ease;
 }
@@ -3655,6 +3658,9 @@
   }
 
   /* ── Hamburger nav for small phones ── */
+  .platform {
+    padding-top: 48px;
+  }
   .p-nav {
     flex-wrap: nowrap;
     height: 48px;
