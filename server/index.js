@@ -969,6 +969,25 @@ addCol('users', 'failed_login_attempts', 'INT NOT NULL DEFAULT 0')
 addCol('users', 'locked_until', 'DATETIME DEFAULT NULL')
   .catch(err => console.error('Migration (users.locked_until):', err.message))
 
+// Moderation columns — also in migrate-moderation.sql but added here for instances
+// that may not have run that migration manually yet
+addCol('users', 'status', "ENUM('active','suspended','banned') NOT NULL DEFAULT 'active'")
+  .catch(err => console.error('Migration (users.status):', err.message))
+addCol('users', 'strike_count', 'INT NOT NULL DEFAULT 0')
+  .catch(err => console.error('Migration (users.strike_count):', err.message))
+addCol('users', 'suspended_until', 'DATETIME DEFAULT NULL')
+  .catch(err => console.error('Migration (users.suspended_until):', err.message))
+addCol('users', 'last_strike_at', 'DATETIME DEFAULT NULL')
+  .catch(err => console.error('Migration (users.last_strike_at):', err.message))
+addCol('users', 'is_moderator', 'TINYINT(1) NOT NULL DEFAULT 0')
+  .catch(err => console.error('Migration (users.is_moderator):', err.message))
+addCol('users', 'moderator_candidate', 'TINYINT(1) NOT NULL DEFAULT 0')
+  .catch(err => console.error('Migration (users.moderator_candidate):', err.message))
+addCol('users', 'moderator_candidate_note', 'TEXT DEFAULT NULL')
+  .catch(err => console.error('Migration (users.moderator_candidate_note):', err.message))
+addCol('users', 'moderator_candidate_at', 'DATETIME DEFAULT NULL')
+  .catch(err => console.error('Migration (users.moderator_candidate_at):', err.message))
+
 // Serve uploads with security headers (no script execution, no sniffing)
 app.use('/uploads', (req, res, next) => {
   // Block anything that isn't GET
@@ -4647,6 +4666,12 @@ app.get('/api/gdpr/consent', authenticate, async (req, res) => {
         }
       }
     }
+    // Check whether any Facebook-sourced data still exists for this user
+    const [[fbRow]] = await pool.query(
+      "SELECT COUNT(*) AS cnt FROM posts WHERE author_id = ? AND source IN ('facebook_post', 'facebook_photo')",
+      [req.userId]
+    )
+    status._fb_has_data = fbRow.cnt > 0
     res.json(status)
   } catch (err) {
     res.status(500).json({ error: 'Failed to check consent' })
@@ -8558,18 +8583,73 @@ app.get('/api/admin/banned-users', authenticate, requireAdmin, async (req, res) 
        LEFT JOIN moderation_actions ma ON ma.target_user_id = u.id AND ma.action_type = 'ban'
          AND ma.created_at = (SELECT MAX(ma2.created_at) FROM moderation_actions ma2 WHERE ma2.target_user_id = u.id AND ma2.action_type = 'ban')
        LEFT JOIN users admin_u ON admin_u.id = ma.actor_id
-       WHERE u.is_banned = 1
+       WHERE u.status = 'banned'
        ORDER BY ma.created_at DESC`
     ).catch(async () => {
       // Fallback if moderation_actions doesn't have the expected columns
       const [r] = await pool.query(
-        `SELECT id, name, handle, email, mode, strike_count FROM users WHERE is_banned = 1 ORDER BY id DESC`
+        `SELECT id, name, handle, email, mode, strike_count FROM users WHERE status = 'banned' ORDER BY id DESC`
       )
       return [r]
     })
     res.json({ users: rows })
   } catch (err) {
     console.error('GET /api/admin/banned-users error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/admin/users — search all users with full admin detail
+app.get('/api/admin/users', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const q = req.query.q ? `%${req.query.q}%` : '%'
+    const [rows] = await pool.query(
+      `SELECT u.id, u.name, u.handle, u.email, u.mode, u.plan, u.status,
+              u.strike_count, u.suspended_until, u.is_moderator, u.is_admin,
+              u.mfa_enabled, u.created_at, u.last_seen,
+              (SELECT COUNT(*) FROM sessions s WHERE s.user_id = u.id AND s.expires_at > NOW()) AS active_sessions,
+              (SELECT COUNT(*) FROM posts p WHERE p.author_id = u.id) AS post_count
+       FROM users u
+       WHERE (u.name LIKE ? OR u.handle LIKE ? OR u.email LIKE ? OR u.id = ?)
+       ORDER BY u.created_at DESC
+       LIMIT 50`,
+      [q, q, q, parseInt(req.query.q) || 0]
+    )
+    res.json({ users: rows })
+  } catch (err) {
+    console.error('GET /api/admin/users error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/admin/users/:id/force-logout — invalidate all sessions for a user
+app.post('/api/admin/users/:id/force-logout', authenticate, requireAdmin, async (req, res) => {
+  const targetId = parseInt(req.params.id)
+  if (!targetId) return res.status(400).json({ error: 'Invalid user id' })
+  try {
+    await pool.query('DELETE FROM sessions WHERE user_id = ?', [targetId])
+    await auditLog(req, 'admin_force_logout', 'user', targetId)
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/admin/users/:id/force-logout error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// DELETE /api/admin/users/:id — admin permanently deletes a user account
+app.delete('/api/admin/users/:id', authenticate, requireAdmin, async (req, res) => {
+  const targetId = parseInt(req.params.id)
+  if (!targetId) return res.status(400).json({ error: 'Invalid user id' })
+  if (targetId === req.userId) return res.status(400).json({ error: 'Cannot delete your own account' })
+  try {
+    const [[user]] = await pool.query('SELECT id, name, email FROM users WHERE id = ?', [targetId])
+    if (!user) return res.status(404).json({ error: 'User not found' })
+    await auditLog(req, 'admin_delete_user', 'user', targetId, { details: { name: user.name, email: user.email } })
+    await pool.query('DELETE FROM sessions WHERE user_id = ?', [targetId])
+    await pool.query('DELETE FROM users WHERE id = ?', [targetId])
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/admin/users/:id error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })
