@@ -40,7 +40,7 @@ import MatrixRain from './components/easter-eggs/MatrixRain.jsx'
 import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
 import RickRoll from './components/easter-eggs/RickRoll.jsx'
 import RiddleBanner from './components/easter-eggs/RiddleBanner.jsx'
-import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness, apiPayForAd, apiBoostPost, apiTrackAdImpression, apiTrackAdClick, apiAdminGrowth, apiAdminOnlineNow, apiAdminGetBannedUsers, apiAdminGetAuditLog } from './api.js'
+import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness, apiPayForAd, apiBoostPost, apiTrackAdImpression, apiTrackAdClick, apiAdminGrowth, apiAdminOnlineNow, apiAdminGetBannedUsers, apiAdminGetAuditLog, apiAdminSearchUsers, apiAdminForceLogout, apiAdminDeleteUser } from './api.js'
 import BusinessBadge from './components/BusinessBadge.jsx'
 import BusinessDirectory from './pages/BusinessDirectory.jsx'
 import AdManager from './pages/AdManager.jsx'
@@ -18956,6 +18956,11 @@ function AdminPage({ lang, t }) {
   const [onlineNow, setOnlineNow] = useState(null)
   // Banned users
   const [bannedUsers, setBannedUsers] = useState(null)
+  // Bruger Administration
+  const [userAdminSearch, setUserAdminSearch] = useState('')
+  const [userAdminResults, setUserAdminResults] = useState(null)
+  const [userAdminLoading, setUserAdminLoading] = useState(false)
+  const [userAdminToast, setUserAdminToast] = useState(null)
   // Audit log
   const [auditLog, setAuditLog] = useState(null)
   const [auditLogOffset, setAuditLogOffset] = useState(0)
@@ -18984,6 +18989,18 @@ function AdminPage({ lang, t }) {
   }, [modUserSearch, adminTab])
 
   useEffect(() => {
+    if (adminTab !== 'bruger-admin') return
+    const timer = setTimeout(() => {
+      setUserAdminLoading(true)
+      apiAdminSearchUsers(userAdminSearch).then(d => {
+        setUserAdminResults(d?.users ?? [])
+        setUserAdminLoading(false)
+      })
+    }, userAdminSearch ? 350 : 0)
+    return () => clearTimeout(timer)
+  }, [userAdminSearch, adminTab])
+
+  useEffect(() => {
     apiAdminGrowth(growthDays).then(data => { if (data) setGrowthData(data.days) })
   }, [growthDays])
 
@@ -19007,6 +19024,10 @@ function AdminPage({ lang, t }) {
     }
     if (adminTab === 'banned-users') {
       apiAdminGetBannedUsers().then(data => { if (data) setBannedUsers(data.users) })
+    }
+    if (adminTab === 'bruger-admin') {
+      setUserAdminLoading(true)
+      apiAdminSearchUsers('').then(d => { setUserAdminResults(d?.users ?? []); setUserAdminLoading(false) })
     }
     if (adminTab === 'audit-log') {
       setAuditLog(null)
@@ -19087,6 +19108,12 @@ function AdminPage({ lang, t }) {
               { id: 'mfa-admin', icon: '📱', label: t.mFAUsers },
               { id: 'banned-users', icon: '🚫', label: t.bannedUsers },
               { id: 'audit-log', icon: '📋', label: t.auditLog },
+            ],
+          },
+          {
+            label: t.adminUserAdmin,
+            tabs: [
+              { id: 'bruger-admin', icon: '👤', label: t.adminUserAdmin },
             ],
           },
           {
@@ -20360,6 +20387,105 @@ function AdminPage({ lang, t }) {
           onFilterChange={v => { setAuditLogFilter(v); setAuditLogOffset(0) }}
           onPage={off => setAuditLogOffset(off)}
         />
+      )}
+
+      {adminTab === 'bruger-admin' && (
+        <div>
+          {userAdminToast && (
+            <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: '#333', color: '#fff', borderRadius: 8, padding: '10px 20px', fontSize: 14, fontWeight: 600, zIndex: 2000 }}>
+              {userAdminToast}
+            </div>
+          )}
+          <div className="p-card" style={{ marginBottom: 16, padding: '16px 20px' }}>
+            <h3 style={{ margin: '0 0 12px', fontSize: 16, fontWeight: 700 }}>👤 {t.adminUserAdmin}</h3>
+            <input
+              placeholder={t.adminUserSearch}
+              value={userAdminSearch}
+              onChange={e => setUserAdminSearch(e.target.value)}
+              style={{ width: '100%', padding: '9px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', boxSizing: 'border-box' }}
+            />
+          </div>
+          {userAdminLoading ? (
+            <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>{t.loading2}</div>
+          ) : !userAdminResults ? null : userAdminResults.length === 0 ? (
+            <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>{t.adminUserNoResults}</div>
+          ) : userAdminResults.map(u => {
+            const statusColor = u.status === 'banned' ? '#C0392B' : u.status === 'suspended' ? '#E07A5F' : '#2D6A4F'
+            const statusLabel = u.status === 'banned' ? t.adminModStatusBanned : u.status === 'suspended' ? t.adminModStatusSuspended : t.adminModStatusActive
+            const showUserAdminToast = msg => { setUserAdminToast(msg); setTimeout(() => setUserAdminToast(null), 3000) }
+            const refreshUsers = () => apiAdminSearchUsers(userAdminSearch).then(d => { if (d) setUserAdminResults(d.users) })
+            return (
+              <div key={u.id} className="p-card" style={{ marginBottom: 12, padding: '16px 20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
+                  <div className="p-avatar-sm" style={{ background: nameToColor(u.name) }}>{getInitials(u.name)}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: 15 }}>{u.name}</div>
+                    <div style={{ fontSize: 12, color: '#888' }}>{u.handle} · {u.email}</div>
+                  </div>
+                  <span style={{ background: statusColor, color: '#fff', borderRadius: 6, padding: '2px 9px', fontSize: 12, fontWeight: 700 }}>{statusLabel}</span>
+                  {u.is_admin ? <span style={{ background: '#2D6A4F', color: '#fff', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 700 }}>{t.adminUserIsAdmin}</span> : null}
+                  {u.is_moderator ? <span style={{ background: '#3D6A9F', color: '#fff', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 700 }}>{t.adminUserIsModerator}</span> : null}
+                </div>
+                <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 12, color: '#666', marginBottom: 12 }}>
+                  <span>#{u.id}</span>
+                  <span>{t.adminUserJoinDate}: {u.created_at ? new Date(u.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US') : '–'}</span>
+                  <span>{t.adminUserMode}: {u.mode}</span>
+                  <span>{t.adminUserPlan}: {u.plan || '–'}</span>
+                  <span>{u.post_count ?? 0} {t.adminUserPostCount}</span>
+                  <span>{u.active_sessions ?? 0} {t.adminUserSessions}</span>
+                  {u.strike_count > 0 && <span style={{ color: '#E07A5F', fontWeight: 700 }}>⚠️ {u.strike_count} {t.adminModStrikes}</span>}
+                  {u.mfa_enabled ? <span style={{ color: '#2D6A4F', fontWeight: 600 }}>🔒 {t.adminUserMfa}</span> : null}
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <button style={{ padding: '5px 10px', borderRadius: 7, border: 'none', fontSize: 12, cursor: 'pointer', background: '#F4C26A', color: '#5a3e00', fontWeight: 600 }}
+                    onClick={async () => { await apiWarnUser(u.id); await refreshUsers(); showUserAdminToast('✓ Warning issued') }}>
+                    {t.adminModWarn}
+                  </button>
+                  <button style={{ padding: '5px 10px', borderRadius: 7, border: 'none', fontSize: 12, cursor: 'pointer', background: '#E07A5F', color: '#fff', fontWeight: 600 }}
+                    onClick={async () => {
+                      const days = parseInt(window.prompt(`${t.adminModSuspendDays}:`, '7') || '0')
+                      if (!days) return
+                      await apiSuspendUser(u.id, days)
+                      await refreshUsers(); showUserAdminToast(`✓ Suspended ${days}d`)
+                    }}>
+                    {t.adminModSuspend}
+                  </button>
+                  {u.status !== 'banned' ? (
+                    <button style={{ padding: '5px 10px', borderRadius: 7, border: 'none', fontSize: 12, cursor: 'pointer', background: '#C0392B', color: '#fff', fontWeight: 700 }}
+                      onClick={async () => {
+                        if (!window.confirm(t.adminModConfirmBan)) return
+                        await apiBanUser(u.id)
+                        await refreshUsers(); showUserAdminToast('✓ User banned')
+                      }}>
+                      {t.adminModBan}
+                    </button>
+                  ) : (
+                    <button style={{ padding: '5px 10px', borderRadius: 7, border: 'none', fontSize: 12, cursor: 'pointer', background: '#2D6A4F', color: '#fff', fontWeight: 600 }}
+                      onClick={async () => { await apiUnbanUser(u.id); await refreshUsers(); showUserAdminToast('✓ Unbanned') }}>
+                      {t.adminModUnban}
+                    </button>
+                  )}
+                  <button style={{ padding: '5px 10px', borderRadius: 7, border: '1px solid #ddd', fontSize: 12, cursor: 'pointer', background: '#fff', color: '#444', fontWeight: 600 }}
+                    onClick={async () => {
+                      if (!window.confirm(t.adminUserForceLogoutConfirm)) return
+                      await apiAdminForceLogout(u.id)
+                      await refreshUsers(); showUserAdminToast('✓ Sessions cleared')
+                    }}>
+                    🔓 {t.adminUserForceLogout}
+                  </button>
+                  <button style={{ padding: '5px 10px', borderRadius: 7, border: 'none', fontSize: 12, cursor: 'pointer', background: '#7B2D2D', color: '#fff', fontWeight: 700 }}
+                    onClick={async () => {
+                      if (!window.confirm(t.adminUserDeleteConfirm)) return
+                      const ok = await apiAdminDeleteUser(u.id)
+                      if (ok) { await refreshUsers(); showUserAdminToast('✓ Account deleted') }
+                    }}>
+                    🗑 {t.adminUserDelete}
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
       )}
     </div>
   )

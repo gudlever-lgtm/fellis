@@ -1569,6 +1569,15 @@ export async function apiAdminOnlineNow() {
 export async function apiAdminGetBannedUsers() {
   return await request('/api/admin/banned-users')
 }
+export async function apiAdminSearchUsers(q = '') {
+  return await request(q ? `/api/admin/users?q=${encodeURIComponent(q)}` : '/api/admin/users')
+}
+export async function apiAdminForceLogout(userId) {
+  return await request(`/api/admin/users/${userId}/force-logout`, { method: 'POST' })
+}
+export async function apiAdminDeleteUser(userId) {
+  return await request(`/api/admin/users/${userId}`, { method: 'DELETE' })
+}
 export async function apiAdminGetAuditLog({ limit = 50, offset = 0, action, userId } = {}) {
   const params = new URLSearchParams({ limit, offset })
   if (action) params.set('action', action)
