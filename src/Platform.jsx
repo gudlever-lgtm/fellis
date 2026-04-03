@@ -7649,6 +7649,7 @@ function PrivacySection({ lang, onLogout }) {
   const [loading, setLoading] = useState(null)
   const [message, setMessage] = useState('')
   const [consents, setConsents] = useState(null)
+  const [fbDeleted, setFbDeleted] = useState(false)
 
   // Load consent status on mount
   useEffect(() => {
@@ -7734,6 +7735,7 @@ function PrivacySection({ lang, onLogout }) {
     // Status
     done: 'Udført!',
     error: 'Der opstod en fejl. Prøv igen.',
+    fbDeletedMsg: 'Alle Facebook-data er nu slettet permanent.',
   } : {
     // Page header
     title: 'Privacy & Data Management',
@@ -7811,6 +7813,7 @@ function PrivacySection({ lang, onLogout }) {
     // Status
     done: 'Done!',
     error: 'An error occurred. Please try again.',
+    fbDeletedMsg: 'All Facebook data has been permanently deleted.',
   }
 
   const handleExport = async () => {
@@ -7840,6 +7843,7 @@ function PrivacySection({ lang, onLogout }) {
     setMessage('')
     try {
       await apiDeleteFacebookData()
+      setFbDeleted(true)
       setMessage(t.done)
       // Refresh consent status
       const data = await apiGetConsentStatus()
@@ -7985,10 +7989,17 @@ function PrivacySection({ lang, onLogout }) {
       <div style={sectionStyle}>
         <h3 style={sectionTitleStyle}>{t.fbTitle}</h3>
         <p style={{ fontSize: 13, color: '#555', marginBottom: 12 }}>{t.fbDesc}</p>
-        <button style={dangerBtnStyle} onClick={handleDeleteFb} disabled={loading === 'deleteFb'}>
-          <strong>{loading === 'deleteFb' ? '...' : t.deleteFbBtn}</strong>
-          <div style={{ fontSize: 12, color: '#aaa', marginTop: 2, fontWeight: 400 }}>{t.deleteFbDesc}</div>
-        </button>
+        {fbDeleted ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderRadius: 8, background: '#F0FAF4', border: '1px solid #B7DFC8', color: '#1D6A3A', fontSize: 14 }}>
+            <span style={{ fontSize: 20, lineHeight: 1 }}>&#10003;</span>
+            <span>{t.fbDeletedMsg}</span>
+          </div>
+        ) : (
+          <button style={dangerBtnStyle} onClick={handleDeleteFb} disabled={loading === 'deleteFb'}>
+            <strong>{loading === 'deleteFb' ? '...' : t.deleteFbBtn}</strong>
+            <div style={{ fontSize: 12, color: '#aaa', marginTop: 2, fontWeight: 400 }}>{t.deleteFbDesc}</div>
+          </button>
+        )}
       </div>
 
       {/* ── GDPR Rights (Art. 17 & 20) ── */}
