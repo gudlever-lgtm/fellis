@@ -1290,7 +1290,7 @@ app.post('/api/auth/register', strictLimit, async (req, res) => {
     const userInviteToken = crypto.randomBytes(32).toString('hex')
     const [result] = await pool.query(
       'INSERT INTO users (name, handle, initials, email, password_hash, join_date, invite_token) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [name, handle, initials, email, bcryptHash, new Date().toISOString(), userInviteToken]
+      [name, handle, initials, email, bcryptHash, new Date().toISOString().split('T')[0], userInviteToken]
     )
     const newUserId = result.insertId
     const sessionId = crypto.randomUUID()
@@ -1362,6 +1362,7 @@ app.post('/api/auth/register', strictLimit, async (req, res) => {
     res.json({ sessionId, userId: newUserId })
   } catch (err) {
     if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Email or handle already exists' })
+    console.error('POST /api/auth/register error:', err.message)
     res.status(500).json({ error: 'Registration failed' })
   }
 })
