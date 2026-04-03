@@ -136,6 +136,8 @@ const T = {
     createAccountDesc: 'Opret en konto uden Facebook — brug e-mail og adgangskode.',
     createAccountBtn: 'Opret konto',
     orDivider: 'eller',
+    // In-app browser warning
+    inAppBrowserWarning: 'Facebook-login virker ikke i denne browser. Åbn fellis.eu i din enheds standardbrowser (Safari, Chrome eller Firefox) for at fortsætte.',
     // Mode selector (step 5)
     modeStepTitle: 'Vælg din kontotype',
     modeStepSubtitle: 'Du kan altid skifte den i dine profilindstillinger.',
@@ -272,6 +274,8 @@ const T = {
     createAccountDesc: 'Create an account without Facebook — use email and password.',
     createAccountBtn: 'Create account',
     orDivider: 'or',
+    // In-app browser warning
+    inAppBrowserWarning: 'Facebook login does not work in this browser. Please open fellis.eu in your device\'s default browser (Safari, Chrome, or Firefox) to continue.',
     // Mode selector (step 5)
     modeStepTitle: 'Choose your account type',
     modeStepSubtitle: 'You can always change this in your profile settings.',
@@ -285,8 +289,15 @@ const T = {
   },
 }
 
+// Detect Facebook/Instagram/generic in-app browsers that block OAuth redirects
+function isInAppBrowser() {
+  const ua = navigator.userAgent || ''
+  return /FBAN|FBAV|Instagram|FB_IAB|FBIOS|FBANDROID/i.test(ua)
+}
+
 export default function Landing({ onEnterPlatform, inviteToken, inviterName, inviterEmail, fbError, resetToken }) {
   const [lang, setLang] = useState(() => detectLang())
+  const [inAppBrowser] = useState(() => isInAppBrowser())
   const [step, setStep] = useState(0)
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [selectedContent, setSelectedContent] = useState({ profile: true, friends: true, posts: true })
@@ -828,10 +839,16 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
               ? 'Importer dine data fra Facebook automatisk.'
               : 'Automatically import your data from Facebook.'
             }</p>
-            <button className="fb-btn" onClick={handleFbClick}>
-              <span className="fb-icon">f</span>
-              {t.connectBtn}
-            </button>
+            {inAppBrowser ? (
+              <div style={{ background: '#FFF3CD', border: '1px solid #FFCA2C', borderRadius: 10, padding: '12px 16px', color: '#664D03', fontSize: 14, textAlign: 'center', maxWidth: 320 }}>
+                {t.inAppBrowserWarning}
+              </div>
+            ) : (
+              <button className="fb-btn" onClick={handleFbClick}>
+                <span className="fb-icon">f</span>
+                {t.connectBtn}
+              </button>
+            )}
             <div style={{ color: '#aaa', fontSize: 13, margin: '4px 0' }}>{t.orDivider}</div>
             <button className="btn-secondary" onClick={() => { setDirectSignup(true); setStep(4) }}>{t.createAccountBtn}</button>
             <button className="btn-secondary" style={{ marginTop: 4 }} onClick={() => setStep(0)}>{t.back}</button>
