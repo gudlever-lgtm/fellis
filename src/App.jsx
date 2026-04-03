@@ -534,6 +534,10 @@ function App() {
       }
       setView('platform')
       window.history.replaceState({}, '', window.location.pathname)
+      // Fetch CSRF token for authenticated requests
+      apiGetCsrfToken().then(csrfData => {
+        if (csrfData?.csrfToken) localStorage.setItem('fellis_csrf_token', csrfData.csrfToken)
+      }).catch(() => {})
       return
     }
 

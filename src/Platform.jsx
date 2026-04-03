@@ -314,11 +314,11 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
           // Fallback: sync localStorage → server
           apiUpdateMode(mode === 'business' ? 'business' : 'privat').catch(() => {})
         }
-      } else {
+      } else if (data?.__authError) {
+        // Genuine 401/403 — session invalid, log out
         onLogout()
       }
-    }).catch(() => {
-      onLogout()
+      // data === null → network error, keep user on platform
     })
   }, [onLogout]) // eslint-disable-line react-hooks/exhaustive-deps
 
