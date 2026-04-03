@@ -525,7 +525,12 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
     setRegLoading(true)
     setRegError('')
     try {
-      await apiRegister(regName.trim(), regEmail.trim(), regPassword.trim(), lang, inviteToken || undefined)
+      const regData = await apiRegister(regName.trim(), regEmail.trim(), regPassword.trim(), lang, inviteToken || undefined)
+      if (!regData?.sessionId) {
+        setRegError(regData?.error || t.registerError)
+        setRegLoading(false)
+        return
+      }
       await apiGiveConsent(['data_processing']).catch(() => {})
       // Flag for onboarding tour (only for new registrations)
       localStorage.setItem('fellis_onboarding', '1')
