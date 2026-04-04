@@ -3174,7 +3174,8 @@ app.post('/api/feed', authenticate, writeLimit, upload.array('media', 4), async 
         [req.userId, text, text, 'Lige nu', 'Just now', mediaJson, scheduledDate, categoriesJson]
       )
     )
-    const [users] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
+    const [users] = await pool.query('SELECT name, mode FROM users WHERE id = ?', [req.userId])
+    const [[badgeRow]] = await pool.query('SELECT COUNT(*) as cnt FROM earned_badges WHERE user_id = ?', [req.userId]).catch(() => [[{ cnt: 0 }]])
     const now = new Date()
     const postId = result.insertId
     // Extract and store hashtags (max 10)
@@ -3202,16 +3203,23 @@ app.post('/api/feed', authenticate, writeLimit, upload.array('media', 4), async 
     res.json({
       id: postId,
       author: users[0].name,
+      authorId: req.userId,
+      authorMode: users[0].mode || 'privat',
       time: { da: formatPostTime(now, 'da'), en: formatPostTime(now, 'en') },
       text: { da: text, en: text },
-      likes: 0, liked: false, comments: [],
+      likes: 0, liked: false, userReaction: null, comments: [],
+      reactions: [],
       media: mediaUrls.length > 0 ? mediaUrls : null,
       categories: categoriesJson ? JSON.parse(categoriesJson) : null,
+      createdAtRaw: now.toISOString(),
+      edited: false,
+      authorBadgeCount: badgeRow?.cnt || 0,
       placeName: placeName || null,
-      location: lat ? { lat: parseFloat(lat), lng: parseFloat(lng), name: placeName } : null,
-      tagged_users: taggedJson ? JSON.parse(taggedJson) : null,
-      linked_type: linkedType || null,
-      linked_id: linkedId || null,
+      geoLat: lat || null,
+      geoLng: lng || null,
+      taggedUsers: taggedJson ? JSON.parse(taggedJson) : null,
+      linkedType: linkedType || null,
+      linkedId: linkedId || null,
     })
   } catch (err) {
     res.status(500).json({ error: 'Failed to create post' })

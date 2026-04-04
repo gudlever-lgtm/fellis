@@ -2429,9 +2429,15 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         setPosts(prev => [{
           id: Date.now(),
           author: currentUser.name,
+          authorId: currentUser.id,
+          authorMode: currentUser.mode || 'privat',
           time: { da: new Date().toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' }), en: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) },
           text: { da: text, en: text },
-          likes: 0, comments: [], media: localMedia,
+          likes: 0, liked: false, userReaction: null, comments: [], media: localMedia,
+          reactions: [],
+          createdAtRaw: new Date().toISOString(),
+          edited: false,
+          authorBadgeCount: 0,
         }, ...prev])
       }
     })
