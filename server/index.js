@@ -851,7 +851,9 @@ addCol('users', 'failed_login_attempts', 'INT DEFAULT 0')
   .catch(err => console.error('Migration (users.failed_login_attempts):', err.message))
 addCol('users', 'locked_until', 'TIMESTAMP NULL DEFAULT NULL')
   .catch(err => console.error('Migration (users.locked_until):', err.message))
-// Reset ads_free for users with no active Mollie adfree subscription (clears stale Stripe flags).
+// Reset ads_free for users with no active paid subscription AND no active earned-day assignment.
+// Days sitting in the bank (adfree_days_bank) alone do NOT qualify — only activated assignments
+// (adfree_day_assignments) or paid periods (adfree_purchased_periods) make a user ad-free.
 pool.query(`
   UPDATE users SET ads_free = 0
   WHERE ads_free = 1
@@ -860,6 +862,14 @@ pool.query(`
       WHERE status = 'paid'
         AND plan NOT IN ('ad_activation')
         AND (expires_at IS NULL OR expires_at > NOW())
+    )
+    AND id NOT IN (
+      SELECT user_id FROM adfree_day_assignments
+      WHERE start_date <= CURDATE() AND end_date >= CURDATE()
+    )
+    AND id NOT IN (
+      SELECT user_id FROM adfree_purchased_periods
+      WHERE start_date <= CURDATE() AND end_date >= CURDATE()
     )
 `).catch(err => console.error('Migration (ads_free cleanup):', err.message))
 
@@ -6824,7 +6834,7 @@ app.get('/api/admin/ad-stats', authenticate, requireAdmin, async (req, res) => {
 // GET /api/me/subscription — get current user's ads_free status + Mollie subscription details
 app.get('/api/me/subscription', authenticate, async (req, res) => {
   try {
-    const [[user]] = await pool.query('SELECT ads_free, mode FROM users WHERE id = ?', [req.userId])
+    const [[user]] = await pool.query('SELECT mode FROM users WHERE id = ?', [req.userId])
     if (!user) return res.status(404).json({ error: 'User not found' })
     const [[adSettings]] = await pool.query('SELECT adfree_price_private, adfree_price_business, adfree_recurring_pct, adfree_annual_discount_pct, currency, ads_enabled FROM admin_ad_settings WHERE id = 1').catch(() => [[{ adfree_price_private: 29, adfree_price_business: 49, adfree_recurring_pct: 100, adfree_annual_discount_pct: 0, currency: 'EUR', ads_enabled: 1 }]])
     const price = parseFloat(user.mode === 'business' ? adSettings?.adfree_price_business : adSettings?.adfree_price_private) || 29
@@ -6841,8 +6851,21 @@ app.get('/api/me/subscription', authenticate, async (req, res) => {
       [req.userId]
     ).catch(() => [[null]])
 
+    // Compute ads_free dynamically — only active purchased periods or activated earned-day
+    // assignments count. Days sitting in the bank (not yet assigned) do NOT make a user ad-free.
+    const today = new Date().toISOString().split('T')[0]
+    const [[adFreeRow]] = await pool.query(`
+      SELECT (
+        (SELECT COUNT(*) FROM adfree_day_assignments
+         WHERE user_id = ? AND start_date <= ? AND end_date >= ?) +
+        (SELECT COUNT(*) FROM adfree_purchased_periods
+         WHERE user_id = ? AND start_date <= ? AND end_date >= ?)
+      ) AS total
+    `, [req.userId, today, today, req.userId, today, today]).catch(() => [[{ total: 0 }]])
+    const ads_free = (adFreeRow?.total ?? 0) > 0
+
     res.json({
-      ads_free: Boolean(user.ads_free),
+      ads_free,
       price,
       recurring_price: recurringPrice,
       recurring_pct: recurringPct,
@@ -7196,7 +7219,7 @@ app.post('/api/mollie/payment/webhook', express.urlencoded({ extended: false }),
 // GET /api/mollie/payment/status — current user's Mollie subscription status
 app.get('/api/mollie/payment/status', authenticate, async (req, res) => {
   try {
-    const [[user]] = await pool.query('SELECT ads_free, mode FROM users WHERE id = ?', [req.userId])
+    const [[user]] = await pool.query('SELECT id FROM users WHERE id = ?', [req.userId])
     if (!user) return res.status(404).json({ error: 'User not found' })
 
     // Get the most recent active or pending subscription (prefer recurring+active)
@@ -7207,8 +7230,21 @@ app.get('/api/mollie/payment/status', authenticate, async (req, res) => {
       [req.userId]
     )
 
+    // Compute ads_free dynamically — only active purchased periods or activated earned-day
+    // assignments count. Days sitting in the bank (not yet assigned) do NOT make a user ad-free.
+    const today = new Date().toISOString().split('T')[0]
+    const [[adFreeRow]] = await pool.query(`
+      SELECT (
+        (SELECT COUNT(*) FROM adfree_day_assignments
+         WHERE user_id = ? AND start_date <= ? AND end_date >= ?) +
+        (SELECT COUNT(*) FROM adfree_purchased_periods
+         WHERE user_id = ? AND start_date <= ? AND end_date >= ?)
+      ) AS total
+    `, [req.userId, today, today, req.userId, today, today]).catch(() => [[{ total: 0 }]])
+    const ads_free = (adFreeRow?.total ?? 0) > 0
+
     res.json({
-      ads_free: Boolean(user.ads_free),
+      ads_free,
       plan: sub?.plan || null,
       status: sub?.status || null,
       expires_at: sub?.expires_at || null,
