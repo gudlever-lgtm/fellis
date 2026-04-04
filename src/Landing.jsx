@@ -241,7 +241,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
   const emailRef = useRef(null)
   const nameRef = useRef(null)
 
-  const t = T[lang]
+  const t = T[lang] || T.da
 
   // Pre-fill email when invite info arrives asynchronously
   useEffect(() => {
