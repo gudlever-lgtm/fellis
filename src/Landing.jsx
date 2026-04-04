@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { SUPPORTED_LANGS, detectLang, PT } from './data.js'
+import { UI_LANGS, detectLang, PT } from './data.js'
 import { apiLogin, apiRegister, apiForgotPassword, apiResetPassword, apiVerifyMfa, apiGiveConsent } from './api.js'
 
 // ── Landing translations ──
@@ -440,7 +440,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
         </div>
         <div className="nav-right-group">
           <select className="lang-toggle" value={lang} onChange={e => changeLang(e.target.value)} aria-label="Language">
-            {SUPPORTED_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
+            {UI_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
           </select>
           <button className="login-btn" onClick={() => { setShowLoginModal(true); setLoginError(''); setLoginEmail(''); setLoginPassword('') }}>
             {t.loginBtn}
