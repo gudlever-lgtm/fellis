@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } from 'react'
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
-import { SUPPORTED_LANGS, EUROPEAN_LANGUAGES, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials, getTranslations } from './data.js'
+import { UI_LANGS, EUROPEAN_LANGUAGES, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials, getTranslations } from './data.js'
 import { formatPrice } from './utils/currency.js'
 import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiRemoveConversationParticipant, apiMuteConversationParticipant, apiUploadAvatar, apiCheckSession, apiRequestAccountDelete, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiShareJob, apiUnshareJob, apiGetSharedJobs, apiGetJobSharedWith, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals, apiFetchCalendarReminders, apiCreateCalendarReminder, apiDeleteCalendarReminder, apiGetLinkedContent, apiFetchJobs, apiGetSuggestedUsers, apiAdminNotifyAll, apiLikeComment, apiAdminGetPlatformAds, apiAdminCreatePlatformAd, apiAdminUpdatePlatformAd, apiAdminDeletePlatformAd, apiAdminGetLockedUsers, apiAdminUnlockUser, apiFeedCompanyPosts, apiGetLivestreamSettings, apiSaveLivestreamSettings, apiGetLivestreamStats, apiGetLivestreamStatus,
   apiGetStreamKey, apiRegenerateStreamKey } from './api.js'
@@ -620,7 +620,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
           </div>
 
           <select className="lang-toggle" value={lang} onChange={e => changeLang(e.target.value)} aria-label="Language">
-            {SUPPORTED_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
+            {UI_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
           </select>
           {/* Ad-free badge */}
           {adsFree && (
@@ -3632,7 +3632,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                 </div>
                 <div className="p-post-time">
                   {post.time[lang]}
-                  {post.placeName && <span style={{ marginLeft: 6, color: '#2D6A4F', fontSize: 11 }}>📍 {post.placeName}</span>}
+                  {(post.placeName || post.location?.name) && <span style={{ marginLeft: 6, color: '#2D6A4F', fontSize: 11 }}>📍 {t.checkedInAt} {post.placeName || post.location.name}</span>}
                 </div>
               </div>
               <div style={{ position: 'relative' }}>
@@ -6952,20 +6952,7 @@ function SettingsSessions({ lang, t, onLogout }) {
 }
 
 function SettingsSprog({ lang, t, darkMode, onToggleDark }) {
-  const [query, setQuery] = useState('')
-  const [open, setOpen] = useState(false)
-  const inputRef = useRef(null)
-  const dropRef = useRef(null)
-
-  const currentLang = EUROPEAN_LANGUAGES.find(l => l.code === lang) || EUROPEAN_LANGUAGES[0]
-
-  const filtered = query.trim()
-    ? EUROPEAN_LANGUAGES.filter(l =>
-        l.label.toLowerCase().includes(query.toLowerCase()) ||
-        l.country.toLowerCase().includes(query.toLowerCase()) ||
-        l.code.toLowerCase().includes(query.toLowerCase())
-      )
-    : EUROPEAN_LANGUAGES
+  const currentLang = UI_LANGS.find(l => l.code === lang) || UI_LANGS[0]
 
   const switchLang = (newLang) => {
     localStorage.setItem('fellis_lang', newLang)
@@ -6977,66 +6964,22 @@ function SettingsSprog({ lang, t, darkMode, onToggleDark }) {
     window.location.reload()
   }
 
-  // Close dropdown on outside click
-  useEffect(() => {
-    if (!open) return
-    const handler = (e) => {
-      if (dropRef.current && !dropRef.current.contains(e.target)) setOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [open])
-
   return (
     <div className="p-card" style={{ padding: 24 }}>
       <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>🌐 {t.settingsLanguage}</div>
 
-      {/* Searchable language combobox */}
-      <div ref={dropRef} style={{ position: 'relative', maxWidth: 320 }}>
-        <div
-          onClick={() => { setOpen(o => !o); setTimeout(() => inputRef.current?.focus(), 50) }}
-          style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', border: '1px solid #ddd', borderRadius: 10, cursor: 'pointer', background: '#fff', userSelect: 'none', fontSize: 14 }}
-        >
-          <span style={{ fontSize: 20 }}>{currentLang.flag}</span>
-          <span style={{ flex: 1, fontWeight: 500 }}>{currentLang.label}</span>
-          <span style={{ color: '#aaa', fontSize: 12 }}>{open ? '▲' : '▼'}</span>
-        </div>
-        {open && (
-          <div style={{ position: 'absolute', top: '110%', left: 0, right: 0, background: '#fff', border: '1px solid #ddd', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 200, overflow: 'hidden' }}>
-            <div style={{ padding: '8px 10px', borderBottom: '1px solid #f0ede8' }}>
-              <input
-                ref={inputRef}
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                placeholder={t.searchLanguage}
-                style={{ width: '100%', border: 'none', outline: 'none', fontSize: 13, background: 'transparent', boxSizing: 'border-box' }}
-              />
-            </div>
-            <div style={{ maxHeight: 260, overflowY: 'auto' }}>
-              {filtered.length === 0 && (
-                <div style={{ padding: '12px 14px', color: '#aaa', fontSize: 13 }}>
-                  {t.searchNoResults}
-                </div>
-              )}
-              {filtered.map(l => (
-                <div
-                  key={l.code}
-                  onClick={() => { setOpen(false); setQuery(''); if (l.code !== lang) switchLang(l.code) }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', cursor: 'pointer', background: l.code === lang ? '#f0faf4' : 'transparent', fontWeight: l.code === lang ? 600 : 400, fontSize: 14, transition: 'background 0.1s' }}
-                  onMouseEnter={e => { if (l.code !== lang) e.currentTarget.style.background = '#f7f5f0' }}
-                  onMouseLeave={e => { e.currentTarget.style.background = l.code === lang ? '#f0faf4' : 'transparent' }}
-                >
-                  <span style={{ fontSize: 18 }}>{l.flag}</span>
-                  <div>
-                    <div>{l.label}</div>
-                    <div style={{ fontSize: 11, color: '#aaa', marginTop: 1 }}>{l.country}</div>
-                  </div>
-                  {l.code === lang && <span style={{ marginLeft: 'auto', color: '#2D6A4F' }}>✓</span>}
-                </div>
-              ))}
-            </div>
+      <div style={{ display: 'flex', gap: 10 }}>
+        {UI_LANGS.map(l => (
+          <div
+            key={l.code}
+            onClick={() => { if (l.code !== lang) switchLang(l.code) }}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', border: `2px solid ${l.code === lang ? '#2D6A4F' : '#ddd'}`, borderRadius: 10, cursor: l.code === lang ? 'default' : 'pointer', background: l.code === lang ? '#f0faf4' : '#fff', fontWeight: l.code === lang ? 700 : 400, fontSize: 14, userSelect: 'none', transition: 'border-color 0.15s' }}
+          >
+            <span style={{ fontSize: 20 }}>{l.flag}</span>
+            <span>{l.label}</span>
+            {l.code === lang && <span style={{ color: '#2D6A4F', fontSize: 12 }}>✓</span>}
           </div>
-        )}
+        ))}
       </div>
 
       <p style={{ fontSize: 12, color: '#aaa', marginTop: 8 }}>
