@@ -91,7 +91,6 @@ Items that have been implemented:
 - What is the right scope for the analytics dashboard — is it only for business mode, or useful for all users?
 - How should content moderation work? User reports, admin review queue, automated filters?
 - Should the platform support non-Danish/English languages in the future? What is the localisation strategy?
-- What is the long-term plan for Facebook OAuth — keep it, replace with other providers (Google, Apple), or phase out?
 - Should groups have their own messaging, or share the existing conversations system?
 
 ---

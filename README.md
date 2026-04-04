@@ -9,7 +9,7 @@ A Danish social platform built for the EU — privacy-first, GDPR-compliant, bil
 | Frontend | React 19, Vite 7, JavaScript (JSX) |
 | Backend | Node.js (ESM), Express 4 |
 | Database | MariaDB 11.8+ / MySQL 8+ |
-| Auth | Session-based + Facebook / Google / LinkedIn OAuth |
+| Auth | Session-based + Google / LinkedIn OAuth |
 | Payments | Mollie |
 | File uploads | Multer |
 | Email | Nodemailer (optional) |
@@ -89,7 +89,6 @@ See `server/.env.example` for all required and optional variables. Key variables
 ```
 DB_HOST / DB_PORT / DB_USER / DB_PASSWORD / DB_NAME
 PORT
-FB_APP_ID / FB_APP_SECRET / FB_TOKEN_ENCRYPTION_KEY
 GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET
 LINKEDIN_CLIENT_ID / LINKEDIN_CLIENT_SECRET
 MAIL_HOST / MAIL_USER / MAIL_PASS / MAIL_FROM

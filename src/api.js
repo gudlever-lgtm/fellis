@@ -386,12 +386,6 @@ export async function apiMuteConversationParticipant(conversationId, userId, min
   })
 }
 
-// Facebook OAuth
-export function getFacebookAuthUrl(lang, inviteToken) {
-  const base = `${API_BASE}/api/auth/facebook?lang=${lang}`
-  return inviteToken ? `${base}&invite_token=${encodeURIComponent(inviteToken)}` : base
-}
-
 // GDPR Compliance endpoints
 export async function apiGiveConsent(consentTypes) {
   return await request('/api/gdpr/consent', {
@@ -409,10 +403,6 @@ export async function apiWithdrawConsent(consentType) {
     method: 'POST',
     body: JSON.stringify({ consent_type: consentType }),
   })
-}
-
-export async function apiDeleteFacebookData() {
-  return await request('/api/gdpr/facebook-data', { method: 'DELETE' })
 }
 
 export async function apiRequestAccountDelete(password) {

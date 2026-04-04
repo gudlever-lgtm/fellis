@@ -1,13 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { nameToColor, getInitials, SUPPORTED_LANGS, detectLang, PT } from './data.js'
-
-// Placeholder friends for the invite step (migration wizard only)
-const INVITE_FRIENDS = [
-  { name: 'Ven 1', mutual: 5, online: false },
-  { name: 'Ven 2', mutual: 3, online: true },
-  { name: 'Ven 3', mutual: 8, online: false },
-]
-import { apiLogin, apiRegister, apiForgotPassword, apiResetPassword, apiVerifyMfa, getFacebookAuthUrl, apiSendInvites, apiGetInviteLink, apiGetConfig, apiGiveConsent } from './api.js'
+import { SUPPORTED_LANGS, detectLang, PT } from './data.js'
+import { apiLogin, apiRegister, apiForgotPassword, apiResetPassword, apiVerifyMfa, apiGiveConsent } from './api.js'
 
 // ── Landing translations ──
 const T = {
@@ -16,17 +9,14 @@ const T = {
     langToggle: 'EN',
     loginBtn: 'Log ind',
     headline: 'Flyt dit sociale liv til Europa',
-    subtitle: 'Migrer dine Facebook-data sikkert til fellis.eu — den nye europæiske platform bygget til dig, ikke til annoncører.',
+    subtitle: 'fellis.eu — den nye europæiske platform bygget til dig, ikke til annoncører.',
     cta: 'Kom i gang',
-    fbCardTitle: 'Migrer fra Facebook',
-    fbCardDesc: 'Importer dine opslag og fotos sikkert til fellis.eu.',
-    fbCardBtn: 'Kom i gang med Facebook',
     createCardTitle: 'Opret ny konto',
-    createCardDesc: 'Start frisk på fellis.eu uden at importere fra Facebook.',
+    createCardDesc: 'Start frisk på fellis.eu med e-mail og adgangskode.',
     createCardBtn: 'Opret konto',
     trustEncrypt: 'End-to-end krypteret',
     trustEU: 'Hostet i EU',
-    trustDelete: 'Data slettet efter migrering',
+    trustDelete: 'Fuld kontrol over dine data',
     servicesLabel: 'Bygget på europæiske tjenester',
     services: [
       { flag: '🇩🇰', name: 'Yggdrasil Cloud', role: 'Hosting', url: 'https://yggdrasilcloud.dk/' },
@@ -34,29 +24,6 @@ const T = {
       { flag: '🇳🇱', name: 'Mollie', role: 'Betaling', url: 'https://www.mollie.com/' },
       { flag: '🇫🇷', name: 'Mistral AI', role: 'AI (CV / ansøgning)', url: 'https://mistral.ai/' },
     ],
-    step1: 'Forbind Facebook',
-    step2: 'Vælg indhold',
-    step3: 'Inviter venner',
-    step4: 'Velkommen til fellis.eu',
-    connectTitle: 'Forbind din Facebook-konto',
-    connectSubtitle: 'Vi henter dine data sikkert og sletter dem fra vores servere efter migrering.',
-    connectBtn: 'Forbind med Facebook',
-    connecting: 'Forbinder...',
-    connected: 'Forbundet!',
-    friends: 'Venner',
-    posts: 'Opslag',
-    photos: 'Fotos',
-    selectTitle: 'Vælg indhold der skal migreres',
-    selectSubtitle: 'Vælg hvad du vil tage med til fellis.eu',
-    profileInfo: 'Profiloplysninger',
-    profileInfoDesc: 'Navn, bio, profilbillede',
-    friendsList: 'Venneliste',
-    friendsListDesc: '312 kontakter',
-    postsPhotos: 'Opslag & fotos',
-    postsPhotosDesc: '847 opslag og fotos',
-    back: 'Tilbage',
-    next: 'Næste',
-    importing: 'Importerer dit indhold...',
     inviteTitle: 'Inviter dine venner',
     inviteSubtitle: 'Hjælp dine venner med at skifte til fellis.eu',
     selectAll: 'Vælg alle',
@@ -66,26 +33,14 @@ const T = {
     sendInvites: 'Send invitationer',
     sendingInvites: 'Sender invitationer...',
     inviteLinkTitle: 'Del dit invitationslink',
-    inviteLinkDesc: 'Del dette link med dine Facebook-venner, så I automatisk bliver forbundet på fellis.eu',
+    inviteLinkDesc: 'Del dette link med dine venner, så I automatisk bliver forbundet på fellis.eu',
     copyLink: 'Kopier link',
     linkCopied: 'Kopieret!',
-    shareOnFacebook: 'Del på Facebook',
     invitedBy: 'inviterer dig til fellis.eu',
     doneTitle: 'Velkommen til fellis.eu!',
-    doneSubtitle: 'Din migrering er fuldført. Dit nye digitale hjem venter.',
-    itemsMigrated: 'Elementer migreret',
-    friendsInvited: 'Venner inviteret',
+    doneSubtitle: 'Din konto er klar. Dit nye digitale hjem venter.',
     viewProfile: 'Se din profil',
-    tagProfile: 'Profil',
-    tagFriends: '312 venner',
-    tagPosts: '847 opslag',
-    tagPhotos: '2.341 fotos',
-    fbLoginTitle: 'Log ind på Facebook',
-    fbEmail: 'E-mail eller telefonnummer',
-    fbPassword: 'Adgangskode',
-    fbLogin: 'Log ind',
-    fbCancel: 'Annuller',
-    fbForgot: 'Glemt adgangskode?',
+    back: 'Tilbage',
     // Login modal
     loginTitle: 'Log ind på fellis.eu',
     loginEmail: 'E-mail',
@@ -93,7 +48,7 @@ const T = {
     loginSubmit: 'Log ind',
     loginCancel: 'Annuller',
     loginError: 'Ugyldig e-mail eller adgangskode',
-    loginErrorSocialOnly: 'Denne konto er oprettet via Facebook eller Google. Brug den tilsvarende login-knap.',
+    loginErrorSocialOnly: 'Denne konto er oprettet via Google eller LinkedIn. Brug den tilsvarende login-knap.',
     loginNoAccount: 'Har du ikke en konto?',
     loginSignup: 'Kom i gang',
     forgotPassword: 'Glemt adgangskode?',
@@ -106,7 +61,6 @@ const T = {
     forgotConfirm: 'Gem adgangskode',
     forgotSuccess: 'Adgangskode opdateret! Du er nu logget ind.',
     forgotError: 'Kunne ikke nulstille adgangskode',
-    forgotFbNote: 'Din konto blev oprettet via Facebook. Opret en adgangskode for at logge ind med e-mail.',
     forgotBack: 'Tilbage til login',
     forgotEmailSent: 'Tjek din e-mail for et nulstillingslink.',
     mfaTitle: 'To-faktor-godkendelse',
@@ -131,13 +85,6 @@ const T = {
     registerGdpr: 'Jeg accepterer behandling af mine persondata i henhold til fellis.eu\'s',
     registerGdprLink: 'privatlivspolitik',
     registerGdprRequired: 'Du skal acceptere privatlivspolitikken for at oprette en konto',
-    // Create account card (step 1)
-    createAccountTitle: 'Opret konto direkte',
-    createAccountDesc: 'Opret en konto uden Facebook — brug e-mail og adgangskode.',
-    createAccountBtn: 'Opret konto',
-    orDivider: 'eller',
-    // In-app browser warning
-    inAppBrowserWarning: 'Facebook-login virker ikke i denne browser. Åbn fellis.eu i din enheds standardbrowser (Safari, Chrome eller Firefox) for at fortsætte.',
     // Mode selector (step 5)
     modeStepTitle: 'Vælg din kontotype',
     modeStepSubtitle: 'Du kan altid skifte den i dine profilindstillinger.',
@@ -154,17 +101,14 @@ const T = {
     langToggle: 'DA',
     loginBtn: 'Log in',
     headline: 'Move your social life to Europe',
-    subtitle: 'Securely migrate your Facebook data to fellis.eu — the new European platform built for you, not advertisers.',
+    subtitle: 'fellis.eu — the new European platform built for you, not advertisers.',
     cta: 'Get started',
-    fbCardTitle: 'Migrate from Facebook',
-    fbCardDesc: 'Securely import your posts and photos to fellis.eu.',
-    fbCardBtn: 'Get started with Facebook',
     createCardTitle: 'Create new account',
-    createCardDesc: 'Start fresh on fellis.eu without importing from Facebook.',
+    createCardDesc: 'Start fresh on fellis.eu with email and password.',
     createCardBtn: 'Create account',
     trustEncrypt: 'End-to-end encrypted',
     trustEU: 'EU hosted',
-    trustDelete: 'Data deleted after migration',
+    trustDelete: 'Full control over your data',
     servicesLabel: 'Built on European services',
     services: [
       { flag: '🇩🇰', name: 'Yggdrasil Cloud', role: 'Hosting', url: 'https://yggdrasilcloud.dk/' },
@@ -172,29 +116,6 @@ const T = {
       { flag: '🇳🇱', name: 'Mollie', role: 'Payments', url: 'https://www.mollie.com/' },
       { flag: '🇫🇷', name: 'Mistral AI', role: 'AI (CV / cover letter)', url: 'https://mistral.ai/' },
     ],
-    step1: 'Connect Facebook',
-    step2: 'Select content',
-    step3: 'Invite friends',
-    step4: 'Welcome to fellis.eu',
-    connectTitle: 'Connect your Facebook account',
-    connectSubtitle: 'We securely fetch your data and delete it from our servers after migration.',
-    connectBtn: 'Connect with Facebook',
-    connecting: 'Connecting...',
-    connected: 'Connected!',
-    friends: 'Friends',
-    posts: 'Posts',
-    photos: 'Photos',
-    selectTitle: 'Select content to migrate',
-    selectSubtitle: 'Choose what to bring to fellis.eu',
-    profileInfo: 'Profile info',
-    profileInfoDesc: 'Name, bio, profile photo',
-    friendsList: 'Friends list',
-    friendsListDesc: '312 contacts',
-    postsPhotos: 'Posts & photos',
-    postsPhotosDesc: '847 posts and photos',
-    back: 'Back',
-    next: 'Next',
-    importing: 'Importing your content...',
     inviteTitle: 'Invite your friends',
     inviteSubtitle: 'Help your friends switch to fellis.eu',
     selectAll: 'Select all',
@@ -204,26 +125,14 @@ const T = {
     sendInvites: 'Send invitations',
     sendingInvites: 'Sending invitations...',
     inviteLinkTitle: 'Share your invite link',
-    inviteLinkDesc: 'Share this link with your Facebook friends so you automatically connect on fellis.eu',
+    inviteLinkDesc: 'Share this link with your friends so you automatically connect on fellis.eu',
     copyLink: 'Copy link',
     linkCopied: 'Copied!',
-    shareOnFacebook: 'Share on Facebook',
     invitedBy: 'invites you to fellis.eu',
     doneTitle: 'Welcome to fellis.eu!',
-    doneSubtitle: 'Your migration is complete. Your new digital home awaits.',
-    itemsMigrated: 'Items migrated',
-    friendsInvited: 'Friends invited',
+    doneSubtitle: 'Your account is ready. Your new digital home awaits.',
     viewProfile: 'View your profile',
-    tagProfile: 'Profile',
-    tagFriends: '312 friends',
-    tagPosts: '847 posts',
-    tagPhotos: '2,341 photos',
-    fbLoginTitle: 'Log in to Facebook',
-    fbEmail: 'Email or phone number',
-    fbPassword: 'Password',
-    fbLogin: 'Log in',
-    fbCancel: 'Cancel',
-    fbForgot: 'Forgotten password?',
+    back: 'Back',
     // Login modal
     loginTitle: 'Log in to fellis.eu',
     loginEmail: 'Email',
@@ -231,7 +140,7 @@ const T = {
     loginSubmit: 'Log in',
     loginCancel: 'Cancel',
     loginError: 'Invalid email or password',
-    loginErrorSocialOnly: 'This account was created via Facebook or Google. Please use the corresponding login button.',
+    loginErrorSocialOnly: 'This account was created via Google or LinkedIn. Please use the corresponding login button.',
     loginNoAccount: "Don't have an account?",
     loginSignup: 'Get started',
     forgotPassword: 'Forgotten password?',
@@ -244,7 +153,6 @@ const T = {
     forgotConfirm: 'Save password',
     forgotSuccess: 'Password updated! You are now logged in.',
     forgotError: 'Could not reset password',
-    forgotFbNote: 'Your account was created via Facebook. Set a password to log in with email.',
     forgotBack: 'Back to login',
     forgotEmailSent: 'Check your email for a reset link.',
     mfaTitle: 'Two-factor authentication',
@@ -269,13 +177,6 @@ const T = {
     registerGdpr: 'I accept the processing of my personal data in accordance with fellis.eu\'s',
     registerGdprLink: 'privacy policy',
     registerGdprRequired: 'You must accept the privacy policy to create an account',
-    // Create account card (step 1)
-    createAccountTitle: 'Create account directly',
-    createAccountDesc: 'Create an account without Facebook — use email and password.',
-    createAccountBtn: 'Create account',
-    orDivider: 'or',
-    // In-app browser warning
-    inAppBrowserWarning: 'Facebook login does not work in this browser. Please open fellis.eu in your device\'s default browser (Safari, Chrome, or Firefox) to continue.',
     // Mode selector (step 5)
     modeStepTitle: 'Choose your account type',
     modeStepSubtitle: 'You can always change this in your profile settings.',
@@ -289,22 +190,10 @@ const T = {
   },
 }
 
-// Detect Facebook/Instagram/generic in-app browsers that block OAuth redirects
-function isInAppBrowser() {
-  const ua = navigator.userAgent || ''
-  return /FBAN|FBAV|Instagram|FB_IAB|FBIOS|FBANDROID/i.test(ua)
-}
-
-export default function Landing({ onEnterPlatform, inviteToken, inviterName, inviterEmail, fbError, resetToken }) {
+export default function Landing({ onEnterPlatform, inviteToken, inviterName, inviterEmail, resetToken }) {
   const [lang, setLang] = useState(() => detectLang())
-  const [inAppBrowser] = useState(() => isInAppBrowser())
-  const [step, setStep] = useState(0)
+  const [step, setStep] = useState(4) // Go directly to registration
   const [showLoginModal, setShowLoginModal] = useState(false)
-  const [selectedContent, setSelectedContent] = useState({ profile: true, friends: true, posts: true })
-  const [importLoading, setImportLoading] = useState(false)
-  const [selectedFriends, setSelectedFriends] = useState(new Set(INVITE_FRIENDS.map((_, i) => i)))
-  const [inviteLoading, setInviteLoading] = useState(false)
-  const [invitedCount, setInvitedCount] = useState(0)
   const [inviteLinkCopied, setInviteLinkCopied] = useState(false)
   const [inviteLink, setInviteLink] = useState('')
 
@@ -322,17 +211,11 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
   const [forgotNewPw, setForgotNewPw] = useState('')
   const [forgotError, setForgotError] = useState('')
   const [forgotLoading, setForgotLoading] = useState(false)
-  const [forgotFbNote, setForgotFbNote] = useState(false)
-
   // MFA state
   const [mfaUserId, setMfaUserId] = useState(null)
   const [mfaCode, setMfaCode] = useState('')
   const [mfaError, setMfaError] = useState('')
   const [mfaLoading, setMfaLoading] = useState(false)
-
-  // Direct signup (skipping Facebook migration)
-  const [directSignup, setDirectSignup] = useState(false)
-  const [facebookEnabled, setFacebookEnabled] = useState(true) // optimistic; updated from /api/config
 
   // Mode selection (step 5)
   const [pendingEnter, setPendingEnter] = useState(false)
@@ -364,16 +247,6 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
   useEffect(() => {
     if (inviterEmail && !regEmail) setRegEmail(inviterEmail)
   }, [inviterEmail]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Fetch server config to check if Facebook OAuth is available
-  useEffect(() => {
-    apiGetConfig().then(cfg => { if (cfg) setFacebookEnabled(cfg.facebookEnabled) })
-  }, [])
-
-  // If Facebook OAuth failed or is not configured, go straight to email signup
-  useEffect(() => {
-    if (fbError) { setDirectSignup(true); setStep(4) }
-  }, [fbError])
 
   // Auto-open password reset form when arriving from email reset link
   useEffect(() => {
@@ -555,45 +428,6 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
     }
   }, [regName, regEmail, regPassword, regPasswordRepeat, honeypot, gdprAccepted, mathAnswer, mathChallenge, lang, t, inviteToken, inviterName])
 
-  // Redirect to real Facebook OAuth — carry invite token so callback can auto-connect
-  const handleFbClick = useCallback(() => {
-    window.location.href = getFacebookAuthUrl(lang, inviteToken)
-  }, [lang, inviteToken])
-
-  const handleContentNext = useCallback(() => {
-    setImportLoading(true)
-    apiGetInviteLink().then(data => { if (data?.token) setInviteLink(`https://fellis.eu/?invite=${data.token}`) })
-    setTimeout(() => { setImportLoading(false); setStep(3) }, 1800)
-  }, [])
-
-  const toggleFriend = useCallback((idx) => {
-    setSelectedFriends(prev => {
-      const next = new Set(prev)
-      next.has(idx) ? next.delete(idx) : next.add(idx)
-      return next
-    })
-  }, [])
-
-  const toggleAllFriends = useCallback(() => {
-    setSelectedFriends(prev => prev.size === INVITE_FRIENDS.length ? new Set() : new Set(INVITE_FRIENDS.map((_, i) => i)))
-  }, [])
-
-  const handleSendInvites = useCallback(async () => {
-    setInviteLoading(true)
-    const count = selectedFriends.size
-    const friendsList = Array.from(selectedFriends).map(idx => ({ name: INVITE_FRIENDS[idx].name }))
-    try {
-      await apiSendInvites(friendsList)
-    } catch {
-      // Continue even if API fails (demo mode)
-    }
-    setTimeout(() => { setInviteLoading(false); setInvitedCount(count); setStep(4) }, 2000)
-  }, [selectedFriends])
-
-  const handleSkip = useCallback(() => { setInvitedCount(0); setStep(4) }, [])
-
-  const migratedCount = (selectedContent.profile ? 1 : 0) + (selectedContent.friends ? 312 : 0) + (selectedContent.posts ? 847 : 0)
-
   return (
     <div className="app">
       <nav className="nav">
@@ -769,7 +603,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
       )}
 
       {/* Invite banner (shown when arriving via invite link) */}
-      {inviterName && step === 0 && (
+      {inviterName && step === 4 && (
         <div className="invite-banner">
           <div className="invite-banner-text">
             <strong>{inviterName}</strong> {t.invitedBy}
@@ -777,41 +611,15 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
         </div>
       )}
 
-      {/* Landing */}
-      {step === 0 && (
+      {/* Landing — heading + trust row */}
+      {step === 4 && (
         <div className="landing">
           <h1>{t.headline}</h1>
           <p className="landing-subtitle">{t.subtitle}</p>
-          <div className="landing-cards">
-            {/* Facebook migration card — only shown when FB OAuth is configured on the server */}
-            {facebookEnabled && (
-              <div className="landing-card landing-card-fb">
-                <div className="landing-card-visual">
-                  <div className="brand-box brand-fb" style={{ width: 56, height: 56, fontSize: 22 }}>f</div>
-                  <div className="dots-container" style={{ gap: 6 }}>
-                    <div className="dot" /><div className="dot" /><div className="dot" />
-                  </div>
-                  <div className="brand-box brand-some" style={{ width: 56, height: 56, fontSize: 22 }}>F</div>
-                </div>
-                <h3>{t.fbCardTitle}</h3>
-                <p>{t.fbCardDesc}</p>
-                <button className="landing-card-btn landing-card-btn-fb" onClick={() => setStep(1)}>{t.fbCardBtn}</button>
-              </div>
-            )}
-            {/* Create account card */}
-            <div className="landing-card landing-card-create">
-              <div className="landing-card-visual">
-                <div className="brand-box brand-some" style={{ width: 72, height: 72, fontSize: 28 }}>F</div>
-              </div>
-              <h3>{t.createCardTitle}</h3>
-              <p>{t.createCardDesc}</p>
-              <button className="landing-card-btn landing-card-btn-create" onClick={() => { setDirectSignup(true); setStep(4) }}>{t.createCardBtn}</button>
-            </div>
-          </div>
           <div className="trust-row">
             <div className="trust-item"><div className="trust-icon">🔒</div><span className="trust-label">{t.trustEncrypt}</span></div>
             <div className="trust-item"><div className="trust-icon">🇪🇺</div><a href="https://yggdrasilcloud.dk/" target="_blank" rel="noopener noreferrer" className="trust-label trust-link">{t.trustEU}</a></div>
-            <div className="trust-item"><div className="trust-icon">🗑️</div><span className="trust-label">{t.trustDelete}</span></div>
+            <div className="trust-item"><div className="trust-icon">🛡️</div><span className="trust-label">{t.trustDelete}</span></div>
           </div>
           <div className="landing-services-row">
             <span className="landing-services-label">{t.servicesLabel}:</span>
@@ -826,155 +634,9 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
         </div>
       )}
 
-      {step >= 1 && !directSignup && <ProgressBar step={step} t={t} />}
-
-      {/* Step 1 — Connect Facebook */}
-      {step === 1 && (
-        <div className="step-container">
-          <h2>{t.connectTitle}</h2>
-          <p className="step-subtitle">{t.connectSubtitle}</p>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, marginTop: 24 }}>
-            <div className="step1-card-icon" style={{ background: '#EBF4FF', width: 64, height: 64, borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 700, color: '#1877F2' }}>f</div>
-            <p style={{ color: '#5C5C5C', textAlign: 'center', maxWidth: 320 }}>{lang === 'da'
-              ? 'Importer dine data fra Facebook automatisk.'
-              : 'Automatically import your data from Facebook.'
-            }</p>
-            {inAppBrowser ? (
-              <div style={{ background: '#FFF3CD', border: '1px solid #FFCA2C', borderRadius: 10, padding: '12px 16px', color: '#664D03', fontSize: 14, textAlign: 'center', maxWidth: 320 }}>
-                {t.inAppBrowserWarning}
-              </div>
-            ) : (
-              <button className="fb-btn" onClick={handleFbClick}>
-                <span className="fb-icon">f</span>
-                {t.connectBtn}
-              </button>
-            )}
-            <div style={{ color: '#aaa', fontSize: 13, margin: '4px 0' }}>{t.orDivider}</div>
-            <button className="btn-secondary" onClick={() => { setDirectSignup(true); setStep(4) }}>{t.createAccountBtn}</button>
-            <button className="btn-secondary" style={{ marginTop: 4 }} onClick={() => setStep(0)}>{t.back}</button>
-          </div>
-        </div>
-      )}
-
-      {/* Step 2 */}
-      {step === 2 && (
-        <div className="step-container">
-          {importLoading ? (
-            <div className="loading-overlay"><div className="spinner" /><p className="loading-text">{t.importing}</p></div>
-          ) : (
-            <>
-              <h2>{t.selectTitle}</h2>
-              <p className="step-subtitle">{t.selectSubtitle}</p>
-              <div className="content-cards">
-                <ContentCard icon="👤" title={t.profileInfo} desc={t.profileInfoDesc} selected={selectedContent.profile} onToggle={() => setSelectedContent(s => ({ ...s, profile: !s.profile }))} />
-                <ContentCard icon="👥" title={t.friendsList} desc={t.friendsListDesc} selected={selectedContent.friends} onToggle={() => setSelectedContent(s => ({ ...s, friends: !s.friends }))} />
-                <ContentCard icon="📸" title={t.postsPhotos} desc={t.postsPhotosDesc} selected={selectedContent.posts} onToggle={() => setSelectedContent(s => ({ ...s, posts: !s.posts }))} />
-              </div>
-              <div className="btn-row">
-                <button className="btn-secondary" onClick={() => setStep(1)}>{t.back}</button>
-                <button className="btn-primary" onClick={handleContentNext}>{t.next}</button>
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Step 3 */}
-      {step === 3 && (
-        <div className="step-container">
-          {inviteLoading ? (
-            <div className="loading-overlay"><div className="spinner" /><p className="loading-text">{t.sendingInvites}</p></div>
-          ) : (
-            <>
-              <h2>{t.inviteTitle}</h2>
-              <p className="step-subtitle">{t.inviteSubtitle}</p>
-
-              {/* Shareable invite link section */}
-              <div className="invite-link-section">
-                <h4 className="invite-link-title">{t.inviteLinkTitle}</h4>
-                <p className="invite-link-desc">{t.inviteLinkDesc}</p>
-                <div className="invite-link-row">
-                  <input
-                    className="invite-link-input"
-                    value={inviteLink || `https://fellis.eu/?invite=…`}
-                    readOnly
-                    onClick={e => e.target.select()}
-                  />
-                  <button
-                    className="invite-link-copy-btn"
-                    onClick={() => {
-                      navigator.clipboard.writeText(inviteLink || '').catch(() => {})
-                      setInviteLinkCopied(true)
-                      setTimeout(() => setInviteLinkCopied(false), 2000)
-                    }}
-                  >
-                    {inviteLinkCopied ? t.linkCopied : t.copyLink}
-                  </button>
-                </div>
-                <button
-                  className="fb-share-btn"
-                  onClick={() => {
-                    const shareUrl = encodeURIComponent(inviteLink || 'https://fellis.eu')
-                    window.open(
-                      `https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`,
-                      'facebook-share',
-                      'width=580,height=400'
-                    )
-                  }}
-                >
-                  <span className="fb-icon">f</span>
-                  {t.shareOnFacebook}
-                </button>
-              </div>
-
-              <div className="invite-divider">
-                <span>{PT[lang].orSelectFriends}</span>
-              </div>
-
-              <div className="friends-header">
-                <span style={{ fontSize: 14, color: '#6B6560' }}>{selectedFriends.size} / {INVITE_FRIENDS.length}</span>
-                <button className="select-all-btn" onClick={toggleAllFriends}>
-                  {selectedFriends.size === INVITE_FRIENDS.length ? t.deselectAll : t.selectAll}
-                </button>
-              </div>
-              <div className="friends-list">
-                {INVITE_FRIENDS.map((friend, idx) => (
-                  <div key={idx} className={`friend-item${selectedFriends.has(idx) ? ' selected' : ''}`} onClick={() => toggleFriend(idx)}>
-                    <div className="friend-avatar" style={{ background: nameToColor(friend.name) }}>
-                      {getInitials(friend.name)}
-                      {friend.online && <div className="online-dot" />}
-                    </div>
-                    <div className="friend-info">
-                      <div className="friend-name">{friend.name}</div>
-                      <div className="friend-mutual">{friend.mutual} {t.mutualFriends}</div>
-                    </div>
-                    <input type="checkbox" className="friend-check" checked={selectedFriends.has(idx)} onChange={() => toggleFriend(idx)} onClick={e => e.stopPropagation()} />
-                  </div>
-                ))}
-              </div>
-              <div className="btn-row">
-                <button className="btn-secondary" onClick={handleSkip}>{t.skip}</button>
-                <button className="btn-primary" onClick={handleSendInvites}>{t.sendInvites} ({selectedFriends.size})</button>
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Step 4 — Done + Register */}
+      {/* Registration */}
       {step === 4 && (
         <div className="step-container done-page">
-          {!directSignup && (
-            <>
-              <div className="done-checkmark">✓</div>
-              <h2>{t.doneTitle}</h2>
-              <p className="step-subtitle">{t.doneSubtitle}</p>
-              <div className="done-stats">
-                <div className="stat-item"><div className="stat-number">{migratedCount.toLocaleString()}</div><div className="stat-label">{t.itemsMigrated}</div></div>
-                <div className="stat-item"><div className="stat-number">{invitedCount}</div><div className="stat-label">{t.friendsInvited}</div></div>
-              </div>
-            </>
-          )}
 
           {/* Registration form */}
           <form className="register-form" onSubmit={handleRegister}>
@@ -1109,26 +771,6 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
   )
 }
 
-function ProgressBar({ step, t }) {
-  const steps = [t.step1, t.step2, t.step3, t.step4]
-  return (
-    <div className="progress-bar">
-      {steps.map((label, i) => {
-        const num = i + 1
-        return (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {i > 0 && <div className="progress-connector" style={{ background: step > num ? '#40916C' : step >= num ? '#2D6A4F' : '#E8E4DF' }} />}
-            <div className={`progress-step${step > num ? ' completed' : ''}${step === num ? ' active' : ''}`}>
-              <div className="progress-dot">{step > num ? '✓' : num}</div>
-              <span>{label}</span>
-            </div>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
 function PasswordStrengthIndicator({ password, lang }) {
   const [policy, setPolicy] = useState(null)
   useEffect(() => {
@@ -1175,12 +817,3 @@ function PasswordStrengthIndicator({ password, lang }) {
   )
 }
 
-function ContentCard({ icon, title, desc, selected, onToggle }) {
-  return (
-    <div className={`content-card${selected ? ' selected' : ''}`} onClick={onToggle}>
-      <div className="card-icon">{icon}</div>
-      <div className="card-text"><h4>{title}</h4><p>{desc}</p></div>
-      <input type="checkbox" className="card-check" checked={selected} onChange={onToggle} onClick={e => e.stopPropagation()} />
-    </div>
-  )
-}
