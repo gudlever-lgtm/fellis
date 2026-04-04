@@ -8,7 +8,7 @@
 - **Frontend:** React 19, Vite 7, JavaScript (JSX) — no TypeScript
 - **Backend:** Node.js (ESM), Express 4, MySQL2/MariaDB
 - **Database:** MariaDB 11.8+ / MySQL 8+
-- **Auth:** Session-based (`X-Session-Id` header + localStorage), Facebook / Google / LinkedIn OAuth
+- **Auth:** Session-based (`X-Session-Id` header + localStorage), Google / LinkedIn OAuth
 - **Payments:** Mollie (subscriptions, ad payments, ad-free tier)
 - **File uploads:** Multer (images/media)
 - **Email:** Nodemailer (optional, only when `MAIL_HOST` is configured)
@@ -137,9 +137,6 @@ cd server && npm run seed
 | `DB_PASSWORD` | MySQL password | _(empty)_ |
 | `DB_NAME` | Database name | `fellis_eu` |
 | `PORT` | Server port | `3001` |
-| `FB_APP_ID` | Facebook App ID (OAuth) | _(optional)_ |
-| `FB_APP_SECRET` | Facebook App Secret | _(optional)_ |
-| `FB_TOKEN_ENCRYPTION_KEY` | 32-byte hex key for AES-256-GCM token encryption | _(optional, but recommended)_ |
 | `GOOGLE_CLIENT_ID` | Google OAuth 2.0 Client ID (sign-in + photo picker) | _(optional)_ |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth 2.0 Client Secret | _(optional)_ |
 | `GOOGLE_REDIRECT_URI` | Google OAuth callback URL | `https://fellis.eu/api/auth/google/callback` |
@@ -211,8 +208,6 @@ Vite builds from `src/` as root into `assets/` at the repo root:
 - Sessions are stored server-side in the `sessions` DB table (30-day expiry)
 - Session ID is kept in `localStorage` as `fellis_session_id` and sent as `X-Session-Id` header on every request
 - For multipart/FormData requests, use `formHeaders()` (not `headers()`) to avoid sending `null` as a header value
-- Facebook OAuth callback sets `?fb_session=`, `?fb_lang=`, and optionally `?fb_needs_consent=true` URL params
-
 ### API Layer (`src/api.js`)
 - **Single source of truth** for all API calls — all `fetch()` calls go through the `request()` helper
 - `request()` returns `null` when the server is unreachable (demo/offline mode), never throws on network errors
@@ -228,7 +223,7 @@ Vite builds from `src/` as root into `assets/` at the repo root:
 
 ### React Components
 - All pages are rendered inside `Platform.jsx` — it manages the `page` state and renders each section conditionally
-- `App.jsx` handles: session validation on mount, Facebook OAuth callback parsing, invite token handling, GDPR consent dialog, routing between `Landing` and `Platform`
+- `App.jsx` handles: session validation on mount, OAuth callback parsing, invite token handling, GDPR consent dialog, routing between `Landing` and `Platform`
 - `AppRoot` in `App.jsx` handles the `/privacy` public route (no auth required)
 - Inline styles (`style={{ ... }}`) are used extensively — follow the existing `const s = { ... }` pattern for style objects
 - No external CSS framework or component library — all styling is custom
@@ -239,7 +234,6 @@ Vite builds from `src/` as root into `assets/` at the repo root:
 - `CURRENT_USER`, `FRIENDS`, `POSTS`, etc. are the mock constants
 
 ### GDPR Compliance
-- Facebook access tokens are encrypted at rest with **AES-256-GCM** (`FB_TOKEN_ENCRYPTION_KEY`)
 - Consent is tracked in the DB — `apiGiveConsent()`, `apiWithdrawConsent()`, `apiGetConsentStatus()`
 - Account deletion (`apiDeleteAccount()`) and data export (`apiExportData()`) endpoints must remain functional
 - Never store sensitive data in localStorage beyond session ID and language preference
@@ -256,7 +250,7 @@ Vite builds from `src/` as root into `assets/` at the repo root:
 
 | Table | Purpose |
 |-------|---------|
-| `users` | User accounts (email/password + Facebook/Google/LinkedIn OAuth) |
+| `users` | User accounts (email/password + Google/LinkedIn OAuth) |
 | `sessions` | Auth sessions (30-day expiry) |
 | `friendships` | Bidirectional friend connections |
 | `friend_requests` | Pending/accepted/declined friend requests |

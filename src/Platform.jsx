@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } f
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { SUPPORTED_LANGS, EUROPEAN_LANGUAGES, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials, getTranslations } from './data.js'
 import { formatPrice } from './utils/currency.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiRemoveConversationParticipant, apiMuteConversationParticipant, apiUploadAvatar, apiCheckSession, apiDeleteFacebookData, apiRequestAccountDelete, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiShareJob, apiUnshareJob, apiGetSharedJobs, apiGetJobSharedWith, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals, apiFetchCalendarReminders, apiCreateCalendarReminder, apiDeleteCalendarReminder, apiGetLinkedContent, apiFetchJobs, apiGetSuggestedUsers, apiAdminNotifyAll, apiLikeComment, apiAdminGetPlatformAds, apiAdminCreatePlatformAd, apiAdminUpdatePlatformAd, apiAdminDeletePlatformAd, apiAdminGetLockedUsers, apiAdminUnlockUser, apiFeedCompanyPosts, apiGetLivestreamSettings, apiSaveLivestreamSettings, apiGetLivestreamStats, apiGetLivestreamStatus,
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiRemoveConversationParticipant, apiMuteConversationParticipant, apiUploadAvatar, apiCheckSession, apiRequestAccountDelete, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiShareJob, apiUnshareJob, apiGetSharedJobs, apiGetJobSharedWith, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals, apiFetchCalendarReminders, apiCreateCalendarReminder, apiDeleteCalendarReminder, apiGetLinkedContent, apiFetchJobs, apiGetSuggestedUsers, apiAdminNotifyAll, apiLikeComment, apiAdminGetPlatformAds, apiAdminCreatePlatformAd, apiAdminUpdatePlatformAd, apiAdminDeletePlatformAd, apiAdminGetLockedUsers, apiAdminUnlockUser, apiFeedCompanyPosts, apiGetLivestreamSettings, apiSaveLivestreamSettings, apiGetLivestreamStats, apiGetLivestreamStatus,
   apiGetStreamKey, apiRegenerateStreamKey } from './api.js'
 import {
   apiSharePost, apiUnsharePost, apiSavePost, apiUnsavePost, apiGetSavedPosts,
@@ -5646,29 +5646,6 @@ function SettingsLeverandoerer({ lang, t }) {
         {da ? 'Forbind din konto med andre login-udbydere. Du kan altid logge ind med din fellis-konto uanset.' : 'Connect your account to other login providers. You can always log in with your fellis account regardless.'}
       </p>
 
-      {/* Facebook */}
-      <div style={cardStyle}>
-        <div style={headerStyle}>
-          <div style={{ ...logoStyle, background: '#1877F2' }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>Facebook</div>
-            <span style={badgeStyle(!!profile?.connectedProviders?.facebook)}>
-              {profile?.connectedProviders?.facebook ? (da ? 'Tilknyttet' : 'Connected') : (da ? 'Ikke tilknyttet' : 'Not connected')}
-            </span>
-          </div>
-          {!profile?.connectedProviders?.facebook && config?.fb_app_id && (
-            <a href="/api/auth/facebook" style={{ padding: '6px 14px', borderRadius: 8, background: '#1877F2', color: '#fff', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
-              {da ? 'Forbind' : 'Connect'}
-            </a>
-          )}
-        </div>
-        <p style={{ fontSize: 13, color: '#555', margin: 0 }}>
-          {da ? 'Log ind med din Facebook-konto. Profilbillede og navn kan importeres ved oprettelse.' : 'Log in with your Facebook account. Profile picture and name can be imported on sign-up.'}
-        </p>
-      </div>
-
       {/* Google */}
       <div style={cardStyle}>
         <div style={headerStyle}>
@@ -7661,7 +7638,6 @@ function VisitorStatsPage({ lang, onBadgeCheck }) {
 }
 
 // ── GDPR Privacy & Data Management ──
-// Full page for exercising GDPR rights and managing Facebook data
 function PrivacySection({ lang, onLogout }) {
   const [loading, setLoading] = useState(null)
   const [message, setMessage] = useState('')
@@ -7671,20 +7647,17 @@ function PrivacySection({ lang, onLogout }) {
   const [deleteSmsCode, setDeleteSmsCode] = useState('')
   const [deleteError, setDeleteError] = useState('')
 
-  // Load consent status on mount — also determines fbDeleted from server data
+  // Load consent status on mount
   useEffect(() => {
     apiGetConsentStatus().then(data => {
       if (data) setConsents(data)
     })
   }, [])
 
-  // fbDeleted is true when the server confirms no FB posts remain
-  const fbDeleted = consents !== null && !consents._fb_has_data && !!consents.facebook_import?.withdrawn_at
-
   const t = lang === 'da' ? {
     // Page header
     title: 'Privatliv & Dataforvaltning',
-    subtitle: 'Dine rettigheder i henhold til EU\'s GDPR-forordning og Facebooks platformvilkår',
+    subtitle: 'Dine rettigheder i henhold til EU\'s GDPR-forordning',
     // Privacy notice (transparency — GDPR Art. 13 & 14)
     privacyTitle: 'Sådan behandler vi dine data',
     privacyIntro: 'fellis.eu er en dansk platform hostet i EU. Vi er forpligtet til at beskytte dine persondata i henhold til EU\'s General Data Protection Regulation (GDPR).',
@@ -7692,19 +7665,15 @@ function PrivacySection({ lang, onLogout }) {
     privacyWhat: [
       'Kontooplysninger: navn, e-mail, profilbillede',
       'Indhold du opretter: opslag, kommentarer, beskeder',
-      'Facebook-data (kun med dit samtykke): opslag, fotos, venneliste (kun eksisterende brugere)',
     ],
     privacyWhyTitle: 'Hvorfor vi indsamler det',
     privacyWhy: [
       'For at levere platformens funktionalitet',
-      'For at migrere dit indhold fra Facebook (kun med samtykke)',
       'Vi sælger ALDRIG dine data eller bruger dem til reklamer',
     ],
     privacyStorageTitle: 'Opbevaring og sikkerhed',
     privacyStorage: [
       'Alle data opbevares på EU-servere (Danmark)',
-      'Facebook-tokens krypteres med AES-256-GCM',
-      'Facebook-tokens slettes automatisk efter 90 dage',
       'Sessioner udløber efter 30 dage',
     ],
     // Hosting card
@@ -7728,20 +7697,13 @@ function PrivacySection({ lang, onLogout }) {
     ],
     // Consent management
     consentTitle: 'Samtykke-status',
-    consentFbImport: 'Facebook dataimport',
     consentDataProcessing: 'Generel databehandling',
     consentGiven: 'Samtykke givet',
     consentNotGiven: 'Intet samtykke',
     consentWithdrawn: 'Samtykke trukket tilbage',
     consentWithdrawBtn: 'Træk samtykke tilbage',
-    consentWithdrawConfirm: 'Er du sikker på, at du vil trække dit samtykke tilbage? Din Facebook-token vil blive slettet.',
+    consentWithdrawConfirm: 'Er du sikker på, at du vil trække dit samtykke tilbage?',
     consentDate: 'Givet den',
-    // Facebook data
-    fbTitle: 'Facebook-data',
-    fbDesc: 'Data importeret fra din Facebook-konto. I henhold til Facebooks platformvilkår og GDPR har du fuld kontrol over disse data.',
-    deleteFbBtn: 'Slet alle Facebook-data',
-    deleteFbDesc: 'Fjerner alle opslag, fotos og venskaber importeret fra Facebook. Dine egne opslag oprettet på fellis.eu bevares.',
-    confirmDeleteFb: 'Er du sikker? Alle dine importerede Facebook-opslag, fotos og venskaber vil blive slettet permanent. Dette kan ikke fortrydes.',
     // GDPR rights
     rightsTitle: 'Dine GDPR-rettigheder',
     rightExport: 'Ret til dataportabilitet (Art. 20)',
@@ -7771,11 +7733,10 @@ function PrivacySection({ lang, onLogout }) {
     // Status
     done: 'Udført!',
     error: 'Der opstod en fejl. Prøv igen.',
-    fbDeletedMsg: 'Alle Facebook-data er nu slettet permanent.',
   } : {
     // Page header
     title: 'Privacy & Data Management',
-    subtitle: 'Your rights under the EU GDPR regulation and Facebook Platform Terms',
+    subtitle: 'Your rights under the EU GDPR regulation',
     // Privacy notice
     privacyTitle: 'How we handle your data',
     privacyIntro: 'fellis.eu is a Danish platform hosted in the EU. We are committed to protecting your personal data under the EU General Data Protection Regulation (GDPR).',
@@ -7783,19 +7744,15 @@ function PrivacySection({ lang, onLogout }) {
     privacyWhat: [
       'Account information: name, email, profile picture',
       'Content you create: posts, comments, messages',
-      'Facebook data (only with your consent): posts, photos, friends list (only existing users)',
     ],
     privacyWhyTitle: 'Why we collect it',
     privacyWhy: [
       'To provide the platform functionality',
-      'To migrate your content from Facebook (only with consent)',
       'We NEVER sell your data or use it for advertising',
     ],
     privacyStorageTitle: 'Storage and security',
     privacyStorage: [
       'All data stored on EU servers (Denmark)',
-      'Facebook tokens encrypted with AES-256-GCM',
-      'Facebook tokens automatically deleted after 90 days',
       'Sessions expire after 30 days',
     ],
     // Hosting card
@@ -7819,20 +7776,13 @@ function PrivacySection({ lang, onLogout }) {
     ],
     // Consent management
     consentTitle: 'Consent Status',
-    consentFbImport: 'Facebook data import',
     consentDataProcessing: 'General data processing',
     consentGiven: 'Consent given',
     consentNotGiven: 'No consent',
     consentWithdrawn: 'Consent withdrawn',
     consentWithdrawBtn: 'Withdraw consent',
-    consentWithdrawConfirm: 'Are you sure you want to withdraw your consent? Your Facebook token will be deleted.',
+    consentWithdrawConfirm: 'Are you sure you want to withdraw your consent?',
     consentDate: 'Given on',
-    // Facebook data
-    fbTitle: 'Facebook Data',
-    fbDesc: 'Data imported from your Facebook account. Under Facebook Platform Terms and GDPR, you have full control over this data.',
-    deleteFbBtn: 'Delete all Facebook data',
-    deleteFbDesc: 'Removes all posts, photos, and friendships imported from Facebook. Your own posts created on fellis.eu are preserved.',
-    confirmDeleteFb: 'Are you sure? All your imported Facebook posts, photos, and friendships will be permanently deleted. This cannot be undone.',
     // GDPR rights
     rightsTitle: 'Your GDPR Rights',
     rightExport: 'Right to data portability (Art. 20)',
@@ -7862,7 +7812,6 @@ function PrivacySection({ lang, onLogout }) {
     // Status
     done: 'Done!',
     error: 'An error occurred. Please try again.',
-    fbDeletedMsg: 'All Facebook data has been permanently deleted.',
   }
 
   const handleExport = async () => {
@@ -7880,22 +7829,6 @@ function PrivacySection({ lang, onLogout }) {
         URL.revokeObjectURL(url)
         setMessage(t.done)
       }
-    } catch {
-      setMessage(t.error)
-    }
-    setLoading(null)
-  }
-
-  const handleDeleteFb = async () => {
-    if (!confirm(t.confirmDeleteFb)) return
-    setLoading('deleteFb')
-    setMessage('')
-    try {
-      await apiDeleteFacebookData()
-      setMessage(t.done)
-      // Refresh consent status
-      const data = await apiGetConsentStatus()
-      if (data) setConsents(data)
     } catch {
       setMessage(t.error)
     }
@@ -7967,7 +7900,7 @@ function PrivacySection({ lang, onLogout }) {
   const btnStyle = { padding: '12px 16px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', cursor: 'pointer', fontSize: 14, width: '100%', textAlign: 'left', display: 'block' }
   const dangerBtnStyle = { ...btnStyle, borderColor: '#e74c3c', color: '#e74c3c' }
 
-  const consentLabel = (type) => type === 'facebook_import' ? t.consentFbImport : t.consentDataProcessing
+  const consentLabel = (type) => t.consentDataProcessing
 
   const formatDate = (dateStr) => {
     if (!dateStr) return ''
@@ -8032,7 +7965,7 @@ function PrivacySection({ lang, onLogout }) {
         <h3 style={sectionTitleStyle}>{t.consentTitle}</h3>
         {consents ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {['facebook_import', 'data_processing'].map(type => {
+            {['data_processing'].map(type => {
               const c = consents[type]
               const isGiven = c?.given
               const isWithdrawn = c?.withdrawn_at
@@ -8060,23 +7993,6 @@ function PrivacySection({ lang, onLogout }) {
           </div>
         ) : (
           <p style={{ fontSize: 13, color: '#999' }}>...</p>
-        )}
-      </div>
-
-      {/* ── Facebook Data Management ── */}
-      <div style={sectionStyle}>
-        <h3 style={sectionTitleStyle}>{t.fbTitle}</h3>
-        <p style={{ fontSize: 13, color: '#555', marginBottom: 12 }}>{t.fbDesc}</p>
-        {fbDeleted ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderRadius: 8, background: '#F0FAF4', border: '1px solid #B7DFC8', color: '#1D6A3A', fontSize: 14 }}>
-            <span style={{ fontSize: 20, lineHeight: 1 }}>&#10003;</span>
-            <span>{t.fbDeletedMsg}</span>
-          </div>
-        ) : (
-          <button style={dangerBtnStyle} onClick={handleDeleteFb} disabled={loading === 'deleteFb'}>
-            <strong>{loading === 'deleteFb' ? '...' : t.deleteFbBtn}</strong>
-            <div style={{ fontSize: 12, color: '#aaa', marginTop: 2, fontWeight: 400 }}>{t.deleteFbDesc}</div>
-          </button>
         )}
       </div>
 
@@ -8703,8 +8619,7 @@ function ReferralDashboard({ t, lang, referralData, badges, leaderboard, inviteL
     const encoded = encodeURIComponent(url)
     const encodedText = encodeURIComponent(text || '')
     let shareUrl = ''
-    if (platform === 'facebook') shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encoded}`
-    else if (platform === 'twitter') shareUrl = `https://twitter.com/intent/tweet?url=${encoded}&text=${encodedText}`
+    if (platform === 'twitter') shareUrl = `https://twitter.com/intent/tweet?url=${encoded}&text=${encodedText}`
     else if (platform === 'linkedin') shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encoded}`
     else if (platform === 'whatsapp') shareUrl = `https://wa.me/?text=${encodedText}%20${encoded}`
     if (shareUrl) window.open(shareUrl, '_blank', 'width=600,height=400,noopener,noreferrer')
@@ -8986,12 +8901,6 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
     setTimeout(() => setInviteCopied(false), 2000)
   }, [inviteLink])
 
-  const handleFbShare = useCallback(() => {
-    const shareUrl = encodeURIComponent(inviteLink || 'https://fellis.eu')
-    window.open(`https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`, 'facebook-share', 'width=580,height=400')
-    apiTrackShare('invite', null, 'facebook').catch(() => {})
-  }, [inviteLink])
-
   const handleLinkedInShare = useCallback(() => {
     const shareUrl = encodeURIComponent(inviteLink || 'https://fellis.eu')
     window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${shareUrl}`, 'linkedin-share', 'width=600,height=500')
@@ -9117,7 +9026,7 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
         </div>
       )}
 
-      {/* Invite friends card – email + link + Facebook */}
+      {/* Invite friends card – email + link */}
       <div className="p-card p-invite-card">
         <h3 className="p-section-title" style={{ margin: '0 0 6px' }}>
           {t.inviteFriends}
@@ -9178,10 +9087,6 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
           </button>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button className="p-fb-share-btn" onClick={handleFbShare}>
-            <span className="fb-icon">f</span>
-            {t.referralDashShareFb}
-          </button>
           <button className="p-fb-share-btn" onClick={handleTwitterShare} style={{ background: '#000' }}>
             <span className="fb-icon" style={{ fontFamily: 'serif', fontWeight: 900 }}>𝕏</span>
             {t.referralDashShareTwitter}
@@ -16938,7 +16843,7 @@ function AdminViralStats({ viralStats, viralDays, setViralDays, lang }) {
               <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700 }}>📡 {da ? 'Deling pr. platform' : 'Shares by platform'}</h3>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
                 {vs.sharePlatforms.map((p, i) => {
-                  const icons = { facebook: '📘', twitter: '🐦', linkedin: '🔵', whatsapp: '💬', unknown: '🔗' }
+                  const icons = { twitter: '🐦', linkedin: '🔵', whatsapp: '💬', unknown: '🔗' }
                   const total = vs.sharePlatforms.reduce((a, b) => a + b.count, 0)
                   const pct = Math.round((p.count / total) * 100)
                   return (

@@ -544,7 +544,7 @@
   }
 }
 
-/* ── Facebook connect ── */
+/* ── OAuth connect ── */
 .fb-btn {
   display: flex;
   align-items: center;
@@ -897,7 +897,7 @@
   font-weight: 500;
 }
 
-/* ── Facebook Login Modal ── */
+/* ── Login Modal ── */
 .modal-backdrop {
   position: fixed;
   top: 0;
