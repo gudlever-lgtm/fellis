@@ -611,21 +611,19 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
         </div>
       )}
 
-      {/* Landing heading */}
+      {/* Landing — full viewport layout */}
       {step === 4 && (
-        <div className="landing">
-          <h1>{t.headline}</h1>
-          <p className="landing-subtitle">{t.subtitle}</p>
-        </div>
-      )}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 'calc(100vh - 57px)', padding: '12px 16px', boxSizing: 'border-box', overflow: 'hidden' }}>
 
-      {/* Registration */}
-      {step === 4 && (
-        <div className="step-container done-page" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          {/* Heading */}
+          <div style={{ textAlign: 'center', marginBottom: 12 }}>
+            <h1 className="landing-vh-h1" style={{ fontSize: 32, lineHeight: 1.2, fontWeight: 700, margin: '0 0 6px' }}>{t.headline}</h1>
+            <p style={{ fontSize: 15, color: '#6B6560', margin: 0, lineHeight: 1.5 }}>{t.subtitle}</p>
+          </div>
 
           {/* Registration form */}
-          <form className="register-form" onSubmit={handleRegister} style={{ border: '1px solid #E0DCD7', borderRadius: 14, padding: '28px 24px', maxWidth: 440, width: '100%', boxSizing: 'border-box' }}>
-            <h3 className="register-title">{t.registerTitle}</h3>
+          <form className="register-form" onSubmit={handleRegister} style={{ border: '1px solid #E0DCD7', borderRadius: 14, padding: '18px 22px', maxWidth: 420, width: '100%', boxSizing: 'border-box', margin: 0, gap: 8 }}>
+            <h3 className="register-title" style={{ marginBottom: 2 }}>{t.registerTitle}</h3>
             {/* Honeypot — hidden from users, filled only by bots */}
             <input
               type="text"
@@ -675,8 +673,8 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
             />
             <PasswordStrengthIndicator password={regPassword} lang={lang} />
             {/* Math challenge — simple human verification */}
-            <div style={{ marginTop: 10, marginBottom: 4 }}>
-              <label style={{ display: 'block', fontSize: 13, color: '#555', marginBottom: 4 }}>
+            <div style={{ marginTop: 2, marginBottom: 0 }}>
+              <label style={{ display: 'block', fontSize: 13, color: '#555', marginBottom: 2 }}>
                 {t.registerMathChallenge(mathChallenge.a, mathChallenge.b)}
               </label>
               <input
@@ -689,7 +687,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
                 style={{ marginTop: 0 }}
               />
             </div>
-            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 12, cursor: 'pointer', fontSize: 13, color: '#555', lineHeight: 1.5 }}>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 4, cursor: 'pointer', fontSize: 13, color: '#555', lineHeight: 1.5 }}>
               <input
                 type="checkbox"
                 checked={gdprAccepted}
@@ -710,14 +708,14 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
             </button>
           </form>
 
-          {/* Trust + services row — bottom of page */}
-          <div style={{ marginTop: 32, width: '100%' }}>
-            <div className="trust-row">
-              <div className="trust-item"><div className="trust-icon">🔒</div><span className="trust-label">{t.trustEncrypt}</span></div>
-              <div className="trust-item"><div className="trust-icon">🇪🇺</div><a href="https://yggdrasilcloud.dk/" target="_blank" rel="noopener noreferrer" className="trust-label trust-link">{t.trustEU}</a></div>
-              <div className="trust-item"><div className="trust-icon">🛡️</div><span className="trust-label">{t.trustDelete}</span></div>
+          {/* Trust + services row — bottom */}
+          <div style={{ marginTop: 16, width: '100%', maxWidth: 700 }}>
+            <div className="trust-row" style={{ marginTop: 0, gap: 28 }}>
+              <div className="trust-item"><div className="trust-icon" style={{ fontSize: 16 }}>🔒</div><span className="trust-label">{t.trustEncrypt}</span></div>
+              <div className="trust-item"><div className="trust-icon" style={{ fontSize: 16 }}>🇪🇺</div><a href="https://yggdrasilcloud.dk/" target="_blank" rel="noopener noreferrer" className="trust-label trust-link">{t.trustEU}</a></div>
+              <div className="trust-item"><div className="trust-icon" style={{ fontSize: 16 }}>🛡️</div><span className="trust-label">{t.trustDelete}</span></div>
             </div>
-            <div className="landing-services-row">
+            <div className="landing-services-row" style={{ marginTop: 10 }}>
               <span className="landing-services-label">{t.servicesLabel}:</span>
               {t.services.map(svc => (
                 <a key={svc.name} href={svc.url} target="_blank" rel="noopener noreferrer" className="landing-service-chip">
