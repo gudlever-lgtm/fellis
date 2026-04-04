@@ -3626,7 +3626,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                 </div>
                 <div className="p-post-time">
                   {post.time[lang]}
-                  {post.placeName && <span style={{ marginLeft: 6, color: '#2D6A4F', fontSize: 11 }}>📍 {post.placeName}</span>}
+                  {(post.placeName || post.location?.name) && <span style={{ marginLeft: 6, color: '#2D6A4F', fontSize: 11 }}>📍 {t.checkedInAt} {post.placeName || post.location.name}</span>}
                 </div>
               </div>
               <div style={{ position: 'relative' }}>

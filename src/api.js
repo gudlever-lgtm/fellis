@@ -177,9 +177,12 @@ export async function apiCreatePost(text, mediaFiles, scheduledAt, categories, l
     form.append('text', text)
     if (scheduledAt) form.append('scheduled_at', scheduledAt)
     if (categories?.length) form.append('categories', JSON.stringify(categories))
-    if (location?.place_name) form.append('place_name', location.place_name)
-    if (location?.geo_lat != null) form.append('geo_lat', location.geo_lat)
-    if (location?.geo_lng != null) form.append('geo_lng', location.geo_lng)
+    const locName = location?.place_name || location?.name
+    const locLat = location?.geo_lat ?? location?.lat
+    const locLng = location?.geo_lng ?? location?.lng
+    if (locName) form.append('place_name', locName)
+    if (locLat != null) form.append('geo_lat', locLat)
+    if (locLng != null) form.append('geo_lng', locLng)
     if (taggedUsers?.length) form.append('tagged_users', JSON.stringify(taggedUsers))
     if (linkedContent?.type) { form.append('linked_type', linkedContent.type); form.append('linked_id', linkedContent.id) }
     for (const file of mediaFiles) {
@@ -208,7 +211,7 @@ export async function apiCreatePost(text, mediaFiles, scheduledAt, categories, l
       text,
       ...(scheduledAt ? { scheduled_at: scheduledAt } : {}),
       ...(categories?.length ? { categories } : {}),
-      ...(location?.place_name ? location : {}),
+      ...(location ? { place_name: location.place_name || location.name, geo_lat: location.geo_lat ?? location.lat, geo_lng: location.geo_lng ?? location.lng } : {}),
       ...(taggedUsers?.length ? { tagged_users: taggedUsers } : {}),
       ...(linkedContent?.type ? { linked_type: linkedContent.type, linked_id: linkedContent.id } : {}),
     }),
