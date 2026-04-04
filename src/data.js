@@ -59,6 +59,9 @@ export const EUROPEAN_LANGUAGES = [
 // Kept for backwards compatibility (alias)
 export const SUPPORTED_LANGS = EUROPEAN_LANGUAGES
 
+// UI language options — only languages with full PT translations
+export const UI_LANGS = EUROPEAN_LANGUAGES.filter(l => ['da', 'en'].includes(l.code))
+
 // Map IP country codes to language codes
 export const IP_COUNTRY_LANG_MAP = {
   'DK': 'da',
@@ -95,9 +98,8 @@ export async function detectLangFromIP() {
     const res = await fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(3000) })
     if (!res.ok) return null
     const data = await res.json()
-    const codes = EUROPEAN_LANGUAGES.map(l => l.code)
     const mapped = IP_COUNTRY_LANG_MAP[data.country_code]
-    if (mapped && codes.includes(mapped)) return mapped
+    if (mapped === 'da') return 'da'
     return null
   } catch {
     return null
@@ -107,12 +109,12 @@ export async function detectLangFromIP() {
 // Auto-detect best language from browser preferences or IP
 export function detectLang() {
   const stored = localStorage.getItem('fellis_lang')
-  const codes = EUROPEAN_LANGUAGES.map(l => l.code)
-  if (stored && codes.includes(stored)) return stored
+  if (stored === 'da' || stored === 'en') return stored
   // Try browser language preferences
   for (const pref of (navigator.languages || [])) {
     const code = pref.split('-')[0].toLowerCase()
-    if (codes.includes(code)) return code
+    if (code === 'da') return 'da'
+    if (code === 'en') return 'en'
   }
   return 'da'
 }

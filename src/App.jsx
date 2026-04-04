@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react'
 import Landing from './Landing.jsx'
 import Platform from './Platform.jsx'
 import { apiCheckSession, apiLogout, apiGiveConsent, apiGetInviteInfo, apiTrackVisit, apiGetCsrfToken, apiGetUserByHandle } from './api.js'
-import { SUPPORTED_LANGS, detectLang, detectLangFromIP, PT } from './data.js'
+import { UI_LANGS, detectLang, detectLangFromIP, PT } from './data.js'
 import { USER_LS_KEY } from './hooks/useEasterEggs.js'
 import './App.css'
 
@@ -30,7 +30,7 @@ function PublicPrivacyPage() {
     <div style={s.page}>
       <nav style={s.nav}>
         <a href="/" style={s.brand}>fellis.eu</a>
-        <select style={s.langBtn} value={lang} onChange={e => setLang(e.target.value)} aria-label="Language">{SUPPORTED_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}</select>
+        <select style={s.langBtn} value={lang} onChange={e => setLang(e.target.value)} aria-label="Language">{UI_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}</select>
       </nav>
 
       <h1 style={s.h1}>{da ? 'Privatlivspolitik' : 'Privacy Policy'}</h1>
@@ -164,7 +164,7 @@ function PublicTermsPage() {
     <div style={s.page}>
       <nav style={s.nav}>
         <a href="/" style={s.brand}>fellis.eu</a>
-        <select style={s.langBtn} value={lang} onChange={e => setLang(e.target.value)} aria-label="Language">{SUPPORTED_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}</select>
+        <select style={s.langBtn} value={lang} onChange={e => setLang(e.target.value)} aria-label="Language">{UI_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}</select>
       </nav>
 
       <h1 style={s.h1}>{da ? 'Servicevilkår' : 'Terms of Service'}</h1>
