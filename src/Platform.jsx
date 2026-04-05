@@ -2268,6 +2268,9 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [showScrollTop, setShowScrollTop] = useState(false)
   const [mediaMaxFiles, setMediaMaxFiles] = useState(4)
   const mediaMaxFilesRef = useRef(4)
+  const [posting, setPosting] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [uploadPhase, setUploadPhase] = useState(null) // 'upload' | 'processing' | 'submitting' | null
   const [scheduleEnabled, setScheduleEnabled] = useState(false)
   const [scheduledAt, setScheduledAt] = useState('')
   const [locationMapPost, setLocationMapPost] = useState(null) // post whose map is shown in modal
@@ -2395,14 +2398,21 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   }, [])
 
   const handleFileSelect = useCallback((e) => {
-    const files = Array.from(e.target.files).slice(0, mediaMaxFilesRef.current)
-    setMediaFiles(files)
-    const previews = files.map(f => ({
-      url: URL.createObjectURL(f),
-      type: f.type.startsWith('video/') ? 'video' : 'image',
-      name: f.name,
-    }))
-    setMediaPreviews(previews)
+    const max = mediaMaxFilesRef.current
+    const incoming = Array.from(e.target.files)
+    setMediaFiles(prev => {
+      const combined = [...prev, ...incoming].slice(0, max)
+      return combined
+    })
+    setMediaPreviews(prev => {
+      const room = Math.max(0, max - prev.length)
+      const added = incoming.slice(0, room).map(f => ({
+        url: URL.createObjectURL(f),
+        type: f.type.startsWith('video/') ? 'video' : 'image',
+        name: f.name,
+      }))
+      return [...prev, ...added]
+    })
     setPostExpanded(true)
   }, [])
 
@@ -2416,7 +2426,14 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
 
 
   const doCreatePost = useCallback((text, files, schedAt, categories, loc, tagged, linked) => {
-    apiCreatePost(text, files, schedAt || undefined, categories?.size ? [...categories] : undefined, loc || undefined, tagged?.length ? tagged : undefined, linked || undefined).then(data => {
+    setPosting(true)
+    setUploadProgress(0)
+    setUploadPhase(files?.length ? 'upload' : 'submitting')
+    const onProgress = ({ loaded, total, phase }) => {
+      setUploadPhase(phase)
+      setUploadProgress(total > 0 ? Math.round((loaded / total) * 100) : 0)
+    }
+    apiCreatePost(text, files, schedAt || undefined, categories?.size ? [...categories] : undefined, loc || undefined, tagged?.length ? tagged : undefined, linked || undefined, onProgress).then(data => {
       if (data?.scheduled) {
         // Scheduled post — don't add to feed, just show a toast
         return
@@ -2442,6 +2459,27 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
           authorBadgeCount: 0,
         }, ...prev])
       }
+      // Clear form state only on success
+      setNewPostText('')
+      setMediaFiles([])
+      setMediaPreviews([])
+      setProviderMediaUrls([])
+      setPostExpanded(false)
+      setPostCategories(new Set())
+      setAutoCategories(new Set())
+      setShowCategoryPicker(false)
+      setScheduleEnabled(false)
+      setScheduledAt('')
+      setPostLocation(null)
+      setLocationSearchText('')
+      setLocationResults([])
+      setLocationSearchOpen(false)
+      setTaggedUsers([])
+      setLinkedContent(null)
+      setShowTagPicker(false)
+      setShowAttachPicker(false)
+      setCatPickerSearch('')
+      if (textareaRef.current) textareaRef.current.style.height = 'auto'
     }).catch(err => {
       console.error('Failed to create post:', err)
       const isDa = lang === 'da'
@@ -2452,31 +2490,17 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         msg = isDa
           ? 'Netværksfejl — kunne ikke nå serveren. Prøv en mindre fil eller tjek forbindelsen.'
           : 'Network error — could not reach server. Try a smaller file or check your connection.'
+      } else if (err.code === 'TIMEOUT') {
+        msg = isDa ? 'Upload timed out — prøv med færre/mindre filer' : 'Upload timed out — try fewer/smaller files'
       } else {
         msg = isDa ? `Kunne ikke oprette opslag: ${err.message}` : `Could not create post: ${err.message}`
       }
       alert(msg)
+    }).finally(() => {
+      setPosting(false)
+      setUploadProgress(0)
+      setUploadPhase(null)
     })
-    setNewPostText('')
-    setMediaFiles([])
-    setMediaPreviews([])
-    setProviderMediaUrls([])
-    setPostExpanded(false)
-    setPostCategories(new Set())
-    setAutoCategories(new Set())
-    setShowCategoryPicker(false)
-    setScheduleEnabled(false)
-    setScheduledAt('')
-    setPostLocation(null)
-    setLocationSearchText('')
-    setLocationResults([])
-    setLocationSearchOpen(false)
-    setTaggedUsers([])
-    setLinkedContent(null)
-    setShowTagPicker(false)
-    setShowAttachPicker(false)
-    setCatPickerSearch('')
-    if (textareaRef.current) textareaRef.current.style.height = 'auto'
   }, [mediaPreviews, currentUser.name, currentUser.id, currentUser.mode, lang, onBadgeCheck])
 
   const handlePost = useCallback(async () => {
@@ -2491,10 +2515,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     }
     const schedAt = scheduleEnabled && scheduledAt ? scheduledAt : null
     doCreatePost(text, files, schedAt, postCategories, postLocation, taggedUsers, linkedContent)
-    setNewPostText('')
-    setMediaFiles([])
-    setMediaPreviews([])
-    setPostExpanded(false)
   }, [newPostText, mediaFiles, providerMediaUrls, doCreatePost, scheduleEnabled, scheduledAt, postCategories, postLocation, taggedUsers, linkedContent])
 
   const toggleLike = useCallback((id, emoji) => {
@@ -2851,6 +2871,28 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
 
       {/* New post */}
       <div className="p-card p-new-post">
+        {/* Upload progress banner */}
+        {posting && (
+          <div style={{ marginBottom: 8, padding: '8px 10px', background: '#F0FAF4', border: '1px solid #2D6A4F', borderRadius: 8, fontSize: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#2D6A4F', fontWeight: 600, marginBottom: 4 }}>
+              <span>
+                {uploadPhase === 'upload' && (lang === 'da' ? `Uploader… ${uploadProgress}%` : `Uploading… ${uploadProgress}%`)}
+                {uploadPhase === 'processing' && (lang === 'da' ? 'Behandler filer…' : 'Processing files…')}
+                {uploadPhase === 'submitting' && (lang === 'da' ? 'Opretter opslag…' : 'Creating post…')}
+                {!uploadPhase && (lang === 'da' ? 'Sender…' : 'Sending…')}
+              </span>
+            </div>
+            <div style={{ height: 6, background: '#D4E9DC', borderRadius: 3, overflow: 'hidden' }}>
+              <div style={{
+                height: '100%',
+                width: uploadPhase === 'upload' ? `${uploadProgress}%` : '100%',
+                background: '#2D6A4F',
+                transition: 'width 0.2s ease',
+                animation: uploadPhase !== 'upload' ? 'dotPulse 1.2s ease-in-out infinite' : undefined,
+              }} />
+            </div>
+          </div>
+        )}
         {/* Collapsed prompt — click anywhere to expand */}
         {!postExpanded && !newPostText && !mediaPreviews.length ? (
           <div className="p-new-post-row p-new-post-collapsed">
@@ -3377,11 +3419,12 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   <span className="p-input-hint-icon" ref={hintIconRef} data-egg-hints onClick={handleHintIconClick}>?</span>
                   <span className="p-input-hint-tooltip">{t.postInputHint}</span>
                 </span>
-                <button className="p-post-btn" onMouseDown={e => e.preventDefault()} onClick={handlePost} disabled={!newPostText.trim() && !mediaPreviews.length && !providerMediaUrls.length}
+                <button className="p-post-btn" onMouseDown={e => e.preventDefault()} onClick={handlePost}
+                  disabled={posting || (!newPostText.trim() && !mediaPreviews.length && !providerMediaUrls.length)}
                   title={scheduleEnabled && scheduledAt ? (t.schedule) : t.post}
-                  style={{ minWidth: 0, padding: '8px 14px', fontSize: 18, lineHeight: 1 }}
+                  style={{ minWidth: 0, padding: '8px 14px', fontSize: 18, lineHeight: 1, opacity: posting ? 0.6 : 1 }}
                 >
-                  {scheduleEnabled && scheduledAt ? '🕐' : '→'}
+                  {posting ? '…' : (scheduleEnabled && scheduledAt ? '🕐' : '→')}
                 </button>
               </div>
             </div>

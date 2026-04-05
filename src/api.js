@@ -170,7 +170,7 @@ export async function apiFetchMemories() {
   return await request('/api/feed/memories')
 }
 
-export async function apiCreatePost(text, mediaFiles, scheduledAt, categories, location, taggedUsers, linkedContent) {
+export async function apiCreatePost(text, mediaFiles, scheduledAt, categories, location, taggedUsers, linkedContent, onProgress) {
   if (mediaFiles?.length) {
     // Pre-flight: validate file sizes client-side (50MB per file, 200MB total)
     const MAX_FILE = 50 * 1024 * 1024
@@ -205,30 +205,52 @@ export async function apiCreatePost(text, mediaFiles, scheduledAt, categories, l
     for (const file of mediaFiles) {
       form.append('media', file)
     }
-    try {
-      const res = await fetch(`${API_BASE}/api/feed`, {
-        method: 'POST',
-        headers: formHeaders(),
-        credentials: 'same-origin',
-        body: form,
-      })
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        const err = new Error(body.error || `HTTP ${res.status}`)
-        err.status = res.status
-        throw err
+    // Use XMLHttpRequest for upload progress (fetch doesn't expose it)
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      xhr.open('POST', `${API_BASE}/api/feed`, true)
+      xhr.withCredentials = true
+      const csrf = getCsrfToken()
+      if (csrf) xhr.setRequestHeader('X-CSRF-Token', csrf)
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable && onProgress) {
+          onProgress({ loaded: e.loaded, total: e.total, phase: 'upload' })
+        }
       }
-      return await res.json()
-    } catch (err) {
-      // TypeError here = network-level failure (connection reset, CORS, DNS, etc.).
-      // Common cause is the proxy/server rejecting the payload before responding.
-      if (err instanceof TypeError) {
-        const netErr = new Error('Network error — could not reach server (upload may be too large)')
-        netErr.code = 'NETWORK_ERROR'
-        throw netErr
+      xhr.upload.onload = () => {
+        if (onProgress) onProgress({ loaded: total, total, phase: 'processing' })
       }
-      throw err
-    }
+      xhr.onerror = () => {
+        const err = new Error('Network error — could not reach server (upload may be too large)')
+        err.code = 'NETWORK_ERROR'
+        reject(err)
+      }
+      xhr.ontimeout = () => {
+        const err = new Error('Upload timed out')
+        err.code = 'TIMEOUT'
+        reject(err)
+      }
+      xhr.onabort = () => {
+        const err = new Error('Upload cancelled')
+        err.code = 'ABORTED'
+        reject(err)
+      }
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try { resolve(JSON.parse(xhr.responseText)) }
+          catch { resolve(null) }
+        } else {
+          let body = {}
+          try { body = JSON.parse(xhr.responseText) } catch {}
+          const err = new Error(body.error || `HTTP ${xhr.status}`)
+          err.status = xhr.status
+          reject(err)
+        }
+      }
+      // 5 minute timeout for large uploads
+      xhr.timeout = 5 * 60 * 1000
+      xhr.send(form)
+    })
   }
   return await request('/api/feed', {
     method: 'POST',
