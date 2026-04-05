@@ -782,11 +782,14 @@ const storage = multer.diskStorage({
   },
 })
 
+// Hard ceiling for uploads — per-route limits are enforced via upload.array('field', N)
+// and runtime validation against admin config. Kept generous so admin can configure up to 20.
+const UPLOAD_FILES_CEILING = 20
 const upload = multer({
   storage,
   limits: {
     fileSize: 50 * 1024 * 1024, // 50 MB max
-    files: 4,                    // max 4 files per post
+    files: UPLOAD_FILES_CEILING,
   },
   fileFilter: (_req, file, cb) => {
     if (!ALLOWED_MIME_TYPES.has(file.mimetype)) {
@@ -3121,8 +3124,35 @@ app.post('/api/feed/preflight', authenticate, (req, res) => {
   res.json({ ok: kw.action !== 'block', flagged: kw.action === 'flag', blocked: kw.action === 'block', keyword: kw.keyword, category: kw.category || null, notes: kw.notes || null })
 })
 
+// Cache for media_max_files admin setting (refreshed every 60s)
+let _mediaMaxFilesCache = { value: 4, expiresAt: 0 }
+async function getMediaMaxFiles() {
+  const now = Date.now()
+  if (now < _mediaMaxFilesCache.expiresAt) return _mediaMaxFilesCache.value
+  try {
+    const [rows] = await pool.query("SELECT key_value FROM admin_settings WHERE key_name = 'media_max_files'")
+    const val = rows[0]?.key_value ? parseInt(rows[0].key_value, 10) : 4
+    const clamped = Math.max(1, Math.min(val || 4, UPLOAD_FILES_CEILING))
+    _mediaMaxFilesCache = { value: clamped, expiresAt: now + 60_000 }
+    return clamped
+  } catch {
+    return _mediaMaxFilesCache.value
+  }
+}
+// Invalidate the cache (called when admin updates settings)
+function invalidateMediaMaxFilesCache() { _mediaMaxFilesCache.expiresAt = 0 }
+
 // POST /api/feed — create a new post (with optional media)
-app.post('/api/feed', authenticate, writeLimit, upload.array('media', 4), async (req, res) => {
+app.post('/api/feed', authenticate, writeLimit, upload.array('media', UPLOAD_FILES_CEILING), async (req, res) => {
+  // Enforce admin-configured media max files at runtime
+  const mediaMax = await getMediaMaxFiles()
+  if (req.files?.length > mediaMax) {
+    // Clean up all uploaded files that exceed the limit
+    for (const f of req.files) {
+      try { fs.unlinkSync(f.path) } catch {}
+    }
+    return res.status(400).json({ error: `Too many files (max ${mediaMax})` })
+  }
   const { text, scheduled_at, place_name, geo_lat, geo_lng } = req.body
   const rawCats = req.body.categories
   const categories = rawCats ? (typeof rawCats === 'string' ? JSON.parse(rawCats) : rawCats) : null
@@ -8002,6 +8032,8 @@ app.post('/api/admin/settings', authenticate, requireAdmin, async (req, res) => 
       }
       await pool.query('INSERT INTO admin_settings (key_name, key_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE key_value = VALUES(key_value)', [key, value])
     }
+    // Invalidate cached settings so new values take effect immediately
+    invalidateMediaMaxFilesCache()
     res.json({ ok: true })
   } catch (err) {
     res.status(500).json({ error: 'Failed to save settings' })
