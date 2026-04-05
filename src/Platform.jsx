@@ -2442,6 +2442,9 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
           authorBadgeCount: 0,
         }, ...prev])
       }
+    }).catch(err => {
+      console.error('Failed to create post:', err)
+      alert(lang === 'da' ? `Kunne ikke oprette opslag: ${err.message}` : `Could not create post: ${err.message}`)
     })
     setNewPostText('')
     setMediaFiles([])
@@ -2463,7 +2466,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     setShowAttachPicker(false)
     setCatPickerSearch('')
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
-  }, [mediaPreviews, currentUser.name])
+  }, [mediaPreviews, currentUser.name, currentUser.id, currentUser.mode, lang, onBadgeCheck])
 
   const handlePost = useCallback(async () => {
     if (!newPostText.trim() && !mediaFiles.length && !providerMediaUrls.length) return
@@ -3429,7 +3432,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         const items = []
         let extraIdx = 0
         for (let i = 0; i <= filteredPosts.length; i++) {
-          const postTs = i < filteredPosts.length ? new Date(filteredPosts[i].created_at).getTime() : -Infinity
+          const postTs = i < filteredPosts.length ? new Date(filteredPosts[i].createdAtRaw || filteredPosts[i].created_at).getTime() : -Infinity
           while (extraIdx < extras.length && extras[extraIdx]._ts >= postTs) {
             items.push({ kind: extras[extraIdx]._type, data: extras[extraIdx]._data })
             extraIdx++
