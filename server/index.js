@@ -3175,6 +3175,10 @@ app.post('/api/feed', authenticate, writeLimit, upload.array('media', 4), async 
       )
     )
     const [users] = await pool.query('SELECT name, mode FROM users WHERE id = ?', [req.userId])
+      .catch(async () => {
+        const [rows] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
+        return [rows.map(r => ({ ...r, mode: 'privat' }))]
+      })
     const [[badgeRow]] = await pool.query('SELECT COUNT(*) as cnt FROM earned_badges WHERE user_id = ?', [req.userId]).catch(() => [[{ cnt: 0 }]])
     const now = new Date()
     const postId = result.insertId
