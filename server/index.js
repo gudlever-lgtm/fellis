@@ -11621,6 +11621,27 @@ app.get('/api/geocode', async (req, res) => {
   }
 })
 
+// Nominatim reverse geocode proxy — returns nearest address/venue for a lat/lng pair
+app.get('/api/geocode/reverse', async (req, res) => {
+  const lat = parseFloat(req.query.lat)
+  const lng = parseFloat(req.query.lng)
+  const lang = req.query.lang || 'da'
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return res.status(400).json({ error: 'Invalid coordinates' })
+  const now = Date.now()
+  const wait = 1100 - (now - nominatimLastCall)
+  if (wait > 0) await new Promise(r => setTimeout(r, wait))
+  nominatimLastCall = Date.now()
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=18&addressdetails=1&accept-language=${lang}`
+    const r = await fetch(url, { headers: { 'User-Agent': 'fellis.eu/1.0 (contact@fellis.eu)' } })
+    if (!r.ok) return res.status(r.status).json({ error: 'Reverse geocode failed' })
+    const data = await r.json()
+    res.json(data)
+  } catch {
+    res.status(502).json({ error: 'Reverse geocode failed' })
+  }
+})
+
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
   console.log(`fellis.eu API running on http://localhost:${PORT}`)

@@ -40,7 +40,7 @@ import MatrixRain from './components/easter-eggs/MatrixRain.jsx'
 import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
 import RickRoll from './components/easter-eggs/RickRoll.jsx'
 import RiddleBanner from './components/easter-eggs/RiddleBanner.jsx'
-import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness, apiPayForAd, apiBoostPost, apiTrackAdImpression, apiTrackAdClick, apiAdminGrowth, apiAdminOnlineNow, apiAdminGetBannedUsers, apiAdminGetAuditLog, apiAdminSearchUsers, apiAdminForceLogout, apiAdminDeleteUser } from './api.js'
+import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode, apiReverseGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness, apiPayForAd, apiBoostPost, apiTrackAdImpression, apiTrackAdClick, apiAdminGrowth, apiAdminOnlineNow, apiAdminGetBannedUsers, apiAdminGetAuditLog, apiAdminSearchUsers, apiAdminForceLogout, apiAdminDeleteUser } from './api.js'
 import BusinessBadge from './components/BusinessBadge.jsx'
 import BusinessDirectory from './pages/BusinessDirectory.jsx'
 import AdManager from './pages/AdManager.jsx'
@@ -2055,6 +2055,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [locationResults, setLocationResults] = useState([])
   const [locationSearching, setLocationSearching] = useState(false)
   const locationDebounce = useRef(null)
+  const [checkInBusy, setCheckInBusy] = useState(false)
+  const [checkInError, setCheckInError] = useState(null)
   // Signal engine: track dwell time on posts via IntersectionObserver
   const dwellTimers = useRef(new Map())   // postId → { startMs, postId, categories }
   const signalQueue = useRef([])
@@ -3109,6 +3111,14 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
               </div>
             )}
 
+            {/* Check-in error */}
+            {checkInError && (
+              <div style={{ padding: '6px 4px 0', fontSize: 12, color: '#b42318' }}>
+                ⚠️ {checkInError}
+                <button type="button" onClick={() => setCheckInError(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', marginLeft: 6, fontSize: 13 }}>×</button>
+              </div>
+            )}
+
             {/* Selected location chip */}
             {postLocation && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 4px 0' }}>
@@ -3258,6 +3268,43 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   title={t.addLocation}
                 >
                   📍
+                </button>
+                {/* Check in button — reverse-geocodes browser location to nearest venue/address */}
+                <button
+                  type="button"
+                  onMouseDown={e => e.preventDefault()}
+                  disabled={checkInBusy}
+                  onClick={() => {
+                    setCheckInError(null)
+                    if (!navigator.geolocation) { setCheckInError(t.checkInUnsupported); return }
+                    setCheckInBusy(true)
+                    navigator.geolocation.getCurrentPosition(async pos => {
+                      const { latitude, longitude } = pos.coords
+                      const data = await apiReverseGeocode(latitude, longitude, lang)
+                      setCheckInBusy(false)
+                      if (!data || data.error) { setCheckInError(t.checkInFailed); return }
+                      const addr = data.address || {}
+                      // Prefer venue-style names; fall back to street address
+                      const venue = addr.amenity || addr.shop || addr.leisure || addr.tourism || addr.building || addr.office || data.name || null
+                      const street = [addr.road, addr.house_number].filter(Boolean).join(' ')
+                      const city = addr.city || addr.town || addr.village || addr.suburb || null
+                      const label = venue
+                        ? [venue, city].filter(Boolean).join(', ')
+                        : (street ? [street, city].filter(Boolean).join(', ') : (data.display_name || '').split(',').slice(0, 2).join(',').trim())
+                      if (!label) { setCheckInError(t.checkInFailed); return }
+                      setPostLocation({ lat: latitude, lng: longitude, name: label })
+                      setLocationSearchOpen(false)
+                      setLocationSearchText('')
+                      setLocationResults([])
+                    }, err => {
+                      setCheckInBusy(false)
+                      setCheckInError(err && err.code === 1 ? t.checkInDenied : t.checkInFailed)
+                    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 })
+                  }}
+                  style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${checkInBusy ? '#1877F2' : '#ddd'}`, background: checkInBusy ? '#EBF4FF' : '#fff', color: checkInBusy ? '#1877F2' : '#555', fontSize: 13, cursor: checkInBusy ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: 4, opacity: checkInBusy ? 0.7 : 1 }}
+                  title={t.checkIn}
+                >
+                  📌 {checkInBusy ? t.checkingIn : t.checkIn}
                 </button>
                 {/* Tag people toggle */}
                 <button

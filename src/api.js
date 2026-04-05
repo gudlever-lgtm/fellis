@@ -799,6 +799,10 @@ export async function apiGeocode(q, lang = 'da') {
   return await request(`/api/geocode?q=${encodeURIComponent(q)}&lang=${lang}`)
 }
 
+export async function apiReverseGeocode(lat, lng, lang = 'da') {
+  return await request(`/api/geocode/reverse?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}&lang=${lang}`)
+}
+
 export async function apiGetPublicProfile(handle) {
   try {
     const res = await fetch(`${API_BASE}/api/public/profile/${encodeURIComponent(handle)}`)
