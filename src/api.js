@@ -2,6 +2,8 @@
 // Falls back to null when the server is unavailable (demo mode uses mock data)
 // Session ID now uses HTTP-only cookies (fellis_sid) — no longer in localStorage
 
+import { enqueuePost, processQueue, installAutoFlush } from './uploadQueue.js'
+
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
 function getCsrfToken() {
@@ -170,6 +172,121 @@ export async function apiFetchMemories() {
   return await request('/api/feed/memories')
 }
 
+// Single XHR upload attempt. Uses a stall-based inactivity timer (2 min
+// without any progress) instead of a wall-clock timeout, so slow-but-
+// steady uploads on mobile connections are not killed prematurely.
+function uploadPostOnce(payload, onProgress) {
+  const { text, files, schedAt, categories, location, taggedUsers, linkedContent } = payload
+  const total = files.reduce((sum, f) => sum + f.size, 0)
+  const STALL_MS = 2 * 60 * 1000
+
+  return new Promise((resolve, reject) => {
+    const form = new FormData()
+    form.append('text', text || '')
+    if (schedAt) form.append('scheduled_at', schedAt)
+    if (categories?.length) form.append('categories', JSON.stringify(categories))
+    const locName = location?.place_name || location?.name
+    const locLat = location?.geo_lat ?? location?.lat
+    const locLng = location?.geo_lng ?? location?.lng
+    if (locName) form.append('place_name', locName)
+    if (locLat != null) form.append('geo_lat', locLat)
+    if (locLng != null) form.append('geo_lng', locLng)
+    if (taggedUsers?.length) form.append('tagged_users', JSON.stringify(taggedUsers))
+    if (linkedContent?.type) { form.append('linked_type', linkedContent.type); form.append('linked_id', linkedContent.id) }
+    for (const file of files) form.append('media', file)
+
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', `${API_BASE}/api/feed`, true)
+    xhr.withCredentials = true
+    const csrf = getCsrfToken()
+    if (csrf) xhr.setRequestHeader('X-CSRF-Token', csrf)
+
+    let stallTimer = null
+    const resetStall = () => {
+      if (stallTimer) clearTimeout(stallTimer)
+      stallTimer = setTimeout(() => {
+        try { xhr.abort() } catch { /* ignore */ }
+        const err = new Error('Upload stalled')
+        err.code = 'TIMEOUT'
+        reject(err)
+      }, STALL_MS)
+    }
+    const clearStall = () => { if (stallTimer) { clearTimeout(stallTimer); stallTimer = null } }
+
+    resetStall()
+    xhr.upload.onprogress = (e) => {
+      resetStall()
+      if (e.lengthComputable && onProgress) {
+        onProgress({ loaded: e.loaded, total: e.total, phase: 'upload' })
+      }
+    }
+    xhr.upload.onload = () => {
+      if (onProgress) onProgress({ loaded: total, total, phase: 'processing' })
+    }
+    xhr.onerror = () => {
+      clearStall()
+      const err = new Error('Network error — could not reach server')
+      err.code = 'NETWORK_ERROR'
+      reject(err)
+    }
+    xhr.onabort = () => {
+      clearStall()
+      // onabort fires for our own stall-abort too; reject() above already ran,
+      // so this rejection is a no-op in that case.
+      const err = new Error('Upload cancelled')
+      err.code = 'ABORTED'
+      reject(err)
+    }
+    xhr.onload = () => {
+      clearStall()
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try { resolve(JSON.parse(xhr.responseText)) }
+        catch { resolve(null) }
+      } else {
+        let body = {}
+        try { body = JSON.parse(xhr.responseText) } catch { /* ignore */ }
+        const err = new Error(body.error || `HTTP ${xhr.status}`)
+        err.status = xhr.status
+        // 4xx (except 408/429) are permanent — don't retry
+        err.code = (xhr.status >= 500 || xhr.status === 408 || xhr.status === 429) ? 'NETWORK_ERROR' : 'HTTP_ERROR'
+        reject(err)
+      }
+    }
+    xhr.send(form)
+  })
+}
+
+// Uploads a post with stall-based timeout + exponential-backoff retry.
+// Throws on final failure; the caller decides whether to enqueue.
+export async function uploadPostResilient(payload, onProgress) {
+  const MAX_ATTEMPTS = 3
+  let lastErr = null
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    // Wait until the browser reports it's online before each attempt
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      const err = new Error('Offline')
+      err.code = 'NETWORK_ERROR'
+      throw err
+    }
+    try {
+      return await uploadPostOnce(payload, onProgress)
+    } catch (err) {
+      lastErr = err
+      if (err.code !== 'NETWORK_ERROR' && err.code !== 'TIMEOUT') throw err
+      if (attempt === MAX_ATTEMPTS) throw err
+      // exponential backoff: 2s, 4s
+      const delay = 1000 * Math.pow(2, attempt)
+      await new Promise(r => setTimeout(r, delay))
+    }
+  }
+  throw lastErr
+}
+
+// Install the auto-flusher once (fires on 'online', visibility change, etc.)
+if (typeof window !== 'undefined') {
+  installAutoFlush((payload) => uploadPostResilient(payload))
+}
+
 export async function apiCreatePost(text, mediaFiles, scheduledAt, categories, location, taggedUsers, linkedContent, onProgress) {
   if (mediaFiles?.length) {
     // Pre-flight: validate file sizes client-side (50MB per file, 200MB total)
@@ -189,68 +306,28 @@ export async function apiCreatePost(text, mediaFiles, scheduledAt, categories, l
       err.code = 'FILE_TOO_LARGE'
       throw err
     }
-    // Use FormData for multipart upload
-    const form = new FormData()
-    form.append('text', text)
-    if (scheduledAt) form.append('scheduled_at', scheduledAt)
-    if (categories?.length) form.append('categories', JSON.stringify(categories))
-    const locName = location?.place_name || location?.name
-    const locLat = location?.geo_lat ?? location?.lat
-    const locLng = location?.geo_lng ?? location?.lng
-    if (locName) form.append('place_name', locName)
-    if (locLat != null) form.append('geo_lat', locLat)
-    if (locLng != null) form.append('geo_lng', locLng)
-    if (taggedUsers?.length) form.append('tagged_users', JSON.stringify(taggedUsers))
-    if (linkedContent?.type) { form.append('linked_type', linkedContent.type); form.append('linked_id', linkedContent.id) }
-    for (const file of mediaFiles) {
-      form.append('media', file)
+    const payload = {
+      text, files: mediaFiles, schedAt: scheduledAt,
+      categories, location, taggedUsers, linkedContent,
     }
-    // Use XMLHttpRequest for upload progress (fetch doesn't expose it)
-    return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest()
-      xhr.open('POST', `${API_BASE}/api/feed`, true)
-      xhr.withCredentials = true
-      const csrf = getCsrfToken()
-      if (csrf) xhr.setRequestHeader('X-CSRF-Token', csrf)
-      xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable && onProgress) {
-          onProgress({ loaded: e.loaded, total: e.total, phase: 'upload' })
+    try {
+      return await uploadPostResilient(payload, onProgress)
+    } catch (err) {
+      // If the failure is network-related, persist the upload to IndexedDB
+      // so it can be retried later (e.g. when the user reaches WiFi).
+      if (err.code === 'NETWORK_ERROR' || err.code === 'TIMEOUT') {
+        try {
+          const queueId = await enqueuePost(payload)
+          // Trigger a processing attempt immediately — it's a no-op if offline.
+          setTimeout(() => processQueue((p) => uploadPostResilient(p)), 0)
+          return { queued: true, queueId }
+        } catch {
+          // IndexedDB unavailable — surface the original error
+          throw err
         }
       }
-      xhr.upload.onload = () => {
-        if (onProgress) onProgress({ loaded: total, total, phase: 'processing' })
-      }
-      xhr.onerror = () => {
-        const err = new Error('Network error — could not reach server (upload may be too large)')
-        err.code = 'NETWORK_ERROR'
-        reject(err)
-      }
-      xhr.ontimeout = () => {
-        const err = new Error('Upload timed out')
-        err.code = 'TIMEOUT'
-        reject(err)
-      }
-      xhr.onabort = () => {
-        const err = new Error('Upload cancelled')
-        err.code = 'ABORTED'
-        reject(err)
-      }
-      xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          try { resolve(JSON.parse(xhr.responseText)) }
-          catch { resolve(null) }
-        } else {
-          let body = {}
-          try { body = JSON.parse(xhr.responseText) } catch {}
-          const err = new Error(body.error || `HTTP ${xhr.status}`)
-          err.status = xhr.status
-          reject(err)
-        }
-      }
-      // 5 minute timeout for large uploads
-      xhr.timeout = 5 * 60 * 1000
-      xhr.send(form)
-    })
+      throw err
+    }
   }
   return await request('/api/feed', {
     method: 'POST',

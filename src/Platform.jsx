@@ -2438,7 +2438,12 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         // Scheduled post — don't add to feed, just show a toast
         return
       }
-      if (data) {
+      if (data?.queued) {
+        // Upload has been saved to IndexedDB and will be retried when online.
+        // The post will be appended to the feed by the 'fellis:upload-queue:success'
+        // listener when the upload eventually completes.
+        alert(t.postQueuedOffline)
+      } else if (data) {
         setPosts(prev => [data, ...prev])
         setTimeout(onBadgeCheck, 300)
       } else {
@@ -2501,7 +2506,21 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       setUploadProgress(0)
       setUploadPhase(null)
     })
-  }, [mediaPreviews, currentUser.name, currentUser.id, currentUser.mode, lang, onBadgeCheck])
+  }, [mediaPreviews, currentUser.name, currentUser.id, currentUser.mode, lang, t, onBadgeCheck])
+
+  // When a deferred (queued) upload finally succeeds in the background,
+  // prepend it to the feed so the user sees their post appear without
+  // needing to reload.
+  useEffect(() => {
+    const onQueuedSuccess = (e) => {
+      const post = e.detail?.post
+      if (post && post.id != null) {
+        setPosts(prev => prev.some(p => p.id === post.id) ? prev : [post, ...prev])
+      }
+    }
+    window.addEventListener('fellis:upload-queue:success', onQueuedSuccess)
+    return () => window.removeEventListener('fellis:upload-queue:success', onQueuedSuccess)
+  }, [])
 
   const handlePost = useCallback(async () => {
     if (!newPostText.trim() && !mediaFiles.length && !providerMediaUrls.length) return
