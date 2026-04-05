@@ -59,8 +59,10 @@ export const EUROPEAN_LANGUAGES = [
 // Kept for backwards compatibility (alias)
 export const SUPPORTED_LANGS = EUROPEAN_LANGUAGES
 
-// UI language options — only languages with full PT translations
-export const UI_LANGS = EUROPEAN_LANGUAGES.filter(l => ['da', 'en'].includes(l.code))
+// UI language options — languages with at least partial translations.
+// Missing keys fall back to English via getTranslations().
+const TRANSLATED_LANGS = ['da', 'en', 'de', 'fr', 'es', 'it', 'nl', 'sv', 'no', 'pl', 'pt']
+export const UI_LANGS = EUROPEAN_LANGUAGES.filter(l => TRANSLATED_LANGS.includes(l.code))
 
 // Map IP country codes to language codes
 export const IP_COUNTRY_LANG_MAP = {
