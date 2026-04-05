@@ -756,6 +756,7 @@ const MAGIC_BYTES = [
   { mime: 'image/png', bytes: [0x89, 0x50, 0x4E, 0x47] },
   { mime: 'image/gif', bytes: [0x47, 0x49, 0x46] },
   { mime: 'image/webp', bytes: [0x52, 0x49, 0x46, 0x46] }, // RIFF
+  { mime: 'image/avif', offset: 4, bytes: [0x66, 0x74, 0x79, 0x70] }, // ftyp (ISO-BMFF)
   { mime: 'video/mp4', offset: 4, bytes: [0x66, 0x74, 0x79, 0x70] }, // ftyp
   { mime: 'video/webm', bytes: [0x1A, 0x45, 0xDF, 0xA3] },
   { mime: 'video/quicktime', offset: 4, bytes: [0x66, 0x74, 0x79, 0x70] },
@@ -3140,15 +3141,25 @@ app.post('/api/feed', authenticate, writeLimit, upload.array('media', 4), async 
   // Validate magic bytes for each uploaded file
   const mediaUrls = []
   if (req.files?.length) {
+    const cleanupAll = () => {
+      for (const f of req.files) {
+        try { fs.unlinkSync(f.path) } catch {}
+      }
+    }
     for (const file of req.files) {
-      const buf = fs.readFileSync(file.path, { length: 16 })
       const header = Buffer.alloc(16)
-      const fd = fs.openSync(file.path, 'r')
-      fs.readSync(fd, header, 0, 16, 0)
-      fs.closeSync(fd)
+      try {
+        const fd = fs.openSync(file.path, 'r')
+        fs.readSync(fd, header, 0, 16, 0)
+        fs.closeSync(fd)
+      } catch (err) {
+        console.error(`[post media] failed to read "${file.originalname}":`, err.message)
+        cleanupAll()
+        return res.status(400).json({ error: `Could not read "${file.originalname}"` })
+      }
       if (!validateMagicBytes(header, file.mimetype)) {
-        // Delete the suspicious file immediately
-        fs.unlinkSync(file.path)
+        console.warn(`[post media] magic bytes mismatch for "${file.originalname}" (${file.mimetype})`)
+        cleanupAll()
         return res.status(400).json({ error: `File "${file.originalname}" failed content validation` })
       }
       const type = file.mimetype.startsWith('video/') ? 'video' : 'image'
