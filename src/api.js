@@ -172,6 +172,23 @@ export async function apiFetchMemories() {
 
 export async function apiCreatePost(text, mediaFiles, scheduledAt, categories, location, taggedUsers, linkedContent) {
   if (mediaFiles?.length) {
+    // Pre-flight: validate file sizes client-side (50MB per file, 200MB total)
+    const MAX_FILE = 50 * 1024 * 1024
+    const MAX_TOTAL = 200 * 1024 * 1024
+    let total = 0
+    for (const f of mediaFiles) {
+      if (f.size > MAX_FILE) {
+        const err = new Error(`File "${f.name}" is too large (max 50 MB)`)
+        err.code = 'FILE_TOO_LARGE'
+        throw err
+      }
+      total += f.size
+    }
+    if (total > MAX_TOTAL) {
+      const err = new Error('Total upload size exceeds 200 MB')
+      err.code = 'FILE_TOO_LARGE'
+      throw err
+    }
     // Use FormData for multipart upload
     const form = new FormData()
     form.append('text', text)
@@ -197,11 +214,19 @@ export async function apiCreatePost(text, mediaFiles, scheduledAt, categories, l
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
-        throw new Error(body.error || `HTTP ${res.status}`)
+        const err = new Error(body.error || `HTTP ${res.status}`)
+        err.status = res.status
+        throw err
       }
       return await res.json()
     } catch (err) {
-      if (err.message === 'Failed to fetch') return null
+      // TypeError here = network-level failure (connection reset, CORS, DNS, etc.).
+      // Common cause is the proxy/server rejecting the payload before responding.
+      if (err instanceof TypeError) {
+        const netErr = new Error('Network error — could not reach server (upload may be too large)')
+        netErr.code = 'NETWORK_ERROR'
+        throw netErr
+      }
       throw err
     }
   }

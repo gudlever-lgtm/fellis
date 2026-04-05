@@ -2444,7 +2444,18 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       }
     }).catch(err => {
       console.error('Failed to create post:', err)
-      alert(lang === 'da' ? `Kunne ikke oprette opslag: ${err.message}` : `Could not create post: ${err.message}`)
+      const isDa = lang === 'da'
+      let msg
+      if (err.code === 'FILE_TOO_LARGE') {
+        msg = isDa ? `Fil for stor: ${err.message}` : `File too large: ${err.message}`
+      } else if (err.code === 'NETWORK_ERROR') {
+        msg = isDa
+          ? 'Netværksfejl — kunne ikke nå serveren. Prøv en mindre fil eller tjek forbindelsen.'
+          : 'Network error — could not reach server. Try a smaller file or check your connection.'
+      } else {
+        msg = isDa ? `Kunne ikke oprette opslag: ${err.message}` : `Could not create post: ${err.message}`
+      }
+      alert(msg)
     })
     setNewPostText('')
     setMediaFiles([])
