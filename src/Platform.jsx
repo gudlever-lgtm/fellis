@@ -21,6 +21,7 @@ import {
   apiGetCompanyQA, apiAskCompanyQuestion, apiAnswerCompanyQuestion, apiDeleteCompanyQuestion,
   apiGetMyPortfolio, apiGetUserPortfolio, apiCreatePortfolioItem, apiUpdatePortfolioItem, apiDeletePortfolioItem,
   apiShareReelToFeed,
+  apiConvertPostToReel,
 } from './api.js'
 import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
@@ -3799,6 +3800,18 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                             return canEdit ? (
                               <button className="p-post-menu-item" onClick={() => handleStartEditPost(post)}>
                                 ✏️ {t.editPost}
+                              </button>
+                            ) : null
+                          })()}
+                          {(() => {
+                            const hasVideo = Array.isArray(post.media) && post.media.some(m => m.type === 'video')
+                            return hasVideo ? (
+                              <button className="p-post-menu-item" onClick={async () => {
+                                setPostMenu(null)
+                                const res = await apiConvertPostToReel(post.id)
+                                if (res?.ok) alert(t.convertToReelDone)
+                              }}>
+                                🎬 {t.convertToReel}
                               </button>
                             ) : null
                           })()}

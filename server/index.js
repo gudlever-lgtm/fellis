@@ -13615,6 +13615,27 @@ app.delete('/api/me/portfolio/:id', authenticate, async (req, res) => {
   }
 })
 
+// ── Post → reel conversion ────────────────────────────────────────────────────
+
+app.post('/api/feed/:id/convert-to-reel', authenticate, writeLimit, async (req, res) => {
+  try {
+    const [[post]] = await pool.query('SELECT * FROM posts WHERE id=? AND user_id=?', [req.params.id, req.userId])
+    if (!post) return res.status(403).json({ error: 'Forbidden' })
+    let media = []
+    try { media = JSON.parse(post.media || '[]') } catch {}
+    const video = media.find(m => m.type === 'video')
+    if (!video) return res.status(400).json({ error: 'No video in post' })
+    const caption = post.text || ''
+    const [r] = await pool.query(
+      'INSERT INTO reels (user_id, video_url, caption, created_at) VALUES (?,?,?,NOW())',
+      [req.userId, video.url, caption]
+    )
+    res.json({ ok: true, reel_id: r.insertId })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // ── Reel → feed share ─────────────────────────────────────────────────────────
 
 app.post('/api/reels/:id/share-to-feed', authenticate, writeLimit, async (req, res) => {
