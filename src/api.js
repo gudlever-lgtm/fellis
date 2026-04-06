@@ -1093,8 +1093,7 @@ export async function apiSubmitFeedback(type, title, description) {
 }
 
 export async function apiGetAdminFeedback(status = null) {
-  const qs = status ? `?status=${encodeURIComponent(status)}` : ''
-  return await request(`/api/admin/feedback${qs}`)
+  return await request('/api/admin/feedback' + (status ? `?status=${encodeURIComponent(status)}` : ''))
 }
 
 export async function apiUpdateFeedbackStatus(id, status, admin_note) {
