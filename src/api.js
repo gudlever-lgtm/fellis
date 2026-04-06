@@ -2001,6 +2001,11 @@ export async function apiDeletePortfolioItem(id) {
   return await request(`/api/me/portfolio/${id}`, { method: 'DELETE' })
 }
 
+// ── Post → reel conversion ────────────────────────────────────────────────────
+export async function apiConvertPostToReel(postId) {
+  return await request(`/api/feed/${postId}/convert-to-reel`, { method: 'POST' })
+}
+
 // ── Reel → feed share ─────────────────────────────────────────────────────────
 export async function apiShareReelToFeed(reelId) {
   return await request(`/api/reels/${reelId}/share-to-feed`, { method: 'POST' })
