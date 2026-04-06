@@ -35,7 +35,10 @@ fellis/
 │   ├── PaymentSuccess.jsx  # Mollie payment success handler
 │   ├── PaymentFailed.jsx   # Mollie payment failure handler
 │   ├── api.js              # All API client functions (single source of truth)
-│   ├── data.js             # Mock/fallback data + shared utilities (nameToColor, getInitials, PT translations)
+│   ├── data.js             # Mock/fallback data + shared utilities (nameToColor, getInitials, PT translations for shared/global strings)
+│   ├── i18n/               # Segmented translation files (one file per feature/page)
+│   │   ├── index.js        # Merges all segment files into a single PT-compatible object
+│   │   └── *.js            # Feature segments (e.g. feed.js, profile.js, settings.js, marketplace.js …)
 │   ├── App.css             # Global styles
 │   ├── index.css           # Base CSS reset/fonts
 │   ├── index.html          # HTML template (Vite entry)
@@ -193,9 +196,13 @@ Vite builds from `src/` as root into `assets/` at the repo root:
 - The platform is fully bilingual: **Danish (`da`)** and **English (`en`)**
 - Language preference stored in `localStorage` as `fellis_lang`
 - Database stores bilingual content in parallel columns: `text_da` / `text_en`, `bio_da` / `bio_en`, `time_da` / `time_en`
-- The `PT` object in `data.js` holds all UI string translations — always add both `da` and `en` keys when adding new UI strings
+- UI string translations live in **segmented files** under `src/i18n/` — one file per feature/page (e.g. `feed.js`, `profile.js`, `settings.js`, `marketplace.js`)
+- Each segment file exports a `{ da: { … }, en: { … } }` object covering only the strings for that feature
+- `src/i18n/index.js` deep-merges all segment files and re-exports a single `PT` object so existing `const t = PT[lang]` usage continues to work unchanged
+- Global/shared strings that are used across many features stay in `data.js` under `PT` as before; page-specific strings go in the relevant segment file
 - Default language is Danish (`da`)
-- **Never hardcode UI strings inline.** Do NOT write `lang === 'da' ? 'Dansk tekst' : 'English text'` in components — always add a key to `PT.da` and `PT.en` in `data.js` and reference it as `t.keyName` (where `const t = PT[lang]`)
+- **Never hardcode UI strings inline.** Do NOT write `lang === 'da' ? 'Dansk tekst' : 'English text'` in components — always add a key to the appropriate segment file (or `data.js` if truly global) and reference it as `t.keyName` (where `const t = PT[lang]`)
+- When adding strings for a new feature, create `src/i18n/<feature>.js` and import it in `src/i18n/index.js`
 - The only accepted exceptions are: locale strings for JS date APIs (`'da-DK'`/`'en-US'`), bilingual DB field selectors (`.text_da`/`.text_en`), and large long-form content blocks (privacy policy, about page)
 
 ### Currency Formatting
