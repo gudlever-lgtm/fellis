@@ -19226,6 +19226,11 @@ function AdminPage({ lang, t }) {
   const [auditLogOffset, setAuditLogOffset] = useState(0)
   const [auditLogTotal, setAuditLogTotal] = useState(0)
   const [auditLogFilter, setAuditLogFilter] = useState('')
+  // Platform feedback
+  const [feedbackList, setFeedbackList] = useState(null)
+  const [feedbackFilter, setFeedbackFilter] = useState('')
+  const [feedbackNotes, setFeedbackNotes] = useState({}) // id → note string
+  const [feedbackSaving, setFeedbackSaving] = useState({}) // id → bool
 
   function showModToast(msg) { setModToast(msg); setTimeout(() => setModToast(null), 3000) }
 
@@ -19295,7 +19300,11 @@ function AdminPage({ lang, t }) {
         if (data) { setAuditLog(data.rows); setAuditLogTotal(data.total) }
       })
     }
-  }, [adminTab, viralDays, auditLogOffset, auditLogFilter])
+    if (adminTab === 'feedback') {
+      setFeedbackList(null)
+      apiGetAdminFeedback(feedbackFilter || null).then(data => { if (data) setFeedbackList(data.feedback) })
+    }
+  }, [adminTab, viralDays, auditLogOffset, auditLogFilter, feedbackFilter])
 
   const handleSave = async (e) => {
     e.preventDefault()
@@ -19393,6 +19402,7 @@ function AdminPage({ lang, t }) {
             label: t.communication,
             tabs: [
               { id: 'broadcast', icon: '📣', label: t.broadcastNotification },
+              { id: 'feedback', icon: '💬', label: t.adminFeedbackTitle },
             ],
           },
           {
@@ -20645,6 +20655,98 @@ function AdminPage({ lang, t }) {
       {adminTab === 'broadcast' && <AdminBroadcastPanel lang={lang} />}
       {adminTab === 'livestream-stats' && <AdminLivestreamStatsPanel lang={lang} t={t} />}
       {adminTab === 'livestream' && <AdminLivestreamSettingsPanel lang={lang} t={t} />}
+
+      {adminTab === 'feedback' && (
+        <div>
+          <div style={{ marginBottom: 14, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#666' }}>Filter:</span>
+            {[
+              { val: '', label: t.adminFeedbackFilterAll },
+              { val: 'new', label: t.adminFeedbackStatusNew },
+              { val: 'reviewing', label: t.adminFeedbackStatusReviewing },
+              { val: 'planned', label: t.adminFeedbackStatusPlanned },
+              { val: 'done', label: t.adminFeedbackStatusDone },
+              { val: 'declined', label: t.adminFeedbackStatusDeclined },
+            ].map(({ val, label }) => (
+              <button key={val}
+                onClick={() => setFeedbackFilter(val)}
+                style={{
+                  padding: '4px 12px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 12,
+                  fontWeight: feedbackFilter === val ? 700 : 500,
+                  background: feedbackFilter === val ? '#2D6A4F' : '#f0f0ec',
+                  color: feedbackFilter === val ? '#fff' : '#444',
+                }}
+              >{label}</button>
+            ))}
+          </div>
+
+          {!feedbackList ? (
+            <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>{t.loading2}</div>
+          ) : feedbackList.length === 0 ? (
+            <div className="p-card" style={{ textAlign: 'center', padding: 32, color: '#888' }}>{t.adminFeedbackEmpty}</div>
+          ) : feedbackList.map(fb => {
+            const typeIcon = fb.type === 'bug' ? '🐛' : fb.type === 'missing' ? '🔍' : '💡'
+            const typeLabel = fb.type === 'bug' ? t.feedbackTypeBug : fb.type === 'missing' ? t.feedbackTypeMissing : t.feedbackTypeSuggestion
+            const statusColors = { new: '#3D6A9F', reviewing: '#E07A5F', planned: '#F4C26A', done: '#2D6A4F', declined: '#999' }
+            const statusLabels = { new: t.adminFeedbackStatusNew, reviewing: t.adminFeedbackStatusReviewing, planned: t.adminFeedbackStatusPlanned, done: t.adminFeedbackStatusDone, declined: t.adminFeedbackStatusDeclined }
+            return (
+              <div key={fb.id} className="p-card" style={{ marginBottom: 12, padding: '16px 20px' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 18, flexShrink: 0 }}>{typeIcon}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: 15 }}>{fb.title}</div>
+                    <div style={{ fontSize: 12, color: '#888', marginTop: 1 }}>
+                      {typeLabel} · {fb.user_name} (@{fb.user_handle}) · {new Date(fb.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US')}
+                    </div>
+                  </div>
+                  <span style={{ background: statusColors[fb.status] || '#999', color: '#fff', borderRadius: 6, padding: '2px 9px', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+                    {statusLabels[fb.status] || fb.status}
+                  </span>
+                </div>
+                <div style={{ fontSize: 13, color: '#444', lineHeight: 1.6, marginBottom: 12, whiteSpace: 'pre-wrap' }}>{fb.description}</div>
+
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: '#666' }}>Status:</span>
+                  {Object.entries(statusLabels).map(([val, label]) => (
+                    <button key={val}
+                      onClick={async () => {
+                        await apiUpdateFeedbackStatus(fb.id, val, undefined)
+                        apiGetAdminFeedback(feedbackFilter || null).then(data => { if (data) setFeedbackList(data.feedback) })
+                      }}
+                      style={{
+                        padding: '3px 10px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 12,
+                        fontWeight: fb.status === val ? 700 : 400,
+                        background: fb.status === val ? statusColors[val] : '#f0f0ec',
+                        color: fb.status === val ? '#fff' : '#555',
+                      }}
+                    >{label}</button>
+                  ))}
+                </div>
+
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input
+                    placeholder={t.adminFeedbackAdminNote}
+                    value={feedbackNotes[fb.id] !== undefined ? feedbackNotes[fb.id] : (fb.admin_note || '')}
+                    onChange={e => setFeedbackNotes(prev => ({ ...prev, [fb.id]: e.target.value }))}
+                    style={{ flex: 1, padding: '7px 10px', border: '1px solid #E8E4DF', borderRadius: 7, fontSize: 13, fontFamily: 'inherit' }}
+                  />
+                  <button
+                    disabled={!!feedbackSaving[fb.id]}
+                    onClick={async () => {
+                      const note = feedbackNotes[fb.id] !== undefined ? feedbackNotes[fb.id] : (fb.admin_note || '')
+                      setFeedbackSaving(prev => ({ ...prev, [fb.id]: true }))
+                      await apiUpdateFeedbackStatus(fb.id, undefined, note)
+                      setFeedbackSaving(prev => ({ ...prev, [fb.id]: false }))
+                      apiGetAdminFeedback(feedbackFilter || null).then(data => { if (data) setFeedbackList(data.feedback) })
+                    }}
+                    style={{ padding: '7px 16px', borderRadius: 7, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
+                  >{feedbackSaving[fb.id] ? '…' : t.adminFeedbackSave}</button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       {adminTab === 'banned-users' && (
         <AdminBannedUsersPanel
