@@ -1088,6 +1088,19 @@ export async function apiGetChangelog(lang = 'da') {
   return await request(`/api/changelog?lang=${lang}`)
 }
 
+export async function apiSubmitFeedback(type, title, description) {
+  return await request('/api/feedback', { method: 'POST', body: JSON.stringify({ type, title, description }) })
+}
+
+export async function apiGetAdminFeedback(status = null) {
+  const qs = status ? `?status=${encodeURIComponent(status)}` : ''
+  return await request(`/api/admin/feedback${qs}`)
+}
+
+export async function apiUpdateFeedbackStatus(id, status, admin_note) {
+  return await request(`/api/admin/feedback/${id}`, { method: 'PATCH', body: JSON.stringify({ status, admin_note }) })
+}
+
 export async function apiGetNotifications() {
   return await request('/api/notifications')
 }

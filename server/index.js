@@ -9540,6 +9540,64 @@ app.get('/api/changelog', authenticate, async (req, res) => {
   res.json({ entries })
 })
 
+// ── Platform Feedback ─────────────────────────────────────────────────────────
+app.post('/api/feedback', authenticate, async (req, res) => {
+  const { type, title, description } = req.body
+  if (!['bug', 'missing', 'suggestion'].includes(type)) return res.status(400).json({ error: 'Invalid type' })
+  if (!title?.trim() || !description?.trim()) return res.status(400).json({ error: 'Title and description required' })
+  try {
+    await pool.query(
+      'INSERT INTO platform_feedback (user_id, type, title, description) VALUES (?, ?, ?, ?)',
+      [req.userId, type, title.trim().slice(0, 200), description.trim()]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/feedback error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.get('/api/admin/feedback', authenticate, requireAdmin, async (req, res) => {
+  const status = req.query.status || null
+  try {
+    const where = status ? 'WHERE f.status = ?' : ''
+    const params = status ? [status] : []
+    const [rows] = await pool.query(
+      `SELECT f.id, f.type, f.title, f.description, f.status, f.admin_note,
+              f.created_at, f.updated_at, u.name AS user_name, u.handle AS user_handle
+       FROM platform_feedback f
+       JOIN users u ON u.id = f.user_id
+       ${where}
+       ORDER BY f.created_at DESC
+       LIMIT 200`,
+      params
+    )
+    res.json({ feedback: rows })
+  } catch (err) {
+    console.error('GET /api/admin/feedback error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.patch('/api/admin/feedback/:id', authenticate, requireAdmin, async (req, res) => {
+  const { status, admin_note } = req.body
+  const validStatuses = ['new', 'reviewing', 'planned', 'done', 'declined']
+  if (status && !validStatuses.includes(status)) return res.status(400).json({ error: 'Invalid status' })
+  try {
+    const fields = []
+    const params = []
+    if (status) { fields.push('status = ?'); params.push(status) }
+    if (admin_note !== undefined) { fields.push('admin_note = ?'); params.push(admin_note || null) }
+    if (!fields.length) return res.status(400).json({ error: 'Nothing to update' })
+    params.push(req.params.id)
+    await pool.query(`UPDATE platform_feedback SET ${fields.join(', ')} WHERE id = ?`, params)
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('PATCH /api/admin/feedback/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // ── Notifications ─────────────────────────────────────────────────────────────
 async function initNotifications() {
   try {
