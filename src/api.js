@@ -773,6 +773,17 @@ export async function apiRecordListingView(id) {
   return await request(`/api/marketplace/${id}/view`, { method: 'POST' })
 }
 
+// ── Marketplace keyword alerts ──
+export async function apiGetMarketplaceAlerts() {
+  return await request('/api/me/marketplace-alerts')
+}
+export async function apiCreateMarketplaceAlert(keyword) {
+  return await request('/api/me/marketplace-alerts', { method: 'POST', body: JSON.stringify({ keyword }) })
+}
+export async function apiDeleteMarketplaceAlert(id) {
+  return await request(`/api/me/marketplace-alerts/${id}`, { method: 'DELETE' })
+}
+
 // ── Admin ──
 export async function apiGetAdminSettings() {
   return await request('/api/admin/settings')
