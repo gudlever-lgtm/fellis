@@ -4796,6 +4796,21 @@ app.post('/api/marketplace', authenticate, upload.array('photos', 10), async (re
       `SELECT l.*, u.name AS seller_name, u.handle AS seller_handle FROM marketplace_listings l JOIN users u ON l.user_id = u.id WHERE l.id = ?`,
       [result.insertId]
     )
+    // Notify subscribers whose keyword appears in title/description/category
+    try {
+      const haystack = `${title} ${description || ''} ${category}`.toLowerCase()
+      const [alerts] = await pool.query(
+        'SELECT DISTINCT user_id, keyword FROM marketplace_keyword_alerts WHERE user_id != ?',
+        [req.userId]
+      )
+      const matched = alerts.filter(a => haystack.includes(a.keyword.toLowerCase()))
+      for (const a of matched) {
+        const msgDa = `Nyt opslag i markedet matcher "${a.keyword}": ${title}`
+        const msgEn = `A new marketplace listing matches "${a.keyword}": ${title}`
+        await createNotification(a.user_id, 'marketplace_keyword_match', msgDa, msgEn, req.userId, listing.seller_name)
+      }
+    } catch (e) { console.error('[marketplace keyword alerts]', e.message) }
+
     res.json(parseListingPhotos(listing))
   } catch (err) {
     console.error('POST /api/marketplace error:', err.message)
@@ -13319,6 +13334,45 @@ app.post('/api/me/job-alerts', authenticate, writeLimit, async (req, res) => {
 app.delete('/api/me/job-alerts/:id', authenticate, async (req, res) => {
   try {
     await pool.query('DELETE FROM job_alerts WHERE id=? AND user_id=?', [req.params.id, req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Marketplace keyword alerts ───────────────────────────────────────────────
+
+app.get('/api/me/marketplace-alerts', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT * FROM marketplace_keyword_alerts WHERE user_id=? ORDER BY created_at DESC',
+      [req.userId]
+    )
+    res.json({ alerts: rows })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.post('/api/me/marketplace-alerts', authenticate, writeLimit, async (req, res) => {
+  try {
+    let { keyword } = req.body
+    if (!keyword || typeof keyword !== 'string') return res.status(400).json({ error: 'Missing keyword' })
+    keyword = keyword.trim().toLowerCase().slice(0, 100)
+    if (!keyword) return res.status(400).json({ error: 'Missing keyword' })
+    const [r] = await pool.query(
+      'INSERT IGNORE INTO marketplace_keyword_alerts (user_id, keyword) VALUES (?,?)',
+      [req.userId, keyword]
+    )
+    res.json({ ok: true, id: r.insertId })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.delete('/api/me/marketplace-alerts/:id', authenticate, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM marketplace_keyword_alerts WHERE id=? AND user_id=?', [req.params.id, req.userId])
     res.json({ ok: true })
   } catch (err) {
     res.status(500).json({ error: 'Server error' })

@@ -897,6 +897,11 @@ export const PT = {
     marketplaceStatsTopListings: 'Mest sete annoncer',
     marketplaceStatsCategories: 'Kategorier',
     marketplaceStatsViews: 'visninger',
+    marketplaceAlerts: 'Nøgleordsnotifikationer',
+    marketplaceAlertsHint: 'Få besked når noget med dette ord sættes til salg',
+    marketplaceAlertAdd: 'Tilføj',
+    marketplaceAlertPlaceholder: 'fx cykel, iPhone',
+    marketplaceAlertEmpty: 'Ingen nøgleord endnu',
     feedBoostedLabel: '⚡ Sponsoreret annonce',
     feedBoostedCta: 'Se på markedsplads',
     // Admin
@@ -2564,6 +2569,11 @@ export const PT = {
     marketplaceStatsTopListings: 'Most viewed listings',
     marketplaceStatsCategories: 'Categories',
     marketplaceStatsViews: 'views',
+    marketplaceAlerts: 'Keyword alerts',
+    marketplaceAlertsHint: 'Get notified when something with this word goes on sale',
+    marketplaceAlertAdd: 'Add',
+    marketplaceAlertPlaceholder: 'e.g. bike, iPhone',
+    marketplaceAlertEmpty: 'No keywords yet',
     feedBoostedLabel: '⚡ Sponsored listing',
     feedBoostedCta: 'View on marketplace',
     // Admin
