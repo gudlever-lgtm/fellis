@@ -88,9 +88,16 @@ function EggHintsContextMenu({ lang }) {
       apiGetMyEasterEggs().catch(() => null),
     ])
     setHints(data?.hints?.length ? data.hints : [
-      { id: 'chuck',    hint: 'har en mening' },
-      { id: 'gravity',  hint: 'G G' },
-      { id: 'rickroll', hint: 'Going down!' },
+      { id: 'chuck',    hint: '↑↑↓↓←→←→ — klassisk!' },
+      { id: 'matrix',   hint: 'Følg den hvide kanin' },
+      { id: 'flip',     hint: 'Verden set fra en anden vinkel' },
+      { id: 'retro',    hint: 'Tilbage til rødderne' },
+      { id: 'gravity',  hint: 'Newton havde ret om feeds' },
+      { id: 'party',    hint: 'Festen venter på dig' },
+      { id: 'rickroll', hint: 'Nysgerrighed har en pris' },
+      { id: 'watcher',  hint: 'Hvem kigger på hvem?' },
+      { id: 'riddler',  hint: 'Spørgsmålet er svaret' },
+      { id: 'phantom',  hint: 'Ikke alle besøgende er synlige' },
     ])
     if (eggData?.eggs) {
       const found = {}
