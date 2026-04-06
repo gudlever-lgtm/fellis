@@ -18346,7 +18346,7 @@ function BadgesProfileSection({ lang, earnedBadges, onBadgeCheck, setEarnedBadge
                 const adminHint = adminEgg.hintsEnabled && adminEgg.hintText ? adminEgg.hintText : ''
                 const displayName = isEgg && !isEarned ? '???' : badge.name[lang] || badge.name.da
                 const displayDesc = isEgg && !isEarned
-                  ? (adminHint ? `💡 ${adminHint}` : (da ? 'Hemmeligt — opdag det selv!' : 'Secret — discover it yourself!'))
+                  ? (adminHint ? `💡 ${adminHint}` : `💡 ${badge.description[lang] || badge.description.da}`)
                   : badge.description[lang] || badge.description.da
 
                 const eggId = isEgg ? BADGE_TO_EGG[badge.id] : null
