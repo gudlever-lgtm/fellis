@@ -3,7 +3,7 @@ import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 're
 import { UI_LANGS, EUROPEAN_LANGUAGES, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials, getTranslations } from './data.js'
 import { formatPrice } from './utils/currency.js'
 import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiRemoveConversationParticipant, apiMuteConversationParticipant, apiUploadAvatar, apiCheckSession, apiRequestAccountDelete, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiShareJob, apiUnshareJob, apiGetSharedJobs, apiGetJobSharedWith, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals, apiFetchCalendarReminders, apiCreateCalendarReminder, apiDeleteCalendarReminder, apiGetLinkedContent, apiFetchJobs, apiGetSuggestedUsers, apiAdminNotifyAll, apiLikeComment, apiAdminGetPlatformAds, apiAdminCreatePlatformAd, apiAdminUpdatePlatformAd, apiAdminDeletePlatformAd, apiAdminGetLockedUsers, apiAdminUnlockUser, apiFeedCompanyPosts, apiGetLivestreamSettings, apiSaveLivestreamSettings, apiGetLivestreamStats, apiGetLivestreamStatus,
-  apiGetStreamKey, apiRegenerateStreamKey, apiGetMarketplaceAlerts, apiCreateMarketplaceAlert, apiDeleteMarketplaceAlert } from './api.js'
+  apiGetStreamKey, apiRegenerateStreamKey, apiGetMarketplaceAlerts, apiCreateMarketplaceAlert, apiUpdateMarketplaceAlert, apiDeleteMarketplaceAlert } from './api.js'
 import {
   apiSharePost, apiUnsharePost, apiSavePost, apiUnsavePost, apiGetSavedPosts,
   apiGetPoll, apiVotePoll, apiCreatePoll,
@@ -14457,6 +14457,8 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
   const [kwAlerts, setKwAlerts] = useState([])
   const [kwInput, setKwInput] = useState('')
   const [kwOpen, setKwOpen] = useState(false)
+  const [kwEditId, setKwEditId] = useState(null)
+  const [kwEditVal, setKwEditVal] = useState('')
 
   const isBoosted = (listing) => boostedIds[listing.id] || (listing.boosted_until && new Date(listing.boosted_until) > new Date())
   const catIcon = (key) => MARKETPLACE_CATEGORIES.find(c => c.key === key)?.icon || '📦'
@@ -14668,12 +14670,39 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
           </div>
           {kwAlerts.length === 0 && <p style={{ margin: 0, fontSize: 13, color: '#999' }}>{t.marketplaceAlertEmpty}</p>}
           {kwAlerts.length > 0 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {kwAlerts.map(a => (
-                <span key={a.id} style={{ background: '#fff', border: '1px solid #ccc', borderRadius: 16, padding: '4px 10px', fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  {a.keyword}
-                  <button onClick={() => apiDeleteMarketplaceAlert(a.id).then(() => setKwAlerts(prev => prev.filter(x => x.id !== a.id)))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#999', fontSize: 13, padding: 0, lineHeight: 1 }}>✕</button>
-                </span>
+                <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', border: '1px solid #ddd', borderRadius: 8, padding: '6px 10px' }}>
+                  {kwEditId === a.id ? (
+                    <>
+                      <input
+                        style={{ flex: 1, padding: '4px 8px', borderRadius: 6, border: '1px solid #ccc', fontSize: 14 }}
+                        value={kwEditVal}
+                        onChange={e => setKwEditVal(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' && kwEditVal.trim()) {
+                            apiUpdateMarketplaceAlert(a.id, kwEditVal.trim()).then(r => {
+                              if (r?.ok) { apiGetMarketplaceAlerts().then(d => { if (d?.alerts) setKwAlerts(d.alerts) }); setKwEditId(null) }
+                            })
+                          }
+                        }}
+                        autoFocus
+                      />
+                      <button onClick={() => {
+                        if (!kwEditVal.trim()) return
+                        apiUpdateMarketplaceAlert(a.id, kwEditVal.trim()).then(r => {
+                          if (r?.ok) { apiGetMarketplaceAlerts().then(d => { if (d?.alerts) setKwAlerts(d.alerts) }); setKwEditId(null) }
+                        })
+                      }} style={{ background: '#2D6A4F', color: '#fff', border: 'none', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>{t.marketplaceAlertSave}</button>
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ flex: 1, fontSize: 14 }}>{a.keyword}</span>
+                      <button onClick={() => { setKwEditId(a.id); setKwEditVal(a.keyword) }} style={{ background: 'none', border: '1px solid #ccc', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', fontSize: 12, color: '#555' }}>{t.marketplaceAlertEdit}</button>
+                      <button onClick={() => apiDeleteMarketplaceAlert(a.id).then(() => setKwAlerts(prev => prev.filter(x => x.id !== a.id)))} style={{ background: 'none', border: '1px solid #e57373', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', fontSize: 12, color: '#e57373' }}>{t.marketplaceAlertDelete}</button>
+                    </>
+                  )}
+                </div>
               ))}
             </div>
           )}
