@@ -52,7 +52,7 @@ import pool from './db.js'
 import { sendSms } from './sms.js'
 import { BADGES, BADGE_BY_ID, PLATFORM_LAUNCH_DATE, BADGE_AD_FREE_DAYS } from '../src/badges/badgeDefinitions.js'
 import { evaluateBadges } from '../src/badges/badgeEngine.js'
-import { createReelFromLivestream, LIVESTREAM_DEFAULTS } from './livestream.js'
+import { createReelFromLivestream, LIVESTREAM_DEFAULTS, transcodeVideo } from './livestream.js'
 import { startRtmpServer, RTMP_PORT } from './rtmp.js'
 
 // MySQL 8.x compatible ADD COLUMN helper — ignores duplicate column error (errno 1060)
@@ -3193,6 +3193,7 @@ app.post('/api/feed', authenticate, writeLimit, upload.array('media', UPLOAD_FIL
         return res.status(400).json({ error: `File "${file.originalname}" failed content validation` })
       }
       const type = file.mimetype.startsWith('video/') ? 'video' : 'image'
+      if (type === 'video') await transcodeVideo(file.path)
       mediaUrls.push({ url: `/uploads/${file.filename}`, type, mime: file.mimetype })
     }
   }
@@ -3286,6 +3287,7 @@ app.post('/api/upload', authenticate, fileUploadLimit, upload.single('file'), as
   }
 
   const type = req.file.mimetype.startsWith('video/') ? 'video' : 'image'
+  if (type === 'video') await transcodeVideo(req.file.path)
   // Audit log: file uploaded
   await auditLog(req, 'file_upload', 'file', null, {
     status: 'success',
@@ -3387,6 +3389,7 @@ app.post('/api/feed/:id/comment', authenticate, writeLimit, upload.single('media
       return res.status(400).json({ error: 'File failed content validation' })
     }
     const type = req.file.mimetype.startsWith('video/') ? 'video' : 'image'
+    if (type === 'video') await transcodeVideo(req.file.path)
     mediaJson = JSON.stringify([{ url: `/uploads/${req.file.filename}`, type, mime: req.file.mimetype }])
   }
   try {
@@ -8867,6 +8870,7 @@ app.post('/api/reels', authenticate, fileUploadLimit, reelUpload.single('video')
   try {
     if (!req.file) return res.status(400).json({ error: 'No video file provided' })
     const caption = (req.body.caption || '').trim().slice(0, 2000) || null
+    await transcodeVideo(req.file.path)
     const videoUrl = `/uploads/${req.file.filename}`
     const rawTagged = req.body.tagged_users
     const taggedUsers = rawTagged ? (() => { try { return JSON.parse(rawTagged) } catch { return null } })() : null
