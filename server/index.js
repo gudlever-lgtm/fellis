@@ -13623,14 +13623,18 @@ app.post('/api/feed/:id/convert-to-reel', authenticate, writeLimit, async (req, 
     if (!post) return res.status(403).json({ error: 'Forbidden' })
     const mediaArr = Array.isArray(post.media) ? post.media
       : (() => { try { return JSON.parse(post.media || '[]') } catch { return [] } })()
-    const video = mediaArr.find(m => m.type === 'video')
-    if (!video) return res.status(400).json({ error: 'No video in post' })
+    const videos = mediaArr.filter(m => m.type === 'video')
+    if (!videos.length) return res.status(400).json({ error: 'No video in post' })
     const caption = post.text_da || post.text_en || ''
-    const [r] = await pool.query(
-      'INSERT INTO reels (user_id, video_url, caption, created_at) VALUES (?,?,?,NOW())',
-      [req.userId, video.url, caption]
-    )
-    res.json({ ok: true, reel_id: r.insertId })
+    const reelIds = []
+    for (const video of videos) {
+      const [r] = await pool.query(
+        'INSERT INTO reels (user_id, video_url, caption, created_at) VALUES (?,?,?,NOW())',
+        [req.userId, video.url, caption]
+      )
+      reelIds.push(r.insertId)
+    }
+    res.json({ ok: true, reel_ids: reelIds })
   } catch (err) {
     res.status(500).json({ error: 'Server error' })
   }
