@@ -164,8 +164,8 @@ export const LIVESTREAM_DEFAULTS = {
  * @returns {Promise<string>} — filePath (same path, transcoded in-place)
  */
 export async function transcodeVideo(filePath) {
-  const ext = path.extname(filePath)
-  const tmpPath = `${filePath}.transcoding${ext}`
+  const base = filePath.replace(/\.[^.]+$/, '')
+  const tmpPath = `${base}.transcoding.mp4`
   try {
     await execFileAsync('ffmpeg', [
       '-y',
