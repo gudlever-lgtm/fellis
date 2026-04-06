@@ -14583,7 +14583,7 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
         </button>
       </div>
 
-      {tab === 'browse' && (
+      {tab === 'browse' && (<>
         <div className="p-marketplace-filters">
           <div style={{ position: 'relative' }}>
             <input
@@ -14673,7 +14673,7 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
             </div>
           )}
         </div>
-      )}
+      </>)}
 
       {tab === 'map' && (
         <MarketplaceMapView listings={filtered} lang={lang} onSelect={setSelectedListing} />
