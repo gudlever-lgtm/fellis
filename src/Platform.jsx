@@ -14583,7 +14583,7 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
         </button>
       </div>
 
-      {tab === 'browse' && (<>
+      {tab === 'browse' && (
         <div className="p-marketplace-filters">
           <div style={{ position: 'relative' }}>
             <input
@@ -14622,58 +14622,7 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
             </div>
           </div>
         </div>
-        <div style={{ margin: '12px 0' }}>
-          <button onClick={() => setKwOpen(o => !o)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#2D6A4F', fontWeight: 600, fontSize: 14, padding: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-            🔔 {t.marketplaceAlerts} {kwAlerts.length > 0 && `(${kwAlerts.length})`} <span style={{ fontSize: 10 }}>{kwOpen ? '▲' : '▼'}</span>
-          </button>
-          {kwOpen && (
-            <div style={{ background: '#f0fdf4', border: '1px solid #d1e7dd', borderRadius: 8, padding: 12, marginTop: 8 }}>
-              <p style={{ margin: '0 0 8px', fontSize: 13, color: '#555' }}>{t.marketplaceAlertsHint}</p>
-              <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-                <input
-                  style={{ flex: 1, padding: '6px 10px', borderRadius: 6, border: '1px solid #ccc', fontSize: 14 }}
-                  placeholder={t.marketplaceAlertPlaceholder}
-                  value={kwInput}
-                  onChange={e => setKwInput(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' && kwInput.trim()) {
-                      apiCreateMarketplaceAlert(kwInput.trim()).then(r => {
-                        if (r?.ok) {
-                          apiGetMarketplaceAlerts().then(d => { if (d?.alerts) setKwAlerts(d.alerts) })
-                          setKwInput('')
-                        }
-                      })
-                    }
-                  }}
-                />
-                <button
-                  style={{ padding: '6px 14px', borderRadius: 6, background: '#2D6A4F', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 14 }}
-                  onClick={() => {
-                    if (!kwInput.trim()) return
-                    apiCreateMarketplaceAlert(kwInput.trim()).then(r => {
-                      if (r?.ok) {
-                        apiGetMarketplaceAlerts().then(d => { if (d?.alerts) setKwAlerts(d.alerts) })
-                        setKwInput('')
-                      }
-                    })
-                  }}
-                >{t.marketplaceAlertAdd}</button>
-              </div>
-              {kwAlerts.length === 0 && <p style={{ margin: 0, fontSize: 13, color: '#999' }}>{t.marketplaceAlertEmpty}</p>}
-              {kwAlerts.length > 0 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {kwAlerts.map(a => (
-                    <span key={a.id} style={{ background: '#fff', border: '1px solid #ccc', borderRadius: 16, padding: '4px 10px', fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                      {a.keyword}
-                      <button onClick={() => apiDeleteMarketplaceAlert(a.id).then(() => setKwAlerts(prev => prev.filter(x => x.id !== a.id)))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#999', fontSize: 13, padding: 0, lineHeight: 1 }}>✕</button>
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </>)}
+      )}
 
       {tab === 'map' && (
         <MarketplaceMapView listings={filtered} lang={lang} onSelect={setSelectedListing} />
@@ -14683,13 +14632,58 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
         <MarketplaceStatsPanel stats={marketplaceStats} loading={statsLoading} myListings={myListings} t={t} lang={lang} />
       )}
 
-      {tab === 'wishlist' && (
+      {tab === 'wishlist' && (<>
+        <div style={{ marginBottom: 16 }}>
+          <h3 style={{ margin: '0 0 8px', fontSize: 16, fontWeight: 600 }}>🔔 {t.marketplaceAlerts}</h3>
+          <p style={{ margin: '0 0 10px', fontSize: 13, color: '#555' }}>{t.marketplaceAlertsHint}</p>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+            <input
+              style={{ flex: 1, padding: '6px 10px', borderRadius: 6, border: '1px solid #ccc', fontSize: 14 }}
+              placeholder={t.marketplaceAlertPlaceholder}
+              value={kwInput}
+              onChange={e => setKwInput(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && kwInput.trim()) {
+                  apiCreateMarketplaceAlert(kwInput.trim()).then(r => {
+                    if (r?.ok) {
+                      apiGetMarketplaceAlerts().then(d => { if (d?.alerts) setKwAlerts(d.alerts) })
+                      setKwInput('')
+                    }
+                  })
+                }
+              }}
+            />
+            <button
+              style={{ padding: '6px 14px', borderRadius: 6, background: '#2D6A4F', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 14 }}
+              onClick={() => {
+                if (!kwInput.trim()) return
+                apiCreateMarketplaceAlert(kwInput.trim()).then(r => {
+                  if (r?.ok) {
+                    apiGetMarketplaceAlerts().then(d => { if (d?.alerts) setKwAlerts(d.alerts) })
+                    setKwInput('')
+                  }
+                })
+              }}
+            >{t.marketplaceAlertAdd}</button>
+          </div>
+          {kwAlerts.length === 0 && <p style={{ margin: 0, fontSize: 13, color: '#999' }}>{t.marketplaceAlertEmpty}</p>}
+          {kwAlerts.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {kwAlerts.map(a => (
+                <span key={a.id} style={{ background: '#fff', border: '1px solid #ccc', borderRadius: 16, padding: '4px 10px', fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  {a.keyword}
+                  <button onClick={() => apiDeleteMarketplaceAlert(a.id).then(() => setKwAlerts(prev => prev.filter(x => x.id !== a.id)))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#999', fontSize: 13, padding: 0, lineHeight: 1 }}>✕</button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
         <MarketplaceWishlist lang={lang} onViewListing={(id) => {
           const l = listings.find(x => x.id === id)
           if (l) setSelectedListing(l)
           else setTab('browse')
         }} />
-      )}
+      </>)}
 
       {tab !== 'map' && tab !== 'stats' && tab !== 'wishlist' && (tab === 'mine' && myListings.length === 0 ? (
         <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>
