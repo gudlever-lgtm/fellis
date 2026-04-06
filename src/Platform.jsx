@@ -22,6 +22,7 @@ import {
   apiGetMyPortfolio, apiGetUserPortfolio, apiCreatePortfolioItem, apiUpdatePortfolioItem, apiDeletePortfolioItem,
   apiShareReelToFeed,
   apiConvertPostToReel,
+  apiSubmitFeedback, apiGetAdminFeedback, apiUpdateFeedbackStatus,
 } from './api.js'
 import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
@@ -7244,6 +7245,10 @@ function MiniWorldMap({ countries, lang }) {
 // Philosophy, purpose, and implemented changelog
 function AboutPage({ lang }) {
   const [changelog, setChangelog] = useState([])
+  const [fbType, setFbType] = useState('bug')
+  const [fbTitle, setFbTitle] = useState('')
+  const [fbDesc, setFbDesc] = useState('')
+  const [fbStatus, setFbStatus] = useState('idle') // idle | sending | done | error
 
   useEffect(() => {
     apiGetChangelog(lang).then(data => { if (data?.entries) setChangelog(data.entries) })
@@ -7268,6 +7273,19 @@ function AboutPage({ lang }) {
     ],
     changelogTitle: 'Implementerede tiltag',
     changelogEmpty: 'Ingen poster endnu',
+    feedbackTitle: 'Giv feedback',
+    feedbackSubtitle: 'Rapportér fejl, mangler eller foreslå forbedringer',
+    feedbackTypeBug: 'Fejl / bug',
+    feedbackTypeMissing: 'Manglende funktion',
+    feedbackTypeSuggestion: 'Forslag',
+    feedbackTypeLabel: 'Kategori',
+    feedbackTitleLabel: 'Titel',
+    feedbackTitlePlaceholder: 'Kort beskrivelse...',
+    feedbackDescLabel: 'Beskrivelse',
+    feedbackDescPlaceholder: 'Beskriv fejlen, hvad der mangler, eller dit forslag i detaljer...',
+    feedbackSubmit: 'Send feedback',
+    feedbackDone: 'Tak for din feedback!',
+    feedbackError: 'Noget gik galt – prøv igen',
     servicesTitle: 'Tjenester vi bruger — og hvorfor europæisk',
     servicesIntro: 'Vi vælger bevidst europæiske udbydere på alle lag af platformen. Det handler ikke kun om GDPR — det handler om at holde din data, din kommunikation og dine betalinger inden for et retssystem, der beskytter dig.',
     services: [
@@ -7326,6 +7344,19 @@ function AboutPage({ lang }) {
     ],
     changelogTitle: 'Implemented features',
     changelogEmpty: 'No entries yet',
+    feedbackTitle: 'Give feedback',
+    feedbackSubtitle: 'Report bugs, missing features, or suggest improvements',
+    feedbackTypeBug: 'Bug / error',
+    feedbackTypeMissing: 'Missing feature',
+    feedbackTypeSuggestion: 'Suggestion',
+    feedbackTypeLabel: 'Category',
+    feedbackTitleLabel: 'Title',
+    feedbackTitlePlaceholder: 'Short description...',
+    feedbackDescLabel: 'Description',
+    feedbackDescPlaceholder: 'Describe the bug, what is missing, or your suggestion in detail...',
+    feedbackSubmit: 'Submit feedback',
+    feedbackDone: 'Thank you for your feedback!',
+    feedbackError: 'Something went wrong — please try again',
     servicesTitle: 'Services we use — and why European',
     servicesIntro: 'We deliberately choose European providers at every layer of the platform. It is not just about GDPR compliance — it is about keeping your data, your communications, and your payments within a legal framework that protects you.',
     services: [
@@ -7433,6 +7464,92 @@ function AboutPage({ lang }) {
               </div>
             ))
         }
+      </div>
+
+      {/* Feedback */}
+      <div style={s.section}>💬 {t.feedbackTitle}</div>
+      <div className="p-card" style={{ padding: 20, marginBottom: 16 }}>
+        <p style={{ fontSize: 13, color: '#555', lineHeight: 1.6, margin: '0 0 16px' }}>{t.feedbackSubtitle}</p>
+        {fbStatus === 'done' ? (
+          <div style={{ textAlign: 'center', padding: '24px 0', fontSize: 15, color: '#2D6A4F', fontWeight: 600 }}>✓ {t.feedbackDone}</div>
+        ) : (
+          <form onSubmit={async e => {
+            e.preventDefault()
+            if (!fbTitle.trim() || !fbDesc.trim()) return
+            setFbStatus('sending')
+            const res = await apiSubmitFeedback(fbType, fbTitle.trim(), fbDesc.trim())
+            if (res?.ok) {
+              setFbStatus('done')
+              setFbTitle('')
+              setFbDesc('')
+            } else {
+              setFbStatus('error')
+            }
+          }}>
+            {/* Type selector */}
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#666', marginBottom: 6 }}>{t.feedbackTypeLabel}</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {[
+                  { key: 'bug', label: `🐛 ${t.feedbackTypeBug}` },
+                  { key: 'missing', label: `🔍 ${t.feedbackTypeMissing}` },
+                  { key: 'suggestion', label: `💡 ${t.feedbackTypeSuggestion}` },
+                ].map(opt => (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    onClick={() => setFbType(opt.key)}
+                    style={{
+                      padding: '6px 14px', borderRadius: 20, border: 'none', cursor: 'pointer',
+                      fontSize: 13, fontWeight: fbType === opt.key ? 700 : 500,
+                      background: fbType === opt.key ? '#2D6A4F' : '#f0f0ec',
+                      color: fbType === opt.key ? '#fff' : '#444',
+                      transition: 'all 0.15s',
+                    }}
+                  >{opt.label}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* Title */}
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: '#666', display: 'block', marginBottom: 5 }}>{t.feedbackTitleLabel}</label>
+              <input
+                value={fbTitle}
+                onChange={e => { setFbTitle(e.target.value); if (fbStatus === 'error') setFbStatus('idle') }}
+                placeholder={t.feedbackTitlePlaceholder}
+                maxLength={200}
+                required
+                style={{ width: '100%', padding: '9px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', boxSizing: 'border-box' }}
+              />
+            </div>
+
+            {/* Description */}
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: '#666', display: 'block', marginBottom: 5 }}>{t.feedbackDescLabel}</label>
+              <textarea
+                value={fbDesc}
+                onChange={e => { setFbDesc(e.target.value); if (fbStatus === 'error') setFbStatus('idle') }}
+                placeholder={t.feedbackDescPlaceholder}
+                rows={4}
+                required
+                style={{ width: '100%', padding: '9px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }}
+              />
+            </div>
+
+            {fbStatus === 'error' && (
+              <div style={{ fontSize: 13, color: '#C0392B', marginBottom: 10 }}>{t.feedbackError}</div>
+            )}
+
+            <button
+              type="submit"
+              disabled={fbStatus === 'sending' || !fbTitle.trim() || !fbDesc.trim()}
+              style={{ padding: '9px 22px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', opacity: (fbStatus === 'sending' || !fbTitle.trim() || !fbDesc.trim()) ? 0.6 : 1 }}
+            >
+              {fbStatus === 'sending' ? '…' : t.feedbackSubmit}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   )
