@@ -7383,16 +7383,16 @@ async function initAdminSettings() {
 
     // Seed default easter egg config (only if none exists yet)
     const defaultEggCfg = {
-      chuck:    { globalEnabled: true, hintsEnabled: true,  hintText: 'har en mening' },
-      matrix:   { globalEnabled: true, hintsEnabled: false, hintText: '' },
-      flip:     { globalEnabled: true, hintsEnabled: false, hintText: '' },
-      retro:    { globalEnabled: true, hintsEnabled: false, hintText: '' },
-      gravity:  { globalEnabled: true, hintsEnabled: true,  hintText: 'G G' },
-      party:    { globalEnabled: true, hintsEnabled: false, hintText: '' },
-      rickroll: { globalEnabled: true, hintsEnabled: true,  hintText: 'Going down!' },
-      watcher:  { globalEnabled: true, hintsEnabled: false, hintText: '' },
-      riddler:  { globalEnabled: true, hintsEnabled: false, hintText: '' },
-      phantom:  { globalEnabled: true, hintsEnabled: false, hintText: '' },
+      chuck:    { globalEnabled: true, hintsEnabled: true, hintText: '↑↑↓↓←→←→ — klassisk!' },
+      matrix:   { globalEnabled: true, hintsEnabled: true, hintText: 'Følg den hvide kanin' },
+      flip:     { globalEnabled: true, hintsEnabled: true, hintText: 'Verden set fra en anden vinkel' },
+      retro:    { globalEnabled: true, hintsEnabled: true, hintText: 'Tilbage til rødderne' },
+      gravity:  { globalEnabled: true, hintsEnabled: true, hintText: 'Newton havde ret om feeds' },
+      party:    { globalEnabled: true, hintsEnabled: true, hintText: 'Festen venter på dig' },
+      rickroll: { globalEnabled: true, hintsEnabled: true, hintText: 'Nysgerrighed har en pris' },
+      watcher:  { globalEnabled: true, hintsEnabled: true, hintText: 'Hvem kigger på hvem?' },
+      riddler:  { globalEnabled: true, hintsEnabled: true, hintText: 'Spørgsmålet er svaret' },
+      phantom:  { globalEnabled: true, hintsEnabled: true, hintText: 'Ikke alle besøgende er synlige' },
     }
     await pool.query(
       "INSERT IGNORE INTO admin_settings (key_name, key_value) VALUES ('easter_egg_config', ?)",
@@ -10966,9 +10966,16 @@ app.put('/api/admin/easter-eggs/config', authenticate, requireAdmin, async (req,
 // GET /api/easter-eggs/hints — public; returns eggs where admin enabled hints and set hint text
 app.get('/api/easter-eggs/hints', async (req, res) => {
   const DEFAULT_HINTS = [
-    { id: 'chuck',    hint: 'har en mening' },
-    { id: 'gravity',  hint: 'G G' },
-    { id: 'rickroll', hint: 'Going down!' },
+    { id: 'chuck',    hint: '↑↑↓↓←→←→ — klassisk!' },
+    { id: 'matrix',   hint: 'Følg den hvide kanin' },
+    { id: 'flip',     hint: 'Verden set fra en anden vinkel' },
+    { id: 'retro',    hint: 'Tilbage til rødderne' },
+    { id: 'gravity',  hint: 'Newton havde ret om feeds' },
+    { id: 'party',    hint: 'Festen venter på dig' },
+    { id: 'rickroll', hint: 'Nysgerrighed har en pris' },
+    { id: 'watcher',  hint: 'Hvem kigger på hvem?' },
+    { id: 'riddler',  hint: 'Spørgsmålet er svaret' },
+    { id: 'phantom',  hint: 'Ikke alle besøgende er synlige' },
   ]
   try {
     const [[row]] = await pool.query(
