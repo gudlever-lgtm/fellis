@@ -902,6 +902,9 @@ export const PT = {
     marketplaceAlertAdd: 'Tilføj',
     marketplaceAlertPlaceholder: 'fx cykel, iPhone',
     marketplaceAlertEmpty: 'Ingen nøgleord endnu',
+    marketplaceAlertEdit: 'Redigér',
+    marketplaceAlertSave: 'Gem',
+    marketplaceAlertDelete: 'Slet',
     feedBoostedLabel: '⚡ Sponsoreret annonce',
     feedBoostedCta: 'Se på markedsplads',
     // Admin
@@ -2574,6 +2577,9 @@ export const PT = {
     marketplaceAlertAdd: 'Add',
     marketplaceAlertPlaceholder: 'e.g. bike, iPhone',
     marketplaceAlertEmpty: 'No keywords yet',
+    marketplaceAlertEdit: 'Edit',
+    marketplaceAlertSave: 'Save',
+    marketplaceAlertDelete: 'Delete',
     feedBoostedLabel: '⚡ Sponsored listing',
     feedBoostedCta: 'View on marketplace',
     // Admin

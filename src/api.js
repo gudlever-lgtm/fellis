@@ -780,6 +780,9 @@ export async function apiGetMarketplaceAlerts() {
 export async function apiCreateMarketplaceAlert(keyword) {
   return await request('/api/me/marketplace-alerts', { method: 'POST', body: JSON.stringify({ keyword }) })
 }
+export async function apiUpdateMarketplaceAlert(id, keyword) {
+  return await request(`/api/me/marketplace-alerts/${id}`, { method: 'PUT', body: JSON.stringify({ keyword }) })
+}
 export async function apiDeleteMarketplaceAlert(id) {
   return await request(`/api/me/marketplace-alerts/${id}`, { method: 'DELETE' })
 }

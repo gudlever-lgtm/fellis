@@ -13370,6 +13370,22 @@ app.post('/api/me/marketplace-alerts', authenticate, writeLimit, async (req, res
   }
 })
 
+app.put('/api/me/marketplace-alerts/:id', authenticate, writeLimit, async (req, res) => {
+  try {
+    let { keyword } = req.body
+    if (!keyword || typeof keyword !== 'string') return res.status(400).json({ error: 'Missing keyword' })
+    keyword = keyword.trim().toLowerCase().slice(0, 100)
+    if (!keyword) return res.status(400).json({ error: 'Missing keyword' })
+    await pool.query(
+      'UPDATE marketplace_keyword_alerts SET keyword=? WHERE id=? AND user_id=?',
+      [keyword, req.params.id, req.userId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 app.delete('/api/me/marketplace-alerts/:id', authenticate, async (req, res) => {
   try {
     await pool.query('DELETE FROM marketplace_keyword_alerts WHERE id=? AND user_id=?', [req.params.id, req.userId])
