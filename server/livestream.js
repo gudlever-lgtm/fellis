@@ -154,3 +154,36 @@ export const LIVESTREAM_DEFAULTS = {
   reel_max_duration_seconds: DEFAULT_REEL_MAX_SECONDS,
   streaming_max_duration_seconds: DEFAULT_STREAM_MAX_SECONDS,
 }
+
+/**
+ * Transcode a video file to H.264/AAC MP4 for universal browser compatibility.
+ * Replaces the original file in-place. Returns the (unchanged) filePath on success
+ * or if FFmpeg is unavailable, so callers can always proceed with the original.
+ *
+ * @param {string} filePath — absolute path to the uploaded video file
+ * @returns {Promise<string>} — filePath (same path, transcoded in-place)
+ */
+export async function transcodeVideo(filePath) {
+  const ext = path.extname(filePath)
+  const tmpPath = `${filePath}.transcoding${ext}`
+  try {
+    await execFileAsync('ffmpeg', [
+      '-y',
+      '-i', filePath,
+      '-c:v', 'libx264',
+      '-preset', 'fast',
+      '-crf', '23',
+      '-c:a', 'aac',
+      '-b:a', '128k',
+      '-movflags', '+faststart',
+      tmpPath,
+    ])
+    fs.renameSync(tmpPath, filePath)
+    console.log(`[transcode] Transcoded ${path.basename(filePath)} to H.264/AAC`)
+  } catch (err) {
+    console.warn(`[transcode] FFmpeg unavailable or failed for ${path.basename(filePath)}: ${err.message}`)
+    try { fs.unlinkSync(tmpPath) } catch {}
+    // Fall through — serve original file as-is
+  }
+  return filePath
+}
