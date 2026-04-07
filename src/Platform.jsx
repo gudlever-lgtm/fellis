@@ -6009,6 +6009,7 @@ function SettingsSikkerhed({ lang, fS, lS }) {
             onChange={e => setPhone(e.target.value)}
             placeholder="+4512345678"
             inputMode="tel"
+            autoComplete="tel"
           />
           <button type="submit" disabled={phoneLoading} style={{ ...btnStyle(), whiteSpace: 'nowrap', opacity: phoneLoading ? 0.7 : 1 }}>
             {phoneLoading ? '…' : (t.saveNumber)}
@@ -6218,10 +6219,10 @@ function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenM
       <form onSubmit={handleChangeEmail} style={{ marginBottom: 28 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: '#333', marginBottom: 4 }}>{t.emailLabel}</div>
         <label style={lS}>{t.newEmail}</label>
-        <input style={fS} type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} required />
+        <input style={fS} type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} autoComplete="email" required />
         <label style={lS}>{t.settingsEmailConfirm}</label>
         <div style={{ position: 'relative' }}>
-          <input style={{ ...fS, paddingRight: 44 }} type={showEmailPw ? 'text' : 'password'} value={emailPassword} onChange={e => setEmailPassword(e.target.value)} required placeholder="••••••••" />
+          <input style={{ ...fS, paddingRight: 44 }} type={showEmailPw ? 'text' : 'password'} value={emailPassword} onChange={e => setEmailPassword(e.target.value)} autoComplete="current-password" required placeholder="••••••••" />
           <button type="button" onClick={() => setShowEmailPw(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#888' }}>{showEmailPw ? '🙈' : '👁️'}</button>
         </div>
         {emailMsg && <div style={{ marginTop: 8, fontSize: 13, color: emailMsg.ok ? '#2D6A4F' : '#c0392b', fontWeight: 600 }}>{emailMsg.ok ? '✓' : '✗'} {emailMsg.text}</div>}
@@ -8242,6 +8243,7 @@ function PrivacySection({ lang, onLogout }) {
                     onChange={e => setDeletePassword(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && handleDeleteVerify()}
                     placeholder={t.deletePasswordPlaceholder}
+                    autoComplete="current-password"
                     autoFocus
                     style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #ddd', fontSize: 14, width: '100%', boxSizing: 'border-box' }}
                   />
@@ -9252,6 +9254,7 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
             placeholder={t.invitesSendPlaceholder}
             value={inviteEmail}
             onChange={e => { setInviteEmail(e.target.value); setInviteEmailSentOk(false) }}
+            autoComplete="email"
             disabled={inviteEmailSending}
             required
           />
@@ -11742,7 +11745,7 @@ function CompanyLeadModal({ company, t, lang, onClose }) {
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4, color: '#444' }}>{t.email}</label>
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)} style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box' }} />
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box' }} />
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4, color: '#444' }}>{t.topic}</label>
@@ -12760,7 +12763,7 @@ function CreateCompanyModal({ t, lang, currentUser, onClose, onCreate, editCompa
             </div>
             <div>
               <label style={lS}>{t.companyEmail}</label>
-              <input style={fS} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="info@firma.dk" />
+              <input style={fS} type="email" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" placeholder="info@firma.dk" />
             </div>
           </div>
           <label style={lS}>{t.companyWebsite}</label>
@@ -13281,7 +13284,7 @@ function JobApplyModal({ job, lang, t, onClose, currentUser }) {
             <label style={lS}>{t.yourName} <span className="req">*</span></label>
             <input style={fS} value={name} onChange={e => setName(e.target.value)} required autoFocus />
             <label style={lS}>{t.emailLabel} <span className="req">*</span></label>
-            <input style={fS} type="email" value={email} onChange={e => setEmail(e.target.value)} required />
+            <input style={fS} type="email" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" required />
             <label style={lS}>{t.shortMessage}</label>
             <textarea style={{ ...fS, minHeight: 70, resize: 'vertical' }} value={message} onChange={e => setMessage(e.target.value)} placeholder={t.tellABitAboutYourself} />
 
@@ -14292,7 +14295,7 @@ function CreateJobModal({ t, lang, companies, onClose, onCreate, editJob }) {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
               <label style={lS}>{t.jobContactEmail}</label>
-              <input style={fS} type="email" value={contactEmail} onChange={e => setContactEmail(e.target.value)} placeholder="job@firma.dk" />
+              <input style={fS} type="email" value={contactEmail} onChange={e => setContactEmail(e.target.value)} autoComplete="email" placeholder="job@firma.dk" />
             </div>
             <div>
               <label style={lS}>{t.jobDeadline}</label>
@@ -15314,7 +15317,7 @@ function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, formErr
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
             <span style={{ fontSize: 18, flexShrink: 0 }}>✉️</span>
-            <input style={{ ...fS, marginBottom: 0, flex: 1 }} value={contactEmail} onChange={e => setContactEmail(e.target.value)} placeholder={t.emailAddressOptional} type="email" />
+            <input style={{ ...fS, marginBottom: 0, flex: 1 }} value={contactEmail} onChange={e => setContactEmail(e.target.value)} placeholder={t.emailAddressOptional} type="email" autoComplete="email" />
           </div>
 
           <label style={lS}>{t.marketplaceFieldDescription}</label>
@@ -19758,6 +19761,7 @@ function AdminPage({ lang, t }) {
                             placeholder={t.passwordLabel}
                             value={revealKeyPwd}
                             onChange={e => setRevealKeyPwd(e.target.value)}
+                            autoComplete="current-password"
                             onKeyDown={async e => {
                               if (e.key === 'Enter') {
                                 e.preventDefault()
