@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react'
 import Landing from './Landing.jsx'
 import Platform from './Platform.jsx'
 import PublicBlogPage from './BlogPage.jsx'
+import InstallPrompt from './components/InstallPrompt.jsx'
 import { apiCheckSession, apiLogout, apiGiveConsent, apiGetConsentStatus, apiGetInviteInfo, apiTrackVisit, apiGetCsrfToken, apiGetUserByHandle } from './api.js'
 import { UI_LANGS, detectLang, detectLangFromIP, PT } from './data.js'
 import { USER_LS_KEY } from './hooks/useEasterEggs.js'
@@ -517,6 +518,7 @@ function App() {
           initialProfileUserId={parseInt(sessionStorage.getItem('fellis_profile_userId') || '0') || null}
           initialProfileSubpage={sessionStorage.getItem('fellis_profile_subpage')}
         />
+        <InstallPrompt lang={lang} PT={PT} />
       </>
     )
   }
@@ -541,6 +543,7 @@ function App() {
         </div>
       )}
       <Landing onEnterPlatform={handleEnterPlatform} inviteToken={inviteToken} inviterName={inviterName} inviterEmail={inviterEmail} resetToken={resetToken} />
+      <InstallPrompt lang={lang} PT={PT} />
     </>
   )
 }

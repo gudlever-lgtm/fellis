@@ -33,6 +33,11 @@ export default {
     // Stream key (mediamtx / RTMP)
     // Moderation
     // Nav menu
+    // Install prompt
+    installTitle: 'Installer fellis som app',
+    installSubtitle: 'Hurtig adgang direkte fra din startskærm',
+    installBtn: 'Installer',
+    installIOSTip: 'Tryk på Del-knappen og vælg "Føj til hjemmeskærm"',
     // Time ago labels (used in timeAgo() function)
     timeAgoJustNow: 'Lige nu',
     timeAgoMinutes: ' min siden',
@@ -641,6 +646,11 @@ export default {
     // Stream key (mediamtx / RTMP)
     // Moderation
     // Nav menu
+    // Install prompt
+    installTitle: 'Install fellis as an app',
+    installSubtitle: 'Quick access directly from your home screen',
+    installBtn: 'Install',
+    installIOSTip: 'Tap the Share button and choose "Add to Home Screen"',
     // Time ago labels (used in timeAgo() function)
     timeAgoJustNow: 'Just now',
     timeAgoMinutes: 'm ago',
