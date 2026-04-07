@@ -3488,12 +3488,11 @@ app.patch('/api/feed/:id', authenticate, async (req, res) => {
   try {
     const postId = parseInt(req.params.id)
     const [[post]] = await pool.query(
-      'SELECT id, author_id, created_at FROM posts WHERE id = ?', [postId]
+      'SELECT id, author_id, TIMESTAMPDIFF(SECOND, created_at, NOW()) AS age_seconds FROM posts WHERE id = ?', [postId]
     )
     if (!post) return res.status(404).json({ error: 'Post not found' })
     if (post.author_id !== req.userId) return res.status(403).json({ error: 'Not your post' })
-    const ageMs = Date.now() - new Date(post.created_at).getTime()
-    if (ageMs > 60 * 60 * 1000) return res.status(403).json({ error: 'Edit window expired (1 hour)' })
+    if (post.age_seconds > 3600) return res.status(403).json({ error: 'Edit window expired (1 hour)' })
     await pool.query(
       'UPDATE posts SET text_da = ?, text_en = ?, edited_at = NOW() WHERE id = ?',
       [text.trim(), text.trim(), postId]
