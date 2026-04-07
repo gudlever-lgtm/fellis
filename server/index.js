@@ -13824,6 +13824,25 @@ app.delete('/api/admin/blog/:id', authenticate, requireAdmin, async (req, res) =
   }
 })
 
+app.post('/api/admin/blog/translate', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { text, from, to } = req.body
+    if (!text?.trim()) return res.status(400).json({ error: 'Text required' })
+    if (!['da', 'en'].includes(from) || !['da', 'en'].includes(to) || from === to) {
+      return res.status(400).json({ error: 'Invalid language pair' })
+    }
+    const langNames = { da: 'Danish', en: 'English' }
+    const result = await callMistral(
+      `You are a professional translator. Translate the given text from ${langNames[from]} to ${langNames[to]}. Return only the translated text, no explanations.`,
+      text.trim()
+    )
+    if (!result) return res.status(503).json({ error: 'Translation unavailable' })
+    res.json({ text: result })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // ── SPA fallback ──
 app.get('*', (req, res) => {
   res.sendFile(path.join(FRONTEND_ROOT, 'index.html'))
