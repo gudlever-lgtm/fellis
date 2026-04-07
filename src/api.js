@@ -70,12 +70,20 @@ export async function apiLogin(email, password, lang) {
 }
 
 export async function apiRegister(name, email, password, lang, inviteToken) {
-  const data = await request('/api/auth/register', {
-    method: 'POST',
-    body: JSON.stringify({ name, email, password, lang, inviteToken: inviteToken || undefined }),
-  })
-  // Session ID now stored in HTTP-only cookie by server
-  return data
+  // Use raw fetch so non-ok responses can return their error body to the UI
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/register`, {
+      method: 'POST',
+      headers: headers(),
+      credentials: 'same-origin',
+      body: JSON.stringify({ name, email, password, lang, inviteToken: inviteToken || undefined }),
+    })
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) return { error: body.error || 'registration_failed' }
+    return body
+  } catch {
+    return null
+  }
 }
 
 export async function apiForgotPassword(email) {

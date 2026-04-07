@@ -82,6 +82,8 @@ const T = {
     registerMathError: 'Forkert svar — prøv igen',
     registerSubmit: 'Opret konto & gå til profil',
     registerError: 'Kunne ikke oprette konto',
+    registerErrorDuplicate: 'Denne e-mail er allerede i brug — log ind eller brug en anden e-mail',
+    registerErrorRateLimit: 'For mange forsøg — prøv igen om lidt',
     registerGdpr: 'Jeg accepterer behandling af mine persondata i henhold til fellis.eu\'s',
     registerGdprLink: 'privatlivspolitik',
     registerGdprRequired: 'Du skal acceptere privatlivspolitikken for at oprette en konto',
@@ -174,6 +176,8 @@ const T = {
     registerMathError: 'Wrong answer — please try again',
     registerSubmit: 'Create account & go to profile',
     registerError: 'Could not create account',
+    registerErrorDuplicate: 'This email is already in use — log in or use a different email',
+    registerErrorRateLimit: 'Too many attempts — please try again shortly',
     registerGdpr: 'I accept the processing of my personal data in accordance with fellis.eu\'s',
     registerGdprLink: 'privacy policy',
     registerGdprRequired: 'You must accept the privacy policy to create an account',
@@ -411,7 +415,17 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
     try {
       const regData = await apiRegister(regName.trim(), regEmail.trim(), regPassword.trim(), lang, inviteToken || undefined)
       if (!regData?.sessionId) {
-        setRegError(regData?.error || t.registerError)
+        const serverErr = regData?.error || ''
+        let displayErr = t.registerError
+        if (serverErr.toLowerCase().includes('already exists') || serverErr.toLowerCase().includes('duplicate')) {
+          displayErr = t.registerErrorDuplicate
+        } else if (serverErr.toLowerCase().includes('too many') || serverErr.toLowerCase().includes('rate')) {
+          displayErr = t.registerErrorRateLimit
+        } else if (serverErr && serverErr !== 'registration_failed') {
+          // Password policy or other server-side message — show as-is (already in user's lang)
+          displayErr = serverErr
+        }
+        setRegError(displayErr)
         setRegLoading(false)
         return
       }
