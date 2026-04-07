@@ -2022,3 +2022,11 @@ export async function apiConvertPostToReel(postId) {
 export async function apiShareReelToFeed(reelId) {
   return await request(`/api/reels/${reelId}/share-to-feed`, { method: 'POST' })
 }
+
+// ── Blog ──────────────────────────────────────────────────────────────────────
+export const apiFetchBlogPosts = () => request('/api/blog')
+export const apiFetchBlogPost = (slug) => request(`/api/blog/${slug}`)
+export const apiFetchAdminBlogPosts = () => request('/api/admin/blog')
+export const apiCreateBlogPost = (data) => request('/api/admin/blog', { method: 'POST', body: JSON.stringify(data) })
+export const apiUpdateBlogPost = (id, data) => request(`/api/admin/blog/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+export const apiDeleteBlogPost = (id) => request(`/api/admin/blog/${id}`, { method: 'DELETE' })

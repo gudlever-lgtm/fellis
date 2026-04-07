@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import Landing from './Landing.jsx'
 import Platform from './Platform.jsx'
+import PublicBlogPage from './BlogPage.jsx'
 import { apiCheckSession, apiLogout, apiGiveConsent, apiGetConsentStatus, apiGetInviteInfo, apiTrackVisit, apiGetCsrfToken, apiGetUserByHandle } from './api.js'
 import { UI_LANGS, detectLang, detectLangFromIP, PT } from './data.js'
 import { USER_LS_KEY } from './hooks/useEasterEggs.js'
@@ -547,6 +548,7 @@ function App() {
 function AppRoot() {
   if (window.location.pathname === '/privacy') return <PublicPrivacyPage />
   if (window.location.pathname === '/terms') return <PublicTermsPage />
+  if (window.location.pathname === '/blog' || window.location.pathname.startsWith('/blog/')) return <PublicBlogPage />
   return <App />
 }
 

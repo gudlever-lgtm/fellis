@@ -13725,6 +13725,105 @@ app.post('/api/reels/:id/share-to-feed', authenticate, writeLimit, async (req, r
   }
 })
 
+// ── Blog ─────────────────────────────────────────────────────────────────────
+
+app.get('/api/blog', async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT p.id, p.slug, p.title_da, p.title_en, p.summary_da, p.summary_en,
+              p.cover_image, p.published_at, p.created_at,
+              u.display_name AS author_name
+       FROM blog_posts p
+       LEFT JOIN users u ON u.id = p.author_id
+       WHERE p.published = 1
+       ORDER BY COALESCE(p.published_at, p.created_at) DESC`
+    )
+    res.json({ posts: rows })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.get('/api/blog/:slug', async (req, res) => {
+  try {
+    const [[post]] = await pool.query(
+      `SELECT p.*, u.display_name AS author_name
+       FROM blog_posts p
+       LEFT JOIN users u ON u.id = p.author_id
+       WHERE p.slug = ? AND p.published = 1`,
+      [req.params.slug]
+    )
+    if (!post) return res.status(404).json({ error: 'Not found' })
+    res.json(post)
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.get('/api/admin/blog', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT p.id, p.slug, p.title_da, p.title_en, p.summary_da, p.summary_en,
+              p.body_da, p.body_en, p.cover_image, p.published, p.published_at, p.created_at,
+              u.display_name AS author_name
+       FROM blog_posts p
+       LEFT JOIN users u ON u.id = p.author_id
+       ORDER BY p.created_at DESC`
+    )
+    res.json({ posts: rows })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.post('/api/admin/blog', authenticate, requireAdmin, writeLimit, async (req, res) => {
+  try {
+    const { slug, title_da, title_en, summary_da, summary_en, body_da, body_en, cover_image, published } = req.body
+    if (!slug?.trim()) return res.status(400).json({ error: 'Slug required' })
+    if (!title_da?.trim() && !title_en?.trim()) return res.status(400).json({ error: 'Title required' })
+    const publishedAt = published ? new Date() : null
+    const [r] = await pool.query(
+      `INSERT INTO blog_posts (slug, title_da, title_en, summary_da, summary_en, body_da, body_en, cover_image, author_id, published, published_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+      [slug.trim(), title_da || '', title_en || '', summary_da || null, summary_en || null,
+       body_da || '', body_en || '', cover_image || null, req.userId, published ? 1 : 0, publishedAt]
+    )
+    res.json({ ok: true, id: r.insertId })
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') return res.status(400).json({ error: 'Slug already exists' })
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.put('/api/admin/blog/:id', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { slug, title_da, title_en, summary_da, summary_en, body_da, body_en, cover_image, published } = req.body
+    const [[existing]] = await pool.query('SELECT id, published, published_at FROM blog_posts WHERE id=?', [req.params.id])
+    if (!existing) return res.status(404).json({ error: 'Not found' })
+    const publishedAt = published && !existing.published ? new Date() : (published ? existing.published_at : null)
+    await pool.query(
+      `UPDATE blog_posts SET slug=?, title_da=?, title_en=?, summary_da=?, summary_en=?,
+       body_da=?, body_en=?, cover_image=?, published=?, published_at=?, updated_at=NOW()
+       WHERE id=?`,
+      [slug, title_da || '', title_en || '', summary_da || null, summary_en || null,
+       body_da || '', body_en || '', cover_image || null, published ? 1 : 0, publishedAt, req.params.id]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') return res.status(400).json({ error: 'Slug already exists' })
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.delete('/api/admin/blog/:id', authenticate, requireAdmin, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM blog_posts WHERE id=?', [req.params.id])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // ── SPA fallback ──
 app.get('*', (req, res) => {
   res.sendFile(path.join(FRONTEND_ROOT, 'index.html'))
