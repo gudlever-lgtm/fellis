@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "node tests/check-api-routes.js && rm -rf assets && npx vite build",
     "test": "node tests/check-api-routes.js",
+    "e2e": "node tests/e2e-test.js",
     "lint": "eslint .",
     "preview": "vite preview",
     "server": "node server/index.js",
