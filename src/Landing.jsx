@@ -472,6 +472,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
                   value={loginEmail}
                   onChange={e => setLoginEmail(e.target.value)}
                   className="fb-input"
+                  autoComplete="email"
                   autoFocus
                 />
                 <div style={{ position: 'relative' }}>
@@ -481,6 +482,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
                     value={loginPassword}
                     onChange={e => setLoginPassword(e.target.value)}
                     className="fb-input"
+                    autoComplete="current-password"
                     style={{ paddingRight: 40, width: '100%', boxSizing: 'border-box' }}
                   />
                   <button
@@ -550,6 +552,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
                   value={forgotEmail}
                   onChange={e => setForgotEmail(e.target.value)}
                   className="fb-input"
+                  autoComplete="email"
                   autoFocus
                 />
                 {forgotError && <div className="fb-error">{forgotError}</div>}
@@ -571,6 +574,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
                   value={forgotNewPw}
                   onChange={e => setForgotNewPw(e.target.value)}
                   className="fb-input"
+                  autoComplete="new-password"
                   autoFocus
                   minLength={6}
                 />
@@ -642,6 +646,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
               value={regEmail}
               onChange={e => setRegEmail(e.target.value)}
               className="register-input"
+              autoComplete="email"
               required
             />
             <input
@@ -651,6 +656,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
               value={regName}
               onChange={e => setRegName(e.target.value)}
               className="register-input"
+              autoComplete="name"
               required
             />
             <input
@@ -659,6 +665,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
               value={regPassword}
               onChange={e => setRegPassword(e.target.value)}
               className="register-input"
+              autoComplete="new-password"
               minLength={6}
               required
             />
@@ -668,6 +675,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
               value={regPasswordRepeat}
               onChange={e => setRegPasswordRepeat(e.target.value)}
               className="register-input"
+              autoComplete="new-password"
               minLength={6}
               required
             />
