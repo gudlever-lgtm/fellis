@@ -13732,7 +13732,7 @@ app.get('/api/blog', async (req, res) => {
     const [rows] = await pool.query(
       `SELECT p.id, p.slug, p.title_da, p.title_en, p.summary_da, p.summary_en,
               p.cover_image, p.published_at, p.created_at,
-              u.display_name AS author_name
+              u.name AS author_name
        FROM blog_posts p
        LEFT JOIN users u ON u.id = p.author_id
        WHERE p.published = 1
@@ -13747,7 +13747,7 @@ app.get('/api/blog', async (req, res) => {
 app.get('/api/blog/:slug', async (req, res) => {
   try {
     const [[post]] = await pool.query(
-      `SELECT p.*, u.display_name AS author_name
+      `SELECT p.*, u.name AS author_name
        FROM blog_posts p
        LEFT JOIN users u ON u.id = p.author_id
        WHERE p.slug = ? AND p.published = 1`,
@@ -13765,7 +13765,7 @@ app.get('/api/admin/blog', authenticate, requireAdmin, async (req, res) => {
     const [rows] = await pool.query(
       `SELECT p.id, p.slug, p.title_da, p.title_en, p.summary_da, p.summary_en,
               p.body_da, p.body_en, p.cover_image, p.published, p.published_at, p.created_at,
-              u.display_name AS author_name
+              u.name AS author_name
        FROM blog_posts p
        LEFT JOIN users u ON u.id = p.author_id
        ORDER BY p.created_at DESC`
