@@ -1132,7 +1132,8 @@ export async function apiSaveNotificationPreferences(prefs) {
 }
 
 export async function apiSuggestCategory(text) {
-  return await request(`/api/feed/suggest-category?text=${encodeURIComponent(text)}`)
+  const safe = text.replace(/\s+/g, ' ').trim().slice(0, 300)
+  return await request(`/api/feed/suggest-category?text=${encodeURIComponent(safe)}`)
 }
 
 export async function apiGetMyJobs() {
