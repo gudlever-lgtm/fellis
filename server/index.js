@@ -9801,7 +9801,8 @@ app.put('/api/me/notification-preferences', authenticate, async (req, res) => {
 
 // ── Feed category suggestion ──────────────────────────────────────────────────
 app.get('/api/feed/suggest-category', authenticate, async (req, res) => {
-  const text = (req.query.text || '').toLowerCase()
+  const raw = req.query.text
+  const text = (Array.isArray(raw) ? raw[0] : raw || '').toLowerCase()
   const MAP = [
     { keywords: ['mad', 'opskrift', 'food', 'recipe', 'pizza', 'kaffe', 'coffee'], cat: 'mad' },
     { keywords: ['musik', 'music', 'sang', 'song', 'band', 'concert', 'koncert'], cat: 'musik' },
