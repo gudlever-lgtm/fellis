@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { detectLang } from './data.js'
 import { getTranslations } from './i18n/index.js'
 import {
   apiFetchBlogPosts, apiFetchBlogPost,
   apiFetchAdminBlogPosts, apiCreateBlogPost, apiUpdateBlogPost, apiDeleteBlogPost,
+  apiBlogTranslate, apiUploadFile,
 } from './api.js'
 
 const GREEN = '#2D6A4F'
@@ -22,6 +23,119 @@ function slugify(str) {
     .replace(/æ/g, 'ae').replace(/ø/g, 'oe').replace(/å/g, 'aa')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
+}
+
+// ── Cover image input: URL field + paste image + upload button ────────────────
+function CoverImageInput({ value, onChange, b }) {
+  const [uploading, setUploading] = useState(false)
+  const fileRef = useRef(null)
+
+  async function uploadFile(file) {
+    setUploading(true)
+    const data = await apiUploadFile(file).catch(() => null)
+    setUploading(false)
+    if (data?.url) onChange(data.url)
+  }
+
+  async function handlePaste(e) {
+    const items = Array.from(e.clipboardData?.items || [])
+    const img = items.find(i => i.kind === 'file' && i.type.startsWith('image/'))
+    if (!img) return
+    e.preventDefault()
+    const file = img.getAsFile()
+    if (file) await uploadFile(file)
+  }
+
+  async function handleFile(e) {
+    const file = e.target.files?.[0]
+    if (file) await uploadFile(file)
+    e.target.value = ''
+  }
+
+  const s = {
+    row: { display: 'flex', gap: 8, marginBottom: 4 },
+    input: { flex: 1, border: `1px solid ${BORDER}`, borderRadius: 8, padding: '8px 12px', fontSize: 14, opacity: uploading ? 0.6 : 1 },
+    uploadBtn: { background: '#f7f6f3', border: `1px solid ${BORDER}`, borderRadius: 8, padding: '8px 12px', fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap', color: TEXT },
+    hint: { fontSize: 11, color: '#aaa', marginBottom: 12 },
+    preview: { width: '100%', maxHeight: 140, objectFit: 'cover', borderRadius: 8, marginBottom: 12, display: 'block' },
+  }
+
+  return (
+    <div>
+      <div style={s.row}>
+        <input
+          style={s.input}
+          type="text"
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          onPaste={handlePaste}
+          placeholder={uploading ? b.uploading : 'https://…'}
+          disabled={uploading}
+        />
+        <button type="button" style={s.uploadBtn} onClick={() => fileRef.current?.click()} disabled={uploading}>
+          {uploading ? '…' : b.uploadImage}
+        </button>
+        <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFile} />
+      </div>
+      <p style={s.hint}>💡 {b.pasteHint}</p>
+      {value && <img src={value} alt="" style={s.preview} onError={e => { e.target.style.display = 'none' }} />}
+    </div>
+  )
+}
+
+// ── Bilingual field pair with translate buttons ───────────────────────────────
+function BilingualField({ labelDa, labelEn, valueDa, valueEn, onChangeDa, onChangeEn, multiline, b }) {
+  const [translating, setTranslating] = useState(null) // 'da->en' | 'en->da'
+
+  async function translate(from, to) {
+    const text = from === 'da' ? valueDa : valueEn
+    if (!text?.trim()) return
+    setTranslating(`${from}->${to}`)
+    const res = await apiBlogTranslate(text, from, to)
+    setTranslating(null)
+    if (res?.text) {
+      if (to === 'en') onChangeEn(res.text)
+      else onChangeDa(res.text)
+    }
+  }
+
+  const s = {
+    label: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+    labelText: { fontSize: 13, fontWeight: 600, color: TEXT },
+    translateBtn: { fontSize: 11, padding: '2px 8px', borderRadius: 12, border: `1px solid ${BORDER}`, background: 'none', cursor: 'pointer', color: GREEN, fontWeight: 600 },
+    input: { width: '100%', border: `1px solid ${BORDER}`, borderRadius: 8, padding: '8px 12px', fontSize: 14, boxSizing: 'border-box', marginBottom: 12 },
+    textarea: { width: '100%', border: `1px solid ${BORDER}`, borderRadius: 8, padding: '8px 12px', fontSize: 14, boxSizing: 'border-box', marginBottom: 12, resize: 'vertical' },
+  }
+
+  const daTranslating = translating === 'da->en'
+  const enTranslating = translating === 'en->da'
+  const inputStyle = multiline ? s.textarea : s.input
+
+  return (
+    <>
+      <div style={s.label}>
+        <span style={s.labelText}>{labelDa}</span>
+        <button type="button" style={s.translateBtn} onClick={() => translate('da', 'en')} disabled={!!translating}>
+          {daTranslating ? '…' : `${b.translateTo} EN →`}
+        </button>
+      </div>
+      {multiline
+        ? <textarea style={{ ...inputStyle, minHeight: multiline }} value={valueDa} onChange={e => onChangeDa(e.target.value)} />
+        : <input style={inputStyle} value={valueDa} onChange={e => onChangeDa(e.target.value)} />
+      }
+
+      <div style={s.label}>
+        <span style={s.labelText}>{labelEn}</span>
+        <button type="button" style={s.translateBtn} onClick={() => translate('en', 'da')} disabled={!!translating}>
+          {enTranslating ? '…' : `← ${b.translateTo} DA`}
+        </button>
+      </div>
+      {multiline
+        ? <textarea style={{ ...inputStyle, minHeight: multiline }} value={valueEn} onChange={e => onChangeEn(e.target.value)} />
+        : <input style={inputStyle} value={valueEn} onChange={e => onChangeEn(e.target.value)} />
+      }
+    </>
+  )
 }
 
 // ── Admin Editor ──────────────────────────────────────────────────────────────
@@ -45,10 +159,11 @@ function BlogEditor({ post, onSave, onCancel, lang }) {
   const [error, setError] = useState('')
 
   function set(key, val) {
-    setForm(f => ({ ...f, [key]: val }))
-    if (key === 'title_da' && isNew && !form.slug) {
-      setForm(f => ({ ...f, [key]: val, slug: slugify(val) }))
-    }
+    setForm(f => {
+      const next = { ...f, [key]: val }
+      if (key === 'title_da' && isNew && !f.slug) next.slug = slugify(val)
+      return next
+    })
   }
 
   async function handleSave() {
@@ -56,10 +171,9 @@ function BlogEditor({ post, onSave, onCancel, lang }) {
     if (!form.slug.trim()) { setError(b.errorSlug); return }
     if (!form.title_da.trim() && !form.title_en.trim()) { setError(b.errorTitle); return }
     setSaving(true)
-    const data = { ...form }
     const res = isNew
-      ? await apiCreateBlogPost(data)
-      : await apiUpdateBlogPost(post.id, data)
+      ? await apiCreateBlogPost(form)
+      : await apiUpdateBlogPost(post.id, form)
     setSaving(false)
     if (!res?.ok) {
       setError(res?.error === 'Slug already exists' ? b.errorDuplicate : (res?.error || 'Error'))
@@ -70,11 +184,10 @@ function BlogEditor({ post, onSave, onCancel, lang }) {
 
   const s = {
     overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 },
-    modal: { background: '#fff', borderRadius: 12, width: '100%', maxWidth: 680, maxHeight: '90vh', overflowY: 'auto', padding: 28 },
+    modal: { background: '#fff', borderRadius: 12, width: '100%', maxWidth: 700, maxHeight: '90vh', overflowY: 'auto', padding: 28 },
     title: { fontSize: 18, fontWeight: 700, marginBottom: 20, color: TEXT },
     label: { display: 'block', fontSize: 13, fontWeight: 600, color: TEXT, marginBottom: 4 },
     input: { width: '100%', border: `1px solid ${BORDER}`, borderRadius: 8, padding: '8px 12px', fontSize: 14, boxSizing: 'border-box', marginBottom: 12 },
-    textarea: { width: '100%', border: `1px solid ${BORDER}`, borderRadius: 8, padding: '8px 12px', fontSize: 14, boxSizing: 'border-box', marginBottom: 12, minHeight: 100, resize: 'vertical' },
     hint: { fontSize: 12, color: MUTED, marginTop: -10, marginBottom: 12 },
     row: { display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16 },
     check: { accentColor: GREEN, width: 16, height: 16 },
@@ -83,6 +196,7 @@ function BlogEditor({ post, onSave, onCancel, lang }) {
     btns: { display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 },
     btnPrimary: { background: GREEN, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontSize: 14, fontWeight: 600, cursor: 'pointer' },
     btnSecondary: { background: 'none', color: TEXT, border: `1px solid ${BORDER}`, borderRadius: 8, padding: '9px 20px', fontSize: 14, cursor: 'pointer' },
+    divider: { borderTop: `1px solid ${BORDER}`, margin: '16px 0' },
   }
 
   return (
@@ -94,26 +208,39 @@ function BlogEditor({ post, onSave, onCancel, lang }) {
         <input style={s.input} value={form.slug} onChange={e => set('slug', e.target.value.toLowerCase().replace(/\s+/g, '-'))} placeholder="min-blog-slug" />
         <p style={s.hint}>{b.slugHint}</p>
 
-        <label style={s.label}>{b.titleDa}</label>
-        <input style={s.input} value={form.title_da} onChange={e => set('title_da', e.target.value)} />
+        <div style={s.divider} />
 
-        <label style={s.label}>{b.titleEn}</label>
-        <input style={s.input} value={form.title_en} onChange={e => set('title_en', e.target.value)} />
+        <BilingualField
+          labelDa={b.titleDa} labelEn={b.titleEn}
+          valueDa={form.title_da} valueEn={form.title_en}
+          onChangeDa={v => set('title_da', v)} onChangeEn={v => set('title_en', v)}
+          b={b}
+        />
 
-        <label style={s.label}>{b.summaryDa}</label>
-        <textarea style={s.textarea} value={form.summary_da} onChange={e => set('summary_da', e.target.value)} rows={3} />
+        <div style={s.divider} />
 
-        <label style={s.label}>{b.summaryEn}</label>
-        <textarea style={s.textarea} value={form.summary_en} onChange={e => set('summary_en', e.target.value)} rows={3} />
+        <BilingualField
+          labelDa={b.summaryDa} labelEn={b.summaryEn}
+          valueDa={form.summary_da} valueEn={form.summary_en}
+          onChangeDa={v => set('summary_da', v)} onChangeEn={v => set('summary_en', v)}
+          multiline={80}
+          b={b}
+        />
 
-        <label style={s.label}>{b.bodyDa}</label>
-        <textarea style={{ ...s.textarea, minHeight: 160 }} value={form.body_da} onChange={e => set('body_da', e.target.value)} />
+        <div style={s.divider} />
 
-        <label style={s.label}>{b.bodyEn}</label>
-        <textarea style={{ ...s.textarea, minHeight: 160 }} value={form.body_en} onChange={e => set('body_en', e.target.value)} />
+        <BilingualField
+          labelDa={b.bodyDa} labelEn={b.bodyEn}
+          valueDa={form.body_da} valueEn={form.body_en}
+          onChangeDa={v => set('body_da', v)} onChangeEn={v => set('body_en', v)}
+          multiline={180}
+          b={b}
+        />
+
+        <div style={s.divider} />
 
         <label style={s.label}>{b.coverImage}</label>
-        <input style={s.input} value={form.cover_image} onChange={e => set('cover_image', e.target.value)} placeholder="https://..." />
+        <CoverImageInput value={form.cover_image} onChange={v => set('cover_image', v)} b={b} />
 
         <div style={s.row}>
           <input type="checkbox" style={s.check} id="blog-published" checked={form.published} onChange={e => set('published', e.target.checked)} />
@@ -137,7 +264,7 @@ function PostCard({ post, lang, t, isAdmin, onEdit, onDelete, onClick }) {
   const summary = lang === 'da' ? (post.summary_da || post.summary_en) : (post.summary_en || post.summary_da)
 
   const s = {
-    card: { background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 12, overflow: 'hidden', cursor: 'pointer', transition: 'box-shadow 0.15s' },
+    card: { background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 12, overflow: 'hidden', cursor: 'pointer' },
     cover: { width: '100%', height: 200, objectFit: 'cover', display: 'block' },
     coverPlaceholder: { width: '100%', height: 200, background: '#f0ede8', display: 'flex', alignItems: 'center', justifyContent: 'center' },
     body: { padding: 20 },
@@ -145,7 +272,7 @@ function PostCard({ post, lang, t, isAdmin, onEdit, onDelete, onClick }) {
     statusBadge: { fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: post.published ? '#d4edda' : '#fff3cd', color: post.published ? '#155724' : '#856404' },
     h2: { fontSize: 18, fontWeight: 700, color: TEXT, margin: '0 0 8px', lineHeight: 1.3 },
     summary: { fontSize: 14, color: MUTED, lineHeight: 1.6, margin: '0 0 14px' },
-    readMore: { color: GREEN, fontSize: 13, fontWeight: 600, textDecoration: 'none' },
+    readMore: { color: GREEN, fontSize: 13, fontWeight: 600 },
     adminBtns: { display: 'flex', gap: 8, marginTop: 12, paddingTop: 12, borderTop: `1px solid ${BORDER}` },
     btnEdit: { fontSize: 12, padding: '4px 12px', borderRadius: 6, border: `1px solid ${BORDER}`, background: 'none', cursor: 'pointer', color: TEXT },
     btnDel: { fontSize: 12, padding: '4px 12px', borderRadius: 6, border: '1px solid #fcc', background: 'none', cursor: 'pointer', color: '#c00' },
@@ -239,11 +366,10 @@ export default function PublicBlogPage() {
     const m = window.location.pathname.match(/^\/blog\/(.+)$/)
     return m ? m[1] : null
   })
-  const [editor, setEditor] = useState(null) // null | 'new' | post object
+  const [editor, setEditor] = useState(null)
 
   async function load() {
     setLoading(true)
-    // Try admin endpoint first to check if user is admin
     const adminRes = await apiFetchAdminBlogPosts()
     if (adminRes?.posts) {
       setPosts(adminRes.posts)
@@ -258,15 +384,11 @@ export default function PublicBlogPage() {
 
   useEffect(() => { load() }, [])
 
-  // Update browser URL when slug changes
   useEffect(() => {
     const target = slug ? `/blog/${slug}` : '/blog'
-    if (window.location.pathname !== target) {
-      window.history.pushState({}, '', target)
-    }
+    if (window.location.pathname !== target) window.history.pushState({}, '', target)
   }, [slug])
 
-  // Handle browser back/forward
   useEffect(() => {
     function onPop() {
       const m = window.location.pathname.match(/^\/blog\/(.+)$/)
@@ -311,7 +433,6 @@ export default function PublicBlogPage() {
         </select>
       </nav>
 
-      {/* Admin bar — only shown to admins, only on list view */}
       {isAdmin && !slug && (
         <div style={s.adminBar}>
           <span style={s.adminLabel}>{t.blog.admin.manage}</span>
@@ -367,7 +488,7 @@ export default function PublicBlogPage() {
         <a href="/" style={{ color: GREEN, textDecoration: 'none' }}>{lang === 'da' ? '← Gå til fellis.eu' : '← Go to fellis.eu'}</a>
       </div>
 
-      {(editor !== null) && (
+      {editor !== null && (
         <BlogEditor
           post={isNewEditor ? null : editingPost}
           lang={lang}
@@ -375,11 +496,10 @@ export default function PublicBlogPage() {
           onSave={async () => {
             setEditor(null)
             await load()
-            // If editing current article, reload it by toggling slug
             if (editingPost && slug === editingPost.slug) {
-              const newSlug = editingPost.slug
+              const s = editingPost.slug
               setSlug(null)
-              setTimeout(() => setSlug(newSlug), 0)
+              setTimeout(() => setSlug(s), 0)
             }
           }}
         />
