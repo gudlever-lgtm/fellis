@@ -11958,7 +11958,7 @@ app.get('/api/explore/trending-tags', authenticate, async (req, res) => {
   }
 })
 
-// GET /api/explore/feed — trending posts from non-followed users
+// GET /api/explore/feed — trending posts platform-wide (excluding own posts)
 app.get('/api/explore/feed', authenticate, async (req, res) => {
   const cursor = req.query.cursor ? parseFloat(req.query.cursor) : null
   const filter = req.query.filter || 'all'   // all | images | video | reels
@@ -11987,15 +11987,12 @@ app.get('/api/explore/feed', authenticate, async (req, res) => {
       FROM posts p
       JOIN users u ON u.id = p.author_id
       WHERE p.author_id != ?
-        AND p.author_id NOT IN (
-          SELECT friend_id FROM friendships WHERE user_id = ?
-        )
         AND p.scheduled_at IS NULL
         ${mediaFilter}
       ${cursorClause}
       ORDER BY trending_score DESC
       LIMIT ?
-    `, [req.userId, req.userId, limit])
+    `, [req.userId, limit])
 
     const posts = rows.map(r => ({
       id: r.id,
