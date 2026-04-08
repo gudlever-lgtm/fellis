@@ -4,12 +4,13 @@
 // Usage:
 //   BASE_URL=https://test.fellis.eu node tests/e2e-test.js
 //   BASE_URL=http://localhost:3001 node tests/e2e-test.js
+//   npm run e2e                            (uses https://test.fellis.eu)
+//
+// Run from the server itself:
+//   BASE_URL=http://localhost:3001 npm run e2e
 //
 // Requirements: Node 18+ (built-in fetch). No external dependencies.
 // The script cleans up all data it creates (posts, listings, events, account).
-
-import { createRequire } from 'module'
-const _require = createRequire(import.meta.url) // unused but keeps ESM happy
 
 const BASE_URL = process.env.BASE_URL?.replace(/\/$/, '') || 'https://test.fellis.eu'
 const API = `${BASE_URL}/api`
@@ -85,7 +86,7 @@ async function api(method, path, body, extraHeaders = {}) {
     log(`${method} ${path} → ${res.status}`)
     return { status: res.status, data, ok: res.ok }
   } catch (err) {
-    return { status: 0, data: null, ok: false, err: err.message }
+    return { status: 0, data: null, ok: false, err: err.message, connErr: true }
   }
 }
 
@@ -498,7 +499,23 @@ async function testLogin() {
 async function run() {
   console.log(c.bold(`\nfellis.eu E2E Test Suite`))
   console.log(c.dim(`Target: ${BASE_URL}`))
-  console.log(c.dim(`Time:   ${new Date().toISOString()}\n`))
+  console.log(c.dim(`Time:   ${new Date().toISOString()}`))
+
+  // ─── Connectivity pre-check ─────────────────────────────────────────────────
+  const probe = await api('GET', '/health')
+  if (probe.connErr) {
+    console.log()
+    console.log(c.red(c.bold(`✖ Cannot reach ${API}/health`)))
+    console.log(c.red(`  ${probe.err}`))
+    console.log()
+    console.log(c.yellow('  Tip: if you are running this on the server itself, use:'))
+    console.log(c.yellow(`    BASE_URL=http://localhost:3001 npm run e2e`))
+    console.log(c.yellow('  Or check that PM2 is running:'))
+    console.log(c.yellow('    pm2 status'))
+    console.log()
+    process.exit(1)
+  }
+  console.log()
 
   await testHealth()
   await testConfig()
