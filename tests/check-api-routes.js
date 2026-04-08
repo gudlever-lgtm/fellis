@@ -158,4 +158,30 @@ if (missingStreamRoutes.length > 0) {
   console.log(`${GREEN}✓ All required mediamtx/stream routes are registered on the server.${RESET}\n`)
 }
 
+// ── chat.fellis.eu conversation endpoints ─────────────────────────────────────
+//
+// These routes MUST exist on the server and return the listed status codes:
+//
+//   GET  /api/conversations              → 200 (authenticated) | 401 (unauthenticated) — never 404/500
+//   POST /api/conversations/:id/messages → 200 (authenticated) | 401 (unauthenticated) — never 404/500
+//
+const REQUIRED_CHAT_ROUTES = [
+  'GET /api/conversations',
+  'POST /api/conversations/:id/messages',
+]
+
+const missingChatRoutes = REQUIRED_CHAT_ROUTES.filter(r => {
+  const [method, p] = r.split(' ')
+  return !normServerRoutes.has(`${method} ${normaliseServerPath(p)}`)
+})
+
+if (missingChatRoutes.length > 0) {
+  console.log(`${RED}✗ Missing required chat conversation server routes:${RESET}`)
+  for (const r of missingChatRoutes) console.log(`  ${RED}${r}${RESET}`)
+  console.log()
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ All required chat conversation routes are registered on the server.${RESET}\n`)
+}
+
 process.exit(0)

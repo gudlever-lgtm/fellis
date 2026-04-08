@@ -1,3 +1,4 @@
+import { PT } from '../data.js'
 export default function BusinessBadge({ lang, size = 'sm', onClick }) {
   const label = 'Business'
   const s = {
@@ -22,7 +23,7 @@ export default function BusinessBadge({ lang, size = 'sm', onClick }) {
         type="button"
         style={{ ...s, background: '#EEF2FF', outline: 'none', fontFamily: 'inherit' }}
         onClick={onClick}
-        title={lang === 'da' ? 'Gå til virksomhedsside' : 'Go to business page'}
+        title={PT[lang].goToBusinessPage}
       >
         🏢 {label}
       </button>

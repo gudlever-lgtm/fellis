@@ -44,7 +44,7 @@ async function main() {
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME || 'fellis_eu',
-    multipleStatements: true,
+    multipleStatements: false,
   })
 
   // Ensure tracking table exists
@@ -86,22 +86,108 @@ async function main() {
   console.log(`\n── Running ${pending.length} pending migration(s) ─────────`)
   if (DRY_RUN) console.log('   (dry-run — no changes will be made)\n')
 
+  // MySQL error codes that mean "already done" — safe to skip
+  const SKIP_CODES = new Set([
+    1060, // Duplicate column name (ADD COLUMN but column already exists)
+    1061, // Duplicate key name (ADD INDEX but index already exists)
+    1050, // Table already exists (without IF NOT EXISTS)
+    1091, // Can't DROP; column/key doesn't exist
+    1068, // Multiple primary key defined
+  ])
+
+  // Split a SQL file into individual statements.
+  // Uses a line-by-line parser so DELIMITER // blocks (used for stored
+  // procedures) are handled correctly: while the delimiter is '//', internal
+  // semicolons are treated as part of the statement body, not as terminators.
+  function splitStatements(sql) {
+    const stmts = []
+    let delimiter = ';'
+    let current = ''
+
+    for (const line of sql.split(/\r?\n/)) {
+      const trimmed = line.trim()
+
+      // DELIMITER directive — switch the active delimiter, don't accumulate
+      const delimMatch = trimmed.match(/^DELIMITER\s+(\S+)\s*$/i)
+      if (delimMatch) {
+        delimiter = delimMatch[1]
+        continue
+      }
+
+      current += (current ? '\n' : '') + line
+
+      if (delimiter === ';') {
+        // Normal mode: flush when line (minus inline comment) ends with ';'
+        const stripped = trimmed.replace(/--.*$/, '').trimEnd()
+        if (stripped.endsWith(';')) {
+          const stmt = current.trim().replace(/;[\s]*$/, '').trim()
+          if (stmt) stmts.push(stmt)
+          current = ''
+        }
+      } else {
+        // Custom delimiter mode (e.g. '//'):
+        // flush when the line ends with the custom delimiter
+        const esc = delimiter.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        if (new RegExp(esc + '\\s*$').test(trimmed)) {
+          const stmt = current.replace(new RegExp('\\s*' + esc + '\\s*$'), '').trim()
+          if (stmt) stmts.push(stmt)
+          current = ''
+        }
+      }
+    }
+
+    if (current.trim()) stmts.push(current.trim())
+    return stmts
+  }
+
+  // MySQL 8 doesn't support ADD/CREATE INDEX/COLUMN IF NOT EXISTS or
+  // DROP COLUMN/INDEX IF EXISTS (those are MariaDB extensions). Strip the
+  // IF [NOT] EXISTS clause so the statement can run, then let the error-code
+  // filter handle duplicates/missing items.
+  function mysqlCompatible(stmt) {
+    return stmt
+      .replace(/\bADD COLUMN IF NOT EXISTS\b/gi, 'ADD COLUMN')
+      .replace(/\bADD INDEX IF NOT EXISTS\b/gi, 'ADD INDEX')
+      .replace(/\bADD KEY IF NOT EXISTS\b/gi, 'ADD KEY')
+      .replace(/\bADD UNIQUE(?: INDEX| KEY)? IF NOT EXISTS\b/gi, m => m.replace(/ IF NOT EXISTS/i, ''))
+      .replace(/\bCREATE INDEX IF NOT EXISTS\b/gi, 'CREATE INDEX')
+      .replace(/\bCREATE UNIQUE INDEX IF NOT EXISTS\b/gi, 'CREATE UNIQUE INDEX')
+      .replace(/\bDROP COLUMN IF EXISTS\b/gi, 'DROP COLUMN')
+      .replace(/\bDROP INDEX IF EXISTS\b/gi, 'DROP INDEX')
+      .replace(/\bDROP KEY IF EXISTS\b/gi, 'DROP KEY')
+  }
+
   let ok = 0
   let failed = 0
   for (const file of pending) {
     const sql = readFileSync(path.join(__dirname, file), 'utf8')
     console.log(`  ▶  ${file}`)
     if (DRY_RUN) { ok++; continue }
-    try {
-      await conn.query(sql)
+
+    const stmts = splitStatements(sql)
+    let fileFailed = false
+
+    for (const rawStmt of stmts) {
+      const stmt = mysqlCompatible(rawStmt)
+      try {
+        await conn.query(stmt)
+      } catch (err) {
+        if (SKIP_CODES.has(err.errno)) {
+          // Already applied / already exists — not a real error
+          continue
+        }
+        console.error(`     ❌ FAILED: ${err.message}`)
+        console.error(`        Statement: ${stmt.slice(0, 120).replace(/\s+/g, ' ')}`)
+        fileFailed = true
+      }
+    }
+
+    if (!fileFailed) {
       await conn.query('INSERT IGNORE INTO _migrations (name) VALUES (?)', [file])
       console.log(`     ✅ done`)
       ok++
-    } catch (err) {
-      console.error(`     ❌ FAILED: ${err.message}`)
+    } else {
       failed++
-      // Continue with remaining migrations — partial runs are safe because
-      // each file is only re-tried on the next run if it was not recorded.
     }
   }
 

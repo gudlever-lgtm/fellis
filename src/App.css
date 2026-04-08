@@ -112,10 +112,10 @@
   text-align: center;
 }
 .register-input {
-  padding: 12px 16px;
+  padding: 10px 14px;
   border: 1px solid #E8E4DF;
   border-radius: 8px;
-  font-size: 15px;
+  font-size: 14px;
   transition: border-color 0.2s;
 }
 .register-input:focus {
@@ -523,9 +523,28 @@
   .step1-divider {
     padding: 4px 0;
   }
+  .migration-visual {
+    gap: 12px;
+  }
+  .brand-box {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    font-size: 22px;
+  }
+  .dots-container {
+    gap: 4px;
+  }
+  .dot {
+    width: 7px;
+    height: 7px;
+  }
+  .arrow-icon {
+    font-size: 18px;
+  }
 }
 
-/* ── Facebook connect ── */
+/* ── OAuth connect ── */
 .fb-btn {
   display: flex;
   align-items: center;
@@ -878,7 +897,7 @@
   font-weight: 500;
 }
 
-/* ── Facebook Login Modal ── */
+/* ── Login Modal ── */
 .modal-backdrop {
   position: fixed;
   top: 0;
@@ -979,6 +998,7 @@
 .platform {
   min-height: 100vh;
   background: #FAFAF7;
+  padding-top: 60px;
 }
 
 /* ── Platform Nav ── */
@@ -990,9 +1010,20 @@
   height: 60px;
   background: #fff;
   border-bottom: 1px solid #E8E4DF;
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 120;
+  transition: opacity 0.15s ease;
+}
+.p-nav.p-nav--faded {
+  opacity: 0.08;
+  transition: opacity 0.5s ease 0.3s;
+}
+.p-nav.p-nav--faded:hover {
+  opacity: 1;
+  transition: opacity 0.2s ease;
 }
 .p-nav-left {
   flex: 1;
@@ -1110,7 +1141,7 @@
 
 /* Feed page: two-column layout with sidebar */
 .p-content-feed {
-  max-width: 1140px;
+  max-width: 1060px;
   display: flex;
   align-items: flex-start;
   gap: 24px;
@@ -3526,6 +3557,34 @@
     flex-direction: column;
     gap: 4px;
   }
+  .landing h1 {
+    font-size: 26px;
+  }
+  .landing {
+    padding: 40px 14px 60px;
+  }
+  .migration-visual {
+    gap: 8px;
+  }
+  .brand-box {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    font-size: 18px;
+  }
+  .dots-container {
+    gap: 3px;
+  }
+  .dot {
+    width: 5px;
+    height: 5px;
+  }
+  .arrow-icon {
+    font-size: 14px;
+  }
+  .step-container {
+    padding: 24px 12px 40px;
+  }
 }
 
 /* ── Business Analytics ── */
@@ -3603,6 +3662,9 @@
   }
 
   /* ── Hamburger nav for small phones ── */
+  .platform {
+    padding-top: 48px;
+  }
   .p-nav {
     flex-wrap: nowrap;
     height: 48px;
@@ -3685,11 +3747,37 @@
   /* ── Friends grid single column ── */
   .p-friends-grid { grid-template-columns: 1fr 1fr; }
 
+  /* ── Modal backdrop padding: keep modals off screen edges ── */
+  .modal-backdrop { padding: 12px; }
+
   /* ── Company header ── */
   .p-company-card { gap: 10px; }
 
   /* ── Prevent horizontal overflow ── */
   .p-events, .p-jobs-page, .p-search-page { max-width: 100%; }
+
+  /* ── Reaction & share popups: switch to fixed + viewport-centred ── */
+  /* They're inside narrow flex-1 wrappers (~100px each), so absolute
+     left:50% / translateX(-50%) overflows the viewport on phones. */
+  .p-reaction-popup {
+    position: fixed;
+    bottom: 72px;
+    left: 50%;
+    transform: translateX(-50%);
+    top: auto;
+    z-index: 500;
+    max-width: calc(100vw - 24px);
+  }
+  .p-share-popup {
+    position: fixed;
+    bottom: 72px;
+    left: 50%;
+    transform: translateX(-50%);
+    top: auto;
+    z-index: 500;
+    max-width: calc(100vw - 24px);
+    min-width: min(260px, calc(100vw - 32px));
+  }
 }
 
 @media print {
@@ -3697,6 +3785,9 @@
   .p-insights-link,
   .modal-backdrop {
     display: none !important;
+  }
+  .platform {
+    padding-top: 0;
   }
   .p-content {
     padding: 0;
@@ -5033,16 +5124,28 @@ body.dark select:focus {
 }
 
 /* Notif panel */
-body.dark .p-notif-panel {
+body.dark .notif-panel {
   background: #1C1C20;
   border-color: #333338;
   box-shadow: 0 8px 24px rgba(0,0,0,0.4);
 }
-body.dark .p-notif-item {
+body.dark .notif-item {
   border-bottom-color: #333338;
 }
-body.dark .p-notif-item:hover {
+body.dark .notif-item:hover {
   background: #28282C;
+}
+body.dark .notif-item-unread {
+  background: #1a2e23;
+}
+body.dark .notif-item-unread:hover {
+  background: #1e3528;
+}
+body.dark .notif-panel-header {
+  border-bottom-color: #333338;
+}
+body.dark .notif-mark-all {
+  color: #52B788;
 }
 
 /* Post composer */

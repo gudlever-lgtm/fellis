@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { apiGetBusinesses, apiGetSuggestedBusinesses } from '../api.js'
+import { PT } from '../data.js'
 import BusinessCard from '../components/BusinessCard.jsx'
 
 const CATEGORIES = [
@@ -99,7 +100,7 @@ export default function BusinessDirectory({ lang, t, onViewProfile }) {
       <div className="p-card" style={{ padding: '20px 20px 16px', marginBottom: 16 }}>
         <div style={s.header}>
           <h2 style={s.title}>🏢 {t.businessDirectory}</h2>
-          <p style={s.subtitle}>{lang === 'da' ? 'Opdag og følg virksomheder på fellis.eu' : 'Discover and follow businesses on fellis.eu'}</p>
+          <p style={s.subtitle}>{PT[lang].discoverAndFollowBusinessesOnFellisEu}</p>
         </div>
 
         {/* Search */}
@@ -143,8 +144,8 @@ export default function BusinessDirectory({ lang, t, onViewProfile }) {
       <div className="p-card" style={{ padding: '16px 20px' }}>
         <div style={s.sectionTitle}>
           {q || category
-            ? (lang === 'da' ? 'Resultater' : 'Results')
-            : (lang === 'da' ? 'Alle virksomheder' : 'All businesses')}
+            ? (PT[lang].results)
+            : (PT[lang].allBusinesses)}
         </div>
         {loading && businesses.length === 0 ? (
           <div style={s.spinner}>…</div>
@@ -159,7 +160,7 @@ export default function BusinessDirectory({ lang, t, onViewProfile }) {
             </div>
             {hasMore && (
               <button style={s.loadMore} onClick={handleLoadMore} disabled={loading}>
-                {loading ? '…' : (lang === 'da' ? 'Indlæs flere' : 'Load more')}
+                {loading ? '…' : (PT[lang].reelsLoadMore)}
               </button>
             )}
           </>

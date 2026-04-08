@@ -51,8 +51,6 @@ async function run() {
   console.log('friendships (gdpr):')
   await addCol('friendships', 'source', "VARCHAR(20) DEFAULT 'native'")
   console.log('users (gdpr):')
-  await addCol('users', 'fb_token_expires_at', 'TIMESTAMP NULL DEFAULT NULL')
-  await addCol('users', 'fb_data_imported_at', 'TIMESTAMP NULL DEFAULT NULL')
   await addCol('users', 'account_deletion_requested_at', 'TIMESTAMP NULL DEFAULT NULL')
 
   // ── migrate-group-suggestions ──

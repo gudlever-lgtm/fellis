@@ -1,13 +1,14 @@
 import { useState, useCallback, useEffect } from 'react'
 import Landing from './Landing.jsx'
 import Platform from './Platform.jsx'
-import { apiCheckSession, apiLogout, apiGiveConsent, apiGetInviteInfo, apiTrackVisit, apiGetConsentStatus, apiGetCsrfToken, apiGetUserByHandle } from './api.js'
-import { SUPPORTED_LANGS, detectLang, detectLangFromIP } from './data.js'
+import PublicBlogPage from './BlogPage.jsx'
+import InstallPrompt from './components/InstallPrompt.jsx'
+import { apiCheckSession, apiLogout, apiGiveConsent, apiGetConsentStatus, apiGetInviteInfo, apiTrackVisit, apiGetCsrfToken, apiGetUserByHandle } from './api.js'
+import { UI_LANGS, detectLang, detectLangFromIP, PT } from './data.js'
 import { USER_LS_KEY } from './hooks/useEasterEggs.js'
 import './App.css'
 
 // ── Public Privacy Policy Page (/privacy) ──
-// Accessible without login — used as the Facebook App privacy policy URL
 function PublicPrivacyPage() {
   const [lang, setLang] = useState(() => detectLang())
   const da = lang === 'da'
@@ -31,7 +32,7 @@ function PublicPrivacyPage() {
     <div style={s.page}>
       <nav style={s.nav}>
         <a href="/" style={s.brand}>fellis.eu</a>
-        <select style={s.langBtn} value={lang} onChange={e => setLang(e.target.value)} aria-label="Language">{SUPPORTED_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}</select>
+        <select style={s.langBtn} value={lang} onChange={e => { localStorage.setItem('fellis_lang', e.target.value); setLang(e.target.value) }} aria-label="Language">{UI_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}</select>
       </nav>
 
       <h1 style={s.h1}>{da ? 'Privatlivspolitik' : 'Privacy Policy'}</h1>
@@ -51,12 +52,10 @@ function PublicPrivacyPage() {
           {da ? <>
             <li>Kontooplysninger: navn, e-mail, profilbillede</li>
             <li>Indhold du opretter: opslag, kommentarer, beskeder</li>
-            <li>Login via Facebook: navn og e-mail fra din offentlige profil (kun med dit samtykke)</li>
             <li>Tekniske data: session-ID (opbevares i din browser)</li>
           </> : <>
             <li>Account information: name, email, profile picture</li>
             <li>Content you create: posts, comments, messages</li>
-            <li>Facebook login: name and email from your public profile (only with your consent)</li>
             <li>Technical data: session ID (stored in your browser)</li>
           </>}
         </ul>
@@ -75,14 +74,6 @@ function PublicPrivacyPage() {
             <li>We NEVER sell your data or use it for advertising</li>
           </>}
         </ul>
-      </div>
-
-      <div style={s.section}>
-        <h2 style={s.h2}>{da ? 'Facebook-login' : 'Facebook login'}</h2>
-        <p style={s.p}>{da
-          ? 'Når du vælger at logge ind med Facebook, modtager vi dit navn og din e-mailadresse fra din offentlige Facebook-profil. Vi gemmer ikke dine Facebook-data ud over hvad der er nødvendigt for at oprette og administrere din konto. Vi anmoder kun om de tilladelser, der er nødvendige (public_profile og email).'
-          : 'When you choose to log in with Facebook, we receive your name and email address from your public Facebook profile. We do not store your Facebook data beyond what is necessary to create and manage your account. We only request permissions that are necessary (public_profile and email).'
-        }</p>
       </div>
 
       <div style={s.section}>
@@ -147,13 +138,9 @@ function PublicPrivacyPage() {
 }
 
 // ── Public Terms of Service Page (/terms) ──
-// Accessible without login — used as the Google/Facebook app terms of service URL
+// Accessible without login — used as the terms of service URL
 function PublicTermsPage() {
-  const [lang, setLang] = useState(() => {
-    const stored = localStorage.getItem('fellis_lang')
-    if (stored) return stored
-    return navigator.language?.startsWith('da') ? 'da' : 'en'
-  })
+  const [lang, setLang] = useState(() => detectLang())
   const da = lang === 'da'
 
   const s = {
@@ -175,7 +162,7 @@ function PublicTermsPage() {
     <div style={s.page}>
       <nav style={s.nav}>
         <a href="/" style={s.brand}>fellis.eu</a>
-        <select style={s.langBtn} value={lang} onChange={e => setLang(e.target.value)} aria-label="Language">{SUPPORTED_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}</select>
+        <select style={s.langBtn} value={lang} onChange={e => { localStorage.setItem('fellis_lang', e.target.value); setLang(e.target.value) }} aria-label="Language">{UI_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}</select>
       </nav>
 
       <h1 style={s.h1}>{da ? 'Servicevilkår' : 'Terms of Service'}</h1>
@@ -236,14 +223,6 @@ function PublicTermsPage() {
       </div>
 
       <div style={s.section}>
-        <h2 style={s.h2}>{da ? 'Facebook-integration' : 'Facebook integration'}</h2>
-        <p style={s.p}>{da
-          ? 'fellis.eu tilbyder login via Facebook. Brug af denne funktion er underlagt både disse vilkår og Facebooks egne servicevilkår. Vi anmoder kun om de nødvendige tilladelser (public_profile og email) og behandler dine Facebook-data i overensstemmelse med vores privatlivspolitik og GDPR.'
-          : 'fellis.eu offers login via Facebook. Use of this feature is subject to both these Terms and Facebook\'s own Terms of Service. We only request necessary permissions (public_profile and email) and handle your Facebook data in accordance with our Privacy Policy and GDPR.'
-        }</p>
-      </div>
-
-      <div style={s.section}>
         <h2 style={s.h2}>{da ? 'Kontosuspension og sletning' : 'Account suspension and deletion'}</h2>
         <p style={s.p}>{da
           ? 'Vi forbeholder os retten til at suspendere eller slette konti, der overtræder disse vilkår. Du kan selv slette din konto og alle tilknyttede data til enhver tid via profilindstillingerne.'
@@ -285,109 +264,6 @@ function PublicTermsPage() {
 }
 
 // GDPR Consent Dialog translations
-const CONSENT_T = {
-  da: {
-    title: 'Samtykke til databehandling',
-    intro: 'Før vi importerer dine Facebook-data, har vi brug for dit udtrykkelige samtykke i henhold til EU\'s GDPR-forordning.',
-    whatWeImport: 'Hvad vi importerer:',
-    item1: 'Dit navn og e-mail fra din Facebook-profil',
-    item2: 'Dine opslag og fotos (kun med dit samtykke)',
-    item3: 'Din venneliste (kun venner der allerede er på fellis.eu)',
-    howWeProtect: 'Sådan beskytter vi dine data:',
-    protect1: 'Alle data lagres krypteret i EU',
-    protect2: 'Din Facebook-adgangstoken krypteres med AES-256',
-    protect3: 'Du kan til enhver tid slette dine importerede data',
-    protect4: 'Du kan eksportere alle dine data (GDPR Art. 20)',
-    consentLabel: 'Jeg giver mit udtrykkelige samtykke til, at fellis.eu importerer og behandler mine Facebook-data som beskrevet ovenfor.',
-    accept: 'Giv samtykke og importer',
-    decline: 'Nej tak, fortsæt uden import',
-    importing: 'Importerer...',
-  },
-  en: {
-    title: 'Data Processing Consent',
-    intro: 'Before we import your Facebook data, we need your explicit consent under the EU GDPR regulation.',
-    whatWeImport: 'What we import:',
-    item1: 'Your name and email from your Facebook profile',
-    item2: 'Your posts and photos (only with your consent)',
-    item3: 'Your friends list (only friends already on fellis.eu)',
-    howWeProtect: 'How we protect your data:',
-    protect1: 'All data stored encrypted in the EU',
-    protect2: 'Your Facebook access token is encrypted with AES-256',
-    protect3: 'You can delete your imported data at any time',
-    protect4: 'You can export all your data (GDPR Art. 20)',
-    consentLabel: 'I give my explicit consent for fellis.eu to import and process my Facebook data as described above.',
-    accept: 'Give consent & import',
-    decline: 'No thanks, continue without import',
-    importing: 'Importing...',
-  },
-}
-
-function ConsentDialog({ lang, onConsent, onDecline }) {
-  const [checked, setChecked] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const t = CONSENT_T[lang] || CONSENT_T.da
-
-  const handleAccept = async () => {
-    if (!checked) return
-    setLoading(true)
-    try {
-      await onConsent()
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <div className="modal-backdrop">
-      <div className="fb-modal" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
-        <div className="fb-modal-header" style={{ background: '#2D6A4F' }}>
-          <div className="fb-modal-logo" style={{ color: '#fff', fontFamily: "'Playfair Display', serif" }}>fellis.eu — GDPR</div>
-        </div>
-        <div className="fb-modal-form" style={{ textAlign: 'left' }}>
-          <h3 style={{ marginBottom: 8 }}>{t.title}</h3>
-          <p style={{ fontSize: 14, color: '#555', marginBottom: 12 }}>{t.intro}</p>
-
-          <p style={{ fontWeight: 600, marginBottom: 4 }}>{t.whatWeImport}</p>
-          <ul style={{ fontSize: 13, color: '#333', marginBottom: 12, paddingLeft: 20 }}>
-            <li>{t.item1}</li>
-            <li>{t.item2}</li>
-            <li>{t.item3}</li>
-          </ul>
-
-          <p style={{ fontWeight: 600, marginBottom: 4 }}>{t.howWeProtect}</p>
-          <ul style={{ fontSize: 13, color: '#333', marginBottom: 16, paddingLeft: 20 }}>
-            <li>{t.protect1}</li>
-            <li>{t.protect2}</li>
-            <li>{t.protect3}</li>
-            <li>{t.protect4}</li>
-          </ul>
-
-          <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 13, cursor: 'pointer', marginBottom: 16 }}>
-            <input type="checkbox" checked={checked} onChange={e => setChecked(e.target.checked)} style={{ marginTop: 2 }} />
-            <span>{t.consentLabel}</span>
-          </label>
-
-          <button
-            className="fb-login-submit"
-            style={{ background: checked ? '#2D6A4F' : '#ccc', width: '100%', marginBottom: 8 }}
-            disabled={!checked || loading}
-            onClick={handleAccept}
-          >
-            {loading ? t.importing : t.accept}
-          </button>
-          <button
-            className="fb-forgot"
-            style={{ width: '100%', textAlign: 'center' }}
-            onClick={onDecline}
-          >
-            {t.decline}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // Shown to existing users who haven't given data_processing consent yet
 function GeneralConsentDialog({ lang, onAccept }) {
   const [checked, setChecked] = useState(false)
@@ -441,8 +317,6 @@ function App() {
     return localStorage.getItem('fellis_logged_in') ? 'platform' : 'landing'
   })
   const [lang, setLang] = useState(() => detectLang())
-  // GDPR: Show consent dialog after Facebook OAuth before importing data
-  const [showConsent, setShowConsent] = useState(false)
   // GDPR: Show general data processing consent for existing users who haven't accepted yet
   const [showGeneralConsent, setShowGeneralConsent] = useState(false)
   const [inviteToken, setInviteToken] = useState(null)
@@ -450,7 +324,6 @@ function App() {
   const [inviterEmail, setInviterEmail] = useState(null)
   const [initialPostId, setInitialPostId] = useState(null)
   const [initialPage, setInitialPage] = useState(null)
-  const [fbError, setFbError] = useState(null)
   const [resetToken, setResetToken] = useState(null)
   const [sessionExpired, setSessionExpired] = useState(false)
 
@@ -466,7 +339,7 @@ function App() {
     }
   }, [])
 
-  // On mount: check for Facebook OAuth callback, invite links, or validate existing session
+  // On mount: check for OAuth callback, invite links, or validate existing session
   useEffect(() => {
     apiTrackVisit()
 
@@ -506,37 +379,6 @@ function App() {
       setInitialPage('payment-failed')
       window.history.replaceState({}, '', window.location.pathname)
     }
-    const fbSession = params.get('fb_session')
-    const fbLang = params.get('fb_lang')
-    const fbNeedsConsent = params.get('fb_needs_consent')
-    const fbNewUser = params.get('fb_new_user')
-
-    if (fbSession) {
-      // Returning from Facebook OAuth — store session
-      // Session ID now stored in HTTP-only cookie by server (fellis_sid)
-      localStorage.setItem('fellis_logged_in', 'true')
-      if (fbLang) {
-        localStorage.setItem('fellis_lang', fbLang)
-        setLang(fbLang)
-      }
-      // New FB user: trigger onboarding tour + store inviter name if known
-      if (fbNewUser === '1') {
-        localStorage.setItem('fellis_onboarding', '1')
-        const storedInviter = localStorage.getItem('fellis_invite_info_name')
-        if (storedInviter) {
-          localStorage.setItem('fellis_onboarding_inviter', storedInviter)
-          localStorage.removeItem('fellis_invite_info_name')
-        }
-      }
-      // GDPR: Show consent dialog before importing data
-      if (fbNeedsConsent === 'true') {
-        setShowConsent(true)
-      }
-      setView('platform')
-      window.history.replaceState({}, '', window.location.pathname)
-      return
-    }
-
     // Returning from Google OAuth
     const googleSession = params.get('google_session')
     const googleConnected = params.get('google_connected')
@@ -573,7 +415,7 @@ function App() {
       apiGetInviteInfo(invite).then(data => {
         if (data?.inviter?.name) {
           setInviterName(data.inviter.name)
-          // Store for onboarding if user goes via Facebook (loses state after redirect)
+          // Store for onboarding if user goes via OAuth (loses state after redirect)
           localStorage.setItem('fellis_invite_info_name', data.inviter.name)
         }
         if (data?.invitee_email) setInviterEmail(data.invitee_email)
@@ -582,12 +424,6 @@ function App() {
     } else {
       const storedInvite = localStorage.getItem('fellis_invite_token')
       if (storedInvite) setInviteToken(storedInvite)
-    }
-
-    const fbErrorParam = params.get('fb_error')
-    if (fbErrorParam) {
-      setFbError(fbErrorParam)
-      window.history.replaceState({}, '', window.location.pathname)
     }
 
     // Password reset link: ?reset_token=<raw token from email>
@@ -658,27 +494,9 @@ function App() {
     apiLogout().catch(() => {})
   }, [])
 
-  // GDPR: Handle consent acceptance — triggers Facebook data import
-  const handleConsentAccept = useCallback(async () => {
-    await apiGiveConsent(['facebook_import', 'data_processing'])
-    setShowConsent(false)
-  }, [])
-
-  // GDPR: Handle consent decline — user continues without Facebook data import
-  const handleConsentDecline = useCallback(() => {
-    setShowConsent(false)
-  }, [])
-
   if (view === 'platform') {
     return (
       <>
-        {showConsent && (
-          <ConsentDialog
-            lang={lang}
-            onConsent={handleConsentAccept}
-            onDecline={handleConsentDecline}
-          />
-        )}
         {showGeneralConsent && (
           <GeneralConsentDialog
             lang={lang}
@@ -696,6 +514,7 @@ function App() {
           initialProfileUserId={parseInt(sessionStorage.getItem('fellis_profile_userId') || '0') || null}
           initialProfileSubpage={sessionStorage.getItem('fellis_profile_subpage')}
         />
+        <InstallPrompt lang={lang} PT={PT} />
       </>
     )
   }
@@ -711,7 +530,7 @@ function App() {
           maxWidth: 'calc(100vw - 32px)',
         }}>
           <span>🔒</span>
-          <span>{lang === 'da' ? 'Din session er udløbet — log venligst ind igen.' : 'Your session has expired — please log in again.'}</span>
+          <span>{PT[lang].yourSessionHasExpiredPleaseLogInAgain}</span>
           <button
             onClick={() => setSessionExpired(false)}
             style={{ background: 'none', border: 'none', color: '#aaa', cursor: 'pointer', fontSize: 16, lineHeight: 1, marginLeft: 4, padding: 0 }}
@@ -719,7 +538,8 @@ function App() {
           >✕</button>
         </div>
       )}
-      <Landing onEnterPlatform={handleEnterPlatform} inviteToken={inviteToken} inviterName={inviterName} inviterEmail={inviterEmail} fbError={fbError} resetToken={resetToken} />
+      <Landing onEnterPlatform={handleEnterPlatform} inviteToken={inviteToken} inviterName={inviterName} inviterEmail={inviterEmail} resetToken={resetToken} />
+      <InstallPrompt lang={lang} PT={PT} />
     </>
   )
 }
@@ -727,6 +547,7 @@ function App() {
 function AppRoot() {
   if (window.location.pathname === '/privacy') return <PublicPrivacyPage />
   if (window.location.pathname === '/terms') return <PublicTermsPage />
+  if (window.location.pathname === '/blog' || window.location.pathname.startsWith('/blog/')) return <PublicBlogPage />
   return <App />
 }
 

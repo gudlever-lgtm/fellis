@@ -52,8 +52,8 @@ import pool from './db.js'
 import { sendSms } from './sms.js'
 import { BADGES, BADGE_BY_ID, PLATFORM_LAUNCH_DATE, BADGE_AD_FREE_DAYS } from '../src/badges/badgeDefinitions.js'
 import { evaluateBadges } from '../src/badges/badgeEngine.js'
-import { createReelFromLivestream, LIVESTREAM_DEFAULTS } from './livestream.js'
-import { listActivePaths, getStreamStats } from './mediamtx.js'
+import { createReelFromLivestream, LIVESTREAM_DEFAULTS, transcodeVideo } from './livestream.js'
+import { startRtmpServer, RTMP_PORT } from './rtmp.js'
 
 // MySQL 8.x compatible ADD COLUMN helper — ignores duplicate column error (errno 1060)
 // SECURITY: Validates table and column names to prevent SQL injection
@@ -61,7 +61,11 @@ async function addCol(table, col, def) {
   // Whitelist table names used in migrations
   const VALID_TABLES = ['users', 'posts', 'comments', 'friendships', 'companies',
     'admin_ad_settings', 'admin_settings', 'reels', 'marketplace_listings', 'jobs',
-    'shared_jobs', 'earned_badges', 'user_badges', 'badge_config', 'livestreams']
+    'shared_jobs', 'earned_badges', 'user_badges', 'badge_config', 'livestreams',
+    'messages', 'conversations', 'sessions', 'invitations', 'post_likes',
+    'reel_likes', 'reel_comments', 'stories', 'events', 'notifications',
+    'conversation_participants', 'ads', 'subscriptions', 'job_saves',
+    'event_rsvps', 'job_applications']
 
   // Validate table name
   if (!VALID_TABLES.includes(table)) {
@@ -188,39 +192,6 @@ const MISTRAL_API_KEY = process.env.MISTRAL_API_KEY || null
 
 // Ensure uploads directory exists
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true })
-
-// ── GDPR Compliance: Token encryption (Art. 32 — security of processing) ──
-// Facebook access tokens are encrypted at rest using AES-256-GCM.
-// The encryption key MUST be set via FB_TOKEN_ENCRYPTION_KEY env var (32-byte hex).
-const FB_TOKEN_KEY = process.env.FB_TOKEN_ENCRYPTION_KEY
-  ? Buffer.from(process.env.FB_TOKEN_ENCRYPTION_KEY, 'hex')
-  : null
-
-function encryptToken(plaintext) {
-  if (!FB_TOKEN_KEY || !plaintext) return plaintext
-  const iv = crypto.randomBytes(12)
-  const cipher = crypto.createCipheriv('aes-256-gcm', FB_TOKEN_KEY, iv)
-  const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()])
-  const tag = cipher.getAuthTag()
-  // Format: base64(iv:tag:ciphertext)
-  return Buffer.concat([iv, tag, encrypted]).toString('base64')
-}
-
-function decryptToken(encoded) {
-  if (!FB_TOKEN_KEY || !encoded) return encoded
-  try {
-    const buf = Buffer.from(encoded, 'base64')
-    const iv = buf.subarray(0, 12)
-    const tag = buf.subarray(12, 28)
-    const ciphertext = buf.subarray(28)
-    const decipher = crypto.createDecipheriv('aes-256-gcm', FB_TOKEN_KEY, iv)
-    decipher.setAuthTag(tag)
-    return decipher.update(ciphertext) + decipher.final('utf8')
-  } catch {
-    // Fallback: token may not be encrypted yet (pre-migration data)
-    return encoded
-  }
-}
 
 // ── Events: schema init ──
 async function initEvents() {
@@ -407,7 +378,7 @@ async function initFriendRequests() {
       FOREIGN KEY (from_user_id) REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY (to_user_id) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
-    // Also add source column to friendships if missing (for Facebook tracking)
+    // Also add source column to friendships if missing
     await pool.query('ALTER TABLE friendships ADD COLUMN source VARCHAR(50) DEFAULT NULL').catch(() => {})
     await pool.query('ALTER TABLE friendships ADD COLUMN is_family TINYINT(1) NOT NULL DEFAULT 0').catch(() => {})
   } catch (err) {
@@ -519,9 +490,6 @@ async function withdrawConsent(userId, consentType, ipAddress = null) {
   await auditLogGdpr(userId, 'consent_withdrawn', { consent_type: consentType }, ipAddress)
 }
 
-// Data retention: Facebook tokens expire after 90 days (configurable)
-const FB_DATA_RETENTION_DAYS = parseInt(process.env.FB_DATA_RETENTION_DAYS || '90')
-
 const app = express()
 app.use(express.json())
 
@@ -545,6 +513,23 @@ app.use((req, res, next) => {
   }
   // Always handle preflight
   if (req.method === 'OPTIONS') return res.sendStatus(204)
+  next()
+})
+
+// ── Security headers ──────────────────────────────────────────────────────
+// Permissions-Policy: only standardised, widely-recognised feature names.
+// Experimental Privacy-Sandbox names (browsing-topics, attribution-reporting,
+// interest-cohort, private-state-token-*, shared-storage, otp-credentials)
+// are intentionally omitted — they cause "Unrecognized feature" browser
+// warnings and have no stable specification yet.
+app.use((_req, res, next) => {
+  res.setHeader(
+    'Permissions-Policy',
+    'accelerometer=(), autoplay=(self), camera=(), display-capture=(), ' +
+    'encrypted-media=(self), fullscreen=(self), geolocation=(), gyroscope=(), ' +
+    'magnetometer=(), microphone=(), midi=(), payment=(self), ' +
+    'picture-in-picture=(self), usb=(), web-share=(self), xr-spatial-tracking=()',
+  )
   next()
 })
 
@@ -641,6 +626,7 @@ function setSessionCookie(res, sessionId) {
     path: '/',
     maxAge: COOKIE_MAX_AGE,
     secure: process.env.NODE_ENV === 'production',
+    domain: process.env.NODE_ENV === 'production' ? '.fellis.eu' : undefined,
   })
 }
 
@@ -650,6 +636,7 @@ function clearSessionCookie(res) {
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
+    domain: process.env.NODE_ENV === 'production' ? '.fellis.eu' : undefined,
   })
 }
 
@@ -769,6 +756,7 @@ const MAGIC_BYTES = [
   { mime: 'image/png', bytes: [0x89, 0x50, 0x4E, 0x47] },
   { mime: 'image/gif', bytes: [0x47, 0x49, 0x46] },
   { mime: 'image/webp', bytes: [0x52, 0x49, 0x46, 0x46] }, // RIFF
+  { mime: 'image/avif', offset: 4, bytes: [0x66, 0x74, 0x79, 0x70] }, // ftyp (ISO-BMFF)
   { mime: 'video/mp4', offset: 4, bytes: [0x66, 0x74, 0x79, 0x70] }, // ftyp
   { mime: 'video/webm', bytes: [0x1A, 0x45, 0xDF, 0xA3] },
   { mime: 'video/quicktime', offset: 4, bytes: [0x66, 0x74, 0x79, 0x70] },
@@ -794,11 +782,14 @@ const storage = multer.diskStorage({
   },
 })
 
+// Hard ceiling for uploads — per-route limits are enforced via upload.array('field', N)
+// and runtime validation against admin config. Kept generous so admin can configure up to 20.
+const UPLOAD_FILES_CEILING = 20
 const upload = multer({
   storage,
   limits: {
     fileSize: 50 * 1024 * 1024, // 50 MB max
-    files: 4,                    // max 4 files per post
+    files: UPLOAD_FILES_CEILING,
   },
   fileFilter: (_req, file, cb) => {
     if (!ALLOWED_MIME_TYPES.has(file.mimetype)) {
@@ -838,10 +829,6 @@ addCol('marketplace_listings', 'sold', 'TINYINT(1) NOT NULL DEFAULT 0')
 addCol('marketplace_listings', 'priceNegotiable', 'TINYINT(1) NOT NULL DEFAULT 0')
   .catch(err => console.error('Migration (marketplace_listings.priceNegotiable):', err.message))
 
-addCol('users', 'fb_token_expires_at', 'DATETIME DEFAULT NULL')
-  .catch(err => console.error('Migration (users.fb_token_expires_at):', err.message))
-addCol('users', 'fb_data_imported_at', 'DATETIME DEFAULT NULL')
-  .catch(err => console.error('Migration (users.fb_data_imported_at):', err.message))
 addCol('users', 'mode', "VARCHAR(20) DEFAULT 'privat'")
   .catch(err => console.error('Migration (users.mode):', err.message))
 addCol('users', 'plan', "VARCHAR(30) DEFAULT 'business'")
@@ -868,7 +855,9 @@ addCol('users', 'failed_login_attempts', 'INT DEFAULT 0')
   .catch(err => console.error('Migration (users.failed_login_attempts):', err.message))
 addCol('users', 'locked_until', 'TIMESTAMP NULL DEFAULT NULL')
   .catch(err => console.error('Migration (users.locked_until):', err.message))
-// Reset ads_free for users with no active Mollie adfree subscription (clears stale Stripe flags).
+// Reset ads_free for users with no active paid subscription AND no active earned-day assignment.
+// Days sitting in the bank (adfree_days_bank) alone do NOT qualify — only activated assignments
+// (adfree_day_assignments) or paid periods (adfree_purchased_periods) make a user ad-free.
 pool.query(`
   UPDATE users SET ads_free = 0
   WHERE ads_free = 1
@@ -877,6 +866,14 @@ pool.query(`
       WHERE status = 'paid'
         AND plan NOT IN ('ad_activation')
         AND (expires_at IS NULL OR expires_at > NOW())
+    )
+    AND id NOT IN (
+      SELECT user_id FROM adfree_day_assignments
+      WHERE start_date <= CURDATE() AND end_date >= CURDATE()
+    )
+    AND id NOT IN (
+      SELECT user_id FROM adfree_purchased_periods
+      WHERE start_date <= CURDATE() AND end_date >= CURDATE()
     )
 `).catch(err => console.error('Migration (ads_free cleanup):', err.message))
 
@@ -919,6 +916,8 @@ addCol('conversations', 'description_da', 'TEXT DEFAULT NULL')
   .catch(err => console.error('Migration (conversations.description_da):', err.message))
 addCol('conversations', 'description_en', 'TEXT DEFAULT NULL')
   .catch(err => console.error('Migration (conversations.description_en):', err.message))
+addCol('messages', 'media', 'JSON DEFAULT NULL')
+  .catch(err => console.error('Migration (messages.media):', err.message))
 
 // Platform ads table
 pool.query(`CREATE TABLE IF NOT EXISTS platform_ads (
@@ -943,6 +942,25 @@ addCol('users', 'failed_login_attempts', 'INT NOT NULL DEFAULT 0')
   .catch(err => console.error('Migration (users.failed_login_attempts):', err.message))
 addCol('users', 'locked_until', 'DATETIME DEFAULT NULL')
   .catch(err => console.error('Migration (users.locked_until):', err.message))
+
+// Moderation columns — also in migrate-moderation.sql but added here for instances
+// that may not have run that migration manually yet
+addCol('users', 'status', "ENUM('active','suspended','banned') NOT NULL DEFAULT 'active'")
+  .catch(err => console.error('Migration (users.status):', err.message))
+addCol('users', 'strike_count', 'INT NOT NULL DEFAULT 0')
+  .catch(err => console.error('Migration (users.strike_count):', err.message))
+addCol('users', 'suspended_until', 'DATETIME DEFAULT NULL')
+  .catch(err => console.error('Migration (users.suspended_until):', err.message))
+addCol('users', 'last_strike_at', 'DATETIME DEFAULT NULL')
+  .catch(err => console.error('Migration (users.last_strike_at):', err.message))
+addCol('users', 'is_moderator', 'TINYINT(1) NOT NULL DEFAULT 0')
+  .catch(err => console.error('Migration (users.is_moderator):', err.message))
+addCol('users', 'moderator_candidate', 'TINYINT(1) NOT NULL DEFAULT 0')
+  .catch(err => console.error('Migration (users.moderator_candidate):', err.message))
+addCol('users', 'moderator_candidate_note', 'TEXT DEFAULT NULL')
+  .catch(err => console.error('Migration (users.moderator_candidate_note):', err.message))
+addCol('users', 'moderator_candidate_at', 'DATETIME DEFAULT NULL')
+  .catch(err => console.error('Migration (users.moderator_candidate_at):', err.message))
 
 // Serve uploads with security headers (no script execution, no sniffing)
 app.use('/uploads', (req, res, next) => {
@@ -1183,6 +1201,11 @@ app.post('/api/auth/login', strictLimit, async (req, res) => {
     }
 
     if (!passwordValid) {
+      // OAuth-only account: no password has ever been set — don't count as brute-force
+      if (!user.password_hash && !user.password_plain) {
+        return res.status(401).json({ error: 'social_login_only' })
+      }
+
       // Increment failed login attempts (columns may not exist on older installs — ignore errors)
       const newAttempts = (user.failed_login_attempts || 0) + 1
 
@@ -1277,7 +1300,7 @@ app.post('/api/auth/register', strictLimit, async (req, res) => {
     const userInviteToken = crypto.randomBytes(32).toString('hex')
     const [result] = await pool.query(
       'INSERT INTO users (name, handle, initials, email, password_hash, join_date, invite_token) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [name, handle, initials, email, bcryptHash, new Date().toISOString(), userInviteToken]
+      [name, handle, initials, email, bcryptHash, new Date().toISOString().split('T')[0], userInviteToken]
     )
     const newUserId = result.insertId
     const sessionId = crypto.randomUUID()
@@ -1349,6 +1372,7 @@ app.post('/api/auth/register', strictLimit, async (req, res) => {
     res.json({ sessionId, userId: newUserId })
   } catch (err) {
     if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Email or handle already exists' })
+    console.error('POST /api/auth/register error:', err.message)
     res.status(500).json({ error: 'Registration failed' })
   }
 })
@@ -1365,7 +1389,7 @@ app.post('/api/auth/forgot-password', strictLimit, async (req, res) => {
 
   try {
     const [users] = await pool.query(
-      'SELECT id, name, facebook_id, password_hash FROM users WHERE email = ?', [email]
+      'SELECT id, name, password_hash FROM users WHERE email = ?', [email]
     )
     // Always return success to avoid leaking whether the email exists
     if (users.length === 0) return res.json({ ok: true })
@@ -1758,241 +1782,9 @@ app.get('/api/auth/linkedin/callback', async (req, res) => {
   }
 })
 
-// ── Facebook OAuth ──
-
-const FB_APP_ID = process.env.FB_APP_ID
-const FB_APP_SECRET = process.env.FB_APP_SECRET
-const FB_REDIRECT_URI = process.env.FB_REDIRECT_URI || 'https://fellis.eu/api/auth/facebook/callback'
-const FB_GRAPH_URL = 'https://graph.facebook.com/v21.0'
-
-// Scopes: basic profile only — no extended permissions required, app can go Live without App Review
-const FB_SCOPES = 'public_profile,email'
-
 // GDPR/Security: In-memory store for OAuth CSRF state tokens (short-lived)
 const oauthStateTokens = new Map()
 
-// Step 1: Redirect user to Facebook login
-// GDPR Note: No data is collected at this step — user is simply redirected to Facebook.
-app.get('/api/auth/facebook', (req, res) => {
-  if (!FB_APP_ID) return res.status(500).json({ error: 'Facebook integration not configured' })
-  const lang = req.query.lang || 'da'
-  // Security: CSRF protection — generate a cryptographic state token and verify on callback
-  const stateToken = crypto.randomUUID()
-  oauthStateTokens.set(stateToken, { lang, created: Date.now() })
-  // Clean up stale tokens (older than 10 minutes)
-  for (const [key, val] of oauthStateTokens) {
-    if (Date.now() - val.created > 600000) oauthStateTokens.delete(key)
-  }
-  const state = stateToken + ':' + lang
-  const url = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${FB_APP_ID}&redirect_uri=${encodeURIComponent(FB_REDIRECT_URI)}&scope=${FB_SCOPES}&state=${state}&response_type=code`
-  res.redirect(url)
-})
-
-// Step 2: Facebook redirects back with auth code
-// GDPR Art. 6 & 7: User account is created but Facebook data import is DEFERRED
-// until explicit consent is given via POST /api/gdpr/consent.
-app.get('/api/auth/facebook/callback', async (req, res) => {
-  const { code, state } = req.query
-  if (!code) return res.redirect('/?fb_error=denied')
-
-  // Security: Validate CSRF state token
-  const stateToken = state?.split(':')?.[0]
-  const lang = state?.split(':')?.[1] || 'da'
-  if (!stateToken || !oauthStateTokens.has(stateToken)) {
-    console.error('OAuth CSRF validation failed: invalid state token')
-    return res.redirect('/?fb_error=csrf')
-  }
-  oauthStateTokens.delete(stateToken)
-
-  try {
-    // Exchange code for access token
-    const tokenRes = await fetch(
-      `${FB_GRAPH_URL}/oauth/access_token?client_id=${FB_APP_ID}&client_secret=${FB_APP_SECRET}&redirect_uri=${encodeURIComponent(FB_REDIRECT_URI)}&code=${code}`
-    )
-    const tokenData = await tokenRes.json()
-    if (!tokenData.access_token) return res.redirect('/?fb_error=token')
-    const fbToken = tokenData.access_token
-
-    // GDPR Art. 5(1)(c) — Data minimization: Only fetch fields strictly needed for account creation
-    const profileRes = await fetch(`${FB_GRAPH_URL}/me?fields=id,name,email,picture.width(200).height(200)&access_token=${fbToken}`)
-    const fbProfile = await profileRes.json()
-    if (!fbProfile.id) return res.redirect('/?fb_error=profile')
-
-    // GDPR Art. 32 — Encrypt the token before storage
-    const encryptedToken = encryptToken(fbToken)
-    const tokenExpiry = new Date(Date.now() + FB_DATA_RETENTION_DAYS * 86400000).toISOString()
-
-    // Check if user already exists (by email or facebook_id)
-    let userId
-    const [existing] = await pool.query('SELECT id FROM users WHERE email = ? OR facebook_id = ?', [fbProfile.email, fbProfile.id])
-
-    if (existing.length > 0) {
-      userId = existing[0].id
-      // Update Facebook token (encrypted) for potential data refresh
-      await pool.query(
-        'UPDATE users SET facebook_id = ?, fb_access_token = ?, fb_token_expires_at = ? WHERE id = ?',
-        [fbProfile.id, encryptedToken, tokenExpiry, userId]
-      )
-    } else {
-      // Create new user from Facebook data (minimal: name, email, avatar only)
-      const handle = '@' + (fbProfile.name || 'user').toLowerCase().replace(/\s+/g, '.')
-      const initials = (fbProfile.name || 'U').split(' ').map(n => n[0]).join('').toUpperCase()
-      const avatarUrl = fbProfile.picture?.data?.url || null
-      const userInviteToken = crypto.randomBytes(32).toString('hex')
-      const [result] = await pool.query(
-        `INSERT INTO users (name, handle, initials, email, join_date, avatar_url, facebook_id, fb_access_token, fb_token_expires_at, invite_token)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [fbProfile.name, handle, initials, fbProfile.email || null, new Date().toISOString(), avatarUrl, fbProfile.id, encryptedToken, tokenExpiry, userInviteToken]
-      )
-      userId = result.insertId
-    }
-
-    // Audit log: Facebook authentication (no data import yet — that requires consent)
-    const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress
-    await auditLogGdpr(userId, 'fb_auth_success', { facebook_id: fbProfile.id }, clientIp)
-
-    // GDPR CHANGE: Do NOT import Facebook data here.
-    // Data import is deferred until user gives explicit consent via POST /api/gdpr/consent.
-    // The encrypted token is stored so import can happen after consent.
-
-    // Create session
-    const sessionId = crypto.randomUUID()
-    const ua = req.headers['user-agent'] || null
-    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null
-    await pool.query(
-      'INSERT INTO sessions (id, user_id, lang, expires_at, user_agent, ip_address) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY), ?, ?)',
-      [sessionId, userId, lang, ua, ip]
-    )
-
-    // Redirect to frontend — frontend will show consent dialog before importing
-    setSessionCookie(res, sessionId)
-    res.redirect(`/?fb_session=${sessionId}&fb_lang=${lang}&fb_needs_consent=true`)
-  } catch (err) {
-    console.error('Facebook callback error:', err)
-    res.redirect('/?fb_error=server')
-  }
-})
-
-// Import Facebook data into fellis DB (friends, posts, photos)
-// GDPR Art. 6 & 7: This function MUST only be called after verified consent.
-// GDPR Art. 5(1)(c): Only imports data strictly necessary for app functionality.
-async function importFacebookData(userId, fbToken) {
-  await auditLogGdpr(userId, 'fb_import_start', { timestamp: new Date().toISOString() })
-
-  let friendsImported = 0, postsImported = 0, photosImported = 0
-
-  // Import friends — GDPR CHANGE: Only link friends who already have fellis accounts.
-  // Creating placeholder accounts for third parties without their consent violates GDPR Art. 6.
-  try {
-    const friendsRes = await fetch(`${FB_GRAPH_URL}/me/friends?fields=id,name&limit=500&access_token=${fbToken}`)
-    const friendsData = await friendsRes.json()
-    if (friendsData.data) {
-      for (const friend of friendsData.data) {
-        // GDPR: Only create friendships with users who already exist on fellis
-        // We cannot create accounts for third parties without their explicit consent
-        const [existing] = await pool.query('SELECT id FROM users WHERE facebook_id = ?', [friend.id])
-        if (existing.length > 0) {
-          const friendUserId = existing[0].id
-          await pool.query(
-            'INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count, source) VALUES (?, ?, 0, ?)',
-            [userId, friendUserId, 'facebook']
-          )
-          await pool.query(
-            'INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count, source) VALUES (?, ?, 0, ?)',
-            [friendUserId, userId, 'facebook']
-          )
-          friendsImported++
-        }
-      }
-      await pool.query('UPDATE users SET friend_count = ? WHERE id = ?', [friendsImported, userId])
-    }
-  } catch (err) {
-    console.error('FB friends import error:', err)
-  }
-
-  // Import posts — GDPR Art. 5(1)(c): Only text and single image per post
-  try {
-    const postsRes = await fetch(`${FB_GRAPH_URL}/me/posts?fields=message,created_time,full_picture&limit=100&access_token=${fbToken}`)
-    const postsData = await postsRes.json()
-    if (postsData.data) {
-      for (const post of postsData.data) {
-        if (!post.message) continue
-        const created = new Date(post.created_time)
-        const timeStr = created.toLocaleDateString('da-DK', { day: 'numeric', month: 'short', year: 'numeric' })
-        const timeStrEn = created.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
-
-        let mediaJson = null
-        if (post.full_picture) {
-          try {
-            const imgRes = await fetch(post.full_picture)
-            if (imgRes.ok) {
-              const contentType = imgRes.headers.get('content-type') || 'image/jpeg'
-              const ext = contentType.includes('png') ? '.png' : contentType.includes('gif') ? '.gif' : '.jpg'
-              const filename = crypto.randomUUID() + ext
-              const imgPath = path.join(UPLOADS_DIR, filename)
-              const buffer = Buffer.from(await imgRes.arrayBuffer())
-              fs.writeFileSync(imgPath, buffer)
-              mediaJson = JSON.stringify([{ url: `/uploads/${filename}`, type: 'image', mime: contentType }])
-            }
-          } catch {}
-        }
-
-        await pool.query(
-          'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media, source) VALUES (?, ?, ?, ?, ?, ?, ?)',
-          [userId, post.message, post.message, timeStr, timeStrEn, mediaJson, 'facebook_post']
-        )
-        postsImported++
-      }
-    }
-  } catch (err) {
-    console.error('FB posts import error:', err)
-  }
-
-  // Import photos
-  try {
-    const photosRes = await fetch(`${FB_GRAPH_URL}/me/photos?type=uploaded&fields=images,name,created_time&limit=100&access_token=${fbToken}`)
-    const photosData = await photosRes.json()
-    if (photosData.data) {
-      for (const photo of photosData.data) {
-        const imgUrl = photo.images?.[0]?.source
-        if (!imgUrl) continue
-        try {
-          const imgRes = await fetch(imgUrl)
-          if (imgRes.ok) {
-            const contentType = imgRes.headers.get('content-type') || 'image/jpeg'
-            const ext = contentType.includes('png') ? '.png' : contentType.includes('gif') ? '.gif' : '.jpg'
-            const filename = crypto.randomUUID() + ext
-            const imgPath = path.join(UPLOADS_DIR, filename)
-            const buffer = Buffer.from(await imgRes.arrayBuffer())
-            fs.writeFileSync(imgPath, buffer)
-            const caption = photo.name || ''
-            const created = new Date(photo.created_time)
-            const timeStr = created.toLocaleDateString('da-DK', { day: 'numeric', month: 'short', year: 'numeric' })
-            const timeStrEn = created.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
-            const mediaJson = JSON.stringify([{ url: `/uploads/${filename}`, type: 'image', mime: contentType }])
-            await pool.query(
-              'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media, source) VALUES (?, ?, ?, ?, ?, ?, ?)',
-              [userId, caption, caption, timeStr, timeStrEn, mediaJson, 'facebook_photo']
-            )
-            photosImported++
-          }
-        } catch {}
-      }
-      if (photosImported > 0) {
-        await pool.query('UPDATE users SET photo_count = photo_count + ? WHERE id = ?', [photosImported, userId])
-      }
-    }
-  } catch (err) {
-    console.error('FB photos import error:', err)
-  }
-
-  // Update import timestamp for data retention tracking
-  await pool.query('UPDATE users SET fb_data_imported_at = NOW() WHERE id = ?', [userId])
-
-  await auditLogGdpr(userId, 'fb_import_complete', {
-    friends: friendsImported, posts: postsImported, photos: photosImported
-  })
-}
 
 // ── Profile routes ──
 
@@ -2170,7 +1962,7 @@ app.get('/api/profile', authenticate, async (req, res) => {
     try {
       ;[users] = await pool.query(
         `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url,
-          u.email, u.facebook_id, u.google_id, u.linkedin_id, u.password_hash, u.password_plain, u.created_at, u.birthday,
+          u.email, u.google_id, u.linkedin_id, u.password_hash, u.password_plain, u.created_at, u.birthday,
           u.profile_public, u.reputation_score, u.referral_count, u.interests, u.tags,
           u.relationship_status, u.website,
           u.phone, u.mfa_enabled,
@@ -2187,7 +1979,7 @@ app.get('/api/profile', authenticate, async (req, res) => {
       // Phase 1 migration columns not yet applied — fall back without business_* columns
       ;[users] = await pool.query(
         `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url,
-          u.email, u.facebook_id, u.google_id, u.linkedin_id, u.password_hash, u.password_plain, u.created_at, u.birthday,
+          u.email, u.google_id, u.linkedin_id, u.password_hash, u.password_plain, u.created_at, u.birthday,
           u.profile_public, u.reputation_score, u.referral_count, u.interests, u.tags,
           u.relationship_status, u.website,
           u.phone, u.mfa_enabled,
@@ -2219,7 +2011,7 @@ app.get('/api/profile', authenticate, async (req, res) => {
       company: u.company || null,
       friendCount: u.friend_count, postCount: u.post_count, photoCount: u.photo_count || 0,
       email: u.email || null,
-      loginMethod: u.facebook_id ? 'facebook' : 'email',
+      loginMethod: 'email',
       hasPassword: !!u.password_hash,
       passwordHint: u.password_plain ? (u.password_plain[0] + '*'.repeat(Math.max(u.password_plain.length - 2, 0)) + (u.password_plain.length > 1 ? u.password_plain[u.password_plain.length - 1] : '')) : null,
       createdAt: u.created_at || u.join_date || null,
@@ -2231,7 +2023,6 @@ app.get('/api/profile', authenticate, async (req, res) => {
       relationship_status: u.relationship_status || null,
       website: u.website || null,
       connectedProviders: {
-        facebook: !!u.facebook_id,
         google: !!u.google_id,
         linkedin: !!u.linkedin_id,
       },
@@ -2746,7 +2537,7 @@ app.patch('/api/profile/password', authenticate, async (req, res) => {
   try {
     const [[user]] = await pool.query('SELECT password_hash, mfa_enabled FROM users WHERE id = ?', [req.userId])
     if (!user) return res.status(404).json({ error: 'User not found' })
-    // If user has no password yet (imported from Facebook), allow setting without current password
+    // If user has no password yet (OAuth only), allow setting without current password
     if (user.password_hash) {
       if (!currentPassword) return res.status(400).json({ error: 'currentPassword required' })
       const passwordMatch = await bcrypt.compare(currentPassword, user.password_hash)
@@ -3148,6 +2939,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
         placeName: p.place_name || null,
         geoLat: p.geo_lat || null,
         geoLng: p.geo_lng || null,
+        location: (p.place_name || p.geo_lat) ? { name: p.place_name || null, lat: p.geo_lat ? parseFloat(p.geo_lat) : null, lng: p.geo_lng ? parseFloat(p.geo_lng) : null } : null,
         taggedUsers,
         linkedType: p.linked_type || null,
         linkedId: p.linked_id || null,
@@ -3332,8 +3124,35 @@ app.post('/api/feed/preflight', authenticate, (req, res) => {
   res.json({ ok: kw.action !== 'block', flagged: kw.action === 'flag', blocked: kw.action === 'block', keyword: kw.keyword, category: kw.category || null, notes: kw.notes || null })
 })
 
+// Cache for media_max_files admin setting (refreshed every 60s)
+let _mediaMaxFilesCache = { value: 4, expiresAt: 0 }
+async function getMediaMaxFiles() {
+  const now = Date.now()
+  if (now < _mediaMaxFilesCache.expiresAt) return _mediaMaxFilesCache.value
+  try {
+    const [rows] = await pool.query("SELECT key_value FROM admin_settings WHERE key_name = 'media_max_files'")
+    const val = rows[0]?.key_value ? parseInt(rows[0].key_value, 10) : 4
+    const clamped = Math.max(1, Math.min(val || 4, UPLOAD_FILES_CEILING))
+    _mediaMaxFilesCache = { value: clamped, expiresAt: now + 60_000 }
+    return clamped
+  } catch {
+    return _mediaMaxFilesCache.value
+  }
+}
+// Invalidate the cache (called when admin updates settings)
+function invalidateMediaMaxFilesCache() { _mediaMaxFilesCache.expiresAt = 0 }
+
 // POST /api/feed — create a new post (with optional media)
-app.post('/api/feed', authenticate, writeLimit, upload.array('media', 4), async (req, res) => {
+app.post('/api/feed', authenticate, writeLimit, upload.array('media', UPLOAD_FILES_CEILING), async (req, res) => {
+  // Enforce admin-configured media max files at runtime
+  const mediaMax = await getMediaMaxFiles()
+  if (req.files?.length > mediaMax) {
+    // Clean up all uploaded files that exceed the limit
+    for (const f of req.files) {
+      try { fs.unlinkSync(f.path) } catch {}
+    }
+    return res.status(400).json({ error: `Too many files (max ${mediaMax})` })
+  }
   const { text, scheduled_at, place_name, geo_lat, geo_lng } = req.body
   const rawCats = req.body.categories
   const categories = rawCats ? (typeof rawCats === 'string' ? JSON.parse(rawCats) : rawCats) : null
@@ -3352,18 +3171,29 @@ app.post('/api/feed', authenticate, writeLimit, upload.array('media', 4), async 
   // Validate magic bytes for each uploaded file
   const mediaUrls = []
   if (req.files?.length) {
+    const cleanupAll = () => {
+      for (const f of req.files) {
+        try { fs.unlinkSync(f.path) } catch {}
+      }
+    }
     for (const file of req.files) {
-      const buf = fs.readFileSync(file.path, { length: 16 })
       const header = Buffer.alloc(16)
-      const fd = fs.openSync(file.path, 'r')
-      fs.readSync(fd, header, 0, 16, 0)
-      fs.closeSync(fd)
+      try {
+        const fd = fs.openSync(file.path, 'r')
+        fs.readSync(fd, header, 0, 16, 0)
+        fs.closeSync(fd)
+      } catch (err) {
+        console.error(`[post media] failed to read "${file.originalname}":`, err.message)
+        cleanupAll()
+        return res.status(400).json({ error: `Could not read "${file.originalname}"` })
+      }
       if (!validateMagicBytes(header, file.mimetype)) {
-        // Delete the suspicious file immediately
-        fs.unlinkSync(file.path)
+        console.warn(`[post media] magic bytes mismatch for "${file.originalname}" (${file.mimetype})`)
+        cleanupAll()
         return res.status(400).json({ error: `File "${file.originalname}" failed content validation` })
       }
       const type = file.mimetype.startsWith('video/') ? 'video' : 'image'
+      if (type === 'video') await transcodeVideo(file.path)
       mediaUrls.push({ url: `/uploads/${file.filename}`, type, mime: file.mimetype })
     }
   }
@@ -3386,7 +3216,12 @@ app.post('/api/feed', authenticate, writeLimit, upload.array('media', 4), async 
         [req.userId, text, text, 'Lige nu', 'Just now', mediaJson, scheduledDate, categoriesJson]
       )
     )
-    const [users] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
+    const [users] = await pool.query('SELECT name, mode FROM users WHERE id = ?', [req.userId])
+      .catch(async () => {
+        const [rows] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
+        return [rows.map(r => ({ ...r, mode: 'privat' }))]
+      })
+    const [[badgeRow]] = await pool.query('SELECT COUNT(*) as cnt FROM earned_badges WHERE user_id = ?', [req.userId]).catch(() => [[{ cnt: 0 }]])
     const now = new Date()
     const postId = result.insertId
     // Extract and store hashtags (max 10)
@@ -3414,15 +3249,23 @@ app.post('/api/feed', authenticate, writeLimit, upload.array('media', 4), async 
     res.json({
       id: postId,
       author: users[0].name,
+      authorId: req.userId,
+      authorMode: users[0].mode || 'privat',
       time: { da: formatPostTime(now, 'da'), en: formatPostTime(now, 'en') },
       text: { da: text, en: text },
-      likes: 0, liked: false, comments: [],
+      likes: 0, liked: false, userReaction: null, comments: [],
+      reactions: [],
       media: mediaUrls.length > 0 ? mediaUrls : null,
       categories: categoriesJson ? JSON.parse(categoriesJson) : null,
-      location: lat ? { lat, lng, name: placeName } : null,
-      tagged_users: taggedJson ? JSON.parse(taggedJson) : null,
-      linked_type: linkedType || null,
-      linked_id: linkedId || null,
+      createdAtRaw: now.toISOString(),
+      edited: false,
+      authorBadgeCount: badgeRow?.cnt || 0,
+      placeName: placeName || null,
+      geoLat: lat || null,
+      geoLng: lng || null,
+      taggedUsers: taggedJson ? JSON.parse(taggedJson) : null,
+      linkedType: linkedType || null,
+      linkedId: linkedId || null,
     })
   } catch (err) {
     res.status(500).json({ error: 'Failed to create post' })
@@ -3444,6 +3287,7 @@ app.post('/api/upload', authenticate, fileUploadLimit, upload.single('file'), as
   }
 
   const type = req.file.mimetype.startsWith('video/') ? 'video' : 'image'
+  if (type === 'video') await transcodeVideo(req.file.path)
   // Audit log: file uploaded
   await auditLog(req, 'file_upload', 'file', null, {
     status: 'success',
@@ -3545,6 +3389,7 @@ app.post('/api/feed/:id/comment', authenticate, writeLimit, upload.single('media
       return res.status(400).json({ error: 'File failed content validation' })
     }
     const type = req.file.mimetype.startsWith('video/') ? 'video' : 'image'
+    if (type === 'video') await transcodeVideo(req.file.path)
     mediaJson = JSON.stringify([{ url: `/uploads/${req.file.filename}`, type, mime: req.file.mimetype }])
   }
   try {
@@ -3643,12 +3488,11 @@ app.patch('/api/feed/:id', authenticate, async (req, res) => {
   try {
     const postId = parseInt(req.params.id)
     const [[post]] = await pool.query(
-      'SELECT id, author_id, created_at FROM posts WHERE id = ?', [postId]
+      'SELECT id, author_id, TIMESTAMPDIFF(SECOND, created_at, NOW()) AS age_seconds FROM posts WHERE id = ?', [postId]
     )
     if (!post) return res.status(404).json({ error: 'Post not found' })
     if (post.author_id !== req.userId) return res.status(403).json({ error: 'Not your post' })
-    const ageMs = Date.now() - new Date(post.created_at).getTime()
-    if (ageMs > 60 * 60 * 1000) return res.status(403).json({ error: 'Edit window expired (1 hour)' })
+    if (post.age_seconds > 3600) return res.status(403).json({ error: 'Edit window expired (1 hour)' })
     await pool.query(
       'UPDATE posts SET text_da = ?, text_en = ?, edited_at = NOW() WHERE id = ?',
       [text.trim(), text.trim(), postId]
@@ -4015,7 +3859,7 @@ async function getConversationForUser(convId, userId, myName) {
   ).catch(() => [[]])
   const adminMuteMap = Object.fromEntries(adminMutes.map(r => [r.user_id, r.admin_muted_until ?? null]))
   const [msgs] = await pool.query(
-    `SELECT m.id, u.name as from_name, m.text_da, m.text_en, m.time, m.is_read, m.created_at
+    `SELECT m.id, u.name as from_name, m.text_da, m.text_en, m.time, m.is_read, m.created_at, m.media
      FROM messages m JOIN users u ON m.sender_id = u.id
      WHERE m.conversation_id = ? ORDER BY m.created_at DESC LIMIT 20`, [convId])
   msgs.reverse()
@@ -4052,6 +3896,7 @@ async function getConversationForUser(convId, userId, myName) {
       text: { da: m.text_da, en: m.text_en },
       time: m.created_at ? formatMsgTime(m.created_at) : m.time,
       createdAtRaw: m.created_at,
+      media: (() => { try { return m.media ? JSON.parse(m.media) : null } catch { return null } })(),
     })),
     totalMessages: total,
     unread,
@@ -4077,6 +3922,31 @@ app.get('/api/conversations', authenticate, async (req, res) => {
   } catch (err) {
     console.error('GET /api/conversations error:', err)
     res.status(500).json({ error: 'Failed to load conversations' })
+  }
+})
+
+// GET /api/conversations/:id/messages — recent messages for a conversation
+app.get('/api/conversations/:id/messages', authenticate, async (req, res) => {
+  const convId = parseInt(req.params.id)
+  try {
+    const [check] = await pool.query(
+      'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, req.userId])
+    if (!check.length) return res.status(403).json({ error: 'Not a participant' })
+    const [msgs] = await pool.query(
+      `SELECT u.name as from_name, m.text_da, m.text_en, m.time, m.created_at, m.media
+       FROM messages m JOIN users u ON m.sender_id = u.id
+       WHERE m.conversation_id = ? ORDER BY m.created_at DESC LIMIT 50`,
+      [convId])
+    msgs.reverse()
+    res.json({ messages: msgs.map(m => ({
+      from: m.from_name,
+      text: { da: m.text_da, en: m.text_en },
+      time: m.created_at ? formatMsgTime(m.created_at) : m.time,
+      media: (() => { try { return m.media ? JSON.parse(m.media) : null } catch { return null } })(),
+    })) })
+  } catch (err) {
+    console.error('GET /api/conversations/:id/messages error:', err)
+    res.status(500).json({ error: 'Failed to load messages' })
   }
 })
 
@@ -4156,8 +4026,8 @@ app.get('/api/sse', authenticate, (req, res) => {
 // POST /api/conversations/:id/messages — send a message
 app.post('/api/conversations/:id/messages', authenticate, writeLimit, async (req, res) => {
   const convId = parseInt(req.params.id)
-  const { text } = req.body
-  if (!text) return res.status(400).json({ error: 'Message text required' })
+  const { text, media } = req.body
+  if (!text && !media?.length) return res.status(400).json({ error: 'Message text or media required' })
   try {
     const [check] = await pool.query(
       'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, req.userId])
@@ -4173,11 +4043,12 @@ app.post('/api/conversations/:id/messages', authenticate, writeLimit, async (req
     const [participants] = await pool.query(
       'SELECT user_id FROM conversation_participants WHERE conversation_id = ?', [convId])
     const receiverId = participants.find(p => p.user_id !== req.userId)?.user_id ?? req.userId
+    const mediaJson = media?.length ? JSON.stringify(media) : null
     const [ins] = await pool.query(
-      'INSERT INTO messages (conversation_id, sender_id, receiver_id, text_da, text_en, time) VALUES (?, ?, ?, ?, ?, ?)',
-      [convId, req.userId, receiverId, text, text, time])
+      'INSERT INTO messages (conversation_id, sender_id, receiver_id, text_da, text_en, time, media) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [convId, req.userId, receiverId, text || '', text || '', time, mediaJson])
     const [[user]] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
-    const msg = { id: ins.insertId, from: user.name, text: { da: text, en: text }, time: formatMsgTime(now), createdAtRaw: now.toISOString() }
+    const msg = { id: ins.insertId, from: user.name, text: { da: text || '', en: text || '' }, media: media || null, time: formatMsgTime(now), createdAtRaw: now.toISOString() }
     // Push the new message to all other participants via SSE + create notification
     const [[conv]] = await pool.query('SELECT name, is_group FROM conversations WHERE id = ?', [convId]).catch(() => [[null]])
     for (const { user_id } of participants) {
@@ -4305,7 +4176,7 @@ app.delete('/api/conversations/:id/participants/:userId', authenticate, async (r
   try {
     const [[conv]] = await pool.query('SELECT created_by FROM conversations WHERE id = ?', [convId])
     if (!conv) return res.status(404).json({ error: 'Conversation not found' })
-    if (conv.created_by !== req.userId) return res.status(403).json({ error: 'Only the conversation creator can remove members' })
+    if (conv.created_by != null && conv.created_by !== req.userId) return res.status(403).json({ error: 'Only the conversation creator can remove members' })
     await pool.query(
       'DELETE FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, targetId])
     res.json({ ok: true })
@@ -4324,7 +4195,7 @@ app.post('/api/conversations/:id/participants/:userId/mute', authenticate, async
   try {
     const [[conv]] = await pool.query('SELECT created_by FROM conversations WHERE id = ?', [convId])
     if (!conv) return res.status(404).json({ error: 'Conversation not found' })
-    if (conv.created_by !== req.userId) return res.status(403).json({ error: 'Only the conversation creator can mute members' })
+    if (conv.created_by != null && conv.created_by !== req.userId) return res.status(403).json({ error: 'Only the conversation creator can mute members' })
     const [check] = await pool.query(
       'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, targetId])
     if (!check.length) return res.status(404).json({ error: 'User is not a participant' })
@@ -4529,15 +4400,14 @@ app.get('/api/link-preview', authenticate, async (req, res) => {
 // ── GDPR COMPLIANCE ENDPOINTS ──
 // ══════════════════════════════════════════════════════════════
 
-// POST /api/gdpr/consent — Record explicit consent and trigger Facebook data import
+// POST /api/gdpr/consent — Record explicit consent
 // GDPR Art. 6 & 7: Consent must be freely given, specific, informed, and unambiguous.
-// This endpoint is called AFTER the user reviews the consent dialog on the frontend.
 app.post('/api/gdpr/consent', authenticate, async (req, res) => {
-  const { consent_types } = req.body // Array: ['facebook_import', 'data_processing']
+  const { consent_types } = req.body // Array: ['data_processing']
   if (!consent_types || !Array.isArray(consent_types) || consent_types.length === 0) {
     return res.status(400).json({ error: 'consent_types array required' })
   }
-  const validTypes = ['facebook_import', 'data_processing']
+  const validTypes = ['data_processing']
   for (const ct of consent_types) {
     if (!validTypes.includes(ct)) return res.status(400).json({ error: `Invalid consent type: ${ct}` })
   }
@@ -4549,22 +4419,7 @@ app.post('/api/gdpr/consent', authenticate, async (req, res) => {
     for (const ct of consent_types) {
       await recordConsent(req.userId, ct, clientIp, userAgent)
     }
-
-    // If user consented to facebook_import, trigger the import now
-    if (consent_types.includes('facebook_import')) {
-      const [users] = await pool.query('SELECT fb_access_token FROM users WHERE id = ?', [req.userId])
-      const encryptedToken = users[0]?.fb_access_token
-      if (encryptedToken) {
-        const fbToken = decryptToken(encryptedToken)
-        // Import in background (non-blocking)
-        importFacebookData(req.userId, fbToken).catch(err => console.error('FB import error:', err))
-        res.json({ ok: true, import_started: true })
-      } else {
-        res.json({ ok: true, import_started: false, reason: 'no_facebook_token' })
-      }
-    } else {
-      res.json({ ok: true, import_started: false })
-    }
+    res.json({ ok: true })
   } catch (err) {
     console.error('Consent recording error:', err)
     res.status(500).json({ error: 'Failed to record consent' })
@@ -4605,91 +4460,109 @@ app.post('/api/gdpr/consent/withdraw', authenticate, async (req, res) => {
 
   try {
     await withdrawConsent(req.userId, consent_type, clientIp)
-
-    // If withdrawing facebook_import consent, also purge the Facebook token
-    if (consent_type === 'facebook_import') {
-      await pool.query(
-        'UPDATE users SET fb_access_token = NULL, fb_token_expires_at = NULL WHERE id = ?',
-        [req.userId]
-      )
-      await auditLog(req.userId, 'fb_token_purged', { reason: 'consent_withdrawn' }, clientIp)
-    }
-
     res.json({ ok: true })
   } catch (err) {
     res.status(500).json({ error: 'Failed to withdraw consent' })
   }
 })
 
-// DELETE /api/gdpr/facebook-data — Right to erasure for Facebook-sourced data (GDPR Art. 17)
-// Deletes all data that was imported from Facebook while preserving native content.
-app.delete('/api/gdpr/facebook-data', authenticate, async (req, res) => {
-  const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress
-
+// POST /api/gdpr/account/request-delete — Step 1: verify password and optionally send SMS MFA
+// Returns { ok, mfa_required, has_password } so the client knows what step comes next.
+app.post('/api/gdpr/account/request-delete', authenticate, writeLimit, async (req, res) => {
+  const { password } = req.body
   try {
-    await auditLog(req.userId, 'fb_data_delete_start', null, clientIp)
-
-    // 1. Delete Facebook-sourced posts and their media files
-    const [fbPosts] = await pool.query(
-      "SELECT id, media FROM posts WHERE author_id = ? AND source IN ('facebook_post', 'facebook_photo')",
+    const [[user]] = await pool.query(
+      'SELECT password_hash, password_plain, mfa_enabled, phone FROM users WHERE id = ?',
       [req.userId]
     )
-    for (const post of fbPosts) {
-      // Delete associated media files from disk
-      if (post.media) {
-        try {
-          const mediaArr = typeof post.media === 'string' ? JSON.parse(post.media) : post.media
-          for (const m of mediaArr) {
-            if (m.url?.startsWith('/uploads/')) {
-              const filePath = path.join(UPLOADS_DIR, path.basename(m.url))
-              if (fs.existsSync(filePath)) fs.unlinkSync(filePath)
-            }
-          }
-        } catch {}
+    if (!user) return res.status(404).json({ error: 'User not found' })
+
+    const hasPassword = !!(user.password_hash || user.password_plain)
+
+    // Verify password when the account has one
+    if (hasPassword) {
+      let passwordValid = false
+      if (user.password_hash?.startsWith('$2')) {
+        passwordValid = await bcrypt.compare(password || '', user.password_hash)
+        if (!passwordValid) {
+          const sha256hex = crypto.createHash('sha256').update(password || '').digest('hex')
+          passwordValid = await bcrypt.compare(sha256hex, user.password_hash)
+        }
+      } else if (user.password_hash && /^[0-9a-f]{64}$/.test(user.password_hash)) {
+        const sha256 = crypto.createHash('sha256').update(password || '').digest('hex')
+        passwordValid = sha256 === user.password_hash
+      } else if (user.password_plain) {
+        passwordValid = user.password_plain === (password || '')
       }
+      if (!passwordValid) return res.status(401).json({ error: 'Wrong password' })
     }
-    // Cascade: comments and likes on these posts are deleted via ON DELETE CASCADE
-    if (fbPosts.length > 0) {
+
+    // Send SMS MFA code if 2FA is enabled
+    if (user.mfa_enabled && user.phone) {
+      const rawCode = String(Math.floor(100000 + Math.random() * 900000))
+      const hashedCode = crypto.createHash('sha256').update(rawCode).digest('hex')
       await pool.query(
-        "DELETE FROM posts WHERE author_id = ? AND source IN ('facebook_post', 'facebook_photo')",
-        [req.userId]
+        'UPDATE users SET mfa_code = ?, mfa_code_expires = DATE_ADD(NOW(), INTERVAL 5 MINUTE) WHERE id = ?',
+        [hashedCode, req.userId]
       )
+      const smsSent = await sendSms(user.phone, `Din Fellis-kode er: ${rawCode} (udløber om 5 minutter)`)
+      if (!smsSent) {
+        console.error(`Account delete MFA SMS failed for user ${req.userId}`)
+        return res.status(503).json({ error: 'SMS service unavailable' })
+      }
+      return res.json({ ok: true, mfa_required: true, has_password: hasPassword })
     }
 
-    // 2. Delete Facebook-sourced friendships
-    await pool.query(
-      "DELETE FROM friendships WHERE (user_id = ? OR friend_id = ?) AND source = 'facebook'",
-      [req.userId, req.userId]
-    )
-
-    // 3. Purge Facebook token and metadata
-    await pool.query(
-      'UPDATE users SET fb_access_token = NULL, fb_token_expires_at = NULL, fb_data_imported_at = NULL WHERE id = ?',
-      [req.userId]
-    )
-
-    // 4. Withdraw any Facebook-related consent
-    await withdrawConsent(req.userId, 'facebook_import', clientIp)
-
-    await auditLog(req.userId, 'fb_data_delete_complete', {
-      posts_deleted: fbPosts.length
-    }, clientIp)
-
-    res.json({ ok: true, deleted: { posts: fbPosts.length } })
+    res.json({ ok: true, mfa_required: false, has_password: hasPassword })
   } catch (err) {
-    console.error('Facebook data deletion error:', err)
-    res.status(500).json({ error: 'Failed to delete Facebook data' })
+    console.error('POST /api/gdpr/account/request-delete error:', err)
+    res.status(500).json({ error: 'Server error' })
   }
 })
 
 // DELETE /api/gdpr/account — Full account deletion (GDPR Art. 17 — Right to be forgotten)
+// Requires password (if set) and SMS MFA code (if enabled) in the request body.
 // Deletes the user and ALL associated data. This is irreversible.
 app.delete('/api/gdpr/account', authenticate, async (req, res) => {
+  const { password, sms_code } = req.body || {}
   const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress
 
   try {
+    // Re-verify credentials before deletion (defence in depth)
+    const [[user]] = await pool.query(
+      'SELECT password_hash, password_plain, mfa_enabled, mfa_code, mfa_code_expires FROM users WHERE id = ?',
+      [req.userId]
+    )
+    if (!user) return res.status(404).json({ error: 'User not found' })
+
+    // Verify password when the account has one
+    const hasPassword = !!(user.password_hash || user.password_plain)
+    if (hasPassword) {
+      let passwordValid = false
+      if (user.password_hash?.startsWith('$2')) {
+        passwordValid = await bcrypt.compare(password || '', user.password_hash)
+        if (!passwordValid) {
+          const sha256hex = crypto.createHash('sha256').update(password || '').digest('hex')
+          passwordValid = await bcrypt.compare(sha256hex, user.password_hash)
+        }
+      } else if (user.password_hash && /^[0-9a-f]{64}$/.test(user.password_hash)) {
+        const sha256 = crypto.createHash('sha256').update(password || '').digest('hex')
+        passwordValid = sha256 === user.password_hash
+      } else if (user.password_plain) {
+        passwordValid = user.password_plain === (password || '')
+      }
+      if (!passwordValid) return res.status(401).json({ error: 'Wrong password' })
+    }
+
+    // Verify SMS MFA code when 2FA is enabled
+    if (user.mfa_enabled) {
+      if (!sms_code) return res.status(403).json({ error: 'SMS code required' })
+      const mfaOk = await verifySettingsMfaCode(req.userId, sms_code)
+      if (!mfaOk) return res.status(401).json({ error: 'Invalid or expired SMS code' })
+    }
+
     // Log before deletion (user_id will be preserved in audit log for legal compliance)
-    await auditLog(req.userId, 'account_delete_request', null, clientIp)
+    await auditLog(req, 'account_delete_request', null, null)
 
     // Delete uploaded media files owned by this user
     const [userPosts] = await pool.query('SELECT media FROM posts WHERE author_id = ?', [req.userId])
@@ -4718,7 +4591,7 @@ app.delete('/api/gdpr/account', authenticate, async (req, res) => {
     // all have ON DELETE CASCADE foreign keys referencing users(id)
     await pool.query('DELETE FROM users WHERE id = ?', [req.userId])
 
-    await auditLog(null, 'account_deleted', { former_user_id: req.userId }, clientIp)
+    await auditLog(req, 'account_deleted', 'user', req.userId)
 
     res.json({ ok: true })
   } catch (err) {
@@ -4784,23 +4657,9 @@ app.get('/api/gdpr/export', authenticate, async (req, res) => {
 })
 
 // ── Data Retention Cleanup (GDPR Art. 5(1)(e) — storage limitation) ──
-// Runs periodically to purge expired Facebook tokens and stale data.
+// Runs periodically to purge stale data.
 async function runDataRetentionCleanup() {
   try {
-    // Purge expired Facebook tokens
-    const [expired] = await pool.query(
-      'SELECT id FROM users WHERE fb_token_expires_at IS NOT NULL AND fb_token_expires_at < NOW()'
-    )
-    if (expired.length > 0) {
-      await pool.query(
-        'UPDATE users SET fb_access_token = NULL, fb_token_expires_at = NULL WHERE fb_token_expires_at < NOW()'
-      )
-      for (const u of expired) {
-        await auditLog(u.id, 'fb_token_expired_purge', { reason: 'data_retention_policy' })
-      }
-      console.log(`[GDPR Retention] Purged ${expired.length} expired Facebook tokens`)
-    }
-
     // Purge expired sessions
     await pool.query('DELETE FROM sessions WHERE expires_at < NOW()')
   } catch (err) {
@@ -4939,6 +4798,21 @@ app.post('/api/marketplace', authenticate, upload.array('photos', 10), async (re
       `SELECT l.*, u.name AS seller_name, u.handle AS seller_handle FROM marketplace_listings l JOIN users u ON l.user_id = u.id WHERE l.id = ?`,
       [result.insertId]
     )
+    // Notify subscribers whose keyword appears in title/description/category
+    try {
+      const haystack = `${title} ${description || ''} ${category}`.toLowerCase()
+      const [alerts] = await pool.query(
+        'SELECT DISTINCT user_id, keyword FROM marketplace_keyword_alerts WHERE user_id != ?',
+        [req.userId]
+      )
+      const matched = alerts.filter(a => haystack.includes(a.keyword.toLowerCase()))
+      for (const a of matched) {
+        const msgDa = `Nyt opslag i markedet matcher "${a.keyword}": ${title}`
+        const msgEn = `A new marketplace listing matches "${a.keyword}": ${title}`
+        await createNotification(a.user_id, 'marketplace_keyword_match', msgDa, msgEn, req.userId, listing.seller_name)
+      }
+    } catch (e) { console.error('[marketplace keyword alerts]', e.message) }
+
     res.json(parseListingPhotos(listing))
   } catch (err) {
     console.error('POST /api/marketplace error:', err.message)
@@ -5985,7 +5859,7 @@ async function initBusinessFeatures() {
       id INT AUTO_INCREMENT PRIMARY KEY,
       author_id INT NOT NULL,
       contact_id INT NOT NULL,
-      note TEXT NOT NULL DEFAULT '',
+      note TEXT NOT NULL,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       UNIQUE KEY uq_cn_author_contact (author_id, contact_id),
       INDEX idx_cn_author (author_id),
@@ -6615,6 +6489,7 @@ async function initAdminAdSettings() {
     await addCol('admin_ad_settings', 'adfree_recurring_pct', 'INT NOT NULL DEFAULT 100')
     await addCol('admin_ad_settings', 'ad_recurring_pct', 'INT NOT NULL DEFAULT 100')
     await addCol('admin_ad_settings', 'boost_price', 'DECIMAL(10,2) NOT NULL DEFAULT 9.00')
+    await addCol('admin_ad_settings', 'adfree_annual_discount_pct', 'INT NOT NULL DEFAULT 0')
     // Ensure a default row always exists
     await pool.query(`INSERT IGNORE INTO admin_ad_settings (id) VALUES (1)`)
     // Fix NULL ads_enabled on existing rows (should default to enabled)
@@ -6974,7 +6849,7 @@ app.get('/api/admin/ad-settings', authenticate, requireAdmin, async (req, res) =
 
 // PUT /api/admin/ad-settings — update ad pricing & display settings (admin only)
 app.put('/api/admin/ad-settings', authenticate, requireAdmin, async (req, res) => {
-  const allowed = ['adfree_price_private', 'adfree_price_business', 'ad_price_cpm', 'boost_price', 'currency', 'max_ads_feed', 'max_ads_sidebar', 'max_ads_stories', 'refresh_interval_seconds', 'ads_enabled', 'adfree_recurring_pct', 'ad_recurring_pct']
+  const allowed = ['adfree_price_private', 'adfree_price_business', 'ad_price_cpm', 'boost_price', 'currency', 'max_ads_feed', 'max_ads_sidebar', 'max_ads_stories', 'refresh_interval_seconds', 'ads_enabled', 'adfree_recurring_pct', 'ad_recurring_pct', 'adfree_annual_discount_pct']
   const updates = {}
   for (const key of allowed) {
     if (key in req.body) updates[key] = req.body[key]
@@ -7031,12 +6906,14 @@ app.get('/api/admin/ad-stats', authenticate, requireAdmin, async (req, res) => {
 // GET /api/me/subscription — get current user's ads_free status + Mollie subscription details
 app.get('/api/me/subscription', authenticate, async (req, res) => {
   try {
-    const [[user]] = await pool.query('SELECT ads_free, mode FROM users WHERE id = ?', [req.userId])
+    const [[user]] = await pool.query('SELECT mode FROM users WHERE id = ?', [req.userId])
     if (!user) return res.status(404).json({ error: 'User not found' })
-    const [[adSettings]] = await pool.query('SELECT adfree_price_private, adfree_price_business, adfree_recurring_pct, currency, ads_enabled FROM admin_ad_settings WHERE id = 1').catch(() => [[{ adfree_price_private: 29, adfree_price_business: 49, adfree_recurring_pct: 100, currency: 'EUR', ads_enabled: 1 }]])
+    const [[adSettings]] = await pool.query('SELECT adfree_price_private, adfree_price_business, adfree_recurring_pct, adfree_annual_discount_pct, currency, ads_enabled FROM admin_ad_settings WHERE id = 1').catch(() => [[{ adfree_price_private: 29, adfree_price_business: 49, adfree_recurring_pct: 100, adfree_annual_discount_pct: 0, currency: 'EUR', ads_enabled: 1 }]])
     const price = parseFloat(user.mode === 'business' ? adSettings?.adfree_price_business : adSettings?.adfree_price_private) || 29
     const recurringPct = parseInt(adSettings?.adfree_recurring_pct ?? 100)
     const recurringPrice = Math.round(price * recurringPct / 100 * 100) / 100
+    const annualDiscountPct = parseInt(adSettings?.adfree_annual_discount_pct ?? 0)
+    const annualPrice = Math.round(recurringPrice * 12 * (1 - annualDiscountPct / 100) * 100) / 100
 
     // Include Mollie subscription status
     const [[sub]] = await pool.query(
@@ -7046,11 +6923,26 @@ app.get('/api/me/subscription', authenticate, async (req, res) => {
       [req.userId]
     ).catch(() => [[null]])
 
+    // Compute ads_free dynamically — only active purchased periods or activated earned-day
+    // assignments count. Days sitting in the bank (not yet assigned) do NOT make a user ad-free.
+    const today = new Date().toISOString().split('T')[0]
+    const [[adFreeRow]] = await pool.query(`
+      SELECT (
+        (SELECT COUNT(*) FROM adfree_day_assignments
+         WHERE user_id = ? AND start_date <= ? AND end_date >= ?) +
+        (SELECT COUNT(*) FROM adfree_purchased_periods
+         WHERE user_id = ? AND start_date <= ? AND end_date >= ?)
+      ) AS total
+    `, [req.userId, today, today, req.userId, today, today]).catch(() => [[{ total: 0 }]])
+    const ads_free = (adFreeRow?.total ?? 0) > 0
+
     res.json({
-      ads_free: Boolean(user.ads_free),
+      ads_free,
       price,
       recurring_price: recurringPrice,
       recurring_pct: recurringPct,
+      annual_price: annualPrice,
+      annual_discount_pct: annualDiscountPct,
       currency: adSettings?.currency || 'EUR',
       ads_enabled: Boolean(adSettings?.ads_enabled),
       plan: sub?.plan || null,
@@ -7098,10 +6990,15 @@ async function initMollie() {
 }
 
 async function getMollieKey() {
-  // 1. Process env (set at startup from .env file)
+  // 1. DB admin_settings takes priority — respects keys set via admin UI without server restart
+  try {
+    const [[row]] = await pool.query("SELECT key_value FROM admin_settings WHERE key_name = 'mollie_api_key'")
+    if (row?.key_value && !row.key_value.includes('•')) return row.key_value
+  } catch {}
+  // 2. Process env (set at startup from .env file)
   const envKey = (process.env.MOLLIE_API_KEY || '').replace(/^["']|["']$/g, '').trim()
   if (envKey) return envKey
-  // 2. Re-read .env file directly as fallback (handles PM2 env not updating)
+  // 3. Re-read .env file directly as fallback (handles PM2 env not updating)
   try {
     const { readFileSync } = await import('fs')
     const envFile = readFileSync(path.join(__dirname, '.env'), 'utf8')
@@ -7115,11 +7012,6 @@ async function getMollieKey() {
         if (val) return val
       }
     }
-  } catch {}
-  // 3. DB admin_settings fallback
-  try {
-    const [[row]] = await pool.query("SELECT key_value FROM admin_settings WHERE key_name = 'mollie_api_key'")
-    if (row?.key_value && !row.key_value.startsWith('••')) return row.key_value
   } catch {}
   return null
 }
@@ -7139,7 +7031,7 @@ async function getMollieClient() {
 // POST /api/mollie/payment/create — create a Mollie payment and return checkout URL
 app.post('/api/mollie/payment/create', authenticate, async (req, res) => {
   try {
-    const { plan, currency: reqCurrency, ad_id: adId, recurring = false } = req.body || {}
+    const { plan, currency: reqCurrency, ad_id: adId, recurring = false, interval = 'monthly' } = req.body || {}
     if (!plan) return res.status(400).json({ error: 'Missing required field: plan' })
 
     const mollie = await getMollieClient()
@@ -7151,11 +7043,16 @@ app.post('/api/mollie/payment/create', authenticate, async (req, res) => {
     // Resolve amount from admin_ad_settings
     let resolvedAmount = null
     let resolvedCurrency = reqCurrency || 'EUR'
-    const [[adS]] = await pool.query('SELECT adfree_price_private, adfree_price_business, adfree_recurring_pct, ad_price_cpm, ad_recurring_pct, currency FROM admin_ad_settings WHERE id = 1').catch(() => [[null]])
+    const [[adS]] = await pool.query('SELECT adfree_price_private, adfree_price_business, adfree_recurring_pct, adfree_annual_discount_pct, ad_price_cpm, ad_recurring_pct, currency FROM admin_ad_settings WHERE id = 1').catch(() => [[null]])
     resolvedCurrency = adS?.currency || 'EUR'
     if (plan === 'adfree') {
       const oneTimePrice = parseFloat(user.mode === 'business' ? adS?.adfree_price_business : adS?.adfree_price_private) || 29
-      if (recurring) {
+      if (recurring && interval === 'annual') {
+        const recurringPct = parseInt(adS?.adfree_recurring_pct ?? 100)
+        const monthlyPrice = Math.round(oneTimePrice * recurringPct / 100 * 100) / 100
+        const annualDiscountPct = parseInt(adS?.adfree_annual_discount_pct ?? 0)
+        resolvedAmount = Math.round(monthlyPrice * 12 * (1 - annualDiscountPct / 100) * 100) / 100
+      } else if (recurring) {
         const pct = parseInt(adS?.adfree_recurring_pct ?? 100)
         resolvedAmount = Math.round(oneTimePrice * pct / 100 * 100) / 100
       } else {
@@ -7196,7 +7093,7 @@ app.post('/api/mollie/payment/create', authenticate, async (req, res) => {
       description: `fellis.eu — ${plan}${recurring ? ' (abonnement)' : ''}`,
       redirectUrl,
       webhookUrl,
-      metadata: { user_id: String(req.userId), plan, recurring: String(!!recurring), ...(adId ? { ad_id: String(adId) } : {}) },
+      metadata: { user_id: String(req.userId), plan, recurring: String(!!recurring), interval: recurring ? interval : 'once', ...(adId ? { ad_id: String(adId) } : {}) },
     }
     if (recurring && mollieCustomerId) {
       paymentParams.customerId = mollieCustomerId
@@ -7347,7 +7244,8 @@ app.post('/api/mollie/payment/webhook', express.urlencoded({ extended: false }),
       // After first payment of a recurring plan: create a Mollie Subscription
       if (isRecurringFirstPayment && payment.customerId) {
         try {
-          const interval = sub.plan === 'ad_activation' ? '30 days' : '1 month'
+          const billingInterval = sub.plan === 'ad_activation' ? '30 days' : (payment.metadata?.interval === 'annual' ? '12 months' : '1 month')
+          const interval = billingInterval
           const mollieSubscription = await mollie.customers.subscriptions.create(payment.customerId, {
             amount: { currency: payment.amount.currency, value: payment.amount.value },
             interval,
@@ -7393,7 +7291,7 @@ app.post('/api/mollie/payment/webhook', express.urlencoded({ extended: false }),
 // GET /api/mollie/payment/status — current user's Mollie subscription status
 app.get('/api/mollie/payment/status', authenticate, async (req, res) => {
   try {
-    const [[user]] = await pool.query('SELECT ads_free, mode FROM users WHERE id = ?', [req.userId])
+    const [[user]] = await pool.query('SELECT id FROM users WHERE id = ?', [req.userId])
     if (!user) return res.status(404).json({ error: 'User not found' })
 
     // Get the most recent active or pending subscription (prefer recurring+active)
@@ -7404,8 +7302,21 @@ app.get('/api/mollie/payment/status', authenticate, async (req, res) => {
       [req.userId]
     )
 
+    // Compute ads_free dynamically — only active purchased periods or activated earned-day
+    // assignments count. Days sitting in the bank (not yet assigned) do NOT make a user ad-free.
+    const today = new Date().toISOString().split('T')[0]
+    const [[adFreeRow]] = await pool.query(`
+      SELECT (
+        (SELECT COUNT(*) FROM adfree_day_assignments
+         WHERE user_id = ? AND start_date <= ? AND end_date >= ?) +
+        (SELECT COUNT(*) FROM adfree_purchased_periods
+         WHERE user_id = ? AND start_date <= ? AND end_date >= ?)
+      ) AS total
+    `, [req.userId, today, today, req.userId, today, today]).catch(() => [[{ total: 0 }]])
+    const ads_free = (adFreeRow?.total ?? 0) > 0
+
     res.json({
-      ads_free: Boolean(user.ads_free),
+      ads_free,
       plan: sub?.plan || null,
       status: sub?.status || null,
       expires_at: sub?.expires_at || null,
@@ -7471,16 +7382,16 @@ async function initAdminSettings() {
 
     // Seed default easter egg config (only if none exists yet)
     const defaultEggCfg = {
-      chuck:    { globalEnabled: true, hintsEnabled: true,  hintText: 'har en mening' },
-      matrix:   { globalEnabled: true, hintsEnabled: false, hintText: '' },
-      flip:     { globalEnabled: true, hintsEnabled: false, hintText: '' },
-      retro:    { globalEnabled: true, hintsEnabled: false, hintText: '' },
-      gravity:  { globalEnabled: true, hintsEnabled: true,  hintText: 'G G' },
-      party:    { globalEnabled: true, hintsEnabled: false, hintText: '' },
-      rickroll: { globalEnabled: true, hintsEnabled: true,  hintText: 'Going down!' },
-      watcher:  { globalEnabled: true, hintsEnabled: false, hintText: '' },
-      riddler:  { globalEnabled: true, hintsEnabled: false, hintText: '' },
-      phantom:  { globalEnabled: true, hintsEnabled: false, hintText: '' },
+      chuck:    { globalEnabled: true, hintsEnabled: true, hintText: '↑↑↓↓←→←→ — klassisk!' },
+      matrix:   { globalEnabled: true, hintsEnabled: true, hintText: 'Følg den hvide kanin' },
+      flip:     { globalEnabled: true, hintsEnabled: true, hintText: 'Verden set fra en anden vinkel' },
+      retro:    { globalEnabled: true, hintsEnabled: true, hintText: 'Tilbage til rødderne' },
+      gravity:  { globalEnabled: true, hintsEnabled: true, hintText: 'Newton havde ret om feeds' },
+      party:    { globalEnabled: true, hintsEnabled: true, hintText: 'Festen venter på dig' },
+      rickroll: { globalEnabled: true, hintsEnabled: true, hintText: 'Nysgerrighed har en pris' },
+      watcher:  { globalEnabled: true, hintsEnabled: true, hintText: 'Hvem kigger på hvem?' },
+      riddler:  { globalEnabled: true, hintsEnabled: true, hintText: 'Spørgsmålet er svaret' },
+      phantom:  { globalEnabled: true, hintsEnabled: true, hintText: 'Ikke alle besøgende er synlige' },
     }
     await pool.query(
       "INSERT IGNORE INTO admin_settings (key_name, key_value) VALUES ('easter_egg_config', ?)",
@@ -8112,7 +8023,6 @@ app.post('/api/admin/notify-all', authenticate, requireAdmin, async (req, res) =
 app.get('/api/admin/env-status', authenticate, requireAdmin, async (req, res) => {
   const ENV_VARS = [
     'MOLLIE_API_KEY',
-    'FB_APP_ID', 'FB_APP_SECRET', 'FB_TOKEN_ENCRYPTION_KEY',
     'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET',
     'LINKEDIN_CLIENT_ID', 'LINKEDIN_CLIENT_SECRET',
     'MAIL_HOST', 'MAIL_USER',
@@ -8132,12 +8042,15 @@ app.post('/api/admin/settings', authenticate, requireAdmin, async (req, res) => 
     for (const [key, value] of Object.entries(req.body)) {
       if (!allowed.includes(key)) continue
       // pwd_, media_, registration_ keys are always saved (value can be '0'/'')
-      const alwaysSave = key.startsWith('pwd_') || key.startsWith('media_') || key.startsWith('registration_') || key === 'mollie_api_key'
+      const alwaysSave = key.startsWith('pwd_') || key.startsWith('media_') || key.startsWith('registration_')
       if (!alwaysSave) {
         if (!value || value === '••••••••' + (value || '').slice(-4)) continue // skip masked/empty
+        if (key === 'mollie_api_key' && value.includes('•')) continue // skip masked display value
       }
       await pool.query('INSERT INTO admin_settings (key_name, key_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE key_value = VALUES(key_value)', [key, value])
     }
+    // Invalidate cached settings so new values take effect immediately
+    invalidateMediaMaxFilesCache()
     res.json({ ok: true })
   } catch (err) {
     res.status(500).json({ error: 'Failed to save settings' })
@@ -8353,6 +8266,170 @@ app.get('/api/admin/stats/list', authenticate, requireAdmin, async (req, res) =>
 })
 
 // GET /api/admin/feed-weights — get current feed algorithm weights
+// GET /api/admin/growth — daily new-user signups for the last N days (default 30)
+app.get('/api/admin/growth', authenticate, requireAdmin, async (req, res) => {
+  const days = Math.min(parseInt(req.query.days) || 30, 90)
+  try {
+    const [rows] = await pool.query(
+      `SELECT DATE(created_at) as day, COUNT(*) as count
+       FROM users
+       WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+       GROUP BY DATE(created_at)
+       ORDER BY day ASC`,
+      [days]
+    )
+    // Fill in zeros for days with no signups
+    const map = {}
+    for (const r of rows) map[r.day instanceof Date ? r.day.toISOString().slice(0, 10) : String(r.day).slice(0, 10)] = Number(r.count)
+    const result = []
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(); d.setDate(d.getDate() - i)
+      const key = d.toISOString().slice(0, 10)
+      result.push({ day: key, count: map[key] || 0 })
+    }
+    res.json({ days: result })
+  } catch (err) {
+    console.error('GET /api/admin/growth error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/admin/online-now — count of sessions active in the last 15 minutes
+app.get('/api/admin/online-now', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [[{ online }]] = await pool.query(
+      "SELECT COUNT(DISTINCT user_id) as online FROM sessions WHERE last_active >= DATE_SUB(NOW(), INTERVAL 15 MINUTE)"
+    ).catch(async () => {
+      // Fallback: last_active column may not exist — count sessions created/refreshed recently
+      const [[r]] = await pool.query(
+        "SELECT COUNT(DISTINCT user_id) as online FROM sessions WHERE expires_at > NOW()"
+      )
+      return [[r]]
+    })
+    res.json({ online: Number(online) })
+  } catch (err) {
+    console.error('GET /api/admin/online-now error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/admin/banned-users — list all currently banned users
+app.get('/api/admin/banned-users', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT u.id, u.name, u.handle, u.email, u.mode, u.strike_count,
+              ma.reason, ma.created_at as banned_at, ma.actor_id,
+              admin_u.name as banned_by
+       FROM users u
+       LEFT JOIN moderation_actions ma ON ma.target_user_id = u.id AND ma.action_type = 'ban'
+         AND ma.created_at = (SELECT MAX(ma2.created_at) FROM moderation_actions ma2 WHERE ma2.target_user_id = u.id AND ma2.action_type = 'ban')
+       LEFT JOIN users admin_u ON admin_u.id = ma.actor_id
+       WHERE u.status = 'banned'
+       ORDER BY ma.created_at DESC`
+    ).catch(async () => {
+      // Fallback if moderation_actions doesn't have the expected columns
+      const [r] = await pool.query(
+        `SELECT id, name, handle, email, mode, strike_count FROM users WHERE status = 'banned' ORDER BY id DESC`
+      )
+      return [r]
+    })
+    res.json({ users: rows })
+  } catch (err) {
+    console.error('GET /api/admin/banned-users error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/admin/users — search all users with full admin detail
+app.get('/api/admin/users', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const q = req.query.q ? `%${req.query.q}%` : '%'
+    const [rows] = await pool.query(
+      `SELECT u.id, u.name, u.handle, u.email, u.mode, u.plan, u.status,
+              u.strike_count, u.suspended_until, u.is_moderator,
+              u.mfa_enabled, u.created_at,
+              (u.id = 1) AS is_admin,
+              (SELECT COUNT(*) FROM sessions s WHERE s.user_id = u.id AND s.expires_at > NOW()) AS active_sessions,
+              (SELECT COUNT(*) FROM posts p WHERE p.author_id = u.id) AS post_count
+       FROM users u
+       WHERE (u.name LIKE ? OR u.handle LIKE ? OR u.email LIKE ? OR u.id = ?)
+       ORDER BY u.created_at DESC
+       LIMIT 50`,
+      [q, q, q, parseInt(req.query.q) || 0]
+    )
+    res.json({ users: rows })
+  } catch (err) {
+    console.error('GET /api/admin/users error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/admin/users/:id/force-logout — invalidate all sessions for a user
+app.post('/api/admin/users/:id/force-logout', authenticate, requireAdmin, async (req, res) => {
+  const targetId = parseInt(req.params.id)
+  if (!targetId) return res.status(400).json({ error: 'Invalid user id' })
+  try {
+    await pool.query('DELETE FROM sessions WHERE user_id = ?', [targetId])
+    await auditLog(req, 'admin_force_logout', 'user', targetId)
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/admin/users/:id/force-logout error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// DELETE /api/admin/users/:id — admin permanently deletes a user account
+app.delete('/api/admin/users/:id', authenticate, requireAdmin, async (req, res) => {
+  const targetId = parseInt(req.params.id)
+  if (!targetId) return res.status(400).json({ error: 'Invalid user id' })
+  if (targetId === req.userId) return res.status(400).json({ error: 'Cannot delete your own account' })
+  try {
+    const [[user]] = await pool.query('SELECT id, name, email FROM users WHERE id = ?', [targetId])
+    if (!user) return res.status(404).json({ error: 'User not found' })
+    await auditLog(req, 'admin_delete_user', 'user', targetId, { details: { name: user.name, email: user.email } })
+    await pool.query('DELETE FROM sessions WHERE user_id = ?', [targetId])
+    await pool.query('DELETE FROM users WHERE id = ?', [targetId])
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/admin/users/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/admin/audit-log — recent entries from audit_logs table
+app.get('/api/admin/audit-log', authenticate, requireAdmin, async (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit) || 50, 200)
+  const offset = parseInt(req.query.offset) || 0
+  const { action, userId } = req.query
+  try {
+    const conditions = []
+    const params = []
+    if (action) { conditions.push('al.action = ?'); params.push(action) }
+    if (userId) { conditions.push('al.user_id = ?'); params.push(parseInt(userId)) }
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
+    const [rows] = await pool.query(
+      `SELECT al.id, al.user_id, u.name as user_name, u.email as user_email,
+              al.action, al.resource_type, al.resource_id,
+              al.status, al.ip_address, al.created_at,
+              al.details
+       FROM audit_logs al
+       LEFT JOIN users u ON u.id = al.user_id
+       ${where}
+       ORDER BY al.created_at DESC
+       LIMIT ? OFFSET ?`,
+      [...params, limit, offset]
+    )
+    const [[{ total }]] = await pool.query(
+      `SELECT COUNT(*) as total FROM audit_logs al ${where}`,
+      params
+    )
+    res.json({ rows, total: Number(total), limit, offset })
+  } catch (err) {
+    console.error('GET /api/admin/audit-log error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 app.get('/api/admin/feed-weights', authenticate, requireAdmin, async (req, res) => {
   const weights = await getFeedWeights()
   res.json({ weights })
@@ -8714,6 +8791,10 @@ async function initReels() {
       ADD COLUMN IF NOT EXISTS source   ENUM('upload','live') NOT NULL DEFAULT 'upload',
       ADD COLUMN IF NOT EXISTS title_da VARCHAR(500) DEFAULT NULL,
       ADD COLUMN IF NOT EXISTS title_en VARCHAR(500) DEFAULT NULL`).catch(() => {})
+    // stream_key on users — unique token for RTMP authentication
+    await pool.query(
+      'ALTER TABLE users ADD COLUMN IF NOT EXISTS stream_key VARCHAR(64) DEFAULT NULL'
+    ).catch(() => {})
     // Livestreams table for tracking live recordings
     await pool.query(`CREATE TABLE IF NOT EXISTS livestreams (
       id             INT          NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -8788,6 +8869,7 @@ app.post('/api/reels', authenticate, fileUploadLimit, reelUpload.single('video')
   try {
     if (!req.file) return res.status(400).json({ error: 'No video file provided' })
     const caption = (req.body.caption || '').trim().slice(0, 2000) || null
+    await transcodeVideo(req.file.path)
     const videoUrl = `/uploads/${req.file.filename}`
     const rawTagged = req.body.tagged_users
     const taggedUsers = rawTagged ? (() => { try { return JSON.parse(rawTagged) } catch { return null } })() : null
@@ -9426,12 +9508,14 @@ app.get('/api/config', async (req, res) => {
     for (const r of rows) cfg[r.key_name] = r.key_value
     if (cfg.media_max_files) cfg.mediaMaxFiles = parseInt(cfg.media_max_files, 10) || 4
     if (cfg.marketplace_max_photos) cfg.marketplaceMaxPhotos = parseInt(cfg.marketplace_max_photos, 10) || 4
-    res.json({ config: cfg, facebookEnabled: !!process.env.FB_APP_ID })
-  } catch { res.json({ config: {}, facebookEnabled: false }) }
+    res.json({ config: cfg })
+  } catch { res.json({ config: {} }) }
 })
 
 // ── Changelog ─────────────────────────────────────────────────────────────────
 const CHANGELOG_ENTRIES = [
+  { date: '2026-04', icon: '💬', da: 'Brugerfeedback — rapportér fejl, manglende funktioner og forslag direkte fra "Om Fellis"-siden', en: 'User feedback — report bugs, missing features and suggestions directly from the About page' },
+  { date: '2026-03', icon: '📡', da: 'RTMP livestreaming via mediamtx — stream live med OBS eller Streamlabs direkte til fellis.eu. Optagelsen gemmes automatisk som et reel, når du stopper.', en: 'RTMP livestreaming via mediamtx — go live with OBS or Streamlabs directly to fellis.eu. The recording is automatically saved as a reel when you stop.' },
   { date: '2026-03', icon: '📄', da: 'CV-profil og jobansøgning — tilføj erhvervserfaring, uddannelse og sprog til din profil og vedhæft CV og ansøgningsbrev direkte i jobopslag. AI-assistance via Mistral hjælper dig med at skrive dem.', en: 'CV profile and job applications — add work experience, education and languages to your profile and attach a CV and cover letter directly in job listings. AI assistance via Mistral helps you write them.' },
   { date: '2026-03', icon: '🌍', da: 'Flersproget infrastruktur — sitet er klar til nye sprog', en: 'Multi-language infrastructure — site is ready for new languages' },
   { date: '2026-03', icon: '💳', da: 'Mollie betalingsgateway — betal for reklamefrit abonnement via MobilePay, Visa, Mastercard m.fl.', en: 'Mollie payment gateway — pay for ad-free subscription via MobilePay, Visa, Mastercard etc.' },
@@ -9454,6 +9538,64 @@ app.get('/api/changelog', authenticate, async (req, res) => {
     text: lang === 'en' ? e.en : e.da,
   }))
   res.json({ entries })
+})
+
+// ── Platform Feedback ─────────────────────────────────────────────────────────
+app.post('/api/feedback', authenticate, async (req, res) => {
+  const { type, title, description } = req.body
+  if (!['bug', 'missing', 'suggestion'].includes(type)) return res.status(400).json({ error: 'Invalid type' })
+  if (!title?.trim() || !description?.trim()) return res.status(400).json({ error: 'Title and description required' })
+  try {
+    await pool.query(
+      'INSERT INTO platform_feedback (user_id, type, title, description) VALUES (?, ?, ?, ?)',
+      [req.userId, type, title.trim().slice(0, 200), description.trim()]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/feedback error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.get('/api/admin/feedback', authenticate, requireAdmin, async (req, res) => {
+  const status = req.query.status || null
+  try {
+    const where = status ? 'WHERE f.status = ?' : ''
+    const params = status ? [status] : []
+    const [rows] = await pool.query(
+      `SELECT f.id, f.type, f.title, f.description, f.status, f.admin_note,
+              f.created_at, f.updated_at, u.name AS user_name, u.handle AS user_handle
+       FROM platform_feedback f
+       JOIN users u ON u.id = f.user_id
+       ${where}
+       ORDER BY f.created_at DESC
+       LIMIT 200`,
+      params
+    )
+    res.json({ feedback: rows })
+  } catch (err) {
+    console.error('GET /api/admin/feedback error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.patch('/api/admin/feedback/:id', authenticate, requireAdmin, async (req, res) => {
+  const { status, admin_note } = req.body
+  const validStatuses = ['new', 'reviewing', 'planned', 'done', 'declined']
+  if (status && !validStatuses.includes(status)) return res.status(400).json({ error: 'Invalid status' })
+  try {
+    const fields = []
+    const params = []
+    if (status) { fields.push('status = ?'); params.push(status) }
+    if (admin_note !== undefined) { fields.push('admin_note = ?'); params.push(admin_note || null) }
+    if (!fields.length) return res.status(400).json({ error: 'Nothing to update' })
+    params.push(req.params.id)
+    await pool.query(`UPDATE platform_feedback SET ${fields.join(', ')} WHERE id = ?`, params)
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('PATCH /api/admin/feedback/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
 })
 
 // ── Notifications ─────────────────────────────────────────────────────────────
@@ -9658,7 +9800,8 @@ app.put('/api/me/notification-preferences', authenticate, async (req, res) => {
 
 // ── Feed category suggestion ──────────────────────────────────────────────────
 app.get('/api/feed/suggest-category', authenticate, async (req, res) => {
-  const text = (req.query.text || '').toLowerCase()
+  const raw = req.query.text
+  const text = (Array.isArray(raw) ? raw[0] : raw || '').toLowerCase()
   const MAP = [
     { keywords: ['mad', 'opskrift', 'food', 'recipe', 'pizza', 'kaffe', 'coffee'], cat: 'mad' },
     { keywords: ['musik', 'music', 'sang', 'song', 'band', 'concert', 'koncert'], cat: 'musik' },
@@ -10882,9 +11025,16 @@ app.put('/api/admin/easter-eggs/config', authenticate, requireAdmin, async (req,
 // GET /api/easter-eggs/hints — public; returns eggs where admin enabled hints and set hint text
 app.get('/api/easter-eggs/hints', async (req, res) => {
   const DEFAULT_HINTS = [
-    { id: 'chuck',    hint: 'har en mening' },
-    { id: 'gravity',  hint: 'G G' },
-    { id: 'rickroll', hint: 'Going down!' },
+    { id: 'chuck',    hint: '↑↑↓↓←→←→ — klassisk!' },
+    { id: 'matrix',   hint: 'Følg den hvide kanin' },
+    { id: 'flip',     hint: 'Verden set fra en anden vinkel' },
+    { id: 'retro',    hint: 'Tilbage til rødderne' },
+    { id: 'gravity',  hint: 'Newton havde ret om feeds' },
+    { id: 'party',    hint: 'Festen venter på dig' },
+    { id: 'rickroll', hint: 'Nysgerrighed har en pris' },
+    { id: 'watcher',  hint: 'Hvem kigger på hvem?' },
+    { id: 'riddler',  hint: 'Spørgsmålet er svaret' },
+    { id: 'phantom',  hint: 'Ikke alle besøgende er synlige' },
   ]
   try {
     const [[row]] = await pool.query(
@@ -11603,13 +11753,30 @@ app.get('/api/geocode', async (req, res) => {
   }
 })
 
+// Nominatim reverse geocode proxy — returns nearest address/venue for a lat/lng pair
+app.get('/api/geocode/reverse', async (req, res) => {
+  const lat = parseFloat(req.query.lat)
+  const lng = parseFloat(req.query.lng)
+  const lang = req.query.lang || 'da'
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return res.status(400).json({ error: 'Invalid coordinates' })
+  const now = Date.now()
+  const wait = 1100 - (now - nominatimLastCall)
+  if (wait > 0) await new Promise(r => setTimeout(r, wait))
+  nominatimLastCall = Date.now()
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=18&addressdetails=1&accept-language=${lang}`
+    const r = await fetch(url, { headers: { 'User-Agent': 'fellis.eu/1.0 (contact@fellis.eu)' } })
+    if (!r.ok) return res.status(r.status).json({ error: 'Reverse geocode failed' })
+    const data = await r.json()
+    res.json(data)
+  } catch {
+    res.status(502).json({ error: 'Reverse geocode failed' })
+  }
+})
+
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
   console.log(`fellis.eu API running on http://localhost:${PORT}`)
-  if (!FB_TOKEN_KEY) {
-    console.warn('⚠️  WARNING: FB_TOKEN_ENCRYPTION_KEY not set. Facebook tokens will be stored unencrypted.')
-    console.warn('   Generate a key with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"')
-  }
   initNotifications()
   initEvents()
   initFriendRequests()
@@ -11630,6 +11797,8 @@ app.listen(PORT, () => {
   initBadges()
   initStoriesHashtags()
   initSignalEngine()
+  // RTMP is handled by mediamtx (external service on port 1935).
+  // node-media-server startup is intentionally disabled to avoid port conflicts.
 })
 
 app.all('/api/stub/:fn', authenticate, (req, res) => res.json({ ok: true }))
@@ -12126,6 +12295,42 @@ app.get('/api/me/interest-graph/signal-stats', authenticate, async (req, res) =>
 
 // ── Livestream admin settings ─────────────────────────────────────────────────
 
+// ── Stream key endpoints ──────────────────────────────────────────────────────
+
+// GET /api/me/stream-key — get (or auto-generate) the caller's RTMP stream key
+app.get('/api/me/stream-key', authenticate, async (req, res) => {
+  try {
+    let [[user]] = await pool.query('SELECT stream_key FROM users WHERE id = ?', [req.userId])
+    if (!user.stream_key) {
+      const key = crypto.randomBytes(24).toString('hex')
+      await pool.query('UPDATE users SET stream_key = ? WHERE id = ?', [key, req.userId])
+      user = { stream_key: key }
+    }
+    const siteUrl   = process.env.SITE_URL || 'https://fellis.eu'
+    const rtmpHost  = new URL(siteUrl).hostname
+    const rtmpUrl   = `rtmp://${rtmpHost}:${RTMP_PORT}/live`
+    res.json({ stream_key: user.stream_key, rtmp_url: rtmpUrl })
+  } catch (err) {
+    console.error('GET /api/me/stream-key error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/me/stream-key/regenerate — issue a new stream key (invalidates old one)
+app.post('/api/me/stream-key/regenerate', authenticate, async (req, res) => {
+  try {
+    const key = crypto.randomBytes(24).toString('hex')
+    await pool.query('UPDATE users SET stream_key = ? WHERE id = ?', [key, req.userId])
+    const siteUrl  = process.env.SITE_URL || 'https://fellis.eu'
+    const rtmpHost = new URL(siteUrl).hostname
+    const rtmpUrl  = `rtmp://${rtmpHost}:${RTMP_PORT}/live`
+    res.json({ stream_key: key, rtmp_url: rtmpUrl })
+  } catch (err) {
+    console.error('POST /api/me/stream-key/regenerate error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // GET /api/livestream/status — public: is live streaming enabled on this platform?
 app.get('/api/livestream/status', async (req, res) => {
   try {
@@ -12161,11 +12366,24 @@ app.get('/api/admin/livestream/settings', authenticate, requireAdmin, async (req
     let ffmpegAvailable = false
     try {
       await import('child_process').then(({ execFile }) =>
-        new Promise((resolve, reject) => execFile('ffmpeg', ['-version'], resolve))
+        new Promise(resolve => execFile('ffmpeg', ['-version'], resolve))
       )
       ffmpegAvailable = true
     } catch { ffmpegAvailable = false }
-    res.json({ settings, server: { ffmpeg: ffmpegAvailable } })
+
+    // Check whether mediamtx is running (probes its REST API on port 9997)
+    let mediamtxAvailable = false
+    try {
+      const r = await fetch('http://localhost:9997/v3/paths/list', { signal: AbortSignal.timeout(1500) })
+      mediamtxAvailable = r.ok
+    } catch { mediamtxAvailable = false }
+
+    const siteUrl  = process.env.SITE_URL || 'https://fellis.eu'
+    const rtmpHost = (() => { try { return new URL(siteUrl).hostname } catch { return 'localhost' } })()
+    res.json({
+      settings,
+      server: { ffmpeg: ffmpegAvailable, mediamtx: mediamtxAvailable, rtmp_port: RTMP_PORT, rtmp_url: `rtmp://${rtmpHost}:${RTMP_PORT}/live` },
+    })
   } catch (err) {
     console.error('GET /api/admin/livestream/settings error:', err.message)
     res.status(500).json({ error: 'Server error' })
@@ -12490,6 +12708,1137 @@ app.post('/api/stream/key/regenerate', authenticate, async (req, res) => {
     res.json({ stream_key: key })
   } catch (err) {
     console.error('POST /api/stream/key/regenerate error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ── NEW FEATURES ──────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Run migration for new feature tables on startup
+async function initNewFeatures() {
+  try {
+    const migPath = path.join(__dirname, 'migrate-new-features.sql')
+    if (!fs.existsSync(migPath)) return
+    const sql = fs.readFileSync(migPath, 'utf8')
+    // Split on semicolons, filter empties and comments
+    const statements = sql.split(';')
+      .map(s => s.trim())
+      .filter(s => s.length > 5 && !s.startsWith('--'))
+    for (const stmt of statements) {
+      await pool.query(stmt).catch(() => {}) // ignore if already exists
+    }
+  } catch (err) {
+    console.warn('initNewFeatures:', err.message)
+  }
+}
+initNewFeatures()
+
+// ── Share / Repost ────────────────────────────────────────────────────────────
+
+app.post('/api/posts/:id/share', authenticate, writeLimit, async (req, res) => {
+  try {
+    const { comment } = req.body
+    const [[post]] = await pool.query('SELECT id FROM posts WHERE id=?', [req.params.id])
+    if (!post) return res.status(404).json({ error: 'Post not found' })
+    await pool.query(
+      'INSERT INTO post_shares (user_id, original_post_id, comment) VALUES (?,?,?) ON DUPLICATE KEY UPDATE comment=VALUES(comment)',
+      [req.userId, req.params.id, comment || null]
+    )
+    await pool.query('UPDATE posts SET share_count = share_count + 1 WHERE id=?', [req.params.id])
+    // Notify original author
+    const [[orig]] = await pool.query('SELECT user_id FROM posts WHERE id=?', [req.params.id])
+    if (orig && orig.user_id !== req.userId) {
+      const [[sharer]] = await pool.query('SELECT name FROM users WHERE id=?', [req.userId])
+      await pool.query(
+        `INSERT INTO notifications (user_id, type, actor_id, entity_type, entity_id, message_da, message_en)
+         VALUES (?,?,?,?,?,?,?)`,
+        [orig.user_id, 'post_share', req.userId, 'post', req.params.id,
+          `${sharer?.name || 'En bruger'} delte dit opslag`,
+          `${sharer?.name || 'Someone'} shared your post`]
+      ).catch(() => {})
+    }
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/posts/:id/share error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.delete('/api/posts/:id/share', authenticate, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM post_shares WHERE user_id=? AND original_post_id=?', [req.userId, req.params.id])
+    await pool.query('UPDATE posts SET share_count = GREATEST(share_count - 1, 0) WHERE id=?', [req.params.id])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Saved posts / Bookmarks ───────────────────────────────────────────────────
+
+app.post('/api/posts/:id/save', authenticate, writeLimit, async (req, res) => {
+  try {
+    await pool.query(
+      'INSERT IGNORE INTO saved_posts (user_id, post_id) VALUES (?,?)',
+      [req.userId, req.params.id]
+    )
+    res.json({ ok: true, saved: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.delete('/api/posts/:id/save', authenticate, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM saved_posts WHERE user_id=? AND post_id=?', [req.userId, req.params.id])
+    res.json({ ok: true, saved: false })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.get('/api/saved-posts', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT p.*, u.name AS author_name, u.handle AS author_handle, u.avatar_url AS author_avatar,
+             sp.created_at AS saved_at,
+             (SELECT COUNT(*) FROM post_likes WHERE post_id=p.id) AS like_count,
+             (SELECT COUNT(*) FROM comments WHERE post_id=p.id AND parent_id IS NULL) AS comment_count
+      FROM saved_posts sp
+      JOIN posts p ON p.id = sp.post_id
+      JOIN users u ON u.id = p.author_id
+      WHERE sp.user_id = ?
+      ORDER BY sp.created_at DESC
+      LIMIT 100
+    `, [req.userId])
+    res.json({ posts: rows })
+  } catch (err) {
+    console.error('[saved-posts]', err.message)
+    res.status(500).json({ error: 'Server error', detail: err.message })
+  }
+})
+
+// ── Polls ─────────────────────────────────────────────────────────────────────
+
+app.post('/api/posts/:id/poll', authenticate, writeLimit, async (req, res) => {
+  try {
+    const { options, ends_in_hours } = req.body
+    if (!Array.isArray(options) || options.length < 2 || options.length > 4)
+      return res.status(400).json({ error: 'Polls need 2–4 options' })
+    // Verify post belongs to user
+    const [[post]] = await pool.query('SELECT user_id FROM posts WHERE id=?', [req.params.id])
+    if (!post || post.user_id !== req.userId)
+      return res.status(403).json({ error: 'Forbidden' })
+    const endsAt = ends_in_hours ? new Date(Date.now() + ends_in_hours * 3600_000) : null
+    const [pr] = await pool.query(
+      'INSERT INTO post_polls (post_id, ends_at) VALUES (?,?)',
+      [req.params.id, endsAt]
+    )
+    const pollId = pr.insertId
+    for (let i = 0; i < options.length; i++) {
+      await pool.query(
+        'INSERT INTO poll_options (poll_id, text_da, text_en, sort_order) VALUES (?,?,?,?)',
+        [pollId, options[i].da || options[i], options[i].en || options[i], i]
+      )
+    }
+    res.json({ ok: true, poll_id: pollId })
+  } catch (err) {
+    console.error('POST poll error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.get('/api/posts/:id/poll', authenticate, async (req, res) => {
+  try {
+    const [[poll]] = await pool.query('SELECT * FROM post_polls WHERE post_id=?', [req.params.id])
+    if (!poll) return res.json({ poll: null })
+    const [options] = await pool.query(
+      'SELECT po.*, COUNT(pv.id) AS vote_count FROM poll_options po LEFT JOIN poll_votes pv ON pv.option_id=po.id WHERE po.poll_id=? GROUP BY po.id ORDER BY po.sort_order',
+      [poll.id]
+    )
+    const [[userVote]] = await pool.query(
+      'SELECT option_id FROM poll_votes WHERE poll_id=? AND user_id=?',
+      [poll.id, req.userId]
+    )
+    res.json({ poll: { ...poll, options, user_vote: userVote?.option_id || null } })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.post('/api/polls/:pollId/vote', authenticate, writeLimit, async (req, res) => {
+  try {
+    const { option_id } = req.body
+    const [[poll]] = await pool.query('SELECT * FROM post_polls WHERE id=?', [req.params.pollId])
+    if (!poll) return res.status(404).json({ error: 'Poll not found' })
+    if (poll.ends_at && new Date(poll.ends_at) < new Date())
+      return res.status(400).json({ error: 'Poll has ended' })
+    await pool.query(
+      'INSERT INTO poll_votes (poll_id, option_id, user_id) VALUES (?,?,?) ON DUPLICATE KEY UPDATE option_id=VALUES(option_id)',
+      [req.params.pollId, option_id, req.userId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Nested comment replies ────────────────────────────────────────────────────
+
+app.post('/api/comments/:id/reply', authenticate, writeLimit, async (req, res) => {
+  try {
+    const { text } = req.body
+    if (!text?.trim()) return res.status(400).json({ error: 'Text required' })
+    const [[parent]] = await pool.query('SELECT post_id, user_id FROM comments WHERE id=?', [req.params.id])
+    if (!parent) return res.status(404).json({ error: 'Comment not found' })
+    const [r] = await pool.query(
+      'INSERT INTO comments (post_id, user_id, text, parent_id) VALUES (?,?,?,?)',
+      [parent.post_id, req.userId, text.trim(), req.params.id]
+    )
+    // Notify parent comment author
+    if (parent.user_id !== req.userId) {
+      const [[replier]] = await pool.query('SELECT name FROM users WHERE id=?', [req.userId])
+      await pool.query(
+        `INSERT INTO notifications (user_id, type, actor_id, entity_type, entity_id, message_da, message_en)
+         VALUES (?,?,?,?,?,?,?)`,
+        [parent.user_id, 'comment_reply', req.userId, 'comment', r.insertId,
+          `${replier?.name || 'En bruger'} svarede på din kommentar`,
+          `${replier?.name || 'Someone'} replied to your comment`]
+      ).catch(() => {})
+    }
+    const [[reply]] = await pool.query(
+      `SELECT c.*, u.name AS author_name, u.handle AS author_handle, u.avatar_url AS author_avatar
+       FROM comments c JOIN users u ON u.id=c.user_id WHERE c.id=?`,
+      [r.insertId]
+    )
+    res.json({ reply })
+  } catch (err) {
+    console.error('POST /api/comments/:id/reply error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.get('/api/comments/:id/replies', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT c.*, u.name AS author_name, u.handle AS author_handle, u.avatar_url AS author_avatar
+       FROM comments c JOIN users u ON u.id=c.user_id
+       WHERE c.parent_id=? ORDER BY c.created_at ASC`,
+      [req.params.id]
+    )
+    res.json({ replies: rows })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Message reactions ─────────────────────────────────────────────────────────
+
+app.post('/api/messages/:id/react', authenticate, writeLimit, async (req, res) => {
+  try {
+    const { emoji } = req.body
+    if (!emoji) return res.status(400).json({ error: 'Emoji required' })
+    // Verify user is participant in the conversation
+    const [[msg]] = await pool.query('SELECT conversation_id FROM messages WHERE id=?', [req.params.id])
+    if (!msg) return res.status(404).json({ error: 'Message not found' })
+    const [[member]] = await pool.query(
+      'SELECT 1 FROM conversation_participants WHERE conversation_id=? AND user_id=?',
+      [msg.conversation_id, req.userId]
+    )
+    if (!member) return res.status(403).json({ error: 'Forbidden' })
+    await pool.query(
+      'INSERT INTO message_reactions (message_id, user_id, emoji) VALUES (?,?,?) ON DUPLICATE KEY UPDATE emoji=VALUES(emoji)',
+      [req.params.id, req.userId, emoji]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.delete('/api/messages/:id/react', authenticate, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM message_reactions WHERE message_id=? AND user_id=?', [req.params.id, req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Profile cover photo ───────────────────────────────────────────────────────
+
+const coverUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, UPLOADS_DIR),
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname) || '.jpg'
+      cb(null, `cover_${req.userId}_${Date.now()}${ext}`)
+    },
+  }),
+  limits: { fileSize: 8 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (!file.mimetype.startsWith('image/')) return cb(new Error('Images only'))
+    cb(null, true)
+  },
+})
+
+app.post('/api/profile/cover', authenticate, fileUploadLimit, coverUpload.single('cover'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' })
+    const url = `/uploads/${req.file.filename}`
+    await pool.query('UPDATE users SET cover_photo_url=? WHERE id=?', [url, req.userId])
+    res.json({ ok: true, cover_photo_url: url })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.delete('/api/profile/cover', authenticate, async (req, res) => {
+  try {
+    await pool.query('UPDATE users SET cover_photo_url=NULL WHERE id=?', [req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Pinned post ───────────────────────────────────────────────────────────────
+
+app.patch('/api/profile/pinned-post', authenticate, async (req, res) => {
+  try {
+    const { post_id } = req.body
+    if (post_id) {
+      const [[post]] = await pool.query('SELECT user_id FROM posts WHERE id=?', [post_id])
+      if (!post || post.user_id !== req.userId)
+        return res.status(403).json({ error: 'Forbidden' })
+    }
+    await pool.query('UPDATE users SET pinned_post_id=? WHERE id=?', [post_id || null, req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Hashtag follows ───────────────────────────────────────────────────────────
+
+app.get('/api/me/hashtag-follows', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT hashtag, created_at FROM hashtag_follows WHERE user_id=? ORDER BY hashtag ASC',
+      [req.userId]
+    )
+    res.json({ hashtags: rows.map(r => r.hashtag) })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.post('/api/hashtags/:tag/follow', authenticate, writeLimit, async (req, res) => {
+  try {
+    const tag = req.params.tag.toLowerCase().replace(/^#/, '')
+    await pool.query(
+      'INSERT IGNORE INTO hashtag_follows (user_id, hashtag) VALUES (?,?)',
+      [req.userId, tag]
+    )
+    res.json({ ok: true, following: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.delete('/api/hashtags/:tag/follow', authenticate, async (req, res) => {
+  try {
+    const tag = req.params.tag.toLowerCase().replace(/^#/, '')
+    await pool.query('DELETE FROM hashtag_follows WHERE user_id=? AND hashtag=?', [req.userId, tag])
+    res.json({ ok: true, following: false })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Story highlights ──────────────────────────────────────────────────────────
+
+app.get('/api/me/story-highlights', authenticate, async (req, res) => {
+  try {
+    const [highlights] = await pool.query(
+      'SELECT * FROM story_highlights WHERE user_id=? ORDER BY created_at DESC',
+      [req.userId]
+    )
+    for (const h of highlights) {
+      const [items] = await pool.query(
+        `SELECT shi.story_id, s.content_text, s.bg_color, s.created_at
+         FROM story_highlight_items shi
+         JOIN stories s ON s.id=shi.story_id
+         WHERE shi.highlight_id=?
+         ORDER BY s.created_at DESC`,
+        [h.id]
+      )
+      h.stories = items
+    }
+    res.json({ highlights })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.get('/api/users/:userId/story-highlights', authenticate, async (req, res) => {
+  try {
+    const [highlights] = await pool.query(
+      'SELECT * FROM story_highlights WHERE user_id=? ORDER BY created_at DESC',
+      [req.params.userId]
+    )
+    for (const h of highlights) {
+      const [items] = await pool.query(
+        `SELECT shi.story_id, s.content_text, s.bg_color, s.created_at
+         FROM story_highlight_items shi
+         JOIN stories s ON s.id=shi.story_id
+         WHERE shi.highlight_id=?
+         ORDER BY s.created_at DESC`,
+        [h.id]
+      )
+      h.stories = items
+    }
+    res.json({ highlights })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.post('/api/story-highlights', authenticate, writeLimit, async (req, res) => {
+  try {
+    const { title, cover_emoji } = req.body
+    if (!title?.trim()) return res.status(400).json({ error: 'Title required' })
+    const [r] = await pool.query(
+      'INSERT INTO story_highlights (user_id, title, cover_emoji) VALUES (?,?,?)',
+      [req.userId, title.trim(), cover_emoji || '⭐']
+    )
+    res.json({ ok: true, id: r.insertId })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.post('/api/story-highlights/:id/stories/:storyId', authenticate, writeLimit, async (req, res) => {
+  try {
+    const [[hl]] = await pool.query('SELECT user_id FROM story_highlights WHERE id=?', [req.params.id])
+    if (!hl || hl.user_id !== req.userId) return res.status(403).json({ error: 'Forbidden' })
+    await pool.query(
+      'INSERT IGNORE INTO story_highlight_items (highlight_id, story_id) VALUES (?,?)',
+      [req.params.id, req.params.storyId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.delete('/api/story-highlights/:id', authenticate, async (req, res) => {
+  try {
+    const [[hl]] = await pool.query('SELECT user_id FROM story_highlights WHERE id=?', [req.params.id])
+    if (!hl || hl.user_id !== req.userId) return res.status(403).json({ error: 'Forbidden' })
+    await pool.query('DELETE FROM story_highlights WHERE id=?', [req.params.id])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Story reactions ───────────────────────────────────────────────────────────
+
+app.post('/api/stories/:id/react', authenticate, writeLimit, async (req, res) => {
+  try {
+    const { emoji } = req.body
+    if (!emoji) return res.status(400).json({ error: 'Emoji required' })
+    const [[story]] = await pool.query('SELECT user_id FROM stories WHERE id=?', [req.params.id])
+    if (!story) return res.status(404).json({ error: 'Story not found' })
+    await pool.query(
+      'INSERT INTO story_reactions (story_id, user_id, emoji) VALUES (?,?,?) ON DUPLICATE KEY UPDATE emoji=VALUES(emoji)',
+      [req.params.id, req.userId, emoji]
+    )
+    // Notify story author
+    if (story.user_id !== req.userId) {
+      const [[reactor]] = await pool.query('SELECT name FROM users WHERE id=?', [req.userId])
+      await pool.query(
+        `INSERT INTO notifications (user_id, type, actor_id, entity_type, entity_id, message_da, message_en)
+         VALUES (?,?,?,?,?,?,?)`,
+        [story.user_id, 'story_reaction', req.userId, 'story', req.params.id,
+          `${reactor?.name || 'En bruger'} reagerede på din historie med ${emoji}`,
+          `${reactor?.name || 'Someone'} reacted to your story with ${emoji}`]
+      ).catch(() => {})
+    }
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.get('/api/stories/:id/reactions', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT sr.emoji, u.id AS user_id, u.name, u.avatar_url
+       FROM story_reactions sr JOIN users u ON u.id=sr.user_id
+       WHERE sr.story_id=? ORDER BY sr.created_at DESC`,
+      [req.params.id]
+    )
+    res.json({ reactions: rows })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Event ICS export ──────────────────────────────────────────────────────────
+
+app.get('/api/events/:id/ics', authenticate, async (req, res) => {
+  try {
+    const [[event]] = await pool.query(
+      `SELECT e.*, u.name AS organizer_name
+       FROM events e JOIN users u ON u.id=e.organizer_id
+       WHERE e.id=?`,
+      [req.params.id]
+    )
+    if (!event) return res.status(404).json({ error: 'Event not found' })
+
+    const dtStart = new Date(event.date)
+    const dtEnd = new Date(dtStart.getTime() + 2 * 3600_000) // default 2hr duration
+
+    function fmtDt(d) {
+      return d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
+    }
+
+    const uid = `fellis-event-${event.id}@fellis.eu`
+    const ics = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//fellis.eu//Fellis//EN',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH',
+      'BEGIN:VEVENT',
+      `UID:${uid}`,
+      `DTSTART:${fmtDt(dtStart)}`,
+      `DTEND:${fmtDt(dtEnd)}`,
+      `SUMMARY:${event.title.replace(/\n/g, ' ')}`,
+      event.description ? `DESCRIPTION:${event.description.replace(/\n/g, '\\n')}` : '',
+      event.location ? `LOCATION:${event.location}` : '',
+      `ORGANIZER;CN="${event.organizer_name}":mailto:noreply@fellis.eu`,
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ].filter(Boolean).join('\r\n')
+
+    res.set('Content-Type', 'text/calendar; charset=utf-8')
+    res.set('Content-Disposition', `attachment; filename="event-${event.id}.ics"`)
+    res.send(ics)
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Marketplace wishlist ──────────────────────────────────────────────────────
+
+app.post('/api/marketplace/:id/save', authenticate, writeLimit, async (req, res) => {
+  try {
+    await pool.query(
+      'INSERT IGNORE INTO marketplace_saved (user_id, listing_id) VALUES (?,?)',
+      [req.userId, req.params.id]
+    )
+    res.json({ ok: true, saved: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.delete('/api/marketplace/:id/save', authenticate, async (req, res) => {
+  try {
+    await pool.query(
+      'DELETE FROM marketplace_saved WHERE user_id=? AND listing_id=?',
+      [req.userId, req.params.id]
+    )
+    res.json({ ok: true, saved: false })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.get('/api/marketplace/saved', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT ml.*, ms.created_at AS saved_at,
+              u.name AS seller_name, u.handle AS seller_handle, u.avatar_url AS seller_avatar
+       FROM marketplace_saved ms
+       JOIN marketplace_listings ml ON ml.id=ms.listing_id
+       JOIN users u ON u.id=ml.user_id
+       WHERE ms.user_id=? AND ml.status != 'sold'
+       ORDER BY ms.created_at DESC
+       LIMIT 100`,
+      [req.userId]
+    )
+    res.json({ listings: rows })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Marketplace price offers ──────────────────────────────────────────────────
+
+app.post('/api/marketplace/:id/offers', authenticate, writeLimit, async (req, res) => {
+  try {
+    const { amount, message } = req.body
+    if (!amount || isNaN(amount) || parseFloat(amount) <= 0)
+      return res.status(400).json({ error: 'Invalid amount' })
+    const [[listing]] = await pool.query('SELECT user_id, title, status FROM marketplace_listings WHERE id=?', [req.params.id])
+    if (!listing) return res.status(404).json({ error: 'Listing not found' })
+    if (listing.status === 'sold') return res.status(400).json({ error: 'Item already sold' })
+    if (listing.user_id === req.userId) return res.status(400).json({ error: 'Cannot offer on own listing' })
+    const [r] = await pool.query(
+      'INSERT INTO marketplace_offers (listing_id, buyer_id, amount, message) VALUES (?,?,?,?)',
+      [req.params.id, req.userId, parseFloat(amount), message || null]
+    )
+    // Notify seller
+    const [[buyer]] = await pool.query('SELECT name FROM users WHERE id=?', [req.userId])
+    await pool.query(
+      `INSERT INTO notifications (user_id, type, actor_id, entity_type, entity_id, message_da, message_en)
+       VALUES (?,?,?,?,?,?,?)`,
+      [listing.user_id, 'marketplace_offer', req.userId, 'listing', req.params.id,
+        `${buyer?.name || 'En bruger'} har sendt et bud på "${listing.title}"`,
+        `${buyer?.name || 'Someone'} sent an offer on "${listing.title}"`]
+    ).catch(() => {})
+    res.json({ ok: true, id: r.insertId })
+  } catch (err) {
+    console.error('POST /api/marketplace/:id/offers error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.get('/api/marketplace/:id/offers', authenticate, async (req, res) => {
+  try {
+    const [[listing]] = await pool.query('SELECT user_id FROM marketplace_listings WHERE id=?', [req.params.id])
+    if (!listing) return res.status(404).json({ error: 'Not found' })
+    // Seller sees all offers; buyers see their own
+    let rows
+    if (listing.user_id === req.userId) {
+      ;[rows] = await pool.query(
+        `SELECT mo.*, u.name AS buyer_name, u.avatar_url AS buyer_avatar
+         FROM marketplace_offers mo JOIN users u ON u.id=mo.buyer_id
+         WHERE mo.listing_id=? ORDER BY mo.created_at DESC`,
+        [req.params.id]
+      )
+    } else {
+      ;[rows] = await pool.query(
+        'SELECT * FROM marketplace_offers WHERE listing_id=? AND buyer_id=? ORDER BY created_at DESC',
+        [req.params.id, req.userId]
+      )
+    }
+    res.json({ offers: rows })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.patch('/api/marketplace/offers/:offerId', authenticate, async (req, res) => {
+  try {
+    const { status } = req.body
+    if (!['accepted', 'declined', 'withdrawn'].includes(status))
+      return res.status(400).json({ error: 'Invalid status' })
+    const [[offer]] = await pool.query(
+      `SELECT mo.*, ml.user_id AS seller_id FROM marketplace_offers mo
+       JOIN marketplace_listings ml ON ml.id=mo.listing_id
+       WHERE mo.id=?`,
+      [req.params.offerId]
+    )
+    if (!offer) return res.status(404).json({ error: 'Offer not found' })
+    // Only seller can accept/decline; only buyer can withdraw
+    if (status === 'withdrawn' && offer.buyer_id !== req.userId)
+      return res.status(403).json({ error: 'Forbidden' })
+    if (['accepted', 'declined'].includes(status) && offer.seller_id !== req.userId)
+      return res.status(403).json({ error: 'Forbidden' })
+    await pool.query('UPDATE marketplace_offers SET status=? WHERE id=?', [status, req.params.offerId])
+    // Notify buyer on accept/decline
+    if (['accepted', 'declined'].includes(status)) {
+      const [[seller]] = await pool.query('SELECT name FROM users WHERE id=?', [req.userId])
+      const msgDa = status === 'accepted'
+        ? `${seller?.name || 'Sælger'} accepterede dit bud`
+        : `${seller?.name || 'Sælger'} afslog dit bud`
+      const msgEn = status === 'accepted'
+        ? `${seller?.name || 'Seller'} accepted your offer`
+        : `${seller?.name || 'Seller'} declined your offer`
+      await pool.query(
+        `INSERT INTO notifications (user_id, type, actor_id, entity_type, entity_id, message_da, message_en)
+         VALUES (?,?,?,?,?,?,?)`,
+        [offer.buyer_id, `offer_${status}`, req.userId, 'offer', offer.id, msgDa, msgEn]
+      ).catch(() => {})
+    }
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Job alerts ────────────────────────────────────────────────────────────────
+
+app.get('/api/me/job-alerts', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT * FROM job_alerts WHERE user_id=? ORDER BY created_at DESC',
+      [req.userId]
+    )
+    res.json({ alerts: rows })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.post('/api/me/job-alerts', authenticate, writeLimit, async (req, res) => {
+  try {
+    const { query, location, job_type, frequency } = req.body
+    const [r] = await pool.query(
+      'INSERT INTO job_alerts (user_id, query, location, job_type, frequency) VALUES (?,?,?,?,?)',
+      [req.userId, query || null, location || null, job_type || null, frequency || 'weekly']
+    )
+    res.json({ ok: true, id: r.insertId })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.delete('/api/me/job-alerts/:id', authenticate, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM job_alerts WHERE id=? AND user_id=?', [req.params.id, req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Marketplace keyword alerts ───────────────────────────────────────────────
+
+app.get('/api/me/marketplace-alerts', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT * FROM marketplace_keyword_alerts WHERE user_id=? ORDER BY created_at DESC',
+      [req.userId]
+    )
+    res.json({ alerts: rows })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.post('/api/me/marketplace-alerts', authenticate, writeLimit, async (req, res) => {
+  try {
+    let { keyword } = req.body
+    if (!keyword || typeof keyword !== 'string') return res.status(400).json({ error: 'Missing keyword' })
+    keyword = keyword.trim().toLowerCase().slice(0, 100)
+    if (!keyword) return res.status(400).json({ error: 'Missing keyword' })
+    const [r] = await pool.query(
+      'INSERT IGNORE INTO marketplace_keyword_alerts (user_id, keyword) VALUES (?,?)',
+      [req.userId, keyword]
+    )
+    res.json({ ok: true, id: r.insertId })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.put('/api/me/marketplace-alerts/:id', authenticate, writeLimit, async (req, res) => {
+  try {
+    let { keyword } = req.body
+    if (!keyword || typeof keyword !== 'string') return res.status(400).json({ error: 'Missing keyword' })
+    keyword = keyword.trim().toLowerCase().slice(0, 100)
+    if (!keyword) return res.status(400).json({ error: 'Missing keyword' })
+    await pool.query(
+      'UPDATE marketplace_keyword_alerts SET keyword=? WHERE id=? AND user_id=?',
+      [keyword, req.params.id, req.userId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.delete('/api/me/marketplace-alerts/:id', authenticate, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM marketplace_keyword_alerts WHERE id=? AND user_id=?', [req.params.id, req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Company reviews ───────────────────────────────────────────────────────────
+
+app.get('/api/companies/:id/reviews', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT cr.*, u.name AS reviewer_name, u.handle AS reviewer_handle, u.avatar_url AS reviewer_avatar
+       FROM company_reviews cr JOIN users u ON u.id=cr.user_id
+       WHERE cr.company_id=? ORDER BY cr.created_at DESC`,
+      [req.params.id]
+    )
+    const [[stats]] = await pool.query(
+      'SELECT COUNT(*) AS total, AVG(rating) AS avg_rating FROM company_reviews WHERE company_id=?',
+      [req.params.id]
+    )
+    res.json({ reviews: rows, stats })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.post('/api/companies/:id/reviews', authenticate, writeLimit, async (req, res) => {
+  try {
+    const { rating, title, body } = req.body
+    if (!rating || rating < 1 || rating > 5) return res.status(400).json({ error: 'Rating 1–5 required' })
+    await pool.query(
+      `INSERT INTO company_reviews (company_id, user_id, rating, title, body)
+       VALUES (?,?,?,?,?)
+       ON DUPLICATE KEY UPDATE rating=VALUES(rating), title=VALUES(title), body=VALUES(body), updated_at=NOW()`,
+      [req.params.id, req.userId, rating, title || null, body || null]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.delete('/api/companies/:id/reviews', authenticate, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM company_reviews WHERE company_id=? AND user_id=?', [req.params.id, req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Company business hours ────────────────────────────────────────────────────
+
+app.get('/api/companies/:id/hours', async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT * FROM company_business_hours WHERE company_id=? ORDER BY day_of_week',
+      [req.params.id]
+    )
+    res.json({ hours: rows })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.put('/api/companies/:id/hours', authenticate, async (req, res) => {
+  try {
+    const { hours } = req.body // array of { day_of_week, open_time, close_time, is_closed }
+    // Verify user is member of company
+    const [[member]] = await pool.query(
+      'SELECT role FROM company_members WHERE company_id=? AND user_id=?',
+      [req.params.id, req.userId]
+    )
+    if (!member) return res.status(403).json({ error: 'Not a company member' })
+    await pool.query('DELETE FROM company_business_hours WHERE company_id=?', [req.params.id])
+    for (const h of (hours || [])) {
+      await pool.query(
+        'INSERT INTO company_business_hours (company_id, day_of_week, open_time, close_time, is_closed) VALUES (?,?,?,?,?)',
+        [req.params.id, h.day_of_week, h.open_time || null, h.close_time || null, h.is_closed ? 1 : 0]
+      )
+    }
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Company Q&A ───────────────────────────────────────────────────────────────
+
+app.get('/api/companies/:id/qa', async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT cq.*,
+              a.name AS asker_name, a.avatar_url AS asker_avatar,
+              ab.name AS answerer_name
+       FROM company_qa cq
+       JOIN users a ON a.id=cq.asker_id
+       LEFT JOIN users ab ON ab.id=cq.answered_by
+       WHERE cq.company_id=?
+       ORDER BY cq.created_at DESC`,
+      [req.params.id]
+    )
+    res.json({ questions: rows })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.post('/api/companies/:id/qa', authenticate, writeLimit, async (req, res) => {
+  try {
+    const { question } = req.body
+    if (!question?.trim()) return res.status(400).json({ error: 'Question required' })
+    const [r] = await pool.query(
+      'INSERT INTO company_qa (company_id, asker_id, question) VALUES (?,?,?)',
+      [req.params.id, req.userId, question.trim()]
+    )
+    res.json({ ok: true, id: r.insertId })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.patch('/api/companies/:companyId/qa/:qaId/answer', authenticate, async (req, res) => {
+  try {
+    const { answer } = req.body
+    if (!answer?.trim()) return res.status(400).json({ error: 'Answer required' })
+    const [[member]] = await pool.query(
+      'SELECT role FROM company_members WHERE company_id=? AND user_id=?',
+      [req.params.companyId, req.userId]
+    )
+    if (!member) return res.status(403).json({ error: 'Not a company member' })
+    await pool.query(
+      'UPDATE company_qa SET answer=?, answered_by=?, answered_at=NOW() WHERE id=? AND company_id=?',
+      [answer.trim(), req.userId, req.params.qaId, req.params.companyId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.delete('/api/companies/:companyId/qa/:qaId', authenticate, async (req, res) => {
+  try {
+    const [[qa]] = await pool.query('SELECT asker_id FROM company_qa WHERE id=? AND company_id=?', [req.params.qaId, req.params.companyId])
+    if (!qa) return res.status(404).json({ error: 'Not found' })
+    // Only asker or company member can delete
+    const [[member]] = await pool.query('SELECT role FROM company_members WHERE company_id=? AND user_id=?', [req.params.companyId, req.userId])
+    if (qa.asker_id !== req.userId && !member)
+      return res.status(403).json({ error: 'Forbidden' })
+    await pool.query('DELETE FROM company_qa WHERE id=?', [req.params.qaId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Profile portfolio ─────────────────────────────────────────────────────────
+
+app.get('/api/me/portfolio', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT * FROM user_portfolio WHERE user_id=? ORDER BY sort_order ASC, created_at DESC',
+      [req.userId]
+    )
+    res.json({ items: rows })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.get('/api/users/:userId/portfolio', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT * FROM user_portfolio WHERE user_id=? ORDER BY sort_order ASC, created_at DESC',
+      [req.params.userId]
+    )
+    res.json({ items: rows })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.post('/api/me/portfolio', authenticate, writeLimit, async (req, res) => {
+  try {
+    const { title, description, url, image_url } = req.body
+    if (!title?.trim()) return res.status(400).json({ error: 'Title required' })
+    const [[maxOrder]] = await pool.query(
+      'SELECT COALESCE(MAX(sort_order),0)+1 AS next FROM user_portfolio WHERE user_id=?',
+      [req.userId]
+    )
+    const [r] = await pool.query(
+      'INSERT INTO user_portfolio (user_id, title, description, url, image_url, sort_order) VALUES (?,?,?,?,?,?)',
+      [req.userId, title.trim(), description || null, url || null, image_url || null, maxOrder.next]
+    )
+    res.json({ ok: true, id: r.insertId })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.put('/api/me/portfolio/:id', authenticate, async (req, res) => {
+  try {
+    const { title, description, url, image_url } = req.body
+    await pool.query(
+      'UPDATE user_portfolio SET title=?, description=?, url=?, image_url=? WHERE id=? AND user_id=?',
+      [title, description || null, url || null, image_url || null, req.params.id, req.userId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.delete('/api/me/portfolio/:id', authenticate, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM user_portfolio WHERE id=? AND user_id=?', [req.params.id, req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Post → reel conversion ────────────────────────────────────────────────────
+
+app.post('/api/feed/:id/convert-to-reel', authenticate, writeLimit, async (req, res) => {
+  try {
+    const [[post]] = await pool.query('SELECT * FROM posts WHERE id=? AND author_id=?', [req.params.id, req.userId])
+    if (!post) return res.status(403).json({ error: 'Forbidden' })
+    const mediaArr = Array.isArray(post.media) ? post.media
+      : (() => { try { return JSON.parse(post.media || '[]') } catch { return [] } })()
+    const videos = mediaArr.filter(m => m.type === 'video')
+    if (!videos.length) return res.status(400).json({ error: 'No video in post' })
+    const caption = post.text_da || post.text_en || ''
+    const reelIds = []
+    for (const video of videos) {
+      const [r] = await pool.query(
+        'INSERT INTO reels (user_id, video_url, caption, created_at) VALUES (?,?,?,NOW())',
+        [req.userId, video.url, caption]
+      )
+      reelIds.push(r.insertId)
+    }
+    res.json({ ok: true, reel_ids: reelIds })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Reel → feed share ─────────────────────────────────────────────────────────
+
+app.post('/api/reels/:id/share-to-feed', authenticate, writeLimit, async (req, res) => {
+  try {
+    const [[reel]] = await pool.query('SELECT * FROM reels WHERE id=? AND user_id=?', [req.params.id, req.userId])
+    if (!reel) return res.status(403).json({ error: 'Forbidden' })
+    const text = reel.caption || ''
+    const media = JSON.stringify([{ type: 'video', url: reel.video_url }])
+    const [r] = await pool.query(
+      'INSERT INTO posts (user_id, text, media, created_at) VALUES (?,?,?,NOW())',
+      [req.userId, text, media]
+    )
+    await pool.query('UPDATE reels SET shared_as_post_id=? WHERE id=?', [r.insertId, req.params.id])
+    res.json({ ok: true, post_id: r.insertId })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Blog ─────────────────────────────────────────────────────────────────────
+
+app.get('/api/blog', async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT p.id, p.slug, p.title_da, p.title_en, p.summary_da, p.summary_en,
+              p.cover_image, p.published_at, p.created_at,
+              u.name AS author_name
+       FROM blog_posts p
+       LEFT JOIN users u ON u.id = p.author_id
+       WHERE p.published = 1
+       ORDER BY COALESCE(p.published_at, p.created_at) DESC`
+    )
+    res.json({ posts: rows })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.get('/api/blog/:slug', async (req, res) => {
+  try {
+    const [[post]] = await pool.query(
+      `SELECT p.*, u.name AS author_name
+       FROM blog_posts p
+       LEFT JOIN users u ON u.id = p.author_id
+       WHERE p.slug = ? AND p.published = 1`,
+      [req.params.slug]
+    )
+    if (!post) return res.status(404).json({ error: 'Not found' })
+    res.json(post)
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.get('/api/admin/blog', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT p.id, p.slug, p.title_da, p.title_en, p.summary_da, p.summary_en,
+              p.body_da, p.body_en, p.cover_image, p.published, p.published_at, p.created_at,
+              u.name AS author_name
+       FROM blog_posts p
+       LEFT JOIN users u ON u.id = p.author_id
+       ORDER BY p.created_at DESC`
+    )
+    res.json({ posts: rows })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.post('/api/admin/blog', authenticate, requireAdmin, writeLimit, async (req, res) => {
+  try {
+    const { slug, title_da, title_en, summary_da, summary_en, body_da, body_en, cover_image, published } = req.body
+    if (!slug?.trim()) return res.status(400).json({ error: 'Slug required' })
+    if (!title_da?.trim() && !title_en?.trim()) return res.status(400).json({ error: 'Title required' })
+    const publishedAt = published ? new Date() : null
+    const [r] = await pool.query(
+      `INSERT INTO blog_posts (slug, title_da, title_en, summary_da, summary_en, body_da, body_en, cover_image, author_id, published, published_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+      [slug.trim(), title_da || '', title_en || '', summary_da || null, summary_en || null,
+       body_da || '', body_en || '', cover_image || null, req.userId, published ? 1 : 0, publishedAt]
+    )
+    res.json({ ok: true, id: r.insertId })
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') return res.status(400).json({ error: 'Slug already exists' })
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.put('/api/admin/blog/:id', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { slug, title_da, title_en, summary_da, summary_en, body_da, body_en, cover_image, published } = req.body
+    const [[existing]] = await pool.query('SELECT id, published, published_at FROM blog_posts WHERE id=?', [req.params.id])
+    if (!existing) return res.status(404).json({ error: 'Not found' })
+    const publishedAt = published && !existing.published ? new Date() : (published ? existing.published_at : null)
+    await pool.query(
+      `UPDATE blog_posts SET slug=?, title_da=?, title_en=?, summary_da=?, summary_en=?,
+       body_da=?, body_en=?, cover_image=?, published=?, published_at=?, updated_at=NOW()
+       WHERE id=?`,
+      [slug, title_da || '', title_en || '', summary_da || null, summary_en || null,
+       body_da || '', body_en || '', cover_image || null, published ? 1 : 0, publishedAt, req.params.id]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') return res.status(400).json({ error: 'Slug already exists' })
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.delete('/api/admin/blog/:id', authenticate, requireAdmin, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM blog_posts WHERE id=?', [req.params.id])
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.post('/api/admin/blog/translate', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { text, from, to } = req.body
+    if (!text?.trim()) return res.status(400).json({ error: 'Text required' })
+    if (!['da', 'en'].includes(from) || !['da', 'en'].includes(to) || from === to) {
+      return res.status(400).json({ error: 'Invalid language pair' })
+    }
+    const langNames = { da: 'Danish', en: 'English' }
+    const result = await callMistral(
+      `You are a professional translator. Translate the given text from ${langNames[from]} to ${langNames[to]}. Return only the translated text, no explanations.`,
+      text.trim()
+    )
+    if (!result) return res.status(503).json({ error: 'Translation unavailable' })
+    res.json({ text: result })
+  } catch (err) {
     res.status(500).json({ error: 'Server error' })
   }
 })

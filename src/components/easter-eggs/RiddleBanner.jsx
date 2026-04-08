@@ -1,3 +1,4 @@
+import { PT } from '../../data.js'
 import { useState, useEffect } from 'react'
 
 const RIDDLES = [
@@ -87,7 +88,7 @@ export default function RiddleBanner({ lang = 'da', onDismiss }) {
     >
       <span style={{ fontSize: 20, flexShrink: 0 }}>❓</span>
       <span style={{ fontSize: 11, fontWeight: 700, color: '#9D4EDD', flexShrink: 0, letterSpacing: 0.5, textTransform: 'uppercase' }}>
-        {lang === 'da' ? 'Gåde' : 'Riddle'}
+        {PT[lang].riddle}
       </span>
       <span style={{ color: '#333', fontSize: 12, fontWeight: 500, flex: 1 }}>
         {lang === 'da' ? riddle.q_da : riddle.q_en}
@@ -98,7 +99,7 @@ export default function RiddleBanner({ lang = 'da', onDismiss }) {
         )}
       </span>
       <span style={{ fontSize: 13, color: '#bbb', flexShrink: 0 }}>
-        {revealed ? '✕ Esc' : (lang === 'da' ? 'klik for svar' : 'click for answer')}
+        {revealed ? '✕ Esc' : (PT[lang].clickForAnswer)}
       </span>
     </div>
   )

@@ -63,7 +63,11 @@ self.addEventListener('fetch', (event) => {
         .then(res => {
           // Only cache complete responses — 206 Partial Content is not cacheable
           if (res.status === 200) {
-            caches.open(CACHE_NAME).then(cache => cache.put(request, res.clone()))
+            // Clone synchronously before returning res — once res is returned the
+            // browser starts consuming its body, so calling res.clone() inside the
+            // async caches.open callback would throw "Response body is already used".
+            const resClone = res.clone()
+            caches.open(CACHE_NAME).then(cache => cache.put(request, resClone))
           }
           return res
         })

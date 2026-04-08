@@ -2,6 +2,8 @@
 // Falls back to null when the server is unavailable (demo mode uses mock data)
 // Session ID now uses HTTP-only cookies (fellis_sid) — no longer in localStorage
 
+import { enqueuePost, processQueue, installAutoFlush } from './uploadQueue.js'
+
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
 function getCsrfToken() {
@@ -51,21 +53,37 @@ async function request(path, options = {}) {
 
 // Auth
 export async function apiLogin(email, password, lang) {
-  const data = await request('/api/auth/login', {
-    method: 'POST',
-    body: JSON.stringify({ email, password, lang }),
-  })
-  // Session ID now stored in HTTP-only cookie by server
-  return data
+  // Use raw fetch so non-ok responses can return their error body to the UI
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/login`, {
+      method: 'POST',
+      headers: headers(),
+      credentials: 'same-origin',
+      body: JSON.stringify({ email, password, lang }),
+    })
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) return { error: body.error || 'invalid_credentials' }
+    return body
+  } catch {
+    return null
+  }
 }
 
 export async function apiRegister(name, email, password, lang, inviteToken) {
-  const data = await request('/api/auth/register', {
-    method: 'POST',
-    body: JSON.stringify({ name, email, password, lang, inviteToken: inviteToken || undefined }),
-  })
-  // Session ID now stored in HTTP-only cookie by server
-  return data
+  // Use raw fetch so non-ok responses can return their error body to the UI
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/register`, {
+      method: 'POST',
+      headers: headers(),
+      credentials: 'same-origin',
+      body: JSON.stringify({ name, email, password, lang, inviteToken: inviteToken || undefined }),
+    })
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) return { error: body.error || 'registration_failed' }
+    return body
+  } catch {
+    return null
+  }
 }
 
 export async function apiForgotPassword(email) {
@@ -162,35 +180,160 @@ export async function apiFetchMemories() {
   return await request('/api/feed/memories')
 }
 
-export async function apiCreatePost(text, mediaFiles, scheduledAt, categories, location, taggedUsers, linkedContent) {
-  if (mediaFiles?.length) {
-    // Use FormData for multipart upload
+// Single XHR upload attempt. Uses a stall-based inactivity timer (2 min
+// without any progress) instead of a wall-clock timeout, so slow-but-
+// steady uploads on mobile connections are not killed prematurely.
+function uploadPostOnce(payload, onProgress) {
+  const { text, files, schedAt, categories, location, taggedUsers, linkedContent } = payload
+  const total = files.reduce((sum, f) => sum + f.size, 0)
+  const STALL_MS = 2 * 60 * 1000
+
+  return new Promise((resolve, reject) => {
     const form = new FormData()
-    form.append('text', text)
-    if (scheduledAt) form.append('scheduled_at', scheduledAt)
+    form.append('text', text || '')
+    if (schedAt) form.append('scheduled_at', schedAt)
     if (categories?.length) form.append('categories', JSON.stringify(categories))
-    if (location?.place_name) form.append('place_name', location.place_name)
-    if (location?.geo_lat != null) form.append('geo_lat', location.geo_lat)
-    if (location?.geo_lng != null) form.append('geo_lng', location.geo_lng)
+    const locName = location?.place_name || location?.name
+    const locLat = location?.geo_lat ?? location?.lat
+    const locLng = location?.geo_lng ?? location?.lng
+    if (locName) form.append('place_name', locName)
+    if (locLat != null) form.append('geo_lat', locLat)
+    if (locLng != null) form.append('geo_lng', locLng)
     if (taggedUsers?.length) form.append('tagged_users', JSON.stringify(taggedUsers))
     if (linkedContent?.type) { form.append('linked_type', linkedContent.type); form.append('linked_id', linkedContent.id) }
-    for (const file of mediaFiles) {
-      form.append('media', file)
+    for (const file of files) form.append('media', file)
+
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', `${API_BASE}/api/feed`, true)
+    xhr.withCredentials = true
+    const csrf = getCsrfToken()
+    if (csrf) xhr.setRequestHeader('X-CSRF-Token', csrf)
+
+    let stallTimer = null
+    const resetStall = () => {
+      if (stallTimer) clearTimeout(stallTimer)
+      stallTimer = setTimeout(() => {
+        try { xhr.abort() } catch { /* ignore */ }
+        const err = new Error('Upload stalled')
+        err.code = 'TIMEOUT'
+        reject(err)
+      }, STALL_MS)
+    }
+    const clearStall = () => { if (stallTimer) { clearTimeout(stallTimer); stallTimer = null } }
+
+    resetStall()
+    xhr.upload.onprogress = (e) => {
+      resetStall()
+      if (e.lengthComputable && onProgress) {
+        onProgress({ loaded: e.loaded, total: e.total, phase: 'upload' })
+      }
+    }
+    xhr.upload.onload = () => {
+      if (onProgress) onProgress({ loaded: total, total, phase: 'processing' })
+    }
+    xhr.onerror = () => {
+      clearStall()
+      const err = new Error('Network error — could not reach server')
+      err.code = 'NETWORK_ERROR'
+      reject(err)
+    }
+    xhr.onabort = () => {
+      clearStall()
+      // onabort fires for our own stall-abort too; reject() above already ran,
+      // so this rejection is a no-op in that case.
+      const err = new Error('Upload cancelled')
+      err.code = 'ABORTED'
+      reject(err)
+    }
+    xhr.onload = () => {
+      clearStall()
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try { resolve(JSON.parse(xhr.responseText)) }
+        catch { resolve(null) }
+      } else {
+        let body = {}
+        try { body = JSON.parse(xhr.responseText) } catch { /* ignore */ }
+        const err = new Error(body.error || `HTTP ${xhr.status}`)
+        err.status = xhr.status
+        // 4xx (except 408/429) are permanent — don't retry
+        err.code = (xhr.status >= 500 || xhr.status === 408 || xhr.status === 429) ? 'NETWORK_ERROR' : 'HTTP_ERROR'
+        reject(err)
+      }
+    }
+    xhr.send(form)
+  })
+}
+
+// Uploads a post with stall-based timeout + exponential-backoff retry.
+// Throws on final failure; the caller decides whether to enqueue.
+export async function uploadPostResilient(payload, onProgress) {
+  const MAX_ATTEMPTS = 3
+  let lastErr = null
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    // Wait until the browser reports it's online before each attempt
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      const err = new Error('Offline')
+      err.code = 'NETWORK_ERROR'
+      throw err
     }
     try {
-      const res = await fetch(`${API_BASE}/api/feed`, {
-        method: 'POST',
-        headers: formHeaders(),
-        credentials: 'same-origin',
-        body: form,
-      })
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        throw new Error(body.error || `HTTP ${res.status}`)
-      }
-      return await res.json()
+      return await uploadPostOnce(payload, onProgress)
     } catch (err) {
-      if (err.message === 'Failed to fetch') return null
+      lastErr = err
+      if (err.code !== 'NETWORK_ERROR' && err.code !== 'TIMEOUT') throw err
+      if (attempt === MAX_ATTEMPTS) throw err
+      // exponential backoff: 2s, 4s
+      const delay = 1000 * Math.pow(2, attempt)
+      await new Promise(r => setTimeout(r, delay))
+    }
+  }
+  throw lastErr
+}
+
+// Install the auto-flusher once (fires on 'online', visibility change, etc.)
+if (typeof window !== 'undefined') {
+  installAutoFlush((payload) => uploadPostResilient(payload))
+}
+
+export async function apiCreatePost(text, mediaFiles, scheduledAt, categories, location, taggedUsers, linkedContent, onProgress) {
+  if (mediaFiles?.length) {
+    // Pre-flight: validate file sizes client-side (50MB per file, 200MB total)
+    const MAX_FILE = 50 * 1024 * 1024
+    const MAX_TOTAL = 200 * 1024 * 1024
+    let total = 0
+    for (const f of mediaFiles) {
+      if (f.size > MAX_FILE) {
+        const err = new Error(`File "${f.name}" is too large (max 50 MB)`)
+        err.code = 'FILE_TOO_LARGE'
+        throw err
+      }
+      total += f.size
+    }
+    if (total > MAX_TOTAL) {
+      const err = new Error('Total upload size exceeds 200 MB')
+      err.code = 'FILE_TOO_LARGE'
+      throw err
+    }
+    const payload = {
+      text, files: mediaFiles, schedAt: scheduledAt,
+      categories, location, taggedUsers, linkedContent,
+    }
+    try {
+      return await uploadPostResilient(payload, onProgress)
+    } catch (err) {
+      // If the failure is network-related, persist the upload to IndexedDB
+      // so it can be retried later (e.g. when the user reaches WiFi).
+      if (err.code === 'NETWORK_ERROR' || err.code === 'TIMEOUT') {
+        try {
+          const queueId = await enqueuePost(payload)
+          // Trigger a processing attempt immediately — it's a no-op if offline.
+          setTimeout(() => processQueue((p) => uploadPostResilient(p)), 0)
+          return { queued: true, queueId }
+        } catch {
+          // IndexedDB unavailable — surface the original error
+          throw err
+        }
+      }
       throw err
     }
   }
@@ -200,7 +343,7 @@ export async function apiCreatePost(text, mediaFiles, scheduledAt, categories, l
       text,
       ...(scheduledAt ? { scheduled_at: scheduledAt } : {}),
       ...(categories?.length ? { categories } : {}),
-      ...(location?.place_name ? location : {}),
+      ...(location ? { place_name: location.place_name || location.name, geo_lat: location.geo_lat ?? location.lat, geo_lng: location.geo_lng ?? location.lng } : {}),
       ...(taggedUsers?.length ? { tagged_users: taggedUsers } : {}),
       ...(linkedContent?.type ? { linked_type: linkedContent.type, linked_id: linkedContent.id } : {}),
     }),
@@ -322,10 +465,12 @@ export async function apiMarkConversationRead(conversationId) {
   return await request(`/api/conversations/${conversationId}/read`, { method: 'POST' })
 }
 
-export async function apiSendConversationMessage(conversationId, text) {
+export async function apiSendConversationMessage(conversationId, text, media = null) {
+  const body = { text }
+  if (media?.length) body.media = media
   return await request(`/api/conversations/${conversationId}/messages`, {
     method: 'POST',
-    body: JSON.stringify({ text }),
+    body: JSON.stringify(body),
   })
 }
 
@@ -376,11 +521,6 @@ export async function apiMuteConversationParticipant(conversationId, userId, min
   })
 }
 
-// Facebook OAuth
-export function getFacebookAuthUrl(lang) {
-  return `${API_BASE}/api/auth/facebook?lang=${lang}`
-}
-
 // GDPR Compliance endpoints
 export async function apiGiveConsent(consentTypes) {
   return await request('/api/gdpr/consent', {
@@ -400,12 +540,18 @@ export async function apiWithdrawConsent(consentType) {
   })
 }
 
-export async function apiDeleteFacebookData() {
-  return await request('/api/gdpr/facebook-data', { method: 'DELETE' })
+export async function apiRequestAccountDelete(password) {
+  return await request('/api/gdpr/account/request-delete', {
+    method: 'POST',
+    body: JSON.stringify({ password }),
+  })
 }
 
-export async function apiDeleteAccount() {
-  return await request('/api/gdpr/account', { method: 'DELETE' })
+export async function apiDeleteAccount({ password, smsCode } = {}) {
+  return await request('/api/gdpr/account', {
+    method: 'DELETE',
+    body: JSON.stringify({ password, sms_code: smsCode }),
+  })
 }
 
 export async function apiExportData() {
@@ -635,6 +781,20 @@ export async function apiRecordListingView(id) {
   return await request(`/api/marketplace/${id}/view`, { method: 'POST' })
 }
 
+// ── Marketplace keyword alerts ──
+export async function apiGetMarketplaceAlerts() {
+  return await request('/api/me/marketplace-alerts')
+}
+export async function apiCreateMarketplaceAlert(keyword) {
+  return await request('/api/me/marketplace-alerts', { method: 'POST', body: JSON.stringify({ keyword }) })
+}
+export async function apiUpdateMarketplaceAlert(id, keyword) {
+  return await request(`/api/me/marketplace-alerts/${id}`, { method: 'PUT', body: JSON.stringify({ keyword }) })
+}
+export async function apiDeleteMarketplaceAlert(id) {
+  return await request(`/api/me/marketplace-alerts/${id}`, { method: 'DELETE' })
+}
+
 // ── Admin ──
 export async function apiGetAdminSettings() {
   return await request('/api/admin/settings')
@@ -656,6 +816,14 @@ export async function apiRevealAdminKey(keyName, password) {
 
 export async function apiGetLivestreamStatus() {
   return await request('/api/livestream/status')
+}
+
+export async function apiGetStreamKey() {
+  return await request('/api/me/stream-key')
+}
+
+export async function apiRegenerateStreamKey() {
+  return await request('/api/me/stream-key/regenerate', { method: 'POST' })
 }
 
 export async function apiGetLivestreamSettings() {
@@ -775,6 +943,10 @@ export async function apiGetBadges() {
 
 export async function apiGeocode(q, lang = 'da') {
   return await request(`/api/geocode?q=${encodeURIComponent(q)}&lang=${lang}`)
+}
+
+export async function apiReverseGeocode(lat, lng, lang = 'da') {
+  return await request(`/api/geocode/reverse?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}&lang=${lang}`)
 }
 
 export async function apiGetPublicProfile(handle) {
@@ -924,6 +1096,18 @@ export async function apiGetChangelog(lang = 'da') {
   return await request(`/api/changelog?lang=${lang}`)
 }
 
+export async function apiSubmitFeedback(type, title, description) {
+  return await request('/api/feedback', { method: 'POST', body: JSON.stringify({ type, title, description }) })
+}
+
+export async function apiGetAdminFeedback(status = null) {
+  return await request('/api/admin/feedback' + (status ? `?status=${encodeURIComponent(status)}` : ''))
+}
+
+export async function apiUpdateFeedbackStatus(id, status, admin_note) {
+  return await request(`/api/admin/feedback/${id}`, { method: 'PATCH', body: JSON.stringify({ status, admin_note }) })
+}
+
 export async function apiGetNotifications() {
   return await request('/api/notifications')
 }
@@ -956,7 +1140,8 @@ export async function apiSaveNotificationPreferences(prefs) {
 }
 
 export async function apiSuggestCategory(text) {
-  return await request(`/api/feed/suggest-category?text=${encodeURIComponent(text)}`)
+  const safe = text.replace(/\s+/g, ' ').trim().slice(0, 300)
+  return await request(`/api/feed/suggest-category?text=${encodeURIComponent(safe)}`)
 }
 
 export async function apiGetMyJobs() {
@@ -1153,8 +1338,9 @@ export async function apiGetSubscription() {
 }
 
 // ── Mollie payments ───────────────────────────────────────────────────────────
-export async function apiCreateMolliePayment(plan, amount, currency, adId, recurring = false) {
+export async function apiCreateMolliePayment(plan, amount, currency, adId, recurring = false, interval = 'monthly') {
   const body = { plan, recurring: !!recurring }
+  if (recurring) body.interval = interval
   if (amount != null) body.amount = parseFloat(amount).toFixed(2)
   if (currency) body.currency = currency
   if (adId) body.ad_id = adId
@@ -1532,6 +1718,30 @@ export async function apiAdminGetLockedUsers() {
 export async function apiAdminUnlockUser(userId) {
   return await request(`/api/admin/users/${userId}/unlock`, { method: 'POST' })
 }
+export async function apiAdminGrowth(days = 30) {
+  return await request(`/api/admin/growth?days=${days}`)
+}
+export async function apiAdminOnlineNow() {
+  return await request('/api/admin/online-now')
+}
+export async function apiAdminGetBannedUsers() {
+  return await request('/api/admin/banned-users')
+}
+export async function apiAdminSearchUsers(q = '') {
+  return await request(q ? `/api/admin/users?q=${encodeURIComponent(q)}` : '/api/admin/users')
+}
+export async function apiAdminForceLogout(userId) {
+  return await request(`/api/admin/users/${userId}/force-logout`, { method: 'POST' })
+}
+export async function apiAdminDeleteUser(userId) {
+  return await request(`/api/admin/users/${userId}`, { method: 'DELETE' })
+}
+export async function apiAdminGetAuditLog({ limit = 50, offset = 0, action, userId } = {}) {
+  const params = new URLSearchParams({ limit, offset })
+  if (action) params.set('action', action)
+  if (userId) params.set('userId', userId)
+  return await request(`/api/admin/audit-log?${params}`)
+}
 
 // Business profile fields (business mode only)
 export async function apiUpdateBusinessProfile(data) {
@@ -1563,14 +1773,270 @@ export async function apiGetBusinessProfile(handle) {
 
 // ── mediamtx / RTMP streaming ─────────────────────────────────────────────────
 
-export async function apiGetStreamKey() {
-  return await request('/api/stream/key')
-}
-
-export async function apiRegenerateStreamKey() {
-  return await request('/api/stream/key/regenerate', { method: 'POST' })
-}
-
 export async function apiGetActiveStreams() {
   return await request('/api/stream/active')
 }
+
+// ── Share / Repost ────────────────────────────────────────────────────────────
+export async function apiSharePost(postId, comment) {
+  return await request(`/api/posts/${postId}/share`, {
+    method: 'POST',
+    body: JSON.stringify({ comment }),
+  })
+}
+export async function apiUnsharePost(postId) {
+  return await request(`/api/posts/${postId}/share`, { method: 'DELETE' })
+}
+
+// ── Saved posts / Bookmarks ───────────────────────────────────────────────────
+export async function apiSavePost(postId) {
+  return await request(`/api/posts/${postId}/save`, { method: 'POST' })
+}
+export async function apiUnsavePost(postId) {
+  return await request(`/api/posts/${postId}/save`, { method: 'DELETE' })
+}
+export async function apiGetSavedPosts() {
+  return await request('/api/saved-posts')
+}
+
+// ── Polls ─────────────────────────────────────────────────────────────────────
+export async function apiCreatePoll(postId, options, endsInHours) {
+  return await request(`/api/posts/${postId}/poll`, {
+    method: 'POST',
+    body: JSON.stringify({ options, ends_in_hours: endsInHours }),
+  })
+}
+export async function apiGetPoll(postId) {
+  return await request(`/api/posts/${postId}/poll`)
+}
+export async function apiVotePoll(pollId, optionId) {
+  return await request(`/api/polls/${pollId}/vote`, {
+    method: 'POST',
+    body: JSON.stringify({ option_id: optionId }),
+  })
+}
+
+// ── Nested comment replies ────────────────────────────────────────────────────
+export async function apiReplyToComment(commentId, text) {
+  return await request(`/api/comments/${commentId}/reply`, {
+    method: 'POST',
+    body: JSON.stringify({ text }),
+  })
+}
+export async function apiGetCommentReplies(commentId) {
+  return await request(`/api/comments/${commentId}/replies`)
+}
+
+// ── Message reactions ─────────────────────────────────────────────────────────
+export async function apiReactToMessage(messageId, emoji) {
+  return await request(`/api/messages/${messageId}/react`, {
+    method: 'POST',
+    body: JSON.stringify({ emoji }),
+  })
+}
+export async function apiRemoveMessageReaction(messageId) {
+  return await request(`/api/messages/${messageId}/react`, { method: 'DELETE' })
+}
+
+// ── Profile cover photo ───────────────────────────────────────────────────────
+export async function apiUploadCoverPhoto(file) {
+  const form = new FormData()
+  form.append('cover', file)
+  try {
+    const res = await fetch(`${API_BASE}/api/profile/cover`, {
+      method: 'POST',
+      headers: formHeaders(),
+      credentials: 'same-origin',
+      body: form,
+    })
+    if (!res.ok) return null
+    return await res.json()
+  } catch { return null }
+}
+export async function apiDeleteCoverPhoto() {
+  return await request('/api/profile/cover', { method: 'DELETE' })
+}
+
+// ── Pinned post ───────────────────────────────────────────────────────────────
+export async function apiSetPinnedPost(postId) {
+  return await request('/api/profile/pinned-post', {
+    method: 'PATCH',
+    body: JSON.stringify({ post_id: postId }),
+  })
+}
+
+// ── Hashtag follows ───────────────────────────────────────────────────────────
+export async function apiGetHashtagFollows() {
+  return await request('/api/me/hashtag-follows')
+}
+export async function apiFollowHashtag(tag) {
+  return await request(`/api/hashtags/${encodeURIComponent(tag)}/follow`, { method: 'POST' })
+}
+export async function apiUnfollowHashtag(tag) {
+  return await request(`/api/hashtags/${encodeURIComponent(tag)}/follow`, { method: 'DELETE' })
+}
+
+// ── Story highlights ──────────────────────────────────────────────────────────
+export async function apiGetMyStoryHighlights() {
+  return await request('/api/me/story-highlights')
+}
+export async function apiGetUserStoryHighlights(userId) {
+  return await request(`/api/users/${userId}/story-highlights`)
+}
+export async function apiCreateStoryHighlight(title, coverEmoji) {
+  return await request('/api/story-highlights', {
+    method: 'POST',
+    body: JSON.stringify({ title, cover_emoji: coverEmoji }),
+  })
+}
+export async function apiAddStoryToHighlight(highlightId, storyId) {
+  return await request(`/api/story-highlights/${highlightId}/stories/${storyId}`, { method: 'POST' })
+}
+export async function apiDeleteStoryHighlight(highlightId) {
+  return await request(`/api/story-highlights/${highlightId}`, { method: 'DELETE' })
+}
+
+// ── Story reactions ───────────────────────────────────────────────────────────
+export async function apiReactToStory(storyId, emoji) {
+  return await request(`/api/stories/${storyId}/react`, {
+    method: 'POST',
+    body: JSON.stringify({ emoji }),
+  })
+}
+export async function apiGetStoryReactions(storyId) {
+  return await request(`/api/stories/${storyId}/reactions`)
+}
+
+// ── Event ICS export ──────────────────────────────────────────────────────────
+export function apiGetEventIcsUrl(eventId) {
+  return `${API_BASE}/api/events/${eventId}/ics`
+}
+
+// ── Marketplace wishlist ──────────────────────────────────────────────────────
+export async function apiSaveListing(listingId) {
+  return await request(`/api/marketplace/${listingId}/save`, { method: 'POST' })
+}
+export async function apiUnsaveListing(listingId) {
+  return await request(`/api/marketplace/${listingId}/save`, { method: 'DELETE' })
+}
+export async function apiGetSavedListings() {
+  return await request('/api/marketplace/saved')
+}
+
+// ── Marketplace price offers ──────────────────────────────────────────────────
+export async function apiMakeOffer(listingId, amount, message) {
+  return await request(`/api/marketplace/${listingId}/offers`, {
+    method: 'POST',
+    body: JSON.stringify({ amount, message }),
+  })
+}
+export async function apiGetOffers(listingId) {
+  return await request(`/api/marketplace/${listingId}/offers`)
+}
+export async function apiRespondToOffer(offerId, status) {
+  return await request(`/api/marketplace/offers/${offerId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  })
+}
+
+// ── Job alerts ────────────────────────────────────────────────────────────────
+export async function apiGetJobAlerts() {
+  return await request('/api/me/job-alerts')
+}
+export async function apiCreateJobAlert(query, location, jobType, frequency) {
+  return await request('/api/me/job-alerts', {
+    method: 'POST',
+    body: JSON.stringify({ query, location, job_type: jobType, frequency }),
+  })
+}
+export async function apiDeleteJobAlert(id) {
+  return await request(`/api/me/job-alerts/${id}`, { method: 'DELETE' })
+}
+
+// ── Company reviews ───────────────────────────────────────────────────────────
+export async function apiGetCompanyReviews(companyId) {
+  return await request(`/api/companies/${companyId}/reviews`)
+}
+export async function apiCreateCompanyReview(companyId, rating, title, body) {
+  return await request(`/api/companies/${companyId}/reviews`, {
+    method: 'POST',
+    body: JSON.stringify({ rating, title, body }),
+  })
+}
+export async function apiDeleteCompanyReview(companyId) {
+  return await request(`/api/companies/${companyId}/reviews`, { method: 'DELETE' })
+}
+
+// ── Company business hours ────────────────────────────────────────────────────
+export async function apiGetCompanyHours(companyId) {
+  return await request(`/api/companies/${companyId}/hours`)
+}
+export async function apiSaveCompanyHours(companyId, hours) {
+  return await request(`/api/companies/${companyId}/hours`, {
+    method: 'PUT',
+    body: JSON.stringify({ hours }),
+  })
+}
+
+// ── Company Q&A ───────────────────────────────────────────────────────────────
+export async function apiGetCompanyQA(companyId) {
+  return await request(`/api/companies/${companyId}/qa`)
+}
+export async function apiAskCompanyQuestion(companyId, question) {
+  return await request(`/api/companies/${companyId}/qa`, {
+    method: 'POST',
+    body: JSON.stringify({ question }),
+  })
+}
+export async function apiAnswerCompanyQuestion(companyId, qaId, answer) {
+  return await request(`/api/companies/${companyId}/qa/${qaId}/answer`, {
+    method: 'PATCH',
+    body: JSON.stringify({ answer }),
+  })
+}
+export async function apiDeleteCompanyQuestion(companyId, qaId) {
+  return await request(`/api/companies/${companyId}/qa/${qaId}`, { method: 'DELETE' })
+}
+
+// ── Profile portfolio ─────────────────────────────────────────────────────────
+export async function apiGetMyPortfolio() {
+  return await request('/api/me/portfolio')
+}
+export async function apiGetUserPortfolio(userId) {
+  return await request(`/api/users/${userId}/portfolio`)
+}
+export async function apiCreatePortfolioItem(title, description, url, imageUrl) {
+  return await request('/api/me/portfolio', {
+    method: 'POST',
+    body: JSON.stringify({ title, description, url, image_url: imageUrl }),
+  })
+}
+export async function apiUpdatePortfolioItem(id, title, description, url, imageUrl) {
+  return await request(`/api/me/portfolio/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ title, description, url, image_url: imageUrl }),
+  })
+}
+export async function apiDeletePortfolioItem(id) {
+  return await request(`/api/me/portfolio/${id}`, { method: 'DELETE' })
+}
+
+// ── Post → reel conversion ────────────────────────────────────────────────────
+export async function apiConvertPostToReel(postId) {
+  return await request(`/api/feed/${postId}/convert-to-reel`, { method: 'POST' })
+}
+
+// ── Reel → feed share ─────────────────────────────────────────────────────────
+export async function apiShareReelToFeed(reelId) {
+  return await request(`/api/reels/${reelId}/share-to-feed`, { method: 'POST' })
+}
+
+// ── Blog ──────────────────────────────────────────────────────────────────────
+export const apiFetchBlogPosts = () => request('/api/blog')
+export const apiFetchBlogPost = (slug) => request(`/api/blog/${slug}`)
+export const apiFetchAdminBlogPosts = () => request('/api/admin/blog')
+export const apiCreateBlogPost = (data) => request('/api/admin/blog', { method: 'POST', body: JSON.stringify(data) })
+export const apiUpdateBlogPost = (id, data) => request(`/api/admin/blog/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+export const apiDeleteBlogPost = (id) => request(`/api/admin/blog/${id}`, { method: 'DELETE' })
+export const apiBlogTranslate = (text, from, to) => request('/api/admin/blog/translate', { method: 'POST', body: JSON.stringify({ text, from, to }) })
