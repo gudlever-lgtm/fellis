@@ -100,8 +100,8 @@ function minimalPng() {
 }
 
 async function uploadFile(fieldName, filename, mimeType, buffer, extraFields = {}) {
-  const { FormData, Blob } = await import('node:buffer').catch(() => globalThis)
-  const form = new FormData()
+  const { Blob } = await import('node:buffer')
+  const form = new globalThis.FormData()
   form.append(fieldName, new Blob([buffer], { type: mimeType }), filename)
   for (const [k, v] of Object.entries(extraFields)) form.append(k, v)
 
@@ -118,8 +118,8 @@ async function uploadFile(fieldName, filename, mimeType, buffer, extraFields = {
 }
 
 async function uploadPostWithMedia(text, buffer) {
-  const { FormData, Blob } = await import('node:buffer').catch(() => globalThis)
-  const form = new FormData()
+  const { Blob } = await import('node:buffer')
+  const form = new globalThis.FormData()
   form.append('text', text)
   form.append('media', new Blob([buffer], { type: 'image/png' }), 'test.png')
 
@@ -231,9 +231,9 @@ async function testAddComment() {
   if (!postId) { skip('Add comment', 'no post'); return }
 
   const r = await api('POST', `/feed/${postId}/comment`, { text: 'E2E test comment' })
-  if (r.ok && r.data?.id) {
-    commentId = r.data.id
-    ok(`Added comment (id=${commentId})`)
+  // Endpoint returns { author, text, media } — no id in response
+  if (r.ok && r.data?.author) {
+    ok(`Added comment by "${r.data.author}"`)
   } else {
     fail(`POST /api/feed/${postId}/comment`, r.data?.error || `HTTP ${r.status}`)
   }
@@ -428,9 +428,10 @@ async function testBadges() {
 
 async function testCsrfToken() {
   section('CSRF Token')
+  if (!sessionId) { skip('CSRF token', 'no session'); return }
   const r = await api('GET', '/csrf-token')
-  if (r.ok && r.data?.token) ok(`GET /api/csrf-token → token received`)
-  else                        fail('GET /api/csrf-token', `HTTP ${r.status}`)
+  if (r.ok && r.data?.csrfToken) ok(`GET /api/csrf-token → token received`)
+  else                            fail('GET /api/csrf-token', `HTTP ${r.status}`)
 }
 
 // ─── Cleanup ──────────────────────────────────────────────────────────────────
@@ -519,11 +520,11 @@ async function run() {
 
   await testHealth()
   await testConfig()
-  await testCsrfToken()
   await testRegister()
   await testSessionCheck()
   await testLogin()          // logs in fresh after registering
   await testSessionCheck()   // verify new session also works
+  await testCsrfToken()      // requires auth
   await testFeed()
   await testCreateTextPost()
   await testLikePost()
