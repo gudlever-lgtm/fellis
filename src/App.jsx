@@ -32,7 +32,7 @@ function PublicPrivacyPage() {
     <div style={s.page}>
       <nav style={s.nav}>
         <a href="/" style={s.brand}>fellis.eu</a>
-        <select style={s.langBtn} value={lang} onChange={e => setLang(e.target.value)} aria-label="Language">{UI_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}</select>
+        <select style={s.langBtn} value={lang} onChange={e => { localStorage.setItem('fellis_lang', e.target.value); setLang(e.target.value) }} aria-label="Language">{UI_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}</select>
       </nav>
 
       <h1 style={s.h1}>{da ? 'Privatlivspolitik' : 'Privacy Policy'}</h1>
@@ -140,11 +140,7 @@ function PublicPrivacyPage() {
 // ── Public Terms of Service Page (/terms) ──
 // Accessible without login — used as the terms of service URL
 function PublicTermsPage() {
-  const [lang, setLang] = useState(() => {
-    const stored = localStorage.getItem('fellis_lang')
-    if (stored) return stored
-    return navigator.language?.startsWith('da') ? 'da' : 'en'
-  })
+  const [lang, setLang] = useState(() => detectLang())
   const da = lang === 'da'
 
   const s = {
@@ -166,7 +162,7 @@ function PublicTermsPage() {
     <div style={s.page}>
       <nav style={s.nav}>
         <a href="/" style={s.brand}>fellis.eu</a>
-        <select style={s.langBtn} value={lang} onChange={e => setLang(e.target.value)} aria-label="Language">{UI_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}</select>
+        <select style={s.langBtn} value={lang} onChange={e => { localStorage.setItem('fellis_lang', e.target.value); setLang(e.target.value) }} aria-label="Language">{UI_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}</select>
       </nav>
 
       <h1 style={s.h1}>{da ? 'Servicevilkår' : 'Terms of Service'}</h1>

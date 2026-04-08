@@ -101,7 +101,7 @@ export async function detectLangFromIP() {
     if (!res.ok) return null
     const data = await res.json()
     const mapped = IP_COUNTRY_LANG_MAP[data.country_code]
-    if (mapped === 'da') return 'da'
+    if (mapped && UI_LANGS.some(l => l.code === mapped)) return mapped
     return null
   } catch {
     return null
@@ -111,12 +111,11 @@ export async function detectLangFromIP() {
 // Auto-detect best language from browser preferences or IP
 export function detectLang() {
   const stored = localStorage.getItem('fellis_lang')
-  if (stored === 'da' || stored === 'en') return stored
+  if (stored && UI_LANGS.some(l => l.code === stored)) return stored
   // Try browser language preferences
   for (const pref of (navigator.languages || [])) {
     const code = pref.split('-')[0].toLowerCase()
-    if (code === 'da') return 'da'
-    if (code === 'en') return 'en'
+    if (UI_LANGS.some(l => l.code === code)) return code
   }
   return 'da'
 }
