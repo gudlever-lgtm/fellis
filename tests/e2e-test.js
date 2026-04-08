@@ -4,12 +4,13 @@
 // Usage:
 //   BASE_URL=https://test.fellis.eu node tests/e2e-test.js
 //   BASE_URL=http://localhost:3001 node tests/e2e-test.js
+//   npm run e2e                            (uses https://test.fellis.eu)
+//
+// Run from the server itself:
+//   BASE_URL=http://localhost:3001 npm run e2e
 //
 // Requirements: Node 18+ (built-in fetch). No external dependencies.
 // The script cleans up all data it creates (posts, listings, events, account).
-
-import { createRequire } from 'module'
-const _require = createRequire(import.meta.url) // unused but keeps ESM happy
 
 const BASE_URL = process.env.BASE_URL?.replace(/\/$/, '') || 'https://test.fellis.eu'
 const API = `${BASE_URL}/api`
@@ -85,7 +86,7 @@ async function api(method, path, body, extraHeaders = {}) {
     log(`${method} ${path} → ${res.status}`)
     return { status: res.status, data, ok: res.ok }
   } catch (err) {
-    return { status: 0, data: null, ok: false, err: err.message }
+    return { status: 0, data: null, ok: false, err: err.message, connErr: true }
   }
 }
 
@@ -99,8 +100,8 @@ function minimalPng() {
 }
 
 async function uploadFile(fieldName, filename, mimeType, buffer, extraFields = {}) {
-  const { FormData, Blob } = await import('node:buffer').catch(() => globalThis)
-  const form = new FormData()
+  const { Blob } = await import('node:buffer')
+  const form = new globalThis.FormData()
   form.append(fieldName, new Blob([buffer], { type: mimeType }), filename)
   for (const [k, v] of Object.entries(extraFields)) form.append(k, v)
 
@@ -117,8 +118,8 @@ async function uploadFile(fieldName, filename, mimeType, buffer, extraFields = {
 }
 
 async function uploadPostWithMedia(text, buffer) {
-  const { FormData, Blob } = await import('node:buffer').catch(() => globalThis)
-  const form = new FormData()
+  const { Blob } = await import('node:buffer')
+  const form = new globalThis.FormData()
   form.append('text', text)
   form.append('media', new Blob([buffer], { type: 'image/png' }), 'test.png')
 
@@ -230,9 +231,9 @@ async function testAddComment() {
   if (!postId) { skip('Add comment', 'no post'); return }
 
   const r = await api('POST', `/feed/${postId}/comment`, { text: 'E2E test comment' })
-  if (r.ok && r.data?.id) {
-    commentId = r.data.id
-    ok(`Added comment (id=${commentId})`)
+  // Endpoint returns { author, text, media } — no id in response
+  if (r.ok && r.data?.author) {
+    ok(`Added comment by "${r.data.author}"`)
   } else {
     fail(`POST /api/feed/${postId}/comment`, r.data?.error || `HTTP ${r.status}`)
   }
@@ -427,9 +428,10 @@ async function testBadges() {
 
 async function testCsrfToken() {
   section('CSRF Token')
+  if (!sessionId) { skip('CSRF token', 'no session'); return }
   const r = await api('GET', '/csrf-token')
-  if (r.ok && r.data?.token) ok(`GET /api/csrf-token → token received`)
-  else                        fail('GET /api/csrf-token', `HTTP ${r.status}`)
+  if (r.ok && r.data?.csrfToken) ok(`GET /api/csrf-token → token received`)
+  else                            fail('GET /api/csrf-token', `HTTP ${r.status}`)
 }
 
 // ─── Cleanup ──────────────────────────────────────────────────────────────────
@@ -498,15 +500,31 @@ async function testLogin() {
 async function run() {
   console.log(c.bold(`\nfellis.eu E2E Test Suite`))
   console.log(c.dim(`Target: ${BASE_URL}`))
-  console.log(c.dim(`Time:   ${new Date().toISOString()}\n`))
+  console.log(c.dim(`Time:   ${new Date().toISOString()}`))
+
+  // ─── Connectivity pre-check ─────────────────────────────────────────────────
+  const probe = await api('GET', '/health')
+  if (probe.connErr) {
+    console.log()
+    console.log(c.red(c.bold(`✖ Cannot reach ${API}/health`)))
+    console.log(c.red(`  ${probe.err}`))
+    console.log()
+    console.log(c.yellow('  Tip: if you are running this on the server itself, use:'))
+    console.log(c.yellow(`    BASE_URL=http://localhost:3001 npm run e2e`))
+    console.log(c.yellow('  Or check that PM2 is running:'))
+    console.log(c.yellow('    pm2 status'))
+    console.log()
+    process.exit(1)
+  }
+  console.log()
 
   await testHealth()
   await testConfig()
-  await testCsrfToken()
   await testRegister()
   await testSessionCheck()
   await testLogin()          // logs in fresh after registering
   await testSessionCheck()   // verify new session also works
+  await testCsrfToken()      // requires auth
   await testFeed()
   await testCreateTextPost()
   await testLikePost()
