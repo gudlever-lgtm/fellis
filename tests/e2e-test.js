@@ -147,6 +147,7 @@ let mediaPostId = null
 let commentId  = null
 let listingId  = null
 let eventId    = null
+let companyId  = null
 let jobId      = null
 let convId     = null
 let reelId     = null
@@ -335,15 +336,13 @@ async function testEvents() {
   if (list.ok) ok('GET /api/events')
   else         fail('GET /api/events', `HTTP ${list.status}`)
 
-  const tomorrow = new Date(Date.now() + 86_400_000).toISOString()
+  const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 16) // "YYYY-MM-DDTHH:MM"
   const create = await api('POST', '/events', {
     title: `E2E Event ${ts}`,
-    description_da: 'E2E testevent',
-    description_en: 'E2E test event',
+    description: 'E2E test event',
     location: 'Test Venue',
-    start_time: tomorrow,
-    end_time: new Date(Date.now() + 2 * 86_400_000).toISOString(),
-    is_public: true,
+    date: tomorrow,
+    eventType: 'other',
   })
   if (create.ok && create.data?.id) {
     eventId = create.data.id
@@ -361,15 +360,23 @@ async function testJobs() {
   if (list.ok) ok('GET /api/jobs')
   else         fail('GET /api/jobs', `HTTP ${list.status}`)
 
+  // Jobs require a company — create one first (creator is auto-added as owner)
+  const handle = `e2e-corp-${ts}`
+  const co = await api('POST', '/companies', { name: `E2E Corp ${ts}`, handle })
+  if (co.ok && co.data?.id) {
+    companyId = co.data.id
+    ok(`Created company (id=${companyId})`)
+  } else {
+    fail('POST /api/companies', co.data?.error || `HTTP ${co.status}`)
+    return
+  }
+
   const create = await api('POST', '/jobs', {
+    company_id: companyId,
     title: `E2E Job ${ts}`,
-    company_name: 'E2E Corp',
-    description: 'This is an E2E test job listing.',
+    description: 'E2E test job listing.',
     location: 'Remote',
-    employment_type: 'full_time',
-    salary_min: 500000,
-    salary_max: 700000,
-    currency: 'DKK',
+    type: 'fulltime',
   })
   if (create.ok && create.data?.id) {
     jobId = create.data.id
@@ -469,6 +476,12 @@ async function cleanup() {
     const r = await api('DELETE', `/jobs/${jobId}`)
     if (r.ok) ok(`Deleted job ${jobId}`)
     else      skip(`Delete job ${jobId}`, `HTTP ${r.status}`)
+  }
+
+  if (companyId) {
+    const r = await api('DELETE', `/companies/${companyId}`)
+    if (r.ok) ok(`Deleted company ${companyId}`)
+    else      skip(`Delete company ${companyId}`, `HTTP ${r.status}`)
   }
 
   // Delete account via GDPR endpoint (requires password re-verification)
