@@ -13,7 +13,7 @@ SET key_value = JSON_SET(
   -- chuck: only update if hintText is currently empty
   '$.chuck.hintsEnabled',
     IF(IFNULL(JSON_UNQUOTE(JSON_EXTRACT(key_value, '$.chuck.hintText')), '') = '',
-      CAST(TRUE AS JSON), JSON_EXTRACT(key_value, '$.chuck.hintsEnabled')),
+      TRUE, JSON_EXTRACT(key_value, '$.chuck.hintsEnabled')),
   '$.chuck.hintText',
     IF(IFNULL(JSON_UNQUOTE(JSON_EXTRACT(key_value, '$.chuck.hintText')), '') = '',
       '↑↑↓↓←→←→ — klassisk!', JSON_UNQUOTE(JSON_EXTRACT(key_value, '$.chuck.hintText'))),
@@ -21,7 +21,7 @@ SET key_value = JSON_SET(
   -- matrix
   '$.matrix.hintsEnabled',
     IF(IFNULL(JSON_UNQUOTE(JSON_EXTRACT(key_value, '$.matrix.hintText')), '') = '',
-      CAST(TRUE AS JSON), JSON_EXTRACT(key_value, '$.matrix.hintsEnabled')),
+      TRUE, JSON_EXTRACT(key_value, '$.matrix.hintsEnabled')),
   '$.matrix.hintText',
     IF(IFNULL(JSON_UNQUOTE(JSON_EXTRACT(key_value, '$.matrix.hintText')), '') = '',
       'Følg den hvide kanin', JSON_UNQUOTE(JSON_EXTRACT(key_value, '$.matrix.hintText'))),
@@ -29,7 +29,7 @@ SET key_value = JSON_SET(
   -- flip
   '$.flip.hintsEnabled',
     IF(IFNULL(JSON_UNQUOTE(JSON_EXTRACT(key_value, '$.flip.hintText')), '') = '',
-      CAST(TRUE AS JSON), JSON_EXTRACT(key_value, '$.flip.hintsEnabled')),
+      TRUE, JSON_EXTRACT(key_value, '$.flip.hintsEnabled')),
   '$.flip.hintText',
     IF(IFNULL(JSON_UNQUOTE(JSON_EXTRACT(key_value, '$.flip.hintText')), '') = '',
       'Verden set fra en anden vinkel', JSON_UNQUOTE(JSON_EXTRACT(key_value, '$.flip.hintText'))),
@@ -37,7 +37,7 @@ SET key_value = JSON_SET(
   -- retro
   '$.retro.hintsEnabled',
     IF(IFNULL(JSON_UNQUOTE(JSON_EXTRACT(key_value, '$.retro.hintText')), '') = '',
-      CAST(TRUE AS JSON), JSON_EXTRACT(key_value, '$.retro.hintsEnabled')),
+      TRUE, JSON_EXTRACT(key_value, '$.retro.hintsEnabled')),
   '$.retro.hintText',
     IF(IFNULL(JSON_UNQUOTE(JSON_EXTRACT(key_value, '$.retro.hintText')), '') = '',
       'Tilbage til rødderne', JSON_UNQUOTE(JSON_EXTRACT(key_value, '$.retro.hintText'))),
@@ -45,7 +45,7 @@ SET key_value = JSON_SET(
   -- gravity
   '$.gravity.hintsEnabled',
     IF(IFNULL(JSON_UNQUOTE(JSON_EXTRACT(key_value, '$.gravity.hintText')), '') = '',
-      CAST(TRUE AS JSON), JSON_EXTRACT(key_value, '$.gravity.hintsEnabled')),
+      TRUE, JSON_EXTRACT(key_value, '$.gravity.hintsEnabled')),
   '$.gravity.hintText',
     IF(IFNULL(JSON_UNQUOTE(JSON_EXTRACT(key_value, '$.gravity.hintText')), '') = '',
       'Newton havde ret om feeds', JSON_UNQUOTE(JSON_EXTRACT(key_value, '$.gravity.hintText'))),
@@ -53,7 +53,7 @@ SET key_value = JSON_SET(
   -- party
   '$.party.hintsEnabled',
     IF(IFNULL(JSON_UNQUOTE(JSON_EXTRACT(key_value, '$.party.hintText')), '') = '',
-      CAST(TRUE AS JSON), JSON_EXTRACT(key_value, '$.party.hintsEnabled')),
+      TRUE, JSON_EXTRACT(key_value, '$.party.hintsEnabled')),
   '$.party.hintText',
     IF(IFNULL(JSON_UNQUOTE(JSON_EXTRACT(key_value, '$.party.hintText')), '') = '',
       'Festen venter på dig', JSON_UNQUOTE(JSON_EXTRACT(key_value, '$.party.hintText'))),
@@ -61,7 +61,7 @@ SET key_value = JSON_SET(
   -- rickroll
   '$.rickroll.hintsEnabled',
     IF(IFNULL(JSON_UNQUOTE(JSON_EXTRACT(key_value, '$.rickroll.hintText')), '') = '',
-      CAST(TRUE AS JSON), JSON_EXTRACT(key_value, '$.rickroll.hintsEnabled')),
+      TRUE, JSON_EXTRACT(key_value, '$.rickroll.hintsEnabled')),
   '$.rickroll.hintText',
     IF(IFNULL(JSON_UNQUOTE(JSON_EXTRACT(key_value, '$.rickroll.hintText')), '') = '',
       'Nysgerrighed har en pris', JSON_UNQUOTE(JSON_EXTRACT(key_value, '$.rickroll.hintText'))),
@@ -69,7 +69,7 @@ SET key_value = JSON_SET(
   -- watcher
   '$.watcher.hintsEnabled',
     IF(IFNULL(JSON_UNQUOTE(JSON_EXTRACT(key_value, '$.watcher.hintText')), '') = '',
-      CAST(TRUE AS JSON), JSON_EXTRACT(key_value, '$.watcher.hintsEnabled')),
+      TRUE, JSON_EXTRACT(key_value, '$.watcher.hintsEnabled')),
   '$.watcher.hintText',
     IF(IFNULL(JSON_UNQUOTE(JSON_EXTRACT(key_value, '$.watcher.hintText')), '') = '',
       'Hvem kigger på hvem?', JSON_UNQUOTE(JSON_EXTRACT(key_value, '$.watcher.hintText'))),
@@ -77,7 +77,7 @@ SET key_value = JSON_SET(
   -- riddler
   '$.riddler.hintsEnabled',
     IF(IFNULL(JSON_UNQUOTE(JSON_EXTRACT(key_value, '$.riddler.hintText')), '') = '',
-      CAST(TRUE AS JSON), JSON_EXTRACT(key_value, '$.riddler.hintsEnabled')),
+      TRUE, JSON_EXTRACT(key_value, '$.riddler.hintsEnabled')),
   '$.riddler.hintText',
     IF(IFNULL(JSON_UNQUOTE(JSON_EXTRACT(key_value, '$.riddler.hintText')), '') = '',
       'Spørgsmålet er svaret', JSON_UNQUOTE(JSON_EXTRACT(key_value, '$.riddler.hintText'))),
@@ -85,7 +85,7 @@ SET key_value = JSON_SET(
   -- phantom
   '$.phantom.hintsEnabled',
     IF(IFNULL(JSON_UNQUOTE(JSON_EXTRACT(key_value, '$.phantom.hintText')), '') = '',
-      CAST(TRUE AS JSON), JSON_EXTRACT(key_value, '$.phantom.hintsEnabled')),
+      TRUE, JSON_EXTRACT(key_value, '$.phantom.hintsEnabled')),
   '$.phantom.hintText',
     IF(IFNULL(JSON_UNQUOTE(JSON_EXTRACT(key_value, '$.phantom.hintText')), '') = '',
       'Ikke alle besøgende er synlige', JSON_UNQUOTE(JSON_EXTRACT(key_value, '$.phantom.hintText')))
