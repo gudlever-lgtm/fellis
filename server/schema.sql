@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS posts (
   likes INT(11) DEFAULT 0,
   media JSON DEFAULT NULL,
   categories JSON DEFAULT NULL,
+  scheduled_at TIMESTAMP NULL DEFAULT NULL,
   created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
   FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -57,6 +58,7 @@ CREATE TABLE IF NOT EXISTS posts (
 -- Migration for existing installations (run this if posts table already exists):
 -- ALTER TABLE posts ADD COLUMN media JSON DEFAULT NULL AFTER likes;
 -- ALTER TABLE posts ADD COLUMN categories JSON DEFAULT NULL AFTER media;
+-- ALTER TABLE posts ADD COLUMN scheduled_at TIMESTAMP NULL DEFAULT NULL AFTER categories;
 
 -- Comments
 CREATE TABLE IF NOT EXISTS comments (

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { nameToColor, getInitials, PT } from '../data.js'
+import { apiGetTrendingTags, apiGetExploreFeed, apiGetSuggestedUsers, apiSendFriendRequest } from '../api.js'
 
 const FILTERS = ['all', 'images']
 
@@ -55,13 +56,8 @@ function SuggestedCard({ user, lang, onViewProfile }) {
   const [following, setFollowing] = useState(false)
 
   const handleFollow = async () => {
-    try {
-      await fetch(`/api/friends/request/${user.id}`, {
-        method: 'POST',
-        credentials: 'same-origin',
-      })
-      setFollowing(true)
-    } catch { /* network unavailable */ }
+    await apiSendFriendRequest(user.id)
+    setFollowing(true)
   }
 
   return (
@@ -120,30 +116,20 @@ export default function ExplorePage({ lang, onViewProfile }) {
 
   // Fetch trending tags + suggested on mount
   useEffect(() => {
-    fetch('/api/explore/trending-tags', { credentials: 'same-origin' })
-      .then(r => r.ok ? r.json() : [])
-      .then(d => setTags(Array.isArray(d) ? d : []))
-      .catch(() => {})
-    fetch('/api/users/suggested?limit=6', { credentials: 'same-origin' })
-      .then(r => r.ok ? r.json() : [])
-      .then(d => setSuggested(Array.isArray(d) ? d : []))
-      .catch(() => {})
-  }, []) // Session cookie stable across requests
+    apiGetTrendingTags().then(d => setTags(Array.isArray(d) ? d : []))
+    apiGetSuggestedUsers(6).then(d => setSuggested(Array.isArray(d) ? d : []))
+  }, [])
 
   const fetchPosts = useCallback(async (reset = false) => {
     if (loading) return
     setLoading(true)
-    try {
-      const cursorParam = reset ? '' : cursor ? `&cursor=${cursor}` : ''
-      const tagParam = activeTag ? `&tag=${encodeURIComponent(activeTag)}` : ''
-      const res = await fetch(`/api/explore/feed?filter=${filter}${cursorParam}${tagParam}`, { credentials: 'same-origin' })
-      if (!res.ok) throw new Error('fetch failed')
-      const data = await res.json()
+    const data = await apiGetExploreFeed(reset ? null : cursor, filter, activeTag)
+    if (data) {
       const newPosts = data.posts || []
       setPosts(prev => reset ? newPosts : [...prev, ...newPosts])
       setCursor(data.nextCursor)
       setHasMore(!!data.nextCursor)
-    } catch {
+    } else {
       setHasMore(false)
     }
     setLoading(false)

@@ -903,6 +903,8 @@ addCol('posts', 'linked_type', 'VARCHAR(20) DEFAULT NULL')
   .catch(err => console.error('Migration (posts.linked_type):', err.message))
 addCol('posts', 'linked_id', 'INT DEFAULT NULL')
   .catch(err => console.error('Migration (posts.linked_id):', err.message))
+addCol('posts', 'scheduled_at', 'TIMESTAMP NULL DEFAULT NULL')
+  .catch(err => console.error('Migration (posts.scheduled_at):', err.message))
 // Tagging people in reels
 addCol('reels', 'tagged_users', 'JSON DEFAULT NULL')
   .catch(err => console.error('Migration (reels.tagged_users):', err.message))
