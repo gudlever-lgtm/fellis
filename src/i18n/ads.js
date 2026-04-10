@@ -63,6 +63,10 @@ export default {
     adFreeAnnualSave: 'spar',
     adFreeLoading: 'Sender dig til betaling...',
     adFreeAlready: 'Du er allerede reklamefri',
+    adFreeWithdrawalWaiver: 'Jeg anmoder om, at leveringen af den digitale ydelse påbegyndes straks, og jeg bekræfter, at jeg derved mister min 14-dages fortrydelsesret.',
+    adFreeWithdrawalWaiverRequired: 'Du skal bekræfte ovenstående for at gennemføre købet.',
+    adFreeSalgsbetingelser: 'Salgsbetingelser',
+    adFreeSalgsbetingelserLink: 'Læs vores salgsbetingelser',
     // Ads management
     adsTitle: 'Annoncer',
     adsCreate: 'Opret annonce',
@@ -211,6 +215,10 @@ export default {
     adFreeAnnualSave: 'save',
     adFreeLoading: 'Redirecting to checkout...',
     adFreeAlready: 'You are already ad-free',
+    adFreeWithdrawalWaiver: 'I request that delivery of the digital service begins immediately, and I confirm that I thereby lose my 14-day right of withdrawal.',
+    adFreeWithdrawalWaiverRequired: 'You must confirm the above to complete the purchase.',
+    adFreeSalgsbetingelser: 'Sales Terms',
+    adFreeSalgsbetingelserLink: 'Read our sales terms',
     // Ads management
     adsTitle: 'Ads',
     adsCreate: 'Create ad',

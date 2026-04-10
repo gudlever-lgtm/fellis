@@ -5771,12 +5771,16 @@ function BillingSettings({ lang, t }) {
   const [cancelMsg, setCancelMsg] = useState(null)
   const [mollieLoading, setMollieLoading] = useState(false)
   const [mollieError, setMollieError] = useState(null)
+  const [withdrawalWaiver, setWithdrawalWaiver] = useState(false)
+  const [waiverError, setWaiverError] = useState(false)
 
   useEffect(() => {
     apiGetSubscription().then(data => { if (data) setSub(data) }).catch(() => {})
   }, [])
 
   const handleMollieCheckout = async () => {
+    if (!withdrawalWaiver) { setWaiverError(true); return }
+    setWaiverError(false)
     setMollieError(null)
     setMollieLoading(true)
     const recurring = plan === 'monthly' || plan === 'annual'
@@ -5874,14 +5878,33 @@ function BillingSettings({ lang, t }) {
             </button>
             {mollieError && <p style={{ fontSize: 13, color: '#e03131', margin: '0 0 12px' }}>{mollieError}</p>}
 
+            {/* Withdrawal right waiver */}
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 8, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={withdrawalWaiver}
+                onChange={e => { setWithdrawalWaiver(e.target.checked); if (e.target.checked) setWaiverError(false) }}
+                style={{ marginTop: 2, flexShrink: 0, accentColor: '#2D6A4F' }}
+              />
+              <span style={{ fontSize: 12, color: waiverError ? '#e03131' : '#555', lineHeight: 1.5 }}>
+                {t.adFreeWithdrawalWaiver}
+              </span>
+            </label>
+            {waiverError && <p style={{ fontSize: 12, color: '#e03131', margin: '-4px 0 10px' }}>{t.adFreeWithdrawalWaiverRequired}</p>}
+
             {/* Accepted payment methods */}
             <div style={{ fontSize: 11, color: '#aaa', marginBottom: 6 }}>
               {t.weUseMollieAsPaymentGatewaySecurePaymentViaEUCerti}
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
               {['MobilePay', 'Visa', 'Mastercard', 'Apple Pay', 'Google Pay'].map(m => (
                 <span key={m} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 20, background: '#f0f0f0', color: '#555' }}>{m}</span>
               ))}
+            </div>
+            <div style={{ fontSize: 11, color: '#aaa' }}>
+              <a href="/salgsbetingelser" target="_blank" rel="noopener noreferrer" style={{ color: '#2D6A4F', textDecoration: 'underline' }}>
+                {t.adFreeSalgsbetingelserLink}
+              </a>
             </div>
 
           </>
@@ -7493,6 +7516,10 @@ function AboutPage({ lang }) {
     feedbackSubmit: 'Send feedback',
     feedbackDone: 'Tak for din feedback!',
     feedbackError: 'Noget gik galt – prøv igen',
+    legalTitle: 'Juridiske dokumenter',
+    legalPrivacy: 'Privatlivspolitik',
+    legalTerms: 'Servicevilkår',
+    legalSales: 'Salgsbetingelser',
     servicesTitle: 'Tjenester vi bruger — og hvorfor europæisk',
     servicesIntro: 'Vi vælger bevidst europæiske udbydere på alle lag af platformen. Det handler ikke kun om GDPR — det handler om at holde din data, din kommunikation og dine betalinger inden for et retssystem, der beskytter dig.',
     services: [
@@ -7564,6 +7591,10 @@ function AboutPage({ lang }) {
     feedbackSubmit: 'Submit feedback',
     feedbackDone: 'Thank you for your feedback!',
     feedbackError: 'Something went wrong — please try again',
+    legalTitle: 'Legal documents',
+    legalPrivacy: 'Privacy policy',
+    legalTerms: 'Terms of service',
+    legalSales: 'Sales terms',
     servicesTitle: 'Services we use — and why European',
     servicesIntro: 'We deliberately choose European providers at every layer of the platform. It is not just about GDPR compliance — it is about keeping your data, your communications, and your payments within a legal framework that protects you.',
     services: [
@@ -7671,6 +7702,27 @@ function AboutPage({ lang }) {
               </div>
             ))
         }
+      </div>
+
+      {/* Legal documents */}
+      <div style={s.section}>📄 {t.legalTitle}</div>
+      <div className="p-card" style={{ padding: '4px 0', marginBottom: 16 }}>
+        {[
+          { label: t.legalPrivacy, href: '/privacy' },
+          { label: t.legalTerms, href: '/terms' },
+          { label: t.legalSales, href: '/salgsbetingelser' },
+        ].map(({ label, href }, i, arr) => (
+          <a
+            key={href}
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 20px', fontSize: 14, color: '#2D6A4F', fontWeight: 600, textDecoration: 'none', borderBottom: i < arr.length - 1 ? '1px solid #f0f0f0' : 'none' }}
+          >
+            {label}
+            <span style={{ fontSize: 16, color: '#aaa' }}>→</span>
+          </a>
+        ))}
       </div>
 
       {/* Feedback */}

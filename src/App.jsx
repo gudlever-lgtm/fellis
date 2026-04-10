@@ -544,10 +544,176 @@ function App() {
   )
 }
 
+// ── Public Sales Terms Page (/salgsbetingelser) ──
+function PublicSalgsbetingelserPage() {
+  const [lang, setLang] = useState(() => detectLang())
+  const da = lang === 'da'
+
+  const s = {
+    page: { fontFamily: "'DM Sans', sans-serif", maxWidth: 720, margin: '0 auto', padding: '32px 20px 64px', color: '#2D3436' },
+    nav: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 40 },
+    brand: { fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: '#2D6A4F', textDecoration: 'none' },
+    langBtn: { background: 'none', border: '1px solid #ccc', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 13 },
+    h1: { fontSize: 28, fontWeight: 700, marginBottom: 8 },
+    sub: { fontSize: 15, color: '#666', marginBottom: 36 },
+    section: { background: '#fff', border: '1px solid #E8E4DF', borderRadius: 12, padding: 24, marginBottom: 20 },
+    h2: { fontSize: 17, fontWeight: 700, marginBottom: 10, color: '#2D3436' },
+    p: { fontSize: 14, color: '#555', lineHeight: 1.7, marginBottom: 8 },
+    ul: { fontSize: 14, color: '#555', lineHeight: 1.8, paddingLeft: 22, marginTop: 8 },
+    ol: { fontSize: 14, color: '#555', lineHeight: 1.8, paddingLeft: 22, marginTop: 8 },
+    email: { color: '#2D6A4F', fontWeight: 600 },
+    footer: { textAlign: 'center', fontSize: 13, color: '#999', marginTop: 40 },
+    highlight: { background: '#F0FAF4', border: '1px solid #c3e6cb', borderRadius: 8, padding: '12px 16px', fontSize: 14, color: '#2D6A4F', margin: '10px 0' },
+    warn: { background: '#FFF8E1', border: '1px solid #FFE082', borderRadius: 8, padding: '12px 16px', fontSize: 14, color: '#795548', margin: '10px 0' },
+    table: { width: '100%', borderCollapse: 'collapse', fontSize: 14, margin: '10px 0' },
+    th: { textAlign: 'left', fontWeight: 700, padding: '8px 10px', background: '#F7F4F0', border: '1px solid #E8E4DF' },
+    td: { padding: '8px 10px', border: '1px solid #E8E4DF', color: '#555', verticalAlign: 'top' },
+  }
+
+  return (
+    <div style={s.page}>
+      <nav style={s.nav}>
+        <a href="/" style={s.brand}>fellis.eu</a>
+        <select style={s.langBtn} value={lang} onChange={e => { localStorage.setItem('fellis_lang', e.target.value); setLang(e.target.value) }} aria-label="Language">{UI_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}</select>
+      </nav>
+
+      <h1 style={s.h1}>{da ? 'Salgsbetingelser' : 'Sales Terms'}</h1>
+      <p style={s.sub}>{da ? 'Sidst opdateret: april 2026' : 'Last updated: April 2026'}</p>
+
+      {/* 1. Sælger */}
+      <div style={s.section}>
+        <h2 style={s.h2}>{da ? '1. Sælger' : '1. Seller'}</h2>
+        <p style={s.p}><strong>fellis.eu</strong><br />E-mail: <a href="mailto:privacy@fellis.eu" style={s.email}>privacy@fellis.eu</a></p>
+        <p style={s.p}>{da
+          ? 'Disse salgsbetingelser gælder for køb af digitale ydelser på fellis.eu og er udformet i overensstemmelse med Forbrugerombudsmandens retningslinjer for nethandel.'
+          : 'These Sales Terms apply to purchases of digital services on fellis.eu and comply with the Danish Consumer Ombudsman\'s guidelines for online commerce.'
+        }</p>
+      </div>
+
+      {/* 2. Ydelser og priser */}
+      <div style={s.section}>
+        <h2 style={s.h2}>{da ? '2. Ydelser og priser' : '2. Services and prices'}</h2>
+        <p style={s.p}>{da ? 'fellis.eu sælger følgende digitale ydelser:' : 'fellis.eu sells the following digital services:'}</p>
+        <table style={s.table}>
+          <thead>
+            <tr>
+              <th style={s.th}>{da ? 'Ydelse' : 'Service'}</th>
+              <th style={s.th}>{da ? 'Beskrivelse' : 'Description'}</th>
+              <th style={s.th}>{da ? 'Pris (inkl. moms)' : 'Price (incl. VAT)'}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style={s.td}><strong>{da ? 'Reklamefri oplevelse – Privat' : 'Ad-free experience – Personal'}</strong></td>
+              <td style={s.td}>{da ? 'Fjerner alle annoncer fra din feed, sidebar og stories. Gælder for personlige konti.' : 'Removes all ads from your feed, sidebar and stories. Applies to personal accounts.'}</td>
+              <td style={s.td}>{da ? 'Fra 29,00 EUR / engangsbetaling\neller fra 29,00 EUR / md. (abonnement)\neller fra 290,00 EUR / år (abonnement)' : 'From EUR 29.00 / one-time\nor from EUR 29.00 / month\nor from EUR 290.00 / year'}</td>
+            </tr>
+            <tr>
+              <td style={s.td}><strong>{da ? 'Reklamefri oplevelse – Business' : 'Ad-free experience – Business'}</strong></td>
+              <td style={s.td}>{da ? 'Som ovenfor, men for erhvervskonti.' : 'As above, but for business accounts.'}</td>
+              <td style={s.td}>{da ? 'Fra 49,00 EUR / engangsbetaling\neller fra 49,00 EUR / md. (abonnement)\neller fra 490,00 EUR / år (abonnement)' : 'From EUR 49.00 / one-time\nor from EUR 49.00 / month\nor from EUR 490.00 / year'}</td>
+            </tr>
+            <tr>
+              <td style={s.td}><strong>{da ? 'Annoncering (business-konti)' : 'Advertising (business accounts)'}</strong></td>
+              <td style={s.td}>{da ? 'Betalte annoncekampagner vist til brugere på platformen.' : 'Paid ad campaigns displayed to users on the platform.'}</td>
+              <td style={s.td}>{da ? 'Variabel — se priser ved oprettelse' : 'Variable — see pricing when creating an ad'}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div style={s.highlight}>{da
+          ? 'Alle priser er angivet i EUR og er inklusiv dansk moms (25 %), medmindre andet fremgår. Den præcise pris fremgår altid på betalingssiden inden købet gennemføres.'
+          : 'All prices are in EUR and include Danish VAT (25 %) unless otherwise stated. The exact price is always shown on the payment page before you complete the purchase.'
+        }</div>
+        <p style={s.p}>{da
+          ? 'Priser kan justeres med mindst 30 dages varsel for abonnementer. En igangværende abonnementsperiode påvirkes ikke.'
+          : 'Prices may be adjusted with at least 30 days\' notice for subscriptions. An ongoing subscription period is not affected.'
+        }</p>
+      </div>
+
+      {/* 3. Betalingsbetingelser */}
+      <div style={s.section}>
+        <h2 style={s.h2}>{da ? '3. Betalingsbetingelser' : '3. Payment terms'}</h2>
+        <p style={s.p}>{da
+          ? 'Betaling sker via betalingsgatewayen Mollie (EU-certificeret). Følgende betalingsmetoder er tilgængelige:'
+          : 'Payment is processed through Mollie (EU-certified payment gateway). The following payment methods are available:'
+        }</p>
+        <ul style={s.ul}>
+          <li>MobilePay</li>
+          <li>Visa / Mastercard</li>
+          <li>Apple Pay</li>
+          <li>Google Pay</li>
+        </ul>
+        <p style={s.p}>{da
+          ? 'Betalingen trækkes straks ved gennemførelse. For løbende abonnementer trækkes betalingen automatisk på fornyelsesdatoen. Du modtager en kvittering pr. e-mail. Dine betalingsoplysninger håndteres udelukkende af Mollie (PCI DSS).'
+          : 'Payment is charged immediately upon completion. For recurring subscriptions, payment is charged automatically on the renewal date. You will receive a receipt by e-mail. Your payment information is handled exclusively by Mollie (PCI DSS).'
+        }</p>
+      </div>
+
+      {/* 4. Levering */}
+      <div style={s.section}>
+        <h2 style={s.h2}>{da ? '4. Levering' : '4. Delivery'}</h2>
+        <p style={s.p}>{da
+          ? 'Alle ydelser er digitale og leveres øjeblikkeligt efter betaling er bekræftet. Den reklamefrie oplevelse aktiveres automatisk på din konto.'
+          : 'All services are digital and delivered instantly after payment is confirmed. The ad-free experience is automatically activated on your account.'
+        }</p>
+      </div>
+
+      {/* 5. Fortrydelsesret */}
+      <div style={s.section}>
+        <h2 style={s.h2}>{da ? '5. Fortrydelsesret' : '5. Right of withdrawal'}</h2>
+        <div style={s.warn}><strong>{da ? 'Vigtig information om fortrydelsesret for digitale ydelser:' : 'Important: right of withdrawal for digital services:'}</strong><br /><br />
+          {da
+            ? 'I henhold til forbrugeraftalelovens § 18, stk. 2, nr. 13, bortfalder din fortrydelsesret, når du udtrykkeligt har samtykket til, at leveringen påbegyndes inden udløbet af fortrydelsesfristen, og du har bekræftet, at du derved mister din fortrydelsesret.'
+            : 'Under the Danish Consumer Contracts Act § 18(2)(13), your right of withdrawal lapses when you have explicitly consented to delivery commencing before the withdrawal period expires, and confirmed that you thereby lose your right of withdrawal.'}
+        </div>
+        <p style={s.p}>{da
+          ? 'Du vil blive bedt om at bekræfte dette på betalingssiden. Har du ikke givet samtykke, gælder den sædvanlige 14-dages fortrydelsesret — kontakt os på privacy@fellis.eu inden for 14 dage.'
+          : 'You will be asked to confirm this on the payment page. If you have not given this consent, the standard 14-day right of withdrawal applies — contact us at privacy@fellis.eu within 14 days.'
+        }</p>
+      </div>
+
+      {/* 6. Opsigelse */}
+      <div style={s.section}>
+        <h2 style={s.h2}>{da ? '6. Opsigelse af abonnement' : '6. Subscription cancellation'}</h2>
+        <p style={s.p}>{da
+          ? 'Løbende abonnementer kan opsiges når som helst via Indstillinger → Betaling. Opsigelsen træder i kraft ved udløbet af den betalte periode — du bevarer adgangen frem til periodens udgang. Der refunderes ikke for resterende dage.'
+          : 'Recurring subscriptions can be cancelled at any time via Settings → Billing. Cancellation takes effect at the end of the paid period — you retain access until then. No refund is issued for remaining days.'
+        }</p>
+      </div>
+
+      {/* 7. Klager */}
+      <div style={s.section}>
+        <h2 style={s.h2}>{da ? '7. Klager' : '7. Complaints'}</h2>
+        <p style={s.p}>{da
+          ? 'Kontakt os på privacy@fellis.eu. Vi bestræber os på at besvare inden for 5 hverdage. Kan vi ikke nå til enighed, kan du indbringe sagen for Center for Klageløsning (centerforklageloesning.dk) eller EU\'s online klageportal (ec.europa.eu/odr).'
+          : 'Contact us at privacy@fellis.eu. We aim to respond within 5 business days. If we cannot reach an agreement, you may bring the case to Center for Klageløsning (centerforklageloesning.dk) or the EU\'s online dispute resolution portal (ec.europa.eu/odr).'
+        }</p>
+        <p style={{ ...s.p, ...s.email }}>privacy@fellis.eu</p>
+      </div>
+
+      {/* 8. Lovvalg */}
+      <div style={s.section}>
+        <h2 style={s.h2}>{da ? '8. Lovvalg og tvistbilæggelse' : '8. Governing law and dispute resolution'}</h2>
+        <p style={s.p}>{da
+          ? 'Disse salgsbetingelser er underlagt dansk ret. Eventuelle tvister afgøres ved de kompetente danske domstole eller et anerkendt klagenævn.'
+          : 'These Sales Terms are governed by Danish law. Any disputes shall be settled by the competent Danish courts or a recognised complaints board.'
+        }</p>
+      </div>
+
+      <div style={s.footer}>
+        <p>fellis.eu — {da ? 'Dansk social platform hostet i EU' : 'Danish social platform hosted in the EU'}</p>
+        <a href="/" style={{ color: '#2D6A4F', textDecoration: 'none' }}>{da ? '← Gå til fellis.eu' : '← Go to fellis.eu'}</a>
+      </div>
+    </div>
+  )
+}
+
 function AppRoot() {
-  if (window.location.pathname === '/privacy') return <PublicPrivacyPage />
-  if (window.location.pathname === '/terms') return <PublicTermsPage />
-  if (window.location.pathname === '/blog' || window.location.pathname.startsWith('/blog/')) return <PublicBlogPage />
+  const path = window.location.pathname.replace(/\/$/, '') || '/'
+  if (path === '/privacy') return <PublicPrivacyPage />
+  if (path === '/terms') return <PublicTermsPage />
+  if (path === '/salgsbetingelser') return <PublicSalgsbetingelserPage />
+  if (path === '/blog' || window.location.pathname.startsWith('/blog/')) return <PublicBlogPage />
   return <App />
 }
 
