@@ -63,6 +63,7 @@ const T = {
     forgotError: 'Kunne ikke nulstille adgangskode',
     forgotBack: 'Tilbage til login',
     forgotEmailSent: 'Tjek din e-mail for et nulstillingslink.',
+    forgotFbNote: 'Din konto er tilknyttet Google eller LinkedIn. Du kan oprette en lokal adgangskode herunder.',
     mfaTitle: 'To-faktor-godkendelse',
     mfaDesc: 'Vi har sendt en 6-cifret kode til dit telefonnummer.',
     mfaCode: 'Engangskode',
@@ -157,6 +158,7 @@ const T = {
     forgotError: 'Could not reset password',
     forgotBack: 'Back to login',
     forgotEmailSent: 'Check your email for a reset link.',
+    forgotFbNote: 'Your account is connected via Google or LinkedIn. You can set a local password below.',
     mfaTitle: 'Two-factor authentication',
     mfaDesc: 'We sent a 6-digit code to your phone number.',
     mfaCode: 'One-time code',
@@ -215,6 +217,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
   const [forgotNewPw, setForgotNewPw] = useState('')
   const [forgotError, setForgotError] = useState('')
   const [forgotLoading, setForgotLoading] = useState(false)
+  const [forgotFbNote, setForgotFbNote] = useState(false)
   // MFA state
   const [mfaUserId, setMfaUserId] = useState(null)
   const [mfaCode, setMfaCode] = useState('')
