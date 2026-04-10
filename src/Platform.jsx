@@ -5902,7 +5902,7 @@ function BillingSettings({ lang, t }) {
               ))}
             </div>
             <div style={{ fontSize: 11, color: '#aaa' }}>
-              <a href="/salgsbetingelser/" target="_blank" rel="noopener noreferrer" style={{ color: '#2D6A4F', textDecoration: 'underline' }}>
+              <a href="/salgsbetingelser" target="_blank" rel="noopener noreferrer" style={{ color: '#2D6A4F', textDecoration: 'underline' }}>
                 {t.adFreeSalgsbetingelserLink}
               </a>
             </div>
@@ -7708,9 +7708,9 @@ function AboutPage({ lang }) {
       <div style={s.section}>📄 {t.legalTitle}</div>
       <div className="p-card" style={{ padding: '4px 0', marginBottom: 16 }}>
         {[
-          { label: t.legalPrivacy, href: '/privacy/' },
-          { label: t.legalTerms, href: '/terms/' },
-          { label: t.legalSales, href: '/salgsbetingelser/' },
+          { label: t.legalPrivacy, href: '/privacy' },
+          { label: t.legalTerms, href: '/terms' },
+          { label: t.legalSales, href: '/salgsbetingelser' },
         ].map(({ label, href }, i, arr) => (
           <a
             key={href}
