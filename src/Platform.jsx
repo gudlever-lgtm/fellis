@@ -7516,6 +7516,10 @@ function AboutPage({ lang }) {
     feedbackSubmit: 'Send feedback',
     feedbackDone: 'Tak for din feedback!',
     feedbackError: 'Noget gik galt – prøv igen',
+    legalTitle: 'Juridiske dokumenter',
+    legalPrivacy: 'Privatlivspolitik',
+    legalTerms: 'Servicevilkår',
+    legalSales: 'Salgsbetingelser',
     servicesTitle: 'Tjenester vi bruger — og hvorfor europæisk',
     servicesIntro: 'Vi vælger bevidst europæiske udbydere på alle lag af platformen. Det handler ikke kun om GDPR — det handler om at holde din data, din kommunikation og dine betalinger inden for et retssystem, der beskytter dig.',
     services: [
@@ -7587,6 +7591,10 @@ function AboutPage({ lang }) {
     feedbackSubmit: 'Submit feedback',
     feedbackDone: 'Thank you for your feedback!',
     feedbackError: 'Something went wrong — please try again',
+    legalTitle: 'Legal documents',
+    legalPrivacy: 'Privacy policy',
+    legalTerms: 'Terms of service',
+    legalSales: 'Sales terms',
     servicesTitle: 'Services we use — and why European',
     servicesIntro: 'We deliberately choose European providers at every layer of the platform. It is not just about GDPR compliance — it is about keeping your data, your communications, and your payments within a legal framework that protects you.',
     services: [
@@ -7694,6 +7702,27 @@ function AboutPage({ lang }) {
               </div>
             ))
         }
+      </div>
+
+      {/* Legal documents */}
+      <div style={s.section}>📄 {t.legalTitle}</div>
+      <div className="p-card" style={{ padding: '4px 0', marginBottom: 16 }}>
+        {[
+          { label: t.legalPrivacy, href: '/privacy/' },
+          { label: t.legalTerms, href: '/terms/' },
+          { label: t.legalSales, href: '/salgsbetingelser/' },
+        ].map(({ label, href }, i, arr) => (
+          <a
+            key={href}
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 20px', fontSize: 14, color: '#2D6A4F', fontWeight: 600, textDecoration: 'none', borderBottom: i < arr.length - 1 ? '1px solid #f0f0f0' : 'none' }}
+          >
+            {label}
+            <span style={{ fontSize: 16, color: '#aaa' }}>→</span>
+          </a>
+        ))}
       </div>
 
       {/* Feedback */}
