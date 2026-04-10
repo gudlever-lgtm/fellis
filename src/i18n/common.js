@@ -34,9 +34,9 @@ export default {
     // Moderation
     // Nav menu
     // Install prompt
-    installTitle: 'Installer fellis som app',
+    installTitle: 'Tilføj fellis til din startskærm',
     installSubtitle: 'Hurtig adgang direkte fra din startskærm',
-    installBtn: 'Installer',
+    installBtn: 'Tilføj',
     installIOSTip: 'Tryk på Del-knappen og vælg "Føj til hjemmeskærm"',
     // Time ago labels (used in timeAgo() function)
     timeAgoJustNow: 'Lige nu',
@@ -647,9 +647,9 @@ export default {
     // Moderation
     // Nav menu
     // Install prompt
-    installTitle: 'Install fellis as an app',
+    installTitle: 'Add fellis to your home screen',
     installSubtitle: 'Quick access directly from your home screen',
-    installBtn: 'Install',
+    installBtn: 'Add',
     installIOSTip: 'Tap the Share button and choose "Add to Home Screen"',
     // Time ago labels (used in timeAgo() function)
     timeAgoJustNow: 'Just now',
