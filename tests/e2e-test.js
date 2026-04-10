@@ -137,9 +137,11 @@ async function uploadPostWithMedia(text, buffer) {
 
 // ─── Test state ───────────────────────────────────────────────────────────────
 const ts = Date.now()
-const testEmail = `e2e.test.${ts}@fellis-test.invalid`
-const testName  = `E2E Test ${ts}`
-const testPass  = 'E2eTest1234!'
+const testEmail   = `e2e.test.${ts}@fellis-test.invalid`
+const testName    = `E2E Test ${ts}`
+const testPass    = 'E2eTest1234!'
+// May be updated by testMailAndPasswordReset when password is changed
+let   currentPass = testPass
 
 let userId     = null
 let postId     = null
@@ -485,26 +487,90 @@ async function cleanup() {
   }
 
   // Delete account via GDPR endpoint (requires password re-verification)
-  const del = await api('DELETE', '/gdpr/account', { password: testPass })
+  const del = await api('DELETE', '/gdpr/account', { password: currentPass })
   if (del.ok) ok(`Deleted test account (${testEmail})`)
   else        fail('DELETE /api/gdpr/account', `HTTP ${del.status} — ${JSON.stringify(del.data)}`)
 }
 
-// ─── Second account — test login separately ────────────────────────────────
+// ─── Login tests ──────────────────────────────────────────────────────────────
+
 async function testLogin() {
-  section('Login (separate from register)')
-  // Log out first by clearing session, then log back in
+  section('Login')
   const savedSession = sessionId
   sessionId = null
 
+  // Correct credentials
   const r = await api('POST', '/auth/login', { email: testEmail, password: testPass, lang: 'da' })
   if (r.ok && r.data?.sessionId) {
-    sessionId = r.data.sessionId // restore (may differ from register session)
-    ok(`Login successful for ${testEmail}`)
+    sessionId = r.data.sessionId
+    ok(`Correct credentials → session issued`)
   } else {
-    // Restore session so cleanup still works
     sessionId = savedSession
-    fail('POST /api/auth/login', r.data?.error || `HTTP ${r.status}`)
+    fail('POST /api/auth/login (correct credentials)', r.data?.error || `HTTP ${r.status}`)
+    return
+  }
+
+  // Wrong password → 401
+  const bad = await api('POST', '/auth/login', { email: testEmail, password: 'WrongPass999!', lang: 'da' })
+  if (bad.status === 401) ok('Wrong password → 401 Unauthorized')
+  else                    fail('Wrong password should return 401', `got HTTP ${bad.status}`)
+
+  // Non-existent email → 401 (no user enumeration)
+  const ghost = await api('POST', '/auth/login', { email: `no-such-user-${ts}@example.invalid`, password: 'anything' })
+  if (ghost.status === 401) ok('Unknown email → 401 (no user enumeration)')
+  else                      fail('Unknown email should return 401', `got HTTP ${ghost.status}`)
+}
+
+// ─── Mail / password-reset flow ───────────────────────────────────────────────
+
+async function testMailAndPasswordReset() {
+  section('Mail & Password Reset')
+  if (!sessionId) { skip('Password reset tests', 'no session'); return }
+
+  // 1. Forgot-password → always returns { ok: true } (no user enumeration)
+  const forgot = await api('POST', '/auth/forgot-password', { email: testEmail })
+  if (forgot.ok && forgot.data?.ok) ok('POST /api/auth/forgot-password → { ok: true }')
+  else                               fail('POST /api/auth/forgot-password', `HTTP ${forgot.status}`)
+
+  // 2. Forgot-password for unknown email → still { ok: true } (no leaking)
+  const forgotGhost = await api('POST', '/auth/forgot-password', { email: `ghost-${ts}@example.invalid` })
+  if (forgotGhost.ok && forgotGhost.data?.ok) ok('Forgot-password unknown email → { ok: true } (no enumeration)')
+  else                                         fail('Forgot-password unknown email', `HTTP ${forgotGhost.status}`)
+
+  // 3. Reset with a bogus token → 400
+  const badReset = await api('POST', '/auth/reset-password', {
+    token: 'not-a-real-token-aabbccdd',
+    password: 'NewPass5678!',
+  })
+  if (badReset.status === 400) ok('Reset with invalid token → 400')
+  else                         fail('Invalid reset token should return 400', `got HTTP ${badReset.status}`)
+
+  // 4. Change password while authenticated (exercises the bcrypt + session path)
+  const newPass = `E2eChanged${ts}!`
+  const change = await api('PATCH', '/profile/password', {
+    currentPassword: testPass,
+    newPassword: newPass,
+    lang: 'da',
+  })
+  if (change.ok) {
+    ok('PATCH /api/profile/password — changed password while authenticated')
+
+    // 5. Login with OLD password → 401
+    const oldLogin = await api('POST', '/auth/login', { email: testEmail, password: testPass })
+    if (oldLogin.status === 401) ok('Old password rejected after change → 401')
+    else                         fail('Old password should be rejected', `got HTTP ${oldLogin.status}`)
+
+    // 6. Login with NEW password → session
+    const newLogin = await api('POST', '/auth/login', { email: testEmail, password: newPass, lang: 'da' })
+    if (newLogin.ok && newLogin.data?.sessionId) {
+      sessionId = newLogin.data.sessionId
+      currentPass = newPass  // so cleanup uses the right password for GDPR delete
+      ok('Login with new password → session issued')
+    } else {
+      fail('Login with new password', `HTTP ${newLogin.status}`)
+    }
+  } else {
+    fail('PATCH /api/profile/password', change.data?.error || `HTTP ${change.status}`)
   }
 }
 
@@ -537,7 +603,8 @@ async function run() {
   await testSessionCheck()
   await testLogin()          // logs in fresh after registering
   await testSessionCheck()   // verify new session also works
-  await testCsrfToken()      // requires auth
+  await testCsrfToken()              // requires auth
+  await testMailAndPasswordReset()   // forgot-password API + change-password + re-login
   await testFeed()
   await testCreateTextPost()
   await testLikePost()
