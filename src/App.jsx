@@ -36,13 +36,13 @@ function PublicPrivacyPage() {
       </nav>
 
       <h1 style={s.h1}>{da ? 'Privatlivspolitik' : 'Privacy Policy'}</h1>
-      <p style={s.sub}>{da ? 'Sidst opdateret: februar 2025' : 'Last updated: February 2025'}</p>
+      <p style={s.sub}>{da ? 'Sidst opdateret: april 2026' : 'Last updated: April 2026'}</p>
 
       <div style={s.section}>
         <h2 style={s.h2}>{da ? 'Om fellis.eu' : 'About fellis.eu'}</h2>
         <p style={s.p}>{da
-          ? 'fellis.eu er en dansk social platform hostet i EU. Vi er forpligtet til at beskytte dine persondata i henhold til EU\'s General Data Protection Regulation (GDPR). Vi indsamler kun de data, der er nødvendige for at levere vores tjeneste, og vi sælger aldrig dine data til tredjeparter eller bruger dem til reklamer.'
-          : 'fellis.eu is a Danish social platform hosted in the EU. We are committed to protecting your personal data under the EU General Data Protection Regulation (GDPR). We only collect data necessary to provide our service and never sell your data to third parties or use it for advertising.'
+          ? 'fellis.eu er en dansk social platform hostet i EU. Vi er forpligtet til at beskytte dine persondata i henhold til EU\'s General Data Protection Regulation (GDPR). Vi indsamler kun de data, der er nødvendige for at levere vores tjeneste, og vi sælger aldrig dine data til tredjeparter. Vi viser annoncer fra erhvervsbrugere registreret på platformen og bruger din aktivitet til at vise relevante annoncer — du kan til enhver tid opgradere til en reklamefri oplevelse.'
+          : 'fellis.eu is a Danish social platform hosted in the EU. We are committed to protecting your personal data under the EU General Data Protection Regulation (GDPR). We only collect data necessary to provide our service and never sell your data to third parties. We show ads from businesses registered on our platform and use your activity to show relevant ads — you can upgrade to an ad-free experience at any time.'
         }</p>
       </div>
 
@@ -53,10 +53,14 @@ function PublicPrivacyPage() {
             <li>Kontooplysninger: navn, e-mail, profilbillede</li>
             <li>Indhold du opretter: opslag, kommentarer, beskeder</li>
             <li>Tekniske data: session-ID (opbevares i din browser)</li>
+            <li>Interessedata: din aktivitet på platformen (likes, kommentarer, visninger) bruges til at opbygge en interesseprofil</li>
+            <li>Annonceeksponeringsdata: hvilke annoncer du er blevet vist (registreres internt til frekvensbegrænsning og fakturering)</li>
           </> : <>
             <li>Account information: name, email, profile picture</li>
             <li>Content you create: posts, comments, messages</li>
             <li>Technical data: session ID (stored in your browser)</li>
+            <li>Interest data: your in-platform activity (likes, comments, views) used to build an interest profile</li>
+            <li>Ad exposure data: which ads you have been shown (recorded internally for frequency capping and billing)</li>
           </>}
         </ul>
       </div>
@@ -67,11 +71,30 @@ function PublicPrivacyPage() {
           {da ? <>
             <li>For at levere platformens funktionalitet (GDPR Art. 6(1)(b) — kontraktopfyldelse)</li>
             <li>For at administrere din konto og autentificere dig</li>
-            <li>Vi sælger ALDRIG dine data eller bruger dem til reklamer</li>
+            <li>For at vise relevante annoncer fra erhvervsbrugere på platformen (GDPR Art. 6(1)(f) — legitim interesse i at finansiere platformen)</li>
+            <li>Vi sælger aldrig dine data til tredjeparter</li>
           </> : <>
             <li>To provide platform functionality (GDPR Art. 6(1)(b) — contract performance)</li>
             <li>To manage your account and authenticate you</li>
-            <li>We NEVER sell your data or use it for advertising</li>
+            <li>To show relevant ads from business users on the platform (GDPR Art. 6(1)(f) — legitimate interest in funding the platform)</li>
+            <li>We never sell your data to third parties</li>
+          </>}
+        </ul>
+      </div>
+
+      <div style={s.section}>
+        <h2 style={s.h2}>{da ? 'Reklamer og interesseprofil' : 'Advertising and interest profile'}</h2>
+        <ul style={s.ul}>
+          {da ? <>
+            <li>Vi viser annoncer fra erhvervsbrugere registreret på fellis.eu — vi sælger ikke annoncevisninger til eksterne annoncenetværk.</li>
+            <li>Din aktivitet på platformen (likes, kommentarer, visninger og negative interaktioner som at scrolle forbi eller blokere) genererer interessesignaler, der bruges til at opbygge en interesseprofil. Annoncører kan målrette annoncer mod bestemte interessekategorier.</li>
+            <li>Vi registrerer internt, hvilke annoncer du er blevet vist, til frekvensbegrænsning og fakturering. Annoncører ser kun samlede statistikker (rækkevidde, visninger, klik) — aldrig din individuelle identitet.</li>
+            <li>Du kan købe en reklamefri oplevelse via Indstillinger → Fakturering.</li>
+          </> : <>
+            <li>We show ads from business users registered on fellis.eu — we do not sell ad inventory to external advertising networks.</li>
+            <li>Your in-platform activity (likes, comments, views, and negative interactions such as scrolling past or blocking) generates interest signals used to build an interest profile. Advertisers can target ads to specific interest categories.</li>
+            <li>We record internally which ads you have been shown, for frequency capping and billing purposes. Advertisers only see aggregate statistics (reach, impressions, clicks) — never your individual identity.</li>
+            <li>You can purchase an ad-free experience via Settings → Billing.</li>
           </>}
         </ul>
       </div>
