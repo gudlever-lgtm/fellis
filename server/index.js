@@ -662,6 +662,16 @@ app.use('/api', generalLimit)
 // Cookie-based sessions are used, so CSRF is a real attack surface.
 app.use('/api', validateCsrf)
 
+// ── Temporary IP debug endpoint — remove after confirming X-Forwarded-For ──
+app.get('/api/debug-ip', (req, res) => {
+  res.json({
+    'x-forwarded-for': req.headers['x-forwarded-for'] || null,
+    'x-real-ip':       req.headers['x-real-ip'] || null,
+    'req.ip':          req.ip,
+    'socket.remote':   req.socket?.remoteAddress || null,
+  })
+})
+
 // ── Health check ─────────────────────────────────────────────────────────
 const SERVER_START = Date.now()
 app.get('/api/health', async (_req, res) => {
