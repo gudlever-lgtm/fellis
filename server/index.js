@@ -745,12 +745,12 @@ function verifyCsrfToken(sessionId, token) {
 // them before they have a valid session (or when their session has expired).
 // A stale fellis_sid cookie must not block login/register.
 const CSRF_EXEMPT_PATHS = new Set([
-  '/api/auth/login',
-  '/api/auth/register',
-  '/api/auth/forgot-password',
-  '/api/auth/reset-password',
-  '/api/auth/verify-mfa',
-  '/api/visit',
+  '/auth/login',
+  '/auth/register',
+  '/auth/forgot-password',
+  '/auth/reset-password',
+  '/auth/verify-mfa',
+  '/visit',
 ])
 
 // CSRF validation middleware for state-changing requests
