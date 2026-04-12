@@ -9,6 +9,7 @@ A Danish social platform built for the EU — privacy-first, GDPR-compliant, bil
 | Frontend | React 19, Vite 7, JavaScript (JSX) |
 | Backend | Node.js (ESM), Express 4 |
 | Database | MariaDB 11.8+ / MySQL 8+ |
+| Web server | lighttpd 1.4.46+ (reverse proxy + static files) |
 | Auth | Session-based + Google / LinkedIn OAuth |
 | Payments | Mollie |
 | File uploads | Multer |
@@ -98,6 +99,64 @@ MISTRAL_API_KEY
 UPLOADS_DIR          # default: /var/www/fellis.eu/uploads
 MOLLIE_API_KEY
 ```
+
+## Production Server (lighttpd)
+
+fellis.eu is served by **lighttpd** acting as both the static file server and a reverse proxy to the Node.js backend.
+
+The config lives at [`lighttpd.conf`](lighttpd.conf) in the repo root. Copy it to `/etc/lighttpd/lighttpd.conf` on the production host.
+
+### How it works
+
+| Path | Handled by |
+|------|-----------|
+| `/api/*` | Proxied to Node.js on `localhost:3001` |
+| `/uploads/*` | Proxied to Node.js on `localhost:3001` |
+| `/assets/*` | Served from `/var/www/fellis.eu/assets/` (immutable cache) |
+| Everything else | Falls back to `/index.html` (React SPA routing) |
+
+### Required lighttpd modules
+
+```bash
+sudo lighttpd-enable-mod proxy rewrite compress setenv accesslog
+```
+
+### Deploy steps
+
+```bash
+# 1. Build the frontend
+npm run build
+# Copies index.html + assets/ to the repo root — rsync these to /var/www/fellis.eu/
+
+# 2. Install / reload lighttpd config
+sudo cp lighttpd.conf /etc/lighttpd/lighttpd.conf
+lighttpd -t -f /etc/lighttpd/lighttpd.conf   # validate
+sudo systemctl reload lighttpd
+
+# 3. Start the Node.js backend (e.g. via PM2)
+cd server && npm start
+```
+
+### HTTPS / TLS
+
+The config ships with a commented-out HTTPS block. To enable it:
+
+```bash
+sudo apt install certbot
+sudo certbot certonly --webroot -w /var/www/fellis.eu -d fellis.eu -d www.fellis.eu
+```
+
+Then uncomment the `$SERVER["socket"] == ":443"` block and the HTTP→HTTPS redirect in `lighttpd.conf`.
+
+### chat.fellis.eu vhost
+
+A separate virtual host for `chat.fellis.eu` is included in the same config file. It serves the chat app from `/var/www/fellis.eu/chat/dist/` and proxies `/api` and `/uploads` to the same Node.js backend.
+
+### SSE (Server-Sent Events)
+
+`server.stream-response-body = 2` is set globally so lighttpd does not buffer SSE responses. The `/api/sse` path also gets an extended `proxy.read-timeout = 600` to keep event streams alive.
+
+---
 
 ## Project Documentation
 
