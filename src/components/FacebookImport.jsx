@@ -44,7 +44,8 @@ export default function FacebookImport({ lang = 'da', user, onUpdate }) {
       const url = new URL(window.location.href)
       url.searchParams.delete('error')
       window.history.replaceState({}, '', url)
-      setErrMsg(errParam === 'fb_state_invalid' ? t.fb_error_state : t.fb_error_generic)
+      const msg = errParam === 'fb_state_invalid' ? t.fb_error_state : t.fb_error_generic
+      setErrMsg(msg)
       setView('error')
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
