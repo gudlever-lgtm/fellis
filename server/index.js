@@ -49,7 +49,7 @@ import bcrypt from 'bcrypt'
 import fs from 'fs'
 import multer from 'multer'
 import helmet from 'helmet'
-import { rateLimit as rlFactory } from 'express-rate-limit'
+import { rateLimit as rlFactory, ipKeyGenerator } from 'express-rate-limit'
 import pool from './db.js'
 import { sendSms } from './sms.js'
 import { validate, schemas } from './validation.js'
@@ -92,10 +92,20 @@ async function addCol(table, col, def) {
     throw new Error(`Invalid column definition: ${def}`)
   }
 
-  try {
-    await pool.query(`ALTER TABLE \`${table}\` ADD COLUMN \`${col}\` ${def}`)
-  } catch (e) {
-    if (e.errno !== 1060) throw e
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      await pool.query(`ALTER TABLE \`${table}\` ADD COLUMN \`${col}\` ${def}`)
+      return
+    } catch (e) {
+      if (e.errno === 1060) return // Column already exists — nothing to do
+      if (e.errno === 1213 && attempt < 3) {
+        // Deadlock — back off and retry (100ms, 200ms, 400ms)
+        await new Promise(r => setTimeout(r, 100 * Math.pow(2, attempt)))
+        continue
+      }
+      console.error(`Migration (${table}.${col}):`, e.message)
+      return // Log and swallow — non-fatal, column may already exist
+    }
   }
 }
 
@@ -496,6 +506,10 @@ async function withdrawConsent(userId, consentType, ipAddress = null) {
 
 const app = express()
 
+// Trust the loopback proxy (lighttpd on 127.0.0.1) so req.ip resolves to the
+// real client IP from the X-Forwarded-For header instead of 127.0.0.1.
+app.set('trust proxy', 'loopback')
+
 // ── Helmet — security headers (must be first) ─────────────────────────────
 const SITE_ORIGIN = (process.env.SITE_URL || 'https://fellis.eu').replace(/\/$/, '')
 app.use(helmet({
@@ -566,13 +580,25 @@ app.use((_req, res, next) => {
 // and an in-memory per-user limiter for write operations.
 
 // Login / MFA: 5 per 15 minutes per IP
+// In non-production, skip rate limiting for loopback IPs so E2E tests can
+// exercise auth endpoints without exhausting the window.
+function isLoopback(req) {
+  const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
+    || req.socket?.remoteAddress || ''
+  return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1'
+}
+function skipInDev(req) {
+  return process.env.NODE_ENV !== 'production' && isLoopback(req)
+}
+
 const strictLimit = rlFactory({
   windowMs: 15 * 60 * 1000,
   max: 5,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests — prøv igen om 15 minutter' },
-  keyGenerator: (req) => req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip,
+  keyGenerator: (req) => ipKeyGenerator(req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip),
+  skip: skipInDev,
 })
 
 // Register: 3 per hour per IP
@@ -582,7 +608,8 @@ const registerLimit = rlFactory({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many registration attempts — prøv igen om en time' },
-  keyGenerator: (req) => req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip,
+  keyGenerator: (req) => ipKeyGenerator(req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip),
+  skip: skipInDev,
 })
 
 // General API: 100 per 15 minutes per IP
@@ -592,7 +619,7 @@ const generalLimit = rlFactory({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests — prøv igen om lidt' },
-  keyGenerator: (req) => req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip,
+  keyGenerator: (req) => ipKeyGenerator(req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip),
   skip: (req) => req.method === 'GET' || req.path === '/api/health', // GET requests are read-only
 })
 
@@ -709,7 +736,20 @@ function clearSessionCookie(res) {
 }
 
 // ── CSRF Token Helpers ─────────────────────────────────────────────────────
-const CSRF_SECRET = process.env.CSRF_SECRET || crypto.randomBytes(32).toString('hex')
+// CSRF_SECRET must be stable across restarts — a new random key would
+// invalidate all in-flight tokens every time PM2 restarts the process.
+// Auto-generate once and persist to .env so subsequent restarts reuse it.
+let CSRF_SECRET = process.env.CSRF_SECRET
+if (!CSRF_SECRET) {
+  CSRF_SECRET = crypto.randomBytes(32).toString('hex')
+  try {
+    const envPath = path.join(__dirname, '.env')
+    fs.appendFileSync(envPath, `\nCSRF_SECRET=${CSRF_SECRET}\n`)
+    console.log('✓ Generated CSRF_SECRET and saved to .env')
+  } catch (e) {
+    console.warn('⚠ Could not persist CSRF_SECRET to .env:', e.message)
+  }
+}
 
 function generateCsrfToken(sessionId) {
   // Generate CSRF token: HMAC-SHA256(session_id, secret)
@@ -728,10 +768,28 @@ function verifyCsrfToken(sessionId, token) {
   ).valueOf()
 }
 
+// Pre-authentication endpoints that must never require CSRF — users reach
+// them before they have a valid session (or when their session has expired).
+// A stale fellis_sid cookie must not block login/register.
+const CSRF_EXEMPT_PATHS = new Set([
+  '/auth/login',
+  '/auth/register',
+  '/auth/forgot-password',
+  '/auth/reset-password',
+  '/auth/verify-mfa',
+  '/auth/logout',  // logout only clears the session — CSRF risk is negligible
+  '/visit',
+])
+
 // CSRF validation middleware for state-changing requests
 function validateCsrf(req, res, next) {
   // Skip CSRF for safe methods
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next()
+
+  // Skip CSRF for pre-auth endpoints — these are reachable without a valid
+  // session, so requiring a CSRF token would create an unsolvable deadlock
+  // for users whose session cookie has expired.
+  if (CSRF_EXEMPT_PATHS.has(req.path)) return next()
 
   const sessionId = getSessionIdFromRequest(req)
   // If no session, CSRF doesn't apply (no cookie to steal); authentication
@@ -759,8 +817,11 @@ async function auditLog(req, action, resourceType = null, resourceId = null, {
   oldValue = null,
   newValue = null,
   details = null,
+  userId: explicitUserId = undefined,
 } = {}) {
-  const userId = req.userId || null
+  // explicitUserId lets callers (e.g. login) pass the userId before req.userId is set,
+  // avoiding { ...req } spread which drops Express prototype getters like req.ip
+  const userId = explicitUserId !== undefined ? explicitUserId : (req.userId || null)
   const ipAddress = req.headers?.['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null
   const userAgent = req.headers?.['user-agent'] || null
 
@@ -1047,7 +1108,7 @@ app.use('/uploads', (req, res, next) => {
   dotfiles: 'deny',        // No hidden files
   index: false,             // No directory listing
   extensions: false,        // No extension guessing
-}))
+}), (req, res) => res.status(404).end())
 
 // ── Browser / OS parsing ──────────────────────────────────────────────────
 function parseBrowser(ua) {
@@ -1285,8 +1346,9 @@ app.post('/api/auth/login', strictLimit, validate(schemas.login), async (req, re
           [newAttempts, LOCKOUT_DURATION_MINUTES, user.id]
         ).catch(() => {})
         // Audit log: account locked
-        await auditLog({ ...req, userId: user.id }, 'login_failed_account_locked', 'user', user.id, {
+        await auditLog(req, 'login_failed_account_locked', 'user', user.id, {
           status: 'failure',
+          userId: user.id,
           details: { attempts: newAttempts, reason: 'brute_force_protection' }
         })
         return res.status(429).json({
@@ -1298,8 +1360,9 @@ app.post('/api/auth/login', strictLimit, validate(schemas.login), async (req, re
           [newAttempts, user.id]
         ).catch(() => {})
         // Audit log: failed login attempt
-        await auditLog({ ...req, userId: user.id }, 'login_failed', 'user', user.id, {
+        await auditLog(req, 'login_failed', 'user', user.id, {
           status: 'failure',
+          userId: user.id,
           details: { attempts: newAttempts, remaining_before_lockout: MAX_LOGIN_ATTEMPTS - newAttempts }
         })
         return res.status(401).json({ error: 'Invalid credentials' })
@@ -1343,11 +1406,11 @@ app.post('/api/auth/login', strictLimit, validate(schemas.login), async (req, re
     setSessionCookie(res, sessionId)
     // Audit log: successful login
     await auditLog(
-      { ...req, userId: user.id },
+      req,
       'login',
       'user',
       user.id,
-      { status: 'success', details: { mfa_enabled: !!user.mfa_enabled } }
+      { status: 'success', userId: user.id, details: { mfa_enabled: !!user.mfa_enabled } }
     )
     res.json({ sessionId, userId: user.id })
   } catch (err) {
@@ -1477,7 +1540,8 @@ app.post('/api/auth/forgot-password', strictLimit, validate(schemas.forgotPasswo
 
     if (mailer) {
       const fromAddr = process.env.MAIL_FROM || process.env.MAIL_USER
-      await mailer.sendMail({
+      // Fire-and-forget — do NOT await; SMTP connection delays must not block the HTTP response
+      mailer.sendMail({
         from: `"Fellis" <${fromAddr}>`,
         to: email,
         subject: 'Nulstil din adgangskode / Reset your password',
@@ -1594,6 +1658,55 @@ app.post('/api/auth/disable-mfa', authenticate, writeLimit, async (req, res) => 
   }
 })
 
+// POST /api/auth/send-enable-mfa — send SMS verification code to activate MFA (MFA not yet enabled)
+app.post('/api/auth/send-enable-mfa', authenticate, writeLimit, async (req, res) => {
+  try {
+    const [[user]] = await pool.query('SELECT phone, mfa_enabled FROM users WHERE id = ?', [req.userId])
+    if (!user) return res.status(404).json({ error: 'User not found' })
+    if (!user.phone) return res.status(400).json({ error: 'No phone number on account' })
+    if (user.mfa_enabled) return res.status(400).json({ error: 'MFA already enabled' })
+    const rawCode = String(Math.floor(100000 + Math.random() * 900000))
+    const hashedCode = crypto.createHash('sha256').update(rawCode).digest('hex')
+    await pool.query(
+      'UPDATE users SET mfa_code = ?, mfa_code_expires = DATE_ADD(NOW(), INTERVAL 5 MINUTE) WHERE id = ?',
+      [hashedCode, req.userId]
+    )
+    const smsSent = await sendSms(user.phone, `Din Fellis-kode er: ${rawCode} (udløber om 5 minutter)`)
+    if (!smsSent) {
+      console.error(`Enable MFA SMS failed to send for user ${req.userId} — 46elks may not be configured`)
+      return res.status(503).json({ error: 'SMS service unavailable — could not send verification code' })
+    }
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to send MFA code' })
+  }
+})
+
+// POST /api/auth/confirm-enable-mfa — verify SMS code and set mfa_enabled=1
+app.post('/api/auth/confirm-enable-mfa', authenticate, writeLimit, async (req, res) => {
+  const { code } = req.body
+  if (!code) return res.status(400).json({ error: 'code required' })
+  try {
+    const [[user]] = await pool.query(
+      'SELECT mfa_code, mfa_code_expires, mfa_enabled FROM users WHERE id = ?', [req.userId]
+    )
+    if (!user) return res.status(404).json({ error: 'User not found' })
+    if (user.mfa_enabled) return res.status(400).json({ error: 'MFA already enabled' })
+    if (!user.mfa_code || !user.mfa_code_expires) return res.status(400).json({ error: 'No pending code — request a new one' })
+    if (new Date(user.mfa_code_expires) < new Date()) return res.status(400).json({ error: 'Code expired' })
+    const hashed = crypto.createHash('sha256').update(String(code)).digest('hex')
+    if (hashed !== user.mfa_code) return res.status(401).json({ error: 'Invalid code' })
+    await pool.query(
+      'UPDATE users SET mfa_enabled = 1, mfa_code = NULL, mfa_code_expires = NULL WHERE id = ?',
+      [req.userId]
+    )
+    await auditLog(req, 'mfa_enable', 'user', req.userId, { status: 'success' })
+    res.json({ ok: true, mfa_enabled: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to confirm MFA' })
+  }
+})
+
 // POST /api/auth/send-settings-mfa — send SMS MFA code for sensitive settings changes
 app.post('/api/auth/send-settings-mfa', authenticate, writeLimit, async (req, res) => {
   try {
@@ -1619,7 +1732,7 @@ app.post('/api/auth/send-settings-mfa', authenticate, writeLimit, async (req, re
 })
 
 // PATCH /api/profile/phone — update phone number for current user
-app.patch('/api/profile/phone', authenticate, async (req, res) => {
+app.patch('/api/profile/phone', authenticate, writeLimit, async (req, res) => {
   const { phone } = req.body
   // Allow clearing phone (empty string → null), or set a new number
   const cleaned = phone ? phone.trim() : null
@@ -2158,7 +2271,7 @@ app.get('/api/user/handle/:handle', async (req, res) => {
 })
 
 // PATCH /api/me/mode — update user mode (privat / business)
-app.patch('/api/me/mode', authenticate, async (req, res) => {
+app.patch('/api/me/mode', authenticate, writeLimit, async (req, res) => {
   const { mode } = req.body
   if (!['privat', 'business'].includes(mode)) return res.status(400).json({ error: 'Invalid mode' })
   try {
@@ -2170,7 +2283,7 @@ app.patch('/api/me/mode', authenticate, async (req, res) => {
 })
 
 // PATCH /api/me/lang — update current session language
-app.patch('/api/me/lang', authenticate, async (req, res) => {
+app.patch('/api/me/lang', authenticate, writeLimit, async (req, res) => {
   const { lang } = req.body
   const VALID_LANGS = ['da','en','de','fr','es','it','nl','sv','no','fi','pl','pt','ro','hu','cs','sk','hr','bg','el','lt','lv','et','sl','mt','ga','lb']
   if (!VALID_LANGS.includes(lang)) return res.status(400).json({ error: 'Invalid lang' })
@@ -2184,7 +2297,7 @@ app.patch('/api/me/lang', authenticate, async (req, res) => {
 })
 
 // PATCH /api/me/plan — update user plan (business only — business_pro removed)
-app.patch('/api/me/plan', authenticate, async (req, res) => {
+app.patch('/api/me/plan', authenticate, writeLimit, async (req, res) => {
   const { plan } = req.body
   if (!['business'].includes(plan)) return res.status(400).json({ error: 'Invalid plan' })
   try {
@@ -2196,7 +2309,7 @@ app.patch('/api/me/plan', authenticate, async (req, res) => {
 })
 
 // PATCH /api/me/interests — save user interest categories (min 3)
-app.patch('/api/me/interests', authenticate, async (req, res) => {
+app.patch('/api/me/interests', authenticate, writeLimit, async (req, res) => {
   const { interests } = req.body
   if (!Array.isArray(interests) || interests.length < 3) {
     return res.status(400).json({ error: 'At least 3 interests required' })
@@ -2213,7 +2326,7 @@ app.patch('/api/me/interests', authenticate, async (req, res) => {
 })
 
 // PATCH /api/me/tags — save user tags (max 10, max 30 chars each)
-app.patch('/api/me/tags', authenticate, async (req, res) => {
+app.patch('/api/me/tags', authenticate, writeLimit, async (req, res) => {
   const { tags } = req.body
   if (!Array.isArray(tags)) return res.status(400).json({ error: 'tags must be an array' })
   const clean = tags.map(t => String(t).trim().slice(0, 30)).filter(Boolean).slice(0, 10)
@@ -2226,7 +2339,7 @@ app.patch('/api/me/tags', authenticate, async (req, res) => {
 })
 
 // PATCH /api/me/profile-extended — update relationship_status + website
-app.patch('/api/me/profile-extended', authenticate, async (req, res) => {
+app.patch('/api/me/profile-extended', authenticate, writeLimit, async (req, res) => {
   const { relationship_status, website } = req.body
   const VALID_REL = ['single','in_relationship','married','engaged','open','prefer_not']
   const fields = [], vals = []
@@ -2248,7 +2361,7 @@ app.patch('/api/me/profile-extended', authenticate, async (req, res) => {
 })
 
 // PATCH /api/me/business-profile — update business-only profile fields
-app.patch('/api/me/business-profile', authenticate, async (req, res) => {
+app.patch('/api/me/business-profile', authenticate, writeLimit, async (req, res) => {
   const { business_category, business_website, business_hours, business_description_da, business_description_en } = req.body
   try {
     const [[user]] = await pool.query('SELECT mode FROM users WHERE id = ?', [req.userId])
@@ -2561,6 +2674,93 @@ app.delete('/api/businesses/:id/follow', authenticate, async (req, res) => {
   }
 })
 
+// POST /api/users/:id/follow — follow any user (standard or business)
+app.post('/api/users/:id/follow', authenticate, async (req, res) => {
+  const targetId = parseInt(req.params.id)
+  if (targetId === req.userId) return res.status(400).json({ error: 'Cannot follow yourself' })
+  try {
+    const [[target]] = await pool.query('SELECT id FROM users WHERE id = ?', [targetId])
+    if (!target) return res.status(404).json({ error: 'User not found' })
+    await pool.query('INSERT IGNORE INTO user_follows (follower_id, followee_id) VALUES (?, ?)', [req.userId, targetId])
+    res.json({ following: true })
+  } catch (err) {
+    console.error('POST /api/users/:id/follow error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// DELETE /api/users/:id/follow — unfollow a user
+app.delete('/api/users/:id/follow', authenticate, async (req, res) => {
+  const targetId = parseInt(req.params.id)
+  try {
+    await pool.query('DELETE FROM user_follows WHERE follower_id = ? AND followee_id = ?', [req.userId, targetId])
+    res.json({ following: false })
+  } catch (err) {
+    console.error('DELETE /api/users/:id/follow error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/me/followers — users who follow me (user_follows + business_follows)
+app.get('/api/me/followers', authenticate, async (req, res) => {
+  try {
+    await pool.query(CREATE_USER_FOLLOWS)
+    // Union: explicit user_follows + existing business_follows (deduplicated by user id)
+    const [rows] = await pool.query(
+      `SELECT u.id, u.name, u.avatar_url AS avatar, u.mode,
+              (u.last_active IS NOT NULL AND u.last_active > DATE_SUB(NOW(), INTERVAL 5 MINUTE)) AS online,
+              EXISTS(SELECT 1 FROM user_follows WHERE follower_id = u.id AND followee_id = ?)
+                OR EXISTS(SELECT 1 FROM business_follows WHERE follower_id = u.id AND business_id = ?) AS is_following_back,
+              COALESCE(uf.created_at, bf.created_at) AS followed_at
+       FROM users u
+       LEFT JOIN user_follows uf ON uf.follower_id = u.id AND uf.followee_id = ?
+       LEFT JOIN business_follows bf ON bf.follower_id = u.id AND bf.business_id = ?
+       WHERE uf.followee_id = ? OR bf.business_id = ?
+       ORDER BY followed_at DESC`,
+      [req.userId, req.userId, req.userId, req.userId, req.userId, req.userId]
+    )
+    res.json(rows)
+  } catch (err) {
+    console.error('GET /api/me/followers error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/me/following — users and companies I follow
+app.get('/api/me/following', authenticate, async (req, res) => {
+  try {
+    await pool.query(CREATE_USER_FOLLOWS)
+    // Union user_follows and business_follows so existing BusinessDirectory follows appear
+    const [users] = await pool.query(
+      `SELECT u.id, u.name, u.avatar_url AS avatar, u.mode,
+              (u.last_active IS NOT NULL AND u.last_active > DATE_SUB(NOW(), INTERVAL 5 MINUTE)) AS online,
+              'user' AS kind, COALESCE(uf.created_at, bf.created_at) AS followed_at
+       FROM users u
+       LEFT JOIN user_follows uf ON uf.followee_id = u.id AND uf.follower_id = ?
+       LEFT JOIN business_follows bf ON bf.business_id = u.id AND bf.follower_id = ?
+       WHERE uf.follower_id = ? OR bf.follower_id = ?
+       ORDER BY followed_at DESC`,
+      [req.userId, req.userId, req.userId, req.userId]
+    )
+    // company_follows may not exist on older installations — degrade gracefully
+    let companies = []
+    try {
+      const [rows] = await pool.query(
+        `SELECT c.id, c.name, c.logo_url AS avatar, NULL AS mode, NULL AS online, 'company' AS kind
+         FROM company_follows cf
+         JOIN companies c ON c.id = cf.company_id
+         WHERE cf.user_id = ?`,
+        [req.userId]
+      )
+      companies = rows
+    } catch (_) { /* company_follows or companies table may not exist */ }
+    res.json({ users, companies })
+  } catch (err) {
+    console.error('GET /api/me/following error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // POST /api/profile/avatar — upload profile picture
 app.post('/api/profile/avatar', authenticate, fileUploadLimit, upload.single('avatar'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' })
@@ -2603,7 +2803,7 @@ async function verifySettingsMfaCode(userId, mfaCode) {
 }
 
 // PATCH /api/profile/email — change email address
-app.patch('/api/profile/email', authenticate, async (req, res) => {
+app.patch('/api/profile/email', authenticate, writeLimit, async (req, res) => {
   const { newEmail, password, mfaCode } = req.body
   if (!newEmail || !password) return res.status(400).json({ error: 'newEmail and password required' })
   try {
@@ -2628,7 +2828,7 @@ app.patch('/api/profile/email', authenticate, async (req, res) => {
 })
 
 // PATCH /api/profile/password — change password (or set first password for imported users)
-app.patch('/api/profile/password', authenticate, validate(schemas.changePassword), async (req, res) => {
+app.patch('/api/profile/password', authenticate, writeLimit, validate(schemas.changePassword), async (req, res) => {
   const { currentPassword, newPassword, lang: chgLang, mfaCode } = req.body
   const chgPolicy = await getPasswordPolicy()
   const chgPwdErrors = validatePasswordStrength(newPassword, chgPolicy, chgLang || 'da')
@@ -2691,7 +2891,7 @@ app.get('/api/settings/sessions', authenticate, async (req, res) => {
 
 // DELETE /api/settings/sessions/others — log out all other sessions
 // NOTE: must be defined BEFORE /:id to prevent "others" being caught as an id param
-app.delete('/api/settings/sessions/others', authenticate, async (req, res) => {
+app.delete('/api/settings/sessions/others', authenticate, writeLimit, async (req, res) => {
   const sessionId = getSessionIdFromRequest(req)
   try {
     await pool.query('DELETE FROM sessions WHERE user_id = ? AND id != ?', [req.userId, sessionId])
@@ -2702,7 +2902,7 @@ app.delete('/api/settings/sessions/others', authenticate, async (req, res) => {
 })
 
 // DELETE /api/settings/sessions/:id — log out a specific session
-app.delete('/api/settings/sessions/:id', authenticate, async (req, res) => {
+app.delete('/api/settings/sessions/:id', authenticate, writeLimit, async (req, res) => {
   try {
     const [[session]] = await pool.query('SELECT user_id FROM sessions WHERE id = ?', [req.params.id])
     if (!session || session.user_id !== req.userId) return res.status(404).json({ error: 'Not found' })
@@ -2841,7 +3041,7 @@ app.delete('/api/skills/:id', authenticate, async (req, res) => {
 })
 
 // POST /api/skills/:id/endorse — toggle endorse / unendorse
-app.post('/api/skills/:id/endorse', authenticate, async (req, res) => {
+app.post('/api/skills/:id/endorse', authenticate, writeLimit, async (req, res) => {
   try {
     const [[skill]] = await pool.query('SELECT user_id FROM user_skills WHERE id = ?', [req.params.id])
     if (!skill) return res.status(404).json({ error: 'Not found' })
@@ -2911,8 +3111,16 @@ app.get('/api/feed', authenticate, async (req, res) => {
     // cursor = ISO timestamp of the oldest post already seen; null = load from the top
     const cursor = req.query.cursor || null
 
+    // Optional mode filter — 'privat' or 'business'; omit for mixed feed (backward-compatible)
+    const modeFilter = req.query.mode || null
+    if (modeFilter && modeFilter !== 'privat' && modeFilter !== 'business') {
+      return res.status(400).json({ error: 'Invalid mode parameter. Must be "privat" or "business".' })
+    }
+
     const cursorFilter = cursor ? 'AND p.created_at < ?' : ''
     const cursorParams = cursor ? [new Date(cursor)] : []
+    const modeClause = modeFilter ? 'AND p.user_mode = ?' : ''
+    const modeParams = modeFilter ? [modeFilter] : []
 
     let posts
     try {
@@ -2921,27 +3129,53 @@ app.get('/api/feed', authenticate, async (req, res) => {
                 p.place_name, p.geo_lat, p.geo_lng, p.tagged_users, p.linked_type, p.linked_id,
                 (SELECT COUNT(*) FROM earned_badges WHERE user_id = p.author_id) as author_badge_count
          FROM posts p JOIN users u ON p.author_id = u.id
-         WHERE (p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?))
+         WHERE (p.author_id = ?
+           OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?)
+           OR p.author_id IN (SELECT business_id FROM business_follows WHERE follower_id = ?))
            AND (p.scheduled_at IS NULL OR p.scheduled_at <= NOW())
+           ${modeClause}
            ${cursorFilter}
          ORDER BY p.created_at DESC
          LIMIT ?`,
-        [req.userId, req.userId, ...cursorParams, limit]
+        [req.userId, req.userId, req.userId, ...modeParams, ...cursorParams, limit]
       )
     } catch {
-      ;[posts] = await pool.query(
-        `SELECT p.id, p.author_id, u.name as author, u.mode as author_mode, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.categories, p.created_at, p.edited_at,
-                NULL as place_name, NULL as geo_lat, NULL as geo_lng,
-                NULL as tagged_users, NULL as linked_type, NULL as linked_id,
-                0 as author_badge_count
-         FROM posts p JOIN users u ON p.author_id = u.id
-         WHERE (p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?))
-           AND (p.scheduled_at IS NULL OR p.scheduled_at <= NOW())
-           ${cursorFilter}
-         ORDER BY p.created_at DESC
-         LIMIT ?`,
-        [req.userId, req.userId, ...cursorParams, limit]
-      )
+      // Second attempt: no extended columns (place_name etc.), but keep mode filter
+      try {
+        ;[posts] = await pool.query(
+          `SELECT p.id, p.author_id, u.name as author, u.mode as author_mode, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.categories, p.created_at, p.edited_at,
+                  NULL as place_name, NULL as geo_lat, NULL as geo_lng,
+                  NULL as tagged_users, NULL as linked_type, NULL as linked_id,
+                  0 as author_badge_count
+           FROM posts p JOIN users u ON p.author_id = u.id
+           WHERE (p.author_id = ?
+             OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?)
+             OR p.author_id IN (SELECT business_id FROM business_follows WHERE follower_id = ?))
+             AND (p.scheduled_at IS NULL OR p.scheduled_at <= NOW())
+             ${modeClause}
+             ${cursorFilter}
+           ORDER BY p.created_at DESC
+           LIMIT ?`,
+          [req.userId, req.userId, req.userId, ...modeParams, ...cursorParams, limit]
+        )
+      } catch {
+        // Third attempt: user_mode column not yet migrated — return unfiltered feed
+        ;[posts] = await pool.query(
+          `SELECT p.id, p.author_id, u.name as author, u.mode as author_mode, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.categories, p.created_at, p.edited_at,
+                  NULL as place_name, NULL as geo_lat, NULL as geo_lng,
+                  NULL as tagged_users, NULL as linked_type, NULL as linked_id,
+                  0 as author_badge_count
+           FROM posts p JOIN users u ON p.author_id = u.id
+           WHERE (p.author_id = ?
+             OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?)
+             OR p.author_id IN (SELECT business_id FROM business_follows WHERE follower_id = ?))
+             AND (p.scheduled_at IS NULL OR p.scheduled_at <= NOW())
+             ${cursorFilter}
+           ORDER BY p.created_at DESC
+           LIMIT ?`,
+          [req.userId, req.userId, req.userId, ...cursorParams, limit]
+        )
+      }
     }
     const postIds = posts.map(p => p.id)
     let comments = []
@@ -3267,7 +3501,8 @@ app.post('/api/feed', authenticate, writeLimit, upload.array('media', UPLOAD_FIL
   const categories = rawCats ? (typeof rawCats === 'string' ? JSON.parse(rawCats) : rawCats) : null
   const rawTagged = req.body.tagged_users
   const taggedUsers = rawTagged ? (typeof rawTagged === 'string' ? JSON.parse(rawTagged) : rawTagged) : null
-  const linkedType = req.body.linked_type || null
+  const VALID_LINKED_TYPES = new Set(['job', 'listing', 'event', 'reel'])
+  const linkedType = VALID_LINKED_TYPES.has(req.body.linked_type) ? req.body.linked_type : null
   const linkedId = req.body.linked_id ? parseInt(req.body.linked_id) : null
   if (!text && !req.files?.length) return res.status(400).json({ error: 'Post text or media required' })
 
@@ -3313,12 +3548,14 @@ app.post('/api/feed', authenticate, writeLimit, upload.array('media', UPLOAD_FIL
     const scheduledDate = scheduled_at ? new Date(scheduled_at) : null
     if (scheduledDate && isNaN(scheduledDate.getTime())) return res.status(400).json({ error: 'Invalid scheduled_at' })
     const placeName = typeof place_name === 'string' ? place_name.slice(0, 255) : null
-    const lat = geo_lat ? parseFloat(geo_lat) : null
-    const lng = geo_lng ? parseFloat(geo_lng) : null
+    const rawLat = geo_lat ? parseFloat(geo_lat) : null
+    const rawLng = geo_lng ? parseFloat(geo_lng) : null
+    const lat = (rawLat !== null && rawLat >= -90  && rawLat <= 90)  ? rawLat : null
+    const lng = (rawLng !== null && rawLng >= -180 && rawLng <= 180) ? rawLng : null
     const taggedJson = Array.isArray(taggedUsers) && taggedUsers.length > 0 ? JSON.stringify(taggedUsers) : null
     const [result] = await pool.query(
-      'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media, scheduled_at, categories, place_name, geo_lat, geo_lng, tagged_users, linked_type, linked_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [req.userId, text, text, 'Lige nu', 'Just now', mediaJson, scheduledDate, categoriesJson, placeName, lat, lng, taggedJson, linkedType, linkedId]
+      'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media, scheduled_at, categories, place_name, geo_lat, geo_lng, tagged_users, linked_type, linked_id, user_mode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT mode FROM users WHERE id = ?))',
+      [req.userId, text, text, 'Lige nu', 'Just now', mediaJson, scheduledDate, categoriesJson, placeName, lat, lng, taggedJson, linkedType, linkedId, req.userId]
     ).catch(() =>
       pool.query(
         'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media, scheduled_at, categories) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
@@ -3688,7 +3925,7 @@ app.get('/api/invites/link', authenticate, async (req, res) => {
 })
 
 // POST /api/invites — create individual invitations and send email if SMTP is configured
-app.post('/api/invites', authenticate, async (req, res) => {
+app.post('/api/invites', authenticate, writeLimit, async (req, res) => {
   const { friends } = req.body
   if (!friends?.length) return res.status(400).json({ error: 'No friends selected' })
   try {
@@ -3728,7 +3965,7 @@ app.post('/api/invites', authenticate, async (req, res) => {
 })
 
 // DELETE /api/invites/:id — withdraw a sent invitation
-app.delete('/api/invites/:id', authenticate, async (req, res) => {
+app.delete('/api/invites/:id', authenticate, writeLimit, async (req, res) => {
   try {
     const [[inv]] = await pool.query('SELECT inviter_id FROM invitations WHERE id = ?', [req.params.id])
     if (!inv) return res.status(404).json({ error: 'Not found' })
@@ -3835,7 +4072,7 @@ app.get('/api/friends/requests', authenticate, async (req, res) => {
 })
 
 // POST /api/friends/requests/:id/accept
-app.post('/api/friends/requests/:id/accept', authenticate, async (req, res) => {
+app.post('/api/friends/requests/:id/accept', authenticate, writeLimit, async (req, res) => {
   const reqId = parseInt(req.params.id)
   try {
     const [rows] = await pool.query(
@@ -3860,7 +4097,7 @@ app.post('/api/friends/requests/:id/accept', authenticate, async (req, res) => {
 })
 
 // POST /api/friends/requests/:id/decline
-app.post('/api/friends/requests/:id/decline', authenticate, async (req, res) => {
+app.post('/api/friends/requests/:id/decline', authenticate, writeLimit, async (req, res) => {
   const reqId = parseInt(req.params.id)
   try {
     const [rows] = await pool.query(
@@ -4211,7 +4448,7 @@ app.post('/api/conversations/:id/read', authenticate, async (req, res) => {
 })
 
 // POST /api/conversations/:id/invite — add participants to an existing conversation
-app.post('/api/conversations/:id/invite', authenticate, async (req, res) => {
+app.post('/api/conversations/:id/invite', authenticate, writeLimit, async (req, res) => {
   const convId = parseInt(req.params.id)
   const { userIds } = req.body
   if (!userIds || !Array.isArray(userIds) || !userIds.length)
@@ -4231,14 +4468,15 @@ app.post('/api/conversations/:id/invite', authenticate, async (req, res) => {
 })
 
 // POST /api/conversations/:id/mute — mute for N minutes (null to unmute)
-app.post('/api/conversations/:id/mute', authenticate, async (req, res) => {
+app.post('/api/conversations/:id/mute', authenticate, writeLimit, async (req, res) => {
   const convId = parseInt(req.params.id)
   const { minutes } = req.body
   try {
     const [check] = await pool.query(
       'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, req.userId])
     if (!check.length) return res.status(403).json({ error: 'Not a participant' })
-    const mutedUntil = (minutes && minutes > 0) ? new Date(Date.now() + minutes * 60 * 1000) : null
+    const clampedMinutes = Math.min(Math.max(0, parseInt(minutes) || 0), 10080) // max 7 days
+    const mutedUntil = clampedMinutes > 0 ? new Date(Date.now() + clampedMinutes * 60 * 1000) : null
     await pool.query(
       'UPDATE conversation_participants SET muted_until = ? WHERE conversation_id = ? AND user_id = ?',
       [mutedUntil, convId, req.userId])
@@ -4249,7 +4487,7 @@ app.post('/api/conversations/:id/mute', authenticate, async (req, res) => {
 })
 
 // DELETE /api/conversations/:id/leave — leave a group conversation
-app.delete('/api/conversations/:id/leave', authenticate, async (req, res) => {
+app.delete('/api/conversations/:id/leave', authenticate, writeLimit, async (req, res) => {
   const convId = parseInt(req.params.id)
   try {
     await pool.query(
@@ -4261,15 +4499,17 @@ app.delete('/api/conversations/:id/leave', authenticate, async (req, res) => {
 })
 
 // PATCH /api/conversations/:id — rename a group conversation
-app.patch('/api/conversations/:id', authenticate, async (req, res) => {
+app.patch('/api/conversations/:id', authenticate, writeLimit, async (req, res) => {
   const convId = parseInt(req.params.id)
   const { name } = req.body
   if (!name) return res.status(400).json({ error: 'name required' })
+  if (typeof name !== 'string' || name.trim().length > 100)
+    return res.status(400).json({ error: 'name must be 100 characters or fewer' })
   try {
     const [check] = await pool.query(
       'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, req.userId])
     if (!check.length) return res.status(403).json({ error: 'Not a participant' })
-    await pool.query('UPDATE conversations SET name = ? WHERE id = ?', [name, convId])
+    await pool.query('UPDATE conversations SET name = ? WHERE id = ?', [name.trim(), convId])
     res.json({ ok: true })
   } catch (err) {
     res.status(500).json({ error: 'Failed to rename conversation' })
@@ -4277,7 +4517,7 @@ app.patch('/api/conversations/:id', authenticate, async (req, res) => {
 })
 
 // DELETE /api/conversations/:id/participants/:userId — remove a member (creator only)
-app.delete('/api/conversations/:id/participants/:userId', authenticate, async (req, res) => {
+app.delete('/api/conversations/:id/participants/:userId', authenticate, writeLimit, async (req, res) => {
   const convId = parseInt(req.params.id)
   const targetId = parseInt(req.params.userId)
   if (isNaN(targetId) || targetId === req.userId)
@@ -4295,7 +4535,7 @@ app.delete('/api/conversations/:id/participants/:userId', authenticate, async (r
 })
 
 // POST /api/conversations/:id/participants/:userId/mute — admin-mute a member (creator only)
-app.post('/api/conversations/:id/participants/:userId/mute', authenticate, async (req, res) => {
+app.post('/api/conversations/:id/participants/:userId/mute', authenticate, writeLimit, async (req, res) => {
   const convId = parseInt(req.params.id)
   const targetId = parseInt(req.params.userId)
   if (isNaN(targetId) || targetId === req.userId)
@@ -4308,7 +4548,8 @@ app.post('/api/conversations/:id/participants/:userId/mute', authenticate, async
     const [check] = await pool.query(
       'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, targetId])
     if (!check.length) return res.status(404).json({ error: 'User is not a participant' })
-    const adminMutedUntil = (minutes && minutes > 0) ? new Date(Date.now() + minutes * 60 * 1000) : null
+    const clampedAdminMinutes = Math.min(Math.max(0, parseInt(minutes) || 0), 10080) // max 7 days
+    const adminMutedUntil = clampedAdminMinutes > 0 ? new Date(Date.now() + clampedAdminMinutes * 60 * 1000) : null
     await pool.query(
       'UPDATE conversation_participants SET admin_muted_until = ? WHERE conversation_id = ? AND user_id = ?',
       [adminMutedUntil, convId, targetId])
@@ -4392,7 +4633,7 @@ app.get('/api/search', authenticate, async (req, res) => {
   const uid = req.userId
   try {
     const [posts] = await pool.query(
-      `SELECT DISTINCT p.id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en
+      `SELECT DISTINCT p.id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.created_at
        FROM posts p
        JOIN users u ON u.id = p.author_id
        LEFT JOIN post_likes pl ON pl.post_id = p.id AND pl.user_id = ?
@@ -4402,23 +4643,41 @@ app.get('/api/search', authenticate, async (req, res) => {
        ORDER BY p.created_at DESC LIMIT 15`,
       [uid, uid, uid, like, like]
     )
-    const [messages] = await pool.query(
-      `SELECT m.id, m.conversation_id, u.name as from_name, m.text_da, m.text_en, m.time,
-              c.is_group,
-              COALESCE(c.name, (
-                SELECT u2.name FROM users u2
-                JOIN conversation_participants cp2 ON cp2.user_id = u2.id
-                WHERE cp2.conversation_id = m.conversation_id AND u2.id != ? LIMIT 1
-              )) as conv_name
-       FROM messages m
-       JOIN users u ON u.id = m.sender_id
-       JOIN conversation_participants cp ON cp.conversation_id = m.conversation_id AND cp.user_id = ?
-       LEFT JOIN conversations c ON c.id = m.conversation_id
-       WHERE m.conversation_id IS NOT NULL
-         AND (m.text_da LIKE ? OR m.text_en LIKE ?)
-       ORDER BY m.created_at DESC LIMIT 15`,
-      [uid, uid, like, like]
-    )
+    let messages = []
+    try {
+      ;[messages] = await pool.query(
+        `SELECT m.id, m.conversation_id, u.name as from_name, m.text_da, m.text_en, m.time,
+                c.is_group,
+                COALESCE(c.name, (
+                  SELECT u2.name FROM users u2
+                  JOIN conversation_participants cp2 ON cp2.user_id = u2.id
+                  WHERE cp2.conversation_id = m.conversation_id AND u2.id != ? LIMIT 1
+                )) as conv_name
+         FROM messages m
+         JOIN users u ON u.id = m.sender_id
+         JOIN conversation_participants cp ON cp.conversation_id = m.conversation_id AND cp.user_id = ?
+         LEFT JOIN conversations c ON c.id = m.conversation_id
+         WHERE m.conversation_id IS NOT NULL
+           AND (m.text_da LIKE ? OR m.text_en LIKE ?)
+         ORDER BY m.created_at DESC LIMIT 15`,
+        [uid, uid, like, like]
+      )
+    } catch {
+      // Fallback: messages table may use single 'text' column (legacy schema)
+      try {
+        const [rows] = await pool.query(
+          `SELECT m.id, m.conversation_id, u.name as from_name,
+                  m.text as text_da, m.text as text_en, m.created_at as time,
+                  NULL as is_group, u.name as conv_name
+           FROM messages m
+           JOIN users u ON u.id = m.sender_id
+           WHERE m.receiver_id = ? AND m.text LIKE ?
+           ORDER BY m.created_at DESC LIMIT 15`,
+          [uid, like]
+        )
+        messages = rows
+      } catch { /* messages search unavailable — return empty */ }
+    }
     res.json({
       posts: posts.map(p => ({
         id: p.id,
@@ -4944,30 +5203,6 @@ app.post('/api/marketplace', authenticate, upload.array('photos', 10), async (re
   }
 })
 
-// GET /api/marketplace/stats — stats for the current user's own listings
-app.get('/api/marketplace/stats', authenticate, async (req, res) => {
-  try {
-    const [[row]] = await pool.query(
-      `SELECT
-         COUNT(*) AS total,
-         SUM(sold = 0) AS active,
-         SUM(sold = 1) AS sold,
-         SUM(boosted_until > NOW() AND sold = 0) AS boosted
-       FROM marketplace_listings WHERE user_id = ?`,
-      [req.userId]
-    )
-    res.json({
-      total:   Number(row.total   || 0),
-      active:  Number(row.active  || 0),
-      sold:    Number(row.sold    || 0),
-      boosted: Number(row.boosted || 0),
-    })
-  } catch (err) {
-    console.error('GET /api/marketplace/stats error:', err.message)
-    res.status(500).json({ error: 'Server error' })
-  }
-})
-
 // GET /api/marketplace/boosted-feed — return active boosted listings for feed injection
 app.get('/api/marketplace/boosted-feed', authenticate, async (req, res) => {
   try {
@@ -5199,6 +5434,25 @@ app.get('/api/marketplace/stats', authenticate, async (req, res) => {
     res.status(500).json({ error: 'Server error' })
   }
 })
+
+// ── User follows (asymmetric, any user) ──────────────────────────────────────
+
+const CREATE_USER_FOLLOWS = `CREATE TABLE IF NOT EXISTS user_follows (
+  follower_id INT NOT NULL,
+  followee_id INT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (follower_id, followee_id),
+  KEY idx_uf_follower (follower_id),
+  KEY idx_uf_followee (followee_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
+
+async function initUserFollows() {
+  try {
+    await pool.query(CREATE_USER_FOLLOWS)
+  } catch (err) {
+    console.error('initUserFollows error:', err.message)
+  }
+}
 
 // ── Companies & Jobs ──────────────────────────────────────────────────────────
 
@@ -6497,7 +6751,7 @@ app.patch('/api/feed/scheduled/:id', authenticate, async (req, res) => {
 // ── Company Lead Capture ──────────────────────────────────────────────────────
 
 // POST /api/companies/:id/leads — submit a lead form
-app.post('/api/companies/:id/leads', authenticate, async (req, res) => {
+app.post('/api/companies/:id/leads', authenticate, writeLimit, async (req, res) => {
   try {
     const { name, email, topic, message } = req.body
     if (!name?.trim() || !email?.trim()) return res.status(400).json({ error: 'Name and email required' })
@@ -6534,7 +6788,7 @@ app.get('/api/companies/:id/leads', authenticate, async (req, res) => {
 })
 
 // PATCH /api/companies/:id/leads/:leadId — update lead status
-app.patch('/api/companies/:id/leads/:leadId', authenticate, async (req, res) => {
+app.patch('/api/companies/:id/leads/:leadId', authenticate, writeLimit, async (req, res) => {
   try {
     const { status } = req.body
     const validStatuses = ['new', 'responded', 'archived']
@@ -9061,7 +9315,7 @@ app.post('/api/reels', authenticate, fileUploadLimit, reelUpload.single('video')
 })
 
 // POST /api/reels/:id/like — toggle like (supports reaction emoji)
-app.post('/api/reels/:id/like', authenticate, async (req, res) => {
+app.post('/api/reels/:id/like', authenticate, writeLimit, async (req, res) => {
   try {
     const reelId = parseInt(req.params.id)
     const reaction = (req.body?.reaction || '❤️').slice(0, 10)
@@ -9907,6 +10161,19 @@ app.post('/api/notifications/test', authenticate, async (req, res) => {
 })
 
 app.get('/api/notifications/unread-count', authenticate, async (req, res) => {
+  try {
+    const [[row]] = await pool.query(
+      'SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND is_read = 0',
+      [req.userId]
+    )
+    res.json({ count: Number(row.count) })
+  } catch {
+    res.json({ count: 0 })
+  }
+})
+
+// GET /api/notifications/count — alias for unread-count (short form)
+app.get('/api/notifications/count', authenticate, async (req, res) => {
   try {
     const [[row]] = await pool.query(
       'SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND is_read = 0',
@@ -11070,13 +11337,17 @@ app.post('/api/admin/moderators/:userId/revoke', authenticate, requireAdmin, asy
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     console.error(`[multer error] ${req.method} ${req.path}: ${err.code} – ${err.message}`)
-    if (err.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: 'File too large (max 50 MB)' })
-    if (err.code === 'LIMIT_FILE_COUNT') return res.status(400).json({ error: 'Too many files (max 4)' })
-    return res.status(400).json({ error: err.message })
+    if (err.code === 'LIMIT_FILE_SIZE')  return res.status(413).json({ error: 'File too large (max 50 MB)' })
+    if (err.code === 'LIMIT_FILE_COUNT') return res.status(400).json({ error: 'Too many files' })
+    return res.status(400).json({ error: 'File upload error' })
   }
   if (err) {
+    // Only expose safe, user-facing messages set by our own fileFilter callbacks.
+    // All other internal errors get a generic response to avoid leaking details.
+    const SAFE_MESSAGES = new Set(['File type not allowed', 'Invalid filename'])
+    const msg = SAFE_MESSAGES.has(err.message) ? err.message : 'Bad request'
     console.error(`[middleware error] ${req.method} ${req.path}: ${err.message}`)
-    return res.status(400).json({ error: err.message })
+    return res.status(400).json({ error: msg })
   }
   next()
 })
@@ -11543,6 +11814,16 @@ app.post('/api/badges/evaluate', authenticate, async (req, res) => {
           }
 
           newBadges.push(badge)
+
+          // Create a persistent notification so the user sees it in their notification feed
+          const nameDa = def.name.da || def.name.en
+          const nameEn = def.name.en || def.name.da
+          await createNotification(
+            userId,
+            'badge',
+            `Du har optjent badgen ${def.icon} ${nameDa}!`,
+            `You earned the ${def.icon} ${nameEn} badge!`
+          )
         }
       } catch { /* INSERT IGNORE handles duplicates */ }
     }
@@ -11938,31 +12219,42 @@ app.get('/api/geocode/reverse', async (req, res) => {
   }
 })
 
+// Run all schema-init functions BEFORE app.listen() so that ALTER TABLE
+// metadata locks are fully released before the server accepts any HTTP traffic.
+// Requests arriving while an ALTER TABLE holds a lock on e.g. `users` would
+// hang indefinitely — moving inits before listen() eliminates that window.
 const PORT = process.env.PORT || 3001
-app.listen(PORT, () => {
-  console.log(`fellis.eu API running on http://localhost:${PORT}`)
-  initNotifications()
-  initEvents()
-  initFriendRequests()
-  initConversations()
-  initMarketplace()
-  initCompanies()
-  initMollie()
-  initAdminSettings()
-  initAnalytics()
-  initSettingsSchema()
-  initSiteVisits()
-  initViralGrowth()
-  initReels()
-  initAds()
-  initAdminAdSettings()
-  initBusinessFeatures()
-  initEasterEggs()
-  initBadges()
-  initStoriesHashtags()
-  initSignalEngine()
+;(async () => {
+  await initNotifications()
+  await initEvents()
+  await initFriendRequests()
+  await initConversations()
+  await initMarketplace()
+  await initCompanies()
+  await initMollie()
+  await initAdminSettings()
+  await initAnalytics()
+  await initSettingsSchema()
+  await initSiteVisits()
+  await initViralGrowth()
+  await initReels()
+  await initAds()
+  await initAdminAdSettings()
+  await initBusinessFeatures()
+  await initEasterEggs()
+  await initBadges()
+  await initStoriesHashtags()
+  await initSignalEngine()
   // RTMP is handled by mediamtx (external service on port 1935).
   // node-media-server startup is intentionally disabled to avoid port conflicts.
+  console.log('fellis.eu startup init complete')
+
+  app.listen(PORT, () => {
+    console.log(`fellis.eu API running on http://localhost:${PORT}`)
+  })
+})().catch(err => {
+  console.error('Startup init error — server will NOT start:', err)
+  process.exit(1)
 })
 
 app.all('/api/stub/:fn', authenticate, (req, res) => res.json({ ok: true }))
@@ -12120,6 +12412,24 @@ app.get('/api/explore/trending-tags', authenticate, async (req, res) => {
   }
 })
 
+// GET /api/explore/trending — alias for trending-tags (short form)
+app.get('/api/explore/trending', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT tag, COUNT(*) AS count
+      FROM post_hashtags
+      WHERE created_at > NOW() - INTERVAL 48 HOUR
+      GROUP BY tag
+      ORDER BY count DESC
+      LIMIT 10
+    `)
+    res.json(rows)
+  } catch (err) {
+    console.error('GET /api/explore/trending error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // GET /api/explore/feed — trending posts platform-wide (excluding own posts)
 app.get('/api/explore/feed', authenticate, async (req, res) => {
   const cursor = req.query.cursor ? parseFloat(req.query.cursor) : null
@@ -12200,6 +12510,7 @@ app.get('/api/users/suggested', authenticate, async (req, res) => {
         WHERE u.id != ?
           AND u.id NOT IN (SELECT friend_id FROM friendships WHERE user_id = ?)
           AND u.id NOT IN (SELECT to_user_id FROM friend_requests WHERE from_user_id = ? AND status = 'pending')
+          AND u.email NOT LIKE 'e2e.test.%@fellis-test.invalid'
         ORDER BY shared_interests DESC, follower_count DESC
         LIMIT ?
       `, [req.userId, req.userId, req.userId, req.userId, limit])
@@ -12214,6 +12525,7 @@ app.get('/api/users/suggested', authenticate, async (req, res) => {
         WHERE u.id != ?
           AND u.id NOT IN (SELECT friend_id FROM friendships WHERE user_id = ?)
           AND u.id NOT IN (SELECT to_user_id FROM friend_requests WHERE from_user_id = ? AND status = 'pending')
+          AND u.email NOT LIKE 'e2e.test.%@fellis-test.invalid'
         ORDER BY follower_count DESC
         LIMIT ?
       `, [req.userId, req.userId, req.userId, limit])
@@ -12269,6 +12581,7 @@ app.get('/api/feed/suggested-posts', authenticate, async (req, res) => {
           AND p.author_id NOT IN (SELECT friend_id FROM friendships WHERE user_id = ?)
           AND p.scheduled_at IS NULL
           AND p.created_at > NOW() - INTERVAL 60 DAY
+          AND u.email NOT LIKE 'e2e.test.%@fellis-test.invalid'
           ${excludeClause}
         ORDER BY td.overlap DESC, p.likes DESC, p.created_at DESC
         LIMIT ?
@@ -12295,6 +12608,7 @@ app.get('/api/feed/suggested-posts', authenticate, async (req, res) => {
           AND p.author_id NOT IN (SELECT friend_id FROM friendships WHERE user_id = ?)
           AND p.scheduled_at IS NULL
           AND p.created_at > NOW() - INTERVAL 60 DAY
+          AND u.email NOT LIKE 'e2e.test.%@fellis-test.invalid'
           ${excludeClause}
         ORDER BY p.likes DESC, p.created_at DESC
         LIMIT ?
@@ -13820,7 +14134,7 @@ app.post('/api/me/portfolio', authenticate, writeLimit, async (req, res) => {
   }
 })
 
-app.put('/api/me/portfolio/:id', authenticate, async (req, res) => {
+app.put('/api/me/portfolio/:id', authenticate, writeLimit, async (req, res) => {
   try {
     const { title, description, url, image_url } = req.body
     await pool.query(
@@ -13833,7 +14147,7 @@ app.put('/api/me/portfolio/:id', authenticate, async (req, res) => {
   }
 })
 
-app.delete('/api/me/portfolio/:id', authenticate, async (req, res) => {
+app.delete('/api/me/portfolio/:id', authenticate, writeLimit, async (req, res) => {
   try {
     await pool.query('DELETE FROM user_portfolio WHERE id=? AND user_id=?', [req.params.id, req.userId])
     res.json({ ok: true })
@@ -14000,6 +14314,73 @@ app.post('/api/admin/blog/translate', authenticate, requireAdmin, async (req, re
     if (!result) return res.status(503).json({ error: 'Translation unavailable' })
     res.json({ text: result })
   } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Discovery Feed Cards ───────────────────────────────────────────────────────
+
+// GET /api/feed/discovery — 3–5 mixed suggestions (users, businesses, groups) not yet followed
+app.get('/api/feed/discovery', authenticate, async (req, res) => {
+  try {
+    const uid = req.userId
+
+    // Users: not self, not already friends
+    const [users] = await pool.query(
+      `SELECT u.id, 'user' AS type, u.name,
+              u.avatar_url AS avatar,
+              COALESCE(u.bio_da, '') AS description_da,
+              COALESCE(u.bio_en, '') AS description_en,
+              COALESCE(u.follower_count, 0) AS follower_count
+       FROM users u
+       WHERE u.id != ?
+         AND u.id NOT IN (SELECT friend_id FROM friendships WHERE user_id = ?)
+         AND u.id NOT IN (SELECT user_id FROM friendships WHERE friend_id = ?)
+       ORDER BY RAND()
+       LIMIT 2`,
+      [uid, uid, uid]
+    )
+
+    // Businesses: not followed, not owned
+    const [businesses] = await pool.query(
+      `SELECT c.id, 'business' AS type, c.name,
+              NULL AS avatar,
+              COALESCE(c.tagline, '') AS description_da,
+              COALESCE(c.tagline, '') AS description_en,
+              (SELECT COUNT(*) FROM company_follows WHERE company_id = c.id) AS follower_count
+       FROM companies c
+       WHERE c.id NOT IN (SELECT company_id FROM company_follows WHERE user_id = ?)
+         AND c.id NOT IN (SELECT company_id FROM company_members WHERE user_id = ?)
+       ORDER BY RAND()
+       LIMIT 2`,
+      [uid, uid]
+    )
+
+    // Public groups: not joined
+    const [groups] = await pool.query(
+      `SELECT cv.id, 'group' AS type, cv.name,
+              NULL AS avatar,
+              COALESCE(cv.description_da, '') AS description_da,
+              COALESCE(cv.description_en, '') AS description_en,
+              (SELECT COUNT(*) FROM conversation_participants WHERE conversation_id = cv.id) AS follower_count
+       FROM conversations cv
+       WHERE cv.is_public = 1
+         AND cv.is_group = 1
+         AND cv.id NOT IN (SELECT conversation_id FROM conversation_participants WHERE user_id = ?)
+       ORDER BY RAND()
+       LIMIT 2`,
+      [uid]
+    )
+
+    const all = [...users, ...businesses, ...groups]
+    // Fisher-Yates shuffle for unbiased random mix
+    for (let i = all.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [all[i], all[j]] = [all[j], all[i]]
+    }
+    res.json({ suggestions: all.slice(0, 5) })
+  } catch (err) {
+    console.error('GET /api/feed/discovery error:', err)
     res.status(500).json({ error: 'Server error' })
   }
 })

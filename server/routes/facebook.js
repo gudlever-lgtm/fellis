@@ -344,7 +344,10 @@ router.post('/import', requireAuth, async (req, res) => {
         try {
           const imgRes = await fetch(fbUser.picture.data.url)
           if (imgRes.ok) {
+            const contentLength = parseInt(imgRes.headers.get('content-length') || '0', 10)
+            if (contentLength > 5 * 1024 * 1024) throw new Error('Profile picture too large')
             const imgBuf = Buffer.from(await imgRes.arrayBuffer())
+            if (imgBuf.length > 5 * 1024 * 1024) throw new Error('Profile picture too large')
             const filename = `${crypto.randomUUID()}.jpg`
             const filepath = path.join(UPLOADS_DIR, filename)
             fs.writeFileSync(filepath, imgBuf)

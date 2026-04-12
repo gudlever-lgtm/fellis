@@ -8,6 +8,7 @@
 - **Frontend:** React 19, Vite 7, JavaScript (JSX) — no TypeScript
 - **Backend:** Node.js (ESM), Express 4, MySQL2/MariaDB
 - **Database:** MariaDB 11.8+ / MySQL 8+
+- **Web server:** lighttpd 1.4.46+ — serves static files, reverse-proxies `/api` and `/uploads` to Node.js, handles SPA fallback and TLS
 - **Auth:** Session-based (`X-Session-Id` header + localStorage), Google / LinkedIn OAuth
 - **Payments:** Mollie (subscriptions, ad payments, ad-free tier)
 - **File uploads:** Multer (images/media)
@@ -79,7 +80,7 @@ fellis/
 │   ├── cleanup-marketplace.js  # Remove stale marketplace listings
 │   ├── import-keyword-lists.js # Import moderation keyword filters
 │   ├── migrate-bcrypt-passwords.js  # One-time bcrypt password migration script
-│   ├── migrate-*.sql       # Incremental database migrations (48 files)
+│   ├── migrate-*.sql       # Incremental database migrations (49 files)
 │   ├── package.json        # Server-only dependencies
 │   └── .env.example        # Environment variable template
 ├── tests/
@@ -166,6 +167,52 @@ The server reads `.env` manually at startup (not via `--env-file`) for PM2 compa
 
 ---
 
+## Production Server (lighttpd)
+
+fellis.eu is served by **lighttpd** as both a static file server and a reverse proxy to the Node.js backend. The configuration lives in [`lighttpd.conf`](../lighttpd.conf) at the repo root.
+
+### Routing rules
+
+| Path | Handled by |
+|------|-----------|
+| `/api/*` | Proxied to Node.js `localhost:3001` |
+| `/uploads/*` | Proxied to Node.js `localhost:3001` |
+| `/assets/*` | Static files — `Cache-Control: immutable, max-age=31536000` |
+| Everything else | Fallback to `/index.html` (React SPA routing) |
+
+### Key configuration notes
+
+- **Module order matters:** `mod_proxy` must be listed before `mod_rewrite` so proxy rules are evaluated before URL rewrites.
+- **SSE streaming:** `server.stream-response-body = 2` prevents lighttpd from buffering Server-Sent Events. The `/api/sse` path additionally sets `proxy.read-timeout = 600`.
+- **SPA fallback:** `url.rewrite-if-not-file = ( "^/.*" => "/index.html" )` handles all React Router paths.
+- **chat.fellis.eu:** A `$HTTP["host"]` vhost block in the same config serves the chat app from `/var/www/fellis.eu/chat/dist/` using the same Node.js backend.
+
+### Enabling HTTPS
+
+```bash
+sudo apt install certbot
+sudo certbot certonly --webroot -w /var/www/fellis.eu -d fellis.eu -d www.fellis.eu
+# Then uncomment the $SERVER["socket"] == ":443" block in lighttpd.conf
+```
+
+### Required modules
+
+```bash
+sudo lighttpd-enable-mod proxy rewrite compress setenv accesslog
+lighttpd -t -f /etc/lighttpd/lighttpd.conf   # validate before reload
+sudo systemctl reload lighttpd
+```
+
+### Deploy checklist
+
+1. `npm run build` — builds frontend into `assets/` + updates `index.html`
+2. Sync `index.html` and `assets/` to `/var/www/fellis.eu/`
+3. `cd server && npm run migrate` — apply any pending DB migrations
+4. Restart/reload the Node.js backend (PM2: `pm2 reload fellis`)
+5. `sudo systemctl reload lighttpd` if the config changed
+
+---
+
 ## Build & Test
 
 ```bash
@@ -213,14 +260,25 @@ Vite builds from `src/` as root into `assets/` at the repo root:
 
 ### Authentication
 - Sessions are stored server-side in the `sessions` DB table (30-day expiry)
-- Session ID is kept in `localStorage` as `fellis_session_id` and sent as `X-Session-Id` header on every request
+- Session ID is in the `fellis_sid` HTTP-only cookie (set by server, sent automatically by browser)
 - For multipart/FormData requests, use `formHeaders()` (not `headers()`) to avoid sending `null` as a header value
+
+### CSRF Protection
+- All state-changing requests (POST/PUT/PATCH/DELETE) require an `X-CSRF-Token` header
+- The CSRF token is HMAC-SHA256(sessionId, CSRF_SECRET) — fetched via `GET /api/csrf-token` after login
+- The token is stored in `localStorage` as `fellis_csrf_token` and read by `getCsrfToken()` in `api.js`
+- `CSRF_SECRET` must be stable across restarts — it is auto-generated on first start and persisted to `server/.env`
+- Pre-auth endpoints (login, register, forgot-password, reset-password, verify-mfa, `/api/visit`) are exempt from CSRF
+- The CSRF token must be fetched and stored **before** the platform mounts — both `handleEnterPlatform` and the session-restore path in `App.jsx` await `apiGetCsrfToken()` before calling `setView('platform')`
+
 ### API Layer (`src/api.js`)
 - **Single source of truth** for all API calls — all `fetch()` calls go through the `request()` helper
 - `request()` returns `null` when the server is unreachable (demo/offline mode), never throws on network errors
+- `request()` automatically includes the CSRF token via `headers()` — never bypass it for state-changing calls
 - For file uploads (avatar, media), call `fetch()` directly with `formHeaders()` — do not use the `request()` helper
 - The `VITE_API_URL` env var allows pointing the frontend at a different backend origin
 - **Always add new API functions to this file** — never call `fetch()` directly from components
+- In `Platform.jsx`, legacy raw `fetch()` calls use the local `csrfFetch()` helper (defined at top of file) which injects the CSRF token — new code should use `api.js` functions instead
 
 ### API Route Consistency
 - `tests/check-api-routes.js` runs automatically before every build
@@ -262,7 +320,7 @@ Vite builds from `src/` as root into `assets/` at the repo root:
 | `friendships` | Bidirectional friend connections |
 | `friend_requests` | Pending/accepted/declined friend requests |
 | `user_blocks` | Blocked user pairs |
-| `posts` | Feed posts (bilingual text + JSON media array) |
+| `posts` | Feed posts (bilingual text + JSON media array); `user_mode` column records author's mode at creation time for feed separation |
 | `post_likes` | Like tracking per user/post |
 | `post_views` | View count per post |
 | `comments` | Post comments (bilingual) |
@@ -313,7 +371,7 @@ Vite builds from `src/` as root into `assets/` at the repo root:
 | `user_settings` | Per-user settings (dark mode, notification prefs, etc.) |
 
 ### Migrations
-- Schema changes use standalone `server/migrate-*.sql` files (48 files total)
+- Schema changes use standalone `server/migrate-*.sql` files (49 files total)
 - `server/migrate.js` tracks which migrations have been applied and runs pending ones in order
 - `server/run-migrations.js` can be called at deploy/startup to auto-apply pending migrations
 - Use the npm scripts instead of running SQL manually:
@@ -331,7 +389,7 @@ npm run migrate           # apply all pending migrations
 
 The `Platform.jsx` component renders these pages (controlled by `page` state):
 
-- **feed** — Post creation, feed with reactions, comments, media, link previews, scheduled posts
+- **feed** — Post creation, feed with reactions, comments, media, link previews, scheduled posts; Community/Business mode toggle filters feed via `GET /api/feed?mode=privat|business`
 - **friends** — Friend list, friend requests, user search, invite system, blocking
 - **messages** — Conversations (DM + group chats), mute, rename, leave
 - **profile** — User profile, avatar upload, bio, skills, interests, GDPR data tools
@@ -362,6 +420,13 @@ The `Platform.jsx` component renders these pages (controlled by `page` state):
 - **privat** — Standard personal account mode
 - **business** — Business account mode (unlocks analytics, endorsements, profile views, ads, leads)
 - Stored in `localStorage` as `fellis_mode` and synced to server via `PATCH /api/me/mode`
+
+### Feed Mode Separation
+- Every post stores `user_mode` (ENUM `'privat'`/`'business'`) at INSERT time via `(SELECT mode FROM users WHERE id = ?)` — records the author's mode at the moment of posting
+- `GET /api/feed` accepts optional `?mode=privat|business`; returns 400 for any other value; omitting it returns the original mixed feed (backward-compatible)
+- The frontend (`FeedPage` in `Platform.jsx`) defaults to the current user's own mode and renders a two-tab toggle ("Fællesskab" / "Erhverv" in Danish, "Community" / "Business" in English) — switching resets the cursor and reloads
+- Migration: `server/migrate-feed-mode-separation.sql` (adds column, backfills, adds composite index on `user_mode, created_at`)
+- Translation keys: `feedModePrivat` / `feedModeBusiness` in `src/i18n/feed.js`
 
 ### Easter Eggs
 Five hidden interactions are implemented (see `src/components/easter-eggs/` and `src/hooks/`):

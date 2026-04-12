@@ -111,6 +111,14 @@ export async function apiVerifyMfa(userId, code, lang) {
   return data
 }
 
+export async function apiSendEnableMfa() {
+  return await request('/api/auth/send-enable-mfa', { method: 'POST' })
+}
+
+export async function apiConfirmEnableMfa(code) {
+  return await request('/api/auth/confirm-enable-mfa', { method: 'POST', body: JSON.stringify({ code }) })
+}
+
 export async function apiEnableMfa() {
   return await request('/api/auth/enable-mfa', { method: 'POST' })
 }
@@ -165,10 +173,10 @@ export async function apiLogout() {
 }
 
 // Feed
-export async function apiFetchFeed(cursor = null, limit = 20) {
-  const params = cursor
-    ? `cursor=${encodeURIComponent(cursor)}&limit=${limit}`
-    : `limit=${limit}`
+export async function apiFetchFeed(cursor = null, limit = 20, mode = null) {
+  const params = new URLSearchParams({ limit: String(limit) })
+  if (cursor) params.set('cursor', cursor)
+  if (mode) params.set('mode', mode)
   return await request(`/api/feed?${params}`)
 }
 
@@ -178,6 +186,10 @@ export async function apiPreflightPost(text) {
 
 export async function apiFetchMemories() {
   return await request('/api/feed/memories')
+}
+
+export async function apiGetDiscovery() {
+  return await request('/api/feed/discovery')
 }
 
 // Single XHR upload attempt. Uses a stall-based inactivity timer (2 min
@@ -454,6 +466,23 @@ export async function apiToggleFamilyFriend(userId, isFamily) {
     method: 'PATCH',
     body: JSON.stringify({ is_family: isFamily }),
   })
+}
+
+// User follows (asymmetric: follow any user or company)
+export async function apiFollowUser(userId) {
+  return await request(`/api/users/${userId}/follow`, { method: 'POST' })
+}
+
+export async function apiUnfollowUser(userId) {
+  return await request(`/api/users/${userId}/follow`, { method: 'DELETE' })
+}
+
+export async function apiGetFollowers() {
+  return await request('/api/me/followers')
+}
+
+export async function apiGetFollowing() {
+  return await request('/api/me/following')
 }
 
 // Conversations (replaces legacy /api/messages)
@@ -1681,7 +1710,7 @@ export async function apiGetSuggestedUsers(limit = 6) {
 // ── Signal Engine / Interest Graph ────────────────────────────────────────────
 // Batch-send behavioral signals to the server. Each signal: { signal_type, source_type?, source_id?, interest_slugs?, context? }
 export async function apiIngestSignals(signals) {
-  return await request('/api/signals', 'POST', { signals })
+  return await request('/api/signals', { method: 'POST', body: JSON.stringify({ signals }) })
 }
 // Get the authenticated user's computed interest graph
 export async function apiGetInterestGraph() {

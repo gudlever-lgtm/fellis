@@ -458,14 +458,15 @@ function App() {
 
     apiCheckSession().then(async data => {
       if (data && !data.__authError) {
-        setView('platform')
         if (data.lang) setLang(data.lang)
         localStorage.setItem('fellis_logged_in', 'true')
-        // Fetch CSRF token for authenticated requests
+        // Fetch CSRF token before mounting platform — avoids race where a POST
+        // fires before the token is stored (same fix applied to handleEnterPlatform)
         const csrfData = await apiGetCsrfToken().catch(() => null)
         if (csrfData?.csrfToken) {
           localStorage.setItem('fellis_csrf_token', csrfData.csrfToken)
         }
+        setView('platform')
         // Check if user has given data_processing consent — show dialog if not
         const consentData = await apiGetConsentStatus().catch(() => null)
         if (consentData && !consentData.data_processing?.given) {
@@ -487,20 +488,20 @@ function App() {
     })
   }, [])
 
-  const handleEnterPlatform = useCallback((selectedLang) => {
+  const handleEnterPlatform = useCallback(async (selectedLang) => {
     setLang(selectedLang)
-    setView('platform')
     localStorage.setItem('fellis_logged_in', 'true')
     localStorage.setItem('fellis_lang', selectedLang)
     localStorage.removeItem('fellis_invite_token')
     setInviteToken(null)
     setInviterName(null)
-    // Fetch CSRF token for authenticated requests
-    apiGetCsrfToken().then(csrfData => {
-      if (csrfData?.csrfToken) {
-        localStorage.setItem('fellis_csrf_token', csrfData.csrfToken)
-      }
-    }).catch(() => {})
+    // Fetch CSRF token before mounting platform — avoids race where heartbeat
+    // fires before the token is stored (platform mounts and immediately POSTs)
+    const csrfData = await apiGetCsrfToken().catch(() => null)
+    if (csrfData?.csrfToken) {
+      localStorage.setItem('fellis_csrf_token', csrfData.csrfToken)
+    }
+    setView('platform')
     // Check if existing user has given data_processing consent
     apiGetConsentStatus().then(data => {
       if (data && !data.data_processing?.given) setShowGeneralConsent(true)

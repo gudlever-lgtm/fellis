@@ -1,8 +1,8 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } from 'react'
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
-import { UI_LANGS, EUROPEAN_LANGUAGES, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials, getTranslations } from './data.js'
+import { UI_LANGS, EUROPEAN_LANGUAGES, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials, getTranslations, PT } from './data.js'
 import { formatPrice } from './utils/currency.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiRemoveConversationParticipant, apiMuteConversationParticipant, apiUploadAvatar, apiCheckSession, apiRequestAccountDelete, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiShareJob, apiUnshareJob, apiGetSharedJobs, apiGetJobSharedWith, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals, apiFetchCalendarReminders, apiCreateCalendarReminder, apiDeleteCalendarReminder, apiGetLinkedContent, apiFetchJobs, apiGetSuggestedUsers, apiAdminNotifyAll, apiLikeComment, apiAdminGetPlatformAds, apiAdminCreatePlatformAd, apiAdminUpdatePlatformAd, apiAdminDeletePlatformAd, apiAdminGetLockedUsers, apiAdminUnlockUser, apiFeedCompanyPosts, apiGetLivestreamSettings, apiSaveLivestreamSettings, apiGetLivestreamStats, apiGetLivestreamStatus,
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiRemoveConversationParticipant, apiMuteConversationParticipant, apiUploadAvatar, apiCheckSession, apiRequestAccountDelete, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiShareJob, apiUnshareJob, apiGetSharedJobs, apiGetJobSharedWith, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiSendEnableMfa, apiConfirmEnableMfa, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals, apiFetchCalendarReminders, apiCreateCalendarReminder, apiDeleteCalendarReminder, apiGetLinkedContent, apiFetchJobs, apiGetSuggestedUsers, apiAdminNotifyAll, apiLikeComment, apiAdminGetPlatformAds, apiAdminCreatePlatformAd, apiAdminUpdatePlatformAd, apiAdminDeletePlatformAd, apiAdminGetLockedUsers, apiAdminUnlockUser, apiFeedCompanyPosts, apiGetLivestreamSettings, apiSaveLivestreamSettings, apiGetLivestreamStats, apiGetLivestreamStatus,
   apiGetStreamKey, apiRegenerateStreamKey, apiGetMarketplaceAlerts, apiCreateMarketplaceAlert, apiUpdateMarketplaceAlert, apiDeleteMarketplaceAlert } from './api.js'
 import {
   apiSharePost, apiUnsharePost, apiSavePost, apiUnsavePost, apiGetSavedPosts,
@@ -23,6 +23,7 @@ import {
   apiShareReelToFeed,
   apiConvertPostToReel,
   apiSubmitFeedback, apiGetAdminFeedback, apiUpdateFeedbackStatus,
+  apiGetDiscovery,
 } from './api.js'
 import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
@@ -43,7 +44,7 @@ import MatrixRain from './components/easter-eggs/MatrixRain.jsx'
 import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
 import RickRoll from './components/easter-eggs/RickRoll.jsx'
 import RiddleBanner from './components/easter-eggs/RiddleBanner.jsx'
-import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode, apiReverseGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness, apiPayForAd, apiBoostPost, apiTrackAdImpression, apiTrackAdClick, apiAdminGrowth, apiAdminOnlineNow, apiAdminGetBannedUsers, apiAdminGetAuditLog, apiAdminSearchUsers, apiAdminForceLogout, apiAdminDeleteUser, apiGetAdminStorageStats } from './api.js'
+import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode, apiReverseGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiAssignAdfreedays, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness, apiFollowUser, apiUnfollowUser, apiGetFollowers, apiGetFollowing, apiPayForAd, apiBoostPost, apiTrackAdImpression, apiTrackAdClick, apiAdminGrowth, apiAdminOnlineNow, apiAdminGetBannedUsers, apiAdminGetAuditLog, apiAdminSearchUsers, apiAdminForceLogout, apiAdminDeleteUser, apiGetAdminStorageStats } from './api.js'
 import BusinessBadge from './components/BusinessBadge.jsx'
 import BusinessDirectory from './pages/BusinessDirectory.jsx'
 import AdManager from './pages/AdManager.jsx'
@@ -67,8 +68,23 @@ import MarketplaceWishlist from './components/MarketplaceWishlist.jsx'
 import MakeOfferModal from './components/MakeOfferModal.jsx'
 import KeyboardShortcutsHelp from './components/KeyboardShortcutsHelp.jsx'
 import useKeyboardShortcuts from './hooks/useKeyboardShortcuts.js'
+import DiscoveryCard from './components/DiscoveryCard.jsx'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
+
+// Wrapper for raw csrfFetch() calls that adds the CSRF token and session cookie.
+// Use this anywhere api.js request() can't be used (e.g. non-JSON bodies).
+function csrfFetch(url, options = {}) {
+  const csrf = localStorage.getItem('fellis_csrf_token')
+  return fetch(`${API_BASE}${url}`, {
+    credentials: 'same-origin',
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+      ...(csrf ? { 'X-CSRF-Token': csrf } : {}),
+    },
+  })
+}
 
 
 // ── Mock notifications ──
@@ -893,7 +909,7 @@ const NOTIF_ICONS = {
   like: '❤️', comment: '💬', friend_request: '👥', friend_accepted: '🤝',
   friend_declined: '👋', event_rsvp: '📅', listing_boosted: '🚀',
   moderator_granted: '🛡️', mod_result: '📋', moderation: '⚠️', test: '🔔',
-  new_message: '✉️',
+  new_message: '✉️', badge: '🏅',
 }
 // Navigation target for each notification type (no 'link' column in DB)
 const NOTIF_TYPE_PAGE = {
@@ -901,7 +917,7 @@ const NOTIF_TYPE_PAGE = {
   friend_request: 'friends', friend_accepted: 'friends', friend_declined: 'friends',
   event_rsvp: 'events', listing_boosted: 'marketplace',
   moderator_granted: 'admin', mod_result: 'profile', moderation: 'profile',
-  new_message: 'messages',
+  new_message: 'messages', badge: 'badges',
 }
 
 function timeAgo(dateStr, lang) {
@@ -981,8 +997,9 @@ function NotificationsPanel({ notifs, t, lang, titleRef, onMarkAllRead, onMarkRe
 
 // ── Media display component ──
 // ── Lightbox modal ──
-function Lightbox({ media, index: initialIndex, onClose }) {
+function Lightbox({ media, index: initialIndex, onClose, lang = 'da' }) {
   const [index, setIndex] = useState(initialIndex)
+  const [brokenImages, setBrokenImages] = useState(new Set())
   const count = media.length
   const touchStartX = useRef(null)
 
@@ -1000,6 +1017,7 @@ function Lightbox({ media, index: initialIndex, onClose }) {
   }, [onClose, prev, next])
 
   const item = media[index]
+  const t = getTranslations(lang)
   return (
     <div
       className="lightbox-overlay"
@@ -1018,8 +1036,15 @@ function Lightbox({ media, index: initialIndex, onClose }) {
           <video className="lightbox-media" controls autoPlay playsInline>
             <source src={item.src} type={item.mime} />
           </video>
+        ) : brokenImages.has(index) ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#ccc', gap: 12, minHeight: 200, padding: 40 }}>
+            <span style={{ fontSize: 64 }}>🖼️</span>
+            <span style={{ fontSize: 18, fontWeight: 600 }}>{t.imageMissing}</span>
+            <span style={{ fontSize: 14, color: '#888' }}>{t.imageMissingHint}</span>
+          </div>
         ) : (
-          <img className="lightbox-media" src={item.src} alt="" />
+          <img className="lightbox-media" src={item.src} alt=""
+            onError={() => setBrokenImages(prev => new Set([...prev, index]))} />
         )}
       </div>
       <button className="lightbox-close" onClick={onClose}>✕</button>
@@ -1192,10 +1217,12 @@ function PostText({ text, lang }) {
   )
 }
 
-function PostMedia({ media }) {
+function PostMedia({ media, lang = 'da' }) {
   const [lightboxIndex, setLightboxIndex] = useState(null)
+  const [brokenImages, setBrokenImages] = useState(new Set())
   if (!media?.length) return null
   const count = media.length
+  const t = getTranslations(lang)
   const lightboxMedia = media.map(m => ({
     src: m.url.startsWith('http') ? m.url : `${API_BASE}${m.url}`,
     type: m.type === 'video' ? 'video' : 'image',
@@ -1214,12 +1241,22 @@ function PostMedia({ media }) {
               </video>
             )
           }
+          if (brokenImages.has(i)) {
+            return (
+              <div key={i} className="p-media-item" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', color: '#999', gap: 6, minHeight: 140, borderRadius: 8, cursor: 'default' }}>
+                <span style={{ fontSize: 40 }}>🖼️</span>
+                <span style={{ fontWeight: 600, fontSize: 13 }}>{t.imageMissing}</span>
+                <span style={{ fontSize: 11, color: '#bbb' }}>{t.imageMissingHint}</span>
+              </div>
+            )
+          }
           return <img key={i} className="p-media-item p-media-clickable" src={src} alt="" loading="lazy"
-            onClick={() => setLightboxIndex(i)} />
+            onClick={() => setLightboxIndex(i)}
+            onError={() => setBrokenImages(prev => new Set([...prev, i]))} />
         })}
       </div>
       {lightboxIndex !== null && (
-        <Lightbox media={lightboxMedia} index={lightboxIndex} onClose={() => setLightboxIndex(null)} />
+        <Lightbox media={lightboxMedia} index={lightboxIndex} onClose={() => setLightboxIndex(null)} lang={lang} />
       )}
     </>
   )
@@ -1972,7 +2009,7 @@ function SuggestedPostCard({ post, lang, onViewProfile }) {
   const handleAddFriend = async () => {
     setFriendReqSent(true)
     try {
-      await fetch(`/api/friends/request/${post.author_id}`, {
+      await csrfFetch(`/api/friends/request/${post.author_id}`, {
         method: 'POST',
         credentials: 'same-origin', // Session cookie sent automatically
       })
@@ -2040,6 +2077,7 @@ function SuggestedPostCard({ post, lang, onViewProfile }) {
 }
 
 const BOOST_FEED_EVERY = 7 // inject a boosted listing card after every N posts
+const DISCOVERY_EVERY = 8 // inject a discovery card after every N posts
 
 function BoostedListingCard({ listing, lang, t, onNavigate }) {
   const title = listing.title_da || listing.title_en || listing.title || ''
@@ -2120,7 +2158,12 @@ function FeedSidebar({ lang, t, adsFree, onNavigate }) {
   const [locationPopup, setLocationPopup] = useState(null) // { loc: string }
 
   useEffect(() => {
-    apiFetchEvents().then(d => { if (d?.events) setEvents(d.events.slice(0, 3)) })
+    apiFetchEvents().then(d => {
+      if (d?.events) {
+        const today = new Date(); today.setHours(0, 0, 0, 0)
+        setEvents(d.events.filter(ev => new Date(ev.date) >= today).slice(0, 3))
+      }
+    })
     apiGetSuggestedUsers(4).then(d => { if (d?.users) setSuggestedFriends(d.users) })
     apiGetBoostedFeedListings().then(d => { if (d?.listings) setBoostedListings(d.listings.slice(0, 4)) })
   }, [])
@@ -2229,6 +2272,8 @@ function FeedSidebar({ lang, t, adsFree, onNavigate }) {
 function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onViewBadges, onNavigate, onBadgeCheck, feedEggRef, onTriggerChuck, onTriggerMatrix, onTriggerRickroll, onTriggerParty, onTriggerRetro, interestCategories = INTEREST_CATEGORIES }) {
   const [posts, setPosts] = useState([])
   const [feedCategoryFilter, setFeedCategoryFilter] = useState(null)
+  const [feedMode, setFeedMode] = useState(mode || 'privat')
+  const feedModeRef = useRef(mode || 'privat')
   const [pinnedPost, setPinnedPost] = useState(null)
   const pinnedRef = useRef(null)
   const [insightsPostId, setInsightsPostId] = useState(null)
@@ -2474,6 +2519,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [dismissedGroupIds, setDismissedGroupIds] = useState(new Set())
   const [suggestedPosts, setSuggestedPosts] = useState([])
   const [boostedFeedListings, setBoostedFeedListings] = useState([])
+  const [discoveryCards, setDiscoveryCards] = useState([])
   const [showScrollTop, setShowScrollTop] = useState(false)
   const [mediaMaxFiles, setMediaMaxFiles] = useState(4)
   const mediaMaxFilesRef = useRef(4)
@@ -2500,7 +2546,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     if (isFetchingRef.current) return
     isFetchingRef.current = true
     setLoadingPage(true)
-    const data = await apiFetchFeed(nextCursorRef.current, PAGE_SIZE)
+    const data = await apiFetchFeed(nextCursorRef.current, PAGE_SIZE, feedModeRef.current)
     if (data?.posts) {
       setPosts(prev => {
         const existingIds = new Set(prev.map(p => p.id))
@@ -2524,13 +2570,14 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     isFetchingRef.current = false
   }, []) // stable — all mutable reads go through refs
 
-  // Initial load
+  // Reload posts whenever feedMode changes (also handles initial load via feedMode initial value)
   useEffect(() => {
-    apiGetConfig().then(res => {
-      const cfg = res?.config || res
-      if (cfg?.mediaMaxFiles) { setMediaMaxFiles(cfg.mediaMaxFiles); mediaMaxFilesRef.current = cfg.mediaMaxFiles }
-    })
-    apiFetchFeed(null, PAGE_SIZE).then(data => {
+    feedModeRef.current = feedMode
+    setPosts([])
+    nextCursorRef.current = null
+    isFetchingRef.current = false
+    setHasMore(true)
+    apiFetchFeed(null, PAGE_SIZE, feedMode).then(data => {
       if (data?.posts) {
         setPosts(data.posts)
         setLikedPosts(new Set(data.posts.filter(p => p.liked).map(p => p.id)))
@@ -2538,6 +2585,14 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         nextCursorRef.current = data.nextCursor ?? null
         setHasMore(data.nextCursor != null)
       }
+    })
+  }, [feedMode])
+
+  // Initial load (config + non-feed data)
+  useEffect(() => {
+    apiGetConfig().then(res => {
+      const cfg = res?.config || res
+      if (cfg?.mediaMaxFiles) { setMediaMaxFiles(cfg.mediaMaxFiles); mediaMaxFilesRef.current = cfg.mediaMaxFiles }
     })
     // Load saved post IDs for bookmark UI
     apiGetSavedPosts().then(d => {
@@ -2569,6 +2624,11 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     // Load recent company posts from all followed/owned companies
     apiFeedCompanyPosts().then(data => {
       if (data?.posts?.length) setCpFeedPosts(data.posts)
+    })
+
+    // Load discovery cards (users/businesses/groups not yet followed)
+    apiGetDiscovery().then(data => {
+      if (data?.suggestions?.length) setDiscoveryCards(data.suggestions)
     })
   }, [])
 
@@ -3663,6 +3723,26 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       {/* Reels strip */}
       <ReelsStrip lang={lang} t={t} onNavigate={onNavigate} />
 
+      {/* Feed mode toggle — Community (privat) vs Business */}
+      <div style={{ display: 'flex', borderBottom: '2px solid #e5e7eb', background: '#fff' }}>
+        {['privat', 'business'].map(m => (
+          <button
+            key={m}
+            onClick={() => setFeedMode(m)}
+            style={{
+              flex: 1, padding: '10px 0', fontSize: 14, fontWeight: 600,
+              border: 'none',
+              borderBottom: feedMode === m ? '2px solid #1877F2' : '2px solid transparent',
+              marginBottom: -2, background: 'none', cursor: 'pointer',
+              color: feedMode === m ? '#1877F2' : '#6b7280',
+              fontFamily: 'inherit', transition: 'color 0.15s',
+            }}
+          >
+            {m === 'privat' ? t.feedModePrivat : t.feedModeBusiness}
+          </button>
+        ))}
+      </div>
+
       {/* Memories card — on this day */}
       <MemoriesCard
         lang={lang}
@@ -3687,7 +3767,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                 <div><div className="p-post-author">{post.author}</div><div className="p-post-time">{post.time?.[lang]}</div></div>
               </div>
               <div className="p-post-text">{post.text[lang]}</div>
-              {post.media?.length > 0 && <PostMedia media={post.media} />}
+              {post.media?.length > 0 && <PostMedia media={post.media} lang={lang} />}
             </div>
           </div>
         )
@@ -3701,10 +3781,11 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         // Build sorted extras list from company posts + recently-created events (14-day window)
         const CUTOFF_MS = 14 * 24 * 60 * 60 * 1000
         const now = Date.now()
+        const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
         const extras = [
-          ...cpFeedPosts.map(p => ({ _type: 'company_post', _ts: new Date(p.created_at).getTime(), _data: p })),
+          ...cpFeedPosts.map(p => ({ _type: 'company_post', _ts: new Date(p.created_at + 'Z').getTime(), _data: p })),
           ...feedEvents
-            .filter(ev => ev.createdAt && (now - new Date(ev.createdAt).getTime()) < CUTOFF_MS)
+            .filter(ev => ev.createdAt && (now - new Date(ev.createdAt).getTime()) < CUTOFF_MS && new Date(ev.date) >= todayStart)
             .map(ev => ({ _type: 'event', _ts: new Date(ev.createdAt).getTime(), _data: ev })),
         ].sort((a, b) => b._ts - a._ts)
 
@@ -3714,7 +3795,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         const items = []
         let extraIdx = 0
         for (let i = 0; i <= filteredPosts.length; i++) {
-          const postTs = i < filteredPosts.length ? new Date(filteredPosts[i].createdAtRaw || filteredPosts[i].created_at).getTime() : -Infinity
+          const postTs = i < filteredPosts.length ? new Date((filteredPosts[i].createdAtRaw || filteredPosts[i].created_at) + 'Z').getTime() : -Infinity
           while (extraIdx < extras.length && extras[extraIdx]._ts >= postTs) {
             items.push({ kind: extras[extraIdx]._type, data: extras[extraIdx]._data })
             extraIdx++
@@ -3730,9 +3811,9 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         const liked = !!post.liked
         const showComments = cpFeedExpanded.has(post.id)
         const postText = lang === 'da' ? (post.text_da || post.text_en) : (post.text_en || post.text_da)
-        const timeAgo = new Date(post.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short' })
+        const timeAgo = new Date(post.created_at + 'Z').toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short' })
         const toggleLike = () => {
-          fetch(`/api/companies/${post.company_id}/posts/${post.id}/like`, { method: 'POST', credentials: 'include' })
+          csrfFetch(`/api/companies/${post.company_id}/posts/${post.id}/like`, { method: 'POST', credentials: 'include' })
             .then(r => r.ok ? r.json() : null)
             .then(data => { if (!data) return; setCpFeedPosts(prev => prev.map(p => p.id === post.id
               ? { ...p, liked: data.liked ? 1 : 0, likes: data.liked ? p.likes + 1 : Math.max(0, p.likes - 1) }
@@ -3742,7 +3823,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         const toggleComments = () => {
           setCpFeedExpanded(prev => { const n = new Set(prev); n.has(post.id) ? n.delete(post.id) : n.add(post.id); return n })
           if (!cpFeedCommentLists[post.id]) {
-            fetch(`/api/companies/${post.company_id}/posts/${post.id}/comments`, { credentials: 'include' })
+            csrfFetch(`/api/companies/${post.company_id}/posts/${post.id}/comments`, { credentials: 'include' })
               .then(r => r.ok ? r.json() : null)
               .then(data => setCpFeedCommentLists(prev => ({ ...prev, [post.id]: data?.comments || [] })))
               .catch(() => {})
@@ -3751,7 +3832,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         const sendComment = () => {
           const text = cpFeedCommentTexts[post.id]?.trim()
           if (!text) return
-          fetch(`/api/companies/${post.company_id}/posts/${post.id}/comments`, {
+          csrfFetch(`/api/companies/${post.company_id}/posts/${post.id}/comments`, {
             method: 'POST', credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text }),
@@ -3914,6 +3995,10 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
             {boostedFeedListings.length > 0 && pi > 0 && pi % BOOST_FEED_EVERY === 0 && (() => {
               const bl = boostedFeedListings[Math.floor(pi / BOOST_FEED_EVERY - 1) % boostedFeedListings.length]
               return bl ? <BoostedListingCard key={`boost-${bl.id}-${pi}`} listing={bl} lang={lang} t={t} onNavigate={onNavigate} /> : null
+            })()}
+            {discoveryCards.length > 0 && pi > 0 && pi % DISCOVERY_EVERY === 0 && (() => {
+              const dc = discoveryCards[Math.floor(pi / DISCOVERY_EVERY - 1) % discoveryCards.length]
+              return dc ? <DiscoveryCard key={`discovery-${dc.type}-${dc.id}-${pi}`} suggestion={dc} lang={lang} /> : null
             })()}
           <div className="p-card p-post"
             data-post-id={post.id}
@@ -4084,7 +4169,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                 {post.edited && <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>{t.edited}</div>}
               </>
             )}
-            {post.media && <PostMedia media={post.media} />}
+            {post.media && <PostMedia media={post.media} lang={lang} />}
             {/* Tagged users */}
             {post.taggedUsers?.length > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, margin: '6px 0 2px' }}>
@@ -4220,7 +4305,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                       <span><CommentText text={c.text[lang]} lang={lang} /></span>
                       {c.media?.length > 0 && (
                         <div className="p-comment-media">
-                          <PostMedia media={c.media} />
+                          <PostMedia media={c.media} lang={lang} />
                         </div>
                       )}
                     </div>
@@ -4393,6 +4478,11 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
           </div>
         )
       })()}
+
+      {/* Discovery card fallback — shown at end when feed has fewer than DISCOVERY_EVERY posts */}
+      {discoveryCards.length > 0 && posts.filter(p => !hiddenPosts.has(p.id)).length < DISCOVERY_EVERY && (
+        <DiscoveryCard suggestion={discoveryCards[0]} lang={lang} />
+      )}
 
       {/* Active category filter indicator */}
       {feedCategoryFilter && (() => {
@@ -4572,7 +4662,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
         if (data) setFamilyFriends((data.friends || data || []).filter(f => rels[String(f.id)] === 'family'))
       })
     }
-    fetch('/api/companies', { credentials: 'include' })
+    csrfFetch('/api/companies', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => setMyCompanies((data?.companies || []).filter(c => c.member_role === 'owner')))
       .catch(() => {})
@@ -4886,7 +4976,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
                 </div>
               </div>
               <PostText text={post.text} lang={lang} />
-              {post.media && <PostMedia media={post.media} />}
+              {post.media && <PostMedia media={post.media} lang={lang} />}
               <div className="p-post-stats">
                 <span>{post.likes} {t.like.toLowerCase()}</span>
                 <span>{post.comments.length} {t.comment.toLowerCase()}{post.comments.length !== 1 ? (t.s) : ''}</span>
@@ -5131,18 +5221,24 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
     ? (avatarUrl.startsWith('http') || avatarUrl.startsWith('blob:') ? avatarUrl : `${API_BASE}${avatarUrl}`)
     : null
 
-  const editT = t
+  const [tab, setTab] = useState('profile')
 
   const fieldStyle = { display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box' }
   const labelStyle = { display: 'block', fontSize: 13, fontWeight: 600, color: '#555', marginBottom: 4, marginTop: 16 }
 
+  const tabs = [
+    { key: 'profile', label: t.editTabProfile },
+    ...(mode === 'business' ? [{ key: 'professional', label: t.editTabProfessional }] : []),
+    { key: 'interests', label: t.editTabInterests },
+    { key: 'cv', label: t.editTabCV },
+    { key: 'personal', label: t.editTabPersonal },
+  ]
+
   return (
     <div className="p-profile" style={{ maxWidth: 800, margin: '0 auto' }}>
       <div className="p-card" style={{ padding: 24 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 20 }}>{t.editProfile}</h2>
-
-        {/* Avatar upload */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 8 }}>
+        {/* Avatar — always visible above tabs */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
           <div className="p-profile-avatar-wrapper" onClick={() => avatarInputRef.current?.click()} title={t.editAvatarBtn} style={{ cursor: 'pointer' }}>
             {avatarSrc ? (
               <img className="p-profile-avatar-img" src={avatarSrc} alt="" />
@@ -5161,9 +5257,10 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
             />
           </div>
           <div>
-            <div style={{ fontWeight: 600, fontSize: 14 }}>{t.editAvatarLabel}</div>
+            <div style={{ fontWeight: 700, fontSize: 20 }}>{t.editProfile}</div>
+            <div style={{ fontWeight: 600, fontSize: 13, color: '#555', marginTop: 2 }}>{profile.name || ''}</div>
             <button
-              style={{ marginTop: 4, padding: '6px 12px', borderRadius: 6, border: '1px solid #2D6A4F', background: '#fff', color: '#2D6A4F', cursor: 'pointer', fontSize: 13 }}
+              style={{ marginTop: 6, padding: '5px 12px', borderRadius: 6, border: '1px solid #2D6A4F', background: '#fff', color: '#2D6A4F', cursor: 'pointer', fontSize: 13 }}
               onClick={() => avatarInputRef.current?.click()}
             >
               {t.editAvatarBtn}
@@ -5171,164 +5268,169 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
           </div>
         </div>
 
-        {/* Name (read-only for now) */}
-        <label style={labelStyle}>{t.editNameLabel}</label>
-        <input style={fieldStyle} value={profile.name || ''} readOnly />
-
-        {/* Bio */}
-        <label style={labelStyle}>{t.editBioLabel}</label>
-        <textarea
-          style={{ ...fieldStyle, minHeight: 80, resize: 'vertical' }}
-          value={profile.bio?.[lang] || profile.bio?.da || ''}
-          onChange={e => setProfile(p => ({ ...p, bio: { ...(p.bio || {}), [lang]: e.target.value } }))}
-          placeholder={t.tellALittleAboutYourself}
-        />
-
-        {/* Location */}
-        <label style={labelStyle}>{t.editLocationLabel}</label>
-        <LocationAutocomplete
-          value={profile.location || ''}
-          onChange={text => setProfile(p => ({ ...p, location: text }))}
-          onSelect={loc => loc && setProfile(p => ({ ...p, location: loc.name }))}
-          lang={lang}
-          placeholder={t.cityCountry}
-          inputStyle={fieldStyle}
-        />
-
-        {/* Save bio + location */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
-          <button
-            type="button"
-            disabled={bioSaveStatus === 'saving'}
-            onClick={async () => {
-              setBioSaveStatus('saving')
-              const res = await apiUpdateProfile({
-                bio_da: profile.bio?.da || '',
-                bio_en: profile.bio?.en || '',
-                location: profile.location || '',
-              })
-              setBioSaveStatus(res?.ok ? 'saved' : 'error')
-              setTimeout(() => setBioSaveStatus(null), 2000)
-              if (res?.ok) setTimeout(onBadgeCheck, 400)
-            }}
-            style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: bioSaveStatus === 'saved' ? '#40916C' : '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
-          >
-            {bioSaveStatus === 'saving' ? '…' : bioSaveStatus === 'saved' ? t.cvSaved : t.cvSave}
-          </button>
+        {/* Tab navigation */}
+        <div className="p-filter-tabs" style={{ marginBottom: 24 }}>
+          {tabs.map(({ key, label }) => (
+            <button key={key} className={`p-filter-tab${tab === key ? ' active' : ''}`} onClick={() => setTab(key)}>{label}</button>
+          ))}
         </div>
 
-        {/* Facebook data import */}
-        <FacebookImport
-          lang={lang}
-          user={profile}
-          onUpdate={updated => {
-            setProfile(prev => ({ ...prev, ...updated }))
-            onUserUpdate(prev => ({ ...prev, ...updated }))
-          }}
-        />
+        {/* ── Profile tab ─────────────────────────────────── */}
+        {tab === 'profile' && <>
+          {/* Name (read-only) */}
+          <label style={labelStyle}>{t.editNameLabel}</label>
+          <input style={fieldStyle} value={profile.name || ''} readOnly />
 
-        {/* Birthday */}
-        <label style={labelStyle}>{t.birthdayLabel}</label>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <input
-            style={{ ...fieldStyle, flex: 1 }}
-            type="date"
-            value={birthday}
-            onChange={e => { setBirthday(e.target.value); setBirthdaySaveStatus(null) }}
-            max={new Date().toISOString().slice(0, 10)}
+          {/* Bio */}
+          <label style={labelStyle}>{t.editBioLabel}</label>
+          <textarea
+            style={{ ...fieldStyle, minHeight: 80, resize: 'vertical' }}
+            value={profile.bio?.[lang] || profile.bio?.da || ''}
+            onChange={e => setProfile(p => ({ ...p, bio: { ...(p.bio || {}), [lang]: e.target.value } }))}
+            placeholder={t.tellALittleAboutYourself}
           />
-          <button
-            type="button"
-            onClick={handleSaveBirthday}
-            disabled={birthdaySaveStatus === 'saving'}
-            style={{ padding: '10px 16px', borderRadius: 8, border: 'none', background: birthdaySaveStatus === 'saved' ? '#40916C' : '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}
-          >
-            {birthdaySaveStatus === 'saving' ? '…' : birthdaySaveStatus === 'saved' ? t.birthdaySaved : t.birthdaySave}
-          </button>
-          {birthday && (
+
+          {/* Location */}
+          <label style={labelStyle}>{t.editLocationLabel}</label>
+          <LocationAutocomplete
+            value={profile.location || ''}
+            onChange={text => setProfile(p => ({ ...p, location: text }))}
+            onSelect={loc => loc && setProfile(p => ({ ...p, location: loc.name }))}
+            lang={lang}
+            placeholder={t.cityCountry}
+            inputStyle={fieldStyle}
+          />
+
+          {/* Save bio + location */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
             <button
               type="button"
-              onClick={() => { setBirthday(''); setBirthdaySaveStatus(null) }}
-              style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', background: 'none', fontSize: 13, cursor: 'pointer', color: '#888' }}
-              title={t.birthdayClear}
-            >✕</button>
-          )}
-        </div>
-
-        {/* Business-only fields */}
-        {mode === 'business' && (
-          <>
-            <div style={{ margin: '20px 0 12px', borderTop: '1px solid #eee', paddingTop: 16, fontSize: 13, fontWeight: 700, color: '#2D6A4F' }}>
-              💼 {t.modeBusiness}
-            </div>
-            <label style={labelStyle}>{t.titleLabel}</label>
-            <input
-              style={fieldStyle}
-              placeholder={t.eGSeniorDesigner}
-              value={profile.jobTitle || ''}
-              onChange={e => setProfile(p => ({ ...p, jobTitle: e.target.value }))}
-            />
-            <label style={labelStyle}>{t.companyLabel}</label>
-            <input
-              style={fieldStyle}
-              placeholder={t.companyName}
-              value={profile.company || ''}
-              onChange={e => setProfile(p => ({ ...p, company: e.target.value }))}
-            />
-            <label style={labelStyle}>{t.industryLabel}</label>
-            <input
-              style={fieldStyle}
-              placeholder={t.eGDesignTechnology}
-              value={profile.industry || ''}
-              onChange={e => setProfile(p => ({ ...p, industry: e.target.value }))}
-            />
-            <label style={labelStyle}>{t.seniorityLevel}</label>
-            <select
-              style={{ ...fieldStyle, cursor: 'pointer' }}
-              value={profile.seniority || ''}
-              onChange={e => setProfile(p => ({ ...p, seniority: e.target.value }))}
+              disabled={bioSaveStatus === 'saving'}
+              onClick={async () => {
+                setBioSaveStatus('saving')
+                const res = await apiUpdateProfile({
+                  bio_da: profile.bio?.da || '',
+                  bio_en: profile.bio?.en || '',
+                  location: profile.location || '',
+                })
+                setBioSaveStatus(res?.ok ? 'saved' : 'error')
+                setTimeout(() => setBioSaveStatus(null), 2000)
+                if (res?.ok) setTimeout(onBadgeCheck, 400)
+              }}
+              style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: bioSaveStatus === 'saved' ? '#40916C' : '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
             >
-              <option value="">{t.chooseOptional}</option>
-              <option value="Junior">{t.junior}</option>
-              <option value="Mid-level">{t.midLevel}</option>
-              <option value="Senior">{t.senior}</option>
-              <option value="Lead / Manager">{t.leadManager}</option>
-              <option value="Director+">{t.director}</option>
-            </select>
-            <label style={labelStyle}>{t.skillsLabel}</label>
+              {bioSaveStatus === 'saving' ? '…' : bioSaveStatus === 'saved' ? t.cvSaved : t.cvSave}
+            </button>
+          </div>
+
+          {/* Facebook data import */}
+          <FacebookImport
+            lang={lang}
+            user={profile}
+            onUpdate={updated => {
+              setProfile(prev => ({ ...prev, ...updated }))
+              onUserUpdate(prev => ({ ...prev, ...updated }))
+            }}
+          />
+
+          {/* Birthday */}
+          <label style={labelStyle}>{t.birthdayLabel}</label>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <input
-              style={fieldStyle}
-              placeholder={t.eGUXFigmaReactCommaSeparated}
-              value={profile.skills || ''}
-              onChange={e => setProfile(p => ({ ...p, skills: e.target.value }))}
+              style={{ ...fieldStyle, flex: 1 }}
+              type="date"
+              value={birthday}
+              onChange={e => { setBirthday(e.target.value); setBirthdaySaveStatus(null) }}
+              max={new Date().toISOString().slice(0, 10)}
             />
-            {/* Save business profile fields */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
+            <button
+              type="button"
+              onClick={handleSaveBirthday}
+              disabled={birthdaySaveStatus === 'saving'}
+              style={{ padding: '10px 16px', borderRadius: 8, border: 'none', background: birthdaySaveStatus === 'saved' ? '#40916C' : '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}
+            >
+              {birthdaySaveStatus === 'saving' ? '…' : birthdaySaveStatus === 'saved' ? t.birthdaySaved : t.birthdaySave}
+            </button>
+            {birthday && (
               <button
                 type="button"
-                disabled={bizSaveStatus === 'saving'}
-                onClick={async () => {
-                  setBizSaveStatus('saving')
-                  const res = await apiUpdateProfile({
-                    job_title: profile.jobTitle || '',
-                    company: profile.company || '',
-                    industry: profile.industry || '',
-                    seniority: profile.seniority || '',
-                  })
-                  setBizSaveStatus(res?.ok ? 'saved' : 'error')
-                  setTimeout(() => setBizSaveStatus(null), 2000)
-                }}
-                style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: bizSaveStatus === 'saved' ? '#40916C' : '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
-              >
-                {bizSaveStatus === 'saving' ? '…' : bizSaveStatus === 'saved' ? t.cvSaved : t.cvSave}
-              </button>
-            </div>
-          </>
-        )}
+                onClick={() => { setBirthday(''); setBirthdaySaveStatus(null) }}
+                style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', background: 'none', fontSize: 13, cursor: 'pointer', color: '#888' }}
+                title={t.birthdayClear}
+              >✕</button>
+            )}
+          </div>
+        </>}
 
-        {/* Business profile — extra fields */}
-        {mode === 'business' && (
-          <div style={{ margin: '20px 0 0', borderTop: '2px solid #EEF2FF', paddingTop: 20 }}>
+        {/* ── Professional tab (business only) ────────────── */}
+        {tab === 'professional' && mode === 'business' && <>
+          <div style={{ marginBottom: 12, fontSize: 13, fontWeight: 700, color: '#2D6A4F' }}>
+            💼 {t.modeBusiness}
+          </div>
+          <label style={labelStyle}>{t.titleLabel}</label>
+          <input
+            style={fieldStyle}
+            placeholder={t.eGSeniorDesigner}
+            value={profile.jobTitle || ''}
+            onChange={e => setProfile(p => ({ ...p, jobTitle: e.target.value }))}
+          />
+          <label style={labelStyle}>{t.companyLabel}</label>
+          <input
+            style={fieldStyle}
+            placeholder={t.companyName}
+            value={profile.company || ''}
+            onChange={e => setProfile(p => ({ ...p, company: e.target.value }))}
+          />
+          <label style={labelStyle}>{t.industryLabel}</label>
+          <input
+            style={fieldStyle}
+            placeholder={t.eGDesignTechnology}
+            value={profile.industry || ''}
+            onChange={e => setProfile(p => ({ ...p, industry: e.target.value }))}
+          />
+          <label style={labelStyle}>{t.seniorityLevel}</label>
+          <select
+            style={{ ...fieldStyle, cursor: 'pointer' }}
+            value={profile.seniority || ''}
+            onChange={e => setProfile(p => ({ ...p, seniority: e.target.value }))}
+          >
+            <option value="">{t.chooseOptional}</option>
+            <option value="Junior">{t.junior}</option>
+            <option value="Mid-level">{t.midLevel}</option>
+            <option value="Senior">{t.senior}</option>
+            <option value="Lead / Manager">{t.leadManager}</option>
+            <option value="Director+">{t.director}</option>
+          </select>
+          <label style={labelStyle}>{t.skillsLabel}</label>
+          <input
+            style={fieldStyle}
+            placeholder={t.eGUXFigmaReactCommaSeparated}
+            value={profile.skills || ''}
+            onChange={e => setProfile(p => ({ ...p, skills: e.target.value }))}
+          />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
+            <button
+              type="button"
+              disabled={bizSaveStatus === 'saving'}
+              onClick={async () => {
+                setBizSaveStatus('saving')
+                const res = await apiUpdateProfile({
+                  job_title: profile.jobTitle || '',
+                  company: profile.company || '',
+                  industry: profile.industry || '',
+                  seniority: profile.seniority || '',
+                })
+                setBizSaveStatus(res?.ok ? 'saved' : 'error')
+                setTimeout(() => setBizSaveStatus(null), 2000)
+              }}
+              style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: bizSaveStatus === 'saved' ? '#40916C' : '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+            >
+              {bizSaveStatus === 'saving' ? '…' : bizSaveStatus === 'saved' ? t.cvSaved : t.cvSave}
+            </button>
+          </div>
+
+          {/* Business profile — extra fields */}
+          <div style={{ margin: '24px 0 0', borderTop: '2px solid #EEF2FF', paddingTop: 20 }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: '#4338CA', marginBottom: 4 }}>
               🏢 {t.businessProfile}
             </div>
@@ -5398,18 +5500,16 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
               )}
             </div>
           </div>
-        )}
 
-        {/* Skills management */}
-        {mode === 'business' && (
+          {/* Skills management */}
           <div style={{ margin: '28px 0 0', borderTop: '2px solid #eee', paddingTop: 20 }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: '#2D6A4F', marginBottom: 12 }}>🏅 {t.skills}</div>
             <SkillsSection profile={profile} t={t} lang={lang} isOwn={true} />
           </div>
-        )}
+        </>}
 
-        {/* Interests picker */}
-        <div className="p-card" style={{ marginBottom: 16 }}>
+        {/* ── Interests tab ────────────────────────────────── */}
+        {tab === 'interests' && <>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>🎯 {t.interestsSectionTitle}</h3>
             <span style={{ fontSize: 12, color: interests.length >= 3 ? '#2D6A4F' : '#e53935', fontWeight: 600 }}>
@@ -5449,7 +5549,6 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
             const filtered = interestCats.filter(c => !q || c.da.toLowerCase().includes(q) || c.en.toLowerCase().includes(q))
 
             if (q) {
-              // Flat list when searching
               return (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, maxHeight: 220, overflowY: 'auto', padding: '2px 0' }}>
                   {filtered.length === 0 && <span style={{ fontSize: 13, color: '#aaa' }}>{t.searchNoResults}</span>}
@@ -5467,7 +5566,6 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
               )
             }
 
-            // Grouped by sort_order decade
             const groups = [
               { label: t.musicEntertainment, min: 10, max: 29 },
               { label: t.gamesEvents, min: 20, max: 39 },
@@ -5551,10 +5649,19 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
               <span style={{ fontSize: 12, color: '#e53935' }}>{t.interestsMin3}</span>
             )}
           </div>
-        </div>
 
-        {/* Tags, relationship status, website */}
-        <div className="p-card" style={{ padding: 20, marginTop: 12 }}>
+          <div style={{ marginTop: 24 }}>
+            <InterestGraphPage lang={lang} t={t} currentUser={currentUser} />
+          </div>
+        </>}
+
+        {/* ── CV tab ───────────────────────────────────────── */}
+        {tab === 'cv' && (
+          <CVProfileSection lang={lang} t={t} isOwn={true} userId={currentUser.id} />
+        )}
+
+        {/* ── Personal tab ─────────────────────────────────── */}
+        {tab === 'personal' && <>
           <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 700 }}>🏷️ {t.tagsRelationshipWebsite}</h3>
 
           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>{t.tagsMax10Max30Chars}</div>
@@ -5625,7 +5732,7 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
           >
             {t.adminModCandidateSave}
           </button>
-        </div>
+        </>}
 
         <button
           style={{ marginTop: 24, padding: '10px 20px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
@@ -5634,12 +5741,6 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
           {t.editBackToProfile}
         </button>
       </div>
-
-      {/* Interest Graph — embedded directly in edit profile */}
-      <InterestGraphPage lang={lang} t={t} currentUser={currentUser} />
-
-      {/* CV / Work profile — always shown in edit profile */}
-      <CVProfileSection lang={lang} t={t} isOwn={true} userId={currentUser.id} />
     </div>
   )
 }
@@ -6083,7 +6184,7 @@ function PasswordStrengthIndicator({ password, lang }) {
   const t = getTranslations(lang)
   const [policy, setPolicy] = useState(null)
   useEffect(() => {
-    fetch('/api/auth/password-policy').then(r => r.ok ? r.json() : null).then(p => { if (p) setPolicy(p) }).catch(() => {})
+    csrfFetch('/api/auth/password-policy').then(r => r.ok ? r.json() : null).then(p => { if (p) setPolicy(p) }).catch(() => {})
   }, [])
 
   if (!password) return null
@@ -6141,7 +6242,7 @@ function SettingsSikkerhed({ lang, fS, lS }) {
   const [enableCodeMsg, setEnableCodeMsg] = useState(null)
 
   useEffect(() => {
-    fetch('/api/profile', { credentials: 'include' })
+    csrfFetch('/api/profile', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (!data) return
@@ -6183,31 +6284,19 @@ function SettingsSikkerhed({ lang, fS, lS }) {
     if (!profile?.phone) return
     setEnableCodeSent(false); setEnableCode(''); setEnableCodeMsg(null)
     setShowEnableFlow(true)
-    // Send a test SMS to verify the number works
-    const data = await apiSendSettingsMfa().catch(() => null)
-    // If MFA isn't enabled yet, send-settings-mfa will fail — use enable-mfa directly after a temp enable trick
-    // Instead we just set mfa_enabled=1 and let the user confirm
+    const data = await apiSendEnableMfa()
     if (!data?.ok) {
-      // enable-mfa sets enabled flag; then user activates it
-      const en = await apiEnableMfa()
-      if (!en?.ok) {
-        setEnableCodeMsg({ ok: false, text: t.couldNotActivateHaveYouSavedAPhoneNumber })
-        setShowEnableFlow(false)
-        return
-      }
-      setMfaEnabled(true)
+      setEnableCodeMsg({ ok: false, text: t.couldNotActivateHaveYouSavedAPhoneNumber })
       setShowEnableFlow(false)
-      setMfaMsg({ ok: true, text: t.twoFactorAuthenticationIsNowEnabled })
-    } else {
-      setEnableCodeSent(true)
+      return
     }
+    setEnableCodeSent(true)
   }
 
   const handleConfirmEnable = async (e) => {
     e.preventDefault()
     if (!enableCode.trim()) return
-    // Enable MFA (requires phone already set)
-    const en = await apiEnableMfa()
+    const en = await apiConfirmEnableMfa(enableCode.trim())
     if (!en?.ok) {
       setEnableCodeMsg({ ok: false, text: t.activationFailed })
       return
@@ -6339,7 +6428,7 @@ function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenM
   const [mfaSettingsSending, setMfaSettingsSending] = useState(false)
 
   useEffect(() => {
-    fetch('/api/profile', { credentials: 'include' })
+    csrfFetch('/api/profile', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (!data) return; setProfile(data); setNewEmail(data.email || '') })
       .catch(() => {})
@@ -6376,7 +6465,7 @@ function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenM
     }
     setPasswordLoading(true); setPasswordMsg(null); setCurrentPwdError(null)
     try {
-      const res = await fetch('/api/profile/password', {
+      const res = await csrfFetch('/api/profile/password', {
         method: 'PATCH', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...(hasPassword ? { currentPassword } : {}), newPassword, lang, ...(overrideMfaCode ? { mfaCode: overrideMfaCode } : {}) }),
@@ -6412,7 +6501,7 @@ function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenM
     }
     setEmailLoading(true); setEmailMsg(null)
     try {
-      const res = await fetch('/api/profile/email', {
+      const res = await csrfFetch('/api/profile/email', {
         method: 'PATCH', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ newEmail: newEmail.trim(), password: emailPassword, ...(overrideMfaCode ? { mfaCode: overrideMfaCode } : {}) }),
@@ -7066,7 +7155,7 @@ function SettingsPrivatliv({ lang, t, fS, lS }) {
   const [msg, setMsg] = useState(null)
 
   useEffect(() => {
-    fetch('/api/settings/privacy', { credentials: 'include' })
+    csrfFetch('/api/settings/privacy', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         if (d) {
@@ -7089,7 +7178,7 @@ function SettingsPrivatliv({ lang, t, fS, lS }) {
   const save = async () => {
     setMsg(null)
     try {
-      const res = await fetch('/api/settings/privacy', {
+      const res = await csrfFetch('/api/settings/privacy', {
         method: 'PATCH', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -7240,7 +7329,7 @@ function SettingsSessions({ lang, t, onLogout }) {
 
   const load = () => {
     setLoading(true)
-    fetch('/api/settings/sessions', { credentials: 'include' })
+    csrfFetch('/api/settings/sessions', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => { setSessions(data?.sessions || []); setLoading(false) })
       .catch(() => setLoading(false))
@@ -7248,13 +7337,13 @@ function SettingsSessions({ lang, t, onLogout }) {
   useEffect(() => { load() }, [])
 
   const deleteSession = (id) => {
-    fetch(`/api/settings/sessions/${id}`, { method: 'DELETE', credentials: 'include' })
+    csrfFetch(`/api/settings/sessions/${id}`, { method: 'DELETE', credentials: 'include' })
       .then(() => load())
       .catch(() => {})
   }
 
   const deleteOthers = () => {
-    fetch('/api/settings/sessions/others', { method: 'DELETE', credentials: 'include' })
+    csrfFetch('/api/settings/sessions/others', { method: 'DELETE', credentials: 'include' })
       .then(() => load())
       .catch(() => {})
   }
@@ -7290,8 +7379,8 @@ function SettingsSessions({ lang, t, onLogout }) {
         <div className="p-card" style={{ padding: 24, textAlign: 'center', color: '#888' }}>⏳</div>
       ) : sessions.map(s => {
         const { browser, os } = parseBrowserFromUA(s.user_agent)
-        const createdDate = s.created_at ? new Date(s.created_at) : null
-        const expiresDate = s.expires_at ? new Date(s.expires_at) : null
+        const createdDate = s.created_at ? new Date(s.created_at + 'Z') : null
+        const expiresDate = s.expires_at ? new Date(s.expires_at + 'Z') : null
         const locale = lang === 'da' ? 'da-DK' : 'en-US'
         const fmtDate = (d) => d ? d.toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''
         return (
@@ -7334,7 +7423,7 @@ function SettingsSprog({ lang, t, darkMode, onToggleDark }) {
 
   const switchLang = (newLang) => {
     localStorage.setItem('fellis_lang', newLang)
-    fetch('/api/me/lang', {
+    csrfFetch('/api/me/lang', {
       method: 'PATCH', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ lang: newLang }),
@@ -7346,7 +7435,7 @@ function SettingsSprog({ lang, t, darkMode, onToggleDark }) {
     <div className="p-card" style={{ padding: 24 }}>
       <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>🌐 {t.settingsLanguage}</div>
 
-      <div style={{ display: 'flex', gap: 10 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
         {UI_LANGS.map(l => (
           <div
             key={l.code}
@@ -8875,7 +8964,7 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {userPosts.map(p => {
               const text = lang === 'da' ? (p.text_da || p.text_en || '') : (p.text_en || p.text_da || '')
-              const date = new Date(p.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })
+              const date = new Date(p.created_at + 'Z').toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })
               const thumb = p.media?.[0]?.url
               return (
                 <div key={p.id} style={{ display: 'flex', gap: 10, padding: '10px 0', borderBottom: '1px solid #f0ede8' }}>
@@ -9071,6 +9160,133 @@ function FriendProfileModal({ userId, lang, t, onClose, onMessage }) {
               </div>
             </div>
           </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Follow Tab (Followers / Following) ──
+function FollowTab({ t, lang, followers, following, followPending, onFollowToggle, onViewProfile }) {
+  const sFollowCard = { display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid var(--color-border)' }
+  const sAvatar = { width: 44, height: 44, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 16, flexShrink: 0, color: '#fff', overflow: 'hidden', cursor: 'pointer' }
+  const sInfo = { flex: 1, minWidth: 0 }
+  const sName = { fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'pointer', color: 'var(--color-text)' }
+  const sBadge = (isBusiness) => ({ fontSize: 11, padding: '2px 7px', borderRadius: 10, background: isBusiness ? '#E8F4FD' : '#F0F4FF', color: isBusiness ? '#1877F2' : '#4a6fa5', fontWeight: 600, display: 'inline-block' })
+  const sActionBtn = { fontSize: 13, padding: '5px 14px', borderRadius: 20, border: '1px solid #d0d0d0', background: '#fff', cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap', color: 'var(--color-text)' }
+  const sFollowBtn = { fontSize: 13, padding: '5px 14px', borderRadius: 20, border: '1px solid #2D6A4F', background: '#2D6A4F', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap', color: '#fff' }
+  const sFollowingBtn = { fontSize: 13, padding: '5px 14px', borderRadius: 20, border: '1px solid #d0d0d0', background: '#f5f5f5', cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap', color: 'var(--color-text)' }
+  const sEmpty = { padding: '24px 0', textAlign: 'center', color: 'var(--color-muted)', fontSize: 14 }
+  const sSectionTitle = { fontWeight: 700, fontSize: 15, margin: '0 0 4px', color: 'var(--color-text)' }
+
+  const loading = followers === null || following === null
+
+  const renderUserRow = (user, isFollower) => {
+    const isBusiness = user.mode === 'business'
+    const isFollowingBack = isFollower ? Number(user.is_following_back) === 1 : true
+    const pending = followPending[user.id]
+    const avatarStyle = { ...sAvatar, background: nameToColor(user.name) }
+    return (
+      <div key={user.id} style={sFollowCard}>
+        <div style={avatarStyle} onClick={() => onViewProfile(user.id)}>
+          {user.avatar
+            ? <img src={user.avatar} alt={user.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : getInitials(user.name)}
+        </div>
+        <div style={sInfo}>
+          <div style={sName} onClick={() => onViewProfile(user.id)}>{user.name}</div>
+          <span style={sBadge(isBusiness)}>{isBusiness ? t.accountTypeBusiness : t.accountTypeStandard}</span>
+          {isFollower && isFollowingBack && (
+            <span style={{ fontSize: 11, marginLeft: 6, color: '#2D6A4F', fontWeight: 500 }}>✓ {t.followsYouBack}</span>
+          )}
+        </div>
+        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+          <button style={sActionBtn} onClick={() => onViewProfile(user.id)}>👤</button>
+          {isFollower ? (
+            isFollowingBack ? (
+              <button style={sFollowingBtn} disabled={pending} onClick={() => onFollowToggle(user.id, true)}>
+                {pending ? '…' : t.followingBtn}
+              </button>
+            ) : (
+              <button style={sFollowBtn} disabled={pending} onClick={() => onFollowToggle(user.id, false)}>
+                {pending ? '…' : t.followBtn}
+              </button>
+            )
+          ) : (
+            <button style={sFollowingBtn} disabled={pending} onClick={() => onFollowToggle(user.id, true)}>
+              {pending ? '…' : t.followingBtn}
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  const renderCompanyRow = (company) => {
+    const avatarStyle = { ...sAvatar, background: nameToColor(company.name) }
+    return (
+      <div key={company.id} style={sFollowCard}>
+        <div style={avatarStyle}>
+          {company.avatar
+            ? <img src={company.avatar} alt={company.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : getInitials(company.name)}
+        </div>
+        <div style={sInfo}>
+          <div style={sName}>{company.name}</div>
+          <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 10, background: '#FFF3E0', color: '#E65100', fontWeight: 600 }}>
+            {lang === 'da' ? 'Virksomhed' : 'Company'}
+          </span>
+        </div>
+      </div>
+    )
+  }
+
+  if (loading) {
+    return <div style={{ padding: 32, textAlign: 'center', color: 'var(--color-muted)' }}>…</div>
+  }
+
+  const followingUsers = following?.users || []
+  const followingCompanies = following?.companies || []
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* ── Followers ── */}
+      <div className="p-card">
+        <h3 style={sSectionTitle}>👥 {t.followersSection} ({followers.length})</h3>
+        <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--color-muted)' }}>
+          {lang === 'da' ? 'Brugere der følger din profil' : 'Users following your profile'}
+        </p>
+        {followers.length === 0 ? (
+          <div style={sEmpty}>{t.followersEmpty}</div>
+        ) : (
+          <div>{followers.map(u => renderUserRow(u, true))}</div>
+        )}
+      </div>
+
+      {/* ── Following users ── */}
+      <div className="p-card">
+        <h3 style={sSectionTitle}>➡️ {t.followingSection} ({followingUsers.length + followingCompanies.length})</h3>
+        <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--color-muted)' }}>
+          {lang === 'da' ? 'Brugere og virksomheder du følger' : 'Users and companies you follow'}
+        </p>
+        {followingUsers.length === 0 && followingCompanies.length === 0 ? (
+          <div style={sEmpty}>{t.followingUsersEmpty}</div>
+        ) : (
+          <div>
+            {followingUsers.length > 0 && (
+              <div>
+                {followingUsers.map(u => renderUserRow(u, false))}
+              </div>
+            )}
+            {followingCompanies.length > 0 && (
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--color-muted)', margin: followingUsers.length > 0 ? '16px 0 8px' : '0 0 8px' }}>
+                  🏢 {t.followingCompaniesSection}
+                </div>
+                {followingCompanies.map(c => renderCompanyRow(c))}
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>
@@ -9282,6 +9498,9 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
   const [referralData, setReferralData] = useState(null)
   const [badges, setBadges] = useState(null)
   const [leaderboard, setLeaderboard] = useState(null)
+  const [followers, setFollowers] = useState(null)
+  const [following, setFollowing] = useState(null) // { users: [], companies: [] }
+  const [followPending, setFollowPending] = useState({}) // userId → true while request in flight
   const searchTimerRef = useRef(null)
   const { rels, setRel } = useContactRelationships()
   const REL_OPTS = [
@@ -9366,7 +9585,19 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
     refreshAll()
   }, [unfriendTarget, refreshAll])
 
-  const filtered = (filter === 'invites' || filter === 'requests' || filter === 'viral') ? [] : friends.filter(f => filter === 'all' || f.online)
+  const handleFollowToggle = useCallback(async (userId, isCurrentlyFollowing) => {
+    setFollowPending(prev => ({ ...prev, [userId]: true }))
+    if (isCurrentlyFollowing) {
+      await apiUnfollowUser(userId)
+      setFollowing(prev => prev ? { ...prev, users: prev.users.filter(u => u.id !== userId) } : prev)
+    } else {
+      await apiFollowUser(userId)
+      setFollowers(prev => prev ? prev.map(u => u.id === userId ? { ...u, is_following_back: 1 } : u) : prev)
+    }
+    setFollowPending(prev => { const n = { ...prev }; delete n[userId]; return n })
+  }, [])
+
+  const filtered = (filter === 'invites' || filter === 'requests' || filter === 'viral' || filter === 'follow') ? [] : friends.filter(f => filter === 'all' || f.online)
 
   const handleCopyInvite = useCallback(() => {
     navigator.clipboard.writeText(inviteLink).catch(() => {})
@@ -9453,6 +9684,13 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
     if (!badges) apiGetBadges().then(d => { if (d) setBadges(d) })
     if (!leaderboard) apiGetLeaderboard().then(d => { if (d) setLeaderboard(d) })
   }, [filter, referralData, badges, leaderboard])
+
+  // Load followers/following when follow tab is opened
+  useEffect(() => {
+    if (filter !== 'follow') return
+    if (!followers) apiGetFollowers().then(d => setFollowers(d || []))
+    if (!following) apiGetFollowing().then(d => setFollowing(d || { users: [], companies: [] }))
+  }, [filter, followers, following])
 
   const isSearching = search.trim().length >= 2
   const outgoingTargetIds = new Set(requests.outgoing.map(r => r.to_id))
@@ -9617,6 +9855,9 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
             </button>
             <button className={`p-filter-tab${filter === 'viral' ? ' active' : ''}`} onClick={() => setFilter('viral')}>
               🚀 {t.referralDashViralTitle}
+            </button>
+            <button className={`p-filter-tab${filter === 'follow' ? ' active' : ''}`} onClick={() => setFilter('follow')}>
+              👁 {t.followTab}
             </button>
           </div>
         )}
@@ -9789,6 +10030,16 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
         </div>
       ) : filter === 'viral' ? (
         <ReferralDashboard t={t} lang={lang} referralData={referralData} badges={badges} leaderboard={leaderboard} inviteLink={inviteLink} />
+      ) : filter === 'follow' ? (
+        <FollowTab
+          t={t}
+          lang={lang}
+          followers={followers}
+          following={following}
+          followPending={followPending}
+          onFollowToggle={handleFollowToggle}
+          onViewProfile={setViewProfileId}
+        />
       ) : (
         <div className="p-friends-grid">
           {filtered.map((friend) => (
@@ -10204,7 +10455,7 @@ function SearchPage({ lang, t, mode, onNavigateToPost, onNavigateToConv, onNavig
       try {
         const [data, compData] = await Promise.all([
           apiSearch(query.trim()),
-          fetch(`/api/companies/all?q=${encodeURIComponent(query.trim())}`, { credentials: 'include' })
+          csrfFetch(`/api/companies/all?q=${encodeURIComponent(query.trim())}`, { credentials: 'include' })
             .then(r => r.ok ? r.json() : { companies: [] }).catch(() => ({ companies: [] })),
         ])
         setResults(data || { posts: [], messages: [] })
@@ -10771,7 +11022,7 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
                       )}
                       {msg.media?.length > 0 && (
                         <div style={{ marginTop: msg.text[lang] ? 6 : 0, maxWidth: 260 }}>
-                          <PostMedia media={msg.media} />
+                          <PostMedia media={msg.media} lang={lang} />
                         </div>
                       )}
                       <div className="p-msg-time">{msg.time}</div>
@@ -11591,14 +11842,14 @@ function SkillsSection({ profile, t, lang, isOwn }) {
 
   useEffect(() => {
     if (!profile?.id) return
-    fetch(`/api/skills/${profile.id}`, { credentials: 'include' })
+    csrfFetch(`/api/skills/${profile.id}`, { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => { setSkills(data?.skills || []); setLoading(false) })
       .catch(() => setLoading(false))
   }, [profile?.id])
 
   const endorse = (skillId) => {
-    fetch(`/api/skills/${skillId}/endorse`, { method: 'POST', credentials: 'include' })
+    csrfFetch(`/api/skills/${skillId}/endorse`, { method: 'POST', credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (!data) return
@@ -11612,7 +11863,7 @@ function SkillsSection({ profile, t, lang, isOwn }) {
   const addSkill = () => {
     const name = newSkill.trim()
     if (!name || skills.length >= 20) return
-    fetch('/api/skills', {
+    csrfFetch('/api/skills', {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name }),
@@ -11623,7 +11874,7 @@ function SkillsSection({ profile, t, lang, isOwn }) {
   }
 
   const removeSkill = (skillId) => {
-    fetch(`/api/skills/${skillId}`, { method: 'DELETE', credentials: 'include' })
+    csrfFetch(`/api/skills/${skillId}`, { method: 'DELETE', credentials: 'include' })
       .then(() => setSkills(prev => prev.filter(s => s.id !== skillId)))
       .catch(() => {})
   }
@@ -11631,7 +11882,7 @@ function SkillsSection({ profile, t, lang, isOwn }) {
   const showEndorsers = (skillId) => {
     if (endorsersPopup?.skillId === skillId) { setEndorsersPopup(null); return }
     setEndorsersLoading(true)
-    fetch(`/api/skills/${skillId}/endorsers`, { credentials: 'include' })
+    csrfFetch(`/api/skills/${skillId}/endorsers`, { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => { setEndorsersPopup({ skillId, endorsers: data?.endorsers || [] }); setEndorsersLoading(false) })
       .catch(() => setEndorsersLoading(false))
@@ -11737,7 +11988,7 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
 
   const loadCompanies = () => {
     setLoading(true)
-    fetch('/api/companies', { credentials: 'include' })
+    csrfFetch('/api/companies', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => { setCompanies(data?.companies || []); setLoading(false) })
       .catch(() => setLoading(false))
@@ -11752,7 +12003,7 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
       setSelectedCompany(found)
       setOpenedFromFeed(true)
     } else {
-      fetch(`/api/companies/${initialCompanyId}`, { credentials: 'include' })
+      csrfFetch(`/api/companies/${initialCompanyId}`, { credentials: 'include' })
         .then(r => r.ok ? r.json() : null)
         .then(data => { if (data?.company) { setSelectedCompany(data.company); setOpenedFromFeed(true) } })
         .catch(() => {})
@@ -11774,7 +12025,7 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
   const canCreateCompany = ownedCompanies.length === 0
 
   const toggleFollow = (id) => {
-    fetch(`/api/companies/${id}/follow`, { method: 'POST', credentials: 'include' })
+    csrfFetch(`/api/companies/${id}/follow`, { method: 'POST', credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (!data) return
@@ -11796,7 +12047,7 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
     if (tab !== 'discover') return
     setDiscoverLoading(true)
     const params = discoverSearch ? `?q=${encodeURIComponent(discoverSearch)}` : ''
-    fetch(`/api/companies/all${params}`, { credentials: 'include' })
+    csrfFetch(`/api/companies/all${params}`, { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => { setDiscoverCompanies(data?.companies || []); setDiscoverLoading(false) })
       .catch(() => setDiscoverLoading(false))
@@ -12062,7 +12313,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
 
   useEffect(() => {
     setPostsLoading(true)
-    fetch(`/api/companies/${company.id}`, { credentials: 'include' })
+    csrfFetch(`/api/companies/${company.id}`, { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         setCompanyPosts(data?.posts || [])
@@ -12088,7 +12339,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
     if (tab !== 'members') return
     if (companyMembers.length > 0) return
     setMembersLoading(true)
-    fetch(`/api/companies/${company.id}/members`, { credentials: 'include' })
+    csrfFetch(`/api/companies/${company.id}/members`, { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         const members = data?.members || []
@@ -12105,13 +12356,13 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
   }, [tab, company.id])
 
   const connectWithMember = (userId) => {
-    fetch(`/api/friends/request/${userId}`, { method: 'POST', credentials: 'include' })
+    csrfFetch(`/api/friends/request/${userId}`, { method: 'POST', credentials: 'include' })
       .then(() => setMemberConnectState(prev => ({ ...prev, [userId]: 'sent' })))
       .catch(() => {})
   }
 
   const toggleCompanyLike = (postId) => {
-    fetch(`/api/companies/${company.id}/posts/${postId}/like`, { method: 'POST', credentials: 'include' })
+    csrfFetch(`/api/companies/${company.id}/posts/${postId}/like`, { method: 'POST', credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (!data) return
@@ -12125,7 +12376,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
   const toggleCompanyComments = (postId) => {
     setExpandedCompanyComments(prev => { const n = new Set(prev); n.has(postId) ? n.delete(postId) : n.add(postId); return n })
     if (!companyCommentLists[postId]) {
-      fetch(`/api/companies/${company.id}/posts/${postId}/comments`, { credentials: 'include' })
+      csrfFetch(`/api/companies/${company.id}/posts/${postId}/comments`, { credentials: 'include' })
         .then(r => r.ok ? r.json() : null)
         .then(data => setCompanyCommentLists(prev => ({ ...prev, [postId]: data?.comments || [] })))
         .catch(() => {})
@@ -12135,7 +12386,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
   const addCompanyComment = (postId) => {
     const text = companyCommentInputs[postId]?.trim()
     if (!text) return
-    fetch(`/api/companies/${company.id}/posts/${postId}/comments`, {
+    csrfFetch(`/api/companies/${company.id}/posts/${postId}/comments`, {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text }),
@@ -12166,7 +12417,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
 
   const postCompany = () => {
     if (!newPost.trim()) return
-    fetch(`/api/companies/${company.id}/posts`, {
+    csrfFetch(`/api/companies/${company.id}/posts`, {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text_da: newPost.trim(), text_en: newPost.trim() }),
@@ -12203,7 +12454,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
                 onClick={() => {
                   setShowFollowersPopup(true)
                   if (!followers) {
-                    fetch(`/api/companies/${company.id}/followers`, { credentials: 'include' })
+                    csrfFetch(`/api/companies/${company.id}/followers`, { credentials: 'include' })
                       .then(r => r.ok ? r.json() : null)
                       .then(d => setFollowers(d?.followers || []))
                       .catch(() => setFollowers([]))
@@ -12322,7 +12573,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
             const commentCount = post.comment_count || 0
             const showComments = expandedCompanyComments.has(post.id)
             const postText = lang === 'da' ? (post.text_da || post.text_en) : (post.text_en || post.text_da)
-            const timeAgo = new Date(post.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short' })
+            const timeAgo = new Date(post.created_at + 'Z').toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short' })
             return (
               <div key={post.id} className="p-card p-post" style={{ marginBottom: 12 }}>
                 <div className="p-post-header">
@@ -12413,7 +12664,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
               onClick={() => {
                 const userId = prompt(t.userIDOrEmailToAdd)
                 if (!userId) return
-                fetch(`/api/companies/${company.id}/members`, {
+                csrfFetch(`/api/companies/${company.id}/members`, {
                   method: 'POST',
                   credentials: 'include',
                   headers: { 'Content-Type': 'application/json' },
@@ -12472,7 +12723,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
                     <button
                       onClick={() => {
                         if (confirm(`${t.removeMemberName}${member.name}?`)) {
-                          fetch(`/api/companies/${company.id}/members/${member.id}`, {
+                          csrfFetch(`/api/companies/${company.id}/members/${member.id}`, {
                             method: 'DELETE',
                             credentials: 'include',
                           })
@@ -12547,7 +12798,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
               <button
                 onClick={() => {
                   if (confirm(`${t.deleteCompanyName}${company.name}${t.deleteCompanyNameSuffix}`)) {
-                    fetch(`/api/companies/${company.id}`, {
+                    csrfFetch(`/api/companies/${company.id}`, {
                       method: 'DELETE',
                       credentials: 'include',
                     })
@@ -12587,7 +12838,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
           ) : companyJobs.map(job => {
             const typeLabels = { fulltime: t.jobTypeFullTime, parttime: t.jobTypePartTime, freelance: t.jobTypeFreelance, internship: t.jobTypeInternship }
             const jobDescription = typeof job.description === 'string' ? job.description : (job.description?.[lang] || job.description?.da || '')
-            const postedDate = job.created_at ? new Date(job.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short' }) : ''
+            const postedDate = job.created_at ? new Date(job.created_at + 'Z').toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short' }) : ''
             return (
               <div key={job.id} className="p-card" style={{ opacity: job.active ? 1 : 0.55 }}>
                 <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
@@ -12608,7 +12859,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
                           <button
                             onClick={() => {
                               if (confirm(t.deleteThisJob)) {
-                                fetch(`/api/jobs/${job.id}`, { method: 'DELETE', credentials: 'include' })
+                                csrfFetch(`/api/jobs/${job.id}`, { method: 'DELETE', credentials: 'include' })
                                   .then(r => r.ok && setCompanyJobs(prev => prev.filter(j => j.id !== job.id)))
                                   .catch(() => {})
                               }
@@ -12700,7 +12951,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
                   {lead.topic && <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>📌 {lead.topic}</div>}
                   {lead.message && <div style={{ fontSize: 13, color: '#444', marginTop: 8, lineHeight: 1.5 }}>{lead.message}</div>}
                   <div style={{ fontSize: 11, color: '#aaa', marginTop: 6 }}>
-                    {new Date(lead.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    {new Date(lead.created_at + 'Z').toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                   </div>
                 </div>
                 <div style={{ flexShrink: 0 }}>
@@ -12865,7 +13116,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
           onClose={() => setEditingJob(null)}
           onCreate={() => {
             setEditingJob(null)
-            fetch(`/api/companies/${company.id}`, { credentials: 'include' })
+            csrfFetch(`/api/companies/${company.id}`, { credentials: 'include' })
               .then(r => r.ok ? r.json() : null)
               .then(data => setCompanyJobs(data?.jobs || []))
               .catch(() => {})
@@ -12946,7 +13197,7 @@ function CreateCompanyModal({ t, lang, currentUser, onClose, onCreate, editCompa
       if (isEdit) {
         // Edit existing company
         payload.name = name.trim()
-        const res = await fetch(`/api/companies/${editCompany.id}`, {
+        const res = await csrfFetch(`/api/companies/${editCompany.id}`, {
           method: 'PUT',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
@@ -12957,7 +13208,7 @@ function CreateCompanyModal({ t, lang, currentUser, onClose, onCreate, editCompa
       } else {
         // Create new company
         const handle = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-        const res = await fetch('/api/companies', {
+        const res = await csrfFetch('/api/companies', {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
@@ -13649,12 +13900,12 @@ function JobCard({ job, t, lang, onSaveToggle, onTrackChange, currentUser, onSha
   const desc = typeof job.description === 'string' ? job.description : (job.description?.[lang] || job.description?.da || '')
   const reqs = typeof job.requirements === 'string' ? job.requirements : (job.requirements?.[lang] || job.requirements?.da || '')
   const applyLink = job.apply_link || job.applyLink || ''
-  const postedDate = job.created_at ? new Date(job.created_at).toLocaleDateString() : (job.postedDate || '')
+  const postedDate = job.created_at ? new Date(job.created_at + 'Z').toLocaleDateString() : (job.postedDate || '')
   const typeLabels = { fulltime: t.jobTypeFullTime, parttime: t.jobTypePartTime, freelance: t.jobTypeFreelance, internship: t.jobTypeInternship }
   const trackInfo = JOB_TRACK_STATUSES.find(s => s.value === trackStatus)
 
   const toggleSave = () => {
-    fetch(`/api/jobs/${job.id}/save`, { method: 'POST', credentials: 'include' })
+    csrfFetch(`/api/jobs/${job.id}/save`, { method: 'POST', credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (!data) return
@@ -13906,7 +14157,7 @@ function JobsPage({ lang, t, currentUser, mode, onNavigate }) {
     if (filterKeyword) params.set('q', filterKeyword)
     if (filterType) params.set('type', filterType)
     setLoading(true)
-    fetch(`/api/jobs?${params}`, { credentials: 'include' })
+    csrfFetch(`/api/jobs?${params}`, { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => { setJobs(data?.jobs || []); setLoading(false) })
       .catch(() => setLoading(false))
@@ -13914,7 +14165,7 @@ function JobsPage({ lang, t, currentUser, mode, onNavigate }) {
 
   useEffect(() => {
     if (tab === 'saved') {
-      fetch('/api/jobs/saved', { credentials: 'include' })
+      csrfFetch('/api/jobs/saved', { credentials: 'include' })
         .then(r => r.ok ? r.json() : null)
         .then(data => setSavedJobs(data?.jobs || []))
         .catch(() => {})
@@ -13928,7 +14179,7 @@ function JobsPage({ lang, t, currentUser, mode, onNavigate }) {
   }, [tab])
 
   useEffect(() => {
-    fetch('/api/companies', { credentials: 'include' })
+    csrfFetch('/api/companies', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => setMyCompanies((data?.companies || []).filter(c => c.member_role === 'owner' || c.member_role === 'admin')))
       .catch(() => {})
@@ -13958,7 +14209,7 @@ function JobsPage({ lang, t, currentUser, mode, onNavigate }) {
   }
 
   const handleToggleActive = (job) => {
-    fetch(`/api/jobs/${job.id}`, {
+    csrfFetch(`/api/jobs/${job.id}`, {
       method: 'PUT', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...job, active: !job.active }),
@@ -14140,7 +14391,7 @@ function JobsPage({ lang, t, currentUser, mode, onNavigate }) {
               }}
               onContactCompany={(companyId) => {
                 // Fetch company to show lead modal
-                fetch(`/api/companies/${companyId}`, { credentials: 'include' })
+                csrfFetch(`/api/companies/${companyId}`, { credentials: 'include' })
                   .then(r => r.ok ? r.json() : null)
                   .then(data => {
                     if (data) setContactCompanyLead(data)
@@ -14207,7 +14458,7 @@ function JobsPage({ lang, t, currentUser, mode, onNavigate }) {
                           )}
                         </div>
                         <div style={{ fontSize: 11, color: '#aaa', marginTop: 4 }}>
-                          {new Date(app.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          {new Date(app.created_at + 'Z').toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
                         </div>
                       </div>
                       <select
@@ -14275,7 +14526,7 @@ function JobsPage({ lang, t, currentUser, mode, onNavigate }) {
                 onChange={e => {
                   setShareQuery(e.target.value)
                   if (e.target.value.length > 0) {
-                    fetch(`/api/users/search?q=${encodeURIComponent(e.target.value)}`, { credentials: 'include' })
+                    csrfFetch(`/api/users/search?q=${encodeURIComponent(e.target.value)}`, { credentials: 'include' })
                       .then(r => r.ok ? r.json() : null)
                       .then(data => setShareUsers(Array.isArray(data) ? data : data?.users || []))
                       .catch(() => {})
@@ -14429,7 +14680,7 @@ function CreateJobModal({ t, lang, companies, onClose, onCreate, editJob }) {
     }
     try {
       const url = isEdit ? `/api/jobs/${editJob.id}` : '/api/jobs'
-      const res = await fetch(url, {
+      const res = await csrfFetch(url, {
         method: isEdit ? 'PUT' : 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -14582,7 +14833,7 @@ async function _osmGeocode(location) {
   if (!location) return null
   if (_osmGeoCache.has(location)) return _osmGeoCache.get(location)
   try {
-    const res = await fetch(
+    const res = await csrfFetch(
       `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1`,
       { headers: { 'Accept-Language': 'da,en' } }
     )
@@ -16825,11 +17076,18 @@ function CalendarPage({ lang, t, currentUser }) {
   const [reminderSaving, setReminderSaving] = useState(false)
   const [tooltipVisible, setTooltipVisible] = useState(null)
   const [adfreeAssignments, setAdfreeAssignments] = useState([])
+  const [bankDays, setBankDays] = useState(0)
+  const [showAdfreeForm, setShowAdfreeForm] = useState(false)
+  const [adfreeEndDate, setAdfreeEndDate] = useState('')
+  const [adfreeAssigning, setAdfreeAssigning] = useState(false)
+  const [adfreeError, setAdfreeError] = useState('')
+  const [adfreeSuccess, setAdfreeSuccess] = useState('')
 
   useEffect(() => {
     apiFetchCalendarEvents().then(data => { if (data) setCalData(data) })
     apiFetchCalendarReminders().then(data => { if (data?.reminders) setReminders(data.reminders) })
     apiGetAdfreeAssignments().then(data => { if (data?.assignments) setAdfreeAssignments(data.assignments) })
+    apiGetAdfreeBank().then(data => { if (data?.bankDays != null) setBankDays(data.bankDays) })
   }, [])
 
   const handleAddReminder = async (e) => {
@@ -17001,7 +17259,7 @@ function CalendarPage({ lang, t, currentUser }) {
                 <div
                   key={`d${row}-${col}`}
                   style={s.dayCell(isToday, isSelected, false, isAdfree)}
-                  onClick={() => { setSelectedDay(isSelected ? null : dayNum); setShowReminderForm(false) }}
+                  onClick={() => { setSelectedDay(isSelected ? null : dayNum); setShowReminderForm(false); setShowAdfreeForm(false); setAdfreeEndDate(''); setAdfreeError(''); setAdfreeSuccess('') }}
                 >
                   <span style={s.dayNum(isSelected)}>{dayNum}</span>
                   <div style={s.dots}>
@@ -17168,6 +17426,93 @@ function CalendarPage({ lang, t, currentUser }) {
               </div>
             </form>
           )}
+
+          {/* Assign ad-free days — only when user has banked days and date is not already ad-free */}
+          {bankDays > 0 && selectedDateKey && !isAdfreeDate(selectedDateKey) && !showReminderForm && (() => {
+            const today2 = new Date().toLocaleDateString('sv-SE')
+            const isPast = selectedDateKey < today2
+            if (isPast) return null
+            const daysNeeded = adfreeEndDate && selectedDateKey <= adfreeEndDate
+              ? Math.floor((new Date(adfreeEndDate) - new Date(selectedDateKey)) / (1000 * 60 * 60 * 24)) + 1
+              : 0
+            const handleAdfreeAssign = async () => {
+              setAdfreeError('')
+              setAdfreeSuccess('')
+              if (!adfreeEndDate) { setAdfreeError(t.selectBothStartAndEndDates); return }
+              if (selectedDateKey > adfreeEndDate) { setAdfreeError(t.startDateMustBeBeforeEndDate); return }
+              if (daysNeeded > bankDays) { setAdfreeError(t.adfreeDaysError.replace('{bankDays}', bankDays).replace('{daysNeeded}', daysNeeded)); return }
+              setAdfreeAssigning(true)
+              const result = await apiAssignAdfreedays(selectedDateKey, adfreeEndDate)
+              setAdfreeAssigning(false)
+              if (result?.success) {
+                setAdfreeSuccess(t.adfreeDaysAssignedSuccess.replace('{daysNeeded}', daysNeeded))
+                setBankDays(result.newBank ?? Math.max(0, bankDays - daysNeeded))
+                setAdfreeEndDate('')
+                setShowAdfreeForm(false)
+                apiGetAdfreeAssignments().then(d => { if (d?.assignments) setAdfreeAssignments(d.assignments) })
+              } else {
+                setAdfreeError(result?.error || t.somethingWentWrong)
+              }
+            }
+            return (
+              <div style={{ marginTop: 14 }}>
+                {!showAdfreeForm && !adfreeSuccess ? (
+                  <button
+                    onClick={() => { setShowAdfreeForm(true); setAdfreeError(''); setAdfreeEndDate(selectedDateKey) }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: '1px dashed #2D6A4F', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontSize: 13, color: '#2D6A4F', fontWeight: 600 }}
+                  >
+                    📅 {t.assignBankedDays} ({bankDays})
+                  </button>
+                ) : adfreeSuccess ? (
+                  <div style={{ fontSize: 13, color: '#388e3c', padding: '8px 12px', background: '#e8f5e9', borderRadius: 8 }}>{adfreeSuccess}</div>
+                ) : (
+                  <div style={{ background: '#f0faf4', borderRadius: 10, padding: '12px 14px', border: '1px solid #b7dfc9' }}>
+                    <div style={{ fontSize: 11, color: '#2D6A4F', fontWeight: 700, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t.assignBankedDays}</div>
+                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                      <div style={{ flex: 1, minWidth: 120 }}>
+                        <label style={{ fontSize: 11, color: '#888', display: 'block', marginBottom: 4 }}>{t.startDate}</label>
+                        <input
+                          type="text"
+                          readOnly
+                          value={selectedDateKey ? selectedDateKey.split('-').reverse().join('-') : ''}
+                          style={{ width: '100%', padding: '7px 10px', border: '1px solid #b7dfc9', borderRadius: 5, fontSize: 13, boxSizing: 'border-box', background: '#e8f5ee', color: '#2D6A4F', fontWeight: 600 }}
+                        />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 120 }}>
+                        <label style={{ fontSize: 11, color: '#888', display: 'block', marginBottom: 4 }}>{t.endDate}</label>
+                        <input
+                          type="date"
+                          value={adfreeEndDate}
+                          min={selectedDateKey}
+                          onChange={e => { setAdfreeEndDate(e.target.value); setAdfreeError('') }}
+                          style={{ width: '100%', padding: '7px 10px', border: '1px solid #ddd', borderRadius: 5, fontSize: 13, boxSizing: 'border-box' }}
+                        />
+                      </div>
+                      <button
+                        onClick={handleAdfreeAssign}
+                        disabled={adfreeAssigning || !adfreeEndDate || daysNeeded > bankDays}
+                        style={{ padding: '8px 18px', background: '#2D6A4F', color: '#fff', border: 'none', borderRadius: 5, cursor: (adfreeAssigning || !adfreeEndDate || daysNeeded > bankDays) ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600, opacity: (adfreeAssigning || !adfreeEndDate || daysNeeded > bankDays) ? 0.5 : 1, whiteSpace: 'nowrap' }}
+                      >
+                        {adfreeAssigning ? t.assigning : t.assign}
+                      </button>
+                    </div>
+                    {daysNeeded > 0 && (
+                      <p style={{ margin: '8px 0 0', fontSize: 12, color: daysNeeded > bankDays ? '#d32f2f' : '#388e3c' }}>
+                        {t.adfreeDaysPreview.replace('{daysNeeded}', daysNeeded).replace('{bankDays}', bankDays)}
+                      </p>
+                    )}
+                    {adfreeError && <div style={{ marginTop: 8, fontSize: 13, color: '#d32f2f', padding: '6px 10px', background: '#ffebee', borderRadius: 6 }}>{adfreeError}</div>}
+                    <button
+                      onClick={() => { setShowAdfreeForm(false); setAdfreeEndDate(''); setAdfreeError('') }}
+                      style={{ marginTop: 10, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#888' }}
+                    >
+                      {t.calendarReminderCancel}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )
+          })()}
         </div>
       )}
     </div>
@@ -17295,7 +17640,7 @@ function ModeratorPage({ lang, t, currentUser }) {
                 <span style={{ fontWeight: 600, fontSize: 14 }}>{a.admin_name}</span>
                 {a.target_name && <span style={{ color: 'var(--text-muted,#888)', fontSize: 13 }}>→ {a.target_name}</span>}
                 {a.reason && <span style={{ color: 'var(--text-muted,#888)', fontSize: 13 }}>— {a.reason}</span>}
-                <span style={{ marginLeft: 'auto', color: 'var(--text-muted,#888)', fontSize: 12 }}>{new Date(a.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US')}</span>
+                <span style={{ marginLeft: 'auto', color: 'var(--text-muted,#888)', fontSize: 12 }}>{new Date(a.created_at + 'Z').toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US')}</span>
               </div>
             </div>
           ))}
@@ -17771,7 +18116,7 @@ function AdminAuditLogPanel({ lang, rows, total, offset, filter, onFilterChange,
                     </td>
                     <td style={{ padding: '8px 14px', color: '#aaa', fontSize: 12, fontFamily: 'monospace' }}>{r.ip_address || '—'}</td>
                     <td style={{ padding: '8px 14px', color: '#888', fontSize: 12, whiteSpace: 'nowrap' }}>
-                      {new Date(r.created_at).toLocaleString(lang === 'da' ? 'da-DK' : 'en-GB', { dateStyle: 'short', timeStyle: 'short' })}
+                      {new Date(r.created_at + 'Z').toLocaleString(lang === 'da' ? 'da-DK' : 'en-GB', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Europe/Copenhagen' })}
                     </td>
                   </tr>
                 ))}
@@ -18782,6 +19127,11 @@ function AdminBadgesPanel({ lang }) {
                   <td>
                     <span style={{ fontSize: 18, marginRight: 8 }}>{b.icon}</span>
                     <span style={{ fontWeight: 600 }}>{b.name}</span>
+                    {BADGE_BY_ID[b.id]?.description[lang] && (
+                      <div style={{ fontSize: 11, color: '#888', fontWeight: 400, marginTop: 2 }}>
+                        {BADGE_BY_ID[b.id].description[lang]}
+                      </div>
+                    )}
                   </td>
                   <td style={{ fontSize: 12, color: '#888' }}>{tierLabel(b.tier)}</td>
                   <td style={{ fontSize: 13 }}>{statRow?.awardedCount ?? 0}</td>
@@ -20886,7 +21236,7 @@ function AdminPage({ lang, t }) {
                     <span style={{ fontWeight: 700, fontSize: 13 }}>{a.action_type.replace('_', ' ').toUpperCase()}</span>
                     {a.target_user_name && <span style={{ fontSize: 13, color: '#555' }}>→ {a.target_user_name} ({a.target_user_handle})</span>}
                     {a.target_type && <span style={{ fontSize: 12, color: '#888' }}>{a.target_type} #{a.target_id}</span>}
-                    <span style={{ marginLeft: 'auto', fontSize: 12, color: '#aaa' }}>{new Date(a.created_at).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US')}</span>
+                    <span style={{ marginLeft: 'auto', fontSize: 12, color: '#aaa' }}>{new Date(a.created_at + 'Z').toLocaleString(lang === 'da' ? 'da-DK' : 'en-US')}</span>
                   </div>
                   {a.reason && <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>{a.reason}</div>}
                   <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>{t.by} {a.admin_name}</div>
@@ -20975,7 +21325,7 @@ function AdminPage({ lang, t }) {
                     <span style={{ fontWeight: 700, fontSize: 14 }}>{r.name}</span>
                     <span style={{ color: 'var(--text-muted,#888)', fontSize: 12, marginLeft: 6 }}>@{r.handle}</span>
                   </div>
-                  <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted,#888)' }}>{new Date(r.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US')}</span>
+                  <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted,#888)' }}>{new Date(r.created_at + 'Z').toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US')}</span>
                 </div>
                 {r.reason && <p style={{ margin: '0 0 10px', fontSize: 13, color: 'var(--text,#111)', lineHeight: 1.5 }}>{r.reason}</p>}
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -21056,7 +21406,7 @@ function AdminPage({ lang, t }) {
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 700, fontSize: 15 }}>{fb.title}</div>
                     <div style={{ fontSize: 12, color: '#888', marginTop: 1 }}>
-                      {typeLabel} · {fb.user_name} (@{fb.user_handle}) · {new Date(fb.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US')}
+                      {typeLabel} · {fb.user_name} (@{fb.user_handle}) · {new Date(fb.created_at + 'Z').toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US')}
                     </div>
                   </div>
                   <span style={{ background: statusColors[fb.status] || '#999', color: '#fff', borderRadius: 6, padding: '2px 9px', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
@@ -21170,7 +21520,7 @@ function AdminPage({ lang, t }) {
                 </div>
                 <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 12, color: '#666', marginBottom: 12 }}>
                   <span>#{u.id}</span>
-                  <span>{t.adminUserJoinDate}: {u.created_at ? new Date(u.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US') : '–'}</span>
+                  <span>{t.adminUserJoinDate}: {u.created_at ? new Date(u.created_at + 'Z').toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US') : '–'}</span>
                   <span>{t.adminUserMode}: {u.mode}</span>
                   <span>{t.adminUserPlan}: {u.plan || '–'}</span>
                   <span>{u.post_count ?? 0} {t.adminUserPostCount}</span>
