@@ -13842,6 +13842,11 @@ app.post('/api/admin/blog/translate', authenticate, requireAdmin, async (req, re
   }
 })
 
+// ── API 404 catch-all (must be before SPA fallback) ──
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: 'Not found' })
+})
+
 // ── SPA fallback ──
 app.get('*', (req, res) => {
   res.sendFile(path.join(FRONTEND_ROOT, 'index.html'))
