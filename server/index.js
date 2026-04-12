@@ -1647,6 +1647,55 @@ app.post('/api/auth/disable-mfa', authenticate, writeLimit, async (req, res) => 
   }
 })
 
+// POST /api/auth/send-enable-mfa — send SMS verification code to activate MFA (MFA not yet enabled)
+app.post('/api/auth/send-enable-mfa', authenticate, writeLimit, async (req, res) => {
+  try {
+    const [[user]] = await pool.query('SELECT phone, mfa_enabled FROM users WHERE id = ?', [req.userId])
+    if (!user) return res.status(404).json({ error: 'User not found' })
+    if (!user.phone) return res.status(400).json({ error: 'No phone number on account' })
+    if (user.mfa_enabled) return res.status(400).json({ error: 'MFA already enabled' })
+    const rawCode = String(Math.floor(100000 + Math.random() * 900000))
+    const hashedCode = crypto.createHash('sha256').update(rawCode).digest('hex')
+    await pool.query(
+      'UPDATE users SET mfa_code = ?, mfa_code_expires = DATE_ADD(NOW(), INTERVAL 5 MINUTE) WHERE id = ?',
+      [hashedCode, req.userId]
+    )
+    const smsSent = await sendSms(user.phone, `Din Fellis-kode er: ${rawCode} (udløber om 5 minutter)`)
+    if (!smsSent) {
+      console.error(`Enable MFA SMS failed to send for user ${req.userId} — 46elks may not be configured`)
+      return res.status(503).json({ error: 'SMS service unavailable — could not send verification code' })
+    }
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to send MFA code' })
+  }
+})
+
+// POST /api/auth/confirm-enable-mfa — verify SMS code and set mfa_enabled=1
+app.post('/api/auth/confirm-enable-mfa', authenticate, writeLimit, async (req, res) => {
+  const { code } = req.body
+  if (!code) return res.status(400).json({ error: 'code required' })
+  try {
+    const [[user]] = await pool.query(
+      'SELECT mfa_code, mfa_code_expires, mfa_enabled FROM users WHERE id = ?', [req.userId]
+    )
+    if (!user) return res.status(404).json({ error: 'User not found' })
+    if (user.mfa_enabled) return res.status(400).json({ error: 'MFA already enabled' })
+    if (!user.mfa_code || !user.mfa_code_expires) return res.status(400).json({ error: 'No pending code — request a new one' })
+    if (new Date(user.mfa_code_expires) < new Date()) return res.status(400).json({ error: 'Code expired' })
+    const hashed = crypto.createHash('sha256').update(String(code)).digest('hex')
+    if (hashed !== user.mfa_code) return res.status(401).json({ error: 'Invalid code' })
+    await pool.query(
+      'UPDATE users SET mfa_enabled = 1, mfa_code = NULL, mfa_code_expires = NULL WHERE id = ?',
+      [req.userId]
+    )
+    await auditLog(req, 'mfa_enable', 'user', req.userId, { status: 'success' })
+    res.json({ ok: true, mfa_enabled: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to confirm MFA' })
+  }
+})
+
 // POST /api/auth/send-settings-mfa — send SMS MFA code for sensitive settings changes
 app.post('/api/auth/send-settings-mfa', authenticate, writeLimit, async (req, res) => {
   try {
