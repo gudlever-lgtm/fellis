@@ -6,7 +6,7 @@
  * registered in server/index.js and reports any mismatches.
  */
 
-import { readFileSync } from 'fs'
+import { readFileSync, readdirSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 
@@ -290,5 +290,260 @@ if (!feedInsertRe.test(serverSrc)) {
 
 // Suppress unused variable warning for the marker
 void POST_FEED_USER_MODE_MARKER
+
+// ── 7. Direct fetch() / XHR calls have matching server routes ─────────────────
+//
+// Calls that bypass request() (auth, file uploads, public endpoints) are
+// invisible to check #4.  Extract them separately so a renamed server route
+// still surfaces as a failure here.
+//
+// Patterns covered:
+//   fetch(`${API_BASE}/api/...`, { method: 'POST', ... })   → POST /api/...
+//   fetch(`${API_BASE}/api/...`)                            → GET  /api/...
+//   xhr.open('POST', `${API_BASE}/api/...`, true)           → POST /api/...
+
+// Walk the options object using brace counting to extract the method value.
+// This avoids false positives from scanning past the end of the current call
+// into adjacent function bodies.
+function extractFetchMethod(src, afterCommaIdx) {
+  let i = afterCommaIdx
+  while (i < src.length && /\s/.test(src[i])) i++ // skip whitespace
+  if (src[i] !== '{') return 'GET'                 // no options object
+  let depth = 1
+  i++ // step past opening '{'
+  const bodyStart = i
+  while (i < src.length && depth > 0) {
+    if (src[i] === '{') depth++
+    else if (src[i] === '}') depth--
+    i++
+  }
+  const body = src.slice(bodyStart, i - 1) // content between outer { and }
+  const mm   = body.match(/\bmethod\s*:\s*['"`](\w+)['"`]/)
+  return mm ? mm[1].toUpperCase() : 'GET'
+}
+
+// (a) fetch(`${API_BASE}/api/...`) calls
+//   Group 1: the path literal (may contain ${…} template expressions)
+//   Group 2: ',' when an options object follows; absent when the call closes
+//   immediately with ')' — in that case default method is GET.
+const directFetchRe = /fetch\(\s*`\$\{API_BASE\}(\/api\/[^`]+)`\s*(,)?/g
+const directCalls = []
+
+while ((m = directFetchRe.exec(apiSrc)) !== null) {
+  const rawPath    = m[1]
+  const hasOptions = m[2] === ','
+  const method     = hasOptions
+    ? extractFetchMethod(apiSrc, m.index + m[0].length)
+    : 'GET'
+  const path = rawPath
+    .replace(/\$\{[^}]+\}/g, ':param') // ${anything} → :param
+    .replace(/\?.*$/,         '')       // strip query string
+  directCalls.push({ method, path, raw: rawPath })
+}
+
+// (b) xhr.open('METHOD', `${API_BASE}/api/...`) calls (used for upload progress)
+const xhrOpenRe = /xhr\.open\(\s*['"`](\w+)['"`]\s*,\s*`\$\{API_BASE\}(\/api\/[^`]+)`/g
+while ((m = xhrOpenRe.exec(apiSrc)) !== null) {
+  const method  = m[1].toUpperCase()
+  const rawPath = m[2]
+  const path    = rawPath
+    .replace(/\$\{[^}]+\}/g, ':param')
+    .replace(/\?.*$/,         '')
+  directCalls.push({ method, path, raw: rawPath })
+}
+
+// Deduplicate — same endpoint is sometimes used by multiple wrapper functions
+// (e.g. apiApplyToJob and apiApplyToJobFull both hit POST /api/jobs/:id/apply)
+const seenDirect = new Set()
+const uniqueDirectCalls = directCalls.filter(({ method, path }) => {
+  const key = `${method} ${path}`
+  if (seenDirect.has(key)) return false
+  seenDirect.add(key)
+  return true
+})
+
+const directErrors = []
+for (const { method, path, raw } of uniqueDirectCalls) {
+  if (!normServerRoutes.has(`${method} ${path}`)) {
+    directErrors.push({ method, path, raw })
+  }
+}
+
+console.log(`Direct fetch/XHR calls found : ${uniqueDirectCalls.length}`)
+
+if (directErrors.length === 0) {
+  console.log(`\n${GREEN}✓ All ${uniqueDirectCalls.length} direct fetch/XHR calls have matching server routes.${RESET}\n`)
+} else {
+  console.log(`\n${RED}✗ ${directErrors.length} direct fetch/XHR call(s) have NO matching server route:${RESET}\n`)
+  for (const e of directErrors) {
+    console.log(`  ${RED}[${e.method}]${RESET} ${e.path}  (raw: "${e.raw}")`)
+  }
+  console.log()
+  process.exit(1)
+}
+
+// ── 8. i18n segment import coverage ──────────────────────────────────────────
+//
+// Every *.js file under src/i18n/ (except index.js itself) must be:
+//   (a) imported in index.js
+//   (b) listed in the `segments` array so the deep-merge actually runs
+//
+// Catches the common mistake of adding a new translation file but forgetting
+// to wire it up in the aggregator — translations silently vanish at runtime.
+
+const i18nDir      = resolve(root, 'src/i18n')
+const i18nIndexSrc = readFileSync(resolve(i18nDir, 'index.js'), 'utf8')
+
+const i18nSegmentFiles = readdirSync(i18nDir)
+  .filter(f => f.endsWith('.js') && f !== 'index.js')
+  .sort()
+
+// (a) Check that each segment file has a matching import statement
+const missingI18nImports = i18nSegmentFiles.filter(f => {
+  const base = f.replace(/\.js$/, '')
+  return !i18nIndexSrc.includes(`'./${f}'`)    &&
+         !i18nIndexSrc.includes(`'./${base}'`) &&
+         !i18nIndexSrc.includes(`"./${f}"`)    &&
+         !i18nIndexSrc.includes(`"./${base}"`)
+})
+
+// (b) Check that every imported name is listed in the segments array
+const i18nImportNames = [...i18nIndexSrc.matchAll(/^import\s+(\w+)\s+from\s+['"]\.\//gm)]
+  .map(mm => mm[1])
+
+const segmentsBlockMatch = i18nIndexSrc.match(/const\s+segments\s*=\s*\[([\s\S]*?)\]/)
+const segmentsBlock      = segmentsBlockMatch ? segmentsBlockMatch[1] : ''
+const missingFromSegments = i18nImportNames.filter(
+  name => !new RegExp(`\\b${name}\\b`).test(segmentsBlock)
+)
+
+console.log(`i18n segment files   : ${i18nSegmentFiles.length}`)
+console.log(`i18n imports         : ${i18nImportNames.length}`)
+
+const i18nErrors = [
+  ...missingI18nImports.map(f  => `${f} is not imported in src/i18n/index.js`),
+  ...missingFromSegments.map(n => `import '${n}' is imported but not listed in the segments array`),
+]
+
+if (i18nErrors.length === 0) {
+  console.log(`\n${GREEN}✓ All ${i18nSegmentFiles.length} i18n segment files are imported and listed in segments.${RESET}\n`)
+} else {
+  console.log(`\n${RED}✗ i18n coverage issues found:${RESET}`)
+  for (const e of i18nErrors) console.log(`  ${RED}${e}${RESET}`)
+  console.log()
+  process.exit(1)
+}
+
+// ── 9. GDPR route existence ───────────────────────────────────────────────────
+//
+// These endpoints are legally mandated under GDPR Arts. 7, 17, and 20.
+// A refactor that accidentally removes or renames one of them must fail the
+// build before it reaches production.
+
+const REQUIRED_GDPR_ROUTES = [
+  'GET /api/gdpr/consent',
+  'POST /api/gdpr/consent',
+  'POST /api/gdpr/consent/withdraw',
+  'POST /api/gdpr/account/request-delete',
+  'DELETE /api/gdpr/account',
+  'GET /api/gdpr/export',
+]
+
+const missingGdprRoutes = REQUIRED_GDPR_ROUTES.filter(r => {
+  const [method, p] = r.split(' ')
+  return !normServerRoutes.has(`${method} ${normaliseServerPath(p)}`)
+})
+
+if (missingGdprRoutes.length > 0) {
+  console.log(`${RED}✗ Missing required GDPR server routes:${RESET}`)
+  for (const r of missingGdprRoutes) console.log(`  ${RED}${r}${RESET}`)
+  console.log()
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ All required GDPR routes (Art. 7/17/20) are registered on the server.${RESET}\n`)
+}
+
+// ── 10. Duplicate server route detection ──────────────────────────────────────
+//
+// Express silently ignores the second handler when the same METHOD+path is
+// registered twice — only the first handler runs.  This catches accidental
+// copy-paste duplicates before they cause subtle production bugs.
+//
+// Paths are normalised (:id, :userId → :param) so semantically identical
+// routes with different parameter names are also detected.
+
+const serverRoutesAllList = []
+const serverRouteDupRe = /app\.(get|post|put|patch|delete)\(\s*['"`]([^'"`]+)['"`]/gi
+while ((m = serverRouteDupRe.exec(serverSrc)) !== null) {
+  const method = m[1].toUpperCase()
+  const path   = normaliseServerPath(m[2].split('?')[0])
+  serverRoutesAllList.push(`${method} ${path}`)
+}
+
+const routeFreq = new Map()
+for (const r of serverRoutesAllList) {
+  routeFreq.set(r, (routeFreq.get(r) || 0) + 1)
+}
+const duplicateRoutes = [...routeFreq.entries()].filter(([, count]) => count > 1)
+
+if (duplicateRoutes.length > 0) {
+  console.log(`${RED}✗ Duplicate server route registrations detected (Express only executes the first):${RESET}`)
+  for (const [route, count] of duplicateRoutes) {
+    console.log(`  ${RED}${route}  (registered ${count}×)${RESET}`)
+  }
+  console.log()
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ No duplicate server route registrations found (${serverRoutesAllList.length} routes scanned).${RESET}\n`)
+}
+
+// ── 11. CSRF exempt path consistency ─────────────────────────────────────────
+//
+// CSRF_EXEMPT_PATHS in server/index.js must:
+//   (a) contain the four pre-auth paths users hit before they have a session
+//   (b) contain ONLY /auth/* paths and /visit — anything else being exempt
+//       would be a security vulnerability (no CSRF protection on state changes)
+//
+// Example of a dangerous misconfiguration this catches:
+//   accidentally adding '/gdpr/account' to the set while refactoring
+
+const csrfExemptMatch = serverSrc.match(/const CSRF_EXEMPT_PATHS\s*=\s*new Set\(\[([\s\S]*?)\]\)/)
+if (!csrfExemptMatch) {
+  console.log(`${RED}✗ CSRF_EXEMPT_PATHS not found in server/index.js — CSRF middleware may be misconfigured.${RESET}\n`)
+  process.exit(1)
+}
+
+const csrfExemptPaths = [...csrfExemptMatch[1].matchAll(/['"`]([^'"`\n]+)['"`]/g)]
+  .map(mm => mm[1])
+
+// These four must always be exempt — users reach them before having a session
+// and therefore cannot possess a CSRF token.
+const REQUIRED_CSRF_EXEMPT = [
+  '/auth/login',
+  '/auth/register',
+  '/auth/forgot-password',
+  '/auth/verify-mfa',
+]
+const missingCsrfExempt = REQUIRED_CSRF_EXEMPT.filter(p => !csrfExemptPaths.includes(p))
+
+// Only /auth/* paths and /visit are acceptable exemptions.
+// Any other path being exempt means state-changing requests go unprotected.
+const incorrectlyExempt = csrfExemptPaths.filter(
+  p => !p.startsWith('/auth/') && p !== '/visit'
+)
+
+const csrfErrors = [
+  ...missingCsrfExempt.map(p  => `${p} is missing from CSRF_EXEMPT_PATHS (required pre-auth exemption)`),
+  ...incorrectlyExempt.map(p  => `${p} must not be in CSRF_EXEMPT_PATHS — only /auth/* and /visit are allowed`),
+]
+
+if (csrfErrors.length > 0) {
+  console.log(`${RED}✗ CSRF_EXEMPT_PATHS misconfiguration:${RESET}`)
+  for (const e of csrfErrors) console.log(`  ${RED}${e}${RESET}`)
+  console.log()
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ CSRF_EXEMPT_PATHS is correctly configured (${csrfExemptPaths.length} exempt paths, all /auth/* or /visit).${RESET}\n`)
+}
 
 process.exit(0)

@@ -5196,30 +5196,6 @@ app.post('/api/marketplace', authenticate, upload.array('photos', 10), async (re
   }
 })
 
-// GET /api/marketplace/stats — stats for the current user's own listings
-app.get('/api/marketplace/stats', authenticate, async (req, res) => {
-  try {
-    const [[row]] = await pool.query(
-      `SELECT
-         COUNT(*) AS total,
-         SUM(sold = 0) AS active,
-         SUM(sold = 1) AS sold,
-         SUM(boosted_until > NOW() AND sold = 0) AS boosted
-       FROM marketplace_listings WHERE user_id = ?`,
-      [req.userId]
-    )
-    res.json({
-      total:   Number(row.total   || 0),
-      active:  Number(row.active  || 0),
-      sold:    Number(row.sold    || 0),
-      boosted: Number(row.boosted || 0),
-    })
-  } catch (err) {
-    console.error('GET /api/marketplace/stats error:', err.message)
-    res.status(500).json({ error: 'Server error' })
-  }
-})
-
 // GET /api/marketplace/boosted-feed — return active boosted listings for feed injection
 app.get('/api/marketplace/boosted-feed', authenticate, async (req, res) => {
   try {
