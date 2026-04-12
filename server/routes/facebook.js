@@ -281,7 +281,7 @@ router.get('/data', requireAuth, async (req, res) => {
     try {
       const photosRes = await fetch(
         `https://graph.facebook.com/v22.0/me/photos?${new URLSearchParams({
-          limit: '12',
+          limit: '50',
           fields: 'id,images',
           type: 'uploaded',
           access_token: accessToken,
@@ -416,8 +416,8 @@ router.post('/import-photos', requireAuth, async (req, res) => {
   if (!Array.isArray(photoIds) || photoIds.length === 0) {
     return res.status(400).json({ error: 'photoIds array required' })
   }
-  if (photoIds.length > 12) {
-    return res.status(400).json({ error: 'Maximum 12 photos at a time' })
+  if (photoIds.length > 50) {
+    return res.status(400).json({ error: 'Maximum 50 photos at a time' })
   }
   // Validate IDs are numeric strings only (no injection)
   if (!photoIds.every(id => typeof id === 'string' && /^\d+$/.test(id))) {
