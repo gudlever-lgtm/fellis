@@ -2690,20 +2690,23 @@ app.delete('/api/users/:id/follow', authenticate, async (req, res) => {
   }
 })
 
-// GET /api/me/followers — users who follow me
+// GET /api/me/followers — users who follow me (user_follows + business_follows)
 app.get('/api/me/followers', authenticate, async (req, res) => {
   try {
     await pool.query(CREATE_USER_FOLLOWS)
+    // Union: explicit user_follows + existing business_follows (deduplicated by user id)
     const [rows] = await pool.query(
       `SELECT u.id, u.name, u.avatar_url AS avatar, u.mode,
               (u.last_active IS NOT NULL AND u.last_active > DATE_SUB(NOW(), INTERVAL 5 MINUTE)) AS online,
-              EXISTS(SELECT 1 FROM user_follows WHERE follower_id = ? AND followee_id = u.id) AS is_following_back,
-              uf.created_at AS followed_at
-       FROM user_follows uf
-       JOIN users u ON u.id = uf.follower_id
-       WHERE uf.followee_id = ?
-       ORDER BY uf.created_at DESC`,
-      [req.userId, req.userId]
+              EXISTS(SELECT 1 FROM user_follows WHERE follower_id = u.id AND followee_id = ?)
+                OR EXISTS(SELECT 1 FROM business_follows WHERE follower_id = u.id AND business_id = ?) AS is_following_back,
+              COALESCE(uf.created_at, bf.created_at) AS followed_at
+       FROM users u
+       LEFT JOIN user_follows uf ON uf.follower_id = u.id AND uf.followee_id = ?
+       LEFT JOIN business_follows bf ON bf.follower_id = u.id AND bf.business_id = ?
+       WHERE uf.followee_id = ? OR bf.business_id = ?
+       ORDER BY followed_at DESC`,
+      [req.userId, req.userId, req.userId, req.userId, req.userId, req.userId]
     )
     res.json(rows)
   } catch (err) {
@@ -2716,15 +2719,17 @@ app.get('/api/me/followers', authenticate, async (req, res) => {
 app.get('/api/me/following', authenticate, async (req, res) => {
   try {
     await pool.query(CREATE_USER_FOLLOWS)
+    // Union user_follows and business_follows so existing BusinessDirectory follows appear
     const [users] = await pool.query(
       `SELECT u.id, u.name, u.avatar_url AS avatar, u.mode,
               (u.last_active IS NOT NULL AND u.last_active > DATE_SUB(NOW(), INTERVAL 5 MINUTE)) AS online,
-              'user' AS kind, uf.created_at AS followed_at
-       FROM user_follows uf
-       JOIN users u ON u.id = uf.followee_id
-       WHERE uf.follower_id = ?
-       ORDER BY uf.created_at DESC`,
-      [req.userId]
+              'user' AS kind, COALESCE(uf.created_at, bf.created_at) AS followed_at
+       FROM users u
+       LEFT JOIN user_follows uf ON uf.followee_id = u.id AND uf.follower_id = ?
+       LEFT JOIN business_follows bf ON bf.business_id = u.id AND bf.follower_id = ?
+       WHERE uf.follower_id = ? OR bf.follower_id = ?
+       ORDER BY followed_at DESC`,
+      [req.userId, req.userId, req.userId, req.userId]
     )
     // company_follows may not exist on older installations — degrade gracefully
     let companies = []
