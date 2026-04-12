@@ -166,43 +166,66 @@ router.get('/callback', async (req, res) => {
   if (!FB_APP_ID || !FB_APP_SECRET) return res.redirect('/?error=fb_not_configured')
 
   try {
-    // Exchange code for access token
-    const tokenRes = await fetch(
-      `https://graph.facebook.com/v22.0/oauth/access_token?${new URLSearchParams({
-        client_id:     FB_APP_ID,
-        client_secret: FB_APP_SECRET,
-        redirect_uri:  FB_REDIRECT_URI,
-        code,
-      })}`
-    )
-    if (!tokenRes.ok) return res.redirect('/?error=fb_token_failed')
-    const tokenData = await tokenRes.json()
-    if (!tokenData.access_token) return res.redirect('/?error=fb_token_failed')
+    // ── Step 1: Exchange code for access token ────────────────────────────────
+    let tokenData
+    try {
+      const tokenRes = await fetch(
+        `https://graph.facebook.com/v22.0/oauth/access_token?${new URLSearchParams({
+          client_id:     FB_APP_ID,
+          client_secret: FB_APP_SECRET,
+          redirect_uri:  FB_REDIRECT_URI,
+          code,
+        })}`
+      )
+      tokenData = await tokenRes.json()
+      if (!tokenRes.ok || !tokenData.access_token) {
+        console.error('FB token exchange failed:', JSON.stringify(tokenData))
+        return res.redirect('/?error=fb_token_failed')
+      }
+    } catch (err) {
+      console.error('FB token exchange network error:', err.message)
+      return res.redirect('/?error=fb_token_failed')
+    }
 
     const accessToken = tokenData.access_token
 
-    // Fetch core user data from Graph API in a single call
-    const userRes = await fetch(
-      `https://graph.facebook.com/v22.0/me?${new URLSearchParams({
-        fields: 'id,name,email,birthday,gender,age_range,hometown,location,picture.type(large),link',
-        access_token: accessToken,
-      })}`
-    )
-    if (!userRes.ok) return res.redirect('/?error=fb_data_failed')
-    const fbUser = await userRes.json()
+    // ── Step 2: Fetch core user data from Graph API ───────────────────────────
+    let fbUser
+    try {
+      const userRes = await fetch(
+        `https://graph.facebook.com/v22.0/me?${new URLSearchParams({
+          fields: 'id,name,email,birthday,gender,age_range,hometown,location,picture.type(large),link',
+          access_token: accessToken,
+        })}`
+      )
+      fbUser = await userRes.json()
+      if (!userRes.ok || !fbUser.id) {
+        console.error('FB user data fetch failed:', JSON.stringify(fbUser))
+        return res.redirect('/?error=fb_data_failed')
+      }
+    } catch (err) {
+      console.error('FB user data network error:', err.message)
+      return res.redirect('/?error=fb_data_failed')
+    }
 
-    // Encrypt token and persist — never log access tokens
-    const encrypted = encryptToken(accessToken)
-    await pool.query(
-      `UPDATE users
-         SET fb_user_id = ?, fb_access_token = ?, fb_connected = 1, fb_connected_at = NOW()
-       WHERE id = ?`,
-      [fbUser.id || null, encrypted, userId]
-    )
+    // ── Step 3: Encrypt token and persist ────────────────────────────────────
+    // Never log the access token itself
+    try {
+      const encrypted = encryptToken(accessToken)
+      await pool.query(
+        `UPDATE users
+           SET fb_user_id = ?, fb_access_token = ?, fb_connected = 1, fb_connected_at = NOW()
+         WHERE id = ?`,
+        [fbUser.id || null, encrypted, userId]
+      )
+    } catch (err) {
+      console.error('FB DB persist error (migration not run?):', err.message)
+      return res.redirect('/?error=fb_db_error')
+    }
 
     res.redirect('/?fb=connected')
   } catch (err) {
-    console.error('Facebook OAuth callback error:', err.message)
+    console.error('Facebook OAuth callback unexpected error:', err.message)
     res.redirect('/?error=fb_error')
   }
 })
