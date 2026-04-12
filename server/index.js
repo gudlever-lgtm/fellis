@@ -2693,6 +2693,7 @@ app.delete('/api/users/:id/follow', authenticate, async (req, res) => {
 // GET /api/me/followers — users who follow me
 app.get('/api/me/followers', authenticate, async (req, res) => {
   try {
+    await pool.query(CREATE_USER_FOLLOWS)
     const [rows] = await pool.query(
       `SELECT u.id, u.name, u.avatar, u.mode, u.online,
               EXISTS(SELECT 1 FROM user_follows WHERE follower_id = ? AND followee_id = u.id) AS is_following_back,
@@ -2713,6 +2714,7 @@ app.get('/api/me/followers', authenticate, async (req, res) => {
 // GET /api/me/following — users and companies I follow
 app.get('/api/me/following', authenticate, async (req, res) => {
   try {
+    await pool.query(CREATE_USER_FOLLOWS)
     const [users] = await pool.query(
       `SELECT u.id, u.name, u.avatar, u.mode, u.online, 'user' AS kind, uf.created_at AS followed_at
        FROM user_follows uf
@@ -2721,14 +2723,18 @@ app.get('/api/me/following', authenticate, async (req, res) => {
        ORDER BY uf.created_at DESC`,
       [req.userId]
     )
-    const [companies] = await pool.query(
-      `SELECT c.id, c.name, c.logo AS avatar, NULL AS mode, NULL AS online, 'company' AS kind, cf.followed_at
-       FROM company_follows cf
-       JOIN companies c ON c.id = cf.company_id
-       WHERE cf.user_id = ?
-       ORDER BY cf.followed_at DESC`,
-      [req.userId]
-    )
+    // company_follows may not have followed_at on older installations — use NULL as fallback
+    let companies = []
+    try {
+      const [rows] = await pool.query(
+        `SELECT c.id, c.name, c.logo AS avatar, NULL AS mode, NULL AS online, 'company' AS kind
+         FROM company_follows cf
+         JOIN companies c ON c.id = cf.company_id
+         WHERE cf.user_id = ?`,
+        [req.userId]
+      )
+      companies = rows
+    } catch (_) { /* company_follows may not exist */ }
     res.json({ users, companies })
   } catch (err) {
     console.error('GET /api/me/following error:', err.message)
@@ -5381,18 +5387,18 @@ app.get('/api/marketplace/stats', authenticate, async (req, res) => {
 
 // ── User follows (asymmetric, any user) ──────────────────────────────────────
 
+const CREATE_USER_FOLLOWS = `CREATE TABLE IF NOT EXISTS user_follows (
+  follower_id INT NOT NULL,
+  followee_id INT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (follower_id, followee_id),
+  KEY idx_uf_follower (follower_id),
+  KEY idx_uf_followee (followee_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
+
 async function initUserFollows() {
   try {
-    await pool.query(`CREATE TABLE IF NOT EXISTS user_follows (
-      follower_id INT NOT NULL,
-      followee_id INT NOT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      PRIMARY KEY (follower_id, followee_id),
-      KEY idx_uf_follower (follower_id),
-      KEY idx_uf_followee (followee_id),
-      CONSTRAINT fk_uf_follower FOREIGN KEY (follower_id) REFERENCES users (id) ON DELETE CASCADE,
-      CONSTRAINT fk_uf_followee FOREIGN KEY (followee_id) REFERENCES users (id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+    await pool.query(CREATE_USER_FOLLOWS)
   } catch (err) {
     console.error('initUserFollows error:', err.message)
   }
