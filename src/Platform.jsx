@@ -3724,7 +3724,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         const CUTOFF_MS = 14 * 24 * 60 * 60 * 1000
         const now = Date.now()
         const extras = [
-          ...cpFeedPosts.map(p => ({ _type: 'company_post', _ts: new Date(p.created_at).getTime(), _data: p })),
+          ...cpFeedPosts.map(p => ({ _type: 'company_post', _ts: new Date(p.created_at + 'Z').getTime(), _data: p })),
           ...feedEvents
             .filter(ev => ev.createdAt && (now - new Date(ev.createdAt).getTime()) < CUTOFF_MS)
             .map(ev => ({ _type: 'event', _ts: new Date(ev.createdAt).getTime(), _data: ev })),
@@ -3736,7 +3736,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         const items = []
         let extraIdx = 0
         for (let i = 0; i <= filteredPosts.length; i++) {
-          const postTs = i < filteredPosts.length ? new Date(filteredPosts[i].createdAtRaw || filteredPosts[i].created_at).getTime() : -Infinity
+          const postTs = i < filteredPosts.length ? new Date((filteredPosts[i].createdAtRaw || filteredPosts[i].created_at) + 'Z').getTime() : -Infinity
           while (extraIdx < extras.length && extras[extraIdx]._ts >= postTs) {
             items.push({ kind: extras[extraIdx]._type, data: extras[extraIdx]._data })
             extraIdx++
@@ -3752,7 +3752,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         const liked = !!post.liked
         const showComments = cpFeedExpanded.has(post.id)
         const postText = lang === 'da' ? (post.text_da || post.text_en) : (post.text_en || post.text_da)
-        const timeAgo = new Date(post.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short' })
+        const timeAgo = new Date(post.created_at + 'Z').toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short' })
         const toggleLike = () => {
           csrfFetch(`/api/companies/${post.company_id}/posts/${post.id}/like`, { method: 'POST', credentials: 'include' })
             .then(r => r.ok ? r.json() : null)
@@ -7311,8 +7311,8 @@ function SettingsSessions({ lang, t, onLogout }) {
         <div className="p-card" style={{ padding: 24, textAlign: 'center', color: '#888' }}>⏳</div>
       ) : sessions.map(s => {
         const { browser, os } = parseBrowserFromUA(s.user_agent)
-        const createdDate = s.created_at ? new Date(s.created_at) : null
-        const expiresDate = s.expires_at ? new Date(s.expires_at) : null
+        const createdDate = s.created_at ? new Date(s.created_at + 'Z') : null
+        const expiresDate = s.expires_at ? new Date(s.expires_at + 'Z') : null
         const locale = lang === 'da' ? 'da-DK' : 'en-US'
         const fmtDate = (d) => d ? d.toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''
         return (
@@ -8896,7 +8896,7 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {userPosts.map(p => {
               const text = lang === 'da' ? (p.text_da || p.text_en || '') : (p.text_en || p.text_da || '')
-              const date = new Date(p.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })
+              const date = new Date(p.created_at + 'Z').toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })
               const thumb = p.media?.[0]?.url
               return (
                 <div key={p.id} style={{ display: 'flex', gap: 10, padding: '10px 0', borderBottom: '1px solid #f0ede8' }}>
@@ -12343,7 +12343,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
             const commentCount = post.comment_count || 0
             const showComments = expandedCompanyComments.has(post.id)
             const postText = lang === 'da' ? (post.text_da || post.text_en) : (post.text_en || post.text_da)
-            const timeAgo = new Date(post.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short' })
+            const timeAgo = new Date(post.created_at + 'Z').toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short' })
             return (
               <div key={post.id} className="p-card p-post" style={{ marginBottom: 12 }}>
                 <div className="p-post-header">
@@ -12608,7 +12608,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
           ) : companyJobs.map(job => {
             const typeLabels = { fulltime: t.jobTypeFullTime, parttime: t.jobTypePartTime, freelance: t.jobTypeFreelance, internship: t.jobTypeInternship }
             const jobDescription = typeof job.description === 'string' ? job.description : (job.description?.[lang] || job.description?.da || '')
-            const postedDate = job.created_at ? new Date(job.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short' }) : ''
+            const postedDate = job.created_at ? new Date(job.created_at + 'Z').toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short' }) : ''
             return (
               <div key={job.id} className="p-card" style={{ opacity: job.active ? 1 : 0.55 }}>
                 <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
@@ -12721,7 +12721,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
                   {lead.topic && <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>📌 {lead.topic}</div>}
                   {lead.message && <div style={{ fontSize: 13, color: '#444', marginTop: 8, lineHeight: 1.5 }}>{lead.message}</div>}
                   <div style={{ fontSize: 11, color: '#aaa', marginTop: 6 }}>
-                    {new Date(lead.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    {new Date(lead.created_at + 'Z').toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                   </div>
                 </div>
                 <div style={{ flexShrink: 0 }}>
@@ -13670,7 +13670,7 @@ function JobCard({ job, t, lang, onSaveToggle, onTrackChange, currentUser, onSha
   const desc = typeof job.description === 'string' ? job.description : (job.description?.[lang] || job.description?.da || '')
   const reqs = typeof job.requirements === 'string' ? job.requirements : (job.requirements?.[lang] || job.requirements?.da || '')
   const applyLink = job.apply_link || job.applyLink || ''
-  const postedDate = job.created_at ? new Date(job.created_at).toLocaleDateString() : (job.postedDate || '')
+  const postedDate = job.created_at ? new Date(job.created_at + 'Z').toLocaleDateString() : (job.postedDate || '')
   const typeLabels = { fulltime: t.jobTypeFullTime, parttime: t.jobTypePartTime, freelance: t.jobTypeFreelance, internship: t.jobTypeInternship }
   const trackInfo = JOB_TRACK_STATUSES.find(s => s.value === trackStatus)
 
@@ -14228,7 +14228,7 @@ function JobsPage({ lang, t, currentUser, mode, onNavigate }) {
                           )}
                         </div>
                         <div style={{ fontSize: 11, color: '#aaa', marginTop: 4 }}>
-                          {new Date(app.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          {new Date(app.created_at + 'Z').toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
                         </div>
                       </div>
                       <select
@@ -17316,7 +17316,7 @@ function ModeratorPage({ lang, t, currentUser }) {
                 <span style={{ fontWeight: 600, fontSize: 14 }}>{a.admin_name}</span>
                 {a.target_name && <span style={{ color: 'var(--text-muted,#888)', fontSize: 13 }}>→ {a.target_name}</span>}
                 {a.reason && <span style={{ color: 'var(--text-muted,#888)', fontSize: 13 }}>— {a.reason}</span>}
-                <span style={{ marginLeft: 'auto', color: 'var(--text-muted,#888)', fontSize: 12 }}>{new Date(a.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US')}</span>
+                <span style={{ marginLeft: 'auto', color: 'var(--text-muted,#888)', fontSize: 12 }}>{new Date(a.created_at + 'Z').toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US')}</span>
               </div>
             </div>
           ))}
@@ -17792,7 +17792,7 @@ function AdminAuditLogPanel({ lang, rows, total, offset, filter, onFilterChange,
                     </td>
                     <td style={{ padding: '8px 14px', color: '#aaa', fontSize: 12, fontFamily: 'monospace' }}>{r.ip_address || '—'}</td>
                     <td style={{ padding: '8px 14px', color: '#888', fontSize: 12, whiteSpace: 'nowrap' }}>
-                      {new Date(r.created_at).toLocaleString(lang === 'da' ? 'da-DK' : 'en-GB', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Europe/Copenhagen' })}
+                      {new Date(r.created_at + 'Z').toLocaleString(lang === 'da' ? 'da-DK' : 'en-GB', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Europe/Copenhagen' })}
                     </td>
                   </tr>
                 ))}
@@ -20907,7 +20907,7 @@ function AdminPage({ lang, t }) {
                     <span style={{ fontWeight: 700, fontSize: 13 }}>{a.action_type.replace('_', ' ').toUpperCase()}</span>
                     {a.target_user_name && <span style={{ fontSize: 13, color: '#555' }}>→ {a.target_user_name} ({a.target_user_handle})</span>}
                     {a.target_type && <span style={{ fontSize: 12, color: '#888' }}>{a.target_type} #{a.target_id}</span>}
-                    <span style={{ marginLeft: 'auto', fontSize: 12, color: '#aaa' }}>{new Date(a.created_at).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US')}</span>
+                    <span style={{ marginLeft: 'auto', fontSize: 12, color: '#aaa' }}>{new Date(a.created_at + 'Z').toLocaleString(lang === 'da' ? 'da-DK' : 'en-US')}</span>
                   </div>
                   {a.reason && <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>{a.reason}</div>}
                   <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>{t.by} {a.admin_name}</div>
@@ -20996,7 +20996,7 @@ function AdminPage({ lang, t }) {
                     <span style={{ fontWeight: 700, fontSize: 14 }}>{r.name}</span>
                     <span style={{ color: 'var(--text-muted,#888)', fontSize: 12, marginLeft: 6 }}>@{r.handle}</span>
                   </div>
-                  <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted,#888)' }}>{new Date(r.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US')}</span>
+                  <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted,#888)' }}>{new Date(r.created_at + 'Z').toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US')}</span>
                 </div>
                 {r.reason && <p style={{ margin: '0 0 10px', fontSize: 13, color: 'var(--text,#111)', lineHeight: 1.5 }}>{r.reason}</p>}
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -21077,7 +21077,7 @@ function AdminPage({ lang, t }) {
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 700, fontSize: 15 }}>{fb.title}</div>
                     <div style={{ fontSize: 12, color: '#888', marginTop: 1 }}>
-                      {typeLabel} · {fb.user_name} (@{fb.user_handle}) · {new Date(fb.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US')}
+                      {typeLabel} · {fb.user_name} (@{fb.user_handle}) · {new Date(fb.created_at + 'Z').toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US')}
                     </div>
                   </div>
                   <span style={{ background: statusColors[fb.status] || '#999', color: '#fff', borderRadius: 6, padding: '2px 9px', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
@@ -21191,7 +21191,7 @@ function AdminPage({ lang, t }) {
                 </div>
                 <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 12, color: '#666', marginBottom: 12 }}>
                   <span>#{u.id}</span>
-                  <span>{t.adminUserJoinDate}: {u.created_at ? new Date(u.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US') : '–'}</span>
+                  <span>{t.adminUserJoinDate}: {u.created_at ? new Date(u.created_at + 'Z').toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US') : '–'}</span>
                   <span>{t.adminUserMode}: {u.mode}</span>
                   <span>{t.adminUserPlan}: {u.plan || '–'}</span>
                   <span>{u.post_count ?? 0} {t.adminUserPostCount}</span>
