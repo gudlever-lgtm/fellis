@@ -49,7 +49,7 @@ import bcrypt from 'bcrypt'
 import fs from 'fs'
 import multer from 'multer'
 import helmet from 'helmet'
-import { rateLimit as rlFactory } from 'express-rate-limit'
+import { rateLimit as rlFactory, ipKeyGenerator } from 'express-rate-limit'
 import pool from './db.js'
 import { sendSms } from './sms.js'
 import { validate, schemas } from './validation.js'
@@ -583,7 +583,7 @@ const strictLimit = rlFactory({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests — prøv igen om 15 minutter' },
-  keyGenerator: (req) => req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip,
+  keyGenerator: (req) => ipKeyGenerator(req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip),
   skip: skipInDev,
 })
 
@@ -594,7 +594,7 @@ const registerLimit = rlFactory({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many registration attempts — prøv igen om en time' },
-  keyGenerator: (req) => req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip,
+  keyGenerator: (req) => ipKeyGenerator(req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip),
   skip: skipInDev,
 })
 
@@ -605,7 +605,7 @@ const generalLimit = rlFactory({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests — prøv igen om lidt' },
-  keyGenerator: (req) => req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip,
+  keyGenerator: (req) => ipKeyGenerator(req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip),
   skip: (req) => req.method === 'GET' || req.path === '/api/health', // GET requests are read-only
 })
 
