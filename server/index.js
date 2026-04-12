@@ -1098,7 +1098,7 @@ app.use('/uploads', (req, res, next) => {
   dotfiles: 'deny',        // No hidden files
   index: false,             // No directory listing
   extensions: false,        // No extension guessing
-}))
+}), (req, res) => res.status(404).end())
 
 // ── Browser / OS parsing ──────────────────────────────────────────────────
 function parseBrowser(ua) {
