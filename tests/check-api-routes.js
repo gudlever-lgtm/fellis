@@ -210,6 +210,7 @@ if (missingChatRoutes.length > 0) {
 //   GET  /api/auth/facebook/callback     → 302 (redirect back)  | 400 (bad state)
 //   GET  /api/auth/facebook/data         → 200 (connected)      | 401 (no session)
 //   POST /api/auth/facebook/import       → 200 (ok)             | 401 (no session)
+//   POST /api/auth/facebook/import-photos→ 200 (ok)             | 401 (no session)
 //   POST /api/auth/facebook/disconnect   → 200 (ok)             | 401 (no session)
 //   POST /api/auth/facebook/deauthorize  → 200 (public webhook) | 400 (bad sig)
 //   POST /api/auth/facebook/delete       → 200 (public webhook) | 400 (bad sig)
@@ -219,6 +220,7 @@ const REQUIRED_FACEBOOK_ROUTES = [
   'GET /api/auth/facebook/callback',
   'GET /api/auth/facebook/data',
   'POST /api/auth/facebook/import',
+  'POST /api/auth/facebook/import-photos',
   'POST /api/auth/facebook/disconnect',
   'POST /api/auth/facebook/deauthorize',
   'POST /api/auth/facebook/delete',

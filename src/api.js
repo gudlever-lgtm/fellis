@@ -2085,3 +2085,7 @@ export const apiFacebookImport = (fields) =>
 // POST /api/auth/facebook/disconnect — revoke FB token and clear fb_connected
 export const apiFacebookDisconnect = () =>
   request('/api/auth/facebook/disconnect', { method: 'POST' })
+
+// POST /api/auth/facebook/import-photos — download selected FB photos into feed
+export const apiFacebookImportPhotos = (photoIds) =>
+  request('/api/auth/facebook/import-photos', { method: 'POST', body: JSON.stringify({ photoIds }) })

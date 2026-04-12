@@ -4697,6 +4697,8 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
             {mode === 'business' && profile.jobTitle && <span>💼 {profile.jobTitle}{profile.company ? ` · ${profile.company}` : ''}</span>}
             {mode === 'business' && profile.industry && <span>🏭 {profile.industry}</span>}
             {profile.location && <span>📍 {profile.location}</span>}
+            {profile.birthday && <span>🎂 {new Date(profile.birthday + 'T00:00:00').toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'long' })}</span>}
+            {profile.gender && <span>{t[`gender_${profile.gender}`] || profile.gender}</span>}
             <span>📅 {t.joined} {profile.joinDate ? new Date(profile.joinDate).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}</span>
             {profile.totalMinutes > 0 && <span>⏱ {t.hoursOnline}: {Math.floor(profile.totalMinutes / 60) > 0 ? `${Math.floor(profile.totalMinutes / 60)}t ` : ''}{profile.totalMinutes % 60}min</span>}
             {profile.lastActive && <span>🟢 {t.lastOnline}: {new Date(profile.lastActive).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>}
@@ -8779,6 +8781,8 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
             {profile.bio?.[lang] && <p className="p-profile-bio">{profile.bio[lang]}</p>}
             <div className="p-profile-meta">
               {profile.location && <span>📍 {profile.location}</span>}
+              {profile.birthday && <span>🎂 {new Date(profile.birthday + 'T00:00:00').toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'long' })}</span>}
+              {profile.gender && <span>{t[`gender_${profile.gender}`] || profile.gender}</span>}
               {profile.joinDate && <span>📅 {t.joined2} {new Date(profile.joinDate).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long' })}</span>}
             </div>
             <div className="p-friend-profile-stats" style={{ justifyContent: 'center', marginTop: 12 }}>
