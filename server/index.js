@@ -92,10 +92,20 @@ async function addCol(table, col, def) {
     throw new Error(`Invalid column definition: ${def}`)
   }
 
-  try {
-    await pool.query(`ALTER TABLE \`${table}\` ADD COLUMN \`${col}\` ${def}`)
-  } catch (e) {
-    if (e.errno !== 1060) throw e
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      await pool.query(`ALTER TABLE \`${table}\` ADD COLUMN \`${col}\` ${def}`)
+      return
+    } catch (e) {
+      if (e.errno === 1060) return // Column already exists — nothing to do
+      if (e.errno === 1213 && attempt < 3) {
+        // Deadlock — back off and retry (100ms, 200ms, 400ms)
+        await new Promise(r => setTimeout(r, 100 * Math.pow(2, attempt)))
+        continue
+      }
+      console.error(`Migration (${table}.${col}):`, e.message)
+      return // Log and swallow — non-fatal, column may already exist
+    }
   }
 }
 
@@ -12224,29 +12234,33 @@ app.get('/api/geocode/reverse', async (req, res) => {
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
   console.log(`fellis.eu API running on http://localhost:${PORT}`)
-  initNotifications()
-  initEvents()
-  initFriendRequests()
-  initConversations()
-  initMarketplace()
-  initCompanies()
-  initMollie()
-  initAdminSettings()
-  initAnalytics()
-  initSettingsSchema()
-  initSiteVisits()
-  initViralGrowth()
-  initReels()
-  initAds()
-  initAdminAdSettings()
-  initBusinessFeatures()
-  initEasterEggs()
-  initBadges()
-  initStoriesHashtags()
-  initSignalEngine()
-  initUserFollows()
-  // RTMP is handled by mediamtx (external service on port 1935).
-  // node-media-server startup is intentionally disabled to avoid port conflicts.
+  // Run init functions sequentially to prevent concurrent ALTER TABLE calls
+  // from deadlocking each other on the users/posts/etc metadata locks.
+  ;(async () => {
+    await initNotifications()
+    await initEvents()
+    await initFriendRequests()
+    await initConversations()
+    await initMarketplace()
+    await initCompanies()
+    await initMollie()
+    await initAdminSettings()
+    await initAnalytics()
+    await initSettingsSchema()
+    await initSiteVisits()
+    await initViralGrowth()
+    await initReels()
+    await initAds()
+    await initAdminAdSettings()
+    await initBusinessFeatures()
+    await initEasterEggs()
+    await initBadges()
+    await initStoriesHashtags()
+    await initSignalEngine()
+    // RTMP is handled by mediamtx (external service on port 1935).
+    // node-media-server startup is intentionally disabled to avoid port conflicts.
+    console.log('fellis.eu startup init complete')
+  })().catch(err => console.error('Startup init error:', err))
 })
 
 app.all('/api/stub/:fn', authenticate, (req, res) => res.json({ ok: true }))
