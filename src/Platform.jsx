@@ -19116,6 +19116,11 @@ function AdminBadgesPanel({ lang }) {
                   <td>
                     <span style={{ fontSize: 18, marginRight: 8 }}>{b.icon}</span>
                     <span style={{ fontWeight: 600 }}>{b.name}</span>
+                    {BADGE_BY_ID[b.id]?.description[lang] && (
+                      <div style={{ fontSize: 11, color: '#888', fontWeight: 400, marginTop: 2 }}>
+                        {BADGE_BY_ID[b.id].description[lang]}
+                      </div>
+                    )}
                   </td>
                   <td style={{ fontSize: 12, color: '#888' }}>{tierLabel(b.tier)}</td>
                   <td style={{ fontSize: 13 }}>{statRow?.awardedCount ?? 0}</td>
