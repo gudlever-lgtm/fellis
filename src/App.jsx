@@ -430,6 +430,13 @@ function App() {
       window.history.replaceState({}, '', window.location.pathname)
     }
 
+    // Returning from Facebook OAuth — navigate back to Edit Profile
+    const fbConnected = params.get('fb')
+    if (fbConnected === 'connected') {
+      setInitialPage('edit-profile')
+      // Leave ?fb=connected in place so FacebookImport.useEffect can detect it
+    }
+
     // Check for invite token in URL
     const invite = params.get('invite')
     if (invite) {
