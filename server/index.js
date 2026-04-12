@@ -741,10 +741,27 @@ function verifyCsrfToken(sessionId, token) {
   ).valueOf()
 }
 
+// Pre-authentication endpoints that must never require CSRF — users reach
+// them before they have a valid session (or when their session has expired).
+// A stale fellis_sid cookie must not block login/register.
+const CSRF_EXEMPT_PATHS = new Set([
+  '/api/auth/login',
+  '/api/auth/register',
+  '/api/auth/forgot-password',
+  '/api/auth/reset-password',
+  '/api/auth/verify-mfa',
+  '/api/visit',
+])
+
 // CSRF validation middleware for state-changing requests
 function validateCsrf(req, res, next) {
   // Skip CSRF for safe methods
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next()
+
+  // Skip CSRF for pre-auth endpoints — these are reachable without a valid
+  // session, so requiring a CSRF token would create an unsolvable deadlock
+  // for users whose session cookie has expired.
+  if (CSRF_EXEMPT_PATHS.has(req.path)) return next()
 
   const sessionId = getSessionIdFromRequest(req)
   // If no session, CSRF doesn't apply (no cookie to steal); authentication
