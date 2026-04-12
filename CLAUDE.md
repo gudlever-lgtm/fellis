@@ -80,7 +80,7 @@ fellis/
 │   ├── cleanup-marketplace.js  # Remove stale marketplace listings
 │   ├── import-keyword-lists.js # Import moderation keyword filters
 │   ├── migrate-bcrypt-passwords.js  # One-time bcrypt password migration script
-│   ├── migrate-*.sql       # Incremental database migrations (48 files)
+│   ├── migrate-*.sql       # Incremental database migrations (49 files)
 │   ├── package.json        # Server-only dependencies
 │   └── .env.example        # Environment variable template
 ├── tests/
@@ -320,7 +320,7 @@ Vite builds from `src/` as root into `assets/` at the repo root:
 | `friendships` | Bidirectional friend connections |
 | `friend_requests` | Pending/accepted/declined friend requests |
 | `user_blocks` | Blocked user pairs |
-| `posts` | Feed posts (bilingual text + JSON media array) |
+| `posts` | Feed posts (bilingual text + JSON media array); `user_mode` column records author's mode at creation time for feed separation |
 | `post_likes` | Like tracking per user/post |
 | `post_views` | View count per post |
 | `comments` | Post comments (bilingual) |
@@ -371,7 +371,7 @@ Vite builds from `src/` as root into `assets/` at the repo root:
 | `user_settings` | Per-user settings (dark mode, notification prefs, etc.) |
 
 ### Migrations
-- Schema changes use standalone `server/migrate-*.sql` files (48 files total)
+- Schema changes use standalone `server/migrate-*.sql` files (49 files total)
 - `server/migrate.js` tracks which migrations have been applied and runs pending ones in order
 - `server/run-migrations.js` can be called at deploy/startup to auto-apply pending migrations
 - Use the npm scripts instead of running SQL manually:
@@ -389,7 +389,7 @@ npm run migrate           # apply all pending migrations
 
 The `Platform.jsx` component renders these pages (controlled by `page` state):
 
-- **feed** — Post creation, feed with reactions, comments, media, link previews, scheduled posts
+- **feed** — Post creation, feed with reactions, comments, media, link previews, scheduled posts; Community/Business mode toggle filters feed via `GET /api/feed?mode=privat|business`
 - **friends** — Friend list, friend requests, user search, invite system, blocking
 - **messages** — Conversations (DM + group chats), mute, rename, leave
 - **profile** — User profile, avatar upload, bio, skills, interests, GDPR data tools
@@ -420,6 +420,13 @@ The `Platform.jsx` component renders these pages (controlled by `page` state):
 - **privat** — Standard personal account mode
 - **business** — Business account mode (unlocks analytics, endorsements, profile views, ads, leads)
 - Stored in `localStorage` as `fellis_mode` and synced to server via `PATCH /api/me/mode`
+
+### Feed Mode Separation
+- Every post stores `user_mode` (ENUM `'privat'`/`'business'`) at INSERT time via `(SELECT mode FROM users WHERE id = ?)` — records the author's mode at the moment of posting
+- `GET /api/feed` accepts optional `?mode=privat|business`; returns 400 for any other value; omitting it returns the original mixed feed (backward-compatible)
+- The frontend (`FeedPage` in `Platform.jsx`) defaults to the current user's own mode and renders a two-tab toggle ("Fællesskab" / "Erhverv" in Danish, "Community" / "Business" in English) — switching resets the cursor and reloads
+- Migration: `server/migrate-feed-mode-separation.sql` (adds column, backfills, adds composite index on `user_mode, created_at`)
+- Translation keys: `feedModePrivat` / `feedModeBusiness` in `src/i18n/feed.js`
 
 ### Easter Eggs
 Five hidden interactions are implemented (see `src/components/easter-eggs/` and `src/hooks/`):
