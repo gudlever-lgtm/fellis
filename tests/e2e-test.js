@@ -30,7 +30,9 @@ let passed = 0
 let failed = 0
 let skipped = 0
 const failures = []
+const unexpectedFiveHundreds = []  // tracks any 500 seen outside intentional tests
 let currentSection = ''
+let trackingFiveHundreds = true    // set false when intentionally expecting 500
 
 function section(name) {
   currentSection = name
@@ -84,6 +86,12 @@ async function api(method, path, body, extraHeaders = {}) {
       data = await res.text()
     }
     log(`${method} ${path} → ${res.status}`)
+    // Global 500 tracker — catches unexpected server errors across all tests
+    if (res.status === 500 && trackingFiveHundreds) {
+      const entry = `${method} ${path} → 500${data?.error ? ` (${data.error})` : ''}`
+      unexpectedFiveHundreds.push(`[${currentSection}] ${entry}`)
+      console.log(`  ${c.red('⚠')} ${c.red(`Unexpected 500: ${entry}`)}`)
+    }
     return { status: res.status, data, ok: res.ok }
   } catch (err) {
     return { status: 0, data: null, ok: false, err: err.message, connErr: true }
@@ -435,6 +443,62 @@ async function testBadges() {
   else      fail('GET /api/badges', `HTTP ${r.status}`)
 }
 
+// ─── 404 & 500 error handling ─────────────────────────────────────────────────
+
+async function testErrorHandling() {
+  section('404 & 500 Error Handling')
+  if (!sessionId) { skip('Error handling tests', 'no session'); return }
+
+  const GHOST = 999_999_999  // ID that will never exist
+
+  // ── 404: non-existent resources ──────────────────────────────────────────────
+
+  const post404 = await api('GET', `/posts/${GHOST}`)
+  if (post404.status === 404) ok(`GET /api/posts/${GHOST} → 404`)
+  else                        fail(`GET /api/posts/${GHOST} should be 404`, `got ${post404.status}`)
+
+  const user404 = await api('GET', `/users/${GHOST}`)
+  if (user404.status === 404) ok(`GET /api/users/${GHOST} → 404`)
+  // Some servers return 403 or empty array — accept either as "not found" behaviour
+  else if (user404.status === 403 || (user404.ok && Array.isArray(user404.data) && user404.data.length === 0))
+    ok(`GET /api/users/${GHOST} → ${user404.status} (resource not found)`)
+  else
+    fail(`GET /api/users/${GHOST} should signal not-found`, `got ${user404.status}`)
+
+  const marketplace404 = await api('GET', `/marketplace/${GHOST}`)
+  if (marketplace404.status === 404) ok(`GET /api/marketplace/${GHOST} → 404`)
+  else if (!marketplace404.ok)       ok(`GET /api/marketplace/${GHOST} → ${marketplace404.status} (not found)`)
+  else                               fail(`GET /api/marketplace/${GHOST} should signal not-found`, `got ${marketplace404.status}`)
+
+  const event404 = await api('GET', `/events/${GHOST}`)
+  if (event404.status === 404) ok(`GET /api/events/${GHOST} → 404`)
+  else if (!event404.ok)       ok(`GET /api/events/${GHOST} → ${event404.status} (not found)`)
+  else                         fail(`GET /api/events/${GHOST} should signal not-found`, `got ${event404.status}`)
+
+  const job404 = await api('GET', `/jobs/${GHOST}`)
+  if (job404.status === 404) ok(`GET /api/jobs/${GHOST} → 404`)
+  else if (!job404.ok)       ok(`GET /api/jobs/${GHOST} → ${job404.status} (not found)`)
+  else                       fail(`GET /api/jobs/${GHOST} should signal not-found`, `got ${job404.status}`)
+
+  // ── 404: unknown API route (POST avoids the SPA GET fallback) ────────────────
+
+  const unknown = await api('POST', `/this-route-does-not-exist-${GHOST}`)
+  if (unknown.status === 404) ok('POST /api/<unknown-route> → 404')
+  else                        fail('POST to unknown API route should return 404', `got ${unknown.status}`)
+
+  // ── 401: protected endpoint without session ───────────────────────────────────
+
+  const savedSession = sessionId
+  sessionId = null
+  const unauth = await api('GET', '/feed')
+  sessionId = savedSession
+  if (unauth.status === 401) ok('GET /api/feed without session → 401')
+  else                       fail('Unauthenticated request to /api/feed should return 401', `got ${unauth.status}`)
+
+  // ── 500 summary (detected globally throughout the run) ───────────────────────
+  // Reported in final summary — no per-test assertion needed here.
+}
+
 async function testCsrfToken() {
   section('CSRF Token')
   if (!sessionId) { skip('CSRF token', 'no session'); return }
@@ -622,7 +686,14 @@ async function run() {
   await testExplore()
   await testInterests()
   await testBadges()
+  await testErrorHandling()
   await cleanup()
+
+  // Fold any unexpected 500s into the failure count
+  for (const entry of unexpectedFiveHundreds) {
+    failed++
+    failures.push(entry)
+  }
 
   // ─── Summary ───────────────────────────────────────────────────────────────
   const total = passed + failed + skipped
@@ -632,6 +703,11 @@ async function run() {
   if (failed > 0)  console.log(`  ${c.red(`✖ ${failed} failed`)}`)
   if (skipped > 0) console.log(`  ${c.yellow(`– ${skipped} skipped`)}`)
   console.log(`  Total: ${total}`)
+
+  if (unexpectedFiveHundreds.length > 0) {
+    console.log(`\n${c.red(c.bold(`Unexpected 500 errors (${unexpectedFiveHundreds.length}):`))}`)
+    for (const f of unexpectedFiveHundreds) console.log(`  ${c.red('⚠')} ${f}`)
+  }
 
   if (failures.length > 0) {
     console.log(`\n${c.red(c.bold('Failed tests:'))}`)
