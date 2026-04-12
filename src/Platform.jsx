@@ -5205,7 +5205,36 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
   return (
     <div className="p-profile" style={{ maxWidth: 800, margin: '0 auto' }}>
       <div className="p-card" style={{ padding: 24 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>{t.editProfile}</h2>
+        {/* Avatar — always visible above tabs */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
+          <div className="p-profile-avatar-wrapper" onClick={() => avatarInputRef.current?.click()} title={t.editAvatarBtn} style={{ cursor: 'pointer' }}>
+            {avatarSrc ? (
+              <img className="p-profile-avatar-img" src={avatarSrc} alt="" />
+            ) : (
+              <div className="p-profile-avatar" style={{ background: nameToColor(profile.name) }}>
+                {profile.initials || getInitials(profile.name)}
+              </div>
+            )}
+            <div className="p-profile-avatar-overlay">📷</div>
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/gif,image/webp"
+              style={{ display: 'none' }}
+              onChange={handleAvatarUpload}
+            />
+          </div>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 20 }}>{t.editProfile}</div>
+            <div style={{ fontWeight: 600, fontSize: 13, color: '#555', marginTop: 2 }}>{profile.name || ''}</div>
+            <button
+              style={{ marginTop: 6, padding: '5px 12px', borderRadius: 6, border: '1px solid #2D6A4F', background: '#fff', color: '#2D6A4F', cursor: 'pointer', fontSize: 13 }}
+              onClick={() => avatarInputRef.current?.click()}
+            >
+              {t.editAvatarBtn}
+            </button>
+          </div>
+        </div>
 
         {/* Tab navigation */}
         <div className="p-filter-tabs" style={{ marginBottom: 24 }}>
@@ -5216,36 +5245,6 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
 
         {/* ── Profile tab ─────────────────────────────────── */}
         {tab === 'profile' && <>
-          {/* Avatar upload */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 8 }}>
-            <div className="p-profile-avatar-wrapper" onClick={() => avatarInputRef.current?.click()} title={t.editAvatarBtn} style={{ cursor: 'pointer' }}>
-              {avatarSrc ? (
-                <img className="p-profile-avatar-img" src={avatarSrc} alt="" />
-              ) : (
-                <div className="p-profile-avatar" style={{ background: nameToColor(profile.name) }}>
-                  {profile.initials || getInitials(profile.name)}
-                </div>
-              )}
-              <div className="p-profile-avatar-overlay">📷</div>
-              <input
-                ref={avatarInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/gif,image/webp"
-                style={{ display: 'none' }}
-                onChange={handleAvatarUpload}
-              />
-            </div>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: 14 }}>{t.editAvatarLabel}</div>
-              <button
-                style={{ marginTop: 4, padding: '6px 12px', borderRadius: 6, border: '1px solid #2D6A4F', background: '#fff', color: '#2D6A4F', cursor: 'pointer', fontSize: 13 }}
-                onClick={() => avatarInputRef.current?.click()}
-              >
-                {t.editAvatarBtn}
-              </button>
-            </div>
-          </div>
-
           {/* Name (read-only) */}
           <label style={labelStyle}>{t.editNameLabel}</label>
           <input style={fieldStyle} value={profile.name || ''} readOnly />
