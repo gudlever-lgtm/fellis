@@ -3023,12 +3023,14 @@ app.get('/api/feed', authenticate, async (req, res) => {
                 p.place_name, p.geo_lat, p.geo_lng, p.tagged_users, p.linked_type, p.linked_id,
                 (SELECT COUNT(*) FROM earned_badges WHERE user_id = p.author_id) as author_badge_count
          FROM posts p JOIN users u ON p.author_id = u.id
-         WHERE (p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?))
+         WHERE (p.author_id = ?
+           OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?)
+           OR p.author_id IN (SELECT business_id FROM business_follows WHERE follower_id = ?))
            AND (p.scheduled_at IS NULL OR p.scheduled_at <= NOW())
            ${cursorFilter}
          ORDER BY p.created_at DESC
          LIMIT ?`,
-        [req.userId, req.userId, ...cursorParams, limit]
+        [req.userId, req.userId, req.userId, ...cursorParams, limit]
       )
     } catch {
       ;[posts] = await pool.query(
@@ -3037,12 +3039,14 @@ app.get('/api/feed', authenticate, async (req, res) => {
                 NULL as tagged_users, NULL as linked_type, NULL as linked_id,
                 0 as author_badge_count
          FROM posts p JOIN users u ON p.author_id = u.id
-         WHERE (p.author_id = ? OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?))
+         WHERE (p.author_id = ?
+           OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?)
+           OR p.author_id IN (SELECT business_id FROM business_follows WHERE follower_id = ?))
            AND (p.scheduled_at IS NULL OR p.scheduled_at <= NOW())
            ${cursorFilter}
          ORDER BY p.created_at DESC
          LIMIT ?`,
-        [req.userId, req.userId, ...cursorParams, limit]
+        [req.userId, req.userId, req.userId, ...cursorParams, limit]
       )
     }
     const postIds = posts.map(p => p.id)
