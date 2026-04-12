@@ -71,6 +71,20 @@ import DiscoveryCard from './components/DiscoveryCard.jsx'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
+// Wrapper for raw csrfFetch() calls that adds the CSRF token and session cookie.
+// Use this anywhere api.js request() can't be used (e.g. non-JSON bodies).
+function csrfFetch(url, options = {}) {
+  const csrf = localStorage.getItem('fellis_csrf_token')
+  return fetch(`${API_BASE}${url}`, {
+    credentials: 'same-origin',
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+      ...(csrf ? { 'X-CSRF-Token': csrf } : {}),
+    },
+  })
+}
+
 
 // ── Mock notifications ──
 
@@ -1973,7 +1987,7 @@ function SuggestedPostCard({ post, lang, onViewProfile }) {
   const handleAddFriend = async () => {
     setFriendReqSent(true)
     try {
-      await fetch(`/api/friends/request/${post.author_id}`, {
+      await csrfFetch(`/api/friends/request/${post.author_id}`, {
         method: 'POST',
         credentials: 'same-origin', // Session cookie sent automatically
       })
@@ -3740,7 +3754,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         const postText = lang === 'da' ? (post.text_da || post.text_en) : (post.text_en || post.text_da)
         const timeAgo = new Date(post.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short' })
         const toggleLike = () => {
-          fetch(`/api/companies/${post.company_id}/posts/${post.id}/like`, { method: 'POST', credentials: 'include' })
+          csrfFetch(`/api/companies/${post.company_id}/posts/${post.id}/like`, { method: 'POST', credentials: 'include' })
             .then(r => r.ok ? r.json() : null)
             .then(data => { if (!data) return; setCpFeedPosts(prev => prev.map(p => p.id === post.id
               ? { ...p, liked: data.liked ? 1 : 0, likes: data.liked ? p.likes + 1 : Math.max(0, p.likes - 1) }
@@ -3750,7 +3764,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         const toggleComments = () => {
           setCpFeedExpanded(prev => { const n = new Set(prev); n.has(post.id) ? n.delete(post.id) : n.add(post.id); return n })
           if (!cpFeedCommentLists[post.id]) {
-            fetch(`/api/companies/${post.company_id}/posts/${post.id}/comments`, { credentials: 'include' })
+            csrfFetch(`/api/companies/${post.company_id}/posts/${post.id}/comments`, { credentials: 'include' })
               .then(r => r.ok ? r.json() : null)
               .then(data => setCpFeedCommentLists(prev => ({ ...prev, [post.id]: data?.comments || [] })))
               .catch(() => {})
@@ -3759,7 +3773,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         const sendComment = () => {
           const text = cpFeedCommentTexts[post.id]?.trim()
           if (!text) return
-          fetch(`/api/companies/${post.company_id}/posts/${post.id}/comments`, {
+          csrfFetch(`/api/companies/${post.company_id}/posts/${post.id}/comments`, {
             method: 'POST', credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text }),
@@ -4589,7 +4603,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
         if (data) setFamilyFriends((data.friends || data || []).filter(f => rels[String(f.id)] === 'family'))
       })
     }
-    fetch('/api/companies', { credentials: 'include' })
+    csrfFetch('/api/companies', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => setMyCompanies((data?.companies || []).filter(c => c.member_role === 'owner')))
       .catch(() => {})
@@ -6090,7 +6104,7 @@ function PasswordStrengthIndicator({ password, lang }) {
   const t = getTranslations(lang)
   const [policy, setPolicy] = useState(null)
   useEffect(() => {
-    fetch('/api/auth/password-policy').then(r => r.ok ? r.json() : null).then(p => { if (p) setPolicy(p) }).catch(() => {})
+    csrfFetch('/api/auth/password-policy').then(r => r.ok ? r.json() : null).then(p => { if (p) setPolicy(p) }).catch(() => {})
   }, [])
 
   if (!password) return null
@@ -6148,7 +6162,7 @@ function SettingsSikkerhed({ lang, fS, lS }) {
   const [enableCodeMsg, setEnableCodeMsg] = useState(null)
 
   useEffect(() => {
-    fetch('/api/profile', { credentials: 'include' })
+    csrfFetch('/api/profile', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (!data) return
@@ -6346,7 +6360,7 @@ function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenM
   const [mfaSettingsSending, setMfaSettingsSending] = useState(false)
 
   useEffect(() => {
-    fetch('/api/profile', { credentials: 'include' })
+    csrfFetch('/api/profile', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (!data) return; setProfile(data); setNewEmail(data.email || '') })
       .catch(() => {})
@@ -6383,7 +6397,7 @@ function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenM
     }
     setPasswordLoading(true); setPasswordMsg(null); setCurrentPwdError(null)
     try {
-      const res = await fetch('/api/profile/password', {
+      const res = await csrfFetch('/api/profile/password', {
         method: 'PATCH', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...(hasPassword ? { currentPassword } : {}), newPassword, lang, ...(overrideMfaCode ? { mfaCode: overrideMfaCode } : {}) }),
@@ -6419,7 +6433,7 @@ function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenM
     }
     setEmailLoading(true); setEmailMsg(null)
     try {
-      const res = await fetch('/api/profile/email', {
+      const res = await csrfFetch('/api/profile/email', {
         method: 'PATCH', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ newEmail: newEmail.trim(), password: emailPassword, ...(overrideMfaCode ? { mfaCode: overrideMfaCode } : {}) }),
@@ -7073,7 +7087,7 @@ function SettingsPrivatliv({ lang, t, fS, lS }) {
   const [msg, setMsg] = useState(null)
 
   useEffect(() => {
-    fetch('/api/settings/privacy', { credentials: 'include' })
+    csrfFetch('/api/settings/privacy', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         if (d) {
@@ -7096,7 +7110,7 @@ function SettingsPrivatliv({ lang, t, fS, lS }) {
   const save = async () => {
     setMsg(null)
     try {
-      const res = await fetch('/api/settings/privacy', {
+      const res = await csrfFetch('/api/settings/privacy', {
         method: 'PATCH', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -7247,7 +7261,7 @@ function SettingsSessions({ lang, t, onLogout }) {
 
   const load = () => {
     setLoading(true)
-    fetch('/api/settings/sessions', { credentials: 'include' })
+    csrfFetch('/api/settings/sessions', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => { setSessions(data?.sessions || []); setLoading(false) })
       .catch(() => setLoading(false))
@@ -7255,13 +7269,13 @@ function SettingsSessions({ lang, t, onLogout }) {
   useEffect(() => { load() }, [])
 
   const deleteSession = (id) => {
-    fetch(`/api/settings/sessions/${id}`, { method: 'DELETE', credentials: 'include' })
+    csrfFetch(`/api/settings/sessions/${id}`, { method: 'DELETE', credentials: 'include' })
       .then(() => load())
       .catch(() => {})
   }
 
   const deleteOthers = () => {
-    fetch('/api/settings/sessions/others', { method: 'DELETE', credentials: 'include' })
+    csrfFetch('/api/settings/sessions/others', { method: 'DELETE', credentials: 'include' })
       .then(() => load())
       .catch(() => {})
   }
@@ -7341,7 +7355,7 @@ function SettingsSprog({ lang, t, darkMode, onToggleDark }) {
 
   const switchLang = (newLang) => {
     localStorage.setItem('fellis_lang', newLang)
-    fetch('/api/me/lang', {
+    csrfFetch('/api/me/lang', {
       method: 'PATCH', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ lang: newLang }),
@@ -10211,7 +10225,7 @@ function SearchPage({ lang, t, mode, onNavigateToPost, onNavigateToConv, onNavig
       try {
         const [data, compData] = await Promise.all([
           apiSearch(query.trim()),
-          fetch(`/api/companies/all?q=${encodeURIComponent(query.trim())}`, { credentials: 'include' })
+          csrfFetch(`/api/companies/all?q=${encodeURIComponent(query.trim())}`, { credentials: 'include' })
             .then(r => r.ok ? r.json() : { companies: [] }).catch(() => ({ companies: [] })),
         ])
         setResults(data || { posts: [], messages: [] })
@@ -11598,14 +11612,14 @@ function SkillsSection({ profile, t, lang, isOwn }) {
 
   useEffect(() => {
     if (!profile?.id) return
-    fetch(`/api/skills/${profile.id}`, { credentials: 'include' })
+    csrfFetch(`/api/skills/${profile.id}`, { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => { setSkills(data?.skills || []); setLoading(false) })
       .catch(() => setLoading(false))
   }, [profile?.id])
 
   const endorse = (skillId) => {
-    fetch(`/api/skills/${skillId}/endorse`, { method: 'POST', credentials: 'include' })
+    csrfFetch(`/api/skills/${skillId}/endorse`, { method: 'POST', credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (!data) return
@@ -11619,7 +11633,7 @@ function SkillsSection({ profile, t, lang, isOwn }) {
   const addSkill = () => {
     const name = newSkill.trim()
     if (!name || skills.length >= 20) return
-    fetch('/api/skills', {
+    csrfFetch('/api/skills', {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name }),
@@ -11630,7 +11644,7 @@ function SkillsSection({ profile, t, lang, isOwn }) {
   }
 
   const removeSkill = (skillId) => {
-    fetch(`/api/skills/${skillId}`, { method: 'DELETE', credentials: 'include' })
+    csrfFetch(`/api/skills/${skillId}`, { method: 'DELETE', credentials: 'include' })
       .then(() => setSkills(prev => prev.filter(s => s.id !== skillId)))
       .catch(() => {})
   }
@@ -11638,7 +11652,7 @@ function SkillsSection({ profile, t, lang, isOwn }) {
   const showEndorsers = (skillId) => {
     if (endorsersPopup?.skillId === skillId) { setEndorsersPopup(null); return }
     setEndorsersLoading(true)
-    fetch(`/api/skills/${skillId}/endorsers`, { credentials: 'include' })
+    csrfFetch(`/api/skills/${skillId}/endorsers`, { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => { setEndorsersPopup({ skillId, endorsers: data?.endorsers || [] }); setEndorsersLoading(false) })
       .catch(() => setEndorsersLoading(false))
@@ -11744,7 +11758,7 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
 
   const loadCompanies = () => {
     setLoading(true)
-    fetch('/api/companies', { credentials: 'include' })
+    csrfFetch('/api/companies', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => { setCompanies(data?.companies || []); setLoading(false) })
       .catch(() => setLoading(false))
@@ -11759,7 +11773,7 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
       setSelectedCompany(found)
       setOpenedFromFeed(true)
     } else {
-      fetch(`/api/companies/${initialCompanyId}`, { credentials: 'include' })
+      csrfFetch(`/api/companies/${initialCompanyId}`, { credentials: 'include' })
         .then(r => r.ok ? r.json() : null)
         .then(data => { if (data?.company) { setSelectedCompany(data.company); setOpenedFromFeed(true) } })
         .catch(() => {})
@@ -11781,7 +11795,7 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
   const canCreateCompany = ownedCompanies.length === 0
 
   const toggleFollow = (id) => {
-    fetch(`/api/companies/${id}/follow`, { method: 'POST', credentials: 'include' })
+    csrfFetch(`/api/companies/${id}/follow`, { method: 'POST', credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (!data) return
@@ -11803,7 +11817,7 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
     if (tab !== 'discover') return
     setDiscoverLoading(true)
     const params = discoverSearch ? `?q=${encodeURIComponent(discoverSearch)}` : ''
-    fetch(`/api/companies/all${params}`, { credentials: 'include' })
+    csrfFetch(`/api/companies/all${params}`, { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => { setDiscoverCompanies(data?.companies || []); setDiscoverLoading(false) })
       .catch(() => setDiscoverLoading(false))
@@ -12069,7 +12083,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
 
   useEffect(() => {
     setPostsLoading(true)
-    fetch(`/api/companies/${company.id}`, { credentials: 'include' })
+    csrfFetch(`/api/companies/${company.id}`, { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         setCompanyPosts(data?.posts || [])
@@ -12095,7 +12109,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
     if (tab !== 'members') return
     if (companyMembers.length > 0) return
     setMembersLoading(true)
-    fetch(`/api/companies/${company.id}/members`, { credentials: 'include' })
+    csrfFetch(`/api/companies/${company.id}/members`, { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         const members = data?.members || []
@@ -12112,13 +12126,13 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
   }, [tab, company.id])
 
   const connectWithMember = (userId) => {
-    fetch(`/api/friends/request/${userId}`, { method: 'POST', credentials: 'include' })
+    csrfFetch(`/api/friends/request/${userId}`, { method: 'POST', credentials: 'include' })
       .then(() => setMemberConnectState(prev => ({ ...prev, [userId]: 'sent' })))
       .catch(() => {})
   }
 
   const toggleCompanyLike = (postId) => {
-    fetch(`/api/companies/${company.id}/posts/${postId}/like`, { method: 'POST', credentials: 'include' })
+    csrfFetch(`/api/companies/${company.id}/posts/${postId}/like`, { method: 'POST', credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (!data) return
@@ -12132,7 +12146,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
   const toggleCompanyComments = (postId) => {
     setExpandedCompanyComments(prev => { const n = new Set(prev); n.has(postId) ? n.delete(postId) : n.add(postId); return n })
     if (!companyCommentLists[postId]) {
-      fetch(`/api/companies/${company.id}/posts/${postId}/comments`, { credentials: 'include' })
+      csrfFetch(`/api/companies/${company.id}/posts/${postId}/comments`, { credentials: 'include' })
         .then(r => r.ok ? r.json() : null)
         .then(data => setCompanyCommentLists(prev => ({ ...prev, [postId]: data?.comments || [] })))
         .catch(() => {})
@@ -12142,7 +12156,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
   const addCompanyComment = (postId) => {
     const text = companyCommentInputs[postId]?.trim()
     if (!text) return
-    fetch(`/api/companies/${company.id}/posts/${postId}/comments`, {
+    csrfFetch(`/api/companies/${company.id}/posts/${postId}/comments`, {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text }),
@@ -12173,7 +12187,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
 
   const postCompany = () => {
     if (!newPost.trim()) return
-    fetch(`/api/companies/${company.id}/posts`, {
+    csrfFetch(`/api/companies/${company.id}/posts`, {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text_da: newPost.trim(), text_en: newPost.trim() }),
@@ -12210,7 +12224,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
                 onClick={() => {
                   setShowFollowersPopup(true)
                   if (!followers) {
-                    fetch(`/api/companies/${company.id}/followers`, { credentials: 'include' })
+                    csrfFetch(`/api/companies/${company.id}/followers`, { credentials: 'include' })
                       .then(r => r.ok ? r.json() : null)
                       .then(d => setFollowers(d?.followers || []))
                       .catch(() => setFollowers([]))
@@ -12420,7 +12434,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
               onClick={() => {
                 const userId = prompt(t.userIDOrEmailToAdd)
                 if (!userId) return
-                fetch(`/api/companies/${company.id}/members`, {
+                csrfFetch(`/api/companies/${company.id}/members`, {
                   method: 'POST',
                   credentials: 'include',
                   headers: { 'Content-Type': 'application/json' },
@@ -12479,7 +12493,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
                     <button
                       onClick={() => {
                         if (confirm(`${t.removeMemberName}${member.name}?`)) {
-                          fetch(`/api/companies/${company.id}/members/${member.id}`, {
+                          csrfFetch(`/api/companies/${company.id}/members/${member.id}`, {
                             method: 'DELETE',
                             credentials: 'include',
                           })
@@ -12554,7 +12568,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
               <button
                 onClick={() => {
                   if (confirm(`${t.deleteCompanyName}${company.name}${t.deleteCompanyNameSuffix}`)) {
-                    fetch(`/api/companies/${company.id}`, {
+                    csrfFetch(`/api/companies/${company.id}`, {
                       method: 'DELETE',
                       credentials: 'include',
                     })
@@ -12615,7 +12629,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
                           <button
                             onClick={() => {
                               if (confirm(t.deleteThisJob)) {
-                                fetch(`/api/jobs/${job.id}`, { method: 'DELETE', credentials: 'include' })
+                                csrfFetch(`/api/jobs/${job.id}`, { method: 'DELETE', credentials: 'include' })
                                   .then(r => r.ok && setCompanyJobs(prev => prev.filter(j => j.id !== job.id)))
                                   .catch(() => {})
                               }
@@ -12872,7 +12886,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
           onClose={() => setEditingJob(null)}
           onCreate={() => {
             setEditingJob(null)
-            fetch(`/api/companies/${company.id}`, { credentials: 'include' })
+            csrfFetch(`/api/companies/${company.id}`, { credentials: 'include' })
               .then(r => r.ok ? r.json() : null)
               .then(data => setCompanyJobs(data?.jobs || []))
               .catch(() => {})
@@ -12953,7 +12967,7 @@ function CreateCompanyModal({ t, lang, currentUser, onClose, onCreate, editCompa
       if (isEdit) {
         // Edit existing company
         payload.name = name.trim()
-        const res = await fetch(`/api/companies/${editCompany.id}`, {
+        const res = await csrfFetch(`/api/companies/${editCompany.id}`, {
           method: 'PUT',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
@@ -12964,7 +12978,7 @@ function CreateCompanyModal({ t, lang, currentUser, onClose, onCreate, editCompa
       } else {
         // Create new company
         const handle = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-        const res = await fetch('/api/companies', {
+        const res = await csrfFetch('/api/companies', {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
@@ -13661,7 +13675,7 @@ function JobCard({ job, t, lang, onSaveToggle, onTrackChange, currentUser, onSha
   const trackInfo = JOB_TRACK_STATUSES.find(s => s.value === trackStatus)
 
   const toggleSave = () => {
-    fetch(`/api/jobs/${job.id}/save`, { method: 'POST', credentials: 'include' })
+    csrfFetch(`/api/jobs/${job.id}/save`, { method: 'POST', credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (!data) return
@@ -13913,7 +13927,7 @@ function JobsPage({ lang, t, currentUser, mode, onNavigate }) {
     if (filterKeyword) params.set('q', filterKeyword)
     if (filterType) params.set('type', filterType)
     setLoading(true)
-    fetch(`/api/jobs?${params}`, { credentials: 'include' })
+    csrfFetch(`/api/jobs?${params}`, { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => { setJobs(data?.jobs || []); setLoading(false) })
       .catch(() => setLoading(false))
@@ -13921,7 +13935,7 @@ function JobsPage({ lang, t, currentUser, mode, onNavigate }) {
 
   useEffect(() => {
     if (tab === 'saved') {
-      fetch('/api/jobs/saved', { credentials: 'include' })
+      csrfFetch('/api/jobs/saved', { credentials: 'include' })
         .then(r => r.ok ? r.json() : null)
         .then(data => setSavedJobs(data?.jobs || []))
         .catch(() => {})
@@ -13935,7 +13949,7 @@ function JobsPage({ lang, t, currentUser, mode, onNavigate }) {
   }, [tab])
 
   useEffect(() => {
-    fetch('/api/companies', { credentials: 'include' })
+    csrfFetch('/api/companies', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => setMyCompanies((data?.companies || []).filter(c => c.member_role === 'owner' || c.member_role === 'admin')))
       .catch(() => {})
@@ -13965,7 +13979,7 @@ function JobsPage({ lang, t, currentUser, mode, onNavigate }) {
   }
 
   const handleToggleActive = (job) => {
-    fetch(`/api/jobs/${job.id}`, {
+    csrfFetch(`/api/jobs/${job.id}`, {
       method: 'PUT', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...job, active: !job.active }),
@@ -14147,7 +14161,7 @@ function JobsPage({ lang, t, currentUser, mode, onNavigate }) {
               }}
               onContactCompany={(companyId) => {
                 // Fetch company to show lead modal
-                fetch(`/api/companies/${companyId}`, { credentials: 'include' })
+                csrfFetch(`/api/companies/${companyId}`, { credentials: 'include' })
                   .then(r => r.ok ? r.json() : null)
                   .then(data => {
                     if (data) setContactCompanyLead(data)
@@ -14282,7 +14296,7 @@ function JobsPage({ lang, t, currentUser, mode, onNavigate }) {
                 onChange={e => {
                   setShareQuery(e.target.value)
                   if (e.target.value.length > 0) {
-                    fetch(`/api/users/search?q=${encodeURIComponent(e.target.value)}`, { credentials: 'include' })
+                    csrfFetch(`/api/users/search?q=${encodeURIComponent(e.target.value)}`, { credentials: 'include' })
                       .then(r => r.ok ? r.json() : null)
                       .then(data => setShareUsers(Array.isArray(data) ? data : data?.users || []))
                       .catch(() => {})
@@ -14436,7 +14450,7 @@ function CreateJobModal({ t, lang, companies, onClose, onCreate, editJob }) {
     }
     try {
       const url = isEdit ? `/api/jobs/${editJob.id}` : '/api/jobs'
-      const res = await fetch(url, {
+      const res = await csrfFetch(url, {
         method: isEdit ? 'PUT' : 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -14589,7 +14603,7 @@ async function _osmGeocode(location) {
   if (!location) return null
   if (_osmGeoCache.has(location)) return _osmGeoCache.get(location)
   try {
-    const res = await fetch(
+    const res = await csrfFetch(
       `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1`,
       { headers: { 'Accept-Language': 'da,en' } }
     )
