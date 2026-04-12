@@ -1540,7 +1540,8 @@ app.post('/api/auth/forgot-password', strictLimit, validate(schemas.forgotPasswo
 
     if (mailer) {
       const fromAddr = process.env.MAIL_FROM || process.env.MAIL_USER
-      await mailer.sendMail({
+      // Fire-and-forget — do NOT await; SMTP connection delays must not block the HTTP response
+      mailer.sendMail({
         from: `"Fellis" <${fromAddr}>`,
         to: email,
         subject: 'Nulstil din adgangskode / Reset your password',
@@ -12231,36 +12232,42 @@ app.get('/api/geocode/reverse', async (req, res) => {
   }
 })
 
+// Run all schema-init functions BEFORE app.listen() so that ALTER TABLE
+// metadata locks are fully released before the server accepts any HTTP traffic.
+// Requests arriving while an ALTER TABLE holds a lock on e.g. `users` would
+// hang indefinitely — moving inits before listen() eliminates that window.
 const PORT = process.env.PORT || 3001
-app.listen(PORT, () => {
-  console.log(`fellis.eu API running on http://localhost:${PORT}`)
-  // Run init functions sequentially to prevent concurrent ALTER TABLE calls
-  // from deadlocking each other on the users/posts/etc metadata locks.
-  ;(async () => {
-    await initNotifications()
-    await initEvents()
-    await initFriendRequests()
-    await initConversations()
-    await initMarketplace()
-    await initCompanies()
-    await initMollie()
-    await initAdminSettings()
-    await initAnalytics()
-    await initSettingsSchema()
-    await initSiteVisits()
-    await initViralGrowth()
-    await initReels()
-    await initAds()
-    await initAdminAdSettings()
-    await initBusinessFeatures()
-    await initEasterEggs()
-    await initBadges()
-    await initStoriesHashtags()
-    await initSignalEngine()
-    // RTMP is handled by mediamtx (external service on port 1935).
-    // node-media-server startup is intentionally disabled to avoid port conflicts.
-    console.log('fellis.eu startup init complete')
-  })().catch(err => console.error('Startup init error:', err))
+;(async () => {
+  await initNotifications()
+  await initEvents()
+  await initFriendRequests()
+  await initConversations()
+  await initMarketplace()
+  await initCompanies()
+  await initMollie()
+  await initAdminSettings()
+  await initAnalytics()
+  await initSettingsSchema()
+  await initSiteVisits()
+  await initViralGrowth()
+  await initReels()
+  await initAds()
+  await initAdminAdSettings()
+  await initBusinessFeatures()
+  await initEasterEggs()
+  await initBadges()
+  await initStoriesHashtags()
+  await initSignalEngine()
+  // RTMP is handled by mediamtx (external service on port 1935).
+  // node-media-server startup is intentionally disabled to avoid port conflicts.
+  console.log('fellis.eu startup init complete')
+
+  app.listen(PORT, () => {
+    console.log(`fellis.eu API running on http://localhost:${PORT}`)
+  })
+})().catch(err => {
+  console.error('Startup init error — server will NOT start:', err)
+  process.exit(1)
 })
 
 app.all('/api/stub/:fn', authenticate, (req, res) => res.json({ ok: true }))
