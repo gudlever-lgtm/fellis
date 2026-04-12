@@ -14048,6 +14048,73 @@ app.post('/api/admin/blog/translate', authenticate, requireAdmin, async (req, re
   }
 })
 
+// ── Discovery Feed Cards ───────────────────────────────────────────────────────
+
+// GET /api/feed/discovery — 3–5 mixed suggestions (users, businesses, groups) not yet followed
+app.get('/api/feed/discovery', authenticate, async (req, res) => {
+  try {
+    const uid = req.userId
+
+    // Users: not self, not already friends
+    const [users] = await pool.query(
+      `SELECT u.id, 'user' AS type, u.name,
+              u.avatar_url AS avatar,
+              COALESCE(u.bio_da, '') AS description_da,
+              COALESCE(u.bio_en, '') AS description_en,
+              COALESCE(u.follower_count, 0) AS follower_count
+       FROM users u
+       WHERE u.id != ?
+         AND u.id NOT IN (SELECT friend_id FROM friendships WHERE user_id = ?)
+         AND u.id NOT IN (SELECT user_id FROM friendships WHERE friend_id = ?)
+       ORDER BY RAND()
+       LIMIT 2`,
+      [uid, uid, uid]
+    )
+
+    // Businesses: not followed, not owned
+    const [businesses] = await pool.query(
+      `SELECT c.id, 'business' AS type, c.name,
+              NULL AS avatar,
+              COALESCE(c.tagline, '') AS description_da,
+              COALESCE(c.tagline, '') AS description_en,
+              (SELECT COUNT(*) FROM company_follows WHERE company_id = c.id) AS follower_count
+       FROM companies c
+       WHERE c.id NOT IN (SELECT company_id FROM company_follows WHERE user_id = ?)
+         AND c.id NOT IN (SELECT company_id FROM company_members WHERE user_id = ?)
+       ORDER BY RAND()
+       LIMIT 2`,
+      [uid, uid]
+    )
+
+    // Public groups: not joined
+    const [groups] = await pool.query(
+      `SELECT cv.id, 'group' AS type, cv.name,
+              NULL AS avatar,
+              COALESCE(cv.description_da, '') AS description_da,
+              COALESCE(cv.description_en, '') AS description_en,
+              (SELECT COUNT(*) FROM conversation_participants WHERE conversation_id = cv.id) AS follower_count
+       FROM conversations cv
+       WHERE cv.is_public = 1
+         AND cv.is_group = 1
+         AND cv.id NOT IN (SELECT conversation_id FROM conversation_participants WHERE user_id = ?)
+       ORDER BY RAND()
+       LIMIT 2`,
+      [uid]
+    )
+
+    const all = [...users, ...businesses, ...groups]
+    // Fisher-Yates shuffle for unbiased random mix
+    for (let i = all.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [all[i], all[j]] = [all[j], all[i]]
+    }
+    res.json({ suggestions: all.slice(0, 5) })
+  } catch (err) {
+    console.error('GET /api/feed/discovery error:', err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // ── API 404 catch-all (must be before SPA fallback) ──
 app.use('/api', (req, res) => {
   res.status(404).json({ error: 'Not found' })
