@@ -19,7 +19,7 @@ export function getPool() {
       connectionLimit: 10,
       connectTimeout: 10000, // 10s TCP connect timeout — fail fast if DB is unreachable
       charset: 'utf8mb4',
-      ssl: process.env.DB_SSL === 'false' ? { rejectUnauthorized: false } : undefined,
+      ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: true } : false,
     })
   }
   return pool
