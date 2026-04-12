@@ -565,6 +565,17 @@ app.use((_req, res, next) => {
 // and an in-memory per-user limiter for write operations.
 
 // Login / MFA: 5 per 15 minutes per IP
+// In non-production, skip rate limiting for loopback IPs so E2E tests can
+// exercise auth endpoints without exhausting the window.
+function isLoopback(req) {
+  const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
+    || req.socket?.remoteAddress || ''
+  return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1'
+}
+function skipInDev(req) {
+  return process.env.NODE_ENV !== 'production' && isLoopback(req)
+}
+
 const strictLimit = rlFactory({
   windowMs: 15 * 60 * 1000,
   max: 5,
@@ -572,6 +583,7 @@ const strictLimit = rlFactory({
   legacyHeaders: false,
   message: { error: 'Too many requests — prøv igen om 15 minutter' },
   keyGenerator: (req) => req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip,
+  skip: skipInDev,
 })
 
 // Register: 3 per hour per IP
@@ -582,6 +594,7 @@ const registerLimit = rlFactory({
   legacyHeaders: false,
   message: { error: 'Too many registration attempts — prøv igen om en time' },
   keyGenerator: (req) => req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip,
+  skip: skipInDev,
 })
 
 // General API: 100 per 15 minutes per IP
