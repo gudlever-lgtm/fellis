@@ -171,6 +171,8 @@ let companyId  = null
 let jobId      = null
 let convId     = null
 let reelId     = null
+let feedModePrivPostId = null  // created in privat mode during feed-separation test
+let feedModeBizPostId  = null  // created in business mode during feed-separation test
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
@@ -555,11 +557,103 @@ async function testCsrfToken() {
 
 // ─── Cleanup ──────────────────────────────────────────────────────────────────
 
+async function testFeedModeSeparation() {
+  section('Feed Mode Separation')
+  if (!sessionId) { skip('Feed mode separation', 'no session'); return }
+
+  // ── 1. Create a post while in privat mode ─────────────────────────────────
+  await api('PATCH', '/me/mode', { mode: 'privat' })
+  const privPost = await api('POST', '/feed', { text: `E2E privat-mode post – ${ts}` })
+  if (privPost.ok && privPost.data?.id) {
+    feedModePrivPostId = privPost.data.id
+    ok(`Created post in privat mode (id=${feedModePrivPostId})`)
+  } else {
+    fail('POST /api/feed in privat mode', privPost.data?.error || `HTTP ${privPost.status}`)
+  }
+
+  // ── 2. Switch to business mode and create a post ──────────────────────────
+  const switched = await api('PATCH', '/me/mode', { mode: 'business' })
+  if (!switched.ok) {
+    skip('Business-mode post', 'PATCH /api/me/mode → business failed')
+  } else {
+    const bizPost = await api('POST', '/feed', { text: `E2E business-mode post – ${ts}` })
+    if (bizPost.ok && bizPost.data?.id) {
+      feedModeBizPostId = bizPost.data.id
+      ok(`Created post in business mode (id=${feedModeBizPostId})`)
+    } else {
+      fail('POST /api/feed in business mode', bizPost.data?.error || `HTTP ${bizPost.status}`)
+    }
+  }
+
+  // Switch back to privat for remaining tests
+  await api('PATCH', '/me/mode', { mode: 'privat' })
+
+  // ── 3. Invalid mode value must return 400 ─────────────────────────────────
+  const invalid = await api('GET', '/feed?mode=invalid')
+  if (invalid.status === 400) ok('GET /api/feed?mode=invalid → 400')
+  else fail('GET /api/feed?mode=invalid should return 400', `got ${invalid.status}`)
+
+  // ── 4. mode=privat — only privat posts, no business posts ─────────────────
+  const privFeed = await api('GET', '/feed?mode=privat&limit=50')
+  if (!privFeed.ok) {
+    // 500 here means user_mode column is missing — migration not yet applied
+    skip('GET /api/feed?mode=privat filtering', `HTTP ${privFeed.status} — run "npm run migrate" first`)
+  } else {
+    ok('GET /api/feed?mode=privat → 200')
+    const ids = new Set((privFeed.data?.posts || []).map(p => p.id))
+    if (feedModePrivPostId) {
+      if (ids.has(feedModePrivPostId)) ok(`Privat-mode post (id=${feedModePrivPostId}) appears in ?mode=privat feed`)
+      else                              fail('Privat-mode post missing from ?mode=privat feed', `id=${feedModePrivPostId}`)
+    }
+    if (feedModeBizPostId) {
+      if (!ids.has(feedModeBizPostId)) ok(`Business-mode post (id=${feedModeBizPostId}) absent from ?mode=privat feed`)
+      else                              fail('Business-mode post leaked into ?mode=privat feed', `id=${feedModeBizPostId} found`)
+    }
+  }
+
+  // ── 5. mode=business — only business posts, no privat posts ───────────────
+  const bizFeed = await api('GET', '/feed?mode=business&limit=50')
+  if (!bizFeed.ok) {
+    skip('GET /api/feed?mode=business filtering', `HTTP ${bizFeed.status} — run "npm run migrate" first`)
+  } else {
+    ok('GET /api/feed?mode=business → 200')
+    const ids = new Set((bizFeed.data?.posts || []).map(p => p.id))
+    if (feedModeBizPostId) {
+      if (ids.has(feedModeBizPostId)) ok(`Business-mode post (id=${feedModeBizPostId}) appears in ?mode=business feed`)
+      else                              fail('Business-mode post missing from ?mode=business feed', `id=${feedModeBizPostId}`)
+    }
+    if (feedModePrivPostId) {
+      if (!ids.has(feedModePrivPostId)) ok(`Privat-mode post (id=${feedModePrivPostId}) absent from ?mode=business feed`)
+      else                               fail('Privat-mode post leaked into ?mode=business feed', `id=${feedModePrivPostId} found`)
+    }
+  }
+
+  // ── 6. No mode param → mixed feed — backward-compatible, always 200 ───────
+  const mixed = await api('GET', '/feed?limit=10')
+  if (mixed.ok) ok('GET /api/feed (no mode) → 200 — mixed feed still works')
+  else          fail('GET /api/feed (no mode) should return 200', `got ${mixed.status}`)
+}
+
 async function cleanup() {
   section('Cleanup')
   if (!sessionId) { skip('Cleanup', 'no session'); return }
 
   // Comments are deleted via their parent post — just delete the post directly
+  if (feedModePrivPostId) {
+    const r = await api('DELETE', `/feed/${feedModePrivPostId}`)
+    if (r.ok) ok(`Deleted feed-mode privat post ${feedModePrivPostId}`)
+    else      skip(`Delete feed-mode privat post`, `HTTP ${r.status}`)
+  }
+
+  if (feedModeBizPostId) {
+    const r = await api('DELETE', `/feed/${feedModeBizPostId}`)
+    if (r.ok) ok(`Deleted feed-mode business post ${feedModeBizPostId}`)
+    else      skip(`Delete feed-mode business post`, `HTTP ${r.status}`)
+  }
+
+  // Restore mode to privat before account deletion
+  await api('PATCH', '/me/mode', { mode: 'privat' })
+
   if (postId) {
     const r = await api('DELETE', `/feed/${postId}`)
     if (r.ok) ok(`Deleted text post ${postId}`)
@@ -734,6 +828,7 @@ async function run() {
     await refreshCsrfToken()   // refresh CSRF token for the new session after password reset
     await testHeartbeat()
     await testFeed()
+    await testFeedModeSeparation()
     await testCreateTextPost()
     await testLikePost()
     await testAddComment()
