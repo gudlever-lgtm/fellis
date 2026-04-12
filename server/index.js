@@ -2695,7 +2695,7 @@ app.get('/api/me/followers', authenticate, async (req, res) => {
   try {
     await pool.query(CREATE_USER_FOLLOWS)
     const [rows] = await pool.query(
-      `SELECT u.id, u.name, u.avatar, u.mode, u.online,
+      `SELECT u.id, u.name, u.avatar_url AS avatar, u.mode, u.online,
               EXISTS(SELECT 1 FROM user_follows WHERE follower_id = ? AND followee_id = u.id) AS is_following_back,
               uf.created_at AS followed_at
        FROM user_follows uf
@@ -2716,25 +2716,25 @@ app.get('/api/me/following', authenticate, async (req, res) => {
   try {
     await pool.query(CREATE_USER_FOLLOWS)
     const [users] = await pool.query(
-      `SELECT u.id, u.name, u.avatar, u.mode, u.online, 'user' AS kind, uf.created_at AS followed_at
+      `SELECT u.id, u.name, u.avatar_url AS avatar, u.mode, u.online, 'user' AS kind, uf.created_at AS followed_at
        FROM user_follows uf
        JOIN users u ON u.id = uf.followee_id
        WHERE uf.follower_id = ?
        ORDER BY uf.created_at DESC`,
       [req.userId]
     )
-    // company_follows may not have followed_at on older installations — use NULL as fallback
+    // company_follows may not exist on older installations — degrade gracefully
     let companies = []
     try {
       const [rows] = await pool.query(
-        `SELECT c.id, c.name, c.logo AS avatar, NULL AS mode, NULL AS online, 'company' AS kind
+        `SELECT c.id, c.name, c.logo_url AS avatar, NULL AS mode, NULL AS online, 'company' AS kind
          FROM company_follows cf
          JOIN companies c ON c.id = cf.company_id
          WHERE cf.user_id = ?`,
         [req.userId]
       )
       companies = rows
-    } catch (_) { /* company_follows may not exist */ }
+    } catch (_) { /* company_follows or companies table may not exist */ }
     res.json({ users, companies })
   } catch (err) {
     console.error('GET /api/me/following error:', err.message)
