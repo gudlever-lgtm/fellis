@@ -4615,7 +4615,7 @@ app.get('/api/search', authenticate, async (req, res) => {
   const uid = req.userId
   try {
     const [posts] = await pool.query(
-      `SELECT DISTINCT p.id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en
+      `SELECT DISTINCT p.id, u.name as author, p.text_da, p.text_en, p.time_da, p.time_en, p.created_at
        FROM posts p
        JOIN users u ON u.id = p.author_id
        LEFT JOIN post_likes pl ON pl.post_id = p.id AND pl.user_id = ?
