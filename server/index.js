@@ -4538,23 +4538,41 @@ app.get('/api/search', authenticate, async (req, res) => {
        ORDER BY p.created_at DESC LIMIT 15`,
       [uid, uid, uid, like, like]
     )
-    const [messages] = await pool.query(
-      `SELECT m.id, m.conversation_id, u.name as from_name, m.text_da, m.text_en, m.time,
-              c.is_group,
-              COALESCE(c.name, (
-                SELECT u2.name FROM users u2
-                JOIN conversation_participants cp2 ON cp2.user_id = u2.id
-                WHERE cp2.conversation_id = m.conversation_id AND u2.id != ? LIMIT 1
-              )) as conv_name
-       FROM messages m
-       JOIN users u ON u.id = m.sender_id
-       JOIN conversation_participants cp ON cp.conversation_id = m.conversation_id AND cp.user_id = ?
-       LEFT JOIN conversations c ON c.id = m.conversation_id
-       WHERE m.conversation_id IS NOT NULL
-         AND (m.text_da LIKE ? OR m.text_en LIKE ?)
-       ORDER BY m.created_at DESC LIMIT 15`,
-      [uid, uid, like, like]
-    )
+    let messages = []
+    try {
+      ;[messages] = await pool.query(
+        `SELECT m.id, m.conversation_id, u.name as from_name, m.text_da, m.text_en, m.time,
+                c.is_group,
+                COALESCE(c.name, (
+                  SELECT u2.name FROM users u2
+                  JOIN conversation_participants cp2 ON cp2.user_id = u2.id
+                  WHERE cp2.conversation_id = m.conversation_id AND u2.id != ? LIMIT 1
+                )) as conv_name
+         FROM messages m
+         JOIN users u ON u.id = m.sender_id
+         JOIN conversation_participants cp ON cp.conversation_id = m.conversation_id AND cp.user_id = ?
+         LEFT JOIN conversations c ON c.id = m.conversation_id
+         WHERE m.conversation_id IS NOT NULL
+           AND (m.text_da LIKE ? OR m.text_en LIKE ?)
+         ORDER BY m.created_at DESC LIMIT 15`,
+        [uid, uid, like, like]
+      )
+    } catch {
+      // Fallback: messages table may use single 'text' column (legacy schema)
+      try {
+        const [rows] = await pool.query(
+          `SELECT m.id, m.conversation_id, u.name as from_name,
+                  m.text as text_da, m.text as text_en, m.created_at as time,
+                  NULL as is_group, u.name as conv_name
+           FROM messages m
+           JOIN users u ON u.id = m.sender_id
+           WHERE m.receiver_id = ? AND m.text LIKE ?
+           ORDER BY m.created_at DESC LIMIT 15`,
+          [uid, like]
+        )
+        messages = rows
+      } catch { /* messages search unavailable — return empty */ }
+    }
     res.json({
       posts: posts.map(p => ({
         id: p.id,
