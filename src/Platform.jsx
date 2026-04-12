@@ -43,7 +43,7 @@ import MatrixRain from './components/easter-eggs/MatrixRain.jsx'
 import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
 import RickRoll from './components/easter-eggs/RickRoll.jsx'
 import RiddleBanner from './components/easter-eggs/RiddleBanner.jsx'
-import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode, apiReverseGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness, apiPayForAd, apiBoostPost, apiTrackAdImpression, apiTrackAdClick, apiAdminGrowth, apiAdminOnlineNow, apiAdminGetBannedUsers, apiAdminGetAuditLog, apiAdminSearchUsers, apiAdminForceLogout, apiAdminDeleteUser, apiGetAdminStorageStats } from './api.js'
+import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode, apiReverseGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiAssignAdfreedays, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness, apiPayForAd, apiBoostPost, apiTrackAdImpression, apiTrackAdClick, apiAdminGrowth, apiAdminOnlineNow, apiAdminGetBannedUsers, apiAdminGetAuditLog, apiAdminSearchUsers, apiAdminForceLogout, apiAdminDeleteUser, apiGetAdminStorageStats } from './api.js'
 import BusinessBadge from './components/BusinessBadge.jsx'
 import BusinessDirectory from './pages/BusinessDirectory.jsx'
 import AdManager from './pages/AdManager.jsx'
@@ -16840,11 +16840,18 @@ function CalendarPage({ lang, t, currentUser }) {
   const [reminderSaving, setReminderSaving] = useState(false)
   const [tooltipVisible, setTooltipVisible] = useState(null)
   const [adfreeAssignments, setAdfreeAssignments] = useState([])
+  const [bankDays, setBankDays] = useState(0)
+  const [showAdfreeForm, setShowAdfreeForm] = useState(false)
+  const [adfreeEndDate, setAdfreeEndDate] = useState('')
+  const [adfreeAssigning, setAdfreeAssigning] = useState(false)
+  const [adfreeError, setAdfreeError] = useState('')
+  const [adfreeSuccess, setAdfreeSuccess] = useState('')
 
   useEffect(() => {
     apiFetchCalendarEvents().then(data => { if (data) setCalData(data) })
     apiFetchCalendarReminders().then(data => { if (data?.reminders) setReminders(data.reminders) })
     apiGetAdfreeAssignments().then(data => { if (data?.assignments) setAdfreeAssignments(data.assignments) })
+    apiGetAdfreeBank().then(data => { if (data?.bankDays != null) setBankDays(data.bankDays) })
   }, [])
 
   const handleAddReminder = async (e) => {
@@ -17016,7 +17023,7 @@ function CalendarPage({ lang, t, currentUser }) {
                 <div
                   key={`d${row}-${col}`}
                   style={s.dayCell(isToday, isSelected, false, isAdfree)}
-                  onClick={() => { setSelectedDay(isSelected ? null : dayNum); setShowReminderForm(false) }}
+                  onClick={() => { setSelectedDay(isSelected ? null : dayNum); setShowReminderForm(false); setShowAdfreeForm(false); setAdfreeEndDate(''); setAdfreeError(''); setAdfreeSuccess('') }}
                 >
                   <span style={s.dayNum(isSelected)}>{dayNum}</span>
                   <div style={s.dots}>
@@ -17183,6 +17190,93 @@ function CalendarPage({ lang, t, currentUser }) {
               </div>
             </form>
           )}
+
+          {/* Assign ad-free days — only when user has banked days and date is not already ad-free */}
+          {bankDays > 0 && selectedDateKey && !isAdfreeDate(selectedDateKey) && !showReminderForm && (() => {
+            const today2 = new Date().toLocaleDateString('sv-SE')
+            const isPast = selectedDateKey < today2
+            if (isPast) return null
+            const daysNeeded = adfreeEndDate && selectedDateKey <= adfreeEndDate
+              ? Math.floor((new Date(adfreeEndDate) - new Date(selectedDateKey)) / (1000 * 60 * 60 * 24)) + 1
+              : 0
+            const handleAdfreeAssign = async () => {
+              setAdfreeError('')
+              setAdfreeSuccess('')
+              if (!adfreeEndDate) { setAdfreeError(t.selectBothStartAndEndDates); return }
+              if (selectedDateKey > adfreeEndDate) { setAdfreeError(t.startDateMustBeBeforeEndDate); return }
+              if (daysNeeded > bankDays) { setAdfreeError(t.adfreeDaysError.replace('{bankDays}', bankDays).replace('{daysNeeded}', daysNeeded)); return }
+              setAdfreeAssigning(true)
+              const result = await apiAssignAdfreedays(selectedDateKey, adfreeEndDate)
+              setAdfreeAssigning(false)
+              if (result?.success) {
+                setAdfreeSuccess(t.adfreeDaysAssignedSuccess.replace('{daysNeeded}', daysNeeded))
+                setBankDays(result.newBank ?? Math.max(0, bankDays - daysNeeded))
+                setAdfreeEndDate('')
+                setShowAdfreeForm(false)
+                apiGetAdfreeAssignments().then(d => { if (d?.assignments) setAdfreeAssignments(d.assignments) })
+              } else {
+                setAdfreeError(result?.error || t.somethingWentWrong)
+              }
+            }
+            return (
+              <div style={{ marginTop: 14 }}>
+                {!showAdfreeForm && !adfreeSuccess ? (
+                  <button
+                    onClick={() => { setShowAdfreeForm(true); setAdfreeError(''); setAdfreeEndDate(selectedDateKey) }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: '1px dashed #2D6A4F', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontSize: 13, color: '#2D6A4F', fontWeight: 600 }}
+                  >
+                    📅 {t.assignBankedDays} ({bankDays})
+                  </button>
+                ) : adfreeSuccess ? (
+                  <div style={{ fontSize: 13, color: '#388e3c', padding: '8px 12px', background: '#e8f5e9', borderRadius: 8 }}>{adfreeSuccess}</div>
+                ) : (
+                  <div style={{ background: '#f0faf4', borderRadius: 10, padding: '12px 14px', border: '1px solid #b7dfc9' }}>
+                    <div style={{ fontSize: 11, color: '#2D6A4F', fontWeight: 700, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t.assignBankedDays}</div>
+                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                      <div style={{ flex: 1, minWidth: 120 }}>
+                        <label style={{ fontSize: 11, color: '#888', display: 'block', marginBottom: 4 }}>{t.startDate}</label>
+                        <input
+                          type="text"
+                          readOnly
+                          value={selectedDateKey ? selectedDateKey.split('-').reverse().join('-') : ''}
+                          style={{ width: '100%', padding: '7px 10px', border: '1px solid #b7dfc9', borderRadius: 5, fontSize: 13, boxSizing: 'border-box', background: '#e8f5ee', color: '#2D6A4F', fontWeight: 600 }}
+                        />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 120 }}>
+                        <label style={{ fontSize: 11, color: '#888', display: 'block', marginBottom: 4 }}>{t.endDate}</label>
+                        <input
+                          type="date"
+                          value={adfreeEndDate}
+                          min={selectedDateKey}
+                          onChange={e => { setAdfreeEndDate(e.target.value); setAdfreeError('') }}
+                          style={{ width: '100%', padding: '7px 10px', border: '1px solid #ddd', borderRadius: 5, fontSize: 13, boxSizing: 'border-box' }}
+                        />
+                      </div>
+                      <button
+                        onClick={handleAdfreeAssign}
+                        disabled={adfreeAssigning || !adfreeEndDate || daysNeeded > bankDays}
+                        style={{ padding: '8px 18px', background: '#2D6A4F', color: '#fff', border: 'none', borderRadius: 5, cursor: (adfreeAssigning || !adfreeEndDate || daysNeeded > bankDays) ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600, opacity: (adfreeAssigning || !adfreeEndDate || daysNeeded > bankDays) ? 0.5 : 1, whiteSpace: 'nowrap' }}
+                      >
+                        {adfreeAssigning ? t.assigning : t.assign}
+                      </button>
+                    </div>
+                    {daysNeeded > 0 && (
+                      <p style={{ margin: '8px 0 0', fontSize: 12, color: daysNeeded > bankDays ? '#d32f2f' : '#388e3c' }}>
+                        {t.adfreeDaysPreview.replace('{daysNeeded}', daysNeeded).replace('{bankDays}', bankDays)}
+                      </p>
+                    )}
+                    {adfreeError && <div style={{ marginTop: 8, fontSize: 13, color: '#d32f2f', padding: '6px 10px', background: '#ffebee', borderRadius: 6 }}>{adfreeError}</div>}
+                    <button
+                      onClick={() => { setShowAdfreeForm(false); setAdfreeEndDate(''); setAdfreeError('') }}
+                      style={{ marginTop: 10, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#888' }}
+                    >
+                      {t.calendarReminderCancel}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )
+          })()}
         </div>
       )}
     </div>
