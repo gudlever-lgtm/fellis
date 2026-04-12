@@ -3013,8 +3013,16 @@ app.get('/api/feed', authenticate, async (req, res) => {
     // cursor = ISO timestamp of the oldest post already seen; null = load from the top
     const cursor = req.query.cursor || null
 
+    // Optional mode filter — 'privat' or 'business'; omit for mixed feed (backward-compatible)
+    const modeFilter = req.query.mode || null
+    if (modeFilter && modeFilter !== 'privat' && modeFilter !== 'business') {
+      return res.status(400).json({ error: 'Invalid mode parameter. Must be "privat" or "business".' })
+    }
+
     const cursorFilter = cursor ? 'AND p.created_at < ?' : ''
     const cursorParams = cursor ? [new Date(cursor)] : []
+    const modeClause = modeFilter ? 'AND p.user_mode = ?' : ''
+    const modeParams = modeFilter ? [modeFilter] : []
 
     let posts
     try {
@@ -3027,10 +3035,11 @@ app.get('/api/feed', authenticate, async (req, res) => {
            OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?)
            OR p.author_id IN (SELECT business_id FROM business_follows WHERE follower_id = ?))
            AND (p.scheduled_at IS NULL OR p.scheduled_at <= NOW())
+           ${modeClause}
            ${cursorFilter}
          ORDER BY p.created_at DESC
          LIMIT ?`,
-        [req.userId, req.userId, req.userId, ...cursorParams, limit]
+        [req.userId, req.userId, req.userId, ...modeParams, ...cursorParams, limit]
       )
     } catch {
       ;[posts] = await pool.query(
@@ -3043,10 +3052,11 @@ app.get('/api/feed', authenticate, async (req, res) => {
            OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?)
            OR p.author_id IN (SELECT business_id FROM business_follows WHERE follower_id = ?))
            AND (p.scheduled_at IS NULL OR p.scheduled_at <= NOW())
+           ${modeClause}
            ${cursorFilter}
          ORDER BY p.created_at DESC
          LIMIT ?`,
-        [req.userId, req.userId, req.userId, ...cursorParams, limit]
+        [req.userId, req.userId, req.userId, ...modeParams, ...cursorParams, limit]
       )
     }
     const postIds = posts.map(p => p.id)
@@ -3423,8 +3433,8 @@ app.post('/api/feed', authenticate, writeLimit, upload.array('media', UPLOAD_FIL
     const lng = geo_lng ? parseFloat(geo_lng) : null
     const taggedJson = Array.isArray(taggedUsers) && taggedUsers.length > 0 ? JSON.stringify(taggedUsers) : null
     const [result] = await pool.query(
-      'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media, scheduled_at, categories, place_name, geo_lat, geo_lng, tagged_users, linked_type, linked_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [req.userId, text, text, 'Lige nu', 'Just now', mediaJson, scheduledDate, categoriesJson, placeName, lat, lng, taggedJson, linkedType, linkedId]
+      'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media, scheduled_at, categories, place_name, geo_lat, geo_lng, tagged_users, linked_type, linked_id, user_mode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT mode FROM users WHERE id = ?))',
+      [req.userId, text, text, 'Lige nu', 'Just now', mediaJson, scheduledDate, categoriesJson, placeName, lat, lng, taggedJson, linkedType, linkedId, req.userId]
     ).catch(() =>
       pool.query(
         'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media, scheduled_at, categories) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',

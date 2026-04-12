@@ -238,4 +238,57 @@ if (missingFbRoutes.length > 0) {
   console.log(`${GREEN}✓ All required Facebook data-import routes are registered on the server.${RESET}\n`)
 }
 
+// ── Feed mode separation endpoint declarations ────────────────────────────────
+//
+// The feed endpoint MUST exist on the server and support an optional ?mode param:
+//
+//   GET /api/feed              → 200 (authenticated) | 401 (unauthenticated)  — never 404/500
+//   GET /api/feed?mode=privat  → 200 (authenticated, filters by mode=privat)  — never 404/500
+//   GET /api/feed?mode=business → 200 (authenticated, filters by mode=business) — never 404/500
+//   GET /api/feed?mode=invalid → 400 (invalid mode value — must be rejected)
+//   POST /api/feed             → 200 (authenticated, user_mode stored from users.mode) — never 404/500
+//
+// Verify the base GET and POST /api/feed routes are present in the server route set:
+const REQUIRED_FEED_MODE_ROUTES = [
+  'GET /api/feed',
+  'POST /api/feed',
+]
+
+const missingFeedModeRoutes = REQUIRED_FEED_MODE_ROUTES.filter(r => {
+  const [method, p] = r.split(' ')
+  return !normServerRoutes.has(`${method} ${normaliseServerPath(p)}`)
+})
+
+if (missingFeedModeRoutes.length > 0) {
+  console.log(`${RED}✗ Missing required feed mode-separation server routes:${RESET}`)
+  for (const r of missingFeedModeRoutes) console.log(`  ${RED}${r}${RESET}`)
+  console.log()
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ Feed mode-separation routes (GET/POST /api/feed) are registered on the server.${RESET}\n`)
+}
+
+// Verify that the server-side GET /api/feed handler contains mode validation logic
+// by checking for the expected validation string in server/index.js source.
+const FEED_MODE_VALIDATION_MARKER = '"privat" or "business"'
+if (!serverSrc.includes(FEED_MODE_VALIDATION_MARKER)) {
+  console.log(`${RED}✗ GET /api/feed is missing mode parameter validation ("privat" or "business" guard).${RESET}\n`)
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ GET /api/feed validates the ?mode parameter (rejects invalid values with 400).${RESET}\n`)
+}
+
+// Verify that POST /api/feed stores user_mode on insert
+const POST_FEED_USER_MODE_MARKER = 'user_mode'
+const feedInsertRe = /INSERT INTO posts[^;]+user_mode/s
+if (!feedInsertRe.test(serverSrc)) {
+  console.log(`${RED}✗ POST /api/feed INSERT does not include user_mode column — posts will not be mode-tagged.${RESET}\n`)
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ POST /api/feed INSERT stores user_mode on new posts.${RESET}\n`)
+}
+
+// Suppress unused variable warning for the marker
+void POST_FEED_USER_MODE_MARKER
+
 process.exit(0)

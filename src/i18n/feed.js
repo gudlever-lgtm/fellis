@@ -63,6 +63,9 @@ export default {
     discoveryTypeUser: 'Person',
     discoveryTypeBusiness: 'Virksomhed',
     discoveryTypeGroup: 'Gruppe',
+    // Feed mode toggle
+    feedModePrivat: 'Fællesskab',
+    feedModeBusiness: 'Erhverv',
     // Image fallback
     imageMissing: 'Billedet er ikke tilgængeligt',
     imageMissingHint: 'Men her er lidt solskin i stedet ☀️',
@@ -131,6 +134,9 @@ export default {
     discoveryTypeUser: 'Person',
     discoveryTypeBusiness: 'Business',
     discoveryTypeGroup: 'Group',
+    // Feed mode toggle
+    feedModePrivat: 'Community',
+    feedModeBusiness: 'Business',
     // Image fallback
     imageMissing: 'Image unavailable',
     imageMissingHint: 'But here\'s a little sunshine instead ☀️',
