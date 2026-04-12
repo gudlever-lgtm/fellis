@@ -30,11 +30,10 @@ export default function FacebookImport({ lang = 'da', user, onUpdate }) {
 
   const isConnected = user?.fb_connected === 1
 
-  // Detect OAuth redirect back from Facebook
+  // Fallback: detect OAuth redirect when popup was blocked
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     if (params.get('fb') === 'connected') {
-      // Strip the param without a page reload so Back button works cleanly
       const url = new URL(window.location.href)
       url.searchParams.delete('fb')
       window.history.replaceState({}, '', url)
@@ -49,6 +48,46 @@ export default function FacebookImport({ lang = 'da', user, onUpdate }) {
       setView('error')
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  function handleConnect() {
+    const w = 600, h = 700
+    const left = Math.round(window.screenX + (window.outerWidth  - w) / 2)
+    const top  = Math.round(window.screenY + (window.outerHeight - h) / 2)
+    const popup = window.open(
+      '/api/auth/facebook',
+      'fb_oauth',
+      `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no,resizable=yes`
+    )
+
+    if (!popup) {
+      // Popup blocked — fall back to full-page redirect
+      window.location.href = '/api/auth/facebook'
+      return
+    }
+
+    function onMessage(event) {
+      if (event.origin !== window.location.origin) return
+      if (event.data?.type !== 'FB_OAUTH_RESULT') return
+      window.removeEventListener('message', onMessage)
+      clearInterval(pollTimer)
+      if (event.data.ok) {
+        loadFbData()
+      } else {
+        const err = event.data.error
+        setErrMsg(err === 'fb_state_invalid' ? t.fb_error_state : t.fb_error_generic)
+        setView('error')
+      }
+    }
+    window.addEventListener('message', onMessage)
+
+    // Clean up if user closes popup without completing OAuth
+    const pollTimer = setInterval(() => {
+      if (popup.closed) {
+        clearInterval(pollTimer)
+        window.removeEventListener('message', onMessage)
+      }
+    }, 500)
+  }
 
   async function loadFbData() {
     setView('loading')
@@ -254,7 +293,7 @@ export default function FacebookImport({ lang = 'da', user, onUpdate }) {
       {errMsg && <div style={s.errorMsg}>{errMsg}</div>}
       <button
         style={s.primaryBtn}
-        onClick={() => { window.location.href = '/api/auth/facebook' }}
+        onClick={handleConnect}
       >
         {t.fb_connect_btn}
       </button>
