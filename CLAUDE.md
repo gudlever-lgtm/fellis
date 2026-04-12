@@ -8,6 +8,7 @@
 - **Frontend:** React 19, Vite 7, JavaScript (JSX) — no TypeScript
 - **Backend:** Node.js (ESM), Express 4, MySQL2/MariaDB
 - **Database:** MariaDB 11.8+ / MySQL 8+
+- **Web server:** lighttpd 1.4.46+ — serves static files, reverse-proxies `/api` and `/uploads` to Node.js, handles SPA fallback and TLS
 - **Auth:** Session-based (`X-Session-Id` header + localStorage), Google / LinkedIn OAuth
 - **Payments:** Mollie (subscriptions, ad payments, ad-free tier)
 - **File uploads:** Multer (images/media)
@@ -163,6 +164,52 @@ cd server && npm run seed
 | `CSRF_SECRET` | Secret for CSRF token signing — auto-generated on first start if unset | _(auto)_ |
 
 The server reads `.env` manually at startup (not via `--env-file`) for PM2 compatibility.
+
+---
+
+## Production Server (lighttpd)
+
+fellis.eu is served by **lighttpd** as both a static file server and a reverse proxy to the Node.js backend. The configuration lives in [`lighttpd.conf`](../lighttpd.conf) at the repo root.
+
+### Routing rules
+
+| Path | Handled by |
+|------|-----------|
+| `/api/*` | Proxied to Node.js `localhost:3001` |
+| `/uploads/*` | Proxied to Node.js `localhost:3001` |
+| `/assets/*` | Static files — `Cache-Control: immutable, max-age=31536000` |
+| Everything else | Fallback to `/index.html` (React SPA routing) |
+
+### Key configuration notes
+
+- **Module order matters:** `mod_proxy` must be listed before `mod_rewrite` so proxy rules are evaluated before URL rewrites.
+- **SSE streaming:** `server.stream-response-body = 2` prevents lighttpd from buffering Server-Sent Events. The `/api/sse` path additionally sets `proxy.read-timeout = 600`.
+- **SPA fallback:** `url.rewrite-if-not-file = ( "^/.*" => "/index.html" )` handles all React Router paths.
+- **chat.fellis.eu:** A `$HTTP["host"]` vhost block in the same config serves the chat app from `/var/www/fellis.eu/chat/dist/` using the same Node.js backend.
+
+### Enabling HTTPS
+
+```bash
+sudo apt install certbot
+sudo certbot certonly --webroot -w /var/www/fellis.eu -d fellis.eu -d www.fellis.eu
+# Then uncomment the $SERVER["socket"] == ":443" block in lighttpd.conf
+```
+
+### Required modules
+
+```bash
+sudo lighttpd-enable-mod proxy rewrite compress setenv accesslog
+lighttpd -t -f /etc/lighttpd/lighttpd.conf   # validate before reload
+sudo systemctl reload lighttpd
+```
+
+### Deploy checklist
+
+1. `npm run build` — builds frontend into `assets/` + updates `index.html`
+2. Sync `index.html` and `assets/` to `/var/www/fellis.eu/`
+3. `cd server && npm run migrate` — apply any pending DB migrations
+4. Restart/reload the Node.js backend (PM2: `pm2 reload fellis`)
+5. `sudo systemctl reload lighttpd` if the config changed
 
 ---
 
