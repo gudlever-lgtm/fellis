@@ -2695,7 +2695,8 @@ app.get('/api/me/followers', authenticate, async (req, res) => {
   try {
     await pool.query(CREATE_USER_FOLLOWS)
     const [rows] = await pool.query(
-      `SELECT u.id, u.name, u.avatar_url AS avatar, u.mode, u.online,
+      `SELECT u.id, u.name, u.avatar_url AS avatar, u.mode,
+              (u.last_active IS NOT NULL AND u.last_active > DATE_SUB(NOW(), INTERVAL 5 MINUTE)) AS online,
               EXISTS(SELECT 1 FROM user_follows WHERE follower_id = ? AND followee_id = u.id) AS is_following_back,
               uf.created_at AS followed_at
        FROM user_follows uf
@@ -2716,7 +2717,9 @@ app.get('/api/me/following', authenticate, async (req, res) => {
   try {
     await pool.query(CREATE_USER_FOLLOWS)
     const [users] = await pool.query(
-      `SELECT u.id, u.name, u.avatar_url AS avatar, u.mode, u.online, 'user' AS kind, uf.created_at AS followed_at
+      `SELECT u.id, u.name, u.avatar_url AS avatar, u.mode,
+              (u.last_active IS NOT NULL AND u.last_active > DATE_SUB(NOW(), INTERVAL 5 MINUTE)) AS online,
+              'user' AS kind, uf.created_at AS followed_at
        FROM user_follows uf
        JOIN users u ON u.id = uf.followee_id
        WHERE uf.follower_id = ?
