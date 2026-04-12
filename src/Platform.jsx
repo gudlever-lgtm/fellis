@@ -5217,6 +5217,16 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
           </button>
         </div>
 
+        {/* Facebook data import */}
+        <FacebookImport
+          lang={lang}
+          user={profile}
+          onUpdate={updated => {
+            setProfile(prev => ({ ...prev, ...updated }))
+            onUserUpdate(prev => ({ ...prev, ...updated }))
+          }}
+        />
+
         {/* Birthday */}
         <label style={labelStyle}>{t.birthdayLabel}</label>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -5615,18 +5625,6 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
           >
             {t.adminModCandidateSave}
           </button>
-        </div>
-
-        {/* Facebook data import */}
-        <div style={{ marginTop: 8 }}>
-          <FacebookImport
-            lang={lang}
-            user={profile}
-            onUpdate={updated => {
-              setProfile(prev => ({ ...prev, ...updated }))
-              onUserUpdate(prev => ({ ...prev, ...updated }))
-            }}
-          />
         </div>
 
         <button
