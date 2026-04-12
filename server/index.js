@@ -820,6 +820,7 @@ async function auditLog(req, action, resourceType = null, resourceId = null, {
 } = {}) {
   const userId = req.userId || null
   const ipAddress = req.headers?.['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null
+  console.log(`[IP DEBUG] action=${action} xff=${req.headers?.['x-forwarded-for']} socket=${req.socket?.remoteAddress} ip=${req.ip} → logged=${ipAddress}`)
   const userAgent = req.headers?.['user-agent'] || null
 
   try {
