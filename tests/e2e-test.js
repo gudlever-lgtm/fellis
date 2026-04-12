@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 // e2e-test.js — End-to-end integration test for fellis.eu
-// Version: 1.1.0
+// Version: 1.1.1
 //
 // Changelog:
+//   1.1.1 — Add AbortController timeout (REQUEST_TIMEOUT_MS, default 15s) to all
+//            requests so the suite never hangs on a deadlocked/unresponsive server
 //   1.1.0 — Add testFeedModeSeparation (privat/business feed filter, ?mode param)
 //   1.0.0 — Initial suite (health, auth, feed, posts, media, marketplace, events,
 //            jobs, messaging, reels, explore, interests, badges, error handling)
@@ -21,6 +23,9 @@
 const BASE_URL = process.env.BASE_URL?.replace(/\/$/, '') || 'https://test.fellis.eu'
 const API = `${BASE_URL}/api`
 const VERBOSE = process.env.VERBOSE === '1'
+// Request timeout — prevents the suite hanging indefinitely when the server
+// is deadlocked or unresponsive. Override with REQUEST_TIMEOUT_MS env var.
+const REQUEST_TIMEOUT_MS = parseInt(process.env.REQUEST_TIMEOUT_MS || '') || 15_000
 
 // ─── Output helpers ────────────────────────────────────────────────────────────
 const c = {
@@ -85,13 +90,17 @@ async function refreshCsrfToken() {
 
 async function api(method, path, body, extraHeaders = {}) {
   const url = `${API}${path}`
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
   const opts = {
     method,
     headers: headers(extraHeaders),
+    signal: controller.signal,
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   }
   try {
     const res = await fetch(url, opts)
+    clearTimeout(timer)
     let data = null
     const ct = res.headers.get('content-type') || ''
     if (ct.includes('application/json')) {
@@ -108,6 +117,12 @@ async function api(method, path, body, extraHeaders = {}) {
     }
     return { status: res.status, data, ok: res.ok }
   } catch (err) {
+    clearTimeout(timer)
+    if (err.name === 'AbortError') {
+      const msg = `Timeout after ${REQUEST_TIMEOUT_MS}ms — server may be deadlocked`
+      console.log(`  ${c.red('⏱')} ${c.red(`${method} ${path} → ${msg}`)}`)
+      return { status: 0, data: null, ok: false, err: msg, timeout: true }
+    }
     return { status: 0, data: null, ok: false, err: err.message, connErr: true }
   }
 }
@@ -800,7 +815,7 @@ async function testMailAndPasswordReset() {
 // ─── Runner ───────────────────────────────────────────────────────────────────
 
 async function run() {
-  const VERSION = '1.1.0'
+  const VERSION = '1.1.1'
   console.log(c.bold(`\nfellis.eu E2E Test Suite`) + c.dim(` v${VERSION}`))
   console.log(c.dim(`Target: ${BASE_URL}`))
   console.log(c.dim(`Time:   ${new Date().toISOString()}`))
