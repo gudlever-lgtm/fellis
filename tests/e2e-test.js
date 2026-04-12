@@ -62,11 +62,19 @@ function log(msg) {
 
 // ─── HTTP helpers ─────────────────────────────────────────────────────────────
 let sessionId = null
+let csrfToken = null
 
 function headers(extra = {}) {
   const h = { 'Content-Type': 'application/json', ...extra }
   if (sessionId) h['X-Session-Id'] = sessionId
+  if (sessionId && csrfToken) h['X-CSRF-Token'] = csrfToken
   return h
+}
+
+async function refreshCsrfToken() {
+  if (!sessionId) { csrfToken = null; return }
+  const r = await api('GET', '/csrf-token')
+  if (r.ok && r.data?.csrfToken) csrfToken = r.data.csrfToken
 }
 
 async function api(method, path, body, extraHeaders = {}) {
@@ -115,6 +123,7 @@ async function uploadFile(fieldName, filename, mimeType, buffer, extraFields = {
 
   const h = {}
   if (sessionId) h['X-Session-Id'] = sessionId
+  if (sessionId && csrfToken) h['X-CSRF-Token'] = csrfToken
 
   try {
     const res = await fetch(`${API}/upload`, { method: 'POST', headers: h, body: form })
@@ -133,6 +142,7 @@ async function uploadPostWithMedia(text, buffer) {
 
   const h = {}
   if (sessionId) h['X-Session-Id'] = sessionId
+  if (sessionId && csrfToken) h['X-CSRF-Token'] = csrfToken
 
   try {
     const res = await fetch(`${API}/feed`, { method: 'POST', headers: h, body: form })
@@ -481,8 +491,12 @@ async function testErrorHandling() {
   else                       fail(`GET /api/jobs/${GHOST} should signal not-found`, `got ${job404.status}`)
 
   // ── 404: unknown API route (POST avoids the SPA GET fallback) ────────────────
+  // Send without a session so CSRF middleware doesn't intercept before the 404 handler
 
+  const savedForUnknown = sessionId
+  sessionId = null
   const unknown = await api('POST', `/this-route-does-not-exist-${GHOST}`)
+  sessionId = savedForUnknown
   if (unknown.status === 404) ok('POST /api/<unknown-route> → 404')
   else                        fail('POST to unknown API route should return 404', `got ${unknown.status}`)
 
@@ -502,9 +516,9 @@ async function testErrorHandling() {
 async function testCsrfToken() {
   section('CSRF Token')
   if (!sessionId) { skip('CSRF token', 'no session'); return }
-  const r = await api('GET', '/csrf-token')
-  if (r.ok && r.data?.csrfToken) ok(`GET /api/csrf-token → token received`)
-  else                            fail('GET /api/csrf-token', `HTTP ${r.status}`)
+  await refreshCsrfToken()
+  if (csrfToken) ok(`GET /api/csrf-token → token received`)
+  else           fail('GET /api/csrf-token', 'no token in response')
 }
 
 // ─── Cleanup ──────────────────────────────────────────────────────────────────
@@ -574,7 +588,9 @@ async function testLogin() {
     return
   }
 
-  // Wrong password → 401
+  // Wrong password → 401 (test as unauthenticated — login is a pre-auth endpoint)
+  const savedForBad = sessionId
+  sessionId = null
   const bad = await api('POST', '/auth/login', { email: testEmail, password: 'WrongPass999!', lang: 'da' })
   if (bad.status === 401) ok('Wrong password → 401 Unauthorized')
   else                    fail('Wrong password should return 401', `got HTTP ${bad.status}`)
@@ -583,6 +599,7 @@ async function testLogin() {
   const ghost = await api('POST', '/auth/login', { email: `no-such-user-${ts}@example.invalid`, password: 'anything' })
   if (ghost.status === 401) ok('Unknown email → 401 (no user enumeration)')
   else                      fail('Unknown email should return 401', `got HTTP ${ghost.status}`)
+  sessionId = savedForBad
 }
 
 // ─── Mail / password-reset flow ───────────────────────────────────────────────
@@ -591,21 +608,29 @@ async function testMailAndPasswordReset() {
   section('Mail & Password Reset')
   if (!sessionId) { skip('Password reset tests', 'no session'); return }
 
-  // 1. Forgot-password → always returns { ok: true } (no user enumeration)
+  const savedSession = sessionId
+
+  // 1. Forgot-password → always returns { ok: true } (pre-auth endpoint, test without session)
+  sessionId = null
   const forgot = await api('POST', '/auth/forgot-password', { email: testEmail })
+  sessionId = savedSession
   if (forgot.ok && forgot.data?.ok) ok('POST /api/auth/forgot-password → { ok: true }')
   else                               fail('POST /api/auth/forgot-password', `HTTP ${forgot.status}`)
 
   // 2. Forgot-password for unknown email → still { ok: true } (no leaking)
+  sessionId = null
   const forgotGhost = await api('POST', '/auth/forgot-password', { email: `ghost-${ts}@example.invalid` })
+  sessionId = savedSession
   if (forgotGhost.ok && forgotGhost.data?.ok) ok('Forgot-password unknown email → { ok: true } (no enumeration)')
   else                                         fail('Forgot-password unknown email', `HTTP ${forgotGhost.status}`)
 
-  // 3. Reset with a bogus token → 400
+  // 3. Reset with a bogus token → 400 (pre-auth endpoint, test without session)
+  sessionId = null
   const badReset = await api('POST', '/auth/reset-password', {
     token: 'not-a-real-token-aabbccdd',
     password: 'NewPass5678!',
   })
+  sessionId = savedSession
   if (badReset.status === 400) ok('Reset with invalid token → 400')
   else                         fail('Invalid reset token should return 400', `got HTTP ${badReset.status}`)
 
@@ -619,7 +644,8 @@ async function testMailAndPasswordReset() {
   if (change.ok) {
     ok('PATCH /api/profile/password — changed password while authenticated')
 
-    // 5. Login with OLD password → 401
+    // 5. Login with OLD password → 401 (pre-auth, test without session)
+    sessionId = null
     const oldLogin = await api('POST', '/auth/login', { email: testEmail, password: testPass })
     if (oldLogin.status === 401) ok('Old password rejected after change → 401')
     else                         fail('Old password should be rejected', `got HTTP ${oldLogin.status}`)
@@ -631,6 +657,7 @@ async function testMailAndPasswordReset() {
       currentPass = newPass  // so cleanup uses the right password for GDPR delete
       ok('Login with new password → session issued')
     } else {
+      sessionId = savedSession  // fall back to avoid breaking subsequent tests
       fail('Login with new password', `HTTP ${newLogin.status}`)
     }
   } else {
@@ -665,10 +692,12 @@ async function run() {
   await testConfig()
   await testRegister()
   await testSessionCheck()
-  await testLogin()          // logs in fresh after registering
+  await testCsrfToken()              // fetch CSRF token for the initial session
+  await testLogin()          // logs in fresh after registering — session changes
+  await refreshCsrfToken()   // refresh CSRF token for the new session from login
   await testSessionCheck()   // verify new session also works
-  await testCsrfToken()              // requires auth
   await testMailAndPasswordReset()   // forgot-password API + change-password + re-login
+  await refreshCsrfToken()   // refresh CSRF token for the new session after password reset
   await testFeed()
   await testCreateTextPost()
   await testLikePost()

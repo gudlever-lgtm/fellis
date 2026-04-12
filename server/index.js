@@ -9914,6 +9914,19 @@ app.get('/api/notifications/unread-count', authenticate, async (req, res) => {
   }
 })
 
+// GET /api/notifications/count — alias for unread-count (short form)
+app.get('/api/notifications/count', authenticate, async (req, res) => {
+  try {
+    const [[row]] = await pool.query(
+      'SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND is_read = 0',
+      [req.userId]
+    )
+    res.json({ count: Number(row.count) })
+  } catch {
+    res.json({ count: 0 })
+  }
+})
+
 app.post('/api/notifications/:id/read', authenticate, async (req, res) => {
   await pool.query('UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?', [req.params.id, req.userId]).catch(() => {})
   res.json({ ok: true })
@@ -12112,6 +12125,24 @@ app.get('/api/explore/trending-tags', authenticate, async (req, res) => {
     res.json(rows)
   } catch (err) {
     console.error('GET /api/explore/trending-tags error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/explore/trending — alias for trending-tags (short form)
+app.get('/api/explore/trending', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT tag, COUNT(*) AS count
+      FROM post_hashtags
+      WHERE created_at > NOW() - INTERVAL 48 HOUR
+      GROUP BY tag
+      ORDER BY count DESC
+      LIMIT 10
+    `)
+    res.json(rows)
+  } catch (err) {
+    console.error('GET /api/explore/trending error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })
