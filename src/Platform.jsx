@@ -4697,7 +4697,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
             {mode === 'business' && profile.jobTitle && <span>💼 {profile.jobTitle}{profile.company ? ` · ${profile.company}` : ''}</span>}
             {mode === 'business' && profile.industry && <span>🏭 {profile.industry}</span>}
             {profile.location && <span>📍 {profile.location}</span>}
-            {profile.birthday && <span>🎂 {new Date(profile.birthday + 'T00:00:00').toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'long' })}</span>}
+            {profile.birthday && !isNaN(new Date(profile.birthday)) && <span>🎂 {new Date(profile.birthday).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'long' })}</span>}
             {profile.gender && <span>{t[`gender_${profile.gender}`] || profile.gender}</span>}
             <span>📅 {t.joined} {profile.joinDate ? new Date(profile.joinDate).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}</span>
             {profile.totalMinutes > 0 && <span>⏱ {t.hoursOnline}: {Math.floor(profile.totalMinutes / 60) > 0 ? `${Math.floor(profile.totalMinutes / 60)}t ` : ''}{profile.totalMinutes % 60}min</span>}
@@ -8781,7 +8781,7 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
             {profile.bio?.[lang] && <p className="p-profile-bio">{profile.bio[lang]}</p>}
             <div className="p-profile-meta">
               {profile.location && <span>📍 {profile.location}</span>}
-              {profile.birthday && <span>🎂 {new Date(profile.birthday + 'T00:00:00').toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'long' })}</span>}
+              {profile.birthday && !isNaN(new Date(profile.birthday)) && <span>🎂 {new Date(profile.birthday).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'long' })}</span>}
               {profile.gender && <span>{t[`gender_${profile.gender}`] || profile.gender}</span>}
               {profile.joinDate && <span>📅 {t.joined2} {new Date(profile.joinDate).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long' })}</span>}
             </div>
@@ -19785,7 +19785,7 @@ function AdminPage({ lang, t }) {
     pwd_min_length: '6', pwd_require_uppercase: '0', pwd_require_lowercase: '0',
     pwd_require_numbers: '0', pwd_require_symbols: '0',
     media_max_files: '4', marketplace_max_photos: '4', registration_open: '1',
-    uploads_max_gb: '100', db_max_gb: '10',
+    uploads_max_gb: '100', db_max_gb: '10', fb_photo_import_limit: '50',
   })
   const [storageStats, setStorageStats] = useState(null)
   const [storageLoading, setStorageLoading] = useState(false)
@@ -20667,6 +20667,26 @@ function AdminPage({ lang, t }) {
             </div>
           </div>
 
+          {/* ── Facebook settings ── */}
+          <div className="p-card" style={{ marginBottom: 16, padding: '20px 24px' }}>
+            <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700 }}>📘 {t.adminFbSection}</h3>
+            <p style={{ margin: '0 0 20px', fontSize: 13, color: '#666' }}>
+              {t.adminFbPhotoImportLimitHint}
+            </p>
+            <div>
+              <label style={lS}>{t.adminFbPhotoImportLimit}</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <input
+                  style={{ ...fS, width: 100 }}
+                  type="number" min="1" max="200"
+                  value={form.fb_photo_import_limit || '50'}
+                  onChange={e => setForm(prev => ({ ...prev, fb_photo_import_limit: e.target.value }))}
+                />
+                <span style={{ fontSize: 13, color: '#888' }}>(1–200)</span>
+              </div>
+            </div>
+          </div>
+
           {/* ── Registration settings ── */}
           <div className="p-card" style={{ marginBottom: 16, padding: '20px 24px' }}>
             <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700 }}>🚪 {t.registration}</h3>
@@ -21524,7 +21544,7 @@ function AdminPage({ lang, t }) {
                 </div>
                 <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 12, color: '#666', marginBottom: 12 }}>
                   <span>#{u.id}</span>
-                  <span>{t.adminUserJoinDate}: {u.created_at ? new Date(u.created_at + 'Z').toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US') : '–'}</span>
+                  <span>{t.adminUserJoinDate}: {u.created_at && !isNaN(new Date(u.created_at)) ? new Date(u.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US') : '–'}</span>
                   <span>{t.adminUserMode}: {u.mode}</span>
                   <span>{t.adminUserPlan}: {u.plan || '–'}</span>
                   <span>{u.post_count ?? 0} {t.adminUserPostCount}</span>
