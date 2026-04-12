@@ -43,7 +43,7 @@ import MatrixRain from './components/easter-eggs/MatrixRain.jsx'
 import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
 import RickRoll from './components/easter-eggs/RickRoll.jsx'
 import RiddleBanner from './components/easter-eggs/RiddleBanner.jsx'
-import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode, apiReverseGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiAssignAdfreedays, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness, apiPayForAd, apiBoostPost, apiTrackAdImpression, apiTrackAdClick, apiAdminGrowth, apiAdminOnlineNow, apiAdminGetBannedUsers, apiAdminGetAuditLog, apiAdminSearchUsers, apiAdminForceLogout, apiAdminDeleteUser, apiGetAdminStorageStats } from './api.js'
+import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode, apiReverseGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiAssignAdfreedays, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness, apiFollowUser, apiUnfollowUser, apiGetFollowers, apiGetFollowing, apiPayForAd, apiBoostPost, apiTrackAdImpression, apiTrackAdClick, apiAdminGrowth, apiAdminOnlineNow, apiAdminGetBannedUsers, apiAdminGetAuditLog, apiAdminSearchUsers, apiAdminForceLogout, apiAdminDeleteUser, apiGetAdminStorageStats } from './api.js'
 import BusinessBadge from './components/BusinessBadge.jsx'
 import BusinessDirectory from './pages/BusinessDirectory.jsx'
 import AdManager from './pages/AdManager.jsx'
@@ -5236,7 +5236,36 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
   return (
     <div className="p-profile" style={{ maxWidth: 800, margin: '0 auto' }}>
       <div className="p-card" style={{ padding: 24 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>{t.editProfile}</h2>
+        {/* Avatar — always visible above tabs */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
+          <div className="p-profile-avatar-wrapper" onClick={() => avatarInputRef.current?.click()} title={t.editAvatarBtn} style={{ cursor: 'pointer' }}>
+            {avatarSrc ? (
+              <img className="p-profile-avatar-img" src={avatarSrc} alt="" />
+            ) : (
+              <div className="p-profile-avatar" style={{ background: nameToColor(profile.name) }}>
+                {profile.initials || getInitials(profile.name)}
+              </div>
+            )}
+            <div className="p-profile-avatar-overlay">📷</div>
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/gif,image/webp"
+              style={{ display: 'none' }}
+              onChange={handleAvatarUpload}
+            />
+          </div>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 20 }}>{t.editProfile}</div>
+            <div style={{ fontWeight: 600, fontSize: 13, color: '#555', marginTop: 2 }}>{profile.name || ''}</div>
+            <button
+              style={{ marginTop: 6, padding: '5px 12px', borderRadius: 6, border: '1px solid #2D6A4F', background: '#fff', color: '#2D6A4F', cursor: 'pointer', fontSize: 13 }}
+              onClick={() => avatarInputRef.current?.click()}
+            >
+              {t.editAvatarBtn}
+            </button>
+          </div>
+        </div>
 
         {/* Tab navigation */}
         <div className="p-filter-tabs" style={{ marginBottom: 24 }}>
@@ -5247,36 +5276,6 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
 
         {/* ── Profile tab ─────────────────────────────────── */}
         {tab === 'profile' && <>
-          {/* Avatar upload */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 8 }}>
-            <div className="p-profile-avatar-wrapper" onClick={() => avatarInputRef.current?.click()} title={t.editAvatarBtn} style={{ cursor: 'pointer' }}>
-              {avatarSrc ? (
-                <img className="p-profile-avatar-img" src={avatarSrc} alt="" />
-              ) : (
-                <div className="p-profile-avatar" style={{ background: nameToColor(profile.name) }}>
-                  {profile.initials || getInitials(profile.name)}
-                </div>
-              )}
-              <div className="p-profile-avatar-overlay">📷</div>
-              <input
-                ref={avatarInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/gif,image/webp"
-                style={{ display: 'none' }}
-                onChange={handleAvatarUpload}
-              />
-            </div>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: 14 }}>{t.editAvatarLabel}</div>
-              <button
-                style={{ marginTop: 4, padding: '6px 12px', borderRadius: 6, border: '1px solid #2D6A4F', background: '#fff', color: '#2D6A4F', cursor: 'pointer', fontSize: 13 }}
-                onClick={() => avatarInputRef.current?.click()}
-              >
-                {t.editAvatarBtn}
-              </button>
-            </div>
-          </div>
-
           {/* Name (read-only) */}
           <label style={labelStyle}>{t.editNameLabel}</label>
           <input style={fieldStyle} value={profile.name || ''} readOnly />
@@ -9156,6 +9155,133 @@ function FriendProfileModal({ userId, lang, t, onClose, onMessage }) {
   )
 }
 
+// ── Follow Tab (Followers / Following) ──
+function FollowTab({ t, lang, followers, following, followPending, onFollowToggle, onViewProfile }) {
+  const sFollowCard = { display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid var(--color-border)' }
+  const sAvatar = { width: 44, height: 44, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 16, flexShrink: 0, color: '#fff', overflow: 'hidden', cursor: 'pointer' }
+  const sInfo = { flex: 1, minWidth: 0 }
+  const sName = { fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'pointer', color: 'var(--color-text)' }
+  const sBadge = (isBusiness) => ({ fontSize: 11, padding: '2px 7px', borderRadius: 10, background: isBusiness ? '#E8F4FD' : '#F0F4FF', color: isBusiness ? '#1877F2' : '#4a6fa5', fontWeight: 600, display: 'inline-block' })
+  const sActionBtn = { fontSize: 13, padding: '5px 14px', borderRadius: 20, border: '1px solid #d0d0d0', background: '#fff', cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap', color: 'var(--color-text)' }
+  const sFollowBtn = { fontSize: 13, padding: '5px 14px', borderRadius: 20, border: '1px solid #2D6A4F', background: '#2D6A4F', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap', color: '#fff' }
+  const sFollowingBtn = { fontSize: 13, padding: '5px 14px', borderRadius: 20, border: '1px solid #d0d0d0', background: '#f5f5f5', cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap', color: 'var(--color-text)' }
+  const sEmpty = { padding: '24px 0', textAlign: 'center', color: 'var(--color-muted)', fontSize: 14 }
+  const sSectionTitle = { fontWeight: 700, fontSize: 15, margin: '0 0 4px', color: 'var(--color-text)' }
+
+  const loading = followers === null || following === null
+
+  const renderUserRow = (user, isFollower) => {
+    const isBusiness = user.mode === 'business'
+    const isFollowingBack = isFollower ? Number(user.is_following_back) === 1 : true
+    const pending = followPending[user.id]
+    const avatarStyle = { ...sAvatar, background: nameToColor(user.name) }
+    return (
+      <div key={user.id} style={sFollowCard}>
+        <div style={avatarStyle} onClick={() => onViewProfile(user.id)}>
+          {user.avatar
+            ? <img src={user.avatar} alt={user.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : getInitials(user.name)}
+        </div>
+        <div style={sInfo}>
+          <div style={sName} onClick={() => onViewProfile(user.id)}>{user.name}</div>
+          <span style={sBadge(isBusiness)}>{isBusiness ? t.accountTypeBusiness : t.accountTypeStandard}</span>
+          {isFollower && isFollowingBack && (
+            <span style={{ fontSize: 11, marginLeft: 6, color: '#2D6A4F', fontWeight: 500 }}>✓ {t.followsYouBack}</span>
+          )}
+        </div>
+        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+          <button style={sActionBtn} onClick={() => onViewProfile(user.id)}>👤</button>
+          {isFollower ? (
+            isFollowingBack ? (
+              <button style={sFollowingBtn} disabled={pending} onClick={() => onFollowToggle(user.id, true)}>
+                {pending ? '…' : t.followingBtn}
+              </button>
+            ) : (
+              <button style={sFollowBtn} disabled={pending} onClick={() => onFollowToggle(user.id, false)}>
+                {pending ? '…' : t.followBtn}
+              </button>
+            )
+          ) : (
+            <button style={sFollowingBtn} disabled={pending} onClick={() => onFollowToggle(user.id, true)}>
+              {pending ? '…' : t.followingBtn}
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  const renderCompanyRow = (company) => {
+    const avatarStyle = { ...sAvatar, background: nameToColor(company.name) }
+    return (
+      <div key={company.id} style={sFollowCard}>
+        <div style={avatarStyle}>
+          {company.avatar
+            ? <img src={company.avatar} alt={company.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : getInitials(company.name)}
+        </div>
+        <div style={sInfo}>
+          <div style={sName}>{company.name}</div>
+          <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 10, background: '#FFF3E0', color: '#E65100', fontWeight: 600 }}>
+            {lang === 'da' ? 'Virksomhed' : 'Company'}
+          </span>
+        </div>
+      </div>
+    )
+  }
+
+  if (loading) {
+    return <div style={{ padding: 32, textAlign: 'center', color: 'var(--color-muted)' }}>…</div>
+  }
+
+  const followingUsers = following?.users || []
+  const followingCompanies = following?.companies || []
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* ── Followers ── */}
+      <div className="p-card">
+        <h3 style={sSectionTitle}>👥 {t.followersSection} ({followers.length})</h3>
+        <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--color-muted)' }}>
+          {lang === 'da' ? 'Brugere der følger din profil' : 'Users following your profile'}
+        </p>
+        {followers.length === 0 ? (
+          <div style={sEmpty}>{t.followersEmpty}</div>
+        ) : (
+          <div>{followers.map(u => renderUserRow(u, true))}</div>
+        )}
+      </div>
+
+      {/* ── Following users ── */}
+      <div className="p-card">
+        <h3 style={sSectionTitle}>➡️ {t.followingSection} ({followingUsers.length + followingCompanies.length})</h3>
+        <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--color-muted)' }}>
+          {lang === 'da' ? 'Brugere og virksomheder du følger' : 'Users and companies you follow'}
+        </p>
+        {followingUsers.length === 0 && followingCompanies.length === 0 ? (
+          <div style={sEmpty}>{t.followingUsersEmpty}</div>
+        ) : (
+          <div>
+            {followingUsers.length > 0 && (
+              <div>
+                {followingUsers.map(u => renderUserRow(u, false))}
+              </div>
+            )}
+            {followingCompanies.length > 0 && (
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--color-muted)', margin: followingUsers.length > 0 ? '16px 0 8px' : '0 0 8px' }}>
+                  🏢 {t.followingCompaniesSection}
+                </div>
+                {followingCompanies.map(c => renderCompanyRow(c))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Referral Dashboard (Viral Growth) ──
 function ReferralDashboard({ t, lang, referralData, badges, leaderboard, inviteLink }) {
   const [copiedShareLink, setCopiedShareLink] = useState(null)
@@ -9361,6 +9487,9 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
   const [referralData, setReferralData] = useState(null)
   const [badges, setBadges] = useState(null)
   const [leaderboard, setLeaderboard] = useState(null)
+  const [followers, setFollowers] = useState(null)
+  const [following, setFollowing] = useState(null) // { users: [], companies: [] }
+  const [followPending, setFollowPending] = useState({}) // userId → true while request in flight
   const searchTimerRef = useRef(null)
   const { rels, setRel } = useContactRelationships()
   const REL_OPTS = [
@@ -9445,7 +9574,19 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
     refreshAll()
   }, [unfriendTarget, refreshAll])
 
-  const filtered = (filter === 'invites' || filter === 'requests' || filter === 'viral') ? [] : friends.filter(f => filter === 'all' || f.online)
+  const handleFollowToggle = useCallback(async (userId, isCurrentlyFollowing) => {
+    setFollowPending(prev => ({ ...prev, [userId]: true }))
+    if (isCurrentlyFollowing) {
+      await apiUnfollowUser(userId)
+      setFollowing(prev => prev ? { ...prev, users: prev.users.filter(u => u.id !== userId) } : prev)
+    } else {
+      await apiFollowUser(userId)
+      setFollowers(prev => prev ? prev.map(u => u.id === userId ? { ...u, is_following_back: 1 } : u) : prev)
+    }
+    setFollowPending(prev => { const n = { ...prev }; delete n[userId]; return n })
+  }, [])
+
+  const filtered = (filter === 'invites' || filter === 'requests' || filter === 'viral' || filter === 'follow') ? [] : friends.filter(f => filter === 'all' || f.online)
 
   const handleCopyInvite = useCallback(() => {
     navigator.clipboard.writeText(inviteLink).catch(() => {})
@@ -9532,6 +9673,13 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
     if (!badges) apiGetBadges().then(d => { if (d) setBadges(d) })
     if (!leaderboard) apiGetLeaderboard().then(d => { if (d) setLeaderboard(d) })
   }, [filter, referralData, badges, leaderboard])
+
+  // Load followers/following when follow tab is opened
+  useEffect(() => {
+    if (filter !== 'follow') return
+    if (!followers) apiGetFollowers().then(d => setFollowers(d || []))
+    if (!following) apiGetFollowing().then(d => setFollowing(d || { users: [], companies: [] }))
+  }, [filter, followers, following])
 
   const isSearching = search.trim().length >= 2
   const outgoingTargetIds = new Set(requests.outgoing.map(r => r.to_id))
@@ -9696,6 +9844,9 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
             </button>
             <button className={`p-filter-tab${filter === 'viral' ? ' active' : ''}`} onClick={() => setFilter('viral')}>
               🚀 {t.referralDashViralTitle}
+            </button>
+            <button className={`p-filter-tab${filter === 'follow' ? ' active' : ''}`} onClick={() => setFilter('follow')}>
+              👁 {t.followTab}
             </button>
           </div>
         )}
@@ -9868,6 +10019,16 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
         </div>
       ) : filter === 'viral' ? (
         <ReferralDashboard t={t} lang={lang} referralData={referralData} badges={badges} leaderboard={leaderboard} inviteLink={inviteLink} />
+      ) : filter === 'follow' ? (
+        <FollowTab
+          t={t}
+          lang={lang}
+          followers={followers}
+          following={following}
+          followPending={followPending}
+          onFollowToggle={handleFollowToggle}
+          onViewProfile={setViewProfileId}
+        />
       ) : (
         <div className="p-friends-grid">
           {filtered.map((friend) => (
@@ -18955,6 +19116,11 @@ function AdminBadgesPanel({ lang }) {
                   <td>
                     <span style={{ fontSize: 18, marginRight: 8 }}>{b.icon}</span>
                     <span style={{ fontWeight: 600 }}>{b.name}</span>
+                    {BADGE_BY_ID[b.id]?.description[lang] && (
+                      <div style={{ fontSize: 11, color: '#888', fontWeight: 400, marginTop: 2 }}>
+                        {BADGE_BY_ID[b.id].description[lang]}
+                      </div>
+                    )}
                   </td>
                   <td style={{ fontSize: 12, color: '#888' }}>{tierLabel(b.tier)}</td>
                   <td style={{ fontSize: 13 }}>{statRow?.awardedCount ?? 0}</td>

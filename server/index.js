@@ -2673,6 +2673,93 @@ app.delete('/api/businesses/:id/follow', authenticate, async (req, res) => {
   }
 })
 
+// POST /api/users/:id/follow — follow any user (standard or business)
+app.post('/api/users/:id/follow', authenticate, async (req, res) => {
+  const targetId = parseInt(req.params.id)
+  if (targetId === req.userId) return res.status(400).json({ error: 'Cannot follow yourself' })
+  try {
+    const [[target]] = await pool.query('SELECT id FROM users WHERE id = ?', [targetId])
+    if (!target) return res.status(404).json({ error: 'User not found' })
+    await pool.query('INSERT IGNORE INTO user_follows (follower_id, followee_id) VALUES (?, ?)', [req.userId, targetId])
+    res.json({ following: true })
+  } catch (err) {
+    console.error('POST /api/users/:id/follow error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// DELETE /api/users/:id/follow — unfollow a user
+app.delete('/api/users/:id/follow', authenticate, async (req, res) => {
+  const targetId = parseInt(req.params.id)
+  try {
+    await pool.query('DELETE FROM user_follows WHERE follower_id = ? AND followee_id = ?', [req.userId, targetId])
+    res.json({ following: false })
+  } catch (err) {
+    console.error('DELETE /api/users/:id/follow error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/me/followers — users who follow me (user_follows + business_follows)
+app.get('/api/me/followers', authenticate, async (req, res) => {
+  try {
+    await pool.query(CREATE_USER_FOLLOWS)
+    // Union: explicit user_follows + existing business_follows (deduplicated by user id)
+    const [rows] = await pool.query(
+      `SELECT u.id, u.name, u.avatar_url AS avatar, u.mode,
+              (u.last_active IS NOT NULL AND u.last_active > DATE_SUB(NOW(), INTERVAL 5 MINUTE)) AS online,
+              EXISTS(SELECT 1 FROM user_follows WHERE follower_id = u.id AND followee_id = ?)
+                OR EXISTS(SELECT 1 FROM business_follows WHERE follower_id = u.id AND business_id = ?) AS is_following_back,
+              COALESCE(uf.created_at, bf.created_at) AS followed_at
+       FROM users u
+       LEFT JOIN user_follows uf ON uf.follower_id = u.id AND uf.followee_id = ?
+       LEFT JOIN business_follows bf ON bf.follower_id = u.id AND bf.business_id = ?
+       WHERE uf.followee_id = ? OR bf.business_id = ?
+       ORDER BY followed_at DESC`,
+      [req.userId, req.userId, req.userId, req.userId, req.userId, req.userId]
+    )
+    res.json(rows)
+  } catch (err) {
+    console.error('GET /api/me/followers error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/me/following — users and companies I follow
+app.get('/api/me/following', authenticate, async (req, res) => {
+  try {
+    await pool.query(CREATE_USER_FOLLOWS)
+    // Union user_follows and business_follows so existing BusinessDirectory follows appear
+    const [users] = await pool.query(
+      `SELECT u.id, u.name, u.avatar_url AS avatar, u.mode,
+              (u.last_active IS NOT NULL AND u.last_active > DATE_SUB(NOW(), INTERVAL 5 MINUTE)) AS online,
+              'user' AS kind, COALESCE(uf.created_at, bf.created_at) AS followed_at
+       FROM users u
+       LEFT JOIN user_follows uf ON uf.followee_id = u.id AND uf.follower_id = ?
+       LEFT JOIN business_follows bf ON bf.business_id = u.id AND bf.follower_id = ?
+       WHERE uf.follower_id = ? OR bf.follower_id = ?
+       ORDER BY followed_at DESC`,
+      [req.userId, req.userId, req.userId, req.userId]
+    )
+    // company_follows may not exist on older installations — degrade gracefully
+    let companies = []
+    try {
+      const [rows] = await pool.query(
+        `SELECT c.id, c.name, c.logo_url AS avatar, NULL AS mode, NULL AS online, 'company' AS kind
+         FROM company_follows cf
+         JOIN companies c ON c.id = cf.company_id
+         WHERE cf.user_id = ?`,
+        [req.userId]
+      )
+      companies = rows
+    } catch (_) { /* company_follows or companies table may not exist */ }
+    res.json({ users, companies })
+  } catch (err) {
+    console.error('GET /api/me/following error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // POST /api/profile/avatar — upload profile picture
 app.post('/api/profile/avatar', authenticate, fileUploadLimit, upload.single('avatar'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' })
@@ -5363,6 +5450,25 @@ app.get('/api/marketplace/stats', authenticate, async (req, res) => {
     res.status(500).json({ error: 'Server error' })
   }
 })
+
+// ── User follows (asymmetric, any user) ──────────────────────────────────────
+
+const CREATE_USER_FOLLOWS = `CREATE TABLE IF NOT EXISTS user_follows (
+  follower_id INT NOT NULL,
+  followee_id INT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (follower_id, followee_id),
+  KEY idx_uf_follower (follower_id),
+  KEY idx_uf_followee (followee_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
+
+async function initUserFollows() {
+  try {
+    await pool.query(CREATE_USER_FOLLOWS)
+  } catch (err) {
+    console.error('initUserFollows error:', err.message)
+  }
+}
 
 // ── Companies & Jobs ──────────────────────────────────────────────────────────
 
