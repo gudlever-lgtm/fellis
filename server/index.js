@@ -722,7 +722,20 @@ function clearSessionCookie(res) {
 }
 
 // ── CSRF Token Helpers ─────────────────────────────────────────────────────
-const CSRF_SECRET = process.env.CSRF_SECRET || crypto.randomBytes(32).toString('hex')
+// CSRF_SECRET must be stable across restarts — a new random key would
+// invalidate all in-flight tokens every time PM2 restarts the process.
+// Auto-generate once and persist to .env so subsequent restarts reuse it.
+let CSRF_SECRET = process.env.CSRF_SECRET
+if (!CSRF_SECRET) {
+  CSRF_SECRET = crypto.randomBytes(32).toString('hex')
+  try {
+    const envPath = path.join(__dirname, '.env')
+    fs.appendFileSync(envPath, `\nCSRF_SECRET=${CSRF_SECRET}\n`)
+    console.log('✓ Generated CSRF_SECRET and saved to .env')
+  } catch (e) {
+    console.warn('⚠ Could not persist CSRF_SECRET to .env:', e.message)
+  }
+}
 
 function generateCsrfToken(sessionId) {
   // Generate CSRF token: HMAC-SHA256(session_id, secret)
