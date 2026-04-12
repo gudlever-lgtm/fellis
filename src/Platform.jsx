@@ -7367,7 +7367,7 @@ function SettingsSprog({ lang, t, darkMode, onToggleDark }) {
     <div className="p-card" style={{ padding: 24 }}>
       <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>🌐 {t.settingsLanguage}</div>
 
-      <div style={{ display: 'flex', gap: 10 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
         {UI_LANGS.map(l => (
           <div
             key={l.code}
