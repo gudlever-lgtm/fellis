@@ -458,14 +458,15 @@ function App() {
 
     apiCheckSession().then(async data => {
       if (data && !data.__authError) {
-        setView('platform')
         if (data.lang) setLang(data.lang)
         localStorage.setItem('fellis_logged_in', 'true')
-        // Fetch CSRF token for authenticated requests
+        // Fetch CSRF token before mounting platform — avoids race where a POST
+        // fires before the token is stored (same fix applied to handleEnterPlatform)
         const csrfData = await apiGetCsrfToken().catch(() => null)
         if (csrfData?.csrfToken) {
           localStorage.setItem('fellis_csrf_token', csrfData.csrfToken)
         }
+        setView('platform')
         // Check if user has given data_processing consent — show dialog if not
         const consentData = await apiGetConsentStatus().catch(() => null)
         if (consentData && !consentData.data_processing?.given) {
