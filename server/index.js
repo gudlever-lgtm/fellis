@@ -767,6 +767,7 @@ const CSRF_EXEMPT_PATHS = new Set([
   '/auth/forgot-password',
   '/auth/reset-password',
   '/auth/verify-mfa',
+  '/auth/logout',  // logout only clears the session — CSRF risk is negligible
   '/visit',
 ])
 
