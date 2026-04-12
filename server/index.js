@@ -57,6 +57,7 @@ import { BADGES, BADGE_BY_ID, PLATFORM_LAUNCH_DATE, BADGE_AD_FREE_DAYS } from '.
 import { evaluateBadges } from '../src/badges/badgeEngine.js'
 import { createReelFromLivestream, LIVESTREAM_DEFAULTS, transcodeVideo } from './livestream.js'
 import { startRtmpServer, RTMP_PORT } from './rtmp.js'
+import facebookRouter from './routes/facebook.js'
 
 // MySQL 8.x compatible ADD COLUMN helper — ignores duplicate column error (errno 1060)
 // SECURITY: Validates table and column names to prevent SQL injection
@@ -503,7 +504,7 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Vite/React needs these in dev
       styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", 'data:', 'blob:', SITE_ORIGIN, 'https://lh3.googleusercontent.com', 'https://media.licdn.com'],
+      imgSrc: ["'self'", 'data:', 'blob:', SITE_ORIGIN, 'https://lh3.googleusercontent.com', 'https://media.licdn.com', 'https://platform-lookaside.fbsbx.com', 'https://graph.facebook.com'],
       connectSrc: ["'self'", SITE_ORIGIN, 'http://localhost:3001', 'http://localhost:5173'],
       fontSrc: ["'self'", 'data:'],
       objectSrc: ["'none'"],
@@ -1891,6 +1892,9 @@ app.get('/api/auth/linkedin/callback', async (req, res) => {
   }
 })
 
+
+// ── Facebook data import routes ──
+app.use('/api/auth/facebook', facebookRouter)
 
 // ── Profile routes ──
 

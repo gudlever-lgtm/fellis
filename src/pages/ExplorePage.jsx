@@ -4,9 +4,19 @@ import { apiGetTrendingTags, apiGetExploreFeed, apiGetSuggestedUsers, apiSendFri
 
 const FILTERS = ['all', 'images']
 
+function timeAgo(dateStr, lang) {
+  const t = PT[lang]
+  const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
+  if (diff < 60) return t.justNow
+  if (diff < 3600) { const m = Math.floor(diff / 60); return `${m}${t.timeAgoMinutes}` }
+  if (diff < 86400) { const h = Math.floor(diff / 3600); return `${h}${t.timeAgoHours}` }
+  const d = Math.floor(diff / 86400)
+  return `${d}${d !== 1 ? t.timeAgoDaysPlural : t.timeAgoDays}`
+}
+
 function PostCard({ post, lang, onViewProfile }) {
   const text = post.text?.[lang] || post.text?.da || ''
-  const time = post.time?.[lang] || post.time?.da || ''
+  const time = post.created_at ? timeAgo(post.created_at, lang) : (post.time?.[lang] || post.time?.da || '')
   const media = post.media || []
 
   return (
