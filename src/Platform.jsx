@@ -19785,7 +19785,7 @@ function AdminPage({ lang, t }) {
     pwd_min_length: '6', pwd_require_uppercase: '0', pwd_require_lowercase: '0',
     pwd_require_numbers: '0', pwd_require_symbols: '0',
     media_max_files: '4', marketplace_max_photos: '4', registration_open: '1',
-    uploads_max_gb: '100', db_max_gb: '10',
+    uploads_max_gb: '100', db_max_gb: '10', fb_photo_import_limit: '50',
   })
   const [storageStats, setStorageStats] = useState(null)
   const [storageLoading, setStorageLoading] = useState(false)
@@ -20663,6 +20663,26 @@ function AdminPage({ lang, t }) {
                   />
                   <span style={{ fontSize: 13, color: '#888' }}>{t.n120Photos}</span>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Facebook settings ── */}
+          <div className="p-card" style={{ marginBottom: 16, padding: '20px 24px' }}>
+            <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700 }}>📘 {t.adminFbSection}</h3>
+            <p style={{ margin: '0 0 20px', fontSize: 13, color: '#666' }}>
+              {t.adminFbPhotoImportLimitHint}
+            </p>
+            <div>
+              <label style={lS}>{t.adminFbPhotoImportLimit}</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <input
+                  style={{ ...fS, width: 100 }}
+                  type="number" min="1" max="200"
+                  value={form.fb_photo_import_limit || '50'}
+                  onChange={e => setForm(prev => ({ ...prev, fb_photo_import_limit: e.target.value }))}
+                />
+                <span style={{ fontSize: 13, color: '#888' }}>(1–200)</span>
               </div>
             </div>
           </div>

@@ -3512,6 +3512,7 @@ async function getMediaMaxFiles() {
 // Invalidate the cache (called when admin updates settings)
 function invalidateMediaMaxFilesCache() { _mediaMaxFilesCache.expiresAt = 0 }
 
+
 // POST /api/feed — create a new post (with optional media)
 app.post('/api/feed', authenticate, writeLimit, upload.array('media', UPLOAD_FILES_CEILING), async (req, res) => {
   // Enforce admin-configured media max files at runtime
@@ -7814,6 +7815,9 @@ async function initAdminSettings() {
     await pool.query(
       "INSERT IGNORE INTO admin_settings (key_name, key_value) VALUES ('livestream_enabled', '0')"
     )
+    await pool.query(
+      "INSERT IGNORE INTO admin_settings (key_name, key_value) VALUES ('fb_photo_import_limit', '50')"
+    )
   } catch (err) {
     console.error('initAdminSettings error:', err.message)
   }
@@ -8482,7 +8486,7 @@ app.get('/api/admin/storage-stats', authenticate, requireAdmin, async (req, res)
 
 // POST /api/admin/settings — save platform config (admin only)
 app.post('/api/admin/settings', authenticate, requireAdmin, async (req, res) => {
-  const allowed = ['pwd_min_length', 'pwd_require_uppercase', 'pwd_require_lowercase', 'pwd_require_numbers', 'pwd_require_symbols', 'media_max_files', 'marketplace_max_photos', 'registration_open', 'mollie_api_key', 'uploads_max_gb', 'db_max_gb']
+  const allowed = ['pwd_min_length', 'pwd_require_uppercase', 'pwd_require_lowercase', 'pwd_require_numbers', 'pwd_require_symbols', 'media_max_files', 'marketplace_max_photos', 'registration_open', 'mollie_api_key', 'uploads_max_gb', 'db_max_gb', 'fb_photo_import_limit']
   try {
     for (const [key, value] of Object.entries(req.body)) {
       if (!allowed.includes(key)) continue

@@ -36,6 +36,24 @@ const COOKIE_NAME    = 'fellis_sid'
 const FB_TOKEN_SECRET = process.env.FB_TOKEN_SECRET || crypto.randomBytes(32).toString('hex')
 const ENC_KEY = crypto.createHash('sha256').update(FB_TOKEN_SECRET).digest()
 
+// ── Admin setting: fb_photo_import_limit (cached 60 s) ───────────────────────
+let _fbPhotoLimitCache = { value: 50, expiresAt: 0 }
+async function getFbPhotoLimit() {
+  const now = Date.now()
+  if (now < _fbPhotoLimitCache.expiresAt) return _fbPhotoLimitCache.value
+  try {
+    const [rows] = await pool.query(
+      "SELECT key_value FROM admin_settings WHERE key_name = 'fb_photo_import_limit'"
+    )
+    const val = rows[0]?.key_value ? parseInt(rows[0].key_value, 10) : 50
+    const clamped = Math.max(1, Math.min(isNaN(val) ? 50 : val, 200))
+    _fbPhotoLimitCache = { value: clamped, expiresAt: now + 60_000 }
+    return clamped
+  } catch {
+    return _fbPhotoLimitCache.value
+  }
+}
+
 // ── OAuth state store: nonce → {userId, createdAt} ───────────────────────────
 const fbOauthStates = new Map()
 setInterval(() => {
@@ -277,11 +295,12 @@ router.get('/data', requireAuth, async (req, res) => {
     } catch {}
 
     // User photos with thumbnail URLs — best-effort
+    const photoLimit = await getFbPhotoLimit()
     let photos = []
     try {
       const photosRes = await fetch(
         `https://graph.facebook.com/v22.0/me/photos?${new URLSearchParams({
-          limit: '50',
+          limit: String(photoLimit),
           fields: 'id,images',
           type: 'uploaded',
           access_token: accessToken,
@@ -416,8 +435,9 @@ router.post('/import-photos', requireAuth, async (req, res) => {
   if (!Array.isArray(photoIds) || photoIds.length === 0) {
     return res.status(400).json({ error: 'photoIds array required' })
   }
-  if (photoIds.length > 50) {
-    return res.status(400).json({ error: 'Maximum 50 photos at a time' })
+  const limit = await getFbPhotoLimit()
+  if (photoIds.length > limit) {
+    return res.status(400).json({ error: `Maximum ${limit} photos at a time` })
   }
   // Validate IDs are numeric strings only (no injection)
   if (!photoIds.every(id => typeof id === 'string' && /^\d+$/.test(id))) {
