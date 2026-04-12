@@ -63,6 +63,9 @@ export default {
     discoveryTypeUser: 'Person',
     discoveryTypeBusiness: 'Virksomhed',
     discoveryTypeGroup: 'Gruppe',
+    // Image fallback
+    imageMissing: 'Billedet er ikke tilgængeligt',
+    imageMissingHint: 'Men her er lidt solskin i stedet ☀️',
   },
   en: {
     newPost: "What's on your mind?",
@@ -128,5 +131,8 @@ export default {
     discoveryTypeUser: 'Person',
     discoveryTypeBusiness: 'Business',
     discoveryTypeGroup: 'Group',
+    // Image fallback
+    imageMissing: 'Image unavailable',
+    imageMissingHint: 'But here\'s a little sunshine instead ☀️',
   },
 }

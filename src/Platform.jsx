@@ -996,8 +996,9 @@ function NotificationsPanel({ notifs, t, lang, titleRef, onMarkAllRead, onMarkRe
 
 // ── Media display component ──
 // ── Lightbox modal ──
-function Lightbox({ media, index: initialIndex, onClose }) {
+function Lightbox({ media, index: initialIndex, onClose, lang = 'da' }) {
   const [index, setIndex] = useState(initialIndex)
+  const [brokenImages, setBrokenImages] = useState(new Set())
   const count = media.length
   const touchStartX = useRef(null)
 
@@ -1015,6 +1016,7 @@ function Lightbox({ media, index: initialIndex, onClose }) {
   }, [onClose, prev, next])
 
   const item = media[index]
+  const t = getTranslations(lang)
   return (
     <div
       className="lightbox-overlay"
@@ -1033,8 +1035,15 @@ function Lightbox({ media, index: initialIndex, onClose }) {
           <video className="lightbox-media" controls autoPlay playsInline>
             <source src={item.src} type={item.mime} />
           </video>
+        ) : brokenImages.has(index) ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#ccc', gap: 12, minHeight: 200, padding: 40 }}>
+            <span style={{ fontSize: 64 }}>🖼️</span>
+            <span style={{ fontSize: 18, fontWeight: 600 }}>{t.imageMissing}</span>
+            <span style={{ fontSize: 14, color: '#888' }}>{t.imageMissingHint}</span>
+          </div>
         ) : (
-          <img className="lightbox-media" src={item.src} alt="" />
+          <img className="lightbox-media" src={item.src} alt=""
+            onError={() => setBrokenImages(prev => new Set([...prev, index]))} />
         )}
       </div>
       <button className="lightbox-close" onClick={onClose}>✕</button>
@@ -1207,10 +1216,12 @@ function PostText({ text, lang }) {
   )
 }
 
-function PostMedia({ media }) {
+function PostMedia({ media, lang = 'da' }) {
   const [lightboxIndex, setLightboxIndex] = useState(null)
+  const [brokenImages, setBrokenImages] = useState(new Set())
   if (!media?.length) return null
   const count = media.length
+  const t = getTranslations(lang)
   const lightboxMedia = media.map(m => ({
     src: m.url.startsWith('http') ? m.url : `${API_BASE}${m.url}`,
     type: m.type === 'video' ? 'video' : 'image',
@@ -1229,12 +1240,22 @@ function PostMedia({ media }) {
               </video>
             )
           }
+          if (brokenImages.has(i)) {
+            return (
+              <div key={i} className="p-media-item" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', color: '#999', gap: 6, minHeight: 140, borderRadius: 8, cursor: 'default' }}>
+                <span style={{ fontSize: 40 }}>🖼️</span>
+                <span style={{ fontWeight: 600, fontSize: 13 }}>{t.imageMissing}</span>
+                <span style={{ fontSize: 11, color: '#bbb' }}>{t.imageMissingHint}</span>
+              </div>
+            )
+          }
           return <img key={i} className="p-media-item p-media-clickable" src={src} alt="" loading="lazy"
-            onClick={() => setLightboxIndex(i)} />
+            onClick={() => setLightboxIndex(i)}
+            onError={() => setBrokenImages(prev => new Set([...prev, i]))} />
         })}
       </div>
       {lightboxIndex !== null && (
-        <Lightbox media={lightboxMedia} index={lightboxIndex} onClose={() => setLightboxIndex(null)} />
+        <Lightbox media={lightboxMedia} index={lightboxIndex} onClose={() => setLightboxIndex(null)} lang={lang} />
       )}
     </>
   )
@@ -3714,7 +3735,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                 <div><div className="p-post-author">{post.author}</div><div className="p-post-time">{post.time?.[lang]}</div></div>
               </div>
               <div className="p-post-text">{post.text[lang]}</div>
-              {post.media?.length > 0 && <PostMedia media={post.media} />}
+              {post.media?.length > 0 && <PostMedia media={post.media} lang={lang} />}
             </div>
           </div>
         )
@@ -4116,7 +4137,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                 {post.edited && <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>{t.edited}</div>}
               </>
             )}
-            {post.media && <PostMedia media={post.media} />}
+            {post.media && <PostMedia media={post.media} lang={lang} />}
             {/* Tagged users */}
             {post.taggedUsers?.length > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, margin: '6px 0 2px' }}>
@@ -4252,7 +4273,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                       <span><CommentText text={c.text[lang]} lang={lang} /></span>
                       {c.media?.length > 0 && (
                         <div className="p-comment-media">
-                          <PostMedia media={c.media} />
+                          <PostMedia media={c.media} lang={lang} />
                         </div>
                       )}
                     </div>
@@ -4923,7 +4944,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
                 </div>
               </div>
               <PostText text={post.text} lang={lang} />
-              {post.media && <PostMedia media={post.media} />}
+              {post.media && <PostMedia media={post.media} lang={lang} />}
               <div className="p-post-stats">
                 <span>{post.likes} {t.like.toLowerCase()}</span>
                 <span>{post.comments.length} {t.comment.toLowerCase()}{post.comments.length !== 1 ? (t.s) : ''}</span>
@@ -10786,7 +10807,7 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
                       )}
                       {msg.media?.length > 0 && (
                         <div style={{ marginTop: msg.text[lang] ? 6 : 0, maxWidth: 260 }}>
-                          <PostMedia media={msg.media} />
+                          <PostMedia media={msg.media} lang={lang} />
                         </div>
                       )}
                       <div className="p-msg-time">{msg.time}</div>
