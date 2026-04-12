@@ -31,6 +31,7 @@ import ReelsPage from './Reels.jsx'
 import InterestGraphPage from './InterestGraphPage.jsx'
 import ExplorePage from './pages/ExplorePage.jsx'
 import AdBanner, { invalidateAdCache } from './AdBanner.jsx'
+import FacebookImport from './components/FacebookImport.jsx'
 import useKonamiCode from './hooks/useKonamiCode.js'
 import useKeySequence from './hooks/useKeySequence.js'
 import useScrollHold from './hooks/useScrollHold.js'
@@ -5722,6 +5723,18 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
             {t.adminModCandidateSave}
           </button>
         </>}
+
+        {/* Facebook data import */}
+        <div style={{ marginTop: 8 }}>
+          <FacebookImport
+            lang={lang}
+            user={profile}
+            onUpdate={updated => {
+              setProfile(prev => ({ ...prev, ...updated }))
+              onUserUpdate(prev => ({ ...prev, ...updated }))
+            }}
+          />
+        </div>
 
         <button
           style={{ marginTop: 24, padding: '10px 20px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
