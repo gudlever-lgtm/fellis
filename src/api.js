@@ -807,6 +807,10 @@ export async function apiSaveAdminSettings(data) {
   })
 }
 
+export async function apiGetAdminStorageStats() {
+  return await request('/api/admin/storage-stats')
+}
+
 export async function apiRevealAdminKey(keyName, password) {
   return await request('/api/admin/settings/reveal-key', {
     method: 'POST',
