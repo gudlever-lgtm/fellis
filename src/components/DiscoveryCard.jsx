@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { getTranslations, nameToColor, getInitials } from '../data.js'
+import { apiSendFriendRequest, apiFollowBusiness, apiJoinGroup } from '../api.js'
 
 const TYPE_ICONS = { user: '👤', business: '🏢', group: '💬' }
 
@@ -31,11 +32,11 @@ export default function DiscoveryCard({ suggestion, lang }) {
     setBusy(true)
     try {
       if (type === 'user') {
-        await fetch(`/api/friends/request/${id}`, { method: 'POST', credentials: 'same-origin' })
+        await apiSendFriendRequest(id)
       } else if (type === 'business') {
-        await fetch(`/api/businesses/${id}/follow`, { method: 'POST', credentials: 'same-origin' })
+        await apiFollowBusiness(id)
       } else {
-        await fetch(`/api/groups/${id}/join`, { method: 'POST', credentials: 'same-origin' })
+        await apiJoinGroup(id)
       }
       setFollowed(true)
     } catch { /* network */ }
