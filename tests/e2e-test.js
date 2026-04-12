@@ -188,6 +188,38 @@ async function testConfig() {
   else                 fail('GET /api/config', `HTTP ${r.status}`)
 }
 
+async function testPreAuthRoutes() {
+  section('Pre-Auth Routes')
+
+  // Password policy — public, no session required
+  const policy = await api('GET', '/auth/password-policy')
+  if (policy.ok && typeof policy.data?.min_length === 'number')
+    ok('GET /api/auth/password-policy → returns policy object')
+  else
+    fail('GET /api/auth/password-policy', `HTTP ${policy.status}`)
+
+  // Visit tracking — CSRF-exempt POST, no session required
+  const savedSession = sessionId
+  sessionId = null
+  const visit = await api('POST', '/visit', {})
+  sessionId = savedSession
+  if (visit.ok || visit.status === 200)
+    ok('POST /api/visit → 200 (CSRF exempt, no session)')
+  else
+    fail('POST /api/visit', `HTTP ${visit.status} — ${JSON.stringify(visit.data)}`)
+}
+
+async function testHeartbeat() {
+  section('Heartbeat')
+  if (!sessionId) { skip('Heartbeat', 'no session'); return }
+
+  const r = await api('POST', '/me/heartbeat')
+  if (r.ok)
+    ok('POST /api/me/heartbeat → 200')
+  else
+    fail('POST /api/me/heartbeat', `HTTP ${r.status} — ${JSON.stringify(r.data)}`)
+}
+
 async function testRegister() {
   section('Register Account')
   const r = await api('POST', '/auth/register', {
@@ -690,6 +722,7 @@ async function run() {
 
   await testHealth()
   await testConfig()
+  await testPreAuthRoutes()
   await testRegister()
   await testSessionCheck()
   await testCsrfToken()              // fetch CSRF token for the initial session
@@ -698,6 +731,7 @@ async function run() {
   await testSessionCheck()   // verify new session also works
   await testMailAndPasswordReset()   // forgot-password API + change-password + re-login
   await refreshCsrfToken()   // refresh CSRF token for the new session after password reset
+  await testHeartbeat()
   await testFeed()
   await testCreateTextPost()
   await testLikePost()

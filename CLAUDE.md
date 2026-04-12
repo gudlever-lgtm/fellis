@@ -260,14 +260,25 @@ Vite builds from `src/` as root into `assets/` at the repo root:
 
 ### Authentication
 - Sessions are stored server-side in the `sessions` DB table (30-day expiry)
-- Session ID is kept in `localStorage` as `fellis_session_id` and sent as `X-Session-Id` header on every request
+- Session ID is in the `fellis_sid` HTTP-only cookie (set by server, sent automatically by browser)
 - For multipart/FormData requests, use `formHeaders()` (not `headers()`) to avoid sending `null` as a header value
+
+### CSRF Protection
+- All state-changing requests (POST/PUT/PATCH/DELETE) require an `X-CSRF-Token` header
+- The CSRF token is HMAC-SHA256(sessionId, CSRF_SECRET) — fetched via `GET /api/csrf-token` after login
+- The token is stored in `localStorage` as `fellis_csrf_token` and read by `getCsrfToken()` in `api.js`
+- `CSRF_SECRET` must be stable across restarts — it is auto-generated on first start and persisted to `server/.env`
+- Pre-auth endpoints (login, register, forgot-password, reset-password, verify-mfa, `/api/visit`) are exempt from CSRF
+- The CSRF token must be fetched and stored **before** the platform mounts — both `handleEnterPlatform` and the session-restore path in `App.jsx` await `apiGetCsrfToken()` before calling `setView('platform')`
+
 ### API Layer (`src/api.js`)
 - **Single source of truth** for all API calls — all `fetch()` calls go through the `request()` helper
 - `request()` returns `null` when the server is unreachable (demo/offline mode), never throws on network errors
+- `request()` automatically includes the CSRF token via `headers()` — never bypass it for state-changing calls
 - For file uploads (avatar, media), call `fetch()` directly with `formHeaders()` — do not use the `request()` helper
 - The `VITE_API_URL` env var allows pointing the frontend at a different backend origin
 - **Always add new API functions to this file** — never call `fetch()` directly from components
+- In `Platform.jsx`, legacy raw `fetch()` calls use the local `csrfFetch()` helper (defined at top of file) which injects the CSRF token — new code should use `api.js` functions instead
 
 ### API Route Consistency
 - `tests/check-api-routes.js` runs automatically before every build
