@@ -12284,6 +12284,7 @@ app.get('/api/users/suggested', authenticate, async (req, res) => {
         WHERE u.id != ?
           AND u.id NOT IN (SELECT friend_id FROM friendships WHERE user_id = ?)
           AND u.id NOT IN (SELECT to_user_id FROM friend_requests WHERE from_user_id = ? AND status = 'pending')
+          AND u.email NOT LIKE 'e2e.test.%@fellis-test.invalid'
         ORDER BY shared_interests DESC, follower_count DESC
         LIMIT ?
       `, [req.userId, req.userId, req.userId, req.userId, limit])
@@ -12298,6 +12299,7 @@ app.get('/api/users/suggested', authenticate, async (req, res) => {
         WHERE u.id != ?
           AND u.id NOT IN (SELECT friend_id FROM friendships WHERE user_id = ?)
           AND u.id NOT IN (SELECT to_user_id FROM friend_requests WHERE from_user_id = ? AND status = 'pending')
+          AND u.email NOT LIKE 'e2e.test.%@fellis-test.invalid'
         ORDER BY follower_count DESC
         LIMIT ?
       `, [req.userId, req.userId, req.userId, limit])
@@ -12353,6 +12355,7 @@ app.get('/api/feed/suggested-posts', authenticate, async (req, res) => {
           AND p.author_id NOT IN (SELECT friend_id FROM friendships WHERE user_id = ?)
           AND p.scheduled_at IS NULL
           AND p.created_at > NOW() - INTERVAL 60 DAY
+          AND u.email NOT LIKE 'e2e.test.%@fellis-test.invalid'
           ${excludeClause}
         ORDER BY td.overlap DESC, p.likes DESC, p.created_at DESC
         LIMIT ?
@@ -12379,6 +12382,7 @@ app.get('/api/feed/suggested-posts', authenticate, async (req, res) => {
           AND p.author_id NOT IN (SELECT friend_id FROM friendships WHERE user_id = ?)
           AND p.scheduled_at IS NULL
           AND p.created_at > NOW() - INTERVAL 60 DAY
+          AND u.email NOT LIKE 'e2e.test.%@fellis-test.invalid'
           ${excludeClause}
         ORDER BY p.likes DESC, p.created_at DESC
         LIMIT ?

@@ -2136,7 +2136,12 @@ function FeedSidebar({ lang, t, adsFree, onNavigate }) {
   const [locationPopup, setLocationPopup] = useState(null) // { loc: string }
 
   useEffect(() => {
-    apiFetchEvents().then(d => { if (d?.events) setEvents(d.events.slice(0, 3)) })
+    apiFetchEvents().then(d => {
+      if (d?.events) {
+        const today = new Date(); today.setHours(0, 0, 0, 0)
+        setEvents(d.events.filter(ev => new Date(ev.date) >= today).slice(0, 3))
+      }
+    })
     apiGetSuggestedUsers(4).then(d => { if (d?.users) setSuggestedFriends(d.users) })
     apiGetBoostedFeedListings().then(d => { if (d?.listings) setBoostedListings(d.listings.slice(0, 4)) })
   }, [])
@@ -3723,10 +3728,11 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         // Build sorted extras list from company posts + recently-created events (14-day window)
         const CUTOFF_MS = 14 * 24 * 60 * 60 * 1000
         const now = Date.now()
+        const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
         const extras = [
           ...cpFeedPosts.map(p => ({ _type: 'company_post', _ts: new Date(p.created_at + 'Z').getTime(), _data: p })),
           ...feedEvents
-            .filter(ev => ev.createdAt && (now - new Date(ev.createdAt).getTime()) < CUTOFF_MS)
+            .filter(ev => ev.createdAt && (now - new Date(ev.createdAt).getTime()) < CUTOFF_MS && new Date(ev.date) >= todayStart)
             .map(ev => ({ _type: 'event', _ts: new Date(ev.createdAt).getTime(), _data: ev })),
         ].sort((a, b) => b._ts - a._ts)
 
