@@ -65,10 +65,12 @@ export default function FacebookImport({ lang = 'da', user, onUpdate }) {
       return
     }
 
-    function onMessage(event) {
-      if (event.origin !== window.location.origin) return
+    // BroadcastChannel is more reliable than window.opener.postMessage because
+    // window.opener can be nulled after cross-origin navigation (→ Facebook → back).
+    const bc = new BroadcastChannel('fellis_fb_oauth')
+    bc.onmessage = (event) => {
       if (event.data?.type !== 'FB_OAUTH_RESULT') return
-      window.removeEventListener('message', onMessage)
+      bc.close()
       clearInterval(pollTimer)
       if (event.data.ok) {
         loadFbData()
@@ -78,13 +80,12 @@ export default function FacebookImport({ lang = 'da', user, onUpdate }) {
         setView('error')
       }
     }
-    window.addEventListener('message', onMessage)
 
     // Clean up if user closes popup without completing OAuth
     const pollTimer = setInterval(() => {
       if (popup.closed) {
         clearInterval(pollTimer)
-        window.removeEventListener('message', onMessage)
+        bc.close()
       }
     }, 500)
   }

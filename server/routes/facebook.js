@@ -138,19 +138,37 @@ router.get('/', requireAuth, (req, res) => {
 })
 
 // ── Popup close helper ────────────────────────────────────────────────────────
-// Sends a postMessage to the opener and closes the popup window.
-// Falls back to a full-page redirect if the popup was blocked (no opener).
+// Uses BroadcastChannel to notify the opener (avoids window.opener being nulled
+// by cross-origin navigation through Facebook).  Falls back to full-page redirect
+// if the popup was blocked.  window.close() is attempted but may be blocked by
+// some browsers after multi-page navigation, so a manual close button is shown.
 function popupClose(res, ok, errorCode) {
-  const fallback = ok ? '/?fb=connected' : `/?error=${errorCode}`
-  const msg      = ok
+  const fallback  = ok ? '/?fb=connected' : `/?error=${errorCode}`
+  const bcPayload = ok
     ? `{type:'FB_OAUTH_RESULT',ok:true}`
     : `{type:'FB_OAUTH_RESULT',ok:false,error:'${errorCode}'}`
+  const danishMsg = ok ? 'Forbundet med Facebook!' : 'Der opstod en fejl.'
+  const btnLabel  = 'Luk vindue'
   res.send(`<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>Facebook</title></head>
-<body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#f0f2f5">
-<p style="color:#555">Forbinder\u2026</p>
+<body style="font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;gap:16px;background:#f0f2f5">
+<p style="color:#333;font-size:16px;font-weight:600;margin:0">${danishMsg}</p>
+<button onclick="window.close()" style="background:#1877F2;color:#fff;border:none;border-radius:8px;padding:10px 22px;font-size:14px;font-weight:600;cursor:pointer">${btnLabel}</button>
 <script>
-try{if(window.opener&&!window.opener.closed){window.opener.postMessage(${msg},window.location.origin);window.close();}else{window.location.href='${fallback}';}}catch(e){window.location.href='${fallback}';}
+(function(){
+  try{
+    var bc=new BroadcastChannel('fellis_fb_oauth');
+    bc.postMessage(${bcPayload});
+    setTimeout(function(){bc.close();},200);
+  }catch(e){}
+  try{window.close();}catch(e){}
+  // If window.close() was blocked, the button above lets the user close manually
+  // and the BroadcastChannel already notified the opener.
+  // Fallback for when popup was blocked entirely (no opener context):
+  if(!window.opener&&typeof BroadcastChannel==='undefined'){
+    window.location.href='${fallback}';
+  }
+})();
 </script></body></html>`)
 }
 
