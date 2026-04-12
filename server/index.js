@@ -11658,6 +11658,16 @@ app.post('/api/badges/evaluate', authenticate, async (req, res) => {
           }
 
           newBadges.push(badge)
+
+          // Create a persistent notification so the user sees it in their notification feed
+          const nameDa = def.name.da || def.name.en
+          const nameEn = def.name.en || def.name.da
+          await createNotification(
+            userId,
+            'badge',
+            `Du har optjent badgen ${def.icon} ${nameDa}!`,
+            `You earned the ${def.icon} ${nameEn} badge!`
+          )
         }
       } catch { /* INSERT IGNORE handles duplicates */ }
     }

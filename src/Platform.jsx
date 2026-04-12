@@ -908,7 +908,7 @@ const NOTIF_ICONS = {
   like: '❤️', comment: '💬', friend_request: '👥', friend_accepted: '🤝',
   friend_declined: '👋', event_rsvp: '📅', listing_boosted: '🚀',
   moderator_granted: '🛡️', mod_result: '📋', moderation: '⚠️', test: '🔔',
-  new_message: '✉️',
+  new_message: '✉️', badge: '🏅',
 }
 // Navigation target for each notification type (no 'link' column in DB)
 const NOTIF_TYPE_PAGE = {
@@ -916,7 +916,7 @@ const NOTIF_TYPE_PAGE = {
   friend_request: 'friends', friend_accepted: 'friends', friend_declined: 'friends',
   event_rsvp: 'events', listing_boosted: 'marketplace',
   moderator_granted: 'admin', mod_result: 'profile', moderation: 'profile',
-  new_message: 'messages',
+  new_message: 'messages', badge: 'badges',
 }
 
 function timeAgo(dateStr, lang) {
