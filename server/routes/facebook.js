@@ -137,12 +137,29 @@ router.get('/', requireAuth, (req, res) => {
   res.redirect(`https://www.facebook.com/v22.0/dialog/oauth?${params}`)
 })
 
+// ── Popup close helper ────────────────────────────────────────────────────────
+// Sends a postMessage to the opener and closes the popup window.
+// Falls back to a full-page redirect if the popup was blocked (no opener).
+function popupClose(res, ok, errorCode) {
+  const fallback = ok ? '/?fb=connected' : `/?error=${errorCode}`
+  const msg      = ok
+    ? `{type:'FB_OAUTH_RESULT',ok:true}`
+    : `{type:'FB_OAUTH_RESULT',ok:false,error:'${errorCode}'}`
+  res.send(`<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Facebook</title></head>
+<body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#f0f2f5">
+<p style="color:#555">Forbinder\u2026</p>
+<script>
+try{if(window.opener&&!window.opener.closed){window.opener.postMessage(${msg},window.location.origin);window.close();}else{window.location.href='${fallback}';}}catch(e){window.location.href='${fallback}';}
+</script></body></html>`)
+}
+
 // ── GET /callback — OAuth callback from Facebook ───────────────────────────────
 router.get('/callback', async (req, res) => {
   const { code, state, error } = req.query
 
   if (error || !code || !state) {
-    return res.redirect('/?error=fb_denied')
+    return popupClose(res, false, 'fb_denied')
   }
 
   // Decode and verify state
@@ -150,20 +167,20 @@ router.get('/callback', async (req, res) => {
   try {
     stateData = JSON.parse(Buffer.from(state, 'base64url').toString('utf8'))
   } catch {
-    return res.redirect('/?error=fb_state_invalid')
+    return popupClose(res, false, 'fb_state_invalid')
   }
 
   const { nonce, userId } = stateData
-  if (!nonce || !userId) return res.redirect('/?error=fb_state_invalid')
+  if (!nonce || !userId) return popupClose(res, false, 'fb_state_invalid')
 
   const stored = fbOauthStates.get(nonce)
   if (!stored || stored.userId !== userId || Date.now() - stored.createdAt > 10 * 60 * 1000) {
     fbOauthStates.delete(nonce)
-    return res.redirect('/?error=fb_state_invalid')
+    return popupClose(res, false, 'fb_state_invalid')
   }
   fbOauthStates.delete(nonce)
 
-  if (!FB_APP_ID || !FB_APP_SECRET) return res.redirect('/?error=fb_not_configured')
+  if (!FB_APP_ID || !FB_APP_SECRET) return popupClose(res, false, 'fb_not_configured')
 
   try {
     // ── Step 1: Exchange code for access token ────────────────────────────────
@@ -180,11 +197,11 @@ router.get('/callback', async (req, res) => {
       tokenData = await tokenRes.json()
       if (!tokenRes.ok || !tokenData.access_token) {
         console.error('FB token exchange failed:', JSON.stringify(tokenData))
-        return res.redirect('/?error=fb_token_failed')
+        return popupClose(res, false, 'fb_token_failed')
       }
     } catch (err) {
       console.error('FB token exchange network error:', err.message)
-      return res.redirect('/?error=fb_token_failed')
+      return popupClose(res, false, 'fb_token_failed')
     }
 
     const accessToken = tokenData.access_token
@@ -201,11 +218,11 @@ router.get('/callback', async (req, res) => {
       fbUser = await userRes.json()
       if (!userRes.ok || !fbUser.id) {
         console.error('FB user data fetch failed:', JSON.stringify(fbUser))
-        return res.redirect('/?error=fb_data_failed')
+        return popupClose(res, false, 'fb_data_failed')
       }
     } catch (err) {
       console.error('FB user data network error:', err.message)
-      return res.redirect('/?error=fb_data_failed')
+      return popupClose(res, false, 'fb_data_failed')
     }
 
     // ── Step 3: Encrypt token and persist ────────────────────────────────────
@@ -220,13 +237,13 @@ router.get('/callback', async (req, res) => {
       )
     } catch (err) {
       console.error('FB DB persist error (migration not run?):', err.message)
-      return res.redirect('/?error=fb_db_error')
+      return popupClose(res, false, 'fb_db_error')
     }
 
-    res.redirect('/?fb=connected')
+    popupClose(res, true)
   } catch (err) {
     console.error('Facebook OAuth callback unexpected error:', err.message)
-    res.redirect('/?error=fb_error')
+    popupClose(res, false, 'fb_error')
   }
 })
 
