@@ -2044,3 +2044,15 @@ export const apiCreateBlogPost = (data) => request('/api/admin/blog', { method: 
 export const apiUpdateBlogPost = (id, data) => request(`/api/admin/blog/${id}`, { method: 'PUT', body: JSON.stringify(data) })
 export const apiDeleteBlogPost = (id) => request(`/api/admin/blog/${id}`, { method: 'DELETE' })
 export const apiBlogTranslate = (text, from, to) => request('/api/admin/blog/translate', { method: 'POST', body: JSON.stringify({ text, from, to }) })
+
+// ── Facebook data import ───────────────────────────────────────────────────────
+// GET /api/auth/facebook/data — fetch fresh profile data from Graph API
+export const apiFacebookGetData = () => request('/api/auth/facebook/data')
+
+// POST /api/auth/facebook/import — apply selected fields to the user's profile
+export const apiFacebookImport = (fields) =>
+  request('/api/auth/facebook/import', { method: 'POST', body: JSON.stringify({ fields }) })
+
+// POST /api/auth/facebook/disconnect — revoke FB token and clear fb_connected
+export const apiFacebookDisconnect = () =>
+  request('/api/auth/facebook/disconnect', { method: 'POST' })

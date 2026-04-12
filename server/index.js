@@ -57,6 +57,7 @@ import { BADGES, BADGE_BY_ID, PLATFORM_LAUNCH_DATE, BADGE_AD_FREE_DAYS } from '.
 import { evaluateBadges } from '../src/badges/badgeEngine.js'
 import { createReelFromLivestream, LIVESTREAM_DEFAULTS, transcodeVideo } from './livestream.js'
 import { startRtmpServer, RTMP_PORT } from './rtmp.js'
+import facebookRouter from './routes/facebook.js'
 
 // MySQL 8.x compatible ADD COLUMN helper — ignores duplicate column error (errno 1060)
 // SECURITY: Validates table and column names to prevent SQL injection
@@ -503,7 +504,7 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Vite/React needs these in dev
       styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", 'data:', 'blob:', SITE_ORIGIN, 'https://lh3.googleusercontent.com', 'https://media.licdn.com'],
+      imgSrc: ["'self'", 'data:', 'blob:', SITE_ORIGIN, 'https://lh3.googleusercontent.com', 'https://media.licdn.com', 'https://platform-lookaside.fbsbx.com', 'https://graph.facebook.com'],
       connectSrc: ["'self'", SITE_ORIGIN, 'http://localhost:3001', 'http://localhost:5173'],
       fontSrc: ["'self'", 'data:'],
       objectSrc: ["'none'"],
@@ -565,6 +566,17 @@ app.use((_req, res, next) => {
 // and an in-memory per-user limiter for write operations.
 
 // Login / MFA: 5 per 15 minutes per IP
+// In non-production, skip rate limiting for loopback IPs so E2E tests can
+// exercise auth endpoints without exhausting the window.
+function isLoopback(req) {
+  const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
+    || req.socket?.remoteAddress || ''
+  return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1'
+}
+function skipInDev(req) {
+  return process.env.NODE_ENV !== 'production' && isLoopback(req)
+}
+
 const strictLimit = rlFactory({
   windowMs: 15 * 60 * 1000,
   max: 5,
@@ -572,6 +584,7 @@ const strictLimit = rlFactory({
   legacyHeaders: false,
   message: { error: 'Too many requests — prøv igen om 15 minutter' },
   keyGenerator: (req) => req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip,
+  skip: skipInDev,
 })
 
 // Register: 3 per hour per IP
@@ -582,6 +595,7 @@ const registerLimit = rlFactory({
   legacyHeaders: false,
   message: { error: 'Too many registration attempts — prøv igen om en time' },
   keyGenerator: (req) => req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip,
+  skip: skipInDev,
 })
 
 // General API: 100 per 15 minutes per IP
@@ -1878,6 +1892,9 @@ app.get('/api/auth/linkedin/callback', async (req, res) => {
   }
 })
 
+
+// ── Facebook data import routes ──
+app.use('/api/auth/facebook', facebookRouter)
 
 // ── Profile routes ──
 
