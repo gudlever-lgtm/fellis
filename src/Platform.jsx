@@ -5189,194 +5189,207 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
     ? (avatarUrl.startsWith('http') || avatarUrl.startsWith('blob:') ? avatarUrl : `${API_BASE}${avatarUrl}`)
     : null
 
-  const editT = t
+  const [tab, setTab] = useState('profile')
 
   const fieldStyle = { display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box' }
   const labelStyle = { display: 'block', fontSize: 13, fontWeight: 600, color: '#555', marginBottom: 4, marginTop: 16 }
 
+  const tabs = [
+    { key: 'profile', label: t.editTabProfile },
+    ...(mode === 'business' ? [{ key: 'professional', label: t.editTabProfessional }] : []),
+    { key: 'interests', label: t.editTabInterests },
+    { key: 'cv', label: t.editTabCV },
+    { key: 'personal', label: t.editTabPersonal },
+  ]
+
   return (
     <div className="p-profile" style={{ maxWidth: 800, margin: '0 auto' }}>
       <div className="p-card" style={{ padding: 24 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 20 }}>{t.editProfile}</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>{t.editProfile}</h2>
 
-        {/* Avatar upload */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 8 }}>
-          <div className="p-profile-avatar-wrapper" onClick={() => avatarInputRef.current?.click()} title={t.editAvatarBtn} style={{ cursor: 'pointer' }}>
-            {avatarSrc ? (
-              <img className="p-profile-avatar-img" src={avatarSrc} alt="" />
-            ) : (
-              <div className="p-profile-avatar" style={{ background: nameToColor(profile.name) }}>
-                {profile.initials || getInitials(profile.name)}
-              </div>
-            )}
-            <div className="p-profile-avatar-overlay">📷</div>
-            <input
-              ref={avatarInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/gif,image/webp"
-              style={{ display: 'none' }}
-              onChange={handleAvatarUpload}
-            />
-          </div>
-          <div>
-            <div style={{ fontWeight: 600, fontSize: 14 }}>{t.editAvatarLabel}</div>
-            <button
-              style={{ marginTop: 4, padding: '6px 12px', borderRadius: 6, border: '1px solid #2D6A4F', background: '#fff', color: '#2D6A4F', cursor: 'pointer', fontSize: 13 }}
-              onClick={() => avatarInputRef.current?.click()}
-            >
-              {t.editAvatarBtn}
-            </button>
-          </div>
+        {/* Tab navigation */}
+        <div className="p-filter-tabs" style={{ marginBottom: 24 }}>
+          {tabs.map(({ key, label }) => (
+            <button key={key} className={`p-filter-tab${tab === key ? ' active' : ''}`} onClick={() => setTab(key)}>{label}</button>
+          ))}
         </div>
 
-        {/* Name (read-only for now) */}
-        <label style={labelStyle}>{t.editNameLabel}</label>
-        <input style={fieldStyle} value={profile.name || ''} readOnly />
-
-        {/* Bio */}
-        <label style={labelStyle}>{t.editBioLabel}</label>
-        <textarea
-          style={{ ...fieldStyle, minHeight: 80, resize: 'vertical' }}
-          value={profile.bio?.[lang] || profile.bio?.da || ''}
-          onChange={e => setProfile(p => ({ ...p, bio: { ...(p.bio || {}), [lang]: e.target.value } }))}
-          placeholder={t.tellALittleAboutYourself}
-        />
-
-        {/* Location */}
-        <label style={labelStyle}>{t.editLocationLabel}</label>
-        <LocationAutocomplete
-          value={profile.location || ''}
-          onChange={text => setProfile(p => ({ ...p, location: text }))}
-          onSelect={loc => loc && setProfile(p => ({ ...p, location: loc.name }))}
-          lang={lang}
-          placeholder={t.cityCountry}
-          inputStyle={fieldStyle}
-        />
-
-        {/* Save bio + location */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
-          <button
-            type="button"
-            disabled={bioSaveStatus === 'saving'}
-            onClick={async () => {
-              setBioSaveStatus('saving')
-              const res = await apiUpdateProfile({
-                bio_da: profile.bio?.da || '',
-                bio_en: profile.bio?.en || '',
-                location: profile.location || '',
-              })
-              setBioSaveStatus(res?.ok ? 'saved' : 'error')
-              setTimeout(() => setBioSaveStatus(null), 2000)
-              if (res?.ok) setTimeout(onBadgeCheck, 400)
-            }}
-            style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: bioSaveStatus === 'saved' ? '#40916C' : '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
-          >
-            {bioSaveStatus === 'saving' ? '…' : bioSaveStatus === 'saved' ? t.cvSaved : t.cvSave}
-          </button>
-        </div>
-
-        {/* Birthday */}
-        <label style={labelStyle}>{t.birthdayLabel}</label>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <input
-            style={{ ...fieldStyle, flex: 1 }}
-            type="date"
-            value={birthday}
-            onChange={e => { setBirthday(e.target.value); setBirthdaySaveStatus(null) }}
-            max={new Date().toISOString().slice(0, 10)}
-          />
-          <button
-            type="button"
-            onClick={handleSaveBirthday}
-            disabled={birthdaySaveStatus === 'saving'}
-            style={{ padding: '10px 16px', borderRadius: 8, border: 'none', background: birthdaySaveStatus === 'saved' ? '#40916C' : '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}
-          >
-            {birthdaySaveStatus === 'saving' ? '…' : birthdaySaveStatus === 'saved' ? t.birthdaySaved : t.birthdaySave}
-          </button>
-          {birthday && (
-            <button
-              type="button"
-              onClick={() => { setBirthday(''); setBirthdaySaveStatus(null) }}
-              style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', background: 'none', fontSize: 13, cursor: 'pointer', color: '#888' }}
-              title={t.birthdayClear}
-            >✕</button>
-          )}
-        </div>
-
-        {/* Business-only fields */}
-        {mode === 'business' && (
-          <>
-            <div style={{ margin: '20px 0 12px', borderTop: '1px solid #eee', paddingTop: 16, fontSize: 13, fontWeight: 700, color: '#2D6A4F' }}>
-              💼 {t.modeBusiness}
+        {/* ── Profile tab ─────────────────────────────────── */}
+        {tab === 'profile' && <>
+          {/* Avatar upload */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 8 }}>
+            <div className="p-profile-avatar-wrapper" onClick={() => avatarInputRef.current?.click()} title={t.editAvatarBtn} style={{ cursor: 'pointer' }}>
+              {avatarSrc ? (
+                <img className="p-profile-avatar-img" src={avatarSrc} alt="" />
+              ) : (
+                <div className="p-profile-avatar" style={{ background: nameToColor(profile.name) }}>
+                  {profile.initials || getInitials(profile.name)}
+                </div>
+              )}
+              <div className="p-profile-avatar-overlay">📷</div>
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                style={{ display: 'none' }}
+                onChange={handleAvatarUpload}
+              />
             </div>
-            <label style={labelStyle}>{t.titleLabel}</label>
-            <input
-              style={fieldStyle}
-              placeholder={t.eGSeniorDesigner}
-              value={profile.jobTitle || ''}
-              onChange={e => setProfile(p => ({ ...p, jobTitle: e.target.value }))}
-            />
-            <label style={labelStyle}>{t.companyLabel}</label>
-            <input
-              style={fieldStyle}
-              placeholder={t.companyName}
-              value={profile.company || ''}
-              onChange={e => setProfile(p => ({ ...p, company: e.target.value }))}
-            />
-            <label style={labelStyle}>{t.industryLabel}</label>
-            <input
-              style={fieldStyle}
-              placeholder={t.eGDesignTechnology}
-              value={profile.industry || ''}
-              onChange={e => setProfile(p => ({ ...p, industry: e.target.value }))}
-            />
-            <label style={labelStyle}>{t.seniorityLevel}</label>
-            <select
-              style={{ ...fieldStyle, cursor: 'pointer' }}
-              value={profile.seniority || ''}
-              onChange={e => setProfile(p => ({ ...p, seniority: e.target.value }))}
-            >
-              <option value="">{t.chooseOptional}</option>
-              <option value="Junior">{t.junior}</option>
-              <option value="Mid-level">{t.midLevel}</option>
-              <option value="Senior">{t.senior}</option>
-              <option value="Lead / Manager">{t.leadManager}</option>
-              <option value="Director+">{t.director}</option>
-            </select>
-            <label style={labelStyle}>{t.skillsLabel}</label>
-            <input
-              style={fieldStyle}
-              placeholder={t.eGUXFigmaReactCommaSeparated}
-              value={profile.skills || ''}
-              onChange={e => setProfile(p => ({ ...p, skills: e.target.value }))}
-            />
-            {/* Save business profile fields */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: 14 }}>{t.editAvatarLabel}</div>
               <button
-                type="button"
-                disabled={bizSaveStatus === 'saving'}
-                onClick={async () => {
-                  setBizSaveStatus('saving')
-                  const res = await apiUpdateProfile({
-                    job_title: profile.jobTitle || '',
-                    company: profile.company || '',
-                    industry: profile.industry || '',
-                    seniority: profile.seniority || '',
-                  })
-                  setBizSaveStatus(res?.ok ? 'saved' : 'error')
-                  setTimeout(() => setBizSaveStatus(null), 2000)
-                }}
-                style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: bizSaveStatus === 'saved' ? '#40916C' : '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+                style={{ marginTop: 4, padding: '6px 12px', borderRadius: 6, border: '1px solid #2D6A4F', background: '#fff', color: '#2D6A4F', cursor: 'pointer', fontSize: 13 }}
+                onClick={() => avatarInputRef.current?.click()}
               >
-                {bizSaveStatus === 'saving' ? '…' : bizSaveStatus === 'saved' ? t.cvSaved : t.cvSave}
+                {t.editAvatarBtn}
               </button>
             </div>
-          </>
-        )}
+          </div>
 
-        {/* Business profile — extra fields */}
-        {mode === 'business' && (
-          <div style={{ margin: '20px 0 0', borderTop: '2px solid #EEF2FF', paddingTop: 20 }}>
+          {/* Name (read-only) */}
+          <label style={labelStyle}>{t.editNameLabel}</label>
+          <input style={fieldStyle} value={profile.name || ''} readOnly />
+
+          {/* Bio */}
+          <label style={labelStyle}>{t.editBioLabel}</label>
+          <textarea
+            style={{ ...fieldStyle, minHeight: 80, resize: 'vertical' }}
+            value={profile.bio?.[lang] || profile.bio?.da || ''}
+            onChange={e => setProfile(p => ({ ...p, bio: { ...(p.bio || {}), [lang]: e.target.value } }))}
+            placeholder={t.tellALittleAboutYourself}
+          />
+
+          {/* Location */}
+          <label style={labelStyle}>{t.editLocationLabel}</label>
+          <LocationAutocomplete
+            value={profile.location || ''}
+            onChange={text => setProfile(p => ({ ...p, location: text }))}
+            onSelect={loc => loc && setProfile(p => ({ ...p, location: loc.name }))}
+            lang={lang}
+            placeholder={t.cityCountry}
+            inputStyle={fieldStyle}
+          />
+
+          {/* Save bio + location */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
+            <button
+              type="button"
+              disabled={bioSaveStatus === 'saving'}
+              onClick={async () => {
+                setBioSaveStatus('saving')
+                const res = await apiUpdateProfile({
+                  bio_da: profile.bio?.da || '',
+                  bio_en: profile.bio?.en || '',
+                  location: profile.location || '',
+                })
+                setBioSaveStatus(res?.ok ? 'saved' : 'error')
+                setTimeout(() => setBioSaveStatus(null), 2000)
+                if (res?.ok) setTimeout(onBadgeCheck, 400)
+              }}
+              style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: bioSaveStatus === 'saved' ? '#40916C' : '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+            >
+              {bioSaveStatus === 'saving' ? '…' : bioSaveStatus === 'saved' ? t.cvSaved : t.cvSave}
+            </button>
+          </div>
+
+          {/* Birthday */}
+          <label style={labelStyle}>{t.birthdayLabel}</label>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input
+              style={{ ...fieldStyle, flex: 1 }}
+              type="date"
+              value={birthday}
+              onChange={e => { setBirthday(e.target.value); setBirthdaySaveStatus(null) }}
+              max={new Date().toISOString().slice(0, 10)}
+            />
+            <button
+              type="button"
+              onClick={handleSaveBirthday}
+              disabled={birthdaySaveStatus === 'saving'}
+              style={{ padding: '10px 16px', borderRadius: 8, border: 'none', background: birthdaySaveStatus === 'saved' ? '#40916C' : '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}
+            >
+              {birthdaySaveStatus === 'saving' ? '…' : birthdaySaveStatus === 'saved' ? t.birthdaySaved : t.birthdaySave}
+            </button>
+            {birthday && (
+              <button
+                type="button"
+                onClick={() => { setBirthday(''); setBirthdaySaveStatus(null) }}
+                style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', background: 'none', fontSize: 13, cursor: 'pointer', color: '#888' }}
+                title={t.birthdayClear}
+              >✕</button>
+            )}
+          </div>
+        </>}
+
+        {/* ── Professional tab (business only) ────────────── */}
+        {tab === 'professional' && mode === 'business' && <>
+          <div style={{ marginBottom: 12, fontSize: 13, fontWeight: 700, color: '#2D6A4F' }}>
+            💼 {t.modeBusiness}
+          </div>
+          <label style={labelStyle}>{t.titleLabel}</label>
+          <input
+            style={fieldStyle}
+            placeholder={t.eGSeniorDesigner}
+            value={profile.jobTitle || ''}
+            onChange={e => setProfile(p => ({ ...p, jobTitle: e.target.value }))}
+          />
+          <label style={labelStyle}>{t.companyLabel}</label>
+          <input
+            style={fieldStyle}
+            placeholder={t.companyName}
+            value={profile.company || ''}
+            onChange={e => setProfile(p => ({ ...p, company: e.target.value }))}
+          />
+          <label style={labelStyle}>{t.industryLabel}</label>
+          <input
+            style={fieldStyle}
+            placeholder={t.eGDesignTechnology}
+            value={profile.industry || ''}
+            onChange={e => setProfile(p => ({ ...p, industry: e.target.value }))}
+          />
+          <label style={labelStyle}>{t.seniorityLevel}</label>
+          <select
+            style={{ ...fieldStyle, cursor: 'pointer' }}
+            value={profile.seniority || ''}
+            onChange={e => setProfile(p => ({ ...p, seniority: e.target.value }))}
+          >
+            <option value="">{t.chooseOptional}</option>
+            <option value="Junior">{t.junior}</option>
+            <option value="Mid-level">{t.midLevel}</option>
+            <option value="Senior">{t.senior}</option>
+            <option value="Lead / Manager">{t.leadManager}</option>
+            <option value="Director+">{t.director}</option>
+          </select>
+          <label style={labelStyle}>{t.skillsLabel}</label>
+          <input
+            style={fieldStyle}
+            placeholder={t.eGUXFigmaReactCommaSeparated}
+            value={profile.skills || ''}
+            onChange={e => setProfile(p => ({ ...p, skills: e.target.value }))}
+          />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
+            <button
+              type="button"
+              disabled={bizSaveStatus === 'saving'}
+              onClick={async () => {
+                setBizSaveStatus('saving')
+                const res = await apiUpdateProfile({
+                  job_title: profile.jobTitle || '',
+                  company: profile.company || '',
+                  industry: profile.industry || '',
+                  seniority: profile.seniority || '',
+                })
+                setBizSaveStatus(res?.ok ? 'saved' : 'error')
+                setTimeout(() => setBizSaveStatus(null), 2000)
+              }}
+              style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: bizSaveStatus === 'saved' ? '#40916C' : '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+            >
+              {bizSaveStatus === 'saving' ? '…' : bizSaveStatus === 'saved' ? t.cvSaved : t.cvSave}
+            </button>
+          </div>
+
+          {/* Business profile — extra fields */}
+          <div style={{ margin: '24px 0 0', borderTop: '2px solid #EEF2FF', paddingTop: 20 }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: '#4338CA', marginBottom: 4 }}>
               🏢 {t.businessProfile}
             </div>
@@ -5446,18 +5459,16 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
               )}
             </div>
           </div>
-        )}
 
-        {/* Skills management */}
-        {mode === 'business' && (
+          {/* Skills management */}
           <div style={{ margin: '28px 0 0', borderTop: '2px solid #eee', paddingTop: 20 }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: '#2D6A4F', marginBottom: 12 }}>🏅 {t.skills}</div>
             <SkillsSection profile={profile} t={t} lang={lang} isOwn={true} />
           </div>
-        )}
+        </>}
 
-        {/* Interests picker */}
-        <div className="p-card" style={{ marginBottom: 16 }}>
+        {/* ── Interests tab ────────────────────────────────── */}
+        {tab === 'interests' && <>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>🎯 {t.interestsSectionTitle}</h3>
             <span style={{ fontSize: 12, color: interests.length >= 3 ? '#2D6A4F' : '#e53935', fontWeight: 600 }}>
@@ -5497,7 +5508,6 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
             const filtered = interestCats.filter(c => !q || c.da.toLowerCase().includes(q) || c.en.toLowerCase().includes(q))
 
             if (q) {
-              // Flat list when searching
               return (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, maxHeight: 220, overflowY: 'auto', padding: '2px 0' }}>
                   {filtered.length === 0 && <span style={{ fontSize: 13, color: '#aaa' }}>{t.searchNoResults}</span>}
@@ -5515,7 +5525,6 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
               )
             }
 
-            // Grouped by sort_order decade
             const groups = [
               { label: t.musicEntertainment, min: 10, max: 29 },
               { label: t.gamesEvents, min: 20, max: 39 },
@@ -5599,10 +5608,19 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
               <span style={{ fontSize: 12, color: '#e53935' }}>{t.interestsMin3}</span>
             )}
           </div>
-        </div>
 
-        {/* Tags, relationship status, website */}
-        <div className="p-card" style={{ padding: 20, marginTop: 12 }}>
+          <div style={{ marginTop: 24 }}>
+            <InterestGraphPage lang={lang} t={t} currentUser={currentUser} />
+          </div>
+        </>}
+
+        {/* ── CV tab ───────────────────────────────────────── */}
+        {tab === 'cv' && (
+          <CVProfileSection lang={lang} t={t} isOwn={true} userId={currentUser.id} />
+        )}
+
+        {/* ── Personal tab ─────────────────────────────────── */}
+        {tab === 'personal' && <>
           <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 700 }}>🏷️ {t.tagsRelationshipWebsite}</h3>
 
           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>{t.tagsMax10Max30Chars}</div>
@@ -5673,7 +5691,7 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
           >
             {t.adminModCandidateSave}
           </button>
-        </div>
+        </>}
 
         <button
           style={{ marginTop: 24, padding: '10px 20px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
@@ -5682,12 +5700,6 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
           {t.editBackToProfile}
         </button>
       </div>
-
-      {/* Interest Graph — embedded directly in edit profile */}
-      <InterestGraphPage lang={lang} t={t} currentUser={currentUser} />
-
-      {/* CV / Work profile — always shown in edit profile */}
-      <CVProfileSection lang={lang} t={t} isOwn={true} userId={currentUser.id} />
     </div>
   )
 }

@@ -38,6 +38,11 @@ export default {
     editBioLabel: 'Bio',
     editLocationLabel: 'Lokation',
     editBackToProfile: 'Tilbage til profil',
+    editTabProfile: 'Profil',
+    editTabProfessional: 'Professionelt',
+    editTabInterests: 'Interesser',
+    editTabCV: 'CV',
+    editTabPersonal: 'Personligt',
     // QR / portfolio
     portfolio: 'Portfolio',
     shareProfileQR: 'Del profil (QR)',
@@ -81,6 +86,11 @@ export default {
     editBioLabel: 'Bio',
     editLocationLabel: 'Location',
     editBackToProfile: 'Back to profile',
+    editTabProfile: 'Profile',
+    editTabProfessional: 'Professional',
+    editTabInterests: 'Interests',
+    editTabCV: 'CV',
+    editTabPersonal: 'Personal',
     // QR / portfolio
     portfolio: 'Portfolio',
     shareProfileQR: 'Share profile (QR)',
