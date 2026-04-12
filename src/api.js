@@ -111,6 +111,14 @@ export async function apiVerifyMfa(userId, code, lang) {
   return data
 }
 
+export async function apiSendEnableMfa() {
+  return await request('/api/auth/send-enable-mfa', { method: 'POST' })
+}
+
+export async function apiConfirmEnableMfa(code) {
+  return await request('/api/auth/confirm-enable-mfa', { method: 'POST', body: JSON.stringify({ code }) })
+}
+
 export async function apiEnableMfa() {
   return await request('/api/auth/enable-mfa', { method: 'POST' })
 }
