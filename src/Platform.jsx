@@ -17792,7 +17792,7 @@ function AdminAuditLogPanel({ lang, rows, total, offset, filter, onFilterChange,
                     </td>
                     <td style={{ padding: '8px 14px', color: '#aaa', fontSize: 12, fontFamily: 'monospace' }}>{r.ip_address || '—'}</td>
                     <td style={{ padding: '8px 14px', color: '#888', fontSize: 12, whiteSpace: 'nowrap' }}>
-                      {new Date(r.created_at).toLocaleString(lang === 'da' ? 'da-DK' : 'en-GB', { dateStyle: 'short', timeStyle: 'short' })}
+                      {new Date(r.created_at).toLocaleString(lang === 'da' ? 'da-DK' : 'en-GB', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Europe/Copenhagen' })}
                     </td>
                   </tr>
                 ))}
