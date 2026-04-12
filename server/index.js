@@ -8037,14 +8037,54 @@ app.get('/api/admin/env-status', authenticate, requireAdmin, async (req, res) =>
   res.json({ status })
 })
 
+// GET /api/admin/storage-stats — real-time uploads dir + DB size with configured limits (admin only)
+app.get('/api/admin/storage-stats', authenticate, requireAdmin, async (req, res) => {
+  async function getDirSize(dirPath) {
+    let total = 0
+    try {
+      const entries = await fs.promises.readdir(dirPath, { withFileTypes: true })
+      for (const entry of entries) {
+        const fullPath = path.join(dirPath, entry.name)
+        if (entry.isDirectory()) {
+          total += await getDirSize(fullPath)
+        } else if (entry.isFile()) {
+          const stat = await fs.promises.stat(fullPath)
+          total += stat.size
+        }
+      }
+    } catch {}
+    return total
+  }
+  try {
+    const uploadsDir = process.env.UPLOADS_DIR || '/var/www/fellis.eu/uploads'
+    const uploadsBytes = await getDirSize(uploadsDir)
+    const [[dbRow]] = await pool.query(
+      `SELECT SUM(data_length + index_length) AS size_bytes FROM information_schema.tables WHERE table_schema = DATABASE()`
+    )
+    const dbBytes = Number(dbRow?.size_bytes || 0)
+    const [rows] = await pool.query(
+      `SELECT key_name, key_value FROM admin_settings WHERE key_name IN ('uploads_max_gb', 'db_max_gb')`
+    )
+    const settings = Object.fromEntries(rows.map(r => [r.key_name, r.key_value]))
+    res.json({
+      uploads_bytes: uploadsBytes,
+      db_bytes: dbBytes,
+      uploads_max_gb: settings.uploads_max_gb || '100',
+      db_max_gb: settings.db_max_gb || '10',
+    })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to get storage stats' })
+  }
+})
+
 // POST /api/admin/settings — save platform config (admin only)
 app.post('/api/admin/settings', authenticate, requireAdmin, async (req, res) => {
-  const allowed = ['pwd_min_length', 'pwd_require_uppercase', 'pwd_require_lowercase', 'pwd_require_numbers', 'pwd_require_symbols', 'media_max_files', 'marketplace_max_photos', 'registration_open', 'mollie_api_key']
+  const allowed = ['pwd_min_length', 'pwd_require_uppercase', 'pwd_require_lowercase', 'pwd_require_numbers', 'pwd_require_symbols', 'media_max_files', 'marketplace_max_photos', 'registration_open', 'mollie_api_key', 'uploads_max_gb', 'db_max_gb']
   try {
     for (const [key, value] of Object.entries(req.body)) {
       if (!allowed.includes(key)) continue
-      // pwd_, media_, registration_ keys are always saved (value can be '0'/'')
-      const alwaysSave = key.startsWith('pwd_') || key.startsWith('media_') || key.startsWith('registration_')
+      // pwd_, media_, registration_, uploads_, db_ keys are always saved (value can be '0'/'')
+      const alwaysSave = key.startsWith('pwd_') || key.startsWith('media_') || key.startsWith('registration_') || key.startsWith('uploads_') || key.startsWith('db_')
       if (!alwaysSave) {
         if (!value || value === '••••••••' + (value || '').slice(-4)) continue // skip masked/empty
         if (key === 'mollie_api_key' && value.includes('•')) continue // skip masked display value
