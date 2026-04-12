@@ -1732,7 +1732,7 @@ app.post('/api/auth/send-settings-mfa', authenticate, writeLimit, async (req, re
 })
 
 // PATCH /api/profile/phone — update phone number for current user
-app.patch('/api/profile/phone', authenticate, async (req, res) => {
+app.patch('/api/profile/phone', authenticate, writeLimit, async (req, res) => {
   const { phone } = req.body
   // Allow clearing phone (empty string → null), or set a new number
   const cleaned = phone ? phone.trim() : null
@@ -2271,7 +2271,7 @@ app.get('/api/user/handle/:handle', async (req, res) => {
 })
 
 // PATCH /api/me/mode — update user mode (privat / business)
-app.patch('/api/me/mode', authenticate, async (req, res) => {
+app.patch('/api/me/mode', authenticate, writeLimit, async (req, res) => {
   const { mode } = req.body
   if (!['privat', 'business'].includes(mode)) return res.status(400).json({ error: 'Invalid mode' })
   try {
@@ -2283,7 +2283,7 @@ app.patch('/api/me/mode', authenticate, async (req, res) => {
 })
 
 // PATCH /api/me/lang — update current session language
-app.patch('/api/me/lang', authenticate, async (req, res) => {
+app.patch('/api/me/lang', authenticate, writeLimit, async (req, res) => {
   const { lang } = req.body
   const VALID_LANGS = ['da','en','de','fr','es','it','nl','sv','no','fi','pl','pt','ro','hu','cs','sk','hr','bg','el','lt','lv','et','sl','mt','ga','lb']
   if (!VALID_LANGS.includes(lang)) return res.status(400).json({ error: 'Invalid lang' })
@@ -2297,7 +2297,7 @@ app.patch('/api/me/lang', authenticate, async (req, res) => {
 })
 
 // PATCH /api/me/plan — update user plan (business only — business_pro removed)
-app.patch('/api/me/plan', authenticate, async (req, res) => {
+app.patch('/api/me/plan', authenticate, writeLimit, async (req, res) => {
   const { plan } = req.body
   if (!['business'].includes(plan)) return res.status(400).json({ error: 'Invalid plan' })
   try {
@@ -2309,7 +2309,7 @@ app.patch('/api/me/plan', authenticate, async (req, res) => {
 })
 
 // PATCH /api/me/interests — save user interest categories (min 3)
-app.patch('/api/me/interests', authenticate, async (req, res) => {
+app.patch('/api/me/interests', authenticate, writeLimit, async (req, res) => {
   const { interests } = req.body
   if (!Array.isArray(interests) || interests.length < 3) {
     return res.status(400).json({ error: 'At least 3 interests required' })
@@ -2326,7 +2326,7 @@ app.patch('/api/me/interests', authenticate, async (req, res) => {
 })
 
 // PATCH /api/me/tags — save user tags (max 10, max 30 chars each)
-app.patch('/api/me/tags', authenticate, async (req, res) => {
+app.patch('/api/me/tags', authenticate, writeLimit, async (req, res) => {
   const { tags } = req.body
   if (!Array.isArray(tags)) return res.status(400).json({ error: 'tags must be an array' })
   const clean = tags.map(t => String(t).trim().slice(0, 30)).filter(Boolean).slice(0, 10)
@@ -2339,7 +2339,7 @@ app.patch('/api/me/tags', authenticate, async (req, res) => {
 })
 
 // PATCH /api/me/profile-extended — update relationship_status + website
-app.patch('/api/me/profile-extended', authenticate, async (req, res) => {
+app.patch('/api/me/profile-extended', authenticate, writeLimit, async (req, res) => {
   const { relationship_status, website } = req.body
   const VALID_REL = ['single','in_relationship','married','engaged','open','prefer_not']
   const fields = [], vals = []
@@ -2361,7 +2361,7 @@ app.patch('/api/me/profile-extended', authenticate, async (req, res) => {
 })
 
 // PATCH /api/me/business-profile — update business-only profile fields
-app.patch('/api/me/business-profile', authenticate, async (req, res) => {
+app.patch('/api/me/business-profile', authenticate, writeLimit, async (req, res) => {
   const { business_category, business_website, business_hours, business_description_da, business_description_en } = req.body
   try {
     const [[user]] = await pool.query('SELECT mode FROM users WHERE id = ?', [req.userId])
@@ -2803,7 +2803,7 @@ async function verifySettingsMfaCode(userId, mfaCode) {
 }
 
 // PATCH /api/profile/email — change email address
-app.patch('/api/profile/email', authenticate, async (req, res) => {
+app.patch('/api/profile/email', authenticate, writeLimit, async (req, res) => {
   const { newEmail, password, mfaCode } = req.body
   if (!newEmail || !password) return res.status(400).json({ error: 'newEmail and password required' })
   try {
@@ -2828,7 +2828,7 @@ app.patch('/api/profile/email', authenticate, async (req, res) => {
 })
 
 // PATCH /api/profile/password — change password (or set first password for imported users)
-app.patch('/api/profile/password', authenticate, validate(schemas.changePassword), async (req, res) => {
+app.patch('/api/profile/password', authenticate, writeLimit, validate(schemas.changePassword), async (req, res) => {
   const { currentPassword, newPassword, lang: chgLang, mfaCode } = req.body
   const chgPolicy = await getPasswordPolicy()
   const chgPwdErrors = validatePasswordStrength(newPassword, chgPolicy, chgLang || 'da')
@@ -2891,7 +2891,7 @@ app.get('/api/settings/sessions', authenticate, async (req, res) => {
 
 // DELETE /api/settings/sessions/others — log out all other sessions
 // NOTE: must be defined BEFORE /:id to prevent "others" being caught as an id param
-app.delete('/api/settings/sessions/others', authenticate, async (req, res) => {
+app.delete('/api/settings/sessions/others', authenticate, writeLimit, async (req, res) => {
   const sessionId = getSessionIdFromRequest(req)
   try {
     await pool.query('DELETE FROM sessions WHERE user_id = ? AND id != ?', [req.userId, sessionId])
@@ -2902,7 +2902,7 @@ app.delete('/api/settings/sessions/others', authenticate, async (req, res) => {
 })
 
 // DELETE /api/settings/sessions/:id — log out a specific session
-app.delete('/api/settings/sessions/:id', authenticate, async (req, res) => {
+app.delete('/api/settings/sessions/:id', authenticate, writeLimit, async (req, res) => {
   try {
     const [[session]] = await pool.query('SELECT user_id FROM sessions WHERE id = ?', [req.params.id])
     if (!session || session.user_id !== req.userId) return res.status(404).json({ error: 'Not found' })
@@ -3041,7 +3041,7 @@ app.delete('/api/skills/:id', authenticate, async (req, res) => {
 })
 
 // POST /api/skills/:id/endorse — toggle endorse / unendorse
-app.post('/api/skills/:id/endorse', authenticate, async (req, res) => {
+app.post('/api/skills/:id/endorse', authenticate, writeLimit, async (req, res) => {
   try {
     const [[skill]] = await pool.query('SELECT user_id FROM user_skills WHERE id = ?', [req.params.id])
     if (!skill) return res.status(404).json({ error: 'Not found' })
@@ -3501,7 +3501,8 @@ app.post('/api/feed', authenticate, writeLimit, upload.array('media', UPLOAD_FIL
   const categories = rawCats ? (typeof rawCats === 'string' ? JSON.parse(rawCats) : rawCats) : null
   const rawTagged = req.body.tagged_users
   const taggedUsers = rawTagged ? (typeof rawTagged === 'string' ? JSON.parse(rawTagged) : rawTagged) : null
-  const linkedType = req.body.linked_type || null
+  const VALID_LINKED_TYPES = new Set(['job', 'listing', 'event', 'reel'])
+  const linkedType = VALID_LINKED_TYPES.has(req.body.linked_type) ? req.body.linked_type : null
   const linkedId = req.body.linked_id ? parseInt(req.body.linked_id) : null
   if (!text && !req.files?.length) return res.status(400).json({ error: 'Post text or media required' })
 
@@ -3547,8 +3548,10 @@ app.post('/api/feed', authenticate, writeLimit, upload.array('media', UPLOAD_FIL
     const scheduledDate = scheduled_at ? new Date(scheduled_at) : null
     if (scheduledDate && isNaN(scheduledDate.getTime())) return res.status(400).json({ error: 'Invalid scheduled_at' })
     const placeName = typeof place_name === 'string' ? place_name.slice(0, 255) : null
-    const lat = geo_lat ? parseFloat(geo_lat) : null
-    const lng = geo_lng ? parseFloat(geo_lng) : null
+    const rawLat = geo_lat ? parseFloat(geo_lat) : null
+    const rawLng = geo_lng ? parseFloat(geo_lng) : null
+    const lat = (rawLat !== null && rawLat >= -90  && rawLat <= 90)  ? rawLat : null
+    const lng = (rawLng !== null && rawLng >= -180 && rawLng <= 180) ? rawLng : null
     const taggedJson = Array.isArray(taggedUsers) && taggedUsers.length > 0 ? JSON.stringify(taggedUsers) : null
     const [result] = await pool.query(
       'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media, scheduled_at, categories, place_name, geo_lat, geo_lng, tagged_users, linked_type, linked_id, user_mode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT mode FROM users WHERE id = ?))',
@@ -3922,7 +3925,7 @@ app.get('/api/invites/link', authenticate, async (req, res) => {
 })
 
 // POST /api/invites — create individual invitations and send email if SMTP is configured
-app.post('/api/invites', authenticate, async (req, res) => {
+app.post('/api/invites', authenticate, writeLimit, async (req, res) => {
   const { friends } = req.body
   if (!friends?.length) return res.status(400).json({ error: 'No friends selected' })
   try {
@@ -3962,7 +3965,7 @@ app.post('/api/invites', authenticate, async (req, res) => {
 })
 
 // DELETE /api/invites/:id — withdraw a sent invitation
-app.delete('/api/invites/:id', authenticate, async (req, res) => {
+app.delete('/api/invites/:id', authenticate, writeLimit, async (req, res) => {
   try {
     const [[inv]] = await pool.query('SELECT inviter_id FROM invitations WHERE id = ?', [req.params.id])
     if (!inv) return res.status(404).json({ error: 'Not found' })
@@ -4069,7 +4072,7 @@ app.get('/api/friends/requests', authenticate, async (req, res) => {
 })
 
 // POST /api/friends/requests/:id/accept
-app.post('/api/friends/requests/:id/accept', authenticate, async (req, res) => {
+app.post('/api/friends/requests/:id/accept', authenticate, writeLimit, async (req, res) => {
   const reqId = parseInt(req.params.id)
   try {
     const [rows] = await pool.query(
@@ -4094,7 +4097,7 @@ app.post('/api/friends/requests/:id/accept', authenticate, async (req, res) => {
 })
 
 // POST /api/friends/requests/:id/decline
-app.post('/api/friends/requests/:id/decline', authenticate, async (req, res) => {
+app.post('/api/friends/requests/:id/decline', authenticate, writeLimit, async (req, res) => {
   const reqId = parseInt(req.params.id)
   try {
     const [rows] = await pool.query(
@@ -4445,7 +4448,7 @@ app.post('/api/conversations/:id/read', authenticate, async (req, res) => {
 })
 
 // POST /api/conversations/:id/invite — add participants to an existing conversation
-app.post('/api/conversations/:id/invite', authenticate, async (req, res) => {
+app.post('/api/conversations/:id/invite', authenticate, writeLimit, async (req, res) => {
   const convId = parseInt(req.params.id)
   const { userIds } = req.body
   if (!userIds || !Array.isArray(userIds) || !userIds.length)
@@ -4465,14 +4468,15 @@ app.post('/api/conversations/:id/invite', authenticate, async (req, res) => {
 })
 
 // POST /api/conversations/:id/mute — mute for N minutes (null to unmute)
-app.post('/api/conversations/:id/mute', authenticate, async (req, res) => {
+app.post('/api/conversations/:id/mute', authenticate, writeLimit, async (req, res) => {
   const convId = parseInt(req.params.id)
   const { minutes } = req.body
   try {
     const [check] = await pool.query(
       'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, req.userId])
     if (!check.length) return res.status(403).json({ error: 'Not a participant' })
-    const mutedUntil = (minutes && minutes > 0) ? new Date(Date.now() + minutes * 60 * 1000) : null
+    const clampedMinutes = Math.min(Math.max(0, parseInt(minutes) || 0), 10080) // max 7 days
+    const mutedUntil = clampedMinutes > 0 ? new Date(Date.now() + clampedMinutes * 60 * 1000) : null
     await pool.query(
       'UPDATE conversation_participants SET muted_until = ? WHERE conversation_id = ? AND user_id = ?',
       [mutedUntil, convId, req.userId])
@@ -4483,7 +4487,7 @@ app.post('/api/conversations/:id/mute', authenticate, async (req, res) => {
 })
 
 // DELETE /api/conversations/:id/leave — leave a group conversation
-app.delete('/api/conversations/:id/leave', authenticate, async (req, res) => {
+app.delete('/api/conversations/:id/leave', authenticate, writeLimit, async (req, res) => {
   const convId = parseInt(req.params.id)
   try {
     await pool.query(
@@ -4495,15 +4499,17 @@ app.delete('/api/conversations/:id/leave', authenticate, async (req, res) => {
 })
 
 // PATCH /api/conversations/:id — rename a group conversation
-app.patch('/api/conversations/:id', authenticate, async (req, res) => {
+app.patch('/api/conversations/:id', authenticate, writeLimit, async (req, res) => {
   const convId = parseInt(req.params.id)
   const { name } = req.body
   if (!name) return res.status(400).json({ error: 'name required' })
+  if (typeof name !== 'string' || name.trim().length > 100)
+    return res.status(400).json({ error: 'name must be 100 characters or fewer' })
   try {
     const [check] = await pool.query(
       'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, req.userId])
     if (!check.length) return res.status(403).json({ error: 'Not a participant' })
-    await pool.query('UPDATE conversations SET name = ? WHERE id = ?', [name, convId])
+    await pool.query('UPDATE conversations SET name = ? WHERE id = ?', [name.trim(), convId])
     res.json({ ok: true })
   } catch (err) {
     res.status(500).json({ error: 'Failed to rename conversation' })
@@ -4511,7 +4517,7 @@ app.patch('/api/conversations/:id', authenticate, async (req, res) => {
 })
 
 // DELETE /api/conversations/:id/participants/:userId — remove a member (creator only)
-app.delete('/api/conversations/:id/participants/:userId', authenticate, async (req, res) => {
+app.delete('/api/conversations/:id/participants/:userId', authenticate, writeLimit, async (req, res) => {
   const convId = parseInt(req.params.id)
   const targetId = parseInt(req.params.userId)
   if (isNaN(targetId) || targetId === req.userId)
@@ -4529,7 +4535,7 @@ app.delete('/api/conversations/:id/participants/:userId', authenticate, async (r
 })
 
 // POST /api/conversations/:id/participants/:userId/mute — admin-mute a member (creator only)
-app.post('/api/conversations/:id/participants/:userId/mute', authenticate, async (req, res) => {
+app.post('/api/conversations/:id/participants/:userId/mute', authenticate, writeLimit, async (req, res) => {
   const convId = parseInt(req.params.id)
   const targetId = parseInt(req.params.userId)
   if (isNaN(targetId) || targetId === req.userId)
@@ -4542,7 +4548,8 @@ app.post('/api/conversations/:id/participants/:userId/mute', authenticate, async
     const [check] = await pool.query(
       'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, targetId])
     if (!check.length) return res.status(404).json({ error: 'User is not a participant' })
-    const adminMutedUntil = (minutes && minutes > 0) ? new Date(Date.now() + minutes * 60 * 1000) : null
+    const clampedAdminMinutes = Math.min(Math.max(0, parseInt(minutes) || 0), 10080) // max 7 days
+    const adminMutedUntil = clampedAdminMinutes > 0 ? new Date(Date.now() + clampedAdminMinutes * 60 * 1000) : null
     await pool.query(
       'UPDATE conversation_participants SET admin_muted_until = ? WHERE conversation_id = ? AND user_id = ?',
       [adminMutedUntil, convId, targetId])
@@ -6744,7 +6751,7 @@ app.patch('/api/feed/scheduled/:id', authenticate, async (req, res) => {
 // ── Company Lead Capture ──────────────────────────────────────────────────────
 
 // POST /api/companies/:id/leads — submit a lead form
-app.post('/api/companies/:id/leads', authenticate, async (req, res) => {
+app.post('/api/companies/:id/leads', authenticate, writeLimit, async (req, res) => {
   try {
     const { name, email, topic, message } = req.body
     if (!name?.trim() || !email?.trim()) return res.status(400).json({ error: 'Name and email required' })
@@ -6781,7 +6788,7 @@ app.get('/api/companies/:id/leads', authenticate, async (req, res) => {
 })
 
 // PATCH /api/companies/:id/leads/:leadId — update lead status
-app.patch('/api/companies/:id/leads/:leadId', authenticate, async (req, res) => {
+app.patch('/api/companies/:id/leads/:leadId', authenticate, writeLimit, async (req, res) => {
   try {
     const { status } = req.body
     const validStatuses = ['new', 'responded', 'archived']
@@ -9308,7 +9315,7 @@ app.post('/api/reels', authenticate, fileUploadLimit, reelUpload.single('video')
 })
 
 // POST /api/reels/:id/like — toggle like (supports reaction emoji)
-app.post('/api/reels/:id/like', authenticate, async (req, res) => {
+app.post('/api/reels/:id/like', authenticate, writeLimit, async (req, res) => {
   try {
     const reelId = parseInt(req.params.id)
     const reaction = (req.body?.reaction || '❤️').slice(0, 10)
@@ -11330,13 +11337,17 @@ app.post('/api/admin/moderators/:userId/revoke', authenticate, requireAdmin, asy
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     console.error(`[multer error] ${req.method} ${req.path}: ${err.code} – ${err.message}`)
-    if (err.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: 'File too large (max 50 MB)' })
-    if (err.code === 'LIMIT_FILE_COUNT') return res.status(400).json({ error: 'Too many files (max 4)' })
-    return res.status(400).json({ error: err.message })
+    if (err.code === 'LIMIT_FILE_SIZE')  return res.status(413).json({ error: 'File too large (max 50 MB)' })
+    if (err.code === 'LIMIT_FILE_COUNT') return res.status(400).json({ error: 'Too many files' })
+    return res.status(400).json({ error: 'File upload error' })
   }
   if (err) {
+    // Only expose safe, user-facing messages set by our own fileFilter callbacks.
+    // All other internal errors get a generic response to avoid leaking details.
+    const SAFE_MESSAGES = new Set(['File type not allowed', 'Invalid filename'])
+    const msg = SAFE_MESSAGES.has(err.message) ? err.message : 'Bad request'
     console.error(`[middleware error] ${req.method} ${req.path}: ${err.message}`)
-    return res.status(400).json({ error: err.message })
+    return res.status(400).json({ error: msg })
   }
   next()
 })
@@ -14123,7 +14134,7 @@ app.post('/api/me/portfolio', authenticate, writeLimit, async (req, res) => {
   }
 })
 
-app.put('/api/me/portfolio/:id', authenticate, async (req, res) => {
+app.put('/api/me/portfolio/:id', authenticate, writeLimit, async (req, res) => {
   try {
     const { title, description, url, image_url } = req.body
     await pool.query(
@@ -14136,7 +14147,7 @@ app.put('/api/me/portfolio/:id', authenticate, async (req, res) => {
   }
 })
 
-app.delete('/api/me/portfolio/:id', authenticate, async (req, res) => {
+app.delete('/api/me/portfolio/:id', authenticate, writeLimit, async (req, res) => {
   try {
     await pool.query('DELETE FROM user_portfolio WHERE id=? AND user_id=?', [req.params.id, req.userId])
     res.json({ ok: true })
