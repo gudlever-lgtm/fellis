@@ -2663,6 +2663,79 @@ app.delete('/api/businesses/:id/follow', authenticate, async (req, res) => {
   }
 })
 
+// POST /api/users/:id/follow — follow any user (standard or business)
+app.post('/api/users/:id/follow', authenticate, async (req, res) => {
+  const targetId = parseInt(req.params.id)
+  if (targetId === req.userId) return res.status(400).json({ error: 'Cannot follow yourself' })
+  try {
+    const [[target]] = await pool.query('SELECT id FROM users WHERE id = ?', [targetId])
+    if (!target) return res.status(404).json({ error: 'User not found' })
+    await pool.query('INSERT IGNORE INTO user_follows (follower_id, followee_id) VALUES (?, ?)', [req.userId, targetId])
+    res.json({ following: true })
+  } catch (err) {
+    console.error('POST /api/users/:id/follow error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// DELETE /api/users/:id/follow — unfollow a user
+app.delete('/api/users/:id/follow', authenticate, async (req, res) => {
+  const targetId = parseInt(req.params.id)
+  try {
+    await pool.query('DELETE FROM user_follows WHERE follower_id = ? AND followee_id = ?', [req.userId, targetId])
+    res.json({ following: false })
+  } catch (err) {
+    console.error('DELETE /api/users/:id/follow error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/me/followers — users who follow me
+app.get('/api/me/followers', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT u.id, u.name, u.avatar, u.mode, u.online,
+              EXISTS(SELECT 1 FROM user_follows WHERE follower_id = ? AND followee_id = u.id) AS is_following_back,
+              uf.created_at AS followed_at
+       FROM user_follows uf
+       JOIN users u ON u.id = uf.follower_id
+       WHERE uf.followee_id = ?
+       ORDER BY uf.created_at DESC`,
+      [req.userId, req.userId]
+    )
+    res.json(rows)
+  } catch (err) {
+    console.error('GET /api/me/followers error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/me/following — users and companies I follow
+app.get('/api/me/following', authenticate, async (req, res) => {
+  try {
+    const [users] = await pool.query(
+      `SELECT u.id, u.name, u.avatar, u.mode, u.online, 'user' AS kind, uf.created_at AS followed_at
+       FROM user_follows uf
+       JOIN users u ON u.id = uf.followee_id
+       WHERE uf.follower_id = ?
+       ORDER BY uf.created_at DESC`,
+      [req.userId]
+    )
+    const [companies] = await pool.query(
+      `SELECT c.id, c.name, c.logo AS avatar, NULL AS mode, NULL AS online, 'company' AS kind, cf.followed_at
+       FROM company_follows cf
+       JOIN companies c ON c.id = cf.company_id
+       WHERE cf.user_id = ?
+       ORDER BY cf.followed_at DESC`,
+      [req.userId]
+    )
+    res.json({ users, companies })
+  } catch (err) {
+    console.error('GET /api/me/following error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // POST /api/profile/avatar — upload profile picture
 app.post('/api/profile/avatar', authenticate, fileUploadLimit, upload.single('avatar'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' })
@@ -5315,6 +5388,25 @@ app.get('/api/marketplace/stats', authenticate, async (req, res) => {
     res.status(500).json({ error: 'Server error' })
   }
 })
+
+// ── User follows (asymmetric, any user) ──────────────────────────────────────
+
+async function initUserFollows() {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS user_follows (
+      follower_id INT NOT NULL,
+      followee_id INT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (follower_id, followee_id),
+      KEY idx_uf_follower (follower_id),
+      KEY idx_uf_followee (followee_id),
+      CONSTRAINT fk_uf_follower FOREIGN KEY (follower_id) REFERENCES users (id) ON DELETE CASCADE,
+      CONSTRAINT fk_uf_followee FOREIGN KEY (followee_id) REFERENCES users (id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+  } catch (err) {
+    console.error('initUserFollows error:', err.message)
+  }
+}
 
 // ── Companies & Jobs ──────────────────────────────────────────────────────────
 
@@ -12100,6 +12192,7 @@ app.listen(PORT, () => {
   initBadges()
   initStoriesHashtags()
   initSignalEngine()
+  initUserFollows()
   // RTMP is handled by mediamtx (external service on port 1935).
   // node-media-server startup is intentionally disabled to avoid port conflicts.
 })
