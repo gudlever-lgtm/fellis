@@ -817,9 +817,13 @@ async function auditLog(req, action, resourceType = null, resourceId = null, {
   oldValue = null,
   newValue = null,
   details = null,
+  userId: explicitUserId = undefined,
 } = {}) {
-  const userId = req.userId || null
+  // explicitUserId lets callers (e.g. login) pass the userId before req.userId is set,
+  // avoiding { ...req } spread which drops Express prototype getters like req.ip
+  const userId = explicitUserId !== undefined ? explicitUserId : (req.userId || null)
   const ipAddress = req.headers?.['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null
+  console.log(`[IP DEBUG] action=${action} xff=${req.headers?.['x-forwarded-for']} socket=${req.socket?.remoteAddress} ip=${req.ip} → logged=${ipAddress}`)
   const userAgent = req.headers?.['user-agent'] || null
 
   try {
@@ -1343,8 +1347,9 @@ app.post('/api/auth/login', strictLimit, validate(schemas.login), async (req, re
           [newAttempts, LOCKOUT_DURATION_MINUTES, user.id]
         ).catch(() => {})
         // Audit log: account locked
-        await auditLog({ ...req, userId: user.id }, 'login_failed_account_locked', 'user', user.id, {
+        await auditLog(req, 'login_failed_account_locked', 'user', user.id, {
           status: 'failure',
+          userId: user.id,
           details: { attempts: newAttempts, reason: 'brute_force_protection' }
         })
         return res.status(429).json({
@@ -1356,8 +1361,9 @@ app.post('/api/auth/login', strictLimit, validate(schemas.login), async (req, re
           [newAttempts, user.id]
         ).catch(() => {})
         // Audit log: failed login attempt
-        await auditLog({ ...req, userId: user.id }, 'login_failed', 'user', user.id, {
+        await auditLog(req, 'login_failed', 'user', user.id, {
           status: 'failure',
+          userId: user.id,
           details: { attempts: newAttempts, remaining_before_lockout: MAX_LOGIN_ATTEMPTS - newAttempts }
         })
         return res.status(401).json({ error: 'Invalid credentials' })
@@ -1401,11 +1407,11 @@ app.post('/api/auth/login', strictLimit, validate(schemas.login), async (req, re
     setSessionCookie(res, sessionId)
     // Audit log: successful login
     await auditLog(
-      { ...req, userId: user.id },
+      req,
       'login',
       'user',
       user.id,
-      { status: 'success', details: { mfa_enabled: !!user.mfa_enabled } }
+      { status: 'success', userId: user.id, details: { mfa_enabled: !!user.mfa_enabled } }
     )
     res.json({ sessionId, userId: user.id })
   } catch (err) {
