@@ -468,6 +468,23 @@ export async function apiToggleFamilyFriend(userId, isFamily) {
   })
 }
 
+// User follows (asymmetric: follow any user or company)
+export async function apiFollowUser(userId) {
+  return await request(`/api/users/${userId}/follow`, { method: 'POST' })
+}
+
+export async function apiUnfollowUser(userId) {
+  return await request(`/api/users/${userId}/follow`, { method: 'DELETE' })
+}
+
+export async function apiGetFollowers() {
+  return await request('/api/me/followers')
+}
+
+export async function apiGetFollowing() {
+  return await request('/api/me/following')
+}
+
 // Conversations (replaces legacy /api/messages)
 export async function apiFetchConversations() {
   return await request('/api/conversations')
