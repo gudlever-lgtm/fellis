@@ -1,5 +1,11 @@
 #!/usr/bin/env node
 // e2e-test.js — End-to-end integration test for fellis.eu
+// Version: 1.1.0
+//
+// Changelog:
+//   1.1.0 — Add testFeedModeSeparation (privat/business feed filter, ?mode param)
+//   1.0.0 — Initial suite (health, auth, feed, posts, media, marketplace, events,
+//            jobs, messaging, reels, explore, interests, badges, error handling)
 //
 // Usage:
 //   BASE_URL=https://test.fellis.eu node tests/e2e-test.js
@@ -794,7 +800,8 @@ async function testMailAndPasswordReset() {
 // ─── Runner ───────────────────────────────────────────────────────────────────
 
 async function run() {
-  console.log(c.bold(`\nfellis.eu E2E Test Suite`))
+  const VERSION = '1.1.0'
+  console.log(c.bold(`\nfellis.eu E2E Test Suite`) + c.dim(` v${VERSION}`))
   console.log(c.dim(`Target: ${BASE_URL}`))
   console.log(c.dim(`Time:   ${new Date().toISOString()}`))
 
