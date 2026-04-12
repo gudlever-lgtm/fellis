@@ -1540,7 +1540,8 @@ app.post('/api/auth/forgot-password', strictLimit, validate(schemas.forgotPasswo
 
     if (mailer) {
       const fromAddr = process.env.MAIL_FROM || process.env.MAIL_USER
-      await mailer.sendMail({
+      // Fire-and-forget — do NOT await; SMTP connection delays must not block the HTTP response
+      mailer.sendMail({
         from: `"Fellis" <${fromAddr}>`,
         to: email,
         subject: 'Nulstil din adgangskode / Reset your password',
