@@ -48,8 +48,11 @@ import crypto from 'crypto'
 import bcrypt from 'bcrypt'
 import fs from 'fs'
 import multer from 'multer'
+import helmet from 'helmet'
+import { rateLimit as rlFactory } from 'express-rate-limit'
 import pool from './db.js'
 import { sendSms } from './sms.js'
+import { validate, schemas } from './validation.js'
 import { BADGES, BADGE_BY_ID, PLATFORM_LAUNCH_DATE, BADGE_AD_FREE_DAYS } from '../src/badges/badgeDefinitions.js'
 import { evaluateBadges } from '../src/badges/badgeEngine.js'
 import { createReelFromLivestream, LIVESTREAM_DEFAULTS, transcodeVideo } from './livestream.js'
@@ -491,6 +494,30 @@ async function withdrawConsent(userId, consentType, ipAddress = null) {
 }
 
 const app = express()
+
+// ── Helmet — security headers (must be first) ─────────────────────────────
+const SITE_ORIGIN = (process.env.SITE_URL || 'https://fellis.eu').replace(/\/$/, '')
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Vite/React needs these in dev
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", 'data:', 'blob:', SITE_ORIGIN, 'https://lh3.googleusercontent.com', 'https://media.licdn.com'],
+      connectSrc: ["'self'", SITE_ORIGIN, 'http://localhost:3001', 'http://localhost:5173'],
+      fontSrc: ["'self'", 'data:'],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'", 'blob:', SITE_ORIGIN],
+      frameSrc: ["'none'"],
+      upgradeInsecureRequests: process.env.NODE_ENV === 'production' ? [] : null,
+    },
+  },
+  crossOriginEmbedderPolicy: false, // Required for media embeds
+  hsts: process.env.NODE_ENV === 'production'
+    ? { maxAge: 31536000, includeSubDomains: true, preload: true }
+    : false,
+}))
+
 app.use(express.json())
 
 // ── CORS Configuration — explicit whitelist ────────────────────────────────
@@ -507,7 +534,7 @@ app.use((req, res, next) => {
   if (origin && ALLOWED_ORIGINS.includes(origin)) {
     res.set('Access-Control-Allow-Origin', origin)
     res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
-    res.set('Access-Control-Allow-Headers', 'Content-Type, X-Session-Id, Authorization')
+    res.set('Access-Control-Allow-Headers', 'Content-Type, X-Session-Id, X-CSRF-Token, Authorization')
     res.set('Access-Control-Allow-Credentials', 'true')
     res.set('Access-Control-Max-Age', '86400') // 24 hours
   }
@@ -533,8 +560,42 @@ app.use((_req, res, next) => {
   next()
 })
 
-// ── Rate limiting — in-memory, per IP + per user ──────────────────────────
-// Buckets: Map<key, { count, resetAt }>
+// ── Rate limiting ─────────────────────────────────────────────────────────
+// express-rate-limit for auth endpoints (survives process restarts in most cases)
+// and an in-memory per-user limiter for write operations.
+
+// Login / MFA: 5 per 15 minutes per IP
+const strictLimit = rlFactory({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests — prøv igen om 15 minutter' },
+  keyGenerator: (req) => req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip,
+})
+
+// Register: 3 per hour per IP
+const registerLimit = rlFactory({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many registration attempts — prøv igen om en time' },
+  keyGenerator: (req) => req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip,
+})
+
+// General API: 100 per 15 minutes per IP
+const generalLimit = rlFactory({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests — prøv igen om lidt' },
+  keyGenerator: (req) => req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip,
+  skip: (req) => req.method === 'GET' || req.path === '/api/health', // GET requests are read-only
+})
+
+// In-memory per-user write limiter (supplements express-rate-limit for authenticated ops)
 const _rl = new Map()
 function rateLimit({ windowMs = 60_000, max = 60, keyFn = (req) => req.ip } = {}) {
   return (req, res, next) => {
@@ -559,8 +620,6 @@ setInterval(() => {
   for (const [k, v] of _rl) { if (now > v.resetAt) _rl.delete(k) }
 }, 5 * 60_000)
 
-// Strict limiter for auth + write endpoints: 30 req/min per IP
-const strictLimit = rateLimit({ windowMs: 60_000, max: 30 })
 // Standard limiter for general write endpoints: 60 req/min per user id (falls back to IP)
 const writeLimit = rateLimit({
   windowMs: 60_000, max: 60,
@@ -576,6 +635,14 @@ const fileUploadLimit = rateLimit({
 // ── Serve built frontend (assets/, index.html, public/) ───────────────────
 const FRONTEND_ROOT = path.resolve(__dirname, '..')
 app.use(express.static(FRONTEND_ROOT, { index: false }))
+
+// ── Global API rate limiting (100 write req / 15 min per IP) ─────────────
+app.use('/api', generalLimit)
+
+// ── CSRF protection — applied to all /api state-changing requests ─────────
+// Skips GET/HEAD/OPTIONS automatically (see validateCsrf implementation).
+// Cookie-based sessions are used, so CSRF is a real attack surface.
+app.use('/api', validateCsrf)
 
 // ── Health check ─────────────────────────────────────────────────────────
 const SERVER_START = Date.now()
@@ -662,11 +729,13 @@ function verifyCsrfToken(sessionId, token) {
 
 // CSRF validation middleware for state-changing requests
 function validateCsrf(req, res, next) {
-  // Skip CSRF for GET/HEAD/OPTIONS
+  // Skip CSRF for safe methods
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next()
 
   const sessionId = getSessionIdFromRequest(req)
-  if (!sessionId) return res.status(401).json({ error: 'Not authenticated' })
+  // If no session, CSRF doesn't apply (no cookie to steal); authentication
+  // middleware on each route will still reject unauthenticated requests.
+  if (!sessionId) return next()
 
   const csrfToken = req.headers['x-csrf-token'] || req.body?.csrf_token
   if (!csrfToken) return res.status(403).json({ error: 'CSRF token required' })
@@ -677,7 +746,7 @@ function validateCsrf(req, res, next) {
     }
     next()
   } catch (err) {
-    // Timing safe comparison may fail if token is malformed
+    // timingSafeEqual throws if buffer lengths differ (malformed token)
     res.status(403).json({ error: 'Invalid CSRF token' })
   }
 }
@@ -1153,9 +1222,8 @@ app.get('/api/auth/password-policy', async (req, res) => {
 // ── Auth routes ──
 
 // POST /api/auth/login — login with email + password (MFA-aware)
-app.post('/api/auth/login', strictLimit, async (req, res) => {
+app.post('/api/auth/login', strictLimit, validate(schemas.login), async (req, res) => {
   const { email, password, lang } = req.body
-  if (!email || !password) return res.status(400).json({ error: 'Email and password required' })
   try {
     const [users] = await pool.query(
       'SELECT * FROM users WHERE email = ?', [email]
@@ -1189,8 +1257,7 @@ app.post('/api/auth/login', strictLimit, async (req, res) => {
     } else if (user.password_hash && /^[0-9a-f]{64}$/.test(user.password_hash)) {
       // Legacy SHA-256 hash — verify and migrate to bcrypt
       const sha256 = crypto.createHash('sha256').update(password).digest('hex')
-      passwordValid = sha256 === user.password_hash
-      console.log(`[LOGIN DEBUG] sha256 match: ${passwordValid}`)
+      passwordValid = crypto.timingSafeEqual(Buffer.from(sha256), Buffer.from(user.password_hash))
       if (passwordValid) {
         const bcryptHash = await bcrypt.hash(password, 10)
         await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [bcryptHash, user.id])
@@ -1289,9 +1356,8 @@ app.post('/api/auth/login', strictLimit, async (req, res) => {
 })
 
 // POST /api/auth/register — create account after migration
-app.post('/api/auth/register', strictLimit, async (req, res) => {
+app.post('/api/auth/register', registerLimit, validate(schemas.register), async (req, res) => {
   const { name, email, password, lang, inviteToken } = req.body
-  if (!name || !email || !password) return res.status(400).json({ error: 'Name, email, and password required' })
   const regPolicy = await getPasswordPolicy()
   const regPwdErrors = validatePasswordStrength(password, regPolicy, lang || 'da')
   if (regPwdErrors.length > 0) return res.status(400).json({ error: regPwdErrors.join('. ') })
@@ -1380,7 +1446,7 @@ app.post('/api/auth/register', strictLimit, async (req, res) => {
 })
 
 // POST /api/auth/forgot-password — request password reset link via email
-app.post('/api/auth/forgot-password', strictLimit, async (req, res) => {
+app.post('/api/auth/forgot-password', strictLimit, validate(schemas.forgotPassword), async (req, res) => {
   const { email } = req.body
   if (!email) return res.status(400).json({ error: 'Email required' })
 
@@ -1465,9 +1531,8 @@ app.post('/api/auth/reset-password', strictLimit, async (req, res) => {
 })
 
 // POST /api/auth/verify-mfa — verify SMS code and complete login
-app.post('/api/auth/verify-mfa', strictLimit, async (req, res) => {
+app.post('/api/auth/verify-mfa', strictLimit, validate(schemas.verifyMfa), async (req, res) => {
   const { userId, code, lang } = req.body
-  if (!userId || !code) return res.status(400).json({ error: 'userId and code required' })
   try {
     const [rows] = await pool.query(
       'SELECT id FROM users WHERE id = ? AND mfa_code_expires > NOW()',
@@ -1618,6 +1683,17 @@ app.get('/api/auth/session', authenticate, async (req, res) => {
   }
 })
 
+// ── OAuth CSRF state store — short-lived, in-memory ───────────────────────
+// Keyed by random state string; each entry has { provider, createdAt }.
+// Entries are consumed on first use and purged every 15 minutes.
+const oauthStateTokens = new Map()
+setInterval(() => {
+  const cutoff = Date.now() - 10 * 60 * 1000 // 10-minute TTL
+  for (const [k, v] of oauthStateTokens) {
+    if (v.createdAt < cutoff) oauthStateTokens.delete(k)
+  }
+}, 15 * 60 * 1000)
+
 // ── Google OAuth ──
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID
@@ -1627,6 +1703,8 @@ const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || 'https://fellis.e
 app.get('/api/auth/google', (req, res) => {
   if (!GOOGLE_CLIENT_ID) return res.status(500).json({ error: 'Google integration not configured' })
   const state = crypto.randomBytes(16).toString('hex')
+  // Store state with 10-minute expiry to validate in callback
+  oauthStateTokens.set(state, { provider: 'google', createdAt: Date.now() })
   const params = new URLSearchParams({
     client_id: GOOGLE_CLIENT_ID,
     redirect_uri: GOOGLE_REDIRECT_URI,
@@ -1641,8 +1719,15 @@ app.get('/api/auth/google', (req, res) => {
 
 app.get('/api/auth/google/callback', async (req, res) => {
   if (!GOOGLE_CLIENT_ID) return res.redirect('/?error=google_not_configured')
-  const { code, error } = req.query
+  const { code, error, state } = req.query
   if (error || !code) return res.redirect('/?error=google_denied')
+  // Validate OAuth state to prevent CSRF account-linking attacks
+  const stateData = oauthStateTokens.get(state)
+  if (!stateData || stateData.provider !== 'google' || Date.now() - stateData.createdAt > 10 * 60 * 1000) {
+    oauthStateTokens.delete(state)
+    return res.redirect('/?error=google_state_invalid')
+  }
+  oauthStateTokens.delete(state)
   try {
     // Exchange code for tokens
     const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
@@ -1714,6 +1799,8 @@ const LINKEDIN_REDIRECT_URI = process.env.LINKEDIN_REDIRECT_URI || 'https://fell
 app.get('/api/auth/linkedin', (req, res) => {
   if (!LINKEDIN_CLIENT_ID) return res.status(500).json({ error: 'LinkedIn integration not configured' })
   const state = crypto.randomBytes(16).toString('hex')
+  // Store state with 10-minute expiry to validate in callback
+  oauthStateTokens.set(state, { provider: 'linkedin', createdAt: Date.now() })
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: LINKEDIN_CLIENT_ID,
@@ -1726,8 +1813,15 @@ app.get('/api/auth/linkedin', (req, res) => {
 
 app.get('/api/auth/linkedin/callback', async (req, res) => {
   if (!LINKEDIN_CLIENT_ID) return res.redirect('/?error=linkedin_not_configured')
-  const { code, error } = req.query
+  const { code, error, state } = req.query
   if (error || !code) return res.redirect('/?error=linkedin_denied')
+  // Validate OAuth state to prevent CSRF account-linking attacks
+  const liStateData = oauthStateTokens.get(state)
+  if (!liStateData || liStateData.provider !== 'linkedin' || Date.now() - liStateData.createdAt > 10 * 60 * 1000) {
+    oauthStateTokens.delete(state)
+    return res.redirect('/?error=linkedin_state_invalid')
+  }
+  oauthStateTokens.delete(state)
   try {
     const tokenRes = await fetch('https://www.linkedin.com/oauth/v2/accessToken', {
       method: 'POST',
@@ -1783,9 +1877,6 @@ app.get('/api/auth/linkedin/callback', async (req, res) => {
     res.redirect('/?error=linkedin_error')
   }
 })
-
-// GDPR/Security: In-memory store for OAuth CSRF state tokens (short-lived)
-const oauthStateTokens = new Map()
 
 
 // ── Profile routes ──
@@ -1964,7 +2055,9 @@ app.get('/api/profile', authenticate, async (req, res) => {
     try {
       ;[users] = await pool.query(
         `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url,
-          u.email, u.google_id, u.linkedin_id, u.password_hash, u.password_plain, u.created_at, u.birthday,
+          u.email, u.google_id, u.linkedin_id,
+          (u.password_hash IS NOT NULL AND u.password_hash != '') AS has_password,
+          u.created_at, u.birthday,
           u.profile_public, u.reputation_score, u.referral_count, u.interests, u.tags,
           u.relationship_status, u.website,
           u.phone, u.mfa_enabled,
@@ -1981,7 +2074,9 @@ app.get('/api/profile', authenticate, async (req, res) => {
       // Phase 1 migration columns not yet applied — fall back without business_* columns
       ;[users] = await pool.query(
         `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url,
-          u.email, u.google_id, u.linkedin_id, u.password_hash, u.password_plain, u.created_at, u.birthday,
+          u.email, u.google_id, u.linkedin_id,
+          (u.password_hash IS NOT NULL AND u.password_hash != '') AS has_password,
+          u.created_at, u.birthday,
           u.profile_public, u.reputation_score, u.referral_count, u.interests, u.tags,
           u.relationship_status, u.website,
           u.phone, u.mfa_enabled,
@@ -2014,8 +2109,7 @@ app.get('/api/profile', authenticate, async (req, res) => {
       friendCount: u.friend_count, postCount: u.post_count, photoCount: u.photo_count || 0,
       email: u.email || null,
       loginMethod: 'email',
-      hasPassword: !!u.password_hash,
-      passwordHint: u.password_plain ? (u.password_plain[0] + '*'.repeat(Math.max(u.password_plain.length - 2, 0)) + (u.password_plain.length > 1 ? u.password_plain[u.password_plain.length - 1] : '')) : null,
+      hasPassword: !!u.has_password,
       createdAt: u.created_at || u.join_date || null,
       birthday: u.birthday || null,
       profile_public: !!u.profile_public,
@@ -2530,9 +2624,8 @@ app.patch('/api/profile/email', authenticate, async (req, res) => {
 })
 
 // PATCH /api/profile/password — change password (or set first password for imported users)
-app.patch('/api/profile/password', authenticate, async (req, res) => {
+app.patch('/api/profile/password', authenticate, validate(schemas.changePassword), async (req, res) => {
   const { currentPassword, newPassword, lang: chgLang, mfaCode } = req.body
-  if (!newPassword) return res.status(400).json({ error: 'newPassword required' })
   const chgPolicy = await getPasswordPolicy()
   const chgPwdErrors = validatePasswordStrength(newPassword, chgPolicy, chgLang || 'da')
   if (chgPwdErrors.length > 0) return res.status(400).json({ error: chgPwdErrors.join('. ') })
@@ -2552,7 +2645,17 @@ app.patch('/api/profile/password', authenticate, async (req, res) => {
       if (!mfaOk) return res.status(401).json({ error: 'Invalid or expired MFA code' })
     }
     const newHash = await bcrypt.hash(newPassword, 10)
-    await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [newHash, req.userId])
+    const currentSessionId = getSessionIdFromRequest(req)
+    // Update password and clear any pending MFA codes atomically
+    await pool.query(
+      'UPDATE users SET password_hash = ?, mfa_code = NULL, mfa_code_expires = NULL WHERE id = ?',
+      [newHash, req.userId]
+    )
+    // Invalidate all OTHER active sessions — force re-login on other devices
+    await pool.query(
+      'DELETE FROM sessions WHERE user_id = ? AND id != ?',
+      [req.userId, currentSessionId]
+    ).catch(() => {}) // non-fatal: sessions table may differ on older installs
     // Audit log: password changed
     await auditLog(req, 'password_change', 'user', req.userId, { status: 'success' })
     res.json({ ok: true })
@@ -4342,8 +4445,21 @@ function isSafeExternalUrl(urlStr) {
   try { parsed = new URL(urlStr) } catch { return false }
   if (!['http:', 'https:'].includes(parsed.protocol)) return false
   const host = parsed.hostname.toLowerCase()
+
+  // Block localhost and common aliases
   if (host === 'localhost') return false
-  if (host === '::1' || host === '[::1]') return false
+
+  // Block all IPv6 private/loopback/link-local/ULA ranges
+  // Strip brackets: [::1] → ::1
+  const bare = host.startsWith('[') ? host.slice(1, -1) : host
+  if (bare === '::1') return false                                   // loopback
+  if (/^fe[89ab][0-9a-f]:/i.test(bare)) return false               // fe80::/10 link-local
+  if (/^fc[0-9a-f]{2}:|^fd[0-9a-f]{2}:/i.test(bare)) return false // fc00::/7 ULA
+  if (/^ff[0-9a-f]{2}:/i.test(bare)) return false                  // ff00::/8 multicast
+  if (/^::f{4}:/i.test(bare)) return false                          // IPv4-mapped ::ffff:
+  if (bare === '::' || bare === '0:0:0:0:0:0:0:0') return false    // unspecified
+
+  // Block IPv4 private/reserved ranges
   const ipv4 = host.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/)
   if (ipv4) {
     const [a, b] = [parseInt(ipv4[1]), parseInt(ipv4[2])]
@@ -4351,6 +4467,8 @@ function isSafeExternalUrl(urlStr) {
     if (a === 172 && b >= 16 && b <= 31) return false
     if (a === 192 && b === 168) return false
     if (a === 169 && b === 254) return false
+    if (a === 100 && b >= 64 && b <= 127) return false  // RFC 6598 shared address space
+    if (a === 192 && b === 0 && parseInt(ipv4[3]) === 2) return false // TEST-NET
   }
   return true
 }
@@ -8037,14 +8155,54 @@ app.get('/api/admin/env-status', authenticate, requireAdmin, async (req, res) =>
   res.json({ status })
 })
 
+// GET /api/admin/storage-stats — real-time uploads dir + DB size with configured limits (admin only)
+app.get('/api/admin/storage-stats', authenticate, requireAdmin, async (req, res) => {
+  async function getDirSize(dirPath) {
+    let total = 0
+    try {
+      const entries = await fs.promises.readdir(dirPath, { withFileTypes: true })
+      for (const entry of entries) {
+        const fullPath = path.join(dirPath, entry.name)
+        if (entry.isDirectory()) {
+          total += await getDirSize(fullPath)
+        } else if (entry.isFile()) {
+          const stat = await fs.promises.stat(fullPath)
+          total += stat.size
+        }
+      }
+    } catch {}
+    return total
+  }
+  try {
+    const uploadsDir = process.env.UPLOADS_DIR || '/var/www/fellis.eu/uploads'
+    const uploadsBytes = await getDirSize(uploadsDir)
+    const [[dbRow]] = await pool.query(
+      `SELECT SUM(data_length + index_length) AS size_bytes FROM information_schema.tables WHERE table_schema = DATABASE()`
+    )
+    const dbBytes = Number(dbRow?.size_bytes || 0)
+    const [rows] = await pool.query(
+      `SELECT key_name, key_value FROM admin_settings WHERE key_name IN ('uploads_max_gb', 'db_max_gb')`
+    )
+    const settings = Object.fromEntries(rows.map(r => [r.key_name, r.key_value]))
+    res.json({
+      uploads_bytes: uploadsBytes,
+      db_bytes: dbBytes,
+      uploads_max_gb: settings.uploads_max_gb || '100',
+      db_max_gb: settings.db_max_gb || '10',
+    })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to get storage stats' })
+  }
+})
+
 // POST /api/admin/settings — save platform config (admin only)
 app.post('/api/admin/settings', authenticate, requireAdmin, async (req, res) => {
-  const allowed = ['pwd_min_length', 'pwd_require_uppercase', 'pwd_require_lowercase', 'pwd_require_numbers', 'pwd_require_symbols', 'media_max_files', 'marketplace_max_photos', 'registration_open', 'mollie_api_key']
+  const allowed = ['pwd_min_length', 'pwd_require_uppercase', 'pwd_require_lowercase', 'pwd_require_numbers', 'pwd_require_symbols', 'media_max_files', 'marketplace_max_photos', 'registration_open', 'mollie_api_key', 'uploads_max_gb', 'db_max_gb']
   try {
     for (const [key, value] of Object.entries(req.body)) {
       if (!allowed.includes(key)) continue
-      // pwd_, media_, registration_ keys are always saved (value can be '0'/'')
-      const alwaysSave = key.startsWith('pwd_') || key.startsWith('media_') || key.startsWith('registration_')
+      // pwd_, media_, registration_, uploads_, db_ keys are always saved (value can be '0'/'')
+      const alwaysSave = key.startsWith('pwd_') || key.startsWith('media_') || key.startsWith('registration_') || key.startsWith('uploads_') || key.startsWith('db_')
       if (!alwaysSave) {
         if (!value || value === '••••••••' + (value || '').slice(-4)) continue // skip masked/empty
         if (key === 'mollie_api_key' && value.includes('•')) continue // skip masked display value
@@ -13840,6 +13998,11 @@ app.post('/api/admin/blog/translate', authenticate, requireAdmin, async (req, re
   } catch (err) {
     res.status(500).json({ error: 'Server error' })
   }
+})
+
+// ── API 404 catch-all (must be before SPA fallback) ──
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: 'Not found' })
 })
 
 // ── SPA fallback ──

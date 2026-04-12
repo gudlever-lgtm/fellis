@@ -42,7 +42,7 @@ import MatrixRain from './components/easter-eggs/MatrixRain.jsx'
 import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
 import RickRoll from './components/easter-eggs/RickRoll.jsx'
 import RiddleBanner from './components/easter-eggs/RiddleBanner.jsx'
-import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode, apiReverseGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness, apiPayForAd, apiBoostPost, apiTrackAdImpression, apiTrackAdClick, apiAdminGrowth, apiAdminOnlineNow, apiAdminGetBannedUsers, apiAdminGetAuditLog, apiAdminSearchUsers, apiAdminForceLogout, apiAdminDeleteUser } from './api.js'
+import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode, apiReverseGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness, apiPayForAd, apiBoostPost, apiTrackAdImpression, apiTrackAdClick, apiAdminGrowth, apiAdminOnlineNow, apiAdminGetBannedUsers, apiAdminGetAuditLog, apiAdminSearchUsers, apiAdminForceLogout, apiAdminDeleteUser, apiGetAdminStorageStats } from './api.js'
 import BusinessBadge from './components/BusinessBadge.jsx'
 import BusinessDirectory from './pages/BusinessDirectory.jsx'
 import AdManager from './pages/AdManager.jsx'
@@ -19420,7 +19420,10 @@ function AdminPage({ lang, t }) {
     pwd_min_length: '6', pwd_require_uppercase: '0', pwd_require_lowercase: '0',
     pwd_require_numbers: '0', pwd_require_symbols: '0',
     media_max_files: '4', marketplace_max_photos: '4', registration_open: '1',
+    uploads_max_gb: '100', db_max_gb: '10',
   })
+  const [storageStats, setStorageStats] = useState(null)
+  const [storageLoading, setStorageLoading] = useState(false)
   const [status, setStatus] = useState('idle') // idle | saving | saved
   const [stats, setStats] = useState(null)
   const [weights, setWeights] = useState({ family: 1000, interest: 100, recency: 50 })
@@ -19498,6 +19501,22 @@ function AdminPage({ lang, t }) {
     apiAdminOnlineNow().then(data => { if (data) setOnlineNow(data.online) })
     apiAdminGrowth(30).then(data => { if (data) setGrowthData(data.days) })
   }, [])
+
+  useEffect(() => {
+    if (adminTab !== 'platform') return
+    setStorageLoading(true)
+    apiGetAdminStorageStats().then(data => {
+      if (data) {
+        setStorageStats(data)
+        setForm(prev => ({
+          ...prev,
+          uploads_max_gb: data.uploads_max_gb || '100',
+          db_max_gb: data.db_max_gb || '10',
+        }))
+      }
+      setStorageLoading(false)
+    })
+  }, [adminTab])
 
   useEffect(() => {
     if (adminTab !== 'moderation') return
@@ -20174,6 +20193,81 @@ function AdminPage({ lang, t }) {
 
       {adminTab === 'platform' && (
         <form onSubmit={handleSave}>
+          {/* ── Storage monitoring ── */}
+          <div className="p-card" style={{ marginBottom: 16, padding: '20px 24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>💾 {t.adminStorageTitle}</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setStorageLoading(true)
+                  apiGetAdminStorageStats().then(data => {
+                    if (data) {
+                      setStorageStats(data)
+                      setForm(prev => ({
+                        ...prev,
+                        uploads_max_gb: data.uploads_max_gb || '100',
+                        db_max_gb: data.db_max_gb || '10',
+                      }))
+                    }
+                    setStorageLoading(false)
+                  })
+                }}
+                style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid #ccc', background: '#f5f5f5', fontSize: 12, cursor: 'pointer', color: '#444' }}
+              >
+                {t.adminStorageRefresh}
+              </button>
+            </div>
+            <p style={{ margin: '0 0 20px', fontSize: 13, color: '#666' }}>{t.adminStorageDesc}</p>
+            {storageLoading && !storageStats && (
+              <p style={{ fontSize: 13, color: '#888' }}>{t.adminStorageLoading}</p>
+            )}
+            {!storageLoading && !storageStats && (
+              <p style={{ fontSize: 13, color: '#888' }}>{t.adminStorageUnavailable}</p>
+            )}
+            {storageStats && (() => {
+              const uploadsUsedGb = storageStats.uploads_bytes / 1073741824
+              const dbUsedGb = storageStats.db_bytes / 1073741824
+              const uploadsMaxGb = parseFloat(form.uploads_max_gb) || 100
+              const dbMaxGb = parseFloat(form.db_max_gb) || 10
+              const uploadsPct = Math.min(100, (uploadsUsedGb / uploadsMaxGb) * 100)
+              const dbPct = Math.min(100, (dbUsedGb / dbMaxGb) * 100)
+              const barColor = pct => pct >= 90 ? '#c0392b' : pct >= 70 ? '#e67e22' : '#2D6A4F'
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                  {[
+                    { label: t.adminStorageUploads, usedGb: uploadsUsedGb, maxGb: uploadsMaxGb, pct: uploadsPct, key: 'uploads_max_gb' },
+                    { label: t.adminStorageDb, usedGb: dbUsedGb, maxGb: dbMaxGb, pct: dbPct, key: 'db_max_gb' },
+                  ].map(({ label, usedGb, maxGb, pct, key }) => (
+                    <div key={key}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+                        <span style={{ fontSize: 14, fontWeight: 600 }}>{label}</span>
+                        <span style={{ fontSize: 13, color: '#555' }}>
+                          {usedGb < 1
+                            ? `${(usedGb * 1024).toFixed(0)} MB`
+                            : `${usedGb.toFixed(2)} ${t.adminStorageGb}`
+                          } {t.adminStorageOf} {maxGb} {t.adminStorageGb} ({pct.toFixed(1)}% {t.adminStorageUsed})
+                        </span>
+                      </div>
+                      <div style={{ background: '#e8e8e8', borderRadius: 6, height: 10, overflow: 'hidden', marginBottom: 10 }}>
+                        <div style={{ width: `${pct}%`, height: '100%', background: barColor(pct), borderRadius: 6, transition: 'width 0.4s ease' }} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 12, color: '#666', fontWeight: 600, display: 'block', marginBottom: 4 }}>{t.adminStorageMaxGb}</label>
+                        <input
+                          type="number" min="1" max="100000" step="1"
+                          style={{ ...fS, width: 120 }}
+                          value={form[key] || ''}
+                          onChange={e => setForm(prev => ({ ...prev, [key]: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )
+            })()}
+          </div>
+
           {/* ── Media settings ── */}
           <div className="p-card" style={{ marginBottom: 16, padding: '20px 24px' }}>
             <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700 }}>🖼️ {t.media2}</h3>
