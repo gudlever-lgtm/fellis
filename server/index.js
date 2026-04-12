@@ -3042,22 +3042,42 @@ app.get('/api/feed', authenticate, async (req, res) => {
         [req.userId, req.userId, req.userId, ...modeParams, ...cursorParams, limit]
       )
     } catch {
-      ;[posts] = await pool.query(
-        `SELECT p.id, p.author_id, u.name as author, u.mode as author_mode, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.categories, p.created_at, p.edited_at,
-                NULL as place_name, NULL as geo_lat, NULL as geo_lng,
-                NULL as tagged_users, NULL as linked_type, NULL as linked_id,
-                0 as author_badge_count
-         FROM posts p JOIN users u ON p.author_id = u.id
-         WHERE (p.author_id = ?
-           OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?)
-           OR p.author_id IN (SELECT business_id FROM business_follows WHERE follower_id = ?))
-           AND (p.scheduled_at IS NULL OR p.scheduled_at <= NOW())
-           ${modeClause}
-           ${cursorFilter}
-         ORDER BY p.created_at DESC
-         LIMIT ?`,
-        [req.userId, req.userId, req.userId, ...modeParams, ...cursorParams, limit]
-      )
+      // Second attempt: no extended columns (place_name etc.), but keep mode filter
+      try {
+        ;[posts] = await pool.query(
+          `SELECT p.id, p.author_id, u.name as author, u.mode as author_mode, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.categories, p.created_at, p.edited_at,
+                  NULL as place_name, NULL as geo_lat, NULL as geo_lng,
+                  NULL as tagged_users, NULL as linked_type, NULL as linked_id,
+                  0 as author_badge_count
+           FROM posts p JOIN users u ON p.author_id = u.id
+           WHERE (p.author_id = ?
+             OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?)
+             OR p.author_id IN (SELECT business_id FROM business_follows WHERE follower_id = ?))
+             AND (p.scheduled_at IS NULL OR p.scheduled_at <= NOW())
+             ${modeClause}
+             ${cursorFilter}
+           ORDER BY p.created_at DESC
+           LIMIT ?`,
+          [req.userId, req.userId, req.userId, ...modeParams, ...cursorParams, limit]
+        )
+      } catch {
+        // Third attempt: user_mode column not yet migrated — return unfiltered feed
+        ;[posts] = await pool.query(
+          `SELECT p.id, p.author_id, u.name as author, u.mode as author_mode, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.categories, p.created_at, p.edited_at,
+                  NULL as place_name, NULL as geo_lat, NULL as geo_lng,
+                  NULL as tagged_users, NULL as linked_type, NULL as linked_id,
+                  0 as author_badge_count
+           FROM posts p JOIN users u ON p.author_id = u.id
+           WHERE (p.author_id = ?
+             OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?)
+             OR p.author_id IN (SELECT business_id FROM business_follows WHERE follower_id = ?))
+             AND (p.scheduled_at IS NULL OR p.scheduled_at <= NOW())
+             ${cursorFilter}
+           ORDER BY p.created_at DESC
+           LIMIT ?`,
+          [req.userId, req.userId, req.userId, ...cursorParams, limit]
+        )
+      }
     }
     const postIds = posts.map(p => p.id)
     let comments = []
