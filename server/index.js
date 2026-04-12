@@ -662,16 +662,6 @@ app.use('/api', generalLimit)
 // Cookie-based sessions are used, so CSRF is a real attack surface.
 app.use('/api', validateCsrf)
 
-// ── Temporary IP debug endpoint — remove after confirming X-Forwarded-For ──
-app.get('/api/debug-ip', (req, res) => {
-  res.json({
-    'x-forwarded-for': req.headers['x-forwarded-for'] || null,
-    'x-real-ip':       req.headers['x-real-ip'] || null,
-    'req.ip':          req.ip,
-    'socket.remote':   req.socket?.remoteAddress || null,
-  })
-})
-
 // ── Health check ─────────────────────────────────────────────────────────
 const SERVER_START = Date.now()
 app.get('/api/health', async (_req, res) => {
@@ -823,7 +813,6 @@ async function auditLog(req, action, resourceType = null, resourceId = null, {
   // avoiding { ...req } spread which drops Express prototype getters like req.ip
   const userId = explicitUserId !== undefined ? explicitUserId : (req.userId || null)
   const ipAddress = req.headers?.['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null
-  console.log(`[IP DEBUG] action=${action} xff=${req.headers?.['x-forwarded-for']} socket=${req.socket?.remoteAddress} ip=${req.ip} → logged=${ipAddress}`)
   const userAgent = req.headers?.['user-agent'] || null
 
   try {
