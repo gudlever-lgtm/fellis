@@ -1,4 +1,5 @@
 import nav from './nav.js'
+import facebook from './facebook.js'
 import blog from './blog.js'
 import feed from './feed.js'
 import friends from './friends.js'
@@ -44,7 +45,7 @@ const segments = [
   nav, feed, friends, messages, search, profile, settings,
   notifications, analytics, business, ads, events, companies,
   jobs, marketplace, admin, reels, moderation, referrals, common,
-  otherLangs, blog,
+  otherLangs, blog, facebook,
 ]
 
 export const PT = segments.reduce((acc, seg) => {

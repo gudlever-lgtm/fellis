@@ -27,6 +27,24 @@ while ((m = serverRouteRe.exec(serverSrc)) !== null) {
   serverRoutes.add(`${method} ${path}`)
 }
 
+// ── 1b. Also extract routes from server/routes/facebook.js ───────────────────
+// These are mounted at /api/auth/facebook via app.use('/api/auth/facebook', facebookRouter)
+// The file uses router.get/post/etc — extract and prefix with the mount path.
+const FB_ROUTE_PREFIX = '/api/auth/facebook'
+try {
+  const fbSrc = readFileSync(resolve(root, 'server/routes/facebook.js'), 'utf8')
+  const fbRouteRe = /router\.(get|post|put|patch|delete)\(\s*['"`]([^'"`]+)['"`]/gi
+  while ((m = fbRouteRe.exec(fbSrc)) !== null) {
+    const method = m[1].toUpperCase()
+    const subPath = m[2].split('?')[0]
+    // '/' → /api/auth/facebook, '/callback' → /api/auth/facebook/callback
+    const fullPath = subPath === '/' ? FB_ROUTE_PREFIX : `${FB_ROUTE_PREFIX}${subPath}`
+    serverRoutes.add(`${method} ${fullPath}`)
+  }
+} catch (err) {
+  console.warn('Could not scan server/routes/facebook.js:', err.message)
+}
+
 // ── 2. Extract client API calls ────────────────────────────────────────────────
 
 const apiSrc = readFileSync(resolve(root, 'src/api.js'), 'utf8')
@@ -182,6 +200,42 @@ if (missingChatRoutes.length > 0) {
   process.exit(1)
 } else {
   console.log(`${GREEN}✓ All required chat conversation routes are registered on the server.${RESET}\n`)
+}
+
+// ── Facebook data import endpoint declarations ─────────────────────────────
+//
+// These routes MUST exist on the server and return the listed status codes:
+//
+//   GET  /api/auth/facebook              → 302 (redirect to FB) | 401 (no session)
+//   GET  /api/auth/facebook/callback     → 302 (redirect back)  | 400 (bad state)
+//   GET  /api/auth/facebook/data         → 200 (connected)      | 401 (no session)
+//   POST /api/auth/facebook/import       → 200 (ok)             | 401 (no session)
+//   POST /api/auth/facebook/disconnect   → 200 (ok)             | 401 (no session)
+//   POST /api/auth/facebook/deauthorize  → 200 (public webhook) | 400 (bad sig)
+//   POST /api/auth/facebook/delete       → 200 (public webhook) | 400 (bad sig)
+//
+const REQUIRED_FACEBOOK_ROUTES = [
+  'GET /api/auth/facebook',
+  'GET /api/auth/facebook/callback',
+  'GET /api/auth/facebook/data',
+  'POST /api/auth/facebook/import',
+  'POST /api/auth/facebook/disconnect',
+  'POST /api/auth/facebook/deauthorize',
+  'POST /api/auth/facebook/delete',
+]
+
+const missingFbRoutes = REQUIRED_FACEBOOK_ROUTES.filter(r => {
+  const [method, p] = r.split(' ')
+  return !normServerRoutes.has(`${method} ${normaliseServerPath(p)}`)
+})
+
+if (missingFbRoutes.length > 0) {
+  console.log(`${RED}✗ Missing required Facebook data-import server routes:${RESET}`)
+  for (const r of missingFbRoutes) console.log(`  ${RED}${r}${RESET}`)
+  console.log()
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ All required Facebook data-import routes are registered on the server.${RESET}\n`)
 }
 
 process.exit(0)
