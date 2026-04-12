@@ -180,6 +180,10 @@ export async function apiFetchMemories() {
   return await request('/api/feed/memories')
 }
 
+export async function apiGetDiscovery() {
+  return await request('/api/feed/discovery')
+}
+
 // Single XHR upload attempt. Uses a stall-based inactivity timer (2 min
 // without any progress) instead of a wall-clock timeout, so slow-but-
 // steady uploads on mobile connections are not killed prematurely.

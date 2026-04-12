@@ -23,6 +23,7 @@ import {
   apiShareReelToFeed,
   apiConvertPostToReel,
   apiSubmitFeedback, apiGetAdminFeedback, apiUpdateFeedbackStatus,
+  apiGetDiscovery,
 } from './api.js'
 import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
@@ -66,6 +67,7 @@ import MarketplaceWishlist from './components/MarketplaceWishlist.jsx'
 import MakeOfferModal from './components/MakeOfferModal.jsx'
 import KeyboardShortcutsHelp from './components/KeyboardShortcutsHelp.jsx'
 import useKeyboardShortcuts from './hooks/useKeyboardShortcuts.js'
+import DiscoveryCard from './components/DiscoveryCard.jsx'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -2039,6 +2041,7 @@ function SuggestedPostCard({ post, lang, onViewProfile }) {
 }
 
 const BOOST_FEED_EVERY = 7 // inject a boosted listing card after every N posts
+const DISCOVERY_EVERY = 8 // inject a discovery card after every N posts
 
 function BoostedListingCard({ listing, lang, t, onNavigate }) {
   const title = listing.title_da || listing.title_en || listing.title || ''
@@ -2473,6 +2476,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [dismissedGroupIds, setDismissedGroupIds] = useState(new Set())
   const [suggestedPosts, setSuggestedPosts] = useState([])
   const [boostedFeedListings, setBoostedFeedListings] = useState([])
+  const [discoveryCards, setDiscoveryCards] = useState([])
   const [showScrollTop, setShowScrollTop] = useState(false)
   const [mediaMaxFiles, setMediaMaxFiles] = useState(4)
   const mediaMaxFilesRef = useRef(4)
@@ -2568,6 +2572,11 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     // Load recent company posts from all followed/owned companies
     apiFeedCompanyPosts().then(data => {
       if (data?.posts?.length) setCpFeedPosts(data.posts)
+    })
+
+    // Load discovery cards (users/businesses/groups not yet followed)
+    apiGetDiscovery().then(data => {
+      if (data?.suggestions?.length) setDiscoveryCards(data.suggestions)
     })
   }, [])
 
@@ -3914,6 +3923,10 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
               const bl = boostedFeedListings[Math.floor(pi / BOOST_FEED_EVERY - 1) % boostedFeedListings.length]
               return bl ? <BoostedListingCard key={`boost-${bl.id}-${pi}`} listing={bl} lang={lang} t={t} onNavigate={onNavigate} /> : null
             })()}
+            {discoveryCards.length > 0 && pi > 0 && pi % DISCOVERY_EVERY === 0 && (() => {
+              const dc = discoveryCards[Math.floor(pi / DISCOVERY_EVERY - 1) % discoveryCards.length]
+              return dc ? <DiscoveryCard key={`discovery-${dc.type}-${dc.id}-${pi}`} suggestion={dc} lang={lang} /> : null
+            })()}
           <div className="p-card p-post"
             data-post-id={post.id}
             data-categories={post.categories?.length ? JSON.stringify(post.categories) : undefined}
@@ -4392,6 +4405,11 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
           </div>
         )
       })()}
+
+      {/* Discovery card fallback — shown at end when feed has fewer than DISCOVERY_EVERY posts */}
+      {discoveryCards.length > 0 && posts.filter(p => !hiddenPosts.has(p.id)).length < DISCOVERY_EVERY && (
+        <DiscoveryCard suggestion={discoveryCards[0]} lang={lang} />
+      )}
 
       {/* Active category filter indicator */}
       {feedCategoryFilter && (() => {
