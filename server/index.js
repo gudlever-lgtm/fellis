@@ -496,6 +496,10 @@ async function withdrawConsent(userId, consentType, ipAddress = null) {
 
 const app = express()
 
+// Trust the loopback proxy (lighttpd on 127.0.0.1) so req.ip resolves to the
+// real client IP from the X-Forwarded-For header instead of 127.0.0.1.
+app.set('trust proxy', 'loopback')
+
 // ── Helmet — security headers (must be first) ─────────────────────────────
 const SITE_ORIGIN = (process.env.SITE_URL || 'https://fellis.eu').replace(/\/$/, '')
 app.use(helmet({
