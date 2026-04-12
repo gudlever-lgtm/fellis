@@ -2271,6 +2271,8 @@ function FeedSidebar({ lang, t, adsFree, onNavigate }) {
 function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onViewBadges, onNavigate, onBadgeCheck, feedEggRef, onTriggerChuck, onTriggerMatrix, onTriggerRickroll, onTriggerParty, onTriggerRetro, interestCategories = INTEREST_CATEGORIES }) {
   const [posts, setPosts] = useState([])
   const [feedCategoryFilter, setFeedCategoryFilter] = useState(null)
+  const [feedMode, setFeedMode] = useState(mode || 'privat')
+  const feedModeRef = useRef(mode || 'privat')
   const [pinnedPost, setPinnedPost] = useState(null)
   const pinnedRef = useRef(null)
   const [insightsPostId, setInsightsPostId] = useState(null)
@@ -2543,7 +2545,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     if (isFetchingRef.current) return
     isFetchingRef.current = true
     setLoadingPage(true)
-    const data = await apiFetchFeed(nextCursorRef.current, PAGE_SIZE)
+    const data = await apiFetchFeed(nextCursorRef.current, PAGE_SIZE, feedModeRef.current)
     if (data?.posts) {
       setPosts(prev => {
         const existingIds = new Set(prev.map(p => p.id))
@@ -2567,13 +2569,14 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     isFetchingRef.current = false
   }, []) // stable — all mutable reads go through refs
 
-  // Initial load
+  // Reload posts whenever feedMode changes (also handles initial load via feedMode initial value)
   useEffect(() => {
-    apiGetConfig().then(res => {
-      const cfg = res?.config || res
-      if (cfg?.mediaMaxFiles) { setMediaMaxFiles(cfg.mediaMaxFiles); mediaMaxFilesRef.current = cfg.mediaMaxFiles }
-    })
-    apiFetchFeed(null, PAGE_SIZE).then(data => {
+    feedModeRef.current = feedMode
+    setPosts([])
+    nextCursorRef.current = null
+    isFetchingRef.current = false
+    setHasMore(true)
+    apiFetchFeed(null, PAGE_SIZE, feedMode).then(data => {
       if (data?.posts) {
         setPosts(data.posts)
         setLikedPosts(new Set(data.posts.filter(p => p.liked).map(p => p.id)))
@@ -2581,6 +2584,14 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         nextCursorRef.current = data.nextCursor ?? null
         setHasMore(data.nextCursor != null)
       }
+    })
+  }, [feedMode])
+
+  // Initial load (config + non-feed data)
+  useEffect(() => {
+    apiGetConfig().then(res => {
+      const cfg = res?.config || res
+      if (cfg?.mediaMaxFiles) { setMediaMaxFiles(cfg.mediaMaxFiles); mediaMaxFilesRef.current = cfg.mediaMaxFiles }
     })
     // Load saved post IDs for bookmark UI
     apiGetSavedPosts().then(d => {
@@ -3710,6 +3721,26 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
 
       {/* Reels strip */}
       <ReelsStrip lang={lang} t={t} onNavigate={onNavigate} />
+
+      {/* Feed mode toggle — Community (privat) vs Business */}
+      <div style={{ display: 'flex', borderBottom: '2px solid #e5e7eb', background: '#fff' }}>
+        {['privat', 'business'].map(m => (
+          <button
+            key={m}
+            onClick={() => setFeedMode(m)}
+            style={{
+              flex: 1, padding: '10px 0', fontSize: 14, fontWeight: 600,
+              border: 'none',
+              borderBottom: feedMode === m ? '2px solid #1877F2' : '2px solid transparent',
+              marginBottom: -2, background: 'none', cursor: 'pointer',
+              color: feedMode === m ? '#1877F2' : '#6b7280',
+              fontFamily: 'inherit', transition: 'color 0.15s',
+            }}
+          >
+            {m === 'privat' ? t.feedModePrivat : t.feedModeBusiness}
+          </button>
+        ))}
+      </div>
 
       {/* Memories card — on this day */}
       <MemoriesCard

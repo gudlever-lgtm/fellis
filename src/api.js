@@ -173,10 +173,10 @@ export async function apiLogout() {
 }
 
 // Feed
-export async function apiFetchFeed(cursor = null, limit = 20) {
-  const params = cursor
-    ? `cursor=${encodeURIComponent(cursor)}&limit=${limit}`
-    : `limit=${limit}`
+export async function apiFetchFeed(cursor = null, limit = 20, mode = null) {
+  const params = new URLSearchParams({ limit: String(limit) })
+  if (cursor) params.set('cursor', cursor)
+  if (mode) params.set('mode', mode)
   return await request(`/api/feed?${params}`)
 }
 
