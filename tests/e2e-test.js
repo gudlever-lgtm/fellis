@@ -675,6 +675,7 @@ async function testMailAndPasswordReset() {
   })
   if (change.ok) {
     ok('PATCH /api/profile/password — changed password while authenticated')
+    currentPass = newPass  // password is now changed — update before any re-login so cleanup always has the right one
 
     // 5. Login with OLD password → 401 (pre-auth, test without session)
     sessionId = null
@@ -686,7 +687,6 @@ async function testMailAndPasswordReset() {
     const newLogin = await api('POST', '/auth/login', { email: testEmail, password: newPass, lang: 'da' })
     if (newLogin.ok && newLogin.data?.sessionId) {
       sessionId = newLogin.data.sessionId
-      currentPass = newPass  // so cleanup uses the right password for GDPR delete
       ok('Login with new password → session issued')
     } else {
       sessionId = savedSession  // fall back to avoid breaking subsequent tests
@@ -720,37 +720,40 @@ async function run() {
   }
   console.log()
 
-  await testHealth()
-  await testConfig()
-  await testPreAuthRoutes()
-  await testRegister()
-  await testSessionCheck()
-  await testCsrfToken()              // fetch CSRF token for the initial session
-  await testLogin()          // logs in fresh after registering — session changes
-  await refreshCsrfToken()   // refresh CSRF token for the new session from login
-  await testSessionCheck()   // verify new session also works
-  await testMailAndPasswordReset()   // forgot-password API + change-password + re-login
-  await refreshCsrfToken()   // refresh CSRF token for the new session after password reset
-  await testHeartbeat()
-  await testFeed()
-  await testCreateTextPost()
-  await testLikePost()
-  await testAddComment()
-  await testCreateMediaPost()
-  await testStandaloneUpload()
-  await testProfile()
-  await testFriendSearch()
-  await testNotifications()
-  await testMarketplace()
-  await testEvents()
-  await testJobs()
-  await testMessaging()
-  await testReels()
-  await testExplore()
-  await testInterests()
-  await testBadges()
-  await testErrorHandling()
-  await cleanup()
+  try {
+    await testHealth()
+    await testConfig()
+    await testPreAuthRoutes()
+    await testRegister()
+    await testSessionCheck()
+    await testCsrfToken()              // fetch CSRF token for the initial session
+    await testLogin()          // logs in fresh after registering — session changes
+    await refreshCsrfToken()   // refresh CSRF token for the new session from login
+    await testSessionCheck()   // verify new session also works
+    await testMailAndPasswordReset()   // forgot-password API + change-password + re-login
+    await refreshCsrfToken()   // refresh CSRF token for the new session after password reset
+    await testHeartbeat()
+    await testFeed()
+    await testCreateTextPost()
+    await testLikePost()
+    await testAddComment()
+    await testCreateMediaPost()
+    await testStandaloneUpload()
+    await testProfile()
+    await testFriendSearch()
+    await testNotifications()
+    await testMarketplace()
+    await testEvents()
+    await testJobs()
+    await testMessaging()
+    await testReels()
+    await testExplore()
+    await testInterests()
+    await testBadges()
+    await testErrorHandling()
+  } finally {
+    await cleanup()
+  }
 
   // Fold any unexpected 500s into the failure count
   for (const entry of unexpectedFiveHundreds) {
