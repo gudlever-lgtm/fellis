@@ -487,20 +487,20 @@ function App() {
     })
   }, [])
 
-  const handleEnterPlatform = useCallback((selectedLang) => {
+  const handleEnterPlatform = useCallback(async (selectedLang) => {
     setLang(selectedLang)
-    setView('platform')
     localStorage.setItem('fellis_logged_in', 'true')
     localStorage.setItem('fellis_lang', selectedLang)
     localStorage.removeItem('fellis_invite_token')
     setInviteToken(null)
     setInviterName(null)
-    // Fetch CSRF token for authenticated requests
-    apiGetCsrfToken().then(csrfData => {
-      if (csrfData?.csrfToken) {
-        localStorage.setItem('fellis_csrf_token', csrfData.csrfToken)
-      }
-    }).catch(() => {})
+    // Fetch CSRF token before mounting platform — avoids race where heartbeat
+    // fires before the token is stored (platform mounts and immediately POSTs)
+    const csrfData = await apiGetCsrfToken().catch(() => null)
+    if (csrfData?.csrfToken) {
+      localStorage.setItem('fellis_csrf_token', csrfData.csrfToken)
+    }
+    setView('platform')
     // Check if existing user has given data_processing consent
     apiGetConsentStatus().then(data => {
       if (data && !data.data_processing?.given) setShowGeneralConsent(true)

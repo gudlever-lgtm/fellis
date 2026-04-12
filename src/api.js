@@ -1685,7 +1685,7 @@ export async function apiGetSuggestedUsers(limit = 6) {
 // ── Signal Engine / Interest Graph ────────────────────────────────────────────
 // Batch-send behavioral signals to the server. Each signal: { signal_type, source_type?, source_id?, interest_slugs?, context? }
 export async function apiIngestSignals(signals) {
-  return await request('/api/signals', 'POST', { signals })
+  return await request('/api/signals', { method: 'POST', body: JSON.stringify({ signals }) })
 }
 // Get the authenticated user's computed interest graph
 export async function apiGetInterestGraph() {
