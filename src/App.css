@@ -1369,6 +1369,18 @@
 }
 .p-input-hint-wrap:hover .p-input-hint-tooltip,
 .p-input-hint-wrap.active .p-input-hint-tooltip { opacity: 1; }
+@media (max-width: 600px) {
+  .p-input-hint-tooltip {
+    left: auto;
+    right: 0;
+    transform: none;
+  }
+  .p-input-hint-tooltip::after {
+    left: auto;
+    right: 14px;
+    transform: none;
+  }
+}
 
 /* ── @mention autocomplete dropdown ── */
 .p-mention-dropdown {
