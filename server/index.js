@@ -3308,6 +3308,19 @@ app.get('/api/feed', authenticate, async (req, res) => {
       if (c.media) { try { cMedia = typeof c.media === 'string' ? JSON.parse(c.media) : c.media } catch {} }
       commentsByPost[c.post_id].push({ id: c.id, author: c.author, text: { da: c.text_da, en: c.text_en }, media: cMedia, likes: Number(c.likes || 0), liked: !!c.liked, reaction: c.my_reaction || null })
     }
+    // Batch-fetch linked services for posts that have one
+    const serviceIds = [...new Set(posts.map(p => p.linked_service_id).filter(Boolean))]
+    const serviceMap = {}
+    if (serviceIds.length > 0) {
+      try {
+        const [svcRows] = await pool.query(
+          'SELECT id, name_da, name_en, description_da, description_en, price_from, price_to, image_url FROM business_services WHERE id IN (?)',
+          [serviceIds]
+        )
+        for (const s of svcRows) serviceMap[s.id] = s
+      } catch {}
+    }
+
     const result = posts.map(p => {
       let media = null
       if (p.media) {
@@ -3345,6 +3358,7 @@ app.get('/api/feed', authenticate, async (req, res) => {
         taggedUsers,
         linkedType: p.linked_type || null,
         linkedId: p.linked_id || null,
+        linkedService: p.linked_service_id ? (serviceMap[p.linked_service_id] || null) : null,
       }
     })
     // Track post views (fire-and-forget)
@@ -3564,6 +3578,8 @@ app.post('/api/feed', authenticate, writeLimit, upload.array('media', UPLOAD_FIL
   const VALID_LINKED_TYPES = new Set(['job', 'listing', 'event', 'reel'])
   const linkedType = VALID_LINKED_TYPES.has(req.body.linked_type) ? req.body.linked_type : null
   const linkedId = req.body.linked_id ? parseInt(req.body.linked_id) : null
+  // Service Spotlight — optional service card attached to the post
+  const linkedServiceId = req.body.linked_service_id ? parseInt(req.body.linked_service_id) : null
   if (!text && !req.files?.length) return res.status(400).json({ error: 'Post text or media required' })
 
   // Keyword filter check
@@ -3614,8 +3630,8 @@ app.post('/api/feed', authenticate, writeLimit, upload.array('media', UPLOAD_FIL
     const lng = (rawLng !== null && rawLng >= -180 && rawLng <= 180) ? rawLng : null
     const taggedJson = Array.isArray(taggedUsers) && taggedUsers.length > 0 ? JSON.stringify(taggedUsers) : null
     const [result] = await pool.query(
-      'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media, scheduled_at, categories, place_name, geo_lat, geo_lng, tagged_users, linked_type, linked_id, user_mode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT mode FROM users WHERE id = ?))',
-      [req.userId, text, text, 'Lige nu', 'Just now', mediaJson, scheduledDate, categoriesJson, placeName, lat, lng, taggedJson, linkedType, linkedId, req.userId]
+      'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media, scheduled_at, categories, place_name, geo_lat, geo_lng, tagged_users, linked_type, linked_id, linked_service_id, user_mode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT mode FROM users WHERE id = ?))',
+      [req.userId, text, text, 'Lige nu', 'Just now', mediaJson, scheduledDate, categoriesJson, placeName, lat, lng, taggedJson, linkedType, linkedId, linkedServiceId, req.userId]
     ).catch(() =>
       pool.query(
         'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media, scheduled_at, categories) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
@@ -3672,6 +3688,10 @@ app.post('/api/feed', authenticate, writeLimit, upload.array('media', UPLOAD_FIL
       taggedUsers: taggedJson ? JSON.parse(taggedJson) : null,
       linkedType: linkedType || null,
       linkedId: linkedId || null,
+      linkedService: linkedServiceId ? await pool.query(
+        'SELECT id, name_da, name_en, description_da, description_en, price_from, price_to, image_url FROM business_services WHERE id = ? AND user_id = ?',
+        [linkedServiceId, req.userId]
+      ).then(([rows]) => rows[0] || null).catch(() => null) : null,
     })
   } catch (err) {
     res.status(500).json({ error: 'Failed to create post' })
@@ -12499,6 +12519,15 @@ async function initBusinessFeaturesV2() {
 
     await addCol('users', 'cvr_number', 'VARCHAR(20) DEFAULT NULL').catch(() => {})
     await addCol('users', 'is_verified', 'TINYINT(1) NOT NULL DEFAULT 0').catch(() => {})
+    // Service Spotlight: link a business_services entry to a feed post
+    await pool.query(
+      'ALTER TABLE posts ADD COLUMN IF NOT EXISTS linked_service_id INT DEFAULT NULL'
+    ).catch(() => {
+      // MySQL 8 < 8.0.29 doesn't support IF NOT EXISTS on ALTER TABLE ADD COLUMN
+      return pool.query(
+        'ALTER TABLE posts ADD COLUMN linked_service_id INT DEFAULT NULL'
+      ).catch(() => {}) // ignore if already exists (errno 1060)
+    })
   } catch (err) {
     console.error('initBusinessFeaturesV2 error:', err.message)
   }
