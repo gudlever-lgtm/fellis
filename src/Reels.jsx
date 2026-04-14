@@ -1054,7 +1054,7 @@ export default function ReelsPage({ t, currentUser, initialReelId, onViewProfile
     page: {
       maxWidth: isMobile ? '100%' : 480,
       margin: isMobile ? '0 -8px' : '0 auto',   // cancel out p-content padding on mobile
-      padding: isMobile ? '16px 2px' : '24px 16px',
+      padding: isMobile ? '16px 1px 16px 3px' : '24px 16px',
     },
     header: {
       display: 'flex',
