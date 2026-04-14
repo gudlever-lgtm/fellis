@@ -6108,11 +6108,34 @@ function BillingSettings({ lang, t, mode }) {
                 <div style={{ fontSize: 12, color: '#888', marginBottom: 6 }}>{t.paymentMethodLabel}</div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   {[
-                    { key: 'card', label: t.paymentMethodCard },
-                    { key: 'mobilepay', label: 'MobilePay' },
-                  ].map(({ key, label }) => (
+                    {
+                      key: 'card',
+                      label: t.paymentMethodCard,
+                      icon: (
+                        <svg width="18" height="13" viewBox="0 0 18 13" fill="none" aria-hidden="true" style={{ flexShrink: 0 }}>
+                          <rect x=".5" y=".5" width="17" height="12" rx="2" stroke="currentColor" strokeWidth="1.2"/>
+                          <rect y="3.5" width="18" height="2.5" fill="currentColor"/>
+                          <rect x="2" y="8.5" width="5" height="1.5" rx=".5" fill="currentColor" opacity=".5"/>
+                        </svg>
+                      ),
+                    },
+                    {
+                      key: 'mobilepay',
+                      label: 'MobilePay',
+                      icon: (
+                        <svg width="13" height="18" viewBox="0 0 13 18" fill="none" aria-hidden="true" style={{ flexShrink: 0 }}>
+                          <rect x=".5" y=".5" width="12" height="17" rx="2.5" stroke="currentColor" strokeWidth="1.2"/>
+                          <rect x="3.5" y="1.5" width="5" height="1" rx=".5" fill="currentColor" opacity=".35"/>
+                          <circle cx="6.5" cy="14.5" r="1.2" fill="currentColor" opacity=".5"/>
+                          <rect x="2.5" y="5" width="8" height="6" rx="1.5" fill="currentColor" opacity=".12"/>
+                          <path d="M5 7.5L6.5 9L9 6.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" opacity=".6"/>
+                        </svg>
+                      ),
+                    },
+                  ].map(({ key, label, icon }) => (
                     <button key={key} onClick={() => setPaymentMethod(key)}
-                      style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: `1.5px solid ${paymentMethod === key ? '#5A78FF' : '#ddd'}`, background: paymentMethod === key ? '#EEF1FF' : '#fff', color: paymentMethod === key ? '#5A78FF' : '#555', fontWeight: paymentMethod === key ? 700 : 400, fontSize: 13, cursor: 'pointer' }}>
+                      style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: `1.5px solid ${paymentMethod === key ? '#5A78FF' : '#ddd'}`, background: paymentMethod === key ? '#EEF1FF' : '#fff', color: paymentMethod === key ? '#5A78FF' : '#555', fontWeight: paymentMethod === key ? 700 : 400, fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+                      {icon}
                       {label}
                     </button>
                   ))}
