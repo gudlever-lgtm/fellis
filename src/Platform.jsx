@@ -655,19 +655,21 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
           <select className="lang-toggle" value={lang} onChange={e => changeLang(e.target.value)} aria-label="Language">
             {UI_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
           </select>
-          {/* Ad-free badge / upgrade prompt */}
-          {adsFree ? (
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#2D6A4F', background: '#e8f5ee', border: '1px solid #b7dfc9', borderRadius: 20, padding: '3px 9px', whiteSpace: 'nowrap' }}>
-              ✓ {t.adFree2}
-            </span>
-          ) : (
-            <button
-              onClick={() => navigateTo('settings', 'billing')}
-              style={{ fontSize: 11, fontWeight: 600, color: '#888', background: 'none', border: '1px solid #ddd', borderRadius: 20, padding: '3px 9px', whiteSpace: 'nowrap', cursor: 'pointer' }}
-            >
-              🚫 {t.adFreeBtn}
-            </button>
-          )}
+          {/* Ad-free badge / upgrade prompt — hidden on small screens so avatar stays visible */}
+          <div className="nav-adfree-indicator">
+            {adsFree ? (
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#2D6A4F', background: '#e8f5ee', border: '1px solid #b7dfc9', borderRadius: 20, padding: '3px 9px', whiteSpace: 'nowrap' }}>
+                ✓ {t.adFree2}
+              </span>
+            ) : (
+              <button
+                onClick={() => navigateTo('settings', 'billing')}
+                style={{ fontSize: 11, fontWeight: 600, color: '#888', background: 'none', border: '1px solid #ddd', borderRadius: 20, padding: '3px 9px', whiteSpace: 'nowrap', cursor: 'pointer' }}
+              >
+                🚫 {t.adFreeBtn}
+              </button>
+            )}
+          </div>
           {/* Avatar with dropdown menu */}
           <div ref={avatarMenuRef} style={{ position: 'relative' }}>
             {avatarSrc ? (
