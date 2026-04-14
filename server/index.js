@@ -14838,29 +14838,29 @@ app.get('/api/businesses/:id/jobs', async (req, res) => {
 // NOTE: cvrapi.dk has incomplete coverage (e.g. foreign entities / UE type are not indexed),
 // so a 404 from their API does NOT mean the CVR is invalid — treat all failures as unconfirmed.
 async function lookupCVR(cvr) {
+  const token = process.env.CVRAPI_TOKEN
+  const url = `https://cvrapi.dk/api?country=dk&search=${encodeURIComponent(cvr)}&useragent=fellis.eu${token ? `&token=${encodeURIComponent(token)}` : ''}`
   try {
-    const token = process.env.CVRAPI_TOKEN
-    // Use ?search= instead of ?vat= — the vat endpoint returns 404 for some valid companies
-    // (e.g. those with protected=true), while search by CVR number works reliably.
-    const url = `https://cvrapi.dk/api?country=dk&search=${encodeURIComponent(cvr)}&useragent=fellis.eu${token ? `&token=${encodeURIComponent(token)}` : ''}`
     const res = await fetch(url, {
       headers: { Accept: 'application/json' },
       signal: AbortSignal.timeout(8000),
     })
 
-    if (!res.ok) return 'unavailable'
+    if (!res.ok) {
+      console.warn(`lookupCVR: HTTP ${res.status} from cvrapi.dk for CVR ${cvr}`)
+      return { unavailable: true, status: res.status }
+    }
 
     const data = await res.json()
+    console.log(`lookupCVR: cvrapi.dk response for ${cvr}:`, JSON.stringify(data).slice(0, 200))
 
-    // { error: false, name: "..." } is a successful response
-    // { error: "NOT_FOUND" } or any truthy error string means the API couldn't find it
-    if (data.error && data.error !== false) return 'unavailable'
-    if (!data.name) return 'unavailable'
+    if (data.error && data.error !== false) return { unavailable: true, status: 200, apiError: data.error }
+    if (!data.name) return { unavailable: true, status: 200, apiError: 'no name' }
 
     return { name: data.name, city: data.city || null, industry: data.industrydesc || null }
   } catch (err) {
-    console.warn(`lookupCVR: API unreachable for CVR ${cvr}:`, err.message)
-    return 'unavailable'
+    console.warn(`lookupCVR: fetch failed for CVR ${cvr}:`, err.message)
+    return { unavailable: true, status: 0, apiError: err.message }
   }
 }
 
@@ -14869,7 +14869,7 @@ app.get('/api/me/verify-business/lookup', authenticate, async (req, res) => {
   const cvr = (req.query.cvr || '').trim().replace(/[\s\-]/g, '')
   if (!/^\d{8}$/.test(cvr)) return res.status(400).json({ error: 'cvr_format' })
   const data = await lookupCVR(cvr)
-  if (data === 'unavailable') return res.status(503).json({ error: 'cvr_api_unavailable' })
+  if (data.unavailable) return res.status(503).json({ error: 'cvr_api_unavailable', detail: { status: data.status, apiError: data.apiError } })
   res.json(data)
 })
 
@@ -14882,11 +14882,9 @@ app.post('/api/me/verify-business', authenticate, writeLimit, async (req, res) =
     const [[user]] = await pool.query('SELECT mode FROM users WHERE id = ?', [req.userId])
     if (user?.mode !== 'business') return res.status(403).json({ error: 'Business account required' })
 
-    // Validate: strip separators, must be exactly 8 digits
     const cleaned = cvr_number.trim().replace(/[\s\-]/g, '')
     if (!/^\d{8}$/.test(cleaned)) return res.status(422).json({ error: 'cvr_format' })
 
-    // Duplicate check: another verified account already holds this CVR
     const [[taken]] = await pool.query(
       'SELECT id FROM users WHERE cvr_number = ? AND is_verified = 1 AND id != ?',
       [cleaned, req.userId]
@@ -14895,15 +14893,11 @@ app.post('/api/me/verify-business', authenticate, writeLimit, async (req, res) =
 
     const cvrData = await lookupCVR(cleaned)
 
-    if (cvrData === 'unavailable') {
-      // Registry temporarily unreachable — store CVR as pending for manual admin review
+    if (cvrData.unavailable) {
       await pool.query('UPDATE users SET cvr_number = ?, is_verified = 0 WHERE id = ?', [cleaned, req.userId])
       return res.json({ ok: true, pending: true })
     }
 
-    if (!cvrData) return res.status(422).json({ error: 'cvr_not_found' })
-
-    // Auto-approve: CVR confirmed in registry
     await pool.query(
       'UPDATE users SET cvr_number = ?, is_verified = 1, cvr_company_name = ? WHERE id = ?',
       [cleaned, cvrData.name, req.userId]
