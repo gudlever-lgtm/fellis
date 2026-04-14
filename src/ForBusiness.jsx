@@ -321,11 +321,35 @@ export default function ForBusiness() {
       <div style={s.sectionAlt}>
         <div style={s.section}>
           <h2 style={s.sectionTitle}>{t.forBusinessPricingTitle}</h2>
+
+          {/* Free tier */}
           <div style={s.pricingCard}>
             <div style={s.pricingPlan}>{t.forBusinessPricingPlan}</div>
-            <div style={s.pricingPrice}>{t.forBusinessPricingPrice}</div>
-            <p style={s.pricingNote}>{t.forBusinessPricingNote}</p>
+            <div style={s.pricingPrice}>{t.forBusinessPricingFree}</div>
+            <p style={s.pricingNote}>{t.forBusinessPricingFreeNote}</p>
             <a href={ctaHref} style={s.ctaBtnLg}>{t.forBusinessHeroCta}</a>
+          </div>
+
+          {/* Paid extras */}
+          <div style={{ maxWidth: 420, margin: '28px auto 0' }}>
+            <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#aaa', textAlign: 'center', marginBottom: 14 }}>
+              {t.forBusinessPricingPaidTitle}
+            </div>
+            {[
+              { label: t.forBusinessPricingAds,     desc: t.forBusinessPricingAdsDesc },
+              { label: t.forBusinessPricingBoost,   desc: t.forBusinessPricingBoostDesc },
+              { label: t.forBusinessPricingAdfree,  desc: t.forBusinessPricingAdfreeDesc },
+            ].map((item, i, arr) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', background: '#fff', border: '1px solid #E8E4DF', borderRadius: i === 0 ? '10px 10px 0 0' : i === arr.length - 1 ? '0 0 10px 10px' : 0, borderTop: i > 0 ? 'none' : undefined }}>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: '#2D3436' }}>{item.label}</div>
+                  <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{item.desc}</div>
+                </div>
+                <div style={{ fontSize: 13, color: '#aaa', fontStyle: 'italic', flexShrink: 0, marginLeft: 12 }}>
+                  {da ? 'variabel' : 'variable'}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
