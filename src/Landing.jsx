@@ -49,6 +49,7 @@ const T = {
     loginCancel: 'Annuller',
     loginError: 'Ugyldig e-mail eller adgangskode',
     loginErrorSocialOnly: 'Denne konto er oprettet via Google eller LinkedIn. Brug den tilsvarende login-knap.',
+    loginErrorRateLimit: 'For mange loginforsøg — prøv igen om 15 minutter.',
     loginNoAccount: 'Har du ikke en konto?',
     loginSignup: 'Kom i gang',
     forgotPassword: 'Glemt adgangskode?',
@@ -144,6 +145,7 @@ const T = {
     loginCancel: 'Cancel',
     loginError: 'Invalid email or password',
     loginErrorSocialOnly: 'This account was created via Google or LinkedIn. Please use the corresponding login button.',
+    loginErrorRateLimit: 'Too many login attempts — please try again in 15 minutes.',
     loginNoAccount: "Don't have an account?",
     loginSignup: 'Get started',
     forgotPassword: 'Forgotten password?',
@@ -299,6 +301,8 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
         setMfaError('')
       } else if (data?.error === 'social_login_only') {
         setLoginError(t.loginErrorSocialOnly)
+      } else if (data?.status === 429) {
+        setLoginError(t.loginErrorRateLimit)
       } else {
         setLoginError(t.loginError)
       }
