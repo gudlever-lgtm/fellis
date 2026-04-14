@@ -5883,7 +5883,7 @@ function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, on
         <SettingsKonto lang={lang} t={t} currentUser={currentUser} mode={mode} fS={fS} lS={lS} onNavigate={onNavigate} onOpenModeModal={onOpenModeModal} />
         <EasterEggSettings lang={lang} />
       </>}
-      {tab === 'sikkerhed' && <SettingsSikkerhed lang={lang} fS={fS} lS={lS} />}
+      {tab === 'sikkerhed' && <SettingsSikkerhed lang={lang} fS={fS} lS={lS} currentUser={currentUser} />}
       {tab === 'billing' && <BillingSettings lang={lang} t={t} mode={mode} />}
       {tab === 'notifikationer' && <SettingsNotifications lang={lang} t={t} />}
       {tab === 'privatliv' && <SettingsPrivatliv lang={lang} t={t} fS={fS} lS={lS} />}
@@ -6380,7 +6380,7 @@ function PasswordStrengthIndicator({ password, lang }) {
   )
 }
 
-function SettingsSikkerhed({ lang, fS, lS }) {
+function SettingsSikkerhed({ lang, fS, lS, currentUser }) {
   const t = getTranslations(lang)
   const [profile, setProfile] = useState(null)
   const [phone, setPhone] = useState('')
@@ -6462,7 +6462,7 @@ function SettingsSikkerhed({ lang, fS, lS }) {
 
   const btnStyle = (color = '#2D6A4F') => ({ padding: '9px 20px', borderRadius: 8, border: 'none', background: color, color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600 })
 
-  return (
+  return (<>
     <div className="p-card" style={{ padding: 24 }}>
       <div style={{ fontSize: 15, fontWeight: 700, color: '#333', marginBottom: 4 }}>
         🔒 {t.twoFactorAuthentication2FA}
@@ -6555,7 +6555,8 @@ function SettingsSikkerhed({ lang, fS, lS }) {
         {mfaMsg && <div style={{ marginTop: 10, fontSize: 13, fontWeight: 600, color: mfaMsg.ok ? '#2D6A4F' : '#c0392b' }}>{mfaMsg.ok ? '✓' : '✗'} {mfaMsg.text}</div>}
       </div>
     </div>
-  )
+    <ModeratorRequestCard lang={lang} t={t} currentUser={currentUser} />
+  </>)
 }
 
 function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenModeModal }) {
@@ -6767,8 +6768,6 @@ function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenM
           {t.modeSwitch}
         </button>
       </div>
-
-      <ModeratorRequestCard lang={lang} t={t} currentUser={currentUser} />
 
       {/* MFA challenge overlay for sensitive changes */}
       {mfaPending && (
