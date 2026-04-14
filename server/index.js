@@ -1805,7 +1805,7 @@ app.get('/api/csrf-token', authenticate, async (req, res) => {
 // GET /api/auth/session — check if session is valid
 app.get('/api/auth/session', authenticate, async (req, res) => {
   try {
-    const [users] = await pool.query('SELECT id, name, handle, initials, avatar_url, mode, ads_free, is_moderator FROM users WHERE id = ?', [req.userId])
+    const [users] = await pool.query('SELECT id, name, handle, initials, avatar_url, mode, ads_free, is_moderator, onboarding_dismissed, created_at FROM users WHERE id = ?', [req.userId])
     if (users.length === 0) return res.status(404).json({ error: 'User not found' })
     // Compute ads_free dynamically: today must fall within an active earned-day assignment
     // OR an active purchased period — never rely on the static users.ads_free column
@@ -1823,6 +1823,16 @@ app.get('/api/auth/session', authenticate, async (req, res) => {
     res.json({ user, lang: req.lang })
   } catch (err) {
     res.status(500).json({ error: 'Session check failed' })
+  }
+})
+
+// POST /api/user/onboarding/dismiss — mark onboarding checklist as dismissed
+app.post('/api/user/onboarding/dismiss', authenticate, writeLimit, async (req, res) => {
+  try {
+    await pool.query('UPDATE users SET onboarding_dismissed = 1 WHERE id = ?', [req.userId])
+    res.json({ success: true })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to dismiss onboarding' })
   }
 })
 

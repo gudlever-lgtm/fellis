@@ -660,4 +660,31 @@ if (existsSync(ENV_EXAMPLE_PATH)) {
   }
 }
 
+// ── 15. Onboarding dismiss endpoint ──────────────────────────────────────────
+//
+// The onboarding checklist is shown once to new users (account < 7 days,
+// onboarding_dismissed = 0).  Dismissing it calls this endpoint:
+//
+//   POST /api/user/onboarding/dismiss → 200 (authenticated) | 401 (not authenticated)
+//
+// Must never return 404 (route missing) or 500 (server error).
+
+const REQUIRED_ONBOARDING_ROUTES = [
+  'POST /api/user/onboarding/dismiss',
+]
+
+const missingOnboardingRoutes = REQUIRED_ONBOARDING_ROUTES.filter(r => {
+  const [method, p] = r.split(' ')
+  return !normServerRoutes.has(`${method} ${normaliseServerPath(p)}`)
+})
+
+if (missingOnboardingRoutes.length > 0) {
+  console.log(`${RED}✗ Missing required onboarding server routes:${RESET}`)
+  for (const r of missingOnboardingRoutes) console.log(`  ${RED}${r}${RESET}`)
+  console.log()
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ Onboarding dismiss route (POST /api/user/onboarding/dismiss) is registered on the server.${RESET}\n`)
+}
+
 process.exit(0)

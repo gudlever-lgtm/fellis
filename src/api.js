@@ -182,6 +182,11 @@ export async function apiLogout() {
   // Session cookie automatically managed by browser
 }
 
+// Onboarding
+export async function apiDismissOnboarding() {
+  return await request('/api/user/onboarding/dismiss', { method: 'POST' })
+}
+
 // Feed
 export async function apiFetchFeed(cursor = null, limit = 20, mode = null) {
   const params = new URLSearchParams({ limit: String(limit) })

@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react'
 import Landing from './Landing.jsx'
 import Platform from './Platform.jsx'
 import PublicBlogPage from './BlogPage.jsx'
+import ForBusiness from './ForBusiness.jsx'
 import InstallPrompt from './components/InstallPrompt.jsx'
 import { apiCheckSession, apiLogout, apiGiveConsent, apiGetConsentStatus, apiGetInviteInfo, apiTrackVisit, apiGetCsrfToken, apiGetUserByHandle } from './api.js'
 import { UI_LANGS, detectLang, detectLangFromIP, PT } from './data.js'
@@ -760,6 +761,7 @@ function AppRoot() {
   if (path === '/terms') return <PublicTermsPage />
   if (path === '/salgsbetingelser') return <PublicSalgsbetingelserPage />
   if (path === '/blog' || window.location.pathname.startsWith('/blog/')) return <PublicBlogPage />
+  if (path === '/for-business') return <ForBusiness />
   return <App />
 }
 

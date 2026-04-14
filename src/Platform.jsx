@@ -75,6 +75,7 @@ import MakeOfferModal from './components/MakeOfferModal.jsx'
 import KeyboardShortcutsHelp from './components/KeyboardShortcutsHelp.jsx'
 import useKeyboardShortcuts from './hooks/useKeyboardShortcuts.js'
 import DiscoveryCard from './components/DiscoveryCard.jsx'
+import OnboardingChecklist from './OnboardingChecklist.jsx'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -278,6 +279,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
 
   const [showOnboarding, setShowOnboarding] = useState(() => localStorage.getItem('fellis_onboarding') === '1')
   const [onboardingInviterName] = useState(() => localStorage.getItem('fellis_onboarding_inviter') || null)
+  const [showOnboardingChecklist, setShowOnboardingChecklist] = useState(false)
   const avatarMenuRef = useRef(null)
   const notifRef = useRef(null)
   const [showMoreMenu, setShowMoreMenu] = useState(false)
@@ -351,6 +353,12 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
         } else {
           // Fallback: sync localStorage → server
           apiUpdateMode(mode === 'business' ? 'business' : 'privat').catch(() => {})
+        }
+        // Show onboarding checklist for new personal users (account < 7 days, not dismissed)
+        if (!data.user.onboarding_dismissed && data.user.created_at) {
+          const accountAge = Date.now() - new Date(data.user.created_at).getTime()
+          const sevenDaysMs = 7 * 24 * 60 * 60 * 1000
+          if (accountAge < sevenDaysMs) setShowOnboardingChecklist(true)
         }
       } else if (data?.__authError) {
         // Genuine 401/403 — session invalid, log out
@@ -754,6 +762,14 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
       <div className={page === 'feed' ? 'p-content p-content-feed' : 'p-content'}>
         <div style={{ display: page === 'feed' ? 'contents' : 'none' }}>
           <div className="p-feed-main">
+            {showOnboardingChecklist && (
+              <OnboardingChecklist
+                lang={lang}
+                currentUser={currentUser}
+                onNavigate={navigateTo}
+                onDismiss={() => setShowOnboardingChecklist(false)}
+              />
+            )}
             <FeedPage lang={lang} t={t} currentUser={currentUser} mode={mode} adsFree={adsFree} highlightPostId={highlightPostId} onHighlightCleared={() => setHighlightPostId(null)}
               onViewProfile={(uid) => { setViewUserId(uid); navigateTo('view-profile') }}
               onViewOwnProfile={() => navigateTo('profile')}
