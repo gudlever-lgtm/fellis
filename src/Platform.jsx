@@ -3832,25 +3832,27 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       {/* Reels strip */}
       <ReelsStrip lang={lang} t={t} onNavigate={onNavigate} />
 
-      {/* Feed mode toggle — Community (privat) vs Business */}
-      <div style={{ display: 'flex', borderBottom: '2px solid #e5e7eb', background: '#fff' }}>
-        {['privat', 'business'].map(m => (
-          <button
-            key={m}
-            onClick={() => setFeedMode(m)}
-            style={{
-              flex: 1, padding: '10px 0', fontSize: 14, fontWeight: 600,
-              border: 'none',
-              borderBottom: feedMode === m ? '2px solid #1877F2' : '2px solid transparent',
-              marginBottom: -2, background: 'none', cursor: 'pointer',
-              color: feedMode === m ? '#1877F2' : '#6b7280',
-              fontFamily: 'inherit', transition: 'color 0.15s',
-            }}
-          >
-            {m === 'privat' ? t.feedModePrivat : t.feedModeBusiness}
-          </button>
-        ))}
-      </div>
+      {/* Feed mode toggle — Community (privat) vs Business — only for business accounts */}
+      {mode === 'business' && (
+        <div style={{ display: 'flex', borderBottom: '2px solid #e5e7eb', background: '#fff' }}>
+          {['privat', 'business'].map(m => (
+            <button
+              key={m}
+              onClick={() => setFeedMode(m)}
+              style={{
+                flex: 1, padding: '10px 0', fontSize: 14, fontWeight: 600,
+                border: 'none',
+                borderBottom: feedMode === m ? '2px solid #1877F2' : '2px solid transparent',
+                marginBottom: -2, background: 'none', cursor: 'pointer',
+                color: feedMode === m ? '#1877F2' : '#6b7280',
+                fontFamily: 'inherit', transition: 'color 0.15s',
+              }}
+            >
+              {m === 'privat' ? t.feedModePrivat : t.feedModeBusiness}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Memories card — on this day */}
       <MemoriesCard
