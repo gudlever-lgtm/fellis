@@ -5,6 +5,7 @@
   "scripts": {
     "start": "node --env-file=.env index.js",
     "seed": "node --env-file=.env seed.js",
+    "unseed": "node --env-file=.env unseed.js",
     "seed-bots": "node seed-bots.js",
     "cleanup-bots": "node cleanup-bots.js",
     "cleanup-e2e": "node --env-file=.env cleanup-e2e-users.js",
