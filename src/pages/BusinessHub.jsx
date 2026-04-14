@@ -476,12 +476,16 @@ function AnalyticsDepthSection({ t, lang }) {
 // ── CVR Verification ──────────────────────────────────────────────────────────
 function VerificationSection({ t, lang, currentUser }) {
   const [cvr, setCvr] = useState('')
-  const [lookup, setLookup] = useState(null)   // { name, city, industry } | null
-  const [lookupState, setLookupState] = useState('idle') // idle | loading | found | error
+  const [lookup, setLookup] = useState(null)
+  // lookupState: idle | loading | found | unavailable | error
+  const [lookupState, setLookupState] = useState('idle')
   const [lookupError, setLookupError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
   const [verified, setVerified] = useState(currentUser?.is_verified || false)
+  const [pendingManual, setPendingManual] = useState(
+    !!(currentUser?.cvr_number && !currentUser?.is_verified)
+  )
   const [verifiedData, setVerifiedData] = useState(
     currentUser?.is_verified
       ? { cvr: currentUser.cvr_number, name: currentUser.cvr_company_name }
@@ -490,7 +494,6 @@ function VerificationSection({ t, lang, currentUser }) {
   const lookupTimer = useRef(null)
 
   const cleanCvr = (v) => v.replace(/[\s\-]/g, '')
-  const isValidFormat = (v) => /^\d{8}$/.test(cleanCvr(v))
 
   const handleChange = (e) => {
     const val = e.target.value.replace(/[^\d\s\-]/g, '')
@@ -501,20 +504,17 @@ function VerificationSection({ t, lang, currentUser }) {
 
     clearTimeout(lookupTimer.current)
     const cleaned = cleanCvr(val)
-    if (cleaned.length < 8) {
-      setLookupState('idle')
-      return
-    }
-    if (!isValidFormat(val)) {
-      setLookupState('error')
-      setLookupError(t.cvrFormatError)
-      return
-    }
-    // Debounce the lookup by 600ms after the user stops typing
+
+    if (cleaned.length < 8) { setLookupState('idle'); return }
+    if (!/^\d{8}$/.test(cleaned)) { setLookupState('error'); setLookupError(t.cvrFormatError); return }
+
     setLookupState('loading')
     lookupTimer.current = setTimeout(async () => {
       const res = await apiLookupCVR(cleaned)
-      if (res && !res.error) {
+      if (res?.error === 'cvr_api_unavailable') {
+        setLookupState('unavailable')
+        setLookupError('')
+      } else if (res && !res.error) {
         setLookup(res)
         setLookupState('found')
         setLookupError('')
@@ -526,15 +526,21 @@ function VerificationSection({ t, lang, currentUser }) {
     }, 600)
   }
 
+  const canSubmit = lookupState === 'found' || lookupState === 'unavailable'
+
   const submit = async () => {
-    if (lookupState !== 'found' || submitting) return
+    if (!canSubmit || submitting) return
     setSubmitting(true)
     setSubmitError('')
     const r = await apiSubmitBusinessVerification(cleanCvr(cvr))
     setSubmitting(false)
     if (r?.ok) {
-      setVerified(true)
-      setVerifiedData({ cvr: cleanCvr(cvr), name: r.companyName })
+      if (r.pending) {
+        setPendingManual(true)
+      } else {
+        setVerified(true)
+        setVerifiedData({ cvr: cleanCvr(cvr), name: r.companyName })
+      }
     } else {
       const errMap = {
         cvr_format: t.cvrFormatError,
@@ -552,19 +558,37 @@ function VerificationSection({ t, lang, currentUser }) {
           <span style={{ fontSize: 28 }}>✅</span>
           <div>
             <div style={{ fontWeight: 700, color: '#065F46', fontSize: 14 }}>{t.verificationApproved}</div>
-            {verifiedData?.name && (
-              <div style={{ fontSize: 13, color: '#374151', marginTop: 2 }}>{verifiedData.name}</div>
-            )}
-            {verifiedData?.cvr && (
-              <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 1 }}>CVR {verifiedData.cvr}</div>
-            )}
+            {verifiedData?.name && <div style={{ fontSize: 13, color: '#374151', marginTop: 2 }}>{verifiedData.name}</div>}
+            {verifiedData?.cvr && <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 1 }}>CVR {verifiedData.cvr}</div>}
           </div>
         </div>
       </SectionCard>
     )
   }
 
-  const borderColor = lookupState === 'found' ? '#059669' : lookupState === 'error' ? '#EF4444' : '#D1D5DB'
+  if (pendingManual) {
+    return (
+      <SectionCard title={t.verifyBusiness}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: 28 }}>⏳</span>
+          <div>
+            <div style={{ fontWeight: 700, color: '#92400E', fontSize: 14 }}>{t.cvrPendingManual}</div>
+            {currentUser?.cvr_number && <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 1 }}>CVR {currentUser.cvr_number}</div>}
+          </div>
+        </div>
+      </SectionCard>
+    )
+  }
+
+  const borderColor = lookupState === 'found' ? '#059669'
+    : lookupState === 'unavailable' ? '#F59E0B'
+    : lookupState === 'error' ? '#EF4444'
+    : '#D1D5DB'
+
+  const btnActive = canSubmit && !submitting
+  const btnLabel = submitting ? '…'
+    : lookupState === 'unavailable' ? t.submitForReview
+    : t.submitVerification
 
   return (
     <SectionCard title={t.verifyBusiness}>
@@ -580,24 +604,25 @@ function VerificationSection({ t, lang, currentUser }) {
         <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 16, pointerEvents: 'none' }}>
           {lookupState === 'loading' && '⏳'}
           {lookupState === 'found' && '✓'}
+          {lookupState === 'unavailable' && '⚠'}
           {lookupState === 'error' && '✗'}
         </span>
       </div>
 
-      {/* Lookup result preview */}
       {lookupState === 'found' && lookup && (
         <div style={{ marginTop: 10, padding: '10px 12px', background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 8 }}>
           <div style={{ fontSize: 12, color: '#059669', fontWeight: 700, marginBottom: 3 }}>{t.cvrFound}</div>
           <div style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>{lookup.name}</div>
           {(lookup.city || lookup.industry) && (
-            <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
-              {[lookup.city, lookup.industry].filter(Boolean).join(' · ')}
-            </div>
+            <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>{[lookup.city, lookup.industry].filter(Boolean).join(' · ')}</div>
           )}
         </div>
       )}
 
-      {/* Inline error */}
+      {lookupState === 'unavailable' && (
+        <div style={{ marginTop: 8, fontSize: 12, color: '#92400E', background: '#FEF3C7', padding: '8px 12px', borderRadius: 8 }}>{t.cvrApiUnavailable}</div>
+      )}
+
       {lookupState === 'error' && lookupError && (
         <div style={{ marginTop: 8, fontSize: 12, color: '#EF4444' }}>{lookupError}</div>
       )}
@@ -607,10 +632,10 @@ function VerificationSection({ t, lang, currentUser }) {
 
       <button
         onClick={submit}
-        disabled={lookupState !== 'found' || submitting}
-        style={{ marginTop: 14, width: '100%', padding: '10px', borderRadius: 8, border: 'none', background: lookupState === 'found' ? '#6366F1' : '#E5E7EB', color: lookupState === 'found' ? '#fff' : '#9CA3AF', fontWeight: 600, fontSize: 14, cursor: lookupState === 'found' ? 'pointer' : 'default', transition: 'background 0.15s' }}
+        disabled={!btnActive}
+        style={{ marginTop: 14, width: '100%', padding: '10px', borderRadius: 8, border: 'none', background: btnActive ? (lookupState === 'unavailable' ? '#F59E0B' : '#6366F1') : '#E5E7EB', color: btnActive ? '#fff' : '#9CA3AF', fontWeight: 600, fontSize: 14, cursor: btnActive ? 'pointer' : 'default', transition: 'background 0.15s' }}
       >
-        {submitting ? '…' : t.submitVerification}
+        {btnLabel}
       </button>
     </SectionCard>
   )

@@ -74,6 +74,9 @@ export default {
     cvrTakenError: 'Dette CVR-nummer er allerede registreret på en anden konto',
     cvrVerifyError: 'Noget gik galt — prøv igen',
     cvrIndustry: 'Branche',
+    cvrApiUnavailable: 'Registeret er midlertidigt utilgængeligt — du kan stadig indsende til manuel gennemgang',
+    cvrPendingManual: 'CVR-nummeret er gemt og afventer manuel gennemgang',
+    submitForReview: 'Indsend til gennemgang',
     // Feature 4: Announcements
     announcements: 'Meddelelser',
     announcementsDesc: 'Broadcast-beskeder til dine følgere',
@@ -223,6 +226,9 @@ export default {
     cvrTakenError: 'This CVR number is already registered on another account',
     cvrVerifyError: 'Something went wrong — please try again',
     cvrIndustry: 'Industry',
+    cvrApiUnavailable: 'Registry temporarily unavailable — you can still submit for manual review',
+    cvrPendingManual: 'CVR number saved and pending manual review',
+    submitForReview: 'Submit for review',
     // Feature 4: Announcements
     announcements: 'Announcements',
     announcementsDesc: 'Broadcast messages to your followers',

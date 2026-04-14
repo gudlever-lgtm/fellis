@@ -14790,18 +14790,40 @@ app.get('/api/businesses/:id/jobs', async (req, res) => {
 // ── Feature 3: Business verification (CVR) ──
 
 // Helper: look up a CVR number against the Danish registry (cvrapi.dk)
+// Returns: { name, city, industry } on success
+//          null  if the CVR is definitively not in the registry (HTTP 404)
+//          'unavailable'  if the API is unreachable, rate-limited (429), or times out
 async function lookupCVR(cvr) {
   try {
-    const res = await fetch(
-      `https://cvrapi.dk/api?country=dk&vat=${encodeURIComponent(cvr)}&useragent=fellis.eu`,
-      { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(6000) }
-    )
-    if (!res.ok) return null
+    const token = process.env.CVRAPI_TOKEN
+    const url = `https://cvrapi.dk/api?country=dk&vat=${encodeURIComponent(cvr)}&useragent=fellis.eu${token ? `&token=${encodeURIComponent(token)}` : ''}`
+    const res = await fetch(url, {
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(8000),
+    })
+
+    // Rate-limited or server-side error — API temporarily unavailable
+    if (res.status === 429 || res.status >= 500) return 'unavailable'
+
+    // Definitive "not found"
+    if (res.status === 404) return null
+    if (!res.ok) {
+      console.warn(`lookupCVR: unexpected HTTP ${res.status} for CVR ${cvr}`)
+      return 'unavailable'
+    }
+
     const data = await res.json()
-    if (data.error || !data.name) return null
+
+    // API returns { error: "NOT_FOUND" } or { error: "..." } for errors,
+    // and { error: false } for success. Distinguish these cases.
+    if (data.error && data.error !== false) return null
+    if (!data.name) return null
+
     return { name: data.name, city: data.city || null, industry: data.industrydesc || null }
-  } catch {
-    return null
+  } catch (err) {
+    // Network failure, DNS error, or timeout — treat as temporarily unavailable
+    console.warn(`lookupCVR: API unreachable for CVR ${cvr}:`, err.message)
+    return 'unavailable'
   }
 }
 
@@ -14810,11 +14832,13 @@ app.get('/api/me/verify-business/lookup', authenticate, async (req, res) => {
   const cvr = (req.query.cvr || '').trim().replace(/[\s\-]/g, '')
   if (!/^\d{8}$/.test(cvr)) return res.status(400).json({ error: 'cvr_format' })
   const data = await lookupCVR(cvr)
+  if (data === 'unavailable') return res.status(503).json({ error: 'cvr_api_unavailable' })
   if (!data) return res.status(404).json({ error: 'cvr_not_found' })
   res.json(data)
 })
 
-// POST /api/me/verify-business — submit CVR for verification (auto-approves via registry lookup)
+// POST /api/me/verify-business — submit CVR for verification
+// Auto-approves when registry confirms the CVR; falls back to pending when API is unavailable.
 app.post('/api/me/verify-business', authenticate, writeLimit, async (req, res) => {
   try {
     const { cvr_number } = req.body
@@ -14833,8 +14857,14 @@ app.post('/api/me/verify-business', authenticate, writeLimit, async (req, res) =
     )
     if (taken) return res.status(409).json({ error: 'cvr_taken' })
 
-    // Look up in Danish CVR registry to confirm existence
     const cvrData = await lookupCVR(cleaned)
+
+    if (cvrData === 'unavailable') {
+      // Registry temporarily unreachable — store CVR as pending for manual admin review
+      await pool.query('UPDATE users SET cvr_number = ?, is_verified = 0 WHERE id = ?', [cleaned, req.userId])
+      return res.json({ ok: true, pending: true })
+    }
+
     if (!cvrData) return res.status(422).json({ error: 'cvr_not_found' })
 
     // Auto-approve: CVR confirmed in registry
@@ -14842,7 +14872,7 @@ app.post('/api/me/verify-business', authenticate, writeLimit, async (req, res) =
       'UPDATE users SET cvr_number = ?, is_verified = 1, cvr_company_name = ? WHERE id = ?',
       [cleaned, cvrData.name, req.userId]
     )
-    res.json({ ok: true, companyName: cvrData.name, industry: cvrData.industry })
+    res.json({ ok: true, pending: false, companyName: cvrData.name, industry: cvrData.industry })
   } catch (err) {
     console.error('POST /api/me/verify-business error:', err.message)
     res.status(500).json({ error: 'Server error' })
