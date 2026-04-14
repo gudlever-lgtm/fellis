@@ -82,7 +82,10 @@ export default function BusinessCard({ biz, lang, t, onViewProfile }) {
           {avatarSrc ? <img src={avatarSrc} alt="" style={s.avatarImg} /> : getInitials(biz.name)}
         </div>
         <div style={s.info}>
-          <p style={s.name}>{biz.name}</p>
+          <p style={s.name}>
+            {biz.name}
+            {biz.isVerified && <span style={{ fontSize: 11, color: '#6366F1', marginLeft: 5, fontWeight: 700 }}>✓</span>}
+          </p>
           {biz.handle && <p style={s.handle}>@{biz.handle.replace(/^@/, '')}</p>}
           {biz.businessCategory && (
             <div style={{ marginTop: 4 }}>

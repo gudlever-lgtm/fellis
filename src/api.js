@@ -2112,3 +2112,66 @@ export const apiFacebookDisconnect = () =>
 // POST /api/auth/facebook/import-photos — download selected FB photos into feed
 export const apiFacebookImportPhotos = (photoIds) =>
   request('/api/auth/facebook/import-photos', { method: 'POST', body: JSON.stringify({ photoIds }) })
+
+// ── Business Features V2 ──────────────────────────────────────────────────────
+
+// Feature 1: User Leads / Contact inbox
+export const apiContactBusiness = (id, topic, message) =>
+  request(`/api/businesses/${id}/contact`, { method: 'POST', body: JSON.stringify({ topic, message }) })
+export const apiGetMyBusinessLeads = () => request('/api/me/business-leads')
+export const apiUpdateBusinessLead = (id, status) =>
+  request(`/api/me/business-leads/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) })
+
+// Feature 2: Jobs linked to business profile
+export const apiGetBusinessJobs = (id) => request(`/api/businesses/${id}/jobs`)
+
+// Feature 3: Business CVR verification
+export const apiSubmitBusinessVerification = (cvr_number) =>
+  request('/api/me/verify-business', { method: 'POST', body: JSON.stringify({ cvr_number }) })
+export const apiAdminGetVerifications = () => request('/api/admin/verify-business')
+export const apiAdminApproveVerification = (userId, approved) =>
+  request(`/api/admin/verify-business/${userId}`, { method: 'POST', body: JSON.stringify({ approved }) })
+
+// Feature 4: Follower broadcast announcements
+export const apiCreateAnnouncement = (title, body, cta_url) =>
+  request('/api/me/announcements', { method: 'POST', body: JSON.stringify({ title, body, cta_url }) })
+export const apiGetMyAnnouncements = () => request('/api/me/announcements')
+export const apiGetFollowedAnnouncements = () => request('/api/announcements')
+export const apiDeleteAnnouncement = (id) =>
+  request(`/api/me/announcements/${id}`, { method: 'DELETE' })
+
+// Feature 5: Product / Services catalog
+export const apiGetBusinessServices = (id) => request(`/api/businesses/${id}/services`)
+export const apiGetMyServices = () => request('/api/me/services')
+export const apiCreateService = (data) =>
+  request('/api/me/services', { method: 'POST', body: JSON.stringify(data) })
+export const apiUpdateService = (id, data) =>
+  request(`/api/me/services/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+export const apiDeleteService = (id) =>
+  request(`/api/me/services/${id}`, { method: 'DELETE' })
+
+// Feature 6: Business event promotion
+export const apiGetBusinessEvents = (id) => request(`/api/businesses/${id}/events`)
+
+// Feature 7: Analytics depth
+export const apiGetFollowerGrowth = (days = 30) =>
+  request(`/api/me/analytics/follower-growth?days=${days}`)
+export const apiGetBestPostTimes = () => request('/api/me/analytics/best-times')
+
+// Feature 8: Service endorsements
+export const apiGetBusinessEndorsements = (id) => request(`/api/businesses/${id}/endorsements`)
+
+// Feature 9: B2B partner connections
+export const apiSendPartnerRequest = (id) =>
+  request(`/api/businesses/${id}/partner-request`, { method: 'POST' })
+export const apiGetPartnerRequests = () => request('/api/me/partner-requests')
+export const apiRespondPartnerRequest = (id, action) =>
+  request(`/api/me/partner-requests/${id}`, { method: 'PATCH', body: JSON.stringify({ action }) })
+export const apiGetMyPartners = () => request('/api/me/partners')
+export const apiRemovePartner = (partnerId) =>
+  request(`/api/me/partners/${partnerId}`, { method: 'DELETE' })
+export const apiGetBusinessPartners = (id) => request(`/api/businesses/${id}/partners`)
+
+// Feature 10: Appointment / inquiry via DM
+export const apiSendBusinessInquiry = (id, subject, preferred_date, message) =>
+  request(`/api/businesses/${id}/inquiry`, { method: 'POST', body: JSON.stringify({ subject, preferred_date, message }) })

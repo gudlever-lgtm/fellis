@@ -2127,6 +2127,8 @@ app.get('/api/profile/:id', authenticate, async (req, res) => {
       profilePayload.businessDescription = { da: u.business_description_da || '', en: u.business_description_en || '' }
       profilePayload.followerCount = Number(u.follower_count || 0)
       profilePayload.communityScore = Number(u.community_score || 0)
+      profilePayload.cvrNumber = u.cvr_number || null
+      profilePayload.is_verified = !!u.is_verified
       // Check if the requesting user is following this business
       let isFollowing = false
       try {
@@ -2491,10 +2493,10 @@ app.get('/api/businesses', async (req, res) => {
       ;[rows] = await pool.query(
         `SELECT u.id, u.name, u.handle, u.avatar_url, u.business_category,
                 u.business_website, u.business_hours, u.bio_da, u.bio_en,
-                u.follower_count, u.community_score
+                u.follower_count, u.community_score, u.is_verified
          FROM users u
          WHERE ${where}
-         ORDER BY u.community_score DESC, u.follower_count DESC
+         ORDER BY u.is_verified DESC, u.community_score DESC, u.follower_count DESC
          LIMIT ? OFFSET ?`,
         [...params, limit, offset]
       )
@@ -2531,6 +2533,7 @@ app.get('/api/businesses', async (req, res) => {
         followerCount: Number(r.follower_count || 0),
         communityScore: Number(r.community_score || 0),
         isFollowing: followedSet.has(r.id),
+        isVerified: !!r.is_verified,
       })),
       total: rows.length,
       limit,
@@ -12446,6 +12449,75 @@ app.get('/api/geocode/reverse', async (req, res) => {
   }
 })
 
+// ── Business Features V2 ─────────────────────────────────────────────────────
+// Adds: user leads, services catalog, partnerships, announcements, CVR verify
+
+async function initBusinessFeaturesV2() {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS user_leads (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      business_user_id INT NOT NULL,
+      sender_id INT NOT NULL,
+      name VARCHAR(200) NOT NULL,
+      email VARCHAR(200) NOT NULL,
+      topic VARCHAR(200) DEFAULT NULL,
+      message TEXT DEFAULT NULL,
+      status ENUM('new','responded','archived') NOT NULL DEFAULT 'new',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_ul_business (business_user_id),
+      INDEX idx_ul_sender (sender_id),
+      FOREIGN KEY (business_user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+
+    await pool.query(`CREATE TABLE IF NOT EXISTS business_services (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      name_da VARCHAR(200) NOT NULL,
+      name_en VARCHAR(200) NOT NULL,
+      description_da TEXT DEFAULT NULL,
+      description_en TEXT DEFAULT NULL,
+      price_from DECIMAL(10,2) DEFAULT NULL,
+      price_to DECIMAL(10,2) DEFAULT NULL,
+      image_url VARCHAR(500) DEFAULT NULL,
+      sort_order SMALLINT NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_bs_user (user_id),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+
+    await pool.query(`CREATE TABLE IF NOT EXISTS business_partnerships (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      requester_id INT NOT NULL,
+      partner_id INT NOT NULL,
+      status ENUM('pending','accepted','declined') NOT NULL DEFAULT 'pending',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_bp_pair (requester_id, partner_id),
+      INDEX idx_bp_requester (requester_id),
+      INDEX idx_bp_partner (partner_id),
+      FOREIGN KEY (requester_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (partner_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+
+    await pool.query(`CREATE TABLE IF NOT EXISTS business_announcements (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      author_id INT NOT NULL,
+      title VARCHAR(300) NOT NULL,
+      body TEXT NOT NULL,
+      cta_url VARCHAR(500) DEFAULT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_ba_author (author_id),
+      FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+
+    await addCol('users', 'cvr_number', 'VARCHAR(20) DEFAULT NULL').catch(() => {})
+    await addCol('users', 'is_verified', 'TINYINT(1) NOT NULL DEFAULT 0').catch(() => {})
+  } catch (err) {
+    console.error('initBusinessFeaturesV2 error:', err.message)
+  }
+}
+
 // Run all schema-init functions BEFORE app.listen() so that ALTER TABLE
 // metadata locks are fully released before the server accepts any HTTP traffic.
 // Requests arriving while an ALTER TABLE holds a lock on e.g. `users` would
@@ -12468,6 +12540,7 @@ const PORT = process.env.PORT || 3001
   await initAds()
   await initAdminAdSettings()
   await initBusinessFeatures()
+  await initBusinessFeaturesV2()
   await initEasterEggs()
   await initBadges()
   await initStoriesHashtags()
@@ -14608,6 +14681,589 @@ app.get('/api/feed/discovery', authenticate, async (req, res) => {
     res.json({ suggestions: all.slice(0, 5) })
   } catch (err) {
     console.error('GET /api/feed/discovery error:', err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Business Features V2 Routes ──────────────────────────────────────────────
+
+// ── Feature 1: User Leads / Contact inbox for business accounts ──
+
+// POST /api/businesses/:id/contact — submit an inquiry to a business-mode user
+app.post('/api/businesses/:id/contact', authenticate, writeLimit, async (req, res) => {
+  try {
+    const bizId = parseInt(req.params.id)
+    const { topic, message } = req.body
+    if (!message?.trim()) return res.status(400).json({ error: 'Message required' })
+    const [[biz]] = await pool.query("SELECT id FROM users WHERE id = ? AND mode = 'business'", [bizId])
+    if (!biz) return res.status(404).json({ error: 'Business not found' })
+    if (bizId === req.userId) return res.status(400).json({ error: 'Cannot contact yourself' })
+    const [[sender]] = await pool.query('SELECT name, email FROM users WHERE id = ?', [req.userId])
+    await pool.query(
+      'INSERT INTO user_leads (business_user_id, sender_id, name, email, topic, message) VALUES (?, ?, ?, ?, ?, ?)',
+      [bizId, req.userId, sender.name, sender.email, topic?.trim() || null, message.trim()]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/businesses/:id/contact error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/me/business-leads — get incoming leads for my business account
+app.get('/api/me/business-leads', authenticate, async (req, res) => {
+  try {
+    const [[user]] = await pool.query('SELECT mode FROM users WHERE id = ?', [req.userId])
+    if (user?.mode !== 'business') return res.status(403).json({ error: 'Business account required' })
+    const [leads] = await pool.query(
+      `SELECT ul.*, u.name AS sender_name, u.handle AS sender_handle, u.avatar_url AS sender_avatar
+       FROM user_leads ul JOIN users u ON u.id = ul.sender_id
+       WHERE ul.business_user_id = ? ORDER BY ul.created_at DESC`,
+      [req.userId]
+    )
+    res.json({ leads })
+  } catch (err) {
+    console.error('GET /api/me/business-leads error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// PATCH /api/me/business-leads/:id — update lead status
+app.patch('/api/me/business-leads/:id', authenticate, writeLimit, async (req, res) => {
+  try {
+    const { status } = req.body
+    if (!['new', 'responded', 'archived'].includes(status)) return res.status(400).json({ error: 'Invalid status' })
+    const [[user]] = await pool.query('SELECT mode FROM users WHERE id = ?', [req.userId])
+    if (user?.mode !== 'business') return res.status(403).json({ error: 'Business account required' })
+    await pool.query(
+      'UPDATE user_leads SET status = ? WHERE id = ? AND business_user_id = ?',
+      [status, req.params.id, req.userId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('PATCH /api/me/business-leads/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Feature 2: Jobs linked to business profile ──
+
+// GET /api/businesses/:id/jobs — jobs from companies the business user manages
+app.get('/api/businesses/:id/jobs', async (req, res) => {
+  try {
+    const bizId = parseInt(req.params.id)
+    const [[biz]] = await pool.query("SELECT id FROM users WHERE id = ? AND mode = 'business'", [bizId])
+    if (!biz) return res.status(404).json({ error: 'Business not found' })
+    const [jobs] = await pool.query(
+      `SELECT j.id, j.title, j.location, j.remote, j.type, j.description, j.created_at,
+              c.name AS company_name, c.color AS company_color
+       FROM jobs j
+       JOIN companies c ON c.id = j.company_id
+       JOIN company_members cm ON cm.company_id = j.company_id AND cm.user_id = ?
+       WHERE j.active = 1
+       ORDER BY j.created_at DESC LIMIT 20`,
+      [bizId]
+    )
+    res.json({ jobs })
+  } catch (err) {
+    console.error('GET /api/businesses/:id/jobs error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Feature 3: Business verification (CVR) ──
+
+// POST /api/me/verify-business — submit CVR number for verification
+app.post('/api/me/verify-business', authenticate, writeLimit, async (req, res) => {
+  try {
+    const { cvr_number } = req.body
+    if (!cvr_number?.trim()) return res.status(400).json({ error: 'CVR number required' })
+    const [[user]] = await pool.query('SELECT mode FROM users WHERE id = ?', [req.userId])
+    if (user?.mode !== 'business') return res.status(403).json({ error: 'Business account required' })
+    const cleaned = cvr_number.trim().replace(/\s/g, '')
+    await pool.query('UPDATE users SET cvr_number = ?, is_verified = 0 WHERE id = ?', [cleaned, req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/me/verify-business error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/admin/verify-business — list pending business verifications (admin only)
+app.get('/api/admin/verify-business', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, name, email, handle, cvr_number, is_verified, created_at
+       FROM users WHERE mode = 'business' AND cvr_number IS NOT NULL
+       ORDER BY is_verified ASC, created_at DESC LIMIT 100`
+    )
+    res.json({ users: rows })
+  } catch (err) {
+    console.error('GET /api/admin/verify-business error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/admin/verify-business/:userId — approve or deny verification
+app.post('/api/admin/verify-business/:userId', authenticate, requireAdmin, writeLimit, async (req, res) => {
+  try {
+    const { approved } = req.body
+    await pool.query('UPDATE users SET is_verified = ? WHERE id = ?', [approved ? 1 : 0, req.params.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/admin/verify-business/:userId error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Feature 4: Follower Broadcast Announcements ──
+
+// POST /api/me/announcements — create an announcement (business accounts only)
+app.post('/api/me/announcements', authenticate, writeLimit, async (req, res) => {
+  try {
+    const { title, body, cta_url } = req.body
+    if (!title?.trim() || !body?.trim()) return res.status(400).json({ error: 'Title and body required' })
+    const [[user]] = await pool.query('SELECT mode FROM users WHERE id = ?', [req.userId])
+    if (user?.mode !== 'business') return res.status(403).json({ error: 'Business account required' })
+    if (cta_url) {
+      try { new URL(cta_url) } catch { return res.status(400).json({ error: 'Invalid URL' }) }
+    }
+    const [result] = await pool.query(
+      'INSERT INTO business_announcements (author_id, title, body, cta_url) VALUES (?, ?, ?, ?)',
+      [req.userId, title.trim(), body.trim(), cta_url?.trim() || null]
+    )
+    // Notify followers via notifications table
+    pool.query(
+      `INSERT INTO notifications (user_id, type, actor_id, payload)
+       SELECT bf.follower_id, 'business_announcement', ?, JSON_OBJECT('announcement_id', ?, 'title', ?)
+       FROM business_follows bf WHERE bf.business_id = ?`,
+      [req.userId, result.insertId, title.trim(), req.userId]
+    ).catch(() => {})
+    res.json({ ok: true, id: result.insertId })
+  } catch (err) {
+    console.error('POST /api/me/announcements error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/me/announcements — get my own announcements
+app.get('/api/me/announcements', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT * FROM business_announcements WHERE author_id = ? ORDER BY created_at DESC LIMIT 50',
+      [req.userId]
+    )
+    res.json({ announcements: rows })
+  } catch (err) {
+    console.error('GET /api/me/announcements error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/announcements — get announcements from businesses I follow
+app.get('/api/announcements', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT ba.*, u.name AS author_name, u.handle AS author_handle, u.avatar_url AS author_avatar, u.is_verified
+       FROM business_announcements ba
+       JOIN users u ON u.id = ba.author_id
+       JOIN business_follows bf ON bf.business_id = ba.author_id AND bf.follower_id = ?
+       ORDER BY ba.created_at DESC LIMIT 30`,
+      [req.userId]
+    )
+    res.json({ announcements: rows })
+  } catch (err) {
+    console.error('GET /api/announcements error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// DELETE /api/me/announcements/:id — delete an announcement
+app.delete('/api/me/announcements/:id', authenticate, writeLimit, async (req, res) => {
+  try {
+    await pool.query(
+      'DELETE FROM business_announcements WHERE id = ? AND author_id = ?',
+      [req.params.id, req.userId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/me/announcements/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Feature 5: Product / Services Catalog ──
+
+// GET /api/businesses/:id/services — public services list for a business
+app.get('/api/businesses/:id/services', async (req, res) => {
+  try {
+    const [services] = await pool.query(
+      'SELECT * FROM business_services WHERE user_id = ? ORDER BY sort_order ASC, created_at ASC',
+      [req.params.id]
+    )
+    res.json({ services })
+  } catch (err) {
+    console.error('GET /api/businesses/:id/services error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/me/services — get my services
+app.get('/api/me/services', authenticate, async (req, res) => {
+  try {
+    const [services] = await pool.query(
+      'SELECT * FROM business_services WHERE user_id = ? ORDER BY sort_order ASC, created_at ASC',
+      [req.userId]
+    )
+    res.json({ services })
+  } catch (err) {
+    console.error('GET /api/me/services error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/me/services — create a service
+app.post('/api/me/services', authenticate, writeLimit, async (req, res) => {
+  try {
+    const [[user]] = await pool.query('SELECT mode FROM users WHERE id = ?', [req.userId])
+    if (user?.mode !== 'business') return res.status(403).json({ error: 'Business account required' })
+    const { name_da, name_en, description_da, description_en, price_from, price_to, image_url } = req.body
+    if (!name_da?.trim() || !name_en?.trim()) return res.status(400).json({ error: 'Service name required in both languages' })
+    const [result] = await pool.query(
+      `INSERT INTO business_services (user_id, name_da, name_en, description_da, description_en, price_from, price_to, image_url)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [req.userId, name_da.trim(), name_en.trim(),
+       description_da?.trim() || null, description_en?.trim() || null,
+       price_from ? parseFloat(price_from) : null,
+       price_to ? parseFloat(price_to) : null,
+       image_url?.trim() || null]
+    )
+    const [[svc]] = await pool.query('SELECT * FROM business_services WHERE id = ?', [result.insertId])
+    res.json({ service: svc })
+  } catch (err) {
+    console.error('POST /api/me/services error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// PUT /api/me/services/:id — update a service
+app.put('/api/me/services/:id', authenticate, writeLimit, async (req, res) => {
+  try {
+    const { name_da, name_en, description_da, description_en, price_from, price_to, image_url, sort_order } = req.body
+    if (!name_da?.trim() || !name_en?.trim()) return res.status(400).json({ error: 'Service name required in both languages' })
+    await pool.query(
+      `UPDATE business_services SET name_da=?, name_en=?, description_da=?, description_en=?,
+       price_from=?, price_to=?, image_url=?, sort_order=? WHERE id=? AND user_id=?`,
+      [name_da.trim(), name_en.trim(),
+       description_da?.trim() || null, description_en?.trim() || null,
+       price_from ? parseFloat(price_from) : null,
+       price_to ? parseFloat(price_to) : null,
+       image_url?.trim() || null,
+       sort_order ?? 0,
+       req.params.id, req.userId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('PUT /api/me/services/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// DELETE /api/me/services/:id — delete a service
+app.delete('/api/me/services/:id', authenticate, writeLimit, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM business_services WHERE id = ? AND user_id = ?', [req.params.id, req.userId])
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/me/services/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Feature 6: Business Event Promotion ──
+
+// GET /api/businesses/:id/events — events organised by this business user
+app.get('/api/businesses/:id/events', async (req, res) => {
+  try {
+    const bizId = parseInt(req.params.id)
+    const [[biz]] = await pool.query("SELECT id FROM users WHERE id = ? AND mode = 'business'", [bizId])
+    if (!biz) return res.status(404).json({ error: 'Business not found' })
+    const [events] = await pool.query(
+      `SELECT e.id, e.title, e.date, e.location, e.event_type, e.cover_url,
+              (SELECT COUNT(*) FROM event_rsvps r WHERE r.event_id = e.id AND r.status = 'going') AS rsvp_count
+       FROM events e WHERE e.organizer_id = ? AND e.date >= NOW()
+       ORDER BY e.date ASC LIMIT 10`,
+      [bizId]
+    )
+    res.json({ events })
+  } catch (err) {
+    console.error('GET /api/businesses/:id/events error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Feature 7: Analytics Depth — follower growth + best post times ──
+
+// GET /api/me/analytics/follower-growth — follower count per day for last N days
+app.get('/api/me/analytics/follower-growth', authenticate, async (req, res) => {
+  try {
+    const days = Math.min(parseInt(req.query.days) || 30, 90)
+    const [rows] = await pool.query(
+      `SELECT DATE(created_at) AS date, COUNT(*) AS count
+       FROM business_follows WHERE business_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+       GROUP BY DATE(created_at) ORDER BY date ASC`,
+      [req.userId, days]
+    )
+    const [[{ total }]] = await pool.query(
+      'SELECT COUNT(*) AS total FROM business_follows WHERE business_id = ?',
+      [req.userId]
+    )
+    res.json({ growth: rows, total })
+  } catch (err) {
+    console.error('GET /api/me/analytics/follower-growth error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/me/analytics/best-times — engagement heatmap by hour/day of week
+app.get('/api/me/analytics/best-times', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT DAYOFWEEK(pl.created_at) AS dow, HOUR(pl.created_at) AS hour, COUNT(*) AS engagements
+       FROM post_likes pl JOIN posts p ON p.id = pl.post_id
+       WHERE p.user_id = ? AND pl.created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)
+       GROUP BY dow, hour
+       UNION ALL
+       SELECT DAYOFWEEK(c.created_at) AS dow, HOUR(c.created_at) AS hour, COUNT(*) AS engagements
+       FROM comments c JOIN posts p ON p.id = c.post_id
+       WHERE p.user_id = ? AND c.created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)
+       GROUP BY dow, hour`,
+      [req.userId, req.userId]
+    )
+    // Aggregate union results
+    const map = {}
+    for (const r of rows) {
+      const k = `${r.dow}-${r.hour}`
+      map[k] = (map[k] || { dow: r.dow, hour: r.hour, engagements: 0 })
+      map[k].engagements += Number(r.engagements)
+    }
+    res.json({ heatmap: Object.values(map) })
+  } catch (err) {
+    console.error('GET /api/me/analytics/best-times error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Feature 8: Service Endorsements (reuse skill_endorsements) ──
+
+// GET /api/businesses/:id/endorsements — skills + endorsement counts for a business user
+app.get('/api/businesses/:id/endorsements', async (req, res) => {
+  try {
+    const [skills] = await pool.query(
+      `SELECT s.id, s.name, COUNT(e.endorser_id) AS endorsement_count
+       FROM skills s LEFT JOIN skill_endorsements e ON e.skill_id = s.id
+       WHERE s.user_id = ? GROUP BY s.id ORDER BY endorsement_count DESC, s.name ASC`,
+      [req.params.id]
+    )
+    res.json({ endorsements: skills })
+  } catch (err) {
+    console.error('GET /api/businesses/:id/endorsements error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Feature 9: B2B Partner Connections ──
+
+// POST /api/businesses/:id/partner-request — send a B2B partner request
+app.post('/api/businesses/:id/partner-request', authenticate, writeLimit, async (req, res) => {
+  try {
+    const partnerId = parseInt(req.params.id)
+    if (partnerId === req.userId) return res.status(400).json({ error: 'Cannot partner with yourself' })
+    const [[user]] = await pool.query('SELECT mode FROM users WHERE id = ?', [req.userId])
+    if (user?.mode !== 'business') return res.status(403).json({ error: 'Business account required' })
+    const [[target]] = await pool.query("SELECT id FROM users WHERE id = ? AND mode = 'business'", [partnerId])
+    if (!target) return res.status(404).json({ error: 'Business not found' })
+    // Check for existing request in either direction
+    const [[existing]] = await pool.query(
+      `SELECT id, status FROM business_partnerships
+       WHERE (requester_id = ? AND partner_id = ?) OR (requester_id = ? AND partner_id = ?)`,
+      [req.userId, partnerId, partnerId, req.userId]
+    )
+    if (existing) {
+      if (existing.status === 'accepted') return res.status(409).json({ error: 'Already partners' })
+      if (existing.status === 'pending') return res.status(409).json({ error: 'Request already sent' })
+    }
+    await pool.query(
+      'INSERT INTO business_partnerships (requester_id, partner_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE status = "pending", updated_at = NOW()',
+      [req.userId, partnerId]
+    )
+    // Notify target
+    pool.query(
+      `INSERT INTO notifications (user_id, type, actor_id, payload)
+       VALUES (?, 'partner_request', ?, JSON_OBJECT('requester_id', ?))`,
+      [partnerId, req.userId, req.userId]
+    ).catch(() => {})
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/businesses/:id/partner-request error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/me/partner-requests — incoming pending B2B partner requests
+app.get('/api/me/partner-requests', authenticate, async (req, res) => {
+  try {
+    const [requests] = await pool.query(
+      `SELECT bp.id, bp.requester_id, bp.created_at,
+              u.name AS requester_name, u.handle AS requester_handle, u.avatar_url AS requester_avatar,
+              u.business_category AS requester_category, u.is_verified AS requester_verified
+       FROM business_partnerships bp JOIN users u ON u.id = bp.requester_id
+       WHERE bp.partner_id = ? AND bp.status = 'pending'
+       ORDER BY bp.created_at DESC`,
+      [req.userId]
+    )
+    res.json({ requests })
+  } catch (err) {
+    console.error('GET /api/me/partner-requests error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// PATCH /api/me/partner-requests/:id — accept or decline a B2B partner request
+app.patch('/api/me/partner-requests/:id', authenticate, writeLimit, async (req, res) => {
+  try {
+    const { action } = req.body
+    if (!['accept', 'decline'].includes(action)) return res.status(400).json({ error: 'Invalid action' })
+    const [[req_row]] = await pool.query(
+      "SELECT requester_id FROM business_partnerships WHERE id = ? AND partner_id = ? AND status = 'pending'",
+      [req.params.id, req.userId]
+    )
+    if (!req_row) return res.status(404).json({ error: 'Request not found' })
+    const newStatus = action === 'accept' ? 'accepted' : 'declined'
+    await pool.query('UPDATE business_partnerships SET status = ?, updated_at = NOW() WHERE id = ?', [newStatus, req.params.id])
+    if (action === 'accept') {
+      pool.query(
+        `INSERT INTO notifications (user_id, type, actor_id, payload)
+         VALUES (?, 'partner_accepted', ?, JSON_OBJECT('partner_id', ?))`,
+        [req_row.requester_id, req.userId, req.userId]
+      ).catch(() => {})
+    }
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('PATCH /api/me/partner-requests/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/me/partners — my accepted B2B partners
+app.get('/api/me/partners', authenticate, async (req, res) => {
+  try {
+    const [partners] = await pool.query(
+      `SELECT u.id, u.name, u.handle, u.avatar_url, u.business_category, u.is_verified, u.community_score, bp.created_at AS partnered_since
+       FROM business_partnerships bp
+       JOIN users u ON u.id = IF(bp.requester_id = ?, bp.partner_id, bp.requester_id)
+       WHERE (bp.requester_id = ? OR bp.partner_id = ?) AND bp.status = 'accepted'
+       ORDER BY bp.updated_at DESC`,
+      [req.userId, req.userId, req.userId]
+    )
+    res.json({ partners })
+  } catch (err) {
+    console.error('GET /api/me/partners error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// DELETE /api/me/partners/:partnerId — remove a B2B partner
+app.delete('/api/me/partners/:partnerId', authenticate, writeLimit, async (req, res) => {
+  try {
+    const pId = parseInt(req.params.partnerId)
+    await pool.query(
+      `DELETE FROM business_partnerships
+       WHERE status = 'accepted' AND (
+         (requester_id = ? AND partner_id = ?) OR (requester_id = ? AND partner_id = ?)
+       )`,
+      [req.userId, pId, pId, req.userId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/me/partners/:partnerId error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/businesses/:id/partners — public partner list for a business profile
+app.get('/api/businesses/:id/partners', async (req, res) => {
+  try {
+    const bizId = parseInt(req.params.id)
+    const [partners] = await pool.query(
+      `SELECT u.id, u.name, u.handle, u.avatar_url, u.business_category, u.is_verified
+       FROM business_partnerships bp
+       JOIN users u ON u.id = IF(bp.requester_id = ?, bp.partner_id, bp.requester_id)
+       WHERE (bp.requester_id = ? OR bp.partner_id = ?) AND bp.status = 'accepted'
+       ORDER BY bp.updated_at DESC LIMIT 20`,
+      [bizId, bizId, bizId]
+    )
+    res.json({ partners })
+  } catch (err) {
+    console.error('GET /api/businesses/:id/partners error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Feature 10: Appointment / Inquiry via DM ──
+
+// POST /api/businesses/:id/inquiry — send a meeting request (creates a DM conversation)
+app.post('/api/businesses/:id/inquiry', authenticate, writeLimit, async (req, res) => {
+  try {
+    const bizId = parseInt(req.params.id)
+    if (bizId === req.userId) return res.status(400).json({ error: 'Cannot send inquiry to yourself' })
+    const { subject, preferred_date, message } = req.body
+    if (!subject?.trim() || !message?.trim()) return res.status(400).json({ error: 'Subject and message required' })
+    const [[biz]] = await pool.query("SELECT id, name FROM users WHERE id = ? AND mode = 'business'", [bizId])
+    if (!biz) return res.status(404).json({ error: 'Business not found' })
+    const [[sender]] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
+    // Find or create a DM conversation between the two users
+    const [[existingConv]] = await pool.query(
+      `SELECT cv.id FROM conversations cv
+       JOIN conversation_participants cp1 ON cp1.conversation_id = cv.id AND cp1.user_id = ?
+       JOIN conversation_participants cp2 ON cp2.conversation_id = cv.id AND cp2.user_id = ?
+       WHERE cv.is_group = 0 LIMIT 1`,
+      [req.userId, bizId]
+    )
+    let convId
+    if (existingConv) {
+      convId = existingConv.id
+    } else {
+      const [convResult] = await pool.query(
+        'INSERT INTO conversations (created_by, is_group) VALUES (?, 0)',
+        [req.userId]
+      )
+      convId = convResult.insertId
+      await pool.query(
+        'INSERT INTO conversation_participants (conversation_id, user_id) VALUES (?, ?), (?, ?)',
+        [convId, req.userId, convId, bizId]
+      )
+    }
+    // Format the inquiry as a structured message
+    const dateText = preferred_date ? `\n📅 Ønsket dato / Preferred date: ${preferred_date}` : ''
+    const inquiryText = `📋 Mødeforespørgsel / Meeting Request: ${subject.trim()}${dateText}\n\n${message.trim()}`
+    await pool.query(
+      'INSERT INTO messages (conversation_id, sender_id, content) VALUES (?, ?, ?)',
+      [convId, req.userId, inquiryText]
+    )
+    await pool.query(
+      'UPDATE conversations SET updated_at = NOW() WHERE id = ?',
+      [convId]
+    )
+    // Notify the business
+    pool.query(
+      `INSERT INTO notifications (user_id, type, actor_id, payload)
+       VALUES (?, 'inquiry', ?, JSON_OBJECT('conversation_id', ?, 'subject', ?))`,
+      [bizId, req.userId, convId, subject.trim()]
+    ).catch(() => {})
+    res.json({ ok: true, conversation_id: convId })
+  } catch (err) {
+    console.error('POST /api/businesses/:id/inquiry error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })

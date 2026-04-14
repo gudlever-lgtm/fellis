@@ -45,10 +45,13 @@ import MatrixRain from './components/easter-eggs/MatrixRain.jsx'
 import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
 import RickRoll from './components/easter-eggs/RickRoll.jsx'
 import RiddleBanner from './components/easter-eggs/RiddleBanner.jsx'
-import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode, apiReverseGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiAssignAdfreedays, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness, apiFollowUser, apiUnfollowUser, apiGetFollowers, apiGetFollowing, apiPayForAd, apiBoostPost, apiTrackAdImpression, apiTrackAdClick, apiAdminGrowth, apiAdminOnlineNow, apiAdminGetBannedUsers, apiAdminGetAuditLog, apiAdminSearchUsers, apiAdminForceLogout, apiAdminDeleteUser, apiGetAdminStorageStats } from './api.js'
+import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode, apiReverseGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiAssignAdfreedays, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness, apiFollowUser, apiUnfollowUser, apiGetFollowers, apiGetFollowing, apiPayForAd, apiBoostPost, apiTrackAdImpression, apiTrackAdClick, apiAdminGrowth, apiAdminOnlineNow, apiAdminGetBannedUsers, apiAdminGetAuditLog, apiAdminSearchUsers, apiAdminForceLogout, apiAdminDeleteUser, apiGetAdminStorageStats,
+  apiContactBusiness, apiGetBusinessJobs, apiGetBusinessServices, apiGetBusinessEvents, apiGetBusinessEndorsements, apiGetBusinessPartners, apiSendPartnerRequest, apiSendBusinessInquiry, apiGetFollowedAnnouncements,
+} from './api.js'
 import BusinessBadge from './components/BusinessBadge.jsx'
 import BusinessDirectory from './pages/BusinessDirectory.jsx'
 import AdManager from './pages/AdManager.jsx'
+import BusinessHub from './pages/BusinessHub.jsx'
 import LocationAutocomplete from './components/LocationAutocomplete.jsx'
 import { BADGES, BADGE_BY_ID } from './badges/badgeDefinitions.js'
 import BadgeToastQueue from './components/BadgeToast.jsx'
@@ -507,13 +510,22 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
           ))}
           {/* Business-only primary tabs */}
           {mode === 'business' && (
-            <button
-              className={`p-nav-tab${page === 'ads' ? ' active' : ''}`}
-              onClick={() => { navigateTo('ads'); setShowMobileMenu(false) }}
-            >
-              <span className="p-nav-tab-icon">📢</span>
-              <span className="p-nav-tab-label">{t.adsTitle}</span>
-            </button>
+            <>
+              <button
+                className={`p-nav-tab${page === 'ads' ? ' active' : ''}`}
+                onClick={() => { navigateTo('ads'); setShowMobileMenu(false) }}
+              >
+                <span className="p-nav-tab-icon">📢</span>
+                <span className="p-nav-tab-label">{t.adsTitle}</span>
+              </button>
+              <button
+                className={`p-nav-tab${page === 'business-hub' ? ' active' : ''}`}
+                onClick={() => { navigateTo('business-hub'); setShowMobileMenu(false) }}
+              >
+                <span className="p-nav-tab-icon">🏢</span>
+                <span className="p-nav-tab-label">{t.businessHub}</span>
+              </button>
+            </>
           )}
           {/* "Mere" / "More" dropdown for secondary tabs */}
           <div ref={moreMenuRef} style={{ position: 'relative' }}>
@@ -785,6 +797,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
         {page === 'jobs' && <JobsPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={(target, param) => { if (target === 'companies') { navigateTo('company', { companyId: param }); } else navigateTo(target) }} />}
         {page === 'businesses' && <BusinessDirectory lang={lang} t={t} onViewProfile={(biz) => { setViewUserId(biz.id); navigateTo('view-profile') }} />}
         {page === 'ads' && mode === 'business' && <AdManager lang={lang} t={t} currentUser={currentUser} />}
+        {page === 'business-hub' && mode === 'business' && <BusinessHub lang={lang} t={t} currentUser={currentUser} onViewProfile={(id) => { setViewUserId(id); navigateTo('view-profile') }} />}
         {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} initialCompanyId={navParam?.companyId} />}
         {page === 'analytics' && <AnalyticsPage lang={lang} t={t} currentUser={currentUser} onNavigate={navigateTo} />}
         {page === 'settings' && <SettingsPage lang={lang} t={t} currentUser={currentUser} mode={mode} adsFree={adsFree} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onLogout={onLogout} onOpenModeModal={() => setShowModeModal(true)} theme={theme} onThemeChange={setTheme} initialTab={navParam} />}
@@ -8927,6 +8940,22 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
   const avatarClickCount = useRef(0)
   const avatarClickTimer = useRef(null)
   const [watcherPop, setWatcherPop] = useState(false)
+  // Business profile extras
+  const [bizServices, setBizServices] = useState([])
+  const [bizJobs, setBizJobs] = useState([])
+  const [bizEvents, setBizEvents] = useState([])
+  const [bizEndorsements, setBizEndorsements] = useState([])
+  const [bizPartners, setBizPartners] = useState([])
+  const [partnerRequestSent, setPartnerRequestSent] = useState(false)
+  // Inquiry modal
+  const [showInquiry, setShowInquiry] = useState(false)
+  const [inquiryForm, setInquiryForm] = useState({ subject: '', preferred_date: '', message: '' })
+  const [inquirySent, setInquirySent] = useState(false)
+  const [inquirySending, setInquirySending] = useState(false)
+  // Contact form
+  const [showContact, setShowContact] = useState(false)
+  const [contactForm, setContactForm] = useState({ topic: '', message: '' })
+  const [contactSent, setContactSent] = useState(false)
 
   useEffect(() => {
     if (!userId) return
@@ -8938,6 +8967,12 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
         if (data.mode === 'business') {
           setIsFollowing(!!data.isFollowing)
           setFollowerCount(Number(data.followerCount || 0))
+          // Load business extras
+          apiGetBusinessServices(userId).then(d => setBizServices(d?.services || []))
+          apiGetBusinessJobs(userId).then(d => setBizJobs(d?.jobs || []))
+          apiGetBusinessEvents(userId).then(d => setBizEvents(d?.events || []))
+          apiGetBusinessEndorsements(userId).then(d => setBizEndorsements(d?.endorsements || []))
+          apiGetBusinessPartners(userId).then(d => setBizPartners(d?.partners || []))
         }
         setTimeout(onBadgeCheck, 800)
       }
@@ -9012,6 +9047,9 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
               <h2 className="p-profile-name" style={{ margin: 0 }}>{profile.name}</h2>
               {profile.mode === 'business' && <BusinessBadge lang={lang} onClick={() => onNavigate?.('businesses')} />}
+              {profile.is_verified && (
+                <span style={{ fontSize: 12, background: '#EEF2FF', color: '#6366F1', border: '1px solid #C7D2FE', borderRadius: 20, padding: '2px 10px', fontWeight: 700 }}>{t.verifiedBadge}</span>
+              )}
             </div>
             {profile.handle && <p className="p-profile-handle">@{profile.handle}</p>}
             {profile.bio?.[lang] && <p className="p-profile-bio">{profile.bio[lang]}</p>}
@@ -9048,6 +9086,9 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
                 {profile.communityScore >= 10 && (
                   <span style={{ color: '#059669', fontWeight: 600 }}>⭐ {t.activeInCommunity}</span>
                 )}
+                {profile.is_verified && (
+                  <span style={{ color: '#6366F1', fontWeight: 700, background: '#EEF2FF', padding: '1px 8px', borderRadius: 12, border: '1px solid #C7D2FE' }}>{t.verifiedBadge}</span>
+                )}
               </div>
             )}
 
@@ -9076,6 +9117,30 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
                   }}
                 >
                   {isFollowing ? `✓ ${t.unfollowBusiness}` : `+ ${t.followBusiness}`}
+                </button>
+              )}
+              {/* Meeting inquiry button — business profile only */}
+              {profile.mode === 'business' && profile.id !== currentUser.id && !isBlocked && (
+                <button
+                  className="p-friend-msg-btn"
+                  style={{ background: '#F0FDF4', color: '#065F46', border: '1px solid #A7F3D0' }}
+                  onClick={() => { setShowInquiry(true); setInquirySent(false) }}
+                >
+                  📅 {t.meetingInquiry}
+                </button>
+              )}
+              {/* B2B partner request — only if both are business accounts */}
+              {profile.mode === 'business' && currentUser.mode === 'business' && profile.id !== currentUser.id && !isBlocked && (
+                <button
+                  className="p-friend-msg-btn"
+                  disabled={partnerRequestSent}
+                  style={{ background: partnerRequestSent ? '#EEF2FF' : '#fff', color: '#6366F1', border: '1px solid #C7D2FE', opacity: partnerRequestSent ? 0.7 : 1, cursor: partnerRequestSent ? 'default' : 'pointer' }}
+                  onClick={async () => {
+                    const res = await apiSendPartnerRequest(profile.id)
+                    if (res !== null) setPartnerRequestSent(true)
+                  }}
+                >
+                  🤝 {partnerRequestSent ? t.partnerRequestSent : t.partnerRequest}
                 </button>
               )}
               {!isBlocked && profile.isFriend ? (
@@ -9149,6 +9214,127 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
                 )}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Meeting inquiry modal */}
+      {showInquiry && profile?.mode === 'business' && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={() => setShowInquiry(false)}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: 24, maxWidth: 420, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ margin: '0 0 16px', fontSize: 17, fontWeight: 700 }}>📅 {t.meetingInquiry}</h3>
+            {inquirySent ? (
+              <p style={{ color: '#065F46', fontWeight: 600, fontSize: 15 }}>✅ {t.inquirySent}</p>
+            ) : (
+              <>
+                <input value={inquiryForm.subject} onChange={e => setInquiryForm(p => ({ ...p, subject: e.target.value }))} placeholder={t.inquirySubject} style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #D1D5DB', fontSize: 14, marginBottom: 10, boxSizing: 'border-box' }} />
+                <input type="date" value={inquiryForm.preferred_date} onChange={e => setInquiryForm(p => ({ ...p, preferred_date: e.target.value }))} placeholder={t.inquiryPreferredDate} style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #D1D5DB', fontSize: 14, marginBottom: 10, boxSizing: 'border-box' }} />
+                <textarea value={inquiryForm.message} onChange={e => setInquiryForm(p => ({ ...p, message: e.target.value }))} placeholder={t.inquiryMessage} rows={4} style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #D1D5DB', fontSize: 14, marginBottom: 14, resize: 'vertical', boxSizing: 'border-box' }} />
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button disabled={inquirySending || !inquiryForm.subject.trim() || !inquiryForm.message.trim()} onClick={async () => {
+                    setInquirySending(true)
+                    const res = await apiSendBusinessInquiry(profile.id, inquiryForm.subject, inquiryForm.preferred_date || undefined, inquiryForm.message)
+                    setInquirySending(false)
+                    if (res?.ok) setInquirySent(true)
+                  }} style={{ flex: 1, padding: '9px 0', borderRadius: 8, border: 'none', background: '#6366F1', color: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: 14, opacity: (!inquiryForm.subject.trim() || !inquiryForm.message.trim()) ? 0.5 : 1 }}>
+                    {inquirySending ? '…' : t.sendInquiry}
+                  </button>
+                  <button onClick={() => setShowInquiry(false)} style={{ padding: '9px 16px', borderRadius: 8, border: '1px solid #D1D5DB', background: '#fff', color: '#374151', cursor: 'pointer', fontSize: 14 }}>{lang === 'da' ? 'Luk' : 'Close'}</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Business services on profile */}
+      {profile?.mode === 'business' && bizServices.length > 0 && (
+        <div className="p-card" style={{ marginTop: 12 }}>
+          <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700 }}>🛍 {t.servicesLabel}</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
+            {bizServices.map(svc => {
+              const nameKey = lang === 'da' ? 'name_da' : 'name_en'
+              const descKey = lang === 'da' ? 'description_da' : 'description_en'
+              return (
+                <div key={svc.id} style={{ border: '1px solid #E5E7EB', borderRadius: 10, padding: 12 }}>
+                  {svc.image_url && <img src={svc.image_url} alt="" style={{ width: '100%', height: 80, objectFit: 'cover', borderRadius: 6, marginBottom: 8 }} />}
+                  <div style={{ fontWeight: 600, fontSize: 13, color: '#111827', marginBottom: 3 }}>{svc[nameKey]}</div>
+                  {svc[descKey] && <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 5 }}>{svc[descKey]}</div>}
+                  {(svc.price_from || svc.price_to) && (
+                    <div style={{ fontSize: 12, color: '#6366F1', fontWeight: 600 }}>
+                      {svc.price_from && svc.price_to
+                        ? `${formatPrice(svc.price_from)} – ${formatPrice(svc.price_to)}`
+                        : svc.price_from ? `${lang === 'da' ? 'Fra' : 'From'} ${formatPrice(svc.price_from)}`
+                        : formatPrice(svc.price_to)}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Service endorsements on business profile */}
+      {profile?.mode === 'business' && bizEndorsements.length > 0 && (
+        <div className="p-card" style={{ marginTop: 12 }}>
+          <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700 }}>⭐ {t.serviceEndorsements}</h3>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {bizEndorsements.map(e => (
+              <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#EEF2FF', borderRadius: 20, padding: '5px 14px', fontSize: 13, border: '1px solid #C7D2FE' }}>
+                <span style={{ fontWeight: 600, color: '#3730A3' }}>{e.name}</span>
+                {e.endorsement_count > 0 && <span style={{ color: '#6366F1', fontWeight: 700 }}>×{e.endorsement_count}</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Business jobs on profile */}
+      {profile?.mode === 'business' && bizJobs.length > 0 && (
+        <div className="p-card" style={{ marginTop: 12 }}>
+          <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700 }}>💼 {t.businessJobs}</h3>
+          {bizJobs.map(job => (
+            <div key={job.id} style={{ borderBottom: '1px solid #F3F4F6', paddingBottom: 10, marginBottom: 10 }}>
+              <div style={{ fontWeight: 600, fontSize: 14, color: '#111827' }}>{job.title}</div>
+              <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>{job.company_name} · {job.location || (lang === 'da' ? 'Ikke angivet' : 'Location not specified')}{job.remote ? ` · ${lang === 'da' ? 'Fjernarbejde' : 'Remote'}` : ''}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Business events on profile */}
+      {profile?.mode === 'business' && bizEvents.length > 0 && (
+        <div className="p-card" style={{ marginTop: 12 }}>
+          <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700 }}>📅 {t.businessEvents}</h3>
+          {bizEvents.map(ev => (
+            <div key={ev.id} style={{ display: 'flex', gap: 12, borderBottom: '1px solid #F3F4F6', paddingBottom: 10, marginBottom: 10, alignItems: 'center' }}>
+              {ev.cover_url && <img src={ev.cover_url} alt="" style={{ width: 50, height: 50, objectFit: 'cover', borderRadius: 8 }} />}
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 14, color: '#111827' }}>{ev.title}</div>
+                <div style={{ fontSize: 12, color: '#6B7280' }}>{new Date(ev.date).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })}{ev.location ? ` · ${ev.location}` : ''}</div>
+                {ev.rsvp_count > 0 && <div style={{ fontSize: 11, color: '#6366F1', marginTop: 2 }}>{ev.rsvp_count} {lang === 'da' ? 'deltager' : 'going'}</div>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* B2B partners on business profile */}
+      {profile?.mode === 'business' && bizPartners.length > 0 && (
+        <div className="p-card" style={{ marginTop: 12 }}>
+          <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700 }}>🤝 {t.b2bPartners}</h3>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {bizPartners.slice(0, 6).map(p => (
+              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 10, padding: '6px 12px', cursor: 'pointer' }} onClick={() => onNavigate?.('view-profile', p.id)}>
+                {p.avatar_url
+                  ? <img src={p.avatar_url} alt="" style={{ width: 26, height: 26, borderRadius: '50%', objectFit: 'cover' }} />
+                  : <div style={{ width: 26, height: 26, borderRadius: '50%', background: '#6366F1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 11, fontWeight: 700 }}>{p.name[0]}</div>
+                }
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{p.name}</span>
+                {p.is_verified && <span style={{ fontSize: 11, color: '#6366F1' }}>✓</span>}
+              </div>
+            ))}
           </div>
         </div>
       )}
