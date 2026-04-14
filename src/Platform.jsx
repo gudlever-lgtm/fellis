@@ -7993,6 +7993,9 @@ function AboutPage({ lang }) {
     legalPrivacy: 'Privatlivspolitik',
     legalTerms: 'Servicevilkår',
     legalSales: 'Salgsbetingelser',
+    businessTitle: 'Til virksomheder',
+    businessLink: 'Fellis for virksomheder',
+    businessLinkDesc: 'Opret en virksomhedsprofil og nå dit lokale fællesskab',
     servicesTitle: 'Tjenester vi bruger — og hvorfor europæisk',
     servicesIntro: 'Vi vælger bevidst europæiske udbydere på alle lag af platformen. Det handler ikke kun om GDPR — det handler om at holde din data, din kommunikation og dine betalinger inden for et retssystem, der beskytter dig.',
     services: [
@@ -8068,6 +8071,9 @@ function AboutPage({ lang }) {
     legalPrivacy: 'Privacy policy',
     legalTerms: 'Terms of service',
     legalSales: 'Sales terms',
+    businessTitle: 'For businesses',
+    businessLink: 'Fellis for businesses',
+    businessLinkDesc: 'Create a business profile and reach your local community',
     servicesTitle: 'Services we use — and why European',
     servicesIntro: 'We deliberately choose European providers at every layer of the platform. It is not just about GDPR compliance — it is about keeping your data, your communications, and your payments within a legal framework that protects you.',
     services: [
@@ -8196,6 +8202,23 @@ function AboutPage({ lang }) {
             <span style={{ fontSize: 16, color: '#aaa' }}>→</span>
           </a>
         ))}
+      </div>
+
+      {/* For businesses */}
+      <div style={s.section}>🏢 {t.businessTitle}</div>
+      <div className="p-card" style={{ padding: '4px 0', marginBottom: 16 }}>
+        <a
+          href="/for-business"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', textDecoration: 'none' }}
+        >
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#2D6A4F', marginBottom: 2 }}>{t.businessLink}</div>
+            <div style={{ fontSize: 12, color: '#888' }}>{t.businessLinkDesc}</div>
+          </div>
+          <span style={{ fontSize: 16, color: '#aaa', flexShrink: 0, marginLeft: 12 }}>→</span>
+        </a>
       </div>
 
       {/* Feedback */}
