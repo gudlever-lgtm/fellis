@@ -41,6 +41,9 @@ export default {
     memberMuted: 'Lydløs',
     youAreCreator: 'Opretter',
     selectFriends: 'Vælg venner',
+    msgStatusSent: 'Sendt',
+    msgStatusRead: 'Læst',
+    msgStatusReplied: 'Besvaret',
   },
   en: {
     messagesTitle: 'Messages',
@@ -84,5 +87,8 @@ export default {
     memberMuted: 'Muted',
     youAreCreator: 'Creator',
     selectFriends: 'Select friends',
+    msgStatusSent: 'Sent',
+    msgStatusRead: 'Read',
+    msgStatusReplied: 'Replied',
   },
 }
