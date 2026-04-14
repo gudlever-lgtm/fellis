@@ -317,7 +317,7 @@ if (typeof window !== 'undefined') {
   installAutoFlush((payload) => uploadPostResilient(payload))
 }
 
-export async function apiCreatePost(text, mediaFiles, scheduledAt, categories, location, taggedUsers, linkedContent, onProgress) {
+export async function apiCreatePost(text, mediaFiles, scheduledAt, categories, location, taggedUsers, linkedContent, onProgress, linkedServiceId) {
   if (mediaFiles?.length) {
     // Pre-flight: validate file sizes client-side (50MB per file, 200MB total)
     const MAX_FILE = 50 * 1024 * 1024
@@ -367,7 +367,8 @@ export async function apiCreatePost(text, mediaFiles, scheduledAt, categories, l
       ...(categories?.length ? { categories } : {}),
       ...(location ? { place_name: location.place_name || location.name, geo_lat: location.geo_lat ?? location.lat, geo_lng: location.geo_lng ?? location.lng } : {}),
       ...(taggedUsers?.length ? { tagged_users: taggedUsers } : {}),
-      ...(linkedContent?.type ? { linked_type: linkedContent.type, linked_id: linkedContent.id } : {}),
+      ...(linkedContent?.type && linkedContent.type !== 'service' ? { linked_type: linkedContent.type, linked_id: linkedContent.id } : {}),
+      ...(linkedContent?.type === 'service' || linkedServiceId ? { linked_service_id: linkedContent?.id ?? linkedServiceId } : {}),
     }),
   })
 }

@@ -47,6 +47,7 @@ import RickRoll from './components/easter-eggs/RickRoll.jsx'
 import RiddleBanner from './components/easter-eggs/RiddleBanner.jsx'
 import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode, apiReverseGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiAssignAdfreedays, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness, apiFollowUser, apiUnfollowUser, apiGetFollowers, apiGetFollowing, apiPayForAd, apiBoostPost, apiTrackAdImpression, apiTrackAdClick, apiAdminGrowth, apiAdminOnlineNow, apiAdminGetBannedUsers, apiAdminGetAuditLog, apiAdminSearchUsers, apiAdminForceLogout, apiAdminDeleteUser, apiGetAdminStorageStats,
   apiContactBusiness, apiGetBusinessJobs, apiGetBusinessServices, apiGetBusinessEvents, apiGetBusinessEndorsements, apiGetBusinessPartners, apiSendPartnerRequest, apiSendBusinessInquiry, apiGetFollowedAnnouncements,
+  apiGetMyServices,
 } from './api.js'
 import BusinessBadge from './components/BusinessBadge.jsx'
 import BusinessDirectory from './pages/BusinessDirectory.jsx'
@@ -2192,6 +2193,88 @@ function BoostedListingCard({ listing, lang, t, onNavigate }) {
   )
 }
 
+// ── ServiceSpotlightCard — renders a service card attached to a post ──────────
+function ServiceSpotlightCard({ service, lang, authorId, onRemove, preview }) {
+  const [showContact, setShowContact] = useState(false)
+  const [topic, setTopic] = useState('')
+  const [message, setMessage] = useState('')
+  const [sent, setSent] = useState(false)
+  const [busy, setBusy] = useState(false)
+
+  const da = lang === 'da'
+  const name = da ? service.name_da : (service.name_en || service.name_da)
+  const desc = da ? service.description_da : (service.description_en || service.description_da)
+  const priceLabel = service.price_from
+    ? `${da ? 'Fra' : 'From'} ${formatPrice(service.price_from)}${service.price_to ? ` – ${formatPrice(service.price_to)}` : ''}`
+    : service.price_to ? formatPrice(service.price_to) : null
+
+  const handleContact = async () => {
+    if (!topic.trim() || !message.trim() || busy) return
+    setBusy(true)
+    const res = await apiContactBusiness(authorId, topic, message)
+    if (res !== null) setSent(true)
+    setBusy(false)
+  }
+
+  return (
+    <div style={{ margin: '8px 0 2px', background: '#F8FAF9', border: '1.5px solid #D1FAE5', borderRadius: 10, overflow: 'hidden' }}>
+      <div style={{ padding: '10px 12px', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+        <span style={{ fontSize: 22, flexShrink: 0 }}>🛍</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 11, color: '#059669', fontWeight: 700, marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            {da ? 'Ydelse' : 'Service'}
+          </div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#1a1a1a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</div>
+          {desc && (
+            <div style={{ fontSize: 12, color: '#555', marginTop: 2, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{desc}</div>
+          )}
+          {priceLabel && (
+            <div style={{ fontSize: 12, color: '#059669', marginTop: 4, fontWeight: 600 }}>{priceLabel}</div>
+          )}
+        </div>
+        {preview && onRemove && (
+          <button type="button" onClick={onRemove} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#888', flexShrink: 0 }}>×</button>
+        )}
+        {!preview && authorId && !showContact && !sent && (
+          <button type="button" onClick={() => setShowContact(true)} style={{ fontSize: 12, fontWeight: 700, padding: '5px 12px', borderRadius: 20, border: '1.5px solid #059669', background: '#fff', color: '#059669', cursor: 'pointer', flexShrink: 0 }}>
+            {da ? 'Kontakt' : 'Contact'}
+          </button>
+        )}
+      </div>
+      {showContact && !sent && (
+        <div style={{ borderTop: '1px solid #D1FAE5', padding: '10px 12px', background: '#fff' }}>
+          <input
+            value={topic}
+            onChange={e => setTopic(e.target.value)}
+            placeholder={da ? 'Emne' : 'Subject'}
+            style={{ width: '100%', padding: '6px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, marginBottom: 6, boxSizing: 'border-box' }}
+          />
+          <textarea
+            value={message}
+            onChange={e => setMessage(e.target.value)}
+            placeholder={da ? 'Skriv en besked…' : 'Write a message…'}
+            rows={2}
+            style={{ width: '100%', padding: '6px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, resize: 'none', boxSizing: 'border-box' }}
+          />
+          <div style={{ display: 'flex', gap: 6, marginTop: 6, justifyContent: 'flex-end' }}>
+            <button type="button" onClick={() => setShowContact(false)} style={{ fontSize: 12, padding: '5px 12px', borderRadius: 20, border: '1px solid #ddd', background: '#fff', color: '#555', cursor: 'pointer' }}>
+              {da ? 'Annuller' : 'Cancel'}
+            </button>
+            <button type="button" onClick={handleContact} disabled={busy || !topic.trim() || !message.trim()} style={{ fontSize: 12, fontWeight: 700, padding: '5px 12px', borderRadius: 20, border: 'none', background: '#059669', color: '#fff', cursor: 'pointer', opacity: (busy || !topic.trim() || !message.trim()) ? 0.6 : 1 }}>
+              {da ? 'Send' : 'Send'}
+            </button>
+          </div>
+        </div>
+      )}
+      {sent && (
+        <div style={{ borderTop: '1px solid #D1FAE5', padding: '8px 12px', background: '#F0FDF4', fontSize: 12, color: '#059669', fontWeight: 600 }}>
+          {da ? '✓ Besked sendt!' : '✓ Message sent!'}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── LinkedContentCard — renders a job/listing/event card attached to a post ──
 function LinkedContentCard({ type, id, lang, onNavigate }) {
   const [item, setItem] = useState(null)
@@ -3650,8 +3733,13 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
             {/* Attach content picker */}
             {showAttachPicker && (
               <div style={{ margin: '8px 0 0', background: '#FAFAF8', border: '1px solid #e0e0e0', borderRadius: 10, padding: 12 }}>
-                <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-                  {[{id:'job',label:lang==='da'?'💼 Job':'💼 Job'},{id:'listing',label:lang==='da'?'🛒 Marked':'🛒 Market'},{id:'event',label:lang==='da'?'📅 Event':'📅 Event'}].map(tab => (
+                <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
+                  {[
+                    {id:'job',label:lang==='da'?'💼 Job':'💼 Job'},
+                    {id:'listing',label:lang==='da'?'🛒 Marked':'🛒 Market'},
+                    {id:'event',label:lang==='da'?'📅 Event':'📅 Event'},
+                    ...(mode === 'business' ? [{id:'service',label:lang==='da'?'🛍 Ydelse':'🛍 Service'}] : []),
+                  ].map(tab => (
                     <button key={tab.id} type="button" onClick={async () => {
                       setAttachTab(tab.id)
                       setAttachLoading(true)
@@ -3660,9 +3748,11 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                       if (tab.id === 'job') data = await apiFetchJobs({}).catch(() => null)
                       else if (tab.id === 'listing') data = await apiFetchListings({}).catch(() => null)
                       else if (tab.id === 'event') data = await apiFetchEvents().catch(() => null)
+                      else if (tab.id === 'service') data = await apiGetMyServices().catch(() => null)
                       if (tab.id === 'job') setAttachItems(data?.jobs || [])
                       else if (tab.id === 'listing') setAttachItems(data?.listings || [])
                       else if (tab.id === 'event') setAttachItems(data?.events || [])
+                      else if (tab.id === 'service') setAttachItems(data?.services || [])
                       setAttachLoading(false)
                     }} style={{ padding: '5px 12px', borderRadius: 20, border: 'none', fontSize: 13, fontWeight: attachTab === tab.id ? 700 : 500, background: attachTab === tab.id ? '#2D6A4F' : '#e8e8e4', color: attachTab === tab.id ? '#fff' : '#555', cursor: 'pointer' }}>
                       {tab.label}
@@ -3676,13 +3766,16 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                       setLinkedContent({ type: attachTab, id: item.id, item })
                       setShowAttachPicker(false)
                     }} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: '#fff', border: '1px solid #e0e0e0', borderRadius: 8, cursor: 'pointer', textAlign: 'left' }}>
-                      <span style={{ fontSize: 20 }}>{attachTab === 'job' ? '💼' : attachTab === 'listing' ? '🛒' : '📅'}</span>
+                      <span style={{ fontSize: 20 }}>{attachTab === 'job' ? '💼' : attachTab === 'listing' ? '🛒' : attachTab === 'service' ? '🛍' : '📅'}</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: '#333', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title}</div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: '#333', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {attachTab === 'service' ? (lang === 'da' ? item.name_da : item.name_en) : item.title}
+                        </div>
                         <div style={{ fontSize: 11, color: '#888' }}>
                           {attachTab === 'job' && `${item.company_name || ''} · ${item.location || (item.remote ? (lang==='da'?'Remote':'Remote') : '')}`}
                           {attachTab === 'listing' && `${item.category || ''} · ${item.location || ''}`}
                           {attachTab === 'event' && `${item.date ? new Date(item.date).toLocaleDateString(lang==='da'?'da-DK':'en-US',{day:'numeric',month:'short'}) : ''} · ${item.location || ''}`}
+                          {attachTab === 'service' && (item.price_from || item.price_to ? `${lang === 'da' ? 'Fra' : 'From'} ${item.price_from || item.price_to} EUR` : '')}
                         </div>
                       </div>
                     </button>
@@ -3692,7 +3785,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
             )}
 
             {/* Linked content preview */}
-            {linkedContent && (
+            {linkedContent && linkedContent.type !== 'service' && (
               <div style={{ margin: '8px 0 0', background: '#FAFAF8', border: '1.5px solid #2D6A4F', borderRadius: 10, padding: '10px 12px', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                 <span style={{ fontSize: 22, flexShrink: 0 }}>{linkedContent.type === 'job' ? '💼' : linkedContent.type === 'listing' ? '🛒' : '📅'}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -3705,6 +3798,15 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                 </div>
                 <button type="button" onClick={() => setLinkedContent(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#888', flexShrink: 0 }}>×</button>
               </div>
+            )}
+            {/* Service spotlight preview */}
+            {linkedContent?.type === 'service' && (
+              <ServiceSpotlightCard
+                service={linkedContent.item}
+                lang={lang}
+                onRemove={() => setLinkedContent(null)}
+                preview
+              />
             )}
 
             {/* Composer link preview — shown automatically when a URL is detected in the text */}
@@ -4309,6 +4411,10 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
             {/* Linked content card */}
             {post.linkedType && post.linkedId && (
               <LinkedContentCard type={post.linkedType} id={post.linkedId} lang={lang} onNavigate={onNavigate} />
+            )}
+            {/* Service spotlight card */}
+            {post.linkedService && (
+              <ServiceSpotlightCard service={post.linkedService} lang={lang} authorId={post.authorId} />
             )}
             {post.location && (
               <div
