@@ -603,9 +603,15 @@ function VerificationSection({ t, lang, currentUser }) {
 }
 
 // ── Main BusinessHub component ────────────────────────────────────────────────
-const TABS = ['leads', 'announcements', 'services', 'partners', 'analytics', 'verify', 'directory']
+const CONTENT_TABS = ['leads', 'announcements', 'services', 'partners', 'analytics', 'verify', 'directory']
 
-export default function BusinessHub({ lang, t, currentUser, onViewProfile }) {
+// Nav tabs navigate out to standalone pages rather than loading inline content
+const NAV_TABS = [
+  { id: 'jobs',    label: { da: 'Job', en: 'Jobs' },           icon: '💼' },
+  { id: 'company', label: { da: 'Min virksomhed', en: 'My Company' }, icon: '🏬' },
+]
+
+export default function BusinessHub({ lang, t, currentUser, onViewProfile, onNavigate }) {
   const [tab, setTab] = useState('leads')
 
   const TAB_LABELS = {
@@ -618,16 +624,40 @@ export default function BusinessHub({ lang, t, currentUser, onViewProfile }) {
     directory:     lang === 'da' ? 'Virksomheder' : 'Directory',
   }
 
+  const isVerified = currentUser?.is_verified
+  const cvrNumber  = currentUser?.cvr_number
+  const cvrName    = currentUser?.cvr_company_name
+
   return (
     <div style={{ maxWidth: 820, margin: '0 auto', padding: '0 16px 40px' }}>
       <div style={{ marginBottom: 20 }}>
-        <h2 style={{ fontSize: 22, fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>{t.businessHub}</h2>
-        <p style={{ fontSize: 14, color: '#6B7280', margin: 0 }}>{t.businessHubDesc}</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <h2 style={{ fontSize: 22, fontWeight: 700, color: '#111827', margin: 0 }}>{t.businessHub}</h2>
+          {isVerified && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+              fontSize: 12, fontWeight: 700,
+              background: '#D1FAE5', color: '#065F46',
+              border: '1px solid #6EE7B7', borderRadius: 20,
+              padding: '3px 10px',
+            }}>
+              ✓ {lang === 'da' ? 'CVR verificeret' : 'CVR verified'}
+            </span>
+          )}
+        </div>
+        {isVerified && (cvrName || cvrNumber) && (
+          <p style={{ fontSize: 13, color: '#6B7280', margin: '4px 0 0' }}>
+            {cvrName}{cvrName && cvrNumber ? ' · ' : ''}{cvrNumber ? `CVR ${cvrNumber}` : ''}
+          </p>
+        )}
+        {!isVerified && (
+          <p style={{ fontSize: 14, color: '#6B7280', margin: '4px 0 0' }}>{t.businessHubDesc}</p>
+        )}
       </div>
 
       {/* Tab bar */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 20, overflowX: 'auto', paddingBottom: 4 }}>
-        {TABS.map(s => (
+        {CONTENT_TABS.map(s => (
           <button key={s} onClick={() => setTab(s)} style={{
             padding: '7px 16px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 13, whiteSpace: 'nowrap',
             background: tab === s ? '#6366F1' : '#F3F4F6',
@@ -635,6 +665,18 @@ export default function BusinessHub({ lang, t, currentUser, onViewProfile }) {
             fontWeight: tab === s ? 600 : 400,
           }}>
             {TAB_LABELS[s]}
+          </button>
+        ))}
+        {/* Nav-out tabs — separated by a faint divider */}
+        <div style={{ width: 1, background: '#E5E7EB', margin: '4px 2px', flexShrink: 0 }} />
+        {NAV_TABS.map(({ id, label, icon }) => (
+          <button key={id} onClick={() => onNavigate?.(id)} style={{
+            padding: '7px 16px', borderRadius: 20, border: '1px solid #E5E7EB',
+            cursor: 'pointer', fontSize: 13, whiteSpace: 'nowrap',
+            background: '#fff', color: '#374151', fontWeight: 400,
+            display: 'flex', alignItems: 'center', gap: 5,
+          }}>
+            <span>{icon}</span>{label[lang] ?? label.en}
           </button>
         ))}
       </div>
