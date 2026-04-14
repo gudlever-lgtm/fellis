@@ -72,9 +72,16 @@ const transport = nodemailer.createTransport({
   family: 4, // Force IPv4 — avoids ENETUNREACH on hosts without an IPv6 route
 })
 
-console.log('  Connecting...')
+const CONNECT_TIMEOUT_MS = 12_000
+
+console.log(`  Connecting... (timeout ${CONNECT_TIMEOUT_MS / 1000}s)`)
 try {
-  await transport.verify()
+  await Promise.race([
+    transport.verify(),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`Connection timed out after ${CONNECT_TIMEOUT_MS / 1000}s — port ${MAIL_PORT} is likely blocked by the server firewall`)), CONNECT_TIMEOUT_MS)
+    ),
+  ])
   console.log()
   console.log(`${GREEN}✓  SMTP connection verified${RESET}`)
   console.log(`${GREEN}   ${MAIL_HOST}:${MAIL_PORT} accepted the login for ${MAIL_USER}${RESET}`)
@@ -86,13 +93,27 @@ try {
   console.log(`${RED}✖  SMTP connection FAILED${RESET}`)
   console.log(`${RED}   ${err.message}${RESET}`)
   console.log()
-  console.log('  Troubleshooting:')
-  console.log('  1. Double-check MAIL_HOST, MAIL_PORT, MAIL_USER, MAIL_PASS in server/.env')
-  console.log('  2. Port 587 → MAIL_SECURE=false (STARTTLS); port 465 → MAIL_SECURE=true (TLS)')
-  console.log('  3. If using Gmail: create an App Password at myaccount.google.com/apppasswords')
-  console.log('     (your normal Gmail password will not work with SMTP)')
-  console.log('  4. Check that the server firewall allows outbound TCP on port', MAIL_PORT)
-  console.log('  5. If the SMTP server requires EHLO with your domain, set MAIL_HOST correctly')
+  const isTimeout = err.message.includes('timed out')
+  const isAuthFail = err.message.includes('535') || err.message.includes('auth') || err.message.includes('Authentication')
+  if (isTimeout) {
+    console.log('  The TCP connection was silently dropped — the port is likely blocked.')
+    console.log()
+    console.log('  Fix: switch to port 587 with STARTTLS in server/.env:')
+    console.log('    MAIL_PORT=587')
+    console.log('    MAIL_SECURE=false')
+    console.log()
+    console.log('  Port 465 (SMTPS) is commonly blocked by VPS providers to prevent spam.')
+    console.log('  Port 587 (STARTTLS submission) is the modern standard and usually allowed.')
+    console.log('  Migadu supports both — 587 is their recommended setting.')
+  } else if (isAuthFail) {
+    console.log('  Authentication failed — check MAIL_USER and MAIL_PASS in server/.env.')
+    console.log('  For Migadu: the password is the mailbox password (not your Migadu account password).')
+  } else {
+    console.log('  Troubleshooting:')
+    console.log('  1. Double-check MAIL_HOST, MAIL_PORT, MAIL_USER, MAIL_PASS in server/.env')
+    console.log('  2. Port 587 → MAIL_SECURE=false (STARTTLS); port 465 → MAIL_SECURE=true (TLS)')
+    console.log('  3. Check that the server allows outbound TCP on port', MAIL_PORT)
+  }
   console.log()
   process.exit(1)
 }
