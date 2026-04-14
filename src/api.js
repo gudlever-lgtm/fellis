@@ -1366,13 +1366,13 @@ export async function apiTrackAdClick(id) {
   return await request(`/api/ads/${id}/click`, { method: 'POST' })
 }
 export async function apiRecordAdImpression(id) {
-  return await request(`/api/ads/${id}/impression`, { method: 'POST' })
+  return await request(`/api/content/${id}/view`, { method: 'POST' })
 }
 export async function apiRecordAdClick(id) {
-  return await request(`/api/ads/${id}/click`, { method: 'POST' })
+  return await request(`/api/content/${id}/open`, { method: 'POST' })
 }
 export async function apiServeAds(placement) {
-  return await request(`/api/ads?serve=1&placement=${placement}`)
+  return await request(`/api/content?section=${placement}`)
 }
 
 // ── Subscription ──────────────────────────────────────────────────────────────
