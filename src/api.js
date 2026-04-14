@@ -62,7 +62,7 @@ export async function apiLogin(email, password, lang) {
       body: JSON.stringify({ email, password, lang }),
     })
     const body = await res.json().catch(() => ({}))
-    if (!res.ok) return { error: body.error || 'invalid_credentials' }
+    if (!res.ok) return { error: body.error || 'invalid_credentials', status: res.status }
     return body
   } catch {
     return null
