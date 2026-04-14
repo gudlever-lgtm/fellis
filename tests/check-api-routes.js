@@ -6,7 +6,7 @@
  * registered in server/index.js and reports any mismatches.
  */
 
-import { readFileSync, readdirSync } from 'fs'
+import { readFileSync, readdirSync, existsSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 
@@ -546,6 +546,118 @@ if (csrfErrors.length > 0) {
   process.exit(1)
 } else {
   console.log(`${GREEN}✓ CSRF_EXEMPT_PATHS is correctly configured (${csrfExemptPaths.length} exempt paths, all /auth/* or /visit).${RESET}\n`)
+}
+
+// ── 12. SMTP error surfacing check ────────────────────────────────────────────
+//
+// The forgot-password endpoint must surface SMTP delivery failures to the user
+// rather than fire-and-forget (silently swallowing errors and lying "link sent").
+//
+// Two markers must both be present in server/index.js:
+//   (a) 'email_send_failed'  — the error code returned to the client on SMTP failure
+//   (b) 'Promise.race'       — wraps sendMail() with a timeout so the await doesn't
+//                              hang the HTTP response indefinitely
+//
+// If either marker is missing, a future refactor has reintroduced the
+// fire-and-forget antipattern and users will again get false "link sent"
+// confirmations without receiving any email.
+
+const EMAIL_FAIL_MARKER  = 'email_send_failed'
+const EMAIL_AWAIT_MARKER = 'Promise.race'
+
+const smtpErrors = []
+if (!serverSrc.includes(EMAIL_FAIL_MARKER)) {
+  smtpErrors.push(`'${EMAIL_FAIL_MARKER}' not found in server/index.js — SMTP errors are silently swallowed`)
+}
+if (!serverSrc.includes(EMAIL_AWAIT_MARKER)) {
+  smtpErrors.push(`'${EMAIL_AWAIT_MARKER}' not found in server/index.js — sendMail() is fire-and-forget (must be awaited)`)
+}
+
+if (smtpErrors.length > 0) {
+  console.log(`${RED}✗ forgot-password SMTP error handling is broken:${RESET}`)
+  for (const e of smtpErrors) console.log(`  ${RED}${e}${RESET}`)
+  console.log(`  ${RED}Users will receive false "nulstillingslink sendt" confirmations without getting any email.${RESET}`)
+  console.log()
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ forgot-password awaits SMTP send and surfaces failures via '${EMAIL_FAIL_MARKER}'.${RESET}\n`)
+}
+
+// ── 13. Password reset token migration check ──────────────────────────────────
+//
+// The forgot-password endpoint stores a hashed token in reset_token and
+// reset_token_expires on the users table.  If these columns are missing
+// (migration not applied), every forgot-password request crashes with a
+// DB error → 500 → user sees "Kunne ikke nulstille adgangskode".
+//
+// Verify that the migration file that adds these columns:
+//   (a) exists in the repository
+//   (b) actually defines both required columns
+
+const RESET_MIGRATION_PATH = resolve(root, 'server/migrate-mfa-reset.sql')
+
+if (!existsSync(RESET_MIGRATION_PATH)) {
+  console.log(`${RED}✗ server/migrate-mfa-reset.sql is missing — reset_token columns are never added.${RESET}`)
+  console.log(`  ${RED}Every forgot-password request will crash with a DB error until the migration is created.${RESET}\n`)
+  process.exit(1)
+}
+
+const resetMigrationSrc = readFileSync(RESET_MIGRATION_PATH, 'utf8')
+const resetMigrationErrors = []
+if (!resetMigrationSrc.includes('reset_token')) {
+  resetMigrationErrors.push('reset_token column is not defined')
+}
+if (!resetMigrationSrc.includes('reset_token_expires')) {
+  resetMigrationErrors.push('reset_token_expires column is not defined')
+}
+
+if (resetMigrationErrors.length > 0) {
+  console.log(`${RED}✗ server/migrate-mfa-reset.sql is incomplete:${RESET}`)
+  for (const e of resetMigrationErrors) console.log(`  ${RED}${e}${RESET}`)
+  console.log()
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ Password reset migration (migrate-mfa-reset.sql) defines reset_token + reset_token_expires.${RESET}`)
+  console.log(`${GREEN}  Remember to run 'cd server && npm run migrate' on the production server after deploy.${RESET}\n`)
+}
+
+// ── 14. .env.example inline comment check ────────────────────────────────────
+//
+// Node.js --env-file does NOT strip inline comments (# after the value).
+// An inline comment on e.g. SITE_URL turns into part of the value:
+//
+//   SITE_URL=https://fellis.eu  # some note
+//   → process.env.SITE_URL === 'https://fellis.eu  # some note'
+//
+// This silently breaks every password reset link and invite URL in production.
+// Verify that .env.example has no inline comments so the template stays clean
+// and doesn't mislead developers into adding them to their own .env.
+
+const ENV_EXAMPLE_PATH = resolve(root, 'server/.env.example')
+if (existsSync(ENV_EXAMPLE_PATH)) {
+  const envExampleLines = readFileSync(ENV_EXAMPLE_PATH, 'utf8').split('\n')
+  const inlineCommentLines = envExampleLines
+    .map((line, i) => ({ line, num: i + 1 }))
+    .filter(({ line }) => {
+      const trimmed = line.trim()
+      if (!trimmed || trimmed.startsWith('#')) return false     // blank or full-line comment
+      if (!trimmed.includes('=')) return false                   // not a key=value line
+      const valueStart = trimmed.indexOf('=') + 1
+      const value = trimmed.slice(valueStart)
+      return value.includes('#')                                 // # inside a value
+    })
+
+  if (inlineCommentLines.length > 0) {
+    console.log(`${RED}✗ server/.env.example contains inline comments (Node.js --env-file includes them in the value):${RESET}`)
+    for (const { line, num } of inlineCommentLines) {
+      console.log(`  ${RED}Line ${num}: ${line.trim()}${RESET}`)
+    }
+    console.log(`  ${RED}Move comments to their own line starting with #.${RESET}`)
+    console.log()
+    process.exit(1)
+  } else {
+    console.log(`${GREEN}✓ server/.env.example has no inline comments (all # are on dedicated lines).${RESET}\n`)
+  }
 }
 
 process.exit(0)

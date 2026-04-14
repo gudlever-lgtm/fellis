@@ -771,14 +771,35 @@ async function testMailAndPasswordReset() {
 
   const savedSession = sessionId
 
-  // 1. Forgot-password → always returns { ok: true } (pre-auth endpoint, test without session)
+  // 1. Forgot-password — exercises the full flow:
+  //      DB write (reset_token + reset_token_expires on users table)  →  SMTP send
+  //    Expected outcomes:
+  //      { ok: true }  — email sent (MAIL_HOST configured + SMTP works)
+  //                    — OR dev mode (no MAIL_HOST — token logged to console, no mail)
+  //      HTTP 502      — SMTP delivery failed (MAIL_HOST set but wrong credentials /
+  //                      host unreachable / relay refused / 10 s timeout).
+  //                      Run: cd server && npm run check-smtp
+  //      HTTP 500      — DB error (reset_token column missing — run: cd server && npm run migrate)
   sessionId = null
   const forgot = await api('POST', '/auth/forgot-password', { email: testEmail })
   sessionId = savedSession
-  if (forgot.ok && forgot.data?.ok) ok('POST /api/auth/forgot-password → { ok: true }')
-  else                               failOrSkip(forgot, 'POST /api/auth/forgot-password', `HTTP ${forgot.status}`)
+  if (forgot.ok && forgot.data?.ok) {
+    ok('POST /api/auth/forgot-password → { ok: true } (DB token stored; email sent or SMTP not configured)')
+  } else if (forgot.status === 502) {
+    fail(
+      'POST /api/auth/forgot-password → 502 SMTP failure',
+      'Email delivery failed — check MAIL_HOST / MAIL_USER / MAIL_PASS in server/.env, then run: cd server && npm run check-smtp',
+    )
+  } else if (forgot.status === 500) {
+    fail(
+      'POST /api/auth/forgot-password → 500 DB error',
+      'reset_token column likely missing — run: cd server && npm run migrate',
+    )
+  } else {
+    failOrSkip(forgot, 'POST /api/auth/forgot-password', `HTTP ${forgot.status} — ${JSON.stringify(forgot.data)}`)
+  }
 
-  // 2. Forgot-password for unknown email → still { ok: true } (no leaking)
+  // 2. Forgot-password for unknown email → still { ok: true } (no user enumeration)
   sessionId = null
   const forgotGhost = await api('POST', '/auth/forgot-password', { email: `ghost-${ts}@example.invalid` })
   sessionId = savedSession
@@ -829,7 +850,7 @@ async function testMailAndPasswordReset() {
 // ─── Runner ───────────────────────────────────────────────────────────────────
 
 async function run() {
-  const VERSION = '1.1.2'
+  const VERSION = '1.2.0'
   console.log(c.bold(`\nfellis.eu E2E Test Suite`) + c.dim(` v${VERSION}`))
   console.log(c.dim(`Target: ${BASE_URL}`))
   console.log(c.dim(`Time:   ${new Date().toISOString()}`))
