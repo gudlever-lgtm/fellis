@@ -7266,6 +7266,88 @@ app.post('/api/ads/:id/click', authenticate, async (req, res) => {
   }
 })
 
+// ── Ad-blocker-safe content endpoints ─────────────────────────────────────────
+// Same logic as /api/ads?serve=1 / /api/ads/:id/impression / /api/ads/:id/click
+// but under /api/content/* to avoid ad blocker filter lists.
+
+// GET /api/content — serve ads for a given section (replaces /api/ads?serve=1&placement=X)
+app.get('/api/content', authenticate, async (req, res) => {
+  try {
+    const [[settings]] = await pool.query('SELECT ads_enabled, max_ads_feed, max_ads_sidebar, max_ads_stories, refresh_interval_seconds FROM admin_ad_settings WHERE id = 1').catch(() => [[null]])
+    if (!settings || !settings.ads_enabled) return res.json({ ads: [] })
+    const todayAd = new Date().toISOString().split('T')[0]
+    const [[adFreeRow]] = await pool.query(`
+      SELECT (
+        (SELECT COUNT(*) FROM adfree_day_assignments WHERE user_id = ? AND start_date <= ? AND end_date >= ?) +
+        (SELECT COUNT(*) FROM adfree_purchased_periods WHERE user_id = ? AND start_date <= ? AND end_date >= ?)
+      ) AS total
+    `, [req.userId, todayAd, todayAd, req.userId, todayAd, todayAd]).catch(() => [[{ total: 0 }]])
+    if ((adFreeRow?.total ?? 0) > 0) return res.json({ ads: [], ads_free: true })
+    const section = req.query.section || 'feed'
+    const limitMap = { feed: settings.max_ads_feed, sidebar: settings.max_ads_sidebar, stories: settings.max_ads_stories, reels: settings.max_ads_feed }
+    const limit = limitMap[section] || 1
+    const [rows] = await pool.query(
+      `SELECT * FROM ads WHERE status = 'active' AND (start_date IS NULL OR start_date <= CURDATE()) AND (end_date IS NULL OR end_date >= CURDATE()) ORDER BY RAND() LIMIT ?`,
+      [limit]
+    )
+    res.json({ ads: rows, refresh_interval: settings.refresh_interval_seconds })
+  } catch (err) {
+    console.error('GET /api/content error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/content/:id/view — record impression (replaces /api/ads/:id/impression)
+app.post('/api/content/:id/view', authenticate, async (req, res) => {
+  try {
+    const adId = parseInt(req.params.id)
+    const [[ad]] = await pool.query('SELECT id, cpm_rate, budget, spent, status FROM ads WHERE id = ?', [adId])
+    if (!ad) return res.status(404).json({ error: 'Not found' })
+    let isDuplicate = false
+    try {
+      const hourBucket = new Date()
+      hourBucket.setMinutes(0, 0, 0)
+      try {
+        await pool.query('INSERT INTO ad_impressions (ad_id, user_id, hour_bucket) VALUES (?, ?, ?)', [adId, req.userId, hourBucket])
+      } catch (dupErr) {
+        if (dupErr.code === 'ER_DUP_ENTRY') { isDuplicate = true }
+        else if (dupErr.code !== 'ER_NO_SUCH_TABLE') throw dupErr
+      }
+      if (isDuplicate) return res.json({ ok: true, duplicate: true })
+      const [[{ rc }]] = await pool.query('SELECT COUNT(DISTINCT user_id) AS rc FROM ad_impressions WHERE ad_id = ?', [adId])
+      await pool.query('UPDATE ads SET reach = ? WHERE id = ?', [rc, adId])
+    } catch { /* ad_impressions not yet migrated */ }
+    await pool.query('UPDATE ads SET impressions = impressions + 1 WHERE id = ?', [adId])
+    if (ad.cpm_rate && ad.cpm_rate > 0) {
+      const costPerImpression = parseFloat(ad.cpm_rate) / 1000
+      await pool.query('UPDATE ads SET spent = spent + ? WHERE id = ?', [costPerImpression, adId])
+      if (ad.budget && ad.budget > 0) {
+        const newSpent = parseFloat(ad.spent) + costPerImpression
+        if (newSpent >= parseFloat(ad.budget)) {
+          await pool.query("UPDATE ads SET status = 'paused' WHERE id = ? AND status = 'active'", [adId])
+        }
+      }
+    }
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/content/:id/view error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/content/:id/open — record click (replaces /api/ads/:id/click)
+app.post('/api/content/:id/open', authenticate, async (req, res) => {
+  try {
+    const [[ad]] = await pool.query('SELECT id FROM ads WHERE id = ?', [req.params.id])
+    if (!ad) return res.status(404).json({ error: 'Not found' })
+    await pool.query('UPDATE ads SET clicks = clicks + 1 WHERE id = ?', [req.params.id])
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/content/:id/open error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // ── Admin ad settings ─────────────────────────────────────────────────────────
 
 // GET /api/admin/ad-settings — fetch ad pricing & display settings (admin only)
