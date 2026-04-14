@@ -6110,26 +6110,28 @@ function BillingSettings({ lang, t, mode }) {
                   {[
                     {
                       key: 'card',
-                      label: t.paymentMethodCard,
-                      icon: (
-                        <span aria-hidden="true" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-                          {/* Generic card */}
-                          <svg width="16" height="12" viewBox="0 0 16 12" fill="none">
-                            <rect x=".5" y=".5" width="15" height="11" rx="2" stroke="currentColor" strokeWidth="1.2"/>
-                            <rect y="3" width="16" height="2.5" fill="currentColor"/>
-                            <rect x="2" y="7.5" width="4" height="1.5" rx=".5" fill="currentColor" opacity=".45"/>
+                      icon: null,
+                      label: (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, whiteSpace: 'nowrap' }}>
+                          <svg width="14" height="10" viewBox="0 0 14 10" fill="none" aria-hidden="true">
+                            <rect x=".5" y=".5" width="13" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.1"/>
+                            <rect y="2.5" width="14" height="2" fill="currentColor"/>
+                            <rect x="1.5" y="6.5" width="3.5" height="1.2" rx=".4" fill="currentColor" opacity=".45"/>
                           </svg>
-                          {/* Apple Pay mark */}
-                          <svg width="28" height="12" viewBox="0 0 28 12" fill="none">
+                          {t.paymentMethodCard.split(' / ')[0]}
+                          <span style={{ opacity: 0.35 }}>/</span>
+                          <svg width="26" height="10" viewBox="0 0 26 10" fill="none" aria-hidden="true">
                             <path d="M5.4 1.5C5.1 1.9 4.7 2.2 4.3 2.1 4.2 1.8 4.4 1.3 4.7 1 5 .6 5.4.4 5.8.5 5.9.8 5.7 1.2 5.4 1.5Z" fill="currentColor"/>
                             <path d="M5.8 2.3C5.2 2.3 4.6 2.6 4.3 2.6 3.9 2.6 3.3 2.3 2.7 2.3 1.7 2.3.8 3.1.8 4.6.8 6.5 2.5 9.5 3.6 9.5 4.1 9.5 4.2 9.2 4.9 9.2 5.5 9.2 5.7 9.5 6.2 9.5 7.3 9.5 8.4 7 8.9 5.4 8.3 5.1 7.8 4.4 7.8 3.6 7.8 2.7 8.4 2 9.1 1.7 8.6 1 7.7.6 6.8.9 6.2 1.1 5.8 2.3Z" fill="currentColor"/>
-                            <text x="10" y="9" fill="currentColor" fontSize="7.5" fontWeight="600" fontFamily="'-apple-system',BlinkMacSystemFont,Arial,sans-serif">Pay</text>
+                            <text x="10" y="8.5" fill="currentColor" fontSize="7.5" fontWeight="600" fontFamily="'-apple-system',BlinkMacSystemFont,Arial,sans-serif">Pay</text>
                           </svg>
-                          {/* Google Pay mark */}
-                          <svg width="26" height="12" viewBox="0 0 26 12">
-                            <text x="0" y="10" fill="#4285F4" fontSize="11" fontWeight="700" fontFamily="Arial,Helvetica,sans-serif">G</text>
-                            <text x="9" y="9.5" fill="#3C4043" fontSize="7.5" fontWeight="500" fontFamily="Arial,Helvetica,sans-serif">Pay</text>
+                          Apple Pay
+                          <span style={{ opacity: 0.35 }}>/</span>
+                          <svg width="22" height="10" viewBox="0 0 22 10" aria-hidden="true">
+                            <text x="0" y="9" fill="#4285F4" fontSize="10" fontWeight="700" fontFamily="Arial,Helvetica,sans-serif">G</text>
+                            <text x="8" y="8.5" fill="#3C4043" fontSize="7.5" fontWeight="500" fontFamily="Arial,Helvetica,sans-serif">Pay</text>
                           </svg>
+                          Google Pay
                         </span>
                       ),
                     },
