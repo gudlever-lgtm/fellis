@@ -9474,6 +9474,7 @@ app.get('/api/reels', authenticate, async (req, res) => {
     const [rows] = await pool.query(
       `SELECT r.id, r.video_url, r.caption, r.views_count, r.created_at, r.tagged_users,
               COALESCE(r.source, 'upload') AS source, r.title_da, r.title_en,
+              COALESCE(r.shares_count, 0) AS shares_count,
               u.id AS user_id, u.name AS author_name, u.handle AS author_handle, u.avatar_url AS author_avatar,
               COUNT(DISTINCT rl.user_id) AS likes_count,
               EXISTS(SELECT 1 FROM reel_likes WHERE reel_id = r.id AND user_id = ?) AS liked_by_me,
@@ -9560,6 +9561,19 @@ app.post('/api/reels/:id/like', authenticate, writeLimit, async (req, res) => {
     res.json({ liked: true, likes_count, reaction })
   } catch (err) {
     console.error('POST /api/reels/:id/like error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// POST /api/reels/:id/share — increment share count
+app.post('/api/reels/:id/share', authenticate, writeLimit, async (req, res) => {
+  try {
+    const reelId = parseInt(req.params.id)
+    await pool.query('UPDATE reels SET shares_count = shares_count + 1 WHERE id = ?', [reelId])
+    const [[row]] = await pool.query('SELECT shares_count FROM reels WHERE id = ?', [reelId])
+    res.json({ shares_count: row?.shares_count ?? 0 })
+  } catch (err) {
+    console.error('POST /api/reels/:id/share error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })
