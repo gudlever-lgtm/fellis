@@ -3,7 +3,7 @@
  * Static API route checker — runs per build to catch 404s before they hit production.
  *
  * Compares every request(url) call in src/api.js against the routes
- * registered in server/index.js and reports any mismatches.
+ * registered in server/index.js and server/routes/*.js and reports any mismatches.
  */
 
 import { readFileSync, readdirSync, existsSync } from 'fs'
@@ -27,23 +27,49 @@ while ((m = serverRouteRe.exec(serverSrc)) !== null) {
   serverRoutes.add(`${method} ${path}`)
 }
 
-// ── 1b. Also extract routes from server/routes/facebook.js ───────────────────
-// These are mounted at /api/auth/facebook via app.use('/api/auth/facebook', facebookRouter)
-// The file uses router.get/post/etc — extract and prefix with the mount path.
+// ── 1b. Extract routes from all server/routes/*.js files ─────────────────────
+// Most routers are mounted at /api via app.use('/api', router).
+// Exception: facebook.js is mounted at /api/auth/facebook — its routes use
+// short paths like '/', '/callback', '/data' and must be prefixed accordingly.
+const routesDir = resolve(root, 'server/routes')
 const FB_ROUTE_PREFIX = '/api/auth/facebook'
 try {
-  const fbSrc = readFileSync(resolve(root, 'server/routes/facebook.js'), 'utf8')
-  const fbRouteRe = /router\.(get|post|put|patch|delete)\(\s*['"`]([^'"`]+)['"`]/gi
-  while ((m = fbRouteRe.exec(fbSrc)) !== null) {
-    const method = m[1].toUpperCase()
-    const subPath = m[2].split('?')[0]
-    // '/' → /api/auth/facebook, '/callback' → /api/auth/facebook/callback
-    const fullPath = subPath === '/' ? FB_ROUTE_PREFIX : `${FB_ROUTE_PREFIX}${subPath}`
-    serverRoutes.add(`${method} ${fullPath}`)
+  const routeFiles = readdirSync(routesDir).filter(f => f.endsWith('.js'))
+  for (const file of routeFiles) {
+    try {
+      const src = readFileSync(resolve(routesDir, file), 'utf8')
+      const re = /router\.(get|post|put|patch|delete)\(\s*['"`]([^'"`]+)['"`]/gi
+      while ((m = re.exec(src)) !== null) {
+        const method = m[1].toUpperCase()
+        const subPath = m[2].split('?')[0]
+        let fullPath
+        if (file === 'facebook.js') {
+          // facebook.js is mounted at /api/auth/facebook
+          fullPath = subPath === '/' ? FB_ROUTE_PREFIX : `${FB_ROUTE_PREFIX}${subPath}`
+        } else {
+          // All other route files are mounted at /api
+          fullPath = subPath === '/' ? '/api' : `/api${subPath}`
+        }
+        serverRoutes.add(`${method} ${fullPath}`)
+      }
+    } catch (err) {
+      console.warn(`Could not scan server/routes/${file}:`, err.message)
+    }
   }
 } catch (err) {
-  console.warn('Could not scan server/routes/facebook.js:', err.message)
+  console.warn('Could not scan server/routes/ directory:', err.message)
 }
+
+// Build combined source for content-based checks (markers that may now live in route files)
+let combinedServerSrc = serverSrc
+try {
+  const routeFiles = readdirSync(routesDir).filter(f => f.endsWith('.js'))
+  for (const file of routeFiles) {
+    try {
+      combinedServerSrc += '\n' + readFileSync(resolve(routesDir, file), 'utf8')
+    } catch {}
+  }
+} catch {}
 
 // ── 2. Extract client API calls ────────────────────────────────────────────────
 
@@ -271,9 +297,9 @@ if (missingFeedModeRoutes.length > 0) {
 }
 
 // Verify that the server-side GET /api/feed handler contains mode validation logic
-// by checking for the expected validation string in server/index.js source.
+// by checking for the expected validation string in server/index.js or route files.
 const FEED_MODE_VALIDATION_MARKER = '"privat" or "business"'
-if (!serverSrc.includes(FEED_MODE_VALIDATION_MARKER)) {
+if (!combinedServerSrc.includes(FEED_MODE_VALIDATION_MARKER)) {
   console.log(`${RED}✗ GET /api/feed is missing mode parameter validation ("privat" or "business" guard).${RESET}\n`)
   process.exit(1)
 } else {
@@ -283,7 +309,7 @@ if (!serverSrc.includes(FEED_MODE_VALIDATION_MARKER)) {
 // Verify that POST /api/feed stores user_mode on insert
 const POST_FEED_USER_MODE_MARKER = 'user_mode'
 const feedInsertRe = /INSERT INTO posts[^;]+user_mode/s
-if (!feedInsertRe.test(serverSrc)) {
+if (!feedInsertRe.test(combinedServerSrc)) {
   console.log(`${RED}✗ POST /api/feed INSERT does not include user_mode column — posts will not be mode-tagged.${RESET}\n`)
   process.exit(1)
 } else {
@@ -475,12 +501,34 @@ if (missingGdprRoutes.length > 0) {
 // routes with different parameter names are also detected.
 
 const serverRoutesAllList = []
+// Check app.METHOD routes in index.js
 const serverRouteDupRe = /app\.(get|post|put|patch|delete)\(\s*['"`]([^'"`]+)['"`]/gi
 while ((m = serverRouteDupRe.exec(serverSrc)) !== null) {
   const method = m[1].toUpperCase()
   const path   = normaliseServerPath(m[2].split('?')[0])
   serverRoutesAllList.push(`${method} ${path}`)
 }
+// Check router.METHOD routes in all route files
+try {
+  const routeFiles2 = readdirSync(routesDir).filter(f => f.endsWith('.js'))
+  for (const file of routeFiles2) {
+    try {
+      const src = readFileSync(resolve(routesDir, file), 'utf8')
+      const re2 = /router\.(get|post|put|patch|delete)\(\s*['"`]([^'"`]+)['"`]/gi
+      while ((m = re2.exec(src)) !== null) {
+        const method = m[1].toUpperCase()
+        const subPath = normaliseServerPath(m[2].split('?')[0])
+        let fullPath
+        if (file === 'facebook.js') {
+          fullPath = subPath === '/' ? FB_ROUTE_PREFIX : `${FB_ROUTE_PREFIX}${subPath}`
+        } else {
+          fullPath = subPath === '/' ? '/api' : `/api${subPath}`
+        }
+        serverRoutesAllList.push(`${method} ${fullPath}`)
+      }
+    } catch {}
+  }
+} catch {}
 
 const routeFreq = new Map()
 for (const r of serverRoutesAllList) {
@@ -509,7 +557,7 @@ if (duplicateRoutes.length > 0) {
 // Example of a dangerous misconfiguration this catches:
 //   accidentally adding '/gdpr/account' to the set while refactoring
 
-const csrfExemptMatch = serverSrc.match(/const CSRF_EXEMPT_PATHS\s*=\s*new Set\(\[([\s\S]*?)\]\)/)
+const csrfExemptMatch = combinedServerSrc.match(/const CSRF_EXEMPT_PATHS\s*=\s*new Set\(\[([\s\S]*?)\]\)/)
 if (!csrfExemptMatch) {
   console.log(`${RED}✗ CSRF_EXEMPT_PATHS not found in server/index.js — CSRF middleware may be misconfigured.${RESET}\n`)
   process.exit(1)
@@ -566,11 +614,11 @@ const EMAIL_FAIL_MARKER  = 'email_send_failed'
 const EMAIL_AWAIT_MARKER = 'Promise.race'
 
 const smtpErrors = []
-if (!serverSrc.includes(EMAIL_FAIL_MARKER)) {
-  smtpErrors.push(`'${EMAIL_FAIL_MARKER}' not found in server/index.js — SMTP errors are silently swallowed`)
+if (!combinedServerSrc.includes(EMAIL_FAIL_MARKER)) {
+  smtpErrors.push(`'${EMAIL_FAIL_MARKER}' not found in server/ — SMTP errors are silently swallowed`)
 }
-if (!serverSrc.includes(EMAIL_AWAIT_MARKER)) {
-  smtpErrors.push(`'${EMAIL_AWAIT_MARKER}' not found in server/index.js — sendMail() is fire-and-forget (must be awaited)`)
+if (!combinedServerSrc.includes(EMAIL_AWAIT_MARKER)) {
+  smtpErrors.push(`'${EMAIL_AWAIT_MARKER}' not found in server/ — sendMail() is fire-and-forget (must be awaited)`)
 }
 
 if (smtpErrors.length > 0) {
