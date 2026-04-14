@@ -478,15 +478,12 @@ function AnalyticsDepthSection({ t, lang }) {
 function VerificationSection({ t, lang, currentUser }) {
   const [cvr, setCvr] = useState('')
   const [lookup, setLookup] = useState(null)
-  // lookupState: idle | loading | found | unavailable | error
+  // lookupState: idle | loading | found | ready | error
   const [lookupState, setLookupState] = useState('idle')
   const [lookupError, setLookupError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
   const [verified, setVerified] = useState(currentUser?.is_verified || false)
-  const [pendingManual, setPendingManual] = useState(
-    !!(currentUser?.cvr_number && !currentUser?.is_verified)
-  )
   const [verifiedData, setVerifiedData] = useState(
     currentUser?.is_verified
       ? { cvr: currentUser.cvr_number, name: currentUser.cvr_company_name }
@@ -495,6 +492,9 @@ function VerificationSection({ t, lang, currentUser }) {
   const lookupTimer = useRef(null)
 
   const cleanCvr = (v) => v.replace(/[\s\-]/g, '')
+
+  // CVR is ready to submit once it's 8 digits (checksum validated server-side)
+  const isReady = /^\d{8}$/.test(cleanCvr(cvr))
 
   const handleChange = (e) => {
     const val = e.target.value.replace(/[^\d\s\-]/g, '')
@@ -509,43 +509,30 @@ function VerificationSection({ t, lang, currentUser }) {
     if (cleaned.length < 8) { setLookupState('idle'); return }
     if (!/^\d{8}$/.test(cleaned)) { setLookupState('error'); setLookupError(t.cvrFormatError); return }
 
+    // Fetch company name preview — does NOT gate submission
     setLookupState('loading')
     lookupTimer.current = setTimeout(async () => {
       const res = await apiLookupCVR(cleaned)
-      if (res?.error === 'cvr_api_unavailable') {
-        setLookupState('unavailable')
-        setLookupError('')
-      } else if (res && !res.error) {
+      if (res && !res.error) {
         setLookup(res)
         setLookupState('found')
-        setLookupError('')
       } else {
-        setLookup(null)
-        setLookupState('unavailable')
+        setLookupState('ready') // API unavailable — still allow submit
       }
     }, 600)
   }
 
-  const canSubmit = lookupState === 'found' || lookupState === 'unavailable'
-
   const submit = async () => {
-    if (!canSubmit || submitting) return
+    if (!isReady || submitting) return
     setSubmitting(true)
     setSubmitError('')
     const r = await apiSubmitBusinessVerification(cleanCvr(cvr))
     setSubmitting(false)
     if (r?.ok) {
-      if (r.pending) {
-        setPendingManual(true)
-      } else {
-        setVerified(true)
-        setVerifiedData({ cvr: cleanCvr(cvr), name: r.companyName })
-      }
+      setVerified(true)
+      setVerifiedData({ cvr: cleanCvr(cvr), name: r.companyName })
     } else {
-      const errMap = {
-        cvr_format: t.cvrFormatError,
-        cvr_taken: t.cvrTakenError,
-      }
+      const errMap = { cvr_format: t.cvrFormatError, cvr_taken: t.cvrTakenError }
       setSubmitError(errMap[r?.error] || t.cvrVerifyError)
     }
   }
@@ -565,29 +552,9 @@ function VerificationSection({ t, lang, currentUser }) {
     )
   }
 
-  if (pendingManual) {
-    return (
-      <SectionCard title={t.verifyBusiness}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 28 }}>⏳</span>
-          <div>
-            <div style={{ fontWeight: 700, color: '#92400E', fontSize: 14 }}>{t.cvrPendingManual}</div>
-            {currentUser?.cvr_number && <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 1 }}>CVR {currentUser.cvr_number}</div>}
-          </div>
-        </div>
-      </SectionCard>
-    )
-  }
-
   const borderColor = lookupState === 'found' ? '#059669'
-    : lookupState === 'unavailable' ? '#F59E0B'
     : lookupState === 'error' ? '#EF4444'
     : '#D1D5DB'
-
-  const btnActive = canSubmit && !submitting
-  const btnLabel = submitting ? '…'
-    : lookupState === 'unavailable' ? t.submitForReview
-    : t.submitVerification
 
   return (
     <SectionCard title={t.verifyBusiness}>
@@ -603,7 +570,6 @@ function VerificationSection({ t, lang, currentUser }) {
         <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 16, pointerEvents: 'none' }}>
           {lookupState === 'loading' && '⏳'}
           {lookupState === 'found' && '✓'}
-          {lookupState === 'unavailable' && '⚠'}
           {lookupState === 'error' && '✗'}
         </span>
       </div>
@@ -618,10 +584,6 @@ function VerificationSection({ t, lang, currentUser }) {
         </div>
       )}
 
-      {lookupState === 'unavailable' && (
-        <div style={{ marginTop: 8, fontSize: 12, color: '#92400E', background: '#FEF3C7', padding: '8px 12px', borderRadius: 8 }}>{t.cvrApiUnavailable}</div>
-      )}
-
       {lookupState === 'error' && lookupError && (
         <div style={{ marginTop: 8, fontSize: 12, color: '#EF4444' }}>{lookupError}</div>
       )}
@@ -631,10 +593,10 @@ function VerificationSection({ t, lang, currentUser }) {
 
       <button
         onClick={submit}
-        disabled={!btnActive}
-        style={{ marginTop: 14, width: '100%', padding: '10px', borderRadius: 8, border: 'none', background: btnActive ? (lookupState === 'unavailable' ? '#F59E0B' : '#6366F1') : '#E5E7EB', color: btnActive ? '#fff' : '#9CA3AF', fontWeight: 600, fontSize: 14, cursor: btnActive ? 'pointer' : 'default', transition: 'background 0.15s' }}
+        disabled={!isReady || submitting}
+        style={{ marginTop: 14, width: '100%', padding: '10px', borderRadius: 8, border: 'none', background: isReady && !submitting ? '#6366F1' : '#E5E7EB', color: isReady && !submitting ? '#fff' : '#9CA3AF', fontWeight: 600, fontSize: 14, cursor: isReady && !submitting ? 'pointer' : 'default', transition: 'background 0.15s' }}
       >
-        {btnLabel}
+        {submitting ? '…' : t.submitVerification}
       </button>
     </SectionCard>
   )
