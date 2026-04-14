@@ -1702,6 +1702,7 @@ function MediaPickerButton({ lang, onFiles, accept = 'image/*,video/*', multiple
         type="button"
         className={`p-media-popup-btn${open ? ' active' : ''}`}
         onMouseDown={e => e.preventDefault()}
+        onTouchStart={() => { if (document.activeElement) document.activeElement.blur() }}
         onClick={() => setOpen(p => !p)}
         title={t.addMedia}
       >{buttonContent ?? '+'}</button>
