@@ -7463,6 +7463,35 @@ async function getMollieClient() {
   }
 }
 
+// EUR/DKK exchange rate cache — MobilePay only accepts DKK
+let _eurDkkRate = null
+let _eurDkkCachedAt = 0
+const EUR_DKK_CACHE_TTL = 3600 * 1000 // 1 hour
+
+async function fetchEurDkkRate() {
+  if (_eurDkkRate && Date.now() - _eurDkkCachedAt < EUR_DKK_CACHE_TTL) return _eurDkkRate
+  // frankfurter.app proxies ECB data — no API key required
+  const resp = await fetch('https://api.frankfurter.app/latest?from=EUR&to=DKK', { signal: AbortSignal.timeout(5000) })
+  if (!resp.ok) throw new Error(`Exchange rate API returned ${resp.status}`)
+  const data = await resp.json()
+  const rate = data?.rates?.DKK
+  if (!rate || typeof rate !== 'number') throw new Error('No DKK rate in response')
+  _eurDkkRate = rate
+  _eurDkkCachedAt = Date.now()
+  return rate
+}
+
+// GET /api/currency/eur-dkk — live EUR→DKK rate for MobilePay conversion
+app.get('/api/currency/eur-dkk', async (_req, res) => {
+  try {
+    const rate = await fetchEurDkkRate()
+    res.json({ rate, base: 'EUR', currency: 'DKK', cached_at: new Date(_eurDkkCachedAt).toISOString() })
+  } catch (err) {
+    console.error('GET /api/currency/eur-dkk error:', err.message)
+    res.json({ rate: 7.46, base: 'EUR', currency: 'DKK', fallback: true })
+  }
+})
+
 // POST /api/mollie/payment/create — create a Mollie payment and return checkout URL
 app.post('/api/mollie/payment/create', authenticate, async (req, res) => {
   try {
@@ -7477,9 +7506,9 @@ app.post('/api/mollie/payment/create', authenticate, async (req, res) => {
 
     // Resolve amount from admin_ad_settings
     let resolvedAmount = null
-    let resolvedCurrency = reqCurrency || 'EUR'
     const [[adS]] = await pool.query('SELECT adfree_price_private, adfree_price_business, adfree_recurring_pct, adfree_annual_discount_pct, ad_price_cpm, ad_recurring_pct, currency FROM admin_ad_settings WHERE id = 1').catch(() => [[null]])
-    resolvedCurrency = adS?.currency || 'EUR'
+    // If the client explicitly requests DKK (MobilePay), honour it; otherwise use admin-configured currency
+    const resolvedCurrency = reqCurrency === 'DKK' ? 'DKK' : (adS?.currency || 'EUR')
     if (plan === 'adfree') {
       const oneTimePrice = parseFloat(user.mode === 'business' ? adS?.adfree_price_business : adS?.adfree_price_private) || 29
       if (recurring && interval === 'annual') {
@@ -7503,6 +7532,17 @@ app.post('/api/mollie/payment/create', authenticate, async (req, res) => {
       }
     }
     if (!resolvedAmount || isNaN(resolvedAmount) || resolvedAmount <= 0) resolvedAmount = 29
+
+    // MobilePay only supports DKK — convert the EUR amount to DKK at the live ECB rate
+    if (resolvedCurrency === 'DKK') {
+      try {
+        const rate = await fetchEurDkkRate()
+        resolvedAmount = Math.round(resolvedAmount * rate * 100) / 100
+      } catch (err) {
+        console.error('EUR→DKK conversion failed, using fallback rate 7.46:', err.message)
+        resolvedAmount = Math.round(resolvedAmount * 7.46 * 100) / 100
+      }
+    }
 
     const origin = req.headers.origin || process.env.SITE_URL || 'https://fellis.eu'
     const siteUrl = process.env.SITE_URL || origin
@@ -7529,6 +7569,10 @@ app.post('/api/mollie/payment/create', authenticate, async (req, res) => {
       redirectUrl,
       webhookUrl,
       metadata: { user_id: String(req.userId), plan, recurring: String(!!recurring), interval: recurring ? interval : 'once', ...(adId ? { ad_id: String(adId) } : {}) },
+    }
+    // MobilePay is only available in DKK — pin the payment method so Mollie skips the method selector
+    if (resolvedCurrency === 'DKK') {
+      paymentParams.method = 'mobilepay'
     }
     if (recurring && mollieCustomerId) {
       paymentParams.customerId = mollieCustomerId
