@@ -582,9 +582,26 @@ app.use((_req, res, next) => {
 // Login / MFA: 5 per 15 minutes per IP
 // In non-production, skip rate limiting for loopback IPs so E2E tests can
 // exercise auth endpoints without exhausting the window.
+
+// Extract the real client IP from either the legacy X-Forwarded-For header
+// or the RFC 7239 Forwarded header that lighttpd sets via proxy.forwarded.
+// Without this, all requests appear to come from 127.0.0.1 (the lighttpd
+// loopback address) and every user shares a single rate limit bucket.
+function getClientIp(req) {
+  const xff = req.headers['x-forwarded-for']
+  if (xff) return xff.split(',')[0].trim()
+  // RFC 7239 Forwarded header (lighttpd proxy.forwarded = ( "for" => 1 ))
+  // Format: "for=1.2.3.4" or "for=\"[2001:db8::1]\""
+  const fwd = req.headers['forwarded']
+  if (fwd) {
+    const m = fwd.match(/(?:^|[,\s])for=(?:"?\[?)([0-9a-fA-F.:]+)/i)
+    if (m?.[1]) return m[1]
+  }
+  return req.ip || req.socket?.remoteAddress || '127.0.0.1'
+}
+
 function isLoopback(req) {
-  const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
-    || req.socket?.remoteAddress || ''
+  const ip = getClientIp(req)
   return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1'
 }
 function skipInDev(req) {
@@ -597,7 +614,7 @@ const strictLimit = rlFactory({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests — prøv igen om 15 minutter' },
-  keyGenerator: (req) => ipKeyGenerator(req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip),
+  keyGenerator: (req) => ipKeyGenerator(getClientIp(req)),
   skip: skipInDev,
 })
 
@@ -608,7 +625,7 @@ const registerLimit = rlFactory({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many registration attempts — prøv igen om en time' },
-  keyGenerator: (req) => ipKeyGenerator(req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip),
+  keyGenerator: (req) => ipKeyGenerator(getClientIp(req)),
   skip: skipInDev,
 })
 
@@ -619,7 +636,7 @@ const generalLimit = rlFactory({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests — prøv igen om lidt' },
-  keyGenerator: (req) => ipKeyGenerator(req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip),
+  keyGenerator: (req) => ipKeyGenerator(getClientIp(req)),
   skip: (req) => req.method === 'GET' || req.path === '/api/health', // GET requests are read-only
 })
 
