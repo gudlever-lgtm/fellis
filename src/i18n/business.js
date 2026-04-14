@@ -63,7 +63,7 @@ export default {
     // Feature 3: Verification
     verifyBusiness: 'Verificer virksomhed',
     cvrNumber: 'CVR-nummer',
-    cvrHelp: 'Indtast dit danske CVR-nummer. Vi slår det op i Erhvervsstyrelsens register og verificerer din virksomhed med det samme.',
+    cvrHelp: 'Indtast dit danske CVR-nummer. Vi validerer checksummen og verificerer din virksomhed med det samme.',
     submitVerification: 'Verificér nu',
     verificationApproved: 'Verificeret virksomhed',
     verifiedBadge: '✓ Verificeret',
@@ -214,7 +214,7 @@ export default {
     // Feature 3: Verification
     verifyBusiness: 'Verify business',
     cvrNumber: 'CVR number',
-    cvrHelp: 'Enter your Danish CVR number. We look it up in the Danish Business Authority register and verify your business instantly.',
+    cvrHelp: 'Enter your Danish CVR number. We validate the checksum and verify your business instantly.',
     submitVerification: 'Verify now',
     verificationApproved: 'Verified business',
     verifiedBadge: '✓ Verified',
