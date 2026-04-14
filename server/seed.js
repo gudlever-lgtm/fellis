@@ -134,6 +134,21 @@ async function seed() {
 
     console.log('Seed complete! All mock data inserted.')
     console.log('Default login: sofie@fellis.eu / password123')
+
+    // Demo ads (active, valid through 2027)
+    const adRows = [
+      { title: 'Prøv fellis Premium', body: 'Oplev platformen reklamefri fra kun €2,99/md.', target_url: 'https://fellis.eu', placement: 'feed' },
+      { title: 'Danish Design Co.', body: 'Håndlavede møbler fra Aarhus. Besøg os i dag!', target_url: 'https://fellis.eu', placement: 'feed' },
+      { title: 'Nordisk Kafferisteri', body: 'Friskristet specialkaffe leveret til din dør.', target_url: 'https://fellis.eu', placement: 'sidebar' },
+      { title: 'FellisPro for erhverv', body: 'Styrk dit brand med annoncering på fellis.eu.', target_url: 'https://fellis.eu', placement: 'stories' },
+    ]
+    for (const ad of adRows) {
+      await conn.query(
+        `INSERT IGNORE INTO ads (advertiser_id, title, body, target_url, placement, status, start_date, end_date, cpm_rate)
+         VALUES (?, ?, ?, ?, ?, 'active', '2026-01-01', '2027-12-31', 50)`,
+        [sofieId, ad.title, ad.body, ad.target_url, ad.placement]
+      )
+    }
   } finally {
     conn.release()
     await pool.end()
