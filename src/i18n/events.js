@@ -25,6 +25,8 @@ export default {
     eventSharePicker: 'Vælg venner at dele begivenheden med',
     eventShareConfirm: 'Del',
     eventNoUpcoming: 'Ingen kommende begivenheder',
+    expiredEventsTab: 'Udløbne',
+    eventNoExpired: 'Ingen udløbne begivenheder',
     // Common-mode RSVP extras
     eventDietary: 'Kostbehov (valgfrit)',
     eventPlusOne: 'Medbring én gæst (+1)',
@@ -116,6 +118,8 @@ export default {
     eventSharePicker: 'Select friends to share the event with',
     eventShareConfirm: 'Share',
     eventNoUpcoming: 'No upcoming events',
+    expiredEventsTab: 'Expired',
+    eventNoExpired: 'No expired events',
     // Common-mode RSVP extras
     eventDietary: 'Dietary needs (optional)',
     eventPlusOne: 'Bring one guest (+1)',
