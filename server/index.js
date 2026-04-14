@@ -11406,36 +11406,25 @@ app.patch('/api/admin/moderation/users/:id/candidate', authenticate, requireAdmi
 // GET /api/moderation/my-request — get current user's own moderator request status
 app.get('/api/moderation/my-request', authenticate, async (req, res) => {
   try {
-    await pool.query(`CREATE TABLE IF NOT EXISTS reels (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      user_id INT NOT NULL,
-      video_url VARCHAR(500) NOT NULL,
-      caption TEXT DEFAULT NULL,
-      views_count INT NOT NULL DEFAULT 0,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      INDEX idx_user_id (user_id),
-      INDEX idx_created_at (created_at),
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
-    await pool.query(`CREATE TABLE IF NOT EXISTS reel_likes (
-      reel_id INT NOT NULL,
-      user_id INT NOT NULL,
-      reaction VARCHAR(10) DEFAULT '❤️',
-      PRIMARY KEY (reel_id, user_id),
-      FOREIGN KEY (reel_id) REFERENCES reels(id) ON DELETE CASCADE,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
-    await addCol('reel_likes', 'reaction', "VARCHAR(10) DEFAULT '❤️'").catch(() => {})
-    await pool.query(`CREATE TABLE IF NOT EXISTS reel_comments (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      reel_id INT NOT NULL,
-      user_id INT NOT NULL,
-      text TEXT NOT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (reel_id) REFERENCES reels(id) ON DELETE CASCADE,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+    const [[user]] = await pool.query(
+      'SELECT is_moderator, moderator_candidate, moderator_candidate_note, moderator_candidate_at FROM users WHERE id = ?',
+      [req.userId]
+    )
+    if (!user) return res.status(404).json({ error: 'User not found' })
+    const isModerator = !!user.is_moderator
+    let request = null
+    if (user.moderator_candidate) {
+      const note = user.moderator_candidate_note || ''
+      const isDenied = note.startsWith('[denied]')
+      request = {
+        status: isDenied ? 'denied' : 'pending',
+        note: isDenied ? note.replace(/^\[denied\]\s*/, '') : note,
+        submitted_at: user.moderator_candidate_at
+      }
+    }
+    res.json({ request, isModerator })
   } catch (err) {
+    console.error('GET /api/moderation/my-request error:', err)
     res.status(500).json({ error: 'Server error' })
   }
 })
