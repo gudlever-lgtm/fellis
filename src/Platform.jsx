@@ -3760,7 +3760,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${checkInBusy ? '#1877F2' : '#ddd'}`, background: checkInBusy ? '#EBF4FF' : '#fff', color: checkInBusy ? '#1877F2' : '#555', fontSize: 13, cursor: checkInBusy ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: 4, opacity: checkInBusy ? 0.7 : 1 }}
                   title={t.checkIn}
                 >
-                  📌 {checkInBusy ? t.checkingIn : t.checkIn}
+                  {checkInBusy ? '⏳' : '📌'}
                 </button>
                 {/* Tag people toggle */}
                 <button
@@ -3824,7 +3824,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   title={scheduleEnabled && scheduledAt ? (t.schedule) : t.post}
                   style={{ minWidth: 0, padding: '8px 14px', fontSize: 18, lineHeight: 1, opacity: posting ? 0.6 : 1 }}
                 >
-                  {posting ? '…' : (scheduleEnabled && scheduledAt ? '🕐' : '→')}
+                  {posting ? '…' : (scheduleEnabled && scheduledAt ? '🕐' : `→ ${t.send}`)}
                 </button>
               </div>
             </div>
