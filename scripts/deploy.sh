@@ -41,13 +41,13 @@ step "Building frontend"
 npm run build || fail "build failed"
 
 step "Restarting PM2"
-pm2 restart all || fail "pm2 restart failed"
+pm2 restart fellis-api || fail "pm2 restart failed"
 
 # Brief pause so PM2 has time to come up before we show status
 sleep 2
 pm2 status
 
 step "Smoke test (E2E)"
-BASE_URL=http://localhost:3001 npm run e2e || fail "E2E smoke test failed — server may be unhealthy"
+BASE_URL=http://localhost:3001 NODE_ENV=test npm run e2e || fail "E2E smoke test failed — server may be unhealthy"
 
 echo -e "\n${GREEN}✔ Deploy complete$(date +'  %Y-%m-%d %H:%M:%S')${NC}"
