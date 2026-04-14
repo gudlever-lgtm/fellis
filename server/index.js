@@ -1557,14 +1557,21 @@ app.post('/api/auth/forgot-password', strictLimit, validate(schemas.forgotPasswo
 
     if (mailer) {
       const fromAddr = process.env.MAIL_FROM || process.env.MAIL_USER
-      // Fire-and-forget — do NOT await; SMTP connection delays must not block the HTTP response
-      mailer.sendMail({
-        from: `"Fellis" <${fromAddr}>`,
-        to: email,
-        subject: 'Nulstil din adgangskode / Reset your password',
-        text: `Hej ${user.name},\n\nKlik her for at nulstille din adgangskode (linket udløber om 1 time):\n${resetUrl}\n\nHvis du ikke bad om dette, kan du ignorere denne e-mail.\n\nVenlig hilsen,\nFellis`,
-        html: `<p>Hej <strong>${user.name}</strong>,</p><p>Klik her for at nulstille din adgangskode (linket udløber om 1 time):</p><p><a href="${resetUrl}" style="background:#2D6A4F;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:bold">Nulstil adgangskode</a></p><p style="color:#888;font-size:12px">Eller kopier dette link: ${resetUrl}</p><p style="color:#888;font-size:12px">Hvis du ikke bad om dette, kan du ignorere denne e-mail.</p>`,
-      }).catch(err => console.error('Reset mail error:', err.message))
+      try {
+        await Promise.race([
+          mailer.sendMail({
+            from: `"Fellis" <${fromAddr}>`,
+            to: email,
+            subject: 'Nulstil din adgangskode / Reset your password',
+            text: `Hej ${user.name},\n\nKlik her for at nulstille din adgangskode (linket udløber om 1 time):\n${resetUrl}\n\nHvis du ikke bad om dette, kan du ignorere denne e-mail.\n\nVenlig hilsen,\nFellis`,
+            html: `<p>Hej <strong>${user.name}</strong>,</p><p>Klik her for at nulstille din adgangskode (linket udløber om 1 time):</p><p><a href="${resetUrl}" style="background:#2D6A4F;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:bold">Nulstil adgangskode</a></p><p style="color:#888;font-size:12px">Eller kopier dette link: ${resetUrl}</p><p style="color:#888;font-size:12px">Hvis du ikke bad om dette, kan du ignorere denne e-mail.</p>`,
+          }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('SMTP timeout')), 10000)),
+        ])
+      } catch (mailErr) {
+        console.error('Reset mail error:', mailErr.message)
+        return res.status(502).json({ error: 'email_send_failed' })
+      }
     } else {
       // Dev fallback: log the token (never expose in production without MAIL_HOST)
       console.info(`[dev] Password reset link for ${email}: ${resetUrl}`)

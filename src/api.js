@@ -87,10 +87,20 @@ export async function apiRegister(name, email, password, lang, inviteToken) {
 }
 
 export async function apiForgotPassword(email) {
-  return await request('/api/auth/forgot-password', {
-    method: 'POST',
-    body: JSON.stringify({ email }),
-  })
+  // Use raw fetch so rate-limit (429) and other errors can be surfaced to the UI
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/forgot-password`, {
+      method: 'POST',
+      headers: headers(),
+      credentials: 'same-origin',
+      body: JSON.stringify({ email }),
+    })
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) return { error: body.error || 'request_failed', status: res.status }
+    return body
+  } catch {
+    return null
+  }
 }
 
 export async function apiResetPassword(token, password) {
