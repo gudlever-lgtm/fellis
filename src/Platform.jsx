@@ -1158,6 +1158,50 @@ function LinkPreview({ url }) {
   )
 }
 
+// Composer link preview — fetches once, then shows LinkPreview + dismiss button.
+// Returns null while loading to avoid layout glitches from an orphaned dismiss button.
+function ComposerLinkPreview({ url, onDismiss, dismissLabel }) {
+  const ytId = extractYouTubeId(url)
+  const [ready, setReady] = useState(() => {
+    if (ytId) return true
+    const c = previewCache.get(url)
+    return c !== undefined && !!(c?.title || c?.image)
+  })
+
+  useEffect(() => {
+    if (ytId) return
+    const c = previewCache.get(url)
+    if (c !== undefined) {
+      setReady(!!(c?.title || c?.image))
+      return
+    }
+    apiLinkPreview(url).then(d => {
+      previewCache.set(url, d ?? null)
+      setReady(!!(d?.title || d?.image))
+    })
+  }, [url, ytId])
+
+  if (!ready) return null
+  return (
+    <div style={{ margin: '8px 0 0', position: 'relative' }}>
+      <LinkPreview url={url} />
+      <button
+        type="button"
+        onMouseDown={e => e.preventDefault()}
+        onClick={onDismiss}
+        title={dismissLabel}
+        style={{
+          position: 'absolute', top: 6, right: 6, zIndex: 2,
+          background: 'rgba(0,0,0,0.45)', border: 'none',
+          borderRadius: '50%', width: 22, height: 22,
+          cursor: 'pointer', color: '#fff', fontSize: 14,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+        }}
+      >×</button>
+    </div>
+  )
+}
+
 function LinkWithMenu({ href, lang, onRemove }) {
   const [menu, setMenu] = useState(null)
   const menuRef = useRef(null)
@@ -2366,6 +2410,9 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [attachLoading, setAttachLoading] = useState(false)
   const textareaRef = useRef(null)
   const suggestCategoryTimer = useRef(null)
+  const [composerLinkUrl, setComposerLinkUrl] = useState(null)
+  const composerLinkDismissed = useRef(null)
+  const composerLinkTimer = useRef(null)
   const hintIconRef = useRef(null)
   const feedMention = useMention(sharePopupFriends || [])
   const commentMention = useMention(sharePopupFriends || [])
@@ -2750,6 +2797,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       setLocationSearchOpen(false)
       setTaggedUsers([])
       setLinkedContent(null)
+      setComposerLinkUrl(null)
+      composerLinkDismissed.current = null
       setShowTagPicker(false)
       setShowAttachPicker(false)
       setCatPickerSearch('')
@@ -3129,6 +3178,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   setNewPostText('')
                   setMediaFiles([])
                   setMediaPreviews([])
+                  setComposerLinkUrl(null)
+                  composerLinkDismissed.current = null
                   setPostExpanded(false)
                 }}
                 style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: '#c0392b', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}
@@ -3263,6 +3314,17 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                         }
                       }, 600)
                     }
+                    // Link preview detection (debounced 500ms)
+                    clearTimeout(composerLinkTimer.current)
+                    composerLinkTimer.current = setTimeout(() => {
+                      const url = extractFirstUrl(val)
+                      if (url && url !== composerLinkDismissed.current) {
+                        setComposerLinkUrl(url)
+                      } else if (!url) {
+                        setComposerLinkUrl(null)
+                        composerLinkDismissed.current = null
+                      }
+                    }, 500)
                   }}
                   onKeyDown={e => {
                     if (feedMention.handleKey(e, f => {
@@ -3589,6 +3651,15 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                 </div>
                 <button type="button" onClick={() => setLinkedContent(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#888', flexShrink: 0 }}>×</button>
               </div>
+            )}
+
+            {/* Composer link preview — shown automatically when a URL is detected in the text */}
+            {composerLinkUrl && (
+              <ComposerLinkPreview
+                url={composerLinkUrl}
+                onDismiss={() => { composerLinkDismissed.current = composerLinkUrl; setComposerLinkUrl(null) }}
+                dismissLabel={t.composerLinkDismiss}
+              />
             )}
 
             <div className="p-new-post-actions">
