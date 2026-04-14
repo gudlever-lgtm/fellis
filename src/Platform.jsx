@@ -6129,19 +6129,19 @@ function BillingSettings({ lang, t, mode }) {
                         const [cardText, appleText, googleText] = t.paymentMethodCard.split(' / ')
                         return (
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-                            <svg width="16" height="12" viewBox="0 0 16 12" fill="none" aria-hidden="true">
+                            <svg width="20" height="15" viewBox="0 0 16 12" fill="none" aria-hidden="true">
                               <rect x=".5" y=".5" width="15" height="11" rx="2" stroke="currentColor" strokeWidth="1.2"/>
                               <rect y="3" width="16" height="2.5" fill="currentColor"/>
                               <rect x="2" y="7.5" width="4" height="1.5" rx=".5" fill="currentColor" opacity=".45"/>
                             </svg>
                             {cardText}
                             <span style={{ opacity: 0.35 }}>/</span>
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                               <path d={siApplepay.path}/>
                             </svg>
                             {appleText}
                             <span style={{ opacity: 0.35 }}>/</span>
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill={`#${siGooglepay.hex}`} aria-hidden="true">
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill={`#${siGooglepay.hex}`} aria-hidden="true">
                               <path d={siGooglepay.path}/>
                             </svg>
                             {googleText}
