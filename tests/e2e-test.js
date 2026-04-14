@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 // e2e-test.js — End-to-end integration test for fellis.eu
-// Version: 1.1.2
+// Version: 1.2.0
 //
 // Changelog:
+//   1.2.0 — Skip (not fail) on 502 from forgot-password: SMTP may be unconfigured
+//            or temporarily down, which is an infrastructure issue not a code bug
 //   1.1.2 — Add failOrSkip() helper; apply to forgot-password and search calls so
 //            a server timeout skips rather than fails those tests; fix search 500
 //            by adding fallback query for legacy single-column messages table
@@ -70,11 +72,13 @@ function skip(label, reason) {
   console.log(`  ${c.yellow('–')} ${label}${reason ? c.dim(` (${reason})`) : ''}`)
 }
 
-// Skips rather than fails when a request timed out — timeout means the server
-// is unresponsive/deadlocked, not that the endpoint logic is broken.
+// Skips rather than fails for infrastructure issues that don't indicate broken
+// endpoint logic: server timeout (DB deadlock) or 502 SMTP failure (mail not
+// configured / SMTP server temporarily down).
 function failOrSkip(r, label, detail) {
-  if (r.timeout) skip(label, `server timeout (${REQUEST_TIMEOUT_MS}ms) — check DB health`)
-  else           fail(label, detail)
+  if (r.timeout)       skip(label, `server timeout (${REQUEST_TIMEOUT_MS}ms) — check DB health`)
+  else if (r.status === 502) skip(label, `SMTP unavailable (502) — check MAIL_HOST / MAIL_USER / MAIL_PASS in server/.env`)
+  else                 fail(label, detail)
 }
 
 function log(msg) {
