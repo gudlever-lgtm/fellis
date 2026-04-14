@@ -671,9 +671,9 @@ export default function BusinessHub({ lang, t, currentUser, onViewProfile, onNav
         {NAV_TABS.map(({ id, label, icon }) => (
           <button key={id} onClick={() => onNavigate?.(id)} style={{
             display: 'flex', alignItems: 'center', gap: 5,
-            padding: '6px 12px', borderRadius: 20, border: '1px solid #E5E7EB',
+            padding: '6px 12px', borderRadius: 20, border: 'none',
             cursor: 'pointer', fontSize: 13, whiteSpace: 'nowrap',
-            background: '#fff', color: '#374151', fontWeight: 400,
+            background: '#F3F4F6', color: '#374151', fontWeight: 400,
           }}>
             <span style={{ fontSize: 14 }}>{icon}</span>{label[lang] ?? label.en}
           </button>
