@@ -134,7 +134,7 @@ export default {
     adminAdsColCTR: 'CTR',
     adminAdsPlacementFeed: 'Feed',
     adminAdsPlacementSidebar: 'Sidebar',
-    adminAdsPlacementStories: 'Reels',
+    adminAdsPlacementStories: 'Stories',
     adminAdsNoStats: 'Ingen annoncedata endnu',
     // Mollie payment
     molliePaymentSuccess: 'Betaling gennemført',
@@ -287,7 +287,7 @@ export default {
     adminAdsColCTR: 'CTR',
     adminAdsPlacementFeed: 'Feed',
     adminAdsPlacementSidebar: 'Sidebar',
-    adminAdsPlacementStories: 'Reels',
+    adminAdsPlacementStories: 'Stories',
     adminAdsNoStats: 'No ad data yet',
     // Mollie payment
     molliePaymentSuccess: 'Payment successful',
