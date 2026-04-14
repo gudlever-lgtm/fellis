@@ -3740,6 +3740,7 @@
   .p-nav-notif-btn { padding: 4px 6px; font-size: 18px; }
   .p-nav-search-btn { padding: 4px 6px; font-size: 18px; }
   .p-nav-avatar, .p-nav-avatar-img { width: 30px; height: 30px; font-size: 12px; }
+  .nav-adfree-indicator { display: none; }
 
   /* ── Messaging ── */
   .p-msg-sidebar { width: 48px; }
