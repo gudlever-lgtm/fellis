@@ -1425,6 +1425,9 @@ export async function apiGetAdminAdStats() {
 export async function apiGetAdPrice() {
   return await request('/api/ads/price')
 }
+export async function apiGetPublicPricing() {
+  return await request('/api/pricing')
+}
 export async function apiGetAdminAdSettings() {
   return await request('/api/admin/ad-settings')
 }

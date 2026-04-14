@@ -7108,6 +7108,25 @@ app.get('/api/ads/mine', authenticate, attachUserMode, requireBusiness, async (r
   }
 })
 
+// GET /api/pricing — public endpoint for displaying pricing on marketing pages (no auth required)
+app.get('/api/pricing', async (req, res) => {
+  try {
+    const [[row]] = await pool.query(
+      'SELECT adfree_price_private, adfree_price_business, ad_price_cpm, boost_price, currency FROM admin_ad_settings WHERE id = 1'
+    )
+    res.json({
+      adfree_price_private: parseFloat(row?.adfree_price_private) || 2.99,
+      adfree_price_business: parseFloat(row?.adfree_price_business) || 5.99,
+      ad_price_cpm: parseFloat(row?.ad_price_cpm) || 9.99,
+      boost_price: parseFloat(row?.boost_price) || 2.99,
+      currency: row?.currency || 'EUR',
+    })
+  } catch (err) {
+    console.error('GET /api/pricing error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // GET /api/ads/price — public ad pricing for authenticated users (used in payment modal)
 // NOTE: must be registered BEFORE /api/ads/:id to avoid Express matching "price" as :id
 app.get('/api/ads/price', authenticate, async (req, res) => {

@@ -1,10 +1,17 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { UI_LANGS, detectLang, PT } from './data.js'
+import { apiGetPublicPricing } from './api.js'
+import { formatPrice } from './utils/currency.js'
 
 export default function ForBusiness() {
   const [lang, setLang] = useState(() => detectLang())
   const t = PT[lang] || PT.en
   const da = lang === 'da'
+  const [pricing, setPricing] = useState(null)
+
+  useEffect(() => {
+    apiGetPublicPricing().then(data => { if (data) setPricing(data) })
+  }, [])
 
   const ctaHref = '/register'
 
@@ -336,17 +343,17 @@ export default function ForBusiness() {
               {t.forBusinessPricingPaidTitle}
             </div>
             {[
-              { label: t.forBusinessPricingAds,     desc: t.forBusinessPricingAdsDesc },
-              { label: t.forBusinessPricingBoost,   desc: t.forBusinessPricingBoostDesc },
-              { label: t.forBusinessPricingAdfree,  desc: t.forBusinessPricingAdfreeDesc },
+              { label: t.forBusinessPricingAds,     desc: t.forBusinessPricingAdsDesc,    price: pricing ? formatPrice(pricing.ad_price_cpm) : null },
+              { label: t.forBusinessPricingBoost,   desc: t.forBusinessPricingBoostDesc,  price: pricing ? formatPrice(pricing.boost_price) : null },
+              { label: t.forBusinessPricingAdfree,  desc: t.forBusinessPricingAdfreeDesc, price: pricing ? formatPrice(pricing.adfree_price_private) : null },
             ].map((item, i, arr) => (
               <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', background: '#fff', border: '1px solid #E8E4DF', borderRadius: i === 0 ? '10px 10px 0 0' : i === arr.length - 1 ? '0 0 10px 10px' : 0, borderTop: i > 0 ? 'none' : undefined }}>
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 600, color: '#2D3436' }}>{item.label}</div>
                   <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{item.desc}</div>
                 </div>
-                <div style={{ fontSize: 13, color: '#aaa', fontStyle: 'italic', flexShrink: 0, marginLeft: 12 }}>
-                  {da ? 'variabel' : 'variable'}
+                <div style={{ fontSize: 13, color: item.price ? '#2D6A4F' : '#aaa', fontStyle: item.price ? 'normal' : 'italic', fontWeight: item.price ? 600 : 400, flexShrink: 0, marginLeft: 12 }}>
+                  {item.price ?? (da ? 'variabel' : 'variable')}
                 </div>
               </div>
             ))}
