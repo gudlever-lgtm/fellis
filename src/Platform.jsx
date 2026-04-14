@@ -11592,11 +11592,13 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
             )}
             {conv.messages.map((msg, i) => {
               const isMe = msg.from === currentUser.name
-              // Read receipt: show below the LAST message I sent that other participants have read
+              // Read receipt: track who has read up to this message
               const isLastMine = isMe && conv.messages.slice(i + 1).every(m => m.from !== currentUser.name)
-              const readers = isLastMine && msg.createdAtRaw
+              const readers = isMe && msg.createdAtRaw
                 ? (conv.readReceipts || []).filter(r => r.lastReadAt && new Date(r.lastReadAt) >= new Date(msg.createdAtRaw))
                 : []
+              // Replied: someone else sent a message after this one
+              const hasReplyAfter = isMe && conv.messages.slice(i + 1).some(m => m.from !== currentUser.name)
               return (
                 <div key={i} className={`p-msg-bubble-row${isMe ? ' mine' : ''}`}>
                   {!isMe && (
@@ -11625,20 +11627,26 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
                       )}
                       <div className="p-msg-time">{msg.time}</div>
                     </div>
-                    {/* Read receipt indicator */}
-                    {isMe && isLastMine && (
+                    {/* Message status indicators: shown on every sent message */}
+                    {isMe && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 2, marginRight: 2 }}>
                         {readers.length > 0 ? (
                           <>
-                            {readers.slice(0, 3).map(r => (
+                            {isLastMine && readers.slice(0, 3).map(r => (
                               <div key={r.userId} title={r.name} style={{ width: 14, height: 14, borderRadius: '50%', background: nameToColor(r.name), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, color: '#fff', fontWeight: 700 }}>
                                 {getInitials(r.name)[0]}
                               </div>
                             ))}
-                            <span style={{ fontSize: 10, color: '#52B788' }}>✓✓</span>
+                            <span
+                              title={t.msgStatusRead + ': ' + readers.map(r => r.name).join(', ')}
+                              style={{ fontSize: 10, color: '#52B788', letterSpacing: '-1px' }}
+                            >✓✓</span>
                           </>
                         ) : (
-                          <span style={{ fontSize: 10, color: '#aaa' }}>✓</span>
+                          <span title={t.msgStatusSent} style={{ fontSize: 10, color: '#bbb' }}>✓</span>
+                        )}
+                        {hasReplyAfter && (
+                          <span title={t.msgStatusReplied} style={{ fontSize: 11, color: '#b0b0b0', marginLeft: 1 }}>↩</span>
                         )}
                       </div>
                     )}
