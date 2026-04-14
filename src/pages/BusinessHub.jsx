@@ -8,6 +8,7 @@ import {
   apiGetFollowerGrowth, apiGetBestPostTimes,
 } from '../api.js'
 import { formatPrice } from '../utils/currency.js'
+import BusinessDirectory from './BusinessDirectory.jsx'
 
 // ── Colour helpers ────────────────────────────────────────────────────────────
 const LEAD_STATUS_STYLE = {
@@ -617,7 +618,7 @@ function VerificationSection({ t, lang, currentUser }) {
 }
 
 // ── Main BusinessHub component ────────────────────────────────────────────────
-const TABS = ['leads', 'announcements', 'services', 'partners', 'analytics', 'verify']
+const TABS = ['leads', 'announcements', 'services', 'partners', 'analytics', 'verify', 'directory']
 
 export default function BusinessHub({ lang, t, currentUser, onViewProfile }) {
   const [tab, setTab] = useState('leads')
@@ -629,6 +630,7 @@ export default function BusinessHub({ lang, t, currentUser, onViewProfile }) {
     partners:      lang === 'da' ? 'Partnere' : 'Partners',
     analytics:     lang === 'da' ? 'Analyse' : 'Analytics',
     verify:        lang === 'da' ? 'Verificér' : 'Verify',
+    directory:     lang === 'da' ? 'Virksomheder' : 'Directory',
   }
 
   return (
@@ -658,6 +660,7 @@ export default function BusinessHub({ lang, t, currentUser, onViewProfile }) {
       {tab === 'partners'      && <PartnersSection t={t} lang={lang} onViewProfile={onViewProfile} />}
       {tab === 'analytics'     && <AnalyticsDepthSection t={t} lang={lang} />}
       {tab === 'verify'        && <VerificationSection t={t} lang={lang} currentUser={currentUser} />}
+      {tab === 'directory'     && <BusinessDirectory lang={lang} t={t} onViewProfile={onViewProfile} />}
     </div>
   )
 }

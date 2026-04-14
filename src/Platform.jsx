@@ -51,7 +51,6 @@ import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConf
   apiGetMyServices,
 } from './api.js'
 import BusinessBadge from './components/BusinessBadge.jsx'
-import BusinessDirectory from './pages/BusinessDirectory.jsx'
 import AdManager from './pages/AdManager.jsx'
 import BusinessHub from './pages/BusinessHub.jsx'
 import LocationAutocomplete from './components/LocationAutocomplete.jsx'
@@ -540,7 +539,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
           {/* "Mere" / "More" dropdown for secondary tabs */}
           <div ref={moreMenuRef} style={{ position: 'relative' }}>
             <button
-              className={`p-nav-tab${['friends', 'calendar', 'marketplace', 'jobs', 'company', 'businesses', 'explore', 'saved-posts'].includes(page) ? ' active' : ''}`}
+              className={`p-nav-tab${['friends', 'calendar', 'marketplace', 'jobs', 'company', 'explore', 'saved-posts'].includes(page) ? ' active' : ''}`}
               onClick={() => setShowMoreMenu(v => !v)}
             >
               <span className="p-nav-tab-icon">{'⋯'}</span>
@@ -562,12 +561,6 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
                   items: [
                     { id: 'marketplace', icon: '🛍️', label: t.marketplace },
                     { id: 'jobs', icon: '💼', label: t.jobs },
-                  ],
-                },
-                {
-                  label: t.navGroupBusinesses,
-                  items: [
-                    { id: 'businesses', icon: '🏢', label: t.businesses },
                     ...(mode === 'business' ? [{ id: 'company', icon: '🏬', label: t.myCompany }] : []),
                   ],
                 },
@@ -813,7 +806,6 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
           navigateTo('messages')
         }} onViewProfile={(uid) => { setViewUserId(uid); navigateTo('view-profile') }} onMakeOffer={(listing) => setMakeOfferListing(listing)} />}
         {page === 'jobs' && <JobsPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={(target, param) => { if (target === 'companies') { navigateTo('company', { companyId: param }); } else navigateTo(target) }} />}
-        {page === 'businesses' && <BusinessDirectory lang={lang} t={t} onViewProfile={(biz) => { setViewUserId(biz.id); navigateTo('view-profile') }} />}
         {page === 'ads' && mode === 'business' && <AdManager lang={lang} t={t} currentUser={currentUser} />}
         {page === 'business-hub' && mode === 'business' && <BusinessHub lang={lang} t={t} currentUser={currentUser} onViewProfile={(id) => { setViewUserId(id); navigateTo('view-profile') }} />}
         {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} initialCompanyId={navParam?.companyId} />}
@@ -4939,7 +4931,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
             <h2 className="p-profile-name" style={{ margin: 0 }}>{profile.name}</h2>
-            {mode === 'business' && <BusinessBadge lang={lang} onClick={() => onNavigate('businesses')} />}
+            {mode === 'business' && <BusinessBadge lang={lang} onClick={() => onNavigate('business-hub')} />}
           </div>
           <p className="p-profile-handle">{profile.handle}</p>
           <p className="p-profile-bio">{profile.bio?.[lang] || profile.bio?.da || ''}</p>
@@ -9191,7 +9183,7 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
               <h2 className="p-profile-name" style={{ margin: 0 }}>{profile.name}</h2>
-              {profile.mode === 'business' && <BusinessBadge lang={lang} onClick={() => onNavigate?.('businesses')} />}
+              {profile.mode === 'business' && <BusinessBadge lang={lang} onClick={() => onNavigate?.('business-hub')} />}
               {profile.is_verified && (
                 <span style={{ fontSize: 12, background: '#EEF2FF', color: '#6366F1', border: '1px solid #C7D2FE', borderRadius: 20, padding: '2px 10px', fontWeight: 700 }}>{t.verifiedBadge}</span>
               )}
