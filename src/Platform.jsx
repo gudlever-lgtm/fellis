@@ -5874,7 +5874,7 @@ function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, on
         <EasterEggSettings lang={lang} />
       </>}
       {tab === 'sikkerhed' && <SettingsSikkerhed lang={lang} fS={fS} lS={lS} />}
-      {tab === 'billing' && <BillingSettings lang={lang} t={t} />}
+      {tab === 'billing' && <BillingSettings lang={lang} t={t} mode={mode} />}
       {tab === 'notifikationer' && <SettingsNotifications lang={lang} t={t} />}
       {tab === 'privatliv' && <SettingsPrivatliv lang={lang} t={t} fS={fS} lS={lS} />}
       {tab === 'sessions' && <SettingsSessions lang={lang} t={t} onLogout={onLogout} />}
@@ -5980,7 +5980,7 @@ function SettingsNotifications({ lang, t }) {
   )
 }
 
-function BillingSettings({ lang, t }) {
+function BillingSettings({ lang, t, mode }) {
   const [sub, setSub] = useState(null)
   const [loading, setLoading] = useState(false)
   const [plan, setPlan] = useState('once') // 'once' | 'monthly' | 'annual'
@@ -6036,7 +6036,8 @@ function BillingSettings({ lang, t }) {
   const annualPrice = sub.annual_price ?? (monthlyPrice * 12)
   const annualDiscountPct = sub.annual_discount_pct ?? 0
   const displayPrice = plan === 'monthly' ? monthlyPrice : plan === 'annual' ? annualPrice : price
-  const isMobilePay = paymentMethod === 'mobilepay'
+  const isBusiness = mode === 'business'
+  const isMobilePay = paymentMethod === 'mobilepay' && !isBusiness
   const dkkDisplay = isMobilePay && dkkRate ? Math.round(displayPrice * dkkRate * 100) / 100 : null
 
   return (
@@ -6090,27 +6091,29 @@ function BillingSettings({ lang, t }) {
               ))}
             </div>
 
-            {/* Payment method selector */}
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 12, color: '#888', marginBottom: 6 }}>{t.paymentMethodLabel}</div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                {[
-                  { key: 'card', label: t.paymentMethodCard },
-                  { key: 'mobilepay', label: 'MobilePay' },
-                ].map(({ key, label }) => (
-                  <button key={key} onClick={() => setPaymentMethod(key)}
-                    style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: `1.5px solid ${paymentMethod === key ? '#5A78FF' : '#ddd'}`, background: paymentMethod === key ? '#EEF1FF' : '#fff', color: paymentMethod === key ? '#5A78FF' : '#555', fontWeight: paymentMethod === key ? 700 : 400, fontSize: 13, cursor: 'pointer' }}>
-                    {label}
-                  </button>
-                ))}
-              </div>
-              {isMobilePay && (
-                <div style={{ fontSize: 11, color: '#888', marginTop: 6, lineHeight: 1.5 }}>
-                  {t.mobilePayDkkNote}
-                  {dkkRateLoading && <span> — {t.mobilePayRateLoading}</span>}
+            {/* Payment method selector — MobilePay is for private individuals only */}
+            {!isBusiness && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 12, color: '#888', marginBottom: 6 }}>{t.paymentMethodLabel}</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {[
+                    { key: 'card', label: t.paymentMethodCard },
+                    { key: 'mobilepay', label: 'MobilePay' },
+                  ].map(({ key, label }) => (
+                    <button key={key} onClick={() => setPaymentMethod(key)}
+                      style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: `1.5px solid ${paymentMethod === key ? '#5A78FF' : '#ddd'}`, background: paymentMethod === key ? '#EEF1FF' : '#fff', color: paymentMethod === key ? '#5A78FF' : '#555', fontWeight: paymentMethod === key ? 700 : 400, fontSize: 13, cursor: 'pointer' }}>
+                      {label}
+                    </button>
+                  ))}
                 </div>
-              )}
-            </div>
+                {isMobilePay && (
+                  <div style={{ fontSize: 11, color: '#888', marginTop: 6, lineHeight: 1.5 }}>
+                    {t.mobilePayDkkNote}
+                    {dkkRateLoading && <span> — {t.mobilePayRateLoading}</span>}
+                  </div>
+                )}
+              </div>
+            )}
 
             <button
               onClick={handleMollieCheckout}
