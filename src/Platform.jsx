@@ -519,22 +519,13 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
           ))}
           {/* Business-only primary tabs */}
           {mode === 'business' && (
-            <>
-              <button
-                className={`p-nav-tab${page === 'ads' ? ' active' : ''}`}
-                onClick={() => { navigateTo('ads'); setShowMobileMenu(false) }}
-              >
-                <span className="p-nav-tab-icon">📢</span>
-                <span className="p-nav-tab-label">{t.adsTitle}</span>
-              </button>
-              <button
-                className={`p-nav-tab${page === 'business-hub' ? ' active' : ''}`}
-                onClick={() => { navigateTo('business-hub'); setShowMobileMenu(false) }}
-              >
-                <span className="p-nav-tab-icon">🏢</span>
-                <span className="p-nav-tab-label">{t.businessHub}</span>
-              </button>
-            </>
+            <button
+              className={`p-nav-tab${page === 'business-hub' ? ' active' : ''}`}
+              onClick={() => { navigateTo('business-hub'); setShowMobileMenu(false) }}
+            >
+              <span className="p-nav-tab-icon">🏢</span>
+              <span className="p-nav-tab-label">{t.businessHub}</span>
+            </button>
           )}
           {/* "Mere" / "More" dropdown for secondary tabs */}
           <div ref={moreMenuRef} style={{ position: 'relative' }}>
@@ -585,41 +576,33 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
                   </div>
                 )
               }
-              // Desktop: grouped dropdown
+              // Desktop: flat dropdown
               return (
                 <div style={{
                   position: 'absolute', top: '100%', left: 0, zIndex: 200,
                   background: '#fff', borderRadius: 12, boxShadow: '0 6px 24px rgba(0,0,0,0.13)',
-                  border: '1px solid #e8e8e4', minWidth: 260, padding: '10px 0',
+                  border: '1px solid #e8e8e4', minWidth: 260, padding: '8px 6px',
                 }}>
-                  {moreGroups.map((group, gi) => (
-                    <div key={group.label}>
-                      {gi > 0 && <div style={{ height: 1, background: '#f0ede9', margin: '6px 0' }} />}
-                      <div style={{ fontSize: 10, fontWeight: 700, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.07em', padding: '2px 14px 6px' }}>
-                        {group.label}
-                      </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 0', padding: '0 6px' }}>
-                        {group.items.map(item => (
-                          <button key={item.id}
-                            onClick={() => { navigateTo(item.id); setShowMoreMenu(false); setShowMobileMenu(false) }}
-                            style={{
-                              display: 'flex', alignItems: 'center', gap: 8,
-                              padding: '8px 10px', borderRadius: 8,
-                              background: page === item.id ? '#f0f7f4' : 'none',
-                              border: 'none', cursor: 'pointer', fontSize: 13,
-                              fontWeight: page === item.id ? 700 : 400,
-                              color: page === item.id ? '#2D6A4F' : '#333', textAlign: 'left',
-                              transition: 'background 0.12s',
-                            }}
-                            onMouseEnter={e => { if (page !== item.id) e.currentTarget.style.background = '#f7f7f5' }}
-                            onMouseLeave={e => { if (page !== item.id) e.currentTarget.style.background = 'none' }}
-                          >
-                            <span style={{ fontSize: 16 }}>{item.icon}</span> {item.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 0' }}>
+                    {allItems.map(item => (
+                      <button key={item.id}
+                        onClick={() => { navigateTo(item.id); setShowMoreMenu(false); setShowMobileMenu(false) }}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 8,
+                          padding: '8px 10px', borderRadius: 8,
+                          background: page === item.id ? '#f0f7f4' : 'none',
+                          border: 'none', cursor: 'pointer', fontSize: 13,
+                          fontWeight: page === item.id ? 700 : 400,
+                          color: page === item.id ? '#2D6A4F' : '#333', textAlign: 'left',
+                          transition: 'background 0.12s',
+                        }}
+                        onMouseEnter={e => { if (page !== item.id) e.currentTarget.style.background = '#f7f7f5' }}
+                        onMouseLeave={e => { if (page !== item.id) e.currentTarget.style.background = 'none' }}
+                      >
+                        <span style={{ fontSize: 16 }}>{item.icon}</span> {item.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )
             })()}

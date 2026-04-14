@@ -9,6 +9,7 @@ import {
 } from '../api.js'
 import { formatPrice } from '../utils/currency.js'
 import BusinessDirectory from './BusinessDirectory.jsx'
+import AdManager from './AdManager.jsx'
 
 // ── Colour helpers ────────────────────────────────────────────────────────────
 const LEAD_STATUS_STYLE = {
@@ -603,26 +604,25 @@ function VerificationSection({ t, lang, currentUser }) {
 }
 
 // ── Main BusinessHub component ────────────────────────────────────────────────
-const CONTENT_TABS = ['leads', 'announcements', 'services', 'partners', 'analytics', 'verify', 'directory']
+const CONTENT_TAB_DEFS = [
+  { id: 'leads',         icon: '📥', label: { da: 'Leads',        en: 'Leads' } },
+  { id: 'announcements', icon: '📢', label: { da: 'Meddelelser',  en: 'Announcements' } },
+  { id: 'services',      icon: '🛠️', label: { da: 'Ydelser',      en: 'Services' } },
+  { id: 'partners',      icon: '🤝', label: { da: 'Partnere',     en: 'Partners' } },
+  { id: 'analytics',     icon: '📊', label: { da: 'Analyse',      en: 'Analytics' } },
+  { id: 'ads',           icon: '📣', label: { da: 'Annoncer',     en: 'Ads' } },
+  { id: 'verify',        icon: '✅', label: { da: 'Verificér',    en: 'Verify' } },
+  { id: 'directory',     icon: '🏢', label: { da: 'Virksomheder', en: 'Directory' } },
+]
 
 // Nav tabs navigate out to standalone pages rather than loading inline content
 const NAV_TABS = [
-  { id: 'jobs',    label: { da: 'Job', en: 'Jobs' },           icon: '💼' },
+  { id: 'jobs',    label: { da: 'Job',           en: 'Jobs' },       icon: '💼' },
   { id: 'company', label: { da: 'Min virksomhed', en: 'My Company' }, icon: '🏬' },
 ]
 
 export default function BusinessHub({ lang, t, currentUser, onViewProfile, onNavigate }) {
   const [tab, setTab] = useState('leads')
-
-  const TAB_LABELS = {
-    leads:         lang === 'da' ? 'Henvendelser' : 'Leads',
-    announcements: lang === 'da' ? 'Meddelelser' : 'Announcements',
-    services:      lang === 'da' ? 'Ydelser' : 'Services',
-    partners:      lang === 'da' ? 'Partnere' : 'Partners',
-    analytics:     lang === 'da' ? 'Analyse' : 'Analytics',
-    verify:        lang === 'da' ? 'Verificér' : 'Verify',
-    directory:     lang === 'da' ? 'Virksomheder' : 'Directory',
-  }
 
   const isVerified = currentUser?.is_verified
   const cvrNumber  = currentUser?.cvr_number
@@ -656,27 +656,28 @@ export default function BusinessHub({ lang, t, currentUser, onViewProfile, onNav
       </div>
 
       {/* Tab bar */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 20, overflowX: 'auto', paddingBottom: 4 }}>
-        {CONTENT_TABS.map(s => (
-          <button key={s} onClick={() => setTab(s)} style={{
-            padding: '7px 16px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 13, whiteSpace: 'nowrap',
-            background: tab === s ? '#6366F1' : '#F3F4F6',
-            color: tab === s ? '#fff' : '#374151',
-            fontWeight: tab === s ? 600 : 400,
+      <div style={{ display: 'flex', gap: 4, marginBottom: 20, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none' }}>
+        {CONTENT_TAB_DEFS.map(({ id, icon, label }) => (
+          <button key={id} onClick={() => setTab(id)} style={{
+            display: 'flex', alignItems: 'center', gap: 5,
+            padding: '6px 12px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 13, whiteSpace: 'nowrap',
+            background: tab === id ? '#6366F1' : '#F3F4F6',
+            color: tab === id ? '#fff' : '#374151',
+            fontWeight: tab === id ? 600 : 400,
           }}>
-            {TAB_LABELS[s]}
+            <span style={{ fontSize: 14 }}>{icon}</span>{label[lang] ?? label.en}
           </button>
         ))}
         {/* Nav-out tabs — separated by a faint divider */}
         <div style={{ width: 1, background: '#E5E7EB', margin: '4px 2px', flexShrink: 0 }} />
         {NAV_TABS.map(({ id, label, icon }) => (
           <button key={id} onClick={() => onNavigate?.(id)} style={{
-            padding: '7px 16px', borderRadius: 20, border: '1px solid #E5E7EB',
+            display: 'flex', alignItems: 'center', gap: 5,
+            padding: '6px 12px', borderRadius: 20, border: '1px solid #E5E7EB',
             cursor: 'pointer', fontSize: 13, whiteSpace: 'nowrap',
             background: '#fff', color: '#374151', fontWeight: 400,
-            display: 'flex', alignItems: 'center', gap: 5,
           }}>
-            <span>{icon}</span>{label[lang] ?? label.en}
+            <span style={{ fontSize: 14 }}>{icon}</span>{label[lang] ?? label.en}
           </button>
         ))}
       </div>
@@ -686,6 +687,7 @@ export default function BusinessHub({ lang, t, currentUser, onViewProfile, onNav
       {tab === 'services'      && <ServicesSection t={t} lang={lang} />}
       {tab === 'partners'      && <PartnersSection t={t} lang={lang} onViewProfile={onViewProfile} />}
       {tab === 'analytics'     && <AnalyticsDepthSection t={t} lang={lang} />}
+      {tab === 'ads'           && <AdManager lang={lang} t={t} currentUser={currentUser} />}
       {tab === 'verify'        && <VerificationSection t={t} lang={lang} currentUser={currentUser} />}
       {tab === 'directory'     && <BusinessDirectory lang={lang} t={t} onViewProfile={onViewProfile} />}
     </div>
