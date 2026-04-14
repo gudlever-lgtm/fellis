@@ -69,6 +69,7 @@ const transport = nodemailer.createTransport({
   port: MAIL_PORT,
   secure: MAIL_SECURE,
   auth: MAIL_USER ? { user: MAIL_USER, pass: MAIL_PASS } : undefined,
+  family: 4, // Force IPv4 — avoids ENETUNREACH on hosts without an IPv6 route
 })
 
 console.log('  Connecting...')

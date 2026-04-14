@@ -621,4 +621,43 @@ if (resetMigrationErrors.length > 0) {
   console.log(`${GREEN}  Remember to run 'cd server && npm run migrate' on the production server after deploy.${RESET}\n`)
 }
 
+// ── 14. .env.example inline comment check ────────────────────────────────────
+//
+// Node.js --env-file does NOT strip inline comments (# after the value).
+// An inline comment on e.g. SITE_URL turns into part of the value:
+//
+//   SITE_URL=https://fellis.eu  # some note
+//   → process.env.SITE_URL === 'https://fellis.eu  # some note'
+//
+// This silently breaks every password reset link and invite URL in production.
+// Verify that .env.example has no inline comments so the template stays clean
+// and doesn't mislead developers into adding them to their own .env.
+
+const ENV_EXAMPLE_PATH = resolve(root, 'server/.env.example')
+if (existsSync(ENV_EXAMPLE_PATH)) {
+  const envExampleLines = readFileSync(ENV_EXAMPLE_PATH, 'utf8').split('\n')
+  const inlineCommentLines = envExampleLines
+    .map((line, i) => ({ line, num: i + 1 }))
+    .filter(({ line }) => {
+      const trimmed = line.trim()
+      if (!trimmed || trimmed.startsWith('#')) return false     // blank or full-line comment
+      if (!trimmed.includes('=')) return false                   // not a key=value line
+      const valueStart = trimmed.indexOf('=') + 1
+      const value = trimmed.slice(valueStart)
+      return value.includes('#')                                 // # inside a value
+    })
+
+  if (inlineCommentLines.length > 0) {
+    console.log(`${RED}✗ server/.env.example contains inline comments (Node.js --env-file includes them in the value):${RESET}`)
+    for (const { line, num } of inlineCommentLines) {
+      console.log(`  ${RED}Line ${num}: ${line.trim()}${RESET}`)
+    }
+    console.log(`  ${RED}Move comments to their own line starting with #.${RESET}`)
+    console.log()
+    process.exit(1)
+  } else {
+    console.log(`${GREEN}✓ server/.env.example has no inline comments (all # are on dedicated lines).${RESET}\n`)
+  }
+}
+
 process.exit(0)
