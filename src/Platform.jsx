@@ -217,7 +217,11 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
   const [msgSsePayload, setMsgSsePayload] = useState(null)
   const [showModeModal, setShowModeModal] = useState(false)
   const [adsFree, setAdsFree] = useState(false)
-  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('fellis_dark') === '1')
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem('fellis_theme')
+    if (saved) return saved
+    return localStorage.getItem('fellis_dark') === '1' ? 'dark' : 'light'
+  })
   const [marketplaceMaxPhotos, setMarketplaceMaxPhotos] = useState(4)
 
   // 🥚 All easter egg triggers — global so they work from any page
@@ -287,9 +291,11 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
   const t = getTranslations(lang)
 
   useEffect(() => {
-    document.body.classList.toggle('dark', darkMode)
-    localStorage.setItem('fellis_dark', darkMode ? '1' : '0')
-  }, [darkMode])
+    document.body.classList.remove('dark', 'theme-nordic', 'theme-sunset', 'theme-forest')
+    if (theme === 'dark') document.body.classList.add('dark')
+    else if (theme !== 'light') document.body.classList.add(`theme-${theme}`)
+    localStorage.setItem('fellis_theme', theme)
+  }, [theme])
 
   useEffect(() => {
     let lastY = window.scrollY
@@ -779,7 +785,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
         {page === 'ads' && mode === 'business' && <AdManager lang={lang} t={t} currentUser={currentUser} />}
         {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} initialCompanyId={navParam?.companyId} />}
         {page === 'analytics' && <AnalyticsPage lang={lang} t={t} currentUser={currentUser} onNavigate={navigateTo} />}
-        {page === 'settings' && <SettingsPage lang={lang} t={t} currentUser={currentUser} mode={mode} adsFree={adsFree} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onLogout={onLogout} onOpenModeModal={() => setShowModeModal(true)} darkMode={darkMode} onToggleDark={() => setDarkMode(d => !d)} initialTab={navParam} />}
+        {page === 'settings' && <SettingsPage lang={lang} t={t} currentUser={currentUser} mode={mode} adsFree={adsFree} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onLogout={onLogout} onOpenModeModal={() => setShowModeModal(true)} theme={theme} onThemeChange={setTheme} initialTab={navParam} />}
         {page === 'privacy' && <PrivacySection lang={lang} onLogout={onLogout} />}
         {page === 'visitors' && <VisitorStatsPage lang={lang} onBadgeCheck={checkBadges} />}
         {page === 'about' && <AboutPage lang={lang} />}
@@ -5851,7 +5857,7 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
 }
 
 // ── Settings Page ─────────────────────────────────────────────────────────────
-function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onLogout, onOpenModeModal, darkMode, onToggleDark, initialTab }) {
+function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onLogout, onOpenModeModal, theme, onThemeChange, initialTab }) {
   const [tab, setTab] = useState(initialTab || 'konto')
 
   const fS = { display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box', fontFamily: 'inherit' }
@@ -5878,7 +5884,7 @@ function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, on
       {tab === 'notifikationer' && <SettingsNotifications lang={lang} t={t} />}
       {tab === 'privatliv' && <SettingsPrivatliv lang={lang} t={t} fS={fS} lS={lS} />}
       {tab === 'sessions' && <SettingsSessions lang={lang} t={t} onLogout={onLogout} />}
-      {tab === 'sprog' && <SettingsSprog lang={lang} t={t} darkMode={darkMode} onToggleDark={onToggleDark} />}
+      {tab === 'sprog' && <SettingsSprog lang={lang} t={t} theme={theme} onThemeChange={onThemeChange} />}
       {tab === 'leverandoerer' && <SettingsLeverandoerer lang={lang} t={t} />}
     </div>
   )
@@ -7561,9 +7567,15 @@ function SettingsSessions({ lang, t, onLogout }) {
   )
 }
 
-function SettingsSprog({ lang, t, darkMode, onToggleDark }) {
-  const currentLang = UI_LANGS.find(l => l.code === lang) || UI_LANGS[0]
+const THEMES = [
+  { id: 'light',   da: 'Lyst',       en: 'Light',   bg: '#FAFAF7', nav: '#2D6A4F', card: '#FFFFFF' },
+  { id: 'dark',    da: 'Mørkt',      en: 'Dark',    bg: '#141416', nav: '#1C1C20', card: '#252525' },
+  { id: 'nordic',  da: 'Nordisk',    en: 'Nordic',  bg: '#F0F4F8', nav: '#1E3A5F', card: '#FFFFFF' },
+  { id: 'sunset',  da: 'Solnedgang', en: 'Sunset',  bg: '#FEF3E8', nav: '#7A2D0A', card: '#FFFAF5' },
+  { id: 'forest',  da: 'Skov',       en: 'Forest',  bg: '#F0F7F3', nav: '#0D2E1A', card: '#FFFFFF' },
+]
 
+function SettingsSprog({ lang, t, theme, onThemeChange }) {
   const switchLang = (newLang) => {
     localStorage.setItem('fellis_lang', newLang)
     csrfFetch('/api/me/lang', {
@@ -7598,12 +7610,22 @@ function SettingsSprog({ lang, t, darkMode, onToggleDark }) {
           : 'Language is auto-detected from your country on first visit.'}
       </p>
 
-      <div style={{ fontSize: 14, fontWeight: 700, marginTop: 24, marginBottom: 12 }}>🌙 {t.settingsDarkMode}</div>
-      <div className="dark-mode-toggle" onClick={onToggleDark}>
-        <div className={`dark-mode-toggle-track${darkMode ? ' on' : ''}`}>
-          <div className="dark-mode-toggle-thumb" />
-        </div>
-        <span style={{ fontSize: 14 }}>{darkMode ? (t.enabled) : (t.adminLivestreamDisabled)}</span>
+      <div style={{ fontSize: 14, fontWeight: 700, marginTop: 24, marginBottom: 12 }}>🎨 {t.settingsDarkMode}</div>
+      <div className="theme-picker">
+        {THEMES.map(th => (
+          <div key={th.id} className={`theme-card${theme === th.id ? ' active' : ''}`} onClick={() => onThemeChange(th.id)}>
+            <div className="theme-preview" style={{ background: th.bg }}>
+              <div className="theme-preview-nav" style={{ background: th.nav }} />
+              <div className="theme-preview-body">
+                <div className="theme-preview-bar" style={{ background: th.card }} />
+                <div className="theme-preview-bar-sm" style={{ background: th.card }} />
+                <div className="theme-preview-bar" style={{ background: th.card }} />
+              </div>
+            </div>
+            <span className="theme-card-name">{lang === 'da' ? th.da : th.en}</span>
+            {theme === th.id && <span className="theme-card-check">✓</span>}
+          </div>
+        ))}
       </div>
     </div>
   )
