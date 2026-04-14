@@ -4,7 +4,7 @@ import { UI_LANGS, EUROPEAN_LANGUAGES, INTEREST_CATEGORIES, REACTIONS, nameToCol
 import { formatPrice, formatPriceDKK } from './utils/currency.js'
 import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiRemoveConversationParticipant, apiMuteConversationParticipant, apiUploadAvatar, apiCheckSession, apiRequestAccountDelete, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiShareJob, apiUnshareJob, apiGetSharedJobs, apiGetJobSharedWith, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiSendEnableMfa, apiConfirmEnableMfa, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals, apiFetchCalendarReminders, apiCreateCalendarReminder, apiDeleteCalendarReminder, apiGetLinkedContent, apiFetchJobs, apiGetSuggestedUsers, apiAdminNotifyAll, apiLikeComment, apiAdminGetPlatformAds, apiAdminCreatePlatformAd, apiAdminUpdatePlatformAd, apiAdminDeletePlatformAd, apiAdminGetLockedUsers, apiAdminUnlockUser, apiFeedCompanyPosts, apiGetLivestreamSettings, apiSaveLivestreamSettings, apiGetLivestreamStats, apiGetLivestreamStatus,
   apiGetStreamKey, apiRegenerateStreamKey, apiGetMarketplaceAlerts, apiCreateMarketplaceAlert, apiUpdateMarketplaceAlert, apiDeleteMarketplaceAlert,
-  apiGetEurDkkRate } from './api.js'
+  apiGetEurDkkRate, apiFetchFriendSuggestions } from './api.js'
 import {
   apiSharePost, apiUnsharePost, apiSavePost, apiUnsavePost, apiGetSavedPosts,
   apiGetPoll, apiVotePoll, apiCreatePoll,
@@ -9672,6 +9672,7 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
   const [followers, setFollowers] = useState(null)
   const [following, setFollowing] = useState(null) // { users: [], companies: [] }
   const [followPending, setFollowPending] = useState({}) // userId → true while request in flight
+  const [suggestions, setSuggestions] = useState(null) // null = not yet loaded
   const searchTimerRef = useRef(null)
   const { rels, setRel } = useContactRelationships()
   const REL_OPTS = [
@@ -9768,7 +9769,7 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
     setFollowPending(prev => { const n = { ...prev }; delete n[userId]; return n })
   }, [])
 
-  const filtered = (filter === 'invites' || filter === 'requests' || filter === 'viral' || filter === 'follow') ? [] : friends.filter(f => filter === 'all' || f.online)
+  const filtered = (filter === 'invites' || filter === 'requests' || filter === 'viral' || filter === 'follow' || filter === 'suggested') ? [] : friends.filter(f => filter === 'all' || f.online)
 
   const handleCopyInvite = useCallback(() => {
     navigator.clipboard.writeText(inviteLink).catch(() => {})
@@ -9862,6 +9863,12 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
     if (!followers) apiGetFollowers().then(d => setFollowers(d || []))
     if (!following) apiGetFollowing().then(d => setFollowing(d || { users: [], companies: [] }))
   }, [filter, followers, following])
+
+  // Load friend suggestions when suggested tab is opened
+  useEffect(() => {
+    if (filter !== 'suggested') return
+    if (!suggestions) apiFetchFriendSuggestions().then(d => setSuggestions(d || []))
+  }, [filter, suggestions])
 
   const isSearching = search.trim().length >= 2
   const outgoingTargetIds = new Set(requests.outgoing.map(r => r.to_id))
@@ -10029,6 +10036,9 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
             </button>
             <button className={`p-filter-tab${filter === 'follow' ? ' active' : ''}`} onClick={() => setFilter('follow')}>
               👁 {t.followTab}
+            </button>
+            <button className={`p-filter-tab${filter === 'suggested' ? ' active' : ''}`} onClick={() => setFilter('suggested')}>
+              🤝 {t.suggestedTab}
             </button>
           </div>
         )}
@@ -10211,6 +10221,46 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
           onFollowToggle={handleFollowToggle}
           onViewProfile={setViewProfileId}
         />
+      ) : filter === 'suggested' ? (
+        <div className="p-card" style={{ padding: '16px' }}>
+          <h3 className="p-section-title" style={{ margin: '0 0 16px' }}>{t.suggestedTitle}</h3>
+          {suggestions === null ? (
+            <div style={{ textAlign: 'center', padding: '32px', color: 'var(--color-muted)' }}>…</div>
+          ) : suggestions.length === 0 ? (
+            <div className="p-friends-empty">
+              <span className="p-friends-empty-icon">🤝</span>
+              <p>{t.suggestedEmpty}</p>
+            </div>
+          ) : (
+            <div className="p-friends-grid">
+              {suggestions.map((user) => {
+                const hasSent = outgoingTargetIds.has(user.id) || sentIds[user.id]
+                const mutualLabel = user.mutual_count === 1 ? t.suggestedMutual : t.suggestedMutualPlural
+                return (
+                  <div key={user.id} className="p-card p-friend-card">
+                    <div className="p-friend-card-top" style={{ cursor: 'pointer' }} onClick={() => setViewProfileId(user.id)}>
+                      <div className="p-avatar-md" style={{ background: nameToColor(user.name) }}>
+                        {getInitials(user.name)}
+                      </div>
+                      <div className="p-friend-card-name">{user.name}</div>
+                      <div className="p-friend-card-mutual">{user.mutual_count} {mutualLabel}</div>
+                    </div>
+                    {hasSent ? (
+                      <button className="p-friend-msg-btn p-friend-sent-btn" disabled>✉ {t.requestSent}</button>
+                    ) : (
+                      <button className="p-friend-msg-btn p-friend-add-btn" onClick={() => {
+                        handleSendRequest(user.id)
+                        setSuggestions(prev => prev ? prev.filter(s => s.id !== user.id) : prev)
+                      }}>
+                        ➕ {mode === 'business' ? t.connectBtn : t.addFriend}
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
       ) : (
         <div className="p-friends-grid">
           {filtered.map((friend) => (
