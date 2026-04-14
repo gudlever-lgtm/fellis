@@ -27,6 +27,9 @@ function promoteWebRootFiles() {
 export default defineConfig({
   plugins: [react(), promoteWebRootFiles()],
   root: 'src',
+  // Assets are served from /assets/ on the web server; setting base here makes
+  // Vite write the correct absolute paths into the generated index.html.
+  base: '/assets/',
   build: {
     outDir: resolve(__dirname, 'assets'),
     emptyOutDir: false,
