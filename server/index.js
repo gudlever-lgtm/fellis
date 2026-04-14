@@ -8617,8 +8617,8 @@ app.post('/api/admin/notify-all', authenticate, requireAdmin, async (req, res) =
 app.get('/api/admin/env-status', authenticate, requireAdmin, async (req, res) => {
   const ENV_VARS = [
     'MOLLIE_API_KEY',
-    'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET',
-    'LINKEDIN_CLIENT_ID', 'LINKEDIN_CLIENT_SECRET',
+    'GOOGLE_CLIENT_ID',
+    'LINKEDIN_CLIENT_ID',
     'MAIL_HOST', 'MAIL_USER',
     '46ELKS_USERNAME',
     'MISTRAL_API_KEY',
