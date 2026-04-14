@@ -471,6 +471,12 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
           <select className="lang-toggle" value={lang} onChange={e => changeLang(e.target.value)} aria-label="Language">
             {UI_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
           </select>
+          <a
+            href="/for-business"
+            style={{ fontSize: 14, color: '#2D6A4F', textDecoration: 'none', fontWeight: 500, whiteSpace: 'nowrap' }}
+          >
+            {PT[lang]?.forBusinessNavLink || PT.en.forBusinessNavLink}
+          </a>
           <button className="login-btn" onClick={() => { setShowLoginModal(true); setLoginError(''); setLoginEmail(''); setLoginPassword('') }}>
             {t.loginBtn}
           </button>
