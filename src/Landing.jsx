@@ -61,6 +61,7 @@ const T = {
     forgotConfirm: 'Gem adgangskode',
     forgotSuccess: 'Adgangskode opdateret! Du er nu logget ind.',
     forgotError: 'Kunne ikke nulstille adgangskode',
+    forgotRateLimit: 'For mange forsøg — prøv igen om lidt',
     forgotBack: 'Tilbage til login',
     forgotEmailSent: 'Tjek din e-mail for et nulstillingslink.',
     forgotFbNote: 'Din konto er tilknyttet Google eller LinkedIn. Du kan oprette en lokal adgangskode herunder.',
@@ -156,6 +157,7 @@ const T = {
     forgotConfirm: 'Save password',
     forgotSuccess: 'Password updated! You are now logged in.',
     forgotError: 'Could not reset password',
+    forgotRateLimit: 'Too many attempts — please try again shortly',
     forgotBack: 'Back to login',
     forgotEmailSent: 'Check your email for a reset link.',
     forgotFbNote: 'Your account is connected via Google or LinkedIn. You can set a local password below.',
@@ -340,6 +342,8 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
       if (data?.ok) {
         // Server sends an email with the reset link — show confirmation
         setForgotMode('email-sent')
+      } else if (data?.status === 429) {
+        setForgotError(t.forgotRateLimit)
       } else {
         setForgotError(t.forgotError)
       }
