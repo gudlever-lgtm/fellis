@@ -1099,6 +1099,10 @@ export async function apiDeleteReel(id) {
   return await request(`/api/reels/${id}`, { method: 'DELETE' })
 }
 
+export async function apiShareReel(id) {
+  return await request(`/api/reels/${id}/share`, { method: 'POST' })
+}
+
 // ── Calendar ──
 
 export async function apiFetchCalendarEvents() {
