@@ -2123,6 +2123,7 @@ export const apiUpdateBusinessLead = (id, status) =>
 export const apiGetBusinessJobs = (id) => request(`/api/businesses/${id}/jobs`)
 
 // Feature 3: Business CVR verification
+export const apiLookupCVR = (cvr) => request(`/api/me/verify-business/lookup?cvr=${encodeURIComponent(cvr)}`)
 export const apiSubmitBusinessVerification = (cvr_number) =>
   request('/api/me/verify-business', { method: 'POST', body: JSON.stringify({ cvr_number }) })
 export const apiAdminGetVerifications = () => request('/api/admin/verify-business')

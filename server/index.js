@@ -12519,6 +12519,7 @@ async function initBusinessFeaturesV2() {
 
     await addCol('users', 'cvr_number', 'VARCHAR(20) DEFAULT NULL').catch(() => {})
     await addCol('users', 'is_verified', 'TINYINT(1) NOT NULL DEFAULT 0').catch(() => {})
+    await addCol('users', 'cvr_company_name', 'VARCHAR(255) DEFAULT NULL').catch(() => {})
     // Service Spotlight: link a business_services entry to a feed post
     await pool.query(
       'ALTER TABLE posts ADD COLUMN IF NOT EXISTS linked_service_id INT DEFAULT NULL'
@@ -14788,29 +14789,73 @@ app.get('/api/businesses/:id/jobs', async (req, res) => {
 
 // ── Feature 3: Business verification (CVR) ──
 
-// POST /api/me/verify-business — submit CVR number for verification
+// Helper: look up a CVR number against the Danish registry (cvrapi.dk)
+async function lookupCVR(cvr) {
+  try {
+    const res = await fetch(
+      `https://cvrapi.dk/api?country=dk&vat=${encodeURIComponent(cvr)}&useragent=fellis.eu`,
+      { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(6000) }
+    )
+    if (!res.ok) return null
+    const data = await res.json()
+    if (data.error || !data.name) return null
+    return { name: data.name, city: data.city || null, industry: data.industrydesc || null }
+  } catch {
+    return null
+  }
+}
+
+// GET /api/me/verify-business/lookup?cvr=XXXXXXXX — preview company name before submitting
+app.get('/api/me/verify-business/lookup', authenticate, async (req, res) => {
+  const cvr = (req.query.cvr || '').trim().replace(/[\s\-]/g, '')
+  if (!/^\d{8}$/.test(cvr)) return res.status(400).json({ error: 'cvr_format' })
+  const data = await lookupCVR(cvr)
+  if (!data) return res.status(404).json({ error: 'cvr_not_found' })
+  res.json(data)
+})
+
+// POST /api/me/verify-business — submit CVR for verification (auto-approves via registry lookup)
 app.post('/api/me/verify-business', authenticate, writeLimit, async (req, res) => {
   try {
     const { cvr_number } = req.body
     if (!cvr_number?.trim()) return res.status(400).json({ error: 'CVR number required' })
     const [[user]] = await pool.query('SELECT mode FROM users WHERE id = ?', [req.userId])
     if (user?.mode !== 'business') return res.status(403).json({ error: 'Business account required' })
-    const cleaned = cvr_number.trim().replace(/\s/g, '')
-    await pool.query('UPDATE users SET cvr_number = ?, is_verified = 0 WHERE id = ?', [cleaned, req.userId])
-    res.json({ ok: true })
+
+    // Validate: strip separators, must be exactly 8 digits
+    const cleaned = cvr_number.trim().replace(/[\s\-]/g, '')
+    if (!/^\d{8}$/.test(cleaned)) return res.status(422).json({ error: 'cvr_format' })
+
+    // Duplicate check: another verified account already holds this CVR
+    const [[taken]] = await pool.query(
+      'SELECT id FROM users WHERE cvr_number = ? AND is_verified = 1 AND id != ?',
+      [cleaned, req.userId]
+    )
+    if (taken) return res.status(409).json({ error: 'cvr_taken' })
+
+    // Look up in Danish CVR registry to confirm existence
+    const cvrData = await lookupCVR(cleaned)
+    if (!cvrData) return res.status(422).json({ error: 'cvr_not_found' })
+
+    // Auto-approve: CVR confirmed in registry
+    await pool.query(
+      'UPDATE users SET cvr_number = ?, is_verified = 1, cvr_company_name = ? WHERE id = ?',
+      [cleaned, cvrData.name, req.userId]
+    )
+    res.json({ ok: true, companyName: cvrData.name, industry: cvrData.industry })
   } catch (err) {
     console.error('POST /api/me/verify-business error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })
 
-// GET /api/admin/verify-business — list pending business verifications (admin only)
+// GET /api/admin/verify-business — list verified businesses (admin overview)
 app.get('/api/admin/verify-business', authenticate, requireAdmin, async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, name, email, handle, cvr_number, is_verified, created_at
+      `SELECT id, name, email, handle, cvr_number, cvr_company_name, is_verified, created_at
        FROM users WHERE mode = 'business' AND cvr_number IS NOT NULL
-       ORDER BY is_verified ASC, created_at DESC LIMIT 100`
+       ORDER BY is_verified DESC, created_at DESC LIMIT 100`
     )
     res.json({ users: rows })
   } catch (err) {
@@ -14819,7 +14864,7 @@ app.get('/api/admin/verify-business', authenticate, requireAdmin, async (req, re
   }
 })
 
-// POST /api/admin/verify-business/:userId — approve or deny verification
+// POST /api/admin/verify-business/:userId — manually override verification status
 app.post('/api/admin/verify-business/:userId', authenticate, requireAdmin, writeLimit, async (req, res) => {
   try {
     const { approved } = req.body
