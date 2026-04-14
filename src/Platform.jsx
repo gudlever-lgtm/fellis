@@ -3254,7 +3254,31 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                 {currentUser.initials || getInitials(currentUser.name)}
               </div>
               <button
-                onMouseDown={e => { e.preventDefault(); setPostExpanded(false) }}
+                onMouseDown={e => {
+                  e.preventDefault()
+                  setNewPostText('')
+                  setMediaFiles([])
+                  setMediaPreviews([])
+                  setProviderMediaUrls([])
+                  setPostExpanded(false)
+                  setPostCategories(new Set())
+                  setAutoCategories(new Set())
+                  setShowCategoryPicker(false)
+                  setScheduleEnabled(false)
+                  setScheduledAt('')
+                  setPostLocation(null)
+                  setLocationSearchText('')
+                  setLocationResults([])
+                  setLocationSearchOpen(false)
+                  setTaggedUsers([])
+                  setLinkedContent(null)
+                  setComposerLinkUrl(null)
+                  composerLinkDismissed.current = null
+                  setShowTagPicker(false)
+                  setShowAttachPicker(false)
+                  setCatPickerSearch('')
+                  if (textareaRef.current) textareaRef.current.style.height = 'auto'
+                }}
                 title={t.analyticsInsightClose}
                 style={{
                   position: 'absolute', top: 0, right: 0, zIndex: 2,
