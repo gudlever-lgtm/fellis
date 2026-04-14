@@ -14789,6 +14789,16 @@ app.get('/api/businesses/:id/jobs', async (req, res) => {
 
 // ── Feature 3: Business verification (CVR) ──
 
+// Validate a CVR number using the Danish modulo-11 checksum algorithm.
+// Weights: 2 7 6 5 4 3 2 1 — sum of (digit * weight) must be divisible by 11.
+// This confirms the number is a mathematically valid CVR without any external call.
+function isValidCVRChecksum(cvr) {
+  const weights = [2, 7, 6, 5, 4, 3, 2, 1]
+  const digits = cvr.split('').map(Number)
+  const sum = digits.reduce((acc, d, i) => acc + d * weights[i], 0)
+  return sum % 11 === 0
+}
+
 // Helper: look up a CVR number against the Danish registry (cvrapi.dk)
 // Returns: { name, city, industry } on success
 //          'unavailable'  for any non-positive result (404, 429, 5xx, network error, missing data)
@@ -14824,7 +14834,7 @@ async function lookupCVR(cvr) {
 // GET /api/me/verify-business/lookup?cvr=XXXXXXXX — preview company name before submitting
 app.get('/api/me/verify-business/lookup', authenticate, async (req, res) => {
   const cvr = (req.query.cvr || '').trim().replace(/[\s\-]/g, '')
-  if (!/^\d{8}$/.test(cvr)) return res.status(400).json({ error: 'cvr_format' })
+  if (!/^\d{8}$/.test(cvr) || !isValidCVRChecksum(cvr)) return res.status(400).json({ error: 'cvr_format' })
   const data = await lookupCVR(cvr)
   if (data.unavailable) return res.status(503).json({ error: 'cvr_api_unavailable', detail: { status: data.status, apiError: data.apiError } })
   res.json(data)
@@ -14842,24 +14852,25 @@ app.post('/api/me/verify-business', authenticate, writeLimit, async (req, res) =
     const cleaned = cvr_number.trim().replace(/[\s\-]/g, '')
     if (!/^\d{8}$/.test(cleaned)) return res.status(422).json({ error: 'cvr_format' })
 
+    // Modulo-11 checksum — rejects mathematically invalid numbers instantly
+    if (!isValidCVRChecksum(cleaned)) return res.status(422).json({ error: 'cvr_format' })
+
     const [[taken]] = await pool.query(
       'SELECT id FROM users WHERE cvr_number = ? AND is_verified = 1 AND id != ?',
       [cleaned, req.userId]
     )
     if (taken) return res.status(409).json({ error: 'cvr_taken' })
 
+    // Best-effort registry lookup for company name — approval does NOT depend on this
     const cvrData = await lookupCVR(cleaned)
+    const companyName = cvrData.unavailable ? null : (cvrData.name || null)
 
-    if (cvrData.unavailable) {
-      await pool.query('UPDATE users SET cvr_number = ?, is_verified = 0 WHERE id = ?', [cleaned, req.userId])
-      return res.json({ ok: true, pending: true })
-    }
-
+    // Auto-approve: checksum-valid CVR + no duplicate = verified
     await pool.query(
       'UPDATE users SET cvr_number = ?, is_verified = 1, cvr_company_name = ? WHERE id = ?',
-      [cleaned, cvrData.name, req.userId]
+      [cleaned, companyName, req.userId]
     )
-    res.json({ ok: true, pending: false, companyName: cvrData.name, industry: cvrData.industry })
+    res.json({ ok: true, pending: false, companyName })
   } catch (err) {
     console.error('POST /api/me/verify-business error:', err.message)
     res.status(500).json({ error: 'Server error' })
