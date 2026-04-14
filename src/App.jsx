@@ -410,12 +410,14 @@ function App() {
       localStorage.setItem('fellis_logged_in', 'true')
       // Fetch CSRF token before mounting platform — prevents 403s on the first
       // POST requests (heartbeat, ad impressions) that fire immediately on mount
-      const csrfData = await apiGetCsrfToken().catch(() => null)
-      if (csrfData?.csrfToken) {
-        localStorage.setItem('fellis_csrf_token', csrfData.csrfToken)
-      }
-      setView('platform')
-      window.history.replaceState({}, '', window.location.pathname)
+      ;(async () => {
+        const csrfData = await apiGetCsrfToken().catch(() => null)
+        if (csrfData?.csrfToken) {
+          localStorage.setItem('fellis_csrf_token', csrfData.csrfToken)
+        }
+        setView('platform')
+        window.history.replaceState({}, '', window.location.pathname)
+      })()
       return
     }
     if (googleConnected === '1') {
@@ -429,12 +431,14 @@ function App() {
       // Session stored in HTTP-only cookie
       localStorage.setItem('fellis_logged_in', 'true')
       // Fetch CSRF token before mounting platform — same fix as Google OAuth path
-      const csrfData = await apiGetCsrfToken().catch(() => null)
-      if (csrfData?.csrfToken) {
-        localStorage.setItem('fellis_csrf_token', csrfData.csrfToken)
-      }
-      setView('platform')
-      window.history.replaceState({}, '', window.location.pathname)
+      ;(async () => {
+        const csrfData = await apiGetCsrfToken().catch(() => null)
+        if (csrfData?.csrfToken) {
+          localStorage.setItem('fellis_csrf_token', csrfData.csrfToken)
+        }
+        setView('platform')
+        window.history.replaceState({}, '', window.location.pathname)
+      })()
       return
     }
     if (linkedinConnected === '1') {
