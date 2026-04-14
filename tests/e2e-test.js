@@ -90,7 +90,7 @@ let sessionId = null
 let csrfToken = null
 
 function headers(extra = {}) {
-  const h = { 'Content-Type': 'application/json', ...extra }
+  const h = { 'Content-Type': 'application/json', 'X-E2E-Test': '1', ...extra }
   if (sessionId) h['X-Session-Id'] = sessionId
   if (sessionId && csrfToken) h['X-CSRF-Token'] = csrfToken
   return h

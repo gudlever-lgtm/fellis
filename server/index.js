@@ -841,6 +841,8 @@ async function auditLog(req, action, resourceType = null, resourceId = null, {
   userId: explicitUserId = undefined,
 } = {}) {
   if (process.env.NODE_ENV === 'test') return
+  // Skip during E2E smoke tests (deploy.sh post-deploy check) — but never in production
+  if (process.env.NODE_ENV !== 'production' && req?.headers?.['x-e2e-test'] === '1') return
   // explicitUserId lets callers (e.g. login) pass the userId before req.userId is set,
   // avoiding { ...req } spread which drops Express prototype getters like req.ip
   const userId = explicitUserId !== undefined ? explicitUserId : (req.userId || null)
