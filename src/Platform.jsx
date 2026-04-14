@@ -6124,25 +6124,30 @@ function BillingSettings({ lang, t, mode }) {
                   {[
                     {
                       key: 'card',
-                      label: t.paymentMethodCard,
-                      icon: (
-                        <span aria-hidden="true" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-                          {/* Generic card */}
-                          <svg width="16" height="12" viewBox="0 0 16 12" fill="none">
-                            <rect x=".5" y=".5" width="15" height="11" rx="2" stroke="currentColor" strokeWidth="1.2"/>
-                            <rect y="3" width="16" height="2.5" fill="currentColor"/>
-                            <rect x="2" y="7.5" width="4" height="1.5" rx=".5" fill="currentColor" opacity=".45"/>
-                          </svg>
-                          {/* Apple Pay mark */}
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                            <path d={siApplepay.path}/>
-                          </svg>
-                          {/* Google Pay mark */}
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill={`#${siGooglepay.hex}`} aria-hidden="true">
-                            <path d={siGooglepay.path}/>
-                          </svg>
-                        </span>
-                      ),
+                      label: null,
+                      icon: (() => {
+                        const [cardText, appleText, googleText] = t.paymentMethodCard.split(' / ')
+                        return (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                            <svg width="16" height="12" viewBox="0 0 16 12" fill="none" aria-hidden="true">
+                              <rect x=".5" y=".5" width="15" height="11" rx="2" stroke="currentColor" strokeWidth="1.2"/>
+                              <rect y="3" width="16" height="2.5" fill="currentColor"/>
+                              <rect x="2" y="7.5" width="4" height="1.5" rx=".5" fill="currentColor" opacity=".45"/>
+                            </svg>
+                            {cardText}
+                            <span style={{ opacity: 0.35 }}>/</span>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                              <path d={siApplepay.path}/>
+                            </svg>
+                            {appleText}
+                            <span style={{ opacity: 0.35 }}>/</span>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill={`#${siGooglepay.hex}`} aria-hidden="true">
+                              <path d={siGooglepay.path}/>
+                            </svg>
+                            {googleText}
+                          </span>
+                        )
+                      })(),
                     },
                     {
                       key: 'mobilepay',
