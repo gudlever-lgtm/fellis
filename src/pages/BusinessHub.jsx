@@ -4,7 +4,7 @@ import {
   apiCreateAnnouncement, apiGetMyAnnouncements, apiDeleteAnnouncement,
   apiGetMyServices, apiCreateService, apiUpdateService, apiDeleteService,
   apiGetPartnerRequests, apiGetMyPartners, apiRespondPartnerRequest, apiRemovePartner,
-  apiSubmitBusinessVerification,
+  apiLookupCVR, apiSubmitBusinessVerification,
   apiGetFollowerGrowth, apiGetBestPostTimes,
 } from '../api.js'
 import { formatPrice } from '../utils/currency.js'
@@ -475,48 +475,143 @@ function AnalyticsDepthSection({ t, lang }) {
 
 // ── CVR Verification ──────────────────────────────────────────────────────────
 function VerificationSection({ t, lang, currentUser }) {
-  const [cvr, setCvr] = useState(currentUser?.cvr_number || '')
-  const [saving, setSaving] = useState(false)
-  const [msg, setMsg] = useState('')
+  const [cvr, setCvr] = useState('')
+  const [lookup, setLookup] = useState(null)   // { name, city, industry } | null
+  const [lookupState, setLookupState] = useState('idle') // idle | loading | found | error
+  const [lookupError, setLookupError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
+  const [verified, setVerified] = useState(currentUser?.is_verified || false)
+  const [verifiedData, setVerifiedData] = useState(
+    currentUser?.is_verified
+      ? { cvr: currentUser.cvr_number, name: currentUser.cvr_company_name }
+      : null
+  )
+  const lookupTimer = useRef(null)
+
+  const cleanCvr = (v) => v.replace(/[\s\-]/g, '')
+  const isValidFormat = (v) => /^\d{8}$/.test(cleanCvr(v))
+
+  const handleChange = (e) => {
+    const val = e.target.value.replace(/[^\d\s\-]/g, '')
+    setCvr(val)
+    setSubmitError('')
+    setLookup(null)
+    setLookupError('')
+
+    clearTimeout(lookupTimer.current)
+    const cleaned = cleanCvr(val)
+    if (cleaned.length < 8) {
+      setLookupState('idle')
+      return
+    }
+    if (!isValidFormat(val)) {
+      setLookupState('error')
+      setLookupError(t.cvrFormatError)
+      return
+    }
+    // Debounce the lookup by 600ms after the user stops typing
+    setLookupState('loading')
+    lookupTimer.current = setTimeout(async () => {
+      const res = await apiLookupCVR(cleaned)
+      if (res && !res.error) {
+        setLookup(res)
+        setLookupState('found')
+        setLookupError('')
+      } else {
+        setLookup(null)
+        setLookupState('error')
+        setLookupError(t.cvrNotFoundError)
+      }
+    }, 600)
+  }
 
   const submit = async () => {
-    if (!cvr.trim()) return
-    setSaving(true)
-    const r = await apiSubmitBusinessVerification(cvr.trim())
-    setSaving(false)
+    if (lookupState !== 'found' || submitting) return
+    setSubmitting(true)
+    setSubmitError('')
+    const r = await apiSubmitBusinessVerification(cleanCvr(cvr))
+    setSubmitting(false)
     if (r?.ok) {
-      setMsg(t.verificationPending)
-      setTimeout(() => setMsg(''), 4000)
+      setVerified(true)
+      setVerifiedData({ cvr: cleanCvr(cvr), name: r.companyName })
+    } else {
+      const errMap = {
+        cvr_format: t.cvrFormatError,
+        cvr_not_found: t.cvrNotFoundError,
+        cvr_taken: t.cvrTakenError,
+      }
+      setSubmitError(errMap[r?.error] || t.cvrVerifyError)
     }
   }
 
-  const isVerified = currentUser?.is_verified
+  if (verified) {
+    return (
+      <SectionCard title={t.verifyBusiness}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: 28 }}>✅</span>
+          <div>
+            <div style={{ fontWeight: 700, color: '#065F46', fontSize: 14 }}>{t.verificationApproved}</div>
+            {verifiedData?.name && (
+              <div style={{ fontSize: 13, color: '#374151', marginTop: 2 }}>{verifiedData.name}</div>
+            )}
+            {verifiedData?.cvr && (
+              <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 1 }}>CVR {verifiedData.cvr}</div>
+            )}
+          </div>
+        </div>
+      </SectionCard>
+    )
+  }
+
+  const borderColor = lookupState === 'found' ? '#059669' : lookupState === 'error' ? '#EF4444' : '#D1D5DB'
 
   return (
     <SectionCard title={t.verifyBusiness}>
-      {isVerified ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#065F46', fontSize: 14 }}>
-          <span style={{ fontSize: 20 }}>✅</span>
-          <div>
-            <div style={{ fontWeight: 700 }}>{t.verificationApproved}</div>
-            {currentUser.cvr_number && <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>CVR: {currentUser.cvr_number}</div>}
-          </div>
-        </div>
-      ) : (
-        <>
-          <p style={{ fontSize: 13, color: '#6B7280', margin: '0 0 12px' }}>{t.cvrHelp}</p>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <input value={cvr} onChange={e => setCvr(e.target.value)} placeholder={t.cvrNumber} style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid #D1D5DB', fontSize: 14 }} maxLength={20} />
-            <button onClick={submit} disabled={saving || !cvr.trim()} style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: '#6366F1', color: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: 14, opacity: !cvr.trim() ? 0.5 : 1 }}>
-              {saving ? '…' : t.submitVerification}
-            </button>
-          </div>
-          {msg && <div style={{ marginTop: 10, color: '#065F46', fontSize: 13, background: '#D1FAE5', padding: '6px 12px', borderRadius: 8 }}>{msg}</div>}
-          {currentUser?.cvr_number && !isVerified && (
-            <div style={{ marginTop: 10, fontSize: 12, color: '#92400E', background: '#FEF3C7', padding: '6px 12px', borderRadius: 8 }}>{t.verificationPending}</div>
+      <p style={{ fontSize: 13, color: '#6B7280', margin: '0 0 14px', lineHeight: 1.5 }}>{t.cvrHelp}</p>
+      <div style={{ position: 'relative' }}>
+        <input
+          value={cvr}
+          onChange={handleChange}
+          placeholder={t.cvrNumber}
+          maxLength={10}
+          style={{ width: '100%', padding: '10px 40px 10px 12px', borderRadius: 8, border: `1.5px solid ${borderColor}`, fontSize: 15, boxSizing: 'border-box', outline: 'none', transition: 'border-color 0.15s', letterSpacing: '0.05em' }}
+        />
+        <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 16, pointerEvents: 'none' }}>
+          {lookupState === 'loading' && '⏳'}
+          {lookupState === 'found' && '✓'}
+          {lookupState === 'error' && '✗'}
+        </span>
+      </div>
+
+      {/* Lookup result preview */}
+      {lookupState === 'found' && lookup && (
+        <div style={{ marginTop: 10, padding: '10px 12px', background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 8 }}>
+          <div style={{ fontSize: 12, color: '#059669', fontWeight: 700, marginBottom: 3 }}>{t.cvrFound}</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>{lookup.name}</div>
+          {(lookup.city || lookup.industry) && (
+            <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
+              {[lookup.city, lookup.industry].filter(Boolean).join(' · ')}
+            </div>
           )}
-        </>
+        </div>
       )}
+
+      {/* Inline error */}
+      {lookupState === 'error' && lookupError && (
+        <div style={{ marginTop: 8, fontSize: 12, color: '#EF4444' }}>{lookupError}</div>
+      )}
+      {submitError && (
+        <div style={{ marginTop: 8, fontSize: 12, color: '#EF4444' }}>{submitError}</div>
+      )}
+
+      <button
+        onClick={submit}
+        disabled={lookupState !== 'found' || submitting}
+        style={{ marginTop: 14, width: '100%', padding: '10px', borderRadius: 8, border: 'none', background: lookupState === 'found' ? '#6366F1' : '#E5E7EB', color: lookupState === 'found' ? '#fff' : '#9CA3AF', fontWeight: 600, fontSize: 14, cursor: lookupState === 'found' ? 'pointer' : 'default', transition: 'background 0.15s' }}
+      >
+        {submitting ? '…' : t.submitVerification}
+      </button>
     </SectionCard>
   )
 }
