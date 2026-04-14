@@ -11931,9 +11931,11 @@ function EventsPage({ lang, t, currentUser, mode }) {
   const getEventDesc = (e) => typeof e.description === 'string' ? e.description : (e.description[lang] || e.description.da)
   const getEventLocation = (e) => typeof e.location === 'string' ? e.location : (e.location[lang] || e.location.da)
 
-  const myEvents = events.filter(e => rsvpMap[e.id] || e.organizer === currentUser.name)
-  const discoverEvents = events.filter(e => !rsvpMap[e.id] && e.organizer !== currentUser.name)
-  const displayEvents = tab === 'my' ? myEvents : discoverEvents
+  const now = new Date()
+  const myEvents = events.filter(e => (e.organizer === currentUser.name || e.organizerId === currentUser.id) && new Date(e.date) >= now)
+  const discoverEvents = events.filter(e => e.organizer !== currentUser.name && e.organizerId !== currentUser.id && new Date(e.date) >= now)
+  const expiredEvents = events.filter(e => new Date(e.date) < now)
+  const displayEvents = tab === 'my' ? myEvents : tab === 'expired' ? expiredEvents : discoverEvents
 
   const formatDate = (iso) => {
     const d = new Date(iso)
@@ -11963,12 +11965,15 @@ function EventsPage({ lang, t, currentUser, mode }) {
         <button className={`p-filter-tab${tab === 'discover' ? ' active' : ''}`} onClick={() => setTab('discover')}>
           {t.discoverEvents} ({discoverEvents.length})
         </button>
+        <button className={`p-filter-tab${tab === 'expired' ? ' active' : ''}`} onClick={() => setTab('expired')}>
+          {t.expiredEventsTab} ({expiredEvents.length})
+        </button>
       </div>
 
       {/* Event list */}
       {displayEvents.length === 0 ? (
         <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>
-          📅 {t.eventNoUpcoming}
+          📅 {tab === 'expired' ? t.eventNoExpired : t.eventNoUpcoming}
         </div>
       ) : (
         <div className="p-events-list">
