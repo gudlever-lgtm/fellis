@@ -478,6 +478,10 @@ export async function apiToggleFamilyFriend(userId, isFamily) {
   })
 }
 
+export async function apiFetchFriendSuggestions() {
+  return await request('/api/friends/suggested')
+}
+
 // User follows (asymmetric: follow any user or company)
 export async function apiFollowUser(userId) {
   return await request(`/api/users/${userId}/follow`, { method: 'POST' })

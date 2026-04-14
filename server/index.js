@@ -4078,6 +4078,31 @@ app.get('/api/friends', authenticate, async (req, res) => {
   }
 })
 
+// GET /api/friends/suggested — people you may know (friends of friends)
+app.get('/api/friends/suggested', authenticate, async (req, res) => {
+  try {
+    const [suggestions] = await pool.query(
+      `SELECT
+         u.id, u.name, u.avatar_url, u.handle,
+         COUNT(DISTINCT fof.user_id) AS mutual_count
+       FROM friendships fof
+       JOIN users u ON u.id = fof.friend_id
+       WHERE fof.user_id IN (SELECT friend_id FROM friendships WHERE user_id = ?)
+         AND fof.friend_id != ?
+         AND fof.friend_id NOT IN (SELECT friend_id FROM friendships WHERE user_id = ?)
+         AND fof.friend_id NOT IN (SELECT to_user_id FROM friend_requests WHERE from_user_id = ? AND status = 'pending')
+         AND fof.friend_id NOT IN (SELECT from_user_id FROM friend_requests WHERE to_user_id = ? AND status = 'pending')
+       GROUP BY u.id
+       ORDER BY mutual_count DESC
+       LIMIT 30`,
+      [req.userId, req.userId, req.userId, req.userId, req.userId]
+    )
+    res.json(suggestions)
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to load suggestions' })
+  }
+})
+
 // POST /api/friends/request/:userId — send a connection request
 app.post('/api/friends/request/:userId', authenticate, writeLimit, async (req, res) => {
   const targetId = parseInt(req.params.userId)

@@ -78,6 +78,12 @@ export default {
     followingCompaniesSection: 'Virksomheder jeg følger',
     accountTypeStandard: 'Standard',
     accountTypeBusiness: 'Business',
+    // Friend-of-friend discovery
+    suggestedTab: 'Måske kender du',
+    suggestedTitle: 'Måske kender du',
+    suggestedEmpty: 'Ingen forslag lige nu. Tilføj venner for at se vennernes venner her.',
+    suggestedMutual: 'fælles ven',
+    suggestedMutualPlural: 'fælles venner',
   },
   en: {
     friendsTitle: 'Your friends',
@@ -158,5 +164,11 @@ export default {
     followingCompaniesSection: 'Companies I follow',
     accountTypeStandard: 'Standard',
     accountTypeBusiness: 'Business',
+    // Friend-of-friend discovery
+    suggestedTab: 'People you may know',
+    suggestedTitle: 'People you may know',
+    suggestedEmpty: 'No suggestions right now. Add friends to see their connections here.',
+    suggestedMutual: 'mutual friend',
+    suggestedMutualPlural: 'mutual friends',
   },
 }
