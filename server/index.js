@@ -195,6 +195,9 @@ if (process.env.MAIL_HOST) {
       port: parseInt(process.env.MAIL_PORT || '587'),
       secure: process.env.MAIL_SECURE === 'true',
       auth: { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS },
+      // Force IPv4 — smtp.migadu.com has AAAA records but many VPS hosts have
+      // no IPv6 route, causing ENETUNREACH followed by a 10-second timeout.
+      family: 4,
     })
   } catch {
     console.warn('nodemailer not installed — email sending disabled')
