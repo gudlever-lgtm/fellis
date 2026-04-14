@@ -1,9 +1,10 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } from 'react'
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { UI_LANGS, EUROPEAN_LANGUAGES, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials, getTranslations, PT } from './data.js'
-import { formatPrice } from './utils/currency.js'
+import { formatPrice, formatPriceDKK } from './utils/currency.js'
 import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiRemoveConversationParticipant, apiMuteConversationParticipant, apiUploadAvatar, apiCheckSession, apiRequestAccountDelete, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiShareJob, apiUnshareJob, apiGetSharedJobs, apiGetJobSharedWith, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiSendEnableMfa, apiConfirmEnableMfa, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals, apiFetchCalendarReminders, apiCreateCalendarReminder, apiDeleteCalendarReminder, apiGetLinkedContent, apiFetchJobs, apiGetSuggestedUsers, apiAdminNotifyAll, apiLikeComment, apiAdminGetPlatformAds, apiAdminCreatePlatformAd, apiAdminUpdatePlatformAd, apiAdminDeletePlatformAd, apiAdminGetLockedUsers, apiAdminUnlockUser, apiFeedCompanyPosts, apiGetLivestreamSettings, apiSaveLivestreamSettings, apiGetLivestreamStats, apiGetLivestreamStatus,
-  apiGetStreamKey, apiRegenerateStreamKey, apiGetMarketplaceAlerts, apiCreateMarketplaceAlert, apiUpdateMarketplaceAlert, apiDeleteMarketplaceAlert } from './api.js'
+  apiGetStreamKey, apiRegenerateStreamKey, apiGetMarketplaceAlerts, apiCreateMarketplaceAlert, apiUpdateMarketplaceAlert, apiDeleteMarketplaceAlert,
+  apiGetEurDkkRate } from './api.js'
 import {
   apiSharePost, apiUnsharePost, apiSavePost, apiUnsavePost, apiGetSavedPosts,
   apiGetPoll, apiVotePoll, apiCreatePoll,
@@ -5989,9 +5990,14 @@ function BillingSettings({ lang, t }) {
   const [mollieError, setMollieError] = useState(null)
   const [withdrawalWaiver, setWithdrawalWaiver] = useState(false)
   const [waiverError, setWaiverError] = useState(false)
+  const [paymentMethod, setPaymentMethod] = useState('card') // 'card' | 'mobilepay'
+  const [dkkRate, setDkkRate] = useState(null)
+  const [dkkRateLoading, setDkkRateLoading] = useState(false)
 
   useEffect(() => {
     apiGetSubscription().then(data => { if (data) setSub(data) }).catch(() => {})
+    setDkkRateLoading(true)
+    apiGetEurDkkRate().then(data => { if (data?.rate) setDkkRate(data.rate) }).catch(() => {}).finally(() => setDkkRateLoading(false))
   }, [])
 
   const handleMollieCheckout = async () => {
@@ -6000,7 +6006,8 @@ function BillingSettings({ lang, t }) {
     setMollieError(null)
     setMollieLoading(true)
     const recurring = plan === 'monthly' || plan === 'annual'
-    const data = await apiCreateMolliePayment('adfree', null, null, null, recurring, plan === 'annual' ? 'annual' : 'monthly').catch(() => null)
+    const currency = paymentMethod === 'mobilepay' ? 'DKK' : null
+    const data = await apiCreateMolliePayment('adfree', null, currency, null, recurring, plan === 'annual' ? 'annual' : 'monthly').catch(() => null)
     setMollieLoading(false)
     if (data?.checkoutUrl) {
       window.location.href = data.checkoutUrl
@@ -6029,6 +6036,8 @@ function BillingSettings({ lang, t }) {
   const annualPrice = sub.annual_price ?? (monthlyPrice * 12)
   const annualDiscountPct = sub.annual_discount_pct ?? 0
   const displayPrice = plan === 'monthly' ? monthlyPrice : plan === 'annual' ? annualPrice : price
+  const isMobilePay = paymentMethod === 'mobilepay'
+  const dkkDisplay = isMobilePay && dkkRate ? Math.round(displayPrice * dkkRate * 100) / 100 : null
 
   return (
     <div>
@@ -6081,6 +6090,28 @@ function BillingSettings({ lang, t }) {
               ))}
             </div>
 
+            {/* Payment method selector */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 12, color: '#888', marginBottom: 6 }}>{t.paymentMethodLabel}</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {[
+                  { key: 'card', label: t.paymentMethodCard },
+                  { key: 'mobilepay', label: 'MobilePay' },
+                ].map(({ key, label }) => (
+                  <button key={key} onClick={() => setPaymentMethod(key)}
+                    style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: `1.5px solid ${paymentMethod === key ? '#5A78FF' : '#ddd'}`, background: paymentMethod === key ? '#EEF1FF' : '#fff', color: paymentMethod === key ? '#5A78FF' : '#555', fontWeight: paymentMethod === key ? 700 : 400, fontSize: 13, cursor: 'pointer' }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {isMobilePay && (
+                <div style={{ fontSize: 11, color: '#888', marginTop: 6, lineHeight: 1.5 }}>
+                  {t.mobilePayDkkNote}
+                  {dkkRateLoading && <span> — {t.mobilePayRateLoading}</span>}
+                </div>
+              )}
+            </div>
+
             <button
               onClick={handleMollieCheckout}
               disabled={mollieLoading}
@@ -6088,9 +6119,14 @@ function BillingSettings({ lang, t }) {
             >
               {mollieLoading
                 ? (t.loading2)
-                : (lang === 'da'
-                    ? (plan === 'annual' ? `Opret årsabonnement — ${formatPrice(annualPrice)}/år` : plan === 'monthly' ? `Opret abonnement — ${formatPrice(monthlyPrice)}/md.` : `Betal ${formatPrice(displayPrice)}`)
-                    : (plan === 'annual' ? `Subscribe annually — ${formatPrice(annualPrice)}/yr` : plan === 'monthly' ? `Subscribe — ${formatPrice(monthlyPrice)}/mo.` : `Pay ${formatPrice(displayPrice)}`))}
+                : (() => {
+                    const priceStr = dkkDisplay ? formatPriceDKK(dkkDisplay) : formatPrice(displayPrice)
+                    const monthlyStr = isMobilePay && dkkRate ? formatPriceDKK(Math.round(monthlyPrice * dkkRate * 100) / 100) : formatPrice(monthlyPrice)
+                    const annualStr = isMobilePay && dkkRate ? formatPriceDKK(Math.round(annualPrice * dkkRate * 100) / 100) : formatPrice(annualPrice)
+                    return lang === 'da'
+                      ? (plan === 'annual' ? `Opret årsabonnement — ${annualStr}/år` : plan === 'monthly' ? `Opret abonnement — ${monthlyStr}/md.` : `Betal ${priceStr}`)
+                      : (plan === 'annual' ? `Subscribe annually — ${annualStr}/yr` : plan === 'monthly' ? `Subscribe — ${monthlyStr}/mo.` : `Pay ${priceStr}`)
+                  })()}
             </button>
             {mollieError && <p style={{ fontSize: 13, color: '#e03131', margin: '0 0 12px' }}>{mollieError}</p>}
 

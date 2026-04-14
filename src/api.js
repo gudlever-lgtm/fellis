@@ -1380,6 +1380,11 @@ export async function apiGetSubscription() {
   return await request('/api/me/subscription')
 }
 
+// ── Currency conversion ────────────────────────────────────────────────────────
+export async function apiGetEurDkkRate() {
+  return await request('/api/currency/eur-dkk')
+}
+
 // ── Mollie payments ───────────────────────────────────────────────────────────
 export async function apiCreateMolliePayment(plan, amount, currency, adId, recurring = false, interval = 'monthly') {
   const body = { plan, recurring: !!recurring }
