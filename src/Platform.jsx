@@ -26,6 +26,7 @@ import {
   apiSubmitFeedback, apiGetAdminFeedback, apiUpdateFeedbackStatus,
   apiGetDiscovery,
 } from './api.js'
+import { siApplepay, siGooglepay, siVisa } from 'simple-icons'
 import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
 import ReelsPage from './Reels.jsx'
@@ -6239,15 +6240,12 @@ function BillingSettings({ lang, t, mode }) {
                             <rect x="2" y="7.5" width="4" height="1.5" rx=".5" fill="currentColor" opacity=".45"/>
                           </svg>
                           {/* Apple Pay mark */}
-                          <svg width="28" height="12" viewBox="0 0 28 12" fill="none">
-                            <path d="M5.4 1.5C5.1 1.9 4.7 2.2 4.3 2.1 4.2 1.8 4.4 1.3 4.7 1 5 .6 5.4.4 5.8.5 5.9.8 5.7 1.2 5.4 1.5Z" fill="currentColor"/>
-                            <path d="M5.8 2.3C5.2 2.3 4.6 2.6 4.3 2.6 3.9 2.6 3.3 2.3 2.7 2.3 1.7 2.3.8 3.1.8 4.6.8 6.5 2.5 9.5 3.6 9.5 4.1 9.5 4.2 9.2 4.9 9.2 5.5 9.2 5.7 9.5 6.2 9.5 7.3 9.5 8.4 7 8.9 5.4 8.3 5.1 7.8 4.4 7.8 3.6 7.8 2.7 8.4 2 9.1 1.7 8.6 1 7.7.6 6.8.9 6.2 1.1 5.8 2.3Z" fill="currentColor"/>
-                            <text x="10" y="9" fill="currentColor" fontSize="7.5" fontWeight="600" fontFamily="'-apple-system',BlinkMacSystemFont,Arial,sans-serif">Pay</text>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                            <path d={siApplepay.path}/>
                           </svg>
                           {/* Google Pay mark */}
-                          <svg width="26" height="12" viewBox="0 0 26 12">
-                            <text x="0" y="10" fill="#4285F4" fontSize="11" fontWeight="700" fontFamily="Arial,Helvetica,sans-serif">G</text>
-                            <text x="9" y="9.5" fill="#3C4043" fontSize="7.5" fontWeight="500" fontFamily="Arial,Helvetica,sans-serif">Pay</text>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill={`#${siGooglepay.hex}`} aria-hidden="true">
+                            <path d={siGooglepay.path}/>
                           </svg>
                         </span>
                       ),
@@ -6326,8 +6324,8 @@ function BillingSettings({ lang, t, mode }) {
               </span>
               {/* Visa */}
               <span style={{ padding: '4px 9px', borderRadius: 20, background: '#fff', border: '1px solid #e8e8e8', display: 'inline-flex', alignItems: 'center' }}>
-                <svg width="30" height="10" viewBox="0 0 30 10" aria-label="Visa">
-                  <text x="0" y="9" fill="#1A1F71" fontSize="11" fontWeight="900" fontStyle="italic" fontFamily="Arial,Helvetica,sans-serif">VISA</text>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill={`#${siVisa.hex}`} aria-label="Visa">
+                  <path d={siVisa.path}/>
                 </svg>
               </span>
               {/* Mastercard */}
@@ -6341,17 +6339,14 @@ function BillingSettings({ lang, t, mode }) {
               </span>
               {/* Apple Pay */}
               <span style={{ padding: '4px 9px', borderRadius: 20, background: '#fff', border: '1px solid #e8e8e8', display: 'inline-flex', alignItems: 'center' }}>
-                <svg width="42" height="13" viewBox="0 0 42 13" fill="none" aria-label="Apple Pay">
-                  <path d="M5.4 1.5C5.1 1.9 4.7 2.2 4.3 2.1 4.2 1.8 4.4 1.3 4.7 1 5 .6 5.4.4 5.8.5 5.9.8 5.7 1.2 5.4 1.5Z" fill="#1a1a1a"/>
-                  <path d="M5.8 2.3C5.2 2.3 4.6 2.6 4.3 2.6 3.9 2.6 3.3 2.3 2.7 2.3 1.7 2.3.8 3.1.8 4.6.8 6.5 2.5 9.5 3.6 9.5 4.1 9.5 4.2 9.2 4.9 9.2 5.5 9.2 5.7 9.5 6.2 9.5 7.3 9.5 8.4 7 8.9 5.4 8.3 5.1 7.8 4.4 7.8 3.6 7.8 2.7 8.4 2 9.1 1.7 8.6 1 7.7.6 6.8.9 6.2 1.1 5.8 2.3Z" fill="#1a1a1a"/>
-                  <text x="10.5" y="9.5" fill="#1a1a1a" fontSize="8" fontWeight="600" fontFamily="'-apple-system',BlinkMacSystemFont,Arial,sans-serif">Pay</text>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill={`#${siApplepay.hex}`} aria-label="Apple Pay">
+                  <path d={siApplepay.path}/>
                 </svg>
               </span>
               {/* Google Pay */}
               <span style={{ padding: '4px 9px', borderRadius: 20, background: '#fff', border: '1px solid #e8e8e8', display: 'inline-flex', alignItems: 'center' }}>
-                <svg width="38" height="13" viewBox="0 0 38 13" aria-label="Google Pay">
-                  <text x="0" y="11" fill="#4285F4" fontSize="13" fontWeight="700" fontFamily="Arial,Helvetica,sans-serif">G</text>
-                  <text x="10" y="10.5" fill="#3C4043" fontSize="9" fontWeight="500" fontFamily="Arial,Helvetica,sans-serif">Pay</text>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill={`#${siGooglepay.hex}`} aria-label="Google Pay">
+                  <path d={siGooglepay.path}/>
                 </svg>
               </span>
             </div>
