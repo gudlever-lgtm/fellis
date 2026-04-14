@@ -14889,12 +14889,22 @@ app.post('/api/me/verify-business', authenticate, writeLimit, async (req, res) =
       'SELECT id FROM users WHERE cvr_number = ? AND is_verified = 1 AND id != ?',
       [cleaned, req.userId]
     )
-    if (taken) return res.status(409).json({ error: 'cvr_taken' })
+    if (taken) {
+      await auditLog(req, 'cvr_verification_failed', 'user', req.userId, {
+        status: 'failure',
+        details: { cvr_number: cleaned, reason: 'cvr_taken' },
+      })
+      return res.status(409).json({ error: 'cvr_taken' })
+    }
 
     const cvrData = await lookupCVR(cleaned)
 
     if (cvrData.unavailable) {
       await pool.query('UPDATE users SET cvr_number = ?, is_verified = 0 WHERE id = ?', [cleaned, req.userId])
+      await auditLog(req, 'cvr_verification_pending', 'user', req.userId, {
+        status: 'success',
+        details: { cvr_number: cleaned, reason: 'api_unavailable', api_status: cvrData.status, api_error: cvrData.apiError },
+      })
       return res.json({ ok: true, pending: true })
     }
 
@@ -14902,6 +14912,10 @@ app.post('/api/me/verify-business', authenticate, writeLimit, async (req, res) =
       'UPDATE users SET cvr_number = ?, is_verified = 1, cvr_company_name = ? WHERE id = ?',
       [cleaned, cvrData.name, req.userId]
     )
+    await auditLog(req, 'cvr_verification_success', 'user', req.userId, {
+      status: 'success',
+      newValue: { cvr_number: cleaned, company_name: cvrData.name, industry: cvrData.industry },
+    })
     res.json({ ok: true, pending: false, companyName: cvrData.name, industry: cvrData.industry })
   } catch (err) {
     console.error('POST /api/me/verify-business error:', err.message)
@@ -14928,7 +14942,12 @@ app.get('/api/admin/verify-business', authenticate, requireAdmin, async (req, re
 app.post('/api/admin/verify-business/:userId', authenticate, requireAdmin, writeLimit, async (req, res) => {
   try {
     const { approved } = req.body
-    await pool.query('UPDATE users SET is_verified = ? WHERE id = ?', [approved ? 1 : 0, req.params.userId])
+    const targetUserId = parseInt(req.params.userId, 10)
+    await pool.query('UPDATE users SET is_verified = ? WHERE id = ?', [approved ? 1 : 0, targetUserId])
+    await auditLog(req, 'cvr_verification_admin_override', 'user', targetUserId, {
+      status: 'success',
+      newValue: { is_verified: approved ? 1 : 0 },
+    })
     res.json({ ok: true })
   } catch (err) {
     console.error('POST /api/admin/verify-business/:userId error:', err.message)
