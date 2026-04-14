@@ -841,6 +841,8 @@ async function auditLog(req, action, resourceType = null, resourceId = null, {
   userId: explicitUserId = undefined,
 } = {}) {
   if (process.env.NODE_ENV === 'test') return
+  // Skip during E2E smoke tests (deploy.sh post-deploy check) — but never in production
+  if (process.env.NODE_ENV !== 'production' && req?.headers?.['x-e2e-test'] === '1') return
   // explicitUserId lets callers (e.g. login) pass the userId before req.userId is set,
   // avoiding { ...req } spread which drops Express prototype getters like req.ip
   const userId = explicitUserId !== undefined ? explicitUserId : (req.userId || null)
@@ -14902,18 +14904,36 @@ app.post('/api/me/verify-business', authenticate, writeLimit, async (req, res) =
       'SELECT id FROM users WHERE cvr_number = ? AND is_verified = 1 AND id != ?',
       [cleaned, req.userId]
     )
-    if (taken) return res.status(409).json({ error: 'cvr_taken' })
+    if (taken) {
+      await auditLog(req, 'cvr_verification_failed', 'user', req.userId, {
+        status: 'failure',
+        details: { cvr_number: cleaned, reason: 'cvr_taken' },
+      })
+      return res.status(409).json({ error: 'cvr_taken' })
+    }
 
     // Best-effort registry lookup for company name — approval does NOT depend on this
     const cvrData = await lookupCVR(cleaned)
     const companyName = cvrData.unavailable ? null : (cvrData.name || null)
 
-    // Auto-approve: checksum-valid CVR + no duplicate = verified
+    if (cvrData.unavailable) {
+      await pool.query('UPDATE users SET cvr_number = ?, is_verified = 0 WHERE id = ?', [cleaned, req.userId])
+      await auditLog(req, 'cvr_verification_pending', 'user', req.userId, {
+        status: 'success',
+        details: { cvr_number: cleaned, reason: 'api_unavailable', api_status: cvrData.status, api_error: cvrData.apiError },
+      })
+      return res.json({ ok: true, pending: true })
+    }
+
     await pool.query(
       'UPDATE users SET cvr_number = ?, is_verified = 1, cvr_company_name = ? WHERE id = ?',
       [cleaned, companyName, req.userId]
     )
-    res.json({ ok: true, pending: false, companyName })
+    await auditLog(req, 'cvr_verification_success', 'user', req.userId, {
+      status: 'success',
+      newValue: { cvr_number: cleaned, company_name: cvrData.name, industry: cvrData.industry },
+    })
+    res.json({ ok: true, pending: false, companyName: cvrData.name, industry: cvrData.industry })
   } catch (err) {
     console.error('POST /api/me/verify-business error:', err.message)
     res.status(500).json({ error: 'Server error' })
@@ -14939,7 +14959,12 @@ app.get('/api/admin/verify-business', authenticate, requireAdmin, async (req, re
 app.post('/api/admin/verify-business/:userId', authenticate, requireAdmin, writeLimit, async (req, res) => {
   try {
     const { approved } = req.body
-    await pool.query('UPDATE users SET is_verified = ? WHERE id = ?', [approved ? 1 : 0, req.params.userId])
+    const targetUserId = parseInt(req.params.userId, 10)
+    await pool.query('UPDATE users SET is_verified = ? WHERE id = ?', [approved ? 1 : 0, targetUserId])
+    await auditLog(req, 'cvr_verification_admin_override', 'user', targetUserId, {
+      status: 'success',
+      newValue: { is_verified: approved ? 1 : 0 },
+    })
     res.json({ ok: true })
   } catch (err) {
     console.error('POST /api/admin/verify-business/:userId error:', err.message)
