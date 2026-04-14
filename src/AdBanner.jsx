@@ -90,7 +90,27 @@ export default function AdBanner({ placement = 'feed', adsFree = false, onGoAdFr
     apiRecordAdImpression(ad.id).catch(() => {})
   }, [ad])
 
-  if (adsFree || !ad) return null
+  if (adsFree) {
+    if (placement === 'feed') {
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6px 0', margin: '4px 0' }}>
+          <span style={{ fontSize: 11, color: '#b0c4b8', fontWeight: 600, letterSpacing: 0.3 }}>
+            ✓ {PT[lang].adFreeZone}
+          </span>
+        </div>
+      )
+    }
+    if (placement === 'sidebar') {
+      return (
+        <div style={{ border: '1px dashed #c8e6d4', borderRadius: 10, padding: '10px 14px', textAlign: 'center' }}>
+          <span style={{ fontSize: 12, color: '#2D6A4F', fontWeight: 600 }}>✓ {PT[lang].adFreeActiveLabel}</span>
+        </div>
+      )
+    }
+    return null
+  }
+
+  if (!ad) return null
 
   const handleClick = () => {
     apiRecordAdClick(ad.id).catch(() => {})
