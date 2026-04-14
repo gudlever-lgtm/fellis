@@ -7504,6 +7504,11 @@ app.post('/api/mollie/payment/create', authenticate, async (req, res) => {
     const [[user]] = await pool.query('SELECT id, email, name, mode FROM users WHERE id = ?', [req.userId])
     if (!user) return res.status(404).json({ error: 'User not found' })
 
+    // MobilePay (DKK) is for private individuals only — reject business accounts
+    if (reqCurrency === 'DKK' && user.mode === 'business') {
+      return res.status(400).json({ error: 'MobilePay kan ikke benyttes til virksomhedsbetalinger. Vælg et betalingskort i stedet.' })
+    }
+
     // Resolve amount from admin_ad_settings
     let resolvedAmount = null
     const [[adS]] = await pool.query('SELECT adfree_price_private, adfree_price_business, adfree_recurring_pct, adfree_annual_discount_pct, ad_price_cpm, ad_recurring_pct, currency FROM admin_ad_settings WHERE id = 1').catch(() => [[null]])
