@@ -521,8 +521,7 @@ function VerificationSection({ t, lang, currentUser }) {
         setLookupError('')
       } else {
         setLookup(null)
-        setLookupState('error')
-        setLookupError(t.cvrNotFoundError)
+        setLookupState('unavailable')
       }
     }, 600)
   }
@@ -545,7 +544,6 @@ function VerificationSection({ t, lang, currentUser }) {
     } else {
       const errMap = {
         cvr_format: t.cvrFormatError,
-        cvr_not_found: t.cvrNotFoundError,
         cvr_taken: t.cvrTakenError,
       }
       setSubmitError(errMap[r?.error] || t.cvrVerifyError)

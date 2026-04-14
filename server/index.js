@@ -14834,37 +14834,31 @@ app.get('/api/businesses/:id/jobs', async (req, res) => {
 
 // Helper: look up a CVR number against the Danish registry (cvrapi.dk)
 // Returns: { name, city, industry } on success
-//          null  if the CVR is definitively not in the registry (HTTP 404)
-//          'unavailable'  if the API is unreachable, rate-limited (429), or times out
+//          'unavailable'  for any non-positive result (404, 429, 5xx, network error, missing data)
+// NOTE: cvrapi.dk has incomplete coverage (e.g. foreign entities / UE type are not indexed),
+// so a 404 from their API does NOT mean the CVR is invalid — treat all failures as unconfirmed.
 async function lookupCVR(cvr) {
   try {
     const token = process.env.CVRAPI_TOKEN
-    const url = `https://cvrapi.dk/api?country=dk&vat=${encodeURIComponent(cvr)}&useragent=fellis.eu${token ? `&token=${encodeURIComponent(token)}` : ''}`
+    // Use ?search= instead of ?vat= — the vat endpoint returns 404 for some valid companies
+    // (e.g. those with protected=true), while search by CVR number works reliably.
+    const url = `https://cvrapi.dk/api?country=dk&search=${encodeURIComponent(cvr)}&useragent=fellis.eu${token ? `&token=${encodeURIComponent(token)}` : ''}`
     const res = await fetch(url, {
       headers: { Accept: 'application/json' },
       signal: AbortSignal.timeout(8000),
     })
 
-    // Rate-limited or server-side error — API temporarily unavailable
-    if (res.status === 429 || res.status >= 500) return 'unavailable'
-
-    // Definitive "not found"
-    if (res.status === 404) return null
-    if (!res.ok) {
-      console.warn(`lookupCVR: unexpected HTTP ${res.status} for CVR ${cvr}`)
-      return 'unavailable'
-    }
+    if (!res.ok) return 'unavailable'
 
     const data = await res.json()
 
-    // API returns { error: "NOT_FOUND" } or { error: "..." } for errors,
-    // and { error: false } for success. Distinguish these cases.
-    if (data.error && data.error !== false) return null
-    if (!data.name) return null
+    // { error: false, name: "..." } is a successful response
+    // { error: "NOT_FOUND" } or any truthy error string means the API couldn't find it
+    if (data.error && data.error !== false) return 'unavailable'
+    if (!data.name) return 'unavailable'
 
     return { name: data.name, city: data.city || null, industry: data.industrydesc || null }
   } catch (err) {
-    // Network failure, DNS error, or timeout — treat as temporarily unavailable
     console.warn(`lookupCVR: API unreachable for CVR ${cvr}:`, err.message)
     return 'unavailable'
   }
@@ -14876,7 +14870,6 @@ app.get('/api/me/verify-business/lookup', authenticate, async (req, res) => {
   if (!/^\d{8}$/.test(cvr)) return res.status(400).json({ error: 'cvr_format' })
   const data = await lookupCVR(cvr)
   if (data === 'unavailable') return res.status(503).json({ error: 'cvr_api_unavailable' })
-  if (!data) return res.status(404).json({ error: 'cvr_not_found' })
   res.json(data)
 })
 
