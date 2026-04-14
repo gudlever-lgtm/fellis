@@ -539,7 +539,10 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
           {/* "Mere" / "More" dropdown for secondary tabs */}
           <div ref={moreMenuRef} style={{ position: 'relative' }}>
             <button
-              className={`p-nav-tab${['friends', 'calendar', 'marketplace', 'jobs', 'company', 'explore', 'saved-posts'].includes(page) ? ' active' : ''}`}
+              className={`p-nav-tab${(mode === 'business'
+                ? ['friends', 'calendar', 'marketplace', 'explore', 'saved-posts']
+                : ['friends', 'calendar', 'marketplace', 'jobs', 'explore', 'saved-posts']
+              ).includes(page) ? ' active' : ''}`}
               onClick={() => setShowMoreMenu(v => !v)}
             >
               <span className="p-nav-tab-icon">{'⋯'}</span>
@@ -560,8 +563,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
                   label: t.navGroupCommerce,
                   items: [
                     { id: 'marketplace', icon: '🛍️', label: t.marketplace },
-                    { id: 'jobs', icon: '💼', label: t.jobs },
-                    ...(mode === 'business' ? [{ id: 'company', icon: '🏬', label: t.myCompany }] : []),
+                    ...(mode !== 'business' ? [{ id: 'jobs', icon: '💼', label: t.jobs }] : []),
                   ],
                 },
               ]
@@ -807,7 +809,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
         }} onViewProfile={(uid) => { setViewUserId(uid); navigateTo('view-profile') }} onMakeOffer={(listing) => setMakeOfferListing(listing)} />}
         {page === 'jobs' && <JobsPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={(target, param) => { if (target === 'companies') { navigateTo('company', { companyId: param }); } else navigateTo(target) }} />}
         {page === 'ads' && mode === 'business' && <AdManager lang={lang} t={t} currentUser={currentUser} />}
-        {page === 'business-hub' && mode === 'business' && <BusinessHub lang={lang} t={t} currentUser={currentUser} onViewProfile={(id) => { setViewUserId(id); navigateTo('view-profile') }} />}
+        {page === 'business-hub' && mode === 'business' && <BusinessHub lang={lang} t={t} currentUser={currentUser} onViewProfile={(id) => { setViewUserId(id); navigateTo('view-profile') }} onNavigate={navigateTo} />}
         {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} initialCompanyId={navParam?.companyId} />}
         {page === 'analytics' && <AnalyticsPage lang={lang} t={t} currentUser={currentUser} onNavigate={navigateTo} />}
         {page === 'settings' && <SettingsPage lang={lang} t={t} currentUser={currentUser} mode={mode} adsFree={adsFree} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onLogout={onLogout} onOpenModeModal={() => setShowModeModal(true)} theme={theme} onThemeChange={setTheme} initialTab={navParam} />}
@@ -9185,7 +9187,7 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
               <h2 className="p-profile-name" style={{ margin: 0 }}>{profile.name}</h2>
               {profile.mode === 'business' && <BusinessBadge lang={lang} onClick={() => onNavigate?.('business-hub')} />}
               {profile.is_verified && (
-                <span style={{ fontSize: 12, background: '#EEF2FF', color: '#6366F1', border: '1px solid #C7D2FE', borderRadius: 20, padding: '2px 10px', fontWeight: 700 }}>{t.verifiedBadge}</span>
+                <span style={{ fontSize: 12, background: '#D1FAE5', color: '#065F46', border: '1px solid #6EE7B7', borderRadius: 20, padding: '2px 10px', fontWeight: 700 }}>{t.cvrVerifiedBadge}</span>
               )}
             </div>
             {profile.handle && <p className="p-profile-handle">@{profile.handle}</p>}
@@ -9224,7 +9226,9 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
                   <span style={{ color: '#059669', fontWeight: 600 }}>⭐ {t.activeInCommunity}</span>
                 )}
                 {profile.is_verified && (
-                  <span style={{ color: '#6366F1', fontWeight: 700, background: '#EEF2FF', padding: '1px 8px', borderRadius: 12, border: '1px solid #C7D2FE' }}>{t.verifiedBadge}</span>
+                  <span style={{ color: '#065F46', fontWeight: 700, background: '#D1FAE5', padding: '1px 8px', borderRadius: 12, border: '1px solid #6EE7B7' }}>
+                    {t.cvrVerifiedBadge}{profile.cvrNumber ? ` · ${profile.cvrNumber}` : ''}
+                  </span>
                 )}
               </div>
             )}
