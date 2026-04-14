@@ -656,7 +656,7 @@ export default function BusinessHub({ lang, t, currentUser, onViewProfile, onNav
       </div>
 
       {/* Tab bar */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 20, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 20 }}>
         {CONTENT_TAB_DEFS.map(({ id, icon, label }) => (
           <button key={id} onClick={() => setTab(id)} style={{
             display: 'flex', alignItems: 'center', gap: 5,
@@ -668,8 +668,6 @@ export default function BusinessHub({ lang, t, currentUser, onViewProfile, onNav
             <span style={{ fontSize: 14 }}>{icon}</span>{label[lang] ?? label.en}
           </button>
         ))}
-        {/* Nav-out tabs — separated by a faint divider */}
-        <div style={{ width: 1, background: '#E5E7EB', margin: '4px 2px', flexShrink: 0 }} />
         {NAV_TABS.map(({ id, label, icon }) => (
           <button key={id} onClick={() => onNavigate?.(id)} style={{
             display: 'flex', alignItems: 'center', gap: 5,
