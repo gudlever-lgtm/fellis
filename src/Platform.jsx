@@ -5380,6 +5380,8 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
   const [birthdaySaveStatus, setBirthdaySaveStatus] = useState(null)
   const [bioSaveStatus, setBioSaveStatus] = useState(null)
   const [bizSaveStatus, setBizSaveStatus] = useState(null)
+  const [mobilepay, setMobilepay] = useState(currentUser.mobilepay || '')
+  const [mobilepaySaveStatus, setMobilepaySaveStatus] = useState(null)
   // Extended profile
   const [tags, setTags] = useState([])
   const [tagInput, setTagInput] = useState('')
@@ -5408,6 +5410,7 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
         if (data.tags) setTags(data.tags)
         if (data.relationship_status) setRelationshipStatus(data.relationship_status)
         if (data.website) setWebsite(data.website)
+        if (data.mobilepay !== undefined) setMobilepay(data.mobilepay || '')
         setBirthday(data.birthday ? data.birthday.slice(0, 10) : '')
         if (data.businessCategory) setBizCategory(data.businessCategory)
         if (data.businessWebsite) setBizWebsite(data.businessWebsite)
@@ -5588,6 +5591,38 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
                 title={t.birthdayClear}
               >✕</button>
             )}
+          </div>
+
+          {/* MobilePay — prefills marketplace listings */}
+          <label style={labelStyle}>📱 {t.mobilePayDefaultLabel}</label>
+          <div style={{ fontSize: 11, color: '#888', marginBottom: 6 }}>{t.mobilePayDefaultHint}</div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input
+              style={{ ...fieldStyle, flex: 1 }}
+              value={mobilepay}
+              onChange={e => { setMobilepay(e.target.value.replace(/\D/g, '').slice(0, 8)); setMobilepaySaveStatus(null) }}
+              placeholder={t.mobilePayEG20123456}
+              inputMode="numeric"
+              maxLength={8}
+            />
+            <button
+              type="button"
+              disabled={mobilepaySaveStatus === 'saving'}
+              onClick={async () => {
+                setMobilepaySaveStatus('saving')
+                const res = await apiUpdateProfile({ mobilepay: mobilepay.trim() || null })
+                if (res?.ok) {
+                  setMobilepaySaveStatus('saved')
+                  onUserUpdate(prev => ({ ...prev, mobilepay: mobilepay.trim() || null }))
+                  setTimeout(() => setMobilepaySaveStatus(null), 2000)
+                } else {
+                  setMobilepaySaveStatus('error')
+                }
+              }}
+              style={{ padding: '10px 16px', borderRadius: 8, border: 'none', background: mobilepaySaveStatus === 'saved' ? '#40916C' : '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}
+            >
+              {mobilepaySaveStatus === 'saving' ? '…' : mobilepaySaveStatus === 'saved' ? t.cvSaved : t.cvSave}
+            </button>
           </div>
         </>}
 
@@ -16124,6 +16159,7 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
           listingDesc={listingDesc}
           formError={formError}
           maxPhotos={maxPhotos}
+          currentUser={currentUser}
           onClose={() => { setShowForm(false); setEditListing(null); setFormError(null) }}
           onSubmit={editListing ? handleUpdate : handleCreate}
         />
@@ -16297,18 +16333,24 @@ function ListingDetailModal({ listing, t, lang, currentUser, catLabel, catIcon, 
   )
 }
 
-function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, formError, maxPhotos = 4, onClose, onSubmit }) {
+function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, formError, maxPhotos = 4, currentUser, onClose, onSubmit }) {
   const isEdit = !!listing
   const sanitize = (v) => (!v || v === '[object Object]') ? '' : v
+  // For new listings prefill contact fields from the current user's profile so
+  // they don't have to retype the same MobilePay/phone/email on every listing.
+  // MobilePay falls back to the phone number (many DK users reuse it).
+  const userMobilepay = currentUser?.mobilepay || (currentUser?.phone ? String(currentUser.phone).replace(/\D/g, '').slice(-8) : '')
+  const userPhone = currentUser?.phone || ''
+  const userEmail = currentUser?.email || ''
   const [title, setTitle]           = useState(isEdit ? sanitize(listingTitle(listing)) : '')
   const [price, setPrice]           = useState(isEdit ? (listing.price || '') : '')
   const [negotiable, setNegotiable] = useState(isEdit ? !!listing.priceNegotiable : false)
   const [category, setCategory]     = useState(isEdit ? (listing.category || '') : '')
   const [location, setLocation]     = useState(isEdit ? (listing.location || '') : '')
   const [description, setDescription] = useState(isEdit ? sanitize(listingDesc(listing)) : '')
-  const [mobilepay, setMobilepay]   = useState(isEdit ? (listing.mobilepay || '') : '')
-  const [phone, setPhone]           = useState(isEdit ? (listing.contact_phone || '') : '')
-  const [contactEmail, setContactEmail] = useState(isEdit ? (listing.contact_email || '') : '')
+  const [mobilepay, setMobilepay]   = useState(isEdit ? (listing.mobilepay || '') : userMobilepay)
+  const [phone, setPhone]           = useState(isEdit ? (listing.contact_phone || '') : userPhone)
+  const [contactEmail, setContactEmail] = useState(isEdit ? (listing.contact_email || '') : userEmail)
   const [photoFiles, setPhotoFiles] = useState([])
   const [photoPreviews, setPhotoPreviews] = useState(
     isEdit ? (listing.photos || []).map(p => p.url || p) : []
