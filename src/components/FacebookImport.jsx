@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { PT } from '../data.js'
-import { apiFacebookGetData, apiFacebookImport, apiFacebookDisconnect } from '../api.js'
+import { apiFacebookGetData, apiFacebookImport, apiFacebookDisconnect, apiFacebookImportPhotos } from '../api.js'
 
 // Fields that can be imported from Facebook, in display order
 const IMPORTABLE_FIELDS = [
@@ -23,10 +23,12 @@ export default function FacebookImport({ lang = 'da', user, onUpdate }) {
   const t = PT[lang] || PT.da
 
   // view: 'idle' | 'loading' | 'preview' | 'importing' | 'done' | 'error'
-  const [view, setView]     = useState('idle')
-  const [fbData, setFbData] = useState(null)
+  const [view, setView]         = useState('idle')
+  const [fbData, setFbData]     = useState(null)
   const [selected, setSelected] = useState(new Set())
-  const [errMsg, setErrMsg] = useState('')
+  const [selectedPhotos, setSelectedPhotos] = useState(new Set())
+  const [photosImported, setPhotosImported] = useState(0)
+  const [errMsg, setErrMsg]     = useState('')
 
   const isConnected = user?.fb_connected === 1
 
@@ -37,6 +39,7 @@ export default function FacebookImport({ lang = 'da', user, onUpdate }) {
       // Strip the param without a page reload so Back button works cleanly
       const url = new URL(window.location.href)
       url.searchParams.delete('fb')
+      url.searchParams.delete('page')
       window.history.replaceState({}, '', url)
       loadFbData()
     } else if (params.get('error')?.startsWith('fb_')) {
@@ -44,7 +47,8 @@ export default function FacebookImport({ lang = 'da', user, onUpdate }) {
       const url = new URL(window.location.href)
       url.searchParams.delete('error')
       window.history.replaceState({}, '', url)
-      setErrMsg(errParam === 'fb_state_invalid' ? t.fb_error_state : t.fb_error_generic)
+      const msg = errParam === 'fb_state_invalid' ? t.fb_error_state : t.fb_error_generic
+      setErrMsg(msg)
       setView('error')
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -67,14 +71,27 @@ export default function FacebookImport({ lang = 'da', user, onUpdate }) {
 
   async function handleImport() {
     setView('importing')
-    const result = await apiFacebookImport([...selected])
-    if (!result || result.error) {
-      setErrMsg(t.fb_error_generic)
-      setView('preview')
-      return
+
+    // Import profile fields (if any selected)
+    if (selected.size > 0) {
+      const result = await apiFacebookImport([...selected])
+      if (!result || result.error) {
+        setErrMsg(t.fb_error_generic)
+        setView('preview')
+        return
+      }
+      if (onUpdate) onUpdate(result.user)
     }
+
+    // Import photos to feed (if any selected)
+    let n = 0
+    if (selectedPhotos.size > 0) {
+      const photoResult = await apiFacebookImportPhotos([...selectedPhotos])
+      if (photoResult?.ok) n = photoResult.imported || 0
+    }
+
+    setPhotosImported(n)
     setView('done')
-    if (onUpdate) onUpdate(result.user)
   }
 
   async function handleDisconnect() {
@@ -86,9 +103,24 @@ export default function FacebookImport({ lang = 'da', user, onUpdate }) {
     }
     setFbData(null)
     setSelected(new Set())
+    setSelectedPhotos(new Set())
     setErrMsg('')
     setView('idle')
     if (onUpdate) onUpdate({ fb_connected: 0 })
+  }
+
+  function togglePhoto(id) {
+    setSelectedPhotos(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  function toggleAllPhotos() {
+    if (!fbData?.photos?.length) return
+    const all = fbData.photos.map(p => p.id)
+    setSelectedPhotos(selectedPhotos.size === all.length ? new Set() : new Set(all))
   }
 
   function toggleField(key) {
@@ -135,7 +167,10 @@ export default function FacebookImport({ lang = 'da', user, onUpdate }) {
   if (view === 'done') {
     return (
       <div style={s.container}>
-        <div style={s.successMsg}>{t.fb_success}</div>
+        {selected.size > 0 && <div style={s.successMsg}>{t.fb_success}</div>}
+        {photosImported > 0 && (
+          <div style={s.successMsg}>{typeof t.fb_photos_done === 'function' ? t.fb_photos_done(photosImported) : t.fb_photos_done}</div>
+        )}
         <button style={s.ghostBtn} onClick={handleDisconnect}>
           {t.fb_disconnect_btn}
         </button>
@@ -191,12 +226,56 @@ export default function FacebookImport({ lang = 'da', user, onUpdate }) {
           ))}
         </div>
 
+        {/* ── Photos section ──────────────────────────────────────────────── */}
+        {fbData.photos !== undefined && (
+          <div style={{ marginTop: 16 }}>
+            <div style={{ ...s.sectionTitle, marginBottom: 8 }}>{t.fb_photos_title}</div>
+
+            {fbData.photos.length === 0 ? (
+              <div style={s.subtitle}>{t.fb_photos_none}</div>
+            ) : (
+              <>
+                <label style={{ ...s.selectAllRow, marginBottom: 8 }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedPhotos.size === fbData.photos.length}
+                    onChange={toggleAllPhotos}
+                  />
+                  <span>{t.fb_photos_select_all}</span>
+                </label>
+                <div style={s.photoGrid}>
+                  {fbData.photos.map(photo => (
+                    <div
+                      key={photo.id}
+                      style={{
+                        ...s.photoCell,
+                        outline: selectedPhotos.has(photo.id) ? '3px solid #1877F2' : '2px solid transparent',
+                      }}
+                      onClick={() => togglePhoto(photo.id)}
+                    >
+                      <img
+                        src={photo.thumbUrl}
+                        alt=""
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                        referrerPolicy="no-referrer"
+                      />
+                      {selectedPhotos.has(photo.id) && (
+                        <div style={s.photoCheckmark}>✓</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
         {errMsg && <div style={s.errorMsg}>{errMsg}</div>}
 
         <div style={s.btnRow}>
           <button
-            style={{ ...s.primaryBtn, opacity: selected.size === 0 ? 0.5 : 1 }}
-            disabled={selected.size === 0}
+            style={{ ...s.primaryBtn, opacity: selected.size === 0 && selectedPhotos.size === 0 ? 0.5 : 1 }}
+            disabled={selected.size === 0 && selectedPhotos.size === 0}
             onClick={handleImport}
           >
             {t.fb_import_btn}
@@ -386,5 +465,34 @@ const s = {
     color: '#c0392b',
     fontSize: 13,
     marginTop: 8,
+  },
+  photoGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(4, 1fr)',
+    gap: 6,
+    marginBottom: 4,
+  },
+  photoCell: {
+    position: 'relative',
+    aspectRatio: '1',
+    borderRadius: 6,
+    overflow: 'hidden',
+    cursor: 'pointer',
+    outlineOffset: 2,
+  },
+  photoCheckmark: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 20,
+    height: 20,
+    borderRadius: '50%',
+    background: '#1877F2',
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 700,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 }

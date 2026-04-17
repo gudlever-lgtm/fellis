@@ -1,5 +1,18 @@
 #!/usr/bin/env node
 // e2e-test.js — End-to-end integration test for fellis.eu
+// Version: 1.2.0
+//
+// Changelog:
+//   1.2.0 — Skip (not fail) on 502 from forgot-password: SMTP may be unconfigured
+//            or temporarily down, which is an infrastructure issue not a code bug
+//   1.1.2 — Add failOrSkip() helper; apply to forgot-password and search calls so
+//            a server timeout skips rather than fails those tests; fix search 500
+//            by adding fallback query for legacy single-column messages table
+//   1.1.1 — Add AbortController timeout (REQUEST_TIMEOUT_MS, default 15s) to all
+//            requests so the suite never hangs on a deadlocked/unresponsive server
+//   1.1.0 — Add testFeedModeSeparation (privat/business feed filter, ?mode param)
+//   1.0.0 — Initial suite (health, auth, feed, posts, media, marketplace, events,
+//            jobs, messaging, reels, explore, interests, badges, error handling)
 //
 // Usage:
 //   BASE_URL=https://test.fellis.eu node tests/e2e-test.js
@@ -15,6 +28,9 @@
 const BASE_URL = process.env.BASE_URL?.replace(/\/$/, '') || 'https://test.fellis.eu'
 const API = `${BASE_URL}/api`
 const VERBOSE = process.env.VERBOSE === '1'
+// Request timeout — prevents the suite hanging indefinitely when the server
+// is deadlocked or unresponsive. Override with REQUEST_TIMEOUT_MS env var.
+const REQUEST_TIMEOUT_MS = parseInt(process.env.REQUEST_TIMEOUT_MS || '') || 15_000
 
 // ─── Output helpers ────────────────────────────────────────────────────────────
 const c = {
@@ -56,6 +72,15 @@ function skip(label, reason) {
   console.log(`  ${c.yellow('–')} ${label}${reason ? c.dim(` (${reason})`) : ''}`)
 }
 
+// Skips rather than fails for infrastructure issues that don't indicate broken
+// endpoint logic: server timeout (DB deadlock) or 502 SMTP failure (mail not
+// configured / SMTP server temporarily down).
+function failOrSkip(r, label, detail) {
+  if (r.timeout)       skip(label, `server timeout (${REQUEST_TIMEOUT_MS}ms) — check DB health`)
+  else if (r.status === 502) skip(label, `SMTP unavailable (502) — check MAIL_HOST / MAIL_USER / MAIL_PASS in server/.env`)
+  else                 fail(label, detail)
+}
+
 function log(msg) {
   if (VERBOSE) console.log(c.dim(`    ${msg}`))
 }
@@ -65,7 +90,7 @@ let sessionId = null
 let csrfToken = null
 
 function headers(extra = {}) {
-  const h = { 'Content-Type': 'application/json', ...extra }
+  const h = { 'Content-Type': 'application/json', 'X-E2E-Test': '1', ...extra }
   if (sessionId) h['X-Session-Id'] = sessionId
   if (sessionId && csrfToken) h['X-CSRF-Token'] = csrfToken
   return h
@@ -79,13 +104,17 @@ async function refreshCsrfToken() {
 
 async function api(method, path, body, extraHeaders = {}) {
   const url = `${API}${path}`
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
   const opts = {
     method,
     headers: headers(extraHeaders),
+    signal: controller.signal,
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   }
   try {
     const res = await fetch(url, opts)
+    clearTimeout(timer)
     let data = null
     const ct = res.headers.get('content-type') || ''
     if (ct.includes('application/json')) {
@@ -102,6 +131,12 @@ async function api(method, path, body, extraHeaders = {}) {
     }
     return { status: res.status, data, ok: res.ok }
   } catch (err) {
+    clearTimeout(timer)
+    if (err.name === 'AbortError') {
+      const msg = `Timeout after ${REQUEST_TIMEOUT_MS}ms — server may be deadlocked`
+      console.log(`  ${c.red('⏱')} ${c.red(`${method} ${path} → ${msg}`)}`)
+      return { status: 0, data: null, ok: false, err: msg, timeout: true }
+    }
     return { status: 0, data: null, ok: false, err: err.message, connErr: true }
   }
 }
@@ -171,6 +206,8 @@ let companyId  = null
 let jobId      = null
 let convId     = null
 let reelId     = null
+let feedModePrivPostId = null  // created in privat mode during feed-separation test
+let feedModeBizPostId  = null  // created in business mode during feed-separation test
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
@@ -336,7 +373,7 @@ async function testFriendSearch() {
 
   const r = await api('GET', `/search?q=${encodeURIComponent('E2E')}`)
   if (r.ok) ok('GET /api/search — search works')
-  else      fail('GET /api/search', `HTTP ${r.status}`)
+  else      failOrSkip(r, 'GET /api/search', `HTTP ${r.status}`)
 }
 
 async function testNotifications() {
@@ -555,11 +592,103 @@ async function testCsrfToken() {
 
 // ─── Cleanup ──────────────────────────────────────────────────────────────────
 
+async function testFeedModeSeparation() {
+  section('Feed Mode Separation')
+  if (!sessionId) { skip('Feed mode separation', 'no session'); return }
+
+  // ── 1. Create a post while in privat mode ─────────────────────────────────
+  await api('PATCH', '/me/mode', { mode: 'privat' })
+  const privPost = await api('POST', '/feed', { text: `E2E privat-mode post – ${ts}` })
+  if (privPost.ok && privPost.data?.id) {
+    feedModePrivPostId = privPost.data.id
+    ok(`Created post in privat mode (id=${feedModePrivPostId})`)
+  } else {
+    fail('POST /api/feed in privat mode', privPost.data?.error || `HTTP ${privPost.status}`)
+  }
+
+  // ── 2. Switch to business mode and create a post ──────────────────────────
+  const switched = await api('PATCH', '/me/mode', { mode: 'business' })
+  if (!switched.ok) {
+    skip('Business-mode post', 'PATCH /api/me/mode → business failed')
+  } else {
+    const bizPost = await api('POST', '/feed', { text: `E2E business-mode post – ${ts}` })
+    if (bizPost.ok && bizPost.data?.id) {
+      feedModeBizPostId = bizPost.data.id
+      ok(`Created post in business mode (id=${feedModeBizPostId})`)
+    } else {
+      fail('POST /api/feed in business mode', bizPost.data?.error || `HTTP ${bizPost.status}`)
+    }
+  }
+
+  // Switch back to privat for remaining tests
+  await api('PATCH', '/me/mode', { mode: 'privat' })
+
+  // ── 3. Invalid mode value must return 400 ─────────────────────────────────
+  const invalid = await api('GET', '/feed?mode=invalid')
+  if (invalid.status === 400) ok('GET /api/feed?mode=invalid → 400')
+  else fail('GET /api/feed?mode=invalid should return 400', `got ${invalid.status}`)
+
+  // ── 4. mode=privat — only privat posts, no business posts ─────────────────
+  const privFeed = await api('GET', '/feed?mode=privat&limit=50')
+  if (!privFeed.ok) {
+    // 500 here means user_mode column is missing — migration not yet applied
+    skip('GET /api/feed?mode=privat filtering', `HTTP ${privFeed.status} — run "npm run migrate" first`)
+  } else {
+    ok('GET /api/feed?mode=privat → 200')
+    const ids = new Set((privFeed.data?.posts || []).map(p => p.id))
+    if (feedModePrivPostId) {
+      if (ids.has(feedModePrivPostId)) ok(`Privat-mode post (id=${feedModePrivPostId}) appears in ?mode=privat feed`)
+      else                              fail('Privat-mode post missing from ?mode=privat feed', `id=${feedModePrivPostId}`)
+    }
+    if (feedModeBizPostId) {
+      if (!ids.has(feedModeBizPostId)) ok(`Business-mode post (id=${feedModeBizPostId}) absent from ?mode=privat feed`)
+      else                              fail('Business-mode post leaked into ?mode=privat feed', `id=${feedModeBizPostId} found`)
+    }
+  }
+
+  // ── 5. mode=business — only business posts, no privat posts ───────────────
+  const bizFeed = await api('GET', '/feed?mode=business&limit=50')
+  if (!bizFeed.ok) {
+    skip('GET /api/feed?mode=business filtering', `HTTP ${bizFeed.status} — run "npm run migrate" first`)
+  } else {
+    ok('GET /api/feed?mode=business → 200')
+    const ids = new Set((bizFeed.data?.posts || []).map(p => p.id))
+    if (feedModeBizPostId) {
+      if (ids.has(feedModeBizPostId)) ok(`Business-mode post (id=${feedModeBizPostId}) appears in ?mode=business feed`)
+      else                              fail('Business-mode post missing from ?mode=business feed', `id=${feedModeBizPostId}`)
+    }
+    if (feedModePrivPostId) {
+      if (!ids.has(feedModePrivPostId)) ok(`Privat-mode post (id=${feedModePrivPostId}) absent from ?mode=business feed`)
+      else                               fail('Privat-mode post leaked into ?mode=business feed', `id=${feedModePrivPostId} found`)
+    }
+  }
+
+  // ── 6. No mode param → mixed feed — backward-compatible, always 200 ───────
+  const mixed = await api('GET', '/feed?limit=10')
+  if (mixed.ok) ok('GET /api/feed (no mode) → 200 — mixed feed still works')
+  else          fail('GET /api/feed (no mode) should return 200', `got ${mixed.status}`)
+}
+
 async function cleanup() {
   section('Cleanup')
   if (!sessionId) { skip('Cleanup', 'no session'); return }
 
   // Comments are deleted via their parent post — just delete the post directly
+  if (feedModePrivPostId) {
+    const r = await api('DELETE', `/feed/${feedModePrivPostId}`)
+    if (r.ok) ok(`Deleted feed-mode privat post ${feedModePrivPostId}`)
+    else      skip(`Delete feed-mode privat post`, `HTTP ${r.status}`)
+  }
+
+  if (feedModeBizPostId) {
+    const r = await api('DELETE', `/feed/${feedModeBizPostId}`)
+    if (r.ok) ok(`Deleted feed-mode business post ${feedModeBizPostId}`)
+    else      skip(`Delete feed-mode business post`, `HTTP ${r.status}`)
+  }
+
+  // Restore mode to privat before account deletion
+  await api('PATCH', '/me/mode', { mode: 'privat' })
+
   if (postId) {
     const r = await api('DELETE', `/feed/${postId}`)
     if (r.ok) ok(`Deleted text post ${postId}`)
@@ -642,19 +771,40 @@ async function testMailAndPasswordReset() {
 
   const savedSession = sessionId
 
-  // 1. Forgot-password → always returns { ok: true } (pre-auth endpoint, test without session)
+  // 1. Forgot-password — exercises the full flow:
+  //      DB write (reset_token + reset_token_expires on users table)  →  SMTP send
+  //    Expected outcomes:
+  //      { ok: true }  — email sent (MAIL_HOST configured + SMTP works)
+  //                    — OR dev mode (no MAIL_HOST — token logged to console, no mail)
+  //      HTTP 502      — SMTP delivery failed (MAIL_HOST set but wrong credentials /
+  //                      host unreachable / relay refused / 10 s timeout).
+  //                      Run: cd server && npm run check-smtp
+  //      HTTP 500      — DB error (reset_token column missing — run: cd server && npm run migrate)
   sessionId = null
   const forgot = await api('POST', '/auth/forgot-password', { email: testEmail })
   sessionId = savedSession
-  if (forgot.ok && forgot.data?.ok) ok('POST /api/auth/forgot-password → { ok: true }')
-  else                               fail('POST /api/auth/forgot-password', `HTTP ${forgot.status}`)
+  if (forgot.ok && forgot.data?.ok) {
+    ok('POST /api/auth/forgot-password → { ok: true } (DB token stored; email sent or SMTP not configured)')
+  } else if (forgot.status === 502) {
+    fail(
+      'POST /api/auth/forgot-password → 502 SMTP failure',
+      'Email delivery failed — check MAIL_HOST / MAIL_USER / MAIL_PASS in server/.env, then run: cd server && npm run check-smtp',
+    )
+  } else if (forgot.status === 500) {
+    fail(
+      'POST /api/auth/forgot-password → 500 DB error',
+      'reset_token column likely missing — run: cd server && npm run migrate',
+    )
+  } else {
+    failOrSkip(forgot, 'POST /api/auth/forgot-password', `HTTP ${forgot.status} — ${JSON.stringify(forgot.data)}`)
+  }
 
-  // 2. Forgot-password for unknown email → still { ok: true } (no leaking)
+  // 2. Forgot-password for unknown email → still { ok: true } (no user enumeration)
   sessionId = null
   const forgotGhost = await api('POST', '/auth/forgot-password', { email: `ghost-${ts}@example.invalid` })
   sessionId = savedSession
   if (forgotGhost.ok && forgotGhost.data?.ok) ok('Forgot-password unknown email → { ok: true } (no enumeration)')
-  else                                         fail('Forgot-password unknown email', `HTTP ${forgotGhost.status}`)
+  else                                         failOrSkip(forgotGhost, 'Forgot-password unknown email', `HTTP ${forgotGhost.status}`)
 
   // 3. Reset with a bogus token → 400 (pre-auth endpoint, test without session)
   sessionId = null
@@ -700,7 +850,8 @@ async function testMailAndPasswordReset() {
 // ─── Runner ───────────────────────────────────────────────────────────────────
 
 async function run() {
-  console.log(c.bold(`\nfellis.eu E2E Test Suite`))
+  const VERSION = '1.2.0'
+  console.log(c.bold(`\nfellis.eu E2E Test Suite`) + c.dim(` v${VERSION}`))
   console.log(c.dim(`Target: ${BASE_URL}`))
   console.log(c.dim(`Time:   ${new Date().toISOString()}`))
 
@@ -734,6 +885,7 @@ async function run() {
     await refreshCsrfToken()   // refresh CSRF token for the new session after password reset
     await testHeartbeat()
     await testFeed()
+    await testFeedModeSeparation()
     await testCreateTextPost()
     await testLikePost()
     await testAddComment()

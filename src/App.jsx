@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react'
 import Landing from './Landing.jsx'
 import Platform from './Platform.jsx'
 import PublicBlogPage from './BlogPage.jsx'
+import ForBusiness from './ForBusiness.jsx'
 import InstallPrompt from './components/InstallPrompt.jsx'
 import { apiCheckSession, apiLogout, apiGiveConsent, apiGetConsentStatus, apiGetInviteInfo, apiTrackVisit, apiGetCsrfToken, apiGetUserByHandle } from './api.js'
 import { UI_LANGS, detectLang, detectLangFromIP, PT } from './data.js'
@@ -408,8 +409,16 @@ function App() {
     if (googleSession) {
       // Session stored in HTTP-only cookie
       localStorage.setItem('fellis_logged_in', 'true')
-      setView('platform')
-      window.history.replaceState({}, '', window.location.pathname)
+      // Fetch CSRF token before mounting platform — prevents 403s on the first
+      // POST requests (heartbeat, ad impressions) that fire immediately on mount
+      ;(async () => {
+        const csrfData = await apiGetCsrfToken().catch(() => null)
+        if (csrfData?.csrfToken) {
+          localStorage.setItem('fellis_csrf_token', csrfData.csrfToken)
+        }
+        setView('platform')
+        window.history.replaceState({}, '', window.location.pathname)
+      })()
       return
     }
     if (googleConnected === '1') {
@@ -422,12 +431,26 @@ function App() {
     if (linkedinSession) {
       // Session stored in HTTP-only cookie
       localStorage.setItem('fellis_logged_in', 'true')
-      setView('platform')
-      window.history.replaceState({}, '', window.location.pathname)
+      // Fetch CSRF token before mounting platform — same fix as Google OAuth path
+      ;(async () => {
+        const csrfData = await apiGetCsrfToken().catch(() => null)
+        if (csrfData?.csrfToken) {
+          localStorage.setItem('fellis_csrf_token', csrfData.csrfToken)
+        }
+        setView('platform')
+        window.history.replaceState({}, '', window.location.pathname)
+      })()
       return
     }
     if (linkedinConnected === '1') {
       window.history.replaceState({}, '', window.location.pathname)
+    }
+
+    // Returning from Facebook OAuth — navigate back to Edit Profile
+    const fbConnected = params.get('fb')
+    if (fbConnected === 'connected') {
+      setInitialPage('edit-profile')
+      // Leave ?fb=connected in place so FacebookImport.useEffect can detect it
     }
 
     // Check for invite token in URL
@@ -630,12 +653,12 @@ function PublicSalgsbetingelserPage() {
             <tr>
               <td style={s.td}><strong>{da ? 'Reklamefri oplevelse – Privat' : 'Ad-free experience – Personal'}</strong></td>
               <td style={s.td}>{da ? 'Fjerner alle annoncer fra din feed, sidebar og stories. Gælder for personlige konti.' : 'Removes all ads from your feed, sidebar and stories. Applies to personal accounts.'}</td>
-              <td style={s.td}>{da ? 'Fra 29,00 EUR / engangsbetaling\neller fra 29,00 EUR / md. (abonnement)\neller fra 290,00 EUR / år (abonnement)' : 'From EUR 29.00 / one-time\nor from EUR 29.00 / month\nor from EUR 290.00 / year'}</td>
+              <td style={s.td}>{da ? 'Fra 29,00 EUR / engangsbetaling (30 dages reklamefri adgang)\neller fra 29,00 EUR / md. (abonnement)\neller fra 290,00 EUR / år (abonnement)' : 'From EUR 29.00 / one-time (30 days ad-free access)\nor from EUR 29.00 / month\nor from EUR 290.00 / year'}</td>
             </tr>
             <tr>
               <td style={s.td}><strong>{da ? 'Reklamefri oplevelse – Business' : 'Ad-free experience – Business'}</strong></td>
               <td style={s.td}>{da ? 'Som ovenfor, men for erhvervskonti.' : 'As above, but for business accounts.'}</td>
-              <td style={s.td}>{da ? 'Fra 49,00 EUR / engangsbetaling\neller fra 49,00 EUR / md. (abonnement)\neller fra 490,00 EUR / år (abonnement)' : 'From EUR 49.00 / one-time\nor from EUR 49.00 / month\nor from EUR 490.00 / year'}</td>
+              <td style={s.td}>{da ? 'Fra 49,00 EUR / engangsbetaling (30 dages reklamefri adgang)\neller fra 49,00 EUR / md. (abonnement)\neller fra 490,00 EUR / år (abonnement)' : 'From EUR 49.00 / one-time (30 days ad-free access)\nor from EUR 49.00 / month\nor from EUR 490.00 / year'}</td>
             </tr>
             <tr>
               <td style={s.td}><strong>{da ? 'Annoncering (business-konti)' : 'Advertising (business accounts)'}</strong></td>
@@ -662,7 +685,7 @@ function PublicSalgsbetingelserPage() {
           : 'Payment is processed through Mollie (EU-certified payment gateway). The following payment methods are available:'
         }</p>
         <ul style={s.ul}>
-          <li>MobilePay</li>
+          <li>MobilePay {da ? '(kun for personlige konti)' : '(personal accounts only)'}</li>
           <li>Visa / Mastercard</li>
           <li>Apple Pay</li>
           <li>Google Pay</li>
@@ -738,6 +761,7 @@ function AppRoot() {
   if (path === '/terms') return <PublicTermsPage />
   if (path === '/salgsbetingelser') return <PublicSalgsbetingelserPage />
   if (path === '/blog' || window.location.pathname.startsWith('/blog/')) return <PublicBlogPage />
+  if (path === '/for-business') return <ForBusiness />
   return <App />
 }
 

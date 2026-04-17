@@ -55,6 +55,7 @@ export default {
     adFreeTitle: 'Reklamefri oplevelse',
     adFreeDesc: 'Fjern alle annoncer fra din feed, sidebar og stories. Abonnementet kan opsiges når som helst.',
     adFreeActiveLabel: 'Din konto er reklamefri',
+    adFreeZone: 'Reklamefri zone',
     adFreeBtn: 'Bliv reklamefri',
     adFreePrice: 'Pris',
     adFreeMonth: 'md.',
@@ -133,7 +134,7 @@ export default {
     adminAdsColCTR: 'CTR',
     adminAdsPlacementFeed: 'Feed',
     adminAdsPlacementSidebar: 'Sidebar',
-    adminAdsPlacementStories: 'Reels',
+    adminAdsPlacementStories: 'Stories',
     adminAdsNoStats: 'Ingen annoncedata endnu',
     // Mollie payment
     molliePaymentSuccess: 'Betaling gennemført',
@@ -207,6 +208,7 @@ export default {
     adFreeTitle: 'Ad-free experience',
     adFreeDesc: 'Remove all ads from your feed, sidebar and stories. Cancel any time.',
     adFreeActiveLabel: 'Your account is ad-free',
+    adFreeZone: 'Ad-free zone',
     adFreeBtn: 'Go ad-free',
     adFreePrice: 'Price',
     adFreeMonth: '/mo.',
@@ -285,7 +287,7 @@ export default {
     adminAdsColCTR: 'CTR',
     adminAdsPlacementFeed: 'Feed',
     adminAdsPlacementSidebar: 'Sidebar',
-    adminAdsPlacementStories: 'Reels',
+    adminAdsPlacementStories: 'Stories',
     adminAdsNoStats: 'No ad data yet',
     // Mollie payment
     molliePaymentSuccess: 'Payment successful',

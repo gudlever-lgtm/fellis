@@ -36,6 +36,24 @@ const COOKIE_NAME    = 'fellis_sid'
 const FB_TOKEN_SECRET = process.env.FB_TOKEN_SECRET || crypto.randomBytes(32).toString('hex')
 const ENC_KEY = crypto.createHash('sha256').update(FB_TOKEN_SECRET).digest()
 
+// ── Admin setting: fb_photo_import_limit (cached 60 s) ───────────────────────
+let _fbPhotoLimitCache = { value: 50, expiresAt: 0 }
+async function getFbPhotoLimit() {
+  const now = Date.now()
+  if (now < _fbPhotoLimitCache.expiresAt) return _fbPhotoLimitCache.value
+  try {
+    const [rows] = await pool.query(
+      "SELECT key_value FROM admin_settings WHERE key_name = 'fb_photo_import_limit'"
+    )
+    const val = rows[0]?.key_value ? parseInt(rows[0].key_value, 10) : 50
+    const clamped = Math.max(1, Math.min(isNaN(val) ? 50 : val, 200))
+    _fbPhotoLimitCache = { value: clamped, expiresAt: now + 60_000 }
+    return clamped
+  } catch {
+    return _fbPhotoLimitCache.value
+  }
+}
+
 // ── OAuth state store: nonce → {userId, createdAt} ───────────────────────────
 const fbOauthStates = new Map()
 setInterval(() => {
@@ -166,43 +184,66 @@ router.get('/callback', async (req, res) => {
   if (!FB_APP_ID || !FB_APP_SECRET) return res.redirect('/?error=fb_not_configured')
 
   try {
-    // Exchange code for access token
-    const tokenRes = await fetch(
-      `https://graph.facebook.com/v22.0/oauth/access_token?${new URLSearchParams({
-        client_id:     FB_APP_ID,
-        client_secret: FB_APP_SECRET,
-        redirect_uri:  FB_REDIRECT_URI,
-        code,
-      })}`
-    )
-    if (!tokenRes.ok) return res.redirect('/?error=fb_token_failed')
-    const tokenData = await tokenRes.json()
-    if (!tokenData.access_token) return res.redirect('/?error=fb_token_failed')
+    // ── Step 1: Exchange code for access token ────────────────────────────────
+    let tokenData
+    try {
+      const tokenRes = await fetch(
+        `https://graph.facebook.com/v22.0/oauth/access_token?${new URLSearchParams({
+          client_id:     FB_APP_ID,
+          client_secret: FB_APP_SECRET,
+          redirect_uri:  FB_REDIRECT_URI,
+          code,
+        })}`
+      )
+      tokenData = await tokenRes.json()
+      if (!tokenRes.ok || !tokenData.access_token) {
+        console.error('FB token exchange failed:', JSON.stringify(tokenData))
+        return res.redirect('/?error=fb_token_failed')
+      }
+    } catch (err) {
+      console.error('FB token exchange network error:', err.message)
+      return res.redirect('/?error=fb_token_failed')
+    }
 
     const accessToken = tokenData.access_token
 
-    // Fetch core user data from Graph API in a single call
-    const userRes = await fetch(
-      `https://graph.facebook.com/v22.0/me?${new URLSearchParams({
-        fields: 'id,name,email,birthday,gender,age_range,hometown,location,picture.type(large),link',
-        access_token: accessToken,
-      })}`
-    )
-    if (!userRes.ok) return res.redirect('/?error=fb_data_failed')
-    const fbUser = await userRes.json()
+    // ── Step 2: Fetch core user data from Graph API ───────────────────────────
+    let fbUser
+    try {
+      const userRes = await fetch(
+        `https://graph.facebook.com/v22.0/me?${new URLSearchParams({
+          fields: 'id,name,email,birthday,gender,age_range,hometown,location,picture.type(large),link',
+          access_token: accessToken,
+        })}`
+      )
+      fbUser = await userRes.json()
+      if (!userRes.ok || !fbUser.id) {
+        console.error('FB user data fetch failed:', JSON.stringify(fbUser))
+        return res.redirect('/?error=fb_data_failed')
+      }
+    } catch (err) {
+      console.error('FB user data network error:', err.message)
+      return res.redirect('/?error=fb_data_failed')
+    }
 
-    // Encrypt token and persist — never log access tokens
-    const encrypted = encryptToken(accessToken)
-    await pool.query(
-      `UPDATE users
-         SET fb_user_id = ?, fb_access_token = ?, fb_connected = 1, fb_connected_at = NOW()
-       WHERE id = ?`,
-      [fbUser.id || null, encrypted, userId]
-    )
+    // ── Step 3: Encrypt token and persist ────────────────────────────────────
+    // Never log the access token itself
+    try {
+      const encrypted = encryptToken(accessToken)
+      await pool.query(
+        `UPDATE users
+           SET fb_user_id = ?, fb_access_token = ?, fb_connected = 1, fb_connected_at = NOW()
+         WHERE id = ?`,
+        [fbUser.id || null, encrypted, userId]
+      )
+    } catch (err) {
+      console.error('FB DB persist error (migration not run?):', err.message)
+      return res.redirect('/?error=fb_db_error')
+    }
 
-    res.redirect('/?fb=connected')
+    res.redirect('/?fb=connected&page=edit-profile')
   } catch (err) {
-    console.error('Facebook OAuth callback error:', err.message)
+    console.error('Facebook OAuth callback unexpected error:', err.message)
     res.redirect('/?error=fb_error')
   }
 })
@@ -253,18 +294,27 @@ router.get('/data', requireAuth, async (req, res) => {
       }
     } catch {}
 
-    // User photos (first 10) — best-effort
+    // User photos with thumbnail URLs — best-effort
+    const photoLimit = await getFbPhotoLimit()
     let photos = []
     try {
       const photosRes = await fetch(
         `https://graph.facebook.com/v22.0/me/photos?${new URLSearchParams({
-          limit: '10',
+          limit: String(photoLimit),
+          fields: 'id,images',
+          type: 'uploaded',
           access_token: accessToken,
         })}`
       )
       if (photosRes.ok) {
         const photosData = await photosRes.json()
-        photos = photosData.data || []
+        photos = (photosData.data || []).map(p => {
+          const imgs = p.images || []
+          // Facebook returns images sorted largest → smallest
+          const thumb = imgs[imgs.length - 1] // smallest for grid display
+          const full  = imgs[0]               // largest for download
+          return { id: p.id, thumbUrl: thumb?.source || null, fullUrl: full?.source || null }
+        }).filter(p => p.thumbUrl)
       }
     } catch {}
 
@@ -344,7 +394,10 @@ router.post('/import', requireAuth, async (req, res) => {
         try {
           const imgRes = await fetch(fbUser.picture.data.url)
           if (imgRes.ok) {
+            const contentLength = parseInt(imgRes.headers.get('content-length') || '0', 10)
+            if (contentLength > 5 * 1024 * 1024) throw new Error('Profile picture too large')
             const imgBuf = Buffer.from(await imgRes.arrayBuffer())
+            if (imgBuf.length > 5 * 1024 * 1024) throw new Error('Profile picture too large')
             const filename = `${crypto.randomUUID()}.jpg`
             const filepath = path.join(UPLOADS_DIR, filename)
             fs.writeFileSync(filepath, imgBuf)
@@ -372,6 +425,96 @@ router.post('/import', requireAuth, async (req, res) => {
     res.json({ ok: true, user: updated })
   } catch (err) {
     console.error('Facebook /import error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── POST /import-photos — download FB photos and post them to the feed ───────
+router.post('/import-photos', requireAuth, async (req, res) => {
+  const { photoIds } = req.body
+  if (!Array.isArray(photoIds) || photoIds.length === 0) {
+    return res.status(400).json({ error: 'photoIds array required' })
+  }
+  const limit = await getFbPhotoLimit()
+  if (photoIds.length > limit) {
+    return res.status(400).json({ error: `Maximum ${limit} photos at a time` })
+  }
+  // Validate IDs are numeric strings only (no injection)
+  if (!photoIds.every(id => typeof id === 'string' && /^\d+$/.test(id))) {
+    return res.status(400).json({ error: 'Invalid photo IDs' })
+  }
+
+  try {
+    const [[user]] = await pool.query(
+      'SELECT fb_connected, fb_access_token FROM users WHERE id = ?',
+      [req.userId]
+    )
+    if (!user || !user.fb_connected || !user.fb_access_token) {
+      return res.status(400).json({ error: 'Facebook not connected' })
+    }
+
+    let accessToken
+    try {
+      accessToken = decryptToken(user.fb_access_token)
+    } catch {
+      return res.status(500).json({ error: 'Token decryption failed' })
+    }
+
+    let imported = 0
+    for (const photoId of photoIds) {
+      try {
+        // Fetch the photo's image list from Graph API
+        const photoRes = await fetch(
+          `https://graph.facebook.com/v22.0/${encodeURIComponent(photoId)}?${new URLSearchParams({
+            fields: 'images',
+            access_token: accessToken,
+          })}`
+        )
+        if (!photoRes.ok) continue
+        const photoData = await photoRes.json()
+
+        const imgs = photoData.images || []
+        const best = imgs[0] // largest first
+        if (!best?.source) continue
+
+        // Validate URL is from a Facebook CDN domain
+        let parsedUrl
+        try { parsedUrl = new URL(best.source) } catch { continue }
+        if (!parsedUrl.hostname.endsWith('.fbcdn.net') && parsedUrl.hostname !== 'lookaside.fbsbx.com') continue
+
+        // Download the image (cap at 10 MB)
+        const imgRes = await fetch(best.source)
+        if (!imgRes.ok) continue
+        const imgBuf = Buffer.from(await imgRes.arrayBuffer())
+        if (imgBuf.length > 10 * 1024 * 1024) continue
+
+        const mime = imgRes.headers.get('content-type') || 'image/jpeg'
+        const ext  = mime.includes('png') ? 'png' : mime.includes('gif') ? 'gif' : 'jpg'
+        const filename = `${crypto.randomUUID()}.${ext}`
+        fs.writeFileSync(path.join(UPLOADS_DIR, filename), imgBuf)
+
+        const mediaJson = JSON.stringify([{ url: `/uploads/${filename}`, type: 'image', mime }])
+
+        await pool.query(
+          `INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media, user_mode)
+           VALUES (?, '', '', 'Lige nu', 'Just now', ?,
+                   (SELECT mode FROM users WHERE id = ?))`,
+          [req.userId, mediaJson, req.userId]
+        ).catch(() =>
+          pool.query(
+            'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media) VALUES (?, ?, ?, ?, ?, ?)',
+            [req.userId, '', '', 'Lige nu', 'Just now', mediaJson]
+          )
+        )
+        imported++
+      } catch (err) {
+        console.error('FB photo import error for id', photoId, ':', err.message)
+      }
+    }
+
+    res.json({ ok: true, imported })
+  } catch (err) {
+    console.error('Facebook /import-photos error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })

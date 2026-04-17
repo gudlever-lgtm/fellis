@@ -62,7 +62,7 @@ export async function apiLogin(email, password, lang) {
       body: JSON.stringify({ email, password, lang }),
     })
     const body = await res.json().catch(() => ({}))
-    if (!res.ok) return { error: body.error || 'invalid_credentials' }
+    if (!res.ok) return { error: body.error || 'invalid_credentials', status: res.status }
     return body
   } catch {
     return null
@@ -87,10 +87,20 @@ export async function apiRegister(name, email, password, lang, inviteToken) {
 }
 
 export async function apiForgotPassword(email) {
-  return await request('/api/auth/forgot-password', {
-    method: 'POST',
-    body: JSON.stringify({ email }),
-  })
+  // Use raw fetch so rate-limit (429) and other errors can be surfaced to the UI
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/forgot-password`, {
+      method: 'POST',
+      headers: headers(),
+      credentials: 'same-origin',
+      body: JSON.stringify({ email }),
+    })
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) return { error: body.error || 'request_failed', status: res.status }
+    return body
+  } catch {
+    return null
+  }
 }
 
 export async function apiResetPassword(token, password) {
@@ -109,6 +119,14 @@ export async function apiVerifyMfa(userId, code, lang) {
   })
   // Session ID now stored in HTTP-only cookie by server
   return data
+}
+
+export async function apiSendEnableMfa() {
+  return await request('/api/auth/send-enable-mfa', { method: 'POST' })
+}
+
+export async function apiConfirmEnableMfa(code) {
+  return await request('/api/auth/confirm-enable-mfa', { method: 'POST', body: JSON.stringify({ code }) })
 }
 
 export async function apiEnableMfa() {
@@ -164,11 +182,16 @@ export async function apiLogout() {
   // Session cookie automatically managed by browser
 }
 
+// Onboarding
+export async function apiDismissOnboarding() {
+  return await request('/api/user/onboarding/dismiss', { method: 'POST' })
+}
+
 // Feed
-export async function apiFetchFeed(cursor = null, limit = 20) {
-  const params = cursor
-    ? `cursor=${encodeURIComponent(cursor)}&limit=${limit}`
-    : `limit=${limit}`
+export async function apiFetchFeed(cursor = null, limit = 20, mode = null) {
+  const params = new URLSearchParams({ limit: String(limit) })
+  if (cursor) params.set('cursor', cursor)
+  if (mode) params.set('mode', mode)
   return await request(`/api/feed?${params}`)
 }
 
@@ -299,7 +322,7 @@ if (typeof window !== 'undefined') {
   installAutoFlush((payload) => uploadPostResilient(payload))
 }
 
-export async function apiCreatePost(text, mediaFiles, scheduledAt, categories, location, taggedUsers, linkedContent, onProgress) {
+export async function apiCreatePost(text, mediaFiles, scheduledAt, categories, location, taggedUsers, linkedContent, onProgress, linkedServiceId) {
   if (mediaFiles?.length) {
     // Pre-flight: validate file sizes client-side (50MB per file, 200MB total)
     const MAX_FILE = 50 * 1024 * 1024
@@ -349,7 +372,8 @@ export async function apiCreatePost(text, mediaFiles, scheduledAt, categories, l
       ...(categories?.length ? { categories } : {}),
       ...(location ? { place_name: location.place_name || location.name, geo_lat: location.geo_lat ?? location.lat, geo_lng: location.geo_lng ?? location.lng } : {}),
       ...(taggedUsers?.length ? { tagged_users: taggedUsers } : {}),
-      ...(linkedContent?.type ? { linked_type: linkedContent.type, linked_id: linkedContent.id } : {}),
+      ...(linkedContent?.type && linkedContent.type !== 'service' ? { linked_type: linkedContent.type, linked_id: linkedContent.id } : {}),
+      ...(linkedContent?.type === 'service' || linkedServiceId ? { linked_service_id: linkedContent?.id ?? linkedServiceId } : {}),
     }),
   })
 }
@@ -458,6 +482,27 @@ export async function apiToggleFamilyFriend(userId, isFamily) {
     method: 'PATCH',
     body: JSON.stringify({ is_family: isFamily }),
   })
+}
+
+export async function apiFetchFriendSuggestions() {
+  return await request('/api/friends/suggested')
+}
+
+// User follows (asymmetric: follow any user or company)
+export async function apiFollowUser(userId) {
+  return await request(`/api/users/${userId}/follow`, { method: 'POST' })
+}
+
+export async function apiUnfollowUser(userId) {
+  return await request(`/api/users/${userId}/follow`, { method: 'DELETE' })
+}
+
+export async function apiGetFollowers() {
+  return await request('/api/me/followers')
+}
+
+export async function apiGetFollowing() {
+  return await request('/api/me/following')
 }
 
 // Conversations (replaces legacy /api/messages)
@@ -1060,6 +1105,10 @@ export async function apiDeleteReel(id) {
   return await request(`/api/reels/${id}`, { method: 'DELETE' })
 }
 
+export async function apiShareReel(id) {
+  return await request(`/api/reels/${id}/share`, { method: 'POST' })
+}
+
 // ── Calendar ──
 
 export async function apiFetchCalendarEvents() {
@@ -1331,18 +1380,23 @@ export async function apiTrackAdClick(id) {
   return await request(`/api/ads/${id}/click`, { method: 'POST' })
 }
 export async function apiRecordAdImpression(id) {
-  return await request(`/api/ads/${id}/impression`, { method: 'POST' })
+  return await request(`/api/content/${id}/view`, { method: 'POST' })
 }
 export async function apiRecordAdClick(id) {
-  return await request(`/api/ads/${id}/click`, { method: 'POST' })
+  return await request(`/api/content/${id}/open`, { method: 'POST' })
 }
 export async function apiServeAds(placement) {
-  return await request(`/api/ads?serve=1&placement=${placement}`)
+  return await request(`/api/content?section=${placement}`)
 }
 
 // ── Subscription ──────────────────────────────────────────────────────────────
 export async function apiGetSubscription() {
   return await request('/api/me/subscription')
+}
+
+// ── Currency conversion ────────────────────────────────────────────────────────
+export async function apiGetEurDkkRate() {
+  return await request('/api/currency/eur-dkk')
 }
 
 // ── Mollie payments ───────────────────────────────────────────────────────────
@@ -1370,6 +1424,9 @@ export async function apiGetAdminAdStats() {
 }
 export async function apiGetAdPrice() {
   return await request('/api/ads/price')
+}
+export async function apiGetPublicPricing() {
+  return await request('/api/pricing')
 }
 export async function apiGetAdminAdSettings() {
   return await request('/api/admin/ad-settings')
@@ -2060,3 +2117,71 @@ export const apiFacebookImport = (fields) =>
 // POST /api/auth/facebook/disconnect — revoke FB token and clear fb_connected
 export const apiFacebookDisconnect = () =>
   request('/api/auth/facebook/disconnect', { method: 'POST' })
+
+// POST /api/auth/facebook/import-photos — download selected FB photos into feed
+export const apiFacebookImportPhotos = (photoIds) =>
+  request('/api/auth/facebook/import-photos', { method: 'POST', body: JSON.stringify({ photoIds }) })
+
+// ── Business Features V2 ──────────────────────────────────────────────────────
+
+// Feature 1: User Leads / Contact inbox
+export const apiContactBusiness = (id, topic, message) =>
+  request(`/api/businesses/${id}/contact`, { method: 'POST', body: JSON.stringify({ topic, message }) })
+export const apiGetMyBusinessLeads = () => request('/api/me/business-leads')
+export const apiUpdateBusinessLead = (id, status) =>
+  request(`/api/me/business-leads/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) })
+
+// Feature 2: Jobs linked to business profile
+export const apiGetBusinessJobs = (id) => request(`/api/businesses/${id}/jobs`)
+
+// Feature 3: Business CVR verification
+export const apiLookupCVR = (cvr) => request(`/api/me/verify-business/lookup?cvr=${encodeURIComponent(cvr)}`)
+export const apiSubmitBusinessVerification = (cvr_number) =>
+  request('/api/me/verify-business', { method: 'POST', body: JSON.stringify({ cvr_number }) })
+export const apiAdminGetVerifications = () => request('/api/admin/verify-business')
+export const apiAdminApproveVerification = (userId, approved) =>
+  request(`/api/admin/verify-business/${userId}`, { method: 'POST', body: JSON.stringify({ approved }) })
+
+// Feature 4: Follower broadcast announcements
+export const apiCreateAnnouncement = (title, body, cta_url) =>
+  request('/api/me/announcements', { method: 'POST', body: JSON.stringify({ title, body, cta_url }) })
+export const apiGetMyAnnouncements = () => request('/api/me/announcements')
+export const apiGetFollowedAnnouncements = () => request('/api/announcements')
+export const apiDeleteAnnouncement = (id) =>
+  request(`/api/me/announcements/${id}`, { method: 'DELETE' })
+
+// Feature 5: Product / Services catalog
+export const apiGetBusinessServices = (id) => request(`/api/businesses/${id}/services`)
+export const apiGetMyServices = () => request('/api/me/services')
+export const apiCreateService = (data) =>
+  request('/api/me/services', { method: 'POST', body: JSON.stringify(data) })
+export const apiUpdateService = (id, data) =>
+  request(`/api/me/services/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+export const apiDeleteService = (id) =>
+  request(`/api/me/services/${id}`, { method: 'DELETE' })
+
+// Feature 6: Business event promotion
+export const apiGetBusinessEvents = (id) => request(`/api/businesses/${id}/events`)
+
+// Feature 7: Analytics depth
+export const apiGetFollowerGrowth = (days = 30) =>
+  request(`/api/me/analytics/follower-growth?days=${days}`)
+export const apiGetBestPostTimes = () => request('/api/me/analytics/best-times')
+
+// Feature 8: Service endorsements
+export const apiGetBusinessEndorsements = (id) => request(`/api/businesses/${id}/endorsements`)
+
+// Feature 9: B2B partner connections
+export const apiSendPartnerRequest = (id) =>
+  request(`/api/businesses/${id}/partner-request`, { method: 'POST' })
+export const apiGetPartnerRequests = () => request('/api/me/partner-requests')
+export const apiRespondPartnerRequest = (id, action) =>
+  request(`/api/me/partner-requests/${id}`, { method: 'PATCH', body: JSON.stringify({ action }) })
+export const apiGetMyPartners = () => request('/api/me/partners')
+export const apiRemovePartner = (partnerId) =>
+  request(`/api/me/partners/${partnerId}`, { method: 'DELETE' })
+export const apiGetBusinessPartners = (id) => request(`/api/businesses/${id}/partners`)
+
+// Feature 10: Appointment / inquiry via DM
+export const apiSendBusinessInquiry = (id, subject, preferred_date, message) =>
+  request(`/api/businesses/${id}/inquiry`, { method: 'POST', body: JSON.stringify({ subject, preferred_date, message }) })

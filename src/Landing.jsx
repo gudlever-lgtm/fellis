@@ -14,6 +14,9 @@ const T = {
     createCardTitle: 'Opret ny konto',
     createCardDesc: 'Start frisk på fellis.eu med e-mail og adgangskode.',
     createCardBtn: 'Opret konto',
+    manifestoLine1: 'Sociale medier solgte dig til annoncørerne.',
+    manifestoLine2: 'Det syntes vi ikke var en fair handel.',
+    manifestoLine3: 'Fellis er en europæisk fællesskabsplatform — reklamer uden overvågning, ingen algoritmer, ingen skjult dagsorden. Bare mennesker.',
     trustEncrypt: 'End-to-end krypteret',
     trustEU: 'Hostet i EU',
     trustDelete: 'Fuld kontrol over dine data',
@@ -49,6 +52,7 @@ const T = {
     loginCancel: 'Annuller',
     loginError: 'Ugyldig e-mail eller adgangskode',
     loginErrorSocialOnly: 'Denne konto er oprettet via Google eller LinkedIn. Brug den tilsvarende login-knap.',
+    loginErrorRateLimit: 'For mange loginforsøg — prøv igen om 15 minutter.',
     loginNoAccount: 'Har du ikke en konto?',
     loginSignup: 'Kom i gang',
     forgotPassword: 'Glemt adgangskode?',
@@ -61,6 +65,8 @@ const T = {
     forgotConfirm: 'Gem adgangskode',
     forgotSuccess: 'Adgangskode opdateret! Du er nu logget ind.',
     forgotError: 'Kunne ikke nulstille adgangskode',
+    forgotRateLimit: 'For mange forsøg — prøv igen om lidt',
+    forgotEmailFailed: 'Nulstillingslinket kunne ikke sendes — tjek at e-mailadressen er korrekt, eller prøv igen',
     forgotBack: 'Tilbage til login',
     forgotEmailSent: 'Tjek din e-mail for et nulstillingslink.',
     forgotFbNote: 'Din konto er tilknyttet Google eller LinkedIn. Du kan oprette en lokal adgangskode herunder.',
@@ -109,6 +115,9 @@ const T = {
     createCardTitle: 'Create new account',
     createCardDesc: 'Start fresh on fellis.eu with email and password.',
     createCardBtn: 'Create account',
+    manifestoLine1: 'Social media sold you to advertisers.',
+    manifestoLine2: 'We didn\'t think that was a fair deal.',
+    manifestoLine3: 'Fellis is a European community platform — ads without surveillance, no algorithms, no hidden agenda. Just people.',
     trustEncrypt: 'End-to-end encrypted',
     trustEU: 'EU hosted',
     trustDelete: 'Full control over your data',
@@ -144,6 +153,7 @@ const T = {
     loginCancel: 'Cancel',
     loginError: 'Invalid email or password',
     loginErrorSocialOnly: 'This account was created via Google or LinkedIn. Please use the corresponding login button.',
+    loginErrorRateLimit: 'Too many login attempts — please try again in 15 minutes.',
     loginNoAccount: "Don't have an account?",
     loginSignup: 'Get started',
     forgotPassword: 'Forgotten password?',
@@ -156,6 +166,8 @@ const T = {
     forgotConfirm: 'Save password',
     forgotSuccess: 'Password updated! You are now logged in.',
     forgotError: 'Could not reset password',
+    forgotRateLimit: 'Too many attempts — please try again shortly',
+    forgotEmailFailed: 'The reset link could not be sent — check the email address is correct, or try again',
     forgotBack: 'Back to login',
     forgotEmailSent: 'Check your email for a reset link.',
     forgotFbNote: 'Your account is connected via Google or LinkedIn. You can set a local password below.',
@@ -299,6 +311,8 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
         setMfaError('')
       } else if (data?.error === 'social_login_only') {
         setLoginError(t.loginErrorSocialOnly)
+      } else if (data?.status === 429) {
+        setLoginError(t.loginErrorRateLimit)
       } else {
         setLoginError(t.loginError)
       }
@@ -340,6 +354,10 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
       if (data?.ok) {
         // Server sends an email with the reset link — show confirmation
         setForgotMode('email-sent')
+      } else if (data?.status === 429) {
+        setForgotError(t.forgotRateLimit)
+      } else if (data?.error === 'email_send_failed') {
+        setForgotError(t.forgotEmailFailed)
       } else {
         setForgotError(t.forgotError)
       }
@@ -459,6 +477,12 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
           <select className="lang-toggle" value={lang} onChange={e => changeLang(e.target.value)} aria-label="Language">
             {UI_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
           </select>
+          <a
+            href="/for-business"
+            style={{ fontSize: 14, color: '#2D6A4F', textDecoration: 'none', fontWeight: 500, whiteSpace: 'nowrap' }}
+          >
+            {PT[lang]?.forBusinessNavLink || PT.en.forBusinessNavLink}
+          </a>
           <button className="login-btn" onClick={() => { setShowLoginModal(true); setLoginError(''); setLoginEmail(''); setLoginPassword('') }}>
             {t.loginBtn}
           </button>
@@ -642,8 +666,18 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
             <p style={{ fontSize: 14, color: '#6B6560', margin: 0, lineHeight: 1.4 }}>{t.subtitle}</p>
           </div>
 
+          {/* Two-card row: manifesto + registration */}
+          <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', width: '100%', maxWidth: 860, flexWrap: 'wrap', justifyContent: 'center' }}>
+
+          {/* Manifesto card */}
+          <div style={{ flex: '1 1 280px', maxWidth: 380, border: '1px solid #C8DDD2', borderRadius: 14, padding: '28px 28px', boxSizing: 'border-box', background: '#F0FAF4', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 14 }}>
+            <p style={{ fontSize: 19, fontWeight: 700, lineHeight: 1.4, margin: 0, color: '#1a1a1a' }}>{t.manifestoLine1}</p>
+            <p style={{ fontSize: 19, fontWeight: 700, lineHeight: 1.4, margin: 0, color: '#1a1a1a' }}>{t.manifestoLine2}</p>
+            <p style={{ fontSize: 14, lineHeight: 1.7, margin: 0, color: '#4a6b5c' }}>{t.manifestoLine3}</p>
+          </div>
+
           {/* Registration form */}
-          <form className="register-form" onSubmit={handleRegister} style={{ border: '1px solid #E0DCD7', borderRadius: 14, padding: '16px 22px', maxWidth: 420, width: '100%', boxSizing: 'border-box', margin: 0, gap: 6 }}>
+          <form className="register-form" onSubmit={handleRegister} style={{ flex: '1 1 280px', border: '1px solid #E0DCD7', borderRadius: 14, padding: '16px 22px', maxWidth: 420, width: '100%', boxSizing: 'border-box', margin: 0, gap: 6 }}>
             <h3 className="register-title" style={{ marginBottom: 2 }}>{t.registerTitle}</h3>
             {/* Honeypot — hidden from users, filled only by bots */}
             <input
@@ -732,9 +766,10 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
               {regLoading ? '...' : t.registerSubmit}
             </button>
           </form>
+          </div>{/* end two-card row */}
 
           {/* Trust + services row — bottom */}
-          <div style={{ marginTop: 12, width: '100%', maxWidth: 700, flexShrink: 0 }}>
+          <div style={{ marginTop: 12, width: '100%', maxWidth: 860, flexShrink: 0 }}>
             <div className="trust-row" style={{ marginTop: 0, gap: 24 }}>
               <div className="trust-item"><div className="trust-icon" style={{ fontSize: 15 }}>🔒</div><span className="trust-label">{t.trustEncrypt}</span></div>
               <div className="trust-item"><div className="trust-icon" style={{ fontSize: 15 }}>🇪🇺</div><a href="https://yggdrasilcloud.dk/" target="_blank" rel="noopener noreferrer" className="trust-label trust-link">{t.trustEU}</a></div>

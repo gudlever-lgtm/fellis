@@ -42,7 +42,7 @@ export default {
     settingsSessionsLogoutOthersConfirm: 'Logger ud alle andre sessioner...',
     settingsSessionsEmpty: 'Ingen andre aktive sessioner.',
     settingsLanguage: 'Sprog',
-    settingsDarkMode: 'Mørkt tema',
+    settingsDarkMode: 'Tema',
     settingsMode: 'Kontotype',
     settingsLeverandoerer: 'Leverandører',
     providersTitle: 'Eksterne leverandører',
@@ -58,6 +58,11 @@ export default {
     adminSecurityTab: 'Sikkerhed',
     adminPwdPolicy: 'Adgangskodepolitik',
     adminPwdMinLength: 'Minimumslængde',
+    // MobilePay / DKK payment method
+    paymentMethodLabel: 'Betalingsmetode',
+    paymentMethodCard: 'Kort / Apple Pay / Google Pay',
+    mobilePayDkkNote: 'MobilePay understøtter kun DKK — beløbet omregnes automatisk fra EUR til DKK til aktuel ECB-kurs',
+    mobilePayRateLoading: 'Henter aktuel kurs…',
   },
   en: {
     settings: 'Settings',
@@ -102,7 +107,7 @@ export default {
     settingsSessionsLogoutOthersConfirm: 'Logging out all other sessions...',
     settingsSessionsEmpty: 'No other active sessions.',
     settingsLanguage: 'Language',
-    settingsDarkMode: 'Dark mode',
+    settingsDarkMode: 'Theme',
     settingsMode: 'Account type',
     settingsLeverandoerer: 'Providers',
     providersTitle: 'External providers',
@@ -118,5 +123,10 @@ export default {
     adminSecurityTab: 'Security',
     adminPwdPolicy: 'Password policy',
     adminPwdMinLength: 'Minimum length',
+    // MobilePay / DKK payment method
+    paymentMethodLabel: 'Payment method',
+    paymentMethodCard: 'Card / Apple Pay / Google Pay',
+    mobilePayDkkNote: 'MobilePay only supports DKK — the amount is automatically converted from EUR to DKK at the current ECB rate',
+    mobilePayRateLoading: 'Fetching current rate…',
   },
 }

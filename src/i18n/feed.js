@@ -63,6 +63,14 @@ export default {
     discoveryTypeUser: 'Person',
     discoveryTypeBusiness: 'Virksomhed',
     discoveryTypeGroup: 'Gruppe',
+    // Feed mode toggle
+    feedModePrivat: 'Fællesskab',
+    feedModeBusiness: 'Erhverv',
+    // Composer link preview
+    composerLinkDismiss: 'Fjern forhåndsvisning',
+    // Image fallback
+    imageMissing: 'Billedet er ikke tilgængeligt',
+    imageMissingHint: 'Men her er lidt solskin i stedet ☀️',
   },
   en: {
     newPost: "What's on your mind?",
@@ -128,5 +136,13 @@ export default {
     discoveryTypeUser: 'Person',
     discoveryTypeBusiness: 'Business',
     discoveryTypeGroup: 'Group',
+    // Feed mode toggle
+    feedModePrivat: 'Community',
+    feedModeBusiness: 'Business',
+    // Composer link preview
+    composerLinkDismiss: 'Remove preview',
+    // Image fallback
+    imageMissing: 'Image unavailable',
+    imageMissingHint: 'But here\'s a little sunshine instead ☀️',
   },
 }

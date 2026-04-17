@@ -63,7 +63,7 @@ npm run seed                      # optional demo data
 
 ## Features
 
-- Feed with posts, reactions, comments, media, link previews, scheduled posts
+- Feed with posts, reactions, comments, media, link previews, scheduled posts; Community / Business feed toggle (mode separation)
 - Friends, friend requests, blocking, family relationships
 - Messaging (DM + group chats), mute, read receipts
 - Stories (24h ephemeral) and Reels (short video)

@@ -24,6 +24,17 @@ export default {
     fb_connecting:       'Forbinder til Facebook…',
     fb_importing:        'Importerer…',
     fb_not_configured:   'Facebook-import er ikke tilgængeligt i øjeblikket.',
+    // Photos
+    fb_photos_title:     'Importer billeder til dit feed',
+    fb_photos_select_all:'Vælg alle billeder',
+    fb_photos_none:      'Ingen billeder fundet på Facebook.',
+    fb_photos_import_btn:'Importer valgte billeder',
+    fb_photos_done:      (n) => `${n} billede${n !== 1 ? 'r' : ''} tilføjet til dit feed.`,
+    // Gender display on profile
+    gender_male:         'Mand',
+    gender_female:       'Kvinde',
+    // Birthday label
+    profile_birthday:    'Fødselsdag',
   },
   en: {
     fb_connect_title:    'Import from Facebook',
@@ -50,5 +61,16 @@ export default {
     fb_connecting:       'Connecting to Facebook…',
     fb_importing:        'Importing…',
     fb_not_configured:   'Facebook import is not available at this time.',
+    // Photos
+    fb_photos_title:     'Import photos to your feed',
+    fb_photos_select_all:'Select all photos',
+    fb_photos_none:      'No photos found on Facebook.',
+    fb_photos_import_btn:'Import selected photos',
+    fb_photos_done:      (n) => `${n} photo${n !== 1 ? 's' : ''} added to your feed.`,
+    // Gender display on profile
+    gender_male:         'Male',
+    gender_female:       'Female',
+    // Birthday label
+    profile_birthday:    'Birthday',
   },
 }

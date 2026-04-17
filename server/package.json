@@ -5,12 +5,14 @@
   "scripts": {
     "start": "node --env-file=.env index.js",
     "seed": "node --env-file=.env seed.js",
+    "unseed": "node --env-file=.env unseed.js",
     "seed-bots": "node seed-bots.js",
     "cleanup-bots": "node cleanup-bots.js",
     "cleanup-e2e": "node --env-file=.env cleanup-e2e-users.js",
     "migrate": "node --env-file=.env migrate.js",
     "migrate:status": "node --env-file=.env migrate.js --status",
-    "migrate:dry-run": "node --env-file=.env migrate.js --dry-run"
+    "migrate:dry-run": "node --env-file=.env migrate.js --dry-run",
+    "check-smtp": "node --env-file=.env check-smtp.js"
   },
   "dependencies": {
     "@mollie/api-client": "^4.4.0",

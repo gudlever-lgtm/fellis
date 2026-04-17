@@ -21,6 +21,8 @@ import moderation from './moderation.js'
 import referrals from './referrals.js'
 import common from './common.js'
 import otherLangs from './other-langs.js'
+import onboarding from './onboarding.js'
+import forBusiness from './for-business.js'
 
 function deepMerge(target, source) {
   const result = { ...target }
@@ -45,7 +47,7 @@ const segments = [
   nav, feed, friends, messages, search, profile, settings,
   notifications, analytics, business, ads, events, companies,
   jobs, marketplace, admin, reels, moderation, referrals, common,
-  otherLangs, blog, facebook,
+  otherLangs, blog, facebook, onboarding, forBusiness,
 ]
 
 export const PT = segments.reduce((acc, seg) => {
