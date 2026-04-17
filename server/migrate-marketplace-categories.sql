@@ -80,13 +80,7 @@ INSERT IGNORE INTO marketplace_categories (id, parent_id, da, en, icon, sort_ord
   ('vehicles-trailers',      'vehicles',    'Trailere & Campingvogne','Trailers & Caravans','🚐', 76);
 
 -- Add subcategory column to listings (nullable — existing rows stay without subcategory)
--- MariaDB/MySQL requires IF NOT EXISTS-safe pattern via INFORMATION_SCHEMA
-SET @sql := IF(
-  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-   WHERE TABLE_SCHEMA = DATABASE()
-     AND TABLE_NAME = 'marketplace_listings'
-     AND COLUMN_NAME = 'subcategory') = 0,
-  'ALTER TABLE marketplace_listings ADD COLUMN subcategory VARCHAR(64) DEFAULT NULL AFTER category, ADD INDEX idx_subcategory (subcategory)',
-  'SELECT 1'
-);
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+-- Uses IF NOT EXISTS (MariaDB 10.3+). The migration runner strips the clause for
+-- MySQL 8 and swallows error 1060/1061 (duplicate column/key), so this is idempotent.
+ALTER TABLE marketplace_listings ADD COLUMN IF NOT EXISTS subcategory VARCHAR(64) DEFAULT NULL AFTER category;
+ALTER TABLE marketplace_listings ADD INDEX IF NOT EXISTS idx_subcategory (subcategory);
