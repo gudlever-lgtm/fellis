@@ -19,6 +19,7 @@ import {
   mailer, oauthStateTokens,
   MAX_LOGIN_ATTEMPTS, LOCKOUT_DURATION_MINUTES,
   COOKIE_NAME, SERVER_START, visitedSessions, visitedAnonIps,
+  getMollieClient,
 } from '../middleware.js'
 import crypto from 'crypto'
 import fs from 'fs'
@@ -387,7 +388,7 @@ router.get('/marketplace/saved', authenticate, async (req, res) => {
        FROM marketplace_saved ms
        JOIN marketplace_listings ml ON ml.id=ms.listing_id
        JOIN users u ON u.id=ml.user_id
-       WHERE ms.user_id=? AND ml.status != 'sold'
+       WHERE ms.user_id=? AND ml.sold = 0
        ORDER BY ms.created_at DESC
        LIMIT 100`,
       [req.userId]
