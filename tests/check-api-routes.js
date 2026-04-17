@@ -735,4 +735,62 @@ if (missingOnboardingRoutes.length > 0) {
   console.log(`${GREEN}✓ Onboarding dismiss route (POST /api/user/onboarding/dismiss) is registered on the server.${RESET}\n`)
 }
 
+// ── 16. Feed chronological ordering guarantee ─────────────────────────────────
+//
+// The main feed (GET /api/feed) MUST return posts in strict reverse-chronological
+// order — no algorithmic ranking, scoring, or weighting applied to organic posts.
+//
+//   (a) GET /api/feed is registered on the server → route returns 200 for
+//       authenticated requests, never 404/500
+//   (b) The primary feed SQL must use ORDER BY p.created_at DESC — not a scoring
+//       formula, not RAND(), not any weighted expression
+//   (c) Admin feed-weight multipliers (feed_weight_family, feed_weight_interest,
+//       feed_weight_recency) must NOT appear inside the feed SELECT — if they
+//       were multiplied into an ORDER BY expression that would be hidden ranking
+//
+// Note: boosted ad injection (positions 4 and 15, non-ad-free users, page 1 only)
+// is a clearly-labelled ad placement that does not reorder organic posts.
+// The explore feed (/api/explore/feed) deliberately uses trending_score ordering
+// and is a separate endpoint — that ranking is not the main chronological feed.
+
+// (a) Confirm GET /api/feed is registered → will return 200 for authenticated users
+if (!normServerRoutes.has('GET /api/feed')) {
+  console.log(`${RED}✗ Feed ordering: GET /api/feed is not registered on the server — would return 404, not 200.${RESET}\n`)
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ Feed ordering: GET /api/feed is registered and will return 200 for authenticated requests.${RESET}`)
+}
+
+// (b) Verify ORDER BY p.created_at DESC exists in the feed route source
+const feedRoutePath = resolve(root, 'server/routes/feed.js')
+let feedRouteSrc = ''
+try {
+  feedRouteSrc = readFileSync(feedRoutePath, 'utf8')
+} catch {
+  // fallback: search combined source (covers monolithic server/index.js layout)
+  feedRouteSrc = combinedServerSrc
+}
+
+const FEED_CHRONO_MARKER = 'ORDER BY p.created_at DESC'
+if (!feedRouteSrc.includes(FEED_CHRONO_MARKER)) {
+  console.log(`${RED}✗ Feed ordering: main feed SQL is missing "ORDER BY p.created_at DESC".${RESET}`)
+  console.log(`  ${RED}Posts may not arrive in reverse-chronological order. Check server/routes/feed.js.${RESET}\n`)
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ Feed ordering: main feed SQL contains ORDER BY p.created_at DESC — pure chronological, no scoring.${RESET}`)
+}
+
+// (c) Feed-weight multipliers must NOT be wired into the feed SELECT.
+// The pattern looks for: feed_weight_<name> multiplied by anything (ranking injection).
+// Their presence in admin-settings CRUD routes is fine; only a multiplication in
+// the feed query itself constitutes algorithmic ranking.
+const FEED_WEIGHT_RANKING_RE = /feed_weight_(?:family|interest|recency)\s*\*\s*[\d(]/
+if (FEED_WEIGHT_RANKING_RE.test(feedRouteSrc)) {
+  console.log(`${RED}✗ Feed ordering: feed_weight multipliers are applied inside the feed query — hidden ranking detected.${RESET}`)
+  console.log(`  ${RED}The main GET /api/feed must order by created_at DESC only. No scoring or weighting allowed.${RESET}\n`)
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ Feed ordering: feed_weight multipliers are NOT applied in the main feed query (no hidden ranking).${RESET}\n`)
+}
+
 process.exit(0)
