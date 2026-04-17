@@ -149,6 +149,22 @@ async function seed() {
         [sofieId, ad.title, ad.body, ad.target_url, ad.placement]
       )
     }
+
+    // Marketplace listings
+    const listingRows = [
+      { seller: 'Sofie Nielsen',      title: 'Vintage Arne Jacobsen stol',      price: '1200', category: 'furniture',   location: 'København',  description: 'Original 7-er stol i fin stand. Afhentes i Vesterbro.' },
+      { seller: 'Magnus Jensen',      title: 'MacBook Air M2 (2023)',           price: '850',  category: 'electronics', location: 'Aarhus',     description: '13" MacBook Air, 256GB, 8GB RAM. Som ny, inkl. oplader.' },
+      { seller: 'Freja Andersen',     title: 'Cykel – Raleigh dame',            price: '150',  category: 'vehicles',    location: 'Odense',     description: '7 gear, lige serviceret, nye dæk.' },
+      { seller: 'Alma Hansen',        title: 'Samling af krimier (15 bøger)',   price: '80',   category: 'books',       location: 'Roskilde',   description: 'Blandet samling af danske og nordiske krimier.' },
+      { seller: 'Clara Johansen',     title: 'Løbesko Nike str. 40',            price: '45',   category: 'sports',      location: 'København',  description: 'Brugt et par gange, passer ikke. Nypris 120€.' },
+      { seller: 'Oscar Christensen',  title: 'Plantekrukker i terracotta (5)',  price: '30',   category: 'garden',      location: 'København',  description: 'Fem store krukker i fin stand. Samlet pris.' },
+    ]
+    for (const l of listingRows) {
+      await conn.query(
+        `INSERT INTO marketplace_listings (user_id, title, price, category, location, description) VALUES (?, ?, ?, ?, ?, ?)`,
+        [userIdMap[l.seller], l.title, l.price, l.category, l.location, l.description]
+      )
+    }
   } finally {
     conn.release()
     await pool.end()
