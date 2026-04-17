@@ -521,7 +521,7 @@ router.get('/csrf-token', authenticate, async (req, res) => {
 
 router.get('/auth/session', authenticate, async (req, res) => {
   try {
-    const [users] = await pool.query('SELECT id, name, handle, initials, avatar_url, mode, ads_free, is_moderator, onboarding_dismissed, created_at, is_verified, cvr_number, cvr_company_name FROM users WHERE id = ?', [req.userId])
+    const [users] = await pool.query('SELECT id, name, handle, initials, avatar_url, mode, ads_free, is_moderator, onboarding_dismissed, created_at, is_verified, cvr_number, cvr_company_name, phone, email, mobilepay FROM users WHERE id = ?', [req.userId])
     if (users.length === 0) return res.status(404).json({ error: 'User not found' })
     // Compute ads_free dynamically: today must fall within an active earned-day assignment
     // OR an active purchased period — never rely on the static users.ads_free column
