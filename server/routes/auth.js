@@ -133,20 +133,42 @@ router.post('/auth/login', strictLimit, validate(schemas.login), async (req, res
     await pool.query('UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = ?', [user.id])
       .catch(() => {}) // ignore if columns don't exist yet
 
-    // MFA: if enabled and user has a phone number, send SMS code
-    if (user.mfa_enabled && user.phone) {
+    // MFA: if enabled, send code via SMS (preferred) or fall back to email
+    if (user.mfa_enabled && (user.phone || user.email)) {
       const rawCode = String(Math.floor(100000 + Math.random() * 900000))
       const hashedCode = crypto.createHash('sha256').update(rawCode).digest('hex')
       await pool.query(
         'UPDATE users SET mfa_code = ?, mfa_code_expires = DATE_ADD(NOW(), INTERVAL 5 MINUTE) WHERE id = ?',
         [hashedCode, user.id]
       )
-      const smsSent = await sendSms(user.phone, `Din Fellis-kode er: ${rawCode} (udløber om 5 minutter)`)
-      if (!smsSent) {
-        console.error(`MFA SMS failed to send for user ${user.id} — 46elks may not be configured`)
-        return res.status(503).json({ error: 'SMS service unavailable — could not send verification code' })
+      let method = null
+      if (user.phone) {
+        const smsSent = await sendSms(user.phone, `Din Fellis-kode er: ${rawCode} (udløber om 5 minutter)`)
+        if (smsSent) method = 'sms'
+        else console.error(`MFA SMS failed to send for user ${user.id} — 46elks may not be configured`)
       }
-      return res.json({ mfa_required: true, userId: user.id })
+      if (!method && user.email && mailer) {
+        const fromAddr = process.env.MAIL_FROM || process.env.MAIL_USER
+        try {
+          await Promise.race([
+            mailer.sendMail({
+              from: `"Fellis" <${fromAddr}>`,
+              to: user.email,
+              subject: 'Din Fellis-kode / Your Fellis code',
+              text: `Din Fellis-kode er: ${rawCode}\nKoden udløber om 5 minutter.\n\nYour Fellis code is: ${rawCode}\nThe code expires in 5 minutes.`,
+              html: `<p>Din Fellis-kode er: <strong style="font-size:18px">${rawCode}</strong></p><p style="color:#888">Koden udløber om 5 minutter.</p><hr><p>Your Fellis code is: <strong style="font-size:18px">${rawCode}</strong></p><p style="color:#888">The code expires in 5 minutes.</p>`,
+            }),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('SMTP timeout')), 10000)),
+          ])
+          method = 'email'
+        } catch (mailErr) {
+          console.error('MFA email error:', mailErr.message)
+        }
+      }
+      if (!method) {
+        return res.status(503).json({ error: 'mfa_delivery_unavailable' })
+      }
+      return res.json({ mfa_required: true, userId: user.id, method })
     }
 
     // No MFA — create session immediately
