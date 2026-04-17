@@ -780,7 +780,21 @@ if (!feedRouteSrc.includes(FEED_CHRONO_MARKER)) {
   console.log(`${GREEN}✓ Feed ordering: main feed SQL contains ORDER BY p.created_at DESC — pure chronological, no scoring.${RESET}`)
 }
 
-// (c) Feed-weight multipliers must NOT be wired into the feed SELECT.
+// (c) Verify that the boosted-post splice injection has not been reintroduced.
+// Paid ads must be served only via AdBanner.jsx (/api/content), never by splicing
+// sponsored posts into the chronological result array at fixed positions.
+// Marker: the injection set isSponsored:true on objects it spliced into result[].
+const FEED_SPLICE_INJECTION_MARKER = 'isSponsored: true'
+if (feedRouteSrc.includes(FEED_SPLICE_INJECTION_MARKER)) {
+  console.log(`${RED}✗ Feed ordering: boosted-post splice injection detected in server/routes/feed.js.${RESET}`)
+  console.log(`  ${RED}Paid posts must not be injected into the chronological feed array.${RESET}`)
+  console.log(`  ${RED}Serve sponsored content through AdBanner.jsx (/api/content) only.${RESET}\n`)
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ Feed ordering: no boosted-post splice injection in the main feed handler.${RESET}`)
+}
+
+// (d) Feed-weight multipliers must NOT be wired into the feed SELECT.
 // The pattern looks for: feed_weight_<name> multiplied by anything (ranking injection).
 // Their presence in admin-settings CRUD routes is fine; only a multiplication in
 // the feed query itself constitutes algorithmic ranking.
@@ -790,7 +804,8 @@ if (FEED_WEIGHT_RANKING_RE.test(feedRouteSrc)) {
   console.log(`  ${RED}The main GET /api/feed must order by created_at DESC only. No scoring or weighting allowed.${RESET}\n`)
   process.exit(1)
 } else {
-  console.log(`${GREEN}✓ Feed ordering: feed_weight multipliers are NOT applied in the main feed query (no hidden ranking).${RESET}\n`)
+  console.log(`${GREEN}✓ Feed ordering: feed_weight multipliers are NOT applied in the main feed query (no hidden ranking).${RESET}`)
 }
+console.log()
 
 process.exit(0)
