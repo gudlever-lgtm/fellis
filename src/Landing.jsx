@@ -59,6 +59,7 @@ const T = {
     loginError: 'Ugyldig e-mail eller adgangskode',
     loginErrorSocialOnly: 'Denne konto er oprettet via Google eller LinkedIn. Brug den tilsvarende login-knap.',
     loginErrorRateLimit: 'For mange loginforsøg — prøv igen om 15 minutter.',
+    loginErrorUnavailable: 'Login-tjenesten er midlertidigt utilgængelig — prøv igen om lidt.',
     loginNoAccount: 'Har du ikke en konto?',
     loginSignup: 'Kom i gang',
     forgotPassword: 'Glemt adgangskode?',
@@ -78,6 +79,7 @@ const T = {
     forgotFbNote: 'Din konto er tilknyttet Google eller LinkedIn. Du kan oprette en lokal adgangskode herunder.',
     mfaTitle: 'To-faktor-godkendelse',
     mfaDesc: 'Vi har sendt en 6-cifret kode til dit telefonnummer.',
+    mfaDescEmail: 'Vi har sendt en 6-cifret kode til din e-mail.',
     mfaCode: 'Engangskode',
     mfaSubmit: 'Bekræft',
     mfaError: 'Ugyldig eller udløbet kode',
@@ -166,6 +168,7 @@ const T = {
     loginError: 'Invalid email or password',
     loginErrorSocialOnly: 'This account was created via Google or LinkedIn. Please use the corresponding login button.',
     loginErrorRateLimit: 'Too many login attempts — please try again in 15 minutes.',
+    loginErrorUnavailable: 'Login service temporarily unavailable — please try again shortly.',
     loginNoAccount: "Don't have an account?",
     loginSignup: 'Get started',
     forgotPassword: 'Forgotten password?',
@@ -185,6 +188,7 @@ const T = {
     forgotFbNote: 'Your account is connected via Google or LinkedIn. You can set a local password below.',
     mfaTitle: 'Two-factor authentication',
     mfaDesc: 'We sent a 6-digit code to your phone number.',
+    mfaDescEmail: 'We sent a 6-digit code to your email.',
     mfaCode: 'One-time code',
     mfaSubmit: 'Verify',
     mfaError: 'Invalid or expired code',
@@ -244,6 +248,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
   const [forgotFbNote, setForgotFbNote] = useState(false)
   // MFA state
   const [mfaUserId, setMfaUserId] = useState(null)
+  const [mfaMethod, setMfaMethod] = useState('sms')
   const [mfaCode, setMfaCode] = useState('')
   const [mfaError, setMfaError] = useState('')
   const [mfaLoading, setMfaLoading] = useState(false)
@@ -319,12 +324,15 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
         onEnterPlatform(lang)
       } else if (data?.mfa_required && data?.userId) {
         setMfaUserId(data.userId)
+        setMfaMethod(data.method || 'sms')
         setMfaCode('')
         setMfaError('')
       } else if (data?.error === 'social_login_only') {
         setLoginError(t.loginErrorSocialOnly)
       } else if (data?.status === 429) {
         setLoginError(t.loginErrorRateLimit)
+      } else if (data === null || data?.status === 503 || data?.status >= 500) {
+        setLoginError(t.loginErrorUnavailable)
       } else {
         setLoginError(t.loginError)
       }
@@ -575,7 +583,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
             {mfaUserId && !forgotMode && (
               <form className="fb-modal-form" onSubmit={handleMfaVerify}>
                 <h3>{t.mfaTitle}</h3>
-                <p style={{ color: '#555', fontSize: 14, marginBottom: 12 }}>{t.mfaDesc}</p>
+                <p style={{ color: '#555', fontSize: 14, marginBottom: 12 }}>{mfaMethod === 'email' ? t.mfaDescEmail : t.mfaDesc}</p>
                 <input
                   type="text"
                   inputMode="numeric"
