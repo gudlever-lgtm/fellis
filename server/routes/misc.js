@@ -1725,11 +1725,14 @@ router.get('/content', authenticate, async (req, res) => {
     if ((adFreeRow?.total ?? 0) > 0) return res.json({ ads: [], ads_free: true })
     const section = req.query.section || 'feed'
     const limitMap = { feed: settings.max_ads_feed, sidebar: settings.max_ads_sidebar, stories: settings.max_ads_stories, reels: settings.max_ads_feed }
-    const limit = limitMap[section] || 1
-    const rows = await selectAdsForUser(req.userId, limit)
+    const limit = Math.max(1, parseInt(limitMap[section], 10) || 1)
+    const rows = await selectAdsForUser(req.userId, limit).catch(err => {
+      console.error('GET /api/content selectAdsForUser:', err.code, err.message)
+      return []
+    })
     res.json({ ads: rows, refresh_interval: settings.refresh_interval_seconds })
   } catch (err) {
-    console.error('GET /api/content error:', err.message)
+    console.error('GET /api/content error:', err.code, err.message, err.stack)
     res.status(500).json({ error: 'Server error' })
   }
 })
