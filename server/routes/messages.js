@@ -183,8 +183,15 @@ router.post('/conversations/:id/invite', authenticate, writeLimit, async (req, r
     const [check] = await pool.query(
       'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, req.userId])
     if (!check.length) return res.status(403).json({ error: 'Not a participant' })
-    for (const uid of userIds)
-      await pool.query('INSERT IGNORE INTO conversation_participants (conversation_id, user_id) VALUES (?, ?)', [convId, uid])
+    const uniqueIds = [...new Set(userIds.map(Number).filter(n => Number.isInteger(n) && n > 0))]
+    if (uniqueIds.length) {
+      const placeholders = uniqueIds.map(() => '(?, ?)').join(', ')
+      const values = uniqueIds.flatMap(uid => [convId, uid])
+      await pool.query(
+        `INSERT IGNORE INTO conversation_participants (conversation_id, user_id) VALUES ${placeholders}`,
+        values
+      )
+    }
     // Promote to group if adding to a 1:1
     await pool.query('UPDATE conversations SET is_group = 1 WHERE id = ? AND is_group = 0', [convId])
     res.json({ ok: true })

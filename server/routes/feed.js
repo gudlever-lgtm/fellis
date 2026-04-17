@@ -19,6 +19,7 @@ import {
   mailer, oauthStateTokens,
   MAX_LOGIN_ATTEMPTS, LOCKOUT_DURATION_MINUTES,
   COOKIE_NAME, SERVER_START, visitedSessions, visitedAnonIps,
+  getMollieClient,
 } from '../middleware.js'
 import crypto from 'crypto'
 import fs from 'fs'
@@ -28,6 +29,28 @@ import bcrypt from 'bcrypt'
 import { createReelFromLivestream, LIVESTREAM_DEFAULTS, transcodeVideo } from '../livestream.js'
 
 const router = express.Router()
+
+// Feed-weight cache for the ranked feed path. Mirrors getFeedWeights() in
+// routes/admin.js but is duplicated here to avoid a cross-route import cycle.
+let _feedWeightsRankCache = null
+let _feedWeightsRankCacheTime = 0
+async function getFeedWeightsForRanking() {
+  if (_feedWeightsRankCache && Date.now() - _feedWeightsRankCacheTime < 5 * 60 * 1000) return _feedWeightsRankCache
+  try {
+    const [rows] = await pool.query(
+      "SELECT key_name, key_value FROM admin_settings WHERE key_name IN ('feed_weight_family','feed_weight_interest','feed_weight_recency','feed_weight_engagement')"
+    )
+    const w = { family: 1000, interest: 100, recency: 50, engagement: 10 }
+    for (const r of rows) {
+      const k = r.key_name.replace('feed_weight_', '')
+      const v = parseFloat(r.key_value)
+      if (!isNaN(v) && v >= 0) w[k] = v
+    }
+    _feedWeightsRankCache = w
+    _feedWeightsRankCacheTime = Date.now()
+    return w
+  } catch { return { family: 1000, interest: 100, recency: 50, engagement: 10 } }
+}
 
 router.get('/linked-content', authenticate, async (req, res) => {
   const { type, id } = req.query
@@ -76,8 +99,14 @@ router.get('/feed', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'Invalid mode parameter. Must be "privat" or "business".' })
     }
 
-    const cursorFilter = cursor ? 'AND p.created_at < ?' : ''
-    const cursorParams = cursor ? [new Date(cursor)] : []
+    // Ranked mode: rerank a 30-day candidate window by family/interest/recency/engagement
+    // instead of strict reverse-chronological. Uses offset-based pagination (?offset=).
+    const ranked = req.query.ranked === '1'
+    const offset = ranked ? Math.max(0, parseInt(req.query.offset) || 0) : 0
+    const cursorFilter = (ranked || !cursor) ? '' : 'AND p.created_at < ?'
+    const cursorParams = (ranked || !cursor) ? [] : [new Date(cursor)]
+    const rankedWindowClause = ranked ? 'AND p.created_at > NOW() - INTERVAL 30 DAY' : ''
+    const sqlLimit = ranked ? Math.min(limit * 5 + offset, 250) : limit
     const modeClause = modeFilter ? 'AND p.user_mode = ?' : ''
     const modeParams = modeFilter ? [modeFilter] : []
 
@@ -94,9 +123,10 @@ router.get('/feed', authenticate, async (req, res) => {
            AND (p.scheduled_at IS NULL OR p.scheduled_at <= NOW())
            ${modeClause}
            ${cursorFilter}
+           ${rankedWindowClause}
          ORDER BY p.created_at DESC
          LIMIT ?`,
-        [req.userId, req.userId, req.userId, ...modeParams, ...cursorParams, limit]
+        [req.userId, req.userId, req.userId, ...modeParams, ...cursorParams, sqlLimit]
       )
     } catch {
       // Second attempt: no extended columns (place_name etc.), but keep mode filter
@@ -113,9 +143,10 @@ router.get('/feed', authenticate, async (req, res) => {
              AND (p.scheduled_at IS NULL OR p.scheduled_at <= NOW())
              ${modeClause}
              ${cursorFilter}
+             ${rankedWindowClause}
            ORDER BY p.created_at DESC
            LIMIT ?`,
-          [req.userId, req.userId, req.userId, ...modeParams, ...cursorParams, limit]
+          [req.userId, req.userId, req.userId, ...modeParams, ...cursorParams, sqlLimit]
         )
       } catch {
         // Third attempt: user_mode column not yet migrated — return unfiltered feed
@@ -130,9 +161,10 @@ router.get('/feed', authenticate, async (req, res) => {
              OR p.author_id IN (SELECT business_id FROM business_follows WHERE follower_id = ?))
              AND (p.scheduled_at IS NULL OR p.scheduled_at <= NOW())
              ${cursorFilter}
+             ${rankedWindowClause}
            ORDER BY p.created_at DESC
            LIMIT ?`,
-          [req.userId, req.userId, req.userId, ...cursorParams, limit]
+          [req.userId, req.userId, req.userId, ...cursorParams, sqlLimit]
         )
       }
     }
@@ -261,9 +293,54 @@ router.get('/feed', authenticate, async (req, res) => {
         linkedService: p.linked_service_id ? (serviceMap[p.linked_service_id] || null) : null,
       }
     })
-    // Track post views (fire-and-forget)
-    if (result.length && req.userId) {
-      const viewValues = result.map(p => [p.id, req.userId])
+    // Ranked mode: rerank the candidate window by family × friend + interest × overlap
+    //   + engagement × (likes + 2·comments) + recency / (hours_old + 1). Uses offset
+    //   pagination instead of cursor, since score order is not monotonic in time.
+    let pagedResult = result
+    let nextOffset = null
+    if (ranked) {
+      const weights = await getFeedWeightsForRanking()
+      const [friendRows] = await pool.query('SELECT friend_id FROM friendships WHERE user_id = ?', [req.userId]).catch(() => [[]])
+      const friendSet = new Set(friendRows.map(r => r.friend_id))
+      let interestMap = {}
+      try {
+        const [iRows] = await pool.query(
+          'SELECT interest_slug, MAX(weight) AS w FROM interest_scores WHERE user_id = ? GROUP BY interest_slug',
+          [req.userId]
+        )
+        for (const r of iRows) interestMap[r.interest_slug] = parseFloat(r.w) || 0
+      } catch {}
+      const now = Date.now()
+      const scored = result.map(p => {
+        const hoursOld = Math.max(0, (now - new Date(p.createdAtRaw).getTime()) / 3_600_000)
+        const familyScore = friendSet.has(p.authorId) ? 1 : 0
+        let interestScore = 0
+        if (Array.isArray(p.categories)) {
+          for (const slug of p.categories) {
+            const s = typeof slug === 'string' ? slug : (slug?.slug || slug?.id)
+            if (s && interestMap[s]) interestScore += interestMap[s]
+          }
+          // Normalise to 0–1 range against the best theoretical match (top user weight × slug count)
+          interestScore = Math.min(1, interestScore / 100)
+        }
+        const engagementScore = Math.log1p((p.likes || 0) + 2 * (p.comments?.length || 0))
+        const recencyScore = 1 / (hoursOld + 1)
+        const score =
+          weights.family * familyScore +
+          weights.interest * interestScore +
+          weights.engagement * engagementScore +
+          weights.recency * recencyScore
+        return { ...p, _score: score }
+      })
+      scored.sort((a, b) => b._score - a._score || new Date(b.createdAtRaw) - new Date(a.createdAtRaw))
+      const end = offset + limit
+      pagedResult = scored.slice(offset, end).map(({ _score, ...rest }) => rest)
+      nextOffset = scored.length > end ? end : null
+    }
+
+    // Track post views (fire-and-forget) — only for posts actually returned
+    if (pagedResult.length && req.userId) {
+      const viewValues = pagedResult.map(p => [p.id, req.userId])
       pool.query(
         `INSERT INTO post_views (post_id, viewer_id, view_count)
          VALUES ${viewValues.map(() => '(?,?,1)').join(',')}
@@ -274,10 +351,12 @@ router.get('/feed', authenticate, async (req, res) => {
 
     // nextCursor = created_at of the oldest post in this page (use as ?cursor= to load the next page)
     // null when fewer posts were returned than requested — no more pages exist
-    const nextCursor = result.length === limit
-      ? result[result.length - 1].createdAtRaw?.toISOString?.() ?? new Date(result[result.length - 1].createdAtRaw).toISOString()
-      : null
-    res.json({ posts: result, nextCursor })
+    const nextCursor = ranked
+      ? null
+      : (pagedResult.length === limit
+        ? pagedResult[pagedResult.length - 1].createdAtRaw?.toISOString?.() ?? new Date(pagedResult[pagedResult.length - 1].createdAtRaw).toISOString()
+        : null)
+    res.json({ posts: pagedResult, nextCursor, nextOffset })
   } catch (err) {
     res.status(500).json({ error: 'Failed to load feed' })
   }

@@ -19,6 +19,7 @@ import {
   mailer, oauthStateTokens,
   MAX_LOGIN_ATTEMPTS, LOCKOUT_DURATION_MINUTES,
   COOKIE_NAME, SERVER_START, visitedSessions, visitedAnonIps,
+  getMollieClient,
 } from '../middleware.js'
 import crypto from 'crypto'
 import fs from 'fs'
@@ -42,6 +43,8 @@ function parseListingPhotos(row) {
 router.get('/marketplace', authenticate, async (req, res) => {
   try {
     const { q, category, location } = req.query
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 100)
+    const offset = Math.max(parseInt(req.query.offset) || 0, 0)
     let sql = `SELECT l.*, u.name AS seller_name, u.handle AS seller_handle, u.avatar_url AS seller_avatar
                FROM marketplace_listings l JOIN users u ON l.user_id = u.id`
     const params = []
@@ -50,9 +53,12 @@ router.get('/marketplace', authenticate, async (req, res) => {
     if (category) { where.push('l.category = ?'); params.push(category) }
     if (location) { where.push('l.location LIKE ?'); params.push(`%${location}%`) }
     if (where.length) sql += ' WHERE ' + where.join(' AND ')
-    sql += ' ORDER BY (l.boosted_until > NOW()) DESC, l.created_at DESC'
+    sql += ' ORDER BY (l.boosted_until > NOW()) DESC, l.created_at DESC, l.id DESC LIMIT ? OFFSET ?'
+    params.push(limit + 1, offset)
     const [rows] = await pool.query(sql, params)
-    res.json({ listings: rows.map(parseListingPhotos) })
+    const hasMore = rows.length > limit
+    const page = hasMore ? rows.slice(0, limit) : rows
+    res.json({ listings: page.map(parseListingPhotos), hasMore, nextOffset: hasMore ? offset + limit : null })
   } catch (err) {
     console.error('GET /api/marketplace error:', err.message)
     res.status(500).json({ error: 'Server error' })
@@ -132,9 +138,10 @@ router.get('/marketplace/boosted-feed', authenticate, async (req, res) => {
 router.put('/marketplace/:id', authenticate, upload.array('photos', 10), async (req, res) => {
   try {
     const { title, price, priceNegotiable, category, location, description, mobilepay, contact_phone, contact_email } = req.body
-    console.log(`[PUT /api/marketplace/${req.params.id}] body fields:`, Object.keys(req.body), '| files:', (req.files || []).length)
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[PUT /api/marketplace/${req.params.id}] body fields:`, Object.keys(req.body), '| files:', (req.files || []).length)
+    }
     if (!title || !category) {
-      console.error(`[PUT /api/marketplace/${req.params.id}] Missing required fields – title="${title}" category="${category}"`)
       return res.status(400).json({ error: 'Manglende påkrævede felter (titel/kategori)' })
     }
     const [[existing]] = await pool.query('SELECT user_id FROM marketplace_listings WHERE id = ?', [req.params.id])
@@ -381,7 +388,7 @@ router.get('/marketplace/saved', authenticate, async (req, res) => {
        FROM marketplace_saved ms
        JOIN marketplace_listings ml ON ml.id=ms.listing_id
        JOIN users u ON u.id=ml.user_id
-       WHERE ms.user_id=? AND ml.status != 'sold'
+       WHERE ms.user_id=? AND ml.sold = 0
        ORDER BY ms.created_at DESC
        LIMIT 100`,
       [req.userId]

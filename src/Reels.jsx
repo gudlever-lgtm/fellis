@@ -446,6 +446,7 @@ function ReelCard({ reel, t, lang, currentUser, onDelete, onViewProfile }) {
               <div style={{ display: 'flex', gap: 14, fontSize: 13, opacity: 0.85 }}>
                 <span>{liked ? myReaction : '🤍'} {likesCount}</span>
                 <span>💬 {Number(reel.comments_count)}</span>
+                <span>↗ {sharesCount}</span>
                 {duration > 0 && <span>⏱ {fmtDuration(duration)}</span>}
               </div>
             </div>
@@ -670,6 +671,10 @@ function ReelCard({ reel, t, lang, currentUser, onDelete, onViewProfile }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ fontSize: 16, flexShrink: 0 }}>💬</span>
             <span style={{ whiteSpace: 'nowrap' }}>{Number(reel.comments_count)} {t.reelsComments}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 16, flexShrink: 0 }}>↗</span>
+            <span style={{ whiteSpace: 'nowrap' }}>{sharesCount} {t.reelsShares}</span>
           </div>
           {reel.views_count > 0 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -1114,7 +1119,11 @@ export default function ReelsPage({ t, lang = 'da', currentUser, initialReelId, 
   }, [])
 
   useEffect(() => { loadReels(0) }, [loadReels])
-  useEffect(() => { apiGetLivestreamStatus().then(d => { if (d) setLiveEnabled(d.enabled) }) }, [])
+
+  const refreshLiveStatus = useCallback(() => {
+    apiGetLivestreamStatus().then(d => { if (d) setLiveEnabled(d.enabled) })
+  }, [])
+  useEffect(() => { refreshLiveStatus() }, [refreshLiveStatus])
 
   useEffect(() => {
     if (!initialReelId || loading || reels.length === 0) return
@@ -1231,8 +1240,8 @@ export default function ReelsPage({ t, lang = 'da', currentUser, initialReelId, 
           <div style={{ position: 'relative' }}>
             <button
               style={{ ...s.liveBtn, opacity: liveEnabled ? 1 : 0.55 }}
-              onClick={() => setShowLiveInfo(true)}
-              onMouseEnter={() => setLiveTooltip(true)}
+              onClick={() => { refreshLiveStatus(); setShowLiveInfo(true) }}
+              onMouseEnter={() => { refreshLiveStatus(); setLiveTooltip(true) }}
               onMouseLeave={() => setLiveTooltip(false)}
             >
               <span style={{ ...s.liveDotBtn, animation: liveEnabled ? 'livePulse 1.4s infinite' : 'none' }} />
