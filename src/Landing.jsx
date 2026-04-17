@@ -16,7 +16,7 @@ const T = {
     createCardBtn: 'Opret konto',
     manifestoLine1: 'Sociale medier solgte dig til annoncørerne.',
     manifestoLine2: 'Det syntes vi ikke var en fair handel.',
-    manifestoLine3: 'Fellis er en europæisk fællesskabsplatform — reklamer uden overvågning, ingen algoritmer, ingen skjult dagsorden. Bare mennesker.',
+    manifestoLine3: 'Fellis er en europæisk fællesskabsplatform — dit feed er kronologisk, altid. Reklamer er tydeligt mærket. Dine data forbliver dine.',
     manifestoWhys: [
       { icon: '📅', text: 'Kronologisk feed — ingen algoritme bestemmer, hvad du ser.' },
       { icon: '🇪🇺', text: 'Dine data forbliver i Europa, beskyttet af GDPR.' },
@@ -123,7 +123,7 @@ const T = {
     createCardBtn: 'Create account',
     manifestoLine1: 'Social media sold you to advertisers.',
     manifestoLine2: 'We didn\'t think that was a fair deal.',
-    manifestoLine3: 'Fellis is a European community platform — ads without surveillance, no algorithms, no hidden agenda. Just people.',
+    manifestoLine3: 'Fellis is a European community platform — your feed is chronological, always. Ads are clearly labelled. Your data stays yours.',
     manifestoWhys: [
       { icon: '📅', text: 'Chronological feed — no algorithm deciding what you see.' },
       { icon: '🇪🇺', text: 'Your data stays in Europe, protected by GDPR.' },
