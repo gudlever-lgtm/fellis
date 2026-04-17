@@ -39,9 +39,32 @@ function parseListingPhotos(row) {
   try { return { ...base, photos: JSON.parse(photos) } } catch { return { ...base, photos: [] } }
 }
 
+// GET /api/marketplace/categories — public tree of active categories + subcategories
+router.get('/marketplace/categories', async (_req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, parent_id, da, en, icon, sort_order
+       FROM marketplace_categories
+       WHERE active = 1
+       ORDER BY sort_order, da`
+    )
+    const parents = rows.filter(r => !r.parent_id).map(p => ({
+      id: p.id, da: p.da, en: p.en, icon: p.icon,
+      subcategories: rows
+        .filter(r => r.parent_id === p.id)
+        .map(c => ({ id: c.id, da: c.da, en: c.en, icon: c.icon })),
+    }))
+    res.json({ categories: parents })
+  } catch (err) {
+    console.error('GET /api/marketplace/categories error:', err.message)
+    res.json({ categories: [] })
+  }
+})
+
+
 router.get('/marketplace', authenticate, async (req, res) => {
   try {
-    const { q, category, location } = req.query
+    const { q, category, subcategory, location } = req.query
     const limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 100)
     const offset = Math.max(parseInt(req.query.offset) || 0, 0)
     let sql = `SELECT l.*, u.name AS seller_name, u.handle AS seller_handle, u.avatar_url AS seller_avatar
@@ -50,6 +73,7 @@ router.get('/marketplace', authenticate, async (req, res) => {
     const where = []
     if (q) { where.push('(l.title LIKE ? OR l.description LIKE ?)'); params.push(`%${q}%`, `%${q}%`) }
     if (category) { where.push('l.category = ?'); params.push(category) }
+    if (subcategory) { where.push('l.subcategory = ?'); params.push(subcategory) }
     if (location) { where.push('l.location LIKE ?'); params.push(`%${location}%`) }
     if (where.length) sql += ' WHERE ' + where.join(' AND ')
     sql += ' ORDER BY (l.boosted_until > NOW()) DESC, l.created_at DESC, l.id DESC LIMIT ? OFFSET ?'
@@ -81,12 +105,12 @@ router.get('/marketplace/mine', authenticate, async (req, res) => {
 
 router.post('/marketplace', authenticate, upload.array('photos', 10), async (req, res) => {
   try {
-    const { title, price, priceNegotiable, category, location, description, mobilepay, contact_phone, contact_email } = req.body
+    const { title, price, priceNegotiable, category, subcategory, location, description, mobilepay, contact_phone, contact_email } = req.body
     if (!title || !category) return res.status(400).json({ error: 'Missing required fields' })
     const photos = (req.files || []).map(f => ({ url: `/uploads/${f.filename}`, type: 'image', mime: f.mimetype }))
     const [result] = await pool.query(
-      `INSERT INTO marketplace_listings (user_id, title, price, priceNegotiable, category, location, description, mobilepay, contact_phone, contact_email, photos) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [req.userId, title, price || null, priceNegotiable === 'true' ? 1 : 0, category, location || null, description || null, mobilepay || null, contact_phone || null, contact_email || null, photos.length ? JSON.stringify(photos) : null]
+      `INSERT INTO marketplace_listings (user_id, title, price, priceNegotiable, category, subcategory, location, description, mobilepay, contact_phone, contact_email, photos) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [req.userId, title, price || null, priceNegotiable === 'true' ? 1 : 0, category, subcategory || null, location || null, description || null, mobilepay || null, contact_phone || null, contact_email || null, photos.length ? JSON.stringify(photos) : null]
     )
     const [[listing]] = await pool.query(
       `SELECT l.*, u.name AS seller_name, u.handle AS seller_handle FROM marketplace_listings l JOIN users u ON l.user_id = u.id WHERE l.id = ?`,
@@ -136,7 +160,7 @@ router.get('/marketplace/boosted-feed', authenticate, async (req, res) => {
 
 router.put('/marketplace/:id', authenticate, upload.array('photos', 10), async (req, res) => {
   try {
-    const { title, price, priceNegotiable, category, location, description, mobilepay, contact_phone, contact_email } = req.body
+    const { title, price, priceNegotiable, category, subcategory, location, description, mobilepay, contact_phone, contact_email } = req.body
     if (process.env.NODE_ENV !== 'production') {
       console.log(`[PUT /api/marketplace/${req.params.id}] body fields:`, Object.keys(req.body), '| files:', (req.files || []).length)
     }
@@ -155,8 +179,8 @@ router.put('/marketplace/:id', authenticate, upload.array('photos', 10), async (
     const allPhotos = [...existingPhotos, ...newPhotos]
     const photosJson = allPhotos.length ? JSON.stringify(allPhotos) : null
     await pool.query(
-      `UPDATE marketplace_listings SET title=?, price=?, priceNegotiable=?, category=?, location=?, description=?, mobilepay=?, contact_phone=?, contact_email=?, photos=? WHERE id=?`,
-      [title, price || null, priceNegotiable === 'true' ? 1 : 0, category, location || null, description || null, mobilepay || null, contact_phone || null, contact_email || null, photosJson, req.params.id]
+      `UPDATE marketplace_listings SET title=?, price=?, priceNegotiable=?, category=?, subcategory=?, location=?, description=?, mobilepay=?, contact_phone=?, contact_email=?, photos=? WHERE id=?`,
+      [title, price || null, priceNegotiable === 'true' ? 1 : 0, category, subcategory || null, location || null, description || null, mobilepay || null, contact_phone || null, contact_email || null, photosJson, req.params.id]
     )
     const [[listing]] = await pool.query(
       `SELECT l.*, u.name AS seller_name FROM marketplace_listings l JOIN users u ON l.user_id = u.id WHERE l.id = ?`,
