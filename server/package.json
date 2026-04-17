@@ -12,6 +12,7 @@
     "migrate": "node --env-file=.env migrate.js",
     "migrate:status": "node --env-file=.env migrate.js --status",
     "migrate:dry-run": "node --env-file=.env migrate.js --dry-run",
+    "verify-indexes": "node --env-file=.env verify-indexes.js",
     "check-smtp": "node --env-file=.env check-smtp.js"
   },
   "dependencies": {
