@@ -9,6 +9,7 @@
     "seed-bots": "node seed-bots.js",
     "cleanup-bots": "node cleanup-bots.js",
     "cleanup-e2e": "node --env-file=.env cleanup-e2e-users.js",
+    "cleanup-audit-log": "node --env-file=.env cleanup-audit-log.js",
     "migrate": "node --env-file=.env migrate.js",
     "migrate:status": "node --env-file=.env migrate.js --status",
     "migrate:dry-run": "node --env-file=.env migrate.js --dry-run",
