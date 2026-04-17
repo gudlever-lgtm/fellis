@@ -36,9 +36,9 @@ async function getFeedWeights() {
   if (_feedWeightsCache && Date.now() - _feedWeightsCacheTime < 5 * 60 * 1000) return _feedWeightsCache
   try {
     const [rows] = await pool.query(
-      "SELECT key_name, key_value FROM admin_settings WHERE key_name IN ('feed_weight_family','feed_weight_interest','feed_weight_recency')"
+      "SELECT key_name, key_value FROM admin_settings WHERE key_name IN ('feed_weight_family','feed_weight_interest','feed_weight_recency','feed_weight_engagement')"
     )
-    const w = { family: 1000, interest: 100, recency: 50 }
+    const w = { family: 1000, interest: 100, recency: 50, engagement: 10 }
     for (const r of rows) {
       const k = r.key_name.replace('feed_weight_', '')
       const v = parseFloat(r.key_value)
@@ -47,7 +47,7 @@ async function getFeedWeights() {
     _feedWeightsCache = w
     _feedWeightsCacheTime = Date.now()
     return w
-  } catch { return { family: 1000, interest: 100, recency: 50 } }
+  } catch { return { family: 1000, interest: 100, recency: 50, engagement: 10 } }
 }
 
 router.get('/admin/ad-settings', authenticate, requireAdmin, async (req, res) => {
@@ -692,8 +692,8 @@ router.get('/admin/feed-weights', authenticate, requireAdmin, async (req, res) =
 
 
 router.post('/admin/feed-weights', authenticate, requireAdmin, async (req, res) => {
-  const { family, interest, recency } = req.body
-  const entries = [['feed_weight_family', family], ['feed_weight_interest', interest], ['feed_weight_recency', recency]]
+  const { family, interest, recency, engagement } = req.body
+  const entries = [['feed_weight_family', family], ['feed_weight_interest', interest], ['feed_weight_recency', recency], ['feed_weight_engagement', engagement]]
   try {
     for (const [key, value] of entries) {
       if (typeof value !== 'number' || value < 0) continue
