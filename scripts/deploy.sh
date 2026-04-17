@@ -50,4 +50,7 @@ pm2 status
 step "Smoke test (E2E)"
 BASE_URL=http://localhost:3001 NODE_ENV=test npm run e2e || fail "E2E smoke test failed — server may be unhealthy"
 
+step "Cleaning up audit log (test data + 90-day retention)"
+(cd server && npm run cleanup-audit-log) || warn "Audit log cleanup failed — continuing"
+
 echo -e "\n${GREEN}✔ Deploy complete$(date +'  %Y-%m-%d %H:%M:%S')${NC}"
