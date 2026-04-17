@@ -272,52 +272,6 @@ router.get('/feed', authenticate, async (req, res) => {
       ).catch(() => {})
     }
 
-    // Inject boosted posts at positions 5 and 15 for non-adfree users (first page only, no cursor)
-    if (!cursor && result.length > 0) {
-      try {
-        const todayFeed = new Date().toISOString().split('T')[0]
-        const [[adFreeRow]] = await pool.query(`
-          SELECT (
-            (SELECT COUNT(*) FROM adfree_day_assignments WHERE user_id = ? AND start_date <= ? AND end_date >= ?) +
-            (SELECT COUNT(*) FROM adfree_purchased_periods WHERE user_id = ? AND start_date <= ? AND end_date >= ?)
-          ) AS total
-        `, [req.userId, todayFeed, todayFeed, req.userId, todayFeed, todayFeed]).catch(() => [[{ total: 0 }]])
-        const isAdFree = (adFreeRow?.total ?? 0) > 0
-
-        if (!isAdFree) {
-          const [boostedAds] = await pool.query(
-            `SELECT a.id as ad_id, a.boosted_post_id,
-                    p.id, p.author_id, u.name as author, u.mode as author_mode,
-                    p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.created_at,
-                    p.tagged_users, p.linked_type, p.linked_id
-             FROM ads a
-             JOIN posts p ON p.id = a.boosted_post_id
-             JOIN users u ON u.id = p.author_id
-             WHERE a.status = 'active' AND a.boosted_post_id IS NOT NULL
-               AND (a.start_date IS NULL OR a.start_date <= CURDATE())
-               AND (a.end_date IS NULL OR a.end_date >= CURDATE())
-             ORDER BY RAND() LIMIT 2`
-          ).catch(() => [[]])
-          const boostedPosts = (Array.isArray(boostedAds) ? boostedAds : []).map(b => ({
-            id: b.id,
-            author: b.author,
-            authorId: b.author_id,
-            authorMode: b.author_mode || 'business',
-            time: { da: formatPostTime(b.created_at, 'da'), en: formatPostTime(b.created_at, 'en') },
-            text: { da: b.text_da, en: b.text_en },
-            likes: b.likes,
-            liked: false, userReaction: null, reactions: [],
-            media: (() => { try { return b.media ? (typeof b.media === 'string' ? JSON.parse(b.media) : b.media) : [] } catch { return [] } })(),
-            categories: [], comments: [], createdAtRaw: b.created_at, edited: false, authorBadgeCount: 0,
-            placeName: null, geoLat: null, geoLng: null, taggedUsers: null, linkedType: null, linkedId: null,
-            isSponsored: true, adId: b.ad_id,
-          }))
-          if (boostedPosts[0] && result.length >= 5) result.splice(4, 0, boostedPosts[0])
-          if (boostedPosts[1] && result.length >= 16) result.splice(15, 0, boostedPosts[1])
-        }
-      } catch { /* boosted injection is non-critical */ }
-    }
-
     // nextCursor = created_at of the oldest post in this page (use as ?cursor= to load the next page)
     // null when fewer posts were returned than requested — no more pages exist
     const nextCursor = result.length === limit
