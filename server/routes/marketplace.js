@@ -26,6 +26,7 @@ import path from 'path'
 import multer from 'multer'
 import bcrypt from 'bcrypt'
 import { createReelFromLivestream, LIVESTREAM_DEFAULTS, transcodeVideo } from '../livestream.js'
+import { getMollieClient } from '../helpers.js'
 
 const router = express.Router()
 
