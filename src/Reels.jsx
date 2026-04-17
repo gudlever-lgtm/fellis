@@ -446,6 +446,7 @@ function ReelCard({ reel, t, lang, currentUser, onDelete, onViewProfile }) {
               <div style={{ display: 'flex', gap: 14, fontSize: 13, opacity: 0.85 }}>
                 <span>{liked ? myReaction : '🤍'} {likesCount}</span>
                 <span>💬 {Number(reel.comments_count)}</span>
+                <span>↗ {sharesCount}</span>
                 {duration > 0 && <span>⏱ {fmtDuration(duration)}</span>}
               </div>
             </div>
@@ -670,6 +671,10 @@ function ReelCard({ reel, t, lang, currentUser, onDelete, onViewProfile }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ fontSize: 16, flexShrink: 0 }}>💬</span>
             <span style={{ whiteSpace: 'nowrap' }}>{Number(reel.comments_count)} {t.reelsComments}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 16, flexShrink: 0 }}>↗</span>
+            <span style={{ whiteSpace: 'nowrap' }}>{sharesCount} {t.reelsShares}</span>
           </div>
           {reel.views_count > 0 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
