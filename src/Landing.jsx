@@ -17,6 +17,12 @@ const T = {
     manifestoLine1: 'Sociale medier solgte dig til annoncørerne.',
     manifestoLine2: 'Det syntes vi ikke var en fair handel.',
     manifestoLine3: 'Fellis er en europæisk fællesskabsplatform — reklamer uden overvågning, ingen algoritmer, ingen skjult dagsorden. Bare mennesker.',
+    manifestoWhys: [
+      { icon: '📅', text: 'Kronologisk feed — ingen algoritme bestemmer, hvad du ser.' },
+      { icon: '🇪🇺', text: 'Dine data forbliver i Europa, beskyttet af GDPR.' },
+      { icon: '🎯', text: 'Annoncer vises ud fra kontekst, ikke din personlige profil.' },
+      { icon: '🤝', text: 'Du er brugeren — ikke produktet.' },
+    ],
     trustEncrypt: 'End-to-end krypteret',
     trustEU: 'Hostet i EU',
     trustDelete: 'Fuld kontrol over dine data',
@@ -118,6 +124,12 @@ const T = {
     manifestoLine1: 'Social media sold you to advertisers.',
     manifestoLine2: 'We didn\'t think that was a fair deal.',
     manifestoLine3: 'Fellis is a European community platform — ads without surveillance, no algorithms, no hidden agenda. Just people.',
+    manifestoWhys: [
+      { icon: '📅', text: 'Chronological feed — no algorithm deciding what you see.' },
+      { icon: '🇪🇺', text: 'Your data stays in Europe, protected by GDPR.' },
+      { icon: '🎯', text: 'Ads shown by context, not your personal profile.' },
+      { icon: '🤝', text: 'You\'re the user — not the product.' },
+    ],
     trustEncrypt: 'End-to-end encrypted',
     trustEU: 'EU hosted',
     trustDelete: 'Full control over your data',
@@ -674,6 +686,15 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
             <p style={{ fontSize: 19, fontWeight: 700, lineHeight: 1.4, margin: 0, color: '#1a1a1a' }}>{t.manifestoLine1}</p>
             <p style={{ fontSize: 19, fontWeight: 700, lineHeight: 1.4, margin: 0, color: '#1a1a1a' }}>{t.manifestoLine2}</p>
             <p style={{ fontSize: 14, lineHeight: 1.7, margin: 0, color: '#4a6b5c' }}>{t.manifestoLine3}</p>
+            <div style={{ borderTop: '1px solid #C8DDD2', marginTop: 2 }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {t.manifestoWhys.map(({ icon, text }) => (
+                <div key={text} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                  <span style={{ fontSize: 15, lineHeight: 1.6, flexShrink: 0 }}>{icon}</span>
+                  <span style={{ fontSize: 13, lineHeight: 1.6, color: '#3a5a4a' }}>{text}</span>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Registration form */}
