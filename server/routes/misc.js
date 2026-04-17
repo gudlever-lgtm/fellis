@@ -30,6 +30,7 @@ import {
   getConversationForUser, verifySettingsMfaCode, getMollieClient,
   callMistral, buildTemplateCV, buildTemplateLetter,
   recordLoginDay, computeUserStats, generateStreamKey,
+  selectAdsForUser,
 } from '../helpers.js'
 
 const router = express.Router()
