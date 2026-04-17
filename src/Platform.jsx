@@ -15764,11 +15764,15 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
   })
 
   const handleCreate = async (formData, localListing) => {
-    const result = await apiCreateListing(formData)
-    const newL = result?.id ? result : { ...localListing, id: Date.now(), seller: currentUser.name, sellerId: currentUser.id, postedAt: new Date().toISOString().slice(0, 10), sold: false }
-    setListings(prev => [newL, ...prev])
-    setMyListings(prev => [newL, ...prev])
-    setShowForm(false)
+    try {
+      const result = await apiCreateListing(formData)
+      const newL = result?.id ? result : { ...localListing, id: Date.now(), seller: currentUser.name, sellerId: currentUser.id, postedAt: new Date().toISOString().slice(0, 10), sold: false }
+      setListings(prev => [newL, ...prev])
+      setMyListings(prev => [newL, ...prev])
+      setShowForm(false)
+    } catch (err) {
+      setFormError(err.message || 'Der skete en fejl – prøv igen')
+    }
   }
 
   const handleUpdate = async (id, formData, localListing) => {

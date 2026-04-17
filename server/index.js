@@ -74,7 +74,57 @@ import notificationsRouter from './routes/notifications.js'
 import paymentsRouter from './routes/payments.js'
 import adminRouter from './routes/admin.js'
 import miscRouter from './routes/misc.js'
-import { addCol, ensureRuntimeColumns } from './ensure-columns.js'
+import { reloadKeywordFilters as reloadSharedKeywordFilters } from './helpers.js'
+
+// MySQL 8.x compatible ADD COLUMN helper — ignores duplicate column error (errno 1060)
+// SECURITY: Validates table and column names to prevent SQL injection
+async function addCol(table, col, def) {
+  // Whitelist table names used in migrations
+  const VALID_TABLES = ['users', 'posts', 'comments', 'friendships', 'companies',
+    'admin_ad_settings', 'admin_settings', 'reels', 'marketplace_listings', 'jobs',
+    'shared_jobs', 'earned_badges', 'user_badges', 'badge_config', 'livestreams',
+    'messages', 'conversations', 'sessions', 'invitations', 'post_likes',
+    'reel_likes', 'reel_comments', 'stories', 'events', 'notifications',
+    'conversation_participants', 'ads', 'subscriptions', 'job_saves',
+    'event_rsvps', 'job_applications']
+
+  // Validate table name
+  if (!VALID_TABLES.includes(table)) {
+    throw new Error(`Invalid table name: ${table}`)
+  }
+
+  // Validate column name: alphanumeric + underscore only
+  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(col)) {
+    throw new Error(`Invalid column name: ${col}`)
+  }
+
+  // Validate column definition: basic check for common SQL keywords
+  const def_lower = def.toLowerCase()
+  const ALLOWED_KEYWORDS = ['varchar', 'int', 'bigint', 'timestamp', 'boolean', 'text', 'datetime',
+    'decimal', 'not null', 'null', 'default', 'unique', 'current_timestamp']
+  const isValid = ALLOWED_KEYWORDS.some(kw => def_lower.includes(kw)) &&
+                  !def.includes(';') && !def.includes('--') && !def.includes('/*')
+
+  if (!isValid) {
+    throw new Error(`Invalid column definition: ${def}`)
+  }
+
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      await pool.query(`ALTER TABLE \`${table}\` ADD COLUMN \`${col}\` ${def}`)
+      return
+    } catch (e) {
+      if (e.errno === 1060) return // Column already exists — nothing to do
+      if (e.errno === 1213 && attempt < 3) {
+        // Deadlock — back off and retry (100ms, 200ms, 400ms)
+        await new Promise(r => setTimeout(r, 100 * Math.pow(2, attempt)))
+        continue
+      }
+      console.error(`Migration (${table}.${col}):`, e.message)
+      return // Log and swallow — non-fatal, column may already exist
+    }
+  }
+}
 
 // ── Account Lockout — brute force protection ───────────────────────────────
 const MAX_LOGIN_ATTEMPTS = 5
@@ -3017,6 +3067,7 @@ async function reloadKeywordFilters() {
   } catch { keywordFilterCache = [] }
 }
 reloadKeywordFilters()
+reloadSharedKeywordFilters()
 
 function checkKeywords(text) {
   if (!text) return null
