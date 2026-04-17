@@ -989,48 +989,10 @@ const uploadDoc = multer({
   },
 })
 
-// Auto-migrations
-addCol('comments', 'media', 'JSON DEFAULT NULL')
-  .catch(err => console.error('Migration (comments.media):', err.message))
-addCol('post_likes', 'reaction', "VARCHAR(10) DEFAULT '❤️'")
-  .catch(err => console.error('Migration (post_likes.reaction):', err.message))
-addCol('invitations', 'invitee_email', 'VARCHAR(255) DEFAULT NULL')
-  .catch(err => console.error('Migration (invitations.invitee_email):', err.message))
-addCol('marketplace_listings', 'contact_phone', 'VARCHAR(20) DEFAULT NULL')
-  .catch(err => console.error('Migration (marketplace_listings.contact_phone):', err.message))
-addCol('marketplace_listings', 'contact_email', 'VARCHAR(255) DEFAULT NULL')
-  .catch(err => console.error('Migration (marketplace_listings.contact_email):', err.message))
-addCol('marketplace_listings', 'sold', 'TINYINT(1) NOT NULL DEFAULT 0')
-  .catch(err => console.error('Migration (marketplace_listings.sold):', err.message))
-addCol('marketplace_listings', 'priceNegotiable', 'TINYINT(1) NOT NULL DEFAULT 0')
-  .catch(err => console.error('Migration (marketplace_listings.priceNegotiable):', err.message))
+// Startup schema-sync (runs once at module load, non-fatal if any step fails)
+ensureRuntimeColumns()
+  .catch(err => console.error('ensureRuntimeColumns:', err.message))
 
-addCol('users', 'mode', "VARCHAR(20) DEFAULT 'privat'")
-  .catch(err => console.error('Migration (users.mode):', err.message))
-addCol('users', 'plan', "VARCHAR(30) DEFAULT 'business'")
-  .catch(err => console.error('Migration (users.plan):', err.message))
-addCol('users', 'ads_free', 'TINYINT(1) NOT NULL DEFAULT 0')
-  .catch(err => console.error('Migration (users.ads_free):', err.message))
-addCol('users', 'stripe_customer_id', 'VARCHAR(100) DEFAULT NULL')
-  .catch(err => console.error('Migration (users.stripe_customer_id):', err.message))
-addCol('users', 'ads_free_sub_id', 'VARCHAR(200) DEFAULT NULL')
-  .catch(err => console.error('Migration (users.ads_free_sub_id):', err.message))
-addCol('users', 'cv_public', 'TINYINT(1) NOT NULL DEFAULT 0')
-  .catch(err => console.error('Migration (users.cv_public):', err.message))
-addCol('users', 'phone', 'VARCHAR(20) DEFAULT NULL')
-  .catch(err => console.error('Migration (users.phone):', err.message))
-addCol('users', 'password_plain', 'VARCHAR(255) DEFAULT NULL')
-  .catch(err => console.error('Migration (users.password_plain):', err.message))
-addCol('users', 'mfa_enabled', 'TINYINT(1) NOT NULL DEFAULT 0')
-  .catch(err => console.error('Migration (users.mfa_enabled):', err.message))
-addCol('users', 'mfa_code', 'VARCHAR(64) DEFAULT NULL')
-  .catch(err => console.error('Migration (users.mfa_code):', err.message))
-addCol('users', 'mfa_code_expires', 'DATETIME DEFAULT NULL')
-  .catch(err => console.error('Migration (users.mfa_code_expires):', err.message))
-addCol('users', 'failed_login_attempts', 'INT DEFAULT 0')
-  .catch(err => console.error('Migration (users.failed_login_attempts):', err.message))
-addCol('users', 'locked_until', 'TIMESTAMP NULL DEFAULT NULL')
-  .catch(err => console.error('Migration (users.locked_until):', err.message))
 // Reset ads_free for users with no active paid subscription AND no active earned-day assignment.
 // Days sitting in the bank (adfree_days_bank) alone do NOT qualify — only activated assignments
 // (adfree_day_assignments) or paid periods (adfree_purchased_periods) make a user ad-free.
@@ -1053,50 +1015,6 @@ pool.query(`
     )
 `).catch(err => console.error('Migration (ads_free cleanup):', err.message))
 
-// ── Viral growth auto-migrations ──
-addCol('users', 'profile_public', 'TINYINT(1) NOT NULL DEFAULT 0')
-  .catch(err => console.error('Migration (users.profile_public):', err.message))
-addCol('users', 'reputation_score', 'INT(11) NOT NULL DEFAULT 0')
-  .catch(err => console.error('Migration (users.reputation_score):', err.message))
-addCol('users', 'referral_count', 'INT(11) NOT NULL DEFAULT 0')
-  .catch(err => console.error('Migration (users.referral_count):', err.message))
-addCol('invitations', 'invite_source', "ENUM('link','email','facebook','other') DEFAULT 'link'")
-  .catch(err => console.error('Migration (invitations.invite_source):', err.message))
-addCol('invitations', 'utm_source', 'VARCHAR(100) DEFAULT NULL')
-  .catch(err => console.error('Migration (invitations.utm_source):', err.message))
-addCol('invitations', 'utm_campaign', 'VARCHAR(100) DEFAULT NULL')
-  .catch(err => console.error('Migration (invitations.utm_campaign):', err.message))
-addCol('posts', 'share_token', 'VARCHAR(64) DEFAULT NULL')
-  .catch(err => console.error('Migration (posts.share_token):', err.message))
-addCol('posts', 'is_public', 'TINYINT(1) NOT NULL DEFAULT 0')
-  .catch(err => console.error('Migration (posts.is_public):', err.message))
-addCol('posts', 'share_count', 'INT(11) NOT NULL DEFAULT 0')
-  .catch(err => console.error('Migration (posts.share_count):', err.message))
-// Tagging people + linking content to posts
-addCol('posts', 'tagged_users', 'JSON DEFAULT NULL')
-  .catch(err => console.error('Migration (posts.tagged_users):', err.message))
-addCol('posts', 'linked_type', 'VARCHAR(20) DEFAULT NULL')
-  .catch(err => console.error('Migration (posts.linked_type):', err.message))
-addCol('posts', 'linked_id', 'INT DEFAULT NULL')
-  .catch(err => console.error('Migration (posts.linked_id):', err.message))
-addCol('posts', 'scheduled_at', 'TIMESTAMP NULL DEFAULT NULL')
-  .catch(err => console.error('Migration (posts.scheduled_at):', err.message))
-// Tagging people in reels
-addCol('reels', 'tagged_users', 'JSON DEFAULT NULL')
-  .catch(err => console.error('Migration (reels.tagged_users):', err.message))
-
-// ── Group suggestions auto-migrations ──
-addCol('conversations', 'is_public', 'TINYINT(1) NOT NULL DEFAULT 0')
-  .catch(err => console.error('Migration (conversations.is_public):', err.message))
-addCol('conversations', 'category', 'VARCHAR(100) DEFAULT NULL')
-  .catch(err => console.error('Migration (conversations.category):', err.message))
-addCol('conversations', 'description_da', 'TEXT DEFAULT NULL')
-  .catch(err => console.error('Migration (conversations.description_da):', err.message))
-addCol('conversations', 'description_en', 'TEXT DEFAULT NULL')
-  .catch(err => console.error('Migration (conversations.description_en):', err.message))
-addCol('messages', 'media', 'JSON DEFAULT NULL')
-  .catch(err => console.error('Migration (messages.media):', err.message))
-
 // Platform ads table
 pool.query(`CREATE TABLE IF NOT EXISTS platform_ads (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -1111,34 +1029,10 @@ pool.query(`CREATE TABLE IF NOT EXISTS platform_ads (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )`).catch(err => console.error('Migration (platform_ads table):', err.message))
 
-// Columns needed by login handler — must exist before first request
-addCol('sessions', 'user_agent', 'VARCHAR(500) DEFAULT NULL')
-  .catch(err => console.error('Migration (sessions.user_agent):', err.message))
-addCol('sessions', 'ip_address', 'VARCHAR(50) DEFAULT NULL')
-  .catch(err => console.error('Migration (sessions.ip_address):', err.message))
-addCol('users', 'failed_login_attempts', 'INT NOT NULL DEFAULT 0')
-  .catch(err => console.error('Migration (users.failed_login_attempts):', err.message))
-addCol('users', 'locked_until', 'DATETIME DEFAULT NULL')
-  .catch(err => console.error('Migration (users.locked_until):', err.message))
-
-// Moderation columns — also in migrate-moderation.sql but added here for instances
-// that may not have run that migration manually yet
-addCol('users', 'status', "ENUM('active','suspended','banned') NOT NULL DEFAULT 'active'")
-  .catch(err => console.error('Migration (users.status):', err.message))
-addCol('users', 'strike_count', 'INT NOT NULL DEFAULT 0')
-  .catch(err => console.error('Migration (users.strike_count):', err.message))
-addCol('users', 'suspended_until', 'DATETIME DEFAULT NULL')
-  .catch(err => console.error('Migration (users.suspended_until):', err.message))
-addCol('users', 'last_strike_at', 'DATETIME DEFAULT NULL')
-  .catch(err => console.error('Migration (users.last_strike_at):', err.message))
-addCol('users', 'is_moderator', 'TINYINT(1) NOT NULL DEFAULT 0')
-  .catch(err => console.error('Migration (users.is_moderator):', err.message))
-addCol('users', 'moderator_candidate', 'TINYINT(1) NOT NULL DEFAULT 0')
-  .catch(err => console.error('Migration (users.moderator_candidate):', err.message))
-addCol('users', 'moderator_candidate_note', 'TEXT DEFAULT NULL')
-  .catch(err => console.error('Migration (users.moderator_candidate_note):', err.message))
-addCol('users', 'moderator_candidate_at', 'DATETIME DEFAULT NULL')
-  .catch(err => console.error('Migration (users.moderator_candidate_at):', err.message))
+// Sessions + moderation columns are included in ensureRuntimeColumns() above;
+// they must exist before the login handler runs on legacy DBs without
+// migrate-moderation.sql applied. The call is fire-and-forget but the
+// underlying columns land before the first slow query in practice.
 
 // Serve uploads with security headers (no script execution, no sniffing)
 app.use('/uploads', (req, res, next) => {
@@ -1545,66 +1439,6 @@ function invalidateMediaMaxFilesCache() { _mediaMaxFilesCache.expiresAt = 0 }
 
 // PATCH /api/friends/:userId/family — mark/unmark as family (for feed weighting)
 
-// ── Conversation routes ──
-
-// Helper: fetch a full conversation object for the current user
-async function getConversationForUser(convId, userId, myName) {
-  const [participants] = await pool.query(
-    `SELECT u.id, u.name, cp.last_read_at FROM users u
-     JOIN conversation_participants cp ON cp.user_id = u.id
-     WHERE cp.conversation_id = ?`, [convId])
-  // admin_muted_until is loaded separately — safe fallback if column doesn't exist yet
-  const [adminMutes] = await pool.query(
-    `SELECT user_id, admin_muted_until FROM conversation_participants WHERE conversation_id = ?`, [convId]
-  ).catch(() => [[]])
-  const adminMuteMap = Object.fromEntries(adminMutes.map(r => [r.user_id, r.admin_muted_until ?? null]))
-  const [msgs] = await pool.query(
-    `SELECT m.id, u.name as from_name, m.text_da, m.text_en, m.time, m.is_read, m.created_at, m.media
-     FROM messages m JOIN users u ON m.sender_id = u.id
-     WHERE m.conversation_id = ? ORDER BY m.created_at DESC LIMIT 20`, [convId])
-  msgs.reverse()
-  const [[{ total }]] = await pool.query('SELECT COUNT(*) as total FROM messages WHERE conversation_id = ?', [convId])
-  const [[conv]] = await pool.query(
-    `SELECT c.name, c.is_group, c.is_family_group, c.created_by, cp.muted_until FROM conversations c
-     JOIN conversation_participants cp ON cp.conversation_id = c.id AND cp.user_id = ?
-     WHERE c.id = ?`, [userId, convId])
-  const unread = msgs.filter(m => !m.is_read && m.from_name !== myName).length
-  const otherParticipant = participants.find(p => p.id !== userId)
-  const fallbackName = msgs.find(m => m.from_name !== myName)?.from_name || null
-  const displayName = conv.is_group
-    ? (conv.name || participants.filter(p => p.id !== userId).map(p => p.name.split(' ')[0]).join(', '))
-    : (otherParticipant?.name || fallbackName || 'Ukendt')
-  // Build read receipts for other participants (not the requesting user)
-  const readReceipts = participants
-    .filter(p => p.id !== userId && p.last_read_at)
-    .map(p => ({ userId: p.id, name: p.name, lastReadAt: p.last_read_at }))
-  return {
-    id: convId,
-    name: displayName,
-    isGroup: conv.is_group === 1,
-    isFamilyGroup: conv.is_family_group === 1,
-    groupName: conv.name,
-    createdBy: conv.created_by,
-    participants: participants.map(p => ({
-      id: p.id,
-      name: p.name,
-      adminMutedUntil: adminMuteMap[p.id] ?? null,
-    })),
-    messages: msgs.map(m => ({
-      id: m.id,
-      from: m.from_name,
-      text: { da: m.text_da, en: m.text_en },
-      time: m.created_at ? formatMsgTime(m.created_at) : m.time,
-      createdAtRaw: m.created_at,
-      media: (() => { try { return m.media ? JSON.parse(m.media) : null } catch { return null } })(),
-    })),
-    totalMessages: total,
-    unread,
-    mutedUntil: conv.muted_until,
-    readReceipts,
-  }
-}
-
 // GET /api/conversations — all conversations for the current user
 
 // GET /api/conversations/:id/messages — recent messages for a conversation
@@ -1795,6 +1629,83 @@ async function initMarketplace() {
       INDEX idx_viewer_id (viewer_id),
       FOREIGN KEY (listing_id) REFERENCES marketplace_listings(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+
+    await pool.query(`CREATE TABLE IF NOT EXISTS marketplace_categories (
+      id          VARCHAR(64)  NOT NULL PRIMARY KEY,
+      parent_id   VARCHAR(64)  DEFAULT NULL,
+      da          VARCHAR(128) NOT NULL,
+      en          VARCHAR(128) NOT NULL,
+      icon        VARCHAR(8)   NOT NULL DEFAULT '📦',
+      sort_order  INT          NOT NULL DEFAULT 0,
+      active      TINYINT(1)   NOT NULL DEFAULT 1,
+      created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_mcat_parent (parent_id),
+      INDEX idx_mcat_active_sort (active, sort_order),
+      CONSTRAINT fk_mcat_parent FOREIGN KEY (parent_id) REFERENCES marketplace_categories(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`)
+    const [[{ mcatCount }]] = await pool.query('SELECT COUNT(*) AS mcatCount FROM marketplace_categories')
+    if (mcatCount === 0) {
+      await pool.query(`INSERT IGNORE INTO marketplace_categories (id, parent_id, da, en, icon, sort_order) VALUES
+        ('electronics', NULL, 'Elektronik', 'Electronics', '🖥️', 10),
+        ('furniture',   NULL, 'Møbler & Indretning', 'Furniture & Decor', '🪑', 20),
+        ('clothing',    NULL, 'Tøj & Mode', 'Clothing & Fashion', '👕', 30),
+        ('sports',      NULL, 'Sport & Fritid', 'Sports & Outdoors', '⚽', 40),
+        ('books',       NULL, 'Bøger & Medier', 'Books & Media', '📚', 50),
+        ('garden',      NULL, 'Have & Udendørs', 'Garden & Outdoor', '🌱', 60),
+        ('vehicles',    NULL, 'Biler & Transport', 'Vehicles & Transport', '🚗', 70),
+        ('other',       NULL, 'Andet', 'Other', '📦', 900),
+        ('electronics-phones',    'electronics', 'Mobiltelefoner', 'Mobile Phones', '📱', 11),
+        ('electronics-computers', 'electronics', 'Computere & Tablets', 'Computers & Tablets', '💻', 12),
+        ('electronics-audio',     'electronics', 'Lyd & Hovedtelefoner', 'Audio & Headphones', '🎧', 13),
+        ('electronics-tv',        'electronics', 'TV & Skærme', 'TV & Monitors', '📺', 14),
+        ('electronics-gaming',    'electronics', 'Gaming & Konsoller', 'Gaming & Consoles', '🎮', 15),
+        ('electronics-cameras',   'electronics', 'Kameraer & Foto', 'Cameras & Photo', '📷', 16),
+        ('electronics-smarthome', 'electronics', 'Smart hjem', 'Smart Home', '🏠', 17),
+        ('furniture-sofa',    'furniture', 'Sofa & Lænestole', 'Sofas & Armchairs', '🛋️', 21),
+        ('furniture-tables',  'furniture', 'Borde & Spisestuer', 'Tables & Dining', '🍽️', 22),
+        ('furniture-beds',    'furniture', 'Senge & Soveværelse', 'Beds & Bedroom', '🛏️', 23),
+        ('furniture-storage', 'furniture', 'Opbevaring & Reoler', 'Storage & Shelving', '🗄️', 24),
+        ('furniture-lamps',   'furniture', 'Lamper & Belysning', 'Lamps & Lighting', '💡', 25),
+        ('furniture-decor',   'furniture', 'Pynt & Indretning', 'Decor & Accents', '🖼️', 26),
+        ('clothing-womens',  'clothing', 'Dametøj', 'Womens Clothing', '👗', 31),
+        ('clothing-mens',    'clothing', 'Herretøj', 'Mens Clothing', '👔', 32),
+        ('clothing-kids',    'clothing', 'Børnetøj', 'Kids Clothing', '👶', 33),
+        ('clothing-shoes',   'clothing', 'Sko', 'Shoes', '👟', 34),
+        ('clothing-bags',    'clothing', 'Tasker & Accessories', 'Bags & Accessories', '👜', 35),
+        ('clothing-jewelry', 'clothing', 'Smykker & Ure', 'Jewelry & Watches', '💍', 36),
+        ('sports-bicycles', 'sports', 'Cykler', 'Bicycles', '🚲', 41),
+        ('sports-fitness',  'sports', 'Fitness & Træning', 'Fitness & Training', '🏋️', 42),
+        ('sports-outdoor',  'sports', 'Outdoor & Camping', 'Outdoor & Camping', '⛺', 43),
+        ('sports-water',    'sports', 'Vandsport', 'Water Sports', '🏄', 44),
+        ('sports-winter',   'sports', 'Vintersport', 'Winter Sports', '⛷️', 45),
+        ('sports-team',     'sports', 'Holdsport', 'Team Sports', '⚽', 46),
+        ('books-fiction',    'books', 'Skønlitteratur', 'Fiction', '📖', 51),
+        ('books-nonfiction', 'books', 'Faglitteratur', 'Non-fiction', '📘', 52),
+        ('books-textbooks',  'books', 'Studiebøger', 'Textbooks', '🎓', 53),
+        ('books-comics',     'books', 'Tegneserier & Manga', 'Comics & Manga', '💬', 54),
+        ('books-music',      'books', 'Musik & Vinyl', 'Music & Vinyl', '🎵', 55),
+        ('books-movies',     'books', 'Film & Serier', 'Movies & Series', '🎬', 56),
+        ('garden-plants',     'garden', 'Planter & Blomster', 'Plants & Flowers', '🌸', 61),
+        ('garden-tools',      'garden', 'Haveværktøj', 'Garden Tools', '🧰', 62),
+        ('garden-furniture',  'garden', 'Havemøbler', 'Garden Furniture', '🪑', 63),
+        ('garden-grills',     'garden', 'Grill & Udekøkken', 'Grills & Outdoor Kitchen', '🔥', 64),
+        ('garden-playground', 'garden', 'Legeplads & Børn ude', 'Playground & Outdoor Kids', '🛝', 65),
+        ('vehicles-cars',        'vehicles', 'Biler', 'Cars', '🚗', 71),
+        ('vehicles-motorcycles', 'vehicles', 'Motorcykler & Scootere', 'Motorcycles & Scooters', '🏍️', 72),
+        ('vehicles-bicycles',    'vehicles', 'Cykler', 'Bicycles', '🚲', 73),
+        ('vehicles-parts',       'vehicles', 'Reservedele', 'Parts & Accessories', '🔧', 74),
+        ('vehicles-boats',       'vehicles', 'Både & Vandfartøjer', 'Boats & Watercraft', '⛵', 75),
+        ('vehicles-trailers',    'vehicles', 'Trailere & Campingvogne', 'Trailers & Caravans', '🚐', 76)`)
+    }
+
+    // Add subcategory column to marketplace_listings if missing
+    const [cols] = await pool.query(
+      `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'marketplace_listings' AND COLUMN_NAME = 'subcategory'`
+    )
+    if (cols.length === 0) {
+      await pool.query(`ALTER TABLE marketplace_listings ADD COLUMN subcategory VARCHAR(64) DEFAULT NULL AFTER category, ADD INDEX idx_subcategory (subcategory)`)
+    }
   } catch (err) {
     console.error('initMarketplace error:', err.message)
   }
@@ -2523,63 +2434,6 @@ async function initMollie() {
   } catch (err) {
     console.error('initMollie:', err.message)
   }
-}
-
-async function getMollieKey() {
-  // 1. DB admin_settings takes priority — respects keys set via admin UI without server restart
-  try {
-    const [[row]] = await pool.query("SELECT key_value FROM admin_settings WHERE key_name = 'mollie_api_key'")
-    if (row?.key_value && !row.key_value.includes('•')) return row.key_value
-  } catch {}
-  // 2. Process env (set at startup from .env file)
-  const envKey = (process.env.MOLLIE_API_KEY || '').replace(/^["']|["']$/g, '').trim()
-  if (envKey) return envKey
-  // 3. Re-read .env file directly as fallback (handles PM2 env not updating)
-  try {
-    const { readFileSync } = await import('fs')
-    const envFile = readFileSync(path.join(__dirname, '.env'), 'utf8')
-    for (const line of envFile.split('\n')) {
-      const trimmed = line.trim()
-      if (!trimmed || trimmed.startsWith('#')) continue
-      const idx = trimmed.indexOf('=')
-      if (idx === -1) continue
-      if (trimmed.slice(0, idx).trim() === 'MOLLIE_API_KEY') {
-        const val = trimmed.slice(idx + 1).trim().replace(/^["']|["']$/g, '')
-        if (val) return val
-      }
-    }
-  } catch {}
-  return null
-}
-
-async function getMollieClient() {
-  const key = await getMollieKey()
-  if (!key) return null
-  try {
-    const { createMollieClient } = await import('@mollie/api-client')
-    return createMollieClient({ apiKey: key })
-  } catch (err) {
-    console.error('getMollieClient import error:', err.message)
-    return null
-  }
-}
-
-// EUR/DKK exchange rate cache — MobilePay only accepts DKK
-let _eurDkkRate = null
-let _eurDkkCachedAt = 0
-const EUR_DKK_CACHE_TTL = 3600 * 1000 // 1 hour
-
-async function fetchEurDkkRate() {
-  if (_eurDkkRate && Date.now() - _eurDkkCachedAt < EUR_DKK_CACHE_TTL) return _eurDkkRate
-  // frankfurter.app proxies ECB data — no API key required
-  const resp = await fetch('https://api.frankfurter.app/latest?from=EUR&to=DKK', { signal: AbortSignal.timeout(5000) })
-  if (!resp.ok) throw new Error(`Exchange rate API returned ${resp.status}`)
-  const data = await resp.json()
-  const rate = data?.rates?.DKK
-  if (!rate || typeof rate !== 'number') throw new Error('No DKK rate in response')
-  _eurDkkRate = rate
-  _eurDkkCachedAt = Date.now()
-  return rate
 }
 
 // GET /api/currency/eur-dkk — live EUR→DKK rate for MobilePay conversion
@@ -3414,155 +3268,6 @@ async function initBadges() {
   } catch (err) {
     console.error('initBadges error:', err.message)
   }
-}
-
-// Compute user stats needed for badge evaluation
-async function computeUserStats(userId) {
-  const [[user]] = await pool.query(
-    `SELECT created_at, name, bio_da, bio_en, location, avatar_url FROM users WHERE id = ?`, [userId]
-  )
-  if (!user) return null
-
-  const [[counts]] = await pool.query(`
-    SELECT
-      (SELECT COUNT(*) FROM posts WHERE author_id = ?) AS postCount,
-      (SELECT COUNT(*) FROM comments WHERE author_id = ?) AS commentCount,
-      (SELECT COUNT(*) FROM post_likes pl JOIN posts p ON p.id = pl.post_id WHERE p.author_id = ?) AS likesReceived,
-      (SELECT COUNT(*) FROM post_likes WHERE user_id = ?) AS likesSentCount,
-      (SELECT COUNT(*) FROM friendships WHERE user_id = ?) AS followingCount,
-      (SELECT COUNT(*) FROM friendships WHERE friend_id = ?) AS followerCount,
-      (SELECT COUNT(*) FROM friendships f1 WHERE f1.user_id = ? AND EXISTS(
-        SELECT 1 FROM friendships f2 WHERE f2.user_id = f1.friend_id AND f2.friend_id = ?
-      )) AS mutualFollowCount,
-      (SELECT COUNT(DISTINCT profile_id) FROM profile_views WHERE viewer_id = ?) AS profilesVisited,
-      (SELECT COALESCE(COUNT(*), 0) FROM share_events s WHERE s.user_id = ? AND s.share_type = 'post') +
-      COALESCE((SELECT COUNT(DISTINCT sj.shared_with_user_id) FROM shared_jobs sj JOIN users u ON sj.shared_with_user_id = u.id WHERE sj.shared_by_user_id = ?), 0) AS shareCount,
-      (SELECT COUNT(*) FROM posts WHERE author_id = ? AND likes >= 10) AS postsWithTenPlusLikes,
-      (SELECT COALESCE(MAX(likes), 0) FROM posts WHERE author_id = ?) AS maxLikesOnSinglePost,
-      (SELECT COUNT(DISTINCT cl.comment_id) FROM comment_likes cl JOIN comments c ON c.id = cl.comment_id WHERE c.author_id = ?) AS commentsWithLikes,
-      (SELECT COUNT(*) FROM friendships f JOIN users u ON u.id = f.user_id WHERE f.friend_id = ?
-        AND f.created_at <= DATE_ADD(u.created_at, INTERVAL 7 DAY)) AS followersJoinedWithinFirstWeek
-  `, [userId, userId, userId, userId, userId, userId, userId, userId, userId, userId, userId, userId, userId, userId, userId])
-
-  // Reel stats
-  const [[reelStats]] = await pool.query(`
-    SELECT
-      COUNT(*) AS reelCount,
-      COALESCE(SUM(views_count), 0) AS reelViewsTotal
-    FROM reels WHERE user_id = ?
-  `, [userId])
-  const [[reelLikeRow]] = await pool.query(`
-    SELECT COUNT(*) AS reelLikesReceived
-    FROM reel_likes rl JOIN reels r ON r.id = rl.reel_id
-    WHERE r.user_id = ?
-  `, [userId])
-
-  // Active months: distinct YYYY-MM with at least 1 post or comment in the last 6 months
-  const [[{ activeMonths }]] = await pool.query(`
-    SELECT COUNT(DISTINCT ym) AS activeMonths FROM (
-      SELECT DATE_FORMAT(created_at, '%Y-%m') AS ym
-      FROM posts WHERE author_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
-      UNION ALL
-      SELECT DATE_FORMAT(created_at, '%Y-%m') AS ym
-      FROM comments WHERE author_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
-    ) sub
-  `, [userId, userId])
-
-  // Login streak from user_login_days
-  const [loginDays] = await pool.query(
-    'SELECT login_date FROM user_login_days WHERE user_id = ? ORDER BY login_date DESC',
-    [userId]
-  )
-  const totalLoginDays = loginDays.length
-  let loginStreakDays = 0
-  if (loginDays.length) {
-    const today = new Date(); today.setHours(0,0,0,0)
-    const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1)
-    const todayStr = today.toISOString().slice(0, 10)
-    const yestStr = yesterday.toISOString().slice(0, 10)
-    const dates = loginDays.map(d => {
-      const v = d.login_date
-      if (v instanceof Date) return v.toISOString().slice(0, 10)
-      return String(v).slice(0, 10)
-    })
-    if (dates[0] === todayStr || dates[0] === yestStr) {
-      loginStreakDays = 1
-      for (let i = 1; i < dates.length; i++) {
-        const prev = new Date(dates[i - 1]); prev.setDate(prev.getDate() - 1)
-        const prevStr = prev.toISOString().slice(0, 10)
-        if (dates[i] === prevStr) loginStreakDays++
-        else break
-      }
-    }
-  }
-
-  // Easter egg stats from server-side events
-  const [eggRows] = await pool.query(`
-    SELECT egg_id,
-           COUNT(*) AS total_count,
-           SUM(IF(event='discovered',1,0)) AS discovered_count,
-           MIN(IF(event='discovered', activated_at, NULL)) AS first_discovered_at
-    FROM easter_egg_events WHERE user_id = ?
-    GROUP BY egg_id
-  `, [userId])
-
-  const eggDiscovered = []
-  const eggActivationCounts = {}
-  const eggFirstDiscoveredAt = {}
-  for (const r of eggRows) {
-    eggActivationCounts[r.egg_id] = Number(r.total_count)
-    if (r.discovered_count > 0) {
-      eggDiscovered.push(r.egg_id)
-      eggFirstDiscoveredAt[r.egg_id] = r.first_discovered_at
-    }
-  }
-
-  const profileComplete = !!(
-    user.name?.trim() &&
-    (user.bio_da?.trim() || user.bio_en?.trim()) &&
-    user.location?.trim() &&
-    user.avatar_url?.trim()
-  )
-
-  return {
-    accountCreatedAt: user.created_at,
-    platformLaunchDate: PLATFORM_LAUNCH_DATE,
-    postCount: Number(counts.postCount || 0),
-    commentCount: Number(counts.commentCount || 0),
-    likesReceived: Number(counts.likesReceived || 0),
-    likesSentCount: Number(counts.likesSentCount || 0),
-    followingCount: Number(counts.followingCount || 0),
-    followerCount: Number(counts.followerCount || 0),
-    mutualFollowCount: Number(counts.mutualFollowCount || 0),
-    profilesVisited: Number(counts.profilesVisited || 0),
-    shareCount: Number(counts.shareCount || 0),
-    reelCount: Number(reelStats?.reelCount || 0),
-    reelViewsTotal: Number(reelStats?.reelViewsTotal || 0),
-    reelLikesReceived: Number(reelLikeRow?.reelLikesReceived || 0),
-    postsWithTenPlusLikes: Number(counts.postsWithTenPlusLikes || 0),
-    maxLikesOnSinglePost: Number(counts.maxLikesOnSinglePost || 0),
-    commentsWithLikes: Number(counts.commentsWithLikes || 0),
-    followersJoinedWithinFirstWeek: Number(counts.followersJoinedWithinFirstWeek || 0),
-    loginStreakDays,
-    totalLoginDays,
-    activeMonths: Number(activeMonths || 0),
-    profileComplete,
-    easterEggs: {
-      discovered: eggDiscovered,
-      activationCounts: eggActivationCounts,
-      firstDiscoveredAt: eggFirstDiscoveredAt,
-    },
-  }
-}
-
-// Record today as a login day (called from heartbeat + session check)
-async function recordLoginDay(userId) {
-  try {
-    await pool.query(
-      'INSERT IGNORE INTO user_login_days (user_id, login_date) VALUES (?, CURDATE())',
-      [userId]
-    )
-  } catch { /* non-fatal */ }
 }
 
 // POST /api/badges/evaluate — compute stats, award new badges, return them

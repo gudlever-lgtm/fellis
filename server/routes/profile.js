@@ -233,7 +233,7 @@ router.get('/profile', authenticate, async (req, res) => {
           u.fb_connected, u.fb_connected_at,
           u.profile_public, u.reputation_score, u.referral_count, u.interests, u.tags,
           u.relationship_status, u.website,
-          u.phone, u.mfa_enabled,
+          u.phone, u.mobilepay, u.mfa_enabled,
           u.industry, u.seniority, u.job_title, u.company,
           u.mode,
           u.business_category, u.business_website, u.business_hours,
@@ -254,7 +254,7 @@ router.get('/profile', authenticate, async (req, res) => {
             u.fb_connected, u.fb_connected_at,
             u.profile_public, u.reputation_score, u.referral_count, u.interests, u.tags,
             u.relationship_status, u.website,
-            u.phone, u.mfa_enabled,
+            u.phone, u.mobilepay, u.mfa_enabled,
             u.industry, u.seniority, u.job_title, u.company,
             u.mode,
             NULL AS business_category, NULL AS business_website, NULL AS business_hours,
@@ -265,7 +265,7 @@ router.get('/profile', authenticate, async (req, res) => {
           [req.userId]
         )
       } catch {
-        // Final fallback: without gender/fb_connected (migration not yet applied)
+        // Final fallback: without gender/fb_connected/mobilepay (migration not yet applied)
         ;[users] = await pool.query(
           `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url,
             u.email, u.google_id, u.linkedin_id,
@@ -274,7 +274,7 @@ router.get('/profile', authenticate, async (req, res) => {
             NULL AS gender, 0 AS fb_connected, NULL AS fb_connected_at,
             u.profile_public, u.reputation_score, u.referral_count, u.interests, u.tags,
             u.relationship_status, u.website,
-            u.phone, u.mfa_enabled,
+            u.phone, NULL AS mobilepay, u.mfa_enabled,
             u.industry, u.seniority, u.job_title, u.company,
             u.mode,
             NULL AS business_category, NULL AS business_website, NULL AS business_hours,
@@ -322,6 +322,7 @@ router.get('/profile', authenticate, async (req, res) => {
         linkedin: !!u.linkedin_id,
       },
       phone: u.phone || null,
+      mobilepay: u.mobilepay || null,
       mfaEnabled: !!u.mfa_enabled,
     }
     if (u.mode === 'business') {
@@ -813,7 +814,7 @@ router.post('/me/heartbeat', authenticate, async (req, res) => {
 
 
 router.patch('/profile', authenticate, async (req, res) => {
-  const { name, bio_da, bio_en, location, industry, seniority, job_title, company } = req.body
+  const { name, bio_da, bio_en, location, industry, seniority, job_title, company, mobilepay } = req.body
   try {
     const fields = [], vals = []
     if (name !== undefined)      { fields.push('name = ?');      vals.push(name.trim()) }
@@ -824,6 +825,10 @@ router.patch('/profile', authenticate, async (req, res) => {
     if (seniority !== undefined) { fields.push('seniority = ?'); vals.push(seniority || null) }
     if (job_title !== undefined) { fields.push('job_title = ?'); vals.push(job_title ? String(job_title).trim().slice(0, 100) : null) }
     if (company !== undefined)   { fields.push('company = ?');   vals.push(company ? String(company).trim().slice(0, 100) : null) }
+    if (mobilepay !== undefined) {
+      const clean = mobilepay ? String(mobilepay).replace(/\D/g, '').slice(0, 8) : ''
+      fields.push('mobilepay = ?'); vals.push(clean || null)
+    }
     if (!fields.length) return res.status(400).json({ error: 'Nothing to update' })
     vals.push(req.userId)
     await pool.query(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`, vals)

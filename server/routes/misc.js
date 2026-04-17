@@ -8,7 +8,7 @@ import {
   authenticate, writeLimit, fileUploadLimit, strictLimit, registerLimit,
   requireAdmin, requireModerator, requireBusiness, attachUserMode,
   upload, uploadDoc, reelUpload, coverUpload,
-  formatPostTime, formatMsgTime, applySignals, autoSignalPost,
+  formatPostTime, formatMsgTime, applySignals, autoSignalPost, SIGNAL_VALUES,
   checkInviteRateLimit, checkForgotRateLimit, checkAndAwardBadges,
   createNotification, auditLog, auditLogGdpr, hasConsent, recordConsent, withdrawConsent,
   getSessionIdFromRequest, setSessionCookie, clearSessionCookie, generateCsrfToken,
@@ -19,6 +19,7 @@ import {
   mailer, oauthStateTokens,
   MAX_LOGIN_ATTEMPTS, LOCKOUT_DURATION_MINUTES,
   COOKIE_NAME, SERVER_START, visitedSessions, visitedAnonIps,
+  getMollieClient,
 } from '../middleware.js'
 import crypto from 'crypto'
 import fs from 'fs'
@@ -34,90 +35,202 @@ import {
 
 const router = express.Router()
 
-// Rank candidate ads for a given user and return up to `limit` rows.
-//
-//   relevance = Σ user_interest_weight[slug] for slug ∈ ad.target_interests
-//   pacing    = 1 − spent / budget                           (undepleted ads ranked first)
-//   tiebreak  = per-request random jitter                    (avoids starving new ads)
-//
-// Daily and weekly per-user frequency caps are enforced before ranking so a
-// user can't be shown the same ad >N times/day. Returns fewer than `limit`
-// rows when too few ads pass the caps.
-async function selectAdsForUser(userId, limit) {
-  const [[caps]] = await pool.query(
-    'SELECT ad_daily_cap_per_user, ad_weekly_cap_per_user FROM admin_ad_settings WHERE id = 1'
-  ).catch(() => [[null]])
-  const dailyCap = parseInt(caps?.ad_daily_cap_per_user) || 5
-  const weeklyCap = parseInt(caps?.ad_weekly_cap_per_user) || 20
+async function getConversationForUser(convId, userId, myName) {
+  const [participants] = await pool.query(
+    `SELECT u.id, u.name, cp.last_read_at FROM users u
+     JOIN conversation_participants cp ON cp.user_id = u.id
+     WHERE cp.conversation_id = ?`, [convId])
+  const [adminMutes] = await pool.query(
+    `SELECT user_id, admin_muted_until FROM conversation_participants WHERE conversation_id = ?`, [convId]
+  ).catch(() => [[]])
+  const adminMuteMap = Object.fromEntries(adminMutes.map(r => [r.user_id, r.admin_muted_until ?? null]))
+  const [msgs] = await pool.query(
+    `SELECT m.id, u.name as from_name, m.text_da, m.text_en, m.time, m.is_read, m.created_at, m.media
+     FROM messages m JOIN users u ON m.sender_id = u.id
+     WHERE m.conversation_id = ? ORDER BY m.created_at DESC LIMIT 20`, [convId])
+  msgs.reverse()
+  const [[{ total }]] = await pool.query('SELECT COUNT(*) as total FROM messages WHERE conversation_id = ?', [convId])
+  const [[conv]] = await pool.query(
+    `SELECT c.name, c.is_group, c.is_family_group, c.created_by, cp.muted_until FROM conversations c
+     JOIN conversation_participants cp ON cp.conversation_id = c.id AND cp.user_id = ?
+     WHERE c.id = ?`, [userId, convId])
+  const unread = msgs.filter(m => !m.is_read && m.from_name !== myName).length
+  const otherParticipant = participants.find(p => p.id !== userId)
+  const fallbackName = msgs.find(m => m.from_name !== myName)?.from_name || null
+  const displayName = conv.is_group
+    ? (conv.name || participants.filter(p => p.id !== userId).map(p => p.name.split(' ')[0]).join(', '))
+    : (otherParticipant?.name || fallbackName || 'Ukendt')
+  const readReceipts = participants
+    .filter(p => p.id !== userId && p.last_read_at)
+    .map(p => ({ userId: p.id, name: p.name, lastReadAt: p.last_read_at }))
+  return {
+    id: convId,
+    name: displayName,
+    isGroup: conv.is_group === 1,
+    isFamilyGroup: conv.is_family_group === 1,
+    groupName: conv.name,
+    createdBy: conv.created_by,
+    participants: participants.map(p => ({
+      id: p.id,
+      name: p.name,
+      adminMutedUntil: adminMuteMap[p.id] ?? null,
+    })),
+    messages: msgs.map(m => ({
+      id: m.id,
+      from: m.from_name,
+      text: { da: m.text_da, en: m.text_en },
+      time: m.created_at ? formatMsgTime(m.created_at) : m.time,
+      createdAtRaw: m.created_at,
+      media: (() => { try { return m.media ? JSON.parse(m.media) : null } catch { return null } })(),
+    })),
+    totalMessages: total,
+    unread,
+    mutedUntil: conv.muted_until,
+    readReceipts,
+  }
+}
 
-  // Candidate pool: active + in-date, budget not exhausted.
-  const [ads] = await pool.query(
-    `SELECT id, title, body, image_url, target_url, placement, cpm_rate, budget, spent, target_interests
-       FROM ads
-      WHERE status = 'active'
-        AND (start_date IS NULL OR start_date <= CURDATE())
-        AND (end_date   IS NULL OR end_date   >= CURDATE())
-      ORDER BY created_at DESC
-      LIMIT 100`
+async function computeUserStats(userId) {
+  const [[user]] = await pool.query(
+    `SELECT created_at, name, bio_da, bio_en, location, avatar_url FROM users WHERE id = ?`, [userId]
   )
-  if (!ads.length) return []
+  if (!user) return null
 
-  // Per-user impression counts for daily/weekly cap enforcement. Swallowed on
-  // missing table so dev installs without the migration still serve ads.
-  const adIds = ads.map(a => a.id)
-  let dayCountMap = {}
-  let weekCountMap = {}
-  try {
-    const [dayRows] = await pool.query(
-      'SELECT ad_id, COUNT(*) AS c FROM ad_impressions WHERE user_id = ? AND ad_id IN (?) AND created_at > NOW() - INTERVAL 1 DAY GROUP BY ad_id',
-      [userId, adIds]
-    )
-    for (const r of dayRows) dayCountMap[r.ad_id] = Number(r.c)
-    const [weekRows] = await pool.query(
-      'SELECT ad_id, COUNT(*) AS c FROM ad_impressions WHERE user_id = ? AND ad_id IN (?) AND created_at > NOW() - INTERVAL 7 DAY GROUP BY ad_id',
-      [userId, adIds]
-    )
-    for (const r of weekRows) weekCountMap[r.ad_id] = Number(r.c)
-  } catch {}
+  const [[counts]] = await pool.query(`
+    SELECT
+      (SELECT COUNT(*) FROM posts WHERE author_id = ?) AS postCount,
+      (SELECT COUNT(*) FROM comments WHERE author_id = ?) AS commentCount,
+      (SELECT COUNT(*) FROM post_likes pl JOIN posts p ON p.id = pl.post_id WHERE p.author_id = ?) AS likesReceived,
+      (SELECT COUNT(*) FROM post_likes WHERE user_id = ?) AS likesSentCount,
+      (SELECT COUNT(*) FROM friendships WHERE user_id = ?) AS followingCount,
+      (SELECT COUNT(*) FROM friendships WHERE friend_id = ?) AS followerCount,
+      (SELECT COUNT(*) FROM friendships f1 WHERE f1.user_id = ? AND EXISTS(
+        SELECT 1 FROM friendships f2 WHERE f2.user_id = f1.friend_id AND f2.friend_id = ?
+      )) AS mutualFollowCount,
+      (SELECT COUNT(DISTINCT profile_id) FROM profile_views WHERE viewer_id = ?) AS profilesVisited,
+      (SELECT COALESCE(COUNT(*), 0) FROM share_events s WHERE s.user_id = ? AND s.share_type = 'post') +
+      COALESCE((SELECT COUNT(DISTINCT sj.shared_with_user_id) FROM shared_jobs sj JOIN users u ON sj.shared_with_user_id = u.id WHERE sj.shared_by_user_id = ?), 0) AS shareCount,
+      (SELECT COUNT(*) FROM posts WHERE author_id = ? AND likes >= 10) AS postsWithTenPlusLikes,
+      (SELECT COALESCE(MAX(likes), 0) FROM posts WHERE author_id = ?) AS maxLikesOnSinglePost,
+      (SELECT COUNT(DISTINCT cl.comment_id) FROM comment_likes cl JOIN comments c ON c.id = cl.comment_id WHERE c.author_id = ?) AS commentsWithLikes,
+      (SELECT COUNT(*) FROM friendships f JOIN users u ON u.id = f.user_id WHERE f.friend_id = ?
+        AND f.created_at <= DATE_ADD(u.created_at, INTERVAL 7 DAY)) AS followersJoinedWithinFirstWeek
+  `, [userId, userId, userId, userId, userId, userId, userId, userId, userId, userId, userId, userId, userId, userId, userId])
 
-  // User interest scores keyed by slug (max across contexts).
-  let interestMap = {}
+  const [[reelStats]] = await pool.query(`
+    SELECT
+      COUNT(*) AS reelCount,
+      COALESCE(SUM(views_count), 0) AS reelViewsTotal
+    FROM reels WHERE user_id = ?
+  `, [userId])
+  const [[reelLikeRow]] = await pool.query(`
+    SELECT COUNT(*) AS reelLikesReceived
+    FROM reel_likes rl JOIN reels r ON r.id = rl.reel_id
+    WHERE r.user_id = ?
+  `, [userId])
+
+  const [[{ activeMonths }]] = await pool.query(`
+    SELECT COUNT(DISTINCT ym) AS activeMonths FROM (
+      SELECT DATE_FORMAT(created_at, '%Y-%m') AS ym
+      FROM posts WHERE author_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+      UNION ALL
+      SELECT DATE_FORMAT(created_at, '%Y-%m') AS ym
+      FROM comments WHERE author_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+    ) sub
+  `, [userId, userId])
+
+  const [loginDays] = await pool.query(
+    'SELECT login_date FROM user_login_days WHERE user_id = ? ORDER BY login_date DESC',
+    [userId]
+  )
+  const totalLoginDays = loginDays.length
+  let loginStreakDays = 0
+  if (loginDays.length) {
+    const today = new Date(); today.setHours(0,0,0,0)
+    const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1)
+    const todayStr = today.toISOString().slice(0, 10)
+    const yestStr = yesterday.toISOString().slice(0, 10)
+    const dates = loginDays.map(d => {
+      const v = d.login_date
+      if (v instanceof Date) return v.toISOString().slice(0, 10)
+      return String(v).slice(0, 10)
+    })
+    if (dates[0] === todayStr || dates[0] === yestStr) {
+      loginStreakDays = 1
+      for (let i = 1; i < dates.length; i++) {
+        const prev = new Date(dates[i - 1]); prev.setDate(prev.getDate() - 1)
+        const prevStr = prev.toISOString().slice(0, 10)
+        if (dates[i] === prevStr) loginStreakDays++
+        else break
+      }
+    }
+  }
+
+  const [eggRows] = await pool.query(`
+    SELECT egg_id,
+           COUNT(*) AS total_count,
+           SUM(IF(event='discovered',1,0)) AS discovered_count,
+           MIN(IF(event='discovered', activated_at, NULL)) AS first_discovered_at
+    FROM easter_egg_events WHERE user_id = ?
+    GROUP BY egg_id
+  `, [userId])
+
+  const eggDiscovered = []
+  const eggActivationCounts = {}
+  const eggFirstDiscoveredAt = {}
+  for (const r of eggRows) {
+    eggActivationCounts[r.egg_id] = Number(r.total_count)
+    if (r.discovered_count > 0) {
+      eggDiscovered.push(r.egg_id)
+      eggFirstDiscoveredAt[r.egg_id] = r.first_discovered_at
+    }
+  }
+
+  const profileComplete = !!(
+    user.name?.trim() &&
+    (user.bio_da?.trim() || user.bio_en?.trim()) &&
+    user.location?.trim() &&
+    user.avatar_url?.trim()
+  )
+
+  return {
+    accountCreatedAt: user.created_at,
+    platformLaunchDate: PLATFORM_LAUNCH_DATE,
+    postCount: Number(counts.postCount || 0),
+    commentCount: Number(counts.commentCount || 0),
+    likesReceived: Number(counts.likesReceived || 0),
+    likesSentCount: Number(counts.likesSentCount || 0),
+    followingCount: Number(counts.followingCount || 0),
+    followerCount: Number(counts.followerCount || 0),
+    mutualFollowCount: Number(counts.mutualFollowCount || 0),
+    profilesVisited: Number(counts.profilesVisited || 0),
+    shareCount: Number(counts.shareCount || 0),
+    reelCount: Number(reelStats?.reelCount || 0),
+    reelViewsTotal: Number(reelStats?.reelViewsTotal || 0),
+    reelLikesReceived: Number(reelLikeRow?.reelLikesReceived || 0),
+    postsWithTenPlusLikes: Number(counts.postsWithTenPlusLikes || 0),
+    maxLikesOnSinglePost: Number(counts.maxLikesOnSinglePost || 0),
+    commentsWithLikes: Number(counts.commentsWithLikes || 0),
+    followersJoinedWithinFirstWeek: Number(counts.followersJoinedWithinFirstWeek || 0),
+    loginStreakDays,
+    totalLoginDays,
+    activeMonths: Number(activeMonths || 0),
+    profileComplete,
+    easterEggs: {
+      discovered: eggDiscovered,
+      activationCounts: eggActivationCounts,
+      firstDiscoveredAt: eggFirstDiscoveredAt,
+    },
+  }
+}
+
+async function recordLoginDay(userId) {
   try {
-    const [iRows] = await pool.query(
-      'SELECT interest_slug, MAX(weight) AS w FROM interest_scores WHERE user_id = ? GROUP BY interest_slug',
+    await pool.query(
+      'INSERT IGNORE INTO user_login_days (user_id, login_date) VALUES (?, CURDATE())',
       [userId]
     )
-    for (const r of iRows) interestMap[r.interest_slug] = parseFloat(r.w) || 0
-  } catch {}
-  const hasInterestData = Object.keys(interestMap).length > 0
-
-  const eligible = []
-  for (const ad of ads) {
-    if ((dayCountMap[ad.id] || 0) >= dailyCap) continue
-    if ((weekCountMap[ad.id] || 0) >= weeklyCap) continue
-    let targetSlugs = []
-    if (ad.target_interests) {
-      try {
-        const parsed = typeof ad.target_interests === 'string' ? JSON.parse(ad.target_interests) : ad.target_interests
-        if (Array.isArray(parsed)) targetSlugs = parsed.filter(s => typeof s === 'string')
-      } catch {}
-    }
-    let relevance = 0
-    if (hasInterestData && targetSlugs.length) {
-      for (const slug of targetSlugs) relevance += interestMap[slug] || 0
-    }
-    // Untargeted ads still get served — at low relevance — when the user has
-    // interest data. When the user has no interest data, rely entirely on
-    // pacing + random jitter so behavior matches the pre-ranking baseline.
-    const budgetNum = parseFloat(ad.budget) || 0
-    const spentNum = parseFloat(ad.spent) || 0
-    const pacing = budgetNum > 0 ? Math.max(0, 1 - spentNum / budgetNum) : 0.5
-    const jitter = Math.random()
-    const score = relevance * 10 + pacing * 1 + jitter * 0.5
-    eligible.push({ ad, score })
-  }
-  eligible.sort((a, b) => b.score - a.score)
-  return eligible.slice(0, limit).map(e => e.ad)
+  } catch { /* non-fatal */ }
 }
 
 router.get('/health', async (_req, res) => {
@@ -1617,11 +1730,14 @@ router.get('/content', authenticate, async (req, res) => {
     if ((adFreeRow?.total ?? 0) > 0) return res.json({ ads: [], ads_free: true })
     const section = req.query.section || 'feed'
     const limitMap = { feed: settings.max_ads_feed, sidebar: settings.max_ads_sidebar, stories: settings.max_ads_stories, reels: settings.max_ads_feed }
-    const limit = limitMap[section] || 1
-    const rows = await selectAdsForUser(req.userId, limit)
+    const limit = Math.max(1, parseInt(limitMap[section], 10) || 1)
+    const rows = await selectAdsForUser(req.userId, limit).catch(err => {
+      console.error('GET /api/content selectAdsForUser:', err.code, err.message)
+      return []
+    })
     res.json({ ads: rows, refresh_interval: settings.refresh_interval_seconds })
   } catch (err) {
-    console.error('GET /api/content error:', err.message)
+    console.error('GET /api/content error:', err.code, err.message, err.stack)
     res.status(500).json({ error: 'Server error' })
   }
 })
