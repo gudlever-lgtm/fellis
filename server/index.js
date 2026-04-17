@@ -75,6 +75,7 @@ import paymentsRouter from './routes/payments.js'
 import adminRouter from './routes/admin.js'
 import miscRouter from './routes/misc.js'
 import { reloadKeywordFilters as reloadSharedKeywordFilters } from './helpers.js'
+import { ensureRuntimeColumns } from './ensure-columns.js'
 
 // MySQL 8.x compatible ADD COLUMN helper — ignores duplicate column error (errno 1060)
 // SECURITY: Validates table and column names to prevent SQL injection
