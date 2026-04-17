@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } f
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { UI_LANGS, EUROPEAN_LANGUAGES, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials, getTranslations, PT } from './data.js'
 import { formatPrice, formatPriceDKK } from './utils/currency.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiRemoveConversationParticipant, apiMuteConversationParticipant, apiUploadAvatar, apiCheckSession, apiRequestAccountDelete, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiShareJob, apiUnshareJob, apiGetSharedJobs, apiGetJobSharedWith, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiSendEnableMfa, apiConfirmEnableMfa, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals, apiFetchCalendarReminders, apiCreateCalendarReminder, apiDeleteCalendarReminder, apiGetLinkedContent, apiFetchJobs, apiGetSuggestedUsers, apiAdminNotifyAll, apiLikeComment, apiAdminGetPlatformAds, apiAdminCreatePlatformAd, apiAdminUpdatePlatformAd, apiAdminDeletePlatformAd, apiAdminGetLockedUsers, apiAdminUnlockUser, apiFeedCompanyPosts, apiGetLivestreamSettings, apiSaveLivestreamSettings, apiGetLivestreamStats, apiGetLivestreamStatus,
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiRemoveConversationParticipant, apiMuteConversationParticipant, apiUploadAvatar, apiCheckSession, apiRequestAccountDelete, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiGetMarketplaceCategories, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiShareJob, apiUnshareJob, apiGetSharedJobs, apiGetJobSharedWith, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiSendEnableMfa, apiConfirmEnableMfa, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals, apiFetchCalendarReminders, apiCreateCalendarReminder, apiDeleteCalendarReminder, apiGetLinkedContent, apiFetchJobs, apiGetSuggestedUsers, apiAdminNotifyAll, apiLikeComment, apiAdminGetPlatformAds, apiAdminCreatePlatformAd, apiAdminUpdatePlatformAd, apiAdminDeletePlatformAd, apiAdminGetLockedUsers, apiAdminUnlockUser, apiFeedCompanyPosts, apiGetLivestreamSettings, apiSaveLivestreamSettings, apiGetLivestreamStats, apiGetLivestreamStatus,
   apiGetStreamKey, apiRegenerateStreamKey, apiGetMarketplaceAlerts, apiCreateMarketplaceAlert, apiUpdateMarketplaceAlert, apiDeleteMarketplaceAlert,
   apiGetEurDkkRate, apiFetchFriendSuggestions } from './api.js'
 import {
@@ -46,7 +46,7 @@ import MatrixRain from './components/easter-eggs/MatrixRain.jsx'
 import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
 import RickRoll from './components/easter-eggs/RickRoll.jsx'
 import RiddleBanner from './components/easter-eggs/RiddleBanner.jsx'
-import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode, apiReverseGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiAssignAdfreedays, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness, apiFollowUser, apiUnfollowUser, apiGetFollowers, apiGetFollowing, apiPayForAd, apiBoostPost, apiTrackAdImpression, apiTrackAdClick, apiAdminGrowth, apiAdminOnlineNow, apiAdminGetBannedUsers, apiAdminGetAuditLog, apiAdminSearchUsers, apiAdminForceLogout, apiAdminDeleteUser, apiGetAdminStorageStats,
+import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiReverseGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiAssignAdfreedays, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness, apiFollowUser, apiUnfollowUser, apiGetFollowers, apiGetFollowing, apiPayForAd, apiBoostPost, apiTrackAdImpression, apiTrackAdClick, apiAdminGrowth, apiAdminOnlineNow, apiAdminGetBannedUsers, apiAdminGetAuditLog, apiAdminSearchUsers, apiAdminForceLogout, apiAdminDeleteUser, apiGetAdminStorageStats,
   apiContactBusiness, apiGetBusinessJobs, apiGetBusinessServices, apiGetBusinessEvents, apiGetBusinessEndorsements, apiGetBusinessPartners, apiSendPartnerRequest, apiSendBusinessInquiry, apiGetFollowedAnnouncements,
   apiGetMyServices,
 } from './api.js'
@@ -2457,9 +2457,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [postLocation, setPostLocation] = useState(null) // { place_name, geo_lat, geo_lng } | null
   const [locationSearchOpen, setLocationSearchOpen] = useState(false)
   const [locationSearchText, setLocationSearchText] = useState('')
-  const [locationResults, setLocationResults] = useState([])
-  const [locationSearching, setLocationSearching] = useState(false)
-  const locationDebounce = useRef(null)
   const [checkInBusy, setCheckInBusy] = useState(false)
   const [checkInError, setCheckInError] = useState(null)
   // Signal engine: track dwell time on posts via IntersectionObserver
@@ -2900,7 +2897,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       setScheduledAt('')
       setPostLocation(null)
       setLocationSearchText('')
-      setLocationResults([])
       setLocationSearchOpen(false)
       setTaggedUsers([])
       setLinkedContent(null)
@@ -3375,7 +3371,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   setScheduledAt('')
                   setPostLocation(null)
                   setLocationSearchText('')
-                  setLocationResults([])
                   setLocationSearchOpen(false)
                   setTaggedUsers([])
                   setLinkedContent(null)
@@ -3596,55 +3591,28 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
 
             {/* Location search panel */}
             {locationSearchOpen && !postLocation && (
-              <div style={{ padding: '8px 4px 4px', position: 'relative' }}>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <input
-                    autoFocus
-                    type="text"
+              <div style={{ padding: '8px 4px 4px', display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                <div style={{ flex: 1 }}>
+                  <LocationAutocomplete
                     value={locationSearchText}
-                    onChange={e => {
-                      const q = e.target.value
-                      setLocationSearchText(q)
-                      setLocationResults([])
-                      clearTimeout(locationDebounce.current)
-                      if (q.length < 2) { setLocationSearching(false); return }
-                      setLocationSearching(true)
-                      locationDebounce.current = setTimeout(async () => {
-                        const results = await apiGeocode(q, lang)
-                        setLocationResults(results || [])
-                        setLocationSearching(false)
-                      }, 500)
+                    onChange={setLocationSearchText}
+                    onSelect={loc => {
+                      if (!loc) { setLocationSearchText(''); return }
+                      setPostLocation({ lat: loc.lat, lng: loc.lng, name: loc.name })
+                      setLocationSearchOpen(false)
+                      setLocationSearchText('')
                     }}
+                    lang={lang}
                     placeholder={t.searchLocation}
-                    style={{ flex: 1, padding: '7px 10px', borderRadius: 8, border: '1px solid #1877F2', fontSize: 13, outline: 'none' }}
+                    inputStyle={{ border: '1px solid #1877F2', fontSize: 13, padding: '7px 10px' }}
                   />
-<button
-                    type="button"
-                    onMouseDown={e => e.preventDefault()}
-                    onClick={() => { setLocationSearchOpen(false); setLocationSearchText(''); setLocationResults([]) }}
-                    style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid #ddd', background: '#f5f5f5', fontSize: 13, cursor: 'pointer' }}
-                  >✕</button>
                 </div>
-                {locationResults.length > 0 && (
-                  <div style={{ position: 'absolute', left: 4, right: 4, background: '#fff', border: '1px solid #ddd', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 100, marginTop: 4 }}>
-                    {locationResults.map((r, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        onMouseDown={e => e.preventDefault()}
-                        onClick={() => {
-                          setPostLocation({ lat: parseFloat(r.lat), lng: parseFloat(r.lon), name: r.display_name.split(',')[0] })
-                          setLocationSearchOpen(false)
-                          setLocationSearchText('')
-                          setLocationResults([])
-                        }}
-                        style={{ display: 'block', width: '100%', textAlign: 'left', padding: '9px 14px', background: 'none', border: 'none', borderBottom: i < locationResults.length - 1 ? '1px solid #f0f0f0' : 'none', cursor: 'pointer', fontSize: 13, color: '#333' }}
-                      >
-                        📍 {r.display_name}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                <button
+                  type="button"
+                  onMouseDown={e => e.preventDefault()}
+                  onClick={() => { setLocationSearchOpen(false); setLocationSearchText('') }}
+                  style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid #ddd', background: '#f5f5f5', fontSize: 13, cursor: 'pointer', flexShrink: 0 }}
+                >✕</button>
               </div>
             )}
 
@@ -3827,7 +3795,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                     if (postLocation) { setPostLocation(null); return }
                     setLocationSearchOpen(v => !v)
                     setLocationSearchText('')
-                    setLocationResults([])
                   }}
                   style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${postLocation || locationSearchOpen ? '#1877F2' : '#ddd'}`, background: postLocation || locationSearchOpen ? '#EBF4FF' : '#fff', color: postLocation || locationSearchOpen ? '#1877F2' : '#555', fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
                   title={t.addLocation}
@@ -3860,7 +3827,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                       setPostLocation({ lat: latitude, lng: longitude, name: label })
                       setLocationSearchOpen(false)
                       setLocationSearchText('')
-                      setLocationResults([])
                     }, err => {
                       setCheckInBusy(false)
                       setCheckInError(err && err.code === 1 ? t.checkInDenied : t.checkInFailed)
@@ -16346,6 +16312,22 @@ function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, formErr
   const [price, setPrice]           = useState(isEdit ? (listing.price || '') : '')
   const [negotiable, setNegotiable] = useState(isEdit ? !!listing.priceNegotiable : false)
   const [category, setCategory]     = useState(isEdit ? (listing.category || '') : '')
+  const [subcategory, setSubcategory] = useState(isEdit ? (listing.subcategory || '') : '')
+  const [catTree, setCatTree] = useState(null) // null = loading; array = loaded (possibly empty)
+  useEffect(() => {
+    let cancelled = false
+    apiGetMarketplaceCategories().then(data => {
+      if (cancelled) return
+      setCatTree(Array.isArray(data?.categories) ? data.categories : [])
+    })
+    return () => { cancelled = true }
+  }, [])
+  // Fall back to hardcoded list while API loads (or if it returns empty)
+  const categoryOptions = (catTree && catTree.length > 0)
+    ? catTree.map(c => ({ key: c.id, icon: c.icon, label: c[lang] || c.da, subs: c.subcategories || [] }))
+    : MARKETPLACE_CATEGORIES.map(c => ({ key: c.key, icon: c.icon, label: t[c.labelKey], subs: [] }))
+  const currentCat = categoryOptions.find(c => c.key === category)
+  const subcategoryOptions = currentCat?.subs || []
   const [location, setLocation]     = useState(isEdit ? (listing.location || '') : '')
   const [description, setDescription] = useState(isEdit ? sanitize(listingDesc(listing)) : '')
   const [mobilepay, setMobilepay]   = useState(isEdit ? (listing.mobilepay || '') : userMobilepay)
@@ -16386,6 +16368,7 @@ function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, formErr
       price: negotiable ? 0 : Number(price),
       priceNegotiable: negotiable,
       category,
+      subcategory: subcategory || null,
       location,
       description: { da: description, en: description },
       photos: photoPreviews.map(url => ({ url })),
@@ -16398,6 +16381,7 @@ function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, formErr
     formData.append('price', negotiable ? 0 : price)
     formData.append('priceNegotiable', negotiable)
     formData.append('category', category)
+    if (subcategory) formData.append('subcategory', subcategory)
     formData.append('location', location)
     formData.append('description', description)
     if (mobilepay.trim()) formData.append('mobilepay', mobilepay.trim())
@@ -16433,12 +16417,33 @@ function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, formErr
           <input style={fS} value={title} onChange={e => setTitle(e.target.value)} placeholder={t.whatAreYouSelling} required />
 
           <label style={lS}>{t.marketplaceFieldCategory}</label>
-          <select style={fS} value={category} onChange={e => setCategory(e.target.value)} required>
+          <select
+            style={fS}
+            value={category}
+            onChange={e => { setCategory(e.target.value); setSubcategory('') }}
+            required
+          >
             <option value="">{t.chooseCategory}</option>
-            {MARKETPLACE_CATEGORIES.map(c => (
-              <option key={c.key} value={c.key}>{c.icon} {t[c.labelKey]}</option>
+            {categoryOptions.map(c => (
+              <option key={c.key} value={c.key}>{c.icon} {c.label}</option>
             ))}
           </select>
+
+          {subcategoryOptions.length > 0 && (
+            <>
+              <label style={lS}>{t.marketplaceFieldSubcategory}</label>
+              <select
+                style={fS}
+                value={subcategory}
+                onChange={e => setSubcategory(e.target.value)}
+              >
+                <option value="">{t.chooseSubcategoryOptional}</option>
+                {subcategoryOptions.map(s => (
+                  <option key={s.id} value={s.id}>{s.icon} {s[lang] || s.da}</option>
+                ))}
+              </select>
+            </>
+          )}
 
           <label style={lS}>{t.marketplaceFieldPrice}</label>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 12 }}>
