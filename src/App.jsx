@@ -653,12 +653,12 @@ function PublicSalgsbetingelserPage() {
             <tr>
               <td style={s.td}><strong>{da ? 'Reklamefri oplevelse – Privat' : 'Ad-free experience – Personal'}</strong></td>
               <td style={s.td}>{da ? 'Fjerner alle annoncer fra din feed, sidebar og stories. Gælder for personlige konti.' : 'Removes all ads from your feed, sidebar and stories. Applies to personal accounts.'}</td>
-              <td style={s.td}>{da ? 'Fra 29,00 EUR / engangsbetaling\neller fra 29,00 EUR / md. (abonnement)\neller fra 290,00 EUR / år (abonnement)' : 'From EUR 29.00 / one-time\nor from EUR 29.00 / month\nor from EUR 290.00 / year'}</td>
+              <td style={s.td}>{da ? 'Fra 29,00 EUR / engangsbetaling (30 dages reklamefri adgang)\neller fra 29,00 EUR / md. (abonnement)\neller fra 290,00 EUR / år (abonnement)' : 'From EUR 29.00 / one-time (30 days ad-free access)\nor from EUR 29.00 / month\nor from EUR 290.00 / year'}</td>
             </tr>
             <tr>
               <td style={s.td}><strong>{da ? 'Reklamefri oplevelse – Business' : 'Ad-free experience – Business'}</strong></td>
               <td style={s.td}>{da ? 'Som ovenfor, men for erhvervskonti.' : 'As above, but for business accounts.'}</td>
-              <td style={s.td}>{da ? 'Fra 49,00 EUR / engangsbetaling\neller fra 49,00 EUR / md. (abonnement)\neller fra 490,00 EUR / år (abonnement)' : 'From EUR 49.00 / one-time\nor from EUR 49.00 / month\nor from EUR 490.00 / year'}</td>
+              <td style={s.td}>{da ? 'Fra 49,00 EUR / engangsbetaling (30 dages reklamefri adgang)\neller fra 49,00 EUR / md. (abonnement)\neller fra 490,00 EUR / år (abonnement)' : 'From EUR 49.00 / one-time (30 days ad-free access)\nor from EUR 49.00 / month\nor from EUR 490.00 / year'}</td>
             </tr>
             <tr>
               <td style={s.td}><strong>{da ? 'Annoncering (business-konti)' : 'Advertising (business accounts)'}</strong></td>
@@ -685,7 +685,7 @@ function PublicSalgsbetingelserPage() {
           : 'Payment is processed through Mollie (EU-certified payment gateway). The following payment methods are available:'
         }</p>
         <ul style={s.ul}>
-          <li>MobilePay</li>
+          <li>MobilePay {da ? '(kun for personlige konti)' : '(personal accounts only)'}</li>
           <li>Visa / Mastercard</li>
           <li>Apple Pay</li>
           <li>Google Pay</li>
