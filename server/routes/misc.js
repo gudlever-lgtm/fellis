@@ -1450,10 +1450,7 @@ router.get('/ads', authenticate, async (req, res) => {
       // All ads run across all placements — no placement filter
       const limitMap = { feed: settings.max_ads_feed, sidebar: settings.max_ads_sidebar, stories: settings.max_ads_stories, reels: settings.max_ads_feed }
       const limit = limitMap[placement] || 1
-      ;[rows] = await pool.query(
-        `SELECT * FROM ads WHERE status = 'active' AND (start_date IS NULL OR start_date <= CURDATE()) AND (end_date IS NULL OR end_date >= CURDATE()) ORDER BY RAND() LIMIT ?`,
-        [limit]
-      )
+      rows = await selectAdsForUser(req.userId, limit)
       return res.json({ ads: rows, refresh_interval: settings.refresh_interval_seconds })
     } else {
       // Business user's own ads
@@ -1729,10 +1726,7 @@ router.get('/content', authenticate, async (req, res) => {
     const section = req.query.section || 'feed'
     const limitMap = { feed: settings.max_ads_feed, sidebar: settings.max_ads_sidebar, stories: settings.max_ads_stories, reels: settings.max_ads_feed }
     const limit = limitMap[section] || 1
-    const [rows] = await pool.query(
-      `SELECT * FROM ads WHERE status = 'active' AND (start_date IS NULL OR start_date <= CURDATE()) AND (end_date IS NULL OR end_date >= CURDATE()) ORDER BY RAND() LIMIT ?`,
-      [limit]
-    )
+    const rows = await selectAdsForUser(req.userId, limit)
     res.json({ ads: rows, refresh_interval: settings.refresh_interval_seconds })
   } catch (err) {
     console.error('GET /api/content error:', err.message)

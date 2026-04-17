@@ -188,10 +188,12 @@ export async function apiDismissOnboarding() {
 }
 
 // Feed
-export async function apiFetchFeed(cursor = null, limit = 20, mode = null) {
+export async function apiFetchFeed(cursor = null, limit = 20, mode = null, opts = {}) {
   const params = new URLSearchParams({ limit: String(limit) })
   if (cursor) params.set('cursor', cursor)
   if (mode) params.set('mode', mode)
+  if (opts.ranked) params.set('ranked', '1')
+  if (opts.offset) params.set('offset', String(opts.offset))
   return await request(`/api/feed?${params}`)
 }
 
@@ -752,11 +754,13 @@ export async function apiUploadAvatar(file) {
 }
 
 // ── Marketplace ──
-export async function apiFetchListings({ category = '', location = '', q = '' } = {}) {
+export async function apiFetchListings({ category = '', location = '', q = '', limit, offset } = {}) {
   const params = new URLSearchParams()
   if (category) params.set('category', category)
   if (location) params.set('location', location)
   if (q) params.set('q', q)
+  if (limit != null) params.set('limit', String(limit))
+  if (offset != null) params.set('offset', String(offset))
   return await request(`/api/marketplace?${params}`)
 }
 

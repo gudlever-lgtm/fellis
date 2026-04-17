@@ -53,15 +53,20 @@ router.get('/jobs', authenticate, async (req, res) => {
 
 router.get('/jobs/saved', authenticate, async (req, res) => {
   try {
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 100)
+    const offset = Math.max(parseInt(req.query.offset) || 0, 0)
     const [rows] = await pool.query(
       `SELECT j.*, c.name AS company_name, c.handle AS company_handle, c.color AS company_color,
               1 AS saved, js.track_status
        FROM jobs j JOIN companies c ON c.id = j.company_id
        JOIN job_saves js ON js.job_id = j.id AND js.user_id = ?
-       ORDER BY js.saved_at DESC`,
-      [req.userId]
+       ORDER BY js.saved_at DESC
+       LIMIT ? OFFSET ?`,
+      [req.userId, limit + 1, offset]
     )
-    res.json({ jobs: rows })
+    const hasMore = rows.length > limit
+    const jobs = hasMore ? rows.slice(0, limit) : rows
+    res.json({ jobs, hasMore, nextOffset: hasMore ? offset + limit : null })
   } catch (err) {
     res.status(500).json({ error: 'Server error' })
   }
@@ -87,16 +92,21 @@ router.patch('/jobs/:id/track', authenticate, async (req, res) => {
 
 router.get('/jobs/tracked', authenticate, async (req, res) => {
   try {
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 100)
+    const offset = Math.max(parseInt(req.query.offset) || 0, 0)
     const [rows] = await pool.query(
       `SELECT j.*, c.name AS company_name, c.handle AS company_handle, c.color AS company_color,
               1 AS saved, js.track_status
        FROM jobs j JOIN companies c ON c.id = j.company_id
        JOIN job_saves js ON js.job_id = j.id AND js.user_id = ?
        WHERE js.track_status IS NOT NULL
-       ORDER BY js.saved_at DESC`,
-      [req.userId]
+       ORDER BY js.saved_at DESC
+       LIMIT ? OFFSET ?`,
+      [req.userId, limit + 1, offset]
     )
-    res.json({ jobs: rows })
+    const hasMore = rows.length > limit
+    const jobs = hasMore ? rows.slice(0, limit) : rows
+    res.json({ jobs, hasMore, nextOffset: hasMore ? offset + limit : null })
   } catch (err) {
     res.status(500).json({ error: 'Server error' })
   }
