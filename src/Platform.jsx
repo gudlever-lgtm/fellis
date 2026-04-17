@@ -6204,7 +6204,7 @@ function BillingSettings({ lang, t, mode }) {
             {/* Plan toggle */}
             <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
               {[
-                { key: 'once', label: `1× ${t.oneTimePayment} — ${formatPrice(price)}` },
+                { key: 'once', label: `1× ${t.oneTimePayment} (${t.oneTimePaymentDays}) — ${formatPrice(price)}` },
                 { key: 'monthly', label: `🔁 ${t.jobSalaryMonthly} — ${formatPrice(monthlyPrice)}/${t.adFreeMonth}` },
                 { key: 'annual', label: `${t.adFreeAnnual} — ${formatPrice(annualPrice)}/${t.adFreeYear}${annualDiscountPct > 0 ? ` (${t.adFreeAnnualSave} ${annualDiscountPct}%)` : ''}` },
               ].map(({ key, label }) => (
