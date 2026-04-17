@@ -19,6 +19,7 @@ import {
   mailer, oauthStateTokens,
   MAX_LOGIN_ATTEMPTS, LOCKOUT_DURATION_MINUTES,
   COOKIE_NAME, SERVER_START, visitedSessions, visitedAnonIps,
+  getMollieClient,
 } from '../middleware.js'
 import crypto from 'crypto'
 import fs from 'fs'

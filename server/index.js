@@ -2464,63 +2464,6 @@ async function initMollie() {
   }
 }
 
-async function getMollieKey() {
-  // 1. DB admin_settings takes priority — respects keys set via admin UI without server restart
-  try {
-    const [[row]] = await pool.query("SELECT key_value FROM admin_settings WHERE key_name = 'mollie_api_key'")
-    if (row?.key_value && !row.key_value.includes('•')) return row.key_value
-  } catch {}
-  // 2. Process env (set at startup from .env file)
-  const envKey = (process.env.MOLLIE_API_KEY || '').replace(/^["']|["']$/g, '').trim()
-  if (envKey) return envKey
-  // 3. Re-read .env file directly as fallback (handles PM2 env not updating)
-  try {
-    const { readFileSync } = await import('fs')
-    const envFile = readFileSync(path.join(__dirname, '.env'), 'utf8')
-    for (const line of envFile.split('\n')) {
-      const trimmed = line.trim()
-      if (!trimmed || trimmed.startsWith('#')) continue
-      const idx = trimmed.indexOf('=')
-      if (idx === -1) continue
-      if (trimmed.slice(0, idx).trim() === 'MOLLIE_API_KEY') {
-        const val = trimmed.slice(idx + 1).trim().replace(/^["']|["']$/g, '')
-        if (val) return val
-      }
-    }
-  } catch {}
-  return null
-}
-
-async function getMollieClient() {
-  const key = await getMollieKey()
-  if (!key) return null
-  try {
-    const { createMollieClient } = await import('@mollie/api-client')
-    return createMollieClient({ apiKey: key })
-  } catch (err) {
-    console.error('getMollieClient import error:', err.message)
-    return null
-  }
-}
-
-// EUR/DKK exchange rate cache — MobilePay only accepts DKK
-let _eurDkkRate = null
-let _eurDkkCachedAt = 0
-const EUR_DKK_CACHE_TTL = 3600 * 1000 // 1 hour
-
-async function fetchEurDkkRate() {
-  if (_eurDkkRate && Date.now() - _eurDkkCachedAt < EUR_DKK_CACHE_TTL) return _eurDkkRate
-  // frankfurter.app proxies ECB data — no API key required
-  const resp = await fetch('https://api.frankfurter.app/latest?from=EUR&to=DKK', { signal: AbortSignal.timeout(5000) })
-  if (!resp.ok) throw new Error(`Exchange rate API returned ${resp.status}`)
-  const data = await resp.json()
-  const rate = data?.rates?.DKK
-  if (!rate || typeof rate !== 'number') throw new Error('No DKK rate in response')
-  _eurDkkRate = rate
-  _eurDkkCachedAt = Date.now()
-  return rate
-}
-
 // GET /api/currency/eur-dkk — live EUR→DKK rate for MobilePay conversion
 
 // POST /api/mollie/payment/create — create a Mollie payment and return checkout URL
