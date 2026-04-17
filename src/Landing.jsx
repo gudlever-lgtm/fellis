@@ -14,6 +14,9 @@ const T = {
     createCardTitle: 'Opret ny konto',
     createCardDesc: 'Start frisk på fellis.eu med e-mail og adgangskode.',
     createCardBtn: 'Opret konto',
+    manifestoLine1: 'Sociale medier solgte dig til annoncørerne.',
+    manifestoLine2: 'Det syntes vi ikke var en fair handel.',
+    manifestoLine3: 'Fellis er en europæisk fællesskabsplatform — reklamer uden overvågning, ingen algoritmer, ingen skjult dagsorden. Bare mennesker.',
     trustEncrypt: 'End-to-end krypteret',
     trustEU: 'Hostet i EU',
     trustDelete: 'Fuld kontrol over dine data',
@@ -112,6 +115,9 @@ const T = {
     createCardTitle: 'Create new account',
     createCardDesc: 'Start fresh on fellis.eu with email and password.',
     createCardBtn: 'Create account',
+    manifestoLine1: 'Social media sold you to advertisers.',
+    manifestoLine2: 'We didn\'t think that was a fair deal.',
+    manifestoLine3: 'Fellis is a European community platform — ads without surveillance, no algorithms, no hidden agenda. Just people.',
     trustEncrypt: 'End-to-end encrypted',
     trustEU: 'EU hosted',
     trustDelete: 'Full control over your data',
@@ -660,8 +666,18 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
             <p style={{ fontSize: 14, color: '#6B6560', margin: 0, lineHeight: 1.4 }}>{t.subtitle}</p>
           </div>
 
+          {/* Two-card row: manifesto + registration */}
+          <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', width: '100%', maxWidth: 860, flexWrap: 'wrap', justifyContent: 'center' }}>
+
+          {/* Manifesto card */}
+          <div style={{ flex: '1 1 280px', maxWidth: 380, border: '1px solid #C8DDD2', borderRadius: 14, padding: '28px 28px', boxSizing: 'border-box', background: '#F0FAF4', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 14 }}>
+            <p style={{ fontSize: 19, fontWeight: 700, lineHeight: 1.4, margin: 0, color: '#1a1a1a' }}>{t.manifestoLine1}</p>
+            <p style={{ fontSize: 19, fontWeight: 700, lineHeight: 1.4, margin: 0, color: '#1a1a1a' }}>{t.manifestoLine2}</p>
+            <p style={{ fontSize: 14, lineHeight: 1.7, margin: 0, color: '#4a6b5c' }}>{t.manifestoLine3}</p>
+          </div>
+
           {/* Registration form */}
-          <form className="register-form" onSubmit={handleRegister} style={{ border: '1px solid #E0DCD7', borderRadius: 14, padding: '16px 22px', maxWidth: 420, width: '100%', boxSizing: 'border-box', margin: 0, gap: 6 }}>
+          <form className="register-form" onSubmit={handleRegister} style={{ flex: '1 1 280px', border: '1px solid #E0DCD7', borderRadius: 14, padding: '16px 22px', maxWidth: 420, width: '100%', boxSizing: 'border-box', margin: 0, gap: 6 }}>
             <h3 className="register-title" style={{ marginBottom: 2 }}>{t.registerTitle}</h3>
             {/* Honeypot — hidden from users, filled only by bots */}
             <input
@@ -750,9 +766,10 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
               {regLoading ? '...' : t.registerSubmit}
             </button>
           </form>
+          </div>{/* end two-card row */}
 
           {/* Trust + services row — bottom */}
-          <div style={{ marginTop: 12, width: '100%', maxWidth: 700, flexShrink: 0 }}>
+          <div style={{ marginTop: 12, width: '100%', maxWidth: 860, flexShrink: 0 }}>
             <div className="trust-row" style={{ marginTop: 0, gap: 24 }}>
               <div className="trust-item"><div className="trust-icon" style={{ fontSize: 15 }}>🔒</div><span className="trust-label">{t.trustEncrypt}</span></div>
               <div className="trust-item"><div className="trust-icon" style={{ fontSize: 15 }}>🇪🇺</div><a href="https://yggdrasilcloud.dk/" target="_blank" rel="noopener noreferrer" className="trust-label trust-link">{t.trustEU}</a></div>
