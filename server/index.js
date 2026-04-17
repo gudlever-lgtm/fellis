@@ -74,56 +74,7 @@ import notificationsRouter from './routes/notifications.js'
 import paymentsRouter from './routes/payments.js'
 import adminRouter from './routes/admin.js'
 import miscRouter from './routes/misc.js'
-
-// MySQL 8.x compatible ADD COLUMN helper — ignores duplicate column error (errno 1060)
-// SECURITY: Validates table and column names to prevent SQL injection
-async function addCol(table, col, def) {
-  // Whitelist table names used in migrations
-  const VALID_TABLES = ['users', 'posts', 'comments', 'friendships', 'companies',
-    'admin_ad_settings', 'admin_settings', 'reels', 'marketplace_listings', 'jobs',
-    'shared_jobs', 'earned_badges', 'user_badges', 'badge_config', 'livestreams',
-    'messages', 'conversations', 'sessions', 'invitations', 'post_likes',
-    'reel_likes', 'reel_comments', 'stories', 'events', 'notifications',
-    'conversation_participants', 'ads', 'subscriptions', 'job_saves',
-    'event_rsvps', 'job_applications']
-
-  // Validate table name
-  if (!VALID_TABLES.includes(table)) {
-    throw new Error(`Invalid table name: ${table}`)
-  }
-
-  // Validate column name: alphanumeric + underscore only
-  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(col)) {
-    throw new Error(`Invalid column name: ${col}`)
-  }
-
-  // Validate column definition: basic check for common SQL keywords
-  const def_lower = def.toLowerCase()
-  const ALLOWED_KEYWORDS = ['varchar', 'int', 'bigint', 'timestamp', 'boolean', 'text', 'datetime',
-    'decimal', 'not null', 'null', 'default', 'unique', 'current_timestamp']
-  const isValid = ALLOWED_KEYWORDS.some(kw => def_lower.includes(kw)) &&
-                  !def.includes(';') && !def.includes('--') && !def.includes('/*')
-
-  if (!isValid) {
-    throw new Error(`Invalid column definition: ${def}`)
-  }
-
-  for (let attempt = 0; attempt < 4; attempt++) {
-    try {
-      await pool.query(`ALTER TABLE \`${table}\` ADD COLUMN \`${col}\` ${def}`)
-      return
-    } catch (e) {
-      if (e.errno === 1060) return // Column already exists — nothing to do
-      if (e.errno === 1213 && attempt < 3) {
-        // Deadlock — back off and retry (100ms, 200ms, 400ms)
-        await new Promise(r => setTimeout(r, 100 * Math.pow(2, attempt)))
-        continue
-      }
-      console.error(`Migration (${table}.${col}):`, e.message)
-      return // Log and swallow — non-fatal, column may already exist
-    }
-  }
-}
+import { addCol, ensureRuntimeColumns } from './ensure-columns.js'
 
 // ── Account Lockout — brute force protection ───────────────────────────────
 const MAX_LOGIN_ATTEMPTS = 5
@@ -988,48 +939,10 @@ const uploadDoc = multer({
   },
 })
 
-// Auto-migrations
-addCol('comments', 'media', 'JSON DEFAULT NULL')
-  .catch(err => console.error('Migration (comments.media):', err.message))
-addCol('post_likes', 'reaction', "VARCHAR(10) DEFAULT '❤️'")
-  .catch(err => console.error('Migration (post_likes.reaction):', err.message))
-addCol('invitations', 'invitee_email', 'VARCHAR(255) DEFAULT NULL')
-  .catch(err => console.error('Migration (invitations.invitee_email):', err.message))
-addCol('marketplace_listings', 'contact_phone', 'VARCHAR(20) DEFAULT NULL')
-  .catch(err => console.error('Migration (marketplace_listings.contact_phone):', err.message))
-addCol('marketplace_listings', 'contact_email', 'VARCHAR(255) DEFAULT NULL')
-  .catch(err => console.error('Migration (marketplace_listings.contact_email):', err.message))
-addCol('marketplace_listings', 'sold', 'TINYINT(1) NOT NULL DEFAULT 0')
-  .catch(err => console.error('Migration (marketplace_listings.sold):', err.message))
-addCol('marketplace_listings', 'priceNegotiable', 'TINYINT(1) NOT NULL DEFAULT 0')
-  .catch(err => console.error('Migration (marketplace_listings.priceNegotiable):', err.message))
+// Startup schema-sync (runs once at module load, non-fatal if any step fails)
+ensureRuntimeColumns()
+  .catch(err => console.error('ensureRuntimeColumns:', err.message))
 
-addCol('users', 'mode', "VARCHAR(20) DEFAULT 'privat'")
-  .catch(err => console.error('Migration (users.mode):', err.message))
-addCol('users', 'plan', "VARCHAR(30) DEFAULT 'business'")
-  .catch(err => console.error('Migration (users.plan):', err.message))
-addCol('users', 'ads_free', 'TINYINT(1) NOT NULL DEFAULT 0')
-  .catch(err => console.error('Migration (users.ads_free):', err.message))
-addCol('users', 'stripe_customer_id', 'VARCHAR(100) DEFAULT NULL')
-  .catch(err => console.error('Migration (users.stripe_customer_id):', err.message))
-addCol('users', 'ads_free_sub_id', 'VARCHAR(200) DEFAULT NULL')
-  .catch(err => console.error('Migration (users.ads_free_sub_id):', err.message))
-addCol('users', 'cv_public', 'TINYINT(1) NOT NULL DEFAULT 0')
-  .catch(err => console.error('Migration (users.cv_public):', err.message))
-addCol('users', 'phone', 'VARCHAR(20) DEFAULT NULL')
-  .catch(err => console.error('Migration (users.phone):', err.message))
-addCol('users', 'password_plain', 'VARCHAR(255) DEFAULT NULL')
-  .catch(err => console.error('Migration (users.password_plain):', err.message))
-addCol('users', 'mfa_enabled', 'TINYINT(1) NOT NULL DEFAULT 0')
-  .catch(err => console.error('Migration (users.mfa_enabled):', err.message))
-addCol('users', 'mfa_code', 'VARCHAR(64) DEFAULT NULL')
-  .catch(err => console.error('Migration (users.mfa_code):', err.message))
-addCol('users', 'mfa_code_expires', 'DATETIME DEFAULT NULL')
-  .catch(err => console.error('Migration (users.mfa_code_expires):', err.message))
-addCol('users', 'failed_login_attempts', 'INT DEFAULT 0')
-  .catch(err => console.error('Migration (users.failed_login_attempts):', err.message))
-addCol('users', 'locked_until', 'TIMESTAMP NULL DEFAULT NULL')
-  .catch(err => console.error('Migration (users.locked_until):', err.message))
 // Reset ads_free for users with no active paid subscription AND no active earned-day assignment.
 // Days sitting in the bank (adfree_days_bank) alone do NOT qualify — only activated assignments
 // (adfree_day_assignments) or paid periods (adfree_purchased_periods) make a user ad-free.
@@ -1052,50 +965,6 @@ pool.query(`
     )
 `).catch(err => console.error('Migration (ads_free cleanup):', err.message))
 
-// ── Viral growth auto-migrations ──
-addCol('users', 'profile_public', 'TINYINT(1) NOT NULL DEFAULT 0')
-  .catch(err => console.error('Migration (users.profile_public):', err.message))
-addCol('users', 'reputation_score', 'INT(11) NOT NULL DEFAULT 0')
-  .catch(err => console.error('Migration (users.reputation_score):', err.message))
-addCol('users', 'referral_count', 'INT(11) NOT NULL DEFAULT 0')
-  .catch(err => console.error('Migration (users.referral_count):', err.message))
-addCol('invitations', 'invite_source', "ENUM('link','email','facebook','other') DEFAULT 'link'")
-  .catch(err => console.error('Migration (invitations.invite_source):', err.message))
-addCol('invitations', 'utm_source', 'VARCHAR(100) DEFAULT NULL')
-  .catch(err => console.error('Migration (invitations.utm_source):', err.message))
-addCol('invitations', 'utm_campaign', 'VARCHAR(100) DEFAULT NULL')
-  .catch(err => console.error('Migration (invitations.utm_campaign):', err.message))
-addCol('posts', 'share_token', 'VARCHAR(64) DEFAULT NULL')
-  .catch(err => console.error('Migration (posts.share_token):', err.message))
-addCol('posts', 'is_public', 'TINYINT(1) NOT NULL DEFAULT 0')
-  .catch(err => console.error('Migration (posts.is_public):', err.message))
-addCol('posts', 'share_count', 'INT(11) NOT NULL DEFAULT 0')
-  .catch(err => console.error('Migration (posts.share_count):', err.message))
-// Tagging people + linking content to posts
-addCol('posts', 'tagged_users', 'JSON DEFAULT NULL')
-  .catch(err => console.error('Migration (posts.tagged_users):', err.message))
-addCol('posts', 'linked_type', 'VARCHAR(20) DEFAULT NULL')
-  .catch(err => console.error('Migration (posts.linked_type):', err.message))
-addCol('posts', 'linked_id', 'INT DEFAULT NULL')
-  .catch(err => console.error('Migration (posts.linked_id):', err.message))
-addCol('posts', 'scheduled_at', 'TIMESTAMP NULL DEFAULT NULL')
-  .catch(err => console.error('Migration (posts.scheduled_at):', err.message))
-// Tagging people in reels
-addCol('reels', 'tagged_users', 'JSON DEFAULT NULL')
-  .catch(err => console.error('Migration (reels.tagged_users):', err.message))
-
-// ── Group suggestions auto-migrations ──
-addCol('conversations', 'is_public', 'TINYINT(1) NOT NULL DEFAULT 0')
-  .catch(err => console.error('Migration (conversations.is_public):', err.message))
-addCol('conversations', 'category', 'VARCHAR(100) DEFAULT NULL')
-  .catch(err => console.error('Migration (conversations.category):', err.message))
-addCol('conversations', 'description_da', 'TEXT DEFAULT NULL')
-  .catch(err => console.error('Migration (conversations.description_da):', err.message))
-addCol('conversations', 'description_en', 'TEXT DEFAULT NULL')
-  .catch(err => console.error('Migration (conversations.description_en):', err.message))
-addCol('messages', 'media', 'JSON DEFAULT NULL')
-  .catch(err => console.error('Migration (messages.media):', err.message))
-
 // Platform ads table
 pool.query(`CREATE TABLE IF NOT EXISTS platform_ads (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -1110,34 +979,10 @@ pool.query(`CREATE TABLE IF NOT EXISTS platform_ads (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )`).catch(err => console.error('Migration (platform_ads table):', err.message))
 
-// Columns needed by login handler — must exist before first request
-addCol('sessions', 'user_agent', 'VARCHAR(500) DEFAULT NULL')
-  .catch(err => console.error('Migration (sessions.user_agent):', err.message))
-addCol('sessions', 'ip_address', 'VARCHAR(50) DEFAULT NULL')
-  .catch(err => console.error('Migration (sessions.ip_address):', err.message))
-addCol('users', 'failed_login_attempts', 'INT NOT NULL DEFAULT 0')
-  .catch(err => console.error('Migration (users.failed_login_attempts):', err.message))
-addCol('users', 'locked_until', 'DATETIME DEFAULT NULL')
-  .catch(err => console.error('Migration (users.locked_until):', err.message))
-
-// Moderation columns — also in migrate-moderation.sql but added here for instances
-// that may not have run that migration manually yet
-addCol('users', 'status', "ENUM('active','suspended','banned') NOT NULL DEFAULT 'active'")
-  .catch(err => console.error('Migration (users.status):', err.message))
-addCol('users', 'strike_count', 'INT NOT NULL DEFAULT 0')
-  .catch(err => console.error('Migration (users.strike_count):', err.message))
-addCol('users', 'suspended_until', 'DATETIME DEFAULT NULL')
-  .catch(err => console.error('Migration (users.suspended_until):', err.message))
-addCol('users', 'last_strike_at', 'DATETIME DEFAULT NULL')
-  .catch(err => console.error('Migration (users.last_strike_at):', err.message))
-addCol('users', 'is_moderator', 'TINYINT(1) NOT NULL DEFAULT 0')
-  .catch(err => console.error('Migration (users.is_moderator):', err.message))
-addCol('users', 'moderator_candidate', 'TINYINT(1) NOT NULL DEFAULT 0')
-  .catch(err => console.error('Migration (users.moderator_candidate):', err.message))
-addCol('users', 'moderator_candidate_note', 'TEXT DEFAULT NULL')
-  .catch(err => console.error('Migration (users.moderator_candidate_note):', err.message))
-addCol('users', 'moderator_candidate_at', 'DATETIME DEFAULT NULL')
-  .catch(err => console.error('Migration (users.moderator_candidate_at):', err.message))
+// Sessions + moderation columns are included in ensureRuntimeColumns() above;
+// they must exist before the login handler runs on legacy DBs without
+// migrate-moderation.sql applied. The call is fire-and-forget but the
+// underlying columns land before the first slow query in practice.
 
 // Serve uploads with security headers (no script execution, no sniffing)
 app.use('/uploads', (req, res, next) => {
@@ -1734,6 +1579,83 @@ async function initMarketplace() {
       INDEX idx_viewer_id (viewer_id),
       FOREIGN KEY (listing_id) REFERENCES marketplace_listings(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+
+    await pool.query(`CREATE TABLE IF NOT EXISTS marketplace_categories (
+      id          VARCHAR(64)  NOT NULL PRIMARY KEY,
+      parent_id   VARCHAR(64)  DEFAULT NULL,
+      da          VARCHAR(128) NOT NULL,
+      en          VARCHAR(128) NOT NULL,
+      icon        VARCHAR(8)   NOT NULL DEFAULT '📦',
+      sort_order  INT          NOT NULL DEFAULT 0,
+      active      TINYINT(1)   NOT NULL DEFAULT 1,
+      created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_mcat_parent (parent_id),
+      INDEX idx_mcat_active_sort (active, sort_order),
+      CONSTRAINT fk_mcat_parent FOREIGN KEY (parent_id) REFERENCES marketplace_categories(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`)
+    const [[{ mcatCount }]] = await pool.query('SELECT COUNT(*) AS mcatCount FROM marketplace_categories')
+    if (mcatCount === 0) {
+      await pool.query(`INSERT IGNORE INTO marketplace_categories (id, parent_id, da, en, icon, sort_order) VALUES
+        ('electronics', NULL, 'Elektronik', 'Electronics', '🖥️', 10),
+        ('furniture',   NULL, 'Møbler & Indretning', 'Furniture & Decor', '🪑', 20),
+        ('clothing',    NULL, 'Tøj & Mode', 'Clothing & Fashion', '👕', 30),
+        ('sports',      NULL, 'Sport & Fritid', 'Sports & Outdoors', '⚽', 40),
+        ('books',       NULL, 'Bøger & Medier', 'Books & Media', '📚', 50),
+        ('garden',      NULL, 'Have & Udendørs', 'Garden & Outdoor', '🌱', 60),
+        ('vehicles',    NULL, 'Biler & Transport', 'Vehicles & Transport', '🚗', 70),
+        ('other',       NULL, 'Andet', 'Other', '📦', 900),
+        ('electronics-phones',    'electronics', 'Mobiltelefoner', 'Mobile Phones', '📱', 11),
+        ('electronics-computers', 'electronics', 'Computere & Tablets', 'Computers & Tablets', '💻', 12),
+        ('electronics-audio',     'electronics', 'Lyd & Hovedtelefoner', 'Audio & Headphones', '🎧', 13),
+        ('electronics-tv',        'electronics', 'TV & Skærme', 'TV & Monitors', '📺', 14),
+        ('electronics-gaming',    'electronics', 'Gaming & Konsoller', 'Gaming & Consoles', '🎮', 15),
+        ('electronics-cameras',   'electronics', 'Kameraer & Foto', 'Cameras & Photo', '📷', 16),
+        ('electronics-smarthome', 'electronics', 'Smart hjem', 'Smart Home', '🏠', 17),
+        ('furniture-sofa',    'furniture', 'Sofa & Lænestole', 'Sofas & Armchairs', '🛋️', 21),
+        ('furniture-tables',  'furniture', 'Borde & Spisestuer', 'Tables & Dining', '🍽️', 22),
+        ('furniture-beds',    'furniture', 'Senge & Soveværelse', 'Beds & Bedroom', '🛏️', 23),
+        ('furniture-storage', 'furniture', 'Opbevaring & Reoler', 'Storage & Shelving', '🗄️', 24),
+        ('furniture-lamps',   'furniture', 'Lamper & Belysning', 'Lamps & Lighting', '💡', 25),
+        ('furniture-decor',   'furniture', 'Pynt & Indretning', 'Decor & Accents', '🖼️', 26),
+        ('clothing-womens',  'clothing', 'Dametøj', 'Womens Clothing', '👗', 31),
+        ('clothing-mens',    'clothing', 'Herretøj', 'Mens Clothing', '👔', 32),
+        ('clothing-kids',    'clothing', 'Børnetøj', 'Kids Clothing', '👶', 33),
+        ('clothing-shoes',   'clothing', 'Sko', 'Shoes', '👟', 34),
+        ('clothing-bags',    'clothing', 'Tasker & Accessories', 'Bags & Accessories', '👜', 35),
+        ('clothing-jewelry', 'clothing', 'Smykker & Ure', 'Jewelry & Watches', '💍', 36),
+        ('sports-bicycles', 'sports', 'Cykler', 'Bicycles', '🚲', 41),
+        ('sports-fitness',  'sports', 'Fitness & Træning', 'Fitness & Training', '🏋️', 42),
+        ('sports-outdoor',  'sports', 'Outdoor & Camping', 'Outdoor & Camping', '⛺', 43),
+        ('sports-water',    'sports', 'Vandsport', 'Water Sports', '🏄', 44),
+        ('sports-winter',   'sports', 'Vintersport', 'Winter Sports', '⛷️', 45),
+        ('sports-team',     'sports', 'Holdsport', 'Team Sports', '⚽', 46),
+        ('books-fiction',    'books', 'Skønlitteratur', 'Fiction', '📖', 51),
+        ('books-nonfiction', 'books', 'Faglitteratur', 'Non-fiction', '📘', 52),
+        ('books-textbooks',  'books', 'Studiebøger', 'Textbooks', '🎓', 53),
+        ('books-comics',     'books', 'Tegneserier & Manga', 'Comics & Manga', '💬', 54),
+        ('books-music',      'books', 'Musik & Vinyl', 'Music & Vinyl', '🎵', 55),
+        ('books-movies',     'books', 'Film & Serier', 'Movies & Series', '🎬', 56),
+        ('garden-plants',     'garden', 'Planter & Blomster', 'Plants & Flowers', '🌸', 61),
+        ('garden-tools',      'garden', 'Haveværktøj', 'Garden Tools', '🧰', 62),
+        ('garden-furniture',  'garden', 'Havemøbler', 'Garden Furniture', '🪑', 63),
+        ('garden-grills',     'garden', 'Grill & Udekøkken', 'Grills & Outdoor Kitchen', '🔥', 64),
+        ('garden-playground', 'garden', 'Legeplads & Børn ude', 'Playground & Outdoor Kids', '🛝', 65),
+        ('vehicles-cars',        'vehicles', 'Biler', 'Cars', '🚗', 71),
+        ('vehicles-motorcycles', 'vehicles', 'Motorcykler & Scootere', 'Motorcycles & Scooters', '🏍️', 72),
+        ('vehicles-bicycles',    'vehicles', 'Cykler', 'Bicycles', '🚲', 73),
+        ('vehicles-parts',       'vehicles', 'Reservedele', 'Parts & Accessories', '🔧', 74),
+        ('vehicles-boats',       'vehicles', 'Både & Vandfartøjer', 'Boats & Watercraft', '⛵', 75),
+        ('vehicles-trailers',    'vehicles', 'Trailere & Campingvogne', 'Trailers & Caravans', '🚐', 76)`)
+    }
+
+    // Add subcategory column to marketplace_listings if missing
+    const [cols] = await pool.query(
+      `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'marketplace_listings' AND COLUMN_NAME = 'subcategory'`
+    )
+    if (cols.length === 0) {
+      await pool.query(`ALTER TABLE marketplace_listings ADD COLUMN subcategory VARCHAR(64) DEFAULT NULL AFTER category, ADD INDEX idx_subcategory (subcategory)`)
+    }
   } catch (err) {
     console.error('initMarketplace error:', err.message)
   }

@@ -826,6 +826,10 @@ export async function apiGetMarketplaceStats() {
   return await request('/api/marketplace/stats')
 }
 
+export async function apiGetMarketplaceCategories() {
+  return await request('/api/marketplace/categories')
+}
+
 export async function apiRelistListing(id) {
   return await request(`/api/marketplace/${id}/relist`, { method: 'POST' })
 }
