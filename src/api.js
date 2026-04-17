@@ -188,10 +188,12 @@ export async function apiDismissOnboarding() {
 }
 
 // Feed
-export async function apiFetchFeed(cursor = null, limit = 20, mode = null) {
+export async function apiFetchFeed(cursor = null, limit = 20, mode = null, opts = {}) {
   const params = new URLSearchParams({ limit: String(limit) })
   if (cursor) params.set('cursor', cursor)
   if (mode) params.set('mode', mode)
+  if (opts.ranked) params.set('ranked', '1')
+  if (opts.offset) params.set('offset', String(opts.offset))
   return await request(`/api/feed?${params}`)
 }
 

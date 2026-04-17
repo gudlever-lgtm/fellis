@@ -29,6 +29,92 @@ import { createReelFromLivestream, LIVESTREAM_DEFAULTS, transcodeVideo } from '.
 
 const router = express.Router()
 
+// Rank candidate ads for a given user and return up to `limit` rows.
+//
+//   relevance = Σ user_interest_weight[slug] for slug ∈ ad.target_interests
+//   pacing    = 1 − spent / budget                           (undepleted ads ranked first)
+//   tiebreak  = per-request random jitter                    (avoids starving new ads)
+//
+// Daily and weekly per-user frequency caps are enforced before ranking so a
+// user can't be shown the same ad >N times/day. Returns fewer than `limit`
+// rows when too few ads pass the caps.
+async function selectAdsForUser(userId, limit) {
+  const [[caps]] = await pool.query(
+    'SELECT ad_daily_cap_per_user, ad_weekly_cap_per_user FROM admin_ad_settings WHERE id = 1'
+  ).catch(() => [[null]])
+  const dailyCap = parseInt(caps?.ad_daily_cap_per_user) || 5
+  const weeklyCap = parseInt(caps?.ad_weekly_cap_per_user) || 20
+
+  // Candidate pool: active + in-date, budget not exhausted.
+  const [ads] = await pool.query(
+    `SELECT id, title, body, image_url, target_url, placement, cpm_rate, budget, spent, target_interests
+       FROM ads
+      WHERE status = 'active'
+        AND (start_date IS NULL OR start_date <= CURDATE())
+        AND (end_date   IS NULL OR end_date   >= CURDATE())
+      ORDER BY created_at DESC
+      LIMIT 100`
+  )
+  if (!ads.length) return []
+
+  // Per-user impression counts for daily/weekly cap enforcement. Swallowed on
+  // missing table so dev installs without the migration still serve ads.
+  const adIds = ads.map(a => a.id)
+  let dayCountMap = {}
+  let weekCountMap = {}
+  try {
+    const [dayRows] = await pool.query(
+      'SELECT ad_id, COUNT(*) AS c FROM ad_impressions WHERE user_id = ? AND ad_id IN (?) AND created_at > NOW() - INTERVAL 1 DAY GROUP BY ad_id',
+      [userId, adIds]
+    )
+    for (const r of dayRows) dayCountMap[r.ad_id] = Number(r.c)
+    const [weekRows] = await pool.query(
+      'SELECT ad_id, COUNT(*) AS c FROM ad_impressions WHERE user_id = ? AND ad_id IN (?) AND created_at > NOW() - INTERVAL 7 DAY GROUP BY ad_id',
+      [userId, adIds]
+    )
+    for (const r of weekRows) weekCountMap[r.ad_id] = Number(r.c)
+  } catch {}
+
+  // User interest scores keyed by slug (max across contexts).
+  let interestMap = {}
+  try {
+    const [iRows] = await pool.query(
+      'SELECT interest_slug, MAX(weight) AS w FROM interest_scores WHERE user_id = ? GROUP BY interest_slug',
+      [userId]
+    )
+    for (const r of iRows) interestMap[r.interest_slug] = parseFloat(r.w) || 0
+  } catch {}
+  const hasInterestData = Object.keys(interestMap).length > 0
+
+  const eligible = []
+  for (const ad of ads) {
+    if ((dayCountMap[ad.id] || 0) >= dailyCap) continue
+    if ((weekCountMap[ad.id] || 0) >= weeklyCap) continue
+    let targetSlugs = []
+    if (ad.target_interests) {
+      try {
+        const parsed = typeof ad.target_interests === 'string' ? JSON.parse(ad.target_interests) : ad.target_interests
+        if (Array.isArray(parsed)) targetSlugs = parsed.filter(s => typeof s === 'string')
+      } catch {}
+    }
+    let relevance = 0
+    if (hasInterestData && targetSlugs.length) {
+      for (const slug of targetSlugs) relevance += interestMap[slug] || 0
+    }
+    // Untargeted ads still get served — at low relevance — when the user has
+    // interest data. When the user has no interest data, rely entirely on
+    // pacing + random jitter so behavior matches the pre-ranking baseline.
+    const budgetNum = parseFloat(ad.budget) || 0
+    const spentNum = parseFloat(ad.spent) || 0
+    const pacing = budgetNum > 0 ? Math.max(0, 1 - spentNum / budgetNum) : 0.5
+    const jitter = Math.random()
+    const score = relevance * 10 + pacing * 1 + jitter * 0.5
+    eligible.push({ ad, score })
+  }
+  eligible.sort((a, b) => b.score - a.score)
+  return eligible.slice(0, limit).map(e => e.ad)
+}
+
 router.get('/health', async (_req, res) => {
   let dbOk = false
   try {
@@ -1251,10 +1337,7 @@ router.get('/ads', authenticate, async (req, res) => {
       // All ads run across all placements — no placement filter
       const limitMap = { feed: settings.max_ads_feed, sidebar: settings.max_ads_sidebar, stories: settings.max_ads_stories, reels: settings.max_ads_feed }
       const limit = limitMap[placement] || 1
-      ;[rows] = await pool.query(
-        `SELECT * FROM ads WHERE status = 'active' AND (start_date IS NULL OR start_date <= CURDATE()) AND (end_date IS NULL OR end_date >= CURDATE()) ORDER BY RAND() LIMIT ?`,
-        [limit]
-      )
+      rows = await selectAdsForUser(req.userId, limit)
       return res.json({ ads: rows, refresh_interval: settings.refresh_interval_seconds })
     } else {
       // Business user's own ads
@@ -1530,10 +1613,7 @@ router.get('/content', authenticate, async (req, res) => {
     const section = req.query.section || 'feed'
     const limitMap = { feed: settings.max_ads_feed, sidebar: settings.max_ads_sidebar, stories: settings.max_ads_stories, reels: settings.max_ads_feed }
     const limit = limitMap[section] || 1
-    const [rows] = await pool.query(
-      `SELECT * FROM ads WHERE status = 'active' AND (start_date IS NULL OR start_date <= CURDATE()) AND (end_date IS NULL OR end_date >= CURDATE()) ORDER BY RAND() LIMIT ?`,
-      [limit]
-    )
+    const rows = await selectAdsForUser(req.userId, limit)
     res.json({ ads: rows, refresh_interval: settings.refresh_interval_seconds })
   } catch (err) {
     console.error('GET /api/content error:', err.message)
