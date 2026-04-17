@@ -20,13 +20,23 @@ async function cleanupAuditLog() {
 
     let totalDeleted = 0
 
-    // Delete test-user entries from both audit tables
+    // Delete audit entries for all test/bot users
     if (testIds.length > 0) {
       const [r1] = await conn.query('DELETE FROM audit_log WHERE user_id IN (?)', [testIds])
       const [r2] = await conn.query('DELETE FROM audit_logs WHERE user_id IN (?)', [testIds])
       const n = r1.affectedRows + r2.affectedRows
       if (n > 0) console.log(`Removed ${n} audit entries for ${testIds.length} test/bot user(s)`)
       totalDeleted += n
+    }
+
+    // Delete E2E test users (cascade removes all associated rows)
+    if (e2eIds.length > 0) {
+      const [r] = await conn.query(
+        "DELETE FROM users WHERE email LIKE 'e2e.test.%@fellis-test.invalid'"
+      )
+      console.log(`Removed ${r.affectedRows} E2E test user(s) and cascaded data`)
+    } else {
+      console.log('No E2E test users found.')
     }
 
     // Enforce retention policy: delete entries older than RETENTION_DAYS days
