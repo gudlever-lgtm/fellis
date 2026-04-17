@@ -754,11 +754,13 @@ export async function apiUploadAvatar(file) {
 }
 
 // ── Marketplace ──
-export async function apiFetchListings({ category = '', location = '', q = '' } = {}) {
+export async function apiFetchListings({ category = '', location = '', q = '', limit, offset } = {}) {
   const params = new URLSearchParams()
   if (category) params.set('category', category)
   if (location) params.set('location', location)
   if (q) params.set('q', q)
+  if (limit != null) params.set('limit', String(limit))
+  if (offset != null) params.set('offset', String(offset))
   return await request(`/api/marketplace?${params}`)
 }
 
