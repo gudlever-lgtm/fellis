@@ -37,6 +37,7 @@ function formatMsgTime(createdAt) {
   if (today) return timeStr
   const dateStr = created.toLocaleDateString('da-DK', { day: 'numeric', month: 'short' })
   return `${dateStr} ${timeStr}`
+}
 
 // ── Account Lockout — brute force protection ───────────────────────────────
 const MAX_LOGIN_ATTEMPTS = 5
@@ -112,6 +113,7 @@ function autoSignalPost(userId, postId, signalType) {
       applySignals(userId, cats.map(slug => ({ interest_slug: slug, signal_type: signalType, context: 'hobby' }))).catch(() => {})
     })
     .catch(() => {})
+}
 
 // ── Mail transport (only active when MAIL_HOST is configured + nodemailer installed) ──
 let mailer = null
@@ -132,6 +134,7 @@ if (process.env.MAIL_HOST) {
   }
 }
 
+const UPLOADS_DIR = process.env.UPLOADS_DIR || '/var/www/fellis.eu/uploads'
 const MISTRAL_API_KEY = process.env.MISTRAL_API_KEY || null
 
 // Ensure uploads directory exists
@@ -695,8 +698,6 @@ async function authenticate(req, res, next) {
 }
 
 const visitedAnonIps = new Set() // in-memory: anonymous IPs tracked this server process day
-app.post('/api/visit', async (req, res) => {
-
 
 async function getPasswordPolicy() {
   try {

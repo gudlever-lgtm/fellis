@@ -14,7 +14,7 @@ import {
   getSessionIdFromRequest, setSessionCookie, clearSessionCookie, generateCsrfToken,
   validateMagicBytes, validatePasswordStrength, getPasswordPolicy,
   sseBroadcast, sseAdd, sseRemove, sseClients,
-  parseBrowser, getGeoForIp, parseBrowser,
+  parseBrowser, getGeoForIp,
   UPLOADS_DIR, MISTRAL_API_KEY, UPLOAD_FILES_CEILING,
   mailer, oauthStateTokens,
   MAX_LOGIN_ATTEMPTS, LOCKOUT_DURATION_MINUTES,
