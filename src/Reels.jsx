@@ -1119,7 +1119,11 @@ export default function ReelsPage({ t, lang = 'da', currentUser, initialReelId, 
   }, [])
 
   useEffect(() => { loadReels(0) }, [loadReels])
-  useEffect(() => { apiGetLivestreamStatus().then(d => { if (d) setLiveEnabled(d.enabled) }) }, [])
+
+  const refreshLiveStatus = useCallback(() => {
+    apiGetLivestreamStatus().then(d => { if (d) setLiveEnabled(d.enabled) })
+  }, [])
+  useEffect(() => { refreshLiveStatus() }, [refreshLiveStatus])
 
   useEffect(() => {
     if (!initialReelId || loading || reels.length === 0) return
@@ -1236,8 +1240,8 @@ export default function ReelsPage({ t, lang = 'da', currentUser, initialReelId, 
           <div style={{ position: 'relative' }}>
             <button
               style={{ ...s.liveBtn, opacity: liveEnabled ? 1 : 0.55 }}
-              onClick={() => setShowLiveInfo(true)}
-              onMouseEnter={() => setLiveTooltip(true)}
+              onClick={() => { refreshLiveStatus(); setShowLiveInfo(true) }}
+              onMouseEnter={() => { refreshLiveStatus(); setLiveTooltip(true) }}
               onMouseLeave={() => setLiveTooltip(false)}
             >
               <span style={{ ...s.liveDotBtn, animation: liveEnabled ? 'livePulse 1.4s infinite' : 'none' }} />
