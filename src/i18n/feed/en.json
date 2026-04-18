@@ -1,0 +1,47 @@
+{
+  "compose": {
+    "placeholder": "What's on your mind?",
+    "button": "Post",
+    "addMedia": "Add media",
+    "addLocation": "Add location",
+    "removeLocation": "Remove location",
+    "schedule": "Schedule",
+    "publishNow": "Publish now",
+    "tagPeople": "Tag people",
+    "pasteImageHint": "Paste an image directly with Ctrl+V"
+  },
+  "post": {
+    "like": "Like",
+    "comment": "Comment",
+    "share": "Share",
+    "edit": "Edit post",
+    "delete": "Delete post",
+    "report": "Report",
+    "save": "Save post",
+    "unsave": "Remove from saved",
+    "hide": "Hide post",
+    "edited": "(edited)",
+    "sponsored": "Sponsored"
+  },
+  "comment": {
+    "placeholder": "Write a comment...",
+    "send": "Send",
+    "reply": "Reply",
+    "delete": "Delete comment",
+    "noReactionsYet": "No reactions yet"
+  },
+  "modes": {
+    "community": "Community",
+    "business": "Business"
+  },
+  "empty": {
+    "noPostsYet": "No posts yet",
+    "loadMore": "Load older posts",
+    "allCaughtUp": "You're all caught up!"
+  },
+  "scheduled": {
+    "title": "Scheduled posts",
+    "noScheduled": "No scheduled posts.",
+    "deleteConfirm": "Delete scheduled post?"
+  }
+}

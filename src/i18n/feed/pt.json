@@ -1,0 +1,47 @@
+{
+  "compose": {
+    "placeholder": "O que você está pensando?",
+    "button": "Publicar",
+    "addMedia": "Adicionar mídia",
+    "addLocation": "Adicionar localização",
+    "removeLocation": "Remover localização",
+    "schedule": "Agendar",
+    "publishNow": "Publicar agora",
+    "tagPeople": "Marcar pessoas",
+    "pasteImageHint": "Cole uma imagem diretamente com Ctrl+V"
+  },
+  "post": {
+    "like": "Curtir",
+    "comment": "Comentar",
+    "share": "Compartilhar",
+    "edit": "Editar publicação",
+    "delete": "Excluir publicação",
+    "report": "Denunciar",
+    "save": "Salvar publicação",
+    "unsave": "Remover dos salvos",
+    "hide": "Ocultar publicação",
+    "edited": "(editado)",
+    "sponsored": "Patrocinado"
+  },
+  "comment": {
+    "placeholder": "Escreva um comentário...",
+    "send": "Enviar",
+    "reply": "Responder",
+    "delete": "Excluir comentário",
+    "noReactionsYet": "Sem reações ainda"
+  },
+  "modes": {
+    "community": "Comunidade",
+    "business": "Negócios"
+  },
+  "empty": {
+    "noPostsYet": "Nenhuma publicação ainda",
+    "loadMore": "Carregar publicações antigas",
+    "allCaughtUp": "Você está em dia!"
+  },
+  "scheduled": {
+    "title": "Publicações agendadas",
+    "noScheduled": "Nenhuma publicação agendada.",
+    "deleteConfirm": "Excluir publicação agendada?"
+  }
+}

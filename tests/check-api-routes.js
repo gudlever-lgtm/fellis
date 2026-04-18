@@ -422,8 +422,12 @@ if (directErrors.length === 0) {
 const i18nDir      = resolve(root, 'src/i18n')
 const i18nIndexSrc = readFileSync(resolve(i18nDir, 'index.js'), 'utf8')
 
+// Non-segment utility files that live in src/i18n/ but are not translation
+// segments — they must NOT be required to appear in index.js or the segments array.
+const I18N_NON_SEGMENT_FILES = new Set(['loader.js', 'useTranslation.js'])
+
 const i18nSegmentFiles = readdirSync(i18nDir)
-  .filter(f => f.endsWith('.js') && f !== 'index.js')
+  .filter(f => f.endsWith('.js') && f !== 'index.js' && !I18N_NON_SEGMENT_FILES.has(f))
   .sort()
 
 // (a) Check that each segment file has a matching import statement
@@ -807,5 +811,76 @@ if (FEED_WEIGHT_RANKING_RE.test(feedRouteSrc)) {
   console.log(`${GREEN}✓ Feed ordering: feed_weight multipliers are NOT applied in the main feed query (no hidden ranking).${RESET}`)
 }
 console.log()
+
+// ── 17. Translations endpoint checks ─────────────────────────────────────────
+//
+// The JSON-based i18n system exposes translations via GET /api/translations.
+// Three static invariants must hold:
+//
+//   (a) GET /api/translations is registered on the server — otherwise every
+//       dynamic import that falls back to the API will receive a 404.
+//   (b) The translations route validates the `lang` parameter and returns 400
+//       for unknown languages (e.g. lang=xx) so callers get a clear error.
+//   (c) The translations route validates the `feature` parameter and returns
+//       400 (or 404) for unknown features so missing JSON files don't cause 500s.
+
+const REQUIRED_TRANSLATIONS_ROUTES = ['GET /api/translations']
+
+const missingTranslationsRoutes = REQUIRED_TRANSLATIONS_ROUTES.filter(r => {
+  const [method, p] = r.split(' ')
+  return !normServerRoutes.has(`${method} ${normaliseServerPath(p)}`)
+})
+
+if (missingTranslationsRoutes.length > 0) {
+  console.log(`${RED}✗ Missing required translations server routes:${RESET}`)
+  for (const r of missingTranslationsRoutes) console.log(`  ${RED}${r}${RESET}`)
+  console.log()
+  process.exit(1)
+}
+
+const translationsRoutePath = resolve(root, 'server/routes/translations.js')
+let translationsSrc = ''
+try {
+  translationsSrc = readFileSync(translationsRoutePath, 'utf8')
+} catch {
+  console.log(`${RED}✗ server/routes/translations.js not found.${RESET}\n`)
+  process.exit(1)
+}
+
+const translationsErrors = []
+
+// (b) lang validation — must reject unknown langs (return 400)
+if (!translationsSrc.includes('VALID_LANGS') || !translationsSrc.includes('400')) {
+  translationsErrors.push('translations route does not validate lang parameter or is missing 400 response')
+}
+
+// (c) feature validation — must reject unknown features (return 400 or 404)
+if (!translationsSrc.includes('VALID_FEATURES')) {
+  translationsErrors.push('translations route does not validate feature parameter (VALID_FEATURES whitelist missing)')
+}
+
+// (d) all 11 supported languages must be present in VALID_LANGS
+//     GET /api/translations?lang=da&feature=auth → 200 (da is valid)
+//     GET /api/translations?lang=xx&feature=auth → 400 (xx is not in the set)
+//     GET /api/translations?lang=da&feature=unknown → 400 (unknown feature)
+const REQUIRED_LANGS = ['da', 'en', 'de', 'es', 'fr', 'it', 'nl', 'no', 'pl', 'pt', 'sv']
+const missingLangs = REQUIRED_LANGS.filter(l => !translationsSrc.includes(`'${l}'`) && !translationsSrc.includes(`"${l}"`))
+if (missingLangs.length > 0) {
+  translationsErrors.push(`translations route VALID_LANGS is missing required languages: ${missingLangs.join(', ')}`)
+}
+
+// (e) cache header must be set for valid responses
+if (!translationsSrc.includes('Cache-Control')) {
+  translationsErrors.push('translations route does not set Cache-Control header for valid responses')
+}
+
+if (translationsErrors.length > 0) {
+  console.log(`${RED}✗ translations route validation issues:${RESET}`)
+  for (const e of translationsErrors) console.log(`  ${RED}${e}${RESET}`)
+  console.log()
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ GET /api/translations is registered, validates lang + feature, and supports all ${REQUIRED_LANGS.length} languages.${RESET}\n`)
+}
 
 process.exit(0)

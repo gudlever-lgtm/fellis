@@ -1,0 +1,50 @@
+{
+  "login": {
+    "title": "Logg inn på fellis",
+    "emailLabel": "E-post",
+    "passwordLabel": "Passord",
+    "button": "Logg inn",
+    "forgotPassword": "Glemt passord?",
+    "noAccount": "Har du ikke en konto?",
+    "registerLink": "Opprett konto",
+    "orContinueWith": "eller fortsett med"
+  },
+  "register": {
+    "title": "Opprett konto",
+    "nameLabel": "Navn",
+    "emailLabel": "E-post",
+    "passwordLabel": "Passord",
+    "confirmPasswordLabel": "Bekreft passord",
+    "button": "Opprett konto",
+    "hasAccount": "Har du allerede en konto?",
+    "loginLink": "Logg inn",
+    "gdprConsent": "Jeg godtar vilkårene og personvernreglene",
+    "passwordTooShort": "Passordet må være minst 6 tegn",
+    "passwordsDontMatch": "Passordene stemmer ikke overens",
+    "passwordsMatch": "Passordene stemmer overens"
+  },
+  "forgotPassword": {
+    "title": "Glemt passord",
+    "description": "Skriv inn e-postadressen din, og vi sender deg en tilbakestillingslenke.",
+    "emailLabel": "E-post",
+    "button": "Send tilbakestillingslenke",
+    "backToLogin": "Tilbake til innlogging",
+    "emailSent": "Tilbakestillingslenke sendt til e-posten din",
+    "error": "Kunne ikke sende tilbakestillingslenke — prøv igjen"
+  },
+  "resetPassword": {
+    "title": "Tilbakestill passord",
+    "newPasswordLabel": "Nytt passord",
+    "confirmPasswordLabel": "Bekreft nytt passord",
+    "button": "Lagre nytt passord",
+    "success": "Passord oppdatert — du kan nå logge inn"
+  },
+  "mfa": {
+    "title": "Tofaktorautentisering",
+    "description": "Vi sendte en kode til nummeret ditt. Skriv den inn for å bekrefte:",
+    "codeLabel": "SMS-kode",
+    "button": "Bekreft",
+    "resend": "Send kode på nytt",
+    "invalidCode": "Ugyldig eller utløpt kode"
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "login": {
+    "title": "Aanmelden bij fellis",
+    "emailLabel": "E-mail",
+    "passwordLabel": "Wachtwoord",
+    "button": "Aanmelden",
+    "forgotPassword": "Wachtwoord vergeten?",
+    "noAccount": "Heb je nog geen account?",
+    "registerLink": "Account aanmaken",
+    "orContinueWith": "of doorgaan met"
+  },
+  "register": {
+    "title": "Account aanmaken",
+    "nameLabel": "Naam",
+    "emailLabel": "E-mail",
+    "passwordLabel": "Wachtwoord",
+    "confirmPasswordLabel": "Wachtwoord bevestigen",
+    "button": "Account aanmaken",
+    "hasAccount": "Heb je al een account?",
+    "loginLink": "Aanmelden",
+    "gdprConsent": "Ik accepteer de voorwaarden en het privacybeleid",
+    "passwordTooShort": "Wachtwoord moet minimaal 6 tekens lang zijn",
+    "passwordsDontMatch": "Wachtwoorden komen niet overeen",
+    "passwordsMatch": "Wachtwoorden komen overeen"
+  },
+  "forgotPassword": {
+    "title": "Wachtwoord vergeten",
+    "description": "Voer je e-mailadres in en we sturen je een resetlink.",
+    "emailLabel": "E-mail",
+    "button": "Resetlink sturen",
+    "backToLogin": "Terug naar aanmelden",
+    "emailSent": "Resetlink verzonden naar je e-mail",
+    "error": "Kon resetlink niet sturen — probeer het opnieuw"
+  },
+  "resetPassword": {
+    "title": "Wachtwoord opnieuw instellen",
+    "newPasswordLabel": "Nieuw wachtwoord",
+    "confirmPasswordLabel": "Nieuw wachtwoord bevestigen",
+    "button": "Nieuw wachtwoord opslaan",
+    "success": "Wachtwoord bijgewerkt — je kunt nu aanmelden"
+  },
+  "mfa": {
+    "title": "Twee-factor-authenticatie",
+    "description": "We hebben een code naar je nummer gestuurd. Voer hem in ter bevestiging:",
+    "codeLabel": "SMS-code",
+    "button": "Bevestigen",
+    "resend": "Code opnieuw sturen",
+    "invalidCode": "Ongeldige of verlopen code"
+  }
+}

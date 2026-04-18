@@ -74,6 +74,7 @@ import notificationsRouter from './routes/notifications.js'
 import paymentsRouter from './routes/payments.js'
 import adminRouter from './routes/admin.js'
 import miscRouter from './routes/misc.js'
+import translationsRouter from './routes/translations.js'
 import { reloadKeywordFilters as reloadSharedKeywordFilters } from './helpers.js'
 import { ensureRuntimeColumns } from './ensure-columns.js'
 
@@ -728,6 +729,7 @@ app.use('/api', notificationsRouter)
 app.use('/api', paymentsRouter)
 app.use('/api', adminRouter)
 app.use('/api', miscRouter)
+app.use('/api', translationsRouter)
 
 
 // ── Health check ─────────────────────────────────────────────────────────

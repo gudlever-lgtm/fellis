@@ -1,0 +1,47 @@
+{
+  "compose": {
+    "placeholder": "Wat denk je?",
+    "button": "Plaatsen",
+    "addMedia": "Media toevoegen",
+    "addLocation": "Locatie toevoegen",
+    "removeLocation": "Locatie verwijderen",
+    "schedule": "Inplannen",
+    "publishNow": "Nu publiceren",
+    "tagPeople": "Personen taggen",
+    "pasteImageHint": "Plak een afbeelding direct met Ctrl+V"
+  },
+  "post": {
+    "like": "Vind ik leuk",
+    "comment": "Reageren",
+    "share": "Delen",
+    "edit": "Bericht bewerken",
+    "delete": "Bericht verwijderen",
+    "report": "Melden",
+    "save": "Bericht opslaan",
+    "unsave": "Uit opgeslagen verwijderen",
+    "hide": "Bericht verbergen",
+    "edited": "(bewerkt)",
+    "sponsored": "Gesponsord"
+  },
+  "comment": {
+    "placeholder": "Schrijf een reactie...",
+    "send": "Verzenden",
+    "reply": "Beantwoorden",
+    "delete": "Reactie verwijderen",
+    "noReactionsYet": "Nog geen reacties"
+  },
+  "modes": {
+    "community": "Community",
+    "business": "Zakelijk"
+  },
+  "empty": {
+    "noPostsYet": "Nog geen berichten",
+    "loadMore": "Oudere berichten laden",
+    "allCaughtUp": "Je bent helemaal bij!"
+  },
+  "scheduled": {
+    "title": "Geplande berichten",
+    "noScheduled": "Geen geplande berichten.",
+    "deleteConfirm": "Gepland bericht verwijderen?"
+  }
+}

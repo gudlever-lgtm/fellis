@@ -1,0 +1,47 @@
+{
+  "compose": {
+    "placeholder": "A cosa stai pensando?",
+    "button": "Pubblica",
+    "addMedia": "Aggiungi media",
+    "addLocation": "Aggiungi posizione",
+    "removeLocation": "Rimuovi posizione",
+    "schedule": "Pianifica",
+    "publishNow": "Pubblica ora",
+    "tagPeople": "Tagga persone",
+    "pasteImageHint": "Incolla un'immagine direttamente con Ctrl+V"
+  },
+  "post": {
+    "like": "Mi piace",
+    "comment": "Commenta",
+    "share": "Condividi",
+    "edit": "Modifica post",
+    "delete": "Elimina post",
+    "report": "Segnala",
+    "save": "Salva post",
+    "unsave": "Rimuovi dai salvati",
+    "hide": "Nascondi post",
+    "edited": "(modificato)",
+    "sponsored": "Sponsorizzato"
+  },
+  "comment": {
+    "placeholder": "Scrivi un commento...",
+    "send": "Invia",
+    "reply": "Rispondi",
+    "delete": "Elimina commento",
+    "noReactionsYet": "Nessuna reazione ancora"
+  },
+  "modes": {
+    "community": "Community",
+    "business": "Business"
+  },
+  "empty": {
+    "noPostsYet": "Ancora nessun post",
+    "loadMore": "Carica post precedenti",
+    "allCaughtUp": "Sei aggiornato!"
+  },
+  "scheduled": {
+    "title": "Post programmati",
+    "noScheduled": "Nessun post programmato.",
+    "deleteConfirm": "Eliminare il post programmato?"
+  }
+}

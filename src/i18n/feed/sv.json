@@ -1,0 +1,47 @@
+{
+  "compose": {
+    "placeholder": "Vad tänker du på?",
+    "button": "Publicera",
+    "addMedia": "Lägg till media",
+    "addLocation": "Lägg till plats",
+    "removeLocation": "Ta bort plats",
+    "schedule": "Schemalägg",
+    "publishNow": "Publicera nu",
+    "tagPeople": "Tagga personer",
+    "pasteImageHint": "Klistra in en bild direkt med Ctrl+V"
+  },
+  "post": {
+    "like": "Gilla",
+    "comment": "Kommentera",
+    "share": "Dela",
+    "edit": "Redigera inlägg",
+    "delete": "Radera inlägg",
+    "report": "Rapportera",
+    "save": "Spara inlägg",
+    "unsave": "Ta bort från sparade",
+    "hide": "Dölj inlägg",
+    "edited": "(redigerat)",
+    "sponsored": "Sponsrat"
+  },
+  "comment": {
+    "placeholder": "Skriv en kommentar...",
+    "send": "Skicka",
+    "reply": "Svara",
+    "delete": "Radera kommentar",
+    "noReactionsYet": "Inga reaktioner än"
+  },
+  "modes": {
+    "community": "Gemenskap",
+    "business": "Företag"
+  },
+  "empty": {
+    "noPostsYet": "Inga inlägg ännu",
+    "loadMore": "Ladda äldre inlägg",
+    "allCaughtUp": "Du är helt à jour!"
+  },
+  "scheduled": {
+    "title": "Schemalagda inlägg",
+    "noScheduled": "Inga schemalagda inlägg.",
+    "deleteConfirm": "Radera schemalagt inlägg?"
+  }
+}

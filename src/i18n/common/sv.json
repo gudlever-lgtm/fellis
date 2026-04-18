@@ -1,0 +1,44 @@
+{
+  "actions": {
+    "save": "Spara",
+    "cancel": "Avbryt",
+    "delete": "Radera",
+    "edit": "Redigera",
+    "close": "Stäng",
+    "back": "Tillbaka",
+    "next": "Nästa",
+    "confirm": "Bekräfta",
+    "submit": "Skicka",
+    "search": "Sök",
+    "loading": "Laddar…",
+    "saving": "Sparar…",
+    "uploading": "Laddar upp…",
+    "copy": "Kopiera",
+    "share": "Dela",
+    "report": "Rapportera",
+    "block": "Blockera",
+    "unblock": "Avblockera"
+  },
+  "status": {
+    "error": "Fel",
+    "success": "Sparat",
+    "required": "Obligatoriskt",
+    "loading": "Laddar…",
+    "noData": "Inga data",
+    "noResults": "Inga resultat",
+    "somethingWentWrong": "Något gick fel — försök igen"
+  },
+  "time": {
+    "justNow": "Precis nu",
+    "minutesAgo": "min sedan",
+    "hoursAgo": "t sedan",
+    "daysAgo": "dag sedan",
+    "daysAgoPl": "dagar sedan"
+  },
+  "confirmation": {
+    "areYouSure": "Är du säker?",
+    "cannotBeUndone": "Den här åtgärden kan inte ångras.",
+    "yes": "Ja",
+    "no": "Nej"
+  }
+}

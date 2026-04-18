@@ -1,0 +1,44 @@
+{
+  "actions": {
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "close": "Fermer",
+    "back": "Retour",
+    "next": "Suivant",
+    "confirm": "Confirmer",
+    "submit": "Soumettre",
+    "search": "Rechercher",
+    "loading": "Chargement…",
+    "saving": "Enregistrement…",
+    "uploading": "Téléchargement…",
+    "copy": "Copier",
+    "share": "Partager",
+    "report": "Signaler",
+    "block": "Bloquer",
+    "unblock": "Débloquer"
+  },
+  "status": {
+    "error": "Erreur",
+    "success": "Enregistré",
+    "required": "Requis",
+    "loading": "Chargement…",
+    "noData": "Aucune donnée",
+    "noResults": "Aucun résultat",
+    "somethingWentWrong": "Une erreur s'est produite — veuillez réessayer"
+  },
+  "time": {
+    "justNow": "À l'instant",
+    "minutesAgo": "min",
+    "hoursAgo": "h",
+    "daysAgo": "j",
+    "daysAgoPl": "j"
+  },
+  "confirmation": {
+    "areYouSure": "Êtes-vous sûr ?",
+    "cannotBeUndone": "Cette action est irréversible.",
+    "yes": "Oui",
+    "no": "Non"
+  }
+}
