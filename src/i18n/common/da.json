@@ -1,0 +1,44 @@
+{
+  "actions": {
+    "save": "Gem",
+    "cancel": "Annuller",
+    "delete": "Slet",
+    "edit": "Rediger",
+    "close": "Luk",
+    "back": "Tilbage",
+    "next": "Næste",
+    "confirm": "Bekræft",
+    "submit": "Send",
+    "search": "Søg",
+    "loading": "Indlæser…",
+    "saving": "Gemmer…",
+    "uploading": "Uploader…",
+    "copy": "Kopier",
+    "share": "Del",
+    "report": "Anmeld",
+    "block": "Blokér",
+    "unblock": "Ophæv blokering"
+  },
+  "status": {
+    "error": "Fejl",
+    "success": "Gemt",
+    "required": "Påkrævet",
+    "loading": "Indlæser…",
+    "noData": "Ingen data",
+    "noResults": "Ingen resultater",
+    "somethingWentWrong": "Noget gik galt — prøv igen"
+  },
+  "time": {
+    "justNow": "Lige nu",
+    "minutesAgo": "min siden",
+    "hoursAgo": "t siden",
+    "daysAgo": "dag siden",
+    "daysAgoPl": "dage siden"
+  },
+  "confirmation": {
+    "areYouSure": "Er du sikker?",
+    "cannotBeUndone": "Denne handling kan ikke fortrydes.",
+    "yes": "Ja",
+    "no": "Nej"
+  }
+}
