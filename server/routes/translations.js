@@ -6,14 +6,14 @@ import { fileURLToPath } from 'node:url'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const router = Router()
 
-const VALID_LANGS = new Set(['da', 'en'])
+const VALID_LANGS = new Set(['da', 'en', 'de', 'es', 'fr', 'it', 'nl', 'no', 'pl', 'pt', 'sv'])
 const VALID_FEATURES = new Set(['common', 'auth', 'feed', 'profile'])
 
 router.get('/translations', async (req, res) => {
   const { lang, feature } = req.query
 
   if (!VALID_LANGS.has(lang)) {
-    return res.status(400).json({ error: 'Invalid lang — must be da or en' })
+    return res.status(400).json({ error: `Invalid lang — must be one of: ${[...VALID_LANGS].join(', ')}` })
   }
   if (!VALID_FEATURES.has(feature)) {
     return res.status(400).json({ error: `Unknown feature — must be one of: ${[...VALID_FEATURES].join(', ')}` })

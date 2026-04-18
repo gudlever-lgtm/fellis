@@ -1,0 +1,50 @@
+{
+  "login": {
+    "title": "Accedi a fellis",
+    "emailLabel": "E-mail",
+    "passwordLabel": "Password",
+    "button": "Accedi",
+    "forgotPassword": "Password dimenticata?",
+    "noAccount": "Non hai un account?",
+    "registerLink": "Crea account",
+    "orContinueWith": "o continua con"
+  },
+  "register": {
+    "title": "Crea account",
+    "nameLabel": "Nome",
+    "emailLabel": "E-mail",
+    "passwordLabel": "Password",
+    "confirmPasswordLabel": "Conferma password",
+    "button": "Crea account",
+    "hasAccount": "Hai già un account?",
+    "loginLink": "Accedi",
+    "gdprConsent": "Accetto i termini e l'informativa sulla privacy",
+    "passwordTooShort": "La password deve essere lunga almeno 6 caratteri",
+    "passwordsDontMatch": "Le password non coincidono",
+    "passwordsMatch": "Le password coincidono"
+  },
+  "forgotPassword": {
+    "title": "Password dimenticata",
+    "description": "Inserisci la tua e-mail e ti invieremo un link per il ripristino.",
+    "emailLabel": "E-mail",
+    "button": "Invia link di ripristino",
+    "backToLogin": "Torna al login",
+    "emailSent": "Link di ripristino inviato alla tua e-mail",
+    "error": "Impossibile inviare il link di ripristino — riprova"
+  },
+  "resetPassword": {
+    "title": "Reimposta password",
+    "newPasswordLabel": "Nuova password",
+    "confirmPasswordLabel": "Conferma nuova password",
+    "button": "Salva nuova password",
+    "success": "Password aggiornata — puoi ora accedere"
+  },
+  "mfa": {
+    "title": "Autenticazione a due fattori",
+    "description": "Abbiamo inviato un codice al tuo numero. Inseriscilo per confermare:",
+    "codeLabel": "Codice SMS",
+    "button": "Conferma",
+    "resend": "Invia di nuovo il codice",
+    "invalidCode": "Codice non valido o scaduto"
+  }
+}

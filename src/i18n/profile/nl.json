@@ -1,0 +1,42 @@
+{
+  "header": {
+    "editProfile": "Profiel bewerken",
+    "message": "Bericht sturen",
+    "connect": "Verbinden",
+    "connected": "Verbonden ✓",
+    "pendingRequest": "Verzoek verzonden ✓",
+    "follow": "Volgen",
+    "following": "Volgend ✓",
+    "viewProfile": "Profiel bekijken"
+  },
+  "info": {
+    "location": "Locatie",
+    "website": "Website",
+    "joinedDate": "Lid geworden",
+    "bio": "Over",
+    "skills": "Vaardigheden",
+    "interests": "Interesses",
+    "noSkillsYet": "Nog geen vaardigheden toegevoegd.",
+    "noInterestsYet": "Nog geen interesses geselecteerd."
+  },
+  "privacy": {
+    "publicProfile": "Openbaar profiel",
+    "privateProfile": "Privéprofiel",
+    "visibleTo": "Zichtbaar voor",
+    "everyone": "Iedereen",
+    "friendsOnly": "Alleen vrienden"
+  },
+  "avatar": {
+    "upload": "Profielfoto uploaden",
+    "remove": "Foto verwijderen",
+    "uploading": "Foto uploaden…",
+    "uploadFailed": "Kon afbeelding niet uploaden"
+  },
+  "gdpr": {
+    "exportData": "Mijn gegevens exporteren",
+    "deleteAccount": "Account verwijderen",
+    "exportDescription": "Download een kopie van al je gegevens in JSON-formaat.",
+    "deleteDescription": "Permanent verwijderen van je account en alle bijbehorende gegevens.",
+    "deleteConfirm": "Weet je zeker dat je je account wilt verwijderen? Dit kan niet ongedaan worden gemaakt."
+  }
+}

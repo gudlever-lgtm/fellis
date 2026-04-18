@@ -859,13 +859,28 @@ if (!translationsSrc.includes('VALID_FEATURES')) {
   translationsErrors.push('translations route does not validate feature parameter (VALID_FEATURES whitelist missing)')
 }
 
+// (d) all 11 supported languages must be present in VALID_LANGS
+//     GET /api/translations?lang=da&feature=auth → 200 (da is valid)
+//     GET /api/translations?lang=xx&feature=auth → 400 (xx is not in the set)
+//     GET /api/translations?lang=da&feature=unknown → 400 (unknown feature)
+const REQUIRED_LANGS = ['da', 'en', 'de', 'es', 'fr', 'it', 'nl', 'no', 'pl', 'pt', 'sv']
+const missingLangs = REQUIRED_LANGS.filter(l => !translationsSrc.includes(`'${l}'`) && !translationsSrc.includes(`"${l}"`))
+if (missingLangs.length > 0) {
+  translationsErrors.push(`translations route VALID_LANGS is missing required languages: ${missingLangs.join(', ')}`)
+}
+
+// (e) cache header must be set for valid responses
+if (!translationsSrc.includes('Cache-Control')) {
+  translationsErrors.push('translations route does not set Cache-Control header for valid responses')
+}
+
 if (translationsErrors.length > 0) {
   console.log(`${RED}✗ translations route validation issues:${RESET}`)
   for (const e of translationsErrors) console.log(`  ${RED}${e}${RESET}`)
   console.log()
   process.exit(1)
 } else {
-  console.log(`${GREEN}✓ GET /api/translations is registered and validates lang + feature parameters.${RESET}\n`)
+  console.log(`${GREEN}✓ GET /api/translations is registered, validates lang + feature, and supports all ${REQUIRED_LANGS.length} languages.${RESET}\n`)
 }
 
 process.exit(0)
