@@ -1,0 +1,50 @@
+{
+  "login": {
+    "title": "Zaloguj się do fellis",
+    "emailLabel": "E-mail",
+    "passwordLabel": "Hasło",
+    "button": "Zaloguj się",
+    "forgotPassword": "Zapomniałeś hasła?",
+    "noAccount": "Nie masz konta?",
+    "registerLink": "Utwórz konto",
+    "orContinueWith": "lub kontynuuj z"
+  },
+  "register": {
+    "title": "Utwórz konto",
+    "nameLabel": "Imię i nazwisko",
+    "emailLabel": "E-mail",
+    "passwordLabel": "Hasło",
+    "confirmPasswordLabel": "Potwierdź hasło",
+    "button": "Utwórz konto",
+    "hasAccount": "Masz już konto?",
+    "loginLink": "Zaloguj się",
+    "gdprConsent": "Akceptuję regulamin i politykę prywatności",
+    "passwordTooShort": "Hasło musi mieć co najmniej 6 znaków",
+    "passwordsDontMatch": "Hasła nie są zgodne",
+    "passwordsMatch": "Hasła są zgodne"
+  },
+  "forgotPassword": {
+    "title": "Zapomniałem hasła",
+    "description": "Podaj swój adres e-mail, a wyślemy Ci link do resetowania hasła.",
+    "emailLabel": "E-mail",
+    "button": "Wyślij link do resetowania",
+    "backToLogin": "Powrót do logowania",
+    "emailSent": "Link do resetowania wysłany na Twój e-mail",
+    "error": "Nie udało się wysłać linku do resetowania — spróbuj ponownie"
+  },
+  "resetPassword": {
+    "title": "Resetuj hasło",
+    "newPasswordLabel": "Nowe hasło",
+    "confirmPasswordLabel": "Potwierdź nowe hasło",
+    "button": "Zapisz nowe hasło",
+    "success": "Hasło zaktualizowane — możesz się teraz zalogować"
+  },
+  "mfa": {
+    "title": "Weryfikacja dwuskładnikowa",
+    "description": "Wysłaliśmy kod na Twój numer. Wprowadź go, aby potwierdzić:",
+    "codeLabel": "Kod SMS",
+    "button": "Potwierdź",
+    "resend": "Wyślij kod ponownie",
+    "invalidCode": "Nieprawidłowy lub wygasły kod"
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "compose": {
+    "placeholder": "Hva tenker du på?",
+    "button": "Publiser",
+    "addMedia": "Legg til media",
+    "addLocation": "Legg til sted",
+    "removeLocation": "Fjern sted",
+    "schedule": "Planlegg",
+    "publishNow": "Publiser nå",
+    "tagPeople": "Tag personer",
+    "pasteImageHint": "Lim inn et bilde direkte med Ctrl+V"
+  },
+  "post": {
+    "like": "Lik",
+    "comment": "Kommenter",
+    "share": "Del",
+    "edit": "Rediger innlegg",
+    "delete": "Slett innlegg",
+    "report": "Rapporter",
+    "save": "Lagre innlegg",
+    "unsave": "Fjern fra lagrede",
+    "hide": "Skjul innlegg",
+    "edited": "(redigert)",
+    "sponsored": "Sponset"
+  },
+  "comment": {
+    "placeholder": "Skriv en kommentar...",
+    "send": "Send",
+    "reply": "Svar",
+    "delete": "Slett kommentar",
+    "noReactionsYet": "Ingen reaksjoner ennå"
+  },
+  "modes": {
+    "community": "Fellesskap",
+    "business": "Næringsliv"
+  },
+  "empty": {
+    "noPostsYet": "Ingen innlegg ennå",
+    "loadMore": "Last eldre innlegg",
+    "allCaughtUp": "Du er helt à jour!"
+  },
+  "scheduled": {
+    "title": "Planlagte innlegg",
+    "noScheduled": "Ingen planlagte innlegg.",
+    "deleteConfirm": "Slette planlagt innlegg?"
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "header": {
+    "editProfile": "Rediger profil",
+    "message": "Send melding",
+    "connect": "Koble til",
+    "connected": "Tilkoblet ✓",
+    "pendingRequest": "Forespørsel sendt ✓",
+    "follow": "Følg",
+    "following": "Følger ✓",
+    "viewProfile": "Vis profil"
+  },
+  "info": {
+    "location": "Sted",
+    "website": "Nettside",
+    "joinedDate": "Ble med",
+    "bio": "Om",
+    "skills": "Ferdigheter",
+    "interests": "Interesser",
+    "noSkillsYet": "Ingen ferdigheter lagt til ennå.",
+    "noInterestsYet": "Ingen interesser valgt ennå."
+  },
+  "privacy": {
+    "publicProfile": "Offentlig profil",
+    "privateProfile": "Privat profil",
+    "visibleTo": "Synlig for",
+    "everyone": "Alle",
+    "friendsOnly": "Kun venner"
+  },
+  "avatar": {
+    "upload": "Last opp profilbilde",
+    "remove": "Fjern bilde",
+    "uploading": "Laster opp bilde…",
+    "uploadFailed": "Kunne ikke laste opp bildet"
+  },
+  "gdpr": {
+    "exportData": "Eksporter mine data",
+    "deleteAccount": "Slett konto",
+    "exportDescription": "Last ned en kopi av alle dataene dine i JSON-format.",
+    "deleteDescription": "Permanent sletting av kontoen din og alle tilhørende data.",
+    "deleteConfirm": "Er du sikker på at du vil slette kontoen din? Dette kan ikke angres."
+  }
+}

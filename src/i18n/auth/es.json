@@ -1,0 +1,50 @@
+{
+  "login": {
+    "title": "Iniciar sesión en fellis",
+    "emailLabel": "Correo electrónico",
+    "passwordLabel": "Contraseña",
+    "button": "Iniciar sesión",
+    "forgotPassword": "¿Olvidaste tu contraseña?",
+    "noAccount": "¿No tienes cuenta?",
+    "registerLink": "Crear cuenta",
+    "orContinueWith": "o continuar con"
+  },
+  "register": {
+    "title": "Crear cuenta",
+    "nameLabel": "Nombre",
+    "emailLabel": "Correo electrónico",
+    "passwordLabel": "Contraseña",
+    "confirmPasswordLabel": "Confirmar contraseña",
+    "button": "Crear cuenta",
+    "hasAccount": "¿Ya tienes cuenta?",
+    "loginLink": "Iniciar sesión",
+    "gdprConsent": "Acepto los términos y la política de privacidad",
+    "passwordTooShort": "La contraseña debe tener al menos 6 caracteres",
+    "passwordsDontMatch": "Las contraseñas no coinciden",
+    "passwordsMatch": "Las contraseñas coinciden"
+  },
+  "forgotPassword": {
+    "title": "Olvidé mi contraseña",
+    "description": "Ingresa tu correo electrónico y te enviaremos un enlace para restablecer tu contraseña.",
+    "emailLabel": "Correo electrónico",
+    "button": "Enviar enlace de restablecimiento",
+    "backToLogin": "Volver al inicio de sesión",
+    "emailSent": "Enlace de restablecimiento enviado a tu correo",
+    "error": "No se pudo enviar el enlace de restablecimiento — inténtalo de nuevo"
+  },
+  "resetPassword": {
+    "title": "Restablecer contraseña",
+    "newPasswordLabel": "Nueva contraseña",
+    "confirmPasswordLabel": "Confirmar nueva contraseña",
+    "button": "Guardar nueva contraseña",
+    "success": "Contraseña actualizada — ahora puedes iniciar sesión"
+  },
+  "mfa": {
+    "title": "Autenticación de dos factores",
+    "description": "Enviamos un código a tu número. Ingrésalo para confirmar:",
+    "codeLabel": "Código SMS",
+    "button": "Confirmar",
+    "resend": "Reenviar código",
+    "invalidCode": "Código inválido o expirado"
+  }
+}

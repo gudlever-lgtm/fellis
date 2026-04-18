@@ -1,0 +1,50 @@
+{
+  "login": {
+    "title": "Se connecter à fellis",
+    "emailLabel": "E-mail",
+    "passwordLabel": "Mot de passe",
+    "button": "Se connecter",
+    "forgotPassword": "Mot de passe oublié ?",
+    "noAccount": "Pas encore de compte ?",
+    "registerLink": "Créer un compte",
+    "orContinueWith": "ou continuer avec"
+  },
+  "register": {
+    "title": "Créer un compte",
+    "nameLabel": "Nom",
+    "emailLabel": "E-mail",
+    "passwordLabel": "Mot de passe",
+    "confirmPasswordLabel": "Confirmer le mot de passe",
+    "button": "Créer un compte",
+    "hasAccount": "Vous avez déjà un compte ?",
+    "loginLink": "Se connecter",
+    "gdprConsent": "J'accepte les conditions d'utilisation et la politique de confidentialité",
+    "passwordTooShort": "Le mot de passe doit comporter au moins 6 caractères",
+    "passwordsDontMatch": "Les mots de passe ne correspondent pas",
+    "passwordsMatch": "Les mots de passe correspondent"
+  },
+  "forgotPassword": {
+    "title": "Mot de passe oublié",
+    "description": "Entrez votre e-mail et nous vous enverrons un lien de réinitialisation.",
+    "emailLabel": "E-mail",
+    "button": "Envoyer le lien de réinitialisation",
+    "backToLogin": "Retour à la connexion",
+    "emailSent": "Lien de réinitialisation envoyé à votre e-mail",
+    "error": "Impossible d'envoyer le lien de réinitialisation — veuillez réessayer"
+  },
+  "resetPassword": {
+    "title": "Réinitialiser le mot de passe",
+    "newPasswordLabel": "Nouveau mot de passe",
+    "confirmPasswordLabel": "Confirmer le nouveau mot de passe",
+    "button": "Enregistrer le nouveau mot de passe",
+    "success": "Mot de passe mis à jour — vous pouvez maintenant vous connecter"
+  },
+  "mfa": {
+    "title": "Authentification à deux facteurs",
+    "description": "Nous avons envoyé un code à votre numéro. Saisissez-le pour confirmer :",
+    "codeLabel": "Code SMS",
+    "button": "Confirmer",
+    "resend": "Renvoyer le code",
+    "invalidCode": "Code invalide ou expiré"
+  }
+}

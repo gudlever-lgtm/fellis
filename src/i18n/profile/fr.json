@@ -1,0 +1,42 @@
+{
+  "header": {
+    "editProfile": "Modifier le profil",
+    "message": "Envoyer un message",
+    "connect": "Se connecter",
+    "connected": "Connecté ✓",
+    "pendingRequest": "Demande envoyée ✓",
+    "follow": "Suivre",
+    "following": "Vous suivez ✓",
+    "viewProfile": "Voir le profil"
+  },
+  "info": {
+    "location": "Localisation",
+    "website": "Site web",
+    "joinedDate": "Inscrit",
+    "bio": "À propos",
+    "skills": "Compétences",
+    "interests": "Centres d'intérêt",
+    "noSkillsYet": "Aucune compétence ajoutée pour l'instant.",
+    "noInterestsYet": "Aucun centre d'intérêt sélectionné pour l'instant."
+  },
+  "privacy": {
+    "publicProfile": "Profil public",
+    "privateProfile": "Profil privé",
+    "visibleTo": "Visible par",
+    "everyone": "Tout le monde",
+    "friendsOnly": "Amis uniquement"
+  },
+  "avatar": {
+    "upload": "Télécharger une photo de profil",
+    "remove": "Supprimer la photo",
+    "uploading": "Téléchargement en cours…",
+    "uploadFailed": "Impossible de télécharger l'image"
+  },
+  "gdpr": {
+    "exportData": "Exporter mes données",
+    "deleteAccount": "Supprimer le compte",
+    "exportDescription": "Téléchargez une copie de toutes vos données au format JSON.",
+    "deleteDescription": "Suppression définitive de votre compte et de toutes les données associées.",
+    "deleteConfirm": "Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible."
+  }
+}

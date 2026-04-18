@@ -1,0 +1,50 @@
+{
+  "login": {
+    "title": "Bei fellis anmelden",
+    "emailLabel": "E-Mail",
+    "passwordLabel": "Passwort",
+    "button": "Anmelden",
+    "forgotPassword": "Passwort vergessen?",
+    "noAccount": "Noch kein Konto?",
+    "registerLink": "Konto erstellen",
+    "orContinueWith": "oder weiter mit"
+  },
+  "register": {
+    "title": "Konto erstellen",
+    "nameLabel": "Name",
+    "emailLabel": "E-Mail",
+    "passwordLabel": "Passwort",
+    "confirmPasswordLabel": "Passwort bestätigen",
+    "button": "Konto erstellen",
+    "hasAccount": "Bereits ein Konto?",
+    "loginLink": "Anmelden",
+    "gdprConsent": "Ich akzeptiere die Nutzungsbedingungen und die Datenschutzrichtlinie",
+    "passwordTooShort": "Das Passwort muss mindestens 6 Zeichen lang sein",
+    "passwordsDontMatch": "Die Passwörter stimmen nicht überein",
+    "passwordsMatch": "Die Passwörter stimmen überein"
+  },
+  "forgotPassword": {
+    "title": "Passwort vergessen",
+    "description": "Gib deine E-Mail-Adresse ein, und wir senden dir einen Reset-Link.",
+    "emailLabel": "E-Mail",
+    "button": "Reset-Link senden",
+    "backToLogin": "Zurück zur Anmeldung",
+    "emailSent": "Reset-Link an deine E-Mail gesendet",
+    "error": "Reset-Link konnte nicht gesendet werden — bitte versuche es erneut"
+  },
+  "resetPassword": {
+    "title": "Passwort zurücksetzen",
+    "newPasswordLabel": "Neues Passwort",
+    "confirmPasswordLabel": "Neues Passwort bestätigen",
+    "button": "Neues Passwort speichern",
+    "success": "Passwort aktualisiert — du kannst dich jetzt anmelden"
+  },
+  "mfa": {
+    "title": "Zwei-Faktor-Authentifizierung",
+    "description": "Wir haben einen Code an deine Nummer gesendet. Gib ihn ein, um zu bestätigen:",
+    "codeLabel": "SMS-Code",
+    "button": "Bestätigen",
+    "resend": "Code erneut senden",
+    "invalidCode": "Ungültiger oder abgelaufener Code"
+  }
+}

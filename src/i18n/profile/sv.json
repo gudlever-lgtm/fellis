@@ -1,0 +1,42 @@
+{
+  "header": {
+    "editProfile": "Redigera profil",
+    "message": "Skicka meddelande",
+    "connect": "Anslut",
+    "connected": "Ansluten ✓",
+    "pendingRequest": "Förfrågan skickad ✓",
+    "follow": "Följ",
+    "following": "Följer ✓",
+    "viewProfile": "Visa profil"
+  },
+  "info": {
+    "location": "Plats",
+    "website": "Webbplats",
+    "joinedDate": "Gick med",
+    "bio": "Om",
+    "skills": "Färdigheter",
+    "interests": "Intressen",
+    "noSkillsYet": "Inga färdigheter tillagda ännu.",
+    "noInterestsYet": "Inga intressen valda ännu."
+  },
+  "privacy": {
+    "publicProfile": "Offentlig profil",
+    "privateProfile": "Privat profil",
+    "visibleTo": "Synlig för",
+    "everyone": "Alla",
+    "friendsOnly": "Endast vänner"
+  },
+  "avatar": {
+    "upload": "Ladda upp profilbild",
+    "remove": "Ta bort bild",
+    "uploading": "Laddar upp bild…",
+    "uploadFailed": "Kunde inte ladda upp bilden"
+  },
+  "gdpr": {
+    "exportData": "Exportera mina data",
+    "deleteAccount": "Radera konto",
+    "exportDescription": "Ladda ner en kopia av all din data i JSON-format.",
+    "deleteDescription": "Permanent radering av ditt konto och alla tillhörande data.",
+    "deleteConfirm": "Är du säker på att du vill radera ditt konto? Det går inte att ångra."
+  }
+}
