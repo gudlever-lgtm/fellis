@@ -1,51 +1,57 @@
-# CLAUDE.md — fellis.eu
-
 # CONFIG v1.0
 
 ## CORE
 API=request() | AUTH=CSRF | I18N=EXT
 
 ## STACK
-FE: React19/Vite7
-BE: Node/Express
-DB: MariaDB
-SRV: lighttpd
+FE: React19/Vite7 BE: Node/Express DB: MariaDB SRV: lighttpd
+
+## TASKS
+- Keep tasks small and focused — one feature or fix at a time
+- Never trigger `npm run build`, `npm run migrate`, or `pm2 reload` automatically
+- These are manual steps run by the developer after review
+- Do not chain multiple long-running commands in a single task
 
 ## RULES
 
-API
-- src/api.js → request()
-- no fetch() in components
+### API
+- `src/api.js` → `request()`
+- no `fetch()` in components
 
-AUTH
+### AUTH
 - session-based
-- X-CSRF-Token required (state change)
+- `X-CSRF-Token` required (state change)
 
-I18N
-- primary: da
-- src/i18n/*
+### I18N
+- primary: `da`
+- `src/i18n/*`
 - no inline strings
 
-CURRENCY
-- formatPrice()
+### CURRENCY
+- `formatPrice()`
 - EUR, de-DE
 
-MIGRATIONS
-- /server/*.sql (incremental)
-- npm run migrate
+### MIGRATIONS
+- `/server/*.sql` (incremental)
+- `npm run migrate` — run manually by developer, never triggered by Claude
 
-BUILD
-- npm run build:
-  1. route check
-  2. Vite build
+### BUILD
+- `npm run build` — run manually by developer, never triggered by Claude
+- Build steps: route check → Vite build
+- Verify manually after task completion
+
+### GIT
+- Always push to `main`
+- `git push -u origin main`
+- Do not create feature branches unless explicitly asked
 
 ---
 
 ## Project Overview
+fellis.eu is a Danish social platform hosted in the EU, built as a privacy-first alternative to mainstream social networks. It is GDPR-compliant and bilingual (Danish/English).
 
-**fellis.eu** is a Danish social platform hosted in the EU, built as a privacy-first alternative to mainstream social networks. It is GDPR-compliant and bilingual (Danish/English).
+## Stack
 
-**Stack:**
 - **Frontend:** React 19, Vite 7, JavaScript (JSX) — no TypeScript
 - **Backend:** Node.js (ESM), Express 4, MySQL2/MariaDB
 - **Database:** MariaDB 11.8+ / MySQL 8+
@@ -56,8 +62,6 @@ BUILD
 - **Email:** Nodemailer (optional, only when `MAIL_HOST` is configured)
 - **SMS:** 46elks (optional, SMS MFA)
 - **AI:** Mistral AI (optional, CV + cover letter generation)
-
----
 
 ## Repository Structure
 
@@ -136,8 +140,6 @@ fellis/
 └── resolve-merge.py        # Utility script for resolving merge conflicts
 ```
 
----
-
 ## Development Workflow
 
 ### Prerequisites
@@ -146,22 +148,22 @@ fellis/
 
 ### Setup
 
-**Frontend:**
-```bash
+Frontend:
+```
 npm install          # from repo root
 npm run dev          # Vite dev server (default: http://localhost:5173)
 ```
 
-**Backend:**
-```bash
+Backend:
+```
 cd server
 cp .env.example .env # fill in DB credentials
 npm install
 npm run start        # node --env-file=.env index.js (port 3001 by default)
 ```
 
-**Database:**
-```bash
+Database:
+```
 # Initial setup
 mysql -u root < server/schema.sql
 
@@ -172,92 +174,68 @@ cd server && npm run migrate
 cd server && npm run seed
 ```
 
-### Environment Variables (`server/.env`)
+## Environment Variables (`server/.env`)
 
 | Variable | Description | Default |
-|----------|-------------|---------|
+|---|---|---|
 | `DB_HOST` | MySQL host | `localhost` |
 | `DB_PORT` | MySQL port | `3306` |
 | `DB_USER` | MySQL user | `root` |
-| `DB_PASSWORD` | MySQL password | _(empty)_ |
+| `DB_PASSWORD` | MySQL password | (empty) |
 | `DB_NAME` | Database name | `fellis_eu` |
 | `PORT` | Server port | `3001` |
-| `GOOGLE_CLIENT_ID` | Google OAuth 2.0 Client ID (sign-in + photo picker) | _(optional)_ |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth 2.0 Client Secret | _(optional)_ |
+| `GOOGLE_CLIENT_ID` | Google OAuth 2.0 Client ID | (optional) |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth 2.0 Client Secret | (optional) |
 | `GOOGLE_REDIRECT_URI` | Google OAuth callback URL | `https://fellis.eu/api/auth/google/callback` |
-| `LINKEDIN_CLIENT_ID` | LinkedIn OAuth Client ID (sign-in + account linking) | _(optional)_ |
-| `LINKEDIN_CLIENT_SECRET` | LinkedIn OAuth Client Secret | _(optional)_ |
+| `LINKEDIN_CLIENT_ID` | LinkedIn OAuth Client ID | (optional) |
+| `LINKEDIN_CLIENT_SECRET` | LinkedIn OAuth Client Secret | (optional) |
 | `LINKEDIN_REDIRECT_URI` | LinkedIn OAuth callback URL | `https://fellis.eu/api/auth/linkedin/callback` |
-| `MAIL_HOST` | SMTP host for email sending | _(optional)_ |
+| `MAIL_HOST` | SMTP host | (optional) |
 | `MAIL_PORT` | SMTP port | `587` |
 | `MAIL_SECURE` | Use TLS | `false` |
-| `MAIL_USER` | SMTP username | _(optional)_ |
-| `MAIL_PASS` | SMTP password | _(optional)_ |
-| `MAIL_FROM` | From address for outgoing emails | _(optional)_ |
-| `SITE_URL` | Base URL for reset links, invite links, Mollie webhooks | `https://fellis.eu` |
-| `46ELKS_USERNAME` | 46elks API username (SMS MFA) | _(optional)_ |
-| `46ELKS_PASSWORD` | 46elks API password (SMS MFA) | _(optional)_ |
+| `MAIL_USER` | SMTP username | (optional) |
+| `MAIL_PASS` | SMTP password | (optional) |
+| `MAIL_FROM` | From address | (optional) |
+| `SITE_URL` | Base URL | `https://fellis.eu` |
+| `46ELKS_USERNAME` | 46elks API username | (optional) |
+| `46ELKS_PASSWORD` | 46elks API password | (optional) |
 | `46ELKS_SENDER` | SMS sender name/number | `fellis.eu` |
 | `UPLOADS_DIR` | Media upload directory | `/var/www/fellis.eu/uploads` |
-| `MISTRAL_API_KEY` | Mistral AI key for CV/cover letter generation (console.mistral.ai) | _(optional, falls back to template)_ |
-| `MOLLIE_API_KEY` | Mollie payment API key (ad payments, subscriptions, ad-free purchases) | _(optional)_ |
-| `NODE_ENV` | Set to `production` to enable production-only behaviour | _(optional)_ |
-| `CSRF_SECRET` | Secret for CSRF token signing — auto-generated on first start if unset | _(auto)_ |
+| `MISTRAL_API_KEY` | Mistral AI key | (optional) |
+| `MOLLIE_API_KEY` | Mollie payment API key | (optional) |
+| `NODE_ENV` | Set to `production` for production behaviour | (optional) |
+| `CSRF_SECRET` | CSRF token signing secret | (auto) |
 
 The server reads `.env` manually at startup (not via `--env-file`) for PM2 compatibility.
 
----
-
 ## Production Server (lighttpd)
-
-fellis.eu is served by **lighttpd** as both a static file server and a reverse proxy to the Node.js backend. The configuration lives in [`lighttpd.conf`](../lighttpd.conf) at the repo root.
 
 ### Routing rules
 
 | Path | Handled by |
-|------|-----------|
+|---|---|
 | `/api/*` | Proxied to Node.js `localhost:3001` |
 | `/uploads/*` | Proxied to Node.js `localhost:3001` |
 | `/assets/*` | Static files — `Cache-Control: immutable, max-age=31536000` |
 | Everything else | Fallback to `/index.html` (React SPA routing) |
 
 ### Key configuration notes
-
-- **Module order matters:** `mod_proxy` must be listed before `mod_rewrite` so proxy rules are evaluated before URL rewrites.
-- **SSE streaming:** `server.stream-response-body = 2` prevents lighttpd from buffering Server-Sent Events. The `/api/sse` path additionally sets `proxy.read-timeout = 600`.
-- **SPA fallback:** `url.rewrite-if-not-file = ( "^/.*" => "/index.html" )` handles all React Router paths.
-- **chat.fellis.eu:** A `$HTTP["host"]` vhost block in the same config serves the chat app from `/var/www/fellis.eu/chat/dist/` using the same Node.js backend.
-
-### Enabling HTTPS
-
-```bash
-sudo apt install certbot
-sudo certbot certonly --webroot -w /var/www/fellis.eu -d fellis.eu -d www.fellis.eu
-# Then uncomment the $SERVER["socket"] == ":443" block in lighttpd.conf
-```
-
-### Required modules
-
-```bash
-sudo lighttpd-enable-mod proxy rewrite compress setenv accesslog
-lighttpd -t -f /etc/lighttpd/lighttpd.conf   # validate before reload
-sudo systemctl reload lighttpd
-```
+- Module order matters: `mod_proxy` must be listed before `mod_rewrite`
+- SSE streaming: `server.stream-response-body = 2` prevents lighttpd from buffering Server-Sent Events. `/api/sse` sets `proxy.read-timeout = 600`
+- SPA fallback: `url.rewrite-if-not-file = ( "^/.*" => "/index.html" )`
+- chat.fellis.eu: `$HTTP["host"]` vhost block serves chat from `/var/www/fellis.eu/chat/dist/`
 
 ### Deploy checklist
-
 1. `npm run build` — builds frontend into `assets/` + updates `index.html`
 2. Sync `index.html` and `assets/` to `/var/www/fellis.eu/`
 3. `cd server && npm run migrate` — apply any pending DB migrations
-4. Restart/reload the Node.js backend (PM2: `pm2 reload fellis`)
+4. `pm2 reload fellis` — restart Node.js backend
 5. `sudo systemctl reload lighttpd` if the config changed
-
----
 
 ## Build & Test
 
-```bash
-# Run the API route checker (validates all client calls have matching server routes)
+```
+# Run the API route checker
 npm test
 
 # Build for production (runs API route check first, then Vite build)
@@ -270,98 +248,75 @@ npm run lint
 npm run preview
 ```
 
-### Build Output
-Vite builds from `src/` as root into `assets/` at the repo root:
-- JS: `assets/app-[hash].js`
-- CSS: `assets/[name]-[hash].css`
-- `emptyOutDir: false` — preserves existing files in root
-
----
-
 ## Key Conventions
 
 ### Language & Bilingualism
-- The platform is fully bilingual: **Danish (`da`)** and **English (`en`)**
+- Fully bilingual: Danish (`da`) and English (`en`)
 - Language preference stored in `localStorage` as `fellis_lang`
-- Database stores bilingual content in parallel columns: `text_da` / `text_en`, `bio_da` / `bio_en`, `time_da` / `time_en`
-- UI string translations live in **segmented files** under `src/i18n/` — one file per feature/page (e.g. `feed.js`, `profile.js`, `settings.js`, `marketplace.js`)
-- Each segment file exports a `{ da: { … }, en: { … } }` object covering only the strings for that feature
-- `src/i18n/index.js` deep-merges all segment files and re-exports a single `PT` object so existing `const t = PT[lang]` usage continues to work unchanged
-- Global/shared strings that are used across many features stay in `data.js` under `PT` as before; page-specific strings go in the relevant segment file
-- Default language is Danish (`da`)
-- **Never hardcode UI strings inline.** Do NOT write `lang === 'da' ? 'Dansk tekst' : 'English text'` in components — always add a key to the appropriate segment file (or `data.js` if truly global) and reference it as `t.keyName` (where `const t = PT[lang]`)
-- When adding strings for a new feature, create `src/i18n/<feature>.js` and import it in `src/i18n/index.js`
-- The only accepted exceptions are: locale strings for JS date APIs (`'da-DK'`/`'en-US'`), bilingual DB field selectors (`.text_da`/`.text_en`), and large long-form content blocks (privacy policy, about page)
+- DB stores bilingual content in parallel columns: `text_da` / `text_en`, `bio_da` / `bio_en`
+- UI strings in `src/i18n/` — one file per feature/page
+- Each segment exports `{ da: { … }, en: { … } }`
+- `src/i18n/index.js` deep-merges all segments into a single `PT` object
+- Global/shared strings stay in `data.js` under `PT`; page-specific strings go in the relevant segment file
+- Default language: Danish (`da`)
+- Never hardcode UI strings inline — always use `t.keyName` where `const t = PT[lang]`
+- Only accepted exceptions: locale strings for JS date APIs (`'da-DK'`/`'en-US'`), bilingual DB field selectors, large long-form content blocks
 
 ### Currency Formatting
-- All prices are displayed in **EUR** using the `formatPrice()` helper from `src/utils/currency.js`
+- All prices in EUR via `formatPrice()` from `src/utils/currency.js`
 - Uses `de-DE` locale: `1.234,56 €`
-- **Never** hardcode currency symbols or use `.toFixed(2) + ' DKK'` — always use `formatPrice(amount)`
-- Migration `server/migrate-currency.sql` adds `currency='EUR'` default and `price_eur` column to marketplace
+- Never hardcode currency symbols or use `.toFixed(2)`
 
 ### Authentication
-- Sessions are stored server-side in the `sessions` DB table (30-day expiry)
-- Session ID is in the `fellis_sid` HTTP-only cookie (set by server, sent automatically by browser)
-- For multipart/FormData requests, use `formHeaders()` (not `headers()`) to avoid sending `null` as a header value
+- Sessions stored server-side in `sessions` DB table (30-day expiry)
+- Session ID in `fellis_sid` HTTP-only cookie
+- For multipart/FormData requests, use `formHeaders()` (not `headers()`)
 
 ### CSRF Protection
-- All state-changing requests (POST/PUT/PATCH/DELETE) require an `X-CSRF-Token` header
-- The CSRF token is HMAC-SHA256(sessionId, CSRF_SECRET) — fetched via `GET /api/csrf-token` after login
-- The token is stored in `localStorage` as `fellis_csrf_token` and read by `getCsrfToken()` in `api.js`
-- `CSRF_SECRET` must be stable across restarts — it is auto-generated on first start and persisted to `server/.env`
-- Pre-auth endpoints (login, register, forgot-password, reset-password, verify-mfa, `/api/visit`) are exempt from CSRF
-- The CSRF token must be fetched and stored **before** the platform mounts — both `handleEnterPlatform` and the session-restore path in `App.jsx` await `apiGetCsrfToken()` before calling `setView('platform')`
+- All state-changing requests (POST/PUT/PATCH/DELETE) require `X-CSRF-Token` header
+- Token is HMAC-SHA256(sessionId, CSRF_SECRET) — fetched via `GET /api/csrf-token` after login
+- Stored in `localStorage` as `fellis_csrf_token`, read by `getCsrfToken()` in `api.js`
+- `CSRF_SECRET` must be stable across restarts
+- Pre-auth endpoints are exempt from CSRF
+- CSRF token must be fetched before platform mounts
 
 ### API Layer (`src/api.js`)
-- **Single source of truth** for all API calls — all `fetch()` calls go through the `request()` helper
-- `request()` returns `null` when the server is unreachable (demo/offline mode), never throws on network errors
-- `request()` automatically includes the CSRF token via `headers()` — never bypass it for state-changing calls
-- For file uploads (avatar, media), call `fetch()` directly with `formHeaders()` — do not use the `request()` helper
-- The `VITE_API_URL` env var allows pointing the frontend at a different backend origin
-- **Always add new API functions to this file** — never call `fetch()` directly from components
-- In `Platform.jsx`, legacy raw `fetch()` calls use the local `csrfFetch()` helper (defined at top of file) which injects the CSRF token — new code should use `api.js` functions instead
+- Single source of truth for all API calls — all `fetch()` calls go through `request()`
+- `request()` returns `null` when server is unreachable (demo/offline mode)
+- `request()` automatically includes CSRF token via `headers()`
+- For file uploads (avatar, media), call `fetch()` directly with `formHeaders()`
+- Always add new API functions to this file — never call `fetch()` directly from components
 
 ### API Route Consistency
 - `tests/check-api-routes.js` runs automatically before every build
-- It compares all `request(url)` calls in `src/api.js` against routes registered in `server/index.js`
-- **Every new API endpoint needs both:** a route in `server/index.js` AND an exported function in `src/api.js`
-- Template literal params like `${id}` are normalised to `:param` for comparison
+- Every new API endpoint needs both: a route in `server/index.js` AND an exported function in `src/api.js`
 
 ### React Components
-- All pages are rendered inside `Platform.jsx` — it manages the `page` state and renders each section conditionally
-- `App.jsx` handles: session validation on mount, OAuth callback parsing, invite token handling, GDPR consent dialog, routing between `Landing` and `Platform`
-- `AppRoot` in `App.jsx` handles the `/privacy` public route (no auth required)
-- Inline styles (`style={{ ... }}`) are used extensively — follow the existing `const s = { ... }` pattern for style objects
-- No external CSS framework or component library — all styling is custom
-
-### Mock / Fallback Data
-- `src/data.js` provides fallback mock data when the server is unavailable
-- Components should gracefully degrade to mock data when API calls return `null`
-- `CURRENT_USER`, `FRIENDS`, `POSTS`, etc. are the mock constants
+- All pages rendered inside `Platform.jsx` — manages `page` state
+- `App.jsx` handles: session validation, OAuth callbacks, invite tokens, GDPR consent, routing
+- Inline styles (`style={{ ... }}`) used extensively — follow `const s = { ... }` pattern
+- No external CSS framework — all styling is custom
 
 ### GDPR Compliance
-- Consent is tracked in the DB — `apiGiveConsent()`, `apiWithdrawConsent()`, `apiGetConsentStatus()`
-- Account deletion (`apiDeleteAccount()`) and data export (`apiExportData()`) endpoints must remain functional
+- Consent tracked in DB — `apiGiveConsent()`, `apiWithdrawConsent()`, `apiGetConsentStatus()`
+- Account deletion and data export endpoints must remain functional
 - Never store sensitive data in localStorage beyond session ID and language preference
 
 ### ESLint Rules
-- Config: ESLint 9 flat config (`eslint.config.js`)
-- `no-unused-vars` is an **error**, except for names matching `/^[A-Z_]/` (constants/components)
-- React Hooks rules enforced via `eslint-plugin-react-hooks`
-- React Refresh rules enforced via `eslint-plugin-react-refresh`
-
----
+- ESLint 9 flat config (`eslint.config.js`)
+- `no-unused-vars` is an error, except names matching `/^[A-Z_]/`
+- React Hooks and React Refresh rules enforced
 
 ## Database Schema Overview
 
 | Table | Purpose |
-|-------|---------|
+|---|---|
 | `users` | User accounts (email/password + Google/LinkedIn OAuth) |
 | `sessions` | Auth sessions (30-day expiry) |
 | `friendships` | Bidirectional friend connections |
 | `friend_requests` | Pending/accepted/declined friend requests |
 | `user_blocks` | Blocked user pairs |
-| `posts` | Feed posts (bilingual text + JSON media array); `user_mode` column records author's mode at creation time for feed separation |
+| `posts` | Feed posts (bilingual text + JSON media array); `user_mode` records author's mode |
 | `post_likes` | Like tracking per user/post |
 | `post_views` | View count per post |
 | `comments` | Post comments (bilingual) |
@@ -374,23 +329,23 @@ Vite builds from `src/` as root into `assets/` at the repo root:
 | `messages` | Legacy direct messages |
 | `conversations` | Group/DM conversation threads |
 | `conversation_participants` | Per-user membership + mute state |
-| `invitations` | Invite links for bringing new users |
+| `invitations` | Invite links |
 | `notifications` | Per-user notification log |
-| `notification_preferences` | Per-user notification opt-in/out settings |
+| `notification_preferences` | Per-user notification opt-in/out |
 | `marketplace_listings` | Marketplace item listings (EUR pricing) |
 | `events` | Platform events |
-| `event_rsvps` | Per-user RSVP status per event |
+| `event_rsvps` | Per-user RSVP status |
 | `calendar_reminders` | Personal calendar reminders |
 | `jobs` | Job listings |
 | `job_applications` | Applications per job per user |
-| `cv_experience` | Work experience entries per user |
-| `cv_education` | Education entries per user |
-| `cv_languages` | Language proficiency entries per user |
+| `cv_experience` | Work experience entries |
+| `cv_education` | Education entries |
+| `cv_languages` | Language proficiency entries |
 | `companies` | Company profiles |
 | `company_members` | Company membership + role |
 | `company_followers` | Company follow relationships |
 | `company_posts` | Posts authored by companies |
-| `company_leads` | CRM-style lead tracking per company |
+| `company_leads` | CRM-style lead tracking |
 | `contact_notes` | Personal notes on other users |
 | `skills` | User skills |
 | `skill_endorsements` | Skill endorsements between users |
@@ -400,7 +355,7 @@ Vite builds from `src/` as root into `assets/` at the repo root:
 | `mollie_payments` | Payment records from Mollie |
 | `interest_categories` | Admin-managed interest category taxonomy |
 | `user_interests` | Per-user interest selections |
-| `interest_signals` | Raw behavioural signals for interest graph |
+| `interest_signals` | Raw behavioural signals |
 | `interest_scores` | Computed interest scores per user |
 | `badges` | Badge definitions |
 | `badge_earned` | Per-user earned badges |
@@ -411,27 +366,25 @@ Vite builds from `src/` as root into `assets/` at the repo root:
 | `audit_log` | Admin audit trail |
 | `user_settings` | Per-user settings (dark mode, notification prefs, etc.) |
 
-### Migrations
-- Schema changes use standalone `server/migrate-*.sql` files (49 files total)
-- `server/migrate.js` tracks which migrations have been applied and runs pending ones in order
-- `server/run-migrations.js` can be called at deploy/startup to auto-apply pending migrations
-- Use the npm scripts instead of running SQL manually:
+## Migrations
 
-```bash
+```
 cd server
 npm run migrate:status    # see what's applied and what's pending
 npm run migrate:dry-run   # preview what would run
 npm run migrate           # apply all pending migrations
 ```
 
----
+- Schema changes use standalone `server/migrate-*.sql` files (49 files total)
+- `server/migrate.js` tracks which migrations have been applied
+- Run manually after task completion — never triggered automatically by Claude
 
 ## Platform Features
 
-The `Platform.jsx` component renders these pages (controlled by `page` state):
+`Platform.jsx` renders these pages (controlled by `page` state):
 
-- **feed** — Post creation, feed with reactions, comments, media, link previews, scheduled posts; Community/Business mode toggle filters feed via `GET /api/feed?mode=privat|business`
-- **friends** — Friend list, friend requests, user search, invite system, blocking
+- **feed** — Post creation, feed with reactions, comments, media, scheduled posts; Community/Business mode toggle
+- **friends** — Friend list, requests, search, invite system, blocking
 - **messages** — Conversations (DM + group chats), mute, rename, leave
 - **profile** — User profile, avatar upload, bio, skills, interests, GDPR data tools
 - **edit-profile** — Extended profile editor
@@ -439,49 +392,50 @@ The `Platform.jsx` component renders these pages (controlled by `page` state):
 - **marketplace** — Listings with categories, location filter, boost, EUR pricing
 - **events** — Event creation, RSVP, cover image
 - **calendar** — Personal calendar with event view and reminders
-- **jobs** — Job listings, applications, saved jobs, tracked jobs, job sharing
-- **cv** — AI-assisted CV builder (experience, education, languages, cover letter generation)
+- **jobs** — Job listings, applications, saved jobs, tracked jobs
+- **cv** — AI-assisted CV builder (experience, education, languages, cover letter)
 - **reels** — Short-video reel creation, like, comment (`Reels.jsx`)
-- **stories** — 24-hour ephemeral story posts (via `StoryBar.jsx`)
-- **explore** — Trending hashtags, suggested posts, discovery feed (`ExplorePage.jsx`)
+- **stories** — 24-hour ephemeral story posts (`StoryBar.jsx`)
+- **explore** — Trending hashtags, suggested posts, discovery (`ExplorePage.jsx`)
 - **search** — Global search across posts, users, companies
 - **companies** — Company profiles, members, followers, posts, leads
 - **business-directory** — Browse and follow businesses (`BusinessDirectory.jsx`)
-- **ad-manager** — Ad campaign management for business accounts (`AdManager.jsx`)
-- **interest-graph** — Interest signal visualization and score tuning (`InterestGraphPage.jsx`)
-- **analytics** — Business analytics dashboard (profile views, engagement, post insights)
+- **ad-manager** — Ad campaign management (`AdManager.jsx`)
+- **interest-graph** — Interest signal visualization (`InterestGraphPage.jsx`)
+- **analytics** — Business analytics dashboard
 - **visitor-stats** — Per-profile visitor analytics
 - **notifications** — Notification feed and preferences
 - **badges** — Earned badges and achievement progress
 - **referrals** — Referral dashboard and leaderboard
-- **moderation** — Moderation queue, keyword filters, user actions (moderators only)
+- **moderation** — Moderation queue, keyword filters (moderators only)
 - **admin** — Admin settings, platform stats, environment status, feed weight config
 
-### User Modes
-- **privat** — Standard personal account mode
-- **business** — Business account mode (unlocks analytics, endorsements, profile views, ads, leads)
-- Stored in `localStorage` as `fellis_mode` and synced to server via `PATCH /api/me/mode`
+## User Modes
 
-### Feed Mode Separation
-- Every post stores `user_mode` (ENUM `'privat'`/`'business'`) at INSERT time via `(SELECT mode FROM users WHERE id = ?)` — records the author's mode at the moment of posting
-- `GET /api/feed` accepts optional `?mode=privat|business`; returns 400 for any other value; omitting it returns the original mixed feed (backward-compatible)
-- The frontend (`FeedPage` in `Platform.jsx`) defaults to the current user's own mode and renders a two-tab toggle ("Fællesskab" / "Erhverv" in Danish, "Community" / "Business" in English) — switching resets the cursor and reloads
-- Migration: `server/migrate-feed-mode-separation.sql` (adds column, backfills, adds composite index on `user_mode, created_at`)
+- `privat` — Standard personal account
+- `business` — Business account (unlocks analytics, endorsements, ads, leads)
+- Stored in `localStorage` as `fellis_mode`, synced via `PATCH /api/me/mode`
+
+## Feed Mode Separation
+
+- Every post stores `user_mode` at INSERT time
+- `GET /api/feed` accepts `?mode=privat|business`; returns 400 for other values
+- Two-tab toggle in frontend: "Fællesskab" / "Erhverv"
+- Migration: `server/migrate-feed-mode-separation.sql`
 - Translation keys: `feedModePrivat` / `feedModeBusiness` in `src/i18n/feed.js`
 
-### Easter Eggs
-Five hidden interactions are implemented (see `src/components/easter-eggs/` and `src/hooks/`):
+## Easter Eggs
+
+Five hidden interactions (see `src/components/easter-eggs/` and `src/hooks/`):
 - Konami code → party confetti
 - Long-press avatar → Chuck Norris joke
 - Multiple rapid taps → Matrix rain
 - Key sequence → riddle banner
 - Specific scroll hold → Rick Roll
-Admin can configure which are active via `PUT /api/admin/easter-eggs/config`.
 
----
+Admin can configure active easter eggs via `PUT /api/admin/easter-eggs/config`.
 
-## Git Branches
+## Git
 
-Development follows a `claude/` branch naming convention:
-- Feature branches: `claude/<description>-<session-id>`
-- Push with: `git push -u origin <branch-name>`
+- Always push to `main`: `git push -u origin main`
+- Do not create feature branches unless explicitly asked
