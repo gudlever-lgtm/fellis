@@ -410,24 +410,23 @@ if (directErrors.length === 0) {
   process.exit(1)
 }
 
-// ── 8. i18n segment import coverage ──────────────────────────────────────────
+// ── 8. i18n language file import coverage ────────────────────────────────────
 //
-// Every *.js file under src/i18n/ (except index.js itself) must be:
-//   (a) imported in index.js
-//   (b) listed in the `segments` array so the deep-merge actually runs
+// Every *.js file under src/i18n/ (except index.js itself) must be imported
+// in index.js and exported as part of the PT object.
 //
-// Catches the common mistake of adding a new translation file but forgetting
-// to wire it up in the aggregator — translations silently vanish at runtime.
+// The architecture is one file per language: da.js, en.js, de.js, etc.
+// index.js imports each language file and re-exports them via PT.
 
 const i18nDir      = resolve(root, 'src/i18n')
 const i18nIndexSrc = readFileSync(resolve(i18nDir, 'index.js'), 'utf8')
 
-const i18nSegmentFiles = readdirSync(i18nDir)
+const i18nLangFiles = readdirSync(i18nDir)
   .filter(f => f.endsWith('.js') && f !== 'index.js')
   .sort()
 
-// (a) Check that each segment file has a matching import statement
-const missingI18nImports = i18nSegmentFiles.filter(f => {
+// Check that each language file has a matching import statement
+const missingI18nImports = i18nLangFiles.filter(f => {
   const base = f.replace(/\.js$/, '')
   return !i18nIndexSrc.includes(`'./${f}'`)    &&
          !i18nIndexSrc.includes(`'./${base}'`) &&
@@ -435,29 +434,13 @@ const missingI18nImports = i18nSegmentFiles.filter(f => {
          !i18nIndexSrc.includes(`"./${base}"`)
 })
 
-// (b) Check that every imported name is listed in the segments array
-const i18nImportNames = [...i18nIndexSrc.matchAll(/^import\s+(\w+)\s+from\s+['"]\.\//gm)]
-  .map(mm => mm[1])
+console.log(`i18n language files  : ${i18nLangFiles.length}`)
 
-const segmentsBlockMatch = i18nIndexSrc.match(/const\s+segments\s*=\s*\[([\s\S]*?)\]/)
-const segmentsBlock      = segmentsBlockMatch ? segmentsBlockMatch[1] : ''
-const missingFromSegments = i18nImportNames.filter(
-  name => !new RegExp(`\\b${name}\\b`).test(segmentsBlock)
-)
-
-console.log(`i18n segment files   : ${i18nSegmentFiles.length}`)
-console.log(`i18n imports         : ${i18nImportNames.length}`)
-
-const i18nErrors = [
-  ...missingI18nImports.map(f  => `${f} is not imported in src/i18n/index.js`),
-  ...missingFromSegments.map(n => `import '${n}' is imported but not listed in the segments array`),
-]
-
-if (i18nErrors.length === 0) {
-  console.log(`\n${GREEN}✓ All ${i18nSegmentFiles.length} i18n segment files are imported and listed in segments.${RESET}\n`)
+if (missingI18nImports.length === 0) {
+  console.log(`\n${GREEN}✓ All ${i18nLangFiles.length} i18n language files are imported in src/i18n/index.js.${RESET}\n`)
 } else {
   console.log(`\n${RED}✗ i18n coverage issues found:${RESET}`)
-  for (const e of i18nErrors) console.log(`  ${RED}${e}${RESET}`)
+  for (const f of missingI18nImports) console.log(`  ${RED}${f} is not imported in src/i18n/index.js${RESET}`)
   console.log()
   process.exit(1)
 }
