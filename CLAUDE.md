@@ -1,5 +1,46 @@
 # CLAUDE.md — fellis.eu
 
+# CONFIG v1.0
+
+## CORE
+API=request() | AUTH=CSRF | I18N=EXT
+
+## STACK
+FE: React19/Vite7
+BE: Node/Express
+DB: MariaDB
+SRV: lighttpd
+
+## RULES
+
+API
+- src/api.js → request()
+- no fetch() in components
+
+AUTH
+- session-based
+- X-CSRF-Token required (state change)
+
+I18N
+- primary: da
+- src/i18n/*
+- no inline strings
+
+CURRENCY
+- formatPrice()
+- EUR, de-DE
+
+MIGRATIONS
+- /server/*.sql (incremental)
+- npm run migrate
+
+BUILD
+- npm run build:
+  1. route check
+  2. Vite build
+
+---
+
 ## Project Overview
 
 **fellis.eu** is a Danish social platform hosted in the EU, built as a privacy-first alternative to mainstream social networks. It is GDPR-compliant and bilingual (Danish/English).
