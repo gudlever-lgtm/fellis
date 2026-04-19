@@ -5,8 +5,7 @@ import PublicBlogPage from './BlogPage.jsx'
 import ForBusiness from './ForBusiness.jsx'
 import InstallPrompt from './components/InstallPrompt.jsx'
 import { apiCheckSession, apiLogout, apiGiveConsent, apiGetConsentStatus, apiGetInviteInfo, apiTrackVisit, apiGetCsrfToken, apiGetUserByHandle } from './api.js'
-import { UI_LANGS, detectLangFromIP, PT, getTranslations } from './data.js'
-import { detectLanguage } from './utils/detectLanguage.js'
+import { UI_LANGS, detectLangFromIP, getTranslations } from './data.js'
 import { USER_LS_KEY } from './hooks/useEasterEggs.js'
 import { useLanguage } from './i18n/LanguageContext.jsx'
 import './App.css'
@@ -343,6 +342,7 @@ function App() {
     return localStorage.getItem('fellis_logged_in') ? 'platform' : 'landing'
   })
   const { lang, setLanguage: setLang } = useLanguage()
+  const t = getTranslations(lang)
   // GDPR: Show general data processing consent for existing users who haven't accepted yet
   const [showGeneralConsent, setShowGeneralConsent] = useState(false)
   const [inviteToken, setInviteToken] = useState(null)
@@ -578,7 +578,7 @@ function App() {
           maxWidth: 'calc(100vw - 32px)',
         }}>
           <span>🔒</span>
-          <span>{getTranslations(lang).yourSessionHasExpiredPleaseLogInAgain}</span>
+          <span>{t.yourSessionHasExpiredPleaseLogInAgain}</span>
           <button
             onClick={() => setSessionExpired(false)}
             style={{ background: 'none', border: 'none', color: '#aaa', cursor: 'pointer', fontSize: 16, lineHeight: 1, marginLeft: 4, padding: 0 }}

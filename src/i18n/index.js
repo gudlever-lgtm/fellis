@@ -57,10 +57,13 @@ export const PT = segments.reduce((acc, seg) => {
   return result
 }, {})
 
+const _translationsCache = {}
+
 export function getTranslations(lang) {
   if (lang === 'da') return PT.da
   if (lang === 'en') return PT.en
+  if (_translationsCache[lang]) return _translationsCache[lang]
   const specific = PT[lang]
   if (!specific) return PT.en
-  return { ...PT.en, ...specific }
+  return (_translationsCache[lang] = { ...PT.en, ...specific })
 }
