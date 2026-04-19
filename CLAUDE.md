@@ -44,6 +44,8 @@ FE: React19/Vite7 BE: Node/Express DB: MariaDB SRV: lighttpd
 - Always push to `main`
 - `git push -u origin main`
 - Do not create feature branches unless explicitly asked
+- Always create a PR — never push directly to `main`, even for hotfixes
+- Push to a branch first, then open a PR via GitHub MCP tools
 
 ### CONTEXT-MODE
 - Use `ctx_batch_execute()` first when gathering data (multiple ops, one call)
