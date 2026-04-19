@@ -1,14 +1,13 @@
 import { createContext, useContext, useState } from 'react'
+import { detectLanguage } from '../utils/detectLanguage.js'
 
 const LanguageContext = createContext(null)
 
 export function LanguageProvider({ children }) {
-  const [lang, setLangState] = useState(
-    () => localStorage.getItem('fellis_lang') || 'da'
-  )
+  const [lang, setLangState] = useState(() => detectLanguage())
 
   function setLanguage(newLang) {
-    localStorage.setItem('fellis_lang', newLang)
+    localStorage.setItem('lang', newLang)
     setLangState(newLang)
   }
 
