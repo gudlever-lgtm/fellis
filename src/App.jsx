@@ -5,7 +5,8 @@ import PublicBlogPage from './BlogPage.jsx'
 import ForBusiness from './ForBusiness.jsx'
 import InstallPrompt from './components/InstallPrompt.jsx'
 import { apiCheckSession, apiLogout, apiGiveConsent, apiGetConsentStatus, apiGetInviteInfo, apiTrackVisit, apiGetCsrfToken, apiGetUserByHandle } from './api.js'
-import { UI_LANGS, detectLangFromIP, PT } from './data.js'
+import { UI_LANGS, detectLangFromIP, PT, getTranslations } from './data.js'
+import { detectLanguage } from './utils/detectLanguage.js'
 import { USER_LS_KEY } from './hooks/useEasterEggs.js'
 import { useLanguage } from './i18n/LanguageContext.jsx'
 import './App.css'
@@ -561,7 +562,7 @@ function App() {
           initialProfileUserId={parseInt(sessionStorage.getItem('fellis_profile_userId') || '0') || null}
           initialProfileSubpage={sessionStorage.getItem('fellis_profile_subpage')}
         />
-        <InstallPrompt lang={lang} PT={PT} />
+        <InstallPrompt lang={lang} />
       </>
     )
   }
@@ -577,7 +578,7 @@ function App() {
           maxWidth: 'calc(100vw - 32px)',
         }}>
           <span>🔒</span>
-          <span>{PT[lang].yourSessionHasExpiredPleaseLogInAgain}</span>
+          <span>{getTranslations(lang).yourSessionHasExpiredPleaseLogInAgain}</span>
           <button
             onClick={() => setSessionExpired(false)}
             style={{ background: 'none', border: 'none', color: '#aaa', cursor: 'pointer', fontSize: 16, lineHeight: 1, marginLeft: 4, padding: 0 }}
@@ -586,7 +587,7 @@ function App() {
         </div>
       )}
       <Landing onEnterPlatform={handleEnterPlatform} inviteToken={inviteToken} inviterName={inviterName} inviterEmail={inviterEmail} resetToken={resetToken} />
-      <InstallPrompt lang={lang} PT={PT} />
+      <InstallPrompt lang={lang} />
     </>
   )
 }
