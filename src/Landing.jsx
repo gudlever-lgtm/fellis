@@ -19,6 +19,7 @@ const T = {
     createCardTitle: 'Neues Konto erstellen',
     createCardDesc: 'Starte neu auf fellis.eu mit E-Mail und Passwort.',
     createCardBtn: 'Konto erstellen',
+    hero_intro: 'Du verdienst einen Platz im Netz, an dem du einfach du selbst sein kannst.',
     manifestoLine1: 'Soziale Medien haben dich an Werbetreibende verkauft.',
     manifestoLine2: 'Das fanden wir keinen fairen Deal.',
     manifestoLine3: 'Fellis ist eine europäische Community-Plattform — dein Feed ist chronologisch, immer. Werbung ist klar gekennzeichnet. Deine Daten bleiben deine.',
@@ -125,6 +126,7 @@ const T = {
     createCardTitle: 'Créer un nouveau compte',
     createCardDesc: 'Repartez de zéro sur fellis.eu avec un e-mail et un mot de passe.',
     createCardBtn: 'Créer un compte',
+    hero_intro: 'Vous méritez un endroit en ligne où vous pouvez simplement être vous-même.',
     manifestoLine1: 'Les réseaux sociaux vous ont vendu aux annonceurs.',
     manifestoLine2: 'Nous ne pensions pas que c\'était un accord équitable.',
     manifestoLine3: 'Fellis est une plateforme communautaire européenne — votre fil est chronologique, toujours. Les publicités sont clairement étiquetées. Vos données restent les vôtres.',
@@ -231,6 +233,7 @@ const T = {
     createCardTitle: 'Nieuw account aanmaken',
     createCardDesc: 'Begin opnieuw op fellis.eu met e-mail en wachtwoord.',
     createCardBtn: 'Account aanmaken',
+    hero_intro: 'U verdient een plek online waar u gewoon uzelf kunt zijn.',
     manifestoLine1: 'Sociale media hebben u verkocht aan adverteerders.',
     manifestoLine2: 'Wij vonden dat geen eerlijke deal.',
     manifestoLine3: 'Fellis is een Europees communityplatform — uw feed is chronologisch, altijd. Advertenties zijn duidelijk gemarkeerd. Uw gegevens blijven van u.',
@@ -337,6 +340,7 @@ const T = {
     createCardTitle: 'Skapa nytt konto',
     createCardDesc: 'Börja om på fellis.eu med e-post och lösenord.',
     createCardBtn: 'Skapa konto',
+    hero_intro: 'Du förtjänar en plats på nätet där du bara kan vara dig själv.',
     manifestoLine1: 'Sociala medier sålde dig till annonsörerna.',
     manifestoLine2: 'Vi tyckte inte det var ett rättvist avtal.',
     manifestoLine3: 'Fellis är en europeisk communityplattform — ditt flöde är kronologiskt, alltid. Annonser är tydligt märkta. Dina uppgifter förblir dina.',
@@ -443,6 +447,7 @@ const T = {
     createCardTitle: 'Luo uusi tili',
     createCardDesc: 'Aloita alusta fellis.eu:ssa sähköpostilla ja salasanalla.',
     createCardBtn: 'Luo tili',
+    hero_intro: 'Ansaitset paikan verkossa, jossa voit olla juuri oma itsesi.',
     manifestoLine1: 'Sosiaalinen media myi sinut mainostajille.',
     manifestoLine2: 'Emme pitäneet sitä reiluna kauppana.',
     manifestoLine3: 'Fellis on eurooppalainen yhteisöalusta — syötteesi on kronologinen, aina. Mainokset on selkeästi merkitty. Tietosi pysyvät sinun.',
@@ -549,6 +554,7 @@ const T = {
     createCardTitle: 'Opprett ny konto',
     createCardDesc: 'Start på nytt på fellis.eu med e-post og passord.',
     createCardBtn: 'Opprett konto',
+    hero_intro: 'Du fortjener et sted på nettet, der du bare kan være deg selv.',
     manifestoLine1: 'Sosiale medier solgte deg til annonsørene.',
     manifestoLine2: 'Vi syntes ikke det var en rettferdig handel.',
     manifestoLine3: 'Fellis er en europeisk fellesskapsplattform — feeden din er kronologisk, alltid. Annonser er tydelig merket. Dataene dine forblir dine.',
@@ -655,6 +661,7 @@ const T = {
     createCardTitle: 'Utwórz nowe konto',
     createCardDesc: 'Zacznij od nowa na fellis.eu z e-mailem i hasłem.',
     createCardBtn: 'Utwórz konto',
+    hero_intro: 'Zasługujesz na miejsce w sieci, gdzie możesz po prostu być sobą.',
     manifestoLine1: 'Media społecznościowe sprzedały Cię reklamodawcom.',
     manifestoLine2: 'Nie uważaliśmy tego za uczciwy deal.',
     manifestoLine3: 'Fellis to europejska platforma społecznościowa — Twój feed jest chronologiczny, zawsze. Reklamy są wyraźnie oznaczone. Twoje dane pozostają Twoje.',
@@ -761,6 +768,7 @@ const T = {
     createCardTitle: 'Crear nueva cuenta',
     createCardDesc: 'Empieza de cero en fellis.eu con correo electrónico y contraseña.',
     createCardBtn: 'Crear cuenta',
+    hero_intro: 'Mereces un lugar en internet donde puedas ser simplemente tú mismo.',
     manifestoLine1: 'Las redes sociales te vendieron a los anunciantes.',
     manifestoLine2: 'No creíamos que eso fuera un trato justo.',
     manifestoLine3: 'Fellis es una plataforma comunitaria europea — tu feed es cronológico, siempre. Los anuncios están claramente etiquetados. Tus datos siguen siendo tuyos.',
@@ -867,6 +875,7 @@ const T = {
     createCardTitle: 'Crea un nuovo account',
     createCardDesc: 'Ricomincia su fellis.eu con e-mail e password.',
     createCardBtn: 'Crea account',
+    hero_intro: 'Meriti un posto online dove puoi essere semplicemente te stesso.',
     manifestoLine1: 'I social media ti hanno venduto agli inserzionisti.',
     manifestoLine2: 'Non ci sembrava un accordo equo.',
     manifestoLine3: 'Fellis è una piattaforma comunitaria europea — il tuo feed è cronologico, sempre. Gli annunci sono chiaramente etichettati. I tuoi dati rimangono tuoi.',
@@ -973,6 +982,7 @@ const T = {
     createCardTitle: 'Criar nova conta',
     createCardDesc: 'Comece do zero no fellis.eu com e-mail e senha.',
     createCardBtn: 'Criar conta',
+    hero_intro: 'Você merece um lugar online onde pode simplesmente ser você mesmo.',
     manifestoLine1: 'As redes sociais te venderam para os anunciantes.',
     manifestoLine2: 'Não achamos que isso era um acordo justo.',
     manifestoLine3: 'Fellis é uma plataforma comunitária europeia — o seu feed é cronológico, sempre. Os anúncios são claramente identificados. Os seus dados continuam seus.',
@@ -1537,6 +1547,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
 
           {/* Manifesto card */}
           <div style={{ flex: '1 1 280px', maxWidth: 380, border: '1px solid #C8DDD2', borderRadius: 14, padding: '28px 28px', boxSizing: 'border-box', background: '#F0FAF4', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 14 }}>
+            <p style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.4, margin: 0, color: '#1a5c36' }}>{t.hero_intro}</p>
             <p style={{ fontSize: 19, fontWeight: 700, lineHeight: 1.4, margin: 0, color: '#1a1a1a' }}>{t.manifestoLine1}</p>
             <p style={{ fontSize: 19, fontWeight: 700, lineHeight: 1.4, margin: 0, color: '#1a1a1a' }}>{t.manifestoLine2}</p>
             <p style={{ fontSize: 14, lineHeight: 1.7, margin: 0, color: '#4a6b5c' }}>{t.manifestoLine3}</p>

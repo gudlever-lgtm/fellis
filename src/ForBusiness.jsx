@@ -14,7 +14,8 @@ export default function ForBusiness() {
     apiGetPublicPricing().then(data => { if (data) setPricing(data) })
   }, [])
 
-  const ctaHref = '/register'
+  const isLoggedIn = localStorage.getItem('fellis_logged_in') === 'true'
+  const ctaHref = isLoggedIn ? '/?page=settings' : '/register'
 
   const s = {
     page: {
