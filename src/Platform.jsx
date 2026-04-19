@@ -4707,7 +4707,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         const getD = (e) => typeof e.description === 'string' ? e.description : (e.description?.[lang] || e.description?.da || '')
         const getL = (e) => typeof e.location === 'string' ? e.location : (e.location?.[lang] || e.location?.da || '')
         const fmtD = (iso) => new Date(iso).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-        const evTypeLabel = (type) => ({ conference: t.eventTypeConference, webinar: t.eventTypeWebinar, workshop: t.eventTypeWorkshop, meetup: t.eventTypeMeetup })[type] || null
+        const evTypeLabel = (type) => ({ conference: t.eventTypeConference, webinar: t.eventTypeWebinar, workshop: t.eventTypeWorkshop, meetup: t.eventTypeMeetup, wedding: t.eventTypeWedding, birthday: t.eventTypeBirthday, confirmation: t.eventTypeConfirmation, baptism: t.eventTypeBaptism, engagement: t.eventTypeEngagement, anniversary: t.eventTypeAnniversary, party: t.eventTypeParty, graduation: t.eventTypeGraduation, concert: t.eventTypeConcert, networking: t.eventTypeNetworking })[type] || null
         return (
           <EventDetailModal
             event={feedSelectedEvent}
@@ -11927,7 +11927,7 @@ function EventsPage({ lang, t, currentUser, mode }) {
   }
 
   const eventTypeLabel = (type) => {
-    const map = { conference: t.eventTypeConference, webinar: t.eventTypeWebinar, workshop: t.eventTypeWorkshop, meetup: t.eventTypeMeetup }
+    const map = { conference: t.eventTypeConference, webinar: t.eventTypeWebinar, workshop: t.eventTypeWorkshop, meetup: t.eventTypeMeetup, wedding: t.eventTypeWedding, birthday: t.eventTypeBirthday, confirmation: t.eventTypeConfirmation, baptism: t.eventTypeBaptism, engagement: t.eventTypeEngagement, anniversary: t.eventTypeAnniversary, party: t.eventTypeParty, graduation: t.eventTypeGraduation, concert: t.eventTypeConcert, networking: t.eventTypeNetworking }
     return map[type] || null
   }
 
@@ -12407,18 +12407,32 @@ function CreateEventModal({ t, lang, mode, currentUser, onClose, onCreate, initi
           <label style={labelStyle}>{t.coverImageURL}</label>
           <ImageUrlInput value={coverUrl} onChange={setCoverUrl} lang={lang} style={fieldStyle} />
 
+          <label style={labelStyle}>{t.eventType}</label>
+          <select style={fieldStyle} value={eventType} onChange={e => setEventType(e.target.value)}>
+            <option value="">—</option>
+            <optgroup label="🎉 Privat">
+              <option value="wedding">{t.eventTypeWedding}</option>
+              <option value="birthday">{t.eventTypeBirthday}</option>
+              <option value="confirmation">{t.eventTypeConfirmation}</option>
+              <option value="baptism">{t.eventTypeBaptism}</option>
+              <option value="engagement">{t.eventTypeEngagement}</option>
+              <option value="anniversary">{t.eventTypeAnniversary}</option>
+              <option value="party">{t.eventTypeParty}</option>
+              <option value="graduation">{t.eventTypeGraduation}</option>
+              <option value="concert">{t.eventTypeConcert}</option>
+            </optgroup>
+            <optgroup label="💼 Erhverv">
+              <option value="conference">{t.eventTypeConference}</option>
+              <option value="webinar">{t.eventTypeWebinar}</option>
+              <option value="workshop">{t.eventTypeWorkshop}</option>
+              <option value="meetup">{t.eventTypeMeetup}</option>
+              <option value="networking">{t.eventTypeNetworking}</option>
+            </optgroup>
+          </select>
+
           {/* Business-only fields */}
           {mode === 'business' && (
             <>
-              <label style={labelStyle}>{t.eventType}</label>
-              <select style={fieldStyle} value={eventType} onChange={e => setEventType(e.target.value)}>
-                <option value="">—</option>
-                <option value="conference">{t.eventTypeConference}</option>
-                <option value="webinar">{t.eventTypeWebinar}</option>
-                <option value="workshop">{t.eventTypeWorkshop}</option>
-                <option value="meetup">{t.eventTypeMeetup}</option>
-              </select>
-
               <label style={labelStyle}>{t.eventTicketUrl}</label>
               <input style={fieldStyle} type="url" value={ticketUrl} onChange={e => setTicketUrl(e.target.value)}
                 placeholder="https://..." />
