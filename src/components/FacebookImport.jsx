@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { PT } from '../data.js'
+import { getTranslations } from '../data.js'
 import { apiFacebookGetData, apiFacebookImport, apiFacebookDisconnect, apiFacebookImportPhotos } from '../api.js'
 
 // Fields that can be imported from Facebook, in display order
@@ -20,7 +20,7 @@ function hasValue(field, fbData) {
 }
 
 export default function FacebookImport({ lang = 'da', user, onUpdate }) {
-  const t = PT[lang] || PT.da
+  const t = getTranslations(lang)
 
   // view: 'idle' | 'loading' | 'preview' | 'importing' | 'done' | 'error'
   const [view, setView]         = useState('idle')

@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
 import { apiGetSavedPosts, apiUnsavePost } from '../api.js'
-import { nameToColor, getInitials, PT } from '../data.js'
+import { nameToColor, getInitials, getTranslations } from '../data.js'
 
 export default function SavedPosts({ lang, onViewPost }) {
   const [posts, setPosts] = useState(null)
-  const t = PT[lang]
+  const t = getTranslations(lang)
 
   useEffect(() => {
     apiGetSavedPosts().then(d => setPosts(d?.posts || []))

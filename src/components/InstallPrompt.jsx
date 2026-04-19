@@ -1,8 +1,9 @@
 import { useInstallPrompt } from '../hooks/useInstallPrompt.js'
+import { getTranslations } from '../data.js'
 
-export default function InstallPrompt({ lang, PT }) {
+export default function InstallPrompt({ lang }) {
   const { canInstall, showIOSTip, triggerInstall, dismiss } = useInstallPrompt()
-  const t = PT[lang] || PT.da
+  const t = getTranslations(lang)
 
   if (!canInstall && !showIOSTip) return null
 
