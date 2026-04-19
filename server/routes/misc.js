@@ -35,6 +35,8 @@ import {
 
 const router = express.Router()
 
+let nominatimLastCall = 0
+
 
 
 
