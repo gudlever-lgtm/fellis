@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { detectLanguage } from './utils/detectLanguage.js'
+import { useLanguage } from './i18n/LanguageContext.jsx'
 import { getTranslations } from './i18n/index.js'
 import {
   apiFetchBlogPosts, apiFetchBlogPost,
@@ -356,7 +356,7 @@ function ArticleView({ slug, lang, t, isAdmin, onBack, onEdit }) {
 
 // ── Main Blog Page ────────────────────────────────────────────────────────────
 export default function PublicBlogPage() {
-  const [lang, setLang] = useState(() => detectLanguage())
+  const { lang, setLanguage: setLang } = useLanguage()
   const t = getTranslations(lang)
 
   const [posts, setPosts] = useState([])
