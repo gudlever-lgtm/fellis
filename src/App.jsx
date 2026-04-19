@@ -8,6 +8,7 @@ import { apiCheckSession, apiLogout, apiGiveConsent, apiGetConsentStatus, apiGet
 import { UI_LANGS, detectLangFromIP, PT } from './data.js'
 import { detectLanguage } from './utils/detectLanguage.js'
 import { USER_LS_KEY } from './hooks/useEasterEggs.js'
+import { useLanguage } from './i18n/LanguageContext.jsx'
 import './App.css'
 
 // ── Public Privacy Policy Page (/privacy) ──
@@ -341,7 +342,7 @@ function App() {
   const [view, setView] = useState(() => {
     return localStorage.getItem('fellis_logged_in') ? 'platform' : 'landing'
   })
-  const [lang, setLang] = useState(() => detectLanguage())
+  const { lang, setLanguage: setLang } = useLanguage()
   // GDPR: Show general data processing consent for existing users who haven't accepted yet
   const [showGeneralConsent, setShowGeneralConsent] = useState(false)
   const [inviteToken, setInviteToken] = useState(null)
@@ -357,7 +358,6 @@ function App() {
     if (!localStorage.getItem('lang')) {
       detectLangFromIP().then(detected => {
         if (detected && !localStorage.getItem('lang')) {
-          localStorage.setItem('lang', detected)
           setLang(detected)
         }
       })
@@ -515,7 +515,7 @@ function App() {
   const handleEnterPlatform = useCallback(async (selectedLang) => {
     setLang(selectedLang)
     localStorage.setItem('fellis_logged_in', 'true')
-    localStorage.setItem('lang', selectedLang)
+
     localStorage.removeItem('fellis_invite_token')
     setInviteToken(null)
     setInviterName(null)
