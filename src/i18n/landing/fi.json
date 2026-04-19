@@ -9,24 +9,54 @@
   "createCardDesc": "Aloita alusta fellis.eu:ssa sähköpostilla ja salasanalla.",
   "createCardBtn": "Luo tili",
   "hero_intro": "Ansaitset paikan verkossa, jossa voit olla juuri oma itsesi.",
-  "manifestoLine1": "Sosiaalinen media myi sinut mainostajille.",
-  "manifestoLine2": "Emme pitäneet sitä reiluna kauppana.",
   "manifestoLine3": "Fellis on eurooppalainen yhteisöalusta — syötteesi on kronologinen, aina. Mainokset on selkeästi merkitty. Tietosi pysyvät sinun.",
   "manifestoWhys": [
-    { "icon": "📅", "text": "Kronologinen syöte — mikään algoritmi ei päätä, mitä näet." },
-    { "icon": "🇪🇺", "text": "Tietosi pysyvät Euroopassa, suojattuina GDPR:llä." },
-    { "icon": "🎯", "text": "Mainokset näytetään kontekstin perusteella, ei henkilökohtaisen profiilisi perusteella." },
-    { "icon": "🤝", "text": "Olet käyttäjä — et tuote." }
+    {
+      "icon": "📅",
+      "text": "Kronologinen syöte — mikään algoritmi ei päätä, mitä näet."
+    },
+    {
+      "icon": "🇪🇺",
+      "text": "Tietosi pysyvät Euroopassa, suojattuina GDPR:llä."
+    },
+    {
+      "icon": "🎯",
+      "text": "Mainokset näytetään kontekstin perusteella, ei henkilökohtaisen profiilisi perusteella."
+    },
+    {
+      "icon": "🤝",
+      "text": "Olet käyttäjä — et tuote."
+    }
   ],
   "trustEncrypt": "Päästä päähän -salattu",
   "trustEU": "Isännöity EU:ssa",
   "trustDelete": "Täysi hallinta tiedoistasi",
   "servicesLabel": "Rakennettu eurooppalaisten palvelujen varaan",
   "services": [
-    { "flag": "🇩🇰", "name": "Yggdrasil Cloud", "role": "Hosting", "url": "https://yggdrasilcloud.dk/" },
-    { "flag": "🇸🇪", "name": "46elks", "role": "SMS / MFA", "url": "https://46elks.com/" },
-    { "flag": "🇳🇱", "name": "Mollie", "role": "Maksut", "url": "https://www.mollie.com/" },
-    { "flag": "🇫🇷", "name": "Mistral AI", "role": "AI (ansioluettelo / saatekirje)", "url": "https://mistral.ai/" }
+    {
+      "flag": "🇩🇰",
+      "name": "Yggdrasil Cloud",
+      "role": "Hosting",
+      "url": "https://yggdrasilcloud.dk/"
+    },
+    {
+      "flag": "🇸🇪",
+      "name": "46elks",
+      "role": "SMS / MFA",
+      "url": "https://46elks.com/"
+    },
+    {
+      "flag": "🇳🇱",
+      "name": "Mollie",
+      "role": "Maksut",
+      "url": "https://www.mollie.com/"
+    },
+    {
+      "flag": "🇫🇷",
+      "name": "Mistral AI",
+      "role": "AI (ansioluettelo / saatekirje)",
+      "url": "https://mistral.ai/"
+    }
   ],
   "inviteTitle": "Kutsu ystäväsi",
   "inviteSubtitle": "Auta ystäviäsi siirtymään fellis.eu:hun",
@@ -101,7 +131,15 @@
   "modeBusiness": "Yritys",
   "modeCommonDesc": "Henkilökohtaiseen käyttöön, perheelle ja yhteisölle. Ystävät, julkaisut ja tapahtumat.",
   "modeBusinessDesc": "Ammatilliseen verkostoitumiseen ja yritysläsnäoloon. Yhteydet, alan tapahtumat ja yrityssivut.",
-  "modeCommonFeatures": ["Ystävät & yhteisö", "Perheystävälliset asetukset", "Henkilökohtaiset tapahtumat"],
-  "modeBusinessFeatures": ["Ammatilliset yhteydet", "Yrityssivut", "Konferenssit & webinaaret"],
+  "modeCommonFeatures": [
+    "Ystävät & yhteisö",
+    "Perheystävälliset asetukset",
+    "Henkilökohtaiset tapahtumat"
+  ],
+  "modeBusinessFeatures": [
+    "Ammatilliset yhteydet",
+    "Yrityssivut",
+    "Konferenssit & webinaaret"
+  ],
   "modeSelectBtn": "Aloita"
 }
