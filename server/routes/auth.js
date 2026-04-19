@@ -149,14 +149,27 @@ router.post('/auth/login', strictLimit, validate(schemas.login), async (req, res
       }
       if (!method && user.email && mailer) {
         const fromAddr = process.env.MAIL_FROM || process.env.MAIL_USER
+        const mfaLang = lang === 'da' ? 'da' : 'en'
+        const mfaStrings = {
+          da: {
+            subject: 'Din Fellis-kode',
+            text: `Din Fellis-kode er: ${rawCode}\nKoden udløber om 5 minutter.`,
+            html: `<p>Din Fellis-kode er: <strong style="font-size:18px">${rawCode}</strong></p><p style="color:#888">Koden udløber om 5 minutter.</p>`,
+          },
+          en: {
+            subject: 'Your Fellis code',
+            text: `Your Fellis code is: ${rawCode}\nThe code expires in 5 minutes.`,
+            html: `<p>Your Fellis code is: <strong style="font-size:18px">${rawCode}</strong></p><p style="color:#888">The code expires in 5 minutes.</p>`,
+          },
+        }[mfaLang]
         try {
           await Promise.race([
             mailer.sendMail({
               from: `"Fellis" <${fromAddr}>`,
               to: user.email,
-              subject: 'Din Fellis-kode / Your Fellis code',
-              text: `Din Fellis-kode er: ${rawCode}\nKoden udløber om 5 minutter.\n\nYour Fellis code is: ${rawCode}\nThe code expires in 5 minutes.`,
-              html: `<p>Din Fellis-kode er: <strong style="font-size:18px">${rawCode}</strong></p><p style="color:#888">Koden udløber om 5 minutter.</p><hr><p>Your Fellis code is: <strong style="font-size:18px">${rawCode}</strong></p><p style="color:#888">The code expires in 5 minutes.</p>`,
+              subject: mfaStrings.subject,
+              text: mfaStrings.text,
+              html: mfaStrings.html,
             }),
             new Promise((_, reject) => setTimeout(() => reject(new Error('SMTP timeout')), 10000)),
           ])
@@ -293,7 +306,7 @@ router.post('/auth/register', registerLimit, validate(schemas.register), async (
 
 
 router.post('/auth/forgot-password', strictLimit, validate(schemas.forgotPassword), async (req, res) => {
-  const { email } = req.body
+  const { email, lang } = req.body
   if (!email) return res.status(400).json({ error: 'Email required' })
 
   // Rate limit: max 3 requests per email per hour
@@ -322,14 +335,27 @@ router.post('/auth/forgot-password', strictLimit, validate(schemas.forgotPasswor
 
     if (mailer) {
       const fromAddr = process.env.MAIL_FROM || process.env.MAIL_USER
+      const resetLang = lang === 'da' ? 'da' : 'en'
+      const resetStrings = {
+        da: {
+          subject: 'Nulstil din adgangskode',
+          text: `Hej ${user.name},\n\nKlik her for at nulstille din adgangskode (linket udløber om 1 time):\n${resetUrl}\n\nHvis du ikke bad om dette, kan du ignorere denne e-mail.\n\nVenlig hilsen,\nFellis`,
+          html: `<p>Hej <strong>${user.name}</strong>,</p><p>Klik her for at nulstille din adgangskode (linket udløber om 1 time):</p><p><a href="${resetUrl}" style="background:#2D6A4F;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:bold">Nulstil adgangskode</a></p><p style="color:#888;font-size:12px">Eller kopier dette link: ${resetUrl}</p><p style="color:#888;font-size:12px">Hvis du ikke bad om dette, kan du ignorere denne e-mail.</p>`,
+        },
+        en: {
+          subject: 'Reset your password',
+          text: `Hi ${user.name},\n\nClick here to reset your password (the link expires in 1 hour):\n${resetUrl}\n\nIf you didn't request this, you can ignore this email.\n\nBest regards,\nFellis`,
+          html: `<p>Hi <strong>${user.name}</strong>,</p><p>Click here to reset your password (the link expires in 1 hour):</p><p><a href="${resetUrl}" style="background:#2D6A4F;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:bold">Reset password</a></p><p style="color:#888;font-size:12px">Or copy this link: ${resetUrl}</p><p style="color:#888;font-size:12px">If you didn't request this, you can ignore this email.</p>`,
+        },
+      }[resetLang]
       try {
         await Promise.race([
           mailer.sendMail({
             from: `"Fellis" <${fromAddr}>`,
             to: email,
-            subject: 'Nulstil din adgangskode / Reset your password',
-            text: `Hej ${user.name},\n\nKlik her for at nulstille din adgangskode (linket udløber om 1 time):\n${resetUrl}\n\nHvis du ikke bad om dette, kan du ignorere denne e-mail.\n\nVenlig hilsen,\nFellis`,
-            html: `<p>Hej <strong>${user.name}</strong>,</p><p>Klik her for at nulstille din adgangskode (linket udløber om 1 time):</p><p><a href="${resetUrl}" style="background:#2D6A4F;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:bold">Nulstil adgangskode</a></p><p style="color:#888;font-size:12px">Eller kopier dette link: ${resetUrl}</p><p style="color:#888;font-size:12px">Hvis du ikke bad om dette, kan du ignorere denne e-mail.</p>`,
+            subject: resetStrings.subject,
+            text: resetStrings.text,
+            html: resetStrings.html,
           }),
           new Promise((_, reject) => setTimeout(() => reject(new Error('SMTP timeout')), 10000)),
         ])
