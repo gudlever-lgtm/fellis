@@ -3244,16 +3244,6 @@ router.post('/stream/key/regenerate', authenticate, async (req, res) => {
 })
 
 
-router.get('/livestream/status', async (req, res) => {
-  try {
-    const [rows] = await pool.query("SELECT key_value FROM admin_settings WHERE key_name = 'livestream_enabled'")
-    res.json({ enabled: rows[0]?.key_value === '1' })
-  } catch {
-    res.json({ enabled: false })
-  }
-})
-
-
 router.get('/companies/:id/reviews', authenticate, async (req, res) => {
   try {
     const [rows] = await pool.query(
