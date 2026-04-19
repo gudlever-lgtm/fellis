@@ -815,7 +815,13 @@ console.log()
 // ── 17. Translations endpoint checks ─────────────────────────────────────────
 //
 // The JSON-based i18n system exposes translations via GET /api/translations.
-// Three static invariants must hold:
+// Static equivalents of the following HTTP test cases:
+//
+//   GET /api/translations?lang=da&feature=auth    → 200  (valid lang + valid feature)
+//   GET /api/translations?lang=xx&feature=auth    → 400  (unknown lang rejected)
+//   GET /api/translations?lang=da&feature=unknown → 400/404 (unknown feature rejected)
+//
+// Four static invariants must hold:
 //
 //   (a) GET /api/translations is registered on the server — otherwise every
 //       dynamic import that falls back to the API will receive a 404.
@@ -860,13 +866,23 @@ if (!translationsSrc.includes('VALID_FEATURES')) {
 }
 
 // (d) all 11 supported languages must be present in VALID_LANGS
-//     GET /api/translations?lang=da&feature=auth → 200 (da is valid)
-//     GET /api/translations?lang=xx&feature=auth → 400 (xx is not in the set)
-//     GET /api/translations?lang=da&feature=unknown → 400 (unknown feature)
+//     proves: GET ?lang=da → passes validation (valid lang)
+//             GET ?lang=xx → rejected (xx absent from VALID_LANGS → 400)
 const REQUIRED_LANGS = ['da', 'en', 'de', 'es', 'fr', 'it', 'nl', 'no', 'pl', 'pt', 'sv']
 const missingLangs = REQUIRED_LANGS.filter(l => !translationsSrc.includes(`'${l}'`) && !translationsSrc.includes(`"${l}"`))
 if (missingLangs.length > 0) {
   translationsErrors.push(`translations route VALID_LANGS is missing required languages: ${missingLangs.join(', ')}`)
+}
+
+// (f) all 4 feature namespaces must be present in VALID_FEATURES
+//     proves: GET ?feature=auth    → passes validation → 200 (auth in VALID_FEATURES)
+//             GET ?feature=unknown → rejected (unknown absent from VALID_FEATURES → 400/404)
+const REQUIRED_FEATURES = ['auth', 'common', 'feed', 'profile']
+const missingFeatures = REQUIRED_FEATURES.filter(f =>
+  !translationsSrc.includes(`'${f}'`) && !translationsSrc.includes(`"${f}"`)
+)
+if (missingFeatures.length > 0) {
+  translationsErrors.push(`VALID_FEATURES is missing required feature(s): ${missingFeatures.join(', ')} — GET ?lang=da&feature=auth would return 400/404`)
 }
 
 // (e) cache header must be set for valid responses
@@ -880,7 +896,7 @@ if (translationsErrors.length > 0) {
   console.log()
   process.exit(1)
 } else {
-  console.log(`${GREEN}✓ GET /api/translations is registered, validates lang + feature, and supports all ${REQUIRED_LANGS.length} languages.${RESET}\n`)
+  console.log(`${GREEN}✓ GET /api/translations is registered, validates lang + feature, supports all ${REQUIRED_LANGS.length} languages and ${REQUIRED_FEATURES.length} feature namespaces.${RESET}\n`)
 }
 
 process.exit(0)

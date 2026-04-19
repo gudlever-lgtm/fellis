@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { UI_LANGS, detectLang, PT } from './data.js'
+import { UI_LANGS, PT } from './data.js'
 import { apiLogin, apiRegister, apiForgotPassword, apiResetPassword, apiVerifyMfa, apiGiveConsent } from './api.js'
+import { useTranslation } from './i18n/useTranslation.js'
 
 // ── Landing translations ──
 const T = {
@@ -225,7 +226,7 @@ const T = {
 }
 
 export default function Landing({ onEnterPlatform, inviteToken, inviterName, inviterEmail, resetToken }) {
-  const [lang, setLang] = useState(() => detectLang())
+  const { lang, setLanguage } = useTranslation('common')
   const [step, setStep] = useState(4) // Go directly to registration
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [inviteLinkCopied, setInviteLinkCopied] = useState(false)
@@ -304,9 +305,8 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
   }, [step]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const changeLang = useCallback((code) => {
-    localStorage.setItem('fellis_lang', code)
-    setLang(code)
-  }, [])
+    setLanguage(code)
+  }, [setLanguage])
 
   // ── Login handler ──
   const handleLogin = useCallback(async (e) => {
@@ -687,7 +687,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
           </div>
 
           {/* Two-card row: manifesto + registration */}
-          <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', width: '100%', maxWidth: 860, flexWrap: 'wrap', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', gap: 20, alignItems: 'stretch', width: '100%', maxWidth: 860, flexWrap: 'wrap', justifyContent: 'center' }}>
 
           {/* Manifesto card */}
           <div style={{ flex: '1 1 280px', maxWidth: 380, border: '1px solid #C8DDD2', borderRadius: 14, padding: '28px 28px', boxSizing: 'border-box', background: '#F0FAF4', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 14 }}>

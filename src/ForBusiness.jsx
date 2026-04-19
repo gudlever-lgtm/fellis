@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
-import { UI_LANGS, detectLang, PT } from './data.js'
+import { UI_LANGS, PT } from './data.js'
+import { useTranslation } from './i18n/useTranslation.js'
 import { apiGetPublicPricing } from './api.js'
 import { formatPrice } from './utils/currency.js'
 
 export default function ForBusiness() {
-  const [lang, setLang] = useState(() => detectLang())
+  const { lang, setLanguage } = useTranslation('common')
   const t = PT[lang] || PT.en
   const da = lang === 'da'
   const [pricing, setPricing] = useState(null)
@@ -277,10 +278,10 @@ export default function ForBusiness() {
         <a href="/" style={s.brand}>fellis.eu</a>
         <div style={s.navRight}>
           <select
-            style={s.langBtn}
+            className="lang-toggle"
             value={lang}
-            onChange={e => { localStorage.setItem('fellis_lang', e.target.value); setLang(e.target.value) }}
-            aria-label={da ? 'Sprog' : 'Language'}
+            onChange={e => setLanguage(e.target.value)}
+            aria-label="Language"
           >
             {UI_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
           </select>
