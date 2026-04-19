@@ -9,6 +9,7 @@ export default function LocationAutocomplete({
   lang = 'da',
   placeholder,
   required = false,
+  autoFocus = false,
   style,
   inputStyle,
 }) {
@@ -120,6 +121,7 @@ export default function LocationAutocomplete({
           placeholder={ph}
           required={required}
           autoComplete="off"
+          autoFocus={autoFocus}
           style={s.input}
         />
         {value && (
