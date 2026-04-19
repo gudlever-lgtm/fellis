@@ -3596,6 +3596,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
               <div style={{ padding: '8px 4px 4px', display: 'flex', gap: 6, alignItems: 'flex-start' }}>
                 <div style={{ flex: 1 }}>
                   <LocationAutocomplete
+                    autoFocus
                     value={locationSearchText}
                     onChange={setLocationSearchText}
                     onSelect={loc => {
