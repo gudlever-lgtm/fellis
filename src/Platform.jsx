@@ -42,6 +42,7 @@ import useAvatarClick from './hooks/useAvatarClick.js'
 import useLongPress from './hooks/useLongPress.js'
 import useTapCount from './hooks/useTapCount.js'
 import useEasterEggs, { loadEggs, loadAdminEggs, ADMIN_LS_KEY, EGG_IDS } from './hooks/useEasterEggs.js'
+import { useLanguage } from './i18n/LanguageContext.jsx'
 import ChuckBanner from './components/easter-eggs/ChuckBanner.jsx'
 import MatrixRain from './components/easter-eggs/MatrixRain.jsx'
 import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
@@ -180,8 +181,8 @@ function EggHintsContextMenu({ lang }) {
   )
 }
 
-export default function Platform({ lang: initialLang, onLogout, initialPostId, initialPage, initialProfileUserId, initialProfileSubpage }) {
-  const [lang, setLang] = useState(initialLang || detectLanguage())
+export default function Platform({ onLogout, initialPostId, initialPage, initialProfileUserId, initialProfileSubpage }) {
+  const { lang, setLanguage: setLang } = useLanguage()
   const [page, setPage] = useState(initialPage || 'feed')
   const [currentUser, setCurrentUser] = useState({ name: '', handle: '', initials: '' })
   const [showAvatarMenu, setShowAvatarMenu] = useState(false)
@@ -336,9 +337,9 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
   }
 
   const changeLang = useCallback((code) => {
-    localStorage.setItem('lang', code)
+
     setLang(code)
-  }, [])
+  }, [setLang])
 
   // Load current user from session — mode and plan are authoritative from server
   useEffect(() => {
