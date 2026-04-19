@@ -19,7 +19,11 @@ import admin from './admin.js'
 import reels from './reels.js'
 import moderation from './moderation.js'
 import referrals from './referrals.js'
-import common from './common.js'
+import commonUi from './common-ui.js'
+import commonErrors from './common-errors.js'
+import commonTime from './common-time.js'
+import commonNotifications from './common-notifications.js'
+import commonKeyboard from './common-keyboard.js'
 import onboarding from './onboarding.js'
 import forBusiness from './for-business.js'
 
@@ -45,7 +49,8 @@ function deepMerge(target, source) {
 const segments = [
   nav, feed, friends, messages, search, profile, settings,
   notifications, analytics, business, ads, events, companies,
-  jobs, marketplace, admin, reels, moderation, referrals, common,
+  jobs, marketplace, admin, reels, moderation, referrals,
+  commonUi, commonErrors, commonTime, commonNotifications, commonKeyboard,
   blog, facebook, onboarding, forBusiness,
 ]
 
