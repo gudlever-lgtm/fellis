@@ -45,6 +45,15 @@ FE: React19/Vite7 BE: Node/Express DB: MariaDB SRV: lighttpd
 - `git push -u origin main`
 - Do not create feature branches unless explicitly asked
 
+### CONTEXT-MODE
+- Use `ctx_batch_execute()` first when gathering data (multiple ops, one call)
+- Use `ctx_search()` to query previously indexed content
+- Use `ctx_execute()` to process large files/output — never read raw data into context to analyze it mentally
+- Use `ctx_fetch_and_index()` instead of WebFetch for all URLs
+- Never use `curl`, `wget`, or inline HTTP — route through `ctx_execute()`
+- Write analysis scripts with `console.log()` for only the result, not full data
+- Response length: ≤500 words; artifacts go to files, not inline output
+
 ---
 
 ## Project Overview
@@ -141,6 +150,19 @@ fellis/
 ```
 
 ## Development Workflow
+
+### Context Mode (Claude Code plugin)
+Reduces context window usage by ~98% via sandboxed execution, FTS5/BM25 search, and session continuity across compactions.
+
+Install once (global, per developer):
+```
+/plugin marketplace add mksglu/context-mode
+/plugin install context-mode@context-mode
+```
+Verify: `/context-mode:ctx-doctor`
+
+With hooks active (Claude Code native): ~98% context savings.
+Without hooks (routing rules only): ~60% savings.
 
 ### Prerequisites
 - Node.js (with ESM support)
