@@ -5,13 +5,14 @@ import PublicBlogPage from './BlogPage.jsx'
 import ForBusiness from './ForBusiness.jsx'
 import InstallPrompt from './components/InstallPrompt.jsx'
 import { apiCheckSession, apiLogout, apiGiveConsent, apiGetConsentStatus, apiGetInviteInfo, apiTrackVisit, apiGetCsrfToken, apiGetUserByHandle } from './api.js'
-import { UI_LANGS, detectLang, detectLangFromIP, PT } from './data.js'
+import { UI_LANGS, detectLangFromIP, PT } from './data.js'
+import { detectLanguage } from './utils/detectLanguage.js'
 import { USER_LS_KEY } from './hooks/useEasterEggs.js'
 import './App.css'
 
 // ── Public Privacy Policy Page (/privacy) ──
 function PublicPrivacyPage() {
-  const [lang, setLang] = useState(() => detectLang())
+  const [lang, setLang] = useState(() => detectLanguage())
   const da = lang === 'da'
 
   const s = {
@@ -33,7 +34,7 @@ function PublicPrivacyPage() {
     <div style={s.page}>
       <nav style={s.nav}>
         <a href="/" style={s.brand}>fellis.eu</a>
-        <select style={s.langBtn} value={lang} onChange={e => { localStorage.setItem('fellis_lang', e.target.value); setLang(e.target.value) }} aria-label="Language">{UI_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}</select>
+        <select style={s.langBtn} value={lang} onChange={e => { localStorage.setItem('lang', e.target.value); setLang(e.target.value) }} aria-label="Language">{UI_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}</select>
       </nav>
 
       <h1 style={s.h1}>{da ? 'Privatlivspolitik' : 'Privacy Policy'}</h1>
@@ -164,7 +165,7 @@ function PublicPrivacyPage() {
 // ── Public Terms of Service Page (/terms) ──
 // Accessible without login — used as the terms of service URL
 function PublicTermsPage() {
-  const [lang, setLang] = useState(() => detectLang())
+  const [lang, setLang] = useState(() => detectLanguage())
   const da = lang === 'da'
 
   const s = {
@@ -186,7 +187,7 @@ function PublicTermsPage() {
     <div style={s.page}>
       <nav style={s.nav}>
         <a href="/" style={s.brand}>fellis.eu</a>
-        <select style={s.langBtn} value={lang} onChange={e => { localStorage.setItem('fellis_lang', e.target.value); setLang(e.target.value) }} aria-label="Language">{UI_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}</select>
+        <select style={s.langBtn} value={lang} onChange={e => { localStorage.setItem('lang', e.target.value); setLang(e.target.value) }} aria-label="Language">{UI_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}</select>
       </nav>
 
       <h1 style={s.h1}>{da ? 'Servicevilkår' : 'Terms of Service'}</h1>
@@ -340,7 +341,7 @@ function App() {
   const [view, setView] = useState(() => {
     return localStorage.getItem('fellis_logged_in') ? 'platform' : 'landing'
   })
-  const [lang, setLang] = useState(() => detectLang())
+  const [lang, setLang] = useState(() => detectLanguage())
   // GDPR: Show general data processing consent for existing users who haven't accepted yet
   const [showGeneralConsent, setShowGeneralConsent] = useState(false)
   const [inviteToken, setInviteToken] = useState(null)
@@ -353,10 +354,10 @@ function App() {
 
   // On first visit (no stored lang): detect language from IP geolocation
   useEffect(() => {
-    if (!localStorage.getItem('fellis_lang')) {
+    if (!localStorage.getItem('lang')) {
       detectLangFromIP().then(detected => {
-        if (detected && !localStorage.getItem('fellis_lang')) {
-          localStorage.setItem('fellis_lang', detected)
+        if (detected && !localStorage.getItem('lang')) {
+          localStorage.setItem('lang', detected)
           setLang(detected)
         }
       })
@@ -514,7 +515,7 @@ function App() {
   const handleEnterPlatform = useCallback(async (selectedLang) => {
     setLang(selectedLang)
     localStorage.setItem('fellis_logged_in', 'true')
-    localStorage.setItem('fellis_lang', selectedLang)
+    localStorage.setItem('lang', selectedLang)
     localStorage.removeItem('fellis_invite_token')
     setInviteToken(null)
     setInviterName(null)
@@ -534,7 +535,7 @@ function App() {
   const handleLogout = useCallback(() => {
     setView('landing')
     localStorage.removeItem('fellis_logged_in')
-    localStorage.removeItem('fellis_lang')
+    localStorage.removeItem('lang')
     // Session cookie automatically managed by browser
     localStorage.removeItem('fellis_csrf_token')
     localStorage.removeItem(USER_LS_KEY)
@@ -593,7 +594,7 @@ function App() {
 
 // ── Public Sales Terms Page (/salgsbetingelser) ──
 function PublicSalgsbetingelserPage() {
-  const [lang, setLang] = useState(() => detectLang())
+  const [lang, setLang] = useState(() => detectLanguage())
   const da = lang === 'da'
 
   const s = {
@@ -621,7 +622,7 @@ function PublicSalgsbetingelserPage() {
     <div style={s.page}>
       <nav style={s.nav}>
         <a href="/" style={s.brand}>fellis.eu</a>
-        <select style={s.langBtn} value={lang} onChange={e => { localStorage.setItem('fellis_lang', e.target.value); setLang(e.target.value) }} aria-label="Language">{UI_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}</select>
+        <select style={s.langBtn} value={lang} onChange={e => { localStorage.setItem('lang', e.target.value); setLang(e.target.value) }} aria-label="Language">{UI_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}</select>
       </nav>
 
       <h1 style={s.h1}>{da ? 'Salgsbetingelser' : 'Sales Terms'}</h1>
