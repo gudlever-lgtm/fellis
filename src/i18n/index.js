@@ -19,7 +19,9 @@ import admin from './admin.js'
 import reels from './reels.js'
 import moderation from './moderation.js'
 import referrals from './referrals.js'
-import commonUi from './common-ui.js'
+import commonUiA from './common-ui-a.js'
+import commonUiB from './common-ui-b.js'
+import commonUiC from './common-ui-c.js'
 import commonErrors from './common-errors.js'
 import commonTime from './common-time.js'
 import commonNotifications from './common-notifications.js'
@@ -50,7 +52,7 @@ const segments = [
   nav, feed, friends, messages, search, profile, settings,
   notifications, analytics, business, ads, events, companies,
   jobs, marketplace, admin, reels, moderation, referrals,
-  commonUi, commonErrors, commonTime, commonNotifications, commonKeyboard,
+  commonUiA, commonUiB, commonUiC, commonErrors, commonTime, commonNotifications, commonKeyboard,
   blog, facebook, onboarding, forBusiness,
 ]
 
