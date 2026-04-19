@@ -6,14 +6,13 @@ import ForBusiness from './ForBusiness.jsx'
 import InstallPrompt from './components/InstallPrompt.jsx'
 import { apiCheckSession, apiLogout, apiGiveConsent, apiGetConsentStatus, apiGetInviteInfo, apiTrackVisit, apiGetCsrfToken, apiGetUserByHandle } from './api.js'
 import { UI_LANGS, detectLangFromIP, PT } from './data.js'
-import { detectLanguage } from './utils/detectLanguage.js'
 import { USER_LS_KEY } from './hooks/useEasterEggs.js'
 import { useLanguage } from './i18n/LanguageContext.jsx'
 import './App.css'
 
 // ── Public Privacy Policy Page (/privacy) ──
 function PublicPrivacyPage() {
-  const [lang, setLang] = useState(() => detectLanguage())
+  const { lang, setLanguage: setLang } = useLanguage()
   const da = lang === 'da'
 
   const s = {
@@ -35,7 +34,7 @@ function PublicPrivacyPage() {
     <div style={s.page}>
       <nav style={s.nav}>
         <a href="/" style={s.brand}>fellis.eu</a>
-        <select style={s.langBtn} value={lang} onChange={e => { localStorage.setItem('lang', e.target.value); setLang(e.target.value) }} aria-label="Language">{UI_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}</select>
+        <select style={s.langBtn} value={lang} onChange={e => setLang(e.target.value)} aria-label="Language">{UI_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}</select>
       </nav>
 
       <h1 style={s.h1}>{da ? 'Privatlivspolitik' : 'Privacy Policy'}</h1>
@@ -166,7 +165,7 @@ function PublicPrivacyPage() {
 // ── Public Terms of Service Page (/terms) ──
 // Accessible without login — used as the terms of service URL
 function PublicTermsPage() {
-  const [lang, setLang] = useState(() => detectLanguage())
+  const { lang, setLanguage: setLang } = useLanguage()
   const da = lang === 'da'
 
   const s = {
@@ -188,7 +187,7 @@ function PublicTermsPage() {
     <div style={s.page}>
       <nav style={s.nav}>
         <a href="/" style={s.brand}>fellis.eu</a>
-        <select style={s.langBtn} value={lang} onChange={e => { localStorage.setItem('lang', e.target.value); setLang(e.target.value) }} aria-label="Language">{UI_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}</select>
+        <select style={s.langBtn} value={lang} onChange={e => setLang(e.target.value)} aria-label="Language">{UI_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}</select>
       </nav>
 
       <h1 style={s.h1}>{da ? 'Servicevilkår' : 'Terms of Service'}</h1>
@@ -594,7 +593,7 @@ function App() {
 
 // ── Public Sales Terms Page (/salgsbetingelser) ──
 function PublicSalgsbetingelserPage() {
-  const [lang, setLang] = useState(() => detectLanguage())
+  const { lang, setLanguage: setLang } = useLanguage()
   const da = lang === 'da'
 
   const s = {
@@ -622,7 +621,7 @@ function PublicSalgsbetingelserPage() {
     <div style={s.page}>
       <nav style={s.nav}>
         <a href="/" style={s.brand}>fellis.eu</a>
-        <select style={s.langBtn} value={lang} onChange={e => { localStorage.setItem('lang', e.target.value); setLang(e.target.value) }} aria-label="Language">{UI_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}</select>
+        <select style={s.langBtn} value={lang} onChange={e => setLang(e.target.value)} aria-label="Language">{UI_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}</select>
       </nav>
 
       <h1 style={s.h1}>{da ? 'Salgsbetingelser' : 'Sales Terms'}</h1>
