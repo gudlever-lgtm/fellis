@@ -1236,24 +1236,24 @@ export default function ReelsPage({ t, lang = 'da', currentUser, initialReelId, 
       <div style={s.header}>
         <div style={s.title}>{t.reelsTitle}</div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          {/* Live Reel button */}
-          <div style={{ position: 'relative' }}>
-            <button
-              style={{ ...s.liveBtn, opacity: liveEnabled ? 1 : 0.55 }}
-              onClick={() => { refreshLiveStatus(); setShowLiveInfo(true) }}
-              onMouseEnter={() => { refreshLiveStatus(); setLiveTooltip(true) }}
-              onMouseLeave={() => setLiveTooltip(false)}
-            >
-              <span style={{ ...s.liveDotBtn, animation: liveEnabled ? 'livePulse 1.4s infinite' : 'none' }} />
-              {t.reelsStartLive}
-              <span style={s.infoIcon}>ℹ</span>
-            </button>
-            {liveTooltip && (
-              <div style={s.tooltip}>
-                {liveEnabled ? t.reelsStartLiveWhatBody : t.reelsStartLiveDisabled}
-              </div>
-            )}
-          </div>
+          {/* Live Reel button — only shown when admin has enabled live streaming */}
+          {liveEnabled && (
+            <div style={{ position: 'relative' }}>
+              <button
+                style={s.liveBtn}
+                onClick={() => { refreshLiveStatus(); setShowLiveInfo(true) }}
+                onMouseEnter={() => setLiveTooltip(true)}
+                onMouseLeave={() => setLiveTooltip(false)}
+              >
+                <span style={{ ...s.liveDotBtn, animation: 'livePulse 1.4s infinite' }} />
+                {t.reelsStartLive}
+                <span style={s.infoIcon}>ℹ</span>
+              </button>
+              {liveTooltip && (
+                <div style={s.tooltip}>{t.reelsStartLiveWhatBody}</div>
+              )}
+            </div>
+          )}
           <button style={s.uploadBtn} onClick={() => setShowUpload(true)}>
             🎬 {t.reelsUpload}
           </button>
