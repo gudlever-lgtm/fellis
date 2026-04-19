@@ -19675,7 +19675,7 @@ function BadgesProfileSection({ lang, earnedBadges, onBadgeCheck, setEarnedBadge
                         </span></>
                       )}
                       {isEarned && hasInterview && (
-                        <><br /><span style={{ fontSize: 10, opacity: 0.7 }}>{da ? '👆 Klik for interview' : '👆 Click for interview'}</span></>
+                        <><br /><span style={{ fontSize: 10, opacity: 0.7 }}>{t.jobTrackInterviewClick}</span></>
                       )}
                     </div>
                   </div>
@@ -20713,7 +20713,7 @@ function AdminPage({ lang, t }) {
             label: t.funGamification,
             tabs: [
               { id: 'easter-eggs', icon: '🥚', label: t.easterEggs },
-              { id: 'badges', icon: '🏅', label: 'Badges' },
+              { id: 'badges', icon: '🏅', label: t.badges },
             ],
           },
           {
