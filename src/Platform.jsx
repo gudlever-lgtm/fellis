@@ -12344,6 +12344,7 @@ function CreateEventModal({ t, lang, mode, currentUser, onClose, onCreate, initi
   const [ticketUrl, setTicketUrl] = useState(() => initialEvent?.ticketUrl || '')
   const [cap, setCap] = useState(() => initialEvent?.cap ? String(initialEvent.cap) : '')
   const [coverUrl, setCoverUrl] = useState(() => initialEvent?.coverUrl || '')
+  const [recipients, setRecipients] = useState(() => initialEvent?.recipients || 'all')
 
   useEffect(() => {
     const h = (e) => { if (e.key === 'Escape') onClose() }
@@ -12371,6 +12372,7 @@ function CreateEventModal({ t, lang, mode, currentUser, onClose, onCreate, initi
       eventType: eventType || null,
       ticketUrl,
       cap: cap ? parseInt(cap) : null,
+      recipients,
     }
     onCreate(newEvent)
   }
@@ -12406,6 +12408,13 @@ function CreateEventModal({ t, lang, mode, currentUser, onClose, onCreate, initi
 
           <label style={labelStyle}>{t.coverImageURL}</label>
           <ImageUrlInput value={coverUrl} onChange={setCoverUrl} lang={lang} style={fieldStyle} />
+
+          <label style={labelStyle}>{t.eventRecipients}</label>
+          <select style={fieldStyle} value={recipients} onChange={e => setRecipients(e.target.value)}>
+            <option value="all">{t.eventRecipientsAll}</option>
+            <option value="family">{t.eventRecipientsFamily}</option>
+            <option value="close_friends">{t.eventRecipientsCloseFriends}</option>
+          </select>
 
           <label style={labelStyle}>{t.eventType}</label>
           <select style={fieldStyle} value={eventType} onChange={e => setEventType(e.target.value)}>
