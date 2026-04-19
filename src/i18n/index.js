@@ -28,6 +28,7 @@ import commonNotifications from './common-notifications.js'
 import commonKeyboard from './common-keyboard.js'
 import onboarding from './onboarding.js'
 import forBusiness from './for-business.js'
+import privacy from './privacy.js'
 
 function deepMerge(target, source) {
   const result = { ...target }
@@ -53,7 +54,7 @@ const segments = [
   notifications, analytics, business, ads, events, companies,
   jobs, marketplace, admin, reels, moderation, referrals,
   commonUiA, commonUiB, commonUiC, commonErrors, commonTime, commonNotifications, commonKeyboard,
-  blog, facebook, onboarding, forBusiness,
+  blog, facebook, onboarding, forBusiness, privacy,
 ]
 
 export const PT = segments.reduce((acc, seg) => {
