@@ -177,7 +177,7 @@ export default {
   },
   fr: {
     fb_connect_title:    'Importer depuis Facebook',
-    fb_connect_desc:     'Importez votre photo de profil, votre nom et d'autres informations depuis Facebook pour enrichir votre profil Fellis.',
+    fb_connect_desc:     "Importez votre photo de profil, votre nom et d'autres informations depuis Facebook pour enrichir votre profil Fellis.",
     fb_connect_btn:      'Connecter avec Facebook',
     fb_import_title:     'Choisissez ce que vous souhaitez importer',
     fb_import_select_all:'Tout sélectionner',
