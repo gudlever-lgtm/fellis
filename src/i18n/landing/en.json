@@ -9,24 +9,54 @@
   "createCardDesc": "Start fresh on fellis.eu with email and password.",
   "createCardBtn": "Create account",
   "hero_intro": "You deserve a place online where you can just be yourself.",
-  "manifestoLine1": "Social media sold you to advertisers.",
-  "manifestoLine2": "We didn't think that was a fair deal.",
   "manifestoLine3": "Fellis is a European community platform — your feed is chronological, always. Ads are clearly labelled. Your data stays yours.",
   "manifestoWhys": [
-    { "icon": "📅", "text": "Chronological feed — no algorithm deciding what you see." },
-    { "icon": "🇪🇺", "text": "Your data stays in Europe, protected by GDPR." },
-    { "icon": "🎯", "text": "Ads shown by context, not your personal profile." },
-    { "icon": "🤝", "text": "You're the user — not the product." }
+    {
+      "icon": "📅",
+      "text": "Chronological feed — no algorithm deciding what you see."
+    },
+    {
+      "icon": "🇪🇺",
+      "text": "Your data stays in Europe, protected by GDPR."
+    },
+    {
+      "icon": "🎯",
+      "text": "Ads shown by context, not your personal profile."
+    },
+    {
+      "icon": "🤝",
+      "text": "You're the user — not the product."
+    }
   ],
   "trustEncrypt": "End-to-end encrypted",
   "trustEU": "EU hosted",
   "trustDelete": "Full control over your data",
   "servicesLabel": "Built on European services",
   "services": [
-    { "flag": "🇩🇰", "name": "Yggdrasil Cloud", "role": "Hosting", "url": "https://yggdrasilcloud.dk/" },
-    { "flag": "🇸🇪", "name": "46elks", "role": "SMS / MFA", "url": "https://46elks.com/" },
-    { "flag": "🇳🇱", "name": "Mollie", "role": "Payments", "url": "https://www.mollie.com/" },
-    { "flag": "🇫🇷", "name": "Mistral AI", "role": "AI (CV / cover letter)", "url": "https://mistral.ai/" }
+    {
+      "flag": "🇩🇰",
+      "name": "Yggdrasil Cloud",
+      "role": "Hosting",
+      "url": "https://yggdrasilcloud.dk/"
+    },
+    {
+      "flag": "🇸🇪",
+      "name": "46elks",
+      "role": "SMS / MFA",
+      "url": "https://46elks.com/"
+    },
+    {
+      "flag": "🇳🇱",
+      "name": "Mollie",
+      "role": "Payments",
+      "url": "https://www.mollie.com/"
+    },
+    {
+      "flag": "🇫🇷",
+      "name": "Mistral AI",
+      "role": "AI (CV / cover letter)",
+      "url": "https://mistral.ai/"
+    }
   ],
   "inviteTitle": "Invite your friends",
   "inviteSubtitle": "Help your friends switch to fellis.eu",
@@ -101,7 +131,15 @@
   "modeBusiness": "Business",
   "modeCommonDesc": "For personal use, family, and community. Friends, posts, and events.",
   "modeBusinessDesc": "For professional networking and company presence. Connections, industry events, and company pages.",
-  "modeCommonFeatures": ["Friends & community", "Family-friendly settings", "Personal events"],
-  "modeBusinessFeatures": ["Professional connections", "Company pages", "Conferences & webinars"],
+  "modeCommonFeatures": [
+    "Friends & community",
+    "Family-friendly settings",
+    "Personal events"
+  ],
+  "modeBusinessFeatures": [
+    "Professional connections",
+    "Company pages",
+    "Conferences & webinars"
+  ],
   "modeSelectBtn": "Get started"
 }

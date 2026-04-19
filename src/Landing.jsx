@@ -485,8 +485,6 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
           {/* Manifesto card */}
           <div style={{ flex: '1 1 280px', maxWidth: 380, border: '1px solid #C8DDD2', borderRadius: 14, padding: '28px 28px', boxSizing: 'border-box', background: '#F0FAF4', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 14 }}>
             <p style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.4, margin: 0, color: '#1a5c36' }}>{t.hero_intro}</p>
-            <p style={{ fontSize: 19, fontWeight: 700, lineHeight: 1.4, margin: 0, color: '#1a1a1a' }}>{t.manifestoLine1}</p>
-            <p style={{ fontSize: 19, fontWeight: 700, lineHeight: 1.4, margin: 0, color: '#1a1a1a' }}>{t.manifestoLine2}</p>
             <p style={{ fontSize: 14, lineHeight: 1.7, margin: 0, color: '#4a6b5c' }}>{t.manifestoLine3}</p>
             <div style={{ borderTop: '1px solid #C8DDD2', marginTop: 2 }} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
