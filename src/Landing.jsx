@@ -687,7 +687,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
           </div>
 
           {/* Two-card row: manifesto + registration */}
-          <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', width: '100%', maxWidth: 860, flexWrap: 'wrap', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', gap: 20, alignItems: 'stretch', width: '100%', maxWidth: 860, flexWrap: 'wrap', justifyContent: 'center' }}>
 
           {/* Manifesto card */}
           <div style={{ flex: '1 1 280px', maxWidth: 380, border: '1px solid #C8DDD2', borderRadius: 14, padding: '28px 28px', boxSizing: 'border-box', background: '#F0FAF4', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 14 }}>
