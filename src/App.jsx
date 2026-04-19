@@ -404,6 +404,11 @@ function App() {
       setInitialPage('payment-failed')
       window.history.replaceState({}, '', window.location.pathname)
     }
+    const pageParam = params.get('page')
+    if (pageParam) {
+      setInitialPage(pageParam)
+      window.history.replaceState({}, '', window.location.pathname)
+    }
     // Returning from Google OAuth
     const googleSession = params.get('google_session')
     const googleConnected = params.get('google_connected')
