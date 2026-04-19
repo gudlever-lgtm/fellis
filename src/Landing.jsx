@@ -1050,7 +1050,7 @@ const T = {
     registerPassword: 'Escolha uma senha (mín. 6 caracteres)',
     registerPasswordRepeat: 'Repetir senha',
     registerPasswordMismatch: 'As senhas não coincidem',
-    registerMathChallenge: (a, b) => `Quanto é ${a} + ${b}?`,
+    registerMathChallenge: 'Quanto é {a} + {b}?',
     registerMathError: 'Resposta errada — tente novamente',
     registerSubmit: 'Criar conta e ir ao perfil',
     registerError: 'Não foi possível criar a conta',
