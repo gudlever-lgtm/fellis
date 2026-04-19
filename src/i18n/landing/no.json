@@ -96,6 +96,7 @@
   "forgotConfirm": "Lagre passord",
   "forgotSuccess": "Passordet er oppdatert! Du er nå logget inn.",
   "forgotError": "Kunne ikke tilbakestille passordet",
+  "forgotTokenInvalid": "Denne lenken er ugyldig eller utløpt — be om en ny nedenfor.",
   "forgotRateLimit": "For mange forsøk — prøv igjen om litt",
   "forgotEmailFailed": "Tilbakestillingslenken kunne ikke sendes — kontroller e-postadressen eller prøv igjen",
   "forgotBack": "Tilbake til pålogging",

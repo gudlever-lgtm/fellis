@@ -96,6 +96,7 @@
   "forgotConfirm": "Passwort speichern",
   "forgotSuccess": "Passwort aktualisiert! Du bist jetzt angemeldet.",
   "forgotError": "Passwort konnte nicht zurückgesetzt werden",
+  "forgotTokenInvalid": "Dieser Link ist ungültig oder abgelaufen — fordern Sie unten einen neuen an.",
   "forgotRateLimit": "Zu viele Versuche — bitte versuche es in Kürze erneut",
   "forgotEmailFailed": "Der Reset-Link konnte nicht gesendet werden — überprüfe die E-Mail-Adresse oder versuche es erneut",
   "forgotBack": "Zurück zur Anmeldung",

@@ -96,6 +96,7 @@
   "forgotConfirm": "Wachtwoord opslaan",
   "forgotSuccess": "Wachtwoord bijgewerkt! U bent nu ingelogd.",
   "forgotError": "Wachtwoord kon niet worden gereset",
+  "forgotTokenInvalid": "Deze link is ongeldig of verlopen — vraag hieronder een nieuwe aan.",
   "forgotRateLimit": "Te veel pogingen — probeer het binnenkort opnieuw",
   "forgotEmailFailed": "De resetlink kon niet worden verzonden — controleer het e-mailadres of probeer het opnieuw",
   "forgotBack": "Terug naar inloggen",
