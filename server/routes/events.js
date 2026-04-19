@@ -57,6 +57,7 @@ router.get('/events', authenticate, async (req, res) => {
       eventType: e.event_type,
       ticketUrl: e.ticket_url,
       cap: e.cap,
+      recipients: e.recipients || 'all',
       going: e.going_names ? e.going_names.split(',') : [],
       maybe: e.maybe_names ? e.maybe_names.split(',') : [],
       myRsvp: e.my_rsvp || null,
@@ -72,11 +73,13 @@ router.get('/events', authenticate, async (req, res) => {
 
 router.post('/events', authenticate, async (req, res) => {
   try {
-    const { title, description, date, location, eventType, ticketUrl, cap, coverUrl } = req.body
+    const { title, description, date, location, eventType, ticketUrl, cap, coverUrl, recipients } = req.body
     if (!title || !date) return res.status(400).json({ error: 'Title and date required' })
+    const validRecipients = ['all', 'family', 'close_friends']
+    const safeRecipients = validRecipients.includes(recipients) ? recipients : 'all'
     const [result] = await pool.query(
-      `INSERT INTO events (organizer_id, title, description, date, location, event_type, ticket_url, cap, cover_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [req.userId, title, description || null, date, location || null, eventType || null, ticketUrl || null, cap || null, coverUrl || null]
+      `INSERT INTO events (organizer_id, title, description, date, location, event_type, ticket_url, cap, cover_url, recipients) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [req.userId, title, description || null, date, location || null, eventType || null, ticketUrl || null, cap || null, coverUrl || null, safeRecipients]
     )
     const [[event]] = await pool.query(
       `SELECT e.*, u.name AS organizer_name FROM events e JOIN users u ON e.organizer_id = u.id WHERE e.id = ?`,
@@ -87,6 +90,7 @@ router.post('/events', authenticate, async (req, res) => {
       date: event.date, location: event.location, organizer: event.organizer_name,
       organizerId: event.organizer_id, eventType: event.event_type,
       ticketUrl: event.ticket_url, cap: event.cap, coverUrl: event.cover_url,
+      recipients: event.recipients || 'all',
       going: [], maybe: [], myRsvp: null,
     })
   } catch (err) {
@@ -138,11 +142,13 @@ router.patch('/events/:id', authenticate, async (req, res) => {
     const [[event]] = await pool.query('SELECT organizer_id FROM events WHERE id = ?', [req.params.id])
     if (!event) return res.status(404).json({ error: 'Event not found' })
     if (event.organizer_id !== req.userId) return res.status(403).json({ error: 'Forbidden' })
-    const { title, description, date, location, eventType, ticketUrl, cap } = req.body
+    const { title, description, date, location, eventType, ticketUrl, cap, recipients } = req.body
     if (!title || !date) return res.status(400).json({ error: 'Title and date required' })
+    const validRecipients = ['all', 'family', 'close_friends']
+    const safeRecipients = validRecipients.includes(recipients) ? recipients : 'all'
     await pool.query(
-      `UPDATE events SET title=?, description=?, date=?, location=?, event_type=?, ticket_url=?, cap=? WHERE id=?`,
-      [title, description || null, date, location || null, eventType || null, ticketUrl || null, cap || null, req.params.id]
+      `UPDATE events SET title=?, description=?, date=?, location=?, event_type=?, ticket_url=?, cap=?, recipients=? WHERE id=?`,
+      [title, description || null, date, location || null, eventType || null, ticketUrl || null, cap || null, safeRecipients, req.params.id]
     )
     res.json({ ok: true })
   } catch (err) {
