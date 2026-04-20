@@ -8,8 +8,8 @@
   "createCardTitle": "Créer un nouveau compte",
   "createCardDesc": "Repartez de zéro sur fellis.eu avec un e-mail et un mot de passe.",
   "createCardBtn": "Créer un compte",
-  "hero_intro": "Vous méritez un endroit en ligne où vous pouvez simplement être vous-même.",
-  "manifestoLine3": "Fellis est une plateforme communautaire européenne — votre fil est chronologique, toujours. Les publicités sont clairement étiquetées. Vos données restent les vôtres.",
+  "hero_intro": "Pourquoi Fellis existe",
+  "manifestoLine3": "Les grandes plateformes sociales ne sont pas conçues pour votre bien. Elles sont construites pour vous garder à l'écran le plus longtemps possible, parce que votre attention est ce qu'elles vendent. Cela produit des algorithmes qui enterrent des publications, des publicités basées sur votre comportement, et un système qui vous traite comme une matière première. Fellis est construit comme une alternative concrète : fil chronologique, données en Europe, et publicités qui n'exigent pas que nous cartographions votre vie privée. Cela ne règle pas tout. Mais c'est un meilleur point de départ.",
   "manifestoWhys": [
     {
       "icon": "📅",
@@ -26,6 +26,24 @@
     {
       "icon": "🤝",
       "text": "Vous êtes l'utilisateur — pas le produit."
+    }
+  ],
+  "manifestoWhysAlt": [
+    {
+      "icon": "📅",
+      "text": "Fil chronologique — votre timeline n'est pas triée. Vous voyez ce que vous avez choisi de suivre, dans l'ordre où c'est arrivé."
+    },
+    {
+      "icon": "🇪🇺",
+      "text": "Vos données sont hébergées dans l'UE et régies par le RGPD. Pas comme une promesse — c'est simplement ce que la loi exige ici."
+    },
+    {
+      "icon": "🎯",
+      "text": "Les publicités sont basées sur le contexte, pas sur qui vous êtes. Nous ne construisons pas de profils sur vous."
+    },
+    {
+      "icon": "🤝",
+      "text": "Vous ne payez pas avec de l'argent. Nous gagnons de l'argent grâce aux publicités et aux abonnements professionnels — ce qui rend clair qui est le client."
     }
   ],
   "trustEncrypt": "Chiffrement de bout en bout",

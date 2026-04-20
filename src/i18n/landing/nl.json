@@ -8,8 +8,8 @@
   "createCardTitle": "Nieuw account aanmaken",
   "createCardDesc": "Begin opnieuw op fellis.eu met e-mail en wachtwoord.",
   "createCardBtn": "Account aanmaken",
-  "hero_intro": "U verdient een plek online waar u gewoon uzelf kunt zijn.",
-  "manifestoLine3": "Fellis is een Europees communityplatform — uw feed is chronologisch, altijd. Advertenties zijn duidelijk gemarkeerd. Uw gegevens blijven van u.",
+  "hero_intro": "Waarom Fellis bestaat",
+  "manifestoLine3": "De grote sociale platforms zijn niet ontworpen voor uw voordeel. Ze zijn gebouwd om u zo lang mogelijk op het scherm te houden, want uw aandacht is wat ze verkopen. Dat levert algoritmen op die berichten verbergen, advertenties gebaseerd op uw gedrag, en een systeem dat u behandelt als grondstof. Fellis is gebouwd als een concreet alternatief: chronologische feed, gegevens in Europa, en advertenties die niet vereisen dat wij uw privéleven in kaart brengen. Het lost niet alles op. Maar het is een beter vertrekpunt.",
   "manifestoWhys": [
     {
       "icon": "📅",
@@ -26,6 +26,24 @@
     {
       "icon": "🤝",
       "text": "U bent de gebruiker — niet het product."
+    }
+  ],
+  "manifestoWhysAlt": [
+    {
+      "icon": "📅",
+      "text": "Chronologische feed — uw tijdlijn wordt niet gesorteerd. U ziet wat u heeft gekozen te volgen, in de volgorde waarin het binnenkwam."
+    },
+    {
+      "icon": "🇪🇺",
+      "text": "Uw gegevens worden gehost in de EU en vallen onder de AVG. Niet als een belofte — dat is gewoon wat de wet hier vereist."
+    },
+    {
+      "icon": "🎯",
+      "text": "Advertenties zijn gebaseerd op context, niet op wie u bent. Wij bouwen geen profielen over u op."
+    },
+    {
+      "icon": "🤝",
+      "text": "U betaalt niet met geld. Wij verdienen aan advertenties en zakelijke abonnementen — dat maakt duidelijk wie de klant is."
     }
   ],
   "trustEncrypt": "End-to-end versleuteld",

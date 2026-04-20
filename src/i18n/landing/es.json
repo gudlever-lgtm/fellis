@@ -8,8 +8,8 @@
   "createCardTitle": "Crear nueva cuenta",
   "createCardDesc": "Empieza de cero en fellis.eu con correo electrónico y contraseña.",
   "createCardBtn": "Crear cuenta",
-  "hero_intro": "Mereces un lugar en internet donde puedas ser simplemente tú mismo.",
-  "manifestoLine3": "Fellis es una plataforma comunitaria europea — tu feed es cronológico, siempre. Los anuncios están claramente etiquetados. Tus datos siguen siendo tuyos.",
+  "hero_intro": "Por qué existe Fellis",
+  "manifestoLine3": "Las grandes plataformas sociales no están diseñadas para tu bien. Están construidas para mantenerte frente a la pantalla el mayor tiempo posible, porque tu atención es lo que venden. Eso produce algoritmos que entierran publicaciones, anuncios basados en tu comportamiento y un sistema que te trata como materia prima. Fellis está construido como una alternativa concreta: feed cronológico, datos en Europa y anuncios que no requieren que mapeemos tu vida privada. No lo soluciona todo. Pero es un mejor punto de partida.",
   "manifestoWhys": [
     {
       "icon": "📅",
@@ -26,6 +26,24 @@
     {
       "icon": "🤝",
       "text": "Eres el usuario — no el producto."
+    }
+  ],
+  "manifestoWhysAlt": [
+    {
+      "icon": "📅",
+      "text": "Feed cronológico — tu línea de tiempo no se ordena. Ves lo que has elegido seguir, en el orden en que llegó."
+    },
+    {
+      "icon": "🇪🇺",
+      "text": "Tus datos se alojan en la UE y están sujetos al RGPD. No como una promesa — eso es simplemente lo que exige la ley aquí."
+    },
+    {
+      "icon": "🎯",
+      "text": "Los anuncios se basan en el contexto, no en quién eres. No construimos perfiles sobre ti."
+    },
+    {
+      "icon": "🤝",
+      "text": "No pagas con dinero. Ganamos dinero con anuncios y suscripciones empresariales — eso deja claro quién es el cliente."
     }
   ],
   "trustEncrypt": "Cifrado de extremo a extremo",
