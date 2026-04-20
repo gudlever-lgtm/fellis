@@ -96,6 +96,7 @@
   "forgotConfirm": "Guardar contraseña",
   "forgotSuccess": "¡Contraseña actualizada! Ahora has iniciado sesión.",
   "forgotError": "No se pudo restablecer la contraseña",
+  "forgotTokenInvalid": "Este enlace no es válido o ha expirado — solicita uno nuevo a continuación.",
   "forgotRateLimit": "Demasiados intentos — inténtalo de nuevo en breve",
   "forgotEmailFailed": "No se pudo enviar el enlace de restablecimiento — verifica el correo electrónico o inténtalo de nuevo",
   "forgotBack": "Volver al inicio de sesión",

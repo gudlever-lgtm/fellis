@@ -189,7 +189,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
     setForgotLoading(true)
     setForgotError('')
     try {
-      const data = await apiResetPassword(forgotToken, forgotNewPw.trim())
+      const data = await apiResetPassword(forgotToken, forgotNewPw.trim(), lang)
       if (data?.sessionId) {
         setForgotMode('done')
         setTimeout(() => {
@@ -197,8 +197,12 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
           setForgotMode(null)
           onEnterPlatform(lang)
         }, 1500)
+      } else if (data?.error === 'Invalid or expired reset token') {
+        setForgotError(t.forgotTokenInvalid)
+        setForgotMode('email')
+        setForgotToken('')
       } else {
-        setForgotError(t.forgotError)
+        setForgotError(data?.error || t.forgotError)
       }
     } catch {
       setForgotError(t.forgotError)

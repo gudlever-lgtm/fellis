@@ -415,7 +415,7 @@ router.post('/auth/forgot-password', strictLimit, validate(schemas.forgotPasswor
     const rawToken = crypto.randomBytes(32).toString('hex')
     const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex')
     await pool.query(
-      'UPDATE users SET reset_token = ?, reset_token_expires = DATE_ADD(NOW(), INTERVAL 1 HOUR) WHERE id = ?',
+      'UPDATE users SET reset_token = ?, reset_token_expires = DATE_ADD(NOW(), INTERVAL 24 HOUR) WHERE id = ?',
       [hashedToken, user.id]
     )
 
@@ -430,9 +430,9 @@ router.post('/auth/forgot-password', strictLimit, validate(schemas.forgotPasswor
           mailer.sendMail({
             from: `"Fellis" <${fromAddr}>`,
             to: email,
-            subject: resetStrings.subject,
-            text: resetStrings.text,
-            html: resetStrings.html,
+            subject: 'Nulstil din adgangskode / Reset your password',
+            text: `Hej ${user.name},\n\nKlik her for at nulstille din adgangskode (linket udløber om 24 timer):\n${resetUrl}\n\nHvis du ikke bad om dette, kan du ignorere denne e-mail.\n\nVenlig hilsen,\nFellis`,
+            html: `<p>Hej <strong>${user.name}</strong>,</p><p>Klik her for at nulstille din adgangskode (linket udløber om 24 timer):</p><p><a href="${resetUrl}" style="background:#2D6A4F;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:bold">Nulstil adgangskode</a></p><p style="color:#888;font-size:12px">Eller kopier dette link: ${resetUrl}</p><p style="color:#888;font-size:12px">Hvis du ikke bad om dette, kan du ignorere denne e-mail.</p>`,
           }),
           new Promise((_, reject) => setTimeout(() => reject(new Error('SMTP timeout')), 10000)),
         ])

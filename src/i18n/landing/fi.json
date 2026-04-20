@@ -96,6 +96,7 @@
   "forgotConfirm": "Tallenna salasana",
   "forgotSuccess": "Salasana päivitetty! Olet nyt kirjautunut sisään.",
   "forgotError": "Salasanaa ei voitu nollata",
+  "forgotTokenInvalid": "Tämä linkki on virheellinen tai vanhentunut — pyydä uusi alla.",
   "forgotRateLimit": "Liian monta yritystä — yritä uudelleen hetken kuluttua",
   "forgotEmailFailed": "Nollauslinkkiä ei voitu lähettää — tarkista sähköpostiosoite tai yritä uudelleen",
   "forgotBack": "Takaisin kirjautumiseen",

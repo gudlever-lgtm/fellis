@@ -96,6 +96,7 @@
   "forgotConfirm": "Spara lösenord",
   "forgotSuccess": "Lösenordet uppdaterades! Du är nu inloggad.",
   "forgotError": "Det gick inte att återställa lösenordet",
+  "forgotTokenInvalid": "Den här länken är ogiltig eller har gått ut — begär en ny nedan.",
   "forgotRateLimit": "För många försök — försök igen inom kort",
   "forgotEmailFailed": "Återställningslänken kunde inte skickas — kontrollera e-postadressen eller försök igen",
   "forgotBack": "Tillbaka till inloggning",

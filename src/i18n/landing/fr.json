@@ -96,6 +96,7 @@
   "forgotConfirm": "Enregistrer le mot de passe",
   "forgotSuccess": "Mot de passe mis à jour ! Vous êtes maintenant connecté.",
   "forgotError": "Impossible de réinitialiser le mot de passe",
+  "forgotTokenInvalid": "Ce lien est invalide ou a expiré — demandez-en un nouveau ci-dessous.",
   "forgotRateLimit": "Trop de tentatives — veuillez réessayer dans un moment",
   "forgotEmailFailed": "Le lien de réinitialisation n'a pas pu être envoyé — vérifiez l'adresse e-mail ou réessayez",
   "forgotBack": "Retour à la connexion",
