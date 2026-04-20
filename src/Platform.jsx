@@ -8592,165 +8592,7 @@ function PrivacySection({ lang, onLogout }) {
     })
   }, [])
 
-  const t = lang === 'da' ? {
-    // Page header
-    title: 'Privatliv & Dataforvaltning',
-    subtitle: 'Dine rettigheder i henhold til EU\'s GDPR-forordning',
-    // Privacy notice (transparency — GDPR Art. 13 & 14)
-    privacyTitle: 'Sådan behandler vi dine data',
-    privacyIntro: 'fellis.eu er en dansk platform hostet i EU. Vi er forpligtet til at beskytte dine persondata i henhold til EU\'s General Data Protection Regulation (GDPR).',
-    privacyWhatTitle: 'Hvad vi indsamler',
-    privacyWhat: [
-      'Kontooplysninger: navn, e-mail, profilbillede',
-      'Indhold du opretter: opslag, kommentarer, beskeder',
-    ],
-    privacyWhyTitle: 'Hvorfor vi indsamler det',
-    privacyWhy: [
-      'For at levere platformens funktionalitet',
-      'Vi sælger ALDRIG dine data eller bruger dem til reklamer',
-    ],
-    privacyStorageTitle: 'Opbevaring og sikkerhed',
-    privacyStorage: [
-      'Alle data opbevares på EU-servere (Danmark)',
-      'Sessioner udløber efter 30 dage',
-    ],
-    // Hosting card
-    hostingTitle: 'Hosting og datasuverænitet',
-    hostingProvider: 'Yggdrasil Cloud',
-    hostingProviderUrl: 'https://yggdrasilcloud.dk/',
-    hostingIntro: 'fellis.eu er hostet hos Yggdrasil Cloud — en dansk cloud-udbyder med servere placeret i Danmark.',
-    hostingWhyTitle: 'Hvorfor EU-hosting er vigtigt',
-    hostingWhy: [
-      'Dine data forlader aldrig EU — de opbevares fysisk i Danmark og er underlagt dansk og europæisk lovgivning.',
-      'EU\'s GDPR-forordning giver dig som borger stærke rettigheder over dine persondata, herunder ret til indsigt, rettelse, sletning og dataportabilitet.',
-      'Til forskel fra platforme hostet i USA eller andre tredjelande er dine data ikke underlagt lovgivning som FISA 702, CLOUD Act eller lignende overvågningsbestemmelser.',
-      'Danske datacentre opererer under strenge europæiske standarder for sikkerhed, miljø og energieffektivitet.',
-    ],
-    hostingRightsTitle: 'Dine fordele ved EU-hosting',
-    hostingRights: [
-      'Fuld GDPR-beskyttelse — dine data behandles i overensstemmelse med verdens strengeste persondatalovgivning.',
-      'Ingen overførsel til tredjelande — dine data deles ikke med myndigheder uden for EU uden retsgrundlag.',
-      'Datatilsynet (den danske databeskyttelsesmyndighed) fører tilsyn med behandlingen af dine data.',
-      'Du har altid ret til at klage til Datatilsynet, hvis du mener, dine rettigheder er krænket.',
-    ],
-    // Consent management
-    consentTitle: 'Samtykke-status',
-    consentDataProcessing: 'Generel databehandling',
-    consentGiven: 'Samtykke givet',
-    consentNotGiven: 'Intet samtykke',
-    consentWithdrawn: 'Samtykke trukket tilbage',
-    consentWithdrawBtn: 'Træk samtykke tilbage',
-    consentWithdrawConfirm: 'Er du sikker på, at du vil trække dit samtykke tilbage?',
-    consentDate: 'Givet den',
-    // GDPR rights
-    rightsTitle: 'Dine GDPR-rettigheder',
-    rightExport: 'Ret til dataportabilitet (Art. 20)',
-    rightExportDesc: 'Download alle dine data i et maskinlæsbart JSON-format.',
-    exportBtn: 'Download mine data',
-    rightErasure: 'Ret til sletning (Art. 17)',
-    rightErasureDesc: 'Slet din konto og alle tilknyttede data permanent. Dette inkluderer alle opslag, kommentarer, beskeder, venskaber og uploadede filer.',
-    deleteAccountBtn: 'Slet min konto permanent',
-    confirmDeleteAccount: 'ADVARSEL: Dette sletter din konto og ALLE dine data permanent. Dette kan ikke fortrydes.\n\nDine opslag, kommentarer, beskeder, venskaber, uploadede filer og samtykkehistorik vil blive slettet.\n\nEr du helt sikker?',
-    // Account deletion multi-step confirmation
-    deleteConfirmTitle: 'Bekræft sletning af konto',
-    deleteConfirmDesc: 'Denne handling er permanent og kan ikke fortrydes. Bekræft din identitet for at fortsætte.',
-    deletePasswordLabel: 'Nuværende adgangskode',
-    deletePasswordPlaceholder: '••••••••',
-    deleteContinueBtn: 'Fortsæt',
-    deleteCancelBtn: 'Annuller',
-    deleteSmsLabel: 'SMS-bekræftelseskode',
-    deleteSmsDesc: 'En 6-cifret kode er sendt til dit registrerede telefonnummer. Koden udløber om 5 minutter.',
-    deleteSmsPlaceholder: '123456',
-    deleteFinalBtn: 'Slet min konto permanent',
-    deleteWrongPassword: 'Forkert adgangskode. Prøv igen.',
-    deleteSmsInvalid: 'Ugyldig eller udløbet SMS-kode. Prøv igen.',
-    // Contact
-    contactTitle: 'Kontakt databeskyttelsesansvarlig',
-    contactDesc: 'Har du spørgsmål om dine data eller vil du udøve en rettighed, der ikke er dækket her, kan du kontakte os på:',
-    contactEmail: 'privacy@fellis.eu',
-    // Status
-    done: 'Udført!',
-    error: 'Der opstod en fejl. Prøv igen.',
-  } : {
-    // Page header
-    title: 'Privacy & Data Management',
-    subtitle: 'Your rights under the EU GDPR regulation',
-    // Privacy notice
-    privacyTitle: 'How we handle your data',
-    privacyIntro: 'fellis.eu is a Danish platform hosted in the EU. We are committed to protecting your personal data under the EU General Data Protection Regulation (GDPR).',
-    privacyWhatTitle: 'What we collect',
-    privacyWhat: [
-      'Account information: name, email, profile picture',
-      'Content you create: posts, comments, messages',
-    ],
-    privacyWhyTitle: 'Why we collect it',
-    privacyWhy: [
-      'To provide the platform functionality',
-      'We NEVER sell your data or use it for advertising',
-    ],
-    privacyStorageTitle: 'Storage and security',
-    privacyStorage: [
-      'All data stored on EU servers (Denmark)',
-      'Sessions expire after 30 days',
-    ],
-    // Hosting card
-    hostingTitle: 'Hosting and data sovereignty',
-    hostingProvider: 'Yggdrasil Cloud',
-    hostingProviderUrl: 'https://yggdrasilcloud.dk/',
-    hostingIntro: 'fellis.eu is hosted by Yggdrasil Cloud — a Danish cloud provider with servers located in Denmark.',
-    hostingWhyTitle: 'Why EU hosting matters',
-    hostingWhy: [
-      'Your data never leaves the EU — it is physically stored in Denmark and subject to Danish and European law.',
-      'The EU GDPR regulation gives you as a citizen strong rights over your personal data, including the right to access, rectification, erasure, and data portability.',
-      'Unlike platforms hosted in the USA or other third countries, your data is not subject to legislation such as FISA 702, the CLOUD Act, or similar surveillance provisions.',
-      'Danish data centers operate under strict European standards for security, environment, and energy efficiency.',
-    ],
-    hostingRightsTitle: 'Your benefits from EU hosting',
-    hostingRights: [
-      'Full GDPR protection — your data is processed in accordance with the world\'s strictest personal data legislation.',
-      'No transfers to third countries — your data is not shared with authorities outside the EU without a legal basis.',
-      'The Danish Data Protection Agency (Datatilsynet) supervises the processing of your data.',
-      'You always have the right to file a complaint with the Danish Data Protection Agency if you believe your rights have been violated.',
-    ],
-    // Consent management
-    consentTitle: 'Consent Status',
-    consentDataProcessing: 'General data processing',
-    consentGiven: 'Consent given',
-    consentNotGiven: 'No consent',
-    consentWithdrawn: 'Consent withdrawn',
-    consentWithdrawBtn: 'Withdraw consent',
-    consentWithdrawConfirm: 'Are you sure you want to withdraw your consent?',
-    consentDate: 'Given on',
-    // GDPR rights
-    rightsTitle: 'Your GDPR Rights',
-    rightExport: 'Right to data portability (Art. 20)',
-    rightExportDesc: 'Download all your data in a machine-readable JSON format.',
-    exportBtn: 'Download my data',
-    rightErasure: 'Right to erasure (Art. 17)',
-    rightErasureDesc: 'Permanently delete your account and all associated data. This includes all posts, comments, messages, friendships, and uploaded files.',
-    deleteAccountBtn: 'Delete my account permanently',
-    confirmDeleteAccount: 'WARNING: This will permanently delete your account and ALL your data. This cannot be undone.\n\nYour posts, comments, messages, friendships, uploaded files, and consent history will be deleted.\n\nAre you absolutely sure?',
-    // Account deletion multi-step confirmation
-    deleteConfirmTitle: 'Confirm account deletion',
-    deleteConfirmDesc: 'This action is permanent and cannot be undone. Confirm your identity to proceed.',
-    deletePasswordLabel: 'Current password',
-    deletePasswordPlaceholder: '••••••••',
-    deleteContinueBtn: 'Continue',
-    deleteCancelBtn: 'Cancel',
-    deleteSmsLabel: 'SMS verification code',
-    deleteSmsDesc: 'A 6-digit code has been sent to your registered phone number. The code expires in 5 minutes.',
-    deleteSmsPlaceholder: '123456',
-    deleteFinalBtn: 'Delete my account permanently',
-    deleteWrongPassword: 'Wrong password. Please try again.',
-    deleteSmsInvalid: 'Invalid or expired SMS code. Please try again.',
-    // Contact
-    contactTitle: 'Contact Data Protection Officer',
-    contactDesc: 'If you have questions about your data or want to exercise a right not covered here, contact us at:',
-    contactEmail: 'privacy@fellis.eu',
-    // Status
-    done: 'Done!',
-    error: 'An error occurred. Please try again.',
-  }
+  const t = getTranslations(lang)
 
   const handleExport = async () => {
     setLoading('export')
@@ -19675,7 +19517,7 @@ function BadgesProfileSection({ lang, earnedBadges, onBadgeCheck, setEarnedBadge
                         </span></>
                       )}
                       {isEarned && hasInterview && (
-                        <><br /><span style={{ fontSize: 10, opacity: 0.7 }}>{da ? '👆 Klik for interview' : '👆 Click for interview'}</span></>
+                        <><br /><span style={{ fontSize: 10, opacity: 0.7 }}>{t.jobTrackInterviewClick}</span></>
                       )}
                     </div>
                   </div>
@@ -20713,7 +20555,7 @@ function AdminPage({ lang, t }) {
             label: t.funGamification,
             tabs: [
               { id: 'easter-eggs', icon: '🥚', label: t.easterEggs },
-              { id: 'badges', icon: '🏅', label: 'Badges' },
+              { id: 'badges', icon: '🏅', label: t.badges },
             ],
           },
           {

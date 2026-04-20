@@ -96,6 +96,7 @@
   "forgotConfirm": "Salva password",
   "forgotSuccess": "Password aggiornata! Sei ora connesso.",
   "forgotError": "Impossibile reimpostare la password",
+  "forgotTokenInvalid": "Questo link non è valido o è scaduto — richiedine uno nuovo qui sotto.",
   "forgotRateLimit": "Troppi tentativi — riprova tra poco",
   "forgotEmailFailed": "Il link di reimpostazione non è stato inviato — controlla l'indirizzo e-mail o riprova",
   "forgotBack": "Torna all'accesso",

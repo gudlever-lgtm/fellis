@@ -86,14 +86,14 @@ export async function apiRegister(name, email, password, lang, inviteToken) {
   }
 }
 
-export async function apiForgotPassword(email) {
+export async function apiForgotPassword(email, lang) {
   // Use raw fetch so rate-limit (429) and other errors can be surfaced to the UI
   try {
     const res = await fetch(`${API_BASE}/api/auth/forgot-password`, {
       method: 'POST',
       headers: headers(),
       credentials: 'same-origin',
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ email, lang }),
     })
     const body = await res.json().catch(() => ({}))
     if (!res.ok) return { error: body.error || 'request_failed', status: res.status }
@@ -103,13 +103,20 @@ export async function apiForgotPassword(email) {
   }
 }
 
-export async function apiResetPassword(token, password) {
-  const data = await request('/api/auth/reset-password', {
-    method: 'POST',
-    body: JSON.stringify({ token, password }),
-  })
-  // Session ID now stored in HTTP-only cookie by server
-  return data
+export async function apiResetPassword(token, password, lang) {
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/reset-password`, {
+      method: 'POST',
+      headers: headers(),
+      credentials: 'same-origin',
+      body: JSON.stringify({ token, password, lang }),
+    })
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) return { error: body.error || 'reset_failed', status: res.status }
+    return body
+  } catch {
+    return null
+  }
 }
 
 export async function apiVerifyMfa(userId, code, lang) {

@@ -96,6 +96,7 @@
   "forgotConfirm": "Gem adgangskode",
   "forgotSuccess": "Adgangskode opdateret! Du er nu logget ind.",
   "forgotError": "Kunne ikke nulstille adgangskode",
+  "forgotTokenInvalid": "Linket er ugyldigt eller udløbet — anmod om et nyt link herunder.",
   "forgotRateLimit": "For mange forsøg — prøv igen om lidt",
   "forgotEmailFailed": "Nulstillingslinket kunne ikke sendes — tjek at e-mailadressen er korrekt, eller prøv igen",
   "forgotBack": "Tilbage til login",

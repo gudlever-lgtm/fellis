@@ -96,6 +96,7 @@
   "forgotConfirm": "Zapisz hasło",
   "forgotSuccess": "Hasło zaktualizowane! Jesteś teraz zalogowany.",
   "forgotError": "Nie udało się zresetować hasła",
+  "forgotTokenInvalid": "Ten link jest nieważny lub wygasł — poproś o nowy poniżej.",
   "forgotRateLimit": "Zbyt wiele prób — spróbuj ponownie za chwilę",
   "forgotEmailFailed": "Link do resetu nie mógł zostać wysłany — sprawdź adres e-mail lub spróbuj ponownie",
   "forgotBack": "Powrót do logowania",

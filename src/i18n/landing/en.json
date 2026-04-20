@@ -96,6 +96,7 @@
   "forgotConfirm": "Save password",
   "forgotSuccess": "Password updated! You are now logged in.",
   "forgotError": "Could not reset password",
+  "forgotTokenInvalid": "This link is invalid or has expired — request a new one below.",
   "forgotRateLimit": "Too many attempts — please try again shortly",
   "forgotEmailFailed": "The reset link could not be sent — check the email address is correct, or try again",
   "forgotBack": "Back to login",

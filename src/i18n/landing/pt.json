@@ -96,6 +96,7 @@
   "forgotConfirm": "Salvar senha",
   "forgotSuccess": "Senha atualizada! Você está agora conectado.",
   "forgotError": "Não foi possível redefinir a senha",
+  "forgotTokenInvalid": "Este link é inválido ou expirou — solicite um novo abaixo.",
   "forgotRateLimit": "Muitas tentativas — tente novamente em breve",
   "forgotEmailFailed": "O link de redefinição não pôde ser enviado — verifique o endereço de e-mail ou tente novamente",
   "forgotBack": "Voltar ao login",
