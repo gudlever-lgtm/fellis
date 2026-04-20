@@ -7938,163 +7938,7 @@ function AboutPage({ lang }) {
     apiGetChangelog(lang).then(data => { if (data?.entries) setChangelog(data.entries) })
   }, [])
 
-  const t = lang === 'da' ? {
-    title: 'Om Fellis',
-    subtitle: 'Filosofi og formål med Fellis.eu',
-    philosophyTitle: 'Vores filosofi',
-    philosophyText: [
-      'Fellis.eu er skabt som et privat og trygt alternativ til de store sociale netværk. Vi tror på, at sociale medier skal tjene mennesker — ikke omvendt.',
-      'Platformen er bygget i Europa, drives efter europæisk lovgivning og respekterer din privatlivets fred. Vi sælger ikke data, og vi gemmer kun det, der er nødvendigt for at platformen fungerer. Vi viser reklamer for at finansiere platformen, men de er ikke baseret på algoritmisk profilering.',
-      'Fællesskab, tillid og gennemsigtighed er kernen i alt, hvad vi gør.',
-    ],
-    purposeTitle: 'Formål',
-    purposes: [
-      'Skabe et dansk og europæisk fællesskab med fokus på tillid og privatliv',
-      'Give brugerne fuld kontrol over egne data (GDPR)',
-      'Tilbyde et socialt netværk uden algoritmisk profilering eller datasalg',
-      'Støtte lokal og europæisk digital infrastruktur',
-      'Være åben og ærlig om, hvordan platformen fungerer og udvikles',
-    ],
-    changelogTitle: 'Implementerede tiltag',
-    changelogEmpty: 'Ingen poster endnu',
-    feedbackTitle: 'Giv feedback',
-    feedbackSubtitle: 'Rapportér fejl, mangler eller foreslå forbedringer',
-    feedbackTypeBug: 'Fejl / bug',
-    feedbackTypeMissing: 'Manglende funktion',
-    feedbackTypeSuggestion: 'Forslag',
-    feedbackTypeLabel: 'Kategori',
-    feedbackTitleLabel: 'Titel',
-    feedbackTitlePlaceholder: 'Kort beskrivelse...',
-    feedbackDescLabel: 'Beskrivelse',
-    feedbackDescPlaceholder: 'Beskriv fejlen, hvad der mangler, eller dit forslag i detaljer...',
-    feedbackSubmit: 'Send feedback',
-    feedbackDone: 'Tak for din feedback!',
-    feedbackError: 'Noget gik galt – prøv igen',
-    legalTitle: 'Juridiske dokumenter',
-    legalPrivacy: 'Privatlivspolitik',
-    legalTerms: 'Servicevilkår',
-    legalSales: 'Salgsbetingelser',
-    businessTitle: 'Til virksomheder',
-    businessLink: 'Fellis for virksomheder',
-    businessLinkDesc: 'Opret en virksomhedsprofil og nå dit lokale fællesskab',
-    servicesTitle: 'Tjenester vi bruger — og hvorfor europæisk',
-    servicesIntro: 'Vi vælger bevidst europæiske udbydere på alle lag af platformen. Det handler ikke kun om GDPR — det handler om at holde din data, din kommunikation og dine betalinger inden for et retssystem, der beskytter dig.',
-    services: [
-      {
-        name: 'Yggdrasil Cloud',
-        flag: '🇩🇰', country: 'Danmark',
-        url: 'https://yggdrasilcloud.dk/',
-        role: 'Hosting & servere',
-        why: 'Dansk cloud-udbyder med servere fysisk placeret i Danmark. Dine data forlader aldrig EU og er underlagt dansk lovgivning — ikke CLOUD Act eller FISA 702.',
-      },
-      {
-        name: '46elks',
-        flag: '🇸🇪', country: 'Sverige',
-        url: 'https://46elks.com/',
-        role: 'SMS til to-faktor-godkendelse',
-        why: 'Svensk teleudbyder med fuld GDPR-compliance. Bruges til at sende engangskoder ved login med to-faktor. Ingen data sendes til udbydere uden for EU.',
-      },
-      {
-        name: 'Mollie',
-        flag: '🇳🇱', country: 'Holland',
-        url: 'https://www.mollie.com/',
-        role: 'Betalinger',
-        why: 'Hollandsk betalingsgateway reguleret af De Nederlandsche Bank under EU\'s PSD2-direktiv. Understøtter MobilePay, Visa, Mastercard, Apple Pay og Google Pay — uden at dine kortoplysninger nogensinde rammer vores egne servere.',
-      },
-      {
-        name: 'Nodemailer',
-        flag: '🇪🇺', country: 'EU',
-        url: 'https://nodemailer.com/',
-        role: 'E-mail (adgangskode-nulstilling)',
-        why: 'Open source e-mail-bibliotek med ingen ekstern afhængighed. E-mails sendes via din egen SMTP-server — vi låser dig ikke til en tredjeparts e-mail-tjeneste.',
-      },
-      {
-        name: 'Mistral AI',
-        flag: '🇫🇷', country: 'Frankrig',
-        url: 'https://mistral.ai/',
-        role: 'AI-assistance til CV og ansøgning',
-        why: 'Fransk AI-virksomhed grundlagt i 2023, med modeller hostet i EU. Bruges til at hjælpe dig med at skrive CV og ansøgningsbreve. Din profildata sendes kun, når du aktivt bruger generatoren, og Mistral gemmer den ikke efter svaret er leveret. Funktionen er valgfri og kræver en API-nøgle — uden nøgle bruges lokale skabeloner i stedet.',
-      },
-    ],
-  } : {
-    title: 'About Fellis',
-    subtitle: 'Philosophy and purpose of Fellis.eu',
-    philosophyTitle: 'Our philosophy',
-    philosophyText: [
-      'Fellis.eu was created as a private and safe alternative to the major social networks. We believe social media should serve people — not the other way around.',
-      'The platform is built in Europe, operates under European law, and respects your privacy. We do not sell data, and we only store what is necessary for the platform to function. We display ads to support the platform, but these are not based on algorithmic profiling.',
-      'Community, trust and transparency are at the core of everything we do.',
-    ],
-    purposeTitle: 'Purpose',
-    purposes: [
-      'Create a Danish and European community focused on trust and privacy',
-      'Give users full control over their own data (GDPR)',
-      'Offer a social network without algorithmic profiling or data sales',
-      'Support local and European digital infrastructure',
-      'Be open and honest about how the platform works and evolves',
-    ],
-    changelogTitle: 'Implemented features',
-    changelogEmpty: 'No entries yet',
-    feedbackTitle: 'Give feedback',
-    feedbackSubtitle: 'Report bugs, missing features, or suggest improvements',
-    feedbackTypeBug: 'Bug / error',
-    feedbackTypeMissing: 'Missing feature',
-    feedbackTypeSuggestion: 'Suggestion',
-    feedbackTypeLabel: 'Category',
-    feedbackTitleLabel: 'Title',
-    feedbackTitlePlaceholder: 'Short description...',
-    feedbackDescLabel: 'Description',
-    feedbackDescPlaceholder: 'Describe the bug, what is missing, or your suggestion in detail...',
-    feedbackSubmit: 'Submit feedback',
-    feedbackDone: 'Thank you for your feedback!',
-    feedbackError: 'Something went wrong — please try again',
-    legalTitle: 'Legal documents',
-    legalPrivacy: 'Privacy policy',
-    legalTerms: 'Terms of service',
-    legalSales: 'Sales terms',
-    businessTitle: 'For businesses',
-    businessLink: 'Fellis for businesses',
-    businessLinkDesc: 'Create a business profile and reach your local community',
-    servicesTitle: 'Services we use — and why European',
-    servicesIntro: 'We deliberately choose European providers at every layer of the platform. It is not just about GDPR compliance — it is about keeping your data, your communications, and your payments within a legal framework that protects you.',
-    services: [
-      {
-        name: 'Yggdrasil Cloud',
-        flag: '🇩🇰', country: 'Denmark',
-        url: 'https://yggdrasilcloud.dk/',
-        role: 'Hosting & servers',
-        why: 'Danish cloud provider with servers physically located in Denmark. Your data never leaves the EU and is subject to Danish law — not the CLOUD Act or FISA 702.',
-      },
-      {
-        name: '46elks',
-        flag: '🇸🇪', country: 'Sweden',
-        url: 'https://46elks.com/',
-        role: 'SMS for two-factor authentication',
-        why: 'Swedish telecom provider with full GDPR compliance. Used to send one-time codes during two-factor login. No data is sent to providers outside the EU.',
-      },
-      {
-        name: 'Mollie',
-        flag: '🇳🇱', country: 'Netherlands',
-        url: 'https://www.mollie.com/',
-        role: 'Payments',
-        why: "Dutch payment gateway regulated by De Nederlandsche Bank under the EU's PSD2 directive. Supports MobilePay, Visa, Mastercard, Apple Pay and Google Pay — without your card details ever touching our own servers.",
-      },
-      {
-        name: 'Nodemailer',
-        flag: '🇪🇺', country: 'EU',
-        url: 'https://nodemailer.com/',
-        role: 'Email (password reset)',
-        why: 'Open source email library with no external dependency. Emails are sent via your own SMTP server — we do not lock you in to a third-party email service.',
-      },
-      {
-        name: 'Mistral AI',
-        flag: '🇫🇷', country: 'France',
-        url: 'https://mistral.ai/',
-        role: 'AI assistance for CV and cover letters',
-        why: 'French AI company founded in 2023, with models hosted in the EU. Used to help you write CVs and cover letters. Your profile data is only sent when you actively use the generator, and Mistral does not retain it after the response is delivered. The feature is optional and requires an API key — without one, local templates are used instead.',
-      },
-    ],
-  }
+  const t = getTranslations(lang)
 
   const s = {
     section: { fontWeight: 700, fontSize: 13, color: '#666', textTransform: 'uppercase', letterSpacing: 1, margin: '24px 0 10px' },
@@ -8103,23 +7947,23 @@ function AboutPage({ lang }) {
   return (
     <div className="p-events" style={{ maxWidth: 720 }}>
       <div style={{ marginBottom: 20 }}>
-        <h2 className="p-section-title" style={{ margin: '0 0 4px' }}>💡 {t.title}</h2>
-        <div style={{ fontSize: 13, color: '#888' }}>{t.subtitle}</div>
+        <h2 className="p-section-title" style={{ margin: '0 0 4px' }}>💡 {t.aboutTitle}</h2>
+        <div style={{ fontSize: 13, color: '#888' }}>{t.aboutSubtitle}</div>
       </div>
 
       {/* Philosophy */}
-      <div style={s.section}>🌿 {t.philosophyTitle}</div>
+      <div style={s.section}>🌿 {t.aboutPhilosophyTitle}</div>
       <div className="p-card" style={{ padding: 20, marginBottom: 16 }}>
-        {t.philosophyText.map((para, i) => (
-          <p key={i} style={{ fontSize: 14, color: '#333', lineHeight: 1.65, margin: i < t.philosophyText.length - 1 ? '0 0 12px' : 0 }}>{para}</p>
+        {t.aboutPhilosophyText.map((para, i) => (
+          <p key={i} style={{ fontSize: 14, color: '#333', lineHeight: 1.65, margin: i < t.aboutPhilosophyText.length - 1 ? '0 0 12px' : 0 }}>{para}</p>
         ))}
       </div>
 
       {/* Purpose */}
-      <div style={s.section}>🎯 {t.purposeTitle}</div>
+      <div style={s.section}>🎯 {t.aboutPurposeTitle}</div>
       <div className="p-card" style={{ padding: '4px 0', marginBottom: 16 }}>
-        {t.purposes.map((item, i) => (
-          <div key={i} style={{ padding: '10px 20px', fontSize: 14, color: '#333', borderBottom: i < t.purposes.length - 1 ? '1px solid #f0f0f0' : 'none', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+        {t.aboutPurposes.map((item, i) => (
+          <div key={i} style={{ padding: '10px 20px', fontSize: 14, color: '#333', borderBottom: i < t.aboutPurposes.length - 1 ? '1px solid #f0f0f0' : 'none', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
             <span style={{ color: '#2D6A4F', fontWeight: 700, flexShrink: 0 }}>✓</span>
             {item}
           </div>
@@ -8127,10 +7971,10 @@ function AboutPage({ lang }) {
       </div>
 
       {/* European services */}
-      <div style={s.section}>🌍 {t.servicesTitle}</div>
+      <div style={s.section}>🌍 {t.aboutServicesTitle}</div>
       <div className="p-card" style={{ padding: 20, marginBottom: 16 }}>
-        <p style={{ fontSize: 13, color: '#555', lineHeight: 1.6, margin: '0 0 16px' }}>{t.servicesIntro}</p>
-        {t.services.map((svc, i) => (
+        <p style={{ fontSize: 13, color: '#555', lineHeight: 1.6, margin: '0 0 16px' }}>{t.aboutServicesIntro}</p>
+        {t.aboutServices.map((svc, i) => (
           <div key={svc.name} style={{ display: 'flex', gap: 14, alignItems: 'flex-start', paddingTop: i > 0 ? 14 : 0, marginTop: i > 0 ? 14 : 0, borderTop: i > 0 ? '1px solid #f0f0f0' : 'none' }}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0, width: 38, gap: 2, marginTop: 1 }}>
               <div style={{ fontSize: 22, lineHeight: 1 }}>{svc.flag}</div>
@@ -8148,10 +7992,10 @@ function AboutPage({ lang }) {
       </div>
 
       {/* Changelog */}
-      <div style={s.section}>🛠️ {t.changelogTitle}</div>
+      <div style={s.section}>🛠️ {t.aboutChangelogTitle}</div>
       <div className="p-card" style={{ padding: '4px 0', marginBottom: 16 }}>
         {changelog.length === 0
-          ? <div style={{ padding: '16px 20px', fontSize: 13, color: '#aaa' }}>{t.changelogEmpty}</div>
+          ? <div style={{ padding: '16px 20px', fontSize: 13, color: '#aaa' }}>{t.aboutChangelogEmpty}</div>
           : changelog.map((entry, i) => (
               <div key={i} style={{ padding: '10px 20px', fontSize: 13, color: '#333', borderBottom: i < changelog.length - 1 ? '1px solid #f0f0f0' : 'none', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                 <span style={{ flexShrink: 0 }}>{entry.icon || '·'}</span>
@@ -8165,12 +8009,12 @@ function AboutPage({ lang }) {
       </div>
 
       {/* Legal documents */}
-      <div style={s.section}>📄 {t.legalTitle}</div>
+      <div style={s.section}>📄 {t.aboutLegalTitle}</div>
       <div className="p-card" style={{ padding: '4px 0', marginBottom: 16 }}>
         {[
-          { label: t.legalPrivacy, href: '/privacy' },
-          { label: t.legalTerms, href: '/terms' },
-          { label: t.legalSales, href: '/salgsbetingelser' },
+          { label: t.aboutLegalPrivacy, href: '/privacy' },
+          { label: t.aboutLegalTerms, href: '/terms' },
+          { label: t.aboutLegalSales, href: '/salgsbetingelser' },
         ].map(({ label, href }, i, arr) => (
           <a
             key={href}
@@ -8186,7 +8030,7 @@ function AboutPage({ lang }) {
       </div>
 
       {/* For businesses */}
-      <div style={s.section}>🏢 {t.businessTitle}</div>
+      <div style={s.section}>🏢 {t.aboutBusinessTitle}</div>
       <div className="p-card" style={{ padding: '4px 0', marginBottom: 16 }}>
         <a
           href="/for-business"
@@ -8195,19 +8039,19 @@ function AboutPage({ lang }) {
           style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', textDecoration: 'none' }}
         >
           <div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#2D6A4F', marginBottom: 2 }}>{t.businessLink}</div>
-            <div style={{ fontSize: 12, color: '#888' }}>{t.businessLinkDesc}</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#2D6A4F', marginBottom: 2 }}>{t.aboutBusinessLink}</div>
+            <div style={{ fontSize: 12, color: '#888' }}>{t.aboutBusinessLinkDesc}</div>
           </div>
           <span style={{ fontSize: 16, color: '#aaa', flexShrink: 0, marginLeft: 12 }}>→</span>
         </a>
       </div>
 
       {/* Feedback */}
-      <div style={s.section}>💬 {t.feedbackTitle}</div>
+      <div style={s.section}>💬 {t.aboutFeedbackTitle}</div>
       <div className="p-card" style={{ padding: 20, marginBottom: 16 }}>
-        <p style={{ fontSize: 13, color: '#555', lineHeight: 1.6, margin: '0 0 16px' }}>{t.feedbackSubtitle}</p>
+        <p style={{ fontSize: 13, color: '#555', lineHeight: 1.6, margin: '0 0 16px' }}>{t.aboutFeedbackSubtitle}</p>
         {fbStatus === 'done' ? (
-          <div style={{ textAlign: 'center', padding: '24px 0', fontSize: 15, color: '#2D6A4F', fontWeight: 600 }}>✓ {t.feedbackDone}</div>
+          <div style={{ textAlign: 'center', padding: '24px 0', fontSize: 15, color: '#2D6A4F', fontWeight: 600 }}>✓ {t.aboutFeedbackDone}</div>
         ) : (
           <form onSubmit={async e => {
             e.preventDefault()
@@ -8224,12 +8068,12 @@ function AboutPage({ lang }) {
           }}>
             {/* Type selector */}
             <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#666', marginBottom: 6 }}>{t.feedbackTypeLabel}</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#666', marginBottom: 6 }}>{t.aboutFeedbackTypeLabel}</div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {[
-                  { key: 'bug', label: `🐛 ${t.feedbackTypeBug}` },
-                  { key: 'missing', label: `🔍 ${t.feedbackTypeMissing}` },
-                  { key: 'suggestion', label: `💡 ${t.feedbackTypeSuggestion}` },
+                  { key: 'bug', label: `🐛 ${t.aboutFeedbackTypeBug}` },
+                  { key: 'missing', label: `🔍 ${t.aboutFeedbackTypeMissing}` },
+                  { key: 'suggestion', label: `💡 ${t.aboutFeedbackTypeSuggestion}` },
                 ].map(opt => (
                   <button
                     key={opt.key}
@@ -8249,11 +8093,11 @@ function AboutPage({ lang }) {
 
             {/* Title */}
             <div style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: '#666', display: 'block', marginBottom: 5 }}>{t.feedbackTitleLabel}</label>
+              <label style={{ fontSize: 12, fontWeight: 600, color: '#666', display: 'block', marginBottom: 5 }}>{t.aboutFeedbackTitleLabel}</label>
               <input
                 value={fbTitle}
                 onChange={e => { setFbTitle(e.target.value); if (fbStatus === 'error') setFbStatus('idle') }}
-                placeholder={t.feedbackTitlePlaceholder}
+                placeholder={t.aboutFeedbackTitlePlaceholder}
                 maxLength={200}
                 required
                 style={{ width: '100%', padding: '9px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', boxSizing: 'border-box' }}
@@ -8262,11 +8106,11 @@ function AboutPage({ lang }) {
 
             {/* Description */}
             <div style={{ marginBottom: 14 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: '#666', display: 'block', marginBottom: 5 }}>{t.feedbackDescLabel}</label>
+              <label style={{ fontSize: 12, fontWeight: 600, color: '#666', display: 'block', marginBottom: 5 }}>{t.aboutFeedbackDescLabel}</label>
               <textarea
                 value={fbDesc}
                 onChange={e => { setFbDesc(e.target.value); if (fbStatus === 'error') setFbStatus('idle') }}
-                placeholder={t.feedbackDescPlaceholder}
+                placeholder={t.aboutFeedbackDescPlaceholder}
                 rows={4}
                 required
                 style={{ width: '100%', padding: '9px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }}
@@ -8274,7 +8118,7 @@ function AboutPage({ lang }) {
             </div>
 
             {fbStatus === 'error' && (
-              <div style={{ fontSize: 13, color: '#C0392B', marginBottom: 10 }}>{t.feedbackError}</div>
+              <div style={{ fontSize: 13, color: '#C0392B', marginBottom: 10 }}>{t.aboutFeedbackError}</div>
             )}
 
             <button
@@ -8282,7 +8126,7 @@ function AboutPage({ lang }) {
               disabled={fbStatus === 'sending' || !fbTitle.trim() || !fbDesc.trim()}
               style={{ padding: '9px 22px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', opacity: (fbStatus === 'sending' || !fbTitle.trim() || !fbDesc.trim()) ? 0.6 : 1 }}
             >
-              {fbStatus === 'sending' ? '…' : t.feedbackSubmit}
+              {fbStatus === 'sending' ? '…' : t.aboutFeedbackSubmit}
             </button>
           </form>
         )}
