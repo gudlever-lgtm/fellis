@@ -61,27 +61,32 @@ npm run seed                      # optional demo data
 | `npm run seed-bots` | Seed fake users for testing |
 | `npm run cleanup-bots` | Remove bot accounts |
 
-## Features
+## 🛠️ Implemented features
 
-- Feed with posts, reactions, comments, media, link previews, scheduled posts; Community / Business feed toggle (mode separation)
-- Friends, friend requests, blocking, family relationships
-- Messaging (DM + group chats), mute, read receipts
-- Stories (24h ephemeral) and Reels (short video)
-- Events with RSVP and Calendar with reminders
-- Marketplace listings with boost and EUR pricing
-- Jobs board, CV builder (AI-assisted), job applications
-- Companies with followers, members, posts, leads
-- Business directory and ad campaign management (Mollie payments)
-- Analytics dashboard (profile views, engagement, post insights)
-- Interest graph and signal-based feed ranking
-- Badges and achievements system
-- Referral tracking and leaderboard
-- Moderation queue, keyword filters, user warnings/suspensions/bans
-- Admin dashboard with platform stats and environment status
-- GDPR: consent management, data export, account deletion
-- Bilingual UI (Danish / English), dark mode, notification preferences
-- SMS MFA via 46elks, account lockout after failed logins
-- Service worker / PWA shell
+| Feature | Description |
+|---------|-------------|
+| **Feed** | Posts with reactions, comments, media, link previews, scheduled posts; Community / Business feed toggle with mode separation |
+| **Friends** | Friend requests, bidirectional connections, blocking, family relationships |
+| **Messaging** | DM and group chats, mute, read receipts |
+| **Stories** | 24-hour ephemeral posts with story bar timeline |
+| **Reels** | Short-video reel creation, likes, comments |
+| **Events & Calendar** | Event creation with RSVP, cover images, personal calendar with reminders |
+| **Marketplace** | Listings with categories, location filter, boost, EUR pricing |
+| **Jobs & CV** | Job board, applications, saved/tracked jobs, AI-assisted CV builder (experience, education, cover letter) |
+| **Companies** | Company profiles, members, followers, posts, CRM leads |
+| **Business directory** | Browse and follow business accounts |
+| **Ad manager** | Ad campaign creation, targeting, and Mollie payment integration |
+| **Analytics** | Business analytics: profile views, post engagement, audience demographics |
+| **Interest graph** | Behavioural signal engine + interest-based feed ranking |
+| **Badges & achievements** | Badge catalogue, award engine, per-user display |
+| **Referrals** | Invite tracking, referral dashboard, leaderboard |
+| **Moderation** | Keyword filters, moderation queue, warnings / suspensions / bans |
+| **Admin** | Platform stats, environment status, feed weight config, easter-egg toggle |
+| **GDPR** | Consent management, data export, account deletion |
+| **Auth** | Session-based auth, Google / LinkedIn OAuth, SMS MFA (46elks), account lockout |
+| **Notifications** | Per-user notification feed with opt-in/out preferences |
+| **i18n** | Fully bilingual UI (Danish / English), dark mode |
+| **PWA** | Service worker for fast repeat loads |
 
 ## Environment Variables
 

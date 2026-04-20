@@ -2811,32 +2811,6 @@ app.use('/api/invites', (req, res, next) => {
 
 // ── Config (public) ───────────────────────────────────────────────────────────
 
-// ── Changelog ─────────────────────────────────────────────────────────────────
-const CHANGELOG_ENTRIES = [
-  { date: '2026-04', icon: '📘', da: 'Facebook-dataimport — importér profiloplysninger, profilbillede og biografi fra Facebook direkte til din Fellis-profil via OAuth', en: 'Facebook data import — import profile info, profile photo and bio from Facebook directly to your Fellis profile via OAuth' },
-  { date: '2026-04', icon: '📰', da: 'Offentlig blog med AI-oversættelse — redaktører kan publicere nyheder og blogindlæg med automatisk dansk/engelsk-oversættelse via Mistral', en: 'Public blog with AI translation — editors can publish news and blog posts with automatic Danish/English translation via Mistral' },
-  { date: '2026-04', icon: '🔀', da: 'Feed-opdeling — skift mellem Fællesskab- og Erhvervsfeed med ét klik; hvert opslag husker hvilken tilstand det blev skrevet i', en: 'Feed separation — switch between Community and Business feeds with one click; each post remembers which mode it was written in' },
-  { date: '2026-04', icon: '👥', da: 'Følgere og du følger — se hvem der følger dig og hvem du følger under Forbindelser', en: 'Followers and following — see who follows you and who you follow under Connections' },
-  { date: '2026-04', icon: '🎥', da: 'Automatisk videokonvertering — uploadede videoer transskodes til H.264/AAC MP4 for universel browserkompatibilitet', en: 'Automatic video conversion — uploaded videos are transcoded to H.264/AAC MP4 for universal browser compatibility' },
-  { date: '2026-04', icon: '🛍️', da: 'Nøgleordsbeskeder på markedspladsen — modtag notifikation, når et nyt opslag matcher dine gemte søgeord', en: 'Marketplace keyword alerts — get notified when a new listing matches your saved keywords' },
-  { date: '2026-04', icon: '🔍', da: 'Opdag nye forbindelser — discoverykortet i feedet foreslår nye venner og virksomheder baseret på fælles interesser', en: 'Discover new connections — the discovery card in the feed suggests new friends and businesses based on shared interests' },
-  { date: '2026-04', icon: '💬', da: 'Brugerfeedback — rapportér fejl, manglende funktioner og forslag direkte fra "Om Fellis"-siden', en: 'User feedback — report bugs, missing features and suggestions directly from the About page' },
-  { date: '2026-03', icon: '📡', da: 'RTMP livestreaming via mediamtx — stream live med OBS eller Streamlabs direkte til fellis.eu. Optagelsen gemmes automatisk som et reel, når du stopper.', en: 'RTMP livestreaming via mediamtx — go live with OBS or Streamlabs directly to fellis.eu. The recording is automatically saved as a reel when you stop.' },
-  { date: '2026-03', icon: '📄', da: 'CV-profil og jobansøgning — tilføj erhvervserfaring, uddannelse og sprog til din profil og vedhæft CV og ansøgningsbrev direkte i jobopslag. AI-assistance via Mistral hjælper dig med at skrive dem.', en: 'CV profile and job applications — add work experience, education and languages to your profile and attach a CV and cover letter directly in job listings. AI assistance via Mistral helps you write them.' },
-  { date: '2026-03', icon: '🌍', da: 'Flersproget infrastruktur — sitet er klar til nye sprog', en: 'Multi-language infrastructure — site is ready for new languages' },
-  { date: '2026-03', icon: '💳', da: 'Mollie betalingsgateway — betal for reklamefrit abonnement via MobilePay, Visa, Mastercard m.fl.', en: 'Mollie payment gateway — pay for ad-free subscription via MobilePay, Visa, Mastercard etc.' },
-  { date: '2026-03', icon: '🕰️', da: 'Memories — "På denne dag": se dine opslag fra tidligere år', en: 'Memories — "On this day": see your posts from previous years' },
-  { date: '2026-02', icon: '🏢', da: 'Business-tilstand — skift til businesskonto og få adgang til ekstra funktioner', en: 'Business mode — switch to a business account and unlock extra features' },
-  { date: '2026-02', icon: '💼', da: 'Stillingsopslag — businessbrugere kan oprette og administrere jobs direkte på platformen', en: 'Job listings — business users can create and manage job posts directly on the platform' },
-  { date: '2026-02', icon: '📅', da: 'Planlagte opslag — opret opslag og planlæg dem til fremtidig publicering', en: 'Scheduled posts — create posts and schedule them for future publishing' },
-  { date: '2026-02', icon: '🤝', da: 'CRM-noter — tilføj private noter til dine forbindelser', en: 'CRM notes — add private notes to your connections' },
-  { date: '2026-01', icon: '🖼️', da: 'Medier i beskeder — send billeder og filer direkte i samtaler', en: 'Media in messages — send images and files directly in conversations' },
-  { date: '2026-01', icon: '📊', da: 'Analytics-dashboard — businessbrugere får indsigt i profilvisninger og engagement', en: 'Analytics dashboard — business users get insights into profile views and engagement' },
-  { date: '2025-12', icon: '🛡️', da: 'Moderationssystem — rapportér indhold, keywordfiltre og moderatorroller', en: 'Moderation system — report content, keyword filters and moderator roles' },
-  { date: '2025-12', icon: '🔔', da: 'In-app notifikationer og email-notifikationer ved vigtige hændelser', en: 'In-app and email notifications for important events' },
-  { date: '2025-11', icon: '🏷️', da: 'Feed-kategorier — kategorisér opslag og filtrer feedet efter kategori', en: 'Feed categories — categorise posts and filter the feed by category' },
-]
-
 // ── Platform Feedback ─────────────────────────────────────────────────────────
 
 

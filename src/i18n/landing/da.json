@@ -8,8 +8,8 @@
   "createCardTitle": "Opret ny konto",
   "createCardDesc": "Start frisk på fellis.eu med e-mail og adgangskode.",
   "createCardBtn": "Opret konto",
-  "hero_intro": "Du fortjener et sted på nettet, hvor du bare kan være dig selv.",
-  "manifestoLine3": "Fellis er en europæisk fællesskabsplatform — dit feed er kronologisk, altid. Reklamer er tydeligt mærket. Dine data forbliver dine.",
+  "hero_intro": "Hvorfor Fellis eksisterer",
+  "manifestoLine3": "De store sociale platforme er ikke designet til dit bedste. De er bygget til at holde dig på skærmen så længe som muligt, fordi din opmærksomhed er det de sælger. Det giver algoritmer der skjuler opslag, annoncer baseret på din adfærd, og et system der behandler dig som råvare. Fellis er bygget som et konkret alternativ: kronologisk feed, data i Europa, og annoncer der ikke kræver, at vi kortlægger dit privatliv. Det løser ikke alt. Men det er et bedre udgangspunkt.",
   "manifestoWhys": [
     {
       "icon": "📅",
@@ -26,6 +26,24 @@
     {
       "icon": "🤝",
       "text": "Du er brugeren — ikke produktet."
+    }
+  ],
+  "manifestoWhysAlt": [
+    {
+      "icon": "📅",
+      "text": "Kronologisk feed — din tidslinje sorteres ikke. Du ser det, du har valgt at følge, i den rækkefølge det kom."
+    },
+    {
+      "icon": "🇪🇺",
+      "text": "Dine data hostes i EU og er underlagt GDPR. Ikke som et løfte — det er bare det, loven kræver her."
+    },
+    {
+      "icon": "🎯",
+      "text": "Annoncer baseres på kontekst, ikke på hvem du er. Vi bygger ikke profiler på dig."
+    },
+    {
+      "icon": "🤝",
+      "text": "Du betaler ikke med penge. Vi lever af annoncer og erhvervsabonnementer — det gør det klart, hvem kunden er."
     }
   ],
   "trustEncrypt": "End-to-end krypteret",
