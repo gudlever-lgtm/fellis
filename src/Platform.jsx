@@ -771,7 +771,7 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
         {page === 'explore' && <ExplorePage lang={lang} onViewProfile={(userId) => { setViewUserId(userId); navigateTo('view-profile') }} />}
         {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onBadgeCheck={checkBadges} interestCategories={interestCategories} initialTab={navParam?.tab} />}
         {page === 'view-profile' && viewUserId && <FriendProfilePage userId={viewUserId} lang={lang} t={t} currentUser={currentUser} onBack={() => navigateTo('feed')} onNavigate={navigateTo} onBadgeCheck={checkBadges} onMessage={async (prof) => { const data = await apiCreateConversation([prof.id], null, false, false).catch(() => null); if (data?.id) setOpenConvId(data.id); navigateTo('messages') }} />}
-        {page === 'edit-profile' && <EditProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onBadgeCheck={checkBadges} />}
+        {page === 'edit-profile' && <EditProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onBadgeCheck={checkBadges} initialTab={navParam?.tab} />}
         {page === 'friends' && <FriendsPage lang={lang} t={t} mode={mode} sseRefreshKey={friendsRefreshKey} onBadgeCheck={checkBadges} onMessage={async (friend) => {
           if (friend?.id) {
             const data = await apiCreateConversation([friend.id], null, false, false).catch(() => null)
@@ -4979,7 +4979,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
           ) : (
             <p style={{ fontSize: 13, color: '#888', margin: 0 }}>{t.noInterestsSelectedYet}</p>
           )}
-          <button onClick={() => onNavigate('edit-profile')} style={{ marginTop: 12, padding: '6px 16px', borderRadius: 8, border: '1px solid #2D6A4F', background: '#fff', color: '#2D6A4F', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+          <button onClick={() => onNavigate('edit-profile', { tab: 'interests' })} style={{ marginTop: 12, padding: '6px 16px', borderRadius: 8, border: '1px solid #2D6A4F', background: '#fff', color: '#2D6A4F', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
             ✏️ {t.editInterests}
           </button>
         </div>
@@ -5337,7 +5337,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
 }
 
 // ── Edit Profile ──
-function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onBadgeCheck }) {
+function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onBadgeCheck, initialTab }) {
   const [profile, setProfile] = useState({ ...currentUser })
   const avatarInputRef = useRef(null)
   // Interests state
@@ -5422,7 +5422,7 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
     ? (avatarUrl.startsWith('http') || avatarUrl.startsWith('blob:') ? avatarUrl : `${API_BASE}${avatarUrl}`)
     : null
 
-  const [tab, setTab] = useState('profile')
+  const [tab, setTab] = useState(initialTab || 'profile')
 
   const fieldStyle = { display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box' }
   const labelStyle = { display: 'block', fontSize: 13, fontWeight: 600, color: '#555', marginBottom: 4, marginTop: 16 }
