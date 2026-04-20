@@ -163,7 +163,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
     setForgotLoading(true)
     setForgotError('')
     try {
-      const data = await apiForgotPassword(forgotEmail.trim())
+      const data = await apiForgotPassword(forgotEmail.trim(), lang)
       if (data?.ok) {
         // Server sends an email with the reset link — show confirmation
         setForgotMode('email-sent')

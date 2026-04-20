@@ -39,6 +39,107 @@ const LINKEDIN_CLIENT_ID = process.env.LINKEDIN_CLIENT_ID
 const LINKEDIN_CLIENT_SECRET = process.env.LINKEDIN_CLIENT_SECRET
 const LINKEDIN_REDIRECT_URI = process.env.LINKEDIN_REDIRECT_URI || 'https://fellis.eu/api/auth/linkedin/callback'
 
+// ── Email translations ──────────────────────────────────────────────────────
+const EMAIL_LANGS = new Set(['da','en','de','fr','es','fi','pl','it','no','nl','sv','pt'])
+function emailLang(lang) { return EMAIL_LANGS.has(lang) ? lang : 'en' }
+
+function getResetEmailStrings(lang, name, resetUrl) {
+  const l = emailLang(lang)
+  const btn = {
+    da: 'Nulstil adgangskode', en: 'Reset password', de: 'Passwort zurücksetzen',
+    fr: 'Réinitialiser le mot de passe', es: 'Restablecer contraseña', fi: 'Nollaa salasana',
+    pl: 'Zresetuj hasło', it: 'Reimposta password', no: 'Tilbakestill passord',
+    nl: 'Wachtwoord opnieuw instellen', sv: 'Återställ lösenord', pt: 'Redefinir senha',
+  }[l]
+  const subject = {
+    da: 'Nulstil din adgangskode', en: 'Reset your password', de: 'Passwort zurücksetzen',
+    fr: 'Réinitialisez votre mot de passe', es: 'Restablece tu contraseña', fi: 'Nollaa salasanasi',
+    pl: 'Zresetuj swoje hasło', it: 'Reimposta la tua password', no: 'Tilbakestill passordet ditt',
+    nl: 'Stel je wachtwoord opnieuw in', sv: 'Återställ ditt lösenord', pt: 'Redefina sua senha',
+  }[l]
+  const greet = {
+    da: `Hej ${name}`, en: `Hi ${name}`, de: `Hallo ${name}`, fr: `Bonjour ${name}`,
+    es: `Hola ${name}`, fi: `Hei ${name}`, pl: `Cześć ${name}`, it: `Ciao ${name}`,
+    no: `Hei ${name}`, nl: `Hallo ${name}`, sv: `Hej ${name}`, pt: `Olá ${name}`,
+  }[l]
+  const body = {
+    da: `Klik her for at nulstille din adgangskode (linket udløber om 1 time):`,
+    en: `Click here to reset your password (the link expires in 1 hour):`,
+    de: `Klicken Sie hier, um Ihr Passwort zurückzusetzen (der Link läuft in 1 Stunde ab):`,
+    fr: `Cliquez ici pour réinitialiser votre mot de passe (le lien expire dans 1 heure) :`,
+    es: `Haz clic aquí para restablecer tu contraseña (el enlace caduca en 1 hora):`,
+    fi: `Nollaa salasanasi napsauttamalla tästä (linkki vanhenee 1 tunnin kuluttua):`,
+    pl: `Kliknij tutaj, aby zresetować swoje hasło (link wygasa za 1 godzinę):`,
+    it: `Clicca qui per reimpostare la tua password (il link scade tra 1 ora):`,
+    no: `Klikk her for å tilbakestille passordet ditt (lenken utløper om 1 time):`,
+    nl: `Klik hier om je wachtwoord opnieuw in te stellen (de link verloopt over 1 uur):`,
+    sv: `Klicka här för att återställa ditt lösenord (länken går ut om 1 timme):`,
+    pt: `Clique aqui para redefinir sua senha (o link expira em 1 hora):`,
+  }[l]
+  const ignore = {
+    da: `Hvis du ikke bad om dette, kan du ignorere denne e-mail.`,
+    en: `If you didn't request this, you can ignore this email.`,
+    de: `Wenn Sie das nicht angefordert haben, können Sie diese E-Mail ignorieren.`,
+    fr: `Si vous n'avez pas demandé cela, vous pouvez ignorer cet e-mail.`,
+    es: `Si no solicitaste esto, puedes ignorar este correo.`,
+    fi: `Jos et pyytänyt tätä, voit ohittaa tämän sähköpostin.`,
+    pl: `Jeśli tego nie prosiłeś, możesz zignorować ten e-mail.`,
+    it: `Se non hai richiesto questo, puoi ignorare questa email.`,
+    no: `Hvis du ikke ba om dette, kan du ignorere denne e-posten.`,
+    nl: `Als je dit niet hebt aangevraagd, kun je deze e-mail negeren.`,
+    sv: `Om du inte begärde detta kan du ignorera det här e-postmeddelandet.`,
+    pt: `Se você não solicitou isso, pode ignorar este e-mail.`,
+  }[l]
+  const regards = {
+    da: 'Venlig hilsen', en: 'Best regards', de: 'Mit freundlichen Grüßen',
+    fr: 'Cordialement', es: 'Saludos', fi: 'Ystävällisin terveisin',
+    pl: 'Pozdrawiam', it: 'Cordiali saluti', no: 'Med vennlig hilsen',
+    nl: 'Met vriendelijke groeten', sv: 'Med vänliga hälsningar', pt: 'Atenciosamente',
+  }[l]
+  const copyLink = {
+    da: 'Eller kopier dette link', en: 'Or copy this link', de: 'Oder diesen Link kopieren',
+    fr: 'Ou copiez ce lien', es: 'O copia este enlace', fi: 'Tai kopioi tämä linkki',
+    pl: 'Lub skopiuj ten link', it: 'O copia questo link', no: 'Eller kopier denne lenken',
+    nl: 'Of kopieer deze link', sv: 'Eller kopiera den här länken', pt: 'Ou copie este link',
+  }[l]
+  return {
+    subject,
+    text: `${greet},\n\n${body}\n${resetUrl}\n\n${ignore}\n\n${regards},\nFellis`,
+    html: `<p>${greet},</p><p>${body}</p><p><a href="${resetUrl}" style="background:#2D6A4F;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:bold">${btn}</a></p><p style="color:#888;font-size:12px">${copyLink}: ${resetUrl}</p><p style="color:#888;font-size:12px">${ignore}</p>`,
+  }
+}
+
+function getMfaEmailStrings(lang, code) {
+  const l = emailLang(lang)
+  const subject = {
+    da: 'Din Fellis-kode', en: 'Your Fellis code', de: 'Dein Fellis-Code',
+    fr: 'Votre code Fellis', es: 'Tu código de Fellis', fi: 'Fellis-koodisi',
+    pl: 'Twój kod Fellis', it: 'Il tuo codice Fellis', no: 'Din Fellis-kode',
+    nl: 'Jouw Fellis-code', sv: 'Din Fellis-kod', pt: 'Seu código Fellis',
+  }[l]
+  const intro = {
+    da: `Din Fellis-kode er: ${code}`, en: `Your Fellis code is: ${code}`,
+    de: `Dein Fellis-Code lautet: ${code}`, fr: `Votre code Fellis est : ${code}`,
+    es: `Tu código de Fellis es: ${code}`, fi: `Fellis-koodisi on: ${code}`,
+    pl: `Twój kod Fellis to: ${code}`, it: `Il tuo codice Fellis è: ${code}`,
+    no: `Din Fellis-kode er: ${code}`, nl: `Jouw Fellis-code is: ${code}`,
+    sv: `Din Fellis-kod är: ${code}`, pt: `Seu código Fellis é: ${code}`,
+  }[l]
+  const expires = {
+    da: 'Koden udløber om 5 minutter.', en: 'The code expires in 5 minutes.',
+    de: 'Der Code läuft in 5 Minuten ab.', fr: 'Le code expire dans 5 minutes.',
+    es: 'El código caduca en 5 minutos.', fi: 'Koodi vanhenee 5 minuutissa.',
+    pl: 'Kod wygasa za 5 minut.', it: 'Il codice scade tra 5 minuti.',
+    no: 'Koden utløper om 5 minutter.', nl: 'De code verloopt over 5 minuten.',
+    sv: 'Koden upphör om 5 minuter.', pt: 'O código expira em 5 minutos.',
+  }[l]
+  return {
+    subject,
+    text: `${intro}\n${expires}`,
+    html: `<p>${intro.replace(`: ${code}`, `: <strong style="font-size:18px">${code}</strong>`)}</p><p style="color:#888">${expires}</p>`,
+  }
+}
+
 router.get('/auth/password-policy', async (req, res) => {
   res.json(await getPasswordPolicy())
 })
@@ -149,14 +250,15 @@ router.post('/auth/login', strictLimit, validate(schemas.login), async (req, res
       }
       if (!method && user.email && mailer) {
         const fromAddr = process.env.MAIL_FROM || process.env.MAIL_USER
+        const mfaStrings = getMfaEmailStrings(lang, rawCode)
         try {
           await Promise.race([
             mailer.sendMail({
               from: `"Fellis" <${fromAddr}>`,
               to: user.email,
-              subject: 'Din Fellis-kode / Your Fellis code',
-              text: `Din Fellis-kode er: ${rawCode}\nKoden udløber om 5 minutter.\n\nYour Fellis code is: ${rawCode}\nThe code expires in 5 minutes.`,
-              html: `<p>Din Fellis-kode er: <strong style="font-size:18px">${rawCode}</strong></p><p style="color:#888">Koden udløber om 5 minutter.</p><hr><p>Your Fellis code is: <strong style="font-size:18px">${rawCode}</strong></p><p style="color:#888">The code expires in 5 minutes.</p>`,
+              subject: mfaStrings.subject,
+              text: mfaStrings.text,
+              html: mfaStrings.html,
             }),
             new Promise((_, reject) => setTimeout(() => reject(new Error('SMTP timeout')), 10000)),
           ])
@@ -293,7 +395,7 @@ router.post('/auth/register', registerLimit, validate(schemas.register), async (
 
 
 router.post('/auth/forgot-password', strictLimit, validate(schemas.forgotPassword), async (req, res) => {
-  const { email } = req.body
+  const { email, lang } = req.body
   if (!email) return res.status(400).json({ error: 'Email required' })
 
   // Rate limit: max 3 requests per email per hour
@@ -322,6 +424,7 @@ router.post('/auth/forgot-password', strictLimit, validate(schemas.forgotPasswor
 
     if (mailer) {
       const fromAddr = process.env.MAIL_FROM || process.env.MAIL_USER
+      const resetStrings = getResetEmailStrings(lang, user.name, resetUrl)
       try {
         await Promise.race([
           mailer.sendMail({
