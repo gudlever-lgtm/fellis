@@ -166,6 +166,15 @@ Verify: `/context-mode:ctx-doctor`
 With hooks active (Claude Code native): ~98% context savings.
 Without hooks (routing rules only): ~60% savings.
 
+### Caveman (Claude Code plugin)
+Enables caveman-style tooling in Claude Code sessions.
+
+Install once (global, per developer):
+```
+claude plugin marketplace add JuliusBrussee/caveman
+claude plugin install caveman@caveman
+```
+
 ### Prerequisites
 - Node.js (with ESM support)
 - MariaDB 11.8+ or MySQL 8+
