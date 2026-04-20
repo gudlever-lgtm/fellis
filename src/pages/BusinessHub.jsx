@@ -604,27 +604,23 @@ function VerificationSection({ t, lang, currentUser }) {
 }
 
 // ── Main BusinessHub component ────────────────────────────────────────────────
-const CONTENT_TAB_DEFS = [
-  { id: 'leads',         icon: '📥', label: { da: 'Leads',        en: 'Leads' } },
-  { id: 'announcements', icon: '📢', label: { da: 'Meddelelser',  en: 'Announcements' } },
-  { id: 'services',      icon: '🛠️', label: { da: 'Ydelser',      en: 'Services' } },
-  { id: 'partners',      icon: '🤝', label: { da: 'Partnere',     en: 'Partners' } },
-  { id: 'analytics',     icon: '📊', label: { da: 'Analyse',      en: 'Analytics' } },
-  { id: 'ads',           icon: '📣', label: { da: 'Annoncer',     en: 'Ads' } },
-  { id: 'verify',        icon: '✅', label: { da: 'Verificér',    en: 'Verify' } },
-  { id: 'directory',     icon: '🏢', label: { da: 'Virksomheder', en: 'Directory' } },
+const TAB_DEFS = [
+  { id: 'leads',         icon: '📥', label: { da: 'Leads',          en: 'Leads' } },
+  { id: 'announcements', icon: '📢', label: { da: 'Meddelelser',    en: 'Announcements' } },
+  { id: 'services',      icon: '🛠️', label: { da: 'Ydelser',        en: 'Services' } },
+  { id: 'partners',      icon: '🤝', label: { da: 'Partnere',       en: 'Partners' } },
+  { id: 'analytics',     icon: '📊', label: { da: 'Analyse',        en: 'Analytics' } },
+  { id: 'ads',           icon: '📣', label: { da: 'Annoncer',       en: 'Ads' } },
+  { id: 'verify',        icon: '✅', label: { da: 'Verificér',      en: 'Verify' } },
+  { id: 'directory',     icon: '🏢', label: { da: 'Virksomheder',   en: 'Directory' } },
+  { id: 'jobs',          icon: '💼', label: { da: 'Job',            en: 'Jobs' } },
+  { id: 'company',       icon: '🏬', label: { da: 'Min virksomhed', en: 'My Company' } },
 ]
 
-// Nav tabs navigate out to standalone pages rather than loading inline content
-const NAV_TABS = [
-  { id: 'jobs',    label: { da: 'Job',           en: 'Jobs' },       icon: '💼' },
-  { id: 'company', label: { da: 'Min virksomhed', en: 'My Company' }, icon: '🏬' },
-]
-
-export default function BusinessHub({ lang, t, currentUser, onViewProfile, onNavigate }) {
+export default function BusinessHub({ lang, t, currentUser, onViewProfile, onNavigate, mode, JobsComponent, CompanyComponent }) {
   const [tab, setTab] = useState('leads')
 
-  const isVerified = currentUser?.is_verified
+  const isVerified = !!currentUser?.is_verified
   const cvrNumber  = currentUser?.cvr_number
   const cvrName    = currentUser?.cvr_company_name
 
@@ -657,23 +653,13 @@ export default function BusinessHub({ lang, t, currentUser, onViewProfile, onNav
 
       {/* Tab bar */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 20 }}>
-        {CONTENT_TAB_DEFS.map(({ id, icon, label }) => (
+        {TAB_DEFS.map(({ id, icon, label }) => (
           <button key={id} onClick={() => setTab(id)} style={{
             display: 'flex', alignItems: 'center', gap: 5,
             padding: '6px 12px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 13, whiteSpace: 'nowrap',
             background: tab === id ? '#6366F1' : '#F3F4F6',
             color: tab === id ? '#fff' : '#374151',
             fontWeight: tab === id ? 600 : 400,
-          }}>
-            <span style={{ fontSize: 14 }}>{icon}</span>{label[lang] ?? label.en}
-          </button>
-        ))}
-        {NAV_TABS.map(({ id, label, icon }) => (
-          <button key={id} onClick={() => onNavigate?.(id)} style={{
-            display: 'flex', alignItems: 'center', gap: 5,
-            padding: '6px 12px', borderRadius: 20, border: 'none',
-            cursor: 'pointer', fontSize: 13, whiteSpace: 'nowrap',
-            background: '#F3F4F6', color: '#374151', fontWeight: 400,
           }}>
             <span style={{ fontSize: 14 }}>{icon}</span>{label[lang] ?? label.en}
           </button>
@@ -688,6 +674,8 @@ export default function BusinessHub({ lang, t, currentUser, onViewProfile, onNav
       {tab === 'ads'           && <AdManager lang={lang} t={t} currentUser={currentUser} />}
       {tab === 'verify'        && <VerificationSection t={t} lang={lang} currentUser={currentUser} />}
       {tab === 'directory'     && <BusinessDirectory lang={lang} t={t} onViewProfile={onViewProfile} />}
+      {tab === 'jobs'    && JobsComponent    && <JobsComponent lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={(target, param) => { if (target === 'companies') { setTab('company') } else onNavigate?.(target) }} />}
+      {tab === 'company' && CompanyComponent && <CompanyComponent lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={(target, param) => onNavigate?.(target, param)} />}
     </div>
   )
 }
