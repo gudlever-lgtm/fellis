@@ -36,7 +36,7 @@ router.get('/businesses', async (req, res) => {
   // Optional auth — determine if caller is logged in
   let callerId = null
   try {
-    const sessionId = req.cookies?.fellis_sid
+    const sessionId = getSessionIdFromRequest(req)
     if (sessionId) {
       const [[sess]] = await pool.query(
         'SELECT user_id FROM sessions WHERE id = ? AND expires_at > NOW()',
@@ -115,6 +115,12 @@ router.get('/businesses/suggested', authenticate, async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found' })
     // Try to match businesses by user's top interest slugs
     let rows = []
+    const excludeSubquery = `
+      AND u.id NOT IN (SELECT business_id FROM business_follows WHERE follower_id = ?)
+      AND u.id NOT IN (
+        SELECT friend_id FROM friendships WHERE user_id = ?
+        UNION SELECT user_id FROM friendships WHERE friend_id = ?
+      )`
     try {
       ;[rows] = await pool.query(
         `SELECT DISTINCT u.id, u.name, u.handle, u.avatar_url, u.business_category,
@@ -127,9 +133,10 @@ router.get('/businesses/suggested', authenticate, async (req, res) => {
          WHERE u.mode = 'business'
            AND u.id != ?
            AND iss.weight > 10
+           ${excludeSubquery}
          ORDER BY iss.weight DESC, u.community_score DESC
          LIMIT 10`,
-        [req.userId, req.userId]
+        [req.userId, req.userId, req.userId, req.userId, req.userId]
       )
     } catch {}
     // Fall back to top businesses by community_score (graceful if Phase 2 migration not yet run)
@@ -141,9 +148,10 @@ router.get('/businesses/suggested', authenticate, async (req, res) => {
                   u.follower_count, u.community_score
            FROM users u
            WHERE u.mode = 'business' AND u.id != ?
+             ${excludeSubquery}
            ORDER BY u.community_score DESC, u.follower_count DESC
            LIMIT 10`,
-          [req.userId]
+          [req.userId, req.userId, req.userId, req.userId]
         )
       } catch {
         ;[rows] = await pool.query(
@@ -152,9 +160,10 @@ router.get('/businesses/suggested', authenticate, async (req, res) => {
                   0 AS follower_count, 0 AS community_score
            FROM users u
            WHERE u.mode = 'business' AND u.id != ?
+             ${excludeSubquery}
            ORDER BY u.created_at DESC
            LIMIT 10`,
-          [req.userId]
+          [req.userId, req.userId, req.userId, req.userId]
         )
       }
     }
@@ -190,7 +199,7 @@ router.get('/businesses/:handle', async (req, res) => {
   // Optional auth
   let callerId = null
   try {
-    const sessionId = req.cookies?.fellis_sid
+    const sessionId = getSessionIdFromRequest(req)
     if (sessionId) {
       const [[sess]] = await pool.query(
         'SELECT user_id FROM sessions WHERE id = ? AND expires_at > NOW()',
