@@ -2837,6 +2837,17 @@ const CHANGELOG_ENTRIES = [
   { date: '2025-11', icon: '🏷️', da: 'Feed-kategorier — kategorisér opslag og filtrer feedet efter kategori', en: 'Feed categories — categorise posts and filter the feed by category' },
 ]
 
+app.get('/api/changelog', (req, res) => {
+  const lang = req.query.lang === 'en' ? 'en' : 'da'
+  res.json({
+    entries: CHANGELOG_ENTRIES.map(e => ({
+      date: e.date,
+      icon: e.icon,
+      text: e[lang],
+    })),
+  })
+})
+
 // ── Platform Feedback ─────────────────────────────────────────────────────────
 
 
