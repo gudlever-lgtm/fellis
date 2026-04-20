@@ -114,6 +114,7 @@ export default {
     maxSkillsReached: 'Maks. 20 kompetencer nået',
     removeSkill: 'Fjern kompetence',
     skillEndorsersTitle: 'Har anbefalet',
+    jobTrackInterviewClick: '👆 Klik for interview',
   },
   en: {
     jobs: 'Jobs',
@@ -230,6 +231,7 @@ export default {
     maxSkillsReached: 'Max 20 skills reached',
     removeSkill: 'Remove skill',
     skillEndorsersTitle: 'Endorsed by',
+    jobTrackInterviewClick: '👆 Click for interview',
   },
   sv: {
     jobs: 'Jobb',
@@ -346,6 +348,7 @@ export default {
     maxSkillsReached: 'Max 20 kompetenser uppnått',
     removeSkill: 'Ta bort kompetens',
     skillEndorsersTitle: 'Rekommenderad av',
+    jobTrackInterviewClick: '👆 Klicka för intervju',
   },
   no: {
     jobs: 'Jobb',
@@ -462,6 +465,7 @@ export default {
     maxSkillsReached: 'Maks. 20 ferdigheter nådd',
     removeSkill: 'Fjern ferdighet',
     skillEndorsersTitle: 'Anbefalt av',
+    jobTrackInterviewClick: '👆 Klikk for intervju',
   },
   de: {
     jobs: 'Jobs',
@@ -578,6 +582,7 @@ export default {
     maxSkillsReached: 'Max. 20 Kenntnisse erreicht',
     removeSkill: 'Kenntnis entfernen',
     skillEndorsersTitle: 'Empfohlen von',
+    jobTrackInterviewClick: '👆 Klicken für Vorstellungsgespräch',
   },
   fr: {
     jobs: 'Emplois',
@@ -694,6 +699,7 @@ export default {
     maxSkillsReached: 'Maximum de 20 compétences atteint',
     removeSkill: 'Supprimer la compétence',
     skillEndorsersTitle: 'Recommandé par',
+    jobTrackInterviewClick: '👆 Cliquer pour entretien',
   },
   es: {
     jobs: 'Empleos',
@@ -810,6 +816,7 @@ export default {
     maxSkillsReached: 'Máx. 20 habilidades alcanzado',
     removeSkill: 'Eliminar habilidad',
     skillEndorsersTitle: 'Recomendado por',
+    jobTrackInterviewClick: '👆 Clic para entrevista',
   },
   it: {
     jobs: 'Lavoro',
@@ -926,6 +933,7 @@ export default {
     maxSkillsReached: 'Raggiunto il limite di 20 competenze',
     removeSkill: 'Rimuovi competenza',
     skillEndorsersTitle: 'Raccomandato da',
+    jobTrackInterviewClick: '👆 Clic per colloquio',
   },
   nl: {
     jobs: 'Vacatures',
@@ -1042,6 +1050,7 @@ export default {
     maxSkillsReached: 'Max. 20 vaardigheden bereikt',
     removeSkill: 'Vaardigheid verwijderen',
     skillEndorsersTitle: 'Aanbevolen door',
+    jobTrackInterviewClick: '👆 Klik voor gesprek',
   },
   pl: {
     jobs: 'Praca',
@@ -1158,6 +1167,7 @@ export default {
     maxSkillsReached: 'Osiągnięto limit 20 umiejętności',
     removeSkill: 'Usuń umiejętność',
     skillEndorsersTitle: 'Zarekomendowane przez',
+    jobTrackInterviewClick: '👆 Kliknij dla rozmowy',
   },
   pt: {
     jobs: 'Empregos',
@@ -1274,5 +1284,6 @@ export default {
     maxSkillsReached: 'Máx. de 20 competências atingido',
     removeSkill: 'Remover competência',
     skillEndorsersTitle: 'Recomendado por',
+    jobTrackInterviewClick: '👆 Clique para entrevista',
   },
 }
