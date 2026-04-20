@@ -8,8 +8,8 @@
   "createCardTitle": "Neues Konto erstellen",
   "createCardDesc": "Starte neu auf fellis.eu mit E-Mail und Passwort.",
   "createCardBtn": "Konto erstellen",
-  "hero_intro": "Du verdienst einen Platz im Netz, an dem du einfach du selbst sein kannst.",
-  "manifestoLine3": "Fellis ist eine europäische Community-Plattform — dein Feed ist chronologisch, immer. Werbung ist klar gekennzeichnet. Deine Daten bleiben deine.",
+  "hero_intro": "Warum Fellis existiert",
+  "manifestoLine3": "Die großen sozialen Plattformen sind nicht zu deinem Besten entwickelt. Sie sind darauf ausgelegt, dich so lange wie möglich auf dem Bildschirm zu halten, weil deine Aufmerksamkeit das ist, was sie verkaufen. Das führt zu Algorithmen, die Beiträge verbergen, zu Werbung, die auf deinem Verhalten basiert, und zu einem System, das dich als Rohstoff behandelt. Fellis ist als konkretes Gegenmodell gebaut: chronologischer Feed, Daten in Europa und Werbung, die es nicht erfordert, dein Privatleben zu kartieren. Es löst nicht alles. Aber es ist ein besserer Ausgangspunkt.",
   "manifestoWhys": [
     {
       "icon": "📅",
@@ -26,6 +26,24 @@
     {
       "icon": "🤝",
       "text": "Du bist der Nutzer — nicht das Produkt."
+    }
+  ],
+  "manifestoWhysAlt": [
+    {
+      "icon": "📅",
+      "text": "Chronologischer Feed — deine Zeitleiste wird nicht sortiert. Du siehst, was du entschieden hast zu folgen, in der Reihenfolge, in der es ankam."
+    },
+    {
+      "icon": "🇪🇺",
+      "text": "Deine Daten werden in der EU gehostet und unterliegen der DSGVO. Nicht als Versprechen — das ist einfach, was das Gesetz hier vorschreibt."
+    },
+    {
+      "icon": "🎯",
+      "text": "Werbung basiert auf dem Kontext, nicht darauf, wer du bist. Wir erstellen keine Profile über dich."
+    },
+    {
+      "icon": "🤝",
+      "text": "Du zahlst nicht mit Geld. Wir verdienen mit Werbung und Business-Abonnements — das macht klar, wer der Kunde ist."
     }
   ],
   "trustEncrypt": "Ende-zu-Ende-verschlüsselt",

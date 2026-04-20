@@ -8,8 +8,8 @@
   "createCardTitle": "Luo uusi tili",
   "createCardDesc": "Aloita alusta fellis.eu:ssa sähköpostilla ja salasanalla.",
   "createCardBtn": "Luo tili",
-  "hero_intro": "Ansaitset paikan verkossa, jossa voit olla juuri oma itsesi.",
-  "manifestoLine3": "Fellis on eurooppalainen yhteisöalusta — syötteesi on kronologinen, aina. Mainokset on selkeästi merkitty. Tietosi pysyvät sinun.",
+  "hero_intro": "Miksi Fellis on olemassa",
+  "manifestoLine3": "Suuret sosiaalisen median alustat eivät ole suunniteltu sinun parhaaksesi. Ne on rakennettu pitämään sinut ruudun edessä mahdollisimman kauan, koska sinun huomiosi on se, mitä ne myyvät. Tämä tuottaa algoritmeja, jotka piilottavat julkaisuja, käyttäytymiseesi perustuvia mainoksia ja järjestelmän, joka kohtelee sinua raaka-aineena. Fellis on rakennettu konkreettiseksi vaihtoehdoksi: kronologinen syöte, data Euroopassa ja mainokset, jotka eivät vaadi, että kartoitamme yksityiselämääsi. Se ei ratkaise kaikkea. Mutta se on parempi lähtökohta.",
   "manifestoWhys": [
     {
       "icon": "📅",
@@ -26,6 +26,24 @@
     {
       "icon": "🤝",
       "text": "Olet käyttäjä — et tuote."
+    }
+  ],
+  "manifestoWhysAlt": [
+    {
+      "icon": "📅",
+      "text": "Kronologinen syöte — aikajanasi ei ole järjestetty. Näet sen, mitä olet valinnut seurata, siinä järjestyksessä kuin se saapui."
+    },
+    {
+      "icon": "🇪🇺",
+      "text": "Tietosi isännöidään EU:ssa ja ne ovat GDPR:n alaisia. Ei lupauksena — se on yksinkertaisesti mitä laki täällä vaatii."
+    },
+    {
+      "icon": "🎯",
+      "text": "Mainokset perustuvat kontekstiin, eivät siihen, kuka olet. Emme rakenna sinusta profiilia."
+    },
+    {
+      "icon": "🤝",
+      "text": "Et maksa rahalla. Tienaamme mainoksista ja yritystilauksista — se selkeyttää, kuka asiakas on."
     }
   ],
   "trustEncrypt": "Päästä päähän -salattu",
