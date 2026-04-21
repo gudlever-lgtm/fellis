@@ -3352,6 +3352,14 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
         </h2>
       </div>
 
+      {/* Feed context tabs */}
+      <FeedTabs
+        viewerMode={currentUser.mode}
+        t={t}
+        activeTab={feedContext === 'network' ? 'network' : 'private'}
+        onTabChange={(tab) => setFeedContext(tab === 'network' ? 'network' : 'social')}
+      />
+
       {/* New post */}
       <div className="p-card p-new-post">
         {/* Upload progress banner */}
@@ -3979,14 +3987,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
 
       {/* Reels strip */}
       <ReelsStrip lang={lang} t={t} onNavigate={onNavigate} />
-
-      {/* Feed context tabs */}
-      <FeedTabs
-        viewerMode={currentUser.mode}
-        t={t}
-        activeTab={feedContext === 'network' ? 'network' : 'private'}
-        onTabChange={(tab) => setFeedContext(tab === 'network' ? 'network' : 'social')}
-      />
 
       {/* Memories card — on this day */}
       <MemoriesCard
