@@ -20,6 +20,7 @@ import {
   MAX_LOGIN_ATTEMPTS, LOCKOUT_DURATION_MINUTES,
   COOKIE_NAME, SERVER_START, visitedSessions, visitedAnonIps,
 } from '../middleware.js'
+import { requireFeature } from '../middleware/requireFeature.js'
 import crypto from 'crypto'
 import fs from 'fs'
 import path from 'path'
@@ -915,7 +916,7 @@ router.get('/companies/:id/members', authenticate, async (req, res) => {
 })
 
 
-router.post('/companies/:id/members', authenticate, async (req, res) => {
+router.post('/companies/:id/members', authenticate, requireFeature('multi_admin'), async (req, res) => {
   try {
     // Check if requester is owner or admin
     const [[isOwner]] = await pool.query(
@@ -1321,6 +1322,35 @@ router.get('/ads/price', authenticate, async (req, res) => {
 })
 
 
+router.get('/ads/banner', authenticate, async (req, res) => {
+  try {
+    const [[user]] = await pool.query('SELECT mode FROM users WHERE id = ?', [req.userId])
+    if (user?.mode === 'business') return res.status(204).end()
+    const today = new Date().toISOString().split('T')[0]
+    const [rows] = await pool.query(
+      `SELECT id, title, image_url, link_url FROM platform_ads
+       WHERE status = 'active'
+         AND (start_date IS NULL OR start_date <= ?)
+         AND (end_date IS NULL OR end_date >= ?)
+       ORDER BY RAND()
+       LIMIT 1`,
+      [today, today]
+    )
+    if (!rows.length) return res.status(204).end()
+    const ad = rows[0]
+    res.json({ ad_id: ad.id, image_url: ad.image_url, link_url: ad.link_url, label: ad.title })
+  } catch (err) {
+    console.error('GET /api/ads/banner error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+
+router.post('/ads/campaign', authenticate, requireFeature('ad_campaigns'), async (req, res) => {
+  res.status(501).json({ error: 'not_implemented' })
+})
+
+
 router.get('/ads/:id', authenticate, async (req, res) => {
   try {
     const [[ad]] = await pool.query('SELECT * FROM ads WHERE id = ?', [req.params.id])
@@ -1601,7 +1631,7 @@ router.post('/content/:id/open', authenticate, async (req, res) => {
 })
 
 
-router.get('/analytics', authenticate, async (req, res) => {
+router.get('/analytics', authenticate, requireFeature('analytics'), async (req, res) => {
   try {
     const days = Math.min(Math.max(parseInt(req.query.days) || 30, 7), 90)
 
@@ -1950,6 +1980,24 @@ router.get('/analytics', authenticate, async (req, res) => {
     })
   } catch (err) {
     console.error('GET /api/analytics error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+
+router.get('/analytics/post/:postId', authenticate, requireFeature('analytics'), async (req, res) => {
+  try {
+    const postId = parseInt(req.params.postId)
+    if (!postId) return res.status(400).json({ error: 'Invalid post ID' })
+    const [[post]] = await pool.query('SELECT id, user_id FROM posts WHERE id = ?', [postId])
+    if (!post) return res.status(404).json({ error: 'Not found' })
+    if (post.user_id !== req.userId) return res.status(403).json({ error: 'Forbidden' })
+    const [[likes]] = await pool.query('SELECT COUNT(*) AS count FROM post_likes WHERE post_id = ?', [postId])
+    const [[views]] = await pool.query('SELECT COUNT(*) AS count FROM post_views WHERE post_id = ?', [postId])
+    const [[comments]] = await pool.query('SELECT COUNT(*) AS count FROM comments WHERE post_id = ?', [postId])
+    res.json({ post_id: postId, likes: Number(likes.count), views: Number(views.count), comments: Number(comments.count) })
+  } catch (err) {
+    console.error('GET /api/analytics/post/:postId error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })
@@ -3472,6 +3520,57 @@ router.get('/announcements', authenticate, async (req, res) => {
     res.json({ announcements: rows })
   } catch (err) {
     console.error('GET /api/announcements error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Company profile (user-centric, for mode=business users) ──────────────────
+
+router.post('/company/profile', authenticate, attachUserMode, async (req, res) => {
+  if (req.userMode !== 'business') return res.status(403).json({ error: 'Business account required' })
+  const { company_name, cvr, description, category, logo_url, website } = req.body
+  if (!company_name || !String(company_name).trim()) {
+    return res.status(400).json({ error: 'company_name is required' })
+  }
+  try {
+    const [result] = await pool.query(
+      `INSERT INTO company_profiles (user_id, company_name, cvr, description, category, logo_url, website)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         company_name = VALUES(company_name),
+         cvr = VALUES(cvr),
+         description = VALUES(description),
+         category = VALUES(category),
+         logo_url = VALUES(logo_url),
+         website = VALUES(website)`,
+      [req.userId, String(company_name).trim().slice(0, 255),
+       cvr ? String(cvr).slice(0, 20) : null,
+       description || null, category ? String(category).slice(0, 100) : null,
+       logo_url ? String(logo_url).slice(0, 500) : null,
+       website ? String(website).slice(0, 500) : null]
+    )
+    const insertId = result.insertId || null
+    const [[profile]] = await pool.query(
+      'SELECT * FROM company_profiles WHERE user_id = ?', [req.userId]
+    )
+    res.json({ success: true, profile })
+  } catch (err) {
+    console.error('POST /api/company/profile error:', err.message)
+    res.status(500).json({ error: 'Failed to save company profile' })
+  }
+})
+
+router.get('/company/profile/:userId', async (req, res) => {
+  const userId = parseInt(req.params.userId, 10)
+  if (!userId || isNaN(userId)) return res.status(400).json({ error: 'Invalid user id' })
+  try {
+    const [[profile]] = await pool.query(
+      'SELECT * FROM company_profiles WHERE user_id = ?', [userId]
+    )
+    if (!profile) return res.status(404).json({ error: 'Company profile not found' })
+    res.json(profile)
+  } catch (err) {
+    console.error('GET /api/company/profile/:userId error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })

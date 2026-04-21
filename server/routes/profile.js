@@ -60,7 +60,7 @@ router.get('/profile/:id', authenticate, async (req, res) => {
     try {
       ;[users] = await pool.query(
         `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url,
-          u.industry, u.seniority, u.job_title, u.company,
+          u.industry, u.seniority, u.job_title, u.company, u.professional_title,
           u.mode, u.follower_count, u.community_score,
           u.business_category, u.business_website, u.business_hours,
           u.business_description_da, u.business_description_en,
@@ -78,7 +78,7 @@ router.get('/profile/:id', authenticate, async (req, res) => {
       // Phase 1/2 migration columns not yet applied — fall back without them
       ;[users] = await pool.query(
         `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url,
-          u.industry, u.seniority, u.job_title, u.company,
+          u.industry, u.seniority, u.job_title, u.company, NULL AS professional_title,
           u.mode,
           0 AS follower_count, 0 AS community_score,
           NULL AS business_category, NULL AS business_website, NULL AS business_hours,
@@ -137,6 +137,7 @@ router.get('/profile/:id', authenticate, async (req, res) => {
       industry: u.industry || null,
       seniority: u.seniority || null,
       jobTitle: u.job_title || null,
+      professionalTitle: u.professional_title || null,
       company: u.company || null,
       friendCount: u.friend_count, postCount: u.post_count, photoCount: u.photo_count || 0,
       mutualCount: u.mutual_count || 0,

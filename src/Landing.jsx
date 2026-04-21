@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { UI_LANGS, PT } from './data.js'
 import { apiLogin, apiRegister, apiForgotPassword, apiResetPassword, apiVerifyMfa, apiGiveConsent } from './api.js'
+import UserTypeSelector from './UserTypeSelector.jsx'
 import { useTranslation } from './i18n/useTranslation.js'
 import daT from './i18n/landing/da.json'
 import enT from './i18n/landing/en.json'
@@ -613,45 +614,21 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
           </div>
         </div>
       )}
-      {/* Step 5 — Mode selector */}
+      {/* Step 5 — User type selector */}
       {step === 5 && (
-        <div className="step-container" style={{ maxWidth: 560 }}>
+        <div className="step-container" style={{ maxWidth: 900 }}>
           <div style={{ textAlign: 'center', marginBottom: 28 }}>
             <div style={{ fontSize: 40, marginBottom: 8 }}>🎉</div>
             <h2 style={{ margin: '0 0 8px' }}>{t.modeStepTitle}</h2>
             <p style={{ margin: 0, color: '#888', fontSize: 14 }}>{t.modeStepSubtitle}</p>
           </div>
-          <div style={{ display: 'flex', gap: 16 }}>
-            {[
-              { key: 'common', label: t.modeCommon, icon: '🏠', desc: t.modeCommonDesc, features: t.modeCommonFeatures, color: '#2D6A4F', bg: '#F0FAF4' },
-              { key: 'business', label: t.modeBusiness, icon: '💼', desc: t.modeBusinessDesc, features: t.modeBusinessFeatures, color: '#1877F2', bg: '#EBF4FF' },
-            ].map(({ key, label, icon, desc, features, color, bg }) => (
-              <button
-                key={key}
-                onClick={() => {
-                  localStorage.setItem('fellis_mode', key)
-                  onEnterPlatform(lang)
-                }}
-                style={{
-                  flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
-                  gap: 10, padding: 24, borderRadius: 16, border: `2px solid ${color}`,
-                  background: bg, cursor: 'pointer', textAlign: 'left', transition: 'transform 0.15s',
-                }}
-                onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
-                onMouseLeave={e => e.currentTarget.style.transform = 'none'}
-              >
-                <span style={{ fontSize: 36 }}>{icon}</span>
-                <strong style={{ fontSize: 18, color }}>{label}</strong>
-                <span style={{ fontSize: 13, color: '#555', lineHeight: 1.5 }}>{desc}</span>
-                <ul style={{ margin: '4px 0 0', padding: '0 0 0 16px', fontSize: 12, color: '#666', lineHeight: 1.8 }}>
-                  {features.map(f => <li key={f}>{f}</li>)}
-                </ul>
-                <span style={{ marginTop: 8, alignSelf: 'stretch', padding: '10px', borderRadius: 10, background: color, color: '#fff', fontWeight: 700, fontSize: 14, textAlign: 'center' }}>
-                  {t.modeSelectBtn} →
-                </span>
-              </button>
-            ))}
-          </div>
+          <UserTypeSelector
+            lang={lang}
+            onComplete={(mode) => {
+              localStorage.setItem('fellis_mode', mode)
+              onEnterPlatform(lang)
+            }}
+          />
         </div>
       )}
     </div>

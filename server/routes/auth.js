@@ -651,16 +651,22 @@ router.get('/auth/session', authenticate, async (req, res) => {
     // Compute ads_free dynamically: today must fall within an active earned-day assignment
     // OR an active purchased period — never rely on the static users.ads_free column
     const today = new Date().toISOString().split('T')[0]
-    const [[activeRow]] = await pool.query(`
-      SELECT (
-        (SELECT COUNT(*) FROM adfree_day_assignments
-         WHERE user_id = ? AND start_date <= ? AND end_date >= ?) +
-        (SELECT COUNT(*) FROM adfree_purchased_periods
-         WHERE user_id = ? AND start_date <= ? AND end_date >= ?)
-      ) AS total
-    `, [req.userId, today, today, req.userId, today, today]).catch(() => [[{ total: 0 }]])
-    const ads_free = (activeRow?.total ?? 0) > 0
-    const user = { ...users[0], mode: users[0].mode || 'privat', ads_free, is_admin: users[0].id === 1, is_moderator: Boolean(users[0].is_moderator) || users[0].id === 1 }
+    const [[[activeRow]], [featureRows]] = await Promise.all([
+      pool.query(`
+        SELECT (
+          (SELECT COUNT(*) FROM adfree_day_assignments
+           WHERE user_id = ? AND start_date <= ? AND end_date >= ?) +
+          (SELECT COUNT(*) FROM adfree_purchased_periods
+           WHERE user_id = ? AND start_date <= ? AND end_date >= ?)
+        ) AS total
+      `, [req.userId, today, today, req.userId, today, today]).catch(() => [[{ total: 0 }]]),
+      pool.query('SELECT feature FROM user_features WHERE user_id = ? AND active = 1', [req.userId]).catch(() => [[]]),
+    ])
+    const legacy_ads_free = (activeRow?.total ?? 0) > 0
+    const active_features = featureRows.map(r => r.feature)
+    const has_ad_free = legacy_ads_free || active_features.includes('ad_free')
+    const ads_free = has_ad_free
+    const user = { ...users[0], mode: users[0].mode || 'privat', ads_free, has_ad_free, active_features, is_admin: users[0].id === 1, is_moderator: Boolean(users[0].is_moderator) || users[0].id === 1 }
     res.json({ user, lang: req.lang })
   } catch (err) {
     res.status(500).json({ error: 'Session check failed' })

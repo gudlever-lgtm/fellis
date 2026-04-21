@@ -151,6 +151,10 @@ export default {
     mollieCheckoutLabel: 'Betal med Mollie',
     mollieCheckoutLoading: 'Henter...',
     mollieCheckoutError: 'Kunne ikke oprette betaling. Prøv igen.',
+    label: 'Annonce',
+    upsell_text: 'Oplev fellis uden annoncer',
+    upsell_cta: 'Se funktioner',
+    upsell_dismiss: 'Nej tak',
   },
   en: {
     // Ad manager
@@ -304,6 +308,10 @@ export default {
     mollieCheckoutLabel: 'Pay with Mollie',
     mollieCheckoutLoading: 'Loading...',
     mollieCheckoutError: 'Could not create payment. Please try again.',
+    label: 'Ad',
+    upsell_text: 'Try fellis without ads',
+    upsell_cta: 'Explore features',
+    upsell_dismiss: 'No thanks',
   },
   sv: {
     // Ad manager
@@ -457,6 +465,10 @@ export default {
     mollieCheckoutLabel: 'Betala med Mollie',
     mollieCheckoutLoading: 'Laddar...',
     mollieCheckoutError: 'Kunde inte skapa betalning. Försök igen.',
+    label: 'Annons',
+    upsell_text: 'Upplev fellis utan annonser',
+    upsell_cta: 'Utforska funktioner',
+    upsell_dismiss: 'Nej tack',
   },
   no: {
     // Ad manager
@@ -610,6 +622,10 @@ export default {
     mollieCheckoutLabel: 'Betal med Mollie',
     mollieCheckoutLoading: 'Laster...',
     mollieCheckoutError: 'Kunne ikke opprette betaling. Vennligst prøv igjen.',
+    label: 'Annonse',
+    upsell_text: 'Opplev fellis uten annonser',
+    upsell_cta: 'Se funksjoner',
+    upsell_dismiss: 'Nei takk',
   },
   de: {
     // Ad manager
@@ -763,6 +779,10 @@ export default {
     mollieCheckoutLabel: 'Mit Mollie bezahlen',
     mollieCheckoutLoading: 'Wird geladen...',
     mollieCheckoutError: 'Zahlung konnte nicht erstellt werden. Bitte versuchen Sie es erneut.',
+    label: 'Anzeige',
+    upsell_text: 'Erlebe fellis ohne Werbung',
+    upsell_cta: 'Funktionen entdecken',
+    upsell_dismiss: 'Nein danke',
   },
   fr: {
     // Ad manager
@@ -916,6 +936,10 @@ export default {
     mollieCheckoutLabel: 'Payer avec Mollie',
     mollieCheckoutLoading: 'Chargement...',
     mollieCheckoutError: 'Impossible de créer le paiement. Veuillez réessayer.',
+    label: 'Annonce',
+    upsell_text: 'Vivez fellis sans publicités',
+    upsell_cta: 'Voir les fonctionnalités',
+    upsell_dismiss: 'Non merci',
   },
   es: {
     // Ad manager
@@ -1069,6 +1093,10 @@ export default {
     mollieCheckoutLabel: 'Pagar con Mollie',
     mollieCheckoutLoading: 'Cargando...',
     mollieCheckoutError: 'No se pudo crear el pago. Por favor, inténtalo de nuevo.',
+    label: 'Anuncio',
+    upsell_text: 'Experimenta fellis sin anuncios',
+    upsell_cta: 'Ver funciones',
+    upsell_dismiss: 'No gracias',
   },
   it: {
     // Ad manager
@@ -1222,6 +1250,10 @@ export default {
     mollieCheckoutLabel: 'Paga con Mollie',
     mollieCheckoutLoading: 'Caricamento...',
     mollieCheckoutError: 'Impossibile creare il pagamento. Riprova.',
+    label: 'Annuncio',
+    upsell_text: 'Vivi fellis senza pubblicità',
+    upsell_cta: 'Scopri le funzionalità',
+    upsell_dismiss: 'No grazie',
   },
   nl: {
     // Ad manager
@@ -1375,6 +1407,10 @@ export default {
     mollieCheckoutLabel: 'Betalen met Mollie',
     mollieCheckoutLoading: 'Laden...',
     mollieCheckoutError: 'Kon geen betaling aanmaken. Probeer het opnieuw.',
+    label: 'Advertentie',
+    upsell_text: 'Beleef fellis zonder advertenties',
+    upsell_cta: 'Functies bekijken',
+    upsell_dismiss: 'Nee bedankt',
   },
   pl: {
     // Ad manager
@@ -1528,6 +1564,10 @@ export default {
     mollieCheckoutLabel: 'Zapłać przez Mollie',
     mollieCheckoutLoading: 'Ładowanie...',
     mollieCheckoutError: 'Nie można utworzyć płatności. Spróbuj ponownie.',
+    label: 'Reklama',
+    upsell_text: 'Poznaj fellis bez reklam',
+    upsell_cta: 'Przeglądaj funkcje',
+    upsell_dismiss: 'Nie, dziękuję',
   },
   pt: {
     // Ad manager
@@ -1681,5 +1721,15 @@ export default {
     mollieCheckoutLabel: 'Pagar com Mollie',
     mollieCheckoutLoading: 'A carregar...',
     mollieCheckoutError: 'Não foi possível criar o pagamento. Por favor, tente novamente.',
+    label: 'Anúncio',
+    upsell_text: 'Experimenta o fellis sem anúncios',
+    upsell_cta: 'Ver funcionalidades',
+    upsell_dismiss: 'Não obrigado',
+  },
+  fi: {
+    label: 'Mainos',
+    upsell_text: 'Koe fellis ilman mainoksia',
+    upsell_cta: 'Tutustu ominaisuuksiin',
+    upsell_dismiss: 'Ei kiitos',
   },
 }

@@ -5,7 +5,8 @@ import { detectLanguage } from './utils/detectLanguage.js'
 import { formatPrice, formatPriceDKK } from './utils/currency.js'
 import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiRemoveConversationParticipant, apiMuteConversationParticipant, apiUploadAvatar, apiCheckSession, apiRequestAccountDelete, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiGetMarketplaceCategories, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiShareJob, apiUnshareJob, apiGetSharedJobs, apiGetJobSharedWith, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiSendEnableMfa, apiConfirmEnableMfa, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals, apiFetchCalendarReminders, apiCreateCalendarReminder, apiDeleteCalendarReminder, apiGetLinkedContent, apiFetchJobs, apiGetSuggestedUsers, apiAdminNotifyAll, apiLikeComment, apiAdminGetPlatformAds, apiAdminCreatePlatformAd, apiAdminUpdatePlatformAd, apiAdminDeletePlatformAd, apiAdminGetLockedUsers, apiAdminUnlockUser, apiFeedCompanyPosts, apiGetLivestreamSettings, apiSaveLivestreamSettings, apiGetLivestreamStats, apiGetLivestreamStatus,
   apiGetStreamKey, apiRegenerateStreamKey, apiGetMarketplaceAlerts, apiCreateMarketplaceAlert, apiUpdateMarketplaceAlert, apiDeleteMarketplaceAlert,
-  apiGetEurDkkRate, apiFetchFriendSuggestions } from './api.js'
+  apiGetEurDkkRate, apiFetchFriendSuggestions,
+  apiFetchNetworkFeed, apiFetchBusinessFeed } from './api.js'
 import {
   apiSharePost, apiUnsharePost, apiSavePost, apiUnsavePost, apiGetSavedPosts,
   apiGetPoll, apiVotePoll, apiCreatePoll,
@@ -30,6 +31,7 @@ import {
 import { siApplepay, siGooglepay, siVisa } from 'simple-icons'
 import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
+import FeaturesPage from './pages/FeaturesPage.jsx'
 import ReelsPage from './Reels.jsx'
 import InterestGraphPage from './InterestGraphPage.jsx'
 import ExplorePage from './pages/ExplorePage.jsx'
@@ -51,8 +53,15 @@ import RiddleBanner from './components/easter-eggs/RiddleBanner.jsx'
 import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiReverseGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiAssignAdfreedays, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness, apiFollowUser, apiUnfollowUser, apiGetFollowers, apiGetFollowing, apiPayForAd, apiBoostPost, apiTrackAdImpression, apiTrackAdClick, apiAdminGrowth, apiAdminOnlineNow, apiAdminGetBannedUsers, apiAdminGetAuditLog, apiAdminSearchUsers, apiAdminForceLogout, apiAdminDeleteUser, apiGetAdminStorageStats,
   apiContactBusiness, apiGetBusinessJobs, apiGetBusinessServices, apiGetBusinessEvents, apiGetBusinessEndorsements, apiGetBusinessPartners, apiSendPartnerRequest, apiSendBusinessInquiry, apiGetFollowedAnnouncements,
   apiGetMyServices,
+  apiGetCompanyProfile,
+  apiCreateCompanyProfile,
 } from './api.js'
 import BusinessBadge from './components/BusinessBadge.jsx'
+import CompanyProfileForm from './CompanyProfileForm.jsx'
+import PostCard from './PostCard.jsx'
+import FeedTabs from './FeedTabs.jsx'
+import PostComposer from './PostComposer.jsx'
+import { UpsellCard, UPSELL_KEY } from './AdBanner.jsx'
 import AdManager from './pages/AdManager.jsx'
 import BusinessHub from './pages/BusinessHub.jsx'
 import LocationAutocomplete from './components/LocationAutocomplete.jsx'
@@ -224,6 +233,7 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
   const [msgSsePayload, setMsgSsePayload] = useState(null)
   const [showModeModal, setShowModeModal] = useState(false)
   const [adsFree, setAdsFree] = useState(false)
+  const [activeFeatures, setActiveFeatures] = useState([])
   const [theme, setTheme] = useState(() => {
     const saved = localStorage.getItem('fellis_theme')
     if (saved) return saved
@@ -347,6 +357,7 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
       if (data?.user) {
         setCurrentUser(prev => ({ ...prev, ...data.user }))
         if (data.user.ads_free !== undefined) setAdsFree(Boolean(data.user.ads_free))
+        if (Array.isArray(data.user.active_features)) setActiveFeatures(data.user.active_features)
         // Mode from server is authoritative — sync to localStorage
         if (data.user.mode) {
           setMode(data.user.mode)
@@ -750,7 +761,7 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
                 onDismiss={() => setShowOnboardingChecklist(false)}
               />
             )}
-            <FeedPage lang={lang} t={t} currentUser={currentUser} mode={mode} adsFree={adsFree} highlightPostId={highlightPostId} onHighlightCleared={() => setHighlightPostId(null)}
+            <FeedPage lang={lang} t={t} currentUser={currentUser} mode={mode} adsFree={adsFree} hasAdFree={adsFree || activeFeatures.includes('ad_free')} highlightPostId={highlightPostId} onHighlightCleared={() => setHighlightPostId(null)}
               onViewProfile={(uid) => { setViewUserId(uid); navigateTo('view-profile') }}
               onViewOwnProfile={() => navigateTo('profile')}
               onViewBadges={(uid) => { if (!uid) { navigateTo('profile', { tab: 'badges' }) } else { setViewUserId(uid); navigateTo('view-profile') } }}
@@ -765,7 +776,7 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
               interestCategories={interestCategories}
             />
           </div>
-          <FeedSidebar lang={lang} t={t} adsFree={adsFree} onNavigate={navigateTo} />
+          <FeedSidebar lang={lang} t={t} adsFree={adsFree} hasAdFree={adsFree || activeFeatures.includes('ad_free')} onNavigate={navigateTo} />
         </div>
         {page === 'reels' && <ReelsPage t={t} lang={lang} currentUser={currentUser} initialReelId={navParam?.reelId} onViewProfile={(userId) => navigateTo('view-profile', { userId })} />}
         {page === 'explore' && <ExplorePage lang={lang} onViewProfile={(userId) => { setViewUserId(userId); navigateTo('view-profile') }} />}
@@ -796,6 +807,20 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
         {page === 'ads' && mode === 'business' && <AdManager lang={lang} t={t} currentUser={currentUser} />}
         {page === 'business-hub' && mode === 'business' && <BusinessHub lang={lang} t={t} currentUser={currentUser} onViewProfile={(id) => { setViewUserId(id); navigateTo('view-profile') }} onNavigate={navigateTo} mode={mode} JobsComponent={JobsPage} CompanyComponent={CompanyListPage} />}
         {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} initialCompanyId={navParam?.companyId} />}
+        {page === 'company-profile-form' && mode === 'business' && (
+          <div style={{ maxWidth: 600, margin: '0 auto', padding: '16px 8px' }}>
+            <CompanyProfileForm
+              lang={lang}
+              currentUser={currentUser}
+              initialData={navParam?.initialData || null}
+              onSuccess={(profile) => {
+                setCurrentUser(prev => ({ ...prev, company_profile: profile }))
+                navigateTo('profile')
+              }}
+              onCancel={() => navigateTo('profile')}
+            />
+          </div>
+        )}
         {page === 'analytics' && <AnalyticsPage lang={lang} t={t} currentUser={currentUser} onNavigate={navigateTo} />}
         {page === 'settings' && <SettingsPage lang={lang} t={t} currentUser={currentUser} mode={mode} adsFree={adsFree} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onLogout={onLogout} onOpenModeModal={() => setShowModeModal(true)} theme={theme} onThemeChange={setTheme} initialTab={navParam} />}
         {page === 'privacy' && <PrivacySection lang={lang} onLogout={onLogout} />}
@@ -810,6 +835,7 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
         )}
         {page === 'payment-success' && <PaymentSuccess lang={lang} onNavigate={navigateTo} />}
         {page === 'payment-failed' && <PaymentFailed lang={lang} onNavigate={navigateTo} />}
+        {page === 'features' && <FeaturesPage lang={lang} t={t} currentUser={currentUser} onNavigate={navigateTo} />}
         {page === 'search' && (
           <SearchPage
             lang={lang}
@@ -2303,7 +2329,7 @@ function LinkedContentCard({ type, id, lang, onNavigate }) {
 }
 
 // ── FeedSidebar ───────────────────────────────────────────────────────────────
-function FeedSidebar({ lang, t, adsFree, onNavigate }) {
+function FeedSidebar({ lang, t, adsFree, hasAdFree = false, onNavigate }) {
   const da = lang === 'da'
   const [events, setEvents] = useState(null)
   const [suggestedFriends, setSuggestedFriends] = useState(null)
@@ -2324,7 +2350,7 @@ function FeedSidebar({ lang, t, adsFree, onNavigate }) {
   return (
     <aside style={{ width: 280, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
       {/* Sidebar ad */}
-      <AdBanner placement="sidebar" adsFree={adsFree} lang={lang} onGoAdFree={adsFree ? null : () => onNavigate('settings', 'billing')} />
+      <AdBanner placement="sidebar" adsFree={adsFree} hasAdFree={hasAdFree} lang={lang} onGoAdFree={adsFree || hasAdFree ? null : () => onNavigate('features')} />
 
       {/* Boosted marketplace listings */}
       {boostedListings && boostedListings.length > 0 && (
@@ -2422,11 +2448,15 @@ function FeedSidebar({ lang, t, adsFree, onNavigate }) {
   )
 }
 
-function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onViewBadges, onNavigate, onBadgeCheck, feedEggRef, onTriggerChuck, onTriggerMatrix, onTriggerRickroll, onTriggerParty, onTriggerRetro, interestCategories = INTEREST_CATEGORIES }) {
+function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onViewBadges, onNavigate, onBadgeCheck, feedEggRef, onTriggerChuck, onTriggerMatrix, onTriggerRickroll, onTriggerParty, onTriggerRetro, interestCategories = INTEREST_CATEGORIES }) {
   const [posts, setPosts] = useState([])
   const [feedCategoryFilter, setFeedCategoryFilter] = useState(null)
   const [feedMode, setFeedMode] = useState(mode || 'privat')
   const feedModeRef = useRef(mode || 'privat')
+  const [feedContext, setFeedContext] = useState('social') // 'social' | 'network' | 'business'
+  const [upsellDismissed, setUpsellDismissed] = useState(() => !!sessionStorage.getItem(UPSELL_KEY))
+  const feedContextRef = useRef('social')
+  const [postContext, setPostContext] = useState('social') // 'social' | 'professional' | 'business'
   const [pinnedPost, setPinnedPost] = useState(null)
   const pinnedRef = useRef(null)
   const [insightsPostId, setInsightsPostId] = useState(null)
@@ -2699,7 +2729,11 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     if (isFetchingRef.current) return
     isFetchingRef.current = true
     setLoadingPage(true)
-    const data = await apiFetchFeed(nextCursorRef.current, PAGE_SIZE, feedModeRef.current)
+    const data = feedContextRef.current === 'network'
+      ? await apiFetchNetworkFeed(nextCursorRef.current, PAGE_SIZE)
+      : feedContextRef.current === 'business'
+      ? await apiFetchBusinessFeed(nextCursorRef.current, PAGE_SIZE)
+      : await apiFetchFeed(nextCursorRef.current, PAGE_SIZE, feedModeRef.current)
     if (data?.posts) {
       setPosts(prev => {
         const existingIds = new Set(prev.map(p => p.id))
@@ -2723,14 +2757,18 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     isFetchingRef.current = false
   }, []) // stable — all mutable reads go through refs
 
-  // Reload posts whenever feedMode changes (also handles initial load via feedMode initial value)
+  // Reload posts whenever feedMode or feedContext changes
   useEffect(() => {
     feedModeRef.current = feedMode
+    feedContextRef.current = feedContext
     setPosts([])
     nextCursorRef.current = null
     isFetchingRef.current = false
     setHasMore(true)
-    apiFetchFeed(null, PAGE_SIZE, feedMode).then(data => {
+    const fetchFn = feedContext === 'network' ? apiFetchNetworkFeed
+      : feedContext === 'business' ? apiFetchBusinessFeed
+      : (cur, size) => apiFetchFeed(cur, size, feedMode)
+    fetchFn(null, PAGE_SIZE).then(data => {
       if (data?.posts) {
         setPosts(data.posts)
         setLikedPosts(new Set(data.posts.filter(p => p.liked).map(p => p.id)))
@@ -2739,7 +2777,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         setHasMore(data.nextCursor != null)
       }
     })
-  }, [feedMode])
+  }, [feedMode, feedContext])
 
   // Initial load (config + non-feed data)
   useEffect(() => {
@@ -2847,7 +2885,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   }, [])
 
 
-  const doCreatePost = useCallback((text, files, schedAt, categories, loc, tagged, linked) => {
+  const doCreatePost = useCallback((text, files, schedAt, categories, loc, tagged, linked, context) => {
     setPosting(true)
     setUploadProgress(0)
     setUploadPhase(files?.length ? 'upload' : 'submitting')
@@ -2855,7 +2893,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       setUploadPhase(phase)
       setUploadProgress(total > 0 ? Math.round((loaded / total) * 100) : 0)
     }
-    apiCreatePost(text, files, schedAt || undefined, categories?.size ? [...categories] : undefined, loc || undefined, tagged?.length ? tagged : undefined, linked || undefined, onProgress).then(data => {
+    apiCreatePost(text, files, schedAt || undefined, categories?.size ? [...categories] : undefined, loc || undefined, tagged?.length ? tagged : undefined, linked || undefined, onProgress, undefined, context || 'social').then(data => {
       if (data?.scheduled) {
         // Scheduled post — don't add to feed, just show a toast
         return
@@ -2907,6 +2945,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       setShowTagPicker(false)
       setShowAttachPicker(false)
       setCatPickerSearch('')
+      setPostContext('social')
       if (textareaRef.current) textareaRef.current.style.height = 'auto'
     }).catch(err => {
       console.error('Failed to create post:', err)
@@ -2956,8 +2995,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       return
     }
     const schedAt = scheduleEnabled && scheduledAt ? scheduledAt : null
-    doCreatePost(text, files, schedAt, postCategories, postLocation, taggedUsers, linkedContent)
-  }, [newPostText, mediaFiles, providerMediaUrls, doCreatePost, scheduleEnabled, scheduledAt, postCategories, postLocation, taggedUsers, linkedContent])
+    doCreatePost(text, files, schedAt, postCategories, postLocation, taggedUsers, linkedContent, postContext)
+  }, [newPostText, mediaFiles, providerMediaUrls, doCreatePost, scheduleEnabled, scheduledAt, postCategories, postLocation, taggedUsers, linkedContent, postContext])
 
   const toggleLike = useCallback((id, emoji) => {
     const isLiked = likedPosts.has(id)
@@ -3494,6 +3533,34 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
               </div>
             )}
 
+            {/* Post context selector — shown for network/business users when composing */}
+            {postExpanded && (currentUser.mode === 'network' || currentUser.mode === 'business') && (
+              <div style={{ padding: '6px 12px 0', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {(currentUser.mode === 'network' ? ['social', 'professional'] : ['social', 'business']).map(ctx => {
+                  const ctxColor = ctx === 'professional' ? '#0D9488' : ctx === 'business' ? '#D97706' : '#1877F2'
+                  const ctxBg   = ctx === 'professional' ? '#F0FDFA'  : ctx === 'business' ? '#FFFBEB'  : '#EBF5FF'
+                  const active  = postContext === ctx
+                  return (
+                    <button
+                      key={ctx}
+                      type="button"
+                      onMouseDown={e => e.preventDefault()}
+                      onClick={() => setPostContext(ctx)}
+                      style={{
+                        padding: '3px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                        border: `1px solid ${active ? ctxColor : '#e5e7eb'}`,
+                        background: active ? ctxBg : '#f9fafb',
+                        color: active ? ctxColor : '#6b7280',
+                        transition: 'all 0.1s',
+                      }}
+                    >
+                      {t.postContext?.[ctx] || ctx}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+
             {/* Category row — shown when post has text or categories selected */}
             {(newPostText.trim().length >= 5 || postCategories.size > 0) && (
               <div style={{ padding: '6px 12px 0' }}>
@@ -3913,27 +3980,13 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       {/* Reels strip */}
       <ReelsStrip lang={lang} t={t} onNavigate={onNavigate} />
 
-      {/* Feed mode toggle — Community (privat) vs Business — only for business accounts */}
-      {mode === 'business' && (
-        <div style={{ display: 'flex', borderBottom: '2px solid #e5e7eb', background: '#fff' }}>
-          {['privat', 'business'].map(m => (
-            <button
-              key={m}
-              onClick={() => setFeedMode(m)}
-              style={{
-                flex: 1, padding: '10px 0', fontSize: 14, fontWeight: 600,
-                border: 'none',
-                borderBottom: feedMode === m ? '2px solid #1877F2' : '2px solid transparent',
-                marginBottom: -2, background: 'none', cursor: 'pointer',
-                color: feedMode === m ? '#1877F2' : '#6b7280',
-                fontFamily: 'inherit', transition: 'color 0.15s',
-              }}
-            >
-              {m === 'privat' ? t.feedModePrivat : t.feedModeBusiness}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* Feed context tabs */}
+      <FeedTabs
+        viewerMode={currentUser.mode}
+        t={t}
+        activeTab={feedContext === 'network' ? 'network' : 'private'}
+        onTabChange={(tab) => setFeedContext(tab === 'network' ? 'network' : 'social')}
+      />
 
       {/* Memories card — on this day */}
       <MemoriesCard
@@ -4179,7 +4232,10 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         const pi = postIdx++
         return (
           <Fragment key={post.id}>
-            {(pi === 1 || (pi > 1 && pi % 4 === 0)) && <AdBanner placement="feed" adsFree={adsFree} lang={lang} onGoAdFree={adsFree ? null : () => onNavigate('settings', 'billing')} />}
+            {pi > 0 && pi % 8 === 0 && <AdBanner placement="feed" adsFree={adsFree} hasAdFree={hasAdFree} lang={lang} t={t} viewerMode={mode} activeContext={feedContext === 'network' ? 'professional' : feedContext} onGoAdFree={adsFree || hasAdFree ? null : () => onNavigate('features')} />}
+            {pi === 3 && feedContext === 'social' && !adsFree && !hasAdFree && !upsellDismissed && (
+              <UpsellCard t={t} lang={lang} onGoAdFree={() => onNavigate('features')} onDismiss={() => { sessionStorage.setItem(UPSELL_KEY, '1'); setUpsellDismissed(true) }} />
+            )}
             {pi >= SUGGEST_EVERY && pi % SUGGEST_EVERY === 0 && (() => {
               const sp = suggestedPosts[Math.floor(pi / SUGGEST_EVERY) - 1]
               return sp ? <SuggestedPostCard key={`sug-${sp.id}`} post={sp} lang={lang} onViewProfile={onViewProfile} /> : null
@@ -4192,58 +4248,45 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
               const dc = discoveryCards[Math.floor(pi / DISCOVERY_EVERY - 1) % discoveryCards.length]
               return dc ? <DiscoveryCard key={`discovery-${dc.type}-${dc.id}-${pi}`} suggestion={dc} lang={lang} /> : null
             })()}
-          <div className="p-card p-post"
-            data-post-id={post.id}
-            data-categories={post.categories?.length ? JSON.stringify(post.categories) : undefined}
-            ref={post.isSponsored && post.adId ? (el) => { if (el) { apiTrackAdImpression(post.adId).catch(() => {}) } } : undefined}
-          >
-            {post.isSponsored && (
-              <div style={{ fontSize: 11, color: '#888', fontWeight: 600, marginBottom: 6, letterSpacing: '0.02em' }}>
-                {t.sponsored || (t.sponsored)}
-              </div>
-            )}
-            <div className="p-post-header">
-              <PostAvatarWithBadge
-                post={post}
-                lang={lang}
-                isOwn={isOwn}
-                onViewProfile={onViewProfile}
-                onViewOwnProfile={onViewOwnProfile}
-                onViewBadges={onViewBadges}
-              />
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <div
-                    className="p-post-author"
-                    style={{ cursor: 'pointer' }}
+          <PostCard
+            post={post}
+            viewerMode={mode}
+            t={t}
+            lang={lang}
+            isOwn={isOwn}
+            onViewProfile={onViewProfile}
+            onViewOwnProfile={onViewOwnProfile}
+            onViewBadges={onViewBadges}
+            nameSuffix={
+              <>
+                {post.authorMode === 'business' && (
+                  <BusinessBadge
+                    lang={lang}
+                    size="xs"
                     onClick={() => isOwn ? onViewOwnProfile?.() : (post.authorId && onViewProfile?.(post.authorId))}
-                  >{post.author}</div>
-                  {post.authorMode === 'business' && (
-                    <BusinessBadge
-                      lang={lang}
-                      size="xs"
-                      onClick={() => isOwn ? onViewOwnProfile?.() : (post.authorId && onViewProfile?.(post.authorId))}
-                    />
-                  )}
-                  {(() => {
-                    const relType = !isOwn && post.authorId && rels[String(post.authorId)]
-                    // Use server-supplied isFamily if local rels don't reflect it yet
-                    const effectiveRelType = relType || (!isOwn && post.isFamily ? 'family' : null)
-                    if (!effectiveRelType) return null
-                    if (mode === 'business' && effectiveRelType === 'family') return null
-                    const label = { family: t.relFamily, colleague: t.relColleague, close: t.relCloseFriend, neighbor: t.relNeighbor }[effectiveRelType]
-                    if (!label) return null
-                    const color = mode === 'business'
-                      ? { colleague: '#1877F2', close: '#2D6A4F', neighbor: '#7C6F64' }[effectiveRelType] || '#888'
-                      : { family: '#E07B39', colleague: '#1877F2', close: '#2D6A4F', neighbor: '#7C6F64' }[effectiveRelType] || '#888'
-                    return <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 10, background: color + '18', color, letterSpacing: '0.02em', flexShrink: 0 }}>{label}</span>
-                  })()}
-                </div>
-                <div className="p-post-time">
-                  {post.time[lang]}
-                  {(post.placeName || post.location?.name) && <span style={{ marginLeft: 6, color: '#2D6A4F', fontSize: 11 }}>📍 {t.checkedInAt} {post.placeName || post.location.name}</span>}
-                </div>
+                  />
+                )}
+                {(() => {
+                  const relType = !isOwn && post.authorId && rels[String(post.authorId)]
+                  const effectiveRelType = relType || (!isOwn && post.isFamily ? 'family' : null)
+                  if (!effectiveRelType) return null
+                  if (mode === 'business' && effectiveRelType === 'family') return null
+                  const label = { family: t.relFamily, colleague: t.relColleague, close: t.relCloseFriend, neighbor: t.relNeighbor }[effectiveRelType]
+                  if (!label) return null
+                  const color = mode === 'business'
+                    ? { colleague: '#1877F2', close: '#2D6A4F', neighbor: '#7C6F64' }[effectiveRelType] || '#888'
+                    : { family: '#E07B39', colleague: '#1877F2', close: '#2D6A4F', neighbor: '#7C6F64' }[effectiveRelType] || '#888'
+                  return <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 10, background: color + '18', color, letterSpacing: '0.02em', flexShrink: 0 }}>{label}</span>
+                })()}
+              </>
+            }
+            timeContent={
+              <div className="p-post-time">
+                {post.time[lang]}
+                {(post.placeName || post.location?.name) && <span style={{ marginLeft: 6, color: '#2D6A4F', fontSize: 11 }}>📍 {t.checkedInAt} {post.placeName || post.location.name}</span>}
               </div>
+            }
+            menuContent={
               <div style={{ position: 'relative' }}>
                 <button
                   onClick={() => setPostMenu(p => p === post.id ? null : post.id)}
@@ -4335,7 +4378,16 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   </>
                 )}
               </div>
-            </div>
+            }
+            data-post-id={post.id}
+            data-categories={post.categories?.length ? JSON.stringify(post.categories) : undefined}
+            ref={post.isSponsored && post.adId ? (el) => { if (el) { apiTrackAdImpression(post.adId).catch(() => {}) } } : undefined}
+          >
+            {post.isSponsored && (
+              <div style={{ fontSize: 11, color: '#888', fontWeight: 600, marginBottom: 6, letterSpacing: '0.02em' }}>
+                {t.sponsored}
+              </div>
+            )}
             {!isCollapsed && (
             <>
             {editingPostId === post.id ? (
@@ -4612,7 +4664,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
             )}
             </>
             )}
-          </div>
+          </PostCard>
           </Fragment>
         )
       }) /* close items.map */
@@ -4695,7 +4747,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       })()}
 
       {/* Ad banner — always shown after posts list */}
-      <AdBanner placement="feed" adsFree={adsFree} lang={lang} onGoAdFree={adsFree ? null : () => onNavigate('settings', 'billing')} />
+      <AdBanner placement="feed" adsFree={adsFree} hasAdFree={hasAdFree} lang={lang} t={t} viewerMode={mode} activeContext={feedContext === 'network' ? 'professional' : feedContext} onGoAdFree={adsFree || hasAdFree ? null : () => onNavigate('features')} />
 
       {/* Bottom sentinel — triggers loading next page (infinite scroll) */}
       {hasMore && (
@@ -4775,6 +4827,8 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
   const [familyFriends, setFamilyFriends] = useState([])
   const [profileTab, setProfileTab] = useState(initialTab || 'about')
   const [myCompanies, setMyCompanies] = useState([])
+  const [myCompanyProfile, setMyCompanyProfile] = useState(null)
+  const [myCompanyProfileLoaded, setMyCompanyProfileLoaded] = useState(false)
   const [interests, setInterests] = useState([])
   const [interestsSaving, setInterestsSaving] = useState(false)
   const [interestsSavedMsg, setInterestsSavedMsg] = useState('')
@@ -4862,7 +4916,15 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
       .then(r => r.ok ? r.json() : null)
       .then(data => setMyCompanies((data?.companies || []).filter(c => c.member_role === 'owner')))
       .catch(() => {})
-  }, [currentUser.name, mode, onUserUpdate])
+    if (mode === 'business' && currentUser.id) {
+      apiGetCompanyProfile(currentUser.id)
+        .then(data => { setMyCompanyProfile(data && !data.error ? data : null) })
+        .catch(() => { setMyCompanyProfile(null) })
+        .finally(() => setMyCompanyProfileLoaded(true))
+    } else {
+      setMyCompanyProfileLoaded(true)
+    }
+  }, [currentUser.name, currentUser.id, mode, onUserUpdate])
 
   const avatarUrl = profile.avatarUrl || profile.avatar_url
   const avatarSrc = avatarUrl
@@ -4983,6 +5045,38 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
             ✏️ {t.editInterests}
           </button>
         </div>
+
+        {/* Company profile card — business users only */}
+        {mode === 'business' && myCompanyProfileLoaded && (
+          <div className="p-card p-login-info-card" style={{ marginBottom: 16, borderLeft: '3px solid #FCD34D' }}>
+            <h3 className="p-section-title" style={{ color: '#92400E' }}>
+              🏢 {t.company?.form?.heading || t.businessProfile}
+            </h3>
+            {myCompanyProfile ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 10 }}>
+                {myCompanyProfile.logo_url && (
+                  <img src={myCompanyProfile.logo_url} alt="" style={{ width: 48, height: 48, borderRadius: 8, objectFit: 'cover', marginBottom: 4 }} />
+                )}
+                <strong style={{ fontSize: 15, color: '#78350F' }}>{myCompanyProfile.company_name}</strong>
+                {myCompanyProfile.category && <span style={{ fontSize: 12, color: '#B45309' }}>🏷 {t.company?.categories?.[myCompanyProfile.category] || myCompanyProfile.category}</span>}
+                {myCompanyProfile.website && <span style={{ fontSize: 12, color: '#B45309' }}>🌐 {myCompanyProfile.website.replace(/^https?:\/\//, '')}</span>}
+                {myCompanyProfile.description && <p style={{ fontSize: 12, color: '#78350F', margin: '4px 0 0', fontStyle: 'italic' }}>{myCompanyProfile.description}</p>}
+              </div>
+            ) : (
+              <p style={{ fontSize: 13, color: '#B45309', margin: '0 0 10px' }}>
+                {t.company?.form?.heading_placeholder || 'No company profile yet'}
+              </p>
+            )}
+            <button
+              onClick={() => onNavigate('company-profile-form', { initialData: myCompanyProfile || null })}
+              style={{ padding: '7px 16px', borderRadius: 8, border: '1.5px solid #FCD34D', background: myCompanyProfile ? '#FFFBEB' : '#D97706', color: myCompanyProfile ? '#92400E' : '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}
+            >
+              {myCompanyProfile
+                ? (t.company?.form?.edit_btn || 'Edit company')
+                : (t.company?.form?.create_btn || 'Create company profile')}
+            </button>
+          </div>
+        )}
 
         {/* Tags, relation, website */}
         {(tags.length > 0 || relationshipStatus || website) && (
@@ -8768,6 +8862,8 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
   const [showContact, setShowContact] = useState(false)
   const [contactForm, setContactForm] = useState({ topic: '', message: '' })
   const [contactSent, setContactSent] = useState(false)
+  // Company profile (business mode)
+  const [companyProfile, setCompanyProfile] = useState(null)
 
   useEffect(() => {
     if (!userId) return
@@ -8779,6 +8875,7 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
         if (data.mode === 'business') {
           setIsFollowing(!!data.isFollowing)
           setFollowerCount(Number(data.followerCount || 0))
+          apiGetCompanyProfile(userId).then(d => { if (d) setCompanyProfile(d) })
           // Load business extras
           apiGetBusinessServices(userId).then(d => setBizServices(d?.services || []))
           apiGetBusinessJobs(userId).then(d => setBizJobs(d?.jobs || []))
@@ -8840,7 +8937,11 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
         <div className="p-card" style={{ padding: 40, textAlign: 'center', color: '#aaa' }}>…</div>
       ) : (
         <div className="p-card p-profile-card">
-          <div className="p-profile-banner" />
+          <div className="p-profile-banner" style={
+            profile.mode === 'network' ? { background: 'linear-gradient(135deg, #0D9488 0%, #14B8A6 100%)' } :
+            profile.mode === 'business' ? { background: 'linear-gradient(135deg, #D97706 0%, #F59E0B 100%)' } :
+            undefined
+          } />
           <div className="p-profile-info">
             <div className="p-profile-avatar-wrapper" style={{ position: 'relative' }} onClick={handleAvatarClick}>
               {avatarSrc ? (
@@ -8859,12 +8960,22 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
               <h2 className="p-profile-name" style={{ margin: 0 }}>{profile.name}</h2>
               {profile.mode === 'business' && <BusinessBadge lang={lang} onClick={() => onNavigate?.('business-hub')} />}
+              {profile.mode === 'network' && (
+                <span style={{ fontSize: 12, background: '#CCFBF1', color: '#0D9488', border: '1px solid #5EEAD4', borderRadius: 20, padding: '2px 10px', fontWeight: 700 }}>
+                  {t.network?.badge || 'Netværk'}
+                </span>
+              )}
               {profile.is_verified && (
                 <span style={{ fontSize: 12, background: '#D1FAE5', color: '#065F46', border: '1px solid #6EE7B7', borderRadius: 20, padding: '2px 10px', fontWeight: 700 }}>{t.cvrVerifiedBadge}</span>
               )}
             </div>
             {profile.handle && <p className="p-profile-handle">@{profile.handle}</p>}
             {profile.bio?.[lang] && <p className="p-profile-bio">{profile.bio[lang]}</p>}
+            {profile.mode === 'network' && (profile.professionalTitle || profile.industry) && (
+              <p style={{ margin: '4px 0 0', fontSize: 13, color: '#0D9488', fontWeight: 500 }}>
+                {[profile.professionalTitle, profile.industry].filter(Boolean).join(' · ')}
+              </p>
+            )}
             <div className="p-profile-meta">
               {profile.location && <span>📍 {profile.location}</span>}
               {profile.birthday && !isNaN(new Date(profile.birthday)) && <span>🎂 {new Date(profile.birthday).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'long' })}</span>}
@@ -8872,13 +8983,44 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
               {profile.joinDate && <span>📅 {t.joined2} {new Date(profile.joinDate).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long' })}</span>}
             </div>
             <div className="p-friend-profile-stats" style={{ justifyContent: 'center', marginTop: 12 }}>
-              <div className="p-friend-profile-stat"><strong>{profile.friendCount}</strong><span>{t.friendsLabel}</span></div>
+              <div className="p-friend-profile-stat">
+                <strong>{profile.friendCount}</strong>
+                <span>{profile.mode === 'network' ? (t.network?.connections || t.friendsLabel) : t.friendsLabel}</span>
+              </div>
               {profile.mutualCount > 0 && <div className="p-friend-profile-stat"><strong>{profile.mutualCount}</strong><span>{t.mutualFriends}</span></div>}
               <div className="p-friend-profile-stat"><strong>{profile.postCount}</strong><span>{t.postsLabel}</span></div>
               {profile.mode === 'business' && (
-                <div className="p-friend-profile-stat"><strong>{followerCount}</strong><span>{t.followers}</span></div>
+                <div className="p-friend-profile-stat"><strong>{followerCount}</strong><span>{t.business?.followers || t.followers}</span></div>
               )}
             </div>
+
+            {/* Company profile card (new business mode) */}
+            {profile.mode === 'business' && companyProfile && (
+              <div style={{ margin: '12px 0', padding: '12px 14px', background: '#FFFBEB', borderRadius: 10, border: '1px solid #FCD34D', fontSize: 13, color: '#92400E' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                  {companyProfile.logo_url && (
+                    <img src={companyProfile.logo_url} alt="" style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />
+                  )}
+                  {companyProfile.company_name && (
+                    <strong style={{ fontSize: 15, color: '#78350F' }}>{companyProfile.company_name}</strong>
+                  )}
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {companyProfile.cvr && (
+                    <span>{t.business?.cvr || 'CVR'}: <strong>{companyProfile.cvr}</strong></span>
+                  )}
+                  {companyProfile.category && <span>🏷 {companyProfile.category}</span>}
+                  {companyProfile.website && (
+                    <a href={companyProfile.website} target="_blank" rel="noopener noreferrer" style={{ color: '#B45309', fontWeight: 600 }} onClick={e => e.stopPropagation()}>
+                      🌐 {companyProfile.website.replace(/^https?:\/\//, '')}
+                    </a>
+                  )}
+                  {companyProfile.description && (
+                    <p style={{ width: '100%', margin: '4px 0 0', color: '#78350F', fontStyle: 'italic' }}>{companyProfile.description}</p>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Business fields */}
             {profile.mode === 'business' && (
@@ -8933,6 +9075,16 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
                   {isFollowing ? `✓ ${t.unfollowBusiness}` : `+ ${t.followBusiness}`}
                 </button>
               )}
+              {/* Kontakt button — business profile */}
+              {profile.mode === 'business' && profile.id !== currentUser.id && !isBlocked && (
+                <button
+                  className="p-friend-msg-btn"
+                  style={{ background: '#FEF3C7', color: '#D97706', border: '1px solid #FCD34D' }}
+                  onClick={() => onMessage(profile)}
+                >
+                  ✉ {t.business?.contact_btn || 'Kontakt'}
+                </button>
+              )}
               {/* Meeting inquiry button — business profile only */}
               {profile.mode === 'business' && profile.id !== currentUser.id && !isBlocked && (
                 <button
@@ -8973,6 +9125,7 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
                 >
                   {requestSent
                     ? (t.requestSent2)
+                    : profile.mode === 'network' ? (t.network?.connect_btn || t.addFriend2)
                     : (t.addFriend2)}
                 </button>
               ) : null}

@@ -44,6 +44,7 @@ async function request(path, options = {}) {
       console.warn(`API ${path} → ${res.status}`, body.error || '')
       return null
     }
+    if (res.status === 204) return null
     return await res.json()
   } catch (err) {
     if (err.message === 'Failed to fetch') return null // Server not running
@@ -204,6 +205,18 @@ export async function apiFetchFeed(cursor = null, limit = 20, mode = null, opts 
   return await request(`/api/feed?${params}`)
 }
 
+export async function apiFetchNetworkFeed(cursor = null, limit = 20) {
+  const params = new URLSearchParams({ limit: String(limit) })
+  if (cursor) params.set('cursor', cursor)
+  return await request(`/api/feed/network?${params}`)
+}
+
+export async function apiFetchBusinessFeed(cursor = null, limit = 20) {
+  const params = new URLSearchParams({ limit: String(limit) })
+  if (cursor) params.set('cursor', cursor)
+  return await request(`/api/feed/business?${params}`)
+}
+
 export async function apiPreflightPost(text) {
   return await request('/api/feed/preflight', { method: 'POST', body: JSON.stringify({ text }) })
 }
@@ -220,7 +233,7 @@ export async function apiGetDiscovery() {
 // without any progress) instead of a wall-clock timeout, so slow-but-
 // steady uploads on mobile connections are not killed prematurely.
 function uploadPostOnce(payload, onProgress) {
-  const { text, files, schedAt, categories, location, taggedUsers, linkedContent } = payload
+  const { text, files, schedAt, categories, location, taggedUsers, linkedContent, postContext } = payload
   const total = files.reduce((sum, f) => sum + f.size, 0)
   const STALL_MS = 2 * 60 * 1000
 
@@ -237,6 +250,7 @@ function uploadPostOnce(payload, onProgress) {
     if (locLng != null) form.append('geo_lng', locLng)
     if (taggedUsers?.length) form.append('tagged_users', JSON.stringify(taggedUsers))
     if (linkedContent?.type) { form.append('linked_type', linkedContent.type); form.append('linked_id', linkedContent.id) }
+    if (postContext && postContext !== 'social') form.append('post_context', postContext)
     for (const file of files) form.append('media', file)
 
     const xhr = new XMLHttpRequest()
@@ -331,7 +345,7 @@ if (typeof window !== 'undefined') {
   installAutoFlush((payload) => uploadPostResilient(payload))
 }
 
-export async function apiCreatePost(text, mediaFiles, scheduledAt, categories, location, taggedUsers, linkedContent, onProgress, linkedServiceId) {
+export async function apiCreatePost(text, mediaFiles, scheduledAt, categories, location, taggedUsers, linkedContent, onProgress, linkedServiceId, postContext = null) {
   if (mediaFiles?.length) {
     // Pre-flight: validate file sizes client-side (50MB per file, 200MB total)
     const MAX_FILE = 50 * 1024 * 1024
@@ -352,7 +366,7 @@ export async function apiCreatePost(text, mediaFiles, scheduledAt, categories, l
     }
     const payload = {
       text, files: mediaFiles, schedAt: scheduledAt,
-      categories, location, taggedUsers, linkedContent,
+      categories, location, taggedUsers, linkedContent, postContext,
     }
     try {
       return await uploadPostResilient(payload, onProgress)
@@ -383,6 +397,7 @@ export async function apiCreatePost(text, mediaFiles, scheduledAt, categories, l
       ...(taggedUsers?.length ? { tagged_users: taggedUsers } : {}),
       ...(linkedContent?.type && linkedContent.type !== 'service' ? { linked_type: linkedContent.type, linked_id: linkedContent.id } : {}),
       ...(linkedContent?.type === 'service' || linkedServiceId ? { linked_service_id: linkedContent?.id ?? linkedServiceId } : {}),
+      ...(postContext && postContext !== 'social' ? { post_context: postContext } : {}),
     }),
   })
 }
@@ -464,6 +479,9 @@ export async function apiFetchFriends() {
 
 export async function apiSendFriendRequest(userId) {
   return await request(`/api/friends/request/${userId}`, { method: 'POST' })
+}
+export async function apiSendConnectionRequest(userId) {
+  return await request('/api/connections/request', { method: 'POST', body: JSON.stringify({ user_id: userId }) })
 }
 
 export async function apiFetchFriendRequests() {
@@ -954,6 +972,9 @@ export async function apiWithdrawModeratorRequest() {
 export async function apiGetAnalytics(days = 30) {
   return await request(`/api/analytics?days=${days}`)
 }
+export async function apiGetPostAnalytics(postId) {
+  return await request(`/api/analytics/post/${postId}`)
+}
 
 export async function apiGetVisitorStats(days = 30) {
   return await request(`/api/analytics/visitor-stats?days=${days}`)
@@ -1367,6 +1388,9 @@ export async function apiDenyModeratorRequest(id, reason) {
 export async function apiCreateAd(data) {
   return await request('/api/ads', { method: 'POST', body: JSON.stringify(data) })
 }
+export async function apiCreateAdCampaign(data) {
+  return await request('/api/ads/campaign', { method: 'POST', body: JSON.stringify(data) })
+}
 export async function apiGetMyAds() {
   return await request('/api/ads/mine')
 }
@@ -1403,6 +1427,9 @@ export async function apiRecordAdClick(id) {
 export async function apiServeAds(placement) {
   return await request(`/api/content?section=${placement}`)
 }
+export async function apiFetchAdBanner() {
+  return await request('/api/ads/banner')
+}
 
 // ── Subscription ──────────────────────────────────────────────────────────────
 export async function apiGetSubscription() {
@@ -1431,6 +1458,16 @@ export async function apiGetAdminStatDetail(type) {
 }
 export async function apiGetMollieStatus() {
   return await request('/api/mollie/payment/status')
+}
+
+export async function apiFetchPaymentFeatures() {
+  return await request('/api/payment/features')
+}
+export async function apiStartFeaturePayment(feature) {
+  return await request('/api/payment/start', { method: 'POST', body: JSON.stringify({ feature }) })
+}
+export async function apiCancelFeaturePayment(feature) {
+  return await request('/api/payment/cancel', { method: 'POST', body: JSON.stringify({ feature }) })
 }
 
 // ── Admin ad settings ─────────────────────────────────────────────────────────
@@ -2200,3 +2237,13 @@ export const apiGetBusinessPartners = (id) => request(`/api/businesses/${id}/par
 // Feature 10: Appointment / inquiry via DM
 export const apiSendBusinessInquiry = (id, subject, preferred_date, message) =>
   request(`/api/businesses/${id}/inquiry`, { method: 'POST', body: JSON.stringify({ subject, preferred_date, message }) })
+
+// User type selector
+export const apiUpdateUserType = (mode) =>
+  request('/api/user/type', { method: 'PATCH', body: JSON.stringify({ mode }) })
+
+export const apiGetUserFeatures = () => request('/api/user/features')
+export const apiGetUserType = (userId) => request(`/api/user/${userId}/type`)
+export const apiGetCompanyProfile = (userId) => request(`/api/company/profile/${userId}`)
+export const apiCreateCompanyProfile = (data) =>
+  request('/api/company/profile', { method: 'POST', body: JSON.stringify(data) })

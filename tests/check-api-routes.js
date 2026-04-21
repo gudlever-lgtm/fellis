@@ -899,4 +899,123 @@ if (translationsErrors.length > 0) {
   console.log(`${GREEN}✓ GET /api/translations is registered, validates lang + feature, supports all ${REQUIRED_LANGS.length} languages and ${REQUIRED_FEATURES.length} feature namespaces.${RESET}\n`)
 }
 
+// ── User-type, company-profile, network-profile, and feature-flag routes ──────
+//
+// These routes implement the user-type system (private / network / business).
+// All must be registered on the server and never return 404.
+//
+//   PATCH /api/user/type               → 200 (authenticated) | 400 (bad mode) | 401
+//   GET   /api/user/:id/type           → 200 (public)        | 400 (bad id)   | 404
+//   POST  /api/company/profile         → 200 (business)      | 403 (wrong type)| 401
+//   GET   /api/company/profile/:userId → 200 (public)        | 404 (not found)
+//   PATCH /api/user/network-profile    → 200 (network)       | 403 (wrong type)| 401
+//   GET   /api/user/features           → 200 (authenticated) | 401
+//
+const REQUIRED_USER_TYPE_ROUTES = [
+  'PATCH /api/user/type',
+  'GET /api/user/:id/type',
+  'POST /api/company/profile',
+  'GET /api/company/profile/:userId',
+  'PATCH /api/user/network-profile',
+  'GET /api/user/features',
+]
+
+const missingUserTypeRoutes = REQUIRED_USER_TYPE_ROUTES.filter(r => {
+  const [method, p] = r.split(' ')
+  return !normServerRoutes.has(`${method} ${normaliseServerPath(p)}`)
+})
+
+if (missingUserTypeRoutes.length > 0) {
+  console.log(`${RED}✗ Missing required user-type server routes:${RESET}`)
+  for (const r of missingUserTypeRoutes) console.log(`  ${RED}${r}${RESET}`)
+  console.log()
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ All ${REQUIRED_USER_TYPE_ROUTES.length} user-type routes (type/company/network/features) are registered on the server.${RESET}\n`)
+}
+
+// Verify PATCH /api/user/type validates the mode parameter
+const userTypeRoutesSrc = readFileSync(resolve(root, 'server/routes/users.js'), 'utf8')
+if (!userTypeRoutesSrc.includes("'private'") || !userTypeRoutesSrc.includes("'network'") || !userTypeRoutesSrc.includes("'business'")) {
+  console.log(`${RED}✗ PATCH /api/user/type is missing mode validation for 'private', 'network', or 'business'.${RESET}\n`)
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ PATCH /api/user/type validates mode against private/network/business enum.${RESET}\n`)
+}
+
+// ── Feed context routes (post_context feed separation) ────────────────────────
+//
+//   GET  /api/feed/network  → 200 (network/business) | 401 (other modes)
+//   GET  /api/feed/business → 200 (authenticated)    | 401 (unauthenticated)
+//
+const REQUIRED_FEED_CONTEXT_ROUTES = [
+  'GET /api/feed/network',
+  'GET /api/feed/business',
+]
+
+const missingFeedContextRoutes = REQUIRED_FEED_CONTEXT_ROUTES.filter(r => {
+  const [method, p] = r.split(' ')
+  return !normServerRoutes.has(`${method} ${normaliseServerPath(p)}`)
+})
+
+if (missingFeedContextRoutes.length > 0) {
+  console.log(`${RED}✗ Missing feed context server routes:${RESET}`)
+  for (const r of missingFeedContextRoutes) console.log(`  ${RED}${r}${RESET}`)
+  console.log()
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ Feed context routes (GET /api/feed/network and /business) are registered.${RESET}\n`)
+}
+
+// Verify api.js exports the new feed functions
+const feedContextApiCheck = ['apiFetchNetworkFeed', 'apiFetchBusinessFeed']
+const missingFeedApiFns = feedContextApiCheck.filter(fn => !apiSrc.includes(fn))
+if (missingFeedApiFns.length > 0) {
+  console.log(`${RED}✗ src/api.js is missing feed context functions: ${missingFeedApiFns.join(', ')}${RESET}\n`)
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ src/api.js exports apiFetchNetworkFeed and apiFetchBusinessFeed.${RESET}\n`)
+}
+
+// ── Company profile form routes ───────────────────────────────────────────────
+//
+//   POST /api/company/profile  → 200 (business mode) | 403 (other modes)
+//   GET  /api/company/profile/:userId → 200 (public)
+//
+const REQUIRED_COMPANY_PROFILE_ROUTES = [
+  'POST /api/company/profile',
+  'GET /api/company/profile/:userId',
+]
+
+const missingCompanyProfileRoutes = REQUIRED_COMPANY_PROFILE_ROUTES.filter(r => {
+  const [method, p] = r.split(' ')
+  return !normServerRoutes.has(`${method} ${normaliseServerPath(p)}`)
+})
+
+if (missingCompanyProfileRoutes.length > 0) {
+  console.log(`${RED}✗ Missing company profile server routes:${RESET}`)
+  for (const r of missingCompanyProfileRoutes) console.log(`  ${RED}${r}${RESET}`)
+  console.log()
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ Company profile routes (POST and GET /api/company/profile) are registered.${RESET}\n`)
+}
+
+// Verify api.js exports apiCreateCompanyProfile
+if (!apiSrc.includes('apiCreateCompanyProfile')) {
+  console.log(`${RED}✗ src/api.js is missing apiCreateCompanyProfile export.${RESET}\n`)
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ src/api.js exports apiCreateCompanyProfile.${RESET}\n`)
+}
+
+// Verify 403 guard in POST /api/company/profile
+const miscRoutesSrc = readFileSync(resolve(root, 'server/routes/misc.js'), 'utf8')
+if (!miscRoutesSrc.includes("req.userMode !== 'business'") || !miscRoutesSrc.includes('403')) {
+  console.log(`${RED}✗ POST /api/company/profile is missing 403 guard for non-business users.${RESET}\n`)
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ POST /api/company/profile has 403 guard for non-business mode.${RESET}\n`)
+}
+
 process.exit(0)
