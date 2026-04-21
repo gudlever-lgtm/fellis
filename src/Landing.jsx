@@ -546,7 +546,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
             {/* Math challenge — simple human verification */}
             <div style={{ marginTop: 2, marginBottom: 0 }}>
               <label style={{ display: 'block', fontSize: 13, color: '#555', marginBottom: 2 }}>
-                {t.registerMathChallenge.replace('{a}', mathChallenge.a).replace('{b}', mathChallenge.b)}
+                {(t.registerMathChallenge || '').replace('{a}', mathChallenge.a).replace('{b}', mathChallenge.b)}
               </label>
               <input
                 type="number"
