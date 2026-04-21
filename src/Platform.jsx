@@ -514,7 +514,7 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
         </button>
         <div className={`p-nav-tabs${showMobileMenu ? ' open' : ''}`}>
           {/* Primary tabs — always visible */}
-          {['feed', 'reels', 'messages', 'events'].map(p => (
+          {['feed', ...(mode !== 'business' ? ['reels'] : []), 'messages', 'events'].map(p => (
             <button
               key={p}
               className={`p-nav-tab${page === p ? ' active' : ''}`}
@@ -2451,10 +2451,10 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
   const [feedCategoryFilter, setFeedCategoryFilter] = useState(null)
   const [feedMode, setFeedMode] = useState(mode || 'privat')
   const feedModeRef = useRef(mode || 'privat')
-  const [feedContext, setFeedContext] = useState('social') // 'social' | 'network' | 'business'
+  const [feedContext, setFeedContext] = useState(() => mode === 'business' ? 'network' : 'social')
   const [upsellDismissed, setUpsellDismissed] = useState(() => !!sessionStorage.getItem(UPSELL_KEY))
-  const feedContextRef = useRef('social')
-  const [postContext, setPostContext] = useState('social') // 'social' | 'professional' | 'business'
+  const feedContextRef = useRef(mode === 'business' ? 'network' : 'social')
+  const [postContext, setPostContext] = useState(() => mode === 'business' ? 'professional' : 'social')
   const [pinnedPost, setPinnedPost] = useState(null)
   const pinnedRef = useRef(null)
   const [insightsPostId, setInsightsPostId] = useState(null)
