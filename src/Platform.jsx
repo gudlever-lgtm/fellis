@@ -3161,7 +3161,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
         : { author: currentUser.name, text: { da: commentText, en: commentText }, media: localMedia }
       setPosts(prev => prev.map(p => {
         if (p.id !== postId) return p
-        return { ...p, comments: [...p.comments, comment] }
+        return { ...p, comments: [...(p.comments || []), comment] }
       }))
       setTimeout(onBadgeCheck, 300)
     })
@@ -3174,7 +3174,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
       if (p.id !== postId) return p
       return {
         ...p,
-        comments: p.comments.map(c => {
+        comments: (p.comments || []).map(c => {
           if (c.id !== commentId) return c
           const sameEmoji = c.liked && (c.reaction || '❤️') === emoji
           const liked = !sameEmoji
@@ -4450,7 +4450,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
                 }
               </span>
               <span onClick={() => toggleComments(post.id)} style={{ cursor: 'pointer' }}>
-                {post.comments.length} {t.comment.toLowerCase()}{post.comments.length !== 1 ? (t.s) : ''}
+                {(post.comments || []).length} {t.comment.toLowerCase()}{(post.comments || []).length !== 1 ? (t.s) : ''}
               </span>
             </div>
             <div className="p-post-actions">
@@ -4543,7 +4543,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
             )}
             {showComments && (
               <div className="p-comments">
-                {post.comments.map((c, i) => (
+                {(post.comments || []).map((c, i) => (
                   <div key={c.id ?? i} className="p-comment">
                     <div className="p-avatar-xs" style={{ background: nameToColor(c.author) }}>
                       {getInitials(c.author)}
@@ -5271,7 +5271,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
               {post.media && <PostMedia media={post.media} lang={lang} />}
               <div className="p-post-stats">
                 <span>{post.likes} {t.like.toLowerCase()}</span>
-                <span>{post.comments.length} {t.comment.toLowerCase()}{post.comments.length !== 1 ? (t.s) : ''}</span>
+                <span>{(post.comments || []).length} {t.comment.toLowerCase()}{(post.comments || []).length !== 1 ? (t.s) : ''}</span>
               </div>
             </div>
           ))
