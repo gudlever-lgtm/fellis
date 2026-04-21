@@ -99,7 +99,7 @@ router.get('/feed', authenticate, async (req, res) => {
     // Optional mode filter — 'privat', 'business', or 'network'; omit for mixed feed
     const modeFilter = req.query.mode || null
     if (modeFilter && !['privat', 'business', 'network'].includes(modeFilter)) {
-      return res.status(400).json({ error: 'Invalid mode parameter. Must be "privat", "business", or "network".' })
+      return res.status(400).json({ error: 'Invalid mode parameter. Must be "privat" or "business" (or "network").' })
     }
 
     // Ranked mode: rerank a 30-day candidate window by family/interest/recency/engagement
