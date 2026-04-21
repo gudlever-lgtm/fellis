@@ -24,16 +24,15 @@ export function invalidateAdCache() {
 export const UPSELL_KEY = 'fellis_upsell_dismissed'
 
 export function UpsellCard({ t, lang, onGoAdFree, onDismiss }) {
-  const n = THEMES.network
   const label = t?.ads?.upsell_text || 'Try fellis without ads'
   const cta = t?.ads?.upsell_cta || 'Go ad-free'
   const dismiss = t?.ads?.upsell_dismiss || 'No thanks'
   return (
-    <div style={{ background: n.colorLight, border: `1.5px solid ${n.avatarBg}`, borderRadius: 12, padding: '14px 16px', margin: '8px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-      <span style={{ fontSize: 13, color: n.colorDark, fontWeight: 600 }}>{label}</span>
+    <div style={{ background: '#fff', border: '0.5px solid #ddd', borderRadius: 12, padding: '14px 16px', margin: '8px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+      <span style={{ fontSize: 13, color: '#444', fontWeight: 600 }}>{label}</span>
       <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-        <button onClick={onGoAdFree} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: n.color, color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{cta}</button>
-        <button onClick={onDismiss} style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${n.avatarBg}`, background: '#fff', color: n.colorDark, fontSize: 12, cursor: 'pointer' }}>{dismiss}</button>
+        <button onClick={onGoAdFree} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: '#1a1a1a', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{cta}</button>
+        <button onClick={onDismiss} style={{ padding: '6px 10px', borderRadius: 8, border: '0.5px solid #ddd', background: '#fff', color: '#666', fontSize: 12, cursor: 'pointer' }}>{dismiss}</button>
       </div>
     </div>
   )

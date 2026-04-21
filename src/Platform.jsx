@@ -233,6 +233,7 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
   const [msgSsePayload, setMsgSsePayload] = useState(null)
   const [showModeModal, setShowModeModal] = useState(false)
   const [adsFree, setAdsFree] = useState(false)
+  const [activeFeatures, setActiveFeatures] = useState([])
   const [theme, setTheme] = useState(() => {
     const saved = localStorage.getItem('fellis_theme')
     if (saved) return saved
@@ -356,6 +357,7 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
       if (data?.user) {
         setCurrentUser(prev => ({ ...prev, ...data.user }))
         if (data.user.ads_free !== undefined) setAdsFree(Boolean(data.user.ads_free))
+        if (Array.isArray(data.user.active_features)) setActiveFeatures(data.user.active_features)
         // Mode from server is authoritative — sync to localStorage
         if (data.user.mode) {
           setMode(data.user.mode)
@@ -759,7 +761,7 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
                 onDismiss={() => setShowOnboardingChecklist(false)}
               />
             )}
-            <FeedPage lang={lang} t={t} currentUser={currentUser} mode={mode} adsFree={adsFree} highlightPostId={highlightPostId} onHighlightCleared={() => setHighlightPostId(null)}
+            <FeedPage lang={lang} t={t} currentUser={currentUser} mode={mode} adsFree={adsFree} hasAdFree={adsFree || activeFeatures.includes('ad_free')} highlightPostId={highlightPostId} onHighlightCleared={() => setHighlightPostId(null)}
               onViewProfile={(uid) => { setViewUserId(uid); navigateTo('view-profile') }}
               onViewOwnProfile={() => navigateTo('profile')}
               onViewBadges={(uid) => { if (!uid) { navigateTo('profile', { tab: 'badges' }) } else { setViewUserId(uid); navigateTo('view-profile') } }}
@@ -774,7 +776,7 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
               interestCategories={interestCategories}
             />
           </div>
-          <FeedSidebar lang={lang} t={t} adsFree={adsFree} onNavigate={navigateTo} />
+          <FeedSidebar lang={lang} t={t} adsFree={adsFree} hasAdFree={adsFree || activeFeatures.includes('ad_free')} onNavigate={navigateTo} />
         </div>
         {page === 'reels' && <ReelsPage t={t} lang={lang} currentUser={currentUser} initialReelId={navParam?.reelId} onViewProfile={(userId) => navigateTo('view-profile', { userId })} />}
         {page === 'explore' && <ExplorePage lang={lang} onViewProfile={(userId) => { setViewUserId(userId); navigateTo('view-profile') }} />}
@@ -2327,7 +2329,7 @@ function LinkedContentCard({ type, id, lang, onNavigate }) {
 }
 
 // ── FeedSidebar ───────────────────────────────────────────────────────────────
-function FeedSidebar({ lang, t, adsFree, onNavigate }) {
+function FeedSidebar({ lang, t, adsFree, hasAdFree = false, onNavigate }) {
   const da = lang === 'da'
   const [events, setEvents] = useState(null)
   const [suggestedFriends, setSuggestedFriends] = useState(null)
@@ -2348,7 +2350,7 @@ function FeedSidebar({ lang, t, adsFree, onNavigate }) {
   return (
     <aside style={{ width: 280, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
       {/* Sidebar ad */}
-      <AdBanner placement="sidebar" adsFree={adsFree} lang={lang} onGoAdFree={adsFree ? null : () => onNavigate('settings', 'billing')} />
+      <AdBanner placement="sidebar" adsFree={adsFree} hasAdFree={hasAdFree} lang={lang} onGoAdFree={adsFree || hasAdFree ? null : () => onNavigate('features')} />
 
       {/* Boosted marketplace listings */}
       {boostedListings && boostedListings.length > 0 && (
@@ -2446,7 +2448,7 @@ function FeedSidebar({ lang, t, adsFree, onNavigate }) {
   )
 }
 
-function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onViewBadges, onNavigate, onBadgeCheck, feedEggRef, onTriggerChuck, onTriggerMatrix, onTriggerRickroll, onTriggerParty, onTriggerRetro, interestCategories = INTEREST_CATEGORIES }) {
+function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onViewBadges, onNavigate, onBadgeCheck, feedEggRef, onTriggerChuck, onTriggerMatrix, onTriggerRickroll, onTriggerParty, onTriggerRetro, interestCategories = INTEREST_CATEGORIES }) {
   const [posts, setPosts] = useState([])
   const [feedCategoryFilter, setFeedCategoryFilter] = useState(null)
   const [feedMode, setFeedMode] = useState(mode || 'privat')
@@ -4230,9 +4232,9 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         const pi = postIdx++
         return (
           <Fragment key={post.id}>
-            {pi > 0 && pi % 8 === 0 && <AdBanner placement="feed" adsFree={adsFree} lang={lang} t={t} viewerMode={mode} activeContext={feedContext === 'network' ? 'professional' : feedContext} onGoAdFree={adsFree ? null : () => onNavigate('settings', 'billing')} />}
-            {pi === 3 && feedContext === 'social' && !adsFree && !upsellDismissed && (
-              <UpsellCard t={t} lang={lang} onGoAdFree={() => onNavigate('settings', 'billing')} onDismiss={() => { sessionStorage.setItem(UPSELL_KEY, '1'); setUpsellDismissed(true) }} />
+            {pi > 0 && pi % 8 === 0 && <AdBanner placement="feed" adsFree={adsFree} hasAdFree={hasAdFree} lang={lang} t={t} viewerMode={mode} activeContext={feedContext === 'network' ? 'professional' : feedContext} onGoAdFree={adsFree || hasAdFree ? null : () => onNavigate('features')} />}
+            {pi === 3 && feedContext === 'social' && !adsFree && !hasAdFree && !upsellDismissed && (
+              <UpsellCard t={t} lang={lang} onGoAdFree={() => onNavigate('features')} onDismiss={() => { sessionStorage.setItem(UPSELL_KEY, '1'); setUpsellDismissed(true) }} />
             )}
             {pi >= SUGGEST_EVERY && pi % SUGGEST_EVERY === 0 && (() => {
               const sp = suggestedPosts[Math.floor(pi / SUGGEST_EVERY) - 1]
@@ -4745,7 +4747,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       })()}
 
       {/* Ad banner — always shown after posts list */}
-      <AdBanner placement="feed" adsFree={adsFree} lang={lang} t={t} viewerMode={mode} activeContext={feedContext === 'network' ? 'professional' : feedContext} onGoAdFree={adsFree ? null : () => onNavigate('settings', 'billing')} />
+      <AdBanner placement="feed" adsFree={adsFree} hasAdFree={hasAdFree} lang={lang} t={t} viewerMode={mode} activeContext={feedContext === 'network' ? 'professional' : feedContext} onGoAdFree={adsFree || hasAdFree ? null : () => onNavigate('features')} />
 
       {/* Bottom sentinel — triggers loading next page (infinite scroll) */}
       {hasMore && (
