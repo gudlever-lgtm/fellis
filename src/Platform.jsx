@@ -6410,14 +6410,16 @@ function BillingSettings({ lang, t, mode }) {
               {t.weUseMollieAsPaymentGatewaySecurePaymentViaEUCerti}
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
-              {/* MobilePay */}
-              <span style={{ padding: '4px 9px', borderRadius: 20, background: '#fff', border: '1px solid #e8e8e8', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                  <rect width="14" height="14" rx="2.5" fill="#3D7EF5"/>
-                  <path d="M2.5 9.5C3.5 7.5 5 5 7 6.5C9 8 10.5 5.5 11.5 4" stroke="white" strokeWidth="1.6" strokeLinecap="round"/>
-                </svg>
-                <span style={{ fontSize: 11, color: '#444' }}>MobilePay</span>
-              </span>
+              {/* MobilePay — private accounts only */}
+              {!isBusiness && (
+                <span style={{ padding: '4px 9px', borderRadius: 20, background: '#fff', border: '1px solid #e8e8e8', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                    <rect width="14" height="14" rx="2.5" fill="#3D7EF5"/>
+                    <path d="M2.5 9.5C3.5 7.5 5 5 7 6.5C9 8 10.5 5.5 11.5 4" stroke="white" strokeWidth="1.6" strokeLinecap="round"/>
+                  </svg>
+                  <span style={{ fontSize: 11, color: '#444' }}>MobilePay</span>
+                </span>
+              )}
               {/* Visa */}
               <span style={{ padding: '4px 9px', borderRadius: 20, background: '#fff', border: '1px solid #e8e8e8', display: 'inline-flex', alignItems: 'center' }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill={`#${siVisa.hex}`} aria-label="Visa">
