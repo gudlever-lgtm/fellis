@@ -4358,7 +4358,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
                           {post.authorId && (
                             <>
                               <button className="p-post-menu-item danger" onClick={() => handleUnfriendFromPost(post)}>
-                                👋 {`${t.unfriendWithName}${post.author.split(' ')[0]}`}
+                                👋 {`${t.unfriendWithName}${(post.author || '').split(' ')[0]}`}
                               </button>
                               <button className="p-post-menu-item danger" onClick={async () => {
                                 setPostMenu(null)
@@ -5196,7 +5196,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
                                 {getInitials(f.name)}
                               </div>
                             )}
-                            <span style={{ fontSize: 11, color: '#444', textAlign: 'center', maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name.split(' ')[0]}</span>
+                            <span style={{ fontSize: 11, color: '#444', textAlign: 'center', maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(f.name || '').split(' ')[0]}</span>
                           </div>
                         )
                       })}
@@ -10812,7 +10812,7 @@ function MembersModal({ t, lang, conv, currentUser, onClose, onRemove, onMuteMem
         {muteTarget ? (
           <>
             <div style={{ padding: '8px 16px 4px', fontSize: 13, color: '#555' }}>
-              {t.muteMemberTitle} <strong>{muteTarget.name.split(' ')[0]}</strong>
+              {t.muteMemberTitle} <strong>{(muteTarget.name || '').split(' ')[0]}</strong>
             </div>
             <div className="p-msg-modal-list">
               {muteOptions.map(o => (
@@ -11359,7 +11359,7 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
                   </span>
                 </div>
                 <div className="p-msg-thread-preview">
-                  {lastMsg ? `${c.isGroup ? lastMsg.from.split(' ')[0] + ': ' : ''}${lastMsg.text[lang]}`.slice(0, 42) : ''}
+                  {lastMsg ? `${c.isGroup ? (lastMsg.from || '').split(' ')[0] + ': ' : ''}${lastMsg.text[lang]}`.slice(0, 42) : ''}
                 </div>
               </div>
               <button
@@ -11456,7 +11456,7 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', flex: 1 }}>
                     <div className={`p-msg-bubble${isMe ? ' mine' : ''}`}>
                       {conv.isGroup && !isMe && (
-                        <div className="p-msg-sender-name">{msg.from.split(' ')[0]}</div>
+                        <div className="p-msg-sender-name">{(msg.from || '').split(' ')[0]}</div>
                       )}
                       {msg.text[lang] && (
                         <div style={{ whiteSpace: 'pre-wrap' }}>{linkifyText(msg.text[lang]).map((p, pi) =>
