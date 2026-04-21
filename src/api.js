@@ -2200,3 +2200,9 @@ export const apiGetBusinessPartners = (id) => request(`/api/businesses/${id}/par
 // Feature 10: Appointment / inquiry via DM
 export const apiSendBusinessInquiry = (id, subject, preferred_date, message) =>
   request(`/api/businesses/${id}/inquiry`, { method: 'POST', body: JSON.stringify({ subject, preferred_date, message }) })
+
+// User type selector
+export const apiUpdateUserType = (mode) =>
+  request('/api/user/type', { method: 'PATCH', body: JSON.stringify({ mode }) })
+
+export const apiGetUserFeatures = () => request('/api/user/features')
