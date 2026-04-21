@@ -32,7 +32,7 @@ export default function FeedTabs({ viewerMode, t, activeTab, onTabChange }) {
   if (viewerMode === 'privat') {
     return (
       <div style={s.labelRow}>
-        <span style={s.modeLabel}>{t?.feed?.label?.private || 'Private feed'}</span>
+        <span style={s.modeLabel}>{t?.feedModePrivat || 'Community'}</span>
       </div>
     )
   }
@@ -42,7 +42,7 @@ export default function FeedTabs({ viewerMode, t, activeTab, onTabChange }) {
     return (
       <div style={s.tabBar}>
         <button style={{ ...s.tab, background: biz.color, color: '#fff', borderBottom: `3px solid ${biz.color}` }} disabled>
-          {t?.feed?.tab?.network || 'Network'}
+          {t?.feedTab?.network || 'Network'}
         </button>
       </div>
     )
@@ -65,7 +65,7 @@ export default function FeedTabs({ viewerMode, t, activeTab, onTabChange }) {
                 borderBottom: `3px solid ${isActive ? theme.color : 'transparent'}`,
               }}
             >
-              {t?.feed?.tab?.[tab] || tab}
+              {(tab === 'private' ? t?.feedModePrivat : t?.feedTab?.network) || tab}
             </button>
           )
         })}
