@@ -873,7 +873,7 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
                   { key: 'network', label: t.modeNetwork, icon: '🤝', desc: t.modeNetworkDesc, badge: null },
                   { key: 'business', label: t.modeBusiness, icon: '💼', desc: t.modeBusinessDesc, badge: t.free },
                 ].map(({ key, label, icon, desc, badge }) => {
-                  const isActive = key === currentTier
+                  const isActive = key === mode
                   return (
                     <button
                       key={key}
