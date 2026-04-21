@@ -32,26 +32,17 @@ export default function FeedTabs({ viewerMode, t, activeTab, onTabChange }) {
   if (viewerMode === 'privat') {
     return (
       <div style={s.labelRow}>
-        <span style={s.modeLabel}>{t?.feed?.label?.private || 'Private feed'}</span>
+        <span style={s.modeLabel}>{t?.feed?.tab?.private || 'Fællesskab'}</span>
       </div>
     )
   }
 
-  if (viewerMode === 'business') {
-    const biz = getTheme('business')
-    return (
-      <div style={s.tabBar}>
-        <button style={{ ...s.tab, background: biz.color, color: '#fff', borderBottom: `3px solid ${biz.color}` }} disabled>
-          {t?.feed?.tab?.network || 'Network'}
-        </button>
-      </div>
-    )
-  }
+  const tabs = viewerMode === 'business' ? ['private', 'business'] : ['private', 'network']
 
   return (
     <>
       <div style={s.tabBar}>
-        {['private', 'network'].map(tab => {
+        {tabs.map(tab => {
           const theme = getTheme(tab)
           const isActive = activeTab === tab
           return (
@@ -60,6 +51,7 @@ export default function FeedTabs({ viewerMode, t, activeTab, onTabChange }) {
               onClick={() => handleTabChange(tab)}
               style={{
                 ...s.tab,
+                flex: 1,
                 background: isActive ? theme.color : '#fff',
                 color: isActive ? '#fff' : theme.color,
                 borderBottom: `3px solid ${isActive ? theme.color : 'transparent'}`,
