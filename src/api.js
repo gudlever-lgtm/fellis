@@ -2222,3 +2222,5 @@ export const apiUpdateUserType = (mode) =>
 export const apiGetUserFeatures = () => request('/api/user/features')
 export const apiGetUserType = (userId) => request(`/api/user/${userId}/type`)
 export const apiGetCompanyProfile = (userId) => request(`/api/company/profile/${userId}`)
+export const apiCreateCompanyProfile = (data) =>
+  request('/api/company/profile', { method: 'POST', body: JSON.stringify(data) })

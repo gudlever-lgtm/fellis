@@ -977,4 +977,45 @@ if (missingFeedApiFns.length > 0) {
   console.log(`${GREEN}✓ src/api.js exports apiFetchNetworkFeed and apiFetchBusinessFeed.${RESET}\n`)
 }
 
+// ── Company profile form routes ───────────────────────────────────────────────
+//
+//   POST /api/company/profile  → 200 (business mode) | 403 (other modes)
+//   GET  /api/company/profile/:userId → 200 (public)
+//
+const REQUIRED_COMPANY_PROFILE_ROUTES = [
+  'POST /api/company/profile',
+  'GET /api/company/profile/:userId',
+]
+
+const missingCompanyProfileRoutes = REQUIRED_COMPANY_PROFILE_ROUTES.filter(r => {
+  const [method, p] = r.split(' ')
+  return !normServerRoutes.has(`${method} ${normaliseServerPath(p)}`)
+})
+
+if (missingCompanyProfileRoutes.length > 0) {
+  console.log(`${RED}✗ Missing company profile server routes:${RESET}`)
+  for (const r of missingCompanyProfileRoutes) console.log(`  ${RED}${r}${RESET}`)
+  console.log()
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ Company profile routes (POST and GET /api/company/profile) are registered.${RESET}\n`)
+}
+
+// Verify api.js exports apiCreateCompanyProfile
+if (!apiSrc.includes('apiCreateCompanyProfile')) {
+  console.log(`${RED}✗ src/api.js is missing apiCreateCompanyProfile export.${RESET}\n`)
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ src/api.js exports apiCreateCompanyProfile.${RESET}\n`)
+}
+
+// Verify 403 guard in POST /api/company/profile
+const miscRoutesSrc = readFileSync(resolve(root, 'server/routes/misc.js'), 'utf8')
+if (!miscRoutesSrc.includes("req.userMode !== 'business'") || !miscRoutesSrc.includes('403')) {
+  console.log(`${RED}✗ POST /api/company/profile is missing 403 guard for non-business users.${RESET}\n`)
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ POST /api/company/profile has 403 guard for non-business mode.${RESET}\n`)
+}
+
 process.exit(0)

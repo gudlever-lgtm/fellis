@@ -53,8 +53,10 @@ import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConf
   apiContactBusiness, apiGetBusinessJobs, apiGetBusinessServices, apiGetBusinessEvents, apiGetBusinessEndorsements, apiGetBusinessPartners, apiSendPartnerRequest, apiSendBusinessInquiry, apiGetFollowedAnnouncements,
   apiGetMyServices,
   apiGetCompanyProfile,
+  apiCreateCompanyProfile,
 } from './api.js'
 import BusinessBadge from './components/BusinessBadge.jsx'
+import CompanyProfileForm from './CompanyProfileForm.jsx'
 import AdManager from './pages/AdManager.jsx'
 import BusinessHub from './pages/BusinessHub.jsx'
 import LocationAutocomplete from './components/LocationAutocomplete.jsx'
@@ -798,6 +800,20 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
         {page === 'ads' && mode === 'business' && <AdManager lang={lang} t={t} currentUser={currentUser} />}
         {page === 'business-hub' && mode === 'business' && <BusinessHub lang={lang} t={t} currentUser={currentUser} onViewProfile={(id) => { setViewUserId(id); navigateTo('view-profile') }} onNavigate={navigateTo} mode={mode} JobsComponent={JobsPage} CompanyComponent={CompanyListPage} />}
         {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} initialCompanyId={navParam?.companyId} />}
+        {page === 'company-profile-form' && mode === 'business' && (
+          <div style={{ maxWidth: 600, margin: '0 auto', padding: '16px 8px' }}>
+            <CompanyProfileForm
+              lang={lang}
+              currentUser={currentUser}
+              initialData={navParam?.initialData || null}
+              onSuccess={(profile) => {
+                setCurrentUser(prev => ({ ...prev, company_profile: profile }))
+                navigateTo('profile')
+              }}
+              onCancel={() => navigateTo('profile')}
+            />
+          </div>
+        )}
         {page === 'analytics' && <AnalyticsPage lang={lang} t={t} currentUser={currentUser} onNavigate={navigateTo} />}
         {page === 'settings' && <SettingsPage lang={lang} t={t} currentUser={currentUser} mode={mode} adsFree={adsFree} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onLogout={onLogout} onOpenModeModal={() => setShowModeModal(true)} theme={theme} onThemeChange={setTheme} initialTab={navParam} />}
         {page === 'privacy' && <PrivacySection lang={lang} onLogout={onLogout} />}
@@ -4843,6 +4859,8 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
   const [familyFriends, setFamilyFriends] = useState([])
   const [profileTab, setProfileTab] = useState(initialTab || 'about')
   const [myCompanies, setMyCompanies] = useState([])
+  const [myCompanyProfile, setMyCompanyProfile] = useState(null)
+  const [myCompanyProfileLoaded, setMyCompanyProfileLoaded] = useState(false)
   const [interests, setInterests] = useState([])
   const [interestsSaving, setInterestsSaving] = useState(false)
   const [interestsSavedMsg, setInterestsSavedMsg] = useState('')
@@ -4930,7 +4948,15 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
       .then(r => r.ok ? r.json() : null)
       .then(data => setMyCompanies((data?.companies || []).filter(c => c.member_role === 'owner')))
       .catch(() => {})
-  }, [currentUser.name, mode, onUserUpdate])
+    if (mode === 'business' && currentUser.id) {
+      apiGetCompanyProfile(currentUser.id)
+        .then(data => { setMyCompanyProfile(data && !data.error ? data : null) })
+        .catch(() => { setMyCompanyProfile(null) })
+        .finally(() => setMyCompanyProfileLoaded(true))
+    } else {
+      setMyCompanyProfileLoaded(true)
+    }
+  }, [currentUser.name, currentUser.id, mode, onUserUpdate])
 
   const avatarUrl = profile.avatarUrl || profile.avatar_url
   const avatarSrc = avatarUrl
@@ -5051,6 +5077,38 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
             ✏️ {t.editInterests}
           </button>
         </div>
+
+        {/* Company profile card — business users only */}
+        {mode === 'business' && myCompanyProfileLoaded && (
+          <div className="p-card p-login-info-card" style={{ marginBottom: 16, borderLeft: '3px solid #FCD34D' }}>
+            <h3 className="p-section-title" style={{ color: '#92400E' }}>
+              🏢 {t.company?.form?.heading || t.businessProfile}
+            </h3>
+            {myCompanyProfile ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 10 }}>
+                {myCompanyProfile.logo_url && (
+                  <img src={myCompanyProfile.logo_url} alt="" style={{ width: 48, height: 48, borderRadius: 8, objectFit: 'cover', marginBottom: 4 }} />
+                )}
+                <strong style={{ fontSize: 15, color: '#78350F' }}>{myCompanyProfile.company_name}</strong>
+                {myCompanyProfile.category && <span style={{ fontSize: 12, color: '#B45309' }}>🏷 {t.company?.categories?.[myCompanyProfile.category] || myCompanyProfile.category}</span>}
+                {myCompanyProfile.website && <span style={{ fontSize: 12, color: '#B45309' }}>🌐 {myCompanyProfile.website.replace(/^https?:\/\//, '')}</span>}
+                {myCompanyProfile.description && <p style={{ fontSize: 12, color: '#78350F', margin: '4px 0 0', fontStyle: 'italic' }}>{myCompanyProfile.description}</p>}
+              </div>
+            ) : (
+              <p style={{ fontSize: 13, color: '#B45309', margin: '0 0 10px' }}>
+                {t.company?.form?.heading_placeholder || 'No company profile yet'}
+              </p>
+            )}
+            <button
+              onClick={() => onNavigate('company-profile-form', { initialData: myCompanyProfile || null })}
+              style={{ padding: '7px 16px', borderRadius: 8, border: '1.5px solid #FCD34D', background: myCompanyProfile ? '#FFFBEB' : '#D97706', color: myCompanyProfile ? '#92400E' : '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}
+            >
+              {myCompanyProfile
+                ? (t.company?.form?.edit_btn || 'Edit company')
+                : (t.company?.form?.create_btn || 'Create company profile')}
+            </button>
+          </div>
+        )}
 
         {/* Tags, relation, website */}
         {(tags.length > 0 || relationshipStatus || website) && (
