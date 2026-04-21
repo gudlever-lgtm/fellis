@@ -38,6 +38,7 @@ router.get('/reels', authenticate, async (req, res) => {
               COALESCE(r.source, 'upload') AS source, r.title_da, r.title_en,
               COALESCE(r.shares_count, 0) AS shares_count,
               u.id AS user_id, u.name AS author_name, u.handle AS author_handle, u.avatar_url AS author_avatar,
+              COALESCE(u.mode, 'privat') AS user_mode,
               COUNT(DISTINCT rl.user_id) AS likes_count,
               EXISTS(SELECT 1 FROM reel_likes WHERE reel_id = r.id AND user_id = ?) AS liked_by_me,
               (SELECT reaction FROM reel_likes WHERE reel_id = r.id AND user_id = ?) AS my_reaction,

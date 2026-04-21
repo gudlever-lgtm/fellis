@@ -41,9 +41,7 @@ export default function PostCard({
     <div
       className="p-card p-post"
       style={{
-        background: theme.colorLight,
-        border: `${theme.borderWidth} solid ${theme.color}`,
-        borderTop: `3px solid ${theme.color}`,
+        borderLeft: `4px solid ${theme.leftBorderColor}`,
       }}
       {...rest}
     >

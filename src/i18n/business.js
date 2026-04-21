@@ -10,6 +10,7 @@ export default {
     modeSwitch: 'Skift kontotype',
     modeCurrentLabel: 'Kontotype',
     modeCommonTag: 'Privat konto',
+    modeNetworkTag: 'Netværk konto',
     modeBusinessTag: 'Business',
     // Business profile
     businessBadge: 'Virksomhed',
@@ -207,6 +208,7 @@ export default {
     modeSwitch: 'Switch account type',
     modeCurrentLabel: 'Account type',
     modeCommonTag: 'Personal account',
+    modeNetworkTag: 'Network account',
     modeBusinessTag: 'Business',
     // Business profile
     businessBadge: 'Business',
@@ -404,6 +406,7 @@ export default {
     modeSwitch: 'Byt kontotyp',
     modeCurrentLabel: 'Kontotyp',
     modeCommonTag: 'Privatkonto',
+    modeNetworkTag: 'Nätverkskonto',
     modeBusinessTag: 'Business',
     // Business profile
     businessBadge: 'Företag',
@@ -601,6 +604,7 @@ export default {
     modeSwitch: 'Bytt kontotype',
     modeCurrentLabel: 'Kontotype',
     modeCommonTag: 'Privat konto',
+    modeNetworkTag: 'Nettverkskonto',
     modeBusinessTag: 'Business',
     // Business profile
     businessBadge: 'Bedrift',
@@ -798,6 +802,7 @@ export default {
     modeSwitch: 'Kontotyp wechseln',
     modeCurrentLabel: 'Kontotyp',
     modeCommonTag: 'Privatkonto',
+    modeNetworkTag: 'Netzwerkkonto',
     modeBusinessTag: 'Business',
     // Business profile
     businessBadge: 'Unternehmen',
@@ -995,6 +1000,7 @@ export default {
     modeSwitch: 'Changer de type de compte',
     modeCurrentLabel: 'Type de compte',
     modeCommonTag: 'Compte privé',
+    modeNetworkTag: 'Compte réseau',
     modeBusinessTag: 'Business',
     // Business profile
     businessBadge: 'Entreprise',
@@ -1192,6 +1198,7 @@ export default {
     modeSwitch: 'Cambiar tipo de cuenta',
     modeCurrentLabel: 'Tipo de cuenta',
     modeCommonTag: 'Cuenta privada',
+    modeNetworkTag: 'Cuenta de red',
     modeBusinessTag: 'Business',
     // Business profile
     businessBadge: 'Empresa',
@@ -1389,6 +1396,7 @@ export default {
     modeSwitch: 'Cambia tipo di account',
     modeCurrentLabel: 'Tipo di account',
     modeCommonTag: 'Account privato',
+    modeNetworkTag: 'Account network',
     modeBusinessTag: 'Business',
     // Business profile
     businessBadge: 'Azienda',
@@ -1586,6 +1594,7 @@ export default {
     modeSwitch: 'Accounttype wijzigen',
     modeCurrentLabel: 'Accounttype',
     modeCommonTag: 'Privéaccount',
+    modeNetworkTag: 'Netwerkaccount',
     modeBusinessTag: 'Business',
     // Business profile
     businessBadge: 'Bedrijf',
@@ -1783,6 +1792,7 @@ export default {
     modeSwitch: 'Zmień typ konta',
     modeCurrentLabel: 'Typ konta',
     modeCommonTag: 'Konto prywatne',
+    modeNetworkTag: 'Konto sieciowe',
     modeBusinessTag: 'Business',
     // Business profile
     businessBadge: 'Firma',
@@ -1980,6 +1990,7 @@ export default {
     modeSwitch: 'Mudar tipo de conta',
     modeCurrentLabel: 'Tipo de conta',
     modeCommonTag: 'Conta privada',
+    modeNetworkTag: 'Conta de rede',
     modeBusinessTag: 'Business',
     // Business profile
     businessBadge: 'Empresa',
