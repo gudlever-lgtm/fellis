@@ -4963,7 +4963,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
             <SkillsSection profile={profile} t={t} lang={lang} isOwn={true} />
           )}
           <div style={{ marginBottom: 8 }}>
-            <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 12, background: mode === 'business' ? '#FDECEA' : mode === 'network' ? '#E1F5EE' : '#E6F1FB', color: mode === 'business' ? '#E03131' : mode === 'network' ? '#1D9E75' : '#378ADD' }}>
+            <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 12, background: mode === 'business' ? '#FDECEA' : mode === 'network' ? '#E1F5EE' : '#E8F5EE', color: mode === 'business' ? '#E03131' : mode === 'network' ? '#1D9E75' : '#2D6A4F' }}>
               {mode === 'business' ? t.modeBusinessTag : mode === 'network' ? t.modeNetworkTag : t.modeCommonTag}
             </span>
           </div>
