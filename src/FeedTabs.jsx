@@ -48,6 +48,8 @@ export default function FeedTabs({ viewerMode, t, activeTab, onTabChange }) {
     )
   }
 
+  const tabs = ['private', 'network']
+
   return (
     <>
       <div style={s.tabBar}>
