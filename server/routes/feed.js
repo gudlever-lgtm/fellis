@@ -118,12 +118,14 @@ router.get('/feed', authenticate, async (req, res) => {
       ;[posts] = await pool.query(
         `SELECT p.id, p.author_id, u.name as author, u.mode as author_mode, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.categories, p.created_at, p.edited_at,
                 p.place_name, p.geo_lat, p.geo_lng, p.tagged_users, p.linked_type, p.linked_id,
+                p.post_context,
                 (SELECT COUNT(*) FROM earned_badges WHERE user_id = p.author_id) as author_badge_count
          FROM posts p JOIN users u ON p.author_id = u.id
          WHERE (p.author_id = ?
            OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?)
            OR p.author_id IN (SELECT business_id FROM business_follows WHERE follower_id = ?))
            AND (p.scheduled_at IS NULL OR p.scheduled_at <= NOW())
+           AND (p.post_context IS NULL OR p.post_context = 'social')
            ${modeClause}
            ${cursorFilter}
            ${rankedWindowClause}
@@ -294,6 +296,7 @@ router.get('/feed', authenticate, async (req, res) => {
         linkedType: p.linked_type || null,
         linkedId: p.linked_id || null,
         linkedService: p.linked_service_id ? (serviceMap[p.linked_service_id] || null) : null,
+        postContext: p.post_context || 'social',
       }
     })
     // Ranked mode: rerank the candidate window by family × friend + interest × overlap
@@ -407,6 +410,114 @@ router.get('/feed/memories', authenticate, async (req, res) => {
 })
 
 
+// ── Context feeds ─────────────────────────────────────────────────────────────
+
+async function fetchContextFeed(req, res, context) {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 20, 50)
+    const cursor = req.query.cursor || null
+    const cursorFilter = cursor ? 'AND p.created_at < ?' : ''
+    const cursorParams = cursor ? [new Date(cursor)] : []
+    let posts
+    try {
+      ;[posts] = await pool.query(
+        `SELECT p.id, p.author_id, u.name as author, u.mode as author_mode,
+                p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media,
+                p.categories, p.created_at, p.edited_at,
+                p.place_name, p.geo_lat, p.geo_lng, p.tagged_users,
+                p.linked_type, p.linked_id, p.post_context,
+                (SELECT COUNT(*) FROM earned_badges WHERE user_id = p.author_id) as author_badge_count
+         FROM posts p JOIN users u ON p.author_id = u.id
+         WHERE (p.author_id = ?
+           OR p.author_id IN (SELECT friend_id FROM friendships WHERE user_id = ?)
+           OR p.author_id IN (SELECT business_id FROM business_follows WHERE follower_id = ?))
+           AND (p.scheduled_at IS NULL OR p.scheduled_at <= NOW())
+           AND p.post_context = ?
+           ${cursorFilter}
+         ORDER BY p.created_at DESC
+         LIMIT ?`,
+        [req.userId, req.userId, req.userId, context, ...cursorParams, limit]
+      )
+    } catch {
+      // post_context column not yet migrated — return empty to avoid confusion
+      return res.json({ posts: [], nextCursor: null })
+    }
+    const postIds = posts.map(p => p.id)
+    let comments = []
+    if (postIds.length > 0) {
+      try {
+        const [rows] = await pool.query(
+          `SELECT c.id, c.post_id, u.name as author, c.text_da, c.text_en,
+                  COUNT(cl.id) AS likes,
+                  MAX(CASE WHEN cl.user_id = ? THEN 1 ELSE 0 END) AS liked
+           FROM comments c
+           JOIN users u ON c.author_id = u.id
+           LEFT JOIN comment_likes cl ON cl.comment_id = c.id
+           WHERE c.post_id IN (?)
+           GROUP BY c.id, c.post_id, u.name, c.text_da, c.text_en
+           ORDER BY c.created_at ASC`,
+          [req.userId, postIds]
+        )
+        comments = rows
+      } catch {}
+    }
+    const commentsByPost = {}
+    for (const c of comments) {
+      if (!commentsByPost[c.post_id]) commentsByPost[c.post_id] = []
+      commentsByPost[c.post_id].push({ id: c.id, author: c.author, text: { da: c.text_da, en: c.text_en }, likes: Number(c.likes || 0), liked: !!c.liked, reaction: null })
+    }
+    let userLikes = []
+    if (postIds.length > 0) {
+      try {
+        const [rows] = await pool.query('SELECT post_id, reaction FROM post_likes WHERE user_id = ? AND post_id IN (?)', [req.userId, postIds])
+        userLikes = rows
+      } catch {}
+    }
+    const likedSet = new Set(userLikes.map(l => l.post_id))
+    const userReactionMap = {}
+    for (const l of userLikes) { if (l.reaction) userReactionMap[l.post_id] = l.reaction }
+    const result = posts.map(p => {
+      let media = null
+      if (p.media) { try { media = typeof p.media === 'string' ? JSON.parse(p.media) : p.media } catch {} }
+      let categories = null
+      if (p.categories) { try { categories = typeof p.categories === 'string' ? JSON.parse(p.categories) : p.categories } catch {} }
+      return {
+        id: p.id, author: p.author, authorId: p.author_id,
+        authorMode: p.author_mode || 'privat',
+        time: { da: formatPostTime(p.created_at, 'da'), en: formatPostTime(p.created_at, 'en') },
+        text: { da: p.text_da, en: p.text_en },
+        likes: p.likes, liked: likedSet.has(p.id),
+        userReaction: userReactionMap[p.id] || null,
+        reactions: [],
+        media, categories,
+        comments: commentsByPost[p.id] || [],
+        createdAtRaw: p.created_at,
+        edited: !!p.edited_at,
+        authorBadgeCount: p.author_badge_count || 0,
+        placeName: p.place_name || null,
+        postContext: p.post_context || context,
+      }
+    })
+    const nextCursor = posts.length === limit ? posts[posts.length - 1].created_at : null
+    res.json({ posts: result, nextCursor })
+  } catch (err) {
+    console.error(`GET /api/feed/${context} error:`, err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+}
+
+router.get('/feed/network', authenticate, attachUserMode, async (req, res) => {
+  if (req.userMode !== 'network' && req.userMode !== 'business') {
+    return res.status(401).json({ error: 'Network feed requires a network or business account.' })
+  }
+  return fetchContextFeed(req, res, 'professional')
+})
+
+router.get('/feed/business', authenticate, async (req, res) => {
+  return fetchContextFeed(req, res, 'business')
+})
+
+
 router.post('/posts/:id/boost', authenticate, attachUserMode, requireBusiness, async (req, res) => {
   try {
     const postId = parseInt(req.params.id)
@@ -499,6 +610,22 @@ router.post('/feed', authenticate, writeLimit, upload.array('media', UPLOAD_FILE
   const linkedServiceId = req.body.linked_service_id ? parseInt(req.body.linked_service_id) : null
   if (!text && !req.files?.length) return res.status(400).json({ error: 'Post text or media required' })
 
+  // post_context validation
+  const VALID_CONTEXTS = new Set(['social', 'professional', 'business'])
+  const rawContext = req.body.post_context || 'social'
+  if (!VALID_CONTEXTS.has(rawContext)) return res.status(400).json({ error: 'Invalid post_context. Must be social, professional, or business.' })
+  let postContext = rawContext
+  // Enforce per-mode context restrictions
+  let authorMode = 'private'
+  try {
+    const [[modeRow]] = await pool.query('SELECT mode FROM users WHERE id = ?', [req.userId])
+    authorMode = modeRow?.mode || 'private'
+  } catch {}
+  const normalMode = authorMode === 'privat' ? 'private' : authorMode
+  if (normalMode === 'private' && postContext !== 'social') return res.status(403).json({ error: 'Private users can only post in the social context.' })
+  if (normalMode === 'network' && postContext === 'business') return res.status(403).json({ error: 'Network users cannot post in the business context.' })
+  if (normalMode === 'business' && postContext === 'professional') return res.status(403).json({ error: 'Business users cannot post in the professional context.' })
+
   // Keyword filter check
   const kw = checkKeywords(text)
   if (kw?.action === 'block') return res.status(400).json({ error: 'Post indeholder forbudt indhold / Post contains prohibited content' })
@@ -547,8 +674,8 @@ router.post('/feed', authenticate, writeLimit, upload.array('media', UPLOAD_FILE
     const lng = (rawLng !== null && rawLng >= -180 && rawLng <= 180) ? rawLng : null
     const taggedJson = Array.isArray(taggedUsers) && taggedUsers.length > 0 ? JSON.stringify(taggedUsers) : null
     const [result] = await pool.query(
-      'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media, scheduled_at, categories, place_name, geo_lat, geo_lng, tagged_users, linked_type, linked_id, linked_service_id, user_mode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT mode FROM users WHERE id = ?))',
-      [req.userId, text, text, 'Lige nu', 'Just now', mediaJson, scheduledDate, categoriesJson, placeName, lat, lng, taggedJson, linkedType, linkedId, linkedServiceId, req.userId]
+      'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media, scheduled_at, categories, place_name, geo_lat, geo_lng, tagged_users, linked_type, linked_id, linked_service_id, user_mode, post_context) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT mode FROM users WHERE id = ?), ?)',
+      [req.userId, text, text, 'Lige nu', 'Just now', mediaJson, scheduledDate, categoriesJson, placeName, lat, lng, taggedJson, linkedType, linkedId, linkedServiceId, req.userId, postContext]
     ).catch(() =>
       pool.query(
         'INSERT INTO posts (author_id, text_da, text_en, time_da, time_en, media, scheduled_at, categories) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
@@ -603,6 +730,7 @@ router.post('/feed', authenticate, writeLimit, upload.array('media', UPLOAD_FILE
       geoLat: lat || null,
       geoLng: lng || null,
       taggedUsers: taggedJson ? JSON.parse(taggedJson) : null,
+      postContext: postContext || 'social',
       linkedType: linkedType || null,
       linkedId: linkedId || null,
       linkedService: linkedServiceId ? await pool.query(

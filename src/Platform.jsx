@@ -5,7 +5,8 @@ import { detectLanguage } from './utils/detectLanguage.js'
 import { formatPrice, formatPriceDKK } from './utils/currency.js'
 import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiRemoveConversationParticipant, apiMuteConversationParticipant, apiUploadAvatar, apiCheckSession, apiRequestAccountDelete, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiGetMarketplaceCategories, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiShareJob, apiUnshareJob, apiGetSharedJobs, apiGetJobSharedWith, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiSendEnableMfa, apiConfirmEnableMfa, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals, apiFetchCalendarReminders, apiCreateCalendarReminder, apiDeleteCalendarReminder, apiGetLinkedContent, apiFetchJobs, apiGetSuggestedUsers, apiAdminNotifyAll, apiLikeComment, apiAdminGetPlatformAds, apiAdminCreatePlatformAd, apiAdminUpdatePlatformAd, apiAdminDeletePlatformAd, apiAdminGetLockedUsers, apiAdminUnlockUser, apiFeedCompanyPosts, apiGetLivestreamSettings, apiSaveLivestreamSettings, apiGetLivestreamStats, apiGetLivestreamStatus,
   apiGetStreamKey, apiRegenerateStreamKey, apiGetMarketplaceAlerts, apiCreateMarketplaceAlert, apiUpdateMarketplaceAlert, apiDeleteMarketplaceAlert,
-  apiGetEurDkkRate, apiFetchFriendSuggestions } from './api.js'
+  apiGetEurDkkRate, apiFetchFriendSuggestions,
+  apiFetchNetworkFeed, apiFetchBusinessFeed } from './api.js'
 import {
   apiSharePost, apiUnsharePost, apiSavePost, apiUnsavePost, apiGetSavedPosts,
   apiGetPoll, apiVotePoll, apiCreatePoll,
@@ -2428,6 +2429,9 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [feedCategoryFilter, setFeedCategoryFilter] = useState(null)
   const [feedMode, setFeedMode] = useState(mode || 'privat')
   const feedModeRef = useRef(mode || 'privat')
+  const [feedContext, setFeedContext] = useState('social') // 'social' | 'network' | 'business'
+  const feedContextRef = useRef('social')
+  const [postContext, setPostContext] = useState('social') // 'social' | 'professional' | 'business'
   const [pinnedPost, setPinnedPost] = useState(null)
   const pinnedRef = useRef(null)
   const [insightsPostId, setInsightsPostId] = useState(null)
@@ -2700,7 +2704,11 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     if (isFetchingRef.current) return
     isFetchingRef.current = true
     setLoadingPage(true)
-    const data = await apiFetchFeed(nextCursorRef.current, PAGE_SIZE, feedModeRef.current)
+    const data = feedContextRef.current === 'network'
+      ? await apiFetchNetworkFeed(nextCursorRef.current, PAGE_SIZE)
+      : feedContextRef.current === 'business'
+      ? await apiFetchBusinessFeed(nextCursorRef.current, PAGE_SIZE)
+      : await apiFetchFeed(nextCursorRef.current, PAGE_SIZE, feedModeRef.current)
     if (data?.posts) {
       setPosts(prev => {
         const existingIds = new Set(prev.map(p => p.id))
@@ -2724,14 +2732,18 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     isFetchingRef.current = false
   }, []) // stable — all mutable reads go through refs
 
-  // Reload posts whenever feedMode changes (also handles initial load via feedMode initial value)
+  // Reload posts whenever feedMode or feedContext changes
   useEffect(() => {
     feedModeRef.current = feedMode
+    feedContextRef.current = feedContext
     setPosts([])
     nextCursorRef.current = null
     isFetchingRef.current = false
     setHasMore(true)
-    apiFetchFeed(null, PAGE_SIZE, feedMode).then(data => {
+    const fetchFn = feedContext === 'network' ? apiFetchNetworkFeed
+      : feedContext === 'business' ? apiFetchBusinessFeed
+      : (cur, size) => apiFetchFeed(cur, size, feedMode)
+    fetchFn(null, PAGE_SIZE).then(data => {
       if (data?.posts) {
         setPosts(data.posts)
         setLikedPosts(new Set(data.posts.filter(p => p.liked).map(p => p.id)))
@@ -2740,7 +2752,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         setHasMore(data.nextCursor != null)
       }
     })
-  }, [feedMode])
+  }, [feedMode, feedContext])
 
   // Initial load (config + non-feed data)
   useEffect(() => {
@@ -2848,7 +2860,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   }, [])
 
 
-  const doCreatePost = useCallback((text, files, schedAt, categories, loc, tagged, linked) => {
+  const doCreatePost = useCallback((text, files, schedAt, categories, loc, tagged, linked, context) => {
     setPosting(true)
     setUploadProgress(0)
     setUploadPhase(files?.length ? 'upload' : 'submitting')
@@ -2856,7 +2868,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       setUploadPhase(phase)
       setUploadProgress(total > 0 ? Math.round((loaded / total) * 100) : 0)
     }
-    apiCreatePost(text, files, schedAt || undefined, categories?.size ? [...categories] : undefined, loc || undefined, tagged?.length ? tagged : undefined, linked || undefined, onProgress).then(data => {
+    apiCreatePost(text, files, schedAt || undefined, categories?.size ? [...categories] : undefined, loc || undefined, tagged?.length ? tagged : undefined, linked || undefined, onProgress, undefined, context || 'social').then(data => {
       if (data?.scheduled) {
         // Scheduled post — don't add to feed, just show a toast
         return
@@ -2908,6 +2920,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       setShowTagPicker(false)
       setShowAttachPicker(false)
       setCatPickerSearch('')
+      setPostContext('social')
       if (textareaRef.current) textareaRef.current.style.height = 'auto'
     }).catch(err => {
       console.error('Failed to create post:', err)
@@ -2957,8 +2970,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       return
     }
     const schedAt = scheduleEnabled && scheduledAt ? scheduledAt : null
-    doCreatePost(text, files, schedAt, postCategories, postLocation, taggedUsers, linkedContent)
-  }, [newPostText, mediaFiles, providerMediaUrls, doCreatePost, scheduleEnabled, scheduledAt, postCategories, postLocation, taggedUsers, linkedContent])
+    doCreatePost(text, files, schedAt, postCategories, postLocation, taggedUsers, linkedContent, postContext)
+  }, [newPostText, mediaFiles, providerMediaUrls, doCreatePost, scheduleEnabled, scheduledAt, postCategories, postLocation, taggedUsers, linkedContent, postContext])
 
   const toggleLike = useCallback((id, emoji) => {
     const isLiked = likedPosts.has(id)
@@ -3495,6 +3508,34 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
               </div>
             )}
 
+            {/* Post context selector — shown for network/business users when composing */}
+            {postExpanded && (currentUser.mode === 'network' || currentUser.mode === 'business') && (
+              <div style={{ padding: '6px 12px 0', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {(currentUser.mode === 'network' ? ['social', 'professional'] : ['social', 'business']).map(ctx => {
+                  const ctxColor = ctx === 'professional' ? '#0D9488' : ctx === 'business' ? '#D97706' : '#1877F2'
+                  const ctxBg   = ctx === 'professional' ? '#F0FDFA'  : ctx === 'business' ? '#FFFBEB'  : '#EBF5FF'
+                  const active  = postContext === ctx
+                  return (
+                    <button
+                      key={ctx}
+                      type="button"
+                      onMouseDown={e => e.preventDefault()}
+                      onClick={() => setPostContext(ctx)}
+                      style={{
+                        padding: '3px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                        border: `1px solid ${active ? ctxColor : '#e5e7eb'}`,
+                        background: active ? ctxBg : '#f9fafb',
+                        color: active ? ctxColor : '#6b7280',
+                        transition: 'all 0.1s',
+                      }}
+                    >
+                      {t.postContext?.[ctx] || ctx}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+
             {/* Category row — shown when post has text or categories selected */}
             {(newPostText.trim().length >= 5 || postCategories.size > 0) && (
               <div style={{ padding: '6px 12px 0' }}>
@@ -3914,25 +3955,51 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       {/* Reels strip */}
       <ReelsStrip lang={lang} t={t} onNavigate={onNavigate} />
 
-      {/* Feed mode toggle — Community (privat) vs Business — only for business accounts */}
-      {mode === 'business' && (
+      {/* Feed context tabs — Social / Network or Business — for network and business accounts */}
+      {(currentUser.mode === 'network' || currentUser.mode === 'business') && (
         <div style={{ display: 'flex', borderBottom: '2px solid #e5e7eb', background: '#fff' }}>
-          {['privat', 'business'].map(m => (
+          <button
+            onClick={() => setFeedContext('social')}
+            style={{
+              flex: 1, padding: '10px 0', fontSize: 14, fontWeight: 600,
+              border: 'none',
+              borderBottom: feedContext === 'social' ? '2px solid #1877F2' : '2px solid transparent',
+              marginBottom: -2, background: 'none', cursor: 'pointer',
+              color: feedContext === 'social' ? '#1877F2' : '#6b7280',
+              fontFamily: 'inherit', transition: 'color 0.15s',
+            }}
+          >
+            {t.feedTab?.social || t.feedModePrivat}
+          </button>
+          {currentUser.mode === 'network' ? (
             <button
-              key={m}
-              onClick={() => setFeedMode(m)}
+              onClick={() => setFeedContext('network')}
               style={{
                 flex: 1, padding: '10px 0', fontSize: 14, fontWeight: 600,
                 border: 'none',
-                borderBottom: feedMode === m ? '2px solid #1877F2' : '2px solid transparent',
+                borderBottom: feedContext === 'network' ? '2px solid #0D9488' : '2px solid transparent',
                 marginBottom: -2, background: 'none', cursor: 'pointer',
-                color: feedMode === m ? '#1877F2' : '#6b7280',
+                color: feedContext === 'network' ? '#0D9488' : '#6b7280',
                 fontFamily: 'inherit', transition: 'color 0.15s',
               }}
             >
-              {m === 'privat' ? t.feedModePrivat : t.feedModeBusiness}
+              {t.feedTab?.network || 'Netværk'}
             </button>
-          ))}
+          ) : (
+            <button
+              onClick={() => setFeedContext('business')}
+              style={{
+                flex: 1, padding: '10px 0', fontSize: 14, fontWeight: 600,
+                border: 'none',
+                borderBottom: feedContext === 'business' ? '2px solid #D97706' : '2px solid transparent',
+                marginBottom: -2, background: 'none', cursor: 'pointer',
+                color: feedContext === 'business' ? '#D97706' : '#6b7280',
+                fontFamily: 'inherit', transition: 'color 0.15s',
+              }}
+            >
+              {t.feedTab?.business || t.feedModeBusiness}
+            </button>
+          )}
         </div>
       )}
 

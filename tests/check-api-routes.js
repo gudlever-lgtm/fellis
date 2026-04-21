@@ -943,4 +943,38 @@ if (!userTypeRoutesSrc.includes("'private'") || !userTypeRoutesSrc.includes("'ne
   console.log(`${GREEN}✓ PATCH /api/user/type validates mode against private/network/business enum.${RESET}\n`)
 }
 
+// ── Feed context routes (post_context feed separation) ────────────────────────
+//
+//   GET  /api/feed/network  → 200 (network/business) | 401 (other modes)
+//   GET  /api/feed/business → 200 (authenticated)    | 401 (unauthenticated)
+//
+const REQUIRED_FEED_CONTEXT_ROUTES = [
+  'GET /api/feed/network',
+  'GET /api/feed/business',
+]
+
+const missingFeedContextRoutes = REQUIRED_FEED_CONTEXT_ROUTES.filter(r => {
+  const [method, p] = r.split(' ')
+  return !normServerRoutes.has(`${method} ${normaliseServerPath(p)}`)
+})
+
+if (missingFeedContextRoutes.length > 0) {
+  console.log(`${RED}✗ Missing feed context server routes:${RESET}`)
+  for (const r of missingFeedContextRoutes) console.log(`  ${RED}${r}${RESET}`)
+  console.log()
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ Feed context routes (GET /api/feed/network and /business) are registered.${RESET}\n`)
+}
+
+// Verify api.js exports the new feed functions
+const feedContextApiCheck = ['apiFetchNetworkFeed', 'apiFetchBusinessFeed']
+const missingFeedApiFns = feedContextApiCheck.filter(fn => !apiSrc.includes(fn))
+if (missingFeedApiFns.length > 0) {
+  console.log(`${RED}✗ src/api.js is missing feed context functions: ${missingFeedApiFns.join(', ')}${RESET}\n`)
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ src/api.js exports apiFetchNetworkFeed and apiFetchBusinessFeed.${RESET}\n`)
+}
+
 process.exit(0)

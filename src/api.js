@@ -204,6 +204,18 @@ export async function apiFetchFeed(cursor = null, limit = 20, mode = null, opts 
   return await request(`/api/feed?${params}`)
 }
 
+export async function apiFetchNetworkFeed(cursor = null, limit = 20) {
+  const params = new URLSearchParams({ limit: String(limit) })
+  if (cursor) params.set('cursor', cursor)
+  return await request(`/api/feed/network?${params}`)
+}
+
+export async function apiFetchBusinessFeed(cursor = null, limit = 20) {
+  const params = new URLSearchParams({ limit: String(limit) })
+  if (cursor) params.set('cursor', cursor)
+  return await request(`/api/feed/business?${params}`)
+}
+
 export async function apiPreflightPost(text) {
   return await request('/api/feed/preflight', { method: 'POST', body: JSON.stringify({ text }) })
 }
@@ -220,7 +232,7 @@ export async function apiGetDiscovery() {
 // without any progress) instead of a wall-clock timeout, so slow-but-
 // steady uploads on mobile connections are not killed prematurely.
 function uploadPostOnce(payload, onProgress) {
-  const { text, files, schedAt, categories, location, taggedUsers, linkedContent } = payload
+  const { text, files, schedAt, categories, location, taggedUsers, linkedContent, postContext } = payload
   const total = files.reduce((sum, f) => sum + f.size, 0)
   const STALL_MS = 2 * 60 * 1000
 
@@ -237,6 +249,7 @@ function uploadPostOnce(payload, onProgress) {
     if (locLng != null) form.append('geo_lng', locLng)
     if (taggedUsers?.length) form.append('tagged_users', JSON.stringify(taggedUsers))
     if (linkedContent?.type) { form.append('linked_type', linkedContent.type); form.append('linked_id', linkedContent.id) }
+    if (postContext && postContext !== 'social') form.append('post_context', postContext)
     for (const file of files) form.append('media', file)
 
     const xhr = new XMLHttpRequest()
@@ -331,7 +344,7 @@ if (typeof window !== 'undefined') {
   installAutoFlush((payload) => uploadPostResilient(payload))
 }
 
-export async function apiCreatePost(text, mediaFiles, scheduledAt, categories, location, taggedUsers, linkedContent, onProgress, linkedServiceId) {
+export async function apiCreatePost(text, mediaFiles, scheduledAt, categories, location, taggedUsers, linkedContent, onProgress, linkedServiceId, postContext = null) {
   if (mediaFiles?.length) {
     // Pre-flight: validate file sizes client-side (50MB per file, 200MB total)
     const MAX_FILE = 50 * 1024 * 1024
@@ -352,7 +365,7 @@ export async function apiCreatePost(text, mediaFiles, scheduledAt, categories, l
     }
     const payload = {
       text, files: mediaFiles, schedAt: scheduledAt,
-      categories, location, taggedUsers, linkedContent,
+      categories, location, taggedUsers, linkedContent, postContext,
     }
     try {
       return await uploadPostResilient(payload, onProgress)
@@ -383,6 +396,7 @@ export async function apiCreatePost(text, mediaFiles, scheduledAt, categories, l
       ...(taggedUsers?.length ? { tagged_users: taggedUsers } : {}),
       ...(linkedContent?.type && linkedContent.type !== 'service' ? { linked_type: linkedContent.type, linked_id: linkedContent.id } : {}),
       ...(linkedContent?.type === 'service' || linkedServiceId ? { linked_service_id: linkedContent?.id ?? linkedServiceId } : {}),
+      ...(postContext && postContext !== 'social' ? { post_context: postContext } : {}),
     }),
   })
 }
