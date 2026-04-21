@@ -3,24 +3,12 @@ import { UI_LANGS, PT } from './data.js'
 import { apiLogin, apiRegister, apiForgotPassword, apiResetPassword, apiVerifyMfa, apiGiveConsent } from './api.js'
 import UserTypeSelector from './UserTypeSelector.jsx'
 import { useTranslation } from './i18n/useTranslation.js'
-import daT from './i18n/landing/da.json'
-import enT from './i18n/landing/en.json'
-import deT from './i18n/landing/de.json'
-import frT from './i18n/landing/fr.json'
-import nlT from './i18n/landing/nl.json'
-import svT from './i18n/landing/sv.json'
-import fiT from './i18n/landing/fi.json'
-import noT from './i18n/landing/no.json'
-import plT from './i18n/landing/pl.json'
-import esT from './i18n/landing/es.json'
-import itT from './i18n/landing/it.json'
-import ptT from './i18n/landing/pt.json'
-
-// ── Landing translations ──
-const T = { da: daT, en: enT, de: deT, fr: frT, nl: nlT, sv: svT, fi: fiT, no: noT, pl: plT, es: esT, it: itT, pt: ptT }
+import { loadTranslation } from './i18n/loader.js'
 
 export default function Landing({ onEnterPlatform, inviteToken, inviterName, inviterEmail, resetToken }) {
   const { lang, setLanguage } = useTranslation('common')
+  const [t, setT] = useState({})
+  useEffect(() => { loadTranslation(lang, 'landing').then(setT) }, [lang])
   const [step, setStep] = useState(4) // Go directly to registration
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [inviteLinkCopied, setInviteLinkCopied] = useState(false)
@@ -71,8 +59,6 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
   // Refs for smart focus
   const emailRef = useRef(null)
   const nameRef = useRef(null)
-
-  const t = T[lang] || T.da
 
   // Pre-fill email when invite info arrives asynchronously
   useEffect(() => {
