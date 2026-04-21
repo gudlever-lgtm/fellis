@@ -20,6 +20,7 @@ import {
   MAX_LOGIN_ATTEMPTS, LOCKOUT_DURATION_MINUTES,
   COOKIE_NAME, SERVER_START, visitedSessions, visitedAnonIps,
 } from '../middleware.js'
+import { userHasFeature } from '../features.js'
 import crypto from 'crypto'
 import fs from 'fs'
 import path from 'path'
@@ -134,6 +135,34 @@ router.post('/friends/request/:userId', authenticate, writeLimit, async (req, re
     sseBroadcast(targetId, { type: 'friend_request' })
     res.json({ ok: true })
   } catch (err) { res.status(500).json({ error: 'Failed to send request' }) }
+})
+
+
+router.post('/connections/request', authenticate, writeLimit, async (req, res) => {
+  const { user_id } = req.body
+  const targetId = parseInt(user_id)
+  if (!targetId || targetId === req.userId) return res.status(400).json({ error: 'Invalid user' })
+  try {
+    const [[target]] = await pool.query('SELECT id FROM users WHERE id = ?', [targetId])
+    if (!target) return res.status(404).json({ error: 'User not found' })
+    const [[friendship]] = await pool.query(
+      'SELECT 1 FROM friendships WHERE user_id = ? AND friend_id = ?',
+      [req.userId, targetId]
+    )
+    if (!friendship) {
+      const has = await userHasFeature(req.userId, 'direct_message')
+      if (!has) return res.status(403).json({ error: 'feature_required', feature: 'direct_message' })
+    }
+    await pool.query(
+      `INSERT INTO friend_requests (from_user_id, to_user_id, status) VALUES (?, ?, 'pending')
+       ON DUPLICATE KEY UPDATE status = 'pending', created_at = CURRENT_TIMESTAMP()`,
+      [req.userId, targetId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/connections/request error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
 })
 
 
@@ -453,6 +482,85 @@ router.get('/users/:userId/portfolio', authenticate, async (req, res) => {
     )
     res.json({ items: rows })
   } catch (err) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── User type endpoints ───────────────────────────────────────────────────────
+
+const VALID_MODES = ['private', 'network', 'business']
+
+router.patch('/user/type', authenticate, writeLimit, async (req, res) => {
+  const { mode } = req.body
+  if (!mode) return res.status(400).json({ error: 'mode is required' })
+  if (!VALID_MODES.includes(mode)) return res.status(400).json({ error: 'mode must be private, network, or business' })
+  try {
+    await pool.query('UPDATE users SET mode = ? WHERE id = ?', [mode, req.userId])
+    res.json({ success: true, mode })
+  } catch (err) {
+    console.error('PATCH /api/user/type error:', err.message)
+    res.status(500).json({ error: 'Failed to update user type' })
+  }
+})
+
+router.get('/user/:id/type', async (req, res) => {
+  const userId = parseInt(req.params.id, 10)
+  if (!userId || isNaN(userId)) return res.status(400).json({ error: 'Invalid user id' })
+  try {
+    const [[user]] = await pool.query('SELECT mode FROM users WHERE id = ?', [userId])
+    if (!user) return res.status(404).json({ error: 'User not found' })
+    res.json({ mode: user.mode || 'private' })
+  } catch (err) {
+    console.error('GET /api/user/:id/type error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Network profile ───────────────────────────────────────────────────────────
+
+router.patch('/user/network-profile', authenticate, attachUserMode, async (req, res) => {
+  if (req.userMode !== 'network') return res.status(403).json({ error: 'Network account required' })
+  const { professional_title, industry } = req.body
+  if (professional_title === undefined && industry === undefined) {
+    return res.status(400).json({ error: 'At least one field required: professional_title, industry' })
+  }
+  try {
+    await pool.query(`ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS professional_title VARCHAR(255) DEFAULT NULL,
+      ADD COLUMN IF NOT EXISTS industry VARCHAR(100) DEFAULT NULL`)
+  } catch {}
+  const fields = []
+  const vals = []
+  if (professional_title !== undefined) {
+    fields.push('professional_title = ?')
+    vals.push(String(professional_title).slice(0, 255))
+  }
+  if (industry !== undefined) {
+    fields.push('industry = ?')
+    vals.push(String(industry).slice(0, 100))
+  }
+  vals.push(req.userId)
+  try {
+    await pool.query(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`, vals)
+    res.json({ success: true })
+  } catch (err) {
+    console.error('PATCH /api/user/network-profile error:', err.message)
+    res.status(500).json({ error: 'Failed to update network profile' })
+  }
+})
+
+// ── Feature flags ─────────────────────────────────────────────────────────────
+
+router.get('/user/features', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT feature FROM user_features
+       WHERE user_id = ? AND active = 1 AND (expires_at IS NULL OR expires_at > NOW())`,
+      [req.userId]
+    )
+    res.json({ features: rows.map(r => r.feature) })
+  } catch (err) {
+    console.error('GET /api/user/features error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })

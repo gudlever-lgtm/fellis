@@ -46,6 +46,19 @@ export default {
     // QR / portfolio
     portfolio: 'Portfolio',
     shareProfileQR: 'Del profil (QR)',
+    network: {
+      badge: 'Netværk',
+      connections: 'Forbindelser',
+      connect_btn: 'Forbind',
+      professional_title: 'Stilling',
+    },
+    business: {
+      badge: 'Virksomhed',
+      followers: 'Følgere',
+      follow_btn: 'Følg',
+      contact_btn: 'Kontakt',
+      cvr: 'CVR',
+    },
   },
   en: {
     birthdayLabel: 'Birthday',
@@ -94,6 +107,19 @@ export default {
     // QR / portfolio
     portfolio: 'Portfolio',
     shareProfileQR: 'Share profile (QR)',
+    network: {
+      badge: 'Network',
+      connections: 'Connections',
+      connect_btn: 'Connect',
+      professional_title: 'Title',
+    },
+    business: {
+      badge: 'Business',
+      followers: 'Followers',
+      follow_btn: 'Follow',
+      contact_btn: 'Contact',
+      cvr: 'CVR',
+    },
   },
   sv: {
     birthdayLabel: 'Födelsedag',
@@ -140,6 +166,19 @@ export default {
     editTabPersonal: 'Personligt',
     portfolio: 'Portfolio',
     shareProfileQR: 'Dela profil (QR)',
+    network: {
+      badge: 'Nätverk',
+      connections: 'Kontakter',
+      connect_btn: 'Koppla',
+      professional_title: 'Titel',
+    },
+    business: {
+      badge: 'Företag',
+      followers: 'Följare',
+      follow_btn: 'Följ',
+      contact_btn: 'Kontakta',
+      cvr: 'Org.nr',
+    },
   },
   no: {
     birthdayLabel: 'Bursdag',
@@ -186,6 +225,19 @@ export default {
     editTabPersonal: 'Personlig',
     portfolio: 'Portfolio',
     shareProfileQR: 'Del profil (QR)',
+    network: {
+      badge: 'Nettverk',
+      connections: 'Forbindelser',
+      connect_btn: 'Koble til',
+      professional_title: 'Tittel',
+    },
+    business: {
+      badge: 'Virksomhet',
+      followers: 'Følgere',
+      follow_btn: 'Følg',
+      contact_btn: 'Kontakt',
+      cvr: 'Org.nr',
+    },
   },
   de: {
     birthdayLabel: 'Geburtstag',
@@ -232,6 +284,19 @@ export default {
     editTabPersonal: 'Persönlich',
     portfolio: 'Portfolio',
     shareProfileQR: 'Profil teilen (QR)',
+    network: {
+      badge: 'Netzwerk',
+      connections: 'Verbindungen',
+      connect_btn: 'Vernetzen',
+      professional_title: 'Titel',
+    },
+    business: {
+      badge: 'Unternehmen',
+      followers: 'Follower',
+      follow_btn: 'Folgen',
+      contact_btn: 'Kontaktieren',
+      cvr: 'USt-IdNr.',
+    },
   },
   fr: {
     birthdayLabel: 'Anniversaire',
@@ -278,6 +343,19 @@ export default {
     editTabPersonal: 'Personnel',
     portfolio: 'Portfolio',
     shareProfileQR: 'Partager le profil (QR)',
+    network: {
+      badge: 'Réseau',
+      connections: 'Relations',
+      connect_btn: 'Se connecter',
+      professional_title: 'Titre',
+    },
+    business: {
+      badge: 'Entreprise',
+      followers: 'Abonnés',
+      follow_btn: 'Suivre',
+      contact_btn: 'Contacter',
+      cvr: 'SIRET',
+    },
   },
   es: {
     birthdayLabel: 'Cumpleaños',
@@ -324,6 +402,19 @@ export default {
     editTabPersonal: 'Personal',
     portfolio: 'Portfolio',
     shareProfileQR: 'Compartir perfil (QR)',
+    network: {
+      badge: 'Red',
+      connections: 'Conexiones',
+      connect_btn: 'Conectar',
+      professional_title: 'Título',
+    },
+    business: {
+      badge: 'Empresa',
+      followers: 'Seguidores',
+      follow_btn: 'Seguir',
+      contact_btn: 'Contactar',
+      cvr: 'CIF',
+    },
   },
   it: {
     birthdayLabel: 'Compleanno',
@@ -370,6 +461,19 @@ export default {
     editTabPersonal: 'Personale',
     portfolio: 'Portfolio',
     shareProfileQR: 'Condividi profilo (QR)',
+    network: {
+      badge: 'Rete',
+      connections: 'Connessioni',
+      connect_btn: 'Connetti',
+      professional_title: 'Titolo',
+    },
+    business: {
+      badge: 'Azienda',
+      followers: 'Follower',
+      follow_btn: 'Segui',
+      contact_btn: 'Contatta',
+      cvr: 'P.IVA',
+    },
   },
   nl: {
     birthdayLabel: 'Verjaardag',
@@ -416,6 +520,19 @@ export default {
     editTabPersonal: 'Persoonlijk',
     portfolio: 'Portfolio',
     shareProfileQR: 'Profiel delen (QR)',
+    network: {
+      badge: 'Netwerk',
+      connections: 'Connecties',
+      connect_btn: 'Verbinden',
+      professional_title: 'Titel',
+    },
+    business: {
+      badge: 'Bedrijf',
+      followers: 'Volgers',
+      follow_btn: 'Volgen',
+      contact_btn: 'Contacteren',
+      cvr: 'KvK',
+    },
   },
   pl: {
     birthdayLabel: 'Urodziny',
@@ -462,6 +579,19 @@ export default {
     editTabPersonal: 'Osobiste',
     portfolio: 'Portfolio',
     shareProfileQR: 'Udostępnij profil (QR)',
+    network: {
+      badge: 'Sieć',
+      connections: 'Połączenia',
+      connect_btn: 'Połącz',
+      professional_title: 'Tytuł',
+    },
+    business: {
+      badge: 'Firma',
+      followers: 'Obserwujący',
+      follow_btn: 'Obserwuj',
+      contact_btn: 'Kontakt',
+      cvr: 'NIP',
+    },
   },
   pt: {
     birthdayLabel: 'Aniversário',
@@ -508,5 +638,33 @@ export default {
     editTabPersonal: 'Pessoal',
     portfolio: 'Portfolio',
     shareProfileQR: 'Partilhar perfil (QR)',
+    network: {
+      badge: 'Rede',
+      connections: 'Ligações',
+      connect_btn: 'Ligar',
+      professional_title: 'Título',
+    },
+    business: {
+      badge: 'Empresa',
+      followers: 'Seguidores',
+      follow_btn: 'Seguir',
+      contact_btn: 'Contactar',
+      cvr: 'NIF',
+    },
+  },
+  fi: {
+    network: {
+      badge: 'Verkosto',
+      connections: 'Yhteydet',
+      connect_btn: 'Yhdistä',
+      professional_title: 'Titteli',
+    },
+    business: {
+      badge: 'Yritys',
+      followers: 'Seuraajat',
+      follow_btn: 'Seuraa',
+      contact_btn: 'Ota yhteyttä',
+      cvr: 'Y-tunnus',
+    },
   },
 }
