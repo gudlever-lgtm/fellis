@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { nameToColor, getInitials, REACTIONS } from './data.js'
 import { apiFetchReels, apiUploadReel, apiToggleReelLike, apiFetchReelComments, apiAddReelComment, apiDeleteReel, apiSearchUsers, apiGetLivestreamStatus, apiGetStreamKey, apiRegenerateStreamKey, apiFetchFriends, apiCreateConversation, apiSendConversationMessage, apiShareReel } from './api.js'
 import AdBanner from './AdBanner.jsx'
+import { getTheme } from './userTypeTheme.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -195,6 +196,8 @@ function ReelCard({ reel, t, lang, currentUser, onDelete, onViewProfile }) {
     ? (reel.author_avatar.startsWith('http') ? reel.author_avatar : `${API_BASE}${reel.author_avatar}`)
     : null
 
+  const reelTheme = getTheme(reel.user_mode || 'privat')
+
   const s = {
     card: {
       position: 'relative',
@@ -367,7 +370,7 @@ function ReelCard({ reel, t, lang, currentUser, onDelete, onViewProfile }) {
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 680
 
   return (
-    <div style={{ display: 'flex', gap: 20, maxWidth: 800, margin: isMobile ? '0 0 24px' : '0 auto 32px', alignItems: 'flex-start', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+    <div style={{ display: 'flex', gap: 20, maxWidth: 800, margin: isMobile ? '0 0 24px' : '0 auto 32px', alignItems: 'flex-start', flexWrap: isMobile ? 'wrap' : 'nowrap', borderLeft: `4px solid ${reelTheme.leftBorderColor}` }}>
       {/* ── Reel video card ── */}
       <div style={{ ...s.card, margin: 0, flex: '0 0 auto', width: '100%', maxWidth: isMobile ? '100%' : 420, borderRadius: isMobile ? 0 : 16 }}>
       <div style={s.videoWrap}>

@@ -698,7 +698,7 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
                   <strong>{currentUser.name}</strong>
                   <span style={{ fontSize: 12, color: '#888' }}>{currentUser.handle}</span>
                   <span style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>
-                    {mode === 'privat' ? t.modeCommonTag : t.modeBusinessTag}{adsFree ? ' · ✓ Ad-free' : ''}
+                    {mode === 'privat' ? t.modeCommonTag : mode === 'network' ? t.modeNetworkTag : t.modeBusinessTag}{adsFree ? ' · ✓ Ad-free' : ''}
                   </span>
                 </div>
                 <div className="avatar-dropdown-divider" />
@@ -3356,8 +3356,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
       <FeedTabs
         viewerMode={currentUser.mode}
         t={t}
-        activeTab={feedContext === 'network' ? 'network' : 'private'}
-        onTabChange={(tab) => setFeedContext(tab === 'network' ? 'network' : 'social')}
+        activeTab={feedContext === 'network' ? 'network' : feedContext === 'business' ? 'business' : 'private'}
+        onTabChange={(tab) => setFeedContext(tab === 'network' ? 'network' : tab === 'business' ? 'business' : 'social')}
       />
 
       {/* New post */}
@@ -3985,8 +3985,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
         )}
       </div>
 
-      {/* Reels strip */}
-      <ReelsStrip lang={lang} t={t} onNavigate={onNavigate} />
+      {/* Reels strip — not shown for business users */}
+      {currentUser.mode !== 'business' && <ReelsStrip lang={lang} t={t} onNavigate={onNavigate} />}
 
       {/* Memories card — on this day */}
       <MemoriesCard
@@ -4965,8 +4965,8 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
             <SkillsSection profile={profile} t={t} lang={lang} isOwn={true} />
           )}
           <div style={{ marginBottom: 8 }}>
-            <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 12, background: mode === 'business' ? '#EBF4FF' : '#F0FAF4', color: mode === 'business' ? '#1877F2' : '#2D6A4F' }}>
-              {mode === 'business' ? t.modeBusinessTag : t.modeCommonTag}
+            <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 12, background: mode === 'business' ? '#FDECEA' : mode === 'network' ? '#E1F5EE' : '#E6F1FB', color: mode === 'business' ? '#E03131' : mode === 'network' ? '#1D9E75' : '#378ADD' }}>
+              {mode === 'business' ? t.modeBusinessTag : mode === 'network' ? t.modeNetworkTag : t.modeCommonTag}
             </span>
           </div>
           <div className="p-profile-stats">

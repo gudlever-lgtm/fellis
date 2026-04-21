@@ -51,7 +51,7 @@ export default function FeedTabs({ viewerMode, t, activeTab, onTabChange }) {
   return (
     <>
       <div style={s.tabBar}>
-        {['private', 'network'].map(tab => {
+        {tabs.map(tab => {
           const theme = getTheme(tab)
           const isActive = activeTab === tab
           return (
@@ -60,6 +60,7 @@ export default function FeedTabs({ viewerMode, t, activeTab, onTabChange }) {
               onClick={() => handleTabChange(tab)}
               style={{
                 ...s.tab,
+                flex: 1,
                 background: isActive ? theme.color : '#fff',
                 color: isActive ? '#fff' : theme.color,
                 borderBottom: `3px solid ${isActive ? theme.color : 'transparent'}`,
