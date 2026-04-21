@@ -1,15 +1,15 @@
 const THEMES = {
   private: {
-    color: '#378ADD',
-    colorLight: '#E6F1FB',
-    colorDark: '#0C447C',
+    color: '#2D6A4F',
+    colorLight: '#E8F5EE',
+    colorDark: '#1B4332',
     borderWidth: '1.5px',
-    leftBorderColor: '#378ADD',
-    avatarBg: '#BDD8F7',
-    avatarText: '#0C447C',
+    leftBorderColor: '#2D6A4F',
+    avatarBg: '#B7DDD0',
+    avatarText: '#1B4332',
     avatarRadius: '50%',
-    badgeBg: '#C8E2F9',
-    badgeText: '#0C447C',
+    badgeBg: '#D1ECE3',
+    badgeText: '#1B4332',
   },
   network: {
     color: '#1D9E75',
