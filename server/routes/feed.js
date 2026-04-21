@@ -118,7 +118,7 @@ router.get('/feed', authenticate, async (req, res) => {
       ;[posts] = await pool.query(
         `SELECT p.id, p.author_id, u.name as author, u.mode as author_mode, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.categories, p.created_at, p.edited_at,
                 p.place_name, p.geo_lat, p.geo_lng, p.tagged_users, p.linked_type, p.linked_id,
-                p.post_context,
+                p.post_context, u.professional_title, u.business_category,
                 (SELECT COUNT(*) FROM earned_badges WHERE user_id = p.author_id) as author_badge_count
          FROM posts p JOIN users u ON p.author_id = u.id
          WHERE (p.author_id = ?
@@ -297,6 +297,8 @@ router.get('/feed', authenticate, async (req, res) => {
         linkedId: p.linked_id || null,
         linkedService: p.linked_service_id ? (serviceMap[p.linked_service_id] || null) : null,
         postContext: p.post_context || 'social',
+        professionalTitle: p.professional_title || null,
+        businessCategory: p.business_category || null,
       }
     })
     // Ranked mode: rerank the candidate window by family × friend + interest × overlap

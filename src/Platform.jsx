@@ -57,6 +57,10 @@ import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConf
 } from './api.js'
 import BusinessBadge from './components/BusinessBadge.jsx'
 import CompanyProfileForm from './CompanyProfileForm.jsx'
+import PostCard from './PostCard.jsx'
+import FeedTabs from './FeedTabs.jsx'
+import PostComposer from './PostComposer.jsx'
+import { UpsellCard } from './AdBanner.jsx'
 import AdManager from './pages/AdManager.jsx'
 import BusinessHub from './pages/BusinessHub.jsx'
 import LocationAutocomplete from './components/LocationAutocomplete.jsx'
@@ -3971,53 +3975,13 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       {/* Reels strip */}
       <ReelsStrip lang={lang} t={t} onNavigate={onNavigate} />
 
-      {/* Feed context tabs — Social / Network or Business — for network and business accounts */}
-      {(currentUser.mode === 'network' || currentUser.mode === 'business') && (
-        <div style={{ display: 'flex', borderBottom: '2px solid #e5e7eb', background: '#fff' }}>
-          <button
-            onClick={() => setFeedContext('social')}
-            style={{
-              flex: 1, padding: '10px 0', fontSize: 14, fontWeight: 600,
-              border: 'none',
-              borderBottom: feedContext === 'social' ? '2px solid #1877F2' : '2px solid transparent',
-              marginBottom: -2, background: 'none', cursor: 'pointer',
-              color: feedContext === 'social' ? '#1877F2' : '#6b7280',
-              fontFamily: 'inherit', transition: 'color 0.15s',
-            }}
-          >
-            {t.feedTab?.social || t.feedModePrivat}
-          </button>
-          {currentUser.mode === 'network' ? (
-            <button
-              onClick={() => setFeedContext('network')}
-              style={{
-                flex: 1, padding: '10px 0', fontSize: 14, fontWeight: 600,
-                border: 'none',
-                borderBottom: feedContext === 'network' ? '2px solid #0D9488' : '2px solid transparent',
-                marginBottom: -2, background: 'none', cursor: 'pointer',
-                color: feedContext === 'network' ? '#0D9488' : '#6b7280',
-                fontFamily: 'inherit', transition: 'color 0.15s',
-              }}
-            >
-              {t.feedTab?.network || 'Netværk'}
-            </button>
-          ) : (
-            <button
-              onClick={() => setFeedContext('business')}
-              style={{
-                flex: 1, padding: '10px 0', fontSize: 14, fontWeight: 600,
-                border: 'none',
-                borderBottom: feedContext === 'business' ? '2px solid #D97706' : '2px solid transparent',
-                marginBottom: -2, background: 'none', cursor: 'pointer',
-                color: feedContext === 'business' ? '#D97706' : '#6b7280',
-                fontFamily: 'inherit', transition: 'color 0.15s',
-              }}
-            >
-              {t.feedTab?.business || t.feedModeBusiness}
-            </button>
-          )}
-        </div>
-      )}
+      {/* Feed context tabs */}
+      <FeedTabs
+        viewerMode={currentUser.mode}
+        t={t}
+        activeTab={feedContext === 'network' ? 'network' : 'private'}
+        onTabChange={(tab) => setFeedContext(tab === 'network' ? 'network' : 'social')}
+      />
 
       {/* Memories card — on this day */}
       <MemoriesCard
@@ -4263,7 +4227,10 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         const pi = postIdx++
         return (
           <Fragment key={post.id}>
-            {(pi === 1 || (pi > 1 && pi % 4 === 0)) && <AdBanner placement="feed" adsFree={adsFree} lang={lang} onGoAdFree={adsFree ? null : () => onNavigate('settings', 'billing')} />}
+            {(pi === 7 || (pi > 7 && pi % 8 === 0)) && <AdBanner placement="feed" adsFree={adsFree} lang={lang} t={t} viewerMode={mode} activeContext={feedContext === 'network' ? 'professional' : feedContext} onGoAdFree={adsFree ? null : () => onNavigate('settings', 'billing')} />}
+            {pi === 3 && feedContext === 'social' && !adsFree && !sessionStorage.getItem('fellis_upsell_dismissed') && (
+              <UpsellCard t={t} lang={lang} onGoAdFree={() => onNavigate('settings', 'billing')} onDismiss={() => sessionStorage.setItem('fellis_upsell_dismissed', '1')} />
+            )}
             {pi >= SUGGEST_EVERY && pi % SUGGEST_EVERY === 0 && (() => {
               const sp = suggestedPosts[Math.floor(pi / SUGGEST_EVERY) - 1]
               return sp ? <SuggestedPostCard key={`sug-${sp.id}`} post={sp} lang={lang} onViewProfile={onViewProfile} /> : null
@@ -4276,58 +4243,45 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
               const dc = discoveryCards[Math.floor(pi / DISCOVERY_EVERY - 1) % discoveryCards.length]
               return dc ? <DiscoveryCard key={`discovery-${dc.type}-${dc.id}-${pi}`} suggestion={dc} lang={lang} /> : null
             })()}
-          <div className="p-card p-post"
-            data-post-id={post.id}
-            data-categories={post.categories?.length ? JSON.stringify(post.categories) : undefined}
-            ref={post.isSponsored && post.adId ? (el) => { if (el) { apiTrackAdImpression(post.adId).catch(() => {}) } } : undefined}
-          >
-            {post.isSponsored && (
-              <div style={{ fontSize: 11, color: '#888', fontWeight: 600, marginBottom: 6, letterSpacing: '0.02em' }}>
-                {t.sponsored || (t.sponsored)}
-              </div>
-            )}
-            <div className="p-post-header">
-              <PostAvatarWithBadge
-                post={post}
-                lang={lang}
-                isOwn={isOwn}
-                onViewProfile={onViewProfile}
-                onViewOwnProfile={onViewOwnProfile}
-                onViewBadges={onViewBadges}
-              />
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <div
-                    className="p-post-author"
-                    style={{ cursor: 'pointer' }}
+          <PostCard
+            post={post}
+            viewerMode={mode}
+            t={t}
+            lang={lang}
+            isOwn={isOwn}
+            onViewProfile={onViewProfile}
+            onViewOwnProfile={onViewOwnProfile}
+            onViewBadges={onViewBadges}
+            nameSuffix={
+              <>
+                {post.authorMode === 'business' && (
+                  <BusinessBadge
+                    lang={lang}
+                    size="xs"
                     onClick={() => isOwn ? onViewOwnProfile?.() : (post.authorId && onViewProfile?.(post.authorId))}
-                  >{post.author}</div>
-                  {post.authorMode === 'business' && (
-                    <BusinessBadge
-                      lang={lang}
-                      size="xs"
-                      onClick={() => isOwn ? onViewOwnProfile?.() : (post.authorId && onViewProfile?.(post.authorId))}
-                    />
-                  )}
-                  {(() => {
-                    const relType = !isOwn && post.authorId && rels[String(post.authorId)]
-                    // Use server-supplied isFamily if local rels don't reflect it yet
-                    const effectiveRelType = relType || (!isOwn && post.isFamily ? 'family' : null)
-                    if (!effectiveRelType) return null
-                    if (mode === 'business' && effectiveRelType === 'family') return null
-                    const label = { family: t.relFamily, colleague: t.relColleague, close: t.relCloseFriend, neighbor: t.relNeighbor }[effectiveRelType]
-                    if (!label) return null
-                    const color = mode === 'business'
-                      ? { colleague: '#1877F2', close: '#2D6A4F', neighbor: '#7C6F64' }[effectiveRelType] || '#888'
-                      : { family: '#E07B39', colleague: '#1877F2', close: '#2D6A4F', neighbor: '#7C6F64' }[effectiveRelType] || '#888'
-                    return <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 10, background: color + '18', color, letterSpacing: '0.02em', flexShrink: 0 }}>{label}</span>
-                  })()}
-                </div>
-                <div className="p-post-time">
-                  {post.time[lang]}
-                  {(post.placeName || post.location?.name) && <span style={{ marginLeft: 6, color: '#2D6A4F', fontSize: 11 }}>📍 {t.checkedInAt} {post.placeName || post.location.name}</span>}
-                </div>
+                  />
+                )}
+                {(() => {
+                  const relType = !isOwn && post.authorId && rels[String(post.authorId)]
+                  const effectiveRelType = relType || (!isOwn && post.isFamily ? 'family' : null)
+                  if (!effectiveRelType) return null
+                  if (mode === 'business' && effectiveRelType === 'family') return null
+                  const label = { family: t.relFamily, colleague: t.relColleague, close: t.relCloseFriend, neighbor: t.relNeighbor }[effectiveRelType]
+                  if (!label) return null
+                  const color = mode === 'business'
+                    ? { colleague: '#1877F2', close: '#2D6A4F', neighbor: '#7C6F64' }[effectiveRelType] || '#888'
+                    : { family: '#E07B39', colleague: '#1877F2', close: '#2D6A4F', neighbor: '#7C6F64' }[effectiveRelType] || '#888'
+                  return <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 10, background: color + '18', color, letterSpacing: '0.02em', flexShrink: 0 }}>{label}</span>
+                })()}
+              </>
+            }
+            timeContent={
+              <div className="p-post-time">
+                {post.time[lang]}
+                {(post.placeName || post.location?.name) && <span style={{ marginLeft: 6, color: '#2D6A4F', fontSize: 11 }}>📍 {t.checkedInAt} {post.placeName || post.location.name}</span>}
               </div>
+            }
+            menuContent={
               <div style={{ position: 'relative' }}>
                 <button
                   onClick={() => setPostMenu(p => p === post.id ? null : post.id)}
@@ -4419,7 +4373,16 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   </>
                 )}
               </div>
-            </div>
+            }
+            data-post-id={post.id}
+            data-categories={post.categories?.length ? JSON.stringify(post.categories) : undefined}
+            ref={post.isSponsored && post.adId ? (el) => { if (el) { apiTrackAdImpression(post.adId).catch(() => {}) } } : undefined}
+          >
+            {post.isSponsored && (
+              <div style={{ fontSize: 11, color: '#888', fontWeight: 600, marginBottom: 6, letterSpacing: '0.02em' }}>
+                {t.sponsored}
+              </div>
+            )}
             {!isCollapsed && (
             <>
             {editingPostId === post.id ? (
@@ -4696,7 +4659,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
             )}
             </>
             )}
-          </div>
+          </PostCard>
           </Fragment>
         )
       }) /* close items.map */
@@ -4779,7 +4742,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       })()}
 
       {/* Ad banner — always shown after posts list */}
-      <AdBanner placement="feed" adsFree={adsFree} lang={lang} onGoAdFree={adsFree ? null : () => onNavigate('settings', 'billing')} />
+      <AdBanner placement="feed" adsFree={adsFree} lang={lang} t={t} viewerMode={mode} activeContext={feedContext === 'network' ? 'professional' : feedContext} onGoAdFree={adsFree ? null : () => onNavigate('settings', 'billing')} />
 
       {/* Bottom sentinel — triggers loading next page (infinite scroll) */}
       {hasMore && (

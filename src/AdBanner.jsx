@@ -45,14 +45,31 @@ async function fetchAds(placement) {
   return promise
 }
 
-export default function AdBanner({ placement = 'feed', adsFree = false, onGoAdFree, lang = 'da' }) {
+const UPSELL_KEY = 'fellis_upsell_dismissed'
+
+export function UpsellCard({ t, lang, onGoAdFree, onDismiss }) {
+  const label = t?.ads?.upsell_text || PT[lang]?.adFreeLabel || 'Try fellis without ads'
+  const cta = t?.ads?.upsell_cta || PT[lang]?.adFree2 || 'Go ad-free'
+  const dismiss = t?.ads?.upsell_dismiss || 'No thanks'
+  return (
+    <div style={{ background: '#F0FAF4', border: '1.5px solid #A7E6CC', borderRadius: 12, padding: '14px 16px', margin: '8px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+      <span style={{ fontSize: 13, color: '#085041', fontWeight: 600 }}>{label}</span>
+      <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+        <button onClick={onGoAdFree} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: '#1D9E75', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{cta}</button>
+        <button onClick={onDismiss} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #A7E6CC', background: '#fff', color: '#085041', fontSize: 12, cursor: 'pointer' }}>{dismiss}</button>
+      </div>
+    </div>
+  )
+}
+
+export default function AdBanner({ placement = 'feed', adsFree = false, hasAdFree = false, viewerMode, activeContext, onGoAdFree, lang = 'da', t }) {
   const [ads, setAds] = useState([])
   const [refreshInterval, setRefreshInterval] = useState(300)
   const [adIndex, setAdIndex] = useState(0)
   const impressedRef = useRef(new Set())
 
   useEffect(() => {
-    if (adsFree) return
+    if (adsFree || hasAdFree) return
 
     let cancelled = false
     const load = () => {
@@ -90,7 +107,7 @@ export default function AdBanner({ placement = 'feed', adsFree = false, onGoAdFr
     apiRecordAdImpression(ad.id).catch(() => {})
   }, [ad])
 
-  if (adsFree) {
+  if (hasAdFree || adsFree) {
     if (placement === 'feed') {
       return (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6px 0', margin: '4px 0' }}>
@@ -109,6 +126,9 @@ export default function AdBanner({ placement = 'feed', adsFree = false, onGoAdFr
     }
     return null
   }
+
+  if (viewerMode === 'business') return null
+  if (activeContext === 'professional' || activeContext === 'business') return null
 
   if (!ad) return null
 
