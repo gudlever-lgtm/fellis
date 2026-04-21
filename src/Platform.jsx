@@ -336,9 +336,7 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
     setMode(newMode)
     localStorage.setItem('fellis_mode', newMode)
     setShowModeModal(false)
-    // Sync mode to server so admin stats can segment by mode
-    const serverMode = newMode === 'business' ? 'business' : 'privat'
-    apiUpdateMode(serverMode).catch(() => {})
+    apiUpdateMode(newMode).catch(() => {})
   }
 
   const markAllRead = () => {
@@ -364,7 +362,7 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
           localStorage.setItem('fellis_mode', data.user.mode)
         } else {
           // Fallback: sync localStorage → server
-          apiUpdateMode(mode === 'business' ? 'business' : 'privat').catch(() => {})
+          apiUpdateMode(mode).catch(() => {})
         }
         // Show onboarding checklist for new personal users (account < 7 days, not dismissed)
         if (!data.user.onboarding_dismissed && data.user.created_at) {
@@ -863,16 +861,16 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
 
       {/* Mode switch modal */}
       {showModeModal && (() => {
-        const currentTier = mode === 'privat' ? 'privat' : 'business'
-        const currentLabel = currentTier === 'privat' ? t.modeCommon : t.modeBusiness
+        const currentLabel = mode === 'privat' ? t.modeCommon : mode === 'network' ? t.modeNetwork : t.modeBusiness
         return (
           <div className="modal-backdrop" onClick={() => setShowModeModal(false)}>
-            <div className="mode-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <div className="mode-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
               <h3 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 700 }}>{t.modeTitle}</h3>
               <p style={{ margin: '0 0 20px', fontSize: 13, color: '#888' }}>{t.modeCurrentLabel}: <strong>{currentLabel}</strong></p>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 {[
                   { key: 'privat', label: t.modeCommon, icon: '🏠', desc: t.modeCommonDesc, badge: null },
+                  { key: 'network', label: t.modeNetwork, icon: '🤝', desc: t.modeNetworkDesc, badge: null },
                   { key: 'business', label: t.modeBusiness, icon: '💼', desc: t.modeBusinessDesc, badge: t.free },
                 ].map(({ key, label, icon, desc, badge }) => {
                   const isActive = key === currentTier
@@ -7040,8 +7038,8 @@ function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenM
         <div style={{ fontSize: 14, fontWeight: 700, color: '#333', marginBottom: 4 }}>💼 {t.modeCurrentLabel}</div>
         <div style={{ fontSize: 13, color: '#666', marginBottom: 12 }}>
           {lang === 'da'
-            ? `Nuværende kontotype: ${mode === 'business' ? 'Erhverv' : 'Privat'}. Skift for at tilpasse oplevelsen til dit behov.`
-            : `Current account type: ${mode === 'business' ? 'Business' : 'Personal'}. Switch to tailor the experience to your needs.`}
+            ? `Nuværende kontotype: ${mode === 'business' ? 'Business' : mode === 'network' ? 'Netværk' : 'Privat'}. Skift for at tilpasse oplevelsen til dit behov.`
+            : `Current account type: ${mode === 'business' ? 'Business' : mode === 'network' ? 'Network' : 'Personal'}. Switch to tailor the experience to your needs.`}
         </div>
         <button
           onClick={onOpenModeModal}
