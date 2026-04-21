@@ -99,6 +99,7 @@ const s = {
     paddingBottom: 0,
   },
   tab: {
+    flex: 1,
     padding: '7px 18px',
     borderRadius: '8px 8px 0 0',
     border: 'none',
