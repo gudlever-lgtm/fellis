@@ -61,7 +61,7 @@ router.get('/pricing', async (req, res) => {
 router.get('/currency/eur-dkk', async (_req, res) => {
   try {
     const rate = await fetchEurDkkRate()
-    res.json({ rate, base: 'EUR', currency: 'DKK', cached_at: new Date(_eurDkkCachedAt).toISOString() })
+    res.json({ rate, base: 'EUR', currency: 'DKK' })
   } catch (err) {
     console.error('GET /api/currency/eur-dkk error:', err.message)
     res.json({ rate: 7.46, base: 'EUR', currency: 'DKK', fallback: true })

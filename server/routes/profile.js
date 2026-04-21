@@ -1486,12 +1486,12 @@ router.get('/me/analytics/best-times', authenticate, async (req, res) => {
     const [rows] = await pool.query(
       `SELECT DAYOFWEEK(pl.created_at) AS dow, HOUR(pl.created_at) AS hour, COUNT(*) AS engagements
        FROM post_likes pl JOIN posts p ON p.id = pl.post_id
-       WHERE p.user_id = ? AND pl.created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)
+       WHERE p.author_id = ? AND pl.created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)
        GROUP BY dow, hour
        UNION ALL
        SELECT DAYOFWEEK(c.created_at) AS dow, HOUR(c.created_at) AS hour, COUNT(*) AS engagements
        FROM comments c JOIN posts p ON p.id = c.post_id
-       WHERE p.user_id = ? AND c.created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)
+       WHERE p.author_id = ? AND c.created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)
        GROUP BY dow, hour`,
       [req.userId, req.userId]
     )
