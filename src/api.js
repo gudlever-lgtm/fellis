@@ -2206,3 +2206,5 @@ export const apiUpdateUserType = (mode) =>
   request('/api/user/type', { method: 'PATCH', body: JSON.stringify({ mode }) })
 
 export const apiGetUserFeatures = () => request('/api/user/features')
+export const apiGetUserType = (userId) => request(`/api/user/${userId}/type`)
+export const apiGetCompanyProfile = (userId) => request(`/api/company/profile/${userId}`)

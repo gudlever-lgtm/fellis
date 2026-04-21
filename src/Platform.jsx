@@ -51,6 +51,7 @@ import RiddleBanner from './components/easter-eggs/RiddleBanner.jsx'
 import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiReverseGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiAssignAdfreedays, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness, apiFollowUser, apiUnfollowUser, apiGetFollowers, apiGetFollowing, apiPayForAd, apiBoostPost, apiTrackAdImpression, apiTrackAdClick, apiAdminGrowth, apiAdminOnlineNow, apiAdminGetBannedUsers, apiAdminGetAuditLog, apiAdminSearchUsers, apiAdminForceLogout, apiAdminDeleteUser, apiGetAdminStorageStats,
   apiContactBusiness, apiGetBusinessJobs, apiGetBusinessServices, apiGetBusinessEvents, apiGetBusinessEndorsements, apiGetBusinessPartners, apiSendPartnerRequest, apiSendBusinessInquiry, apiGetFollowedAnnouncements,
   apiGetMyServices,
+  apiGetCompanyProfile,
 } from './api.js'
 import BusinessBadge from './components/BusinessBadge.jsx'
 import AdManager from './pages/AdManager.jsx'
@@ -8768,6 +8769,8 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
   const [showContact, setShowContact] = useState(false)
   const [contactForm, setContactForm] = useState({ topic: '', message: '' })
   const [contactSent, setContactSent] = useState(false)
+  // Company profile (business mode)
+  const [companyProfile, setCompanyProfile] = useState(null)
 
   useEffect(() => {
     if (!userId) return
@@ -8779,6 +8782,7 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
         if (data.mode === 'business') {
           setIsFollowing(!!data.isFollowing)
           setFollowerCount(Number(data.followerCount || 0))
+          apiGetCompanyProfile(userId).then(d => { if (d) setCompanyProfile(d) })
           // Load business extras
           apiGetBusinessServices(userId).then(d => setBizServices(d?.services || []))
           apiGetBusinessJobs(userId).then(d => setBizJobs(d?.jobs || []))
@@ -8840,7 +8844,11 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
         <div className="p-card" style={{ padding: 40, textAlign: 'center', color: '#aaa' }}>…</div>
       ) : (
         <div className="p-card p-profile-card">
-          <div className="p-profile-banner" />
+          <div className="p-profile-banner" style={
+            profile.mode === 'network' ? { background: 'linear-gradient(135deg, #0D9488 0%, #14B8A6 100%)' } :
+            profile.mode === 'business' ? { background: 'linear-gradient(135deg, #D97706 0%, #F59E0B 100%)' } :
+            undefined
+          } />
           <div className="p-profile-info">
             <div className="p-profile-avatar-wrapper" style={{ position: 'relative' }} onClick={handleAvatarClick}>
               {avatarSrc ? (
@@ -8859,12 +8867,22 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
               <h2 className="p-profile-name" style={{ margin: 0 }}>{profile.name}</h2>
               {profile.mode === 'business' && <BusinessBadge lang={lang} onClick={() => onNavigate?.('business-hub')} />}
+              {profile.mode === 'network' && (
+                <span style={{ fontSize: 12, background: '#CCFBF1', color: '#0D9488', border: '1px solid #5EEAD4', borderRadius: 20, padding: '2px 10px', fontWeight: 700 }}>
+                  {t.network?.badge || 'Netværk'}
+                </span>
+              )}
               {profile.is_verified && (
                 <span style={{ fontSize: 12, background: '#D1FAE5', color: '#065F46', border: '1px solid #6EE7B7', borderRadius: 20, padding: '2px 10px', fontWeight: 700 }}>{t.cvrVerifiedBadge}</span>
               )}
             </div>
             {profile.handle && <p className="p-profile-handle">@{profile.handle}</p>}
             {profile.bio?.[lang] && <p className="p-profile-bio">{profile.bio[lang]}</p>}
+            {profile.mode === 'network' && (profile.professionalTitle || profile.industry) && (
+              <p style={{ margin: '4px 0 0', fontSize: 13, color: '#0D9488', fontWeight: 500 }}>
+                {[profile.professionalTitle, profile.industry].filter(Boolean).join(' · ')}
+              </p>
+            )}
             <div className="p-profile-meta">
               {profile.location && <span>📍 {profile.location}</span>}
               {profile.birthday && !isNaN(new Date(profile.birthday)) && <span>🎂 {new Date(profile.birthday).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'long' })}</span>}
@@ -8872,13 +8890,44 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
               {profile.joinDate && <span>📅 {t.joined2} {new Date(profile.joinDate).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long' })}</span>}
             </div>
             <div className="p-friend-profile-stats" style={{ justifyContent: 'center', marginTop: 12 }}>
-              <div className="p-friend-profile-stat"><strong>{profile.friendCount}</strong><span>{t.friendsLabel}</span></div>
+              <div className="p-friend-profile-stat">
+                <strong>{profile.friendCount}</strong>
+                <span>{profile.mode === 'network' ? (t.network?.connections || t.friendsLabel) : t.friendsLabel}</span>
+              </div>
               {profile.mutualCount > 0 && <div className="p-friend-profile-stat"><strong>{profile.mutualCount}</strong><span>{t.mutualFriends}</span></div>}
               <div className="p-friend-profile-stat"><strong>{profile.postCount}</strong><span>{t.postsLabel}</span></div>
               {profile.mode === 'business' && (
-                <div className="p-friend-profile-stat"><strong>{followerCount}</strong><span>{t.followers}</span></div>
+                <div className="p-friend-profile-stat"><strong>{followerCount}</strong><span>{t.business?.followers || t.followers}</span></div>
               )}
             </div>
+
+            {/* Company profile card (new business mode) */}
+            {profile.mode === 'business' && companyProfile && (
+              <div style={{ margin: '12px 0', padding: '12px 14px', background: '#FFFBEB', borderRadius: 10, border: '1px solid #FCD34D', fontSize: 13, color: '#92400E' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                  {companyProfile.logo_url && (
+                    <img src={companyProfile.logo_url} alt="" style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />
+                  )}
+                  {companyProfile.company_name && (
+                    <strong style={{ fontSize: 15, color: '#78350F' }}>{companyProfile.company_name}</strong>
+                  )}
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {companyProfile.cvr && (
+                    <span>{t.business?.cvr || 'CVR'}: <strong>{companyProfile.cvr}</strong></span>
+                  )}
+                  {companyProfile.category && <span>🏷 {companyProfile.category}</span>}
+                  {companyProfile.website && (
+                    <a href={companyProfile.website} target="_blank" rel="noopener noreferrer" style={{ color: '#B45309', fontWeight: 600 }} onClick={e => e.stopPropagation()}>
+                      🌐 {companyProfile.website.replace(/^https?:\/\//, '')}
+                    </a>
+                  )}
+                  {companyProfile.description && (
+                    <p style={{ width: '100%', margin: '4px 0 0', color: '#78350F', fontStyle: 'italic' }}>{companyProfile.description}</p>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Business fields */}
             {profile.mode === 'business' && (
@@ -8933,6 +8982,16 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
                   {isFollowing ? `✓ ${t.unfollowBusiness}` : `+ ${t.followBusiness}`}
                 </button>
               )}
+              {/* Kontakt button — business profile */}
+              {profile.mode === 'business' && profile.id !== currentUser.id && !isBlocked && (
+                <button
+                  className="p-friend-msg-btn"
+                  style={{ background: '#FEF3C7', color: '#D97706', border: '1px solid #FCD34D' }}
+                  onClick={() => onMessage(profile)}
+                >
+                  ✉ {t.business?.contact_btn || 'Kontakt'}
+                </button>
+              )}
               {/* Meeting inquiry button — business profile only */}
               {profile.mode === 'business' && profile.id !== currentUser.id && !isBlocked && (
                 <button
@@ -8973,6 +9032,7 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
                 >
                   {requestSent
                     ? (t.requestSent2)
+                    : profile.mode === 'network' ? (t.network?.connect_btn || t.addFriend2)
                     : (t.addFriend2)}
                 </button>
               ) : null}
