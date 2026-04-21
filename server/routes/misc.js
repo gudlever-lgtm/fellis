@@ -3476,4 +3476,55 @@ router.get('/announcements', authenticate, async (req, res) => {
   }
 })
 
+// ── Company profile (user-centric, for mode=business users) ──────────────────
+
+router.post('/company/profile', authenticate, attachUserMode, async (req, res) => {
+  if (req.userMode !== 'business') return res.status(403).json({ error: 'Business account required' })
+  const { company_name, cvr, description, category, logo_url, website } = req.body
+  if (!company_name || !String(company_name).trim()) {
+    return res.status(400).json({ error: 'company_name is required' })
+  }
+  try {
+    const [result] = await pool.query(
+      `INSERT INTO company_profiles (user_id, company_name, cvr, description, category, logo_url, website)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         company_name = VALUES(company_name),
+         cvr = VALUES(cvr),
+         description = VALUES(description),
+         category = VALUES(category),
+         logo_url = VALUES(logo_url),
+         website = VALUES(website)`,
+      [req.userId, String(company_name).trim().slice(0, 255),
+       cvr ? String(cvr).slice(0, 20) : null,
+       description || null, category ? String(category).slice(0, 100) : null,
+       logo_url ? String(logo_url).slice(0, 500) : null,
+       website ? String(website).slice(0, 500) : null]
+    )
+    const insertId = result.insertId || null
+    const [[profile]] = await pool.query(
+      'SELECT * FROM company_profiles WHERE user_id = ?', [req.userId]
+    )
+    res.json({ success: true, profile })
+  } catch (err) {
+    console.error('POST /api/company/profile error:', err.message)
+    res.status(500).json({ error: 'Failed to save company profile' })
+  }
+})
+
+router.get('/company/profile/:userId', async (req, res) => {
+  const userId = parseInt(req.params.userId, 10)
+  if (!userId || isNaN(userId)) return res.status(400).json({ error: 'Invalid user id' })
+  try {
+    const [[profile]] = await pool.query(
+      'SELECT * FROM company_profiles WHERE user_id = ?', [userId]
+    )
+    if (!profile) return res.status(404).json({ error: 'Company profile not found' })
+    res.json(profile)
+  } catch (err) {
+    console.error('GET /api/company/profile/:userId error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 export default router

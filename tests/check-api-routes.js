@@ -899,4 +899,48 @@ if (translationsErrors.length > 0) {
   console.log(`${GREEN}✓ GET /api/translations is registered, validates lang + feature, supports all ${REQUIRED_LANGS.length} languages and ${REQUIRED_FEATURES.length} feature namespaces.${RESET}\n`)
 }
 
+// ── User-type, company-profile, network-profile, and feature-flag routes ──────
+//
+// These routes implement the user-type system (private / network / business).
+// All must be registered on the server and never return 404.
+//
+//   PATCH /api/user/type               → 200 (authenticated) | 400 (bad mode) | 401
+//   GET   /api/user/:id/type           → 200 (public)        | 400 (bad id)   | 404
+//   POST  /api/company/profile         → 200 (business)      | 403 (wrong type)| 401
+//   GET   /api/company/profile/:userId → 200 (public)        | 404 (not found)
+//   PATCH /api/user/network-profile    → 200 (network)       | 403 (wrong type)| 401
+//   GET   /api/user/features           → 200 (authenticated) | 401
+//
+const REQUIRED_USER_TYPE_ROUTES = [
+  'PATCH /api/user/type',
+  'GET /api/user/:id/type',
+  'POST /api/company/profile',
+  'GET /api/company/profile/:userId',
+  'PATCH /api/user/network-profile',
+  'GET /api/user/features',
+]
+
+const missingUserTypeRoutes = REQUIRED_USER_TYPE_ROUTES.filter(r => {
+  const [method, p] = r.split(' ')
+  return !normServerRoutes.has(`${method} ${normaliseServerPath(p)}`)
+})
+
+if (missingUserTypeRoutes.length > 0) {
+  console.log(`${RED}✗ Missing required user-type server routes:${RESET}`)
+  for (const r of missingUserTypeRoutes) console.log(`  ${RED}${r}${RESET}`)
+  console.log()
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ All ${REQUIRED_USER_TYPE_ROUTES.length} user-type routes (type/company/network/features) are registered on the server.${RESET}\n`)
+}
+
+// Verify PATCH /api/user/type validates the mode parameter
+const userTypeRoutesSrc = readFileSync(resolve(root, 'server/routes/users.js'), 'utf8')
+if (!userTypeRoutesSrc.includes("'private'") || !userTypeRoutesSrc.includes("'network'") || !userTypeRoutesSrc.includes("'business'")) {
+  console.log(`${RED}✗ PATCH /api/user/type is missing mode validation for 'private', 'network', or 'business'.${RESET}\n`)
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ PATCH /api/user/type validates mode against private/network/business enum.${RESET}\n`)
+}
+
 process.exit(0)
