@@ -342,7 +342,7 @@ router.get('/profile', authenticate, async (req, res) => {
 
 router.patch('/me/mode', authenticate, writeLimit, async (req, res) => {
   const { mode } = req.body
-  if (!['privat', 'business'].includes(mode)) return res.status(400).json({ error: 'Invalid mode' })
+  if (!['privat', 'network', 'business'].includes(mode)) return res.status(400).json({ error: 'Invalid mode' })
   try {
     await pool.query('UPDATE users SET mode = ? WHERE id = ?', [mode, req.userId])
     res.json({ ok: true })

@@ -96,10 +96,10 @@ router.get('/feed', authenticate, async (req, res) => {
     // cursor = ISO timestamp of the oldest post already seen; null = load from the top
     const cursor = req.query.cursor || null
 
-    // Optional mode filter — 'privat' or 'business'; omit for mixed feed (backward-compatible)
+    // Optional mode filter — 'privat', 'business', or 'network'; omit for mixed feed
     const modeFilter = req.query.mode || null
-    if (modeFilter && modeFilter !== 'privat' && modeFilter !== 'business') {
-      return res.status(400).json({ error: 'Invalid mode parameter. Must be "privat" or "business".' })
+    if (modeFilter && !['privat', 'business', 'network'].includes(modeFilter)) {
+      return res.status(400).json({ error: 'Invalid mode parameter. Must be "privat", "business", or "network".' })
     }
 
     // Ranked mode: rerank a 30-day candidate window by family/interest/recency/engagement
@@ -110,8 +110,9 @@ router.get('/feed', authenticate, async (req, res) => {
     const cursorParams = (ranked || !cursor) ? [] : [new Date(cursor)]
     const rankedWindowClause = ranked ? 'AND p.created_at > NOW() - INTERVAL 30 DAY' : ''
     const sqlLimit = ranked ? Math.min(limit * 5 + offset, 250) : limit
-    const modeClause = modeFilter ? 'AND p.user_mode = ?' : ''
-    const modeParams = modeFilter ? [modeFilter] : []
+    // 'network' matches both 'network' and legacy 'business' rows until migration is complete
+    const modeClause = modeFilter ? (modeFilter === 'network' ? 'AND p.user_mode IN (?, ?)' : 'AND p.user_mode = ?') : ''
+    const modeParams = modeFilter ? (modeFilter === 'network' ? ['network', 'business'] : [modeFilter]) : []
 
     let posts
     try {
