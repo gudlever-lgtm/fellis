@@ -1,13 +1,9 @@
 import { useState, useEffect } from 'react'
 import { getTheme } from '../userTypeTheme.js'
+import { formatPrice } from '../utils/currency.js'
 import { apiFetchPaymentFeatures, apiStartFeaturePayment, apiCancelFeaturePayment } from '../api.js'
 
 const FEATURE_IDS = ['ad_free', 'analytics', 'profile_boost', 'direct_message', 'multi_admin', 'ad_campaigns']
-
-function priceLabel(template, price) {
-  const formatted = price.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  return (template || '€{price}/md').replace('{price}', formatted)
-}
 
 function subtitleKey(mode) {
   if (mode === 'business') return 'business'
@@ -102,12 +98,11 @@ export default function FeaturesPage({ currentUser, lang, t, onNavigate }) {
     dialogBtns: { display: 'flex', gap: 10, justifyContent: 'flex-end' },
   }
 
-  const featuresByMap = features ? Object.fromEntries(features.map(f => [f.id, f])) : {}
+  const dateFmt = new Intl.DateTimeFormat(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' })
+  const perMonth = tf.price_per_month || '/md'
 
   return (
     <div style={s.page}>
-      <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }`}</style>
-
       <div style={s.header}>
         <h1 style={s.title}>{tf.page_title || 'Funktioner'}</h1>
         <p style={s.subtitle}>{tf.subtitle?.[subtitleKey(mode)] || ''}</p>
@@ -146,13 +141,14 @@ export default function FeaturesPage({ currentUser, lang, t, onNavigate }) {
             const tFeature = tf[f.id] || {}
             const isActivating = activating === f.id
             const isCancelling = cancelling === f.id
-            const expiresDate = f.expires_at ? new Date(f.expires_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' }) : null
+            const expiresDate = f.expires_at ? dateFmt.format(new Date(f.expires_at)) : null
+            const priceStr = `${formatPrice(f.price)}${perMonth}`
             return (
               <div key={f.id} style={s.card}>
                 {f.active && <span style={s.badge}>{tf.badge_active || 'Aktiv'}</span>}
                 <div style={s.cardTitle}>{tFeature.name || f.id}</div>
                 <div style={s.cardDesc}>{tFeature.description || ''}</div>
-                <div style={s.price}>{priceLabel(tf.price_per_month, f.price)}</div>
+                <div style={s.price}>{priceStr}</div>
                 {f.active && expiresDate && (
                   <div style={s.expires}>{tf.renews_on || 'Fornyes'} {expiresDate}</div>
                 )}
@@ -170,7 +166,7 @@ export default function FeaturesPage({ currentUser, lang, t, onNavigate }) {
                     disabled={isActivating}
                     onClick={() => handleActivate(f)}
                   >
-                    {tf.btn_activate || 'Aktivér'} — {priceLabel(tf.price_per_month, f.price)}
+                    {tf.btn_activate || 'Aktivér'} — {priceStr}
                   </button>
                 )}
               </div>
@@ -185,7 +181,7 @@ export default function FeaturesPage({ currentUser, lang, t, onNavigate }) {
             <div style={s.dialogText}>{tf.btn_cancel_confirm || 'Er du sikker på, at du vil annullere denne funktion?'}</div>
             <div style={s.dialogBtns}>
               <button style={{ ...s.btnCancel, fontSize: 13 }} onClick={() => setConfirming(null)}>
-                {lang === 'da' ? 'Afbryd' : 'Back'}
+                {t?.back || 'Tilbage'}
               </button>
               <button
                 style={{ ...s.btnActivate, background: '#c62828', fontSize: 13, opacity: cancelling === confirming.id ? 0.6 : 1 }}

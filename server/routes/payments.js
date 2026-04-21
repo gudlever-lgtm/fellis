@@ -624,13 +624,12 @@ router.post('/adfree/assign', authenticate, async (req, res) => {
 
 router.get('/payment/features', authenticate, async (req, res) => {
   try {
-    const [[user]] = await pool.query('SELECT mode FROM users WHERE id = ?', [req.userId])
+    const [[[user]], [rows]] = await Promise.all([
+      pool.query('SELECT mode FROM users WHERE id = ?', [req.userId]),
+      pool.query('SELECT feature, active, expires_at FROM user_features WHERE user_id = ? AND active = 1', [req.userId]),
+    ])
     if (!user) return res.status(404).json({ error: 'User not found' })
     const mode = user.mode || 'privat'
-    const [rows] = await pool.query(
-      'SELECT feature, active, expires_at FROM user_features WHERE user_id = ? AND active = 1',
-      [req.userId]
-    )
     const activeMap = {}
     for (const row of rows) activeMap[row.feature] = row
     const features = FEATURE_CATALOG

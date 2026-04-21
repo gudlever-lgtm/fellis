@@ -6,6 +6,11 @@
   padding: 0;
 }
 
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
 /* Required field marker — red asterisk used across all forms */
 .req {
   color: #DC2626;
