@@ -30,6 +30,7 @@ import onboarding from './onboarding.js'
 import forBusiness from './for-business.js'
 import privacy from './privacy.js'
 import about from './about.js'
+import features from './features.js'
 
 function deepMerge(target, source) {
   const result = { ...target }
@@ -55,7 +56,7 @@ const segments = [
   notifications, analytics, business, ads, events, companies,
   jobs, marketplace, admin, reels, moderation, referrals,
   commonUiA, commonUiB, commonUiC, commonErrors, commonTime, commonNotifications, commonKeyboard,
-  blog, facebook, onboarding, forBusiness, privacy, about,
+  blog, facebook, onboarding, forBusiness, privacy, about, features,
 ]
 
 export const PT = segments.reduce((acc, seg) => {

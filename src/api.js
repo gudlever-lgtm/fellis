@@ -1460,6 +1460,16 @@ export async function apiGetMollieStatus() {
   return await request('/api/mollie/payment/status')
 }
 
+export async function apiFetchPaymentFeatures() {
+  return await request('/api/payment/features')
+}
+export async function apiStartFeaturePayment(feature) {
+  return await request('/api/payment/start', { method: 'POST', body: JSON.stringify({ feature }) })
+}
+export async function apiCancelFeaturePayment(feature) {
+  return await request('/api/payment/cancel', { method: 'POST', body: JSON.stringify({ feature }) })
+}
+
 // ── Admin ad settings ─────────────────────────────────────────────────────────
 export async function apiGetAdminAdStats() {
   return await request('/api/admin/ad-stats')

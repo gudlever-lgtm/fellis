@@ -407,7 +407,9 @@ function App() {
     const pageParam = params.get('page')
     if (pageParam) {
       setInitialPage(pageParam)
-      window.history.replaceState({}, '', window.location.pathname)
+      params.delete('page')
+      const remaining = params.toString()
+      window.history.replaceState({}, '', remaining ? `${window.location.pathname}?${remaining}` : window.location.pathname)
     }
     // Returning from Google OAuth
     const googleSession = params.get('google_session')

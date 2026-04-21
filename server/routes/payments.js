@@ -30,6 +30,15 @@ import { fetchEurDkkRate, getMollieClient } from '../helpers.js'
 
 const router = express.Router()
 
+const FEATURE_CATALOG = [
+  { id: 'ad_free',        price: 2.99, modes: ['privat', 'private', 'network', 'business'] },
+  { id: 'analytics',      price: 4.99, modes: ['privat', 'private', 'network', 'business'] },
+  { id: 'profile_boost',  price: 1.99, modes: ['privat', 'private', 'network', 'business'] },
+  { id: 'direct_message', price: 1.99, modes: ['privat', 'private', 'network'] },
+  { id: 'multi_admin',    price: 3.99, modes: ['business'] },
+  { id: 'ad_campaigns',   price: 9.99, modes: ['business'] },
+]
+
 router.get('/pricing', async (req, res) => {
   try {
     const [[row]] = await pool.query(
@@ -612,5 +621,108 @@ router.post('/adfree/assign', authenticate, async (req, res) => {
   }
 })
 
+
+router.get('/payment/features', authenticate, async (req, res) => {
+  try {
+    const [[user]] = await pool.query('SELECT mode FROM users WHERE id = ?', [req.userId])
+    if (!user) return res.status(404).json({ error: 'User not found' })
+    const mode = user.mode || 'privat'
+    const [rows] = await pool.query(
+      'SELECT feature, active, expires_at FROM user_features WHERE user_id = ? AND active = 1',
+      [req.userId]
+    )
+    const activeMap = {}
+    for (const row of rows) activeMap[row.feature] = row
+    const features = FEATURE_CATALOG
+      .filter(f => f.modes.includes(mode))
+      .map(f => ({
+        id: f.id,
+        price: f.price,
+        active: !!activeMap[f.id],
+        expires_at: activeMap[f.id]?.expires_at || null,
+      }))
+    res.json({ features })
+  } catch (err) {
+    console.error('GET /api/payment/features error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+router.post('/payment/start', authenticate, async (req, res) => {
+  try {
+    const { feature } = req.body || {}
+    if (!feature) return res.status(400).json({ error: 'Missing field: feature' })
+    const catalog = FEATURE_CATALOG.find(f => f.id === feature)
+    if (!catalog) return res.status(400).json({ error: 'Unknown feature' })
+
+    const [[user]] = await pool.query('SELECT id, email, name, mode FROM users WHERE id = ?', [req.userId])
+    if (!user) return res.status(404).json({ error: 'User not found' })
+    if (!catalog.modes.includes(user.mode)) return res.status(403).json({ error: 'Feature not available for your account type' })
+
+    const origin = req.headers.origin || process.env.SITE_URL || 'https://fellis.eu'
+    const redirectUrl = `${origin}/?page=features&payment=success&feature=${encodeURIComponent(feature)}`
+    const siteUrl = process.env.SITE_URL || origin
+
+    const mollie = await getMollieClient()
+    if (!mollie) {
+      // Dev/test fallback: activate directly
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+      await pool.query(
+        `INSERT INTO user_features (user_id, feature, active, expires_at) VALUES (?, ?, 1, ?)
+         ON DUPLICATE KEY UPDATE active = 1, expires_at = ?`,
+        [req.userId, feature, expiresAt, expiresAt]
+      )
+      return res.json({ checkout_url: redirectUrl })
+    }
+
+    const amountStr = catalog.price.toFixed(2)
+    const payment = await mollie.payments.create({
+      amount: { currency: 'EUR', value: amountStr },
+      description: `fellis ${feature} subscription`,
+      redirectUrl,
+      webhookUrl: `${siteUrl}/api/mollie/payment/webhook`,
+      metadata: { user_id: String(req.userId), feature },
+    })
+    res.json({ checkout_url: payment.getCheckoutUrl() })
+  } catch (err) {
+    console.error('POST /api/payment/start error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+router.post('/payment/cancel', authenticate, async (req, res) => {
+  try {
+    const { feature } = req.body || {}
+    if (!feature) return res.status(400).json({ error: 'Missing field: feature' })
+
+    const [[row]] = await pool.query(
+      'SELECT mollie_subscription_id FROM user_features WHERE user_id = ? AND feature = ?',
+      [req.userId, feature]
+    )
+    if (row?.mollie_subscription_id) {
+      try {
+        const mollie = await getMollieClient()
+        const [[user]] = await pool.query('SELECT mollie_customer_id FROM users WHERE id = ?', [req.userId])
+        if (mollie && user?.mollie_customer_id) {
+          await mollie.customerSubscriptions.cancel({
+            customerId: user.mollie_customer_id,
+            id: row.mollie_subscription_id,
+          })
+        }
+      } catch (cancelErr) {
+        console.error('Mollie subscription cancel error:', cancelErr.message)
+      }
+    }
+
+    await pool.query(
+      'UPDATE user_features SET active = 0 WHERE user_id = ? AND feature = ?',
+      [req.userId, feature]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/payment/cancel error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
 
 export default router

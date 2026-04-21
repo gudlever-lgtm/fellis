@@ -31,6 +31,7 @@ import {
 import { siApplepay, siGooglepay, siVisa } from 'simple-icons'
 import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
+import FeaturesPage from './pages/FeaturesPage.jsx'
 import ReelsPage from './Reels.jsx'
 import InterestGraphPage from './InterestGraphPage.jsx'
 import ExplorePage from './pages/ExplorePage.jsx'
@@ -832,6 +833,7 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
         )}
         {page === 'payment-success' && <PaymentSuccess lang={lang} onNavigate={navigateTo} />}
         {page === 'payment-failed' && <PaymentFailed lang={lang} onNavigate={navigateTo} />}
+        {page === 'features' && <FeaturesPage lang={lang} t={t} currentUser={currentUser} onNavigate={navigateTo} />}
         {page === 'search' && (
           <SearchPage
             lang={lang}
