@@ -479,7 +479,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
             <p style={{ fontSize: 14, lineHeight: 1.7, margin: 0, color: '#4a6b5c' }}>{t.manifestoLine3}</p>
             <div style={{ borderTop: '1px solid #C8DDD2', marginTop: 2 }} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {t.manifestoWhys.map(({ icon, text }) => (
+              {(t.manifestoWhys || []).map(({ icon, text }) => (
                 <div key={text} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                   <span style={{ fontSize: 15, lineHeight: 1.6, flexShrink: 0 }}>{icon}</span>
                   <span style={{ fontSize: 13, lineHeight: 1.6, color: '#3a5a4a' }}>{text}</span>
@@ -589,7 +589,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
             </div>
             <div className="landing-services-row" style={{ marginTop: 6 }}>
               <span className="landing-services-label">{t.servicesLabel}:</span>
-              {t.services.map(svc => (
+              {(t.services || []).map(svc => (
                 <a key={svc.name} href={svc.url} target="_blank" rel="noopener noreferrer" className="landing-service-chip">
                   <span>{svc.flag}</span>
                   <span className="landing-service-chip-name">{svc.name}</span>
