@@ -44,6 +44,7 @@ async function request(path, options = {}) {
       console.warn(`API ${path} → ${res.status}`, body.error || '')
       return null
     }
+    if (res.status === 204) return null
     return await res.json()
   } catch (err) {
     if (err.message === 'Failed to fetch') return null // Server not running
@@ -1416,6 +1417,9 @@ export async function apiRecordAdClick(id) {
 }
 export async function apiServeAds(placement) {
   return await request(`/api/content?section=${placement}`)
+}
+export async function apiFetchAdBanner() {
+  return await request('/api/ads/banner')
 }
 
 // ── Subscription ──────────────────────────────────────────────────────────────

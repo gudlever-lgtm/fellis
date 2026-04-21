@@ -1321,6 +1321,30 @@ router.get('/ads/price', authenticate, async (req, res) => {
 })
 
 
+router.get('/ads/banner', authenticate, async (req, res) => {
+  try {
+    const [[user]] = await pool.query('SELECT mode FROM users WHERE id = ?', [req.userId])
+    if (user?.mode === 'business') return res.status(204).end()
+    const today = new Date().toISOString().split('T')[0]
+    const [rows] = await pool.query(
+      `SELECT id, title, image_url, link_url FROM platform_ads
+       WHERE status = 'active'
+         AND (start_date IS NULL OR start_date <= ?)
+         AND (end_date IS NULL OR end_date >= ?)
+       ORDER BY RAND()
+       LIMIT 1`,
+      [today, today]
+    )
+    if (!rows.length) return res.status(204).end()
+    const ad = rows[0]
+    res.json({ ad_id: ad.id, image_url: ad.image_url, link_url: ad.link_url, label: ad.title })
+  } catch (err) {
+    console.error('GET /api/ads/banner error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+
 router.get('/ads/:id', authenticate, async (req, res) => {
   try {
     const [[ad]] = await pool.query('SELECT * FROM ads WHERE id = ?', [req.params.id])

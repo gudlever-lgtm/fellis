@@ -4228,7 +4228,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         const pi = postIdx++
         return (
           <Fragment key={post.id}>
-            {(pi === 7 || (pi > 7 && pi % 8 === 0)) && <AdBanner placement="feed" adsFree={adsFree} lang={lang} t={t} viewerMode={mode} activeContext={feedContext === 'network' ? 'professional' : feedContext} onGoAdFree={adsFree ? null : () => onNavigate('settings', 'billing')} />}
+            {pi > 0 && pi % 8 === 0 && <AdBanner placement="feed" adsFree={adsFree} lang={lang} t={t} viewerMode={mode} activeContext={feedContext === 'network' ? 'professional' : feedContext} onGoAdFree={adsFree ? null : () => onNavigate('settings', 'billing')} />}
             {pi === 3 && feedContext === 'social' && !adsFree && !upsellDismissed && (
               <UpsellCard t={t} lang={lang} onGoAdFree={() => onNavigate('settings', 'billing')} onDismiss={() => { sessionStorage.setItem(UPSELL_KEY, '1'); setUpsellDismissed(true) }} />
             )}
