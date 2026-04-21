@@ -3356,8 +3356,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
       <FeedTabs
         viewerMode={currentUser.mode}
         t={t}
-        activeTab={feedContext === 'network' ? 'network' : 'private'}
-        onTabChange={(tab) => setFeedContext(tab === 'network' ? 'network' : 'social')}
+        activeTab={feedContext === 'network' ? 'network' : feedContext === 'business' ? 'business' : 'private'}
+        onTabChange={(tab) => setFeedContext(tab === 'network' ? 'network' : tab === 'business' ? 'business' : 'social')}
       />
 
       {/* New post */}
@@ -3985,8 +3985,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
         )}
       </div>
 
-      {/* Reels strip */}
-      <ReelsStrip lang={lang} t={t} onNavigate={onNavigate} />
+      {/* Reels strip — not shown for business users */}
+      {currentUser.mode !== 'business' && <ReelsStrip lang={lang} t={t} onNavigate={onNavigate} />}
 
       {/* Memories card — on this day */}
       <MemoriesCard
