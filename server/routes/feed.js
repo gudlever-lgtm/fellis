@@ -140,6 +140,7 @@ router.get('/feed', authenticate, async (req, res) => {
           `SELECT p.id, p.author_id, u.name as author, u.mode as author_mode, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.categories, p.created_at, p.edited_at,
                   NULL as place_name, NULL as geo_lat, NULL as geo_lng,
                   NULL as tagged_users, NULL as linked_type, NULL as linked_id,
+                  NULL as professional_title, NULL as business_category,
                   0 as author_badge_count
            FROM posts p JOIN users u ON p.author_id = u.id
            WHERE (p.author_id = ?
@@ -159,6 +160,7 @@ router.get('/feed', authenticate, async (req, res) => {
           `SELECT p.id, p.author_id, u.name as author, u.mode as author_mode, p.text_da, p.text_en, p.time_da, p.time_en, p.likes, p.media, p.categories, p.created_at, p.edited_at,
                   NULL as place_name, NULL as geo_lat, NULL as geo_lng,
                   NULL as tagged_users, NULL as linked_type, NULL as linked_id,
+                  NULL as professional_title, NULL as business_category,
                   0 as author_badge_count
            FROM posts p JOIN users u ON p.author_id = u.id
            WHERE (p.author_id = ?

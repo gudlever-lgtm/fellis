@@ -60,7 +60,7 @@ import CompanyProfileForm from './CompanyProfileForm.jsx'
 import PostCard from './PostCard.jsx'
 import FeedTabs from './FeedTabs.jsx'
 import PostComposer from './PostComposer.jsx'
-import { UpsellCard } from './AdBanner.jsx'
+import { UpsellCard, UPSELL_KEY } from './AdBanner.jsx'
 import AdManager from './pages/AdManager.jsx'
 import BusinessHub from './pages/BusinessHub.jsx'
 import LocationAutocomplete from './components/LocationAutocomplete.jsx'
@@ -2450,6 +2450,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [feedMode, setFeedMode] = useState(mode || 'privat')
   const feedModeRef = useRef(mode || 'privat')
   const [feedContext, setFeedContext] = useState('social') // 'social' | 'network' | 'business'
+  const [upsellDismissed, setUpsellDismissed] = useState(() => !!sessionStorage.getItem(UPSELL_KEY))
   const feedContextRef = useRef('social')
   const [postContext, setPostContext] = useState('social') // 'social' | 'professional' | 'business'
   const [pinnedPost, setPinnedPost] = useState(null)
@@ -4228,8 +4229,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         return (
           <Fragment key={post.id}>
             {(pi === 7 || (pi > 7 && pi % 8 === 0)) && <AdBanner placement="feed" adsFree={adsFree} lang={lang} t={t} viewerMode={mode} activeContext={feedContext === 'network' ? 'professional' : feedContext} onGoAdFree={adsFree ? null : () => onNavigate('settings', 'billing')} />}
-            {pi === 3 && feedContext === 'social' && !adsFree && !sessionStorage.getItem('fellis_upsell_dismissed') && (
-              <UpsellCard t={t} lang={lang} onGoAdFree={() => onNavigate('settings', 'billing')} onDismiss={() => sessionStorage.setItem('fellis_upsell_dismissed', '1')} />
+            {pi === 3 && feedContext === 'social' && !adsFree && !upsellDismissed && (
+              <UpsellCard t={t} lang={lang} onGoAdFree={() => onNavigate('settings', 'billing')} onDismiss={() => { sessionStorage.setItem(UPSELL_KEY, '1'); setUpsellDismissed(true) }} />
             )}
             {pi >= SUGGEST_EVERY && pi % SUGGEST_EVERY === 0 && (() => {
               const sp = suggestedPosts[Math.floor(pi / SUGGEST_EVERY) - 1]

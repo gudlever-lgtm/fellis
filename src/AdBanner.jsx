@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { apiServeAds, apiRecordAdImpression, apiRecordAdClick } from './api.js'
 import { PT } from './data.js'
+import THEMES from './userTypeTheme.js'
 
 /**
  * AdBanner — renders a platform ad for a given placement.
@@ -45,18 +46,19 @@ async function fetchAds(placement) {
   return promise
 }
 
-const UPSELL_KEY = 'fellis_upsell_dismissed'
+export const UPSELL_KEY = 'fellis_upsell_dismissed'
 
 export function UpsellCard({ t, lang, onGoAdFree, onDismiss }) {
+  const n = THEMES.network
   const label = t?.ads?.upsell_text || PT[lang]?.adFreeLabel || 'Try fellis without ads'
   const cta = t?.ads?.upsell_cta || PT[lang]?.adFree2 || 'Go ad-free'
   const dismiss = t?.ads?.upsell_dismiss || 'No thanks'
   return (
-    <div style={{ background: '#F0FAF4', border: '1.5px solid #A7E6CC', borderRadius: 12, padding: '14px 16px', margin: '8px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-      <span style={{ fontSize: 13, color: '#085041', fontWeight: 600 }}>{label}</span>
+    <div style={{ background: n.colorLight, border: `1.5px solid ${n.avatarBg}`, borderRadius: 12, padding: '14px 16px', margin: '8px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+      <span style={{ fontSize: 13, color: n.colorDark, fontWeight: 600 }}>{label}</span>
       <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-        <button onClick={onGoAdFree} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: '#1D9E75', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{cta}</button>
-        <button onClick={onDismiss} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #A7E6CC', background: '#fff', color: '#085041', fontSize: 12, cursor: 'pointer' }}>{dismiss}</button>
+        <button onClick={onGoAdFree} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: n.color, color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{cta}</button>
+        <button onClick={onDismiss} style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${n.avatarBg}`, background: '#fff', color: n.colorDark, fontSize: 12, cursor: 'pointer' }}>{dismiss}</button>
       </div>
     </div>
   )
@@ -88,7 +90,7 @@ export default function AdBanner({ placement = 'feed', adsFree = false, hasAdFre
     // Refetch immediately whenever invalidateAdCache() is called
     _listeners.add(load)
     return () => { cancelled = true; clearInterval(interval); _listeners.delete(load) }
-  }, [placement, adsFree]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [placement, adsFree, hasAdFree]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Rotate through multiple ads every 10 seconds when more than one is available
   useEffect(() => {

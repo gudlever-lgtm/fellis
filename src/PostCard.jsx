@@ -1,4 +1,4 @@
-import { getTheme } from './userTypeTheme.js'
+import { getTheme, CONTEXT_TO_THEME } from './userTypeTheme.js'
 import { getInitials } from './data.js'
 
 export default function PostCard({
@@ -23,7 +23,7 @@ export default function PostCard({
   const badgeCount = post.authorBadgeCount || 0
 
   const postContext = post.postContext || post.post_context || 'social'
-  const contextKey = postContext === 'professional' ? 'network' : postContext === 'business' ? 'business' : 'private'
+  const contextKey = CONTEXT_TO_THEME[postContext] || 'private'
   const contextLabel = t?.post?.badge?.[contextKey] || postContext
 
   const subtitle = authorMode === 'business'

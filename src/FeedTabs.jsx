@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { getTheme } from './userTypeTheme.js'
 
 const SKELETON_COUNT = 3
 
@@ -37,26 +38,32 @@ export default function FeedTabs({ viewerMode, t, activeTab, onTabChange }) {
   }
 
   if (viewerMode === 'business') {
+    const biz = getTheme('business')
     return (
       <div style={s.tabBar}>
-        <button style={{ ...s.tab, ...s.tabActive }} disabled>
+        <button style={{ ...s.tab, background: biz.color, color: '#fff', borderBottom: `3px solid ${biz.color}` }} disabled>
           {t?.feed?.tab?.network || 'Network'}
         </button>
       </div>
     )
   }
 
-  // network mode: two tabs
   return (
     <>
       <div style={s.tabBar}>
         {['private', 'network'].map(tab => {
+          const theme = getTheme(tab)
           const isActive = activeTab === tab
           return (
             <button
               key={tab}
               onClick={() => handleTabChange(tab)}
-              style={{ ...s.tab, ...(isActive ? s.tabActive : s.tabInactive) }}
+              style={{
+                ...s.tab,
+                background: isActive ? theme.color : '#fff',
+                color: isActive ? '#fff' : theme.color,
+                borderBottom: `3px solid ${isActive ? theme.color : 'transparent'}`,
+              }}
             >
               {t?.feed?.tab?.[tab] || tab}
             </button>
@@ -100,18 +107,7 @@ const s = {
     cursor: 'pointer',
     transition: 'all 0.12s',
     outline: 'none',
-    background: 'none',
     marginBottom: -2,
-  },
-  tabActive: {
-    color: '#1D9E75',
-    borderBottom: '2px solid #1D9E75',
-    background: '#E1F5EE',
-  },
-  tabInactive: {
-    color: '#6B7280',
-    borderBottom: '2px solid transparent',
-    background: 'none',
   },
   skeletonWrap: {
     display: 'flex',

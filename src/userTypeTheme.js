@@ -40,4 +40,10 @@ export function getTheme(authorMode) {
   return THEMES.private
 }
 
+export const CONTEXT_TO_THEME = {
+  social: 'private',
+  professional: 'network',
+  business: 'business',
+}
+
 export default THEMES

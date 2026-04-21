@@ -1,13 +1,6 @@
-import { getTheme } from './userTypeTheme.js'
-
-const CONTEXT_MAP = {
-  social: 'private',
-  professional: 'network',
-  business: 'business',
-}
+import { getTheme, CONTEXT_TO_THEME } from './userTypeTheme.js'
 
 export default function PostComposer({
-  viewerMode,
   activeContext,
   t,
   lang,
@@ -17,8 +10,7 @@ export default function PostComposer({
   submitting,
   children,
 }) {
-  const themeKey = CONTEXT_MAP[activeContext] || 'private'
-  const theme = getTheme(themeKey === 'private' ? 'privat' : themeKey)
+  const theme = getTheme(CONTEXT_TO_THEME[activeContext] || 'private')
 
   const postingInLabel = t?.composer?.posting_in?.[activeContext]
     || `${activeContext}`
