@@ -20,6 +20,7 @@ import {
   MAX_LOGIN_ATTEMPTS, LOCKOUT_DURATION_MINUTES,
   COOKIE_NAME, SERVER_START, visitedSessions, visitedAnonIps,
 } from '../middleware.js'
+import { userHasFeature } from '../features.js'
 import crypto from 'crypto'
 import fs from 'fs'
 import path from 'path'
@@ -134,6 +135,34 @@ router.post('/friends/request/:userId', authenticate, writeLimit, async (req, re
     sseBroadcast(targetId, { type: 'friend_request' })
     res.json({ ok: true })
   } catch (err) { res.status(500).json({ error: 'Failed to send request' }) }
+})
+
+
+router.post('/connections/request', authenticate, writeLimit, async (req, res) => {
+  const { user_id } = req.body
+  const targetId = parseInt(user_id)
+  if (!targetId || targetId === req.userId) return res.status(400).json({ error: 'Invalid user' })
+  try {
+    const [[target]] = await pool.query('SELECT id FROM users WHERE id = ?', [targetId])
+    if (!target) return res.status(404).json({ error: 'User not found' })
+    const [[friendship]] = await pool.query(
+      'SELECT 1 FROM friendships WHERE user_id = ? AND friend_id = ?',
+      [req.userId, targetId]
+    )
+    if (!friendship) {
+      const has = await userHasFeature(req.userId, 'direct_message')
+      if (!has) return res.status(403).json({ error: 'feature_required', feature: 'direct_message' })
+    }
+    await pool.query(
+      `INSERT INTO friend_requests (from_user_id, to_user_id, status) VALUES (?, ?, 'pending')
+       ON DUPLICATE KEY UPDATE status = 'pending', created_at = CURRENT_TIMESTAMP()`,
+      [req.userId, targetId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/connections/request error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
 })
 
 

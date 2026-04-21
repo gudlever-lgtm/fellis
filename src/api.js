@@ -480,6 +480,9 @@ export async function apiFetchFriends() {
 export async function apiSendFriendRequest(userId) {
   return await request(`/api/friends/request/${userId}`, { method: 'POST' })
 }
+export async function apiSendConnectionRequest(userId) {
+  return await request('/api/connections/request', { method: 'POST', body: JSON.stringify({ user_id: userId }) })
+}
 
 export async function apiFetchFriendRequests() {
   return await request('/api/friends/requests')
@@ -969,6 +972,9 @@ export async function apiWithdrawModeratorRequest() {
 export async function apiGetAnalytics(days = 30) {
   return await request(`/api/analytics?days=${days}`)
 }
+export async function apiGetPostAnalytics(postId) {
+  return await request(`/api/analytics/post/${postId}`)
+}
 
 export async function apiGetVisitorStats(days = 30) {
   return await request(`/api/analytics/visitor-stats?days=${days}`)
@@ -1381,6 +1387,9 @@ export async function apiDenyModeratorRequest(id, reason) {
 // ── Ads ──────────────────────────────────────────────────────────────────────
 export async function apiCreateAd(data) {
   return await request('/api/ads', { method: 'POST', body: JSON.stringify(data) })
+}
+export async function apiCreateAdCampaign(data) {
+  return await request('/api/ads/campaign', { method: 'POST', body: JSON.stringify(data) })
 }
 export async function apiGetMyAds() {
   return await request('/api/ads/mine')
