@@ -451,6 +451,8 @@ async function initConversations() {
     await addCol('conversation_participants', 'admin_muted_until', 'DATETIME DEFAULT NULL')
     // Family group flag
     await addCol('conversations', 'is_family_group', 'TINYINT(1) NOT NULL DEFAULT 0')
+    // Public group support
+    await addCol('conversations', 'is_public', 'TINYINT(1) NOT NULL DEFAULT 0')
     // Clean up broken 1:1 conversations created with null/missing participants
     await pool.query(`
       DELETE c FROM conversations c
@@ -1701,6 +1703,13 @@ async function initMarketplace() {
         ('vehicles-trailers',    'vehicles', 'Trailere & Campingvogne', 'Trailers & Caravans', '🚐', 76)`)
     }
 
+    // Add columns that may be missing on older installs
+    await addCol('marketplace_listings', 'priceNegotiable', 'TINYINT(1) DEFAULT 0')
+    await addCol('marketplace_listings', 'sold', 'TINYINT(1) DEFAULT 0')
+    await addCol('marketplace_listings', 'boosted_until', 'TIMESTAMP NULL DEFAULT NULL')
+    await addCol('marketplace_listings', 'contact_phone', 'VARCHAR(50) DEFAULT NULL')
+    await addCol('marketplace_listings', 'contact_email', 'VARCHAR(255) DEFAULT NULL')
+
     // Add subcategory column to marketplace_listings if missing
     const [cols] = await pool.query(
       `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
@@ -2044,6 +2053,8 @@ async function initSettingsSchema() {
     await addCol('users', 'analytics_opt_out', 'TINYINT(1) NOT NULL DEFAULT 0')
     await addCol('users', 'allow_tagging', 'TINYINT(1) NOT NULL DEFAULT 1')
     await addCol('users', 'friend_list_visibility', "ENUM('all','friends','only_me') NOT NULL DEFAULT 'all'")
+    await addCol('users', 'follower_count', 'INT DEFAULT 0')
+    await addCol('users', 'community_score', 'INT DEFAULT 0')
     // Extended profile fields
     await addCol('users', 'tags', 'JSON DEFAULT NULL')
     await addCol('users', 'relationship_status', "ENUM('single','in_relationship','married','engaged','open','prefer_not') DEFAULT NULL")
@@ -2698,9 +2709,11 @@ async function initReels() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
     // Live-reel columns (added by migrate-livereel-settings.sql; addCol here as safety net)
     await pool.query(`ALTER TABLE reels
-      ADD COLUMN IF NOT EXISTS source   ENUM('upload','live') NOT NULL DEFAULT 'upload',
-      ADD COLUMN IF NOT EXISTS title_da VARCHAR(500) DEFAULT NULL,
-      ADD COLUMN IF NOT EXISTS title_en VARCHAR(500) DEFAULT NULL`).catch(() => {})
+      ADD COLUMN IF NOT EXISTS source      ENUM('upload','live') NOT NULL DEFAULT 'upload',
+      ADD COLUMN IF NOT EXISTS title_da    VARCHAR(500) DEFAULT NULL,
+      ADD COLUMN IF NOT EXISTS title_en    VARCHAR(500) DEFAULT NULL,
+      ADD COLUMN IF NOT EXISTS shares_count INT NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS tagged_users JSON DEFAULT NULL`).catch(() => {})
     // stream_key on users — unique token for RTMP authentication
     await pool.query(
       'ALTER TABLE users ADD COLUMN IF NOT EXISTS stream_key VARCHAR(64) DEFAULT NULL'
