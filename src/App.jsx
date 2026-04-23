@@ -199,6 +199,10 @@ function PublicTermsPage() {
           ? 'fellis.eu er en dansk social platform hostet i EU. Ved at oprette en konto eller bruge platformen accepterer du disse servicevilkår. Platformen drives af fellis.eu og er målrettet brugere i Danmark og EU.'
           : 'fellis.eu is a Danish social platform hosted in the EU. By creating an account or using the platform, you agree to these Terms of Service. The platform is operated by fellis.eu and is intended for users in Denmark and the EU.'
         }</p>
+        <p style={s.p}>{da
+          ? 'Platformen drives af gnf.dk — CVR: 16143103.'
+          : 'The platform is operated by gnf.dk — CVR: 16143103.'
+        }</p>
       </div>
 
       <div style={s.section}>
@@ -638,7 +642,12 @@ function PublicSalgsbetingelserPage() {
       {/* 1. Sælger */}
       <div style={s.section}>
         <h2 style={s.h2}>{da ? '1. Sælger' : '1. Seller'}</h2>
-        <p style={s.p}><strong>fellis.eu</strong><br />E-mail: <a href="mailto:privacy@fellis.eu" style={s.email}>privacy@fellis.eu</a></p>
+        <p style={s.p}>
+          <strong>fellis.eu</strong><br />
+          {da ? 'Drevet af' : 'Operated by'}: <strong>gnf.dk</strong><br />
+          CVR: 16143103<br />
+          E-mail: <a href="mailto:privacy@fellis.eu" style={s.email}>privacy@fellis.eu</a>
+        </p>
         <p style={s.p}>{da
           ? 'Disse salgsbetingelser gælder for køb af digitale ydelser på fellis.eu og er udformet i overensstemmelse med Forbrugerombudsmandens retningslinjer for nethandel.'
           : 'These Sales Terms apply to purchases of digital services on fellis.eu and comply with the Danish Consumer Ombudsman\'s guidelines for online commerce.'
