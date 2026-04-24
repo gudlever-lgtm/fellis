@@ -19,6 +19,22 @@ ALTER TABLE events ADD COLUMN IF NOT EXISTS group_id INT DEFAULT NULL;
 -- Single pinned post per group
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS pinned_post_id INT DEFAULT NULL;
 
+-- Denormalised counters kept in sync by join/leave/remove/post triggers
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS member_count INT NOT NULL DEFAULT 0;
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS post_count INT NOT NULL DEFAULT 0;
+
+-- Backfill counters for existing groups
+UPDATE conversations c
+  SET member_count = (
+    SELECT COUNT(*) FROM conversation_participants cp
+    WHERE cp.conversation_id = c.id AND cp.status = 'active'
+  )
+WHERE c.is_group = 1;
+
+UPDATE conversations c
+  SET post_count = (SELECT COUNT(*) FROM posts p WHERE p.group_id = c.id)
+WHERE c.is_group = 1;
+
 -- Group polls
 CREATE TABLE IF NOT EXISTS group_polls (
   id          INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,

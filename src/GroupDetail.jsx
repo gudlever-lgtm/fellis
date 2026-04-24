@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import PostComposer from './PostComposer.jsx'
 import {
   apiGetGroup, apiGetGroupPosts, apiCreateGroupPost, apiDeleteGroupPost,
-  apiPinGroupPost, apiReactGroupPost, apiLeaveGroup, apiJoinGroup,
+  apiPinGroupPost, apiReactToGroupPost, apiLeaveGroup, apiJoinGroup,
 } from './api.js'
 import { getTranslations, nameToColor, getInitials } from './data.js'
 
@@ -58,13 +58,13 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
   }, [slug])
 
   useEffect(() => {
-    if (loadState !== 'ready') return
+    if (loadState !== 'ready' || !group) return
     setFeedLoading(true)
-    apiGetGroupPosts(slug).then(data => {
+    apiGetGroupPosts(group.id).then(data => {
       setFeedLoading(false)
       if (data?.posts) setPosts(data.posts)
     })
-  }, [loadState, slug])
+  }, [loadState, group?.id])
 
   const handleJoin = async () => {
     if (!group) return
@@ -87,7 +87,7 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
 
   const handleLeave = async () => {
     if (!window.confirm(g.leaveConfirm)) return
-    const res = await apiLeaveGroup(slug)
+    const res = await apiLeaveGroup(group.id)
     if (res !== null) onNavigate?.('/groups')
   }
 
@@ -106,7 +106,7 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
   const handleCreatePost = async () => {
     if (!composerText.trim() || composerSubmitting) return
     setComposerSubmitting(true)
-    const res = await apiCreateGroupPost(slug, composerText.trim(), composerMedia || undefined)
+    const res = await apiCreateGroupPost(group.id, composerText.trim(), composerMedia || undefined)
     setComposerSubmitting(false)
     if (res) {
       setPosts(prev => [res, ...prev])
@@ -118,13 +118,13 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
 
   const handleDeletePost = async (postId) => {
     if (!window.confirm(g.confirmDeletePost)) return
-    const res = await apiDeleteGroupPost(slug, postId)
+    const res = await apiDeleteGroupPost(group.id, postId)
     if (res !== null) setPosts(prev => prev.filter(p => p.id !== postId))
   }
 
   const handlePinPost = async (post) => {
     const newPinned = !post.is_pinned
-    const res = await apiPinGroupPost(slug, post.id, newPinned)
+    const res = await apiPinGroupPost(group.id, post.id, newPinned)
     if (res !== null) {
       setPosts(prev =>
         prev
@@ -149,7 +149,7 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
       if (nextReaction) r[nextReaction] = (r[nextReaction] || 0) + 1
       return { ...p, my_reaction: nextReaction, reactions: r }
     }))
-    await apiReactGroupPost(slug, post.id, reaction)
+    await apiReactToGroupPost(group.id, post.id, reaction)
   }
 
   // ── Status screens ────────────────────────────────────────────────────────

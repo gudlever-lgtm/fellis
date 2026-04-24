@@ -1118,16 +1118,16 @@ export async function apiGetGroup(slug) {
   }
 }
 
-export const apiGetGroupPosts = (slug) => request(`/api/groups/${slug}/posts`)
+export const apiGetGroupPosts = (groupId) => request(`/api/groups/${groupId}/posts`)
 
-export async function apiCreateGroupPost(slug, text, file) {
+export async function apiCreateGroupPost(groupId, text, file) {
   if (file) {
     const form = new FormData()
     form.append('text', text)
     form.append('media', file)
     const csrf = localStorage.getItem('fellis_csrf_token')
     try {
-      const res = await fetch(`${API_BASE}/api/groups/${slug}/posts`, {
+      const res = await fetch(`${API_BASE}/api/groups/${groupId}/posts`, {
         method: 'POST',
         headers: csrf ? { 'X-CSRF-Token': csrf } : {},
         credentials: 'same-origin',
@@ -1137,40 +1137,40 @@ export async function apiCreateGroupPost(slug, text, file) {
       return await res.json()
     } catch { return null }
   }
-  return await request(`/api/groups/${slug}/posts`, {
+  return await request(`/api/groups/${groupId}/posts`, {
     method: 'POST',
     body: JSON.stringify({ text }),
   })
 }
 
-export const apiDeleteGroupPost = (slug, postId) =>
-  request(`/api/groups/${slug}/posts/${postId}`, { method: 'DELETE' })
+export const apiDeleteGroupPost = (groupId, postId) =>
+  request(`/api/groups/${groupId}/posts/${postId}`, { method: 'DELETE' })
 
-export async function apiPinGroupPost(slug, postId, pinned) {
-  return await request(`/api/groups/${slug}/posts/${postId}/pin`, {
+export async function apiPinGroupPost(groupId, postId, pinned) {
+  return await request(`/api/groups/${groupId}/posts/${postId}/pin`, {
     method: 'POST',
     body: JSON.stringify({ pinned }),
   })
 }
 
-export async function apiReactGroupPost(slug, postId, reaction) {
-  return await request(`/api/groups/${slug}/posts/${postId}/react`, {
+export async function apiReactToGroupPost(groupId, postId, reaction) {
+  return await request(`/api/groups/${groupId}/posts/${postId}/react`, {
     method: 'POST',
     body: JSON.stringify({ reaction }),
   })
 }
 
-export const apiGetGroupMembers = (slug) => request(`/api/groups/${slug}/members`)
+export const apiGetGroupMembers = (groupId) => request(`/api/groups/${groupId}/members`)
 
-export async function apiUpdateGroupMember(slug, userId, role) {
-  return await request(`/api/groups/${slug}/members/${userId}`, {
-    method: 'PATCH',
+export async function apiUpdateGroupMemberRole(groupId, userId, role) {
+  return await request(`/api/groups/${groupId}/members/${userId}/role`, {
+    method: 'PUT',
     body: JSON.stringify({ role }),
   })
 }
 
-export const apiRemoveGroupMember = (slug, userId) =>
-  request(`/api/groups/${slug}/members/${userId}`, { method: 'DELETE' })
+export const apiRemoveGroupMember = (groupId, userId) =>
+  request(`/api/groups/${groupId}/members/${userId}`, { method: 'DELETE' })
 
 export const apiGetGroupEvents = (slug) => request(`/api/groups/${slug}/events`)
 
@@ -1190,8 +1190,8 @@ export async function apiVoteGroupPoll(slug, pollId, optionIdx) {
   })
 }
 
-export const apiLeaveGroup = (slug) =>
-  request(`/api/groups/${slug}/leave`, { method: 'DELETE' })
+export const apiLeaveGroup = (groupId) =>
+  request(`/api/groups/${groupId}/leave`, { method: 'POST' })
 
 export const apiGetGroupInviteLink = (slug) => request(`/api/groups/${slug}/invite`)
 
