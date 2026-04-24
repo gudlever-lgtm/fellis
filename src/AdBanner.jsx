@@ -1,100 +1,75 @@
-import { useState, useEffect, useRef } from 'react'
-import { apiServeAds, apiRecordAdImpression, apiRecordAdClick } from './api.js'
+import { useState, useEffect } from 'react'
+import { apiFetchAdBanner } from './api.js'
 import { PT } from './data.js'
+import THEMES from './userTypeTheme.js'
 
 /**
  * AdBanner — renders a platform ad for a given placement.
  *
  * Props:
- *   placement   'feed' | 'sidebar' | 'stories'
- *   adsFree     boolean — if true, renders nothing
- *   currentUser optional user object (ads_free is checked server-side too)
+ *   placement     'feed' | 'sidebar' | 'stories'
+ *   adsFree       boolean — legacy flag, treated same as hasAdFree
+ *   hasAdFree     boolean — if true, renders nothing
+ *   viewerMode    'privat' | 'private' | 'business' | 'network'
+ *   activeContext 'social' | 'professional' | 'business'
  */
 
-// Module-level in-flight deduplication — prevents N simultaneous fetches
-// when multiple AdBanner instances mount at once (e.g. several feed slots).
-// Does NOT cache results across renders; each interval tick fetches fresh data.
-const _inflight = {} // placement → Promise | null
-
 // Subscribers notified on invalidation so active AdBanner instances refetch immediately.
-let _revision = 0
 const _listeners = new Set()
 
-// Call this after creating, deleting, or updating any ad so all active banners refetch.
 export function invalidateAdCache() {
-  Object.keys(_inflight).forEach(k => delete _inflight[k])
-  _revision++
-  _listeners.forEach(fn => fn(_revision))
+  _listeners.forEach(fn => fn())
 }
 
-async function fetchAds(placement) {
-  // If a fetch is already in flight for this placement, reuse the same promise
-  if (_inflight[placement]) return _inflight[placement]
-  const promise = apiServeAds(placement).then(data => {
-    delete _inflight[placement]
-    return {
-      ads: data?.ads || [],
-      ads_free: data?.ads_free || false,
-      refresh_interval: data?.refresh_interval || 300,
-    }
-  }).catch(() => {
-    delete _inflight[placement]
-    return { ads: [], refresh_interval: 300 }
-  })
-  _inflight[placement] = promise
-  return promise
+export const UPSELL_KEY = 'fellis_upsell_dismissed'
+
+export function UpsellCard({ t, lang, onGoAdFree, onDismiss }) {
+  const label = t?.ads?.upsell_text || 'Try fellis without ads'
+  const cta = t?.ads?.upsell_cta || 'Go ad-free'
+  const dismiss = t?.ads?.upsell_dismiss || 'No thanks'
+  return (
+    <div style={{ background: '#fff', border: '0.5px solid #ddd', borderRadius: 12, padding: '14px 16px', margin: '8px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+      <span style={{ fontSize: 13, color: '#444', fontWeight: 600 }}>{label}</span>
+      <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+        <button onClick={onGoAdFree} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: '#1a1a1a', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{cta}</button>
+        <button onClick={onDismiss} style={{ padding: '6px 10px', borderRadius: 8, border: '0.5px solid #ddd', background: '#fff', color: '#666', fontSize: 12, cursor: 'pointer' }}>{dismiss}</button>
+      </div>
+    </div>
+  )
 }
 
-export default function AdBanner({ placement = 'feed', adsFree = false, onGoAdFree, lang = 'da' }) {
-  const [ads, setAds] = useState([])
-  const [refreshInterval, setRefreshInterval] = useState(300)
-  const [adIndex, setAdIndex] = useState(0)
-  const impressedRef = useRef(new Set())
+export default function AdBanner({ placement = 'feed', adsFree = false, hasAdFree = false, viewerMode, activeContext, onGoAdFree, lang = 'da', t }) {
+  const [ad, setAd] = useState(null)
+
+  const isBusinessMode = viewerMode === 'business'
+  const isProfessionalContext = activeContext === 'professional' || activeContext === 'business'
+  const shouldHide = hasAdFree || adsFree || isBusinessMode || isProfessionalContext
 
   useEffect(() => {
-    if (adsFree) return
-
+    if (shouldHide) return
     let cancelled = false
+
     const load = () => {
-      fetchAds(placement).then(data => {
+      apiFetchAdBanner().then(data => {
         if (cancelled) return
-        if (data?.ads_free) { setAds([]); return }
-        setAds(data.ads || [])
-        if (data?.refresh_interval) setRefreshInterval(data.refresh_interval)
-        setAdIndex(0)
+        setAd(data || null)
       })
     }
 
     load()
-    const interval = setInterval(load, refreshInterval * 1000)
-
-    // Refetch immediately whenever invalidateAdCache() is called
+    const interval = setInterval(load, 300 * 1000)
     _listeners.add(load)
     return () => { cancelled = true; clearInterval(interval); _listeners.delete(load) }
-  }, [placement, adsFree]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [shouldHide])
 
-  // Rotate through multiple ads every 10 seconds when more than one is available
-  useEffect(() => {
-    if (ads.length <= 1) return
-    const rotateInterval = setInterval(() => {
-      setAdIndex(i => i + 1)
-    }, 10000)
-    return () => clearInterval(rotateInterval)
-  }, [ads.length])
+  if (shouldHide) return null
+  if (!ad) return null
 
-  const ad = ads[adIndex % (ads.length || 1)]
-
-  useEffect(() => {
-    if (!ad || impressedRef.current.has(ad.id)) return
-    impressedRef.current.add(ad.id)
-    apiRecordAdImpression(ad.id).catch(() => {})
-  }, [ad])
-
-  if (adsFree || !ad) return null
+  const sponsoredLabel = t?.ads?.label || PT[lang]?.ads?.label || 'Sponsoreret'
+  const goAdFreeLabel = t?.ads?.upsell_cta || 'Go ad-free'
 
   const handleClick = () => {
-    apiRecordAdClick(ad.id).catch(() => {})
-    if (ad.target_url) window.open(ad.target_url, '_blank', 'noopener,noreferrer')
+    if (ad.link_url) window.open(ad.link_url, '_blank', 'noopener,noreferrer')
   }
 
   if (placement === 'feed') {
@@ -106,7 +81,7 @@ export default function AdBanner({ placement = 'feed', adsFree = false, onGoAdFr
           borderRadius: 12,
           padding: '12px 16px',
           margin: '8px 0',
-          cursor: 'pointer',
+          cursor: ad.link_url ? 'pointer' : 'default',
           position: 'relative',
         }}
         onClick={handleClick}
@@ -123,19 +98,17 @@ export default function AdBanner({ placement = 'feed', adsFree = false, onGoAdFr
             />
           )}
           <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 3 }}>{ad.title}</div>
-            {ad.body && <div style={{ fontSize: 13, color: '#555', lineHeight: 1.5 }}>{ad.body}</div>}
+            <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 3 }}>{ad.label}</div>
           </div>
         </div>
         <div style={{ position: 'absolute', top: 8, right: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 10, color: '#aaa', fontWeight: 600, letterSpacing: 0.5 }}>Sponsoreret</span>
+          <span style={{ fontSize: 10, color: '#aaa', fontWeight: 600, letterSpacing: 0.5 }}>{sponsoredLabel}</span>
           {onGoAdFree && (
             <button
               onClick={e => { e.stopPropagation(); onGoAdFree() }}
-              title={PT[lang].removeAds}
               style={{ background: 'none', border: '1px solid #ddd', borderRadius: 20, padding: '1px 7px', fontSize: 10, color: '#aaa', cursor: 'pointer', lineHeight: 1.6 }}
             >
-              🚫 {PT[lang].adFree2}
+              🚫 {goAdFreeLabel}
             </button>
           )}
         </div>
@@ -151,7 +124,7 @@ export default function AdBanner({ placement = 'feed', adsFree = false, onGoAdFr
           border: '1px solid #e8e4df',
           borderRadius: 10,
           padding: 14,
-          cursor: 'pointer',
+          cursor: ad.link_url ? 'pointer' : 'default',
           fontSize: 13,
         }}
         onClick={handleClick}
@@ -160,19 +133,18 @@ export default function AdBanner({ placement = 'feed', adsFree = false, onGoAdFr
         onKeyDown={e => e.key === 'Enter' && handleClick()}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-          <span style={{ fontSize: 10, color: '#aaa', fontWeight: 600 }}>SPONSORERET</span>
+          <span style={{ fontSize: 10, color: '#aaa', fontWeight: 600 }}>{sponsoredLabel.toUpperCase()}</span>
           {onGoAdFree && (
             <button onClick={e => { e.stopPropagation(); onGoAdFree() }}
               style={{ background: 'none', border: '1px solid #eee', borderRadius: 20, padding: '1px 7px', fontSize: 10, color: '#aaa', cursor: 'pointer' }}>
-              🚫 {PT[lang].adFree2}
+              🚫 {goAdFreeLabel}
             </button>
           )}
         </div>
         {ad.image_url && (
           <img src={ad.image_url} alt="" style={{ width: '100%', borderRadius: 8, marginBottom: 8, objectFit: 'cover', maxHeight: 120 }} />
         )}
-        <div style={{ fontWeight: 700, marginBottom: 4 }}>{ad.title}</div>
-        {ad.body && <div style={{ color: '#666', fontSize: 12, lineHeight: 1.5 }}>{ad.body}</div>}
+        <div style={{ fontWeight: 700, marginBottom: 4 }}>{ad.label}</div>
       </div>
     )
   }
@@ -185,7 +157,7 @@ export default function AdBanner({ placement = 'feed', adsFree = false, onGoAdFr
         borderRadius: 12,
         padding: '16px 20px',
         color: '#fff',
-        cursor: 'pointer',
+        cursor: ad.link_url ? 'pointer' : 'default',
         position: 'relative',
         overflow: 'hidden',
       }}
@@ -195,19 +167,18 @@ export default function AdBanner({ placement = 'feed', adsFree = false, onGoAdFr
       onKeyDown={e => e.key === 'Enter' && handleClick()}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, opacity: 0.7 }}>SPONSORERET</span>
+        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, opacity: 0.7 }}>{sponsoredLabel.toUpperCase()}</span>
         {onGoAdFree && (
           <button onClick={e => { e.stopPropagation(); onGoAdFree() }}
             style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 20, padding: '1px 7px', fontSize: 10, color: '#fff', cursor: 'pointer' }}>
-            🚫 {PT[lang].adFree2}
+            🚫 {goAdFreeLabel}
           </button>
         )}
       </div>
       {ad.image_url && (
         <img src={ad.image_url} alt="" style={{ width: '100%', borderRadius: 8, marginBottom: 10, objectFit: 'cover', maxHeight: 160 }} />
       )}
-      <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 4 }}>{ad.title}</div>
-      {ad.body && <div style={{ fontSize: 13, opacity: 0.85, lineHeight: 1.5 }}>{ad.body}</div>}
+      <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 4 }}>{ad.label}</div>
     </div>
   )
 }

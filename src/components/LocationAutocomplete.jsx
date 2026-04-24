@@ -2,20 +2,6 @@ import { useState, useRef, useEffect } from 'react'
 import { apiGeocode } from '../api.js'
 import { PT } from '../data.js'
 
-/**
- * LocationAutocomplete — OpenStreetMap/Nominatim location picker.
- *
- * Props:
- *   value       string          — current text value (controlled)
- *   onChange    fn(text)        — called on every keystroke
- *   onSelect    fn({name, lat, lng}) — called when user picks a result;
- *               if omitted, onChange(display_name) is called instead
- *   lang        'da'|'en'
- *   placeholder string
- *   required    bool
- *   style       object          — extra styles on the wrapper div
- *   inputStyle  object          — extra styles on the <input>
- */
 export default function LocationAutocomplete({
   value = '',
   onChange,
@@ -23,14 +9,17 @@ export default function LocationAutocomplete({
   lang = 'da',
   placeholder,
   required = false,
+  autoFocus = false,
   style,
   inputStyle,
 }) {
   const [results, setResults] = useState([])
   const [searching, setSearching] = useState(false)
   const [open, setOpen] = useState(false)
+  const [dropdownPos, setDropdownPos] = useState(null)
   const debounce = useRef(null)
   const wrapRef = useRef(null)
+  const inputRef = useRef(null)
 
   const ph = placeholder ?? (PT[lang].searchLocation)
 
@@ -45,6 +34,12 @@ export default function LocationAutocomplete({
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
+  const calcPos = () => {
+    if (!inputRef.current) return
+    const r = inputRef.current.getBoundingClientRect()
+    setDropdownPos({ top: r.bottom, left: r.left, width: r.width })
+  }
+
   const handleChange = (e) => {
     const q = e.target.value
     onChange(q)
@@ -52,6 +47,7 @@ export default function LocationAutocomplete({
     clearTimeout(debounce.current)
     if (q.length < 2) { setSearching(false); setOpen(false); return }
     setSearching(true)
+    calcPos()
     debounce.current = setTimeout(async () => {
       const res = await apiGeocode(q, lang)
       setResults(res || [])
@@ -92,9 +88,13 @@ export default function LocationAutocomplete({
       cursor: 'pointer', color: '#aaa', fontSize: 15, lineHeight: 1, flexShrink: 0,
     },
     dropdown: {
-      position: 'absolute', left: 0, right: 0, top: 'calc(100% + 4px)',
+      position: 'fixed',
+      top: dropdownPos ? dropdownPos.top + 4 : 0,
+      bottom: 'auto',
+      left: dropdownPos ? dropdownPos.left : 0,
+      width: dropdownPos ? dropdownPos.width : '100%',
       background: '#fff', border: '1px solid #DDD', borderRadius: 10,
-      boxShadow: '0 4px 18px rgba(0,0,0,0.13)', zIndex: 500, overflow: 'hidden',
+      boxShadow: '0 4px 18px rgba(0,0,0,0.13)', zIndex: 9999, overflow: 'hidden',
     },
     row: {
       display: 'block', width: '100%', textAlign: 'left',
@@ -113,13 +113,15 @@ export default function LocationAutocomplete({
     <div ref={wrapRef} style={s.wrap}>
       <div style={s.inputRow}>
         <input
+          ref={inputRef}
           type="text"
           value={value}
           onChange={handleChange}
-          onFocus={() => results.length > 0 && setOpen(true)}
+          onFocus={() => { calcPos(); results.length > 0 && setOpen(true) }}
           placeholder={ph}
           required={required}
           autoComplete="off"
+          autoFocus={autoFocus}
           style={s.input}
         />
         {value && (

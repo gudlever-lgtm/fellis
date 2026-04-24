@@ -1,0 +1,50 @@
+{
+  "login": {
+    "title": "Log in to fellis",
+    "emailLabel": "Email",
+    "passwordLabel": "Password",
+    "button": "Log in",
+    "forgotPassword": "Forgot password?",
+    "noAccount": "Don't have an account?",
+    "registerLink": "Create account",
+    "orContinueWith": "or continue with"
+  },
+  "register": {
+    "title": "Create account",
+    "nameLabel": "Name",
+    "emailLabel": "Email",
+    "passwordLabel": "Password",
+    "confirmPasswordLabel": "Confirm password",
+    "button": "Create account",
+    "hasAccount": "Already have an account?",
+    "loginLink": "Log in",
+    "gdprConsent": "I accept the terms and privacy policy",
+    "passwordTooShort": "Password must be at least 6 characters",
+    "passwordsDontMatch": "Passwords do not match",
+    "passwordsMatch": "Passwords match"
+  },
+  "forgotPassword": {
+    "title": "Forgot password",
+    "description": "Enter your email and we will send you a reset link.",
+    "emailLabel": "Email",
+    "button": "Send reset link",
+    "backToLogin": "Back to login",
+    "emailSent": "Reset link sent to your email",
+    "error": "Could not send reset link — please try again"
+  },
+  "resetPassword": {
+    "title": "Reset password",
+    "newPasswordLabel": "New password",
+    "confirmPasswordLabel": "Confirm new password",
+    "button": "Save new password",
+    "success": "Password updated — you can now log in"
+  },
+  "mfa": {
+    "title": "Two-factor authentication",
+    "description": "We sent a code to your number. Enter it to confirm:",
+    "codeLabel": "SMS code",
+    "button": "Confirm",
+    "resend": "Resend code",
+    "invalidCode": "Invalid or expired code"
+  }
+}

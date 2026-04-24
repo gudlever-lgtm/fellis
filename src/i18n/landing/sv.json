@@ -1,0 +1,164 @@
+{
+  "navBrand": "fellis.eu",
+  "langToggle": "SV",
+  "loginBtn": "Logga in",
+  "headline": "Flytta ditt sociala liv till Europa",
+  "subtitle": "fellis.eu — den nya europeiska plattformen byggd för dig, inte för annonsörer.",
+  "cta": "Kom igång",
+  "createCardTitle": "Skapa nytt konto",
+  "createCardDesc": "Börja om på fellis.eu med e-post och lösenord.",
+  "createCardBtn": "Skapa konto",
+  "hero_intro": "Varför Fellis finns",
+  "manifestoLine3": "De stora sociala plattformarna är inte utformade för din skull. De är byggda för att hålla dig framför skärmen så länge som möjligt, för din uppmärksamhet är det de säljer. Det ger algoritmer som begravt inlägg, annonser baserade på ditt beteende och ett system som behandlar dig som råvara. Fellis är byggt som ett konkret alternativ: kronologiskt flöde, data i Europa och annonser som inte kräver att vi kartlägger ditt privatliv. Det löser inte allt. Men det är en bättre utgångspunkt.",
+  "manifestoWhys": [
+    {
+      "icon": "📅",
+      "text": "Kronologiskt flöde — ingen algoritm bestämmer vad du ser."
+    },
+    {
+      "icon": "🇪🇺",
+      "text": "Dina uppgifter stannar i Europa, skyddade av GDPR."
+    },
+    {
+      "icon": "🎯",
+      "text": "Annonser visas efter kontext, inte din personliga profil."
+    },
+    {
+      "icon": "🤝",
+      "text": "Du är användaren — inte produkten."
+    }
+  ],
+  "manifestoWhysAlt": [
+    {
+      "icon": "📅",
+      "text": "Kronologiskt flöde — din tidslinje sorteras inte. Du ser det du valt att följa, i den ordning det kom."
+    },
+    {
+      "icon": "🇪🇺",
+      "text": "Dina uppgifter lagras i EU och regleras av GDPR. Inte som ett löfte — det är bara vad lagen kräver här."
+    },
+    {
+      "icon": "🎯",
+      "text": "Annonser baseras på kontext, inte på vem du är. Vi bygger inga profiler om dig."
+    },
+    {
+      "icon": "🤝",
+      "text": "Du betalar inte med pengar. Vi tjänar pengar på annonser och företagsabonnemang — det gör det tydligt vem kunden är."
+    }
+  ],
+  "trustEncrypt": "End-to-end-krypterat",
+  "trustEU": "Hostat i EU",
+  "trustDelete": "Full kontroll över dina uppgifter",
+  "servicesLabel": "Byggt på europeiska tjänster",
+  "services": [
+    {
+      "flag": "🇩🇰",
+      "name": "Yggdrasil Cloud",
+      "role": "Hosting",
+      "url": "https://yggdrasilcloud.dk/"
+    },
+    {
+      "flag": "🇸🇪",
+      "name": "46elks",
+      "role": "SMS / MFA",
+      "url": "https://46elks.com/"
+    },
+    {
+      "flag": "🇳🇱",
+      "name": "Mollie",
+      "role": "Betalningar",
+      "url": "https://www.mollie.com/"
+    },
+    {
+      "flag": "🇫🇷",
+      "name": "Mistral AI",
+      "role": "AI (CV / personligt brev)",
+      "url": "https://mistral.ai/"
+    }
+  ],
+  "inviteTitle": "Bjud in dina vänner",
+  "inviteSubtitle": "Hjälp dina vänner att byta till fellis.eu",
+  "selectAll": "Välj alla",
+  "deselectAll": "Avmarkera alla",
+  "mutualFriends": "gemensamma vänner",
+  "skip": "Hoppa över",
+  "sendInvites": "Skicka inbjudningar",
+  "sendingInvites": "Skickar inbjudningar...",
+  "inviteLinkTitle": "Dela din inbjudningslänk",
+  "inviteLinkDesc": "Dela den här länken med dina vänner så att ni automatiskt kopplas samman på fellis.eu",
+  "copyLink": "Kopiera länk",
+  "linkCopied": "Kopierad!",
+  "invitedBy": "bjuder in dig till fellis.eu",
+  "doneTitle": "Välkommen till fellis.eu!",
+  "doneSubtitle": "Ditt konto är redo. Ditt nya digitala hem väntar.",
+  "viewProfile": "Visa din profil",
+  "back": "Tillbaka",
+  "loginTitle": "Logga in på fellis.eu",
+  "loginEmail": "E-post",
+  "loginPassword": "Lösenord",
+  "loginSubmit": "Logga in",
+  "loginCancel": "Avbryt",
+  "loginError": "Ogiltig e-post eller lösenord",
+  "loginErrorSocialOnly": "Det här kontot skapades via Google eller LinkedIn. Använd motsvarande inloggningsknapp.",
+  "loginErrorRateLimit": "För många inloggningsförsök — försök igen om 15 minuter.",
+  "loginErrorUnavailable": "Inloggningstjänsten är tillfälligt otillgänglig — försök igen inom kort.",
+  "loginNoAccount": "Har du inget konto?",
+  "loginSignup": "Kom igång",
+  "forgotPassword": "Glömt lösenord?",
+  "forgotTitle": "Återställ lösenord",
+  "forgotEmail": "Din e-post",
+  "forgotSubmit": "Skicka återställningslänk",
+  "forgotSent": "Återställningslänk skickad!",
+  "forgotSetNew": "Ange nytt lösenord",
+  "forgotNewPassword": "Nytt lösenord (min. 6 tecken)",
+  "forgotConfirm": "Spara lösenord",
+  "forgotSuccess": "Lösenordet uppdaterades! Du är nu inloggad.",
+  "forgotError": "Det gick inte att återställa lösenordet",
+  "forgotTokenInvalid": "Den här länken är ogiltig eller har gått ut — begär en ny nedan.",
+  "forgotRateLimit": "För många försök — försök igen inom kort",
+  "forgotEmailFailed": "Återställningslänken kunde inte skickas — kontrollera e-postadressen eller försök igen",
+  "forgotBack": "Tillbaka till inloggning",
+  "forgotEmailSent": "Kontrollera din e-post för en återställningslänk.",
+  "forgotFbNote": "Ditt konto är anslutet via Google eller LinkedIn. Du kan ange ett lokalt lösenord nedan.",
+  "mfaTitle": "Tvåfaktorsautentisering",
+  "mfaDesc": "Vi skickade en 6-siffrig kod till ditt telefonnummer.",
+  "mfaDescEmail": "Vi skickade en 6-siffrig kod till din e-post.",
+  "mfaCode": "Engångskod",
+  "mfaSubmit": "Verifiera",
+  "mfaError": "Ogiltig eller utgången kod",
+  "mfaBack": "Tillbaka till inloggning",
+  "registerTitle": "Skapa ditt fellis.eu-konto",
+  "registerName": "Fullständigt namn",
+  "registerEmail": "E-post",
+  "registerEmailRepeat": "Upprepa e-post",
+  "registerEmailMismatch": "E-postadresserna stämmer inte överens",
+  "registerPassword": "Välj ett lösenord (min. 6 tecken)",
+  "registerPasswordRepeat": "Upprepa lösenord",
+  "registerPasswordMismatch": "Lösenorden stämmer inte överens",
+  "registerMathChallenge": "Vad är {a} + {b}?",
+  "registerMathError": "Fel svar — försök igen",
+  "registerSubmit": "Skapa konto & gå till profil",
+  "registerError": "Det gick inte att skapa konto",
+  "registerErrorDuplicate": "Den här e-posten används redan — logga in eller använd en annan e-post",
+  "registerErrorRateLimit": "För många försök — försök igen inom kort",
+  "registerGdpr": "Jag accepterar behandlingen av mina personuppgifter i enlighet med fellis.eu:s",
+  "registerGdprLink": "integritetspolicy",
+  "registerGdprRequired": "Du måste acceptera integritetspolicyn för att skapa ett konto",
+  "modeStepTitle": "Välj din kontotyp",
+  "modeStepSubtitle": "Du kan alltid ändra detta i dina profilinställningar.",
+  "modeCommon": "Privat",
+  "modeBusiness": "Företag",
+  "modeCommonDesc": "För personligt bruk, familj och community. Vänner, inlägg och evenemang.",
+  "modeBusinessDesc": "För professionellt nätverkande och företagsnärvaro. Kontakter, branschevenemang och företagssidor.",
+  "modeCommonFeatures": [
+    "Vänner & community",
+    "Familjevänliga inställningar",
+    "Personliga evenemang"
+  ],
+  "modeBusinessFeatures": [
+    "Professionella kontakter",
+    "Företagssidor",
+    "Konferenser & webbseminarier"
+  ],
+  "modeSelectBtn": "Kom igång"
+}

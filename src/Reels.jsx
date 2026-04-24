@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { nameToColor, getInitials, REACTIONS } from './data.js'
-import { apiFetchReels, apiUploadReel, apiToggleReelLike, apiFetchReelComments, apiAddReelComment, apiDeleteReel, apiSearchUsers, apiGetLivestreamStatus, apiGetStreamKey, apiRegenerateStreamKey } from './api.js'
+import { apiFetchReels, apiUploadReel, apiToggleReelLike, apiFetchReelComments, apiAddReelComment, apiDeleteReel, apiSearchUsers, apiGetLivestreamStatus, apiGetStreamKey, apiRegenerateStreamKey, apiFetchFriends, apiCreateConversation, apiSendConversationMessage, apiShareReel } from './api.js'
 import AdBanner from './AdBanner.jsx'
+import { getTheme } from './userTypeTheme.js'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
 // ── Single Reel Card ──────────────────────────────────────────────────────────
-function ReelCard({ reel, t, currentUser, onDelete, onViewProfile }) {
+function ReelCard({ reel, t, lang, currentUser, onDelete, onViewProfile }) {
   const [liked, setLiked] = useState(reel.liked_by_me)
   const [myReaction, setMyReaction] = useState(reel.my_reaction || '❤️')
   const [likesCount, setLikesCount] = useState(Number(reel.likes_count))
@@ -22,6 +23,11 @@ function ReelCard({ reel, t, currentUser, onDelete, onViewProfile }) {
   const [progress, setProgress] = useState(0)      // 0–1
   const [duration, setDuration] = useState(0)
   const [seeking, setSeeking] = useState(false)
+  const [showSharePopup, setShowSharePopup] = useState(false)
+  const [sharePopupFriends, setSharePopupFriends] = useState(null)
+  const [shareSentTo, setShareSentTo] = useState(null)
+  const [copyLinkDone, setCopyLinkDone] = useState(false)
+  const [sharesCount, setSharesCount] = useState(Number(reel.shares_count) || 0)
   const videoRef = useRef(null)
   const progressRef = useRef(null)
 
@@ -154,9 +160,43 @@ function ReelCard({ reel, t, currentUser, onDelete, onViewProfile }) {
     if (data?.ok) onDelete(reel.id)
   }
 
+  const openShare = async () => {
+    setShowSharePopup(true)
+    if (sharePopupFriends === null) {
+      const data = await apiFetchFriends()
+      setSharePopupFriends(data || [])
+    }
+  }
+  const handleCopyLink = async () => {
+    const url = `${window.location.origin}/?reel=${reel.id}`
+    try { await navigator.clipboard.writeText(url) } catch {}
+    setCopyLinkDone(true)
+    const data = await apiShareReel(reel.id)
+    if (data?.shares_count != null) setSharesCount(data.shares_count)
+    else setSharesCount(c => c + 1)
+    setTimeout(() => { setCopyLinkDone(false); setShowSharePopup(false) }, 1200)
+  }
+  const handleShareToFriend = async (friendId) => {
+    const caption = reel.caption || ''
+    const author = reel.author_name || ''
+    const snippet = caption.length > 100 ? caption.slice(0, 100) + '…' : caption
+    const msg = snippet
+      ? `${author}: "${snippet}" — fellis.eu`
+      : (lang === 'da' ? `${author} delte et reel — fellis.eu` : `${author} shared a reel — fellis.eu`)
+    const conv = await apiCreateConversation([friendId], null, false, false).catch(() => null)
+    if (conv?.id) await apiSendConversationMessage(conv.id, msg).catch(() => {})
+    const data = await apiShareReel(reel.id)
+    if (data?.shares_count != null) setSharesCount(data.shares_count)
+    else setSharesCount(c => c + 1)
+    setShareSentTo(friendId)
+    setTimeout(() => { setShowSharePopup(false); setShareSentTo(null) }, 1200)
+  }
+
   const avatarUrl = reel.author_avatar
     ? (reel.author_avatar.startsWith('http') ? reel.author_avatar : `${API_BASE}${reel.author_avatar}`)
     : null
+
+  const reelTheme = getTheme(reel.user_mode || 'privat')
 
   const s = {
     card: {
@@ -330,7 +370,7 @@ function ReelCard({ reel, t, currentUser, onDelete, onViewProfile }) {
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 680
 
   return (
-    <div style={{ display: 'flex', gap: 20, maxWidth: 800, margin: isMobile ? '0 0 24px' : '0 auto 32px', alignItems: 'flex-start', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+    <div style={{ display: 'flex', gap: 20, maxWidth: 800, margin: isMobile ? '0 0 24px' : '0 auto 32px', alignItems: 'flex-start', flexWrap: isMobile ? 'wrap' : 'nowrap', borderLeft: `4px solid ${reelTheme.leftBorderColor}` }}>
       {/* ── Reel video card ── */}
       <div style={{ ...s.card, margin: 0, flex: '0 0 auto', width: '100%', maxWidth: isMobile ? '100%' : 420, borderRadius: isMobile ? 0 : 16 }}>
       <div style={s.videoWrap}>
@@ -409,6 +449,7 @@ function ReelCard({ reel, t, currentUser, onDelete, onViewProfile }) {
               <div style={{ display: 'flex', gap: 14, fontSize: 13, opacity: 0.85 }}>
                 <span>{liked ? myReaction : '🤍'} {likesCount}</span>
                 <span>💬 {Number(reel.comments_count)}</span>
+                <span>↗ {sharesCount}</span>
                 {duration > 0 && <span>⏱ {fmtDuration(duration)}</span>}
               </div>
             </div>
@@ -499,6 +540,51 @@ function ReelCard({ reel, t, currentUser, onDelete, onViewProfile }) {
           <span style={{ fontSize: 20 }}>💬</span>
           <span>{Number(reel.comments_count)} {t.reelsComments}</span>
         </button>
+        <button style={{ ...s.actionBtn, marginLeft: 'auto' }} onClick={openShare}>
+          <span style={{ fontSize: 20 }}>↗</span>
+          <span>{sharesCount > 0 ? `${sharesCount} ` : ''}{t.reelsShare}</span>
+        </button>
+        {showSharePopup && (
+          <>
+            <div style={{ position: 'fixed', inset: 0, zIndex: 9 }} onClick={() => setShowSharePopup(false)} />
+            <div style={{
+              position: 'absolute', bottom: '100%', right: 0,
+              background: '#1e1e1e', borderRadius: 12, padding: '6px',
+              boxShadow: '0 4px 24px rgba(0,0,0,0.5)', zIndex: 10,
+              minWidth: 200, border: '1px solid #333',
+            }}>
+              <button
+                onClick={handleCopyLink}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', background: 'none', border: 'none', color: copyLinkDone ? '#52b788' : '#fff', cursor: 'pointer', padding: '10px 12px', borderRadius: 8, fontSize: 14, fontWeight: copyLinkDone ? 700 : 400 }}
+              >
+                <span style={{ fontSize: 18 }}>{copyLinkDone ? '✅' : '🔗'}</span>
+                {copyLinkDone ? t.reelsCopied : t.reelsCopyLink}
+              </button>
+              <div style={{ height: 1, background: '#333', margin: '4px 0' }} />
+              <div style={{ color: '#888', fontSize: 12, padding: '4px 12px 6px' }}>{t.reelsSendToFriend}</div>
+              {sharePopupFriends === null && (
+                <div style={{ color: '#888', fontSize: 13, padding: '6px 12px' }}>…</div>
+              )}
+              {sharePopupFriends?.length === 0 && (
+                <div style={{ color: '#888', fontSize: 13, padding: '6px 12px' }}>{t.reelsNoFriends}</div>
+              )}
+              {sharePopupFriends?.length > 0 && (
+                <div style={{ maxHeight: 200, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {sharePopupFriends.map(f => (
+                    <button key={f.id}
+                      onClick={() => handleShareToFriend(f.id)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', background: shareSentTo === f.id ? '#1a3a2a' : 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: '8px 12px', borderRadius: 8, fontSize: 13, textAlign: 'left' }}
+                    >
+                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: nameToColor(f.name), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{getInitials(f.name)}</div>
+                      <span style={{ flex: 1 }}>{f.name}</span>
+                      {shareSentTo === f.id && <span style={{ color: '#52b788', fontSize: 16 }}>✓</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       {showComments && (
@@ -588,6 +674,10 @@ function ReelCard({ reel, t, currentUser, onDelete, onViewProfile }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ fontSize: 16, flexShrink: 0 }}>💬</span>
             <span style={{ whiteSpace: 'nowrap' }}>{Number(reel.comments_count)} {t.reelsComments}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 16, flexShrink: 0 }}>↗</span>
+            <span style={{ whiteSpace: 'nowrap' }}>{sharesCount} {t.reelsShares}</span>
           </div>
           {reel.views_count > 0 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -1009,7 +1099,7 @@ function LiveReelModal({ t, onClose, liveEnabled }) {
 }
 
 // ── Main ReelsPage ────────────────────────────────────────────────────────────
-export default function ReelsPage({ t, currentUser, initialReelId, onViewProfile }) {
+export default function ReelsPage({ t, lang = 'da', currentUser, initialReelId, onViewProfile }) {
   const [reels, setReels] = useState([])
   const [loading, setLoading] = useState(true)
   const [offset, setOffset] = useState(0)
@@ -1032,7 +1122,11 @@ export default function ReelsPage({ t, currentUser, initialReelId, onViewProfile
   }, [])
 
   useEffect(() => { loadReels(0) }, [loadReels])
-  useEffect(() => { apiGetLivestreamStatus().then(d => { if (d) setLiveEnabled(d.enabled) }) }, [])
+
+  const refreshLiveStatus = useCallback(() => {
+    apiGetLivestreamStatus().then(d => { if (d) setLiveEnabled(d.enabled) })
+  }, [])
+  useEffect(() => { refreshLiveStatus() }, [refreshLiveStatus])
 
   useEffect(() => {
     if (!initialReelId || loading || reels.length === 0) return
@@ -1054,7 +1148,7 @@ export default function ReelsPage({ t, currentUser, initialReelId, onViewProfile
     page: {
       maxWidth: isMobile ? '100%' : 480,
       margin: isMobile ? '0 -8px' : '0 auto',   // cancel out p-content padding on mobile
-      padding: isMobile ? '16px 0' : '24px 16px',
+      padding: isMobile ? '16px 1px 16px 3px' : '24px 16px',
     },
     header: {
       display: 'flex',
@@ -1145,24 +1239,24 @@ export default function ReelsPage({ t, currentUser, initialReelId, onViewProfile
       <div style={s.header}>
         <div style={s.title}>{t.reelsTitle}</div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          {/* Live Reel button */}
-          <div style={{ position: 'relative' }}>
-            <button
-              style={{ ...s.liveBtn, opacity: liveEnabled ? 1 : 0.55 }}
-              onClick={() => setShowLiveInfo(true)}
-              onMouseEnter={() => setLiveTooltip(true)}
-              onMouseLeave={() => setLiveTooltip(false)}
-            >
-              <span style={{ ...s.liveDotBtn, animation: liveEnabled ? 'livePulse 1.4s infinite' : 'none' }} />
-              {t.reelsStartLive}
-              <span style={s.infoIcon}>ℹ</span>
-            </button>
-            {liveTooltip && (
-              <div style={s.tooltip}>
-                {liveEnabled ? t.reelsStartLiveWhatBody : t.reelsStartLiveDisabled}
-              </div>
-            )}
-          </div>
+          {/* Live Reel button — only shown when admin has enabled live streaming */}
+          {liveEnabled && (
+            <div style={{ position: 'relative' }}>
+              <button
+                style={s.liveBtn}
+                onClick={() => { refreshLiveStatus(); setShowLiveInfo(true) }}
+                onMouseEnter={() => setLiveTooltip(true)}
+                onMouseLeave={() => setLiveTooltip(false)}
+              >
+                <span style={{ ...s.liveDotBtn, animation: 'livePulse 1.4s infinite' }} />
+                {t.reelsStartLive}
+                <span style={s.infoIcon}>ℹ</span>
+              </button>
+              {liveTooltip && (
+                <div style={s.tooltip}>{t.reelsStartLiveWhatBody}</div>
+              )}
+            </div>
+          )}
           <button style={s.uploadBtn} onClick={() => setShowUpload(true)}>
             🎬 {t.reelsUpload}
           </button>
@@ -1178,6 +1272,7 @@ export default function ReelsPage({ t, currentUser, initialReelId, onViewProfile
           <ReelCard
             reel={reel}
             t={t}
+            lang={lang}
             currentUser={currentUser}
             onDelete={handleDelete}
             onViewProfile={onViewProfile}

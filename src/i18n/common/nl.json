@@ -1,0 +1,44 @@
+{
+  "actions": {
+    "save": "Opslaan",
+    "cancel": "Annuleren",
+    "delete": "Verwijderen",
+    "edit": "Bewerken",
+    "close": "Sluiten",
+    "back": "Terug",
+    "next": "Volgende",
+    "confirm": "Bevestigen",
+    "submit": "Versturen",
+    "search": "Zoeken",
+    "loading": "Laden…",
+    "saving": "Opslaan…",
+    "uploading": "Uploaden…",
+    "copy": "Kopiëren",
+    "share": "Delen",
+    "report": "Melden",
+    "block": "Blokkeren",
+    "unblock": "Deblokkeren"
+  },
+  "status": {
+    "error": "Fout",
+    "success": "Opgeslagen",
+    "required": "Verplicht",
+    "loading": "Laden…",
+    "noData": "Geen gegevens",
+    "noResults": "Geen resultaten",
+    "somethingWentWrong": "Er ging iets mis — probeer het opnieuw"
+  },
+  "time": {
+    "justNow": "Zojuist",
+    "minutesAgo": "min geleden",
+    "hoursAgo": "u geleden",
+    "daysAgo": "dag geleden",
+    "daysAgoPl": "dagen geleden"
+  },
+  "confirmation": {
+    "areYouSure": "Weet je het zeker?",
+    "cannotBeUndone": "Deze actie kan niet ongedaan worden gemaakt.",
+    "yes": "Ja",
+    "no": "Nee"
+  }
+}

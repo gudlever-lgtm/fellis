@@ -1,0 +1,50 @@
+{
+  "login": {
+    "title": "Logga in på fellis",
+    "emailLabel": "E-post",
+    "passwordLabel": "Lösenord",
+    "button": "Logga in",
+    "forgotPassword": "Glömt lösenord?",
+    "noAccount": "Har du inget konto?",
+    "registerLink": "Skapa konto",
+    "orContinueWith": "eller fortsätt med"
+  },
+  "register": {
+    "title": "Skapa konto",
+    "nameLabel": "Namn",
+    "emailLabel": "E-post",
+    "passwordLabel": "Lösenord",
+    "confirmPasswordLabel": "Bekräfta lösenord",
+    "button": "Skapa konto",
+    "hasAccount": "Har du redan ett konto?",
+    "loginLink": "Logga in",
+    "gdprConsent": "Jag accepterar villkoren och integritetspolicyn",
+    "passwordTooShort": "Lösenordet måste vara minst 6 tecken",
+    "passwordsDontMatch": "Lösenorden stämmer inte överens",
+    "passwordsMatch": "Lösenorden stämmer överens"
+  },
+  "forgotPassword": {
+    "title": "Glömt lösenord",
+    "description": "Ange din e-postadress och vi skickar dig en återställningslänk.",
+    "emailLabel": "E-post",
+    "button": "Skicka återställningslänk",
+    "backToLogin": "Tillbaka till inloggning",
+    "emailSent": "Återställningslänk skickad till din e-post",
+    "error": "Kunde inte skicka återställningslänk — försök igen"
+  },
+  "resetPassword": {
+    "title": "Återställ lösenord",
+    "newPasswordLabel": "Nytt lösenord",
+    "confirmPasswordLabel": "Bekräfta nytt lösenord",
+    "button": "Spara nytt lösenord",
+    "success": "Lösenord uppdaterat — du kan nu logga in"
+  },
+  "mfa": {
+    "title": "Tvåfaktorsautentisering",
+    "description": "Vi skickade en kod till ditt nummer. Ange den för att bekräfta:",
+    "codeLabel": "SMS-kod",
+    "button": "Bekräfta",
+    "resend": "Skicka kod igen",
+    "invalidCode": "Ogiltig eller utgången kod"
+  }
+}

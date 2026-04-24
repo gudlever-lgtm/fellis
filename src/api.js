@@ -44,6 +44,7 @@ async function request(path, options = {}) {
       console.warn(`API ${path} → ${res.status}`, body.error || '')
       return null
     }
+    if (res.status === 204) return null
     return await res.json()
   } catch (err) {
     if (err.message === 'Failed to fetch') return null // Server not running
@@ -62,7 +63,7 @@ export async function apiLogin(email, password, lang) {
       body: JSON.stringify({ email, password, lang }),
     })
     const body = await res.json().catch(() => ({}))
-    if (!res.ok) return { error: body.error || 'invalid_credentials' }
+    if (!res.ok) return { error: body.error || 'invalid_credentials', status: res.status }
     return body
   } catch {
     return null
@@ -86,20 +87,37 @@ export async function apiRegister(name, email, password, lang, inviteToken) {
   }
 }
 
-export async function apiForgotPassword(email) {
-  return await request('/api/auth/forgot-password', {
-    method: 'POST',
-    body: JSON.stringify({ email }),
-  })
+export async function apiForgotPassword(email, lang) {
+  // Use raw fetch so rate-limit (429) and other errors can be surfaced to the UI
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/forgot-password`, {
+      method: 'POST',
+      headers: headers(),
+      credentials: 'same-origin',
+      body: JSON.stringify({ email, lang }),
+    })
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) return { error: body.error || 'request_failed', status: res.status }
+    return body
+  } catch {
+    return null
+  }
 }
 
-export async function apiResetPassword(token, password) {
-  const data = await request('/api/auth/reset-password', {
-    method: 'POST',
-    body: JSON.stringify({ token, password }),
-  })
-  // Session ID now stored in HTTP-only cookie by server
-  return data
+export async function apiResetPassword(token, password, lang) {
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/reset-password`, {
+      method: 'POST',
+      headers: headers(),
+      credentials: 'same-origin',
+      body: JSON.stringify({ token, password, lang }),
+    })
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) return { error: body.error || 'reset_failed', status: res.status }
+    return body
+  } catch {
+    return null
+  }
 }
 
 export async function apiVerifyMfa(userId, code, lang) {
@@ -109,6 +127,14 @@ export async function apiVerifyMfa(userId, code, lang) {
   })
   // Session ID now stored in HTTP-only cookie by server
   return data
+}
+
+export async function apiSendEnableMfa() {
+  return await request('/api/auth/send-enable-mfa', { method: 'POST' })
+}
+
+export async function apiConfirmEnableMfa(code) {
+  return await request('/api/auth/confirm-enable-mfa', { method: 'POST', body: JSON.stringify({ code }) })
 }
 
 export async function apiEnableMfa() {
@@ -164,12 +190,31 @@ export async function apiLogout() {
   // Session cookie automatically managed by browser
 }
 
+// Onboarding
+export async function apiDismissOnboarding() {
+  return await request('/api/user/onboarding/dismiss', { method: 'POST' })
+}
+
 // Feed
-export async function apiFetchFeed(cursor = null, limit = 20) {
-  const params = cursor
-    ? `cursor=${encodeURIComponent(cursor)}&limit=${limit}`
-    : `limit=${limit}`
+export async function apiFetchFeed(cursor = null, limit = 20, mode = null, opts = {}) {
+  const params = new URLSearchParams({ limit: String(limit) })
+  if (cursor) params.set('cursor', cursor)
+  if (mode) params.set('mode', mode)
+  if (opts.ranked) params.set('ranked', '1')
+  if (opts.offset) params.set('offset', String(opts.offset))
   return await request(`/api/feed?${params}`)
+}
+
+export async function apiFetchNetworkFeed(cursor = null, limit = 20) {
+  const params = new URLSearchParams({ limit: String(limit) })
+  if (cursor) params.set('cursor', cursor)
+  return await request(`/api/feed/network?${params}`)
+}
+
+export async function apiFetchBusinessFeed(cursor = null, limit = 20) {
+  const params = new URLSearchParams({ limit: String(limit) })
+  if (cursor) params.set('cursor', cursor)
+  return await request(`/api/feed/business?${params}`)
 }
 
 export async function apiPreflightPost(text) {
@@ -180,11 +225,15 @@ export async function apiFetchMemories() {
   return await request('/api/feed/memories')
 }
 
+export async function apiGetDiscovery() {
+  return await request('/api/feed/discovery')
+}
+
 // Single XHR upload attempt. Uses a stall-based inactivity timer (2 min
 // without any progress) instead of a wall-clock timeout, so slow-but-
 // steady uploads on mobile connections are not killed prematurely.
 function uploadPostOnce(payload, onProgress) {
-  const { text, files, schedAt, categories, location, taggedUsers, linkedContent } = payload
+  const { text, files, schedAt, categories, location, taggedUsers, linkedContent, postContext } = payload
   const total = files.reduce((sum, f) => sum + f.size, 0)
   const STALL_MS = 2 * 60 * 1000
 
@@ -201,6 +250,7 @@ function uploadPostOnce(payload, onProgress) {
     if (locLng != null) form.append('geo_lng', locLng)
     if (taggedUsers?.length) form.append('tagged_users', JSON.stringify(taggedUsers))
     if (linkedContent?.type) { form.append('linked_type', linkedContent.type); form.append('linked_id', linkedContent.id) }
+    if (postContext && postContext !== 'social') form.append('post_context', postContext)
     for (const file of files) form.append('media', file)
 
     const xhr = new XMLHttpRequest()
@@ -295,7 +345,7 @@ if (typeof window !== 'undefined') {
   installAutoFlush((payload) => uploadPostResilient(payload))
 }
 
-export async function apiCreatePost(text, mediaFiles, scheduledAt, categories, location, taggedUsers, linkedContent, onProgress) {
+export async function apiCreatePost(text, mediaFiles, scheduledAt, categories, location, taggedUsers, linkedContent, onProgress, linkedServiceId, postContext = null) {
   if (mediaFiles?.length) {
     // Pre-flight: validate file sizes client-side (50MB per file, 200MB total)
     const MAX_FILE = 50 * 1024 * 1024
@@ -316,7 +366,7 @@ export async function apiCreatePost(text, mediaFiles, scheduledAt, categories, l
     }
     const payload = {
       text, files: mediaFiles, schedAt: scheduledAt,
-      categories, location, taggedUsers, linkedContent,
+      categories, location, taggedUsers, linkedContent, postContext,
     }
     try {
       return await uploadPostResilient(payload, onProgress)
@@ -345,7 +395,9 @@ export async function apiCreatePost(text, mediaFiles, scheduledAt, categories, l
       ...(categories?.length ? { categories } : {}),
       ...(location ? { place_name: location.place_name || location.name, geo_lat: location.geo_lat ?? location.lat, geo_lng: location.geo_lng ?? location.lng } : {}),
       ...(taggedUsers?.length ? { tagged_users: taggedUsers } : {}),
-      ...(linkedContent?.type ? { linked_type: linkedContent.type, linked_id: linkedContent.id } : {}),
+      ...(linkedContent?.type && linkedContent.type !== 'service' ? { linked_type: linkedContent.type, linked_id: linkedContent.id } : {}),
+      ...(linkedContent?.type === 'service' || linkedServiceId ? { linked_service_id: linkedContent?.id ?? linkedServiceId } : {}),
+      ...(postContext && postContext !== 'social' ? { post_context: postContext } : {}),
     }),
   })
 }
@@ -428,6 +480,9 @@ export async function apiFetchFriends() {
 export async function apiSendFriendRequest(userId) {
   return await request(`/api/friends/request/${userId}`, { method: 'POST' })
 }
+export async function apiSendConnectionRequest(userId) {
+  return await request('/api/connections/request', { method: 'POST', body: JSON.stringify({ user_id: userId }) })
+}
 
 export async function apiFetchFriendRequests() {
   return await request('/api/friends/requests')
@@ -454,6 +509,27 @@ export async function apiToggleFamilyFriend(userId, isFamily) {
     method: 'PATCH',
     body: JSON.stringify({ is_family: isFamily }),
   })
+}
+
+export async function apiFetchFriendSuggestions() {
+  return await request('/api/friends/suggested')
+}
+
+// User follows (asymmetric: follow any user or company)
+export async function apiFollowUser(userId) {
+  return await request(`/api/users/${userId}/follow`, { method: 'POST' })
+}
+
+export async function apiUnfollowUser(userId) {
+  return await request(`/api/users/${userId}/follow`, { method: 'DELETE' })
+}
+
+export async function apiGetFollowers() {
+  return await request('/api/me/followers')
+}
+
+export async function apiGetFollowing() {
+  return await request('/api/me/following')
 }
 
 // Conversations (replaces legacy /api/messages)
@@ -703,11 +779,13 @@ export async function apiUploadAvatar(file) {
 }
 
 // ── Marketplace ──
-export async function apiFetchListings({ category = '', location = '', q = '' } = {}) {
+export async function apiFetchListings({ category = '', location = '', q = '', limit, offset } = {}) {
   const params = new URLSearchParams()
   if (category) params.set('category', category)
   if (location) params.set('location', location)
   if (q) params.set('q', q)
+  if (limit != null) params.set('limit', String(limit))
+  if (offset != null) params.set('offset', String(offset))
   return await request(`/api/marketplace?${params}`)
 }
 
@@ -773,6 +851,10 @@ export async function apiGetMarketplaceStats() {
   return await request('/api/marketplace/stats')
 }
 
+export async function apiGetMarketplaceCategories() {
+  return await request('/api/marketplace/categories')
+}
+
 export async function apiRelistListing(id) {
   return await request(`/api/marketplace/${id}/relist`, { method: 'POST' })
 }
@@ -805,6 +887,10 @@ export async function apiSaveAdminSettings(data) {
     method: 'POST',
     body: JSON.stringify(data),
   })
+}
+
+export async function apiGetAdminStorageStats() {
+  return await request('/api/admin/storage-stats')
 }
 
 export async function apiRevealAdminKey(keyName, password) {
@@ -885,6 +971,9 @@ export async function apiWithdrawModeratorRequest() {
 
 export async function apiGetAnalytics(days = 30) {
   return await request(`/api/analytics?days=${days}`)
+}
+export async function apiGetPostAnalytics(postId) {
+  return await request(`/api/analytics/post/${postId}`)
 }
 
 export async function apiGetVisitorStats(days = 30) {
@@ -1001,8 +1090,38 @@ export async function apiGetGroupSuggestions() {
   return await request('/api/groups/suggestions')
 }
 
+// ── Group Membership ──
+
 export async function apiJoinGroup(groupId) {
   return await request(`/api/groups/${groupId}/join`, { method: 'POST' })
+}
+
+export async function apiCreateGroup({ name, slug, description, type, category, tags }) {
+  return await request('/api/groups', {
+    method: 'POST',
+    body: JSON.stringify({ name, slug, description, type, category, tags }),
+  })
+}
+
+export async function apiUploadGroupCover(groupId, file) {
+  const form = new FormData()
+  form.append('cover', file)
+  try {
+    const res = await fetch(`${API_BASE}/api/groups/${groupId}/cover`, {
+      method: 'POST',
+      headers: formHeaders(),
+      credentials: 'same-origin',
+      body: form,
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.error || `HTTP ${res.status}`)
+    }
+    return await res.json()
+  } catch (err) {
+    if (err.message === 'Failed to fetch') return null
+    throw err
+  }
 }
 
 // ── Reels ──
@@ -1050,6 +1169,10 @@ export async function apiAddReelComment(id, text) {
 
 export async function apiDeleteReel(id) {
   return await request(`/api/reels/${id}`, { method: 'DELETE' })
+}
+
+export async function apiShareReel(id) {
+  return await request(`/api/reels/${id}/share`, { method: 'POST' })
 }
 
 // ── Calendar ──
@@ -1295,6 +1418,9 @@ export async function apiDenyModeratorRequest(id, reason) {
 export async function apiCreateAd(data) {
   return await request('/api/ads', { method: 'POST', body: JSON.stringify(data) })
 }
+export async function apiCreateAdCampaign(data) {
+  return await request('/api/ads/campaign', { method: 'POST', body: JSON.stringify(data) })
+}
 export async function apiGetMyAds() {
   return await request('/api/ads/mine')
 }
@@ -1323,18 +1449,26 @@ export async function apiTrackAdClick(id) {
   return await request(`/api/ads/${id}/click`, { method: 'POST' })
 }
 export async function apiRecordAdImpression(id) {
-  return await request(`/api/ads/${id}/impression`, { method: 'POST' })
+  return await request(`/api/content/${id}/view`, { method: 'POST' })
 }
 export async function apiRecordAdClick(id) {
-  return await request(`/api/ads/${id}/click`, { method: 'POST' })
+  return await request(`/api/content/${id}/open`, { method: 'POST' })
 }
 export async function apiServeAds(placement) {
-  return await request(`/api/ads?serve=1&placement=${placement}`)
+  return await request(`/api/content?section=${placement}`)
+}
+export async function apiFetchAdBanner() {
+  return await request('/api/ads/banner')
 }
 
 // ── Subscription ──────────────────────────────────────────────────────────────
 export async function apiGetSubscription() {
   return await request('/api/me/subscription')
+}
+
+// ── Currency conversion ────────────────────────────────────────────────────────
+export async function apiGetEurDkkRate() {
+  return await request('/api/currency/eur-dkk')
 }
 
 // ── Mollie payments ───────────────────────────────────────────────────────────
@@ -1356,12 +1490,25 @@ export async function apiGetMollieStatus() {
   return await request('/api/mollie/payment/status')
 }
 
+export async function apiFetchPaymentFeatures() {
+  return await request('/api/payment/features')
+}
+export async function apiStartFeaturePayment(feature) {
+  return await request('/api/payment/start', { method: 'POST', body: JSON.stringify({ feature }) })
+}
+export async function apiCancelFeaturePayment(feature) {
+  return await request('/api/payment/cancel', { method: 'POST', body: JSON.stringify({ feature }) })
+}
+
 // ── Admin ad settings ─────────────────────────────────────────────────────────
 export async function apiGetAdminAdStats() {
   return await request('/api/admin/ad-stats')
 }
 export async function apiGetAdPrice() {
   return await request('/api/ads/price')
+}
+export async function apiGetPublicPricing() {
+  return await request('/api/pricing')
 }
 export async function apiGetAdminAdSettings() {
   return await request('/api/admin/ad-settings')
@@ -1677,7 +1824,7 @@ export async function apiGetSuggestedUsers(limit = 6) {
 // ── Signal Engine / Interest Graph ────────────────────────────────────────────
 // Batch-send behavioral signals to the server. Each signal: { signal_type, source_type?, source_id?, interest_slugs?, context? }
 export async function apiIngestSignals(signals) {
-  return await request('/api/signals', 'POST', { signals })
+  return await request('/api/signals', { method: 'POST', body: JSON.stringify({ signals }) })
 }
 // Get the authenticated user's computed interest graph
 export async function apiGetInterestGraph() {
@@ -2040,3 +2187,93 @@ export const apiCreateBlogPost = (data) => request('/api/admin/blog', { method: 
 export const apiUpdateBlogPost = (id, data) => request(`/api/admin/blog/${id}`, { method: 'PUT', body: JSON.stringify(data) })
 export const apiDeleteBlogPost = (id) => request(`/api/admin/blog/${id}`, { method: 'DELETE' })
 export const apiBlogTranslate = (text, from, to) => request('/api/admin/blog/translate', { method: 'POST', body: JSON.stringify({ text, from, to }) })
+
+// ── Facebook data import ───────────────────────────────────────────────────────
+// GET /api/auth/facebook/data — fetch fresh profile data from Graph API
+export const apiFacebookGetData = () => request('/api/auth/facebook/data')
+
+// POST /api/auth/facebook/import — apply selected fields to the user's profile
+export const apiFacebookImport = (fields) =>
+  request('/api/auth/facebook/import', { method: 'POST', body: JSON.stringify({ fields }) })
+
+// POST /api/auth/facebook/disconnect — revoke FB token and clear fb_connected
+export const apiFacebookDisconnect = () =>
+  request('/api/auth/facebook/disconnect', { method: 'POST' })
+
+// POST /api/auth/facebook/import-photos — download selected FB photos into feed
+export const apiFacebookImportPhotos = (photoIds) =>
+  request('/api/auth/facebook/import-photos', { method: 'POST', body: JSON.stringify({ photoIds }) })
+
+// ── Business Features V2 ──────────────────────────────────────────────────────
+
+// Feature 1: User Leads / Contact inbox
+export const apiContactBusiness = (id, topic, message) =>
+  request(`/api/businesses/${id}/contact`, { method: 'POST', body: JSON.stringify({ topic, message }) })
+export const apiGetMyBusinessLeads = () => request('/api/me/business-leads')
+export const apiUpdateBusinessLead = (id, status) =>
+  request(`/api/me/business-leads/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) })
+
+// Feature 2: Jobs linked to business profile
+export const apiGetBusinessJobs = (id) => request(`/api/businesses/${id}/jobs`)
+
+// Feature 3: Business CVR verification
+export const apiLookupCVR = (cvr) => request(`/api/me/verify-business/lookup?cvr=${encodeURIComponent(cvr)}`)
+export const apiSubmitBusinessVerification = (cvr_number) =>
+  request('/api/me/verify-business', { method: 'POST', body: JSON.stringify({ cvr_number }) })
+export const apiAdminGetVerifications = () => request('/api/admin/verify-business')
+export const apiAdminApproveVerification = (userId, approved) =>
+  request(`/api/admin/verify-business/${userId}`, { method: 'POST', body: JSON.stringify({ approved }) })
+
+// Feature 4: Follower broadcast announcements
+export const apiCreateAnnouncement = (title, body, cta_url) =>
+  request('/api/me/announcements', { method: 'POST', body: JSON.stringify({ title, body, cta_url }) })
+export const apiGetMyAnnouncements = () => request('/api/me/announcements')
+export const apiGetFollowedAnnouncements = () => request('/api/announcements')
+export const apiDeleteAnnouncement = (id) =>
+  request(`/api/me/announcements/${id}`, { method: 'DELETE' })
+
+// Feature 5: Product / Services catalog
+export const apiGetBusinessServices = (id) => request(`/api/businesses/${id}/services`)
+export const apiGetMyServices = () => request('/api/me/services')
+export const apiCreateService = (data) =>
+  request('/api/me/services', { method: 'POST', body: JSON.stringify(data) })
+export const apiUpdateService = (id, data) =>
+  request(`/api/me/services/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+export const apiDeleteService = (id) =>
+  request(`/api/me/services/${id}`, { method: 'DELETE' })
+
+// Feature 6: Business event promotion
+export const apiGetBusinessEvents = (id) => request(`/api/businesses/${id}/events`)
+
+// Feature 7: Analytics depth
+export const apiGetFollowerGrowth = (days = 30) =>
+  request(`/api/me/analytics/follower-growth?days=${days}`)
+export const apiGetBestPostTimes = () => request('/api/me/analytics/best-times')
+
+// Feature 8: Service endorsements
+export const apiGetBusinessEndorsements = (id) => request(`/api/businesses/${id}/endorsements`)
+
+// Feature 9: B2B partner connections
+export const apiSendPartnerRequest = (id) =>
+  request(`/api/businesses/${id}/partner-request`, { method: 'POST' })
+export const apiGetPartnerRequests = () => request('/api/me/partner-requests')
+export const apiRespondPartnerRequest = (id, action) =>
+  request(`/api/me/partner-requests/${id}`, { method: 'PATCH', body: JSON.stringify({ action }) })
+export const apiGetMyPartners = () => request('/api/me/partners')
+export const apiRemovePartner = (partnerId) =>
+  request(`/api/me/partners/${partnerId}`, { method: 'DELETE' })
+export const apiGetBusinessPartners = (id) => request(`/api/businesses/${id}/partners`)
+
+// Feature 10: Appointment / inquiry via DM
+export const apiSendBusinessInquiry = (id, subject, preferred_date, message) =>
+  request(`/api/businesses/${id}/inquiry`, { method: 'POST', body: JSON.stringify({ subject, preferred_date, message }) })
+
+// User type selector
+export const apiUpdateUserType = (mode) =>
+  request('/api/user/type', { method: 'PATCH', body: JSON.stringify({ mode }) })
+
+export const apiGetUserFeatures = () => request('/api/user/features')
+export const apiGetUserType = (userId) => request(`/api/user/${userId}/type`)
+export const apiGetCompanyProfile = (userId) => request(`/api/company/profile/${userId}`)
+export const apiCreateCompanyProfile = (data) =>
+  request('/api/company/profile', { method: 'POST', body: JSON.stringify(data) })

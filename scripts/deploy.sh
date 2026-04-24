@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
 # deploy.sh — Pull latest code, build frontend, restart server
-# Usage: bash scripts/deploy.sh [--skip-migrate]
+# Usage: bash scripts/deploy.sh [test] [--skip-migrate]
 #
 # Run this from the repo root on the server:
 #   cd /var/www/fellis.eu && bash scripts/deploy.sh
+#   cd /var/www/fellis.eu && bash scripts/deploy.sh test   # also runs E2E smoke test
 
 set -euo pipefail
 
 SKIP_MIGRATE=0
+RUN_TESTS=0
 for arg in "$@"; do
   [[ "$arg" == "--skip-migrate" ]] && SKIP_MIGRATE=1
+  [[ "$arg" == "test" ]] && RUN_TESTS=1
 done
 
 GREEN='\033[0;32m'
@@ -41,10 +44,20 @@ step "Building frontend"
 npm run build || fail "build failed"
 
 step "Restarting PM2"
-pm2 restart all || fail "pm2 restart failed"
+pm2 restart fellis-api || fail "pm2 restart failed"
 
 # Brief pause so PM2 has time to come up before we show status
 sleep 2
 pm2 status
+
+if [[ "$RUN_TESTS" -eq 1 ]]; then
+  step "Smoke test (E2E)"
+  BASE_URL=http://localhost:3001 NODE_ENV=test npm run e2e || fail "E2E smoke test failed — server may be unhealthy"
+else
+  warn "Skipping E2E smoke test (run with 'test' argument to enable)"
+fi
+
+step "Cleaning up audit log (test data + 90-day retention)"
+(cd server && npm run cleanup-audit-log) || warn "Audit log cleanup failed — continuing"
 
 echo -e "\n${GREEN}✔ Deploy complete$(date +'  %Y-%m-%d %H:%M:%S')${NC}"

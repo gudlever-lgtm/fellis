@@ -1,0 +1,47 @@
+{
+  "compose": {
+    "placeholder": "Hvad har du på hjerte?",
+    "button": "Opslå",
+    "addMedia": "Tilføj medie",
+    "addLocation": "Tilføj lokation",
+    "removeLocation": "Fjern lokation",
+    "schedule": "Planlæg",
+    "publishNow": "Udgiv nu",
+    "tagPeople": "Tag personer",
+    "pasteImageHint": "Indsæt et billede direkte med Ctrl+V"
+  },
+  "post": {
+    "like": "Synes godt om",
+    "comment": "Kommentar",
+    "share": "Del",
+    "edit": "Rediger opslag",
+    "delete": "Slet opslag",
+    "report": "Anmeld",
+    "save": "Gem opslag",
+    "unsave": "Fjern fra gemte",
+    "hide": "Skjul opslag",
+    "edited": "(redigeret)",
+    "sponsored": "Sponsoreret"
+  },
+  "comment": {
+    "placeholder": "Skriv en kommentar...",
+    "send": "Send",
+    "reply": "Svar",
+    "delete": "Slet kommentar",
+    "noReactionsYet": "Ingen reaktioner endnu"
+  },
+  "modes": {
+    "community": "Fællesskab",
+    "business": "Erhverv"
+  },
+  "empty": {
+    "noPostsYet": "Ingen opslag endnu",
+    "loadMore": "Indlæs ældre opslag",
+    "allCaughtUp": "Du er helt ajour!"
+  },
+  "scheduled": {
+    "title": "Planlagte opslag",
+    "noScheduled": "Ingen planlagte opslag.",
+    "deleteConfirm": "Slet planlagt opslag?"
+  }
+}

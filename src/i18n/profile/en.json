@@ -1,0 +1,42 @@
+{
+  "header": {
+    "editProfile": "Edit profile",
+    "message": "Send message",
+    "connect": "Connect",
+    "connected": "Connected ✓",
+    "pendingRequest": "Request sent ✓",
+    "follow": "Follow",
+    "following": "Following ✓",
+    "viewProfile": "View profile"
+  },
+  "info": {
+    "location": "Location",
+    "website": "Website",
+    "joinedDate": "Joined",
+    "bio": "About",
+    "skills": "Skills",
+    "interests": "Interests",
+    "noSkillsYet": "No skills added yet.",
+    "noInterestsYet": "No interests selected yet."
+  },
+  "privacy": {
+    "publicProfile": "Public profile",
+    "privateProfile": "Private profile",
+    "visibleTo": "Visible to",
+    "everyone": "Everyone",
+    "friendsOnly": "Friends only"
+  },
+  "avatar": {
+    "upload": "Upload profile picture",
+    "remove": "Remove picture",
+    "uploading": "Uploading picture…",
+    "uploadFailed": "Could not upload image"
+  },
+  "gdpr": {
+    "exportData": "Export my data",
+    "deleteAccount": "Delete account",
+    "exportDescription": "Download a copy of all your data in JSON format.",
+    "deleteDescription": "Permanently delete your account and all associated data.",
+    "deleteConfirm": "Are you sure you want to delete your account? This cannot be undone."
+  }
+}

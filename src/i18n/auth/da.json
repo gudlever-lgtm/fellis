@@ -1,0 +1,50 @@
+{
+  "login": {
+    "title": "Log ind på fellis",
+    "emailLabel": "E-mail",
+    "passwordLabel": "Adgangskode",
+    "button": "Log ind",
+    "forgotPassword": "Glemt adgangskode?",
+    "noAccount": "Har du ikke en konto?",
+    "registerLink": "Opret konto",
+    "orContinueWith": "eller fortsæt med"
+  },
+  "register": {
+    "title": "Opret konto",
+    "nameLabel": "Navn",
+    "emailLabel": "E-mail",
+    "passwordLabel": "Adgangskode",
+    "confirmPasswordLabel": "Bekræft adgangskode",
+    "button": "Opret konto",
+    "hasAccount": "Har du allerede en konto?",
+    "loginLink": "Log ind",
+    "gdprConsent": "Jeg accepterer vilkårene og privatlivspolitikken",
+    "passwordTooShort": "Adgangskode skal være mindst 6 tegn",
+    "passwordsDontMatch": "Adgangskoderne stemmer ikke overens",
+    "passwordsMatch": "Adgangskoderne stemmer overens"
+  },
+  "forgotPassword": {
+    "title": "Glemt adgangskode",
+    "description": "Indtast din e-mail, og vi sender dig et nulstillingslink.",
+    "emailLabel": "E-mail",
+    "button": "Send nulstillingslink",
+    "backToLogin": "Tilbage til login",
+    "emailSent": "Nulstillingslink sendt til din e-mail",
+    "error": "Kunne ikke sende nulstillingslink — prøv igen"
+  },
+  "resetPassword": {
+    "title": "Nulstil adgangskode",
+    "newPasswordLabel": "Ny adgangskode",
+    "confirmPasswordLabel": "Bekræft ny adgangskode",
+    "button": "Gem ny adgangskode",
+    "success": "Adgangskode opdateret — du kan nu logge ind"
+  },
+  "mfa": {
+    "title": "To-faktor-godkendelse",
+    "description": "Vi sendte en kode til dit nummer. Indtast den for at bekræfte:",
+    "codeLabel": "SMS-kode",
+    "button": "Bekræft",
+    "resend": "Send kode igen",
+    "invalidCode": "Ugyldig eller udløbet kode"
+  }
+}

@@ -1,0 +1,164 @@
+{
+  "navBrand": "fellis.eu",
+  "langToggle": "IT",
+  "loginBtn": "Accedi",
+  "headline": "Porta la tua vita sociale in Europa",
+  "subtitle": "fellis.eu — la nuova piattaforma europea creata per te, non per gli inserzionisti.",
+  "cta": "Inizia",
+  "createCardTitle": "Crea un nuovo account",
+  "createCardDesc": "Ricomincia su fellis.eu con e-mail e password.",
+  "createCardBtn": "Crea account",
+  "hero_intro": "Perché esiste Fellis",
+  "manifestoLine3": "Le grandi piattaforme social non sono progettate per il tuo bene. Sono costruite per tenerti davanti allo schermo il più a lungo possibile, perché la tua attenzione è ciò che vendono. Questo produce algoritmi che seppelliscono i post, annunci basati sul tuo comportamento e un sistema che ti tratta come materia prima. Fellis è costruito come un'alternativa concreta: feed cronologico, dati in Europa e annunci che non richiedono di mappare la tua vita privata. Non risolve tutto. Ma è un punto di partenza migliore.",
+  "manifestoWhys": [
+    {
+      "icon": "📅",
+      "text": "Feed cronologico — nessun algoritmo decide cosa vedi."
+    },
+    {
+      "icon": "🇪🇺",
+      "text": "I tuoi dati rimangono in Europa, protetti dal GDPR."
+    },
+    {
+      "icon": "🎯",
+      "text": "Gli annunci vengono mostrati per contesto, non secondo il tuo profilo personale."
+    },
+    {
+      "icon": "🤝",
+      "text": "Sei l'utente — non il prodotto."
+    }
+  ],
+  "manifestoWhysAlt": [
+    {
+      "icon": "📅",
+      "text": "Feed cronologico — la tua timeline non viene ordinata. Vedi ciò che hai scelto di seguire, nell'ordine in cui è arrivato."
+    },
+    {
+      "icon": "🇪🇺",
+      "text": "I tuoi dati sono ospitati nell'UE e regolati dal GDPR. Non come una promessa — è semplicemente ciò che la legge richiede qui."
+    },
+    {
+      "icon": "🎯",
+      "text": "Gli annunci si basano sul contesto, non su chi sei. Non costruiamo profili su di te."
+    },
+    {
+      "icon": "🤝",
+      "text": "Non paghi con denaro. Guadagniamo da annunci e abbonamenti aziendali — questo chiarisce chi è il cliente."
+    }
+  ],
+  "trustEncrypt": "Crittografia end-to-end",
+  "trustEU": "Ospitato nell'UE",
+  "trustDelete": "Pieno controllo sui tuoi dati",
+  "servicesLabel": "Costruito su servizi europei",
+  "services": [
+    {
+      "flag": "🇩🇰",
+      "name": "Yggdrasil Cloud",
+      "role": "Hosting",
+      "url": "https://yggdrasilcloud.dk/"
+    },
+    {
+      "flag": "🇸🇪",
+      "name": "46elks",
+      "role": "SMS / MFA",
+      "url": "https://46elks.com/"
+    },
+    {
+      "flag": "🇳🇱",
+      "name": "Mollie",
+      "role": "Pagamenti",
+      "url": "https://www.mollie.com/"
+    },
+    {
+      "flag": "🇫🇷",
+      "name": "Mistral AI",
+      "role": "IA (CV / lettera di presentazione)",
+      "url": "https://mistral.ai/"
+    }
+  ],
+  "inviteTitle": "Invita i tuoi amici",
+  "inviteSubtitle": "Aiuta i tuoi amici a passare a fellis.eu",
+  "selectAll": "Seleziona tutto",
+  "deselectAll": "Deseleziona tutto",
+  "mutualFriends": "amici in comune",
+  "skip": "Salta",
+  "sendInvites": "Invia inviti",
+  "sendingInvites": "Invio degli inviti...",
+  "inviteLinkTitle": "Condividi il tuo link di invito",
+  "inviteLinkDesc": "Condividi questo link con i tuoi amici per connettervi automaticamente su fellis.eu",
+  "copyLink": "Copia link",
+  "linkCopied": "Copiato!",
+  "invitedBy": "ti invita su fellis.eu",
+  "doneTitle": "Benvenuto su fellis.eu!",
+  "doneSubtitle": "Il tuo account è pronto. La tua nuova casa digitale ti aspetta.",
+  "viewProfile": "Visualizza il tuo profilo",
+  "back": "Indietro",
+  "loginTitle": "Accedi a fellis.eu",
+  "loginEmail": "E-mail",
+  "loginPassword": "Password",
+  "loginSubmit": "Accedi",
+  "loginCancel": "Annulla",
+  "loginError": "E-mail o password non validi",
+  "loginErrorSocialOnly": "Questo account è stato creato tramite Google o LinkedIn. Usa il pulsante di accesso corrispondente.",
+  "loginErrorRateLimit": "Troppi tentativi di accesso — riprova tra 15 minuti.",
+  "loginErrorUnavailable": "Il servizio di accesso è temporaneamente non disponibile — riprova tra poco.",
+  "loginNoAccount": "Non hai un account?",
+  "loginSignup": "Inizia",
+  "forgotPassword": "Password dimenticata?",
+  "forgotTitle": "Reimposta password",
+  "forgotEmail": "La tua e-mail",
+  "forgotSubmit": "Invia link di reimpostazione",
+  "forgotSent": "Link di reimpostazione inviato!",
+  "forgotSetNew": "Imposta nuova password",
+  "forgotNewPassword": "Nuova password (min. 6 caratteri)",
+  "forgotConfirm": "Salva password",
+  "forgotSuccess": "Password aggiornata! Sei ora connesso.",
+  "forgotError": "Impossibile reimpostare la password",
+  "forgotTokenInvalid": "Questo link non è valido o è scaduto — richiedine uno nuovo qui sotto.",
+  "forgotRateLimit": "Troppi tentativi — riprova tra poco",
+  "forgotEmailFailed": "Il link di reimpostazione non è stato inviato — controlla l'indirizzo e-mail o riprova",
+  "forgotBack": "Torna all'accesso",
+  "forgotEmailSent": "Controlla la tua e-mail per trovare un link di reimpostazione.",
+  "forgotFbNote": "Il tuo account è collegato tramite Google o LinkedIn. Puoi impostare una password locale qui sotto.",
+  "mfaTitle": "Autenticazione a due fattori",
+  "mfaDesc": "Abbiamo inviato un codice a 6 cifre al tuo numero di telefono.",
+  "mfaDescEmail": "Abbiamo inviato un codice a 6 cifre alla tua e-mail.",
+  "mfaCode": "Codice monouso",
+  "mfaSubmit": "Verifica",
+  "mfaError": "Codice non valido o scaduto",
+  "mfaBack": "Torna all'accesso",
+  "registerTitle": "Crea il tuo account fellis.eu",
+  "registerName": "Nome completo",
+  "registerEmail": "E-mail",
+  "registerEmailRepeat": "Ripeti e-mail",
+  "registerEmailMismatch": "Gli indirizzi e-mail non corrispondono",
+  "registerPassword": "Scegli una password (min. 6 caratteri)",
+  "registerPasswordRepeat": "Ripeti password",
+  "registerPasswordMismatch": "Le password non corrispondono",
+  "registerMathChallenge": "Quanto fa {a} + {b}?",
+  "registerMathError": "Risposta errata — riprova",
+  "registerSubmit": "Crea account e vai al profilo",
+  "registerError": "Impossibile creare l'account",
+  "registerErrorDuplicate": "Questa e-mail è già in uso — accedi o usa un'altra e-mail",
+  "registerErrorRateLimit": "Troppi tentativi — riprova tra poco",
+  "registerGdpr": "Accetto il trattamento dei miei dati personali in conformità con la",
+  "registerGdprLink": "politica sulla privacy di fellis.eu",
+  "registerGdprRequired": "Devi accettare la politica sulla privacy per creare un account",
+  "modeStepTitle": "Scegli il tipo di account",
+  "modeStepSubtitle": "Puoi sempre cambiarlo nelle impostazioni del profilo.",
+  "modeCommon": "Personale",
+  "modeBusiness": "Aziendale",
+  "modeCommonDesc": "Per uso personale, famiglia e comunità. Amici, post ed eventi.",
+  "modeBusinessDesc": "Per il networking professionale e la presenza aziendale. Connessioni, eventi di settore e pagine aziendali.",
+  "modeCommonFeatures": [
+    "Amici & comunità",
+    "Impostazioni a misura di famiglia",
+    "Eventi personali"
+  ],
+  "modeBusinessFeatures": [
+    "Connessioni professionali",
+    "Pagine aziendali",
+    "Conferenze & webinar"
+  ],
+  "modeSelectBtn": "Inizia"
+}

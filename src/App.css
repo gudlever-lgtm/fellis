@@ -1288,6 +1288,7 @@
   font-size: 22px;
   font-weight: 400;
   line-height: 1;
+  padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1368,6 +1369,18 @@
 }
 .p-input-hint-wrap:hover .p-input-hint-tooltip,
 .p-input-hint-wrap.active .p-input-hint-tooltip { opacity: 1; }
+@media (max-width: 600px) {
+  .p-input-hint-tooltip {
+    left: auto;
+    right: 0;
+    transform: none;
+  }
+  .p-input-hint-tooltip::after {
+    left: auto;
+    right: 14px;
+    transform: none;
+  }
+}
 
 /* ── @mention autocomplete dropdown ── */
 .p-mention-dropdown {
@@ -3740,6 +3753,7 @@
   .p-nav-notif-btn { padding: 4px 6px; font-size: 18px; }
   .p-nav-search-btn { padding: 4px 6px; font-size: 18px; }
   .p-nav-avatar, .p-nav-avatar-img { width: 30px; height: 30px; font-size: 12px; }
+  .nav-adfree-indicator { display: none; }
 
   /* ── Messaging ── */
   .p-msg-sidebar { width: 48px; }
@@ -5210,6 +5224,110 @@ body.dark .p-modal {
   left: 22px;
 }
 
+/* ══════════════════════════════════
+   NORDIC THEME (body.theme-nordic)
+   Cool blue-grey tones
+   ══════════════════════════════════ */
+
+body.theme-nordic { background: #F0F4F8; color: #1A2B3C; }
+body.theme-nordic .platform { background: #F0F4F8; }
+body.theme-nordic .p-nav { background: #1E3A5F; border-color: #162D4A; }
+body.theme-nordic .p-nav-tab { color: #8BAED4; }
+body.theme-nordic .p-nav-tab:hover { background: #2A4F77; color: #D0E4F8; }
+body.theme-nordic .p-nav-tab.active { background: #2E6DA4; color: #fff; }
+body.theme-nordic .p-nav-hamburger { color: #8BAED4; }
+body.theme-nordic .p-nav-hamburger:hover { background: #2A4F77; color: #D0E4F8; }
+body.theme-nordic .p-nav-tabs { background: #1E3A5F; border-color: #162D4A; }
+body.theme-nordic .p-card { background: #FFFFFF; border-color: #C8D8E8; }
+body.theme-nordic .p-filter-tabs { border-bottom-color: #C8D8E8; }
+body.theme-nordic .p-filter-tab { color: #4A6A8A; }
+body.theme-nordic .p-filter-tab.active { background: #2E6DA4; color: #fff; }
+body.theme-nordic .p-filter-tab:hover:not(.active) { background: #E0EAF4; }
+body.theme-nordic .p-section-title { color: #1A2B3C; }
+body.theme-nordic .avatar-dropdown { background: #fff; border-color: #C8D8E8; }
+body.theme-nordic .avatar-dropdown-item { color: #1A2B3C; }
+body.theme-nordic .avatar-dropdown-item:hover { background: #E0EAF4; }
+body.theme-nordic .avatar-dropdown-divider { background: #C8D8E8; }
+
+/* ══════════════════════════════════
+   SUNSET THEME (body.theme-sunset)
+   Warm amber / terracotta
+   ══════════════════════════════════ */
+
+body.theme-sunset { background: #FEF3E8; color: #2C1005; }
+body.theme-sunset .platform { background: #FEF3E8; }
+body.theme-sunset .p-nav { background: #7A2D0A; border-color: #5E2108; }
+body.theme-sunset .p-nav-tab { color: #F4B98A; }
+body.theme-sunset .p-nav-tab:hover { background: #9E3A15; color: #FDE8D4; }
+body.theme-sunset .p-nav-tab.active { background: #C4571B; color: #fff; }
+body.theme-sunset .p-nav-hamburger { color: #F4B98A; }
+body.theme-sunset .p-nav-hamburger:hover { background: #9E3A15; color: #FDE8D4; }
+body.theme-sunset .p-nav-tabs { background: #7A2D0A; border-color: #5E2108; }
+body.theme-sunset .p-card { background: #FFFAF5; border-color: #F0C8A0; }
+body.theme-sunset .p-filter-tabs { border-bottom-color: #F0C8A0; }
+body.theme-sunset .p-filter-tab { color: #8A3A14; }
+body.theme-sunset .p-filter-tab.active { background: #C4571B; color: #fff; }
+body.theme-sunset .p-filter-tab:hover:not(.active) { background: #FAEADB; }
+body.theme-sunset .p-section-title { color: #2C1005; }
+body.theme-sunset .avatar-dropdown { background: #FFFAF5; border-color: #F0C8A0; }
+body.theme-sunset .avatar-dropdown-item { color: #2C1005; }
+body.theme-sunset .avatar-dropdown-item:hover { background: #FAEADB; }
+body.theme-sunset .avatar-dropdown-divider { background: #F0C8A0; }
+
+/* ══════════════════════════════════
+   FOREST THEME (body.theme-forest)
+   Deep green / nature
+   ══════════════════════════════════ */
+
+body.theme-forest { background: #F0F7F3; color: #0A1F12; }
+body.theme-forest .platform { background: #F0F7F3; }
+body.theme-forest .p-nav { background: #0D2E1A; border-color: #081F11; }
+body.theme-forest .p-nav-tab { color: #7EC49A; }
+body.theme-forest .p-nav-tab:hover { background: #16492A; color: #C0E8D0; }
+body.theme-forest .p-nav-tab.active { background: #1B5E35; color: #fff; }
+body.theme-forest .p-nav-hamburger { color: #7EC49A; }
+body.theme-forest .p-nav-hamburger:hover { background: #16492A; color: #C0E8D0; }
+body.theme-forest .p-nav-tabs { background: #0D2E1A; border-color: #081F11; }
+body.theme-forest .p-card { background: #FFFFFF; border-color: #A8D4BC; }
+body.theme-forest .p-filter-tabs { border-bottom-color: #A8D4BC; }
+body.theme-forest .p-filter-tab { color: #1B5E35; }
+body.theme-forest .p-filter-tab.active { background: #1B5E35; color: #fff; }
+body.theme-forest .p-filter-tab:hover:not(.active) { background: #DBEEE4; }
+body.theme-forest .p-section-title { color: #0A1F12; }
+body.theme-forest .avatar-dropdown { background: #fff; border-color: #A8D4BC; }
+body.theme-forest .avatar-dropdown-item { color: #0A1F12; }
+body.theme-forest .avatar-dropdown-item:hover { background: #DBEEE4; }
+body.theme-forest .avatar-dropdown-divider { background: #A8D4BC; }
+
+/* ── Theme picker grid ── */
+.theme-picker { display: flex; flex-wrap: wrap; gap: 12px; }
+.theme-card {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  cursor: pointer; border: 2px solid transparent; border-radius: 12px;
+  padding: 8px; transition: border-color 0.15s; user-select: none;
+}
+.theme-card.active { border-color: #2D6A4F; }
+.theme-card:hover:not(.active) { border-color: #bbb; }
+.theme-preview {
+  width: 80px; height: 56px; border-radius: 8px; overflow: hidden; position: relative;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.14);
+}
+.theme-preview-nav {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 22px;
+}
+.theme-preview-body {
+  position: absolute; left: 22px; right: 0; top: 0; bottom: 0;
+  padding: 6px 5px; display: flex; flex-direction: column; gap: 4px;
+}
+.theme-preview-bar {
+  border-radius: 3px; height: 9px; opacity: 0.85;
+}
+.theme-preview-bar-sm {
+  border-radius: 3px; height: 6px; opacity: 0.55; width: 65%;
+}
+.theme-card-name { font-size: 12px; font-weight: 600; }
+.theme-card-check { font-size: 11px; color: #2D6A4F; font-weight: 700; }
+
 /* ── Easter Eggs ── */
 
 /* Retro / CRT mode */
@@ -5839,4 +5957,9 @@ body.mode-common .p-action-btn {
 .explore-follow-btn.following {
   background: #2D6A4F;
   color: #fff;
+}
+
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
 }

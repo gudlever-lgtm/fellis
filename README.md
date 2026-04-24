@@ -9,6 +9,7 @@ A Danish social platform built for the EU — privacy-first, GDPR-compliant, bil
 | Frontend | React 19, Vite 7, JavaScript (JSX) |
 | Backend | Node.js (ESM), Express 4 |
 | Database | MariaDB 11.8+ / MySQL 8+ |
+| Web server | lighttpd 1.4.46+ (reverse proxy + static files) |
 | Auth | Session-based + Google / LinkedIn OAuth |
 | Payments | Mollie |
 | File uploads | Multer |
@@ -60,27 +61,32 @@ npm run seed                      # optional demo data
 | `npm run seed-bots` | Seed fake users for testing |
 | `npm run cleanup-bots` | Remove bot accounts |
 
-## Features
+## 🛠️ Implemented features
 
-- Feed with posts, reactions, comments, media, link previews, scheduled posts
-- Friends, friend requests, blocking, family relationships
-- Messaging (DM + group chats), mute, read receipts
-- Stories (24h ephemeral) and Reels (short video)
-- Events with RSVP and Calendar with reminders
-- Marketplace listings with boost and EUR pricing
-- Jobs board, CV builder (AI-assisted), job applications
-- Companies with followers, members, posts, leads
-- Business directory and ad campaign management (Mollie payments)
-- Analytics dashboard (profile views, engagement, post insights)
-- Interest graph and signal-based feed ranking
-- Badges and achievements system
-- Referral tracking and leaderboard
-- Moderation queue, keyword filters, user warnings/suspensions/bans
-- Admin dashboard with platform stats and environment status
-- GDPR: consent management, data export, account deletion
-- Bilingual UI (Danish / English), dark mode, notification preferences
-- SMS MFA via 46elks, account lockout after failed logins
-- Service worker / PWA shell
+| Feature | Description |
+|---------|-------------|
+| **Feed** | Posts with reactions, comments, media, link previews, scheduled posts; Community / Business feed toggle with mode separation |
+| **Friends** | Friend requests, bidirectional connections, blocking, family relationships |
+| **Messaging** | DM and group chats, mute, read receipts |
+| **Stories** | 24-hour ephemeral posts with story bar timeline |
+| **Reels** | Short-video reel creation, likes, comments |
+| **Events & Calendar** | Event creation with RSVP, cover images, personal calendar with reminders |
+| **Marketplace** | Listings with categories, location filter, boost, EUR pricing |
+| **Jobs & CV** | Job board, applications, saved/tracked jobs, AI-assisted CV builder (experience, education, cover letter) |
+| **Companies** | Company profiles, members, followers, posts, CRM leads |
+| **Business directory** | Browse and follow business accounts |
+| **Ad manager** | Ad campaign creation, targeting, and Mollie payment integration |
+| **Analytics** | Business analytics: profile views, post engagement, audience demographics |
+| **Interest graph** | Behavioural signal engine + interest-based feed ranking |
+| **Badges & achievements** | Badge catalogue, award engine, per-user display |
+| **Referrals** | Invite tracking, referral dashboard, leaderboard |
+| **Moderation** | Keyword filters, moderation queue, warnings / suspensions / bans |
+| **Admin** | Platform stats, environment status, feed weight config, easter-egg toggle |
+| **GDPR** | Consent management, data export, account deletion |
+| **Auth** | Session-based auth, Google / LinkedIn OAuth, SMS MFA (46elks), account lockout |
+| **Notifications** | Per-user notification feed with opt-in/out preferences |
+| **i18n** | Fully bilingual UI (Danish / English), dark mode |
+| **PWA** | Service worker for fast repeat loads |
 
 ## Environment Variables
 
@@ -98,6 +104,64 @@ MISTRAL_API_KEY
 UPLOADS_DIR          # default: /var/www/fellis.eu/uploads
 MOLLIE_API_KEY
 ```
+
+## Production Server (lighttpd)
+
+fellis.eu is served by **lighttpd** acting as both the static file server and a reverse proxy to the Node.js backend.
+
+The config lives at [`lighttpd.conf`](lighttpd.conf) in the repo root. Copy it to `/etc/lighttpd/lighttpd.conf` on the production host.
+
+### How it works
+
+| Path | Handled by |
+|------|-----------|
+| `/api/*` | Proxied to Node.js on `localhost:3001` |
+| `/uploads/*` | Proxied to Node.js on `localhost:3001` |
+| `/assets/*` | Served from `/var/www/fellis.eu/assets/` (immutable cache) |
+| Everything else | Falls back to `/index.html` (React SPA routing) |
+
+### Required lighttpd modules
+
+```bash
+sudo lighttpd-enable-mod proxy rewrite compress setenv accesslog
+```
+
+### Deploy steps
+
+```bash
+# 1. Build the frontend
+npm run build
+# Copies index.html + assets/ to the repo root — rsync these to /var/www/fellis.eu/
+
+# 2. Install / reload lighttpd config
+sudo cp lighttpd.conf /etc/lighttpd/lighttpd.conf
+lighttpd -t -f /etc/lighttpd/lighttpd.conf   # validate
+sudo systemctl reload lighttpd
+
+# 3. Start the Node.js backend (e.g. via PM2)
+cd server && npm start
+```
+
+### HTTPS / TLS
+
+The config ships with a commented-out HTTPS block. To enable it:
+
+```bash
+sudo apt install certbot
+sudo certbot certonly --webroot -w /var/www/fellis.eu -d fellis.eu -d www.fellis.eu
+```
+
+Then uncomment the `$SERVER["socket"] == ":443"` block and the HTTP→HTTPS redirect in `lighttpd.conf`.
+
+### chat.fellis.eu vhost
+
+A separate virtual host for `chat.fellis.eu` is included in the same config file. It serves the chat app from `/var/www/fellis.eu/chat/dist/` and proxies `/api` and `/uploads` to the same Node.js backend.
+
+### SSE (Server-Sent Events)
+
+`server.stream-response-body = 2` is set globally so lighttpd does not buffer SSE responses. The `/api/sse` path also gets an extended `proxy.read-timeout = 600` to keep event streams alive.
+
+---
 
 ## Project Documentation
 

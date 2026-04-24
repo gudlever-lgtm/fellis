@@ -1,0 +1,44 @@
+{
+  "actions": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "confirm": "Confirm",
+    "submit": "Submit",
+    "search": "Search",
+    "loading": "Loading…",
+    "saving": "Saving…",
+    "uploading": "Uploading…",
+    "copy": "Copy",
+    "share": "Share",
+    "report": "Report",
+    "block": "Block",
+    "unblock": "Unblock"
+  },
+  "status": {
+    "error": "Error",
+    "success": "Saved",
+    "required": "Required",
+    "loading": "Loading…",
+    "noData": "No data",
+    "noResults": "No results",
+    "somethingWentWrong": "Something went wrong — please try again"
+  },
+  "time": {
+    "justNow": "Just now",
+    "minutesAgo": "m ago",
+    "hoursAgo": "h ago",
+    "daysAgo": "d ago",
+    "daysAgoPl": "d ago"
+  },
+  "confirmation": {
+    "areYouSure": "Are you sure?",
+    "cannotBeUndone": "This action cannot be undone.",
+    "yes": "Yes",
+    "no": "No"
+  }
+}

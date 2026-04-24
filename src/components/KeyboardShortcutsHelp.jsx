@@ -1,34 +1,20 @@
 import { PT } from '../data.js'
 export default function KeyboardShortcutsHelp({ lang, onClose }) {
-  const shortcuts = lang === 'da'
-    ? [
-        { keys: ['G', 'F'], label: 'Gå til Feed' },
-        { keys: ['G', 'M'], label: 'Gå til Beskeder' },
-        { keys: ['G', 'P'], label: 'Gå til Profil' },
-        { keys: ['G', 'J'], label: 'Gå til Job' },
-        { keys: ['G', 'E'], label: 'Gå til Arrangementer' },
-        { keys: ['G', 'S'], label: 'Gå til Søgning' },
-        { keys: ['G', 'N'], label: 'Åbn notifikationer' },
-        { keys: ['G', 'R'], label: 'Gå til Reels' },
-        { keys: ['G', 'K'], label: 'Gå til Markedsplads' },
-        { keys: ['G', 'B'], label: 'Gå til Badges' },
-        { keys: ['/'], label: 'Fokus søgefelt' },
-        { keys: ['?'], label: 'Vis denne hjælp' },
-      ]
-    : [
-        { keys: ['G', 'F'], label: 'Go to Feed' },
-        { keys: ['G', 'M'], label: 'Go to Messages' },
-        { keys: ['G', 'P'], label: 'Go to Profile' },
-        { keys: ['G', 'J'], label: 'Go to Jobs' },
-        { keys: ['G', 'E'], label: 'Go to Events' },
-        { keys: ['G', 'S'], label: 'Go to Search' },
-        { keys: ['G', 'N'], label: 'Open notifications' },
-        { keys: ['G', 'R'], label: 'Go to Reels' },
-        { keys: ['G', 'K'], label: 'Go to Marketplace' },
-        { keys: ['G', 'B'], label: 'Go to Badges' },
-        { keys: ['/'], label: 'Focus search' },
-        { keys: ['?'], label: 'Show this help' },
-      ]
+  const t = PT[lang]
+  const shortcuts = [
+    { keys: ['G', 'F'], label: t.shortcutGoFeed },
+    { keys: ['G', 'M'], label: t.shortcutGoMessages },
+    { keys: ['G', 'P'], label: t.shortcutGoProfile },
+    { keys: ['G', 'J'], label: t.shortcutGoJobs },
+    { keys: ['G', 'E'], label: t.shortcutGoEvents },
+    { keys: ['G', 'S'], label: t.shortcutGoSearch },
+    { keys: ['G', 'N'], label: t.shortcutOpenNotifications },
+    { keys: ['G', 'R'], label: t.shortcutGoReels },
+    { keys: ['G', 'K'], label: t.shortcutGoMarketplace },
+    { keys: ['G', 'B'], label: t.shortcutGoBadges },
+    { keys: ['/'], label: t.shortcutFocusSearch },
+    { keys: ['?'], label: t.shortcutShowHelp },
+  ]
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}

@@ -1,201 +1,14 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { UI_LANGS, detectLang, PT } from './data.js'
+import { UI_LANGS, PT } from './data.js'
 import { apiLogin, apiRegister, apiForgotPassword, apiResetPassword, apiVerifyMfa, apiGiveConsent } from './api.js'
-
-// ── Landing translations ──
-const T = {
-  da: {
-    navBrand: 'fellis.eu',
-    langToggle: 'EN',
-    loginBtn: 'Log ind',
-    headline: 'Flyt dit sociale liv til Europa',
-    subtitle: 'fellis.eu — den nye europæiske platform bygget til dig, ikke til annoncører.',
-    cta: 'Kom i gang',
-    createCardTitle: 'Opret ny konto',
-    createCardDesc: 'Start frisk på fellis.eu med e-mail og adgangskode.',
-    createCardBtn: 'Opret konto',
-    trustEncrypt: 'End-to-end krypteret',
-    trustEU: 'Hostet i EU',
-    trustDelete: 'Fuld kontrol over dine data',
-    servicesLabel: 'Bygget på europæiske tjenester',
-    services: [
-      { flag: '🇩🇰', name: 'Yggdrasil Cloud', role: 'Hosting', url: 'https://yggdrasilcloud.dk/' },
-      { flag: '🇸🇪', name: '46elks', role: 'SMS / MFA', url: 'https://46elks.com/' },
-      { flag: '🇳🇱', name: 'Mollie', role: 'Betaling', url: 'https://www.mollie.com/' },
-      { flag: '🇫🇷', name: 'Mistral AI', role: 'AI (CV / ansøgning)', url: 'https://mistral.ai/' },
-    ],
-    inviteTitle: 'Inviter dine venner',
-    inviteSubtitle: 'Hjælp dine venner med at skifte til fellis.eu',
-    selectAll: 'Vælg alle',
-    deselectAll: 'Fravælg alle',
-    mutualFriends: 'fælles venner',
-    skip: 'Spring over',
-    sendInvites: 'Send invitationer',
-    sendingInvites: 'Sender invitationer...',
-    inviteLinkTitle: 'Del dit invitationslink',
-    inviteLinkDesc: 'Del dette link med dine venner, så I automatisk bliver forbundet på fellis.eu',
-    copyLink: 'Kopier link',
-    linkCopied: 'Kopieret!',
-    invitedBy: 'inviterer dig til fellis.eu',
-    doneTitle: 'Velkommen til fellis.eu!',
-    doneSubtitle: 'Din konto er klar. Dit nye digitale hjem venter.',
-    viewProfile: 'Se din profil',
-    back: 'Tilbage',
-    // Login modal
-    loginTitle: 'Log ind på fellis.eu',
-    loginEmail: 'E-mail',
-    loginPassword: 'Adgangskode',
-    loginSubmit: 'Log ind',
-    loginCancel: 'Annuller',
-    loginError: 'Ugyldig e-mail eller adgangskode',
-    loginErrorSocialOnly: 'Denne konto er oprettet via Google eller LinkedIn. Brug den tilsvarende login-knap.',
-    loginNoAccount: 'Har du ikke en konto?',
-    loginSignup: 'Kom i gang',
-    forgotPassword: 'Glemt adgangskode?',
-    forgotTitle: 'Nulstil adgangskode',
-    forgotEmail: 'Din e-mail',
-    forgotSubmit: 'Send nulstilingslink',
-    forgotSent: 'Nulstillingslink sendt!',
-    forgotSetNew: 'Opret ny adgangskode',
-    forgotNewPassword: 'Ny adgangskode (min. 6 tegn)',
-    forgotConfirm: 'Gem adgangskode',
-    forgotSuccess: 'Adgangskode opdateret! Du er nu logget ind.',
-    forgotError: 'Kunne ikke nulstille adgangskode',
-    forgotBack: 'Tilbage til login',
-    forgotEmailSent: 'Tjek din e-mail for et nulstillingslink.',
-    mfaTitle: 'To-faktor-godkendelse',
-    mfaDesc: 'Vi har sendt en 6-cifret kode til dit telefonnummer.',
-    mfaCode: 'Engangskode',
-    mfaSubmit: 'Bekræft',
-    mfaError: 'Ugyldig eller udløbet kode',
-    mfaBack: 'Tilbage til login',
-    // Register fields (step 4)
-    registerTitle: 'Opret din fellis.eu konto',
-    registerName: 'Fulde navn',
-    registerEmail: 'E-mail',
-    registerEmailRepeat: 'Gentag e-mail',
-    registerEmailMismatch: 'E-mail adresserne stemmer ikke overens',
-    registerPassword: 'Vælg adgangskode (min. 6 tegn)',
-    registerPasswordRepeat: 'Gentag adgangskode',
-    registerPasswordMismatch: 'Adgangskoderne stemmer ikke overens',
-    registerMathChallenge: (a, b) => `Hvad er ${a} + ${b}?`,
-    registerMathError: 'Forkert svar — prøv igen',
-    registerSubmit: 'Opret konto & gå til profil',
-    registerError: 'Kunne ikke oprette konto',
-    registerErrorDuplicate: 'Denne e-mail er allerede i brug — log ind eller brug en anden e-mail',
-    registerErrorRateLimit: 'For mange forsøg — prøv igen om lidt',
-    registerGdpr: 'Jeg accepterer behandling af mine persondata i henhold til fellis.eu\'s',
-    registerGdprLink: 'privatlivspolitik',
-    registerGdprRequired: 'Du skal acceptere privatlivspolitikken for at oprette en konto',
-    // Mode selector (step 5)
-    modeStepTitle: 'Vælg din kontotype',
-    modeStepSubtitle: 'Du kan altid skifte den i dine profilindstillinger.',
-    modeCommon: 'Privat',
-    modeBusiness: 'Erhverv',
-    modeCommonDesc: 'Til personlig brug, familie og fællesskab. Venner, opslag og begivenheder.',
-    modeBusinessDesc: 'Til professionelt netværk og virksomhedsnærvær. Forbindelser, branchebegivenheder og virksomhedssider.',
-    modeCommonFeatures: ['Venner & fællesskab', 'Familie-venlige indstillinger', 'Personlige begivenheder'],
-    modeBusinessFeatures: ['Professionelle forbindelser', 'Virksomhedssider', 'Konferencer & webinarer'],
-    modeSelectBtn: 'Kom i gang',
-  },
-  en: {
-    navBrand: 'fellis.eu',
-    langToggle: 'DA',
-    loginBtn: 'Log in',
-    headline: 'Move your social life to Europe',
-    subtitle: 'fellis.eu — the new European platform built for you, not advertisers.',
-    cta: 'Get started',
-    createCardTitle: 'Create new account',
-    createCardDesc: 'Start fresh on fellis.eu with email and password.',
-    createCardBtn: 'Create account',
-    trustEncrypt: 'End-to-end encrypted',
-    trustEU: 'EU hosted',
-    trustDelete: 'Full control over your data',
-    servicesLabel: 'Built on European services',
-    services: [
-      { flag: '🇩🇰', name: 'Yggdrasil Cloud', role: 'Hosting', url: 'https://yggdrasilcloud.dk/' },
-      { flag: '🇸🇪', name: '46elks', role: 'SMS / MFA', url: 'https://46elks.com/' },
-      { flag: '🇳🇱', name: 'Mollie', role: 'Payments', url: 'https://www.mollie.com/' },
-      { flag: '🇫🇷', name: 'Mistral AI', role: 'AI (CV / cover letter)', url: 'https://mistral.ai/' },
-    ],
-    inviteTitle: 'Invite your friends',
-    inviteSubtitle: 'Help your friends switch to fellis.eu',
-    selectAll: 'Select all',
-    deselectAll: 'Deselect all',
-    mutualFriends: 'mutual friends',
-    skip: 'Skip',
-    sendInvites: 'Send invitations',
-    sendingInvites: 'Sending invitations...',
-    inviteLinkTitle: 'Share your invite link',
-    inviteLinkDesc: 'Share this link with your friends so you automatically connect on fellis.eu',
-    copyLink: 'Copy link',
-    linkCopied: 'Copied!',
-    invitedBy: 'invites you to fellis.eu',
-    doneTitle: 'Welcome to fellis.eu!',
-    doneSubtitle: 'Your account is ready. Your new digital home awaits.',
-    viewProfile: 'View your profile',
-    back: 'Back',
-    // Login modal
-    loginTitle: 'Log in to fellis.eu',
-    loginEmail: 'Email',
-    loginPassword: 'Password',
-    loginSubmit: 'Log in',
-    loginCancel: 'Cancel',
-    loginError: 'Invalid email or password',
-    loginErrorSocialOnly: 'This account was created via Google or LinkedIn. Please use the corresponding login button.',
-    loginNoAccount: "Don't have an account?",
-    loginSignup: 'Get started',
-    forgotPassword: 'Forgotten password?',
-    forgotTitle: 'Reset password',
-    forgotEmail: 'Your email',
-    forgotSubmit: 'Send reset link',
-    forgotSent: 'Reset link sent!',
-    forgotSetNew: 'Set new password',
-    forgotNewPassword: 'New password (min. 6 characters)',
-    forgotConfirm: 'Save password',
-    forgotSuccess: 'Password updated! You are now logged in.',
-    forgotError: 'Could not reset password',
-    forgotBack: 'Back to login',
-    forgotEmailSent: 'Check your email for a reset link.',
-    mfaTitle: 'Two-factor authentication',
-    mfaDesc: 'We sent a 6-digit code to your phone number.',
-    mfaCode: 'One-time code',
-    mfaSubmit: 'Verify',
-    mfaError: 'Invalid or expired code',
-    mfaBack: 'Back to login',
-    // Register fields (step 4)
-    registerTitle: 'Create your fellis.eu account',
-    registerName: 'Full name',
-    registerEmail: 'Email',
-    registerEmailRepeat: 'Repeat email',
-    registerEmailMismatch: 'Email addresses do not match',
-    registerPassword: 'Choose a password (min. 6 characters)',
-    registerPasswordRepeat: 'Repeat password',
-    registerPasswordMismatch: 'Passwords do not match',
-    registerMathChallenge: (a, b) => `What is ${a} + ${b}?`,
-    registerMathError: 'Wrong answer — please try again',
-    registerSubmit: 'Create account & go to profile',
-    registerError: 'Could not create account',
-    registerErrorDuplicate: 'This email is already in use — log in or use a different email',
-    registerErrorRateLimit: 'Too many attempts — please try again shortly',
-    registerGdpr: 'I accept the processing of my personal data in accordance with fellis.eu\'s',
-    registerGdprLink: 'privacy policy',
-    registerGdprRequired: 'You must accept the privacy policy to create an account',
-    // Mode selector (step 5)
-    modeStepTitle: 'Choose your account type',
-    modeStepSubtitle: 'You can always change this in your profile settings.',
-    modeCommon: 'Personal',
-    modeBusiness: 'Business',
-    modeCommonDesc: 'For personal use, family, and community. Friends, posts, and events.',
-    modeBusinessDesc: 'For professional networking and company presence. Connections, industry events, and company pages.',
-    modeCommonFeatures: ['Friends & community', 'Family-friendly settings', 'Personal events'],
-    modeBusinessFeatures: ['Professional connections', 'Company pages', 'Conferences & webinars'],
-    modeSelectBtn: 'Get started',
-  },
-}
+import UserTypeSelector from './UserTypeSelector.jsx'
+import { useTranslation } from './i18n/useTranslation.js'
+import { loadTranslation } from './i18n/loader.js'
 
 export default function Landing({ onEnterPlatform, inviteToken, inviterName, inviterEmail, resetToken }) {
-  const [lang, setLang] = useState(() => detectLang())
+  const { lang, setLanguage } = useTranslation('common')
+  const [t, setT] = useState({})
+  useEffect(() => { loadTranslation(lang, 'landing').then(setT) }, [lang])
   const [step, setStep] = useState(4) // Go directly to registration
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [inviteLinkCopied, setInviteLinkCopied] = useState(false)
@@ -215,8 +28,10 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
   const [forgotNewPw, setForgotNewPw] = useState('')
   const [forgotError, setForgotError] = useState('')
   const [forgotLoading, setForgotLoading] = useState(false)
+  const [forgotFbNote, setForgotFbNote] = useState(false)
   // MFA state
   const [mfaUserId, setMfaUserId] = useState(null)
+  const [mfaMethod, setMfaMethod] = useState('sms')
   const [mfaCode, setMfaCode] = useState('')
   const [mfaError, setMfaError] = useState('')
   const [mfaLoading, setMfaLoading] = useState(false)
@@ -245,8 +60,6 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
   const emailRef = useRef(null)
   const nameRef = useRef(null)
 
-  const t = T[lang] || T.da
-
   // Pre-fill email when invite info arrives asynchronously
   useEffect(() => {
     if (inviterEmail && !regEmail) setRegEmail(inviterEmail)
@@ -272,9 +85,8 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
   }, [step]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const changeLang = useCallback((code) => {
-    localStorage.setItem('fellis_lang', code)
-    setLang(code)
-  }, [])
+    setLanguage(code)
+  }, [setLanguage])
 
   // ── Login handler ──
   const handleLogin = useCallback(async (e) => {
@@ -292,10 +104,15 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
         onEnterPlatform(lang)
       } else if (data?.mfa_required && data?.userId) {
         setMfaUserId(data.userId)
+        setMfaMethod(data.method || 'sms')
         setMfaCode('')
         setMfaError('')
       } else if (data?.error === 'social_login_only') {
         setLoginError(t.loginErrorSocialOnly)
+      } else if (data?.status === 429) {
+        setLoginError(t.loginErrorRateLimit)
+      } else if (data === null || data?.status === 503 || data?.status >= 500) {
+        setLoginError(t.loginErrorUnavailable)
       } else {
         setLoginError(t.loginError)
       }
@@ -333,10 +150,14 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
     setForgotLoading(true)
     setForgotError('')
     try {
-      const data = await apiForgotPassword(forgotEmail.trim())
+      const data = await apiForgotPassword(forgotEmail.trim(), lang)
       if (data?.ok) {
         // Server sends an email with the reset link — show confirmation
         setForgotMode('email-sent')
+      } else if (data?.status === 429) {
+        setForgotError(t.forgotRateLimit)
+      } else if (data?.error === 'email_send_failed') {
+        setForgotError(t.forgotEmailFailed)
       } else {
         setForgotError(t.forgotError)
       }
@@ -355,7 +176,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
     setForgotLoading(true)
     setForgotError('')
     try {
-      const data = await apiResetPassword(forgotToken, forgotNewPw.trim())
+      const data = await apiResetPassword(forgotToken, forgotNewPw.trim(), lang)
       if (data?.sessionId) {
         setForgotMode('done')
         setTimeout(() => {
@@ -363,8 +184,12 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
           setForgotMode(null)
           onEnterPlatform(lang)
         }, 1500)
+      } else if (data?.error === 'Invalid or expired reset token') {
+        setForgotError(t.forgotTokenInvalid)
+        setForgotMode('email')
+        setForgotToken('')
       } else {
-        setForgotError(t.forgotError)
+        setForgotError(data?.error || t.forgotError)
       }
     } catch {
       setForgotError(t.forgotError)
@@ -456,6 +281,12 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
           <select className="lang-toggle" value={lang} onChange={e => changeLang(e.target.value)} aria-label="Language">
             {UI_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
           </select>
+          <a
+            href="/for-business"
+            style={{ fontSize: 14, color: '#2D6A4F', textDecoration: 'none', fontWeight: 500, whiteSpace: 'nowrap' }}
+          >
+            {PT[lang]?.forBusinessNavLink || PT.en.forBusinessNavLink}
+          </a>
           <button className="login-btn" onClick={() => { setShowLoginModal(true); setLoginError(''); setLoginEmail(''); setLoginPassword('') }}>
             {t.loginBtn}
           </button>
@@ -536,7 +367,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
             {mfaUserId && !forgotMode && (
               <form className="fb-modal-form" onSubmit={handleMfaVerify}>
                 <h3>{t.mfaTitle}</h3>
-                <p style={{ color: '#555', fontSize: 14, marginBottom: 12 }}>{t.mfaDesc}</p>
+                <p style={{ color: '#555', fontSize: 14, marginBottom: 12 }}>{mfaMethod === 'email' ? t.mfaDescEmail : t.mfaDesc}</p>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -639,8 +470,26 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
             <p style={{ fontSize: 14, color: '#6B6560', margin: 0, lineHeight: 1.4 }}>{t.subtitle}</p>
           </div>
 
+          {/* Two-card row: manifesto + registration */}
+          <div style={{ display: 'flex', gap: 20, alignItems: 'stretch', width: '100%', maxWidth: 860, flexWrap: 'wrap', justifyContent: 'center' }}>
+
+          {/* Manifesto card */}
+          <div style={{ flex: '1 1 280px', maxWidth: 380, border: '1px solid #C8DDD2', borderRadius: 14, padding: '28px 28px', boxSizing: 'border-box', background: '#F0FAF4', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 14 }}>
+            <p style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.4, margin: 0, color: '#1a5c36' }}>{t.hero_intro}</p>
+            <p style={{ fontSize: 14, lineHeight: 1.7, margin: 0, color: '#4a6b5c' }}>{t.manifestoLine3}</p>
+            <div style={{ borderTop: '1px solid #C8DDD2', marginTop: 2 }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {(t.manifestoWhys || []).map(({ icon, text }) => (
+                <div key={text} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                  <span style={{ fontSize: 15, lineHeight: 1.6, flexShrink: 0 }}>{icon}</span>
+                  <span style={{ fontSize: 13, lineHeight: 1.6, color: '#3a5a4a' }}>{text}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Registration form */}
-          <form className="register-form" onSubmit={handleRegister} style={{ border: '1px solid #E0DCD7', borderRadius: 14, padding: '16px 22px', maxWidth: 420, width: '100%', boxSizing: 'border-box', margin: 0, gap: 6 }}>
+          <form className="register-form" onSubmit={handleRegister} style={{ flex: '1 1 280px', border: '1px solid #E0DCD7', borderRadius: 14, padding: '16px 22px', maxWidth: 420, width: '100%', boxSizing: 'border-box', margin: 0, gap: 6 }}>
             <h3 className="register-title" style={{ marginBottom: 2 }}>{t.registerTitle}</h3>
             {/* Honeypot — hidden from users, filled only by bots */}
             <input
@@ -697,7 +546,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
             {/* Math challenge — simple human verification */}
             <div style={{ marginTop: 2, marginBottom: 0 }}>
               <label style={{ display: 'block', fontSize: 13, color: '#555', marginBottom: 2 }}>
-                {t.registerMathChallenge(mathChallenge.a, mathChallenge.b)}
+                {(t.registerMathChallenge || '').replace('{a}', mathChallenge.a).replace('{b}', mathChallenge.b)}
               </label>
               <input
                 type="number"
@@ -729,9 +578,10 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
               {regLoading ? '...' : t.registerSubmit}
             </button>
           </form>
+          </div>{/* end two-card row */}
 
           {/* Trust + services row — bottom */}
-          <div style={{ marginTop: 12, width: '100%', maxWidth: 700, flexShrink: 0 }}>
+          <div style={{ marginTop: 12, width: '100%', maxWidth: 860, flexShrink: 0 }}>
             <div className="trust-row" style={{ marginTop: 0, gap: 24 }}>
               <div className="trust-item"><div className="trust-icon" style={{ fontSize: 15 }}>🔒</div><span className="trust-label">{t.trustEncrypt}</span></div>
               <div className="trust-item"><div className="trust-icon" style={{ fontSize: 15 }}>🇪🇺</div><a href="https://yggdrasilcloud.dk/" target="_blank" rel="noopener noreferrer" className="trust-label trust-link">{t.trustEU}</a></div>
@@ -739,7 +589,7 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
             </div>
             <div className="landing-services-row" style={{ marginTop: 6 }}>
               <span className="landing-services-label">{t.servicesLabel}:</span>
-              {t.services.map(svc => (
+              {(t.services || []).map(svc => (
                 <a key={svc.name} href={svc.url} target="_blank" rel="noopener noreferrer" className="landing-service-chip">
                   <span>{svc.flag}</span>
                   <span className="landing-service-chip-name">{svc.name}</span>
@@ -750,45 +600,21 @@ export default function Landing({ onEnterPlatform, inviteToken, inviterName, inv
           </div>
         </div>
       )}
-      {/* Step 5 — Mode selector */}
+      {/* Step 5 — User type selector */}
       {step === 5 && (
-        <div className="step-container" style={{ maxWidth: 560 }}>
+        <div className="step-container" style={{ maxWidth: 900 }}>
           <div style={{ textAlign: 'center', marginBottom: 28 }}>
             <div style={{ fontSize: 40, marginBottom: 8 }}>🎉</div>
             <h2 style={{ margin: '0 0 8px' }}>{t.modeStepTitle}</h2>
             <p style={{ margin: 0, color: '#888', fontSize: 14 }}>{t.modeStepSubtitle}</p>
           </div>
-          <div style={{ display: 'flex', gap: 16 }}>
-            {[
-              { key: 'common', label: t.modeCommon, icon: '🏠', desc: t.modeCommonDesc, features: t.modeCommonFeatures, color: '#2D6A4F', bg: '#F0FAF4' },
-              { key: 'business', label: t.modeBusiness, icon: '💼', desc: t.modeBusinessDesc, features: t.modeBusinessFeatures, color: '#1877F2', bg: '#EBF4FF' },
-            ].map(({ key, label, icon, desc, features, color, bg }) => (
-              <button
-                key={key}
-                onClick={() => {
-                  localStorage.setItem('fellis_mode', key)
-                  onEnterPlatform(lang)
-                }}
-                style={{
-                  flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
-                  gap: 10, padding: 24, borderRadius: 16, border: `2px solid ${color}`,
-                  background: bg, cursor: 'pointer', textAlign: 'left', transition: 'transform 0.15s',
-                }}
-                onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
-                onMouseLeave={e => e.currentTarget.style.transform = 'none'}
-              >
-                <span style={{ fontSize: 36 }}>{icon}</span>
-                <strong style={{ fontSize: 18, color }}>{label}</strong>
-                <span style={{ fontSize: 13, color: '#555', lineHeight: 1.5 }}>{desc}</span>
-                <ul style={{ margin: '4px 0 0', padding: '0 0 0 16px', fontSize: 12, color: '#666', lineHeight: 1.8 }}>
-                  {features.map(f => <li key={f}>{f}</li>)}
-                </ul>
-                <span style={{ marginTop: 8, alignSelf: 'stretch', padding: '10px', borderRadius: 10, background: color, color: '#fff', fontWeight: 700, fontSize: 14, textAlign: 'center' }}>
-                  {t.modeSelectBtn} →
-                </span>
-              </button>
-            ))}
-          </div>
+          <UserTypeSelector
+            lang={lang}
+            onComplete={(mode) => {
+              localStorage.setItem('fellis_mode', mode)
+              onEnterPlatform(lang)
+            }}
+          />
         </div>
       )}
     </div>

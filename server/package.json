@@ -5,19 +5,27 @@
   "scripts": {
     "start": "node --env-file=.env index.js",
     "seed": "node --env-file=.env seed.js",
+    "unseed": "node --env-file=.env unseed.js",
     "seed-bots": "node seed-bots.js",
     "cleanup-bots": "node cleanup-bots.js",
+    "cleanup-e2e": "node --env-file=.env cleanup-e2e-users.js",
+    "cleanup-audit-log": "node --env-file=.env cleanup-audit-log.js",
     "migrate": "node --env-file=.env migrate.js",
     "migrate:status": "node --env-file=.env migrate.js --status",
-    "migrate:dry-run": "node --env-file=.env migrate.js --dry-run"
+    "migrate:dry-run": "node --env-file=.env migrate.js --dry-run",
+    "verify-indexes": "node --env-file=.env verify-indexes.js",
+    "check-smtp": "node --env-file=.env check-smtp.js"
   },
   "dependencies": {
     "@mollie/api-client": "^4.4.0",
     "bcrypt": "^6.0.0",
     "express": "^4.21.0",
+    "express-rate-limit": "^8.3.2",
+    "helmet": "^8.1.0",
     "multer": "^2.0.2",
-    "mysql2": "^3.11.0",
+    "mysql2": "^3.22.2",
     "nodemailer": "^8.0.1",
-    "stripe": "^17.7.0"
+    "stripe": "^17.7.0",
+    "zod": "^4.3.6"
   }
 }

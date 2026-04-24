@@ -1,0 +1,42 @@
+{
+  "header": {
+    "editProfile": "Profil bearbeiten",
+    "message": "Nachricht senden",
+    "connect": "Verbinden",
+    "connected": "Verbunden ✓",
+    "pendingRequest": "Anfrage gesendet ✓",
+    "follow": "Folgen",
+    "following": "Folge ich ✓",
+    "viewProfile": "Profil anzeigen"
+  },
+  "info": {
+    "location": "Ort",
+    "website": "Website",
+    "joinedDate": "Mitglied seit",
+    "bio": "Über mich",
+    "skills": "Fähigkeiten",
+    "interests": "Interessen",
+    "noSkillsYet": "Noch keine Fähigkeiten hinzugefügt.",
+    "noInterestsYet": "Noch keine Interessen ausgewählt."
+  },
+  "privacy": {
+    "publicProfile": "Öffentliches Profil",
+    "privateProfile": "Privates Profil",
+    "visibleTo": "Sichtbar für",
+    "everyone": "Alle",
+    "friendsOnly": "Nur Freunde"
+  },
+  "avatar": {
+    "upload": "Profilbild hochladen",
+    "remove": "Bild entfernen",
+    "uploading": "Bild wird hochgeladen…",
+    "uploadFailed": "Bild konnte nicht hochgeladen werden"
+  },
+  "gdpr": {
+    "exportData": "Meine Daten exportieren",
+    "deleteAccount": "Konto löschen",
+    "exportDescription": "Lade eine Kopie all deiner Daten im JSON-Format herunter.",
+    "deleteDescription": "Dauerhaftes Löschen deines Kontos und aller zugehörigen Daten.",
+    "deleteConfirm": "Bist du sicher, dass du dein Konto löschen möchtest? Das kann nicht rückgängig gemacht werden."
+  }
+}

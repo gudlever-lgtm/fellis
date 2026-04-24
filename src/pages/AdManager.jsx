@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { apiGetMyAds, apiCreateAd, apiUpdateAd, apiPatchAd, apiDeleteAd, apiPayForAd, apiBoostPost, apiFetchUserPosts, apiUploadFile } from '../api.js'
+import { apiGetMyAds, apiCreateAd, apiUpdateAd, apiPatchAd, apiDeleteAd, apiPayForAd, apiBoostPost, apiFetchUserPosts, apiUploadFile, apiGetInterestCategories } from '../api.js'
 import { formatPrice } from '../utils/currency.js'
 import { PT } from '../data.js'
 
@@ -33,6 +33,10 @@ export default function AdManager({ lang, t, currentUser }) {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const fileInputRef = useRef(null)
+  const [interestCategories, setInterestCategories] = useState([])
+  const [interestSearch, setInterestSearch] = useState('')
+  const [interestDropdownOpen, setInterestDropdownOpen] = useState(false)
+  const interestWrapRef = useRef(null)
 
   const handleEditImageUpload = async (file) => {
     if (!file || !file.type.startsWith('image/')) return
@@ -93,6 +97,22 @@ export default function AdManager({ lang, t, currentUser }) {
   }, [])
 
   useEffect(() => { loadAds() }, [loadAds])
+
+  useEffect(() => {
+    apiGetInterestCategories().then(data => {
+      if (data?.categories) setInterestCategories(data.categories)
+    }).catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (interestWrapRef.current && !interestWrapRef.current.contains(e.target)) {
+        setInterestDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
 
   // Load own posts for the "boost a post" section
   useEffect(() => {
@@ -396,7 +416,60 @@ export default function AdManager({ lang, t, currentUser }) {
             </div>
             <div style={s.formRow}>
               <label style={s.label}>{t.adTargetInterests}</label>
-              <input style={s.input} value={form.target_interests} onChange={e => setForm(p => ({ ...p, target_interests: e.target.value }))} placeholder={PT[lang].eGTechnologyDesignHealth} />
+              {(() => {
+                const selected = form.target_interests ? form.target_interests.split(',').map(s => s.trim()).filter(Boolean) : []
+                const q = interestSearch.trim().toLowerCase()
+                const suggestions = interestCategories.filter(c =>
+                  !selected.includes(c.id) && (
+                    !q || c.da.toLowerCase().includes(q) || c.en.toLowerCase().includes(q) || c.id.toLowerCase().includes(q)
+                  )
+                )
+                const addInterest = (id) => {
+                  const next = [...selected, id].join(', ')
+                  setForm(p => ({ ...p, target_interests: next }))
+                  setInterestSearch('')
+                  setInterestDropdownOpen(false)
+                }
+                const removeInterest = (id) => {
+                  const next = selected.filter(i => i !== id).join(', ')
+                  setForm(p => ({ ...p, target_interests: next }))
+                }
+                return (
+                  <div ref={interestWrapRef} style={{ position: 'relative' }}>
+                    {selected.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 6 }}>
+                        {selected.map(id => {
+                          const cat = interestCategories.find(c => c.id === id)
+                          return (
+                            <span key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 9px', borderRadius: 20, fontSize: 12, background: '#F0FAF4', border: '1.5px solid #2D6A4F', color: '#2D6A4F', fontWeight: 600 }}>
+                              {cat ? `${cat.icon} ${cat[lang] || cat.da}` : id}
+                              <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => removeInterest(id)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#2D6A4F', padding: '0 0 0 2px', lineHeight: 1 }}>×</button>
+                            </span>
+                          )
+                        })}
+                      </div>
+                    )}
+                    <input
+                      style={s.input}
+                      value={interestSearch}
+                      onChange={e => { setInterestSearch(e.target.value); setInterestDropdownOpen(true) }}
+                      onFocus={() => setInterestDropdownOpen(true)}
+                      placeholder={selected.length === 0 ? PT[lang].eGTechnologyDesignHealth : PT[lang].searchCategories || '🔍 Søg kategorier...'}
+                      autoComplete="off"
+                    />
+                    {interestDropdownOpen && suggestions.length > 0 && (
+                      <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #DDD', borderRadius: 10, boxShadow: '0 4px 18px rgba(0,0,0,0.13)', zIndex: 999, maxHeight: 200, overflowY: 'auto', marginTop: 2 }}>
+                        {suggestions.map(cat => (
+                          <button key={cat.id} type="button" onMouseDown={e => e.preventDefault()} onClick={() => addInterest(cat.id)}
+                            style={{ display: 'flex', alignItems: 'center', gap: 7, width: '100%', textAlign: 'left', padding: '8px 14px', background: 'none', border: 'none', borderBottom: '1px solid #F0EDE8', cursor: 'pointer', fontSize: 13, color: '#333' }}>
+                            {cat.icon} {cat[lang] || cat.da}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
             <div style={s.twoCol}>
               <div style={s.formRow}>

@@ -1,0 +1,47 @@
+{
+  "compose": {
+    "placeholder": "Co słychać?",
+    "button": "Opublikuj",
+    "addMedia": "Dodaj media",
+    "addLocation": "Dodaj lokalizację",
+    "removeLocation": "Usuń lokalizację",
+    "schedule": "Zaplanuj",
+    "publishNow": "Opublikuj teraz",
+    "tagPeople": "Oznacz osoby",
+    "pasteImageHint": "Wklej obraz bezpośrednio za pomocą Ctrl+V"
+  },
+  "post": {
+    "like": "Lubię to",
+    "comment": "Komentarz",
+    "share": "Udostępnij",
+    "edit": "Edytuj post",
+    "delete": "Usuń post",
+    "report": "Zgłoś",
+    "save": "Zapisz post",
+    "unsave": "Usuń z zapisanych",
+    "hide": "Ukryj post",
+    "edited": "(edytowane)",
+    "sponsored": "Sponsorowane"
+  },
+  "comment": {
+    "placeholder": "Napisz komentarz...",
+    "send": "Wyślij",
+    "reply": "Odpowiedz",
+    "delete": "Usuń komentarz",
+    "noReactionsYet": "Brak reakcji"
+  },
+  "modes": {
+    "community": "Społeczność",
+    "business": "Biznes"
+  },
+  "empty": {
+    "noPostsYet": "Brak postów",
+    "loadMore": "Załaduj starsze posty",
+    "allCaughtUp": "Jesteś na bieżąco!"
+  },
+  "scheduled": {
+    "title": "Zaplanowane posty",
+    "noScheduled": "Brak zaplanowanych postów.",
+    "deleteConfirm": "Usunąć zaplanowany post?"
+  }
+}

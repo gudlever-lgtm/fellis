@@ -1,9 +1,12 @@
 import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } from 'react'
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
-import { UI_LANGS, EUROPEAN_LANGUAGES, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials, getTranslations } from './data.js'
-import { formatPrice } from './utils/currency.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiRemoveConversationParticipant, apiMuteConversationParticipant, apiUploadAvatar, apiCheckSession, apiRequestAccountDelete, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiShareJob, apiUnshareJob, apiGetSharedJobs, apiGetJobSharedWith, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals, apiFetchCalendarReminders, apiCreateCalendarReminder, apiDeleteCalendarReminder, apiGetLinkedContent, apiFetchJobs, apiGetSuggestedUsers, apiAdminNotifyAll, apiLikeComment, apiAdminGetPlatformAds, apiAdminCreatePlatformAd, apiAdminUpdatePlatformAd, apiAdminDeletePlatformAd, apiAdminGetLockedUsers, apiAdminUnlockUser, apiFeedCompanyPosts, apiGetLivestreamSettings, apiSaveLivestreamSettings, apiGetLivestreamStats, apiGetLivestreamStatus,
-  apiGetStreamKey, apiRegenerateStreamKey, apiGetMarketplaceAlerts, apiCreateMarketplaceAlert, apiUpdateMarketplaceAlert, apiDeleteMarketplaceAlert } from './api.js'
+import { UI_LANGS, EUROPEAN_LANGUAGES, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials, getTranslations, PT } from './data.js'
+import { detectLanguage } from './utils/detectLanguage.js'
+import { formatPrice, formatPriceDKK } from './utils/currency.js'
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiRemoveConversationParticipant, apiMuteConversationParticipant, apiUploadAvatar, apiCheckSession, apiRequestAccountDelete, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiGetMarketplaceCategories, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiShareJob, apiUnshareJob, apiGetSharedJobs, apiGetJobSharedWith, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiSendEnableMfa, apiConfirmEnableMfa, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals, apiFetchCalendarReminders, apiCreateCalendarReminder, apiDeleteCalendarReminder, apiGetLinkedContent, apiFetchJobs, apiGetSuggestedUsers, apiAdminNotifyAll, apiLikeComment, apiAdminGetPlatformAds, apiAdminCreatePlatformAd, apiAdminUpdatePlatformAd, apiAdminDeletePlatformAd, apiAdminGetLockedUsers, apiAdminUnlockUser, apiFeedCompanyPosts, apiGetLivestreamSettings, apiSaveLivestreamSettings, apiGetLivestreamStats, apiGetLivestreamStatus,
+  apiGetStreamKey, apiRegenerateStreamKey, apiGetMarketplaceAlerts, apiCreateMarketplaceAlert, apiUpdateMarketplaceAlert, apiDeleteMarketplaceAlert,
+  apiGetEurDkkRate, apiFetchFriendSuggestions,
+  apiFetchNetworkFeed, apiFetchBusinessFeed } from './api.js'
 import {
   apiSharePost, apiUnsharePost, apiSavePost, apiUnsavePost, apiGetSavedPosts,
   apiGetPoll, apiVotePoll, apiCreatePoll,
@@ -23,13 +26,17 @@ import {
   apiShareReelToFeed,
   apiConvertPostToReel,
   apiSubmitFeedback, apiGetAdminFeedback, apiUpdateFeedbackStatus,
+  apiGetDiscovery,
 } from './api.js'
+import { siApplepay, siGooglepay, siVisa } from 'simple-icons'
 import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
+import FeaturesPage from './pages/FeaturesPage.jsx'
 import ReelsPage from './Reels.jsx'
 import InterestGraphPage from './InterestGraphPage.jsx'
 import ExplorePage from './pages/ExplorePage.jsx'
 import AdBanner, { invalidateAdCache } from './AdBanner.jsx'
+import FacebookImport from './components/FacebookImport.jsx'
 import useKonamiCode from './hooks/useKonamiCode.js'
 import useKeySequence from './hooks/useKeySequence.js'
 import useScrollHold from './hooks/useScrollHold.js'
@@ -37,15 +44,26 @@ import useAvatarClick from './hooks/useAvatarClick.js'
 import useLongPress from './hooks/useLongPress.js'
 import useTapCount from './hooks/useTapCount.js'
 import useEasterEggs, { loadEggs, loadAdminEggs, ADMIN_LS_KEY, EGG_IDS } from './hooks/useEasterEggs.js'
+import { useLanguage } from './i18n/LanguageContext.jsx'
 import ChuckBanner from './components/easter-eggs/ChuckBanner.jsx'
 import MatrixRain from './components/easter-eggs/MatrixRain.jsx'
 import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
 import RickRoll from './components/easter-eggs/RickRoll.jsx'
 import RiddleBanner from './components/easter-eggs/RiddleBanner.jsx'
-import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiGeocode, apiReverseGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness, apiPayForAd, apiBoostPost, apiTrackAdImpression, apiTrackAdClick, apiAdminGrowth, apiAdminOnlineNow, apiAdminGetBannedUsers, apiAdminGetAuditLog, apiAdminSearchUsers, apiAdminForceLogout, apiAdminDeleteUser } from './api.js'
+import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiReverseGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiAssignAdfreedays, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness, apiFollowUser, apiUnfollowUser, apiGetFollowers, apiGetFollowing, apiPayForAd, apiBoostPost, apiTrackAdImpression, apiTrackAdClick, apiAdminGrowth, apiAdminOnlineNow, apiAdminGetBannedUsers, apiAdminGetAuditLog, apiAdminSearchUsers, apiAdminForceLogout, apiAdminDeleteUser, apiGetAdminStorageStats,
+  apiContactBusiness, apiGetBusinessJobs, apiGetBusinessServices, apiGetBusinessEvents, apiGetBusinessEndorsements, apiGetBusinessPartners, apiSendPartnerRequest, apiSendBusinessInquiry, apiGetFollowedAnnouncements,
+  apiGetMyServices,
+  apiGetCompanyProfile,
+  apiCreateCompanyProfile,
+} from './api.js'
 import BusinessBadge from './components/BusinessBadge.jsx'
-import BusinessDirectory from './pages/BusinessDirectory.jsx'
+import CompanyProfileForm from './CompanyProfileForm.jsx'
+import PostCard from './PostCard.jsx'
+import FeedTabs from './FeedTabs.jsx'
+import PostComposer from './PostComposer.jsx'
+import { UpsellCard, UPSELL_KEY } from './AdBanner.jsx'
 import AdManager from './pages/AdManager.jsx'
+import BusinessHub from './pages/BusinessHub.jsx'
 import LocationAutocomplete from './components/LocationAutocomplete.jsx'
 import { BADGES, BADGE_BY_ID } from './badges/badgeDefinitions.js'
 import BadgeToastQueue from './components/BadgeToast.jsx'
@@ -66,8 +84,24 @@ import MarketplaceWishlist from './components/MarketplaceWishlist.jsx'
 import MakeOfferModal from './components/MakeOfferModal.jsx'
 import KeyboardShortcutsHelp from './components/KeyboardShortcutsHelp.jsx'
 import useKeyboardShortcuts from './hooks/useKeyboardShortcuts.js'
+import DiscoveryCard from './components/DiscoveryCard.jsx'
+import OnboardingChecklist from './OnboardingChecklist.jsx'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
+
+// Wrapper for raw csrfFetch() calls that adds the CSRF token and session cookie.
+// Use this anywhere api.js request() can't be used (e.g. non-JSON bodies).
+function csrfFetch(url, options = {}) {
+  const csrf = localStorage.getItem('fellis_csrf_token')
+  return fetch(`${API_BASE}${url}`, {
+    credentials: 'same-origin',
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+      ...(csrf ? { 'X-CSRF-Token': csrf } : {}),
+    },
+  })
+}
 
 
 // ── Mock notifications ──
@@ -156,8 +190,8 @@ function EggHintsContextMenu({ lang }) {
   )
 }
 
-export default function Platform({ lang: initialLang, onLogout, initialPostId, initialPage, initialProfileUserId, initialProfileSubpage }) {
-  const [lang, setLang] = useState(initialLang || 'da')
+export default function Platform({ onLogout, initialPostId, initialPage, initialProfileUserId, initialProfileSubpage }) {
+  const { lang, setLanguage: setLang } = useLanguage()
   const [page, setPage] = useState(initialPage || 'feed')
   const [currentUser, setCurrentUser] = useState({ name: '', handle: '', initials: '' })
   const [showAvatarMenu, setShowAvatarMenu] = useState(false)
@@ -199,7 +233,12 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
   const [msgSsePayload, setMsgSsePayload] = useState(null)
   const [showModeModal, setShowModeModal] = useState(false)
   const [adsFree, setAdsFree] = useState(false)
-  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('fellis_dark') === '1')
+  const [activeFeatures, setActiveFeatures] = useState([])
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem('fellis_theme')
+    if (saved) return saved
+    return localStorage.getItem('fellis_dark') === '1' ? 'dark' : 'light'
+  })
   const [marketplaceMaxPhotos, setMarketplaceMaxPhotos] = useState(4)
 
   // 🥚 All easter egg triggers — global so they work from any page
@@ -251,6 +290,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
 
   const [showOnboarding, setShowOnboarding] = useState(() => localStorage.getItem('fellis_onboarding') === '1')
   const [onboardingInviterName] = useState(() => localStorage.getItem('fellis_onboarding_inviter') || null)
+  const [showOnboardingChecklist, setShowOnboardingChecklist] = useState(false)
   const avatarMenuRef = useRef(null)
   const notifRef = useRef(null)
   const [showMoreMenu, setShowMoreMenu] = useState(false)
@@ -269,9 +309,11 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
   const t = getTranslations(lang)
 
   useEffect(() => {
-    document.body.classList.toggle('dark', darkMode)
-    localStorage.setItem('fellis_dark', darkMode ? '1' : '0')
-  }, [darkMode])
+    document.body.classList.remove('dark', 'theme-nordic', 'theme-sunset', 'theme-forest')
+    if (theme === 'dark') document.body.classList.add('dark')
+    else if (theme !== 'light') document.body.classList.add(`theme-${theme}`)
+    localStorage.setItem('fellis_theme', theme)
+  }, [theme])
 
   useEffect(() => {
     let lastY = window.scrollY
@@ -294,9 +336,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
     setMode(newMode)
     localStorage.setItem('fellis_mode', newMode)
     setShowModeModal(false)
-    // Sync mode to server so admin stats can segment by mode
-    const serverMode = newMode === 'business' ? 'business' : 'privat'
-    apiUpdateMode(serverMode).catch(() => {})
+    apiUpdateMode(newMode).catch(() => {})
   }
 
   const markAllRead = () => {
@@ -305,9 +345,9 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
   }
 
   const changeLang = useCallback((code) => {
-    localStorage.setItem('fellis_lang', code)
+
     setLang(code)
-  }, [])
+  }, [setLang])
 
   // Load current user from session — mode and plan are authoritative from server
   useEffect(() => {
@@ -315,13 +355,20 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
       if (data?.user) {
         setCurrentUser(prev => ({ ...prev, ...data.user }))
         if (data.user.ads_free !== undefined) setAdsFree(Boolean(data.user.ads_free))
+        if (Array.isArray(data.user.active_features)) setActiveFeatures(data.user.active_features)
         // Mode from server is authoritative — sync to localStorage
         if (data.user.mode) {
           setMode(data.user.mode)
           localStorage.setItem('fellis_mode', data.user.mode)
         } else {
           // Fallback: sync localStorage → server
-          apiUpdateMode(mode === 'business' ? 'business' : 'privat').catch(() => {})
+          apiUpdateMode(mode).catch(() => {})
+        }
+        // Show onboarding checklist for new personal users (account < 7 days, not dismissed)
+        if (!data.user.onboarding_dismissed && data.user.created_at) {
+          const accountAge = Date.now() - new Date(data.user.created_at).getTime()
+          const sevenDaysMs = 7 * 24 * 60 * 60 * 1000
+          if (accountAge < sevenDaysMs) setShowOnboardingChecklist(true)
         }
       } else if (data?.__authError) {
         // Genuine 401/403 — session invalid, log out
@@ -467,7 +514,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
         </button>
         <div className={`p-nav-tabs${showMobileMenu ? ' open' : ''}`}>
           {/* Primary tabs — always visible */}
-          {['feed', 'reels', 'messages', 'events'].map(p => (
+          {['feed', ...(mode !== 'business' ? ['reels'] : []), 'messages', 'events'].map(p => (
             <button
               key={p}
               className={`p-nav-tab${page === p ? ' active' : ''}`}
@@ -484,17 +531,20 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
           {/* Business-only primary tabs */}
           {mode === 'business' && (
             <button
-              className={`p-nav-tab${page === 'ads' ? ' active' : ''}`}
-              onClick={() => { navigateTo('ads'); setShowMobileMenu(false) }}
+              className={`p-nav-tab${page === 'business-hub' ? ' active' : ''}`}
+              onClick={() => { navigateTo('business-hub'); setShowMobileMenu(false) }}
             >
-              <span className="p-nav-tab-icon">📢</span>
-              <span className="p-nav-tab-label">{t.adsTitle}</span>
+              <span className="p-nav-tab-icon">🏢</span>
+              <span className="p-nav-tab-label">{t.businessHub}</span>
             </button>
           )}
           {/* "Mere" / "More" dropdown for secondary tabs */}
           <div ref={moreMenuRef} style={{ position: 'relative' }}>
             <button
-              className={`p-nav-tab${['friends', 'calendar', 'marketplace', 'jobs', 'company', 'businesses', 'explore', 'saved-posts'].includes(page) ? ' active' : ''}`}
+              className={`p-nav-tab${(mode === 'business'
+                ? ['friends', 'calendar', 'marketplace', 'explore', 'saved-posts']
+                : ['friends', 'calendar', 'marketplace', 'jobs', 'explore', 'saved-posts']
+              ).includes(page) ? ' active' : ''}`}
               onClick={() => setShowMoreMenu(v => !v)}
             >
               <span className="p-nav-tab-icon">{'⋯'}</span>
@@ -515,14 +565,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
                   label: t.navGroupCommerce,
                   items: [
                     { id: 'marketplace', icon: '🛍️', label: t.marketplace },
-                    { id: 'jobs', icon: '💼', label: t.jobs },
-                  ],
-                },
-                {
-                  label: t.navGroupBusinesses,
-                  items: [
-                    { id: 'businesses', icon: '🏢', label: t.businesses },
-                    ...(mode === 'business' ? [{ id: 'company', icon: '🏬', label: t.myCompany }] : []),
+                    ...(mode !== 'business' ? [{ id: 'jobs', icon: '💼', label: t.jobs }] : []),
                   ],
                 },
               ]
@@ -544,41 +587,33 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
                   </div>
                 )
               }
-              // Desktop: grouped dropdown
+              // Desktop: flat dropdown
               return (
                 <div style={{
                   position: 'absolute', top: '100%', left: 0, zIndex: 200,
                   background: '#fff', borderRadius: 12, boxShadow: '0 6px 24px rgba(0,0,0,0.13)',
-                  border: '1px solid #e8e8e4', minWidth: 260, padding: '10px 0',
+                  border: '1px solid #e8e8e4', minWidth: 260, padding: '8px 6px',
                 }}>
-                  {moreGroups.map((group, gi) => (
-                    <div key={group.label}>
-                      {gi > 0 && <div style={{ height: 1, background: '#f0ede9', margin: '6px 0' }} />}
-                      <div style={{ fontSize: 10, fontWeight: 700, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.07em', padding: '2px 14px 6px' }}>
-                        {group.label}
-                      </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 0', padding: '0 6px' }}>
-                        {group.items.map(item => (
-                          <button key={item.id}
-                            onClick={() => { navigateTo(item.id); setShowMoreMenu(false); setShowMobileMenu(false) }}
-                            style={{
-                              display: 'flex', alignItems: 'center', gap: 8,
-                              padding: '8px 10px', borderRadius: 8,
-                              background: page === item.id ? '#f0f7f4' : 'none',
-                              border: 'none', cursor: 'pointer', fontSize: 13,
-                              fontWeight: page === item.id ? 700 : 400,
-                              color: page === item.id ? '#2D6A4F' : '#333', textAlign: 'left',
-                              transition: 'background 0.12s',
-                            }}
-                            onMouseEnter={e => { if (page !== item.id) e.currentTarget.style.background = '#f7f7f5' }}
-                            onMouseLeave={e => { if (page !== item.id) e.currentTarget.style.background = 'none' }}
-                          >
-                            <span style={{ fontSize: 16 }}>{item.icon}</span> {item.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 0' }}>
+                    {allItems.map(item => (
+                      <button key={item.id}
+                        onClick={() => { navigateTo(item.id); setShowMoreMenu(false); setShowMobileMenu(false) }}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 8,
+                          padding: '8px 10px', borderRadius: 8,
+                          background: page === item.id ? '#f0f7f4' : 'none',
+                          border: 'none', cursor: 'pointer', fontSize: 13,
+                          fontWeight: page === item.id ? 700 : 400,
+                          color: page === item.id ? '#2D6A4F' : '#333', textAlign: 'left',
+                          transition: 'background 0.12s',
+                        }}
+                        onMouseEnter={e => { if (page !== item.id) e.currentTarget.style.background = '#f7f7f5' }}
+                        onMouseLeave={e => { if (page !== item.id) e.currentTarget.style.background = 'none' }}
+                      >
+                        <span style={{ fontSize: 16 }}>{item.icon}</span> {item.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )
             })()}
@@ -631,12 +666,21 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
           <select className="lang-toggle" value={lang} onChange={e => changeLang(e.target.value)} aria-label="Language">
             {UI_LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
           </select>
-          {/* Ad-free badge */}
-          {adsFree && (
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#2D6A4F', background: '#e8f5ee', border: '1px solid #b7dfc9', borderRadius: 20, padding: '3px 9px', whiteSpace: 'nowrap' }}>
-              ✓ Ad-free
-            </span>
-          )}
+          {/* Ad-free badge / upgrade prompt — hidden on small screens so avatar stays visible */}
+          <div className="nav-adfree-indicator">
+            {adsFree ? (
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#2D6A4F', background: '#e8f5ee', border: '1px solid #b7dfc9', borderRadius: 20, padding: '3px 9px', whiteSpace: 'nowrap' }}>
+                ✓ {t.adFree2}
+              </span>
+            ) : (
+              <button
+                onClick={() => navigateTo('settings', 'billing')}
+                style={{ fontSize: 11, fontWeight: 600, color: '#888', background: 'none', border: '1px solid #ddd', borderRadius: 20, padding: '3px 9px', whiteSpace: 'nowrap', cursor: 'pointer' }}
+              >
+                🚫 {t.adFreeBtn}
+              </button>
+            )}
+          </div>
           {/* Avatar with dropdown menu */}
           <div ref={avatarMenuRef} style={{ position: 'relative' }}>
             {avatarSrc ? (
@@ -652,7 +696,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
                   <strong>{currentUser.name}</strong>
                   <span style={{ fontSize: 12, color: '#888' }}>{currentUser.handle}</span>
                   <span style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>
-                    {mode === 'privat' ? t.modeCommonTag : t.modeBusinessTag}{adsFree ? ' · ✓ Ad-free' : ''}
+                    {mode === 'privat' ? t.modeCommonTag : mode === 'network' ? t.modeNetworkTag : t.modeBusinessTag}{adsFree ? ' · ✓ Ad-free' : ''}
                   </span>
                 </div>
                 <div className="avatar-dropdown-divider" />
@@ -707,7 +751,15 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
       <div className={page === 'feed' ? 'p-content p-content-feed' : 'p-content'}>
         <div style={{ display: page === 'feed' ? 'contents' : 'none' }}>
           <div className="p-feed-main">
-            <FeedPage lang={lang} t={t} currentUser={currentUser} mode={mode} adsFree={adsFree} highlightPostId={highlightPostId} onHighlightCleared={() => setHighlightPostId(null)}
+            {showOnboardingChecklist && (
+              <OnboardingChecklist
+                lang={lang}
+                currentUser={currentUser}
+                onNavigate={navigateTo}
+                onDismiss={() => setShowOnboardingChecklist(false)}
+              />
+            )}
+            <FeedPage lang={lang} t={t} currentUser={currentUser} mode={mode} adsFree={adsFree} hasAdFree={adsFree || activeFeatures.includes('ad_free')} highlightPostId={highlightPostId} onHighlightCleared={() => setHighlightPostId(null)}
               onViewProfile={(uid) => { setViewUserId(uid); navigateTo('view-profile') }}
               onViewOwnProfile={() => navigateTo('profile')}
               onViewBadges={(uid) => { if (!uid) { navigateTo('profile', { tab: 'badges' }) } else { setViewUserId(uid); navigateTo('view-profile') } }}
@@ -722,13 +774,13 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
               interestCategories={interestCategories}
             />
           </div>
-          <FeedSidebar lang={lang} t={t} adsFree={adsFree} onNavigate={navigateTo} />
+          <FeedSidebar lang={lang} t={t} adsFree={adsFree} hasAdFree={adsFree || activeFeatures.includes('ad_free')} onNavigate={navigateTo} />
         </div>
-        {page === 'reels' && <ReelsPage t={t} currentUser={currentUser} initialReelId={navParam?.reelId} onViewProfile={(userId) => navigateTo('view-profile', { userId })} />}
+        {page === 'reels' && <ReelsPage t={t} lang={lang} currentUser={currentUser} initialReelId={navParam?.reelId} onViewProfile={(userId) => navigateTo('view-profile', { userId })} />}
         {page === 'explore' && <ExplorePage lang={lang} onViewProfile={(userId) => { setViewUserId(userId); navigateTo('view-profile') }} />}
         {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onBadgeCheck={checkBadges} interestCategories={interestCategories} initialTab={navParam?.tab} />}
         {page === 'view-profile' && viewUserId && <FriendProfilePage userId={viewUserId} lang={lang} t={t} currentUser={currentUser} onBack={() => navigateTo('feed')} onNavigate={navigateTo} onBadgeCheck={checkBadges} onMessage={async (prof) => { const data = await apiCreateConversation([prof.id], null, false, false).catch(() => null); if (data?.id) setOpenConvId(data.id); navigateTo('messages') }} />}
-        {page === 'edit-profile' && <EditProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onBadgeCheck={checkBadges} />}
+        {page === 'edit-profile' && <EditProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onBadgeCheck={checkBadges} initialTab={navParam?.tab} />}
         {page === 'friends' && <FriendsPage lang={lang} t={t} mode={mode} sseRefreshKey={friendsRefreshKey} onBadgeCheck={checkBadges} onMessage={async (friend) => {
           if (friend?.id) {
             const data = await apiCreateConversation([friend.id], null, false, false).catch(() => null)
@@ -750,11 +802,25 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
           navigateTo('messages')
         }} onViewProfile={(uid) => { setViewUserId(uid); navigateTo('view-profile') }} onMakeOffer={(listing) => setMakeOfferListing(listing)} />}
         {page === 'jobs' && <JobsPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={(target, param) => { if (target === 'companies') { navigateTo('company', { companyId: param }); } else navigateTo(target) }} />}
-        {page === 'businesses' && <BusinessDirectory lang={lang} t={t} onViewProfile={(biz) => { setViewUserId(biz.id); navigateTo('view-profile') }} />}
         {page === 'ads' && mode === 'business' && <AdManager lang={lang} t={t} currentUser={currentUser} />}
+        {page === 'business-hub' && mode === 'business' && <BusinessHub lang={lang} t={t} currentUser={currentUser} onViewProfile={(id) => { setViewUserId(id); navigateTo('view-profile') }} onNavigate={navigateTo} mode={mode} JobsComponent={JobsPage} CompanyComponent={CompanyListPage} />}
         {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} initialCompanyId={navParam?.companyId} />}
+        {page === 'company-profile-form' && mode === 'business' && (
+          <div style={{ maxWidth: 600, margin: '0 auto', padding: '16px 8px' }}>
+            <CompanyProfileForm
+              lang={lang}
+              currentUser={currentUser}
+              initialData={navParam?.initialData || null}
+              onSuccess={(profile) => {
+                setCurrentUser(prev => ({ ...prev, company_profile: profile }))
+                navigateTo('profile')
+              }}
+              onCancel={() => navigateTo('profile')}
+            />
+          </div>
+        )}
         {page === 'analytics' && <AnalyticsPage lang={lang} t={t} currentUser={currentUser} onNavigate={navigateTo} />}
-        {page === 'settings' && <SettingsPage lang={lang} t={t} currentUser={currentUser} mode={mode} adsFree={adsFree} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onLogout={onLogout} onOpenModeModal={() => setShowModeModal(true)} darkMode={darkMode} onToggleDark={() => setDarkMode(d => !d)} initialTab={navParam} />}
+        {page === 'settings' && <SettingsPage lang={lang} t={t} currentUser={currentUser} mode={mode} adsFree={adsFree} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onLogout={onLogout} onOpenModeModal={() => setShowModeModal(true)} theme={theme} onThemeChange={setTheme} initialTab={navParam} />}
         {page === 'privacy' && <PrivacySection lang={lang} onLogout={onLogout} />}
         {page === 'visitors' && <VisitorStatsPage lang={lang} onBadgeCheck={checkBadges} />}
         {page === 'about' && <AboutPage lang={lang} />}
@@ -767,6 +833,7 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
         )}
         {page === 'payment-success' && <PaymentSuccess lang={lang} onNavigate={navigateTo} />}
         {page === 'payment-failed' && <PaymentFailed lang={lang} onNavigate={navigateTo} />}
+        {page === 'features' && <FeaturesPage lang={lang} t={t} currentUser={currentUser} onNavigate={navigateTo} />}
         {page === 'search' && (
           <SearchPage
             lang={lang}
@@ -794,19 +861,19 @@ export default function Platform({ lang: initialLang, onLogout, initialPostId, i
 
       {/* Mode switch modal */}
       {showModeModal && (() => {
-        const currentTier = mode === 'privat' ? 'privat' : 'business'
-        const currentLabel = currentTier === 'privat' ? t.modeCommon : t.modeBusiness
+        const currentLabel = mode === 'privat' ? t.modeCommon : mode === 'network' ? t.modeNetwork : t.modeBusiness
         return (
           <div className="modal-backdrop" onClick={() => setShowModeModal(false)}>
-            <div className="mode-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <div className="mode-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
               <h3 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 700 }}>{t.modeTitle}</h3>
               <p style={{ margin: '0 0 20px', fontSize: 13, color: '#888' }}>{t.modeCurrentLabel}: <strong>{currentLabel}</strong></p>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 {[
                   { key: 'privat', label: t.modeCommon, icon: '🏠', desc: t.modeCommonDesc, badge: null },
+                  { key: 'network', label: t.modeNetwork, icon: '🤝', desc: t.modeNetworkDesc, badge: null },
                   { key: 'business', label: t.modeBusiness, icon: '💼', desc: t.modeBusinessDesc, badge: t.free },
                 ].map(({ key, label, icon, desc, badge }) => {
-                  const isActive = key === currentTier
+                  const isActive = key === mode
                   return (
                     <button
                       key={key}
@@ -892,7 +959,7 @@ const NOTIF_ICONS = {
   like: '❤️', comment: '💬', friend_request: '👥', friend_accepted: '🤝',
   friend_declined: '👋', event_rsvp: '📅', listing_boosted: '🚀',
   moderator_granted: '🛡️', mod_result: '📋', moderation: '⚠️', test: '🔔',
-  new_message: '✉️',
+  new_message: '✉️', badge: '🏅',
 }
 // Navigation target for each notification type (no 'link' column in DB)
 const NOTIF_TYPE_PAGE = {
@@ -900,7 +967,7 @@ const NOTIF_TYPE_PAGE = {
   friend_request: 'friends', friend_accepted: 'friends', friend_declined: 'friends',
   event_rsvp: 'events', listing_boosted: 'marketplace',
   moderator_granted: 'admin', mod_result: 'profile', moderation: 'profile',
-  new_message: 'messages',
+  new_message: 'messages', badge: 'badges',
 }
 
 function timeAgo(dateStr, lang) {
@@ -980,8 +1047,9 @@ function NotificationsPanel({ notifs, t, lang, titleRef, onMarkAllRead, onMarkRe
 
 // ── Media display component ──
 // ── Lightbox modal ──
-function Lightbox({ media, index: initialIndex, onClose }) {
+function Lightbox({ media, index: initialIndex, onClose, lang = 'da' }) {
   const [index, setIndex] = useState(initialIndex)
+  const [brokenImages, setBrokenImages] = useState(new Set())
   const count = media.length
   const touchStartX = useRef(null)
 
@@ -999,6 +1067,7 @@ function Lightbox({ media, index: initialIndex, onClose }) {
   }, [onClose, prev, next])
 
   const item = media[index]
+  const t = getTranslations(lang)
   return (
     <div
       className="lightbox-overlay"
@@ -1017,8 +1086,15 @@ function Lightbox({ media, index: initialIndex, onClose }) {
           <video className="lightbox-media" controls autoPlay playsInline>
             <source src={item.src} type={item.mime} />
           </video>
+        ) : brokenImages.has(index) ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#ccc', gap: 12, minHeight: 200, padding: 40 }}>
+            <span style={{ fontSize: 64 }}>🖼️</span>
+            <span style={{ fontSize: 18, fontWeight: 600 }}>{t.imageMissing}</span>
+            <span style={{ fontSize: 14, color: '#888' }}>{t.imageMissingHint}</span>
+          </div>
         ) : (
-          <img className="lightbox-media" src={item.src} alt="" />
+          <img className="lightbox-media" src={item.src} alt=""
+            onError={() => setBrokenImages(prev => new Set([...prev, index]))} />
         )}
       </div>
       <button className="lightbox-close" onClick={onClose}>✕</button>
@@ -1132,6 +1208,50 @@ function LinkPreview({ url }) {
   )
 }
 
+// Composer link preview — fetches once, then shows LinkPreview + dismiss button.
+// Returns null while loading to avoid layout glitches from an orphaned dismiss button.
+function ComposerLinkPreview({ url, onDismiss, dismissLabel }) {
+  const ytId = extractYouTubeId(url)
+  const [ready, setReady] = useState(() => {
+    if (ytId) return true
+    const c = previewCache.get(url)
+    return c !== undefined && !!(c?.title || c?.image)
+  })
+
+  useEffect(() => {
+    if (ytId) return
+    const c = previewCache.get(url)
+    if (c !== undefined) {
+      setReady(!!(c?.title || c?.image))
+      return
+    }
+    apiLinkPreview(url).then(d => {
+      previewCache.set(url, d ?? null)
+      setReady(!!(d?.title || d?.image))
+    })
+  }, [url, ytId])
+
+  if (!ready) return null
+  return (
+    <div style={{ margin: '8px 0 0', position: 'relative' }}>
+      <LinkPreview url={url} />
+      <button
+        type="button"
+        onMouseDown={e => e.preventDefault()}
+        onClick={onDismiss}
+        title={dismissLabel}
+        style={{
+          position: 'absolute', top: 6, right: 6, zIndex: 2,
+          background: 'rgba(0,0,0,0.45)', border: 'none',
+          borderRadius: '50%', width: 22, height: 22,
+          cursor: 'pointer', color: '#fff', fontSize: 14,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+        }}
+      >×</button>
+    </div>
+  )
+}
+
 function LinkWithMenu({ href, lang, onRemove }) {
   const [menu, setMenu] = useState(null)
   const menuRef = useRef(null)
@@ -1191,10 +1311,12 @@ function PostText({ text, lang }) {
   )
 }
 
-function PostMedia({ media }) {
+function PostMedia({ media, lang = 'da' }) {
   const [lightboxIndex, setLightboxIndex] = useState(null)
+  const [brokenImages, setBrokenImages] = useState(new Set())
   if (!media?.length) return null
   const count = media.length
+  const t = getTranslations(lang)
   const lightboxMedia = media.map(m => ({
     src: m.url.startsWith('http') ? m.url : `${API_BASE}${m.url}`,
     type: m.type === 'video' ? 'video' : 'image',
@@ -1213,12 +1335,22 @@ function PostMedia({ media }) {
               </video>
             )
           }
+          if (brokenImages.has(i)) {
+            return (
+              <div key={i} className="p-media-item" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', color: '#999', gap: 6, minHeight: 140, borderRadius: 8, cursor: 'default' }}>
+                <span style={{ fontSize: 40 }}>🖼️</span>
+                <span style={{ fontWeight: 600, fontSize: 13 }}>{t.imageMissing}</span>
+                <span style={{ fontSize: 11, color: '#bbb' }}>{t.imageMissingHint}</span>
+              </div>
+            )
+          }
           return <img key={i} className="p-media-item p-media-clickable" src={src} alt="" loading="lazy"
-            onClick={() => setLightboxIndex(i)} />
+            onClick={() => setLightboxIndex(i)}
+            onError={() => setBrokenImages(prev => new Set([...prev, i]))} />
         })}
       </div>
       {lightboxIndex !== null && (
-        <Lightbox media={lightboxMedia} index={lightboxIndex} onClose={() => setLightboxIndex(null)} />
+        <Lightbox media={lightboxMedia} index={lightboxIndex} onClose={() => setLightboxIndex(null)} lang={lang} />
       )}
     </>
   )
@@ -1604,6 +1736,7 @@ function MediaPickerButton({ lang, onFiles, accept = 'image/*,video/*', multiple
         type="button"
         className={`p-media-popup-btn${open ? ' active' : ''}`}
         onMouseDown={e => e.preventDefault()}
+        onTouchStart={() => { if (document.activeElement) document.activeElement.blur() }}
         onClick={() => setOpen(p => !p)}
         title={t.addMedia}
       >{buttonContent ?? '+'}</button>
@@ -1971,7 +2104,7 @@ function SuggestedPostCard({ post, lang, onViewProfile }) {
   const handleAddFriend = async () => {
     setFriendReqSent(true)
     try {
-      await fetch(`/api/friends/request/${post.author_id}`, {
+      await csrfFetch(`/api/friends/request/${post.author_id}`, {
         method: 'POST',
         credentials: 'same-origin', // Session cookie sent automatically
       })
@@ -2039,6 +2172,7 @@ function SuggestedPostCard({ post, lang, onViewProfile }) {
 }
 
 const BOOST_FEED_EVERY = 7 // inject a boosted listing card after every N posts
+const DISCOVERY_EVERY = 8 // inject a discovery card after every N posts
 
 function BoostedListingCard({ listing, lang, t, onNavigate }) {
   const title = listing.title_da || listing.title_en || listing.title || ''
@@ -2079,6 +2213,88 @@ function BoostedListingCard({ listing, lang, t, onNavigate }) {
   )
 }
 
+// ── ServiceSpotlightCard — renders a service card attached to a post ──────────
+function ServiceSpotlightCard({ service, lang, authorId, onRemove, preview }) {
+  const [showContact, setShowContact] = useState(false)
+  const [topic, setTopic] = useState('')
+  const [message, setMessage] = useState('')
+  const [sent, setSent] = useState(false)
+  const [busy, setBusy] = useState(false)
+
+  const da = lang === 'da'
+  const name = da ? service.name_da : (service.name_en || service.name_da)
+  const desc = da ? service.description_da : (service.description_en || service.description_da)
+  const priceLabel = service.price_from
+    ? `${da ? 'Fra' : 'From'} ${formatPrice(service.price_from)}${service.price_to ? ` – ${formatPrice(service.price_to)}` : ''}`
+    : service.price_to ? formatPrice(service.price_to) : null
+
+  const handleContact = async () => {
+    if (!topic.trim() || !message.trim() || busy) return
+    setBusy(true)
+    const res = await apiContactBusiness(authorId, topic, message)
+    if (res !== null) setSent(true)
+    setBusy(false)
+  }
+
+  return (
+    <div style={{ margin: '8px 0 2px', background: '#F8FAF9', border: '1.5px solid #D1FAE5', borderRadius: 10, overflow: 'hidden' }}>
+      <div style={{ padding: '10px 12px', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+        <span style={{ fontSize: 22, flexShrink: 0 }}>🛍</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 11, color: '#059669', fontWeight: 700, marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            {da ? 'Ydelse' : 'Service'}
+          </div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#1a1a1a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</div>
+          {desc && (
+            <div style={{ fontSize: 12, color: '#555', marginTop: 2, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{desc}</div>
+          )}
+          {priceLabel && (
+            <div style={{ fontSize: 12, color: '#059669', marginTop: 4, fontWeight: 600 }}>{priceLabel}</div>
+          )}
+        </div>
+        {preview && onRemove && (
+          <button type="button" onClick={onRemove} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#888', flexShrink: 0 }}>×</button>
+        )}
+        {!preview && authorId && !showContact && !sent && (
+          <button type="button" onClick={() => setShowContact(true)} style={{ fontSize: 12, fontWeight: 700, padding: '5px 12px', borderRadius: 20, border: '1.5px solid #059669', background: '#fff', color: '#059669', cursor: 'pointer', flexShrink: 0 }}>
+            {da ? 'Kontakt' : 'Contact'}
+          </button>
+        )}
+      </div>
+      {showContact && !sent && (
+        <div style={{ borderTop: '1px solid #D1FAE5', padding: '10px 12px', background: '#fff' }}>
+          <input
+            value={topic}
+            onChange={e => setTopic(e.target.value)}
+            placeholder={da ? 'Emne' : 'Subject'}
+            style={{ width: '100%', padding: '6px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, marginBottom: 6, boxSizing: 'border-box' }}
+          />
+          <textarea
+            value={message}
+            onChange={e => setMessage(e.target.value)}
+            placeholder={da ? 'Skriv en besked…' : 'Write a message…'}
+            rows={2}
+            style={{ width: '100%', padding: '6px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, resize: 'none', boxSizing: 'border-box' }}
+          />
+          <div style={{ display: 'flex', gap: 6, marginTop: 6, justifyContent: 'flex-end' }}>
+            <button type="button" onClick={() => setShowContact(false)} style={{ fontSize: 12, padding: '5px 12px', borderRadius: 20, border: '1px solid #ddd', background: '#fff', color: '#555', cursor: 'pointer' }}>
+              {da ? 'Annuller' : 'Cancel'}
+            </button>
+            <button type="button" onClick={handleContact} disabled={busy || !topic.trim() || !message.trim()} style={{ fontSize: 12, fontWeight: 700, padding: '5px 12px', borderRadius: 20, border: 'none', background: '#059669', color: '#fff', cursor: 'pointer', opacity: (busy || !topic.trim() || !message.trim()) ? 0.6 : 1 }}>
+              {da ? 'Send' : 'Send'}
+            </button>
+          </div>
+        </div>
+      )}
+      {sent && (
+        <div style={{ borderTop: '1px solid #D1FAE5', padding: '8px 12px', background: '#F0FDF4', fontSize: 12, color: '#059669', fontWeight: 600 }}>
+          {da ? '✓ Besked sendt!' : '✓ Message sent!'}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── LinkedContentCard — renders a job/listing/event card attached to a post ──
 function LinkedContentCard({ type, id, lang, onNavigate }) {
   const [item, setItem] = useState(null)
@@ -2111,7 +2327,7 @@ function LinkedContentCard({ type, id, lang, onNavigate }) {
 }
 
 // ── FeedSidebar ───────────────────────────────────────────────────────────────
-function FeedSidebar({ lang, t, adsFree, onNavigate }) {
+function FeedSidebar({ lang, t, adsFree, hasAdFree = false, onNavigate }) {
   const da = lang === 'da'
   const [events, setEvents] = useState(null)
   const [suggestedFriends, setSuggestedFriends] = useState(null)
@@ -2119,7 +2335,12 @@ function FeedSidebar({ lang, t, adsFree, onNavigate }) {
   const [locationPopup, setLocationPopup] = useState(null) // { loc: string }
 
   useEffect(() => {
-    apiFetchEvents().then(d => { if (d?.events) setEvents(d.events.slice(0, 3)) })
+    apiFetchEvents().then(d => {
+      if (d?.events) {
+        const today = new Date(); today.setHours(0, 0, 0, 0)
+        setEvents(d.events.filter(ev => new Date(ev.date) >= today).slice(0, 3))
+      }
+    })
     apiGetSuggestedUsers(4).then(d => { if (d?.users) setSuggestedFriends(d.users) })
     apiGetBoostedFeedListings().then(d => { if (d?.listings) setBoostedListings(d.listings.slice(0, 4)) })
   }, [])
@@ -2127,7 +2348,7 @@ function FeedSidebar({ lang, t, adsFree, onNavigate }) {
   return (
     <aside style={{ width: 280, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
       {/* Sidebar ad */}
-      <AdBanner placement="sidebar" adsFree={adsFree} lang={lang} onGoAdFree={adsFree ? null : () => onNavigate('settings', 'billing')} />
+      <AdBanner placement="sidebar" adsFree={adsFree} hasAdFree={hasAdFree} lang={lang} onGoAdFree={adsFree || hasAdFree ? null : () => onNavigate('features')} />
 
       {/* Boosted marketplace listings */}
       {boostedListings && boostedListings.length > 0 && (
@@ -2225,9 +2446,15 @@ function FeedSidebar({ lang, t, adsFree, onNavigate }) {
   )
 }
 
-function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onViewBadges, onNavigate, onBadgeCheck, feedEggRef, onTriggerChuck, onTriggerMatrix, onTriggerRickroll, onTriggerParty, onTriggerRetro, interestCategories = INTEREST_CATEGORIES }) {
+function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, highlightPostId, onHighlightCleared, onViewProfile, onViewOwnProfile, onViewBadges, onNavigate, onBadgeCheck, feedEggRef, onTriggerChuck, onTriggerMatrix, onTriggerRickroll, onTriggerParty, onTriggerRetro, interestCategories = INTEREST_CATEGORIES }) {
   const [posts, setPosts] = useState([])
   const [feedCategoryFilter, setFeedCategoryFilter] = useState(null)
+  const [feedMode, setFeedMode] = useState(mode || 'privat')
+  const feedModeRef = useRef(mode || 'privat')
+  const [feedContext, setFeedContext] = useState(() => mode === 'business' ? 'network' : 'social')
+  const [upsellDismissed, setUpsellDismissed] = useState(() => !!sessionStorage.getItem(UPSELL_KEY))
+  const feedContextRef = useRef(mode === 'business' ? 'network' : 'social')
+  const [postContext, setPostContext] = useState(() => mode === 'business' ? 'professional' : 'social')
   const [pinnedPost, setPinnedPost] = useState(null)
   const pinnedRef = useRef(null)
   const [insightsPostId, setInsightsPostId] = useState(null)
@@ -2260,9 +2487,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [postLocation, setPostLocation] = useState(null) // { place_name, geo_lat, geo_lng } | null
   const [locationSearchOpen, setLocationSearchOpen] = useState(false)
   const [locationSearchText, setLocationSearchText] = useState('')
-  const [locationResults, setLocationResults] = useState([])
-  const [locationSearching, setLocationSearching] = useState(false)
-  const locationDebounce = useRef(null)
   const [checkInBusy, setCheckInBusy] = useState(false)
   const [checkInError, setCheckInError] = useState(null)
   // Signal engine: track dwell time on posts via IntersectionObserver
@@ -2320,6 +2544,9 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [attachLoading, setAttachLoading] = useState(false)
   const textareaRef = useRef(null)
   const suggestCategoryTimer = useRef(null)
+  const [composerLinkUrl, setComposerLinkUrl] = useState(null)
+  const composerLinkDismissed = useRef(null)
+  const composerLinkTimer = useRef(null)
   const hintIconRef = useRef(null)
   const feedMention = useMention(sharePopupFriends || [])
   const commentMention = useMention(sharePopupFriends || [])
@@ -2473,6 +2700,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   const [dismissedGroupIds, setDismissedGroupIds] = useState(new Set())
   const [suggestedPosts, setSuggestedPosts] = useState([])
   const [boostedFeedListings, setBoostedFeedListings] = useState([])
+  const [discoveryCards, setDiscoveryCards] = useState([])
   const [showScrollTop, setShowScrollTop] = useState(false)
   const [mediaMaxFiles, setMediaMaxFiles] = useState(4)
   const mediaMaxFilesRef = useRef(4)
@@ -2499,7 +2727,11 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     if (isFetchingRef.current) return
     isFetchingRef.current = true
     setLoadingPage(true)
-    const data = await apiFetchFeed(nextCursorRef.current, PAGE_SIZE)
+    const data = feedContextRef.current === 'network'
+      ? await apiFetchNetworkFeed(nextCursorRef.current, PAGE_SIZE)
+      : feedContextRef.current === 'business'
+      ? await apiFetchBusinessFeed(nextCursorRef.current, PAGE_SIZE)
+      : await apiFetchFeed(nextCursorRef.current, PAGE_SIZE, feedModeRef.current)
     if (data?.posts) {
       setPosts(prev => {
         const existingIds = new Set(prev.map(p => p.id))
@@ -2523,13 +2755,18 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     isFetchingRef.current = false
   }, []) // stable — all mutable reads go through refs
 
-  // Initial load
+  // Reload posts whenever feedMode or feedContext changes
   useEffect(() => {
-    apiGetConfig().then(res => {
-      const cfg = res?.config || res
-      if (cfg?.mediaMaxFiles) { setMediaMaxFiles(cfg.mediaMaxFiles); mediaMaxFilesRef.current = cfg.mediaMaxFiles }
-    })
-    apiFetchFeed(null, PAGE_SIZE).then(data => {
+    feedModeRef.current = feedMode
+    feedContextRef.current = feedContext
+    setPosts([])
+    nextCursorRef.current = null
+    isFetchingRef.current = false
+    setHasMore(true)
+    const fetchFn = feedContext === 'network' ? apiFetchNetworkFeed
+      : feedContext === 'business' ? apiFetchBusinessFeed
+      : (cur, size) => apiFetchFeed(cur, size, feedMode)
+    fetchFn(null, PAGE_SIZE).then(data => {
       if (data?.posts) {
         setPosts(data.posts)
         setLikedPosts(new Set(data.posts.filter(p => p.liked).map(p => p.id)))
@@ -2537,6 +2774,14 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         nextCursorRef.current = data.nextCursor ?? null
         setHasMore(data.nextCursor != null)
       }
+    })
+  }, [feedMode, feedContext])
+
+  // Initial load (config + non-feed data)
+  useEffect(() => {
+    apiGetConfig().then(res => {
+      const cfg = res?.config || res
+      if (cfg?.mediaMaxFiles) { setMediaMaxFiles(cfg.mediaMaxFiles); mediaMaxFilesRef.current = cfg.mediaMaxFiles }
     })
     // Load saved post IDs for bookmark UI
     apiGetSavedPosts().then(d => {
@@ -2568,6 +2813,11 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
     // Load recent company posts from all followed/owned companies
     apiFeedCompanyPosts().then(data => {
       if (data?.posts?.length) setCpFeedPosts(data.posts)
+    })
+
+    // Load discovery cards (users/businesses/groups not yet followed)
+    apiGetDiscovery().then(data => {
+      if (data?.suggestions?.length) setDiscoveryCards(data.suggestions)
     })
   }, [])
 
@@ -2633,7 +2883,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
   }, [])
 
 
-  const doCreatePost = useCallback((text, files, schedAt, categories, loc, tagged, linked) => {
+  const doCreatePost = useCallback((text, files, schedAt, categories, loc, tagged, linked, context) => {
     setPosting(true)
     setUploadProgress(0)
     setUploadPhase(files?.length ? 'upload' : 'submitting')
@@ -2641,7 +2891,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       setUploadPhase(phase)
       setUploadProgress(total > 0 ? Math.round((loaded / total) * 100) : 0)
     }
-    apiCreatePost(text, files, schedAt || undefined, categories?.size ? [...categories] : undefined, loc || undefined, tagged?.length ? tagged : undefined, linked || undefined, onProgress).then(data => {
+    apiCreatePost(text, files, schedAt || undefined, categories?.size ? [...categories] : undefined, loc || undefined, tagged?.length ? tagged : undefined, linked || undefined, onProgress, undefined, context || 'social').then(data => {
       if (data?.scheduled) {
         // Scheduled post — don't add to feed, just show a toast
         return
@@ -2685,13 +2935,15 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       setScheduledAt('')
       setPostLocation(null)
       setLocationSearchText('')
-      setLocationResults([])
       setLocationSearchOpen(false)
       setTaggedUsers([])
       setLinkedContent(null)
+      setComposerLinkUrl(null)
+      composerLinkDismissed.current = null
       setShowTagPicker(false)
       setShowAttachPicker(false)
       setCatPickerSearch('')
+      setPostContext('social')
       if (textareaRef.current) textareaRef.current.style.height = 'auto'
     }).catch(err => {
       console.error('Failed to create post:', err)
@@ -2741,8 +2993,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       return
     }
     const schedAt = scheduleEnabled && scheduledAt ? scheduledAt : null
-    doCreatePost(text, files, schedAt, postCategories, postLocation, taggedUsers, linkedContent)
-  }, [newPostText, mediaFiles, providerMediaUrls, doCreatePost, scheduleEnabled, scheduledAt, postCategories, postLocation, taggedUsers, linkedContent])
+    doCreatePost(text, files, schedAt, postCategories, postLocation, taggedUsers, linkedContent, postContext)
+  }, [newPostText, mediaFiles, providerMediaUrls, doCreatePost, scheduleEnabled, scheduledAt, postCategories, postLocation, taggedUsers, linkedContent, postContext])
 
   const toggleLike = useCallback((id, emoji) => {
     const isLiked = likedPosts.has(id)
@@ -2907,7 +3159,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         : { author: currentUser.name, text: { da: commentText, en: commentText }, media: localMedia }
       setPosts(prev => prev.map(p => {
         if (p.id !== postId) return p
-        return { ...p, comments: [...p.comments, comment] }
+        return { ...p, comments: [...(p.comments || []), comment] }
       }))
       setTimeout(onBadgeCheck, 300)
     })
@@ -2920,7 +3172,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       if (p.id !== postId) return p
       return {
         ...p,
-        comments: p.comments.map(c => {
+        comments: (p.comments || []).map(c => {
           if (c.id !== commentId) return c
           const sameEmoji = c.liked && (c.reaction || '❤️') === emoji
           const liked = !sameEmoji
@@ -3068,6 +3320,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   setNewPostText('')
                   setMediaFiles([])
                   setMediaPreviews([])
+                  setComposerLinkUrl(null)
+                  composerLinkDismissed.current = null
                   setPostExpanded(false)
                 }}
                 style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: '#c0392b', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}
@@ -3095,6 +3349,14 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
           🏠 {t.adminAdsPlacementFeed}
         </h2>
       </div>
+
+      {/* Feed context tabs */}
+      <FeedTabs
+        viewerMode={currentUser.mode}
+        t={t}
+        activeTab={feedContext === 'network' ? 'network' : feedContext === 'business' ? 'business' : 'private'}
+        onTabChange={(tab) => setFeedContext(tab === 'network' ? 'network' : tab === 'business' ? 'business' : 'social')}
+      />
 
       {/* New post */}
       <div className="p-card p-new-post">
@@ -3142,7 +3404,30 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                 {currentUser.initials || getInitials(currentUser.name)}
               </div>
               <button
-                onMouseDown={e => { e.preventDefault(); setPostExpanded(false) }}
+                onMouseDown={e => {
+                  e.preventDefault()
+                  setNewPostText('')
+                  setMediaFiles([])
+                  setMediaPreviews([])
+                  setProviderMediaUrls([])
+                  setPostExpanded(false)
+                  setPostCategories(new Set())
+                  setAutoCategories(new Set())
+                  setShowCategoryPicker(false)
+                  setScheduleEnabled(false)
+                  setScheduledAt('')
+                  setPostLocation(null)
+                  setLocationSearchText('')
+                  setLocationSearchOpen(false)
+                  setTaggedUsers([])
+                  setLinkedContent(null)
+                  setComposerLinkUrl(null)
+                  composerLinkDismissed.current = null
+                  setShowTagPicker(false)
+                  setShowAttachPicker(false)
+                  setCatPickerSearch('')
+                  if (textareaRef.current) textareaRef.current.style.height = 'auto'
+                }}
                 title={t.analyticsInsightClose}
                 style={{
                   position: 'absolute', top: 0, right: 0, zIndex: 2,
@@ -3202,6 +3487,17 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                         }
                       }, 600)
                     }
+                    // Link preview detection (debounced 500ms)
+                    clearTimeout(composerLinkTimer.current)
+                    composerLinkTimer.current = setTimeout(() => {
+                      const url = extractFirstUrl(val)
+                      if (url && url !== composerLinkDismissed.current) {
+                        setComposerLinkUrl(url)
+                      } else if (!url) {
+                        setComposerLinkUrl(null)
+                        composerLinkDismissed.current = null
+                      }
+                    }, 500)
                   }}
                   onKeyDown={e => {
                     if (feedMention.handleKey(e, f => {
@@ -3240,6 +3536,34 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                     <button className="p-media-preview-remove" onClick={() => removeMedia(i)}>✕</button>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* Post context selector — shown for network/business users when composing */}
+            {postExpanded && (currentUser.mode === 'network' || currentUser.mode === 'business') && (
+              <div style={{ padding: '6px 12px 0', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {(currentUser.mode === 'network' ? ['social', 'professional'] : ['social', 'business']).map(ctx => {
+                  const ctxColor = ctx === 'professional' ? '#0D9488' : ctx === 'business' ? '#D97706' : '#1877F2'
+                  const ctxBg   = ctx === 'professional' ? '#F0FDFA'  : ctx === 'business' ? '#FFFBEB'  : '#EBF5FF'
+                  const active  = postContext === ctx
+                  return (
+                    <button
+                      key={ctx}
+                      type="button"
+                      onMouseDown={e => e.preventDefault()}
+                      onClick={() => setPostContext(ctx)}
+                      style={{
+                        padding: '3px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                        border: `1px solid ${active ? ctxColor : '#e5e7eb'}`,
+                        background: active ? ctxBg : '#f9fafb',
+                        color: active ? ctxColor : '#6b7280',
+                        transition: 'all 0.1s',
+                      }}
+                    >
+                      {t.postContext?.[ctx] || ctx}
+                    </button>
+                  )
+                })}
               </div>
             )}
 
@@ -3342,55 +3666,29 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
 
             {/* Location search panel */}
             {locationSearchOpen && !postLocation && (
-              <div style={{ padding: '8px 4px 4px', position: 'relative' }}>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <input
+              <div style={{ padding: '8px 4px 4px', display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                <div style={{ flex: 1 }}>
+                  <LocationAutocomplete
                     autoFocus
-                    type="text"
                     value={locationSearchText}
-                    onChange={e => {
-                      const q = e.target.value
-                      setLocationSearchText(q)
-                      setLocationResults([])
-                      clearTimeout(locationDebounce.current)
-                      if (q.length < 2) { setLocationSearching(false); return }
-                      setLocationSearching(true)
-                      locationDebounce.current = setTimeout(async () => {
-                        const results = await apiGeocode(q, lang)
-                        setLocationResults(results || [])
-                        setLocationSearching(false)
-                      }, 500)
+                    onChange={setLocationSearchText}
+                    onSelect={loc => {
+                      if (!loc) { setLocationSearchText(''); return }
+                      setPostLocation({ lat: loc.lat, lng: loc.lng, name: loc.name })
+                      setLocationSearchOpen(false)
+                      setLocationSearchText('')
                     }}
+                    lang={lang}
                     placeholder={t.searchLocation}
-                    style={{ flex: 1, padding: '7px 10px', borderRadius: 8, border: '1px solid #1877F2', fontSize: 13, outline: 'none' }}
+                    inputStyle={{ border: '1px solid #1877F2', fontSize: 13, padding: '7px 10px' }}
                   />
-<button
-                    type="button"
-                    onMouseDown={e => e.preventDefault()}
-                    onClick={() => { setLocationSearchOpen(false); setLocationSearchText(''); setLocationResults([]) }}
-                    style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid #ddd', background: '#f5f5f5', fontSize: 13, cursor: 'pointer' }}
-                  >✕</button>
                 </div>
-                {locationResults.length > 0 && (
-                  <div style={{ position: 'absolute', left: 4, right: 4, background: '#fff', border: '1px solid #ddd', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 100, marginTop: 4 }}>
-                    {locationResults.map((r, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        onMouseDown={e => e.preventDefault()}
-                        onClick={() => {
-                          setPostLocation({ lat: parseFloat(r.lat), lng: parseFloat(r.lon), name: r.display_name.split(',')[0] })
-                          setLocationSearchOpen(false)
-                          setLocationSearchText('')
-                          setLocationResults([])
-                        }}
-                        style={{ display: 'block', width: '100%', textAlign: 'left', padding: '9px 14px', background: 'none', border: 'none', borderBottom: i < locationResults.length - 1 ? '1px solid #f0f0f0' : 'none', cursor: 'pointer', fontSize: 13, color: '#333' }}
-                      >
-                        📍 {r.display_name}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                <button
+                  type="button"
+                  onMouseDown={e => e.preventDefault()}
+                  onClick={() => { setLocationSearchOpen(false); setLocationSearchText('') }}
+                  style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid #ddd', background: '#f5f5f5', fontSize: 13, cursor: 'pointer', flexShrink: 0 }}
+                >✕</button>
               </div>
             )}
 
@@ -3473,8 +3771,13 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
             {/* Attach content picker */}
             {showAttachPicker && (
               <div style={{ margin: '8px 0 0', background: '#FAFAF8', border: '1px solid #e0e0e0', borderRadius: 10, padding: 12 }}>
-                <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-                  {[{id:'job',label:lang==='da'?'💼 Job':'💼 Job'},{id:'listing',label:lang==='da'?'🛒 Marked':'🛒 Market'},{id:'event',label:lang==='da'?'📅 Event':'📅 Event'}].map(tab => (
+                <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
+                  {[
+                    {id:'job',label:lang==='da'?'💼 Job':'💼 Job'},
+                    {id:'listing',label:lang==='da'?'🛒 Marked':'🛒 Market'},
+                    {id:'event',label:lang==='da'?'📅 Event':'📅 Event'},
+                    ...(mode === 'business' ? [{id:'service',label:lang==='da'?'🛍 Ydelse':'🛍 Service'}] : []),
+                  ].map(tab => (
                     <button key={tab.id} type="button" onClick={async () => {
                       setAttachTab(tab.id)
                       setAttachLoading(true)
@@ -3483,9 +3786,11 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                       if (tab.id === 'job') data = await apiFetchJobs({}).catch(() => null)
                       else if (tab.id === 'listing') data = await apiFetchListings({}).catch(() => null)
                       else if (tab.id === 'event') data = await apiFetchEvents().catch(() => null)
+                      else if (tab.id === 'service') data = await apiGetMyServices().catch(() => null)
                       if (tab.id === 'job') setAttachItems(data?.jobs || [])
                       else if (tab.id === 'listing') setAttachItems(data?.listings || [])
                       else if (tab.id === 'event') setAttachItems(data?.events || [])
+                      else if (tab.id === 'service') setAttachItems(data?.services || [])
                       setAttachLoading(false)
                     }} style={{ padding: '5px 12px', borderRadius: 20, border: 'none', fontSize: 13, fontWeight: attachTab === tab.id ? 700 : 500, background: attachTab === tab.id ? '#2D6A4F' : '#e8e8e4', color: attachTab === tab.id ? '#fff' : '#555', cursor: 'pointer' }}>
                       {tab.label}
@@ -3499,13 +3804,16 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                       setLinkedContent({ type: attachTab, id: item.id, item })
                       setShowAttachPicker(false)
                     }} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: '#fff', border: '1px solid #e0e0e0', borderRadius: 8, cursor: 'pointer', textAlign: 'left' }}>
-                      <span style={{ fontSize: 20 }}>{attachTab === 'job' ? '💼' : attachTab === 'listing' ? '🛒' : '📅'}</span>
+                      <span style={{ fontSize: 20 }}>{attachTab === 'job' ? '💼' : attachTab === 'listing' ? '🛒' : attachTab === 'service' ? '🛍' : '📅'}</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: '#333', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title}</div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: '#333', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {attachTab === 'service' ? (lang === 'da' ? item.name_da : item.name_en) : item.title}
+                        </div>
                         <div style={{ fontSize: 11, color: '#888' }}>
                           {attachTab === 'job' && `${item.company_name || ''} · ${item.location || (item.remote ? (lang==='da'?'Remote':'Remote') : '')}`}
                           {attachTab === 'listing' && `${item.category || ''} · ${item.location || ''}`}
                           {attachTab === 'event' && `${item.date ? new Date(item.date).toLocaleDateString(lang==='da'?'da-DK':'en-US',{day:'numeric',month:'short'}) : ''} · ${item.location || ''}`}
+                          {attachTab === 'service' && (item.price_from || item.price_to ? `${lang === 'da' ? 'Fra' : 'From'} ${item.price_from || item.price_to} EUR` : '')}
                         </div>
                       </div>
                     </button>
@@ -3515,7 +3823,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
             )}
 
             {/* Linked content preview */}
-            {linkedContent && (
+            {linkedContent && linkedContent.type !== 'service' && (
               <div style={{ margin: '8px 0 0', background: '#FAFAF8', border: '1.5px solid #2D6A4F', borderRadius: 10, padding: '10px 12px', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                 <span style={{ fontSize: 22, flexShrink: 0 }}>{linkedContent.type === 'job' ? '💼' : linkedContent.type === 'listing' ? '🛒' : '📅'}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -3528,6 +3836,24 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                 </div>
                 <button type="button" onClick={() => setLinkedContent(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#888', flexShrink: 0 }}>×</button>
               </div>
+            )}
+            {/* Service spotlight preview */}
+            {linkedContent?.type === 'service' && (
+              <ServiceSpotlightCard
+                service={linkedContent.item}
+                lang={lang}
+                onRemove={() => setLinkedContent(null)}
+                preview
+              />
+            )}
+
+            {/* Composer link preview — shown automatically when a URL is detected in the text */}
+            {composerLinkUrl && (
+              <ComposerLinkPreview
+                url={composerLinkUrl}
+                onDismiss={() => { composerLinkDismissed.current = composerLinkUrl; setComposerLinkUrl(null) }}
+                dismissLabel={t.composerLinkDismiss}
+              />
             )}
 
             <div className="p-new-post-actions">
@@ -3545,7 +3871,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                     if (postLocation) { setPostLocation(null); return }
                     setLocationSearchOpen(v => !v)
                     setLocationSearchText('')
-                    setLocationResults([])
                   }}
                   style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${postLocation || locationSearchOpen ? '#1877F2' : '#ddd'}`, background: postLocation || locationSearchOpen ? '#EBF4FF' : '#fff', color: postLocation || locationSearchOpen ? '#1877F2' : '#555', fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
                   title={t.addLocation}
@@ -3578,7 +3903,6 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                       setPostLocation({ lat: latitude, lng: longitude, name: label })
                       setLocationSearchOpen(false)
                       setLocationSearchText('')
-                      setLocationResults([])
                     }, err => {
                       setCheckInBusy(false)
                       setCheckInError(err && err.code === 1 ? t.checkInDenied : t.checkInFailed)
@@ -3587,7 +3911,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${checkInBusy ? '#1877F2' : '#ddd'}`, background: checkInBusy ? '#EBF4FF' : '#fff', color: checkInBusy ? '#1877F2' : '#555', fontSize: 13, cursor: checkInBusy ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: 4, opacity: checkInBusy ? 0.7 : 1 }}
                   title={t.checkIn}
                 >
-                  📌 {checkInBusy ? t.checkingIn : t.checkIn}
+                  {checkInBusy ? '⏳' : '📌'}
                 </button>
                 {/* Tag people toggle */}
                 <button
@@ -3651,7 +3975,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   title={scheduleEnabled && scheduledAt ? (t.schedule) : t.post}
                   style={{ minWidth: 0, padding: '8px 14px', fontSize: 18, lineHeight: 1, opacity: posting ? 0.6 : 1 }}
                 >
-                  {posting ? '…' : (scheduleEnabled && scheduledAt ? '🕐' : '→')}
+                  {posting ? '…' : (scheduleEnabled && scheduledAt ? '🕐' : `→ ${t.send}`)}
                 </button>
               </div>
             </div>
@@ -3659,8 +3983,8 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         )}
       </div>
 
-      {/* Reels strip */}
-      <ReelsStrip lang={lang} t={t} onNavigate={onNavigate} />
+      {/* Reels strip — not shown for business users */}
+      {currentUser.mode !== 'business' && <ReelsStrip lang={lang} t={t} onNavigate={onNavigate} />}
 
       {/* Memories card — on this day */}
       <MemoriesCard
@@ -3686,7 +4010,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                 <div><div className="p-post-author">{post.author}</div><div className="p-post-time">{post.time?.[lang]}</div></div>
               </div>
               <div className="p-post-text">{post.text[lang]}</div>
-              {post.media?.length > 0 && <PostMedia media={post.media} />}
+              {post.media?.length > 0 && <PostMedia media={post.media} lang={lang} />}
             </div>
           </div>
         )
@@ -3700,10 +4024,11 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         // Build sorted extras list from company posts + recently-created events (14-day window)
         const CUTOFF_MS = 14 * 24 * 60 * 60 * 1000
         const now = Date.now()
+        const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
         const extras = [
           ...cpFeedPosts.map(p => ({ _type: 'company_post', _ts: new Date(p.created_at).getTime(), _data: p })),
           ...feedEvents
-            .filter(ev => ev.createdAt && (now - new Date(ev.createdAt).getTime()) < CUTOFF_MS)
+            .filter(ev => ev.createdAt && (now - new Date(ev.createdAt).getTime()) < CUTOFF_MS && new Date(ev.date) >= todayStart)
             .map(ev => ({ _type: 'event', _ts: new Date(ev.createdAt).getTime(), _data: ev })),
         ].sort((a, b) => b._ts - a._ts)
 
@@ -3731,7 +4056,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         const postText = lang === 'da' ? (post.text_da || post.text_en) : (post.text_en || post.text_da)
         const timeAgo = new Date(post.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short' })
         const toggleLike = () => {
-          fetch(`/api/companies/${post.company_id}/posts/${post.id}/like`, { method: 'POST', credentials: 'include' })
+          csrfFetch(`/api/companies/${post.company_id}/posts/${post.id}/like`, { method: 'POST', credentials: 'include' })
             .then(r => r.ok ? r.json() : null)
             .then(data => { if (!data) return; setCpFeedPosts(prev => prev.map(p => p.id === post.id
               ? { ...p, liked: data.liked ? 1 : 0, likes: data.liked ? p.likes + 1 : Math.max(0, p.likes - 1) }
@@ -3741,7 +4066,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         const toggleComments = () => {
           setCpFeedExpanded(prev => { const n = new Set(prev); n.has(post.id) ? n.delete(post.id) : n.add(post.id); return n })
           if (!cpFeedCommentLists[post.id]) {
-            fetch(`/api/companies/${post.company_id}/posts/${post.id}/comments`, { credentials: 'include' })
+            csrfFetch(`/api/companies/${post.company_id}/posts/${post.id}/comments`, { credentials: 'include' })
               .then(r => r.ok ? r.json() : null)
               .then(data => setCpFeedCommentLists(prev => ({ ...prev, [post.id]: data?.comments || [] })))
               .catch(() => {})
@@ -3750,7 +4075,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         const sendComment = () => {
           const text = cpFeedCommentTexts[post.id]?.trim()
           if (!text) return
-          fetch(`/api/companies/${post.company_id}/posts/${post.id}/comments`, {
+          csrfFetch(`/api/companies/${post.company_id}/posts/${post.id}/comments`, {
             method: 'POST', credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text }),
@@ -3905,7 +4230,10 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         const pi = postIdx++
         return (
           <Fragment key={post.id}>
-            {(pi === 1 || (pi > 1 && pi % 4 === 0)) && <AdBanner placement="feed" adsFree={adsFree} lang={lang} onGoAdFree={adsFree ? null : () => onNavigate('settings', 'billing')} />}
+            {pi > 0 && pi % 8 === 0 && <AdBanner placement="feed" adsFree={adsFree} hasAdFree={hasAdFree} lang={lang} t={t} viewerMode={mode} activeContext={feedContext === 'network' ? 'professional' : feedContext} onGoAdFree={adsFree || hasAdFree ? null : () => onNavigate('features')} />}
+            {pi === 3 && feedContext === 'social' && !adsFree && !hasAdFree && !upsellDismissed && (
+              <UpsellCard t={t} lang={lang} onGoAdFree={() => onNavigate('features')} onDismiss={() => { sessionStorage.setItem(UPSELL_KEY, '1'); setUpsellDismissed(true) }} />
+            )}
             {pi >= SUGGEST_EVERY && pi % SUGGEST_EVERY === 0 && (() => {
               const sp = suggestedPosts[Math.floor(pi / SUGGEST_EVERY) - 1]
               return sp ? <SuggestedPostCard key={`sug-${sp.id}`} post={sp} lang={lang} onViewProfile={onViewProfile} /> : null
@@ -3914,58 +4242,49 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
               const bl = boostedFeedListings[Math.floor(pi / BOOST_FEED_EVERY - 1) % boostedFeedListings.length]
               return bl ? <BoostedListingCard key={`boost-${bl.id}-${pi}`} listing={bl} lang={lang} t={t} onNavigate={onNavigate} /> : null
             })()}
-          <div className="p-card p-post"
-            data-post-id={post.id}
-            data-categories={post.categories?.length ? JSON.stringify(post.categories) : undefined}
-            ref={post.isSponsored && post.adId ? (el) => { if (el) { apiTrackAdImpression(post.adId).catch(() => {}) } } : undefined}
-          >
-            {post.isSponsored && (
-              <div style={{ fontSize: 11, color: '#888', fontWeight: 600, marginBottom: 6, letterSpacing: '0.02em' }}>
-                {t.sponsored || (t.sponsored)}
-              </div>
-            )}
-            <div className="p-post-header">
-              <PostAvatarWithBadge
-                post={post}
-                lang={lang}
-                isOwn={isOwn}
-                onViewProfile={onViewProfile}
-                onViewOwnProfile={onViewOwnProfile}
-                onViewBadges={onViewBadges}
-              />
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <div
-                    className="p-post-author"
-                    style={{ cursor: 'pointer' }}
+            {discoveryCards.length > 0 && pi > 0 && pi % DISCOVERY_EVERY === 0 && (() => {
+              const dc = discoveryCards[Math.floor(pi / DISCOVERY_EVERY - 1) % discoveryCards.length]
+              return dc ? <DiscoveryCard key={`discovery-${dc.type}-${dc.id}-${pi}`} suggestion={dc} lang={lang} /> : null
+            })()}
+          <PostCard
+            post={post}
+            viewerMode={mode}
+            t={t}
+            lang={lang}
+            isOwn={isOwn}
+            onViewProfile={onViewProfile}
+            onViewOwnProfile={onViewOwnProfile}
+            onViewBadges={onViewBadges}
+            nameSuffix={
+              <>
+                {post.authorMode === 'business' && (
+                  <BusinessBadge
+                    lang={lang}
+                    size="xs"
                     onClick={() => isOwn ? onViewOwnProfile?.() : (post.authorId && onViewProfile?.(post.authorId))}
-                  >{post.author}</div>
-                  {post.authorMode === 'business' && (
-                    <BusinessBadge
-                      lang={lang}
-                      size="xs"
-                      onClick={() => isOwn ? onViewOwnProfile?.() : (post.authorId && onViewProfile?.(post.authorId))}
-                    />
-                  )}
-                  {(() => {
-                    const relType = !isOwn && post.authorId && rels[String(post.authorId)]
-                    // Use server-supplied isFamily if local rels don't reflect it yet
-                    const effectiveRelType = relType || (!isOwn && post.isFamily ? 'family' : null)
-                    if (!effectiveRelType) return null
-                    if (mode === 'business' && effectiveRelType === 'family') return null
-                    const label = { family: t.relFamily, colleague: t.relColleague, close: t.relCloseFriend, neighbor: t.relNeighbor }[effectiveRelType]
-                    if (!label) return null
-                    const color = mode === 'business'
-                      ? { colleague: '#1877F2', close: '#2D6A4F', neighbor: '#7C6F64' }[effectiveRelType] || '#888'
-                      : { family: '#E07B39', colleague: '#1877F2', close: '#2D6A4F', neighbor: '#7C6F64' }[effectiveRelType] || '#888'
-                    return <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 10, background: color + '18', color, letterSpacing: '0.02em', flexShrink: 0 }}>{label}</span>
-                  })()}
-                </div>
-                <div className="p-post-time">
-                  {post.time[lang]}
-                  {(post.placeName || post.location?.name) && <span style={{ marginLeft: 6, color: '#2D6A4F', fontSize: 11 }}>📍 {t.checkedInAt} {post.placeName || post.location.name}</span>}
-                </div>
+                  />
+                )}
+                {(() => {
+                  const relType = !isOwn && post.authorId && rels[String(post.authorId)]
+                  const effectiveRelType = relType || (!isOwn && post.isFamily ? 'family' : null)
+                  if (!effectiveRelType) return null
+                  if (mode === 'business' && effectiveRelType === 'family') return null
+                  const label = { family: t.relFamily, colleague: t.relColleague, close: t.relCloseFriend, neighbor: t.relNeighbor }[effectiveRelType]
+                  if (!label) return null
+                  const color = mode === 'business'
+                    ? { colleague: '#1877F2', close: '#2D6A4F', neighbor: '#7C6F64' }[effectiveRelType] || '#888'
+                    : { family: '#E07B39', colleague: '#1877F2', close: '#2D6A4F', neighbor: '#7C6F64' }[effectiveRelType] || '#888'
+                  return <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 10, background: color + '18', color, letterSpacing: '0.02em', flexShrink: 0 }}>{label}</span>
+                })()}
+              </>
+            }
+            timeContent={
+              <div className="p-post-time">
+                {post.time[lang]}
+                {(post.placeName || post.location?.name) && <span style={{ marginLeft: 6, color: '#2D6A4F', fontSize: 11 }}>📍 {t.checkedInAt} {post.placeName || post.location.name}</span>}
               </div>
+            }
+            menuContent={
               <div style={{ position: 'relative' }}>
                 <button
                   onClick={() => setPostMenu(p => p === post.id ? null : post.id)}
@@ -4037,7 +4356,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                           {post.authorId && (
                             <>
                               <button className="p-post-menu-item danger" onClick={() => handleUnfriendFromPost(post)}>
-                                👋 {`${t.unfriendWithName}${post.author.split(' ')[0]}`}
+                                👋 {`${t.unfriendWithName}${(post.author || '').split(' ')[0]}`}
                               </button>
                               <button className="p-post-menu-item danger" onClick={async () => {
                                 setPostMenu(null)
@@ -4057,7 +4376,16 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                   </>
                 )}
               </div>
-            </div>
+            }
+            data-post-id={post.id}
+            data-categories={post.categories?.length ? JSON.stringify(post.categories) : undefined}
+            ref={post.isSponsored && post.adId ? (el) => { if (el) { apiTrackAdImpression(post.adId).catch(() => {}) } } : undefined}
+          >
+            {post.isSponsored && (
+              <div style={{ fontSize: 11, color: '#888', fontWeight: 600, marginBottom: 6, letterSpacing: '0.02em' }}>
+                {t.sponsored}
+              </div>
+            )}
             {!isCollapsed && (
             <>
             {editingPostId === post.id ? (
@@ -4083,7 +4411,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                 {post.edited && <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>{t.edited}</div>}
               </>
             )}
-            {post.media && <PostMedia media={post.media} />}
+            {post.media && <PostMedia media={post.media} lang={lang} />}
             {/* Tagged users */}
             {post.taggedUsers?.length > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, margin: '6px 0 2px' }}>
@@ -4096,6 +4424,10 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
             {/* Linked content card */}
             {post.linkedType && post.linkedId && (
               <LinkedContentCard type={post.linkedType} id={post.linkedId} lang={lang} onNavigate={onNavigate} />
+            )}
+            {/* Service spotlight card */}
+            {post.linkedService && (
+              <ServiceSpotlightCard service={post.linkedService} lang={lang} authorId={post.authorId} />
             )}
             {post.location && (
               <div
@@ -4116,7 +4448,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                 }
               </span>
               <span onClick={() => toggleComments(post.id)} style={{ cursor: 'pointer' }}>
-                {post.comments.length} {t.comment.toLowerCase()}{post.comments.length !== 1 ? (t.s) : ''}
+                {(post.comments || []).length} {t.comment.toLowerCase()}{(post.comments || []).length !== 1 ? (t.s) : ''}
               </span>
             </div>
             <div className="p-post-actions">
@@ -4209,7 +4541,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
             )}
             {showComments && (
               <div className="p-comments">
-                {post.comments.map((c, i) => (
+                {(post.comments || []).map((c, i) => (
                   <div key={c.id ?? i} className="p-comment">
                     <div className="p-avatar-xs" style={{ background: nameToColor(c.author) }}>
                       {getInitials(c.author)}
@@ -4219,7 +4551,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
                       <span><CommentText text={c.text[lang]} lang={lang} /></span>
                       {c.media?.length > 0 && (
                         <div className="p-comment-media">
-                          <PostMedia media={c.media} />
+                          <PostMedia media={c.media} lang={lang} />
                         </div>
                       )}
                     </div>
@@ -4330,7 +4662,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
             )}
             </>
             )}
-          </div>
+          </PostCard>
           </Fragment>
         )
       }) /* close items.map */
@@ -4393,6 +4725,11 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         )
       })()}
 
+      {/* Discovery card fallback — shown at end when feed has fewer than DISCOVERY_EVERY posts */}
+      {discoveryCards.length > 0 && posts.filter(p => !hiddenPosts.has(p.id)).length < DISCOVERY_EVERY && (
+        <DiscoveryCard suggestion={discoveryCards[0]} lang={lang} />
+      )}
+
       {/* Active category filter indicator */}
       {feedCategoryFilter && (() => {
         const catInfo = interestCategories.find(c => c.id === feedCategoryFilter)
@@ -4408,7 +4745,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
       })()}
 
       {/* Ad banner — always shown after posts list */}
-      <AdBanner placement="feed" adsFree={adsFree} lang={lang} onGoAdFree={adsFree ? null : () => onNavigate('settings', 'billing')} />
+      <AdBanner placement="feed" adsFree={adsFree} hasAdFree={hasAdFree} lang={lang} t={t} viewerMode={mode} activeContext={feedContext === 'network' ? 'professional' : feedContext} onGoAdFree={adsFree || hasAdFree ? null : () => onNavigate('features')} />
 
       {/* Bottom sentinel — triggers loading next page (infinite scroll) */}
       {hasMore && (
@@ -4423,7 +4760,7 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, highlightPostId, onHigh
         const getD = (e) => typeof e.description === 'string' ? e.description : (e.description?.[lang] || e.description?.da || '')
         const getL = (e) => typeof e.location === 'string' ? e.location : (e.location?.[lang] || e.location?.da || '')
         const fmtD = (iso) => new Date(iso).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-        const evTypeLabel = (type) => ({ conference: t.eventTypeConference, webinar: t.eventTypeWebinar, workshop: t.eventTypeWorkshop, meetup: t.eventTypeMeetup })[type] || null
+        const evTypeLabel = (type) => ({ conference: t.eventTypeConference, webinar: t.eventTypeWebinar, workshop: t.eventTypeWorkshop, meetup: t.eventTypeMeetup, wedding: t.eventTypeWedding, birthday: t.eventTypeBirthday, confirmation: t.eventTypeConfirmation, baptism: t.eventTypeBaptism, engagement: t.eventTypeEngagement, anniversary: t.eventTypeAnniversary, party: t.eventTypeParty, graduation: t.eventTypeGraduation, concert: t.eventTypeConcert, networking: t.eventTypeNetworking })[type] || null
         return (
           <EventDetailModal
             event={feedSelectedEvent}
@@ -4488,6 +4825,8 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
   const [familyFriends, setFamilyFriends] = useState([])
   const [profileTab, setProfileTab] = useState(initialTab || 'about')
   const [myCompanies, setMyCompanies] = useState([])
+  const [myCompanyProfile, setMyCompanyProfile] = useState(null)
+  const [myCompanyProfileLoaded, setMyCompanyProfileLoaded] = useState(false)
   const [interests, setInterests] = useState([])
   const [interestsSaving, setInterestsSaving] = useState(false)
   const [interestsSavedMsg, setInterestsSavedMsg] = useState('')
@@ -4571,11 +4910,19 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
         if (data) setFamilyFriends((data.friends || data || []).filter(f => rels[String(f.id)] === 'family'))
       })
     }
-    fetch('/api/companies', { credentials: 'include' })
+    csrfFetch('/api/companies', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => setMyCompanies((data?.companies || []).filter(c => c.member_role === 'owner')))
       .catch(() => {})
-  }, [currentUser.name, mode, onUserUpdate])
+    if (mode === 'business' && currentUser.id) {
+      apiGetCompanyProfile(currentUser.id)
+        .then(data => { setMyCompanyProfile(data && !data.error ? data : null) })
+        .catch(() => { setMyCompanyProfile(null) })
+        .finally(() => setMyCompanyProfileLoaded(true))
+    } else {
+      setMyCompanyProfileLoaded(true)
+    }
+  }, [currentUser.name, currentUser.id, mode, onUserUpdate])
 
   const avatarUrl = profile.avatarUrl || profile.avatar_url
   const avatarSrc = avatarUrl
@@ -4598,7 +4945,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
             <h2 className="p-profile-name" style={{ margin: 0 }}>{profile.name}</h2>
-            {mode === 'business' && <BusinessBadge lang={lang} onClick={() => onNavigate('businesses')} />}
+            {mode === 'business' && <BusinessBadge lang={lang} onClick={() => onNavigate('business-hub')} />}
           </div>
           <p className="p-profile-handle">{profile.handle}</p>
           <p className="p-profile-bio">{profile.bio?.[lang] || profile.bio?.da || ''}</p>
@@ -4606,6 +4953,8 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
             {mode === 'business' && profile.jobTitle && <span>💼 {profile.jobTitle}{profile.company ? ` · ${profile.company}` : ''}</span>}
             {mode === 'business' && profile.industry && <span>🏭 {profile.industry}</span>}
             {profile.location && <span>📍 {profile.location}</span>}
+            {profile.birthday && !isNaN(new Date(profile.birthday)) && <span>🎂 {new Date(profile.birthday).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'long' })}</span>}
+            {profile.gender && <span>{t[`gender_${profile.gender}`] || profile.gender}</span>}
             <span>📅 {t.joined} {profile.joinDate ? new Date(profile.joinDate).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}</span>
             {profile.totalMinutes > 0 && <span>⏱ {t.hoursOnline}: {Math.floor(profile.totalMinutes / 60) > 0 ? `${Math.floor(profile.totalMinutes / 60)}t ` : ''}{profile.totalMinutes % 60}min</span>}
             {profile.lastActive && <span>🟢 {t.lastOnline}: {new Date(profile.lastActive).toLocaleString(lang === 'da' ? 'da-DK' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>}
@@ -4614,8 +4963,8 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
             <SkillsSection profile={profile} t={t} lang={lang} isOwn={true} />
           )}
           <div style={{ marginBottom: 8 }}>
-            <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 12, background: mode === 'business' ? '#EBF4FF' : '#F0FAF4', color: mode === 'business' ? '#1877F2' : '#2D6A4F' }}>
-              {mode === 'business' ? t.modeBusinessTag : t.modeCommonTag}
+            <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 12, background: mode === 'business' ? '#FDECEA' : mode === 'network' ? '#E1F5EE' : '#E8F5EE', color: mode === 'business' ? '#E03131' : mode === 'network' ? '#1D9E75' : '#2D6A4F' }}>
+              {mode === 'business' ? t.modeBusinessTag : mode === 'network' ? t.modeNetworkTag : t.modeCommonTag}
             </span>
           </div>
           <div className="p-profile-stats">
@@ -4690,10 +5039,42 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
           ) : (
             <p style={{ fontSize: 13, color: '#888', margin: 0 }}>{t.noInterestsSelectedYet}</p>
           )}
-          <button onClick={() => onNavigate('edit-profile')} style={{ marginTop: 12, padding: '6px 16px', borderRadius: 8, border: '1px solid #2D6A4F', background: '#fff', color: '#2D6A4F', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+          <button onClick={() => onNavigate('edit-profile', { tab: 'interests' })} style={{ marginTop: 12, padding: '6px 16px', borderRadius: 8, border: '1px solid #2D6A4F', background: '#fff', color: '#2D6A4F', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
             ✏️ {t.editInterests}
           </button>
         </div>
+
+        {/* Company profile card — business users only */}
+        {mode === 'business' && myCompanyProfileLoaded && (
+          <div className="p-card p-login-info-card" style={{ marginBottom: 16, borderLeft: '3px solid #FCD34D' }}>
+            <h3 className="p-section-title" style={{ color: '#92400E' }}>
+              🏢 {t.company?.form?.heading || t.businessProfile}
+            </h3>
+            {myCompanyProfile ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 10 }}>
+                {myCompanyProfile.logo_url && (
+                  <img src={myCompanyProfile.logo_url} alt="" style={{ width: 48, height: 48, borderRadius: 8, objectFit: 'cover', marginBottom: 4 }} />
+                )}
+                <strong style={{ fontSize: 15, color: '#78350F' }}>{myCompanyProfile.company_name}</strong>
+                {myCompanyProfile.category && <span style={{ fontSize: 12, color: '#B45309' }}>🏷 {t.company?.categories?.[myCompanyProfile.category] || myCompanyProfile.category}</span>}
+                {myCompanyProfile.website && <span style={{ fontSize: 12, color: '#B45309' }}>🌐 {myCompanyProfile.website.replace(/^https?:\/\//, '')}</span>}
+                {myCompanyProfile.description && <p style={{ fontSize: 12, color: '#78350F', margin: '4px 0 0', fontStyle: 'italic' }}>{myCompanyProfile.description}</p>}
+              </div>
+            ) : (
+              <p style={{ fontSize: 13, color: '#B45309', margin: '0 0 10px' }}>
+                {t.company?.form?.heading_placeholder || 'No company profile yet'}
+              </p>
+            )}
+            <button
+              onClick={() => onNavigate('company-profile-form', { initialData: myCompanyProfile || null })}
+              style={{ padding: '7px 16px', borderRadius: 8, border: '1.5px solid #FCD34D', background: myCompanyProfile ? '#FFFBEB' : '#D97706', color: myCompanyProfile ? '#92400E' : '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}
+            >
+              {myCompanyProfile
+                ? (t.company?.form?.edit_btn || 'Edit company')
+                : (t.company?.form?.create_btn || 'Create company profile')}
+            </button>
+          </div>
+        )}
 
         {/* Tags, relation, website */}
         {(tags.length > 0 || relationshipStatus || website) && (
@@ -4813,7 +5194,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
                                 {getInitials(f.name)}
                               </div>
                             )}
-                            <span style={{ fontSize: 11, color: '#444', textAlign: 'center', maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name.split(' ')[0]}</span>
+                            <span style={{ fontSize: 11, color: '#444', textAlign: 'center', maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(f.name || '').split(' ')[0]}</span>
                           </div>
                         )
                       })}
@@ -4885,10 +5266,10 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
                 </div>
               </div>
               <PostText text={post.text} lang={lang} />
-              {post.media && <PostMedia media={post.media} />}
+              {post.media && <PostMedia media={post.media} lang={lang} />}
               <div className="p-post-stats">
                 <span>{post.likes} {t.like.toLowerCase()}</span>
-                <span>{post.comments.length} {t.comment.toLowerCase()}{post.comments.length !== 1 ? (t.s) : ''}</span>
+                <span>{(post.comments || []).length} {t.comment.toLowerCase()}{(post.comments || []).length !== 1 ? (t.s) : ''}</span>
               </div>
             </div>
           ))
@@ -5048,7 +5429,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
 }
 
 // ── Edit Profile ──
-function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onBadgeCheck }) {
+function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onBadgeCheck, initialTab }) {
   const [profile, setProfile] = useState({ ...currentUser })
   const avatarInputRef = useRef(null)
   // Interests state
@@ -5060,6 +5441,8 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
   const [birthdaySaveStatus, setBirthdaySaveStatus] = useState(null)
   const [bioSaveStatus, setBioSaveStatus] = useState(null)
   const [bizSaveStatus, setBizSaveStatus] = useState(null)
+  const [mobilepay, setMobilepay] = useState(currentUser.mobilepay || '')
+  const [mobilepaySaveStatus, setMobilepaySaveStatus] = useState(null)
   // Extended profile
   const [tags, setTags] = useState([])
   const [tagInput, setTagInput] = useState('')
@@ -5088,6 +5471,7 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
         if (data.tags) setTags(data.tags)
         if (data.relationship_status) setRelationshipStatus(data.relationship_status)
         if (data.website) setWebsite(data.website)
+        if (data.mobilepay !== undefined) setMobilepay(data.mobilepay || '')
         setBirthday(data.birthday ? data.birthday.slice(0, 10) : '')
         if (data.businessCategory) setBizCategory(data.businessCategory)
         if (data.businessWebsite) setBizWebsite(data.businessWebsite)
@@ -5130,18 +5514,24 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
     ? (avatarUrl.startsWith('http') || avatarUrl.startsWith('blob:') ? avatarUrl : `${API_BASE}${avatarUrl}`)
     : null
 
-  const editT = t
+  const [tab, setTab] = useState(initialTab || 'profile')
 
   const fieldStyle = { display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box' }
   const labelStyle = { display: 'block', fontSize: 13, fontWeight: 600, color: '#555', marginBottom: 4, marginTop: 16 }
 
+  const tabs = [
+    { key: 'profile', label: t.editTabProfile },
+    ...(mode === 'business' ? [{ key: 'professional', label: t.editTabProfessional }] : []),
+    { key: 'interests', label: t.editTabInterests },
+    { key: 'cv', label: t.editTabCV },
+    { key: 'personal', label: t.editTabPersonal },
+  ]
+
   return (
     <div className="p-profile" style={{ maxWidth: 800, margin: '0 auto' }}>
       <div className="p-card" style={{ padding: 24 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 20 }}>{t.editProfile}</h2>
-
-        {/* Avatar upload */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 8 }}>
+        {/* Avatar — always visible above tabs */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
           <div className="p-profile-avatar-wrapper" onClick={() => avatarInputRef.current?.click()} title={t.editAvatarBtn} style={{ cursor: 'pointer' }}>
             {avatarSrc ? (
               <img className="p-profile-avatar-img" src={avatarSrc} alt="" />
@@ -5160,9 +5550,10 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
             />
           </div>
           <div>
-            <div style={{ fontWeight: 600, fontSize: 14 }}>{t.editAvatarLabel}</div>
+            <div style={{ fontWeight: 700, fontSize: 20 }}>{t.editProfile}</div>
+            <div style={{ fontWeight: 600, fontSize: 13, color: '#555', marginTop: 2 }}>{profile.name || ''}</div>
             <button
-              style={{ marginTop: 4, padding: '6px 12px', borderRadius: 6, border: '1px solid #2D6A4F', background: '#fff', color: '#2D6A4F', cursor: 'pointer', fontSize: 13 }}
+              style={{ marginTop: 6, padding: '5px 12px', borderRadius: 6, border: '1px solid #2D6A4F', background: '#fff', color: '#2D6A4F', cursor: 'pointer', fontSize: 13 }}
               onClick={() => avatarInputRef.current?.click()}
             >
               {t.editAvatarBtn}
@@ -5170,154 +5561,201 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
           </div>
         </div>
 
-        {/* Name (read-only for now) */}
-        <label style={labelStyle}>{t.editNameLabel}</label>
-        <input style={fieldStyle} value={profile.name || ''} readOnly />
-
-        {/* Bio */}
-        <label style={labelStyle}>{t.editBioLabel}</label>
-        <textarea
-          style={{ ...fieldStyle, minHeight: 80, resize: 'vertical' }}
-          value={profile.bio?.[lang] || profile.bio?.da || ''}
-          onChange={e => setProfile(p => ({ ...p, bio: { ...(p.bio || {}), [lang]: e.target.value } }))}
-          placeholder={t.tellALittleAboutYourself}
-        />
-
-        {/* Location */}
-        <label style={labelStyle}>{t.editLocationLabel}</label>
-        <LocationAutocomplete
-          value={profile.location || ''}
-          onChange={text => setProfile(p => ({ ...p, location: text }))}
-          onSelect={loc => loc && setProfile(p => ({ ...p, location: loc.name }))}
-          lang={lang}
-          placeholder={t.cityCountry}
-          inputStyle={fieldStyle}
-        />
-
-        {/* Save bio + location */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
-          <button
-            type="button"
-            disabled={bioSaveStatus === 'saving'}
-            onClick={async () => {
-              setBioSaveStatus('saving')
-              const res = await apiUpdateProfile({
-                bio_da: profile.bio?.da || '',
-                bio_en: profile.bio?.en || '',
-                location: profile.location || '',
-              })
-              setBioSaveStatus(res?.ok ? 'saved' : 'error')
-              setTimeout(() => setBioSaveStatus(null), 2000)
-              if (res?.ok) setTimeout(onBadgeCheck, 400)
-            }}
-            style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: bioSaveStatus === 'saved' ? '#40916C' : '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
-          >
-            {bioSaveStatus === 'saving' ? '…' : bioSaveStatus === 'saved' ? t.cvSaved : t.cvSave}
-          </button>
+        {/* Tab navigation */}
+        <div className="p-filter-tabs" style={{ marginBottom: 24 }}>
+          {tabs.map(({ key, label }) => (
+            <button key={key} className={`p-filter-tab${tab === key ? ' active' : ''}`} onClick={() => setTab(key)}>{label}</button>
+          ))}
         </div>
 
-        {/* Birthday */}
-        <label style={labelStyle}>{t.birthdayLabel}</label>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <input
-            style={{ ...fieldStyle, flex: 1 }}
-            type="date"
-            value={birthday}
-            onChange={e => { setBirthday(e.target.value); setBirthdaySaveStatus(null) }}
-            max={new Date().toISOString().slice(0, 10)}
+        {/* ── Profile tab ─────────────────────────────────── */}
+        {tab === 'profile' && <>
+          {/* Name (read-only) */}
+          <label style={labelStyle}>{t.editNameLabel}</label>
+          <input style={fieldStyle} value={profile.name || ''} readOnly />
+
+          {/* Bio */}
+          <label style={labelStyle}>{t.editBioLabel}</label>
+          <textarea
+            style={{ ...fieldStyle, minHeight: 80, resize: 'vertical' }}
+            value={profile.bio?.[lang] || profile.bio?.da || ''}
+            onChange={e => setProfile(p => ({ ...p, bio: { ...(p.bio || {}), [lang]: e.target.value } }))}
+            placeholder={t.tellALittleAboutYourself}
           />
-          <button
-            type="button"
-            onClick={handleSaveBirthday}
-            disabled={birthdaySaveStatus === 'saving'}
-            style={{ padding: '10px 16px', borderRadius: 8, border: 'none', background: birthdaySaveStatus === 'saved' ? '#40916C' : '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}
-          >
-            {birthdaySaveStatus === 'saving' ? '…' : birthdaySaveStatus === 'saved' ? t.birthdaySaved : t.birthdaySave}
-          </button>
-          {birthday && (
+
+          {/* Location */}
+          <label style={labelStyle}>{t.editLocationLabel}</label>
+          <LocationAutocomplete
+            value={profile.location || ''}
+            onChange={text => setProfile(p => ({ ...p, location: text }))}
+            onSelect={loc => loc && setProfile(p => ({ ...p, location: loc.name }))}
+            lang={lang}
+            placeholder={t.cityCountry}
+            inputStyle={fieldStyle}
+          />
+
+          {/* Save bio + location */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
             <button
               type="button"
-              onClick={() => { setBirthday(''); setBirthdaySaveStatus(null) }}
-              style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', background: 'none', fontSize: 13, cursor: 'pointer', color: '#888' }}
-              title={t.birthdayClear}
-            >✕</button>
-          )}
-        </div>
-
-        {/* Business-only fields */}
-        {mode === 'business' && (
-          <>
-            <div style={{ margin: '20px 0 12px', borderTop: '1px solid #eee', paddingTop: 16, fontSize: 13, fontWeight: 700, color: '#2D6A4F' }}>
-              💼 {t.modeBusiness}
-            </div>
-            <label style={labelStyle}>{t.titleLabel}</label>
-            <input
-              style={fieldStyle}
-              placeholder={t.eGSeniorDesigner}
-              value={profile.jobTitle || ''}
-              onChange={e => setProfile(p => ({ ...p, jobTitle: e.target.value }))}
-            />
-            <label style={labelStyle}>{t.companyLabel}</label>
-            <input
-              style={fieldStyle}
-              placeholder={t.companyName}
-              value={profile.company || ''}
-              onChange={e => setProfile(p => ({ ...p, company: e.target.value }))}
-            />
-            <label style={labelStyle}>{t.industryLabel}</label>
-            <input
-              style={fieldStyle}
-              placeholder={t.eGDesignTechnology}
-              value={profile.industry || ''}
-              onChange={e => setProfile(p => ({ ...p, industry: e.target.value }))}
-            />
-            <label style={labelStyle}>{t.seniorityLevel}</label>
-            <select
-              style={{ ...fieldStyle, cursor: 'pointer' }}
-              value={profile.seniority || ''}
-              onChange={e => setProfile(p => ({ ...p, seniority: e.target.value }))}
+              disabled={bioSaveStatus === 'saving'}
+              onClick={async () => {
+                setBioSaveStatus('saving')
+                const res = await apiUpdateProfile({
+                  bio_da: profile.bio?.da || '',
+                  bio_en: profile.bio?.en || '',
+                  location: profile.location || '',
+                })
+                setBioSaveStatus(res?.ok ? 'saved' : 'error')
+                setTimeout(() => setBioSaveStatus(null), 2000)
+                if (res?.ok) setTimeout(onBadgeCheck, 400)
+              }}
+              style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: bioSaveStatus === 'saved' ? '#40916C' : '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
             >
-              <option value="">{t.chooseOptional}</option>
-              <option value="Junior">{t.junior}</option>
-              <option value="Mid-level">{t.midLevel}</option>
-              <option value="Senior">{t.senior}</option>
-              <option value="Lead / Manager">{t.leadManager}</option>
-              <option value="Director+">{t.director}</option>
-            </select>
-            <label style={labelStyle}>{t.skillsLabel}</label>
+              {bioSaveStatus === 'saving' ? '…' : bioSaveStatus === 'saved' ? t.cvSaved : t.cvSave}
+            </button>
+          </div>
+
+          {/* Facebook data import */}
+          <FacebookImport
+            lang={lang}
+            user={profile}
+            onUpdate={updated => {
+              setProfile(prev => ({ ...prev, ...updated }))
+              onUserUpdate(prev => ({ ...prev, ...updated }))
+            }}
+          />
+
+          {/* Birthday */}
+          <label style={labelStyle}>{t.birthdayLabel}</label>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <input
-              style={fieldStyle}
-              placeholder={t.eGUXFigmaReactCommaSeparated}
-              value={profile.skills || ''}
-              onChange={e => setProfile(p => ({ ...p, skills: e.target.value }))}
+              style={{ ...fieldStyle, flex: 1 }}
+              type="date"
+              value={birthday}
+              onChange={e => { setBirthday(e.target.value); setBirthdaySaveStatus(null) }}
+              max={new Date().toISOString().slice(0, 10)}
             />
-            {/* Save business profile fields */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
+            <button
+              type="button"
+              onClick={handleSaveBirthday}
+              disabled={birthdaySaveStatus === 'saving'}
+              style={{ padding: '10px 16px', borderRadius: 8, border: 'none', background: birthdaySaveStatus === 'saved' ? '#40916C' : '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}
+            >
+              {birthdaySaveStatus === 'saving' ? '…' : birthdaySaveStatus === 'saved' ? t.birthdaySaved : t.birthdaySave}
+            </button>
+            {birthday && (
               <button
                 type="button"
-                disabled={bizSaveStatus === 'saving'}
-                onClick={async () => {
-                  setBizSaveStatus('saving')
-                  const res = await apiUpdateProfile({
-                    job_title: profile.jobTitle || '',
-                    company: profile.company || '',
-                    industry: profile.industry || '',
-                    seniority: profile.seniority || '',
-                  })
-                  setBizSaveStatus(res?.ok ? 'saved' : 'error')
-                  setTimeout(() => setBizSaveStatus(null), 2000)
-                }}
-                style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: bizSaveStatus === 'saved' ? '#40916C' : '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
-              >
-                {bizSaveStatus === 'saving' ? '…' : bizSaveStatus === 'saved' ? t.cvSaved : t.cvSave}
-              </button>
-            </div>
-          </>
-        )}
+                onClick={() => { setBirthday(''); setBirthdaySaveStatus(null) }}
+                style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', background: 'none', fontSize: 13, cursor: 'pointer', color: '#888' }}
+                title={t.birthdayClear}
+              >✕</button>
+            )}
+          </div>
 
-        {/* Business profile — extra fields */}
-        {mode === 'business' && (
-          <div style={{ margin: '20px 0 0', borderTop: '2px solid #EEF2FF', paddingTop: 20 }}>
+          {/* MobilePay — prefills marketplace listings */}
+          <label style={labelStyle}>📱 {t.mobilePayDefaultLabel}</label>
+          <div style={{ fontSize: 11, color: '#888', marginBottom: 6 }}>{t.mobilePayDefaultHint}</div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input
+              style={{ ...fieldStyle, flex: 1 }}
+              value={mobilepay}
+              onChange={e => { setMobilepay(e.target.value.replace(/\D/g, '').slice(0, 8)); setMobilepaySaveStatus(null) }}
+              placeholder={t.mobilePayEG20123456}
+              inputMode="numeric"
+              maxLength={8}
+            />
+            <button
+              type="button"
+              disabled={mobilepaySaveStatus === 'saving'}
+              onClick={async () => {
+                setMobilepaySaveStatus('saving')
+                const res = await apiUpdateProfile({ mobilepay: mobilepay.trim() || null })
+                if (res?.ok) {
+                  setMobilepaySaveStatus('saved')
+                  onUserUpdate(prev => ({ ...prev, mobilepay: mobilepay.trim() || null }))
+                  setTimeout(() => setMobilepaySaveStatus(null), 2000)
+                } else {
+                  setMobilepaySaveStatus('error')
+                }
+              }}
+              style={{ padding: '10px 16px', borderRadius: 8, border: 'none', background: mobilepaySaveStatus === 'saved' ? '#40916C' : '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}
+            >
+              {mobilepaySaveStatus === 'saving' ? '…' : mobilepaySaveStatus === 'saved' ? t.cvSaved : t.cvSave}
+            </button>
+          </div>
+        </>}
+
+        {/* ── Professional tab (business only) ────────────── */}
+        {tab === 'professional' && mode === 'business' && <>
+          <div style={{ marginBottom: 12, fontSize: 13, fontWeight: 700, color: '#2D6A4F' }}>
+            💼 {t.modeBusiness}
+          </div>
+          <label style={labelStyle}>{t.titleLabel}</label>
+          <input
+            style={fieldStyle}
+            placeholder={t.eGSeniorDesigner}
+            value={profile.jobTitle || ''}
+            onChange={e => setProfile(p => ({ ...p, jobTitle: e.target.value }))}
+          />
+          <label style={labelStyle}>{t.companyLabel}</label>
+          <input
+            style={fieldStyle}
+            placeholder={t.companyName}
+            value={profile.company || ''}
+            onChange={e => setProfile(p => ({ ...p, company: e.target.value }))}
+          />
+          <label style={labelStyle}>{t.industryLabel}</label>
+          <input
+            style={fieldStyle}
+            placeholder={t.eGDesignTechnology}
+            value={profile.industry || ''}
+            onChange={e => setProfile(p => ({ ...p, industry: e.target.value }))}
+          />
+          <label style={labelStyle}>{t.seniorityLevel}</label>
+          <select
+            style={{ ...fieldStyle, cursor: 'pointer' }}
+            value={profile.seniority || ''}
+            onChange={e => setProfile(p => ({ ...p, seniority: e.target.value }))}
+          >
+            <option value="">{t.chooseOptional}</option>
+            <option value="Junior">{t.junior}</option>
+            <option value="Mid-level">{t.midLevel}</option>
+            <option value="Senior">{t.senior}</option>
+            <option value="Lead / Manager">{t.leadManager}</option>
+            <option value="Director+">{t.director}</option>
+          </select>
+          <label style={labelStyle}>{t.skillsLabel}</label>
+          <input
+            style={fieldStyle}
+            placeholder={t.eGUXFigmaReactCommaSeparated}
+            value={profile.skills || ''}
+            onChange={e => setProfile(p => ({ ...p, skills: e.target.value }))}
+          />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
+            <button
+              type="button"
+              disabled={bizSaveStatus === 'saving'}
+              onClick={async () => {
+                setBizSaveStatus('saving')
+                const res = await apiUpdateProfile({
+                  job_title: profile.jobTitle || '',
+                  company: profile.company || '',
+                  industry: profile.industry || '',
+                  seniority: profile.seniority || '',
+                })
+                setBizSaveStatus(res?.ok ? 'saved' : 'error')
+                setTimeout(() => setBizSaveStatus(null), 2000)
+              }}
+              style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: bizSaveStatus === 'saved' ? '#40916C' : '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+            >
+              {bizSaveStatus === 'saving' ? '…' : bizSaveStatus === 'saved' ? t.cvSaved : t.cvSave}
+            </button>
+          </div>
+
+          {/* Business profile — extra fields */}
+          <div style={{ margin: '24px 0 0', borderTop: '2px solid #EEF2FF', paddingTop: 20 }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: '#4338CA', marginBottom: 4 }}>
               🏢 {t.businessProfile}
             </div>
@@ -5387,18 +5825,16 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
               )}
             </div>
           </div>
-        )}
 
-        {/* Skills management */}
-        {mode === 'business' && (
+          {/* Skills management */}
           <div style={{ margin: '28px 0 0', borderTop: '2px solid #eee', paddingTop: 20 }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: '#2D6A4F', marginBottom: 12 }}>🏅 {t.skills}</div>
             <SkillsSection profile={profile} t={t} lang={lang} isOwn={true} />
           </div>
-        )}
+        </>}
 
-        {/* Interests picker */}
-        <div className="p-card" style={{ marginBottom: 16 }}>
+        {/* ── Interests tab ────────────────────────────────── */}
+        {tab === 'interests' && <>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>🎯 {t.interestsSectionTitle}</h3>
             <span style={{ fontSize: 12, color: interests.length >= 3 ? '#2D6A4F' : '#e53935', fontWeight: 600 }}>
@@ -5438,7 +5874,6 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
             const filtered = interestCats.filter(c => !q || c.da.toLowerCase().includes(q) || c.en.toLowerCase().includes(q))
 
             if (q) {
-              // Flat list when searching
               return (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, maxHeight: 220, overflowY: 'auto', padding: '2px 0' }}>
                   {filtered.length === 0 && <span style={{ fontSize: 13, color: '#aaa' }}>{t.searchNoResults}</span>}
@@ -5456,7 +5891,6 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
               )
             }
 
-            // Grouped by sort_order decade
             const groups = [
               { label: t.musicEntertainment, min: 10, max: 29 },
               { label: t.gamesEvents, min: 20, max: 39 },
@@ -5540,10 +5974,19 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
               <span style={{ fontSize: 12, color: '#e53935' }}>{t.interestsMin3}</span>
             )}
           </div>
-        </div>
 
-        {/* Tags, relationship status, website */}
-        <div className="p-card" style={{ padding: 20, marginTop: 12 }}>
+          <div style={{ marginTop: 24 }}>
+            <InterestGraphPage lang={lang} t={t} currentUser={currentUser} />
+          </div>
+        </>}
+
+        {/* ── CV tab ───────────────────────────────────────── */}
+        {tab === 'cv' && (
+          <CVProfileSection lang={lang} t={t} isOwn={true} userId={currentUser.id} />
+        )}
+
+        {/* ── Personal tab ─────────────────────────────────── */}
+        {tab === 'personal' && <>
           <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 700 }}>🏷️ {t.tagsRelationshipWebsite}</h3>
 
           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>{t.tagsMax10Max30Chars}</div>
@@ -5614,7 +6057,7 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
           >
             {t.adminModCandidateSave}
           </button>
-        </div>
+        </>}
 
         <button
           style={{ marginTop: 24, padding: '10px 20px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
@@ -5623,18 +6066,12 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
           {t.editBackToProfile}
         </button>
       </div>
-
-      {/* Interest Graph — embedded directly in edit profile */}
-      <InterestGraphPage lang={lang} t={t} currentUser={currentUser} />
-
-      {/* CV / Work profile — always shown in edit profile */}
-      <CVProfileSection lang={lang} t={t} isOwn={true} userId={currentUser.id} />
     </div>
   )
 }
 
 // ── Settings Page ─────────────────────────────────────────────────────────────
-function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onLogout, onOpenModeModal, darkMode, onToggleDark, initialTab }) {
+function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onLogout, onOpenModeModal, theme, onThemeChange, initialTab }) {
   const [tab, setTab] = useState(initialTab || 'konto')
 
   const fS = { display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box', fontFamily: 'inherit' }
@@ -5656,12 +6093,12 @@ function SettingsPage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, on
         <SettingsKonto lang={lang} t={t} currentUser={currentUser} mode={mode} fS={fS} lS={lS} onNavigate={onNavigate} onOpenModeModal={onOpenModeModal} />
         <EasterEggSettings lang={lang} />
       </>}
-      {tab === 'sikkerhed' && <SettingsSikkerhed lang={lang} fS={fS} lS={lS} />}
-      {tab === 'billing' && <BillingSettings lang={lang} t={t} />}
+      {tab === 'sikkerhed' && <SettingsSikkerhed lang={lang} fS={fS} lS={lS} currentUser={currentUser} />}
+      {tab === 'billing' && <BillingSettings lang={lang} t={t} mode={mode} />}
       {tab === 'notifikationer' && <SettingsNotifications lang={lang} t={t} />}
       {tab === 'privatliv' && <SettingsPrivatliv lang={lang} t={t} fS={fS} lS={lS} />}
       {tab === 'sessions' && <SettingsSessions lang={lang} t={t} onLogout={onLogout} />}
-      {tab === 'sprog' && <SettingsSprog lang={lang} t={t} darkMode={darkMode} onToggleDark={onToggleDark} />}
+      {tab === 'sprog' && <SettingsSprog lang={lang} t={t} theme={theme} onThemeChange={onThemeChange} />}
       {tab === 'leverandoerer' && <SettingsLeverandoerer lang={lang} t={t} />}
     </div>
   )
@@ -5763,7 +6200,7 @@ function SettingsNotifications({ lang, t }) {
   )
 }
 
-function BillingSettings({ lang, t }) {
+function BillingSettings({ lang, t, mode }) {
   const [sub, setSub] = useState(null)
   const [loading, setLoading] = useState(false)
   const [plan, setPlan] = useState('once') // 'once' | 'monthly' | 'annual'
@@ -5771,16 +6208,26 @@ function BillingSettings({ lang, t }) {
   const [cancelMsg, setCancelMsg] = useState(null)
   const [mollieLoading, setMollieLoading] = useState(false)
   const [mollieError, setMollieError] = useState(null)
+  const [withdrawalWaiver, setWithdrawalWaiver] = useState(false)
+  const [waiverError, setWaiverError] = useState(false)
+  const [paymentMethod, setPaymentMethod] = useState('card') // 'card' | 'mobilepay'
+  const [dkkRate, setDkkRate] = useState(null)
+  const [dkkRateLoading, setDkkRateLoading] = useState(false)
 
   useEffect(() => {
     apiGetSubscription().then(data => { if (data) setSub(data) }).catch(() => {})
+    setDkkRateLoading(true)
+    apiGetEurDkkRate().then(data => { if (data?.rate) setDkkRate(data.rate) }).catch(() => {}).finally(() => setDkkRateLoading(false))
   }, [])
 
   const handleMollieCheckout = async () => {
+    if (!withdrawalWaiver) { setWaiverError(true); return }
+    setWaiverError(false)
     setMollieError(null)
     setMollieLoading(true)
     const recurring = plan === 'monthly' || plan === 'annual'
-    const data = await apiCreateMolliePayment('adfree', null, null, null, recurring, plan === 'annual' ? 'annual' : 'monthly').catch(() => null)
+    const currency = paymentMethod === 'mobilepay' ? 'DKK' : null
+    const data = await apiCreateMolliePayment('adfree', null, currency, null, recurring, plan === 'annual' ? 'annual' : 'monthly').catch(() => null)
     setMollieLoading(false)
     if (data?.checkoutUrl) {
       window.location.href = data.checkoutUrl
@@ -5809,6 +6256,9 @@ function BillingSettings({ lang, t }) {
   const annualPrice = sub.annual_price ?? (monthlyPrice * 12)
   const annualDiscountPct = sub.annual_discount_pct ?? 0
   const displayPrice = plan === 'monthly' ? monthlyPrice : plan === 'annual' ? annualPrice : price
+  const isBusiness = mode === 'business'
+  const isMobilePay = paymentMethod === 'mobilepay' && !isBusiness
+  const dkkDisplay = isMobilePay && dkkRate ? Math.round(displayPrice * dkkRate * 100) / 100 : null
 
   return (
     <div>
@@ -5850,7 +6300,7 @@ function BillingSettings({ lang, t }) {
             {/* Plan toggle */}
             <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
               {[
-                { key: 'once', label: `1× ${t.oneTimePayment} — ${formatPrice(price)}` },
+                { key: 'once', label: `1× ${t.oneTimePayment} (${t.oneTimePaymentDays}) — ${formatPrice(price)}` },
                 { key: 'monthly', label: `🔁 ${t.jobSalaryMonthly} — ${formatPrice(monthlyPrice)}/${t.adFreeMonth}` },
                 { key: 'annual', label: `${t.adFreeAnnual} — ${formatPrice(annualPrice)}/${t.adFreeYear}${annualDiscountPct > 0 ? ` (${t.adFreeAnnualSave} ${annualDiscountPct}%)` : ''}` },
               ].map(({ key, label }) => (
@@ -5861,6 +6311,66 @@ function BillingSettings({ lang, t }) {
               ))}
             </div>
 
+            {/* Payment method selector — MobilePay is for private individuals only */}
+            {!isBusiness && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 12, color: '#888', marginBottom: 6 }}>{t.paymentMethodLabel}</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {[
+                    {
+                      key: 'card',
+                      label: null,
+                      icon: (() => {
+                        const [cardText, appleText, googleText] = t.paymentMethodCard.split(' / ')
+                        return (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                            <svg width="16" height="12" viewBox="0 0 16 12" fill="none" aria-hidden="true">
+                              <rect x=".5" y=".5" width="15" height="11" rx="2" stroke="currentColor" strokeWidth="1.2"/>
+                              <rect y="3" width="16" height="2.5" fill="currentColor"/>
+                              <rect x="2" y="7.5" width="4" height="1.5" rx=".5" fill="currentColor" opacity=".45"/>
+                            </svg>
+                            {cardText}
+                            <span style={{ opacity: 0.35 }}>/</span>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                              <path d={siApplepay.path}/>
+                            </svg>
+                            {appleText}
+                            <span style={{ opacity: 0.35 }}>/</span>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill={`#${siGooglepay.hex}`} aria-hidden="true">
+                              <path d={siGooglepay.path}/>
+                            </svg>
+                            {googleText}
+                          </span>
+                        )
+                      })(),
+                    },
+                    {
+                      key: 'mobilepay',
+                      label: 'MobilePay',
+                      icon: (
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true" style={{ flexShrink: 0 }}>
+                          <rect width="20" height="20" rx="4" fill="#3D7EF5"/>
+                          <path d="M4 13.5C5.5 11 7 8 10 10C13 12 14.5 9 16 6.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      ),
+                    },
+                  ].map(({ key, label, icon }) => (
+                    <button key={key} onClick={() => setPaymentMethod(key)}
+                      style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: `1.5px solid ${paymentMethod === key ? '#5A78FF' : '#ddd'}`, background: paymentMethod === key ? '#EEF1FF' : '#fff', color: paymentMethod === key ? '#5A78FF' : '#555', fontWeight: paymentMethod === key ? 700 : 400, fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+                      {icon}
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {isMobilePay && (
+                  <div style={{ fontSize: 11, color: '#888', marginTop: 6, lineHeight: 1.5 }}>
+                    {t.mobilePayDkkNote}
+                    {dkkRateLoading && <span> — {t.mobilePayRateLoading}</span>}
+                  </div>
+                )}
+              </div>
+            )}
+
             <button
               onClick={handleMollieCheckout}
               disabled={mollieLoading}
@@ -5868,20 +6378,78 @@ function BillingSettings({ lang, t }) {
             >
               {mollieLoading
                 ? (t.loading2)
-                : (lang === 'da'
-                    ? (plan === 'annual' ? `Opret årsabonnement — ${formatPrice(annualPrice)}/år` : plan === 'monthly' ? `Opret abonnement — ${formatPrice(monthlyPrice)}/md.` : `Betal ${formatPrice(displayPrice)}`)
-                    : (plan === 'annual' ? `Subscribe annually — ${formatPrice(annualPrice)}/yr` : plan === 'monthly' ? `Subscribe — ${formatPrice(monthlyPrice)}/mo.` : `Pay ${formatPrice(displayPrice)}`))}
+                : (() => {
+                    const priceStr = dkkDisplay ? formatPriceDKK(dkkDisplay) : formatPrice(displayPrice)
+                    const monthlyStr = isMobilePay && dkkRate ? formatPriceDKK(Math.round(monthlyPrice * dkkRate * 100) / 100) : formatPrice(monthlyPrice)
+                    const annualStr = isMobilePay && dkkRate ? formatPriceDKK(Math.round(annualPrice * dkkRate * 100) / 100) : formatPrice(annualPrice)
+                    return lang === 'da'
+                      ? (plan === 'annual' ? `Opret årsabonnement — ${annualStr}/år` : plan === 'monthly' ? `Opret abonnement — ${monthlyStr}/md.` : `Betal ${priceStr}`)
+                      : (plan === 'annual' ? `Subscribe annually — ${annualStr}/yr` : plan === 'monthly' ? `Subscribe — ${monthlyStr}/mo.` : `Pay ${priceStr}`)
+                  })()}
             </button>
             {mollieError && <p style={{ fontSize: 13, color: '#e03131', margin: '0 0 12px' }}>{mollieError}</p>}
+
+            {/* Withdrawal right waiver */}
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 8, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={withdrawalWaiver}
+                onChange={e => { setWithdrawalWaiver(e.target.checked); if (e.target.checked) setWaiverError(false) }}
+                style={{ marginTop: 2, flexShrink: 0, accentColor: '#2D6A4F' }}
+              />
+              <span style={{ fontSize: 12, color: waiverError ? '#e03131' : '#555', lineHeight: 1.5 }}>
+                {t.adFreeWithdrawalWaiver}
+              </span>
+            </label>
+            {waiverError && <p style={{ fontSize: 12, color: '#e03131', margin: '-4px 0 10px' }}>{t.adFreeWithdrawalWaiverRequired}</p>}
 
             {/* Accepted payment methods */}
             <div style={{ fontSize: 11, color: '#aaa', marginBottom: 6 }}>
               {t.weUseMollieAsPaymentGatewaySecurePaymentViaEUCerti}
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
-              {['MobilePay', 'Visa', 'Mastercard', 'Apple Pay', 'Google Pay'].map(m => (
-                <span key={m} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 20, background: '#f0f0f0', color: '#555' }}>{m}</span>
-              ))}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+              {/* MobilePay — private accounts only */}
+              {!isBusiness && (
+                <span style={{ padding: '4px 9px', borderRadius: 20, background: '#fff', border: '1px solid #e8e8e8', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                    <rect width="14" height="14" rx="2.5" fill="#3D7EF5"/>
+                    <path d="M2.5 9.5C3.5 7.5 5 5 7 6.5C9 8 10.5 5.5 11.5 4" stroke="white" strokeWidth="1.6" strokeLinecap="round"/>
+                  </svg>
+                  <span style={{ fontSize: 11, color: '#444' }}>MobilePay</span>
+                </span>
+              )}
+              {/* Visa */}
+              <span style={{ padding: '4px 9px', borderRadius: 20, background: '#fff', border: '1px solid #e8e8e8', display: 'inline-flex', alignItems: 'center' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill={`#${siVisa.hex}`} aria-label="Visa">
+                  <path d={siVisa.path}/>
+                </svg>
+              </span>
+              {/* Mastercard */}
+              <span style={{ padding: '4px 9px', borderRadius: 20, background: '#fff', border: '1px solid #e8e8e8', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <svg width="22" height="14" viewBox="0 0 22 14" fill="none" aria-hidden="true">
+                  <circle cx="8" cy="7" r="6.5" fill="#EB001B"/>
+                  <circle cx="14" cy="7" r="6.5" fill="#F79E1B"/>
+                  <path d="M11 1.38 A6.5 6.5 0 0 1 11 12.62 A6.5 6.5 0 0 1 11 1.38Z" fill="#FF5F00"/>
+                </svg>
+                <span style={{ fontSize: 11, color: '#444' }}>Mastercard</span>
+              </span>
+              {/* Apple Pay */}
+              <span style={{ padding: '4px 9px', borderRadius: 20, background: '#fff', border: '1px solid #e8e8e8', display: 'inline-flex', alignItems: 'center' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill={`#${siApplepay.hex}`} aria-label="Apple Pay">
+                  <path d={siApplepay.path}/>
+                </svg>
+              </span>
+              {/* Google Pay */}
+              <span style={{ padding: '4px 9px', borderRadius: 20, background: '#fff', border: '1px solid #e8e8e8', display: 'inline-flex', alignItems: 'center' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill={`#${siGooglepay.hex}`} aria-label="Google Pay">
+                  <path d={siGooglepay.path}/>
+                </svg>
+              </span>
+            </div>
+            <div style={{ fontSize: 11, color: '#aaa' }}>
+              <a href="/salgsbetingelser" target="_blank" rel="noopener noreferrer" style={{ color: '#2D6A4F', textDecoration: 'underline' }}>
+                {t.adFreeSalgsbetingelserLink}
+              </a>
             </div>
 
           </>
@@ -6049,7 +6617,7 @@ function PasswordStrengthIndicator({ password, lang }) {
   const t = getTranslations(lang)
   const [policy, setPolicy] = useState(null)
   useEffect(() => {
-    fetch('/api/auth/password-policy').then(r => r.ok ? r.json() : null).then(p => { if (p) setPolicy(p) }).catch(() => {})
+    csrfFetch('/api/auth/password-policy').then(r => r.ok ? r.json() : null).then(p => { if (p) setPolicy(p) }).catch(() => {})
   }, [])
 
   if (!password) return null
@@ -6092,7 +6660,7 @@ function PasswordStrengthIndicator({ password, lang }) {
   )
 }
 
-function SettingsSikkerhed({ lang, fS, lS }) {
+function SettingsSikkerhed({ lang, fS, lS, currentUser }) {
   const t = getTranslations(lang)
   const [profile, setProfile] = useState(null)
   const [phone, setPhone] = useState('')
@@ -6107,7 +6675,7 @@ function SettingsSikkerhed({ lang, fS, lS }) {
   const [enableCodeMsg, setEnableCodeMsg] = useState(null)
 
   useEffect(() => {
-    fetch('/api/profile', { credentials: 'include' })
+    csrfFetch('/api/profile', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (!data) return
@@ -6149,31 +6717,19 @@ function SettingsSikkerhed({ lang, fS, lS }) {
     if (!profile?.phone) return
     setEnableCodeSent(false); setEnableCode(''); setEnableCodeMsg(null)
     setShowEnableFlow(true)
-    // Send a test SMS to verify the number works
-    const data = await apiSendSettingsMfa().catch(() => null)
-    // If MFA isn't enabled yet, send-settings-mfa will fail — use enable-mfa directly after a temp enable trick
-    // Instead we just set mfa_enabled=1 and let the user confirm
+    const data = await apiSendEnableMfa()
     if (!data?.ok) {
-      // enable-mfa sets enabled flag; then user activates it
-      const en = await apiEnableMfa()
-      if (!en?.ok) {
-        setEnableCodeMsg({ ok: false, text: t.couldNotActivateHaveYouSavedAPhoneNumber })
-        setShowEnableFlow(false)
-        return
-      }
-      setMfaEnabled(true)
+      setEnableCodeMsg({ ok: false, text: t.couldNotActivateHaveYouSavedAPhoneNumber })
       setShowEnableFlow(false)
-      setMfaMsg({ ok: true, text: t.twoFactorAuthenticationIsNowEnabled })
-    } else {
-      setEnableCodeSent(true)
+      return
     }
+    setEnableCodeSent(true)
   }
 
   const handleConfirmEnable = async (e) => {
     e.preventDefault()
     if (!enableCode.trim()) return
-    // Enable MFA (requires phone already set)
-    const en = await apiEnableMfa()
+    const en = await apiConfirmEnableMfa(enableCode.trim())
     if (!en?.ok) {
       setEnableCodeMsg({ ok: false, text: t.activationFailed })
       return
@@ -6186,7 +6742,7 @@ function SettingsSikkerhed({ lang, fS, lS }) {
 
   const btnStyle = (color = '#2D6A4F') => ({ padding: '9px 20px', borderRadius: 8, border: 'none', background: color, color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600 })
 
-  return (
+  return (<>
     <div className="p-card" style={{ padding: 24 }}>
       <div style={{ fontSize: 15, fontWeight: 700, color: '#333', marginBottom: 4 }}>
         🔒 {t.twoFactorAuthentication2FA}
@@ -6279,7 +6835,8 @@ function SettingsSikkerhed({ lang, fS, lS }) {
         {mfaMsg && <div style={{ marginTop: 10, fontSize: 13, fontWeight: 600, color: mfaMsg.ok ? '#2D6A4F' : '#c0392b' }}>{mfaMsg.ok ? '✓' : '✗'} {mfaMsg.text}</div>}
       </div>
     </div>
-  )
+    <ModeratorRequestCard lang={lang} t={t} currentUser={currentUser} />
+  </>)
 }
 
 function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenModeModal }) {
@@ -6305,7 +6862,7 @@ function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenM
   const [mfaSettingsSending, setMfaSettingsSending] = useState(false)
 
   useEffect(() => {
-    fetch('/api/profile', { credentials: 'include' })
+    csrfFetch('/api/profile', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (!data) return; setProfile(data); setNewEmail(data.email || '') })
       .catch(() => {})
@@ -6342,7 +6899,7 @@ function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenM
     }
     setPasswordLoading(true); setPasswordMsg(null); setCurrentPwdError(null)
     try {
-      const res = await fetch('/api/profile/password', {
+      const res = await csrfFetch('/api/profile/password', {
         method: 'PATCH', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...(hasPassword ? { currentPassword } : {}), newPassword, lang, ...(overrideMfaCode ? { mfaCode: overrideMfaCode } : {}) }),
@@ -6378,7 +6935,7 @@ function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenM
     }
     setEmailLoading(true); setEmailMsg(null)
     try {
-      const res = await fetch('/api/profile/email', {
+      const res = await csrfFetch('/api/profile/email', {
         method: 'PATCH', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ newEmail: newEmail.trim(), password: emailPassword, ...(overrideMfaCode ? { mfaCode: overrideMfaCode } : {}) }),
@@ -6481,8 +7038,8 @@ function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenM
         <div style={{ fontSize: 14, fontWeight: 700, color: '#333', marginBottom: 4 }}>💼 {t.modeCurrentLabel}</div>
         <div style={{ fontSize: 13, color: '#666', marginBottom: 12 }}>
           {lang === 'da'
-            ? `Nuværende kontotype: ${mode === 'business' ? 'Erhverv' : 'Privat'}. Skift for at tilpasse oplevelsen til dit behov.`
-            : `Current account type: ${mode === 'business' ? 'Business' : 'Personal'}. Switch to tailor the experience to your needs.`}
+            ? `Nuværende kontotype: ${mode === 'business' ? 'Business' : mode === 'network' ? 'Netværk' : 'Privat'}. Skift for at tilpasse oplevelsen til dit behov.`
+            : `Current account type: ${mode === 'business' ? 'Business' : mode === 'network' ? 'Network' : 'Personal'}. Switch to tailor the experience to your needs.`}
         </div>
         <button
           onClick={onOpenModeModal}
@@ -6491,8 +7048,6 @@ function SettingsKonto({ lang, t, currentUser, mode, fS, lS, onNavigate, onOpenM
           {t.modeSwitch}
         </button>
       </div>
-
-      <ModeratorRequestCard lang={lang} t={t} currentUser={currentUser} />
 
       {/* MFA challenge overlay for sensitive changes */}
       {mfaPending && (
@@ -7032,7 +7587,7 @@ function SettingsPrivatliv({ lang, t, fS, lS }) {
   const [msg, setMsg] = useState(null)
 
   useEffect(() => {
-    fetch('/api/settings/privacy', { credentials: 'include' })
+    csrfFetch('/api/settings/privacy', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         if (d) {
@@ -7055,7 +7610,7 @@ function SettingsPrivatliv({ lang, t, fS, lS }) {
   const save = async () => {
     setMsg(null)
     try {
-      const res = await fetch('/api/settings/privacy', {
+      const res = await csrfFetch('/api/settings/privacy', {
         method: 'PATCH', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -7206,7 +7761,7 @@ function SettingsSessions({ lang, t, onLogout }) {
 
   const load = () => {
     setLoading(true)
-    fetch('/api/settings/sessions', { credentials: 'include' })
+    csrfFetch('/api/settings/sessions', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => { setSessions(data?.sessions || []); setLoading(false) })
       .catch(() => setLoading(false))
@@ -7214,13 +7769,13 @@ function SettingsSessions({ lang, t, onLogout }) {
   useEffect(() => { load() }, [])
 
   const deleteSession = (id) => {
-    fetch(`/api/settings/sessions/${id}`, { method: 'DELETE', credentials: 'include' })
+    csrfFetch(`/api/settings/sessions/${id}`, { method: 'DELETE', credentials: 'include' })
       .then(() => load())
       .catch(() => {})
   }
 
   const deleteOthers = () => {
-    fetch('/api/settings/sessions/others', { method: 'DELETE', credentials: 'include' })
+    csrfFetch('/api/settings/sessions/others', { method: 'DELETE', credentials: 'include' })
       .then(() => load())
       .catch(() => {})
   }
@@ -7295,12 +7850,18 @@ function SettingsSessions({ lang, t, onLogout }) {
   )
 }
 
-function SettingsSprog({ lang, t, darkMode, onToggleDark }) {
-  const currentLang = UI_LANGS.find(l => l.code === lang) || UI_LANGS[0]
+const THEMES = [
+  { id: 'light',   da: 'Lyst',       en: 'Light',   bg: '#FAFAF7', nav: '#2D6A4F', card: '#FFFFFF' },
+  { id: 'dark',    da: 'Mørkt',      en: 'Dark',    bg: '#141416', nav: '#1C1C20', card: '#252525' },
+  { id: 'nordic',  da: 'Nordisk',    en: 'Nordic',  bg: '#F0F4F8', nav: '#1E3A5F', card: '#FFFFFF' },
+  { id: 'sunset',  da: 'Solnedgang', en: 'Sunset',  bg: '#FEF3E8', nav: '#7A2D0A', card: '#FFFAF5' },
+  { id: 'forest',  da: 'Skov',       en: 'Forest',  bg: '#F0F7F3', nav: '#0D2E1A', card: '#FFFFFF' },
+]
 
+function SettingsSprog({ lang, t, theme, onThemeChange }) {
   const switchLang = (newLang) => {
-    localStorage.setItem('fellis_lang', newLang)
-    fetch('/api/me/lang', {
+    localStorage.setItem('lang', newLang)
+    csrfFetch('/api/me/lang', {
       method: 'PATCH', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ lang: newLang }),
@@ -7312,7 +7873,7 @@ function SettingsSprog({ lang, t, darkMode, onToggleDark }) {
     <div className="p-card" style={{ padding: 24 }}>
       <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>🌐 {t.settingsLanguage}</div>
 
-      <div style={{ display: 'flex', gap: 10 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
         {UI_LANGS.map(l => (
           <div
             key={l.code}
@@ -7332,12 +7893,22 @@ function SettingsSprog({ lang, t, darkMode, onToggleDark }) {
           : 'Language is auto-detected from your country on first visit.'}
       </p>
 
-      <div style={{ fontSize: 14, fontWeight: 700, marginTop: 24, marginBottom: 12 }}>🌙 {t.settingsDarkMode}</div>
-      <div className="dark-mode-toggle" onClick={onToggleDark}>
-        <div className={`dark-mode-toggle-track${darkMode ? ' on' : ''}`}>
-          <div className="dark-mode-toggle-thumb" />
-        </div>
-        <span style={{ fontSize: 14 }}>{darkMode ? (t.enabled) : (t.adminLivestreamDisabled)}</span>
+      <div style={{ fontSize: 14, fontWeight: 700, marginTop: 24, marginBottom: 12 }}>🎨 {t.settingsDarkMode}</div>
+      <div className="theme-picker">
+        {THEMES.map(th => (
+          <div key={th.id} className={`theme-card${theme === th.id ? ' active' : ''}`} onClick={() => onThemeChange(th.id)}>
+            <div className="theme-preview" style={{ background: th.bg }}>
+              <div className="theme-preview-nav" style={{ background: th.nav }} />
+              <div className="theme-preview-body">
+                <div className="theme-preview-bar" style={{ background: th.card }} />
+                <div className="theme-preview-bar-sm" style={{ background: th.card }} />
+                <div className="theme-preview-bar" style={{ background: th.card }} />
+              </div>
+            </div>
+            <span className="theme-card-name">{lang === 'da' ? th.da : th.en}</span>
+            {theme === th.id && <span className="theme-card-check">✓</span>}
+          </div>
+        ))}
       </div>
     </div>
   )
@@ -7461,149 +8032,7 @@ function AboutPage({ lang }) {
     apiGetChangelog(lang).then(data => { if (data?.entries) setChangelog(data.entries) })
   }, [])
 
-  const t = lang === 'da' ? {
-    title: 'Om Fellis',
-    subtitle: 'Filosofi og formål med Fellis.eu',
-    philosophyTitle: 'Vores filosofi',
-    philosophyText: [
-      'Fellis.eu er skabt som et privat og trygt alternativ til de store sociale netværk. Vi tror på, at sociale medier skal tjene mennesker — ikke omvendt.',
-      'Platformen er bygget i Europa, drives efter europæisk lovgivning og respekterer din privatlivets fred. Vi sælger ikke data, og vi gemmer kun det, der er nødvendigt for at platformen fungerer. Vi viser reklamer for at finansiere platformen, men de er ikke baseret på algoritmisk profilering.',
-      'Fællesskab, tillid og gennemsigtighed er kernen i alt, hvad vi gør.',
-    ],
-    purposeTitle: 'Formål',
-    purposes: [
-      'Skabe et dansk og europæisk fællesskab med fokus på tillid og privatliv',
-      'Give brugerne fuld kontrol over egne data (GDPR)',
-      'Tilbyde et socialt netværk uden algoritmisk profilering eller datasalg',
-      'Støtte lokal og europæisk digital infrastruktur',
-      'Være åben og ærlig om, hvordan platformen fungerer og udvikles',
-    ],
-    changelogTitle: 'Implementerede tiltag',
-    changelogEmpty: 'Ingen poster endnu',
-    feedbackTitle: 'Giv feedback',
-    feedbackSubtitle: 'Rapportér fejl, mangler eller foreslå forbedringer',
-    feedbackTypeBug: 'Fejl / bug',
-    feedbackTypeMissing: 'Manglende funktion',
-    feedbackTypeSuggestion: 'Forslag',
-    feedbackTypeLabel: 'Kategori',
-    feedbackTitleLabel: 'Titel',
-    feedbackTitlePlaceholder: 'Kort beskrivelse...',
-    feedbackDescLabel: 'Beskrivelse',
-    feedbackDescPlaceholder: 'Beskriv fejlen, hvad der mangler, eller dit forslag i detaljer...',
-    feedbackSubmit: 'Send feedback',
-    feedbackDone: 'Tak for din feedback!',
-    feedbackError: 'Noget gik galt – prøv igen',
-    servicesTitle: 'Tjenester vi bruger — og hvorfor europæisk',
-    servicesIntro: 'Vi vælger bevidst europæiske udbydere på alle lag af platformen. Det handler ikke kun om GDPR — det handler om at holde din data, din kommunikation og dine betalinger inden for et retssystem, der beskytter dig.',
-    services: [
-      {
-        name: 'Yggdrasil Cloud',
-        flag: '🇩🇰', country: 'Danmark',
-        url: 'https://yggdrasilcloud.dk/',
-        role: 'Hosting & servere',
-        why: 'Dansk cloud-udbyder med servere fysisk placeret i Danmark. Dine data forlader aldrig EU og er underlagt dansk lovgivning — ikke CLOUD Act eller FISA 702.',
-      },
-      {
-        name: '46elks',
-        flag: '🇸🇪', country: 'Sverige',
-        url: 'https://46elks.com/',
-        role: 'SMS til to-faktor-godkendelse',
-        why: 'Svensk teleudbyder med fuld GDPR-compliance. Bruges til at sende engangskoder ved login med to-faktor. Ingen data sendes til udbydere uden for EU.',
-      },
-      {
-        name: 'Mollie',
-        flag: '🇳🇱', country: 'Holland',
-        url: 'https://www.mollie.com/',
-        role: 'Betalinger',
-        why: 'Hollandsk betalingsgateway reguleret af De Nederlandsche Bank under EU\'s PSD2-direktiv. Understøtter MobilePay, Visa, Mastercard, Apple Pay og Google Pay — uden at dine kortoplysninger nogensinde rammer vores egne servere.',
-      },
-      {
-        name: 'Nodemailer',
-        flag: '🇪🇺', country: 'EU',
-        url: 'https://nodemailer.com/',
-        role: 'E-mail (adgangskode-nulstilling)',
-        why: 'Open source e-mail-bibliotek med ingen ekstern afhængighed. E-mails sendes via din egen SMTP-server — vi låser dig ikke til en tredjeparts e-mail-tjeneste.',
-      },
-      {
-        name: 'Mistral AI',
-        flag: '🇫🇷', country: 'Frankrig',
-        url: 'https://mistral.ai/',
-        role: 'AI-assistance til CV og ansøgning',
-        why: 'Fransk AI-virksomhed grundlagt i 2023, med modeller hostet i EU. Bruges til at hjælpe dig med at skrive CV og ansøgningsbreve. Din profildata sendes kun, når du aktivt bruger generatoren, og Mistral gemmer den ikke efter svaret er leveret. Funktionen er valgfri og kræver en API-nøgle — uden nøgle bruges lokale skabeloner i stedet.',
-      },
-    ],
-  } : {
-    title: 'About Fellis',
-    subtitle: 'Philosophy and purpose of Fellis.eu',
-    philosophyTitle: 'Our philosophy',
-    philosophyText: [
-      'Fellis.eu was created as a private and safe alternative to the major social networks. We believe social media should serve people — not the other way around.',
-      'The platform is built in Europe, operates under European law, and respects your privacy. We do not sell data, and we only store what is necessary for the platform to function. We display ads to support the platform, but these are not based on algorithmic profiling.',
-      'Community, trust and transparency are at the core of everything we do.',
-    ],
-    purposeTitle: 'Purpose',
-    purposes: [
-      'Create a Danish and European community focused on trust and privacy',
-      'Give users full control over their own data (GDPR)',
-      'Offer a social network without algorithmic profiling or data sales',
-      'Support local and European digital infrastructure',
-      'Be open and honest about how the platform works and evolves',
-    ],
-    changelogTitle: 'Implemented features',
-    changelogEmpty: 'No entries yet',
-    feedbackTitle: 'Give feedback',
-    feedbackSubtitle: 'Report bugs, missing features, or suggest improvements',
-    feedbackTypeBug: 'Bug / error',
-    feedbackTypeMissing: 'Missing feature',
-    feedbackTypeSuggestion: 'Suggestion',
-    feedbackTypeLabel: 'Category',
-    feedbackTitleLabel: 'Title',
-    feedbackTitlePlaceholder: 'Short description...',
-    feedbackDescLabel: 'Description',
-    feedbackDescPlaceholder: 'Describe the bug, what is missing, or your suggestion in detail...',
-    feedbackSubmit: 'Submit feedback',
-    feedbackDone: 'Thank you for your feedback!',
-    feedbackError: 'Something went wrong — please try again',
-    servicesTitle: 'Services we use — and why European',
-    servicesIntro: 'We deliberately choose European providers at every layer of the platform. It is not just about GDPR compliance — it is about keeping your data, your communications, and your payments within a legal framework that protects you.',
-    services: [
-      {
-        name: 'Yggdrasil Cloud',
-        flag: '🇩🇰', country: 'Denmark',
-        url: 'https://yggdrasilcloud.dk/',
-        role: 'Hosting & servers',
-        why: 'Danish cloud provider with servers physically located in Denmark. Your data never leaves the EU and is subject to Danish law — not the CLOUD Act or FISA 702.',
-      },
-      {
-        name: '46elks',
-        flag: '🇸🇪', country: 'Sweden',
-        url: 'https://46elks.com/',
-        role: 'SMS for two-factor authentication',
-        why: 'Swedish telecom provider with full GDPR compliance. Used to send one-time codes during two-factor login. No data is sent to providers outside the EU.',
-      },
-      {
-        name: 'Mollie',
-        flag: '🇳🇱', country: 'Netherlands',
-        url: 'https://www.mollie.com/',
-        role: 'Payments',
-        why: "Dutch payment gateway regulated by De Nederlandsche Bank under the EU's PSD2 directive. Supports MobilePay, Visa, Mastercard, Apple Pay and Google Pay — without your card details ever touching our own servers.",
-      },
-      {
-        name: 'Nodemailer',
-        flag: '🇪🇺', country: 'EU',
-        url: 'https://nodemailer.com/',
-        role: 'Email (password reset)',
-        why: 'Open source email library with no external dependency. Emails are sent via your own SMTP server — we do not lock you in to a third-party email service.',
-      },
-      {
-        name: 'Mistral AI',
-        flag: '🇫🇷', country: 'France',
-        url: 'https://mistral.ai/',
-        role: 'AI assistance for CV and cover letters',
-        why: 'French AI company founded in 2023, with models hosted in the EU. Used to help you write CVs and cover letters. Your profile data is only sent when you actively use the generator, and Mistral does not retain it after the response is delivered. The feature is optional and requires an API key — without one, local templates are used instead.',
-      },
-    ],
-  }
+  const t = getTranslations(lang)
 
   const s = {
     section: { fontWeight: 700, fontSize: 13, color: '#666', textTransform: 'uppercase', letterSpacing: 1, margin: '24px 0 10px' },
@@ -7612,23 +8041,23 @@ function AboutPage({ lang }) {
   return (
     <div className="p-events" style={{ maxWidth: 720 }}>
       <div style={{ marginBottom: 20 }}>
-        <h2 className="p-section-title" style={{ margin: '0 0 4px' }}>💡 {t.title}</h2>
-        <div style={{ fontSize: 13, color: '#888' }}>{t.subtitle}</div>
+        <h2 className="p-section-title" style={{ margin: '0 0 4px' }}>💡 {t.aboutTitle}</h2>
+        <div style={{ fontSize: 13, color: '#888' }}>{t.aboutSubtitle}</div>
       </div>
 
       {/* Philosophy */}
-      <div style={s.section}>🌿 {t.philosophyTitle}</div>
+      <div style={s.section}>🌿 {t.aboutPhilosophyTitle}</div>
       <div className="p-card" style={{ padding: 20, marginBottom: 16 }}>
-        {t.philosophyText.map((para, i) => (
-          <p key={i} style={{ fontSize: 14, color: '#333', lineHeight: 1.65, margin: i < t.philosophyText.length - 1 ? '0 0 12px' : 0 }}>{para}</p>
+        {t.aboutPhilosophyText.map((para, i) => (
+          <p key={i} style={{ fontSize: 14, color: '#333', lineHeight: 1.65, margin: i < t.aboutPhilosophyText.length - 1 ? '0 0 12px' : 0 }}>{para}</p>
         ))}
       </div>
 
       {/* Purpose */}
-      <div style={s.section}>🎯 {t.purposeTitle}</div>
+      <div style={s.section}>🎯 {t.aboutPurposeTitle}</div>
       <div className="p-card" style={{ padding: '4px 0', marginBottom: 16 }}>
-        {t.purposes.map((item, i) => (
-          <div key={i} style={{ padding: '10px 20px', fontSize: 14, color: '#333', borderBottom: i < t.purposes.length - 1 ? '1px solid #f0f0f0' : 'none', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+        {t.aboutPurposes.map((item, i) => (
+          <div key={i} style={{ padding: '10px 20px', fontSize: 14, color: '#333', borderBottom: i < t.aboutPurposes.length - 1 ? '1px solid #f0f0f0' : 'none', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
             <span style={{ color: '#2D6A4F', fontWeight: 700, flexShrink: 0 }}>✓</span>
             {item}
           </div>
@@ -7636,10 +8065,10 @@ function AboutPage({ lang }) {
       </div>
 
       {/* European services */}
-      <div style={s.section}>🌍 {t.servicesTitle}</div>
+      <div style={s.section}>🌍 {t.aboutServicesTitle}</div>
       <div className="p-card" style={{ padding: 20, marginBottom: 16 }}>
-        <p style={{ fontSize: 13, color: '#555', lineHeight: 1.6, margin: '0 0 16px' }}>{t.servicesIntro}</p>
-        {t.services.map((svc, i) => (
+        <p style={{ fontSize: 13, color: '#555', lineHeight: 1.6, margin: '0 0 16px' }}>{t.aboutServicesIntro}</p>
+        {t.aboutServices.map((svc, i) => (
           <div key={svc.name} style={{ display: 'flex', gap: 14, alignItems: 'flex-start', paddingTop: i > 0 ? 14 : 0, marginTop: i > 0 ? 14 : 0, borderTop: i > 0 ? '1px solid #f0f0f0' : 'none' }}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0, width: 38, gap: 2, marginTop: 1 }}>
               <div style={{ fontSize: 22, lineHeight: 1 }}>{svc.flag}</div>
@@ -7657,10 +8086,10 @@ function AboutPage({ lang }) {
       </div>
 
       {/* Changelog */}
-      <div style={s.section}>🛠️ {t.changelogTitle}</div>
+      <div style={s.section}>🛠️ {t.aboutChangelogTitle}</div>
       <div className="p-card" style={{ padding: '4px 0', marginBottom: 16 }}>
         {changelog.length === 0
-          ? <div style={{ padding: '16px 20px', fontSize: 13, color: '#aaa' }}>{t.changelogEmpty}</div>
+          ? <div style={{ padding: '16px 20px', fontSize: 13, color: '#aaa' }}>{t.aboutChangelogEmpty}</div>
           : changelog.map((entry, i) => (
               <div key={i} style={{ padding: '10px 20px', fontSize: 13, color: '#333', borderBottom: i < changelog.length - 1 ? '1px solid #f0f0f0' : 'none', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                 <span style={{ flexShrink: 0 }}>{entry.icon || '·'}</span>
@@ -7673,12 +8102,50 @@ function AboutPage({ lang }) {
         }
       </div>
 
+      {/* Legal documents */}
+      <div style={s.section}>📄 {t.aboutLegalTitle}</div>
+      <div className="p-card" style={{ padding: '4px 0', marginBottom: 16 }}>
+        {[
+          { label: t.aboutLegalPrivacy, href: '/privacy' },
+          { label: t.aboutLegalTerms, href: '/terms' },
+          { label: t.aboutLegalSales, href: '/salgsbetingelser' },
+        ].map(({ label, href }, i, arr) => (
+          <a
+            key={href}
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 20px', fontSize: 14, color: '#2D6A4F', fontWeight: 600, textDecoration: 'none', borderBottom: i < arr.length - 1 ? '1px solid #f0f0f0' : 'none' }}
+          >
+            {label}
+            <span style={{ fontSize: 16, color: '#aaa' }}>→</span>
+          </a>
+        ))}
+      </div>
+
+      {/* For businesses */}
+      <div style={s.section}>🏢 {t.aboutBusinessTitle}</div>
+      <div className="p-card" style={{ padding: '4px 0', marginBottom: 16 }}>
+        <a
+          href="/for-business"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', textDecoration: 'none' }}
+        >
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#2D6A4F', marginBottom: 2 }}>{t.aboutBusinessLink}</div>
+            <div style={{ fontSize: 12, color: '#888' }}>{t.aboutBusinessLinkDesc}</div>
+          </div>
+          <span style={{ fontSize: 16, color: '#aaa', flexShrink: 0, marginLeft: 12 }}>→</span>
+        </a>
+      </div>
+
       {/* Feedback */}
-      <div style={s.section}>💬 {t.feedbackTitle}</div>
+      <div style={s.section}>💬 {t.aboutFeedbackTitle}</div>
       <div className="p-card" style={{ padding: 20, marginBottom: 16 }}>
-        <p style={{ fontSize: 13, color: '#555', lineHeight: 1.6, margin: '0 0 16px' }}>{t.feedbackSubtitle}</p>
+        <p style={{ fontSize: 13, color: '#555', lineHeight: 1.6, margin: '0 0 16px' }}>{t.aboutFeedbackSubtitle}</p>
         {fbStatus === 'done' ? (
-          <div style={{ textAlign: 'center', padding: '24px 0', fontSize: 15, color: '#2D6A4F', fontWeight: 600 }}>✓ {t.feedbackDone}</div>
+          <div style={{ textAlign: 'center', padding: '24px 0', fontSize: 15, color: '#2D6A4F', fontWeight: 600 }}>✓ {t.aboutFeedbackDone}</div>
         ) : (
           <form onSubmit={async e => {
             e.preventDefault()
@@ -7695,12 +8162,12 @@ function AboutPage({ lang }) {
           }}>
             {/* Type selector */}
             <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#666', marginBottom: 6 }}>{t.feedbackTypeLabel}</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#666', marginBottom: 6 }}>{t.aboutFeedbackTypeLabel}</div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {[
-                  { key: 'bug', label: `🐛 ${t.feedbackTypeBug}` },
-                  { key: 'missing', label: `🔍 ${t.feedbackTypeMissing}` },
-                  { key: 'suggestion', label: `💡 ${t.feedbackTypeSuggestion}` },
+                  { key: 'bug', label: `🐛 ${t.aboutFeedbackTypeBug}` },
+                  { key: 'missing', label: `🔍 ${t.aboutFeedbackTypeMissing}` },
+                  { key: 'suggestion', label: `💡 ${t.aboutFeedbackTypeSuggestion}` },
                 ].map(opt => (
                   <button
                     key={opt.key}
@@ -7720,11 +8187,11 @@ function AboutPage({ lang }) {
 
             {/* Title */}
             <div style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: '#666', display: 'block', marginBottom: 5 }}>{t.feedbackTitleLabel}</label>
+              <label style={{ fontSize: 12, fontWeight: 600, color: '#666', display: 'block', marginBottom: 5 }}>{t.aboutFeedbackTitleLabel}</label>
               <input
                 value={fbTitle}
                 onChange={e => { setFbTitle(e.target.value); if (fbStatus === 'error') setFbStatus('idle') }}
-                placeholder={t.feedbackTitlePlaceholder}
+                placeholder={t.aboutFeedbackTitlePlaceholder}
                 maxLength={200}
                 required
                 style={{ width: '100%', padding: '9px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', boxSizing: 'border-box' }}
@@ -7733,11 +8200,11 @@ function AboutPage({ lang }) {
 
             {/* Description */}
             <div style={{ marginBottom: 14 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: '#666', display: 'block', marginBottom: 5 }}>{t.feedbackDescLabel}</label>
+              <label style={{ fontSize: 12, fontWeight: 600, color: '#666', display: 'block', marginBottom: 5 }}>{t.aboutFeedbackDescLabel}</label>
               <textarea
                 value={fbDesc}
                 onChange={e => { setFbDesc(e.target.value); if (fbStatus === 'error') setFbStatus('idle') }}
-                placeholder={t.feedbackDescPlaceholder}
+                placeholder={t.aboutFeedbackDescPlaceholder}
                 rows={4}
                 required
                 style={{ width: '100%', padding: '9px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }}
@@ -7745,7 +8212,7 @@ function AboutPage({ lang }) {
             </div>
 
             {fbStatus === 'error' && (
-              <div style={{ fontSize: 13, color: '#C0392B', marginBottom: 10 }}>{t.feedbackError}</div>
+              <div style={{ fontSize: 13, color: '#C0392B', marginBottom: 10 }}>{t.aboutFeedbackError}</div>
             )}
 
             <button
@@ -7753,7 +8220,7 @@ function AboutPage({ lang }) {
               disabled={fbStatus === 'sending' || !fbTitle.trim() || !fbDesc.trim()}
               style={{ padding: '9px 22px', borderRadius: 8, border: 'none', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', opacity: (fbStatus === 'sending' || !fbTitle.trim() || !fbDesc.trim()) ? 0.6 : 1 }}
             >
-              {fbStatus === 'sending' ? '…' : t.feedbackSubmit}
+              {fbStatus === 'sending' ? '…' : t.aboutFeedbackSubmit}
             </button>
           </form>
         )}
@@ -8063,165 +8530,7 @@ function PrivacySection({ lang, onLogout }) {
     })
   }, [])
 
-  const t = lang === 'da' ? {
-    // Page header
-    title: 'Privatliv & Dataforvaltning',
-    subtitle: 'Dine rettigheder i henhold til EU\'s GDPR-forordning',
-    // Privacy notice (transparency — GDPR Art. 13 & 14)
-    privacyTitle: 'Sådan behandler vi dine data',
-    privacyIntro: 'fellis.eu er en dansk platform hostet i EU. Vi er forpligtet til at beskytte dine persondata i henhold til EU\'s General Data Protection Regulation (GDPR).',
-    privacyWhatTitle: 'Hvad vi indsamler',
-    privacyWhat: [
-      'Kontooplysninger: navn, e-mail, profilbillede',
-      'Indhold du opretter: opslag, kommentarer, beskeder',
-    ],
-    privacyWhyTitle: 'Hvorfor vi indsamler det',
-    privacyWhy: [
-      'For at levere platformens funktionalitet',
-      'Vi sælger ALDRIG dine data eller bruger dem til reklamer',
-    ],
-    privacyStorageTitle: 'Opbevaring og sikkerhed',
-    privacyStorage: [
-      'Alle data opbevares på EU-servere (Danmark)',
-      'Sessioner udløber efter 30 dage',
-    ],
-    // Hosting card
-    hostingTitle: 'Hosting og datasuverænitet',
-    hostingProvider: 'Yggdrasil Cloud',
-    hostingProviderUrl: 'https://yggdrasilcloud.dk/',
-    hostingIntro: 'fellis.eu er hostet hos Yggdrasil Cloud — en dansk cloud-udbyder med servere placeret i Danmark.',
-    hostingWhyTitle: 'Hvorfor EU-hosting er vigtigt',
-    hostingWhy: [
-      'Dine data forlader aldrig EU — de opbevares fysisk i Danmark og er underlagt dansk og europæisk lovgivning.',
-      'EU\'s GDPR-forordning giver dig som borger stærke rettigheder over dine persondata, herunder ret til indsigt, rettelse, sletning og dataportabilitet.',
-      'Til forskel fra platforme hostet i USA eller andre tredjelande er dine data ikke underlagt lovgivning som FISA 702, CLOUD Act eller lignende overvågningsbestemmelser.',
-      'Danske datacentre opererer under strenge europæiske standarder for sikkerhed, miljø og energieffektivitet.',
-    ],
-    hostingRightsTitle: 'Dine fordele ved EU-hosting',
-    hostingRights: [
-      'Fuld GDPR-beskyttelse — dine data behandles i overensstemmelse med verdens strengeste persondatalovgivning.',
-      'Ingen overførsel til tredjelande — dine data deles ikke med myndigheder uden for EU uden retsgrundlag.',
-      'Datatilsynet (den danske databeskyttelsesmyndighed) fører tilsyn med behandlingen af dine data.',
-      'Du har altid ret til at klage til Datatilsynet, hvis du mener, dine rettigheder er krænket.',
-    ],
-    // Consent management
-    consentTitle: 'Samtykke-status',
-    consentDataProcessing: 'Generel databehandling',
-    consentGiven: 'Samtykke givet',
-    consentNotGiven: 'Intet samtykke',
-    consentWithdrawn: 'Samtykke trukket tilbage',
-    consentWithdrawBtn: 'Træk samtykke tilbage',
-    consentWithdrawConfirm: 'Er du sikker på, at du vil trække dit samtykke tilbage?',
-    consentDate: 'Givet den',
-    // GDPR rights
-    rightsTitle: 'Dine GDPR-rettigheder',
-    rightExport: 'Ret til dataportabilitet (Art. 20)',
-    rightExportDesc: 'Download alle dine data i et maskinlæsbart JSON-format.',
-    exportBtn: 'Download mine data',
-    rightErasure: 'Ret til sletning (Art. 17)',
-    rightErasureDesc: 'Slet din konto og alle tilknyttede data permanent. Dette inkluderer alle opslag, kommentarer, beskeder, venskaber og uploadede filer.',
-    deleteAccountBtn: 'Slet min konto permanent',
-    confirmDeleteAccount: 'ADVARSEL: Dette sletter din konto og ALLE dine data permanent. Dette kan ikke fortrydes.\n\nDine opslag, kommentarer, beskeder, venskaber, uploadede filer og samtykkehistorik vil blive slettet.\n\nEr du helt sikker?',
-    // Account deletion multi-step confirmation
-    deleteConfirmTitle: 'Bekræft sletning af konto',
-    deleteConfirmDesc: 'Denne handling er permanent og kan ikke fortrydes. Bekræft din identitet for at fortsætte.',
-    deletePasswordLabel: 'Nuværende adgangskode',
-    deletePasswordPlaceholder: '••••••••',
-    deleteContinueBtn: 'Fortsæt',
-    deleteCancelBtn: 'Annuller',
-    deleteSmsLabel: 'SMS-bekræftelseskode',
-    deleteSmsDesc: 'En 6-cifret kode er sendt til dit registrerede telefonnummer. Koden udløber om 5 minutter.',
-    deleteSmsPlaceholder: '123456',
-    deleteFinalBtn: 'Slet min konto permanent',
-    deleteWrongPassword: 'Forkert adgangskode. Prøv igen.',
-    deleteSmsInvalid: 'Ugyldig eller udløbet SMS-kode. Prøv igen.',
-    // Contact
-    contactTitle: 'Kontakt databeskyttelsesansvarlig',
-    contactDesc: 'Har du spørgsmål om dine data eller vil du udøve en rettighed, der ikke er dækket her, kan du kontakte os på:',
-    contactEmail: 'privacy@fellis.eu',
-    // Status
-    done: 'Udført!',
-    error: 'Der opstod en fejl. Prøv igen.',
-  } : {
-    // Page header
-    title: 'Privacy & Data Management',
-    subtitle: 'Your rights under the EU GDPR regulation',
-    // Privacy notice
-    privacyTitle: 'How we handle your data',
-    privacyIntro: 'fellis.eu is a Danish platform hosted in the EU. We are committed to protecting your personal data under the EU General Data Protection Regulation (GDPR).',
-    privacyWhatTitle: 'What we collect',
-    privacyWhat: [
-      'Account information: name, email, profile picture',
-      'Content you create: posts, comments, messages',
-    ],
-    privacyWhyTitle: 'Why we collect it',
-    privacyWhy: [
-      'To provide the platform functionality',
-      'We NEVER sell your data or use it for advertising',
-    ],
-    privacyStorageTitle: 'Storage and security',
-    privacyStorage: [
-      'All data stored on EU servers (Denmark)',
-      'Sessions expire after 30 days',
-    ],
-    // Hosting card
-    hostingTitle: 'Hosting and data sovereignty',
-    hostingProvider: 'Yggdrasil Cloud',
-    hostingProviderUrl: 'https://yggdrasilcloud.dk/',
-    hostingIntro: 'fellis.eu is hosted by Yggdrasil Cloud — a Danish cloud provider with servers located in Denmark.',
-    hostingWhyTitle: 'Why EU hosting matters',
-    hostingWhy: [
-      'Your data never leaves the EU — it is physically stored in Denmark and subject to Danish and European law.',
-      'The EU GDPR regulation gives you as a citizen strong rights over your personal data, including the right to access, rectification, erasure, and data portability.',
-      'Unlike platforms hosted in the USA or other third countries, your data is not subject to legislation such as FISA 702, the CLOUD Act, or similar surveillance provisions.',
-      'Danish data centers operate under strict European standards for security, environment, and energy efficiency.',
-    ],
-    hostingRightsTitle: 'Your benefits from EU hosting',
-    hostingRights: [
-      'Full GDPR protection — your data is processed in accordance with the world\'s strictest personal data legislation.',
-      'No transfers to third countries — your data is not shared with authorities outside the EU without a legal basis.',
-      'The Danish Data Protection Agency (Datatilsynet) supervises the processing of your data.',
-      'You always have the right to file a complaint with the Danish Data Protection Agency if you believe your rights have been violated.',
-    ],
-    // Consent management
-    consentTitle: 'Consent Status',
-    consentDataProcessing: 'General data processing',
-    consentGiven: 'Consent given',
-    consentNotGiven: 'No consent',
-    consentWithdrawn: 'Consent withdrawn',
-    consentWithdrawBtn: 'Withdraw consent',
-    consentWithdrawConfirm: 'Are you sure you want to withdraw your consent?',
-    consentDate: 'Given on',
-    // GDPR rights
-    rightsTitle: 'Your GDPR Rights',
-    rightExport: 'Right to data portability (Art. 20)',
-    rightExportDesc: 'Download all your data in a machine-readable JSON format.',
-    exportBtn: 'Download my data',
-    rightErasure: 'Right to erasure (Art. 17)',
-    rightErasureDesc: 'Permanently delete your account and all associated data. This includes all posts, comments, messages, friendships, and uploaded files.',
-    deleteAccountBtn: 'Delete my account permanently',
-    confirmDeleteAccount: 'WARNING: This will permanently delete your account and ALL your data. This cannot be undone.\n\nYour posts, comments, messages, friendships, uploaded files, and consent history will be deleted.\n\nAre you absolutely sure?',
-    // Account deletion multi-step confirmation
-    deleteConfirmTitle: 'Confirm account deletion',
-    deleteConfirmDesc: 'This action is permanent and cannot be undone. Confirm your identity to proceed.',
-    deletePasswordLabel: 'Current password',
-    deletePasswordPlaceholder: '••••••••',
-    deleteContinueBtn: 'Continue',
-    deleteCancelBtn: 'Cancel',
-    deleteSmsLabel: 'SMS verification code',
-    deleteSmsDesc: 'A 6-digit code has been sent to your registered phone number. The code expires in 5 minutes.',
-    deleteSmsPlaceholder: '123456',
-    deleteFinalBtn: 'Delete my account permanently',
-    deleteWrongPassword: 'Wrong password. Please try again.',
-    deleteSmsInvalid: 'Invalid or expired SMS code. Please try again.',
-    // Contact
-    contactTitle: 'Contact Data Protection Officer',
-    contactDesc: 'If you have questions about your data or want to exercise a right not covered here, contact us at:',
-    contactEmail: 'privacy@fellis.eu',
-    // Status
-    done: 'Done!',
-    error: 'An error occurred. Please try again.',
-  }
+  const t = getTranslations(lang)
 
   const handleExport = async () => {
     setLoading('export')
@@ -8537,6 +8846,24 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
   const avatarClickCount = useRef(0)
   const avatarClickTimer = useRef(null)
   const [watcherPop, setWatcherPop] = useState(false)
+  // Business profile extras
+  const [bizServices, setBizServices] = useState([])
+  const [bizJobs, setBizJobs] = useState([])
+  const [bizEvents, setBizEvents] = useState([])
+  const [bizEndorsements, setBizEndorsements] = useState([])
+  const [bizPartners, setBizPartners] = useState([])
+  const [partnerRequestSent, setPartnerRequestSent] = useState(false)
+  // Inquiry modal
+  const [showInquiry, setShowInquiry] = useState(false)
+  const [inquiryForm, setInquiryForm] = useState({ subject: '', preferred_date: '', message: '' })
+  const [inquirySent, setInquirySent] = useState(false)
+  const [inquirySending, setInquirySending] = useState(false)
+  // Contact form
+  const [showContact, setShowContact] = useState(false)
+  const [contactForm, setContactForm] = useState({ topic: '', message: '' })
+  const [contactSent, setContactSent] = useState(false)
+  // Company profile (business mode)
+  const [companyProfile, setCompanyProfile] = useState(null)
 
   useEffect(() => {
     if (!userId) return
@@ -8548,6 +8875,13 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
         if (data.mode === 'business') {
           setIsFollowing(!!data.isFollowing)
           setFollowerCount(Number(data.followerCount || 0))
+          apiGetCompanyProfile(userId).then(d => { if (d) setCompanyProfile(d) })
+          // Load business extras
+          apiGetBusinessServices(userId).then(d => setBizServices(d?.services || []))
+          apiGetBusinessJobs(userId).then(d => setBizJobs(d?.jobs || []))
+          apiGetBusinessEvents(userId).then(d => setBizEvents(d?.events || []))
+          apiGetBusinessEndorsements(userId).then(d => setBizEndorsements(d?.endorsements || []))
+          apiGetBusinessPartners(userId).then(d => setBizPartners(d?.partners || []))
         }
         setTimeout(onBadgeCheck, 800)
       }
@@ -8603,7 +8937,11 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
         <div className="p-card" style={{ padding: 40, textAlign: 'center', color: '#aaa' }}>…</div>
       ) : (
         <div className="p-card p-profile-card">
-          <div className="p-profile-banner" />
+          <div className="p-profile-banner" style={
+            profile.mode === 'network' ? { background: 'linear-gradient(135deg, #0D9488 0%, #14B8A6 100%)' } :
+            profile.mode === 'business' ? { background: 'linear-gradient(135deg, #D97706 0%, #F59E0B 100%)' } :
+            undefined
+          } />
           <div className="p-profile-info">
             <div className="p-profile-avatar-wrapper" style={{ position: 'relative' }} onClick={handleAvatarClick}>
               {avatarSrc ? (
@@ -8621,22 +8959,68 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
               <h2 className="p-profile-name" style={{ margin: 0 }}>{profile.name}</h2>
-              {profile.mode === 'business' && <BusinessBadge lang={lang} onClick={() => onNavigate?.('businesses')} />}
+              {profile.mode === 'business' && <BusinessBadge lang={lang} onClick={() => onNavigate?.('business-hub')} />}
+              {profile.mode === 'network' && (
+                <span style={{ fontSize: 12, background: '#CCFBF1', color: '#0D9488', border: '1px solid #5EEAD4', borderRadius: 20, padding: '2px 10px', fontWeight: 700 }}>
+                  {t.network?.badge || 'Netværk'}
+                </span>
+              )}
+              {profile.is_verified && (
+                <span style={{ fontSize: 12, background: '#D1FAE5', color: '#065F46', border: '1px solid #6EE7B7', borderRadius: 20, padding: '2px 10px', fontWeight: 700 }}>{t.cvrVerifiedBadge}</span>
+              )}
             </div>
             {profile.handle && <p className="p-profile-handle">@{profile.handle}</p>}
             {profile.bio?.[lang] && <p className="p-profile-bio">{profile.bio[lang]}</p>}
+            {profile.mode === 'network' && (profile.professionalTitle || profile.industry) && (
+              <p style={{ margin: '4px 0 0', fontSize: 13, color: '#0D9488', fontWeight: 500 }}>
+                {[profile.professionalTitle, profile.industry].filter(Boolean).join(' · ')}
+              </p>
+            )}
             <div className="p-profile-meta">
               {profile.location && <span>📍 {profile.location}</span>}
+              {profile.birthday && !isNaN(new Date(profile.birthday)) && <span>🎂 {new Date(profile.birthday).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'long' })}</span>}
+              {profile.gender && <span>{t[`gender_${profile.gender}`] || profile.gender}</span>}
               {profile.joinDate && <span>📅 {t.joined2} {new Date(profile.joinDate).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { year: 'numeric', month: 'long' })}</span>}
             </div>
             <div className="p-friend-profile-stats" style={{ justifyContent: 'center', marginTop: 12 }}>
-              <div className="p-friend-profile-stat"><strong>{profile.friendCount}</strong><span>{t.friendsLabel}</span></div>
+              <div className="p-friend-profile-stat">
+                <strong>{profile.friendCount}</strong>
+                <span>{profile.mode === 'network' ? (t.network?.connections || t.friendsLabel) : t.friendsLabel}</span>
+              </div>
               {profile.mutualCount > 0 && <div className="p-friend-profile-stat"><strong>{profile.mutualCount}</strong><span>{t.mutualFriends}</span></div>}
               <div className="p-friend-profile-stat"><strong>{profile.postCount}</strong><span>{t.postsLabel}</span></div>
               {profile.mode === 'business' && (
-                <div className="p-friend-profile-stat"><strong>{followerCount}</strong><span>{t.followers}</span></div>
+                <div className="p-friend-profile-stat"><strong>{followerCount}</strong><span>{t.business?.followers || t.followers}</span></div>
               )}
             </div>
+
+            {/* Company profile card (new business mode) */}
+            {profile.mode === 'business' && companyProfile && (
+              <div style={{ margin: '12px 0', padding: '12px 14px', background: '#FFFBEB', borderRadius: 10, border: '1px solid #FCD34D', fontSize: 13, color: '#92400E' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                  {companyProfile.logo_url && (
+                    <img src={companyProfile.logo_url} alt="" style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />
+                  )}
+                  {companyProfile.company_name && (
+                    <strong style={{ fontSize: 15, color: '#78350F' }}>{companyProfile.company_name}</strong>
+                  )}
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {companyProfile.cvr && (
+                    <span>{t.business?.cvr || 'CVR'}: <strong>{companyProfile.cvr}</strong></span>
+                  )}
+                  {companyProfile.category && <span>🏷 {companyProfile.category}</span>}
+                  {companyProfile.website && (
+                    <a href={companyProfile.website} target="_blank" rel="noopener noreferrer" style={{ color: '#B45309', fontWeight: 600 }} onClick={e => e.stopPropagation()}>
+                      🌐 {companyProfile.website.replace(/^https?:\/\//, '')}
+                    </a>
+                  )}
+                  {companyProfile.description && (
+                    <p style={{ width: '100%', margin: '4px 0 0', color: '#78350F', fontStyle: 'italic' }}>{companyProfile.description}</p>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Business fields */}
             {profile.mode === 'business' && (
@@ -8655,6 +9039,11 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
                 )}
                 {profile.communityScore >= 10 && (
                   <span style={{ color: '#059669', fontWeight: 600 }}>⭐ {t.activeInCommunity}</span>
+                )}
+                {profile.is_verified && (
+                  <span style={{ color: '#065F46', fontWeight: 700, background: '#D1FAE5', padding: '1px 8px', borderRadius: 12, border: '1px solid #6EE7B7' }}>
+                    {t.cvrVerifiedBadge}{profile.cvrNumber ? ` · ${profile.cvrNumber}` : ''}
+                  </span>
                 )}
               </div>
             )}
@@ -8686,6 +9075,40 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
                   {isFollowing ? `✓ ${t.unfollowBusiness}` : `+ ${t.followBusiness}`}
                 </button>
               )}
+              {/* Kontakt button — business profile */}
+              {profile.mode === 'business' && profile.id !== currentUser.id && !isBlocked && (
+                <button
+                  className="p-friend-msg-btn"
+                  style={{ background: '#FEF3C7', color: '#D97706', border: '1px solid #FCD34D' }}
+                  onClick={() => onMessage(profile)}
+                >
+                  ✉ {t.business?.contact_btn || 'Kontakt'}
+                </button>
+              )}
+              {/* Meeting inquiry button — business profile only */}
+              {profile.mode === 'business' && profile.id !== currentUser.id && !isBlocked && (
+                <button
+                  className="p-friend-msg-btn"
+                  style={{ background: '#F0FDF4', color: '#065F46', border: '1px solid #A7F3D0' }}
+                  onClick={() => { setShowInquiry(true); setInquirySent(false) }}
+                >
+                  📅 {t.meetingInquiry}
+                </button>
+              )}
+              {/* B2B partner request — only if both are business accounts */}
+              {profile.mode === 'business' && currentUser.mode === 'business' && profile.id !== currentUser.id && !isBlocked && (
+                <button
+                  className="p-friend-msg-btn"
+                  disabled={partnerRequestSent}
+                  style={{ background: partnerRequestSent ? '#EEF2FF' : '#fff', color: '#6366F1', border: '1px solid #C7D2FE', opacity: partnerRequestSent ? 0.7 : 1, cursor: partnerRequestSent ? 'default' : 'pointer' }}
+                  onClick={async () => {
+                    const res = await apiSendPartnerRequest(profile.id)
+                    if (res !== null) setPartnerRequestSent(true)
+                  }}
+                >
+                  🤝 {partnerRequestSent ? t.partnerRequestSent : t.partnerRequest}
+                </button>
+              )}
               {!isBlocked && profile.isFriend ? (
                 <button className="p-friend-msg-btn" onClick={() => onMessage(profile)}>
                   💬 {t.message}
@@ -8702,6 +9125,7 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
                 >
                   {requestSent
                     ? (t.requestSent2)
+                    : profile.mode === 'network' ? (t.network?.connect_btn || t.addFriend2)
                     : (t.addFriend2)}
                 </button>
               ) : null}
@@ -8757,6 +9181,127 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
                 )}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Meeting inquiry modal */}
+      {showInquiry && profile?.mode === 'business' && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={() => setShowInquiry(false)}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: 24, maxWidth: 420, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ margin: '0 0 16px', fontSize: 17, fontWeight: 700 }}>📅 {t.meetingInquiry}</h3>
+            {inquirySent ? (
+              <p style={{ color: '#065F46', fontWeight: 600, fontSize: 15 }}>✅ {t.inquirySent}</p>
+            ) : (
+              <>
+                <input value={inquiryForm.subject} onChange={e => setInquiryForm(p => ({ ...p, subject: e.target.value }))} placeholder={t.inquirySubject} style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #D1D5DB', fontSize: 14, marginBottom: 10, boxSizing: 'border-box' }} />
+                <input type="date" value={inquiryForm.preferred_date} onChange={e => setInquiryForm(p => ({ ...p, preferred_date: e.target.value }))} placeholder={t.inquiryPreferredDate} style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #D1D5DB', fontSize: 14, marginBottom: 10, boxSizing: 'border-box' }} />
+                <textarea value={inquiryForm.message} onChange={e => setInquiryForm(p => ({ ...p, message: e.target.value }))} placeholder={t.inquiryMessage} rows={4} style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #D1D5DB', fontSize: 14, marginBottom: 14, resize: 'vertical', boxSizing: 'border-box' }} />
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button disabled={inquirySending || !inquiryForm.subject.trim() || !inquiryForm.message.trim()} onClick={async () => {
+                    setInquirySending(true)
+                    const res = await apiSendBusinessInquiry(profile.id, inquiryForm.subject, inquiryForm.preferred_date || undefined, inquiryForm.message)
+                    setInquirySending(false)
+                    if (res?.ok) setInquirySent(true)
+                  }} style={{ flex: 1, padding: '9px 0', borderRadius: 8, border: 'none', background: '#6366F1', color: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: 14, opacity: (!inquiryForm.subject.trim() || !inquiryForm.message.trim()) ? 0.5 : 1 }}>
+                    {inquirySending ? '…' : t.sendInquiry}
+                  </button>
+                  <button onClick={() => setShowInquiry(false)} style={{ padding: '9px 16px', borderRadius: 8, border: '1px solid #D1D5DB', background: '#fff', color: '#374151', cursor: 'pointer', fontSize: 14 }}>{lang === 'da' ? 'Luk' : 'Close'}</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Business services on profile */}
+      {profile?.mode === 'business' && bizServices.length > 0 && (
+        <div className="p-card" style={{ marginTop: 12 }}>
+          <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700 }}>🛍 {t.servicesLabel}</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
+            {bizServices.map(svc => {
+              const nameKey = lang === 'da' ? 'name_da' : 'name_en'
+              const descKey = lang === 'da' ? 'description_da' : 'description_en'
+              return (
+                <div key={svc.id} style={{ border: '1px solid #E5E7EB', borderRadius: 10, padding: 12 }}>
+                  {svc.image_url && <img src={svc.image_url} alt="" style={{ width: '100%', height: 80, objectFit: 'cover', borderRadius: 6, marginBottom: 8 }} />}
+                  <div style={{ fontWeight: 600, fontSize: 13, color: '#111827', marginBottom: 3 }}>{svc[nameKey]}</div>
+                  {svc[descKey] && <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 5 }}>{svc[descKey]}</div>}
+                  {(svc.price_from || svc.price_to) && (
+                    <div style={{ fontSize: 12, color: '#6366F1', fontWeight: 600 }}>
+                      {svc.price_from && svc.price_to
+                        ? `${formatPrice(svc.price_from)} – ${formatPrice(svc.price_to)}`
+                        : svc.price_from ? `${lang === 'da' ? 'Fra' : 'From'} ${formatPrice(svc.price_from)}`
+                        : formatPrice(svc.price_to)}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Service endorsements on business profile */}
+      {profile?.mode === 'business' && bizEndorsements.length > 0 && (
+        <div className="p-card" style={{ marginTop: 12 }}>
+          <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700 }}>⭐ {t.serviceEndorsements}</h3>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {bizEndorsements.map(e => (
+              <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#EEF2FF', borderRadius: 20, padding: '5px 14px', fontSize: 13, border: '1px solid #C7D2FE' }}>
+                <span style={{ fontWeight: 600, color: '#3730A3' }}>{e.name}</span>
+                {e.endorsement_count > 0 && <span style={{ color: '#6366F1', fontWeight: 700 }}>×{e.endorsement_count}</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Business jobs on profile */}
+      {profile?.mode === 'business' && bizJobs.length > 0 && (
+        <div className="p-card" style={{ marginTop: 12 }}>
+          <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700 }}>💼 {t.businessJobs}</h3>
+          {bizJobs.map(job => (
+            <div key={job.id} style={{ borderBottom: '1px solid #F3F4F6', paddingBottom: 10, marginBottom: 10 }}>
+              <div style={{ fontWeight: 600, fontSize: 14, color: '#111827' }}>{job.title}</div>
+              <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>{job.company_name} · {job.location || (lang === 'da' ? 'Ikke angivet' : 'Location not specified')}{job.remote ? ` · ${lang === 'da' ? 'Fjernarbejde' : 'Remote'}` : ''}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Business events on profile */}
+      {profile?.mode === 'business' && bizEvents.length > 0 && (
+        <div className="p-card" style={{ marginTop: 12 }}>
+          <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700 }}>📅 {t.businessEvents}</h3>
+          {bizEvents.map(ev => (
+            <div key={ev.id} style={{ display: 'flex', gap: 12, borderBottom: '1px solid #F3F4F6', paddingBottom: 10, marginBottom: 10, alignItems: 'center' }}>
+              {ev.cover_url && <img src={ev.cover_url} alt="" style={{ width: 50, height: 50, objectFit: 'cover', borderRadius: 8 }} />}
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 14, color: '#111827' }}>{ev.title}</div>
+                <div style={{ fontSize: 12, color: '#6B7280' }}>{new Date(ev.date).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })}{ev.location ? ` · ${ev.location}` : ''}</div>
+                {ev.rsvp_count > 0 && <div style={{ fontSize: 11, color: '#6366F1', marginTop: 2 }}>{ev.rsvp_count} {lang === 'da' ? 'deltager' : 'going'}</div>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* B2B partners on business profile */}
+      {profile?.mode === 'business' && bizPartners.length > 0 && (
+        <div className="p-card" style={{ marginTop: 12 }}>
+          <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700 }}>🤝 {t.b2bPartners}</h3>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {bizPartners.slice(0, 6).map(p => (
+              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 10, padding: '6px 12px', cursor: 'pointer' }} onClick={() => onNavigate?.('view-profile', p.id)}>
+                {p.avatar_url
+                  ? <img src={p.avatar_url} alt="" style={{ width: 26, height: 26, borderRadius: '50%', objectFit: 'cover' }} />
+                  : <div style={{ width: 26, height: 26, borderRadius: '50%', background: '#6366F1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 11, fontWeight: 700 }}>{p.name[0]}</div>
+                }
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{p.name}</span>
+                {p.is_verified && <span style={{ fontSize: 11, color: '#6366F1' }}>✓</span>}
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -9014,6 +9559,133 @@ function FriendProfileModal({ userId, lang, t, onClose, onMessage }) {
   )
 }
 
+// ── Follow Tab (Followers / Following) ──
+function FollowTab({ t, lang, followers, following, followPending, onFollowToggle, onViewProfile }) {
+  const sFollowCard = { display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid var(--color-border)' }
+  const sAvatar = { width: 44, height: 44, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 16, flexShrink: 0, color: '#fff', overflow: 'hidden', cursor: 'pointer' }
+  const sInfo = { flex: 1, minWidth: 0 }
+  const sName = { fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'pointer', color: 'var(--color-text)' }
+  const sBadge = (isBusiness) => ({ fontSize: 11, padding: '2px 7px', borderRadius: 10, background: isBusiness ? '#E8F4FD' : '#F0F4FF', color: isBusiness ? '#1877F2' : '#4a6fa5', fontWeight: 600, display: 'inline-block' })
+  const sActionBtn = { fontSize: 13, padding: '5px 14px', borderRadius: 20, border: '1px solid #d0d0d0', background: '#fff', cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap', color: 'var(--color-text)' }
+  const sFollowBtn = { fontSize: 13, padding: '5px 14px', borderRadius: 20, border: '1px solid #2D6A4F', background: '#2D6A4F', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap', color: '#fff' }
+  const sFollowingBtn = { fontSize: 13, padding: '5px 14px', borderRadius: 20, border: '1px solid #d0d0d0', background: '#f5f5f5', cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap', color: 'var(--color-text)' }
+  const sEmpty = { padding: '24px 0', textAlign: 'center', color: 'var(--color-muted)', fontSize: 14 }
+  const sSectionTitle = { fontWeight: 700, fontSize: 15, margin: '0 0 4px', color: 'var(--color-text)' }
+
+  const loading = followers === null || following === null
+
+  const renderUserRow = (user, isFollower) => {
+    const isBusiness = user.mode === 'business'
+    const isFollowingBack = isFollower ? Number(user.is_following_back) === 1 : true
+    const pending = followPending[user.id]
+    const avatarStyle = { ...sAvatar, background: nameToColor(user.name) }
+    return (
+      <div key={user.id} style={sFollowCard}>
+        <div style={avatarStyle} onClick={() => onViewProfile(user.id)}>
+          {user.avatar
+            ? <img src={user.avatar} alt={user.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : getInitials(user.name)}
+        </div>
+        <div style={sInfo}>
+          <div style={sName} onClick={() => onViewProfile(user.id)}>{user.name}</div>
+          <span style={sBadge(isBusiness)}>{isBusiness ? t.accountTypeBusiness : t.accountTypeStandard}</span>
+          {isFollower && isFollowingBack && (
+            <span style={{ fontSize: 11, marginLeft: 6, color: '#2D6A4F', fontWeight: 500 }}>✓ {t.followsYouBack}</span>
+          )}
+        </div>
+        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+          <button style={sActionBtn} onClick={() => onViewProfile(user.id)}>👤</button>
+          {isFollower ? (
+            isFollowingBack ? (
+              <button style={sFollowingBtn} disabled={pending} onClick={() => onFollowToggle(user.id, true)}>
+                {pending ? '…' : t.followingBtn}
+              </button>
+            ) : (
+              <button style={sFollowBtn} disabled={pending} onClick={() => onFollowToggle(user.id, false)}>
+                {pending ? '…' : t.followBtn}
+              </button>
+            )
+          ) : (
+            <button style={sFollowingBtn} disabled={pending} onClick={() => onFollowToggle(user.id, true)}>
+              {pending ? '…' : t.followingBtn}
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  const renderCompanyRow = (company) => {
+    const avatarStyle = { ...sAvatar, background: nameToColor(company.name) }
+    return (
+      <div key={company.id} style={sFollowCard}>
+        <div style={avatarStyle}>
+          {company.avatar
+            ? <img src={company.avatar} alt={company.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : getInitials(company.name)}
+        </div>
+        <div style={sInfo}>
+          <div style={sName}>{company.name}</div>
+          <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 10, background: '#FFF3E0', color: '#E65100', fontWeight: 600 }}>
+            {lang === 'da' ? 'Virksomhed' : 'Company'}
+          </span>
+        </div>
+      </div>
+    )
+  }
+
+  if (loading) {
+    return <div style={{ padding: 32, textAlign: 'center', color: 'var(--color-muted)' }}>…</div>
+  }
+
+  const followingUsers = following?.users || []
+  const followingCompanies = following?.companies || []
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* ── Followers ── */}
+      <div className="p-card">
+        <h3 style={sSectionTitle}>👥 {t.followersSection} ({followers.length})</h3>
+        <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--color-muted)' }}>
+          {lang === 'da' ? 'Brugere der følger din profil' : 'Users following your profile'}
+        </p>
+        {followers.length === 0 ? (
+          <div style={sEmpty}>{t.followersEmpty}</div>
+        ) : (
+          <div>{followers.map(u => renderUserRow(u, true))}</div>
+        )}
+      </div>
+
+      {/* ── Following users ── */}
+      <div className="p-card">
+        <h3 style={sSectionTitle}>➡️ {t.followingSection} ({followingUsers.length + followingCompanies.length})</h3>
+        <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--color-muted)' }}>
+          {lang === 'da' ? 'Brugere og virksomheder du følger' : 'Users and companies you follow'}
+        </p>
+        {followingUsers.length === 0 && followingCompanies.length === 0 ? (
+          <div style={sEmpty}>{t.followingUsersEmpty}</div>
+        ) : (
+          <div>
+            {followingUsers.length > 0 && (
+              <div>
+                {followingUsers.map(u => renderUserRow(u, false))}
+              </div>
+            )}
+            {followingCompanies.length > 0 && (
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--color-muted)', margin: followingUsers.length > 0 ? '16px 0 8px' : '0 0 8px' }}>
+                  🏢 {t.followingCompaniesSection}
+                </div>
+                {followingCompanies.map(c => renderCompanyRow(c))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Referral Dashboard (Viral Growth) ──
 function ReferralDashboard({ t, lang, referralData, badges, leaderboard, inviteLink }) {
   const [copiedShareLink, setCopiedShareLink] = useState(null)
@@ -9219,6 +9891,10 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
   const [referralData, setReferralData] = useState(null)
   const [badges, setBadges] = useState(null)
   const [leaderboard, setLeaderboard] = useState(null)
+  const [followers, setFollowers] = useState(null)
+  const [following, setFollowing] = useState(null) // { users: [], companies: [] }
+  const [followPending, setFollowPending] = useState({}) // userId → true while request in flight
+  const [suggestions, setSuggestions] = useState(null) // null = not yet loaded
   const searchTimerRef = useRef(null)
   const { rels, setRel } = useContactRelationships()
   const REL_OPTS = [
@@ -9303,7 +9979,19 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
     refreshAll()
   }, [unfriendTarget, refreshAll])
 
-  const filtered = (filter === 'invites' || filter === 'requests' || filter === 'viral') ? [] : friends.filter(f => filter === 'all' || f.online)
+  const handleFollowToggle = useCallback(async (userId, isCurrentlyFollowing) => {
+    setFollowPending(prev => ({ ...prev, [userId]: true }))
+    if (isCurrentlyFollowing) {
+      await apiUnfollowUser(userId)
+      setFollowing(prev => prev ? { ...prev, users: prev.users.filter(u => u.id !== userId) } : prev)
+    } else {
+      await apiFollowUser(userId)
+      setFollowers(prev => prev ? prev.map(u => u.id === userId ? { ...u, is_following_back: 1 } : u) : prev)
+    }
+    setFollowPending(prev => { const n = { ...prev }; delete n[userId]; return n })
+  }, [])
+
+  const filtered = (filter === 'invites' || filter === 'requests' || filter === 'viral' || filter === 'follow' || filter === 'suggested') ? [] : friends.filter(f => filter === 'all' || f.online)
 
   const handleCopyInvite = useCallback(() => {
     navigator.clipboard.writeText(inviteLink).catch(() => {})
@@ -9390,6 +10078,19 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
     if (!badges) apiGetBadges().then(d => { if (d) setBadges(d) })
     if (!leaderboard) apiGetLeaderboard().then(d => { if (d) setLeaderboard(d) })
   }, [filter, referralData, badges, leaderboard])
+
+  // Load followers/following when follow tab is opened
+  useEffect(() => {
+    if (filter !== 'follow') return
+    if (!followers) apiGetFollowers().then(d => setFollowers(d || []))
+    if (!following) apiGetFollowing().then(d => setFollowing(d || { users: [], companies: [] }))
+  }, [filter, followers, following])
+
+  // Load friend suggestions when suggested tab is opened
+  useEffect(() => {
+    if (filter !== 'suggested') return
+    if (!suggestions) apiFetchFriendSuggestions().then(d => setSuggestions(d || []))
+  }, [filter, suggestions])
 
   const isSearching = search.trim().length >= 2
   const outgoingTargetIds = new Set(requests.outgoing.map(r => r.to_id))
@@ -9554,6 +10255,12 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
             </button>
             <button className={`p-filter-tab${filter === 'viral' ? ' active' : ''}`} onClick={() => setFilter('viral')}>
               🚀 {t.referralDashViralTitle}
+            </button>
+            <button className={`p-filter-tab${filter === 'follow' ? ' active' : ''}`} onClick={() => setFilter('follow')}>
+              👁 {t.followTab}
+            </button>
+            <button className={`p-filter-tab${filter === 'suggested' ? ' active' : ''}`} onClick={() => setFilter('suggested')}>
+              🤝 {t.suggestedTab}
             </button>
           </div>
         )}
@@ -9726,6 +10433,56 @@ function FriendsPage({ lang, t, mode, sseRefreshKey, onMessage, onBadgeCheck }) 
         </div>
       ) : filter === 'viral' ? (
         <ReferralDashboard t={t} lang={lang} referralData={referralData} badges={badges} leaderboard={leaderboard} inviteLink={inviteLink} />
+      ) : filter === 'follow' ? (
+        <FollowTab
+          t={t}
+          lang={lang}
+          followers={followers}
+          following={following}
+          followPending={followPending}
+          onFollowToggle={handleFollowToggle}
+          onViewProfile={setViewProfileId}
+        />
+      ) : filter === 'suggested' ? (
+        <div className="p-card" style={{ padding: '16px' }}>
+          <h3 className="p-section-title" style={{ margin: '0 0 16px' }}>{t.suggestedTitle}</h3>
+          {suggestions === null ? (
+            <div style={{ textAlign: 'center', padding: '32px', color: 'var(--color-muted)' }}>…</div>
+          ) : suggestions.length === 0 ? (
+            <div className="p-friends-empty">
+              <span className="p-friends-empty-icon">🤝</span>
+              <p>{t.suggestedEmpty}</p>
+            </div>
+          ) : (
+            <div className="p-friends-grid">
+              {suggestions.map((user) => {
+                const hasSent = outgoingTargetIds.has(user.id) || sentIds[user.id]
+                const mutualLabel = user.mutual_count === 1 ? t.suggestedMutual : t.suggestedMutualPlural
+                return (
+                  <div key={user.id} className="p-card p-friend-card">
+                    <div className="p-friend-card-top" style={{ cursor: 'pointer' }} onClick={() => setViewProfileId(user.id)}>
+                      <div className="p-avatar-md" style={{ background: nameToColor(user.name) }}>
+                        {getInitials(user.name)}
+                      </div>
+                      <div className="p-friend-card-name">{user.name}</div>
+                      <div className="p-friend-card-mutual">{user.mutual_count} {mutualLabel}</div>
+                    </div>
+                    {hasSent ? (
+                      <button className="p-friend-msg-btn p-friend-sent-btn" disabled>✉ {t.requestSent}</button>
+                    ) : (
+                      <button className="p-friend-msg-btn p-friend-add-btn" onClick={() => {
+                        handleSendRequest(user.id)
+                        setSuggestions(prev => prev ? prev.filter(s => s.id !== user.id) : prev)
+                      }}>
+                        ➕ {mode === 'business' ? t.connectBtn : t.addFriend}
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
       ) : (
         <div className="p-friends-grid">
           {filtered.map((friend) => (
@@ -10053,7 +10810,7 @@ function MembersModal({ t, lang, conv, currentUser, onClose, onRemove, onMuteMem
         {muteTarget ? (
           <>
             <div style={{ padding: '8px 16px 4px', fontSize: 13, color: '#555' }}>
-              {t.muteMemberTitle} <strong>{muteTarget.name.split(' ')[0]}</strong>
+              {t.muteMemberTitle} <strong>{(muteTarget.name || '').split(' ')[0]}</strong>
             </div>
             <div className="p-msg-modal-list">
               {muteOptions.map(o => (
@@ -10141,7 +10898,7 @@ function SearchPage({ lang, t, mode, onNavigateToPost, onNavigateToConv, onNavig
       try {
         const [data, compData] = await Promise.all([
           apiSearch(query.trim()),
-          fetch(`/api/companies/all?q=${encodeURIComponent(query.trim())}`, { credentials: 'include' })
+          csrfFetch(`/api/companies/all?q=${encodeURIComponent(query.trim())}`, { credentials: 'include' })
             .then(r => r.ok ? r.json() : { companies: [] }).catch(() => ({ companies: [] })),
         ])
         setResults(data || { posts: [], messages: [] })
@@ -10600,7 +11357,7 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
                   </span>
                 </div>
                 <div className="p-msg-thread-preview">
-                  {lastMsg ? `${c.isGroup ? lastMsg.from.split(' ')[0] + ': ' : ''}${lastMsg.text[lang]}`.slice(0, 42) : ''}
+                  {lastMsg ? `${c.isGroup ? (lastMsg.from || '').split(' ')[0] + ': ' : ''}${lastMsg.text[lang]}`.slice(0, 42) : ''}
                 </div>
               </div>
               <button
@@ -10680,11 +11437,13 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
             )}
             {conv.messages.map((msg, i) => {
               const isMe = msg.from === currentUser.name
-              // Read receipt: show below the LAST message I sent that other participants have read
+              // Read receipt: track who has read up to this message
               const isLastMine = isMe && conv.messages.slice(i + 1).every(m => m.from !== currentUser.name)
-              const readers = isLastMine && msg.createdAtRaw
+              const readers = isMe && msg.createdAtRaw
                 ? (conv.readReceipts || []).filter(r => r.lastReadAt && new Date(r.lastReadAt) >= new Date(msg.createdAtRaw))
                 : []
+              // Replied: someone else sent a message after this one
+              const hasReplyAfter = isMe && conv.messages.slice(i + 1).some(m => m.from !== currentUser.name)
               return (
                 <div key={i} className={`p-msg-bubble-row${isMe ? ' mine' : ''}`}>
                   {!isMe && (
@@ -10695,7 +11454,7 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', flex: 1 }}>
                     <div className={`p-msg-bubble${isMe ? ' mine' : ''}`}>
                       {conv.isGroup && !isMe && (
-                        <div className="p-msg-sender-name">{msg.from.split(' ')[0]}</div>
+                        <div className="p-msg-sender-name">{(msg.from || '').split(' ')[0]}</div>
                       )}
                       {msg.text[lang] && (
                         <div style={{ whiteSpace: 'pre-wrap' }}>{linkifyText(msg.text[lang]).map((p, pi) =>
@@ -10708,25 +11467,31 @@ function MessagesPage({ lang, t, currentUser, mode, openConvId, onConvOpened, ss
                       )}
                       {msg.media?.length > 0 && (
                         <div style={{ marginTop: msg.text[lang] ? 6 : 0, maxWidth: 260 }}>
-                          <PostMedia media={msg.media} />
+                          <PostMedia media={msg.media} lang={lang} />
                         </div>
                       )}
                       <div className="p-msg-time">{msg.time}</div>
                     </div>
-                    {/* Read receipt indicator */}
-                    {isMe && isLastMine && (
+                    {/* Message status indicators: shown on every sent message */}
+                    {isMe && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 2, marginRight: 2 }}>
                         {readers.length > 0 ? (
                           <>
-                            {readers.slice(0, 3).map(r => (
+                            {isLastMine && readers.slice(0, 3).map(r => (
                               <div key={r.userId} title={r.name} style={{ width: 14, height: 14, borderRadius: '50%', background: nameToColor(r.name), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, color: '#fff', fontWeight: 700 }}>
                                 {getInitials(r.name)[0]}
                               </div>
                             ))}
-                            <span style={{ fontSize: 10, color: '#52B788' }}>✓✓</span>
+                            <span
+                              title={t.msgStatusRead + ': ' + readers.map(r => r.name).join(', ')}
+                              style={{ fontSize: 10, color: '#52B788', letterSpacing: '-1px' }}
+                            >✓✓</span>
                           </>
                         ) : (
-                          <span style={{ fontSize: 10, color: '#aaa' }}>✓</span>
+                          <span title={t.msgStatusSent} style={{ fontSize: 10, color: '#bbb' }}>✓</span>
+                        )}
+                        {hasReplyAfter && (
+                          <span title={t.msgStatusReplied} style={{ fontSize: 11, color: '#b0b0b0', marginLeft: 1 }}>↩</span>
                         )}
                       </div>
                     )}
@@ -10992,9 +11757,11 @@ function EventsPage({ lang, t, currentUser, mode }) {
   const getEventDesc = (e) => typeof e.description === 'string' ? e.description : (e.description[lang] || e.description.da)
   const getEventLocation = (e) => typeof e.location === 'string' ? e.location : (e.location[lang] || e.location.da)
 
-  const myEvents = events.filter(e => rsvpMap[e.id] || e.organizer === currentUser.name)
-  const discoverEvents = events.filter(e => !rsvpMap[e.id] && e.organizer !== currentUser.name)
-  const displayEvents = tab === 'my' ? myEvents : discoverEvents
+  const now = new Date()
+  const myEvents = events.filter(e => (e.organizer === currentUser.name || e.organizerId === currentUser.id) && new Date(e.date) >= now)
+  const discoverEvents = events.filter(e => e.organizer !== currentUser.name && e.organizerId !== currentUser.id && new Date(e.date) >= now)
+  const expiredEvents = events.filter(e => new Date(e.date) < now)
+  const displayEvents = tab === 'my' ? myEvents : tab === 'expired' ? expiredEvents : discoverEvents
 
   const formatDate = (iso) => {
     const d = new Date(iso)
@@ -11002,7 +11769,7 @@ function EventsPage({ lang, t, currentUser, mode }) {
   }
 
   const eventTypeLabel = (type) => {
-    const map = { conference: t.eventTypeConference, webinar: t.eventTypeWebinar, workshop: t.eventTypeWorkshop, meetup: t.eventTypeMeetup }
+    const map = { conference: t.eventTypeConference, webinar: t.eventTypeWebinar, workshop: t.eventTypeWorkshop, meetup: t.eventTypeMeetup, wedding: t.eventTypeWedding, birthday: t.eventTypeBirthday, confirmation: t.eventTypeConfirmation, baptism: t.eventTypeBaptism, engagement: t.eventTypeEngagement, anniversary: t.eventTypeAnniversary, party: t.eventTypeParty, graduation: t.eventTypeGraduation, concert: t.eventTypeConcert, networking: t.eventTypeNetworking }
     return map[type] || null
   }
 
@@ -11024,12 +11791,15 @@ function EventsPage({ lang, t, currentUser, mode }) {
         <button className={`p-filter-tab${tab === 'discover' ? ' active' : ''}`} onClick={() => setTab('discover')}>
           {t.discoverEvents} ({discoverEvents.length})
         </button>
+        <button className={`p-filter-tab${tab === 'expired' ? ' active' : ''}`} onClick={() => setTab('expired')}>
+          {t.expiredEventsTab} ({expiredEvents.length})
+        </button>
       </div>
 
       {/* Event list */}
       {displayEvents.length === 0 ? (
         <div className="p-card" style={{ textAlign: 'center', padding: 40, color: '#888' }}>
-          📅 {t.eventNoUpcoming}
+          📅 {tab === 'expired' ? t.eventNoExpired : t.eventNoUpcoming}
         </div>
       ) : (
         <div className="p-events-list">
@@ -11416,6 +12186,7 @@ function CreateEventModal({ t, lang, mode, currentUser, onClose, onCreate, initi
   const [ticketUrl, setTicketUrl] = useState(() => initialEvent?.ticketUrl || '')
   const [cap, setCap] = useState(() => initialEvent?.cap ? String(initialEvent.cap) : '')
   const [coverUrl, setCoverUrl] = useState(() => initialEvent?.coverUrl || '')
+  const [recipients, setRecipients] = useState(() => initialEvent?.recipients || 'all')
 
   useEffect(() => {
     const h = (e) => { if (e.key === 'Escape') onClose() }
@@ -11443,6 +12214,7 @@ function CreateEventModal({ t, lang, mode, currentUser, onClose, onCreate, initi
       eventType: eventType || null,
       ticketUrl,
       cap: cap ? parseInt(cap) : null,
+      recipients,
     }
     onCreate(newEvent)
   }
@@ -11479,18 +12251,39 @@ function CreateEventModal({ t, lang, mode, currentUser, onClose, onCreate, initi
           <label style={labelStyle}>{t.coverImageURL}</label>
           <ImageUrlInput value={coverUrl} onChange={setCoverUrl} lang={lang} style={fieldStyle} />
 
+          <label style={labelStyle}>{t.eventRecipients}</label>
+          <select style={fieldStyle} value={recipients} onChange={e => setRecipients(e.target.value)}>
+            <option value="all">{t.eventRecipientsAll}</option>
+            <option value="family">{t.eventRecipientsFamily}</option>
+            <option value="close_friends">{t.eventRecipientsCloseFriends}</option>
+          </select>
+
+          <label style={labelStyle}>{t.eventType}</label>
+          <select style={fieldStyle} value={eventType} onChange={e => setEventType(e.target.value)}>
+            <option value="">—</option>
+            <optgroup label="🎉 Privat">
+              <option value="wedding">{t.eventTypeWedding}</option>
+              <option value="birthday">{t.eventTypeBirthday}</option>
+              <option value="confirmation">{t.eventTypeConfirmation}</option>
+              <option value="baptism">{t.eventTypeBaptism}</option>
+              <option value="engagement">{t.eventTypeEngagement}</option>
+              <option value="anniversary">{t.eventTypeAnniversary}</option>
+              <option value="party">{t.eventTypeParty}</option>
+              <option value="graduation">{t.eventTypeGraduation}</option>
+              <option value="concert">{t.eventTypeConcert}</option>
+            </optgroup>
+            <optgroup label="💼 Erhverv">
+              <option value="conference">{t.eventTypeConference}</option>
+              <option value="webinar">{t.eventTypeWebinar}</option>
+              <option value="workshop">{t.eventTypeWorkshop}</option>
+              <option value="meetup">{t.eventTypeMeetup}</option>
+              <option value="networking">{t.eventTypeNetworking}</option>
+            </optgroup>
+          </select>
+
           {/* Business-only fields */}
           {mode === 'business' && (
             <>
-              <label style={labelStyle}>{t.eventType}</label>
-              <select style={fieldStyle} value={eventType} onChange={e => setEventType(e.target.value)}>
-                <option value="">—</option>
-                <option value="conference">{t.eventTypeConference}</option>
-                <option value="webinar">{t.eventTypeWebinar}</option>
-                <option value="workshop">{t.eventTypeWorkshop}</option>
-                <option value="meetup">{t.eventTypeMeetup}</option>
-              </select>
-
               <label style={labelStyle}>{t.eventTicketUrl}</label>
               <input style={fieldStyle} type="url" value={ticketUrl} onChange={e => setTicketUrl(e.target.value)}
                 placeholder="https://..." />
@@ -11528,14 +12321,14 @@ function SkillsSection({ profile, t, lang, isOwn }) {
 
   useEffect(() => {
     if (!profile?.id) return
-    fetch(`/api/skills/${profile.id}`, { credentials: 'include' })
+    csrfFetch(`/api/skills/${profile.id}`, { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => { setSkills(data?.skills || []); setLoading(false) })
       .catch(() => setLoading(false))
   }, [profile?.id])
 
   const endorse = (skillId) => {
-    fetch(`/api/skills/${skillId}/endorse`, { method: 'POST', credentials: 'include' })
+    csrfFetch(`/api/skills/${skillId}/endorse`, { method: 'POST', credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (!data) return
@@ -11549,7 +12342,7 @@ function SkillsSection({ profile, t, lang, isOwn }) {
   const addSkill = () => {
     const name = newSkill.trim()
     if (!name || skills.length >= 20) return
-    fetch('/api/skills', {
+    csrfFetch('/api/skills', {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name }),
@@ -11560,7 +12353,7 @@ function SkillsSection({ profile, t, lang, isOwn }) {
   }
 
   const removeSkill = (skillId) => {
-    fetch(`/api/skills/${skillId}`, { method: 'DELETE', credentials: 'include' })
+    csrfFetch(`/api/skills/${skillId}`, { method: 'DELETE', credentials: 'include' })
       .then(() => setSkills(prev => prev.filter(s => s.id !== skillId)))
       .catch(() => {})
   }
@@ -11568,7 +12361,7 @@ function SkillsSection({ profile, t, lang, isOwn }) {
   const showEndorsers = (skillId) => {
     if (endorsersPopup?.skillId === skillId) { setEndorsersPopup(null); return }
     setEndorsersLoading(true)
-    fetch(`/api/skills/${skillId}/endorsers`, { credentials: 'include' })
+    csrfFetch(`/api/skills/${skillId}/endorsers`, { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => { setEndorsersPopup({ skillId, endorsers: data?.endorsers || [] }); setEndorsersLoading(false) })
       .catch(() => setEndorsersLoading(false))
@@ -11674,7 +12467,7 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
 
   const loadCompanies = () => {
     setLoading(true)
-    fetch('/api/companies', { credentials: 'include' })
+    csrfFetch('/api/companies', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => { setCompanies(data?.companies || []); setLoading(false) })
       .catch(() => setLoading(false))
@@ -11689,7 +12482,7 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
       setSelectedCompany(found)
       setOpenedFromFeed(true)
     } else {
-      fetch(`/api/companies/${initialCompanyId}`, { credentials: 'include' })
+      csrfFetch(`/api/companies/${initialCompanyId}`, { credentials: 'include' })
         .then(r => r.ok ? r.json() : null)
         .then(data => { if (data?.company) { setSelectedCompany(data.company); setOpenedFromFeed(true) } })
         .catch(() => {})
@@ -11711,7 +12504,7 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
   const canCreateCompany = ownedCompanies.length === 0
 
   const toggleFollow = (id) => {
-    fetch(`/api/companies/${id}/follow`, { method: 'POST', credentials: 'include' })
+    csrfFetch(`/api/companies/${id}/follow`, { method: 'POST', credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (!data) return
@@ -11733,7 +12526,7 @@ function CompanyListPage({ lang, t, currentUser, mode, onNavigate, initialCompan
     if (tab !== 'discover') return
     setDiscoverLoading(true)
     const params = discoverSearch ? `?q=${encodeURIComponent(discoverSearch)}` : ''
-    fetch(`/api/companies/all${params}`, { credentials: 'include' })
+    csrfFetch(`/api/companies/all${params}`, { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => { setDiscoverCompanies(data?.companies || []); setDiscoverLoading(false) })
       .catch(() => setDiscoverLoading(false))
@@ -11999,7 +12792,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
 
   useEffect(() => {
     setPostsLoading(true)
-    fetch(`/api/companies/${company.id}`, { credentials: 'include' })
+    csrfFetch(`/api/companies/${company.id}`, { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         setCompanyPosts(data?.posts || [])
@@ -12025,7 +12818,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
     if (tab !== 'members') return
     if (companyMembers.length > 0) return
     setMembersLoading(true)
-    fetch(`/api/companies/${company.id}/members`, { credentials: 'include' })
+    csrfFetch(`/api/companies/${company.id}/members`, { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         const members = data?.members || []
@@ -12042,13 +12835,13 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
   }, [tab, company.id])
 
   const connectWithMember = (userId) => {
-    fetch(`/api/friends/request/${userId}`, { method: 'POST', credentials: 'include' })
+    csrfFetch(`/api/friends/request/${userId}`, { method: 'POST', credentials: 'include' })
       .then(() => setMemberConnectState(prev => ({ ...prev, [userId]: 'sent' })))
       .catch(() => {})
   }
 
   const toggleCompanyLike = (postId) => {
-    fetch(`/api/companies/${company.id}/posts/${postId}/like`, { method: 'POST', credentials: 'include' })
+    csrfFetch(`/api/companies/${company.id}/posts/${postId}/like`, { method: 'POST', credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (!data) return
@@ -12062,7 +12855,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
   const toggleCompanyComments = (postId) => {
     setExpandedCompanyComments(prev => { const n = new Set(prev); n.has(postId) ? n.delete(postId) : n.add(postId); return n })
     if (!companyCommentLists[postId]) {
-      fetch(`/api/companies/${company.id}/posts/${postId}/comments`, { credentials: 'include' })
+      csrfFetch(`/api/companies/${company.id}/posts/${postId}/comments`, { credentials: 'include' })
         .then(r => r.ok ? r.json() : null)
         .then(data => setCompanyCommentLists(prev => ({ ...prev, [postId]: data?.comments || [] })))
         .catch(() => {})
@@ -12072,7 +12865,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
   const addCompanyComment = (postId) => {
     const text = companyCommentInputs[postId]?.trim()
     if (!text) return
-    fetch(`/api/companies/${company.id}/posts/${postId}/comments`, {
+    csrfFetch(`/api/companies/${company.id}/posts/${postId}/comments`, {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text }),
@@ -12103,7 +12896,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
 
   const postCompany = () => {
     if (!newPost.trim()) return
-    fetch(`/api/companies/${company.id}/posts`, {
+    csrfFetch(`/api/companies/${company.id}/posts`, {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text_da: newPost.trim(), text_en: newPost.trim() }),
@@ -12140,7 +12933,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
                 onClick={() => {
                   setShowFollowersPopup(true)
                   if (!followers) {
-                    fetch(`/api/companies/${company.id}/followers`, { credentials: 'include' })
+                    csrfFetch(`/api/companies/${company.id}/followers`, { credentials: 'include' })
                       .then(r => r.ok ? r.json() : null)
                       .then(d => setFollowers(d?.followers || []))
                       .catch(() => setFollowers([]))
@@ -12350,7 +13143,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
               onClick={() => {
                 const userId = prompt(t.userIDOrEmailToAdd)
                 if (!userId) return
-                fetch(`/api/companies/${company.id}/members`, {
+                csrfFetch(`/api/companies/${company.id}/members`, {
                   method: 'POST',
                   credentials: 'include',
                   headers: { 'Content-Type': 'application/json' },
@@ -12409,7 +13202,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
                     <button
                       onClick={() => {
                         if (confirm(`${t.removeMemberName}${member.name}?`)) {
-                          fetch(`/api/companies/${company.id}/members/${member.id}`, {
+                          csrfFetch(`/api/companies/${company.id}/members/${member.id}`, {
                             method: 'DELETE',
                             credentials: 'include',
                           })
@@ -12484,7 +13277,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
               <button
                 onClick={() => {
                   if (confirm(`${t.deleteCompanyName}${company.name}${t.deleteCompanyNameSuffix}`)) {
-                    fetch(`/api/companies/${company.id}`, {
+                    csrfFetch(`/api/companies/${company.id}`, {
                       method: 'DELETE',
                       credentials: 'include',
                     })
@@ -12545,7 +13338,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
                           <button
                             onClick={() => {
                               if (confirm(t.deleteThisJob)) {
-                                fetch(`/api/jobs/${job.id}`, { method: 'DELETE', credentials: 'include' })
+                                csrfFetch(`/api/jobs/${job.id}`, { method: 'DELETE', credentials: 'include' })
                                   .then(r => r.ok && setCompanyJobs(prev => prev.filter(j => j.id !== job.id)))
                                   .catch(() => {})
                               }
@@ -12802,7 +13595,7 @@ function CompanyDetailView({ company, t, lang, mode, currentUser, isOwner, onBac
           onClose={() => setEditingJob(null)}
           onCreate={() => {
             setEditingJob(null)
-            fetch(`/api/companies/${company.id}`, { credentials: 'include' })
+            csrfFetch(`/api/companies/${company.id}`, { credentials: 'include' })
               .then(r => r.ok ? r.json() : null)
               .then(data => setCompanyJobs(data?.jobs || []))
               .catch(() => {})
@@ -12883,7 +13676,7 @@ function CreateCompanyModal({ t, lang, currentUser, onClose, onCreate, editCompa
       if (isEdit) {
         // Edit existing company
         payload.name = name.trim()
-        const res = await fetch(`/api/companies/${editCompany.id}`, {
+        const res = await csrfFetch(`/api/companies/${editCompany.id}`, {
           method: 'PUT',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
@@ -12894,7 +13687,7 @@ function CreateCompanyModal({ t, lang, currentUser, onClose, onCreate, editCompa
       } else {
         // Create new company
         const handle = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-        const res = await fetch('/api/companies', {
+        const res = await csrfFetch('/api/companies', {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
@@ -13591,7 +14384,7 @@ function JobCard({ job, t, lang, onSaveToggle, onTrackChange, currentUser, onSha
   const trackInfo = JOB_TRACK_STATUSES.find(s => s.value === trackStatus)
 
   const toggleSave = () => {
-    fetch(`/api/jobs/${job.id}/save`, { method: 'POST', credentials: 'include' })
+    csrfFetch(`/api/jobs/${job.id}/save`, { method: 'POST', credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (!data) return
@@ -13843,7 +14636,7 @@ function JobsPage({ lang, t, currentUser, mode, onNavigate }) {
     if (filterKeyword) params.set('q', filterKeyword)
     if (filterType) params.set('type', filterType)
     setLoading(true)
-    fetch(`/api/jobs?${params}`, { credentials: 'include' })
+    csrfFetch(`/api/jobs?${params}`, { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => { setJobs(data?.jobs || []); setLoading(false) })
       .catch(() => setLoading(false))
@@ -13851,7 +14644,7 @@ function JobsPage({ lang, t, currentUser, mode, onNavigate }) {
 
   useEffect(() => {
     if (tab === 'saved') {
-      fetch('/api/jobs/saved', { credentials: 'include' })
+      csrfFetch('/api/jobs/saved', { credentials: 'include' })
         .then(r => r.ok ? r.json() : null)
         .then(data => setSavedJobs(data?.jobs || []))
         .catch(() => {})
@@ -13865,7 +14658,7 @@ function JobsPage({ lang, t, currentUser, mode, onNavigate }) {
   }, [tab])
 
   useEffect(() => {
-    fetch('/api/companies', { credentials: 'include' })
+    csrfFetch('/api/companies', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => setMyCompanies((data?.companies || []).filter(c => c.member_role === 'owner' || c.member_role === 'admin')))
       .catch(() => {})
@@ -13895,7 +14688,7 @@ function JobsPage({ lang, t, currentUser, mode, onNavigate }) {
   }
 
   const handleToggleActive = (job) => {
-    fetch(`/api/jobs/${job.id}`, {
+    csrfFetch(`/api/jobs/${job.id}`, {
       method: 'PUT', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...job, active: !job.active }),
@@ -14077,7 +14870,7 @@ function JobsPage({ lang, t, currentUser, mode, onNavigate }) {
               }}
               onContactCompany={(companyId) => {
                 // Fetch company to show lead modal
-                fetch(`/api/companies/${companyId}`, { credentials: 'include' })
+                csrfFetch(`/api/companies/${companyId}`, { credentials: 'include' })
                   .then(r => r.ok ? r.json() : null)
                   .then(data => {
                     if (data) setContactCompanyLead(data)
@@ -14212,7 +15005,7 @@ function JobsPage({ lang, t, currentUser, mode, onNavigate }) {
                 onChange={e => {
                   setShareQuery(e.target.value)
                   if (e.target.value.length > 0) {
-                    fetch(`/api/users/search?q=${encodeURIComponent(e.target.value)}`, { credentials: 'include' })
+                    csrfFetch(`/api/users/search?q=${encodeURIComponent(e.target.value)}`, { credentials: 'include' })
                       .then(r => r.ok ? r.json() : null)
                       .then(data => setShareUsers(Array.isArray(data) ? data : data?.users || []))
                       .catch(() => {})
@@ -14366,7 +15159,7 @@ function CreateJobModal({ t, lang, companies, onClose, onCreate, editJob }) {
     }
     try {
       const url = isEdit ? `/api/jobs/${editJob.id}` : '/api/jobs'
-      const res = await fetch(url, {
+      const res = await csrfFetch(url, {
         method: isEdit ? 'PUT' : 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -14519,7 +15312,7 @@ async function _osmGeocode(location) {
   if (!location) return null
   if (_osmGeoCache.has(location)) return _osmGeoCache.get(location)
   try {
-    const res = await fetch(
+    const res = await csrfFetch(
       `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1`,
       { headers: { 'Accept-Language': 'da,en' } }
     )
@@ -14836,11 +15629,15 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
   })
 
   const handleCreate = async (formData, localListing) => {
-    const result = await apiCreateListing(formData)
-    const newL = result?.id ? result : { ...localListing, id: Date.now(), seller: currentUser.name, sellerId: currentUser.id, postedAt: new Date().toISOString().slice(0, 10), sold: false }
-    setListings(prev => [newL, ...prev])
-    setMyListings(prev => [newL, ...prev])
-    setShowForm(false)
+    try {
+      const result = await apiCreateListing(formData)
+      const newL = result?.id ? result : { ...localListing, id: Date.now(), seller: currentUser.name, sellerId: currentUser.id, postedAt: new Date().toISOString().slice(0, 10), sold: false }
+      setListings(prev => [newL, ...prev])
+      setMyListings(prev => [newL, ...prev])
+      setShowForm(false)
+    } catch (err) {
+      setFormError(err.message || 'Der skete en fejl – prøv igen')
+    }
   }
 
   const handleUpdate = async (id, formData, localListing) => {
@@ -15197,6 +15994,7 @@ function MarketplacePage({ lang, t, currentUser, maxPhotos = 4, onContactSeller,
           listingDesc={listingDesc}
           formError={formError}
           maxPhotos={maxPhotos}
+          currentUser={currentUser}
           onClose={() => { setShowForm(false); setEditListing(null); setFormError(null) }}
           onSubmit={editListing ? handleUpdate : handleCreate}
         />
@@ -15370,18 +16168,40 @@ function ListingDetailModal({ listing, t, lang, currentUser, catLabel, catIcon, 
   )
 }
 
-function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, formError, maxPhotos = 4, onClose, onSubmit }) {
+function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, formError, maxPhotos = 4, currentUser, onClose, onSubmit }) {
   const isEdit = !!listing
   const sanitize = (v) => (!v || v === '[object Object]') ? '' : v
+  // For new listings prefill contact fields from the current user's profile so
+  // they don't have to retype the same MobilePay/phone/email on every listing.
+  // MobilePay falls back to the phone number (many DK users reuse it).
+  const userMobilepay = currentUser?.mobilepay || (currentUser?.phone ? String(currentUser.phone).replace(/\D/g, '').slice(-8) : '')
+  const userPhone = currentUser?.phone || ''
+  const userEmail = currentUser?.email || ''
   const [title, setTitle]           = useState(isEdit ? sanitize(listingTitle(listing)) : '')
   const [price, setPrice]           = useState(isEdit ? (listing.price || '') : '')
   const [negotiable, setNegotiable] = useState(isEdit ? !!listing.priceNegotiable : false)
   const [category, setCategory]     = useState(isEdit ? (listing.category || '') : '')
+  const [subcategory, setSubcategory] = useState(isEdit ? (listing.subcategory || '') : '')
+  const [catTree, setCatTree] = useState(null) // null = loading; array = loaded (possibly empty)
+  useEffect(() => {
+    let cancelled = false
+    apiGetMarketplaceCategories().then(data => {
+      if (cancelled) return
+      setCatTree(Array.isArray(data?.categories) ? data.categories : [])
+    })
+    return () => { cancelled = true }
+  }, [])
+  // Fall back to hardcoded list while API loads (or if it returns empty)
+  const categoryOptions = (catTree && catTree.length > 0)
+    ? catTree.map(c => ({ key: c.id, icon: c.icon, label: c[lang] || c.da, subs: c.subcategories || [] }))
+    : MARKETPLACE_CATEGORIES.map(c => ({ key: c.key, icon: c.icon, label: t[c.labelKey], subs: [] }))
+  const currentCat = categoryOptions.find(c => c.key === category)
+  const subcategoryOptions = currentCat?.subs || []
   const [location, setLocation]     = useState(isEdit ? (listing.location || '') : '')
   const [description, setDescription] = useState(isEdit ? sanitize(listingDesc(listing)) : '')
-  const [mobilepay, setMobilepay]   = useState(isEdit ? (listing.mobilepay || '') : '')
-  const [phone, setPhone]           = useState(isEdit ? (listing.contact_phone || '') : '')
-  const [contactEmail, setContactEmail] = useState(isEdit ? (listing.contact_email || '') : '')
+  const [mobilepay, setMobilepay]   = useState(isEdit ? (listing.mobilepay || '') : userMobilepay)
+  const [phone, setPhone]           = useState(isEdit ? (listing.contact_phone || '') : userPhone)
+  const [contactEmail, setContactEmail] = useState(isEdit ? (listing.contact_email || '') : userEmail)
   const [photoFiles, setPhotoFiles] = useState([])
   const [photoPreviews, setPhotoPreviews] = useState(
     isEdit ? (listing.photos || []).map(p => p.url || p) : []
@@ -15417,6 +16237,7 @@ function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, formErr
       price: negotiable ? 0 : Number(price),
       priceNegotiable: negotiable,
       category,
+      subcategory: subcategory || null,
       location,
       description: { da: description, en: description },
       photos: photoPreviews.map(url => ({ url })),
@@ -15429,6 +16250,7 @@ function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, formErr
     formData.append('price', negotiable ? 0 : price)
     formData.append('priceNegotiable', negotiable)
     formData.append('category', category)
+    if (subcategory) formData.append('subcategory', subcategory)
     formData.append('location', location)
     formData.append('description', description)
     if (mobilepay.trim()) formData.append('mobilepay', mobilepay.trim())
@@ -15464,12 +16286,33 @@ function ListingFormModal({ t, lang, listing, listingTitle, listingDesc, formErr
           <input style={fS} value={title} onChange={e => setTitle(e.target.value)} placeholder={t.whatAreYouSelling} required />
 
           <label style={lS}>{t.marketplaceFieldCategory}</label>
-          <select style={fS} value={category} onChange={e => setCategory(e.target.value)} required>
+          <select
+            style={fS}
+            value={category}
+            onChange={e => { setCategory(e.target.value); setSubcategory('') }}
+            required
+          >
             <option value="">{t.chooseCategory}</option>
-            {MARKETPLACE_CATEGORIES.map(c => (
-              <option key={c.key} value={c.key}>{c.icon} {t[c.labelKey]}</option>
+            {categoryOptions.map(c => (
+              <option key={c.key} value={c.key}>{c.icon} {c.label}</option>
             ))}
           </select>
+
+          {subcategoryOptions.length > 0 && (
+            <>
+              <label style={lS}>{t.marketplaceFieldSubcategory}</label>
+              <select
+                style={fS}
+                value={subcategory}
+                onChange={e => setSubcategory(e.target.value)}
+              >
+                <option value="">{t.chooseSubcategoryOptional}</option>
+                {subcategoryOptions.map(s => (
+                  <option key={s.id} value={s.id}>{s.icon} {s[lang] || s.da}</option>
+                ))}
+              </select>
+            </>
+          )}
 
           <label style={lS}>{t.marketplaceFieldPrice}</label>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 12 }}>
@@ -16762,11 +17605,18 @@ function CalendarPage({ lang, t, currentUser }) {
   const [reminderSaving, setReminderSaving] = useState(false)
   const [tooltipVisible, setTooltipVisible] = useState(null)
   const [adfreeAssignments, setAdfreeAssignments] = useState([])
+  const [bankDays, setBankDays] = useState(0)
+  const [showAdfreeForm, setShowAdfreeForm] = useState(false)
+  const [adfreeEndDate, setAdfreeEndDate] = useState('')
+  const [adfreeAssigning, setAdfreeAssigning] = useState(false)
+  const [adfreeError, setAdfreeError] = useState('')
+  const [adfreeSuccess, setAdfreeSuccess] = useState('')
 
   useEffect(() => {
     apiFetchCalendarEvents().then(data => { if (data) setCalData(data) })
     apiFetchCalendarReminders().then(data => { if (data?.reminders) setReminders(data.reminders) })
     apiGetAdfreeAssignments().then(data => { if (data?.assignments) setAdfreeAssignments(data.assignments) })
+    apiGetAdfreeBank().then(data => { if (data?.bankDays != null) setBankDays(data.bankDays) })
   }, [])
 
   const handleAddReminder = async (e) => {
@@ -16938,7 +17788,7 @@ function CalendarPage({ lang, t, currentUser }) {
                 <div
                   key={`d${row}-${col}`}
                   style={s.dayCell(isToday, isSelected, false, isAdfree)}
-                  onClick={() => { setSelectedDay(isSelected ? null : dayNum); setShowReminderForm(false) }}
+                  onClick={() => { setSelectedDay(isSelected ? null : dayNum); setShowReminderForm(false); setShowAdfreeForm(false); setAdfreeEndDate(''); setAdfreeError(''); setAdfreeSuccess('') }}
                 >
                   <span style={s.dayNum(isSelected)}>{dayNum}</span>
                   <div style={s.dots}>
@@ -17105,6 +17955,93 @@ function CalendarPage({ lang, t, currentUser }) {
               </div>
             </form>
           )}
+
+          {/* Assign ad-free days — only when user has banked days and date is not already ad-free */}
+          {bankDays > 0 && selectedDateKey && !isAdfreeDate(selectedDateKey) && !showReminderForm && (() => {
+            const today2 = new Date().toLocaleDateString('sv-SE')
+            const isPast = selectedDateKey < today2
+            if (isPast) return null
+            const daysNeeded = adfreeEndDate && selectedDateKey <= adfreeEndDate
+              ? Math.floor((new Date(adfreeEndDate) - new Date(selectedDateKey)) / (1000 * 60 * 60 * 24)) + 1
+              : 0
+            const handleAdfreeAssign = async () => {
+              setAdfreeError('')
+              setAdfreeSuccess('')
+              if (!adfreeEndDate) { setAdfreeError(t.selectBothStartAndEndDates); return }
+              if (selectedDateKey > adfreeEndDate) { setAdfreeError(t.startDateMustBeBeforeEndDate); return }
+              if (daysNeeded > bankDays) { setAdfreeError(t.adfreeDaysError.replace('{bankDays}', bankDays).replace('{daysNeeded}', daysNeeded)); return }
+              setAdfreeAssigning(true)
+              const result = await apiAssignAdfreedays(selectedDateKey, adfreeEndDate)
+              setAdfreeAssigning(false)
+              if (result?.success) {
+                setAdfreeSuccess(t.adfreeDaysAssignedSuccess.replace('{daysNeeded}', daysNeeded))
+                setBankDays(result.newBank ?? Math.max(0, bankDays - daysNeeded))
+                setAdfreeEndDate('')
+                setShowAdfreeForm(false)
+                apiGetAdfreeAssignments().then(d => { if (d?.assignments) setAdfreeAssignments(d.assignments) })
+              } else {
+                setAdfreeError(result?.error || t.somethingWentWrong)
+              }
+            }
+            return (
+              <div style={{ marginTop: 14 }}>
+                {!showAdfreeForm && !adfreeSuccess ? (
+                  <button
+                    onClick={() => { setShowAdfreeForm(true); setAdfreeError(''); setAdfreeEndDate(selectedDateKey) }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: '1px dashed #2D6A4F', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontSize: 13, color: '#2D6A4F', fontWeight: 600 }}
+                  >
+                    📅 {t.assignBankedDays} ({bankDays})
+                  </button>
+                ) : adfreeSuccess ? (
+                  <div style={{ fontSize: 13, color: '#388e3c', padding: '8px 12px', background: '#e8f5e9', borderRadius: 8 }}>{adfreeSuccess}</div>
+                ) : (
+                  <div style={{ background: '#f0faf4', borderRadius: 10, padding: '12px 14px', border: '1px solid #b7dfc9' }}>
+                    <div style={{ fontSize: 11, color: '#2D6A4F', fontWeight: 700, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t.assignBankedDays}</div>
+                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                      <div style={{ flex: 1, minWidth: 120 }}>
+                        <label style={{ fontSize: 11, color: '#888', display: 'block', marginBottom: 4 }}>{t.startDate}</label>
+                        <input
+                          type="text"
+                          readOnly
+                          value={selectedDateKey ? selectedDateKey.split('-').reverse().join('-') : ''}
+                          style={{ width: '100%', padding: '7px 10px', border: '1px solid #b7dfc9', borderRadius: 5, fontSize: 13, boxSizing: 'border-box', background: '#e8f5ee', color: '#2D6A4F', fontWeight: 600 }}
+                        />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 120 }}>
+                        <label style={{ fontSize: 11, color: '#888', display: 'block', marginBottom: 4 }}>{t.endDate}</label>
+                        <input
+                          type="date"
+                          value={adfreeEndDate}
+                          min={selectedDateKey}
+                          onChange={e => { setAdfreeEndDate(e.target.value); setAdfreeError('') }}
+                          style={{ width: '100%', padding: '7px 10px', border: '1px solid #ddd', borderRadius: 5, fontSize: 13, boxSizing: 'border-box' }}
+                        />
+                      </div>
+                      <button
+                        onClick={handleAdfreeAssign}
+                        disabled={adfreeAssigning || !adfreeEndDate || daysNeeded > bankDays}
+                        style={{ padding: '8px 18px', background: '#2D6A4F', color: '#fff', border: 'none', borderRadius: 5, cursor: (adfreeAssigning || !adfreeEndDate || daysNeeded > bankDays) ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600, opacity: (adfreeAssigning || !adfreeEndDate || daysNeeded > bankDays) ? 0.5 : 1, whiteSpace: 'nowrap' }}
+                      >
+                        {adfreeAssigning ? t.assigning : t.assign}
+                      </button>
+                    </div>
+                    {daysNeeded > 0 && (
+                      <p style={{ margin: '8px 0 0', fontSize: 12, color: daysNeeded > bankDays ? '#d32f2f' : '#388e3c' }}>
+                        {t.adfreeDaysPreview.replace('{daysNeeded}', daysNeeded).replace('{bankDays}', bankDays)}
+                      </p>
+                    )}
+                    {adfreeError && <div style={{ marginTop: 8, fontSize: 13, color: '#d32f2f', padding: '6px 10px', background: '#ffebee', borderRadius: 6 }}>{adfreeError}</div>}
+                    <button
+                      onClick={() => { setShowAdfreeForm(false); setAdfreeEndDate(''); setAdfreeError('') }}
+                      style={{ marginTop: 10, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#888' }}
+                    >
+                      {t.calendarReminderCancel}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )
+          })()}
         </div>
       )}
     </div>
@@ -17708,7 +18645,7 @@ function AdminAuditLogPanel({ lang, rows, total, offset, filter, onFilterChange,
                     </td>
                     <td style={{ padding: '8px 14px', color: '#aaa', fontSize: 12, fontFamily: 'monospace' }}>{r.ip_address || '—'}</td>
                     <td style={{ padding: '8px 14px', color: '#888', fontSize: 12, whiteSpace: 'nowrap' }}>
-                      {new Date(r.created_at).toLocaleString(lang === 'da' ? 'da-DK' : 'en-GB', { dateStyle: 'short', timeStyle: 'short' })}
+                      {new Date(r.created_at).toLocaleString(lang === 'da' ? 'da-DK' : 'en-GB', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Europe/Copenhagen' })}
                     </td>
                   </tr>
                 ))}
@@ -18577,7 +19514,7 @@ function BadgesProfileSection({ lang, earnedBadges, onBadgeCheck, setEarnedBadge
                         </span></>
                       )}
                       {isEarned && hasInterview && (
-                        <><br /><span style={{ fontSize: 10, opacity: 0.7 }}>{da ? '👆 Klik for interview' : '👆 Click for interview'}</span></>
+                        <><br /><span style={{ fontSize: 10, opacity: 0.7 }}>{t.jobTrackInterviewClick}</span></>
                       )}
                     </div>
                   </div>
@@ -18719,6 +19656,11 @@ function AdminBadgesPanel({ lang }) {
                   <td>
                     <span style={{ fontSize: 18, marginRight: 8 }}>{b.icon}</span>
                     <span style={{ fontWeight: 600 }}>{b.name}</span>
+                    {BADGE_BY_ID[b.id]?.description[lang] && (
+                      <div style={{ fontSize: 11, color: '#888', fontWeight: 400, marginTop: 2 }}>
+                        {BADGE_BY_ID[b.id].description[lang]}
+                      </div>
+                    )}
                   </td>
                   <td style={{ fontSize: 12, color: '#888' }}>{tierLabel(b.tier)}</td>
                   <td style={{ fontSize: 13 }}>{statRow?.awardedCount ?? 0}</td>
@@ -19368,7 +20310,10 @@ function AdminPage({ lang, t }) {
     pwd_min_length: '6', pwd_require_uppercase: '0', pwd_require_lowercase: '0',
     pwd_require_numbers: '0', pwd_require_symbols: '0',
     media_max_files: '4', marketplace_max_photos: '4', registration_open: '1',
+    uploads_max_gb: '100', db_max_gb: '10', fb_photo_import_limit: '50',
   })
+  const [storageStats, setStorageStats] = useState(null)
+  const [storageLoading, setStorageLoading] = useState(false)
   const [status, setStatus] = useState('idle') // idle | saving | saved
   const [stats, setStats] = useState(null)
   const [weights, setWeights] = useState({ family: 1000, interest: 100, recency: 50 })
@@ -19446,6 +20391,22 @@ function AdminPage({ lang, t }) {
     apiAdminOnlineNow().then(data => { if (data) setOnlineNow(data.online) })
     apiAdminGrowth(30).then(data => { if (data) setGrowthData(data.days) })
   }, [])
+
+  useEffect(() => {
+    if (adminTab !== 'platform') return
+    setStorageLoading(true)
+    apiGetAdminStorageStats().then(data => {
+      if (data) {
+        setStorageStats(data)
+        setForm(prev => ({
+          ...prev,
+          uploads_max_gb: data.uploads_max_gb || '100',
+          db_max_gb: data.db_max_gb || '10',
+        }))
+      }
+      setStorageLoading(false)
+    })
+  }, [adminTab])
 
   useEffect(() => {
     if (adminTab !== 'moderation') return
@@ -19591,7 +20552,7 @@ function AdminPage({ lang, t }) {
             label: t.funGamification,
             tabs: [
               { id: 'easter-eggs', icon: '🥚', label: t.easterEggs },
-              { id: 'badges', icon: '🏅', label: 'Badges' },
+              { id: 'badges', icon: '🏅', label: t.badges },
             ],
           },
           {
@@ -20122,6 +21083,81 @@ function AdminPage({ lang, t }) {
 
       {adminTab === 'platform' && (
         <form onSubmit={handleSave}>
+          {/* ── Storage monitoring ── */}
+          <div className="p-card" style={{ marginBottom: 16, padding: '20px 24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>💾 {t.adminStorageTitle}</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setStorageLoading(true)
+                  apiGetAdminStorageStats().then(data => {
+                    if (data) {
+                      setStorageStats(data)
+                      setForm(prev => ({
+                        ...prev,
+                        uploads_max_gb: data.uploads_max_gb || '100',
+                        db_max_gb: data.db_max_gb || '10',
+                      }))
+                    }
+                    setStorageLoading(false)
+                  })
+                }}
+                style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid #ccc', background: '#f5f5f5', fontSize: 12, cursor: 'pointer', color: '#444' }}
+              >
+                {t.adminStorageRefresh}
+              </button>
+            </div>
+            <p style={{ margin: '0 0 20px', fontSize: 13, color: '#666' }}>{t.adminStorageDesc}</p>
+            {storageLoading && !storageStats && (
+              <p style={{ fontSize: 13, color: '#888' }}>{t.adminStorageLoading}</p>
+            )}
+            {!storageLoading && !storageStats && (
+              <p style={{ fontSize: 13, color: '#888' }}>{t.adminStorageUnavailable}</p>
+            )}
+            {storageStats && (() => {
+              const uploadsUsedGb = storageStats.uploads_bytes / 1073741824
+              const dbUsedGb = storageStats.db_bytes / 1073741824
+              const uploadsMaxGb = parseFloat(form.uploads_max_gb) || 100
+              const dbMaxGb = parseFloat(form.db_max_gb) || 10
+              const uploadsPct = Math.min(100, (uploadsUsedGb / uploadsMaxGb) * 100)
+              const dbPct = Math.min(100, (dbUsedGb / dbMaxGb) * 100)
+              const barColor = pct => pct >= 90 ? '#c0392b' : pct >= 70 ? '#e67e22' : '#2D6A4F'
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                  {[
+                    { label: t.adminStorageUploads, usedGb: uploadsUsedGb, maxGb: uploadsMaxGb, pct: uploadsPct, key: 'uploads_max_gb' },
+                    { label: t.adminStorageDb, usedGb: dbUsedGb, maxGb: dbMaxGb, pct: dbPct, key: 'db_max_gb' },
+                  ].map(({ label, usedGb, maxGb, pct, key }) => (
+                    <div key={key}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+                        <span style={{ fontSize: 14, fontWeight: 600 }}>{label}</span>
+                        <span style={{ fontSize: 13, color: '#555' }}>
+                          {usedGb < 1
+                            ? `${(usedGb * 1024).toFixed(0)} MB`
+                            : `${usedGb.toFixed(2)} ${t.adminStorageGb}`
+                          } {t.adminStorageOf} {maxGb} {t.adminStorageGb} ({pct.toFixed(1)}% {t.adminStorageUsed})
+                        </span>
+                      </div>
+                      <div style={{ background: '#e8e8e8', borderRadius: 6, height: 10, overflow: 'hidden', marginBottom: 10 }}>
+                        <div style={{ width: `${pct}%`, height: '100%', background: barColor(pct), borderRadius: 6, transition: 'width 0.4s ease' }} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 12, color: '#666', fontWeight: 600, display: 'block', marginBottom: 4 }}>{t.adminStorageMaxGb}</label>
+                        <input
+                          type="number" min="1" max="100000" step="1"
+                          style={{ ...fS, width: 120 }}
+                          value={form[key] || ''}
+                          onChange={e => setForm(prev => ({ ...prev, [key]: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )
+            })()}
+          </div>
+
           {/* ── Media settings ── */}
           <div className="p-card" style={{ marginBottom: 16, padding: '20px 24px' }}>
             <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700 }}>🖼️ {t.media2}</h3>
@@ -20152,6 +21188,26 @@ function AdminPage({ lang, t }) {
                   />
                   <span style={{ fontSize: 13, color: '#888' }}>{t.n120Photos}</span>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Facebook settings ── */}
+          <div className="p-card" style={{ marginBottom: 16, padding: '20px 24px' }}>
+            <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700 }}>📘 {t.adminFbSection}</h3>
+            <p style={{ margin: '0 0 20px', fontSize: 13, color: '#666' }}>
+              {t.adminFbPhotoImportLimitHint}
+            </p>
+            <div>
+              <label style={lS}>{t.adminFbPhotoImportLimit}</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <input
+                  style={{ ...fS, width: 100 }}
+                  type="number" min="1" max="200"
+                  value={form.fb_photo_import_limit || '50'}
+                  onChange={e => setForm(prev => ({ ...prev, fb_photo_import_limit: e.target.value }))}
+                />
+                <span style={{ fontSize: 13, color: '#888' }}>(1–200)</span>
               </div>
             </div>
           </div>
@@ -21013,7 +22069,7 @@ function AdminPage({ lang, t }) {
                 </div>
                 <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 12, color: '#666', marginBottom: 12 }}>
                   <span>#{u.id}</span>
-                  <span>{t.adminUserJoinDate}: {u.created_at ? new Date(u.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US') : '–'}</span>
+                  <span>{t.adminUserJoinDate}: {u.created_at && !isNaN(new Date(u.created_at)) ? new Date(u.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US') : '–'}</span>
                   <span>{t.adminUserMode}: {u.mode}</span>
                   <span>{t.adminUserPlan}: {u.plan || '–'}</span>
                   <span>{u.post_count ?? 0} {t.adminUserPostCount}</span>
