@@ -3,6 +3,8 @@ import PostComposer from './PostComposer.jsx'
 import {
   apiGetGroup, apiGetGroupPosts, apiCreateGroupPost, apiDeleteGroupPost,
   apiPinGroupPost, apiReactToGroupPost, apiLeaveGroup, apiJoinGroup,
+  apiGetGroupMembers, apiUpdateGroupMemberRole, apiRemoveGroupMember,
+  apiGetGroupEvents, apiRsvpGroupEvent,
 } from './api.js'
 import { getTranslations, nameToColor, getInitials } from './data.js'
 
@@ -16,6 +18,22 @@ const TYPE_STYLE = {
 
 const REACTIONS = ['like', 'love', 'insightful']
 const REACTION_EMOJI = { like: '👍', love: '❤️', insightful: '💡' }
+
+const ROLE_STYLE = {
+  admin:     { bg: '#FEE2E2', color: '#991B1B' },
+  moderator: { bg: '#FEF3C7', color: '#92400E' },
+  member:    { bg: '#F3F4F6', color: '#6B7280' },
+}
+
+const RSVP_STATUSES = ['going', 'maybe', 'notGoing']
+
+function fmtDate(dateStr, lang) {
+  if (!dateStr) return ''
+  return new Date(dateStr).toLocaleDateString(
+    lang === 'da' ? 'da-DK' : 'en-US',
+    { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }
+  )
+}
 
 function fmtTime(dateStr, lang) {
   if (!dateStr) return ''
@@ -40,6 +58,10 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
   const [composerSubmitting, setComposerSubmitting] = useState(false)
   const [composerMedia, setComposerMedia] = useState(null)
   const [composerPreview, setComposerPreview] = useState(null)
+  const [members, setMembers] = useState([])
+  const [membersLoading, setMembersLoading] = useState(false)
+  const [events, setEvents] = useState([])
+  const [eventsLoading, setEventsLoading] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -150,6 +172,54 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
       return { ...p, my_reaction: nextReaction, reactions: r }
     }))
     await apiReactToGroupPost(group.id, post.id, reaction)
+  }
+
+  useEffect(() => {
+    if (tab !== 'members' || loadState !== 'ready' || !group) return
+    setMembersLoading(true)
+    apiGetGroupMembers(group.id).then(data => {
+      setMembersLoading(false)
+      if (data?.members) setMembers(data.members)
+    })
+  }, [tab, loadState, group?.id])
+
+  useEffect(() => {
+    if (tab !== 'events' || loadState !== 'ready' || !group) return
+    setEventsLoading(true)
+    apiGetGroupEvents(group.slug).then(data => {
+      setEventsLoading(false)
+      if (data?.events) setEvents(data.events)
+    })
+  }, [tab, loadState, group?.id, group?.slug])
+
+  const handlePromote = async (userId) => {
+    const res = await apiUpdateGroupMemberRole(group.id, userId, 'moderator')
+    if (res) setMembers(prev => prev.map(m => m.id === userId ? { ...m, role: 'moderator' } : m))
+  }
+
+  const handleDemote = async (userId) => {
+    const res = await apiUpdateGroupMemberRole(group.id, userId, 'member')
+    if (res) setMembers(prev => prev.map(m => m.id === userId ? { ...m, role: 'member' } : m))
+  }
+
+  const handleRemoveMember = async (userId) => {
+    if (!window.confirm(g.removeMember)) return
+    const res = await apiRemoveGroupMember(group.id, userId)
+    if (res) {
+      setMembers(prev => prev.filter(m => m.id !== userId))
+      setGroup(prev => ({ ...prev, member_count: Math.max(0, prev.member_count - 1) }))
+    }
+  }
+
+  const handleRsvp = async (ev, status) => {
+    const prev = ev.my_rsvp
+    const wasGoing = prev === 'going'
+    const willBeGoing = status === 'going'
+    const goingDelta = (willBeGoing ? 1 : 0) - (wasGoing ? 1 : 0)
+    setEvents(prevEvs => prevEvs.map(e =>
+      e.id !== ev.id ? e : { ...e, my_rsvp: status, going_count: Number(e.going_count) + goingDelta }
+    ))
+    await apiRsvpGroupEvent(group.slug, ev.id, status)
   }
 
   // ── Status screens ────────────────────────────────────────────────────────
@@ -408,7 +478,110 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
             })}
           </div>
         )}
-        {tab !== 'feed' && <div />}
+        {tab === 'members' && (
+          <div>
+            {membersLoading ? (
+              <div style={s.feedEmpty}>{g.loading}</div>
+            ) : members.length === 0 ? (
+              <div style={s.feedEmpty}>{g.noMembers}</div>
+            ) : members.map(member => {
+              const isMe = member.id === currentUser?.id
+              const roleMeta = ROLE_STYLE[member.role] || ROLE_STYLE.member
+              const roleLabel = g.role?.[member.role] || member.role
+              const canPromote = isAdmin && !isMe && member.role === 'member'
+              const canDemote = isAdmin && !isMe && member.role === 'moderator'
+              const canRemove = !isMe && member.role !== 'admin' && (
+                isAdmin || (isMod && member.role === 'member')
+              )
+              return (
+                <div key={member.id} style={s.memberRow}>
+                  <div style={{
+                    width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
+                    background: nameToColor(member.name), color: '#fff',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 14, fontWeight: 700, overflow: 'hidden',
+                  }}>
+                    {member.avatar_url
+                      ? <img src={member.avatar_url.startsWith('http') ? member.avatar_url : `${API_BASE}${member.avatar_url}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : getInitials(member.name)
+                    }
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={s.memberName}>
+                      {member.name}
+                      {isMe && <span style={s.meTag}> (me)</span>}
+                    </div>
+                    <span style={{ ...s.roleBadge, background: roleMeta.bg, color: roleMeta.color }}>
+                      {roleLabel}
+                    </span>
+                  </div>
+                  {(canPromote || canDemote || canRemove) && (
+                    <div style={s.memberActions}>
+                      {canPromote && (
+                        <button style={s.memberBtn} onClick={() => handlePromote(member.id)}>
+                          {g.promote}
+                        </button>
+                      )}
+                      {canDemote && (
+                        <button style={s.memberBtn} onClick={() => handleDemote(member.id)}>
+                          {g.demote}
+                        </button>
+                      )}
+                      {canRemove && (
+                        <button style={{ ...s.memberBtn, ...s.memberBtnDanger }} onClick={() => handleRemoveMember(member.id)}>
+                          {g.removeMember}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {tab === 'events' && (
+          <div>
+            {eventsLoading ? (
+              <div style={s.feedEmpty}>{g.loading}</div>
+            ) : events.length === 0 ? (
+              <div style={s.feedEmpty}>{g.noEvents}</div>
+            ) : events.map(ev => {
+              const goingCount = Number(ev.going_count) || 0
+              return (
+                <div key={ev.id} style={s.eventCard}>
+                  <div style={s.eventTitle}>{ev.title}</div>
+                  <div style={s.eventMeta}>
+                    {ev.date && <span>{'📅 '}{fmtDate(ev.date, lang)}</span>}
+                    {ev.location && <span>{'📍 '}{ev.location}</span>}
+                    {goingCount > 0 && (
+                      <span style={s.goingBadge}>
+                        {goingCount}{' '}{g.rsvpGoing.toLowerCase()}
+                      </span>
+                    )}
+                  </div>
+                  <div style={s.rsvpRow}>
+                    {RSVP_STATUSES.map(status => {
+                      const active = ev.my_rsvp === status
+                      const label = g[`rsvp${status.charAt(0).toUpperCase()}${status.slice(1)}`] || status
+                      return (
+                        <button
+                          key={status}
+                          style={{ ...s.rsvpBtn, ...(active ? s.rsvpBtnActive : {}) }}
+                          onClick={() => handleRsvp(ev, status)}
+                        >
+                          {label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {(tab === 'polls' || tab === 'about') && <div />}
       </div>
     </div>
   )
@@ -472,4 +645,43 @@ const s = {
     fontSize: 12, cursor: 'pointer', lineHeight: 1, padding: 0,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
   },
+  // Members tab
+  memberRow: {
+    display: 'flex', alignItems: 'center', gap: 12,
+    padding: '10px 0', borderBottom: '1px solid #F0EDE8',
+  },
+  memberName: { fontSize: 14, fontWeight: 700, color: '#1a1a1a', marginBottom: 3 },
+  meTag: { fontWeight: 400, color: '#aaa', fontSize: 12 },
+  roleBadge: {
+    display: 'inline-block', fontSize: 11, fontWeight: 700,
+    padding: '2px 8px', borderRadius: 20,
+  },
+  memberActions: { display: 'flex', gap: 6, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' },
+  memberBtn: {
+    fontSize: 12, fontWeight: 600, padding: '5px 12px', borderRadius: 20,
+    border: '1.5px solid #D1D5DB', background: '#fff', color: '#374151', cursor: 'pointer',
+    whiteSpace: 'nowrap',
+  },
+  memberBtnDanger: { borderColor: '#FECACA', color: '#DC2626', background: '#FFF5F5' },
+  // Events tab
+  eventCard: {
+    background: '#fff', borderRadius: 12, border: '1px solid #E8E4DF',
+    padding: '14px 16px', marginBottom: 12,
+  },
+  eventTitle: { fontSize: 15, fontWeight: 700, color: '#1a1a1a', marginBottom: 8 },
+  eventMeta: {
+    display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 12,
+    fontSize: 13, color: '#666',
+  },
+  goingBadge: {
+    fontSize: 12, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
+    background: '#E8F5E9', color: '#2E7D32',
+  },
+  rsvpRow: { display: 'flex', gap: 6, flexWrap: 'wrap' },
+  rsvpBtn: {
+    fontSize: 13, fontWeight: 600, padding: '6px 14px', borderRadius: 20,
+    border: '1.5px solid #D1D5DB', background: '#fff', color: '#555', cursor: 'pointer',
+    transition: 'all 0.15s',
+  },
+  rsvpBtnActive: { background: '#4338CA', borderColor: '#4338CA', color: '#fff' },
 }
