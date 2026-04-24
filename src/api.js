@@ -1084,14 +1084,159 @@ export async function apiGetAdminViralStats(days = 30) {
   return await request(`/api/admin/viral-stats?days=${days}`)
 }
 
+// ── Groups Main Page ──
+
+export async function apiGetGroups(params = {}) {
+  const q = new URLSearchParams()
+  if (params.category) q.set('category', params.category)
+  if (params.search) q.set('search', params.search)
+  if (params.sort) q.set('sort', params.sort)
+  const qs = q.toString()
+  return request(`/api/groups?${qs}`)
+}
+
+export const apiGetMyGroups = () => request('/api/groups/me')
+
+export const apiGetPendingGroups = () => request('/api/groups/admin/pending')
+
+export async function apiApproveGroup(id) {
+  return request(`/api/groups/admin/${id}/approve`, { method: 'POST' })
+}
+
+export async function apiRejectGroup(id) {
+  return request(`/api/groups/admin/${id}/reject`, { method: 'POST' })
+}
+
 // ── Group Suggestions ──
 
 export async function apiGetGroupSuggestions() {
   return await request('/api/groups/suggestions')
 }
 
+// ── Group Membership ──
+
 export async function apiJoinGroup(groupId) {
   return await request(`/api/groups/${groupId}/join`, { method: 'POST' })
+}
+
+export async function apiCreateGroup({ name, slug, description, type, category, tags }) {
+  return await request('/api/groups', {
+    method: 'POST',
+    body: JSON.stringify({ name, slug, description, type, category, tags }),
+  })
+}
+
+// ── Group Detail ──
+// Raw fetch to distinguish 403 (hidden/forbidden) from 404 (not found)
+export async function apiGetGroup(slug) {
+  try {
+    const res = await fetch(`${API_BASE}/api/groups/${slug}`, {
+      headers: headers(),
+      credentials: 'same-origin',
+    })
+    if (!res.ok) return { error: res.status === 403 ? 'forbidden' : 'not_found' }
+    return await res.json()
+  } catch {
+    return null
+  }
+}
+
+export const apiGetGroupPosts = (groupId) => request(`/api/groups/${groupId}/posts`)
+
+export async function apiCreateGroupPost(groupId, text, file) {
+  if (file) {
+    const form = new FormData()
+    form.append('text', text)
+    form.append('media', file)
+    const csrf = localStorage.getItem('fellis_csrf_token')
+    try {
+      const res = await fetch(`${API_BASE}/api/groups/${groupId}/posts`, {
+        method: 'POST',
+        headers: csrf ? { 'X-CSRF-Token': csrf } : {},
+        credentials: 'same-origin',
+        body: form,
+      })
+      if (!res.ok) return null
+      return await res.json()
+    } catch { return null }
+  }
+  return await request(`/api/groups/${groupId}/posts`, {
+    method: 'POST',
+    body: JSON.stringify({ text }),
+  })
+}
+
+export const apiDeleteGroupPost = (groupId, postId) =>
+  request(`/api/groups/${groupId}/posts/${postId}`, { method: 'DELETE' })
+
+export async function apiPinGroupPost(groupId, postId, pinned) {
+  return await request(`/api/groups/${groupId}/posts/${postId}/pin`, {
+    method: 'POST',
+    body: JSON.stringify({ pinned }),
+  })
+}
+
+export async function apiReactToGroupPost(groupId, postId, reaction) {
+  return await request(`/api/groups/${groupId}/posts/${postId}/react`, {
+    method: 'POST',
+    body: JSON.stringify({ reaction }),
+  })
+}
+
+export const apiGetGroupMembers = (groupId) => request(`/api/groups/${groupId}/members`)
+
+export async function apiUpdateGroupMemberRole(groupId, userId, role) {
+  return await request(`/api/groups/${groupId}/members/${userId}/role`, {
+    method: 'PUT',
+    body: JSON.stringify({ role }),
+  })
+}
+
+export const apiRemoveGroupMember = (groupId, userId) =>
+  request(`/api/groups/${groupId}/members/${userId}`, { method: 'DELETE' })
+
+export const apiGetGroupEvents = (slug) => request(`/api/groups/${slug}/events`)
+
+export async function apiRsvpGroupEvent(slug, eventId, status) {
+  return await request(`/api/groups/${slug}/events/${eventId}/rsvp`, {
+    method: 'POST',
+    body: JSON.stringify({ status }),
+  })
+}
+
+export const apiGetGroupPolls = (slug) => request(`/api/groups/${slug}/polls`)
+
+export async function apiVoteGroupPoll(slug, pollId, optionIdx) {
+  return await request(`/api/groups/${slug}/polls/${pollId}/vote`, {
+    method: 'POST',
+    body: JSON.stringify({ optionIdx }),
+  })
+}
+
+export const apiLeaveGroup = (groupId) =>
+  request(`/api/groups/${groupId}/leave`, { method: 'POST' })
+
+export const apiGetGroupInviteLink = (slug) => request(`/api/groups/${slug}/invite`)
+
+export async function apiUploadGroupCover(groupId, file) {
+  const form = new FormData()
+  form.append('cover', file)
+  try {
+    const res = await fetch(`${API_BASE}/api/groups/${groupId}/cover`, {
+      method: 'POST',
+      headers: formHeaders(),
+      credentials: 'same-origin',
+      body: form,
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.error || `HTTP ${res.status}`)
+    }
+    return await res.json()
+  } catch (err) {
+    if (err.message === 'Failed to fetch') return null
+    throw err
+  }
 }
 
 // ── Reels ──

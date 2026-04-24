@@ -86,6 +86,8 @@ import KeyboardShortcutsHelp from './components/KeyboardShortcutsHelp.jsx'
 import useKeyboardShortcuts from './hooks/useKeyboardShortcuts.js'
 import DiscoveryCard from './components/DiscoveryCard.jsx'
 import OnboardingChecklist from './OnboardingChecklist.jsx'
+import GroupsPage from './Groups.jsx'
+import GroupDetail from './GroupDetail.jsx'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -478,6 +480,15 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
     setShowMobileMenu(false)
   }, [])
 
+  const navigateGroups = useCallback((path) => {
+    if (path === '/groups') { navigateTo('groups'); return }
+    if (typeof path === 'string' && path.startsWith('/groups/')) {
+      const slug = path.slice('/groups/'.length).split('/')[0]
+      if (slug) { navigateTo('group-detail', { slug }); return }
+    }
+    navigateTo(path)
+  }, [navigateTo])
+
   // Restore feed scroll position synchronously before paint (when returning to feed)
   useLayoutEffect(() => {
     if (page === 'feed' && savedFeedScroll.current > 0) {
@@ -542,8 +553,8 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
           <div ref={moreMenuRef} style={{ position: 'relative' }}>
             <button
               className={`p-nav-tab${(mode === 'business'
-                ? ['friends', 'calendar', 'marketplace', 'explore', 'saved-posts']
-                : ['friends', 'calendar', 'marketplace', 'jobs', 'explore', 'saved-posts']
+                ? ['friends', 'calendar', 'marketplace', 'explore', 'saved-posts', 'groups', 'group-detail']
+                : ['friends', 'calendar', 'marketplace', 'jobs', 'explore', 'saved-posts', 'groups', 'group-detail']
               ).includes(page) ? ' active' : ''}`}
               onClick={() => setShowMoreMenu(v => !v)}
             >
@@ -556,6 +567,7 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
                   label: t.navGroupSocial,
                   items: [
                     { id: 'friends', icon: '👥', label: mode === 'business' ? t.connectionsLabel : t.friends },
+                    { id: 'groups', icon: '🫂', label: t.groups },
                     { id: 'explore', icon: '🔭', label: t.explore },
                     { id: 'calendar', icon: '🗓️', label: t.calendar },
                     { id: 'saved-posts', icon: '🔖', label: t.savedPosts },
@@ -778,6 +790,8 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
         </div>
         {page === 'reels' && <ReelsPage t={t} lang={lang} currentUser={currentUser} initialReelId={navParam?.reelId} onViewProfile={(userId) => navigateTo('view-profile', { userId })} />}
         {page === 'explore' && <ExplorePage lang={lang} onViewProfile={(userId) => { setViewUserId(userId); navigateTo('view-profile') }} />}
+        {page === 'groups' && <GroupsPage lang={lang} currentUser={currentUser} onNavigate={navigateGroups} />}
+        {page === 'group-detail' && navParam?.slug && <GroupDetail slug={navParam.slug} lang={lang} currentUser={currentUser} onNavigate={navigateGroups} />}
         {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onBadgeCheck={checkBadges} interestCategories={interestCategories} initialTab={navParam?.tab} />}
         {page === 'view-profile' && viewUserId && <FriendProfilePage userId={viewUserId} lang={lang} t={t} currentUser={currentUser} onBack={() => navigateTo('feed')} onNavigate={navigateTo} onBadgeCheck={checkBadges} onMessage={async (prof) => { const data = await apiCreateConversation([prof.id], null, false, false).catch(() => null); if (data?.id) setOpenConvId(data.id); navigateTo('messages') }} />}
         {page === 'edit-profile' && <EditProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onBadgeCheck={checkBadges} initialTab={navParam?.tab} />}

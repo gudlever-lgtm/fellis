@@ -1018,4 +1018,115 @@ if (!miscRoutesSrc.includes("req.userMode !== 'business'") || !miscRoutesSrc.inc
   console.log(`${GREEN}✓ POST /api/company/profile has 403 guard for non-business mode.${RESET}\n`)
 }
 
+// ── 19. Group membership and post routes ──────────────────────────────────────
+//
+// All group membership and post endpoints must be registered on the server.
+// They must never return 404 (route missing) or 500 (unhandled server error).
+//
+//   POST   /api/groups/:id/join                       — join / request membership
+//   POST   /api/groups/:id/leave                      — leave group
+//   GET    /api/groups/:id/members                    — list members with roles
+//   PUT    /api/groups/:id/members/:userId/role       — change member role
+//   DELETE /api/groups/:id/members/:userId            — remove member
+//   POST   /api/groups/:id/posts                      — create group post
+//   GET    /api/groups/:id/posts                      — group feed
+//   DELETE /api/groups/:id/posts/:postId              — delete group post
+//   POST   /api/groups/:id/posts/:postId/pin          — pin/unpin post
+//   POST   /api/groups/:id/posts/:postId/react        — react to post
+
+const REQUIRED_GROUP_ROUTES = [
+  'POST /api/groups/:id/join',
+  'POST /api/groups/:id/leave',
+  'GET /api/groups/:id/members',
+  'PUT /api/groups/:id/members/:userId/role',
+  'DELETE /api/groups/:id/members/:userId',
+  'POST /api/groups/:id/posts',
+  'GET /api/groups/:id/posts',
+  'DELETE /api/groups/:id/posts/:postId',
+  'POST /api/groups/:id/posts/:postId/pin',
+  'POST /api/groups/:id/posts/:postId/react',
+]
+
+const missingGroupRoutes = REQUIRED_GROUP_ROUTES.filter(r => {
+  const [method, p] = r.split(' ')
+  return !normServerRoutes.has(`${method} ${normaliseServerPath(p)}`)
+})
+
+if (missingGroupRoutes.length > 0) {
+  console.log(`${RED}✗ Missing required group membership/post server routes:${RESET}`)
+  for (const r of missingGroupRoutes) console.log(`  ${RED}${r}${RESET}`)
+  console.log()
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ All ${REQUIRED_GROUP_ROUTES.length} group membership and post routes are registered on the server.${RESET}\n`)
+}
+
+// Verify groups.js exports each route with 404 and 500 handling.
+// Each route must send a 404 response for unknown groups and a 500 for DB errors.
+const groupsRouteSrc = readFileSync(resolve(root, 'server/routes/groups.js'), 'utf8')
+
+const groupRouteErrors = []
+
+if (!groupsRouteSrc.includes('404')) {
+  groupRouteErrors.push('group routes are missing 404 responses for unknown groups/posts')
+}
+if (!groupsRouteSrc.includes('500')) {
+  groupRouteErrors.push('group routes are missing 500 error handling')
+}
+
+// Verify last-admin guard on leave
+if (!groupsRouteSrc.includes('last admin')) {
+  groupRouteErrors.push('POST /api/groups/:id/leave is missing last-admin guard')
+}
+
+// Verify last-admin guard on member removal
+if (!groupsRouteSrc.includes('last admin') && !groupsRouteSrc.includes('Cannot remove the last admin')) {
+  groupRouteErrors.push('DELETE /api/groups/:id/members/:userId is missing last-admin guard')
+}
+
+// Verify member_count is kept in sync (join/leave/remove all update it)
+if ((groupsRouteSrc.match(/member_count/g) || []).length < 3) {
+  groupRouteErrors.push('member_count is not updated in all membership change paths (join, leave, remove)')
+}
+
+// Verify post_count is kept in sync
+if ((groupsRouteSrc.match(/post_count/g) || []).length < 2) {
+  groupRouteErrors.push('post_count is not updated on both post create and delete')
+}
+
+// Verify reaction type validation
+if (!groupsRouteSrc.includes("'like'") || !groupsRouteSrc.includes("'love'") || !groupsRouteSrc.includes("'insightful'")) {
+  groupRouteErrors.push('POST /api/groups/:id/posts/:postId/react is missing reaction type validation')
+}
+
+if (groupRouteErrors.length > 0) {
+  console.log(`${RED}✗ Group route implementation issues:${RESET}`)
+  for (const e of groupRouteErrors) console.log(`  ${RED}${e}${RESET}`)
+  console.log()
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ Group routes implement 404/500 handling, last-admin guards, count sync, and reaction validation.${RESET}\n`)
+}
+
+// Verify api.js exports the group functions
+const REQUIRED_GROUP_API_FNS = [
+  'apiLeaveGroup',
+  'apiGetGroupMembers',
+  'apiUpdateGroupMemberRole',
+  'apiRemoveGroupMember',
+  'apiCreateGroupPost',
+  'apiGetGroupPosts',
+  'apiDeleteGroupPost',
+  'apiPinGroupPost',
+  'apiReactToGroupPost',
+]
+
+const missingGroupApiFns = REQUIRED_GROUP_API_FNS.filter(fn => !apiSrc.includes(fn))
+if (missingGroupApiFns.length > 0) {
+  console.log(`${RED}✗ src/api.js is missing group API functions: ${missingGroupApiFns.join(', ')}${RESET}\n`)
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ src/api.js exports all ${REQUIRED_GROUP_API_FNS.length} group membership and post functions.${RESET}\n`)
+}
+
 process.exit(0)
