@@ -1090,8 +1090,57 @@ export async function apiGetGroupSuggestions() {
   return await request('/api/groups/suggestions')
 }
 
+// ── Group Membership ──
+
 export async function apiJoinGroup(groupId) {
   return await request(`/api/groups/${groupId}/join`, { method: 'POST' })
+}
+
+export async function apiLeaveGroup(groupId) {
+  return await request(`/api/groups/${groupId}/leave`, { method: 'POST' })
+}
+
+export async function apiGetGroupMembers(groupId) {
+  return await request(`/api/groups/${groupId}/members`)
+}
+
+export async function apiUpdateGroupMemberRole(groupId, userId, role) {
+  return await request(`/api/groups/${groupId}/members/${userId}/role`, {
+    method: 'PUT',
+    body: JSON.stringify({ role }),
+  })
+}
+
+export async function apiRemoveGroupMember(groupId, userId) {
+  return await request(`/api/groups/${groupId}/members/${userId}`, { method: 'DELETE' })
+}
+
+// ── Group Posts ──
+
+export async function apiCreateGroupPost(groupId, content, media) {
+  return await request(`/api/groups/${groupId}/posts`, {
+    method: 'POST',
+    body: JSON.stringify({ content, media }),
+  })
+}
+
+export async function apiGetGroupPosts(groupId, limit = 20, offset = 0) {
+  return await request(`/api/groups/${groupId}/posts?limit=${limit}&offset=${offset}`)
+}
+
+export async function apiDeleteGroupPost(groupId, postId) {
+  return await request(`/api/groups/${groupId}/posts/${postId}`, { method: 'DELETE' })
+}
+
+export async function apiPinGroupPost(groupId, postId) {
+  return await request(`/api/groups/${groupId}/posts/${postId}/pin`, { method: 'POST' })
+}
+
+export async function apiReactToGroupPost(groupId, postId, type) {
+  return await request(`/api/groups/${groupId}/posts/${postId}/react`, {
+    method: 'POST',
+    body: JSON.stringify({ type }),
+  })
 }
 
 // ── Reels ──
