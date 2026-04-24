@@ -104,5 +104,90 @@ router.post('/groups/:id/join', authenticate, async (req, res) => {
   }
 })
 
+router.post('/groups', authenticate, writeLimit, async (req, res) => {
+  const { name, slug, description, type, category, tags } = req.body || {}
+  if (!name || !String(name).trim()) return res.status(400).json({ error: 'Name required' })
+  if (!slug || !String(slug).trim()) return res.status(400).json({ error: 'Slug required' })
+
+  const validTypes = ['public', 'private', 'hidden']
+  if (!validTypes.includes(type)) return res.status(400).json({ error: 'Invalid type' })
+
+  const validCategories = ['interest', 'local', 'professional', 'event', 'other']
+  if (category && !validCategories.includes(category)) return res.status(400).json({ error: 'Invalid category' })
+
+  const cleanSlug = String(slug).trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '')
+  if (!cleanSlug) return res.status(400).json({ error: 'Invalid slug' })
+
+  const cleanTags = Array.isArray(tags)
+    ? tags.slice(0, 20).map(t => String(t).trim()).filter(Boolean)
+    : []
+
+  const isPublic = type === 'public' ? 1 : 0
+
+  try {
+    const [[existing]] = await pool.query(
+      'SELECT id FROM conversations WHERE slug = ?',
+      [cleanSlug]
+    )
+    if (existing) return res.status(409).json({ error: 'slug_taken' })
+
+    const [result] = await pool.query(
+      `INSERT INTO conversations
+         (name, slug, description_da, type, category, tags, is_group, is_public, created_by, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, NOW())`,
+      [
+        String(name).trim(),
+        cleanSlug,
+        description ? String(description).trim() : '',
+        type,
+        category || null,
+        JSON.stringify(cleanTags),
+        isPublic,
+        req.userId,
+      ]
+    )
+
+    await pool.query(
+      'INSERT INTO conversation_participants (conversation_id, user_id) VALUES (?, ?)',
+      [result.insertId, req.userId]
+    )
+
+    res.status(201).json({ id: result.insertId, slug: cleanSlug })
+  } catch (err) {
+    console.error('POST /api/groups error:', err)
+    res.status(500).json({ error: 'Failed to create group' })
+  }
+})
+
+router.post('/groups/:id/cover', authenticate, fileUploadLimit, coverUpload.single('cover'), async (req, res) => {
+  const groupId = parseInt(req.params.id)
+  if (isNaN(groupId)) return res.status(400).json({ error: 'Invalid group ID' })
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' })
+
+  try {
+    const [[group]] = await pool.query(
+      'SELECT id, created_by FROM conversations WHERE id = ? AND is_group = 1',
+      [groupId]
+    )
+    if (!group) {
+      fs.unlink(path.join(UPLOADS_DIR, req.file.filename), () => {})
+      return res.status(404).json({ error: 'Group not found' })
+    }
+    if (group.created_by !== req.userId) {
+      fs.unlink(path.join(UPLOADS_DIR, req.file.filename), () => {})
+      return res.status(403).json({ error: 'Forbidden' })
+    }
+
+    const coverUrl = `/uploads/${req.file.filename}`
+    await pool.query('UPDATE conversations SET cover_url = ? WHERE id = ?', [coverUrl, groupId])
+
+    res.json({ coverUrl })
+  } catch (err) {
+    console.error('POST /api/groups/:id/cover error:', err)
+    if (req.file) fs.unlink(path.join(UPLOADS_DIR, req.file.filename), () => {})
+    res.status(500).json({ error: 'Failed to upload cover' })
+  }
+})
+
 
 export default router

@@ -1094,6 +1094,34 @@ export async function apiJoinGroup(groupId) {
   return await request(`/api/groups/${groupId}/join`, { method: 'POST' })
 }
 
+export async function apiCreateGroup({ name, slug, description, type, category, tags }) {
+  return await request('/api/groups', {
+    method: 'POST',
+    body: JSON.stringify({ name, slug, description, type, category, tags }),
+  })
+}
+
+export async function apiUploadGroupCover(groupId, file) {
+  const form = new FormData()
+  form.append('cover', file)
+  try {
+    const res = await fetch(`${API_BASE}/api/groups/${groupId}/cover`, {
+      method: 'POST',
+      headers: formHeaders(),
+      credentials: 'same-origin',
+      body: form,
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.error || `HTTP ${res.status}`)
+    }
+    return await res.json()
+  } catch (err) {
+    if (err.message === 'Failed to fetch') return null
+    throw err
+  }
+}
+
 // ── Reels ──
 export async function apiFetchReels(offset = 0, limit = 10) {
   return await request(`/api/reels?offset=${offset}&limit=${limit}`)
