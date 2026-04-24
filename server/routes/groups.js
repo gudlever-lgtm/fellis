@@ -29,6 +29,136 @@ async function getMemberRole(groupId, userId) {
 
 // ── Group discovery ───────────────────────────────────────────────────────────
 
+// GET /groups — public discover with optional category/search/sort
+router.get('/groups', authenticate, async (req, res) => {
+  const { category, search, sort = 'trending' } = req.query
+  try {
+    const conditions = [
+      `c.is_group = 1`,
+      `c.type != 'hidden'`,
+      `(c.group_status IS NULL OR c.group_status = 'active')`,
+    ]
+    const params = [req.userId]
+    if (category) { conditions.push(`c.category = ?`); params.push(category) }
+    if (search) {
+      conditions.push(`(c.name LIKE ? OR c.description_da LIKE ? OR c.description_en LIKE ?)`)
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`)
+    }
+    const orderBy =
+      sort === 'newest'  ? 'c.created_at DESC' :
+      sort === 'members' ? 'c.member_count DESC' :
+      'c.member_count DESC, c.created_at DESC'
+
+    const [rows] = await pool.query(
+      `SELECT c.id, c.name, c.slug, c.category,
+              c.description_da, c.description_en,
+              c.cover_url, c.member_count, c.type,
+              (cp.user_id IS NOT NULL AND cp.status = 'active') AS is_member,
+              cp.status AS my_status
+       FROM conversations c
+       LEFT JOIN conversation_participants cp
+         ON cp.conversation_id = c.id AND cp.user_id = ?
+       WHERE ${conditions.join(' AND ')}
+       ORDER BY ${orderBy}
+       LIMIT 60`,
+      params
+    )
+    const groups = rows.map(r => ({
+      id: r.id,
+      name: r.name,
+      slug: r.slug,
+      category: r.category,
+      description: r.description_da || r.description_en || '',
+      coverUrl: r.cover_url || null,
+      memberCount: Number(r.member_count) || 0,
+      type: r.type || 'public',
+      isMember: Boolean(r.is_member),
+      hasRequested: r.my_status === 'pending',
+    }))
+    res.json({ groups })
+  } catch (err) {
+    console.error('GET /api/groups error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
+// GET /groups/me — groups I'm an active member of
+router.get('/groups/me', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT c.id, c.name, c.slug, c.category, c.cover_url,
+              c.member_count, c.type, c.group_status,
+              cp.role AS my_role
+       FROM conversations c
+       JOIN conversation_participants cp
+         ON cp.conversation_id = c.id AND cp.user_id = ?
+       WHERE c.is_group = 1 AND cp.status = 'active'
+       ORDER BY c.name ASC`,
+      [req.userId]
+    )
+    res.json({ groups: rows })
+  } catch (err) {
+    console.error('GET /api/groups/me error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
+// GET /groups/admin/pending — platform admin: groups awaiting approval
+router.get('/groups/admin/pending', authenticate, async (req, res) => {
+  if (!req.adminRole) return res.status(403).json({ error: 'admin_only' })
+  try {
+    const [rows] = await pool.query(
+      `SELECT c.id, c.name, c.slug, c.category,
+              c.description_da, c.description_en,
+              c.cover_url, c.member_count, c.type, c.created_at,
+              u.name AS creator_name
+       FROM conversations c
+       LEFT JOIN users u ON u.id = c.created_by
+       WHERE c.is_group = 1 AND c.group_status = 'pending'
+       ORDER BY c.created_at ASC`,
+      []
+    )
+    res.json({ groups: rows })
+  } catch (err) {
+    console.error('GET /api/groups/admin/pending error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
+// POST /groups/admin/:id/approve
+router.post('/groups/admin/:id/approve', authenticate, async (req, res) => {
+  if (!req.adminRole) return res.status(403).json({ error: 'admin_only' })
+  const id = parseInt(req.params.id)
+  if (isNaN(id)) return res.status(400).json({ error: 'invalid_id' })
+  try {
+    await pool.query(
+      `UPDATE conversations SET group_status = 'active' WHERE id = ? AND is_group = 1`,
+      [id]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/groups/admin/:id/approve error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
+// POST /groups/admin/:id/reject
+router.post('/groups/admin/:id/reject', authenticate, async (req, res) => {
+  if (!req.adminRole) return res.status(403).json({ error: 'admin_only' })
+  const id = parseInt(req.params.id)
+  if (isNaN(id)) return res.status(400).json({ error: 'invalid_id' })
+  try {
+    await pool.query(
+      `UPDATE conversations SET group_status = 'rejected' WHERE id = ? AND is_group = 1`,
+      [id]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/groups/admin/:id/reject error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
 router.get('/groups/suggestions', authenticate, async (req, res) => {
   try {
     const [suggestions] = await pool.query(
@@ -105,10 +235,12 @@ router.post('/groups', authenticate, writeLimit, async (req, res) => {
     const [[existing]] = await pool.query('SELECT id FROM conversations WHERE slug = ?', [cleanSlug])
     if (existing) return res.status(409).json({ error: 'slug_taken' })
 
+    const groupStatus = req.adminRole ? 'active' : 'pending'
     const [result] = await pool.query(
       `INSERT INTO conversations
-         (name, slug, description_da, type, category, tags, is_group, is_public, created_by, member_count, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, 1, NOW())`,
+         (name, slug, description_da, type, category, tags, is_group, is_public,
+          created_by, member_count, group_status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, 1, ?, NOW())`,
       [
         String(name).trim(),
         cleanSlug,
@@ -118,6 +250,7 @@ router.post('/groups', authenticate, writeLimit, async (req, res) => {
         JSON.stringify(cleanTags),
         isPublic,
         req.userId,
+        groupStatus,
       ]
     )
 

@@ -1,6 +1,25 @@
 export default {
   da: {
     groups: {
+      // Groups main page
+      pageTitle: 'Grupper',
+      discover: 'Opdag',
+      myGroups: 'Mine grupper',
+      pending: 'Afventer godkendelse',
+      searchPlaceholder: 'Søg i grupper...',
+      search: 'Søg',
+      allCategories: 'Alle kategorier',
+      sort: {
+        trending: 'Populær',
+        newest: 'Nyeste',
+        members: 'Flest medlemmer',
+      },
+      noGroups: 'Ingen grupper fundet',
+      noMyGroups: 'Du er ikke med i nogen grupper endnu',
+      noPending: 'Ingen grupper afventer godkendelse',
+      approve: 'Godkend',
+      reject: 'Afvis',
+      by: 'af',
       type: {
         public: 'Offentlig',
         private: 'Privat',
@@ -90,6 +109,25 @@ export default {
   },
   en: {
     groups: {
+      // Groups main page
+      pageTitle: 'Groups',
+      discover: 'Discover',
+      myGroups: 'My Groups',
+      pending: 'Pending',
+      searchPlaceholder: 'Search groups...',
+      search: 'Search',
+      allCategories: 'All categories',
+      sort: {
+        trending: 'Trending',
+        newest: 'Newest',
+        members: 'Most members',
+      },
+      noGroups: 'No groups found',
+      noMyGroups: 'You haven\'t joined any groups yet',
+      noPending: 'No groups pending approval',
+      approve: 'Approve',
+      reject: 'Reject',
+      by: 'by',
       type: {
         public: 'Public',
         private: 'Private',

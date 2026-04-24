@@ -1084,6 +1084,29 @@ export async function apiGetAdminViralStats(days = 30) {
   return await request(`/api/admin/viral-stats?days=${days}`)
 }
 
+// ── Groups Main Page ──
+
+export async function apiGetGroups(params = {}) {
+  const q = new URLSearchParams()
+  if (params.category) q.set('category', params.category)
+  if (params.search) q.set('search', params.search)
+  if (params.sort) q.set('sort', params.sort)
+  const qs = q.toString()
+  return request(`/api/groups?${qs}`)
+}
+
+export const apiGetMyGroups = () => request('/api/groups/me')
+
+export const apiGetPendingGroups = () => request('/api/groups/admin/pending')
+
+export async function apiApproveGroup(id) {
+  return request(`/api/groups/admin/${id}/approve`, { method: 'POST' })
+}
+
+export async function apiRejectGroup(id) {
+  return request(`/api/groups/admin/${id}/reject`, { method: 'POST' })
+}
+
 // ── Group Suggestions ──
 
 export async function apiGetGroupSuggestions() {
