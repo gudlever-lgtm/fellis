@@ -1018,4 +1018,81 @@ if (!miscRoutesSrc.includes("req.userMode !== 'business'") || !miscRoutesSrc.inc
   console.log(`${GREEN}✓ POST /api/company/profile has 403 guard for non-business mode.${RESET}\n`)
 }
 
+// ── Groups route existence + logic checks ────────────────────────────────────
+//
+// All routes registered in server/routes/groups.js must be present so that
+// none of them return 404.  The try/catch count verifies 500s are handled.
+//
+// Static invariants checked here:
+//   (a) Every declared groups route exists in the server route set   → no 404
+//   (b) Every route handler has a try/catch block                    → no unhandled 500
+//   (c) GET /api/groups/:slug returns 403 for hidden groups
+//   (d) Trending sort uses post_count DESC, member_count DESC
+//   (e) POST /api/groups assigns 'admin' role to creator in group_members
+
+const REQUIRED_GROUPS_ROUTES = [
+  'GET /api/groups',
+  'POST /api/groups',
+  'GET /api/groups/me',
+  'GET /api/groups/suggestions',
+  'GET /api/groups/admin/pending',
+  'POST /api/groups/admin/approve/:id',
+  'POST /api/groups/admin/reject/:id',
+  'DELETE /api/groups/admin/:id',
+  'GET /api/groups/:slug',
+  'PUT /api/groups/:id',
+  'DELETE /api/groups/:id',
+  'POST /api/groups/:id/join',
+]
+
+const missingGroupsRoutes = REQUIRED_GROUPS_ROUTES.filter(r => {
+  const [method, p] = r.split(' ')
+  return !normServerRoutes.has(`${method} ${normaliseServerPath(p)}`)
+})
+
+if (missingGroupsRoutes.length > 0) {
+  console.log(`${RED}✗ Missing required groups server routes:${RESET}`)
+  for (const r of missingGroupsRoutes) console.log(`  ${RED}${r}${RESET}`)
+  console.log()
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ All ${REQUIRED_GROUPS_ROUTES.length} groups routes are registered on the server (no 404).${RESET}\n`)
+}
+
+const groupsRouteSrc = readFileSync(resolve(root, 'server/routes/groups.js'), 'utf8')
+
+// (b) every handler has a try/catch → prevents unhandled 500
+const groupsHandlerCount = (groupsRouteSrc.match(/router\.(get|post|put|patch|delete)\(/gi) || []).length
+const groupsTryCatchCount = (groupsRouteSrc.match(/\btry\s*\{/g) || []).length
+if (groupsTryCatchCount < groupsHandlerCount) {
+  console.log(`${RED}✗ groups.js: ${groupsHandlerCount} route handlers but only ${groupsTryCatchCount} try/catch blocks — some routes may return unhandled 500.${RESET}\n`)
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ groups.js: all ${groupsHandlerCount} route handlers have try/catch error handling (500 prevention).${RESET}\n`)
+}
+
+// (c) 403 guard for hidden groups
+if (!groupsRouteSrc.includes("'hidden'") || !groupsRouteSrc.includes('403')) {
+  console.log(`${RED}✗ groups.js: GET /api/groups/:slug is missing 403 guard for hidden groups.${RESET}\n`)
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ groups.js: 403 guard for hidden groups is present.${RESET}\n`)
+}
+
+// (d) trending sort
+if (!groupsRouteSrc.includes('post_count DESC') || !groupsRouteSrc.includes('member_count DESC')) {
+  console.log(`${RED}✗ groups.js: trending sort is missing post_count DESC or member_count DESC ordering.${RESET}\n`)
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ groups.js: trending sort uses post_count DESC, member_count DESC.${RESET}\n`)
+}
+
+// (e) creator assigned admin role on group creation
+if (!groupsRouteSrc.includes("'admin'")) {
+  console.log(`${RED}✗ groups.js: POST /api/groups does not assign admin role to creator in group_members.${RESET}\n`)
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ groups.js: group creator is assigned admin role in group_members.${RESET}\n`)
+}
+
 process.exit(0)
