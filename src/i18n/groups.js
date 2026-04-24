@@ -1,6 +1,9 @@
 import de from './groups/de.json'
 import fr from './groups/fr.json'
 import nl from './groups/nl.json'
+import sv from './groups/sv.json'
+import fi from './groups/fi.json'
+import no from './groups/no.json'
 
 export default {
   da: {
@@ -224,4 +227,7 @@ export default {
   de: { groups: de },
   fr: { groups: fr },
   nl: { groups: nl },
+  sv: { groups: sv },
+  fi: { groups: fi },
+  no: { groups: no },
 }
