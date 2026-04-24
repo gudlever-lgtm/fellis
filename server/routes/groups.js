@@ -1,9 +1,11 @@
 import express from 'express'
 import pool from '../db.js'
+import crypto from 'crypto'
 import {
   authenticate, writeLimit,
   requireAdmin,
   createNotification,
+  getSessionIdFromRequest,
 } from '../middleware.js'
 
 const router = express.Router()
@@ -307,6 +309,322 @@ router.post('/groups/:id/join', authenticate, writeLimit, async (req, res) => {
   } catch (err) {
     if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Already a member' })
     console.error('POST /api/groups/:id/join error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Polls ─────────────────────────────────────────────────────────────────────
+
+router.post('/groups/:id/polls', authenticate, writeLimit, async (req, res) => {
+  try {
+    const membership = await getMembership(req.params.id, req.userId)
+    if (!membership) return res.status(403).json({ error: 'Members only' })
+    const { question, options, closes_at } = req.body
+    if (!question || !Array.isArray(options) || options.length < 2) {
+      return res.status(400).json({ error: 'Question and at least 2 options required' })
+    }
+    const [result] = await pool.query(
+      `INSERT INTO group_polls (group_id, created_by, question, options, closes_at)
+       VALUES (?, ?, ?, ?, ?)`,
+      [req.params.id, req.userId, question, JSON.stringify(options), closes_at || null]
+    )
+    const [[poll]] = await pool.query('SELECT * FROM group_polls WHERE id = ?', [result.insertId])
+    res.status(201).json({ poll })
+  } catch (err) {
+    console.error('POST /api/groups/:id/polls error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+router.get('/groups/:id/polls', authenticate, async (req, res) => {
+  try {
+    const [[group]] = await pool.query(
+      "SELECT id, type FROM `groups` WHERE id = ? AND status = 'active'", [req.params.id]
+    )
+    if (!group) return res.status(404).json({ error: 'Group not found' })
+    const membership = await getMembership(req.params.id, req.userId)
+    if (group.type !== 'public' && !membership) {
+      return res.status(403).json({ error: 'Members only' })
+    }
+    const [polls] = await pool.query(
+      `SELECT p.*, u.name AS creator_name,
+              (SELECT option_id FROM group_poll_votes
+               WHERE poll_id = p.id AND user_id = ?) AS my_vote,
+              (SELECT JSON_OBJECTAGG(option_id, cnt)
+               FROM (SELECT option_id, COUNT(*) AS cnt FROM group_poll_votes
+                     WHERE poll_id = p.id GROUP BY option_id) v) AS vote_counts
+       FROM group_polls p JOIN users u ON u.id = p.created_by
+       WHERE p.group_id = ?
+       ORDER BY p.created_at DESC`,
+      [req.userId, req.params.id]
+    )
+    res.json({ polls })
+  } catch (err) {
+    console.error('GET /api/groups/:id/polls error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+router.post('/groups/:id/polls/:pollId/vote', authenticate, writeLimit, async (req, res) => {
+  try {
+    const membership = await getMembership(req.params.id, req.userId)
+    if (!membership) return res.status(403).json({ error: 'Members only' })
+    const { option_id } = req.body
+    if (option_id == null) return res.status(400).json({ error: 'option_id required' })
+    const [[poll]] = await pool.query(
+      'SELECT id, options, closes_at FROM group_polls WHERE id = ? AND group_id = ?',
+      [req.params.pollId, req.params.id]
+    )
+    if (!poll) return res.status(404).json({ error: 'Poll not found' })
+    if (poll.closes_at && new Date(poll.closes_at) < new Date()) {
+      return res.status(400).json({ error: 'Poll is closed' })
+    }
+    const opts = typeof poll.options === 'string' ? JSON.parse(poll.options) : poll.options
+    if (!opts.some(o => String(o.id) === String(option_id))) {
+      return res.status(400).json({ error: 'Invalid option' })
+    }
+    await pool.query(
+      `INSERT INTO group_poll_votes (poll_id, user_id, option_id) VALUES (?, ?, ?)
+       ON DUPLICATE KEY UPDATE option_id = VALUES(option_id), voted_at = NOW()`,
+      [req.params.pollId, req.userId, option_id]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/groups/:id/polls/:pollId/vote error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Events ────────────────────────────────────────────────────────────────────
+
+router.post('/groups/:id/events', authenticate, writeLimit, async (req, res) => {
+  try {
+    const membership = await getMembership(req.params.id, req.userId)
+    if (!membership || !['admin', 'moderator'].includes(membership.role)) {
+      return res.status(403).json({ error: 'Mod or admin only' })
+    }
+    const { title, description, location, starts_at, ends_at, max_attendees } = req.body
+    if (!title || !starts_at) return res.status(400).json({ error: 'Title and starts_at required' })
+    const [result] = await pool.query(
+      `INSERT INTO group_events
+         (group_id, created_by, title, description, location, starts_at, ends_at, max_attendees)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [req.params.id, req.userId, title, description || null,
+       location || null, starts_at, ends_at || null, max_attendees || null]
+    )
+    const [[event]] = await pool.query('SELECT * FROM group_events WHERE id = ?', [result.insertId])
+    res.status(201).json({ event })
+  } catch (err) {
+    console.error('POST /api/groups/:id/events error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+router.get('/groups/:id/events', authenticate, async (req, res) => {
+  try {
+    const [[group]] = await pool.query(
+      "SELECT id, type FROM `groups` WHERE id = ? AND status = 'active'", [req.params.id]
+    )
+    if (!group) return res.status(404).json({ error: 'Group not found' })
+    const membership = await getMembership(req.params.id, req.userId)
+    if (group.type !== 'public' && !membership) {
+      return res.status(403).json({ error: 'Members only' })
+    }
+    const [events] = await pool.query(
+      `SELECT ge.*, u.name AS creator_name,
+              (SELECT COUNT(*) FROM group_event_rsvp
+               WHERE event_id = ge.id AND status = 'going') AS going_count,
+              (SELECT status FROM group_event_rsvp
+               WHERE event_id = ge.id AND user_id = ?) AS my_rsvp
+       FROM group_events ge JOIN users u ON u.id = ge.created_by
+       WHERE ge.group_id = ?
+       ORDER BY ge.starts_at ASC`,
+      [req.userId, req.params.id]
+    )
+    res.json({ events })
+  } catch (err) {
+    console.error('GET /api/groups/:id/events error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+router.post('/groups/:id/events/:eventId/rsvp', authenticate, writeLimit, async (req, res) => {
+  try {
+    const membership = await getMembership(req.params.id, req.userId)
+    if (!membership) return res.status(403).json({ error: 'Members only' })
+    const { status } = req.body
+    if (!['going', 'maybe', 'notgoing'].includes(status)) {
+      return res.status(400).json({ error: 'status must be going, maybe, or notgoing' })
+    }
+    const [[event]] = await pool.query(
+      'SELECT id, max_attendees FROM group_events WHERE id = ? AND group_id = ?',
+      [req.params.eventId, req.params.id]
+    )
+    if (!event) return res.status(404).json({ error: 'Event not found' })
+    if (status === 'going' && event.max_attendees) {
+      const [[{ goingCount }]] = await pool.query(
+        "SELECT COUNT(*) AS goingCount FROM group_event_rsvp WHERE event_id = ? AND status = 'going'",
+        [req.params.eventId]
+      )
+      if (goingCount >= event.max_attendees) {
+        return res.status(400).json({ error: 'Event is full' })
+      }
+    }
+    await pool.query(
+      `INSERT INTO group_event_rsvp (event_id, user_id, status) VALUES (?, ?, ?)
+       ON DUPLICATE KEY UPDATE status = VALUES(status)`,
+      [req.params.eventId, req.userId, status]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/groups/:id/events/:eventId/rsvp error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Invitations ───────────────────────────────────────────────────────────────
+
+router.post('/groups/:id/invite', authenticate, writeLimit, async (req, res) => {
+  try {
+    const membership = await getMembership(req.params.id, req.userId)
+    if (!membership) return res.status(403).json({ error: 'Members only' })
+    const [[group]] = await pool.query(
+      "SELECT id FROM `groups` WHERE id = ? AND status = 'active'", [req.params.id]
+    )
+    if (!group) return res.status(404).json({ error: 'Group not found' })
+
+    const { userId: invitedUserId } = req.body
+    if (invitedUserId) {
+      const [[target]] = await pool.query('SELECT id FROM users WHERE id = ?', [invitedUserId])
+      if (!target) return res.status(404).json({ error: 'User not found' })
+      const existing = await getMembership(req.params.id, invitedUserId)
+      if (existing) return res.status(409).json({ error: 'User is already a member' })
+      const [result] = await pool.query(
+        "INSERT INTO group_invitations (group_id, invited_by, invited_user_id, status) VALUES (?, ?, ?, 'pending')",
+        [req.params.id, req.userId, invitedUserId]
+      )
+      createNotification(
+        invitedUserId, 'group_invite',
+        'Du er blevet inviteret til at deltage i en gruppe',
+        'You have been invited to join a group',
+        req.userId
+      )
+      res.json({ ok: true, invitationId: result.insertId })
+    } else {
+      const token = crypto.randomBytes(32).toString('hex')
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+      await pool.query(
+        "INSERT INTO group_invitations (group_id, invited_by, token, status, expires_at) VALUES (?, ?, ?, 'pending', ?)",
+        [req.params.id, req.userId, token, expiresAt]
+      )
+      res.json({ ok: true, token, expiresAt })
+    }
+  } catch (err) {
+    console.error('POST /api/groups/:id/invite error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// No auth required to resolve — UI can show group preview before login prompt.
+router.get('/groups/join/:token', async (req, res) => {
+  try {
+    const [[inv]] = await pool.query(
+      `SELECT gi.*, g.name, g.slug, g.description, g.type, g.cover_image, g.member_count
+       FROM group_invitations gi
+       JOIN \`groups\` g ON g.id = gi.group_id
+       WHERE gi.token = ? AND gi.status = 'pending'`,
+      [req.params.token]
+    )
+    if (!inv) return res.status(404).json({ error: 'Invalid or expired invite link' })
+    if (inv.expires_at && new Date(inv.expires_at) < new Date()) {
+      await pool.query("UPDATE group_invitations SET status = 'expired' WHERE token = ?", [req.params.token])
+      return res.status(410).json({ error: 'Invite link has expired' })
+    }
+
+    // Optionally resolve session without blocking unauthenticated callers.
+    const sessionId = getSessionIdFromRequest(req)
+    let userId = null
+    if (sessionId) {
+      const [[sess]] = await pool.query(
+        'SELECT user_id FROM sessions WHERE id = ? AND expires_at > NOW()', [sessionId]
+      ).catch(() => [[null]])
+      userId = sess?.user_id || null
+    }
+
+    let alreadyMember = false
+    if (userId) {
+      alreadyMember = !!(await getMembership(inv.group_id, userId))
+    }
+
+    res.json({
+      group: {
+        id: inv.group_id,
+        name: inv.name,
+        slug: inv.slug,
+        description: inv.description,
+        type: inv.type,
+        coverImage: inv.cover_image,
+        memberCount: inv.member_count,
+      },
+      token: req.params.token,
+      alreadyMember,
+      requiresAuth: !userId,
+    })
+  } catch (err) {
+    console.error('GET /api/groups/join/:token error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Moderation ────────────────────────────────────────────────────────────────
+
+router.get('/groups/:id/modlog', authenticate, async (req, res) => {
+  try {
+    const membership = await getMembership(req.params.id, req.userId)
+    if (!membership || !['admin', 'moderator'].includes(membership.role)) {
+      return res.status(403).json({ error: 'Mod or admin only' })
+    }
+    const [rows] = await pool.query(
+      `SELECT ml.*, a.name AS actor_name, tu.name AS target_user_name
+       FROM group_moderation_log ml
+       JOIN users a ON a.id = ml.actor_id
+       LEFT JOIN users tu ON tu.id = ml.target_user_id
+       WHERE ml.group_id = ?
+       ORDER BY ml.created_at DESC
+       LIMIT 100`,
+      [req.params.id]
+    )
+    res.json({ log: rows })
+  } catch (err) {
+    console.error('GET /api/groups/:id/modlog error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+router.post('/groups/:id/moderate', authenticate, writeLimit, async (req, res) => {
+  try {
+    const membership = await getMembership(req.params.id, req.userId)
+    if (!membership || !['admin', 'moderator'].includes(membership.role)) {
+      return res.status(403).json({ error: 'Mod or admin only' })
+    }
+    const { action, target_user_id, target_post_id, reason } = req.body
+    const VALID_ACTIONS = [
+      'remove_post', 'warn_user', 'ban_user', 'unban_user',
+      'approve_member', 'reject_member', 'promote', 'demote',
+    ]
+    if (!VALID_ACTIONS.includes(action)) {
+      return res.status(400).json({ error: 'Invalid action' })
+    }
+    await pool.query(
+      `INSERT INTO group_moderation_log
+         (group_id, actor_id, target_user_id, target_post_id, action, reason)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [req.params.id, req.userId,
+       target_user_id || null, target_post_id || null, action, reason || null]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/groups/:id/moderate error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })

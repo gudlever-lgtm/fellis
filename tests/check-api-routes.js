@@ -1031,6 +1031,7 @@ if (!miscRoutesSrc.includes("req.userMode !== 'business'") || !miscRoutesSrc.inc
 //   (e) POST /api/groups assigns 'admin' role to creator in group_members
 
 const REQUIRED_GROUPS_ROUTES = [
+  // CRUD + admin (step 1)
   'GET /api/groups',
   'POST /api/groups',
   'GET /api/groups/me',
@@ -1043,6 +1044,20 @@ const REQUIRED_GROUPS_ROUTES = [
   'PUT /api/groups/:id',
   'DELETE /api/groups/:id',
   'POST /api/groups/:id/join',
+  // Polls (step 2)
+  'POST /api/groups/:id/polls',
+  'GET /api/groups/:id/polls',
+  'POST /api/groups/:id/polls/:pollId/vote',
+  // Events (step 2)
+  'POST /api/groups/:id/events',
+  'GET /api/groups/:id/events',
+  'POST /api/groups/:id/events/:eventId/rsvp',
+  // Invitations (step 2)
+  'POST /api/groups/:id/invite',
+  'GET /api/groups/join/:token',
+  // Moderation (step 2)
+  'GET /api/groups/:id/modlog',
+  'POST /api/groups/:id/moderate',
 ]
 
 const missingGroupsRoutes = REQUIRED_GROUPS_ROUTES.filter(r => {
@@ -1093,6 +1108,31 @@ if (!groupsRouteSrc.includes("'admin'")) {
   process.exit(1)
 } else {
   console.log(`${GREEN}✓ groups.js: group creator is assigned admin role in group_members.${RESET}\n`)
+}
+
+// (f) poll votes enforce one vote per user via ON DUPLICATE KEY UPDATE
+if (!groupsRouteSrc.includes('ON DUPLICATE KEY UPDATE')) {
+  console.log(`${RED}✗ groups.js: poll vote handler is missing ON DUPLICATE KEY UPDATE — one-vote-per-user not enforced.${RESET}\n`)
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ groups.js: poll votes use ON DUPLICATE KEY UPDATE (one vote per user enforced).${RESET}\n`)
+}
+
+// (g) invite link uses a random token (crypto.randomBytes)
+if (!groupsRouteSrc.includes('randomBytes')) {
+  console.log(`${RED}✗ groups.js: POST /api/groups/:id/invite does not generate a random invite token.${RESET}\n`)
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ groups.js: invite link generates a random token via crypto.randomBytes.${RESET}\n`)
+}
+
+// (h) GET /api/groups/join/:token works without auth (no authenticate middleware on the handler)
+const joinTokenLine = groupsRouteSrc.match(/router\.get\(['"`]\/groups\/join\/:token['"`][^)]*\)/)
+if (!joinTokenLine || joinTokenLine[0].includes('authenticate')) {
+  console.log(`${RED}✗ groups.js: GET /api/groups/join/:token must not require authentication (token preview is public).${RESET}\n`)
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ groups.js: GET /api/groups/join/:token is accessible without authentication.${RESET}\n`)
 }
 
 process.exit(0)
