@@ -5,6 +5,7 @@ import {
   apiPinGroupPost, apiReactToGroupPost, apiLeaveGroup, apiJoinGroup,
   apiGetGroupMembers, apiUpdateGroupMemberRole, apiRemoveGroupMember,
   apiGetGroupEvents, apiRsvpGroupEvent,
+  apiGetGroupPolls, apiVoteGroupPoll, apiGetGroupInviteLink,
 } from './api.js'
 import { getTranslations, nameToColor, getInitials } from './data.js'
 
@@ -62,6 +63,10 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
   const [membersLoading, setMembersLoading] = useState(false)
   const [events, setEvents] = useState([])
   const [eventsLoading, setEventsLoading] = useState(false)
+  const [polls, setPolls] = useState([])
+  const [pollsLoading, setPollsLoading] = useState(false)
+  const [inviteLink, setInviteLink] = useState(null)
+  const [copyState, setCopyState] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -209,6 +214,43 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
       setMembers(prev => prev.filter(m => m.id !== userId))
       setGroup(prev => ({ ...prev, member_count: Math.max(0, prev.member_count - 1) }))
     }
+  }
+
+  useEffect(() => {
+    if (tab !== 'polls' || loadState !== 'ready' || !group) return
+    setPollsLoading(true)
+    apiGetGroupPolls(group.slug).then(data => {
+      setPollsLoading(false)
+      if (data?.polls) setPolls(data.polls)
+    })
+  }, [tab, loadState, group?.id, group?.slug])
+
+  useEffect(() => {
+    if (tab !== 'about' || loadState !== 'ready' || !group?.membership?.isMember) return
+    apiGetGroupInviteLink(group.slug).then(data => {
+      if (data?.link) setInviteLink(data.link)
+    })
+  }, [tab, loadState, group?.id, group?.slug, group?.membership?.isMember])
+
+  const handleVote = async (poll, optionIdx) => {
+    setPolls(prev => prev.map(p => {
+      if (p.id !== poll.id) return p
+      const newOptions = (p.options || []).map((opt, i) => ({
+        ...opt,
+        vote_count: i === optionIdx ? (opt.vote_count || 0) + 1 : (opt.vote_count || 0),
+      }))
+      return { ...p, user_vote: optionIdx, options: newOptions }
+    }))
+    await apiVoteGroupPoll(group.slug, poll.id, optionIdx)
+  }
+
+  const handleCopyLink = () => {
+    if (!inviteLink) return
+    const full = `${window.location.origin}${inviteLink}`
+    navigator.clipboard.writeText(full).then(() => {
+      setCopyState(true)
+      setTimeout(() => setCopyState(false), 2000)
+    })
   }
 
   const handleRsvp = async (ev, status) => {
@@ -581,7 +623,122 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
           </div>
         )}
 
-        {(tab === 'polls' || tab === 'about') && <div />}
+        {tab === 'polls' && (
+          <div>
+            {pollsLoading ? (
+              <div style={s.feedEmpty}>{g.loading}</div>
+            ) : polls.length === 0 ? (
+              <div style={s.feedEmpty}>{g.noPolls}</div>
+            ) : polls.map(poll => {
+              const voted = poll.user_vote !== null && poll.user_vote !== undefined
+              const ended = poll.ends_at && new Date(poll.ends_at) < new Date()
+              const totalVotes = (poll.options || []).reduce((sum, o) => sum + (o.vote_count || 0), 0)
+              return (
+                <div key={poll.id} style={s.pollCard}>
+                  <div style={s.pollQuestion}>{poll.question}</div>
+                  {ended && <div style={s.pollStatusTag}>{g.pollEnded}</div>}
+                  {voted && !ended && <div style={{ ...s.pollStatusTag, ...s.pollVotedTag }}>{g.pollVoted}</div>}
+                  <div style={s.pollOptions}>
+                    {(poll.options || []).map((opt, i) => {
+                      const label = lang === 'da' ? opt.text_da : (opt.text_en || opt.text_da)
+                      const pct = totalVotes > 0 ? Math.round(((opt.vote_count || 0) / totalVotes) * 100) : 0
+                      const isChosen = poll.user_vote === i
+                      if (voted || ended) {
+                        return (
+                          <div key={i} style={s.pollResultRow}>
+                            <div style={s.pollResultLabelRow}>
+                              <span style={{ ...s.pollResultLabel, ...(isChosen ? s.pollResultLabelChosen : {}) }}>{label}</span>
+                              <span style={s.pollResultPct}>{pct}%</span>
+                            </div>
+                            <div style={s.pollBarWrap}>
+                              <div style={{ ...s.pollBar, width: `${pct}%`, ...(isChosen ? s.pollBarChosen : {}) }} />
+                            </div>
+                            <div style={s.pollVoteCount}>
+                              {opt.vote_count || 0} {(opt.vote_count || 0) === 1 ? g.pollVote : g.pollVotes}
+                            </div>
+                          </div>
+                        )
+                      }
+                      return (
+                        <button
+                          key={i}
+                          style={s.pollOptionBtn}
+                          disabled={!!ended}
+                          onClick={() => handleVote(poll, i)}
+                        >
+                          {label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {tab === 'about' && (
+          <div style={s.aboutSection}>
+            {(group.description_da || group.description_en) && (
+              <div style={s.aboutBlock}>
+                <div style={s.aboutLabel}>{g.descLabel}</div>
+                <p style={s.aboutText}>
+                  {lang === 'da' ? group.description_da : (group.description_en || group.description_da)}
+                </p>
+              </div>
+            )}
+            <div style={s.aboutBlock}>
+              <div style={s.aboutLabel}>{g.typeLabel}</div>
+              <span style={{ ...s.typePill, background: typeMeta.bg, color: typeMeta.color, fontSize: 12, padding: '4px 12px' }}>
+                {typeLabel}
+              </span>
+            </div>
+            {group.category && (
+              <div style={s.aboutBlock}>
+                <div style={s.aboutLabel}>{g.categoryLabel}</div>
+                <span style={s.categoryPill}>{g.category?.[group.category] || group.category}</span>
+              </div>
+            )}
+            {group.tags && group.tags.length > 0 && (
+              <div style={s.aboutBlock}>
+                <div style={s.aboutLabel}>{g.tagsLabel}</div>
+                <div style={s.tagList}>
+                  {group.tags.map((tag, i) => (
+                    <span key={i} style={s.tagPill}>{tag}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div style={s.aboutBlock}>
+              <div style={s.aboutLabel}>{group.member_count === 1 ? g.member : g.members}</div>
+              <div style={s.aboutText}>{'👥 '}{group.member_count}</div>
+            </div>
+            {group.created_at && (
+              <div style={s.aboutBlock}>
+                <div style={s.aboutLabel}>{g.createdLabel}</div>
+                <div style={s.aboutText}>
+                  {new Date(group.created_at).toLocaleDateString(
+                    lang === 'da' ? 'da-DK' : 'en-US',
+                    { day: 'numeric', month: 'long', year: 'numeric' }
+                  )}
+                </div>
+              </div>
+            )}
+            {membership.isMember && (
+              <div style={s.aboutBlock}>
+                <div style={s.aboutLabel}>{g.inviteLink}</div>
+                <div style={s.inviteRow}>
+                  <span style={s.inviteLinkText}>
+                    {inviteLink ? `${window.location.origin}${inviteLink}` : '…'}
+                  </span>
+                  <button style={{ ...s.copyBtn, ...(copyState ? s.copyBtnDone : {}) }} onClick={handleCopyLink} disabled={!inviteLink}>
+                    {copyState ? g.linkCopied : g.copyLink}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -684,4 +841,51 @@ const s = {
     transition: 'all 0.15s',
   },
   rsvpBtnActive: { background: '#4338CA', borderColor: '#4338CA', color: '#fff' },
+  // Polls tab
+  pollCard: {
+    background: '#fff', borderRadius: 12, border: '1px solid #E8E4DF',
+    padding: '16px', marginBottom: 12,
+  },
+  pollQuestion: { fontSize: 15, fontWeight: 700, color: '#1a1a1a', marginBottom: 10 },
+  pollStatusTag: {
+    display: 'inline-block', fontSize: 11, fontWeight: 700,
+    padding: '2px 8px', borderRadius: 20, background: '#F3F4F6', color: '#6B7280',
+    marginBottom: 12,
+  },
+  pollVotedTag: { background: '#DCFCE7', color: '#166534' },
+  pollOptions: { display: 'flex', flexDirection: 'column', gap: 8 },
+  pollOptionBtn: {
+    fontSize: 14, fontWeight: 600, padding: '10px 16px', borderRadius: 8,
+    border: '1.5px solid #D1D5DB', background: '#F9FAFB', color: '#374151',
+    cursor: 'pointer', textAlign: 'left', transition: 'background 0.15s, border-color 0.15s',
+  },
+  pollResultRow: { marginBottom: 8 },
+  pollResultLabelRow: { display: 'flex', justifyContent: 'space-between', marginBottom: 4 },
+  pollResultLabel: { fontSize: 13, color: '#555', fontWeight: 500 },
+  pollResultLabelChosen: { fontWeight: 700, color: '#4338CA' },
+  pollResultPct: { fontSize: 13, fontWeight: 700, color: '#1a1a1a' },
+  pollBarWrap: { height: 8, background: '#F0EDE8', borderRadius: 4, overflow: 'hidden', marginBottom: 3 },
+  pollBar: { height: '100%', background: '#C7D2FE', borderRadius: 4, transition: 'width 0.3s ease' },
+  pollBarChosen: { background: '#4338CA' },
+  pollVoteCount: { fontSize: 11, color: '#aaa' },
+  // About tab
+  aboutSection: { display: 'flex', flexDirection: 'column', gap: 20 },
+  aboutBlock: {},
+  aboutLabel: { fontSize: 11, fontWeight: 700, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 },
+  aboutText: { fontSize: 14, color: '#333', lineHeight: 1.6, margin: 0 },
+  tagList: { display: 'flex', flexWrap: 'wrap', gap: 6 },
+  tagPill: { fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 20, background: '#F0EDE8', color: '#555' },
+  inviteRow: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
+  inviteLinkText: {
+    fontSize: 13, color: '#555', background: '#F9F7F5',
+    border: '1px solid #E8E4DF', borderRadius: 8,
+    padding: '7px 12px', flex: 1, minWidth: 0,
+    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+  },
+  copyBtn: {
+    fontSize: 13, fontWeight: 600, padding: '7px 14px', borderRadius: 8,
+    border: '1.5px solid #4338CA', background: '#fff', color: '#4338CA',
+    cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, transition: 'all 0.15s',
+  },
+  copyBtnDone: { background: '#4338CA', color: '#fff' },
 }

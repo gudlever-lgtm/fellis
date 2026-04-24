@@ -82,6 +82,7 @@ export default {
       pollVotes: 'stemmer',
       pollVote: 'stemme',
       // About tab
+      createdLabel: 'Oprettet',
       inviteLink: 'Invitationslink',
       copyLink: 'Kopiér link',
       linkCopied: 'Kopieret!',
@@ -170,6 +171,7 @@ export default {
       pollVotes: 'votes',
       pollVote: 'vote',
       // About tab
+      createdLabel: 'Created',
       inviteLink: 'Invite link',
       copyLink: 'Copy link',
       linkCopied: 'Copied!',
