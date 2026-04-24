@@ -2347,7 +2347,6 @@ router.get('/config', async (req, res) => {
 
 
 const CHANGELOG_ENTRIES = [
-  { date: '2026-04', icon: '📘', da: 'Facebook-dataimport — importér profiloplysninger, profilbillede og biografi fra Facebook direkte til din Fellis-profil via OAuth', en: 'Facebook data import — import profile info, profile photo and bio from Facebook directly to your Fellis profile via OAuth' },
   { date: '2026-04', icon: '📰', da: 'Offentlig blog med AI-oversættelse — redaktører kan publicere nyheder og blogindlæg med automatisk dansk/engelsk-oversættelse via Mistral', en: 'Public blog with AI translation — editors can publish news and blog posts with automatic Danish/English translation via Mistral' },
   { date: '2026-04', icon: '🔀', da: 'Feed-opdeling — skift mellem Fællesskab- og Erhvervsfeed med ét klik; hvert opslag husker hvilken tilstand det blev skrevet i', en: 'Feed separation — switch between Community and Business feeds with one click; each post remembers which mode it was written in' },
   { date: '2026-04', icon: '👥', da: 'Følgere og du følger — se hvem der følger dig og hvem du følger under Forbindelser', en: 'Followers and following — see who follows you and who you follow under Connections' },
