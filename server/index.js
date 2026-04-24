@@ -57,7 +57,6 @@ import { BADGES, BADGE_BY_ID, PLATFORM_LAUNCH_DATE, BADGE_AD_FREE_DAYS } from '.
 import { evaluateBadges } from '../src/badges/badgeEngine.js'
 import { createReelFromLivestream, LIVESTREAM_DEFAULTS, transcodeVideo } from './livestream.js'
 import { startRtmpServer, RTMP_PORT } from './rtmp.js'
-import facebookRouter from './routes/facebook.js'
 import authRouter from './routes/auth.js'
 import profileRouter from './routes/profile.js'
 import usersRouter from './routes/users.js'
@@ -1199,98 +1198,6 @@ function validatePasswordStrength(password, policy, lang = 'da') {
 
 // POST /api/auth/login — login with email + password (MFA-aware)
 
-// POST /api/auth/register — create account after migration
-app.post('/api/auth/register', strictLimit, async (req, res) => {
-  const { name, email, password, lang, inviteToken } = req.body
-  if (!name || !email || !password) return res.status(400).json({ error: 'Name, email, and password required' })
-  if (name.length > 100) return res.status(400).json({ error: 'Name too long (max 100 chars)' })
-  if (email.length > 255) return res.status(400).json({ error: 'Email too long (max 255 chars)' })
-  const regPolicy = await getPasswordPolicy()
-  const regPwdErrors = validatePasswordStrength(password, regPolicy, lang || 'da')
-  if (regPwdErrors.length > 0) return res.status(400).json({ error: regPwdErrors.join('. ') })
-  try {
-    const bcryptHash = await bcrypt.hash(password, 10)
-    const handle = '@' + name.toLowerCase().replace(/\s+/g, '.')
-    const initials = name.split(' ').map(n => n[0]).join('').toUpperCase()
-    const userInviteToken = crypto.randomBytes(32).toString('hex')
-    const [result] = await pool.query(
-      'INSERT INTO users (name, handle, initials, email, password_hash, join_date, invite_token) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [name, handle, initials, email, bcryptHash, new Date().toISOString().split('T')[0], userInviteToken]
-    )
-    const newUserId = result.insertId
-    const sessionId = crypto.randomUUID()
-    const ua = req.headers['user-agent'] || null
-    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null
-    await pool.query(
-      'INSERT INTO sessions (id, user_id, lang, expires_at, user_agent, ip_address) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY), ?, ?)',
-      [sessionId, newUserId, lang || 'da', ua, ip]
-    ).catch(() =>
-      pool.query(
-        'INSERT INTO sessions (id, user_id, lang, expires_at) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY))',
-        [sessionId, newUserId, lang || 'da']
-      )
-    )
-
-    // If registered via invite link, auto-connect with inviter + record referral
-    if (inviteToken) {
-      try {
-        let referrerId = null
-        let invitationId = null
-        let inviteSource = 'link'
-
-        // Check personal invite token (user.invite_token)
-        const [inviter] = await pool.query('SELECT id FROM users WHERE invite_token = ?', [inviteToken])
-        if (inviter.length > 0) {
-          referrerId = inviter[0].id
-          await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [newUserId, referrerId])
-          await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [referrerId, newUserId])
-        }
-
-        // Check per-email invitation token
-        const [invitation] = await pool.query(
-          'SELECT id, inviter_id, invite_source FROM invitations WHERE invite_token = ? AND status = ?',
-          [inviteToken, 'pending']
-        )
-        if (invitation.length > 0) {
-          referrerId = invitation[0].inviter_id
-          invitationId = invitation[0].id
-          inviteSource = invitation[0].invite_source || 'email'
-          await pool.query('UPDATE invitations SET status = ?, accepted_by = ? WHERE id = ?', ['accepted', newUserId, invitationId])
-          await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [newUserId, referrerId])
-          await pool.query('INSERT IGNORE INTO friendships (user_id, friend_id, mutual_count) VALUES (?, ?, 0)', [referrerId, newUserId])
-        }
-
-        // Record referral and award badges to inviter
-        if (referrerId) {
-          await pool.query(
-            'INSERT IGNORE INTO referrals (referrer_id, referred_id, invitation_id, invite_source) VALUES (?, ?, ?, ?)',
-            [referrerId, newUserId, invitationId, inviteSource]
-          )
-          await pool.query('UPDATE users SET referral_count = referral_count + 1 WHERE id = ?', [referrerId])
-          await checkAndAwardBadges(referrerId)
-          // Notify inviter that their invitation was accepted
-          const [[newUser]] = await pool.query('SELECT name FROM users WHERE id = ?', [newUserId]).catch(() => [[null]])
-          if (newUser) {
-            createNotification(referrerId, 'friend_accepted',
-              `${newUser.name} accepterede din invitation og er nu din ven`,
-              `${newUser.name} accepted your invitation and is now your friend`,
-              newUserId, newUser.name
-            )
-          }
-        }
-      } catch (err) {
-        console.error('Invite auto-connect error:', err)
-      }
-    }
-
-    setSessionCookie(res, sessionId)
-    res.json({ sessionId, userId: newUserId })
-  } catch (err) {
-    if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Email or handle already exists' })
-    console.error('POST /api/auth/register error:', err.message)
-    res.status(500).json({ error: 'Registration failed' })
-  }
-})
 
 // POST /api/auth/forgot-password — request password reset link via email
 
@@ -1345,9 +1252,6 @@ const LINKEDIN_REDIRECT_URI = process.env.LINKEDIN_REDIRECT_URI || 'https://fell
 
 
 
-
-// ── Facebook data import routes ──
-app.use('/api/auth/facebook', facebookRouter)
 
 // ── Profile routes ──
 
@@ -1479,62 +1383,6 @@ async function getMediaMaxFiles() {
 // Invalidate the cache (called when admin updates settings)
 function invalidateMediaMaxFilesCache() { _mediaMaxFilesCache.expiresAt = 0 }
 
-// POST /api/feed — create a new post (with optional media)
-app.post('/api/feed', authenticate, writeLimit, upload.array('media', UPLOAD_FILES_CEILING), async (req, res) => {
-  // Enforce admin-configured media max files at runtime
-  const mediaMax = await getMediaMaxFiles()
-  if (req.files?.length > mediaMax) {
-    // Clean up all uploaded files that exceed the limit
-    for (const f of req.files) {
-      try { fs.unlinkSync(f.path) } catch {}
-    }
-    return res.status(400).json({ error: `Too many files (max ${mediaMax})` })
-  }
-  const { text, scheduled_at, place_name, geo_lat, geo_lng } = req.body
-  const rawCats = req.body.categories
-  const categories = rawCats ? (typeof rawCats === 'string' ? JSON.parse(rawCats) : rawCats) : null
-  const rawTagged = req.body.tagged_users
-  const taggedUsers = rawTagged ? (typeof rawTagged === 'string' ? JSON.parse(rawTagged) : rawTagged) : null
-  const linkedType = req.body.linked_type || null
-  const linkedId = req.body.linked_id ? parseInt(req.body.linked_id) : null
-  if (!text && !req.files?.length) return res.status(400).json({ error: 'Post text or media required' })
-  if (text && text.length > 50_000) return res.status(400).json({ error: 'Post text too long (max 50000 chars)' })
-
-  // Keyword filter check
-  const kw = checkKeywords(text)
-  if (kw?.action === 'block') return res.status(400).json({ error: 'Post indeholder forbudt indhold / Post contains prohibited content' })
-  // flag: allow post but auto-create a report for admin review
-  const autoFlagKeyword = kw?.action === 'flag' ? kw.keyword : null
-
-  // Validate magic bytes for each uploaded file
-  const mediaUrls = []
-  if (req.files?.length) {
-    const cleanupAll = () => {
-      for (const f of req.files) {
-        try { fs.unlinkSync(f.path) } catch {}
-      }
-    }
-    for (const file of req.files) {
-      const header = Buffer.alloc(16)
-      try {
-        const fd = fs.openSync(file.path, 'r')
-        fs.readSync(fd, header, 0, 16, 0)
-        fs.closeSync(fd)
-      } catch (err) {
-        console.error(`[post media] failed to read "${file.originalname}":`, err.message)
-        cleanupAll()
-        return res.status(400).json({ error: `Could not read "${file.originalname}"` })
-      }
-      if (!validateMagicBytes(header, file.mimetype)) {
-        console.warn(`[post media] magic bytes mismatch for "${file.originalname}" (${file.mimetype})`)
-        cleanupAll()
-        return res.status(400).json({ error: `File "${file.originalname}" failed content validation` })
-      }
-      const type = file.mimetype.startsWith('video/') ? 'video' : 'image'
-      if (type === 'video') await transcodeVideo(file.path)
-      mediaUrls.push({ url: `/uploads/${file.filename}`, type, mime: file.mimetype })
-    }
-  }
 
 // POST /api/feed — create a new post (with optional media)
 
@@ -1544,105 +1392,11 @@ app.post('/api/feed', authenticate, writeLimit, upload.array('media', UPLOAD_FIL
 
 // GET /api/feed/:id/likers — list of users who liked a post with their reaction
 
-// POST /api/feed/:id/comment — add comment (with optional single media file)
-app.post('/api/feed/:id/comment', authenticate, writeLimit, upload.single('media'), async (req, res) => {
-  const text = (req.body.text || '').trim()
-  if (!text && !req.file) return res.status(400).json({ error: 'Comment text or media required' })
-  if (text.length > 10_000) return res.status(400).json({ error: 'Comment too long (max 10000 chars)' })
-  const postId = parseInt(req.params.id)
-  // Keyword filter check
-  const kwc = checkKeywords(text)
-  if (kwc?.action === 'block') return res.status(400).json({ error: 'Kommentar indeholder forbudt indhold / Comment contains prohibited content' })
-  const autoFlagKeywordComment = kwc?.action === 'flag' ? kwc.keyword : null
-  let mediaJson = null
-  if (req.file) {
-    const header = Buffer.alloc(16)
-    const fd = fs.openSync(req.file.path, 'r')
-    fs.readSync(fd, header, 0, 16, 0)
-    fs.closeSync(fd)
-    if (!validateMagicBytes(header, req.file.mimetype)) {
-      fs.unlinkSync(req.file.path)
-      return res.status(400).json({ error: 'File failed content validation' })
-    }
-    const type = req.file.mimetype.startsWith('video/') ? 'video' : 'image'
-    if (type === 'video') await transcodeVideo(req.file.path)
-    mediaJson = JSON.stringify([{ url: `/uploads/${req.file.filename}`, type, mime: req.file.mimetype }])
-  }
-  try {
-    try {
-      await pool.query(
-        'INSERT INTO comments (post_id, author_id, text_da, text_en, media) VALUES (?, ?, ?, ?, ?)',
-        [postId, req.userId, text, text, mediaJson]
-      )
-    } catch {
-      // media column not yet migrated — insert without it
-      await pool.query(
-        'INSERT INTO comments (post_id, author_id, text_da, text_en) VALUES (?, ?, ?, ?)',
-        [postId, req.userId, text, text]
-      )
-    }
-    const [rows2] = await pool.query('SELECT LAST_INSERT_ID() as id')
-    const commentId = rows2[0].id
-    if (autoFlagKeywordComment) {
-      pool.query(
-        'INSERT INTO reports (reporter_id, target_type, target_id, reason, details) VALUES (?, ?, ?, ?, ?)',
-        [req.userId, 'comment', commentId, 'keyword_flag', `Auto-flagged: keyword "${autoFlagKeywordComment}"`]
-      ).catch(() => {})
-    }
-    const [users] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
-    const media = mediaJson ? JSON.parse(mediaJson) : null
-    // Notify post author (not self)
-    const [[post]] = await pool.query('SELECT user_id FROM posts WHERE id = ?', [postId]).catch(() => [[null]])
-    if (post && post.user_id !== req.userId) {
-      createNotification(post.user_id, 'comment',
-        `${users[0].name} kommenterede dit opslag`,
-        `${users[0].name} commented on your post`,
-        req.userId, users[0].name, postId
-      )
-    }
-    autoSignalPost(req.userId, postId, 'comment')
-    // Business community score: increment when a business user adds a comment
-    pool.query("UPDATE users SET community_score = LEAST(community_score + 1, 9999) WHERE id = ? AND mode = 'business'", [req.userId]).catch(() => {})
-    res.json({ author: users[0].name, text: { da: text, en: text }, media })
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to add comment' })
-  }
-})
 
 // POST /api/comments/:id/like — toggle reaction on a comment (emoji optional, default ❤️)
 
 // DELETE /api/feed/:id — delete own post
 
-// PATCH /api/feed/:id — edit own post (within 1 hour of creation)
-app.patch('/api/feed/:id', authenticate, async (req, res) => {
-  const { text } = req.body
-  if (!text?.trim()) return res.status(400).json({ error: 'Text required' })
-  if (text.length > 50_000) return res.status(400).json({ error: 'Post text too long (max 50000 chars)' })
-  const kwEdit = checkKeywords(text.trim())
-  if (kwEdit?.action === 'block') return res.status(400).json({ error: 'Opslaget indeholder forbudt indhold / Post contains prohibited content' })
-  try {
-    const postId = parseInt(req.params.id)
-    const [[post]] = await pool.query(
-      'SELECT id, author_id, TIMESTAMPDIFF(SECOND, created_at, NOW()) AS age_seconds FROM posts WHERE id = ?', [postId]
-    )
-    if (!post) return res.status(404).json({ error: 'Post not found' })
-    if (post.author_id !== req.userId) return res.status(403).json({ error: 'Not your post' })
-    if (post.age_seconds > 3600) return res.status(403).json({ error: 'Edit window expired (1 hour)' })
-    if (kwEdit?.action === 'flag') {
-      pool.query(
-        'INSERT INTO reports (reporter_id, target_type, target_id, reason, details) VALUES (?, ?, ?, ?, ?)',
-        [req.userId, 'post', postId, 'keyword_flag', `Auto-flagged edit: keyword "${kwEdit.keyword}"`]
-      ).catch(() => {})
-    }
-    await pool.query(
-      'UPDATE posts SET text_da = ?, text_en = ?, edited_at = NOW() WHERE id = ?',
-      [text.trim(), text.trim(), postId]
-    )
-    res.json({ ok: true, text: text.trim() })
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to edit post' })
-  }
-})
 
 // GET /api/visitor-stats — aggregated visitor statistics (authenticated users)
 
@@ -1688,54 +1442,6 @@ app.patch('/api/feed/:id', authenticate, async (req, res) => {
 
 // GET /api/sse — Server-Sent Events stream for real-time updates
 
-// POST /api/conversations/:id/messages — send a message
-app.post('/api/conversations/:id/messages', authenticate, writeLimit, async (req, res) => {
-  const convId = parseInt(req.params.id)
-  const { text, media } = req.body
-  if (!text && !media?.length) return res.status(400).json({ error: 'Message text or media required' })
-  if (text && text.length > 10_000) return res.status(400).json({ error: 'Message too long (max 10000 chars)' })
-  const mediaErr = validateMediaArray(media)
-  if (mediaErr) return res.status(400).json({ error: mediaErr })
-  try {
-    const [check] = await pool.query(
-      'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, req.userId])
-    if (!check.length) return res.status(403).json({ error: 'Not a participant' })
-    // Check if sender is admin-muted (column may not exist on older installs)
-    const [muteCheck] = await pool.query(
-      'SELECT admin_muted_until FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, req.userId]
-    ).catch(() => [[{}]])
-    if (muteCheck[0]?.admin_muted_until && new Date(muteCheck[0].admin_muted_until) > new Date())
-      return res.status(403).json({ error: 'You are muted in this conversation', mutedUntil: muteCheck[0].admin_muted_until })
-    const now = new Date()
-    const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
-    const [participants] = await pool.query(
-      'SELECT user_id FROM conversation_participants WHERE conversation_id = ?', [convId])
-    const receiverId = participants.find(p => p.user_id !== req.userId)?.user_id ?? req.userId
-    const mediaJson = media?.length ? JSON.stringify(media) : null
-    const [ins] = await pool.query(
-      'INSERT INTO messages (conversation_id, sender_id, receiver_id, text_da, text_en, time, media) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [convId, req.userId, receiverId, text || '', text || '', time, mediaJson])
-    const [[user]] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
-    const msg = { id: ins.insertId, from: user.name, text: { da: text || '', en: text || '' }, media: media || null, time: formatMsgTime(now), createdAtRaw: now.toISOString() }
-    // Push the new message to all other participants via SSE + create notification
-    const [[conv]] = await pool.query('SELECT name, is_group FROM conversations WHERE id = ?', [convId]).catch(() => [[null]])
-    for (const { user_id } of participants) {
-      if (user_id !== req.userId) {
-        sseBroadcast(user_id, { type: 'message', convId, msg })
-        const msgDa = conv?.is_group && conv?.name
-          ? `${user.name} sendte en besked i ${conv.name}`
-          : `${user.name} sendte dig en besked`
-        const msgEn = conv?.is_group && conv?.name
-          ? `${user.name} sent a message in ${conv.name}`
-          : `${user.name} sent you a message`
-        createNotification(user_id, 'new_message', msgDa, msgEn, req.userId, user.name, convId)
-      }
-    }
-    res.json(msg)
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to send message' })
-  }
-})
 
 // POST /api/conversations/:id/read — mark messages as read + update last_read_at for receipt
 
@@ -2014,106 +1720,9 @@ function parseListingPhotos(row) {
   try { return { ...base, photos: JSON.parse(photos) } } catch { return { ...base, photos: [] } }
 }
 
-app.get('/api/marketplace', authenticate, async (req, res) => {
-  try {
-    const { q, category, location } = req.query
-    let sql = `SELECT l.*, u.name AS seller_name, u.handle AS seller_handle, u.avatar_url AS seller_avatar
-               FROM marketplace_listings l JOIN users u ON l.user_id = u.id`
-    const params = []
-    const where = []
-    if (q) { where.push('(l.title LIKE ? OR l.description LIKE ?)'); params.push(`%${q}%`, `%${q}%`) }
-    if (category) { where.push('l.category = ?'); params.push(category) }
-    if (location) { where.push('l.location LIKE ?'); params.push(`%${location}%`) }
-    if (where.length) sql += ' WHERE ' + where.join(' AND ')
-    sql += ' ORDER BY (l.boosted_until > NOW()) DESC, l.created_at DESC'
-    const [rows] = await pool.query(sql, params)
-    res.json({ listings: rows.map(parseListingPhotos) })
-  } catch (err) {
-    console.error('GET /api/marketplace error:', err.message)
-    res.status(500).json({ error: 'Server error' })
-  }
-})
-
-app.get('/api/marketplace/mine', authenticate, async (req, res) => {
-  try {
-    const [rows] = await pool.query(
-      `SELECT l.*, u.name AS seller_name, u.handle AS seller_handle, u.avatar_url AS seller_avatar
-       FROM marketplace_listings l JOIN users u ON l.user_id = u.id
-       WHERE l.user_id = ? ORDER BY l.created_at DESC`, [req.userId])
-    res.json({ listings: rows.map(parseListingPhotos) })
-  } catch (err) {
-    console.error('GET /api/marketplace/mine error:', err.message)
-    res.status(500).json({ error: 'Server error' })
-  }
-})
-
-app.post('/api/marketplace', authenticate, upload.array('photos', 10), async (req, res) => {
-  try {
-    const { title, price, priceNegotiable, category, location, description, mobilepay, contact_phone, contact_email } = req.body
-    if (!title || !category) return res.status(400).json({ error: 'Missing required fields' })
-    if (title.length > 255) return res.status(400).json({ error: 'Title too long (max 255 chars)' })
-    const photos = (req.files || []).map(f => ({ url: `/uploads/${f.filename}`, type: 'image', mime: f.mimetype }))
-    const [result] = await pool.query(
-      `INSERT INTO marketplace_listings (user_id, title, price, priceNegotiable, category, location, description, mobilepay, contact_phone, contact_email, photos) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [req.userId, title, price || null, priceNegotiable === 'true' ? 1 : 0, limitText(category, 100), limitText(location, 255) || null, limitText(description, 10_000) || null, limitText(mobilepay, 50) || null, limitText(contact_phone, 50) || null, limitText(contact_email, 255) || null, photos.length ? JSON.stringify(photos) : null]
-    )
-    const [[listing]] = await pool.query(
-      `SELECT l.*, u.name AS seller_name, u.handle AS seller_handle FROM marketplace_listings l JOIN users u ON l.user_id = u.id WHERE l.id = ?`,
-      [result.insertId]
-    )
-    // Notify subscribers whose keyword appears in title/description/category
-    try {
-      const haystack = `${title} ${description || ''} ${category}`.toLowerCase()
-      const [alerts] = await pool.query(
-        'SELECT DISTINCT user_id, keyword FROM marketplace_keyword_alerts WHERE user_id != ?',
-        [req.userId]
-      )
-      const matched = alerts.filter(a => haystack.includes(a.keyword.toLowerCase()))
-      for (const a of matched) {
-        const msgDa = `Nyt opslag i markedet matcher "${a.keyword}": ${title}`
-        const msgEn = `A new marketplace listing matches "${a.keyword}": ${title}`
-        await createNotification(a.user_id, 'marketplace_keyword_match', msgDa, msgEn, req.userId, listing.seller_name)
-      }
-    } catch (e) { console.error('[marketplace keyword alerts]', e.message) }
-
 
 
 // GET /api/marketplace/boosted-feed — return active boosted listings for feed injection
-
-app.put('/api/marketplace/:id', authenticate, upload.array('photos', 10), async (req, res) => {
-  try {
-    const { title, price, priceNegotiable, category, location, description, mobilepay, contact_phone, contact_email } = req.body
-    console.log(`[PUT /api/marketplace/${req.params.id}] body fields:`, Object.keys(req.body), '| files:', (req.files || []).length)
-    if (!title || !category) {
-      console.error(`[PUT /api/marketplace/${req.params.id}] Missing required fields – title="${title}" category="${category}"`)
-      return res.status(400).json({ error: 'Manglende påkrævede felter (titel/kategori)' })
-    }
-    if (title.length > 255) return res.status(400).json({ error: 'Title too long (max 255 chars)' })
-    const [[existing]] = await pool.query('SELECT user_id FROM marketplace_listings WHERE id = ?', [req.params.id])
-    if (!existing) return res.status(404).json({ error: 'Not found' })
-    if (existing.user_id !== req.userId) return res.status(403).json({ error: 'Forbidden' })
-    // Merge existing photos (kept by client) with any newly uploaded files
-    let existingPhotos = []
-    if (req.body.existingPhotos) {
-      try { existingPhotos = JSON.parse(req.body.existingPhotos) } catch {}
-    }
-    const newPhotos = (req.files || []).map(f => ({ url: `/uploads/${f.filename}`, type: 'image', mime: f.mimetype }))
-    const allPhotos = [...existingPhotos, ...newPhotos]
-    const photosJson = allPhotos.length ? JSON.stringify(allPhotos) : null
-    await pool.query(
-      `UPDATE marketplace_listings SET title=?, price=?, priceNegotiable=?, category=?, location=?, description=?, mobilepay=?, contact_phone=?, contact_email=?, photos=? WHERE id=?`,
-      [title, price || null, priceNegotiable === 'true' ? 1 : 0, limitText(category, 100), limitText(location, 255) || null, limitText(description, 10_000) || null, limitText(mobilepay, 50) || null, limitText(contact_phone, 50) || null, limitText(contact_email, 255) || null, photosJson, req.params.id]
-    )
-    const [[listing]] = await pool.query(
-      `SELECT l.*, u.name AS seller_name FROM marketplace_listings l JOIN users u ON l.user_id = u.id WHERE l.id = ?`,
-      [req.params.id]
-    )
-    res.json(parseListingPhotos(listing))
-  } catch (err) {
-    console.error('PUT /api/marketplace/:id error:', err.message)
-    res.status(500).json({ error: 'Server error' })
-  }
-})
 
 
 
@@ -2275,37 +1884,6 @@ async function initCompanies() {
 
 // GET /api/companies/all — discover all companies (with optional search)
 
-// POST /api/companies — create a new company
-app.post('/api/companies', authenticate, async (req, res) => {
-  try {
-    const { name, handle, tagline, description, industry, size, website, color,
-            cvr, company_type, address, phone, email, linkedin, founded_year, logo_url } = req.body
-    if (!name || !handle) return res.status(400).json({ error: 'name and handle required' })
-    if (name.length > 255) return res.status(400).json({ error: 'Company name too long (max 255 chars)' })
-    if (handle.length > 100) return res.status(400).json({ error: 'Handle too long (max 100 chars)' })
-    const safeHandle = handle.startsWith('@') ? handle : `@${handle}`
-    const [result] = await pool.query(
-      `INSERT INTO companies (owner_id, name, handle, tagline, description, industry, size, website, color,
-         cvr, company_type, address, phone, email, linkedin, founded_year, logo_url)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [req.userId, name, safeHandle, limitText(tagline, 500) || null, limitText(description, 10_000) || null,
-        limitText(industry, 255) || null, size || null, limitText(website, 500) || null, color || '#1877F2',
-        limitText(cvr, 50) || null, limitText(company_type, 100) || null, limitText(address, 500) || null, limitText(phone, 50) || null,
-        limitText(email, 255) || null, limitText(linkedin, 500) || null, founded_year || null, limitText(logo_url, 500) || null]
-    )
-    const companyId = result.insertId
-    await pool.query(
-      'INSERT INTO company_members (company_id, user_id, role) VALUES (?, ?, ?)',
-      [companyId, req.userId, 'owner']
-    )
-    const [[company]] = await pool.query('SELECT * FROM companies WHERE id = ?', [companyId])
-    res.json({ ...company, role: 'owner', followers_count: 0 })
-  } catch (err) {
-    if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Handle already taken' })
-    console.error('POST /api/companies error:', err.message)
-    res.status(500).json({ error: 'Server error' })
-  }
-})
 
 // GET /api/companies/:id — company details + posts + jobs
 
@@ -2329,32 +1907,6 @@ app.post('/api/companies', authenticate, async (req, res) => {
 // Used to interleave company content chronologically in the main feed.
 // Only returns posts created within the last 14 days so stale content doesn't reappear.
 
-// POST /api/companies/:id/posts — create post
-app.post('/api/companies/:id/posts', authenticate, async (req, res) => {
-  try {
-    const [[member]] = await pool.query(
-      "SELECT role FROM company_members WHERE company_id = ? AND user_id = ?",
-      [req.params.id, req.userId]
-    )
-    if (!member) return res.status(403).json({ error: 'Forbidden' })
-    const { text_da, text_en } = req.body
-    if (!text_da?.trim()) return res.status(400).json({ error: 'text_da required' })
-    if (text_da.length > 50_000) return res.status(400).json({ error: 'Post text too long (max 50000 chars)' })
-    const [result] = await pool.query(
-      'INSERT INTO company_posts (company_id, author_id, text_da, text_en) VALUES (?, ?, ?, ?)',
-      [req.params.id, req.userId, text_da.trim(), (text_en || text_da).trim()]
-    )
-    const [[post]] = await pool.query(
-      `SELECT cp.*, u.name AS author_name, u.handle AS author_handle, 0 AS liked, 0 AS comment_count
-       FROM company_posts cp JOIN users u ON u.id = cp.author_id WHERE cp.id = ?`,
-      [result.insertId]
-    )
-    res.json(post)
-  } catch (err) {
-    console.error('POST /api/companies/:id/posts error:', err.message)
-    res.status(500).json({ error: 'Server error' })
-  }
-})
 
 // POST /api/companies/:id/posts/:postId/like — like or unlike
 
@@ -2370,65 +1922,7 @@ app.post('/api/companies/:id/posts', authenticate, async (req, res) => {
 
 // GET /api/jobs/tracked — jobs with a tracking status set by the user
 
-// POST /api/jobs — create job (must be company member)
-app.post('/api/jobs', authenticate, async (req, res) => {
-  try {
-    const { company_id, title, location, remote, type, description, requirements, apply_link, contact_email, deadline } = req.body
-    if (!company_id || !title) return res.status(400).json({ error: 'company_id and title required' })
-    if (title.length > 255) return res.status(400).json({ error: 'Title too long (max 255 chars)' })
-    const [[member]] = await pool.query(
-      "SELECT role FROM company_members WHERE company_id = ? AND user_id = ?",
-      [company_id, req.userId]
-    )
-    if (!member) return res.status(403).json({ error: 'Forbidden' })
-    const [result] = await pool.query(
-      `INSERT INTO jobs (company_id, title, location, remote, type, description, requirements, apply_link, contact_email, deadline)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [company_id, title, limitText(location, 255) || null, remote ? 1 : 0,
-        limitText(type, 50) || 'fulltime', limitText(description, 50_000) || null, limitText(requirements, 50_000) || null,
-        apply_link || null, contact_email || null, deadline || null]
-    )
-    const [[job]] = await pool.query(
-      `SELECT j.*, c.name AS company_name, c.color AS company_color, 0 AS saved
-       FROM jobs j JOIN companies c ON c.id = j.company_id WHERE j.id = ?`,
-      [result.insertId]
-    )
-    res.json(job)
-  } catch (err) {
-    console.error('POST /api/jobs error:', err.message)
-    res.status(500).json({ error: 'Server error' })
-  }
-})
 
-// PUT /api/jobs/:id — update job
-app.put('/api/jobs/:id', authenticate, async (req, res) => {
-  try {
-    const [[job]] = await pool.query('SELECT company_id FROM jobs WHERE id = ?', [req.params.id])
-    if (!job) return res.status(404).json({ error: 'Not found' })
-    const [[member]] = await pool.query(
-      "SELECT role FROM company_members WHERE company_id = ? AND user_id = ?",
-      [job.company_id, req.userId]
-    )
-    if (!member) return res.status(403).json({ error: 'Forbidden' })
-    const { title, location, remote, type, description, requirements, apply_link, active, contact_email, deadline } = req.body
-    if (title && title.length > 255) return res.status(400).json({ error: 'Title too long (max 255 chars)' })
-    await pool.query(
-      'UPDATE jobs SET title=?, location=?, remote=?, type=?, description=?, requirements=?, apply_link=?, active=?, contact_email=?, deadline=? WHERE id=?',
-      [title, limitText(location, 255) || null, remote ? 1 : 0, limitText(type, 50) || 'fulltime',
-        limitText(description, 50_000) || null, limitText(requirements, 50_000) || null, limitText(apply_link, 500) || null,
-        active !== undefined ? (active ? 1 : 0) : 1,
-        contact_email || null, deadline || null, req.params.id]
-    )
-    const [[updated]] = await pool.query(
-      `SELECT j.*, c.name AS company_name, c.color AS company_color FROM jobs j JOIN companies c ON c.id = j.company_id WHERE j.id = ?`,
-      [req.params.id]
-    )
-    res.json(updated)
-  } catch (err) {
-    console.error('PUT /api/jobs/:id error:', err.message)
-    res.status(500).json({ error: 'Server error' })
-  }
-})
 
 // DELETE /api/jobs/:id — delete (close) job
 
@@ -2857,28 +2351,6 @@ async function attachUserMode(req, res, next) {
   next()
 }
 
-// POST /api/ads — create ad (business only)
-app.post('/api/ads', authenticate, attachUserMode, requireBusiness, async (req, res) => {
-  const { title, body, image_url, target_url, placement = 'feed', start_date, end_date, budget, target_interests } = req.body
-  if (!title || !target_url) return res.status(400).json({ error: 'title and target_url required' })
-  if (title.length > 255) return res.status(400).json({ error: 'Title too long (max 255 chars)' })
-  try {
-    // Snapshot current CPM rate at ad creation time
-    const [[settings]] = await pool.query('SELECT ad_price_cpm FROM admin_ad_settings WHERE id = 1').catch(() => [[null]])
-    const cpmRate = parseFloat(settings?.ad_price_cpm) || 50
-    const budgetVal = budget ? parseFloat(budget) : null
-    const interestsVal = target_interests ? JSON.stringify(target_interests) : null
-    const [result] = await pool.query(
-      'INSERT INTO ads (advertiser_id, title, body, image_url, target_url, placement, start_date, end_date, budget, cpm_rate, target_interests) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
-      [req.userId, title, limitText(body, 10_000) || null, limitText(image_url, 500) || null, limitText(target_url, 500), limitText(placement, 50), start_date || null, end_date || null, budgetVal, cpmRate, interestsVal]
-    )
-    const [[ad]] = await pool.query('SELECT * FROM ads WHERE id = ?', [result.insertId])
-    res.status(201).json({ ad })
-  } catch (err) {
-    console.error('POST /api/ads error:', err.message)
-    res.status(500).json({ error: 'Server error' })
-  }
-})
 
 // GET /api/ads — list own ads (business) or all active ads (admin)
 
@@ -3006,9 +2478,6 @@ async function initAdminSettings() {
     )
     await pool.query(
       "INSERT IGNORE INTO admin_settings (key_name, key_value) VALUES ('livestream_enabled', '0')"
-    )
-    await pool.query(
-      "INSERT IGNORE INTO admin_settings (key_name, key_value) VALUES ('fb_photo_import_limit', '50')"
     )
   } catch (err) {
     console.error('initAdminSettings error:', err.message)
@@ -3147,32 +2616,6 @@ function requireModerator(req, res, next) {
 
 // GET /api/events — list all events with RSVP counts and current user's RSVP
 
-// POST /api/events — create event
-app.post('/api/events', authenticate, async (req, res) => {
-  try {
-    const { title, description, date, location, eventType, ticketUrl, cap, coverUrl } = req.body
-    if (!title || !date) return res.status(400).json({ error: 'Title and date required' })
-    if (title.length > 255) return res.status(400).json({ error: 'Title too long (max 255 chars)' })
-    const [result] = await pool.query(
-      `INSERT INTO events (organizer_id, title, description, date, location, event_type, ticket_url, cap, cover_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [req.userId, title, limitText(description, 10_000) || null, date, limitText(location, 255) || null, limitText(eventType, 100) || null, limitText(ticketUrl, 500) || null, cap || null, limitText(coverUrl, 500) || null]
-    )
-    const [[event]] = await pool.query(
-      `SELECT e.*, u.name AS organizer_name FROM events e JOIN users u ON e.organizer_id = u.id WHERE e.id = ?`,
-      [result.insertId]
-    )
-    res.json({
-      id: event.id, title: event.title, description: event.description,
-      date: event.date, location: event.location, organizer: event.organizer_name,
-      organizerId: event.organizer_id, eventType: event.event_type,
-      ticketUrl: event.ticket_url, cap: event.cap, coverUrl: event.cover_url,
-      going: [], maybe: [], myRsvp: null,
-    })
-  } catch (err) {
-    console.error('POST /api/events error:', err.message)
-    res.status(500).json({ error: 'Server error' })
-  }
-})
 
 // PUT /api/events/:id/rsvp — set RSVP for current user
 
@@ -3297,28 +2740,6 @@ async function initReels() {
 
 // GET /api/reels/:id/comments
 
-// POST /api/reels/:id/comments
-app.post('/api/reels/:id/comments', authenticate, async (req, res) => {
-  try {
-    const text = (req.body.text || '').trim()
-    if (!text) return res.status(400).json({ error: 'Comment cannot be empty' })
-    if (text.length > 10_000) return res.status(400).json({ error: 'Comment too long (max 10000 chars)' })
-    const [result] = await pool.query(
-      'INSERT INTO reel_comments (reel_id, user_id, text) VALUES (?, ?, ?)',
-      [req.params.id, req.userId, text.slice(0, 2000)]
-    )
-    const [[comment]] = await pool.query(
-      `SELECT rc.id, rc.text, rc.created_at,
-              u.name AS author_name, u.handle AS author_handle, u.avatar_url AS author_avatar
-       FROM reel_comments rc JOIN users u ON rc.user_id = u.id WHERE rc.id = ?`,
-      [result.insertId]
-    )
-    res.status(201).json({ comment })
-  } catch (err) {
-    console.error('POST /api/reels/:id/comments error:', err.message)
-    res.status(500).json({ error: 'Server error' })
-  }
-})
 
 // DELETE /api/reels/:id
 
@@ -3374,50 +2795,7 @@ app.use('/api/invites', (req, res, next) => {
 
 // ── Heartbeat (online presence) ──────────────────────────────────────────────
 
-// ── Profile update ────────────────────────────────────────────────────────────
-app.patch('/api/profile', authenticate, async (req, res) => {
-  const { name, bio_da, bio_en, location, industry, seniority, job_title, company } = req.body
-  try {
-    const fields = [], vals = []
-    if (name !== undefined) {
-      if (name.trim().length > 100) return res.status(400).json({ error: 'Name too long (max 100 chars)' })
-      fields.push('name = ?'); vals.push(name.trim())
-    }
-    if (bio_da !== undefined)    { fields.push('bio_da = ?');    vals.push(limitText(bio_da, 2_000)) }
-    if (bio_en !== undefined)    { fields.push('bio_en = ?');    vals.push(limitText(bio_en, 2_000)) }
-    if (location !== undefined)  { fields.push('location = ?');  vals.push(limitText(location, 255)) }
-    if (industry !== undefined)  { fields.push('industry = ?');  vals.push(industry ? String(industry).trim().slice(0, 100) : null) }
-    if (seniority !== undefined) { fields.push('seniority = ?'); vals.push(seniority || null) }
-    if (job_title !== undefined) { fields.push('job_title = ?'); vals.push(job_title ? String(job_title).trim().slice(0, 100) : null) }
-    if (company !== undefined)   { fields.push('company = ?');   vals.push(company ? String(company).trim().slice(0, 100) : null) }
-    if (!fields.length) return res.status(400).json({ error: 'Nothing to update' })
-    vals.push(req.userId)
-    await pool.query(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`, vals)
-    res.json({ ok: true })
-  } catch (err) {
-    console.error('PATCH /api/profile error:', err)
-    res.status(500).json({ error: 'Failed to update profile' })
-  }
-})
-
 // ── Config (public) ───────────────────────────────────────────────────────────
-
-// ── Platform Feedback ─────────────────────────────────────────────────────────
-app.post('/api/feedback', authenticate, async (req, res) => {
-  const { type, title, description } = req.body
-  if (!['bug', 'missing', 'suggestion'].includes(type)) return res.status(400).json({ error: 'Invalid type' })
-  if (!title?.trim() || !description?.trim()) return res.status(400).json({ error: 'Title and description required' })
-  try {
-    await pool.query(
-      'INSERT INTO platform_feedback (user_id, type, title, description) VALUES (?, ?, ?, ?)',
-      [req.userId, type, title.trim().slice(0, 200), limitText(description.trim(), 5_000)]
-    )
-    res.json({ ok: true })
-  } catch (err) {
-    console.error('POST /api/feedback error:', err.message)
-    res.status(500).json({ error: 'Server error' })
-  }
-})
 
 
 
@@ -3666,29 +3044,6 @@ function checkKeywords(text) {
 // DELETE /api/users/:id/block — unblock a user
 
 // GET /api/me/blocks — get list of users I have blocked
-
-// POST /api/reports — submit a report
-app.post('/api/reports', authenticate, async (req, res) => {
-  const { target_type, target_id, reason, details } = req.body
-  if (!['post', 'comment', 'user'].includes(target_type)) return res.status(400).json({ error: 'Invalid target_type' })
-  if (!target_id || !reason) return res.status(400).json({ error: 'target_id and reason required' })
-  try {
-    // Prevent duplicate reports from same user on same target
-    const [existing] = await pool.query(
-      'SELECT id FROM reports WHERE reporter_id = ? AND target_type = ? AND target_id = ? AND status = "pending"',
-      [req.userId, target_type, target_id]
-    )
-    if (existing.length > 0) return res.json({ ok: true, duplicate: true })
-    await pool.query(
-      'INSERT INTO reports (reporter_id, target_type, target_id, reason, details) VALUES (?, ?, ?, ?, ?)',
-      [req.userId, target_type, target_id, limitText(reason, 255), limitText(details, 5_000) || null]
-    )
-    res.json({ ok: true })
-  } catch (err) {
-    console.error('POST /api/reports error:', err)
-    res.status(500).json({ error: 'Failed to submit report' })
-  }
-})
 
 // GET /api/admin/moderation/queue — get pending reports (moderator+)
 

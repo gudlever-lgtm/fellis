@@ -2303,22 +2303,6 @@ export const apiUpdateBlogPost = (id, data) => request(`/api/admin/blog/${id}`, 
 export const apiDeleteBlogPost = (id) => request(`/api/admin/blog/${id}`, { method: 'DELETE' })
 export const apiBlogTranslate = (text, from, to) => request('/api/admin/blog/translate', { method: 'POST', body: JSON.stringify({ text, from, to }) })
 
-// ── Facebook data import ───────────────────────────────────────────────────────
-// GET /api/auth/facebook/data — fetch fresh profile data from Graph API
-export const apiFacebookGetData = () => request('/api/auth/facebook/data')
-
-// POST /api/auth/facebook/import — apply selected fields to the user's profile
-export const apiFacebookImport = (fields) =>
-  request('/api/auth/facebook/import', { method: 'POST', body: JSON.stringify({ fields }) })
-
-// POST /api/auth/facebook/disconnect — revoke FB token and clear fb_connected
-export const apiFacebookDisconnect = () =>
-  request('/api/auth/facebook/disconnect', { method: 'POST' })
-
-// POST /api/auth/facebook/import-photos — download selected FB photos into feed
-export const apiFacebookImportPhotos = (photoIds) =>
-  request('/api/auth/facebook/import-photos', { method: 'POST', body: JSON.stringify({ photoIds }) })
-
 // ── Business Features V2 ──────────────────────────────────────────────────────
 
 // Feature 1: User Leads / Contact inbox
