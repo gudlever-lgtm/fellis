@@ -491,7 +491,18 @@ async function withdrawConsent(userId, consentType, ipAddress = null) {
 }
 
 const app = express()
-app.use(express.json())
+app.use(express.json({ limit: '1mb' }))
+
+// ── Strip null bytes from request bodies ─────────────────────────────────
+function stripNullBytes(obj) {
+  if (!obj || typeof obj !== 'object') return obj
+  for (const key of Object.keys(obj)) {
+    if (typeof obj[key] === 'string') obj[key] = obj[key].replace(/\0/g, '')
+    else if (typeof obj[key] === 'object' && obj[key] !== null) stripNullBytes(obj[key])
+  }
+  return obj
+}
+app.use((req, _res, next) => { if (req.body) stripNullBytes(req.body); next() })
 
 // ── CORS Configuration — explicit whitelist ────────────────────────────────
 const ALLOWED_ORIGINS = [
@@ -507,7 +518,7 @@ app.use((req, res, next) => {
   if (origin && ALLOWED_ORIGINS.includes(origin)) {
     res.set('Access-Control-Allow-Origin', origin)
     res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
-    res.set('Access-Control-Allow-Headers', 'Content-Type, X-Session-Id, Authorization')
+    res.set('Access-Control-Allow-Headers', 'Content-Type, X-Session-Id, X-CSRF-Token, Authorization')
     res.set('Access-Control-Allow-Credentials', 'true')
     res.set('Access-Control-Max-Age', '86400') // 24 hours
   }
@@ -680,6 +691,26 @@ function validateCsrf(req, res, next) {
     // Timing safe comparison may fail if token is malformed
     res.status(403).json({ error: 'Invalid CSRF token' })
   }
+}
+
+// ── Input Length Helpers ──────────────────────────────────────────────────
+function limitText(val, maxLen) {
+  if (typeof val !== 'string') return val
+  return val.slice(0, maxLen)
+}
+
+function validateMediaArray(media) {
+  if (media === null || media === undefined) return null
+  if (!Array.isArray(media)) return 'media must be an array'
+  if (media.length > 10) return 'Too many media items (max 10)'
+  const allowedTypes = ['image', 'video', 'audio', 'file']
+  for (const item of media) {
+    if (!item || typeof item !== 'object') return 'Invalid media item'
+    if (typeof item.url !== 'string' || (!item.url.startsWith('/uploads/') && !item.url.startsWith('http'))) return 'Invalid media URL'
+    if (!allowedTypes.includes(item.type)) return 'Invalid media type'
+    if (typeof item.mime !== 'string') return 'Invalid media mime'
+  }
+  return null
 }
 
 // ── Audit Logging Helper ───────────────────────────────────────────────────
@@ -1082,6 +1113,15 @@ async function authenticate(req, res, next) {
   }
 }
 
+// ── Global CSRF enforcement for state-changing requests ──────────────────────
+const CSRF_SKIP_PATHS = ['/api/auth/', '/api/mollie/payment/webhook', '/api/stream/auth', '/api/stream/end', '/api/visit']
+app.use((req, res, next) => {
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next()
+  if (CSRF_SKIP_PATHS.some(p => req.path.startsWith(p) || req.path === p)) return next()
+  if (!getSessionIdFromRequest(req)) return next()
+  validateCsrf(req, res, next)
+})
+
 // ── Public visit tracking ─────────────────────────────────────────────────────
 // Tracks visits from all users (including unauthenticated) once per IP per day.
 // Called by the frontend on app load so the visitors dashboard always has data.
@@ -1292,6 +1332,8 @@ app.post('/api/auth/login', strictLimit, async (req, res) => {
 app.post('/api/auth/register', strictLimit, async (req, res) => {
   const { name, email, password, lang, inviteToken } = req.body
   if (!name || !email || !password) return res.status(400).json({ error: 'Name, email, and password required' })
+  if (name.length > 100) return res.status(400).json({ error: 'Name too long (max 100 chars)' })
+  if (email.length > 255) return res.status(400).json({ error: 'Email too long (max 255 chars)' })
   const regPolicy = await getPasswordPolicy()
   const regPwdErrors = validatePasswordStrength(password, regPolicy, lang || 'da')
   if (regPwdErrors.length > 0) return res.status(400).json({ error: regPwdErrors.join('. ') })
@@ -3163,6 +3205,7 @@ app.post('/api/feed', authenticate, writeLimit, upload.array('media', UPLOAD_FIL
   const linkedType = req.body.linked_type || null
   const linkedId = req.body.linked_id ? parseInt(req.body.linked_id) : null
   if (!text && !req.files?.length) return res.status(400).json({ error: 'Post text or media required' })
+  if (text && text.length > 50_000) return res.status(400).json({ error: 'Post text too long (max 50000 chars)' })
 
   // Keyword filter check
   const kw = checkKeywords(text)
@@ -3375,6 +3418,7 @@ app.get('/api/feed/:id/likers', authenticate, async (req, res) => {
 app.post('/api/feed/:id/comment', authenticate, writeLimit, upload.single('media'), async (req, res) => {
   const text = (req.body.text || '').trim()
   if (!text && !req.file) return res.status(400).json({ error: 'Comment text or media required' })
+  if (text.length > 10_000) return res.status(400).json({ error: 'Comment too long (max 10000 chars)' })
   const postId = parseInt(req.params.id)
   // Keyword filter check
   const kwc = checkKeywords(text)
@@ -3487,6 +3531,9 @@ app.delete('/api/feed/:id', authenticate, async (req, res) => {
 app.patch('/api/feed/:id', authenticate, async (req, res) => {
   const { text } = req.body
   if (!text?.trim()) return res.status(400).json({ error: 'Text required' })
+  if (text.length > 50_000) return res.status(400).json({ error: 'Post text too long (max 50000 chars)' })
+  const kwEdit = checkKeywords(text.trim())
+  if (kwEdit?.action === 'block') return res.status(400).json({ error: 'Opslaget indeholder forbudt indhold / Post contains prohibited content' })
   try {
     const postId = parseInt(req.params.id)
     const [[post]] = await pool.query(
@@ -3495,6 +3542,12 @@ app.patch('/api/feed/:id', authenticate, async (req, res) => {
     if (!post) return res.status(404).json({ error: 'Post not found' })
     if (post.author_id !== req.userId) return res.status(403).json({ error: 'Not your post' })
     if (post.age_seconds > 3600) return res.status(403).json({ error: 'Edit window expired (1 hour)' })
+    if (kwEdit?.action === 'flag') {
+      pool.query(
+        'INSERT INTO reports (reporter_id, target_type, target_id, reason, details) VALUES (?, ?, ?, ?, ?)',
+        [req.userId, 'post', postId, 'keyword_flag', `Auto-flagged edit: keyword "${kwEdit.keyword}"`]
+      ).catch(() => {})
+    }
     await pool.query(
       'UPDATE posts SET text_da = ?, text_en = ?, edited_at = NOW() WHERE id = ?',
       [text.trim(), text.trim(), postId]
@@ -4030,6 +4083,9 @@ app.post('/api/conversations/:id/messages', authenticate, writeLimit, async (req
   const convId = parseInt(req.params.id)
   const { text, media } = req.body
   if (!text && !media?.length) return res.status(400).json({ error: 'Message text or media required' })
+  if (text && text.length > 10_000) return res.status(400).json({ error: 'Message too long (max 10000 chars)' })
+  const mediaErr = validateMediaArray(media)
+  if (mediaErr) return res.status(400).json({ error: mediaErr })
   try {
     const [check] = await pool.query(
       'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, req.userId])
@@ -4791,10 +4847,11 @@ app.post('/api/marketplace', authenticate, upload.array('photos', 10), async (re
   try {
     const { title, price, priceNegotiable, category, location, description, mobilepay, contact_phone, contact_email } = req.body
     if (!title || !category) return res.status(400).json({ error: 'Missing required fields' })
+    if (title.length > 255) return res.status(400).json({ error: 'Title too long (max 255 chars)' })
     const photos = (req.files || []).map(f => ({ url: `/uploads/${f.filename}`, type: 'image', mime: f.mimetype }))
     const [result] = await pool.query(
       `INSERT INTO marketplace_listings (user_id, title, price, priceNegotiable, category, location, description, mobilepay, contact_phone, contact_email, photos) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [req.userId, title, price || null, priceNegotiable === 'true' ? 1 : 0, category, location || null, description || null, mobilepay || null, contact_phone || null, contact_email || null, photos.length ? JSON.stringify(photos) : null]
+      [req.userId, title, price || null, priceNegotiable === 'true' ? 1 : 0, limitText(category, 100), limitText(location, 255) || null, limitText(description, 10_000) || null, limitText(mobilepay, 50) || null, limitText(contact_phone, 50) || null, limitText(contact_email, 255) || null, photos.length ? JSON.stringify(photos) : null]
     )
     const [[listing]] = await pool.query(
       `SELECT l.*, u.name AS seller_name, u.handle AS seller_handle FROM marketplace_listings l JOIN users u ON l.user_id = u.id WHERE l.id = ?`,
@@ -4873,6 +4930,7 @@ app.put('/api/marketplace/:id', authenticate, upload.array('photos', 10), async 
       console.error(`[PUT /api/marketplace/${req.params.id}] Missing required fields – title="${title}" category="${category}"`)
       return res.status(400).json({ error: 'Manglende påkrævede felter (titel/kategori)' })
     }
+    if (title.length > 255) return res.status(400).json({ error: 'Title too long (max 255 chars)' })
     const [[existing]] = await pool.query('SELECT user_id FROM marketplace_listings WHERE id = ?', [req.params.id])
     if (!existing) return res.status(404).json({ error: 'Not found' })
     if (existing.user_id !== req.userId) return res.status(403).json({ error: 'Forbidden' })
@@ -4886,7 +4944,7 @@ app.put('/api/marketplace/:id', authenticate, upload.array('photos', 10), async 
     const photosJson = allPhotos.length ? JSON.stringify(allPhotos) : null
     await pool.query(
       `UPDATE marketplace_listings SET title=?, price=?, priceNegotiable=?, category=?, location=?, description=?, mobilepay=?, contact_phone=?, contact_email=?, photos=? WHERE id=?`,
-      [title, price || null, priceNegotiable === 'true' ? 1 : 0, category, location || null, description || null, mobilepay || null, contact_phone || null, contact_email || null, photosJson, req.params.id]
+      [title, price || null, priceNegotiable === 'true' ? 1 : 0, limitText(category, 100), limitText(location, 255) || null, limitText(description, 10_000) || null, limitText(mobilepay, 50) || null, limitText(contact_phone, 50) || null, limitText(contact_email, 255) || null, photosJson, req.params.id]
     )
     const [[listing]] = await pool.query(
       `SELECT l.*, u.name AS seller_name FROM marketplace_listings l JOIN users u ON l.user_id = u.id WHERE l.id = ?`,
@@ -5258,15 +5316,17 @@ app.post('/api/companies', authenticate, async (req, res) => {
     const { name, handle, tagline, description, industry, size, website, color,
             cvr, company_type, address, phone, email, linkedin, founded_year, logo_url } = req.body
     if (!name || !handle) return res.status(400).json({ error: 'name and handle required' })
+    if (name.length > 255) return res.status(400).json({ error: 'Company name too long (max 255 chars)' })
+    if (handle.length > 100) return res.status(400).json({ error: 'Handle too long (max 100 chars)' })
     const safeHandle = handle.startsWith('@') ? handle : `@${handle}`
     const [result] = await pool.query(
       `INSERT INTO companies (owner_id, name, handle, tagline, description, industry, size, website, color,
          cvr, company_type, address, phone, email, linkedin, founded_year, logo_url)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [req.userId, name, safeHandle, tagline || null, description || null,
-        industry || null, size || null, website || null, color || '#1877F2',
-        cvr || null, company_type || null, address || null, phone || null,
-        email || null, linkedin || null, founded_year || null, logo_url || null]
+      [req.userId, name, safeHandle, limitText(tagline, 500) || null, limitText(description, 10_000) || null,
+        limitText(industry, 255) || null, size || null, limitText(website, 500) || null, color || '#1877F2',
+        limitText(cvr, 50) || null, limitText(company_type, 100) || null, limitText(address, 500) || null, limitText(phone, 50) || null,
+        limitText(email, 255) || null, limitText(linkedin, 500) || null, founded_year || null, limitText(logo_url, 500) || null]
     )
     const companyId = result.insertId
     await pool.query(
@@ -5551,6 +5611,7 @@ app.post('/api/companies/:id/posts', authenticate, async (req, res) => {
     if (!member) return res.status(403).json({ error: 'Forbidden' })
     const { text_da, text_en } = req.body
     if (!text_da?.trim()) return res.status(400).json({ error: 'text_da required' })
+    if (text_da.length > 50_000) return res.status(400).json({ error: 'Post text too long (max 50000 chars)' })
     const [result] = await pool.query(
       'INSERT INTO company_posts (company_id, author_id, text_da, text_en) VALUES (?, ?, ?, ?)',
       [req.params.id, req.userId, text_da.trim(), (text_en || text_da).trim()]
@@ -5704,6 +5765,7 @@ app.post('/api/jobs', authenticate, async (req, res) => {
   try {
     const { company_id, title, location, remote, type, description, requirements, apply_link, contact_email, deadline } = req.body
     if (!company_id || !title) return res.status(400).json({ error: 'company_id and title required' })
+    if (title.length > 255) return res.status(400).json({ error: 'Title too long (max 255 chars)' })
     const [[member]] = await pool.query(
       "SELECT role FROM company_members WHERE company_id = ? AND user_id = ?",
       [company_id, req.userId]
@@ -5712,8 +5774,8 @@ app.post('/api/jobs', authenticate, async (req, res) => {
     const [result] = await pool.query(
       `INSERT INTO jobs (company_id, title, location, remote, type, description, requirements, apply_link, contact_email, deadline)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [company_id, title, location || null, remote ? 1 : 0,
-        type || 'fulltime', description || null, requirements || null,
+      [company_id, title, limitText(location, 255) || null, remote ? 1 : 0,
+        limitText(type, 50) || 'fulltime', limitText(description, 50_000) || null, limitText(requirements, 50_000) || null,
         apply_link || null, contact_email || null, deadline || null]
     )
     const [[job]] = await pool.query(
@@ -5739,10 +5801,11 @@ app.put('/api/jobs/:id', authenticate, async (req, res) => {
     )
     if (!member) return res.status(403).json({ error: 'Forbidden' })
     const { title, location, remote, type, description, requirements, apply_link, active, contact_email, deadline } = req.body
+    if (title && title.length > 255) return res.status(400).json({ error: 'Title too long (max 255 chars)' })
     await pool.query(
       'UPDATE jobs SET title=?, location=?, remote=?, type=?, description=?, requirements=?, apply_link=?, active=?, contact_email=?, deadline=? WHERE id=?',
-      [title, location || null, remote ? 1 : 0, type || 'fulltime',
-        description || null, requirements || null, apply_link || null,
+      [title, limitText(location, 255) || null, remote ? 1 : 0, limitText(type, 50) || 'fulltime',
+        limitText(description, 50_000) || null, limitText(requirements, 50_000) || null, limitText(apply_link, 500) || null,
         active !== undefined ? (active ? 1 : 0) : 1,
         contact_email || null, deadline || null, req.params.id]
     )
@@ -6524,6 +6587,7 @@ async function attachUserMode(req, res, next) {
 app.post('/api/ads', authenticate, attachUserMode, requireBusiness, async (req, res) => {
   const { title, body, image_url, target_url, placement = 'feed', start_date, end_date, budget, target_interests } = req.body
   if (!title || !target_url) return res.status(400).json({ error: 'title and target_url required' })
+  if (title.length > 255) return res.status(400).json({ error: 'Title too long (max 255 chars)' })
   try {
     // Snapshot current CPM rate at ad creation time
     const [[settings]] = await pool.query('SELECT ad_price_cpm FROM admin_ad_settings WHERE id = 1').catch(() => [[null]])
@@ -6532,7 +6596,7 @@ app.post('/api/ads', authenticate, attachUserMode, requireBusiness, async (req, 
     const interestsVal = target_interests ? JSON.stringify(target_interests) : null
     const [result] = await pool.query(
       'INSERT INTO ads (advertiser_id, title, body, image_url, target_url, placement, start_date, end_date, budget, cpm_rate, target_interests) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
-      [req.userId, title, body || null, image_url || null, target_url, placement, start_date || null, end_date || null, budgetVal, cpmRate, interestsVal]
+      [req.userId, title, limitText(body, 10_000) || null, limitText(image_url, 500) || null, limitText(target_url, 500), limitText(placement, 50), start_date || null, end_date || null, budgetVal, cpmRate, interestsVal]
     )
     const [[ad]] = await pool.query('SELECT * FROM ads WHERE id = ?', [result.insertId])
     res.status(201).json({ ad })
@@ -8525,9 +8589,10 @@ app.post('/api/events', authenticate, async (req, res) => {
   try {
     const { title, description, date, location, eventType, ticketUrl, cap, coverUrl } = req.body
     if (!title || !date) return res.status(400).json({ error: 'Title and date required' })
+    if (title.length > 255) return res.status(400).json({ error: 'Title too long (max 255 chars)' })
     const [result] = await pool.query(
       `INSERT INTO events (organizer_id, title, description, date, location, event_type, ticket_url, cap, cover_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [req.userId, title, description || null, date, location || null, eventType || null, ticketUrl || null, cap || null, coverUrl || null]
+      [req.userId, title, limitText(description, 10_000) || null, date, limitText(location, 255) || null, limitText(eventType, 100) || null, limitText(ticketUrl, 500) || null, cap || null, limitText(coverUrl, 500) || null]
     )
     const [[event]] = await pool.query(
       `SELECT e.*, u.name AS organizer_name FROM events e JOIN users u ON e.organizer_id = u.id WHERE e.id = ?`,
@@ -8954,6 +9019,7 @@ app.post('/api/reels/:id/comments', authenticate, async (req, res) => {
   try {
     const text = (req.body.text || '').trim()
     if (!text) return res.status(400).json({ error: 'Comment cannot be empty' })
+    if (text.length > 10_000) return res.status(400).json({ error: 'Comment too long (max 10000 chars)' })
     const [result] = await pool.query(
       'INSERT INTO reel_comments (reel_id, user_id, text) VALUES (?, ?, ?)',
       [req.params.id, req.userId, text.slice(0, 2000)]
@@ -9482,10 +9548,13 @@ app.patch('/api/profile', authenticate, async (req, res) => {
   const { name, bio_da, bio_en, location, industry, seniority, job_title, company } = req.body
   try {
     const fields = [], vals = []
-    if (name !== undefined)      { fields.push('name = ?');      vals.push(name.trim()) }
-    if (bio_da !== undefined)    { fields.push('bio_da = ?');    vals.push(bio_da) }
-    if (bio_en !== undefined)    { fields.push('bio_en = ?');    vals.push(bio_en) }
-    if (location !== undefined)  { fields.push('location = ?');  vals.push(location) }
+    if (name !== undefined) {
+      if (name.trim().length > 100) return res.status(400).json({ error: 'Name too long (max 100 chars)' })
+      fields.push('name = ?'); vals.push(name.trim())
+    }
+    if (bio_da !== undefined)    { fields.push('bio_da = ?');    vals.push(limitText(bio_da, 2_000)) }
+    if (bio_en !== undefined)    { fields.push('bio_en = ?');    vals.push(limitText(bio_en, 2_000)) }
+    if (location !== undefined)  { fields.push('location = ?');  vals.push(limitText(location, 255)) }
     if (industry !== undefined)  { fields.push('industry = ?');  vals.push(industry ? String(industry).trim().slice(0, 100) : null) }
     if (seniority !== undefined) { fields.push('seniority = ?'); vals.push(seniority || null) }
     if (job_title !== undefined) { fields.push('job_title = ?'); vals.push(job_title ? String(job_title).trim().slice(0, 100) : null) }
@@ -9550,7 +9619,7 @@ app.post('/api/feedback', authenticate, async (req, res) => {
   try {
     await pool.query(
       'INSERT INTO platform_feedback (user_id, type, title, description) VALUES (?, ?, ?, ?)',
-      [req.userId, type, title.trim().slice(0, 200), description.trim()]
+      [req.userId, type, title.trim().slice(0, 200), limitText(description.trim(), 5_000)]
     )
     res.json({ ok: true })
   } catch (err) {
@@ -10374,7 +10443,7 @@ app.post('/api/reports', authenticate, async (req, res) => {
     if (existing.length > 0) return res.json({ ok: true, duplicate: true })
     await pool.query(
       'INSERT INTO reports (reporter_id, target_type, target_id, reason, details) VALUES (?, ?, ?, ?, ?)',
-      [req.userId, target_type, target_id, reason, details || null]
+      [req.userId, target_type, target_id, limitText(reason, 255), limitText(details, 5_000) || null]
     )
     res.json({ ok: true })
   } catch (err) {
