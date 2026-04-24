@@ -204,8 +204,8 @@ router.post('/groups', authenticate, writeLimit, async (req, res) => {
     )
 
     await pool.query(
-      'INSERT INTO conversation_participants (conversation_id, user_id) VALUES (?, ?)',
-      [result.insertId, req.userId]
+      'INSERT INTO conversation_participants (conversation_id, user_id, role) VALUES (?, ?, ?)',
+      [result.insertId, req.userId, 'admin']
     )
 
     res.status(201).json({ id: result.insertId, slug: cleanSlug })
@@ -242,6 +242,520 @@ router.post('/groups/:id/cover', authenticate, fileUploadLimit, coverUpload.sing
     console.error('POST /api/groups/:id/cover error:', err)
     if (req.file) fs.unlink(path.join(UPLOADS_DIR, req.file.filename), () => {})
     res.status(500).json({ error: 'Failed to upload cover' })
+  }
+})
+
+// ── Group detail: slug-based routes ──────────────────────────────────────────
+
+router.get('/groups/:slug', authenticate, async (req, res) => {
+  try {
+    const [[group]] = await pool.query(
+      `SELECT c.*,
+              (SELECT COUNT(*) FROM conversation_participants
+               WHERE conversation_id = c.id AND status = 'active') AS member_count,
+              cp.role AS my_role,
+              cp.status AS my_status
+       FROM conversations c
+       LEFT JOIN conversation_participants cp ON cp.conversation_id = c.id AND cp.user_id = ?
+       WHERE c.slug = ? AND c.is_group = 1`,
+      [req.userId, req.params.slug]
+    )
+    if (!group) return res.status(404).json({ error: 'not_found' })
+
+    const isMember = group.my_role !== null && group.my_status === 'active'
+    if (group.type === 'hidden' && !isMember) {
+      return res.status(403).json({ error: 'forbidden' })
+    }
+
+    let tags = []
+    try { tags = group.tags ? JSON.parse(group.tags) : [] } catch {}
+
+    res.json({
+      id: group.id,
+      name: group.name,
+      slug: group.slug,
+      description_da: group.description_da,
+      description_en: group.description_en,
+      type: group.type || 'public',
+      category: group.category,
+      tags,
+      cover_url: group.cover_url || null,
+      member_count: Number(group.member_count) || 0,
+      created_at: group.created_at,
+      created_by: group.created_by,
+      pinned_post_id: group.pinned_post_id || null,
+      membership: {
+        isMember,
+        role: group.my_role || null,
+        hasRequested: group.my_status === 'pending',
+      },
+    })
+  } catch (err) {
+    console.error('GET /api/groups/:slug error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
+router.get('/groups/:slug/posts', authenticate, async (req, res) => {
+  try {
+    const [[group]] = await pool.query(
+      'SELECT id, type FROM conversations WHERE slug = ? AND is_group = 1',
+      [req.params.slug]
+    )
+    if (!group) return res.status(404).json({ error: 'not_found' })
+
+    const [[cp]] = await pool.query(
+      "SELECT role FROM conversation_participants WHERE conversation_id = ? AND user_id = ? AND status = 'active'",
+      [group.id, req.userId]
+    )
+    const isMember = !!cp
+    if ((group.type === 'hidden' || group.type === 'private') && !isMember) {
+      return res.status(403).json({ error: 'forbidden' })
+    }
+
+    const [posts] = await pool.query(
+      `SELECT p.id, p.text_da, p.text_en, p.created_at, p.is_pinned,
+              u.name AS author_name, u.id AS author_id,
+              (SELECT reaction FROM post_likes WHERE post_id = p.id AND user_id = ?) AS my_reaction
+       FROM posts p
+       JOIN users u ON u.id = p.author_id
+       WHERE p.group_id = ?
+       ORDER BY p.is_pinned DESC, p.created_at DESC
+       LIMIT 50`,
+      [req.userId, group.id]
+    )
+
+    if (posts.length) {
+      const postIds = posts.map(p => p.id)
+      const [reactionRows] = await pool.query(
+        'SELECT post_id, reaction, COUNT(*) AS cnt FROM post_likes WHERE post_id IN (?) GROUP BY post_id, reaction',
+        [postIds]
+      )
+      const reactMap = {}
+      for (const row of reactionRows) {
+        if (!reactMap[row.post_id]) reactMap[row.post_id] = {}
+        reactMap[row.post_id][row.reaction] = Number(row.cnt)
+      }
+      posts.forEach(p => { p.reactions = reactMap[p.id] || {} })
+    }
+
+    res.json({ posts })
+  } catch (err) {
+    console.error('GET /api/groups/:slug/posts error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
+router.post('/groups/:slug/posts', authenticate, writeLimit, upload.single('media'), async (req, res) => {
+  const { text } = req.body || {}
+  if (!text?.trim()) return res.status(400).json({ error: 'text_required' })
+  try {
+    const [[group]] = await pool.query(
+      'SELECT id FROM conversations WHERE slug = ? AND is_group = 1',
+      [req.params.slug]
+    )
+    if (!group) return res.status(404).json({ error: 'not_found' })
+
+    const [[cp]] = await pool.query(
+      "SELECT role FROM conversation_participants WHERE conversation_id = ? AND user_id = ? AND status = 'active'",
+      [group.id, req.userId]
+    )
+    if (!cp) {
+      if (req.file) fs.unlink(path.join(UPLOADS_DIR, req.file.filename), () => {})
+      return res.status(403).json({ error: 'members_only' })
+    }
+
+    const clean = text.trim()
+    const mediaJson = req.file ? JSON.stringify([`/uploads/${req.file.filename}`]) : null
+    const [result] = await pool.query(
+      'INSERT INTO posts (author_id, text_da, text_en, media, group_id) VALUES (?, ?, ?, ?, ?)',
+      [req.userId, clean, clean, mediaJson, group.id]
+    )
+    const [[post]] = await pool.query(
+      'SELECT p.id, p.text_da, p.text_en, p.media, p.created_at, p.is_pinned, u.name AS author_name, u.id AS author_id FROM posts p JOIN users u ON u.id = p.author_id WHERE p.id = ?',
+      [result.insertId]
+    )
+    res.status(201).json({ ...post, reactions: {}, my_reaction: null })
+  } catch (err) {
+    console.error('POST /api/groups/:slug/posts error:', err)
+    if (req.file) fs.unlink(path.join(UPLOADS_DIR, req.file.filename), () => {})
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
+router.delete('/groups/:slug/posts/:postId', authenticate, async (req, res) => {
+  const postId = parseInt(req.params.postId)
+  if (isNaN(postId)) return res.status(400).json({ error: 'invalid_id' })
+  try {
+    const [[group]] = await pool.query(
+      'SELECT id FROM conversations WHERE slug = ? AND is_group = 1',
+      [req.params.slug]
+    )
+    if (!group) return res.status(404).json({ error: 'not_found' })
+
+    const [[post]] = await pool.query(
+      'SELECT author_id FROM posts WHERE id = ? AND group_id = ?',
+      [postId, group.id]
+    )
+    if (!post) return res.status(404).json({ error: 'not_found' })
+
+    const [[cp]] = await pool.query(
+      "SELECT role FROM conversation_participants WHERE conversation_id = ? AND user_id = ? AND status = 'active'",
+      [group.id, req.userId]
+    )
+    const isOwner = post.author_id === req.userId
+    const isMod = cp?.role === 'admin' || cp?.role === 'moderator'
+    if (!isOwner && !isMod) return res.status(403).json({ error: 'forbidden' })
+
+    await pool.query('DELETE FROM posts WHERE id = ?', [postId])
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/groups/:slug/posts/:postId error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
+router.post('/groups/:slug/posts/:postId/pin', authenticate, async (req, res) => {
+  const postId = parseInt(req.params.postId)
+  if (isNaN(postId)) return res.status(400).json({ error: 'invalid_id' })
+  const { pinned } = req.body || {}
+  try {
+    const [[group]] = await pool.query(
+      'SELECT id FROM conversations WHERE slug = ? AND is_group = 1',
+      [req.params.slug]
+    )
+    if (!group) return res.status(404).json({ error: 'not_found' })
+
+    const [[cp]] = await pool.query(
+      "SELECT role FROM conversation_participants WHERE conversation_id = ? AND user_id = ? AND status = 'active'",
+      [group.id, req.userId]
+    )
+    if (!cp || (cp.role !== 'admin' && cp.role !== 'moderator')) {
+      return res.status(403).json({ error: 'forbidden' })
+    }
+
+    if (pinned) {
+      await pool.query('UPDATE posts SET is_pinned = 0 WHERE group_id = ?', [group.id])
+      await pool.query('UPDATE posts SET is_pinned = 1 WHERE id = ? AND group_id = ?', [postId, group.id])
+      await pool.query('UPDATE conversations SET pinned_post_id = ? WHERE id = ?', [postId, group.id])
+    } else {
+      await pool.query('UPDATE posts SET is_pinned = 0 WHERE id = ?', [postId])
+      await pool.query('UPDATE conversations SET pinned_post_id = NULL WHERE id = ? AND pinned_post_id = ?', [group.id, postId])
+    }
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /api/groups/:slug/posts/:postId/pin error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
+router.post('/groups/:slug/posts/:postId/react', authenticate, async (req, res) => {
+  const postId = parseInt(req.params.postId)
+  if (isNaN(postId)) return res.status(400).json({ error: 'invalid_id' })
+  const { reaction } = req.body || {}
+  if (!['like', 'love', 'insightful'].includes(reaction)) return res.status(400).json({ error: 'invalid_reaction' })
+  try {
+    const [[existing]] = await pool.query(
+      'SELECT reaction FROM post_likes WHERE post_id = ? AND user_id = ?',
+      [postId, req.userId]
+    )
+    if (existing && existing.reaction === reaction) {
+      await pool.query('DELETE FROM post_likes WHERE post_id = ? AND user_id = ?', [postId, req.userId])
+      return res.json({ reaction: null })
+    }
+    await pool.query(
+      'INSERT INTO post_likes (post_id, user_id, reaction) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE reaction = ?',
+      [postId, req.userId, reaction, reaction]
+    )
+    res.json({ reaction })
+  } catch (err) {
+    console.error('POST /api/groups/:slug/posts/:postId/react error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
+router.get('/groups/:slug/members', authenticate, async (req, res) => {
+  try {
+    const [[group]] = await pool.query(
+      'SELECT id, type FROM conversations WHERE slug = ? AND is_group = 1',
+      [req.params.slug]
+    )
+    if (!group) return res.status(404).json({ error: 'not_found' })
+
+    if (group.type === 'hidden') {
+      const [[cp]] = await pool.query(
+        "SELECT id FROM conversation_participants WHERE conversation_id = ? AND user_id = ? AND status = 'active'",
+        [group.id, req.userId]
+      )
+      if (!cp) return res.status(403).json({ error: 'forbidden' })
+    }
+
+    const [members] = await pool.query(
+      `SELECT u.id, u.name, u.avatar_url, COALESCE(cp.role, 'member') AS role, cp.joined_at
+       FROM conversation_participants cp
+       JOIN users u ON u.id = cp.user_id
+       WHERE cp.conversation_id = ? AND cp.status = 'active'
+       ORDER BY FIELD(cp.role, 'admin', 'moderator', 'member'), u.name`,
+      [group.id]
+    )
+    res.json({ members })
+  } catch (err) {
+    console.error('GET /api/groups/:slug/members error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
+router.patch('/groups/:slug/members/:userId', authenticate, async (req, res) => {
+  const targetId = parseInt(req.params.userId)
+  if (isNaN(targetId)) return res.status(400).json({ error: 'invalid_id' })
+  const { role } = req.body || {}
+  if (!['moderator', 'member'].includes(role)) return res.status(400).json({ error: 'invalid_role' })
+  try {
+    const [[group]] = await pool.query(
+      'SELECT id FROM conversations WHERE slug = ? AND is_group = 1',
+      [req.params.slug]
+    )
+    if (!group) return res.status(404).json({ error: 'not_found' })
+
+    const [[cp]] = await pool.query(
+      "SELECT role FROM conversation_participants WHERE conversation_id = ? AND user_id = ? AND status = 'active'",
+      [group.id, req.userId]
+    )
+    if (!cp || cp.role !== 'admin') return res.status(403).json({ error: 'admin_only' })
+
+    await pool.query(
+      'UPDATE conversation_participants SET role = ? WHERE conversation_id = ? AND user_id = ?',
+      [role, group.id, targetId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('PATCH /api/groups/:slug/members/:userId error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
+router.delete('/groups/:slug/members/:userId', authenticate, async (req, res) => {
+  const targetId = parseInt(req.params.userId)
+  if (isNaN(targetId)) return res.status(400).json({ error: 'invalid_id' })
+  try {
+    const [[group]] = await pool.query(
+      'SELECT id FROM conversations WHERE slug = ? AND is_group = 1',
+      [req.params.slug]
+    )
+    if (!group) return res.status(404).json({ error: 'not_found' })
+
+    const [[cp]] = await pool.query(
+      "SELECT role FROM conversation_participants WHERE conversation_id = ? AND user_id = ? AND status = 'active'",
+      [group.id, req.userId]
+    )
+    if (!cp || (cp.role !== 'admin' && cp.role !== 'moderator')) {
+      return res.status(403).json({ error: 'forbidden' })
+    }
+    const [[target]] = await pool.query(
+      'SELECT role FROM conversation_participants WHERE conversation_id = ? AND user_id = ?',
+      [group.id, targetId]
+    )
+    if (target?.role === 'admin') return res.status(403).json({ error: 'cannot_remove_admin' })
+    if (cp.role === 'moderator' && target?.role === 'moderator') {
+      return res.status(403).json({ error: 'insufficient_permissions' })
+    }
+
+    await pool.query(
+      'DELETE FROM conversation_participants WHERE conversation_id = ? AND user_id = ?',
+      [group.id, targetId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/groups/:slug/members/:userId error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
+router.get('/groups/:slug/events', authenticate, async (req, res) => {
+  try {
+    const [[group]] = await pool.query(
+      'SELECT id, type FROM conversations WHERE slug = ? AND is_group = 1',
+      [req.params.slug]
+    )
+    if (!group) return res.status(404).json({ error: 'not_found' })
+
+    if (group.type === 'hidden') {
+      const [[cp]] = await pool.query(
+        "SELECT id FROM conversation_participants WHERE conversation_id = ? AND user_id = ? AND status = 'active'",
+        [group.id, req.userId]
+      )
+      if (!cp) return res.status(403).json({ error: 'forbidden' })
+    }
+
+    const [events] = await pool.query(
+      `SELECT e.*,
+              (SELECT status FROM event_rsvps WHERE event_id = e.id AND user_id = ?) AS my_rsvp,
+              (SELECT COUNT(*) FROM event_rsvps WHERE event_id = e.id AND status = 'going') AS going_count
+       FROM events e
+       WHERE e.group_id = ? AND (e.start_time IS NULL OR e.start_time >= NOW())
+       ORDER BY e.start_time ASC
+       LIMIT 20`,
+      [req.userId, group.id]
+    )
+    res.json({ events })
+  } catch (err) {
+    console.error('GET /api/groups/:slug/events error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
+router.post('/groups/:slug/events/:eventId/rsvp', authenticate, async (req, res) => {
+  const eventId = parseInt(req.params.eventId)
+  if (isNaN(eventId)) return res.status(400).json({ error: 'invalid_id' })
+  const { status } = req.body || {}
+  if (!['going', 'maybe', 'notGoing'].includes(status)) return res.status(400).json({ error: 'invalid_status' })
+  try {
+    await pool.query(
+      'INSERT INTO event_rsvps (event_id, user_id, status) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE status = ?',
+      [eventId, req.userId, status, status]
+    )
+    res.json({ ok: true, status })
+  } catch (err) {
+    console.error('POST /api/groups/:slug/events/:eventId/rsvp error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
+router.get('/groups/:slug/polls', authenticate, async (req, res) => {
+  try {
+    const [[group]] = await pool.query(
+      'SELECT id, type FROM conversations WHERE slug = ? AND is_group = 1',
+      [req.params.slug]
+    )
+    if (!group) return res.status(404).json({ error: 'not_found' })
+
+    if (group.type === 'hidden') {
+      const [[cp]] = await pool.query(
+        "SELECT id FROM conversation_participants WHERE conversation_id = ? AND user_id = ? AND status = 'active'",
+        [group.id, req.userId]
+      )
+      if (!cp) return res.status(403).json({ error: 'forbidden' })
+    }
+
+    const [polls] = await pool.query(
+      `SELECT p.*,
+              (SELECT option_idx FROM group_poll_votes WHERE poll_id = p.id AND user_id = ?) AS user_vote
+       FROM group_polls p
+       WHERE p.group_id = ? AND (p.ends_at IS NULL OR p.ends_at > NOW())
+       ORDER BY p.created_at DESC`,
+      [req.userId, group.id]
+    )
+
+    const enriched = await Promise.all(polls.map(async (poll) => {
+      let options = []
+      try { options = JSON.parse(poll.options) } catch {}
+      const [votes] = await pool.query(
+        'SELECT option_idx, COUNT(*) AS cnt FROM group_poll_votes WHERE poll_id = ? GROUP BY option_idx',
+        [poll.id]
+      )
+      const voteCounts = {}
+      votes.forEach(v => { voteCounts[v.option_idx] = Number(v.cnt) })
+      return {
+        ...poll,
+        options: options.map((opt, idx) => ({
+          id: idx,
+          text_da: opt.text_da || opt.text || '',
+          text_en: opt.text_en || opt.text || '',
+          vote_count: voteCounts[idx] || 0,
+        })),
+      }
+    }))
+
+    res.json({ polls: enriched })
+  } catch (err) {
+    console.error('GET /api/groups/:slug/polls error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
+router.post('/groups/:slug/polls/:pollId/vote', authenticate, async (req, res) => {
+  const pollId = parseInt(req.params.pollId)
+  if (isNaN(pollId)) return res.status(400).json({ error: 'invalid_id' })
+  const optionIdx = Number(req.body?.optionIdx)
+  if (!Number.isInteger(optionIdx) || optionIdx < 0) return res.status(400).json({ error: 'invalid_option' })
+  try {
+    const [[group]] = await pool.query(
+      'SELECT id FROM conversations WHERE slug = ? AND is_group = 1',
+      [req.params.slug]
+    )
+    if (!group) return res.status(404).json({ error: 'not_found' })
+
+    const [[cp]] = await pool.query(
+      "SELECT id FROM conversation_participants WHERE conversation_id = ? AND user_id = ? AND status = 'active'",
+      [group.id, req.userId]
+    )
+    if (!cp) return res.status(403).json({ error: 'members_only' })
+
+    const [[poll]] = await pool.query(
+      'SELECT id, options FROM group_polls WHERE id = ? AND group_id = ?',
+      [pollId, group.id]
+    )
+    if (!poll) return res.status(404).json({ error: 'not_found' })
+
+    let opts = []
+    try { opts = JSON.parse(poll.options) } catch {}
+    if (optionIdx >= opts.length) return res.status(400).json({ error: 'invalid_option' })
+
+    await pool.query(
+      'INSERT INTO group_poll_votes (poll_id, user_id, option_idx) VALUES (?, ?, ?)',
+      [pollId, req.userId, optionIdx]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'already_voted' })
+    console.error('POST /api/groups/:slug/polls/:pollId/vote error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
+router.delete('/groups/:slug/leave', authenticate, async (req, res) => {
+  try {
+    const [[group]] = await pool.query(
+      'SELECT id FROM conversations WHERE slug = ? AND is_group = 1',
+      [req.params.slug]
+    )
+    if (!group) return res.status(404).json({ error: 'not_found' })
+
+    const [[cp]] = await pool.query(
+      'SELECT role FROM conversation_participants WHERE conversation_id = ? AND user_id = ?',
+      [group.id, req.userId]
+    )
+    if (cp?.role === 'admin') return res.status(400).json({ error: 'admin_cannot_leave' })
+
+    await pool.query(
+      'DELETE FROM conversation_participants WHERE conversation_id = ? AND user_id = ?',
+      [group.id, req.userId]
+    )
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/groups/:slug/leave error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
+router.get('/groups/:slug/invite', authenticate, async (req, res) => {
+  try {
+    const [[group]] = await pool.query(
+      'SELECT id, slug FROM conversations WHERE slug = ? AND is_group = 1',
+      [req.params.slug]
+    )
+    if (!group) return res.status(404).json({ error: 'not_found' })
+
+    const [[cp]] = await pool.query(
+      "SELECT id FROM conversation_participants WHERE conversation_id = ? AND user_id = ? AND status = 'active'",
+      [group.id, req.userId]
+    )
+    if (!cp) return res.status(403).json({ error: 'members_only' })
+
+    res.json({ link: `/groups/${group.slug}` })
+  } catch (err) {
+    console.error('GET /api/groups/:slug/invite error:', err)
+    res.status(500).json({ error: 'server_error' })
   }
 })
 
