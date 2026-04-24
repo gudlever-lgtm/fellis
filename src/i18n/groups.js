@@ -1,3 +1,7 @@
+import de from './groups/de.json'
+import fr from './groups/fr.json'
+import nl from './groups/nl.json'
+
 export default {
   da: {
     groups: {
@@ -34,6 +38,7 @@ export default {
       locked: 'Skjult gruppe',
       pendingApproval: 'Din anmodning afventer godkendelse',
       createTitle: 'Opret gruppe',
+      createSuccess: 'Gruppe oprettet',
       nameLabel: 'Navn',
       namePlaceholder: 'Gruppenavn...',
       descLabel: 'Beskrivelse',
@@ -142,6 +147,7 @@ export default {
       locked: 'Hidden group',
       pendingApproval: 'Your request is pending approval',
       createTitle: 'Create group',
+      createSuccess: 'Group created',
       nameLabel: 'Name',
       namePlaceholder: 'Group name...',
       descLabel: 'Description',
@@ -215,4 +221,7 @@ export default {
       linkCopied: 'Copied!',
     },
   },
+  de: { groups: de },
+  fr: { groups: fr },
+  nl: { groups: nl },
 }
