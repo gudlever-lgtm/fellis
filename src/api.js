@@ -1107,6 +1107,47 @@ export async function apiRejectGroup(id) {
   return request(`/api/groups/admin/${id}/reject`, { method: 'POST' })
 }
 
+export const apiAdminGetGroupStats = () => request('/api/groups/admin/stats')
+
+export async function apiAdminGetAllGroups(params = {}) {
+  const q = new URLSearchParams()
+  if (params.q)        q.set('q', params.q)
+  if (params.status)   q.set('status', params.status)
+  if (params.category) q.set('category', params.category)
+  const qs = q.toString()
+  return request(`/api/groups/admin/all${qs ? '?' + qs : ''}`)
+}
+
+export async function apiAdminUpdateGroup(id, updates) {
+  return request(`/api/groups/admin/${id}`, { method: 'PATCH', body: JSON.stringify(updates) })
+}
+
+export async function apiAdminDeleteGroup(id) {
+  return request(`/api/groups/admin/${id}`, { method: 'DELETE' })
+}
+
+export const apiAdminGetGroupReports = () => request('/api/groups/admin/reports')
+
+export const apiAdminGetGroupSettings = () => request('/api/groups/admin/settings')
+
+export async function apiAdminSaveGroupSettings(data) {
+  return request('/api/groups/admin/settings', { method: 'PUT', body: JSON.stringify(data) })
+}
+
+export const apiAdminGetGroupCategories = () => request('/api/groups/admin/categories')
+
+export async function apiAdminCreateGroupCategory(data) {
+  return request('/api/groups/admin/categories', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function apiAdminUpdateGroupCategory(id, data) {
+  return request(`/api/groups/admin/categories/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+}
+
+export async function apiAdminDeleteGroupCategory(id) {
+  return request(`/api/groups/admin/categories/${id}`, { method: 'DELETE' })
+}
+
 // ── Group Suggestions ──
 
 export async function apiGetGroupSuggestions() {

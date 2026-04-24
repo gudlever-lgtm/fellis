@@ -51,6 +51,8 @@ import PartyConfetti from './components/easter-eggs/PartyConfetti.jsx'
 import RickRoll from './components/easter-eggs/RickRoll.jsx'
 import RiddleBanner from './components/easter-eggs/RiddleBanner.jsx'
 import { apiGetMyEasterEggs, apiGetAdminEasterEggStats, apiGetAdminEasterEggConfig, apiSaveAdminEasterEggConfig, apiGetEasterEggHints, apiEvaluateBadges, apiGetEarnedBadges, apiGetUserBadges, apiGetAllBadges, apiGetAdminBadgeStats, apiToggleBadge, apiGetNotificationPreferences, apiSaveNotificationPreferences, apiReverseGeocode, apiGetAdminEnvStatus, apiGetInterestCategories, apiAdminGetInterestCategories, apiAdminCreateInterestCategory, apiAdminUpdateInterestCategory, apiAdminDeleteInterestCategory, apiAdminReorderInterestCategories, apiGetAdfreeBank, apiGetAdfreeAssignments, apiAssignAdfreedays, apiUpdateBusinessProfile, apiFollowBusiness, apiUnfollowBusiness, apiFollowUser, apiUnfollowUser, apiGetFollowers, apiGetFollowing, apiPayForAd, apiBoostPost, apiTrackAdImpression, apiTrackAdClick, apiAdminGrowth, apiAdminOnlineNow, apiAdminGetBannedUsers, apiAdminGetAuditLog, apiAdminSearchUsers, apiAdminForceLogout, apiAdminDeleteUser, apiGetAdminStorageStats,
+  apiAdminGetGroupStats, apiAdminGetAllGroups, apiAdminUpdateGroup, apiAdminDeleteGroup, apiAdminGetGroupReports, apiAdminGetGroupSettings, apiAdminSaveGroupSettings, apiAdminGetGroupCategories, apiAdminCreateGroupCategory, apiAdminUpdateGroupCategory, apiAdminDeleteGroupCategory,
+  apiGetPendingGroups, apiApproveGroup, apiRejectGroup,
   apiContactBusiness, apiGetBusinessJobs, apiGetBusinessServices, apiGetBusinessEvents, apiGetBusinessEndorsements, apiGetBusinessPartners, apiSendPartnerRequest, apiSendBusinessInquiry, apiGetFollowedAnnouncements,
   apiGetMyServices,
   apiGetCompanyProfile,
@@ -20392,6 +20394,22 @@ function AdminPage({ lang, t }) {
   const [feedbackFilter, setFeedbackFilter] = useState('')
   const [feedbackNotes, setFeedbackNotes] = useState({}) // id → note string
   const [feedbackSaving, setFeedbackSaving] = useState({}) // id → bool
+  // Groups admin
+  const [grpStats, setGrpStats] = useState(null)
+  const [grpApproval, setGrpApproval] = useState(null)
+  const [grpManageList, setGrpManageList] = useState(null)
+  const [grpManageQ, setGrpManageQ] = useState('')
+  const [grpManageStatus, setGrpManageStatus] = useState('')
+  const [grpManageLoading, setGrpManageLoading] = useState(false)
+  const [grpReports, setGrpReports] = useState(null)
+  const [grpSettings, setGrpSettings] = useState({ group_require_approval: '0', group_max_per_user: '10', group_max_members: '1000' })
+  const [grpSettingsStatus, setGrpSettingsStatus] = useState('idle')
+  const [grpCategories, setGrpCategories] = useState(null)
+  const [grpCatForm, setGrpCatForm] = useState({ slug: '', name_da: '', name_en: '', sort_order: '' })
+  const [grpCatEditing, setGrpCatEditing] = useState(null) // id being edited
+  const [grpCatEditForm, setGrpCatEditForm] = useState({})
+  const [grpCatError, setGrpCatError] = useState(null)
+  const [grpActionLoading, setGrpActionLoading] = useState({}) // id → bool
 
   function showModToast(msg) { setModToast(msg); setTimeout(() => setModToast(null), 3000) }
 
@@ -20447,6 +20465,18 @@ function AdminPage({ lang, t }) {
   }, [growthDays])
 
   useEffect(() => {
+    if (adminTab !== 'groups-manage') return
+    const timer = setTimeout(() => {
+      setGrpManageLoading(true)
+      apiAdminGetAllGroups({ q: grpManageQ, status: grpManageStatus }).then(data => {
+        setGrpManageList(data?.groups || [])
+        setGrpManageLoading(false)
+      })
+    }, grpManageQ ? 350 : 0)
+    return () => clearTimeout(timer)
+  }, [grpManageQ, grpManageStatus, adminTab])
+
+  useEffect(() => {
     if (adminTab === 'viral' || adminTab === 'security') {
       apiGetAdminViralStats(viralDays).then(data => { if (data) setViralStats(data) })
     }
@@ -20480,6 +20510,25 @@ function AdminPage({ lang, t }) {
     if (adminTab === 'feedback') {
       setFeedbackList(null)
       apiGetAdminFeedback(feedbackFilter || null).then(data => { if (data) setFeedbackList(data.feedback) })
+    }
+    if (adminTab === 'groups-overview') {
+      apiAdminGetGroupStats().then(data => { if (data) setGrpStats(data) })
+    }
+    if (adminTab === 'groups-approval') {
+      apiGetPendingGroups().then(data => { if (data) setGrpApproval(data.groups || []) })
+    }
+    if (adminTab === 'groups-manage') {
+      setGrpManageLoading(true)
+      apiAdminGetAllGroups({}).then(data => { setGrpManageList(data?.groups || []); setGrpManageLoading(false) })
+    }
+    if (adminTab === 'groups-reports') {
+      apiAdminGetGroupReports().then(data => { if (data) setGrpReports(data.reports || []) })
+    }
+    if (adminTab === 'groups-settings') {
+      apiAdminGetGroupSettings().then(data => { if (data?.settings) setGrpSettings(data.settings) })
+    }
+    if (adminTab === 'groups-categories') {
+      apiAdminGetGroupCategories().then(data => { if (data) setGrpCategories(data.categories || []) })
     }
   }, [adminTab, viralDays, auditLogOffset, auditLogFilter, feedbackFilter])
 
@@ -20560,6 +20609,17 @@ function AdminPage({ lang, t }) {
             label: t.adminUserAdmin,
             tabs: [
               { id: 'bruger-admin', icon: '👤', label: t.adminUserAdmin },
+            ],
+          },
+          {
+            label: t.adminGroupsTab,
+            tabs: [
+              { id: 'groups-overview',    icon: '📊', label: t.adminGroupsOverview },
+              { id: 'groups-approval',    icon: '✅', label: t.adminGroupsApproval },
+              { id: 'groups-manage',      icon: '🔧', label: t.adminGroupsManage },
+              { id: 'groups-reports',     icon: '🚨', label: t.adminGroupsReportsTab },
+              { id: 'groups-settings',    icon: '⚙️', label: t.adminGroupsSettings },
+              { id: 'groups-categories',  icon: '🏷️', label: t.adminGroupsCategories },
             ],
           },
           {
@@ -21928,6 +21988,346 @@ function AdminPage({ lang, t }) {
       {adminTab === 'broadcast' && <AdminBroadcastPanel lang={lang} />}
       {adminTab === 'livestream-stats' && <AdminLivestreamStatsPanel lang={lang} t={t} />}
       {adminTab === 'livestream' && <AdminLivestreamSettingsPanel lang={lang} t={t} />}
+
+      {/* ── Groups admin panels ─────────────────────────────────────────── */}
+
+      {adminTab === 'groups-overview' && (() => {
+        const sCard = { background: '#fff', borderRadius: 10, border: '1px solid #e8e8e4', padding: '14px 18px', marginBottom: 12 }
+        const sStat = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10, marginBottom: 16 }
+        const sStatBox = { background: '#f8f8f6', borderRadius: 8, padding: '12px 16px', textAlign: 'center', border: '1px solid #e8e8e4' }
+        const sNum = { fontSize: 26, fontWeight: 700, color: '#2D6A4F' }
+        const sLbl = { fontSize: 12, color: '#888', marginTop: 2 }
+        return (
+          <div>
+            {!grpStats ? (
+              <div style={{ textAlign: 'center', color: '#888', padding: 32 }}>{t.loading2}</div>
+            ) : (
+              <>
+                <div style={sStat}>
+                  {[
+                    [grpStats.totals?.total,         t.adminGroupsTotal],
+                    [grpStats.totals?.active,         t.adminGroupsActive],
+                    [grpStats.totals?.pending,        t.adminGroupsPending],
+                    [grpStats.totals?.rejected,       t.adminGroupsRejected],
+                    [grpStats.totals?.frozen_count,   t.adminGroupsFrozen],
+                    [grpStats.totals?.public_count,   t.type?.public ?? 'Public'],
+                    [grpStats.totals?.private_count,  t.type?.private ?? 'Private'],
+                    [grpStats.totals?.hidden_count,   t.type?.hidden ?? 'Hidden'],
+                  ].map(([val, label], i) => (
+                    <div key={i} style={sStatBox}>
+                      <div style={sNum}>{Number(val) || 0}</div>
+                      <div style={sLbl}>{label}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                  <div style={sCard}>
+                    <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8 }}>{t.adminGroupsTopMembers}</div>
+                    {(grpStats.topByMembers || []).map(g => (
+                      <div key={g.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #f0f0ec', fontSize: 13 }}>
+                        <span style={{ fontWeight: 600 }}>{g.name}</span>
+                        <span style={{ color: '#888' }}>{Number(g.member_count) || 0} {t.adminGroupsMemberCount}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={sCard}>
+                    <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8 }}>{t.adminGroupsTopPosts}</div>
+                    {(grpStats.topByPosts || []).map(g => (
+                      <div key={g.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #f0f0ec', fontSize: 13 }}>
+                        <span style={{ fontWeight: 600 }}>{g.name}</span>
+                        <span style={{ color: '#888' }}>{Number(g.post_count) || 0} posts</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={sCard}>
+                  <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8 }}>{t.adminGroupsByCategory}</div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {(grpStats.byCategory || []).map(c => (
+                      <span key={c.category} style={{ background: '#e8f4ee', color: '#2D6A4F', borderRadius: 12, padding: '3px 10px', fontSize: 12, fontWeight: 600 }}>
+                        {c.category} ({c.cnt})
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )
+      })()}
+
+      {adminTab === 'groups-approval' && (() => {
+        const sRow = { background: '#fff', borderRadius: 10, border: '1px solid #e8e8e4', padding: '14px 18px', marginBottom: 10, display: 'flex', gap: 12, alignItems: 'flex-start' }
+        return (
+          <div>
+            {!grpApproval ? (
+              <div style={{ textAlign: 'center', color: '#888', padding: 32 }}>{t.loading2}</div>
+            ) : grpApproval.length === 0 ? (
+              <div style={{ textAlign: 'center', color: '#888', padding: 32 }}>{t.adminGroupsApprovalEmpty}</div>
+            ) : grpApproval.map(g => (
+              <div key={g.id} style={sRow}>
+                {g.cover_url && <img src={g.cover_url} alt="" style={{ width: 60, height: 60, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />}
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: 15 }}>{g.name}</div>
+                  <div style={{ fontSize: 12, color: '#888' }}>{t.adminGroupsCreatedBy}: {g.creator_name} · {g.category} · {g.type}</div>
+                  <div style={{ fontSize: 13, color: '#555', margin: '4px 0' }}>{(g.description_da || g.description_en || '').slice(0, 120)}</div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                  <button
+                    onClick={async () => {
+                      await apiApproveGroup(g.id)
+                      setGrpApproval(prev => prev.filter(x => x.id !== g.id))
+                    }}
+                    style={{ background: '#2D6A4F', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
+                  >{t.adminGroupsApproveAction}</button>
+                  <button
+                    onClick={async () => {
+                      await apiRejectGroup(g.id)
+                      setGrpApproval(prev => prev.filter(x => x.id !== g.id))
+                    }}
+                    style={{ background: '#fff', color: '#e03131', border: '1px solid #e03131', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
+                  >{t.adminGroupsRejectAction}</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      })()}
+
+      {adminTab === 'groups-manage' && (() => {
+        const typePill = (type) => {
+          const colors = { public: '#2D6A4F', private: '#3D6A9F', hidden: '#888' }
+          return <span style={{ background: colors[type] || '#888', color: '#fff', borderRadius: 10, padding: '1px 8px', fontSize: 11, fontWeight: 700 }}>{type}</span>
+        }
+        return (
+          <div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+              <input
+                value={grpManageQ}
+                onChange={e => setGrpManageQ(e.target.value)}
+                placeholder={t.adminGroupsManageSearch}
+                style={{ flex: 1, minWidth: 200, padding: '8px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 14 }}
+              />
+              <select
+                value={grpManageStatus}
+                onChange={e => setGrpManageStatus(e.target.value)}
+                style={{ padding: '8px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 14, background: '#fff' }}
+              >
+                <option value="">{t.adminGroupsManageAll}</option>
+                <option value="active">{t.adminGroupsActive}</option>
+                <option value="pending">{t.adminGroupsPending}</option>
+                <option value="rejected">{t.adminGroupsRejected}</option>
+              </select>
+            </div>
+
+            {grpManageLoading ? (
+              <div style={{ textAlign: 'center', color: '#888', padding: 32 }}>{t.loading2}</div>
+            ) : !grpManageList || grpManageList.length === 0 ? (
+              <div style={{ textAlign: 'center', color: '#888', padding: 32 }}>{t.adminGroupsManageNoResults}</div>
+            ) : grpManageList.map(g => (
+              <div key={g.id} style={{ background: '#fff', borderRadius: 10, border: '1px solid #e8e8e4', padding: '12px 16px', marginBottom: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <div style={{ flex: 1 }}>
+                    <span style={{ fontWeight: 700, fontSize: 14 }}>{g.name}</span>
+                    {' '}{typePill(g.type)}
+                    {g.is_frozen ? <span style={{ marginLeft: 6, background: '#f0e0d0', color: '#c0521c', borderRadius: 10, padding: '1px 8px', fontSize: 11, fontWeight: 700 }}>{t.adminGroupsGroupFrozenBadge}</span> : null}
+                    <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
+                      /{g.slug} · {t.adminGroupsCreatedBy}: {g.creator_name} · {g.member_count} {t.adminGroupsMemberCount}
+                      {g.group_status && g.group_status !== 'active' && <span style={{ marginLeft: 6, color: '#e03131', fontWeight: 600 }}>[{g.group_status}]</span>}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', flexShrink: 0 }}>
+                    <select
+                      value={g.type}
+                      onChange={async e => {
+                        const newType = e.target.value
+                        setGrpActionLoading(prev => ({ ...prev, [g.id]: true }))
+                        await apiAdminUpdateGroup(g.id, { type: newType })
+                        setGrpManageList(prev => prev.map(x => x.id === g.id ? { ...x, type: newType } : x))
+                        setGrpActionLoading(prev => ({ ...prev, [g.id]: false }))
+                      }}
+                      style={{ padding: '4px 8px', border: '1px solid #E8E4DF', borderRadius: 6, fontSize: 12, background: '#fff', cursor: 'pointer' }}
+                    >
+                      <option value="public">{t.type?.public ?? 'Public'}</option>
+                      <option value="private">{t.type?.private ?? 'Private'}</option>
+                      <option value="hidden">{t.type?.hidden ?? 'Hidden'}</option>
+                    </select>
+                    <button
+                      onClick={async () => {
+                        setGrpActionLoading(prev => ({ ...prev, [g.id]: true }))
+                        await apiAdminUpdateGroup(g.id, { is_frozen: !g.is_frozen })
+                        setGrpManageList(prev => prev.map(x => x.id === g.id ? { ...x, is_frozen: !g.is_frozen } : x))
+                        setGrpActionLoading(prev => ({ ...prev, [g.id]: false }))
+                      }}
+                      style={{ padding: '4px 12px', border: `1px solid ${g.is_frozen ? '#2D6A4F' : '#c0521c'}`, borderRadius: 6, fontSize: 12, cursor: 'pointer', background: '#fff', color: g.is_frozen ? '#2D6A4F' : '#c0521c', fontWeight: 600 }}
+                    >{g.is_frozen ? t.adminGroupsUnfreezeGroup : t.adminGroupsFreezeGroup}</button>
+                    <button
+                      onClick={async () => {
+                        if (!window.confirm(t.adminGroupsDeleteConfirm)) return
+                        setGrpActionLoading(prev => ({ ...prev, [g.id]: true }))
+                        await apiAdminDeleteGroup(g.id)
+                        setGrpManageList(prev => prev.filter(x => x.id !== g.id))
+                      }}
+                      style={{ padding: '4px 12px', border: '1px solid #e03131', borderRadius: 6, fontSize: 12, cursor: 'pointer', background: '#fff', color: '#e03131', fontWeight: 600 }}
+                    >{t.adminGroupsDeleteGroup}</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      })()}
+
+      {adminTab === 'groups-reports' && (() => (
+        <div>
+          {!grpReports ? (
+            <div style={{ textAlign: 'center', color: '#888', padding: 32 }}>{t.loading2}</div>
+          ) : grpReports.length === 0 ? (
+            <div style={{ textAlign: 'center', color: '#888', padding: 32 }}>{t.adminGroupsReportsEmpty}</div>
+          ) : grpReports.map(r => (
+            <div key={r.report_id} style={{ background: '#fff', borderRadius: 10, border: '1px solid #e8e8e4', padding: '14px 18px', marginBottom: 10 }}>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 6 }}>
+                <span style={{ fontWeight: 700, fontSize: 13 }}>🫂 {t.adminGroupsReportGroup}: <span style={{ color: '#2D6A4F' }}>{r.group_name}</span></span>
+                <span style={{ fontSize: 13, color: '#555' }}>{t.adminGroupsReportBy}: {r.reporter_name}</span>
+                <span style={{ fontSize: 12, color: '#888' }}>{new Date(r.reported_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US')}</span>
+              </div>
+              <div style={{ fontSize: 13, color: '#333', background: '#f8f8f6', borderRadius: 6, padding: '8px 12px', marginBottom: 6 }}>
+                {r.text_da || r.text_en || '—'}
+              </div>
+              {r.reason && <div style={{ fontSize: 12, color: '#888' }}>{t.adminGroupsReportReason}: {r.reason}</div>}
+            </div>
+          ))}
+        </div>
+      ))()}
+
+      {adminTab === 'groups-settings' && (() => (
+        <div style={{ maxWidth: 480 }}>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
+              <input
+                type="checkbox"
+                checked={grpSettings.group_require_approval === '1'}
+                onChange={e => setGrpSettings(prev => ({ ...prev, group_require_approval: e.target.checked ? '1' : '0' }))}
+              />
+              {t.adminGroupsRequireApproval}
+            </label>
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#555', marginBottom: 4 }}>{t.adminGroupsMaxPerUser}</label>
+            <input
+              type="number" min="1" max="999"
+              value={grpSettings.group_max_per_user}
+              onChange={e => setGrpSettings(prev => ({ ...prev, group_max_per_user: e.target.value }))}
+              style={{ width: '100%', padding: '8px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' }}
+            />
+          </div>
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#555', marginBottom: 4 }}>{t.adminGroupsMaxMembers}</label>
+            <input
+              type="number" min="1" max="999999"
+              value={grpSettings.group_max_members}
+              onChange={e => setGrpSettings(prev => ({ ...prev, group_max_members: e.target.value }))}
+              style={{ width: '100%', padding: '8px 12px', border: '1px solid #E8E4DF', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' }}
+            />
+          </div>
+          <button
+            onClick={async () => {
+              setGrpSettingsStatus('saving')
+              await apiAdminSaveGroupSettings(grpSettings)
+              setGrpSettingsStatus('saved')
+              setTimeout(() => setGrpSettingsStatus('idle'), 3000)
+            }}
+            style={{ background: '#2D6A4F', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
+          >
+            {grpSettingsStatus === 'saving' ? t.adminGroupsSettingsSaving : grpSettingsStatus === 'saved' ? t.adminGroupsSettingsSaved : t.adminGroupsSettingsSave}
+          </button>
+        </div>
+      ))()}
+
+      {adminTab === 'groups-categories' && (() => {
+        const fStyle = { padding: '7px 10px', border: '1px solid #E8E4DF', borderRadius: 7, fontSize: 13, width: '100%', boxSizing: 'border-box' }
+        return (
+          <div>
+            {/* Add form */}
+            <div style={{ background: '#f8f8f6', borderRadius: 10, border: '1px solid #e8e8e4', padding: '16px 18px', marginBottom: 16 }}>
+              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>+ {t.adminGroupsCategoryAdd}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: 8, alignItems: 'end' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#666', marginBottom: 3 }}>{t.adminGroupsCategorySlug}</label>
+                  <input value={grpCatForm.slug} onChange={e => setGrpCatForm(p => ({ ...p, slug: e.target.value }))} style={fStyle} placeholder="my-category" />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#666', marginBottom: 3 }}>{t.adminGroupsCategoryNameDa}</label>
+                  <input value={grpCatForm.name_da} onChange={e => setGrpCatForm(p => ({ ...p, name_da: e.target.value }))} style={fStyle} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#666', marginBottom: 3 }}>{t.adminGroupsCategoryNameEn}</label>
+                  <input value={grpCatForm.name_en} onChange={e => setGrpCatForm(p => ({ ...p, name_en: e.target.value }))} style={fStyle} />
+                </div>
+                <button
+                  onClick={async () => {
+                    setGrpCatError(null)
+                    const res = await apiAdminCreateGroupCategory(grpCatForm)
+                    if (res?.error === 'slug_exists') { setGrpCatError(t.adminGroupsCategorySlugExists); return }
+                    if (res?.id) {
+                      setGrpCategories(prev => [...(prev || []), { id: res.id, slug: res.slug, name_da: grpCatForm.name_da, name_en: grpCatForm.name_en, sort_order: parseInt(grpCatForm.sort_order) || 99 }])
+                      setGrpCatForm({ slug: '', name_da: '', name_en: '', sort_order: '' })
+                    }
+                  }}
+                  style={{ background: '#2D6A4F', color: '#fff', border: 'none', borderRadius: 7, padding: '7px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}
+                >{t.adminGroupsCategoryAdd}</button>
+              </div>
+              {grpCatError && <div style={{ color: '#e03131', fontSize: 12, marginTop: 6 }}>{grpCatError}</div>}
+            </div>
+
+            {/* List */}
+            {!grpCategories ? (
+              <div style={{ textAlign: 'center', color: '#888', padding: 24 }}>{t.loading2}</div>
+            ) : grpCategories.length === 0 ? (
+              <div style={{ textAlign: 'center', color: '#888', padding: 24 }}>{t.adminGroupsCategoryNoItems}</div>
+            ) : grpCategories.map(cat => (
+              <div key={cat.id} style={{ background: '#fff', borderRadius: 8, border: '1px solid #e8e8e4', padding: '10px 14px', marginBottom: 8 }}>
+                {grpCatEditing === cat.id ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 8, alignItems: 'center' }}>
+                    <input value={grpCatEditForm.name_da ?? cat.name_da} onChange={e => setGrpCatEditForm(p => ({ ...p, name_da: e.target.value }))} style={fStyle} placeholder={t.adminGroupsCategoryNameDa} />
+                    <input value={grpCatEditForm.name_en ?? cat.name_en} onChange={e => setGrpCatEditForm(p => ({ ...p, name_en: e.target.value }))} style={fStyle} placeholder={t.adminGroupsCategoryNameEn} />
+                    <button
+                      onClick={async () => {
+                        await apiAdminUpdateGroupCategory(cat.id, grpCatEditForm)
+                        setGrpCategories(prev => prev.map(c => c.id === cat.id ? { ...c, ...grpCatEditForm } : c))
+                        setGrpCatEditing(null)
+                        setGrpCatEditForm({})
+                      }}
+                      style={{ background: '#2D6A4F', color: '#fff', border: 'none', borderRadius: 6, padding: '5px 12px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
+                    >{t.adminGroupsCategorySave}</button>
+                    <button onClick={() => { setGrpCatEditing(null); setGrpCatEditForm({}) }}
+                      style={{ background: '#f0f0ec', color: '#555', border: 'none', borderRadius: 6, padding: '5px 12px', cursor: 'pointer', fontSize: 12 }}
+                    >{t.cancel ?? 'Cancel'}</button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontWeight: 600, fontSize: 13, flex: 1 }}>{cat.name_da} / {cat.name_en}</span>
+                    <span style={{ color: '#aaa', fontSize: 11, fontFamily: 'monospace' }}>{cat.slug}</span>
+                    <button onClick={() => { setGrpCatEditing(cat.id); setGrpCatEditForm({ name_da: cat.name_da, name_en: cat.name_en }) }}
+                      style={{ background: '#f0f0ec', border: 'none', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 12 }}
+                    >{t.adminGroupsCategoryEdit}</button>
+                    <button
+                      onClick={async () => {
+                        if (!window.confirm(t.adminGroupsCategoryDeleteConfirm)) return
+                        await apiAdminDeleteGroupCategory(cat.id)
+                        setGrpCategories(prev => prev.filter(c => c.id !== cat.id))
+                      }}
+                      style={{ background: '#fff', color: '#e03131', border: '1px solid #e03131', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 12 }}
+                    >{t.adminGroupsCategoryDelete}</button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )
+      })()}
 
       {adminTab === 'feedback' && (
         <div>
