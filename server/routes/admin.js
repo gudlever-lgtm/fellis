@@ -290,7 +290,7 @@ router.get('/admin/storage-stats', authenticate, requireAdmin, async (req, res) 
 
 
 router.post('/admin/settings', authenticate, requireAdmin, async (req, res) => {
-  const allowed = ['pwd_min_length', 'pwd_require_uppercase', 'pwd_require_lowercase', 'pwd_require_numbers', 'pwd_require_symbols', 'media_max_files', 'marketplace_max_photos', 'registration_open', 'mollie_api_key', 'uploads_max_gb', 'db_max_gb', 'fb_photo_import_limit']
+  const allowed = ['pwd_min_length', 'pwd_require_uppercase', 'pwd_require_lowercase', 'pwd_require_numbers', 'pwd_require_symbols', 'media_max_files', 'marketplace_max_photos', 'registration_open', 'mollie_api_key', 'uploads_max_gb', 'db_max_gb']
   try {
     for (const [key, value] of Object.entries(req.body)) {
       if (!allowed.includes(key)) continue

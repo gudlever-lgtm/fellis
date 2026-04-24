@@ -57,7 +57,6 @@ import { BADGES, BADGE_BY_ID, PLATFORM_LAUNCH_DATE, BADGE_AD_FREE_DAYS } from '.
 import { evaluateBadges } from '../src/badges/badgeEngine.js'
 import { createReelFromLivestream, LIVESTREAM_DEFAULTS, transcodeVideo } from './livestream.js'
 import { startRtmpServer, RTMP_PORT } from './rtmp.js'
-import facebookRouter from './routes/facebook.js'
 import authRouter from './routes/auth.js'
 import profileRouter from './routes/profile.js'
 import usersRouter from './routes/users.js'
@@ -1270,9 +1269,6 @@ const LINKEDIN_REDIRECT_URI = process.env.LINKEDIN_REDIRECT_URI || 'https://fell
 
 
 
-
-// ── Facebook data import routes ──
-app.use('/api/auth/facebook', facebookRouter)
 
 // ── Profile routes ──
 
@@ -2499,9 +2495,6 @@ async function initAdminSettings() {
     )
     await pool.query(
       "INSERT IGNORE INTO admin_settings (key_name, key_value) VALUES ('livestream_enabled', '0')"
-    )
-    await pool.query(
-      "INSERT IGNORE INTO admin_settings (key_name, key_value) VALUES ('fb_photo_import_limit', '50')"
     )
   } catch (err) {
     console.error('initAdminSettings error:', err.message)
