@@ -529,6 +529,8 @@ async function withdrawConsent(userId, consentType, ipAddress = null) {
 }
 
 const app = express()
+app.set('trust proxy', 1)
+app.use(helmet())
 app.use(express.json({ limit: '1mb' }))
 
 // ── Strip null bytes from request bodies ─────────────────────────────────
@@ -590,25 +592,8 @@ app.use((_req, res, next) => {
 // In non-production, skip rate limiting for loopback IPs so E2E tests can
 // exercise auth endpoints without exhausting the window.
 
-// Extract the real client IP from either the legacy X-Forwarded-For header
-// or the RFC 7239 Forwarded header that lighttpd sets via proxy.forwarded.
-// Without this, all requests appear to come from 127.0.0.1 (the lighttpd
-// loopback address) and every user shares a single rate limit bucket.
-function getClientIp(req) {
-  const xff = req.headers['x-forwarded-for']
-  if (xff) return xff.split(',')[0].trim()
-  // RFC 7239 Forwarded header (lighttpd proxy.forwarded = ( "for" => 1 ))
-  // Format: "for=1.2.3.4" or "for=\"[2001:db8::1]\""
-  const fwd = req.headers['forwarded']
-  if (fwd) {
-    const m = fwd.match(/(?:^|[,\s])for=(?:"?\[?)([0-9a-fA-F.:]+)/i)
-    if (m?.[1]) return m[1]
-  }
-  return req.ip || req.socket?.remoteAddress || '127.0.0.1'
-}
-
 function isLoopback(req) {
-  const ip = getClientIp(req)
+  const ip = req.ip
   return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1'
 }
 function skipInDev(req) {
@@ -621,7 +606,7 @@ const strictLimit = rlFactory({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests — prøv igen om 15 minutter' },
-  keyGenerator: (req) => ipKeyGenerator(getClientIp(req)),
+  keyGenerator: (req) => ipKeyGenerator(req.ip),
   skip: skipInDev,
 })
 
@@ -632,7 +617,7 @@ const registerLimit = rlFactory({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many registration attempts — prøv igen om en time' },
-  keyGenerator: (req) => ipKeyGenerator(getClientIp(req)),
+  keyGenerator: (req) => ipKeyGenerator(req.ip),
   skip: skipInDev,
 })
 
@@ -643,7 +628,7 @@ const generalLimit = rlFactory({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests — prøv igen om lidt' },
-  keyGenerator: (req) => ipKeyGenerator(getClientIp(req)),
+  keyGenerator: (req) => ipKeyGenerator(req.ip),
   skip: (req) => req.method === 'GET' || req.path === '/api/health', // GET requests are read-only
 })
 
@@ -1045,8 +1030,7 @@ pool.query(`CREATE TABLE IF NOT EXISTS platform_ads (
 app.use('/uploads', (req, res, next) => {
   // Block anything that isn't GET
   if (req.method !== 'GET') return res.status(405).end()
-  // Prevent MIME sniffing and script execution
-  res.setHeader('X-Content-Type-Options', 'nosniff')
+  // Restrict script execution for uploaded files
   res.setHeader('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'")
   res.setHeader('Cache-Control', 'public, max-age=86400')
   next()
