@@ -1,5 +1,4 @@
 import nav from './nav.js'
-import facebook from './facebook.js'
 import blog from './blog.js'
 import feed from './feed.js'
 import friends from './friends.js'
@@ -57,7 +56,7 @@ const segments = [
   notifications, analytics, business, ads, events, companies,
   jobs, marketplace, admin, reels, moderation, referrals,
   commonUiA, commonUiB, commonUiC, commonErrors, commonTime, commonNotifications, commonKeyboard,
-  blog, facebook, onboarding, forBusiness, privacy, about, features, groups,
+  blog, onboarding, forBusiness, privacy, about, features, groups,
 ]
 
 export const PT = segments.reduce((acc, seg) => {

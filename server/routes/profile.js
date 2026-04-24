@@ -232,7 +232,6 @@ router.get('/profile', authenticate, async (req, res) => {
           u.email, u.google_id, u.linkedin_id,
           (u.password_hash IS NOT NULL AND u.password_hash != '') AS has_password,
           u.created_at, u.birthday, u.gender,
-          u.fb_connected, u.fb_connected_at,
           u.profile_public, u.reputation_score, u.referral_count, u.interests, u.tags,
           u.relationship_status, u.website,
           u.phone, u.mobilepay, u.mfa_enabled,
@@ -253,7 +252,6 @@ router.get('/profile', authenticate, async (req, res) => {
             u.email, u.google_id, u.linkedin_id,
             (u.password_hash IS NOT NULL AND u.password_hash != '') AS has_password,
             u.created_at, u.birthday, u.gender,
-            u.fb_connected, u.fb_connected_at,
             u.profile_public, u.reputation_score, u.referral_count, u.interests, u.tags,
             u.relationship_status, u.website,
             u.phone, u.mobilepay, u.mfa_enabled,
@@ -267,13 +265,13 @@ router.get('/profile', authenticate, async (req, res) => {
           [req.userId]
         )
       } catch {
-        // Final fallback: without gender/fb_connected/mobilepay (migration not yet applied)
+        // Final fallback: without gender/mobilepay (migration not yet applied)
         ;[users] = await pool.query(
           `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url,
             u.email, u.google_id, u.linkedin_id,
             (u.password_hash IS NOT NULL AND u.password_hash != '') AS has_password,
             u.created_at, u.birthday,
-            NULL AS gender, 0 AS fb_connected, NULL AS fb_connected_at,
+            NULL AS gender,
             u.profile_public, u.reputation_score, u.referral_count, u.interests, u.tags,
             u.relationship_status, u.website,
             u.phone, NULL AS mobilepay, u.mfa_enabled,
@@ -311,8 +309,6 @@ router.get('/profile', authenticate, async (req, res) => {
       createdAt: u.created_at || u.join_date || null,
       birthday: u.birthday || null,
       gender: u.gender || null,
-      fb_connected: u.fb_connected ? 1 : 0,
-      fb_connected_at: u.fb_connected_at || null,
       profile_public: !!u.profile_public,
       reputationScore: Number(u.reputation_score || 0),
       referralCount: Number(u.referral_count || 0),
