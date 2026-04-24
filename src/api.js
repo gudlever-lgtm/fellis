@@ -1096,51 +1096,32 @@ export async function apiJoinGroup(groupId) {
   return await request(`/api/groups/${groupId}/join`, { method: 'POST' })
 }
 
-export async function apiLeaveGroup(groupId) {
-  return await request(`/api/groups/${groupId}/leave`, { method: 'POST' })
-}
-
-export async function apiGetGroupMembers(groupId) {
-  return await request(`/api/groups/${groupId}/members`)
-}
-
-export async function apiUpdateGroupMemberRole(groupId, userId, role) {
-  return await request(`/api/groups/${groupId}/members/${userId}/role`, {
-    method: 'PUT',
-    body: JSON.stringify({ role }),
-  })
-}
-
-export async function apiRemoveGroupMember(groupId, userId) {
-  return await request(`/api/groups/${groupId}/members/${userId}`, { method: 'DELETE' })
-}
-
-// ── Group Posts ──
-
-export async function apiCreateGroupPost(groupId, content, media) {
-  return await request(`/api/groups/${groupId}/posts`, {
+export async function apiCreateGroup({ name, slug, description, type, category, tags }) {
+  return await request('/api/groups', {
     method: 'POST',
-    body: JSON.stringify({ content, media }),
+    body: JSON.stringify({ name, slug, description, type, category, tags }),
   })
 }
 
-export async function apiGetGroupPosts(groupId, limit = 20, offset = 0) {
-  return await request(`/api/groups/${groupId}/posts?limit=${limit}&offset=${offset}`)
-}
-
-export async function apiDeleteGroupPost(groupId, postId) {
-  return await request(`/api/groups/${groupId}/posts/${postId}`, { method: 'DELETE' })
-}
-
-export async function apiPinGroupPost(groupId, postId) {
-  return await request(`/api/groups/${groupId}/posts/${postId}/pin`, { method: 'POST' })
-}
-
-export async function apiReactToGroupPost(groupId, postId, type) {
-  return await request(`/api/groups/${groupId}/posts/${postId}/react`, {
-    method: 'POST',
-    body: JSON.stringify({ type }),
-  })
+export async function apiUploadGroupCover(groupId, file) {
+  const form = new FormData()
+  form.append('cover', file)
+  try {
+    const res = await fetch(`${API_BASE}/api/groups/${groupId}/cover`, {
+      method: 'POST',
+      headers: formHeaders(),
+      credentials: 'same-origin',
+      body: form,
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.error || `HTTP ${res.status}`)
+    }
+    return await res.json()
+  } catch (err) {
+    if (err.message === 'Failed to fetch') return null
+    throw err
+  }
 }
 
 // ── Reels ──
