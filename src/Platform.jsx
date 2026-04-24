@@ -566,7 +566,7 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
                   label: t.navGroupSocial,
                   items: [
                     { id: 'friends', icon: '👥', label: mode === 'business' ? t.connectionsLabel : t.friends },
-                    { id: 'groups', icon: '🫂', label: t.groups },
+                    { id: 'groups', icon: '🫂', label: t.navGroups },
                     { id: 'explore', icon: '🔭', label: t.explore },
                     { id: 'calendar', icon: '🗓️', label: t.calendar },
                     { id: 'saved-posts', icon: '🔖', label: t.savedPosts },
@@ -2468,6 +2468,15 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
   const [upsellDismissed, setUpsellDismissed] = useState(() => !!sessionStorage.getItem(UPSELL_KEY))
   const feedContextRef = useRef(mode === 'business' ? 'network' : 'social')
   const [postContext, setPostContext] = useState(() => mode === 'business' ? 'professional' : 'social')
+
+  // If mode syncs from server to a value incompatible with the network feed (e.g. localStorage
+  // had stale 'business' but DB has 'privat'), reset feedContext to avoid repeated 401s.
+  useEffect(() => {
+    if (mode !== 'network' && mode !== 'business' && feedContextRef.current === 'network') {
+      setFeedContext('social')
+    }
+  }, [mode])
+
   const [pinnedPost, setPinnedPost] = useState(null)
   const pinnedRef = useRef(null)
   const [insightsPostId, setInsightsPostId] = useState(null)
