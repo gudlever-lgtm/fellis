@@ -370,9 +370,9 @@ function ReelCard({ reel, t, lang, currentUser, onDelete, onViewProfile }) {
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 680
 
   return (
-    <div style={{ display: 'flex', gap: 20, maxWidth: 800, margin: isMobile ? '0 0 24px' : '0 auto 32px', alignItems: 'flex-start', flexWrap: isMobile ? 'wrap' : 'nowrap', borderLeft: `4px solid ${reelTheme.leftBorderColor}` }}>
+    <div style={{ display: 'flex', gap: 20, maxWidth: 800, margin: isMobile ? '0 0 24px' : '0 auto 32px', alignItems: 'flex-start', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
       {/* ── Reel video card ── */}
-      <div style={{ ...s.card, margin: 0, flex: '0 0 auto', width: '100%', maxWidth: isMobile ? '100%' : 420, borderRadius: isMobile ? 0 : 16 }}>
+      <div style={{ ...s.card, margin: 0, flex: '0 0 auto', width: '100%', maxWidth: isMobile ? '100%' : 420, borderRadius: isMobile ? 0 : 16, borderLeft: `4px solid ${reelTheme.leftBorderColor}` }}>
       <div style={s.videoWrap}>
         <video
           ref={videoRef}
