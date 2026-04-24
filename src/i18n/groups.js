@@ -4,6 +4,10 @@ import nl from './groups/nl.json'
 import sv from './groups/sv.json'
 import fi from './groups/fi.json'
 import no from './groups/no.json'
+import pl from './groups/pl.json'
+import es from './groups/es.json'
+import it from './groups/it.json'
+import pt from './groups/pt.json'
 
 export default {
   da: {
@@ -230,4 +234,8 @@ export default {
   sv: { groups: sv },
   fi: { groups: fi },
   no: { groups: no },
+  pl: { groups: pl },
+  es: { groups: es },
+  it: { groups: it },
+  pt: { groups: pt },
 }
