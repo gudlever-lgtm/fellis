@@ -1,62 +1,48 @@
 import express from 'express'
 import pool from '../db.js'
-import { sendSms } from '../sms.js'
-import { validate, schemas } from '../validation.js'
-import { BADGES, BADGE_BY_ID, PLATFORM_LAUNCH_DATE, BADGE_AD_FREE_DAYS } from '../../src/badges/badgeDefinitions.js'
-import { evaluateBadges } from '../../src/badges/badgeEngine.js'
-import {
-  authenticate, writeLimit, fileUploadLimit, strictLimit, registerLimit,
-  requireAdmin, requireModerator, requireBusiness, attachUserMode,
-  upload, uploadDoc, reelUpload, coverUpload,
-  formatPostTime, formatMsgTime, applySignals, autoSignalPost,
-  checkInviteRateLimit, checkForgotRateLimit, checkAndAwardBadges,
-  createNotification, auditLog, auditLogGdpr, hasConsent, recordConsent, withdrawConsent,
-  getSessionIdFromRequest, setSessionCookie, clearSessionCookie, generateCsrfToken,
-  validateMagicBytes, validatePasswordStrength, getPasswordPolicy,
-  sseBroadcast, sseAdd, sseRemove, sseClients,
-  parseBrowser, getGeoForIp,
-  UPLOADS_DIR, MISTRAL_API_KEY, UPLOAD_FILES_CEILING,
-  mailer, oauthStateTokens,
-  MAX_LOGIN_ATTEMPTS, LOCKOUT_DURATION_MINUTES,
-  COOKIE_NAME, SERVER_START, visitedSessions, visitedAnonIps,
-} from '../middleware.js'
 import crypto from 'crypto'
-import fs from 'fs'
-import path from 'path'
-import multer from 'multer'
-import bcrypt from 'bcrypt'
-import { createReelFromLivestream, LIVESTREAM_DEFAULTS, transcodeVideo } from '../livestream.js'
+import {
+  authenticate, writeLimit,
+  requireAdmin,
+  createNotification,
+  getSessionIdFromRequest,
+} from '../middleware.js'
 
 const router = express.Router()
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+async function getMemberRole(groupId, userId) {
+  const [[row]] = await pool.query(
+    'SELECT role FROM conversation_participants WHERE conversation_id = ? AND user_id = ?',
+    [groupId, userId]
+  )
+  return row ? row.role : null
+}
+
+async function isAdminOrMod(groupId, userId) {
+  const role = await getMemberRole(groupId, userId)
+  return role === 'admin' || role === 'moderator'
+}
+
+// ── Group Suggestions ────────────────────────────────────────────────────────
+
 router.get('/groups/suggestions', authenticate, async (req, res) => {
   try {
-    const [suggestions] = await pool.query(
-      `SELECT c.id, c.name, c.category, c.description_da, c.description_en,
-              COUNT(DISTINCT cp2.user_id) AS shared_members,
-              (SELECT COUNT(*) FROM conversation_participants WHERE conversation_id = c.id) AS member_count
-       FROM conversations c
-       JOIN conversation_participants cp2 ON cp2.conversation_id = c.id
-       WHERE c.is_public = 1
-         AND c.is_group = 1
-         AND c.id NOT IN (
-           SELECT conversation_id FROM conversation_participants WHERE user_id = ?
+    const [rows] = await pool.query(
+      `SELECT g.id, g.name, g.slug, g.description, g.category,
+              g.cover_image, g.member_count, g.post_count
+       FROM \`groups\` g
+       WHERE g.status = 'active' AND g.type = 'public'
+         AND g.id NOT IN (
+           SELECT group_id FROM group_members WHERE user_id = ?
          )
-         AND cp2.user_id IN (
-           SELECT cp3.user_id FROM conversation_participants cp3
-           WHERE cp3.conversation_id IN (
-             SELECT conversation_id FROM conversation_participants WHERE user_id = ?
-           )
-           AND cp3.user_id != ?
-         )
-       GROUP BY c.id
-       ORDER BY shared_members DESC, member_count DESC
+       ORDER BY g.member_count DESC, g.post_count DESC
        LIMIT 5`,
       [req.userId, req.userId, req.userId]
     )
 
     if (suggestions.length === 0) {
-      // No collaborative matches — show most popular public groups
       const [popular] = await pool.query(
         `SELECT c.id, c.name, c.category, c.description_da, c.description_en,
                 0 AS shared_members,
@@ -75,32 +61,102 @@ router.get('/groups/suggestions', authenticate, async (req, res) => {
       )
       return res.json({ suggestions: popular })
     }
+    if (sort === 'trending') {
+      whereParts.push(`(
+        g.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+        OR g.id IN (
+          SELECT DISTINCT group_id FROM group_posts
+          WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+        )
+      )`)
+    }
 
-    res.json({ suggestions })
+    let orderBy = 'g.created_at DESC'
+    if (sort === 'trending') orderBy = 'g.post_count DESC, g.member_count DESC'
+    else if (sort === 'members') orderBy = 'g.member_count DESC'
+
+    const [rows] = await pool.query(
+      `SELECT g.*, u.name AS creator_name,
+              (SELECT gm2.role FROM group_members gm2
+               WHERE gm2.group_id = g.id AND gm2.user_id = ?) AS my_role
+       FROM \`groups\` g JOIN users u ON g.created_by = u.id
+       WHERE ${whereParts.join(' AND ')}
+       ORDER BY ${orderBy}
+       LIMIT 50`,
+      params
+    )
+    res.json({ groups: rows })
   } catch (err) {
-    console.error('GET /api/groups/suggestions error:', err)
-    res.status(500).json({ error: 'Failed to load group suggestions' })
+    console.error('GET /api/groups error:', err.message)
+    res.status(500).json({ error: 'Server error' })
   }
 })
 
+// ── Membership ────────────────────────────────────────────────────────────────
 
-router.post('/groups/:id/join', authenticate, async (req, res) => {
+// POST /api/groups/:id/join — auto-approve public, request for private
+router.post('/groups/:id/join', authenticate, writeLimit, async (req, res) => {
   const groupId = parseInt(req.params.id)
   if (isNaN(groupId)) return res.status(400).json({ error: 'Invalid group ID' })
   try {
     const [[group]] = await pool.query(
-      'SELECT id FROM conversations WHERE id = ? AND is_public = 1 AND is_group = 1',
+      'SELECT id, visibility, is_group FROM conversations WHERE id = ? AND is_group = 1',
       [groupId]
     )
-    if (!group) return res.status(404).json({ error: 'Group not found or not public' })
-    await pool.query(
-      'INSERT IGNORE INTO conversation_participants (conversation_id, user_id) VALUES (?, ?)',
+    if (!group) return res.status(404).json({ error: 'Group not found' })
+
+    const existing = await getMemberRole(groupId, req.userId)
+    if (existing) return res.status(409).json({ error: 'Already a member' })
+
+    const visibility = group.visibility || 'public'
+
+    if (visibility === 'public') {
+      await pool.query(
+        'INSERT IGNORE INTO conversation_participants (conversation_id, user_id, role) VALUES (?, ?, ?)',
+        [groupId, req.userId, 'member']
+      )
+      await pool.query(
+        'UPDATE conversations SET member_count = member_count + 1 WHERE id = ?',
+        [groupId]
+      )
+      return res.json({ ok: true, status: 'joined' })
+    }
+
+    // private / hidden — create join request
+    const [[pending]] = await pool.query(
+      'SELECT id, status FROM group_join_requests WHERE group_id = ? AND user_id = ?',
       [groupId, req.userId]
     )
+    if (pending) return res.status(409).json({ error: 'Join request already pending', status: pending.status })
+
+    await pool.query(
+      'INSERT INTO group_join_requests (group_id, user_id) VALUES (?, ?)',
+      [groupId, req.userId]
+    )
+    res.json({ ok: true, status: 'pending' })
+  } catch (err) {
+    console.error('PUT /api/groups/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+router.delete('/groups/:id', authenticate, async (req, res) => {
+  try {
+    const [[group]] = await pool.query(
+      "SELECT id FROM `groups` WHERE id = ?", [req.params.id]
+    )
+    if (!group) return res.status(404).json({ error: 'Group not found' })
+    const membership = await getMembership(req.params.id, req.userId)
+    const isPlatformAdmin = req.adminRole &&
+      ['super_admin', 'admin'].includes(req.adminRole)
+    if (!isPlatformAdmin && (!membership || membership.role !== 'admin')) {
+      return res.status(403).json({ error: 'Forbidden' })
+    }
+    await pool.query("DELETE FROM `groups` WHERE id = ?", [req.params.id])
     res.json({ ok: true })
   } catch (err) {
-    console.error('POST /api/groups/:id/join error:', err)
-    res.status(500).json({ error: 'Failed to join group' })
+    console.error('DELETE /api/groups/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
   }
 })
 

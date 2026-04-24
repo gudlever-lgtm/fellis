@@ -1090,6 +1090,8 @@ export async function apiGetGroupSuggestions() {
   return await request('/api/groups/suggestions')
 }
 
+// ── Group Membership ──
+
 export async function apiJoinGroup(groupId) {
   return await request(`/api/groups/${groupId}/join`, { method: 'POST' })
 }
