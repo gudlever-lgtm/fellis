@@ -108,6 +108,13 @@ export default function GroupCard({ group, lang, onNavigate }) {
     if (group.type === 'hidden') {
       return <span style={s.lockIcon} title={g.locked || typeLabel}>🔒</span>
     }
+    if (joined) {
+      return (
+        <button style={s.actionBtn} disabled>
+          {`✓ ${g.joined}`}
+        </button>
+      )
+    }
     if (group.type === 'private') {
       return (
         <button style={s.actionBtn} onClick={handleAction} disabled={busy || requested}>
@@ -116,8 +123,8 @@ export default function GroupCard({ group, lang, onNavigate }) {
       )
     }
     return (
-      <button style={s.actionBtn} onClick={handleAction} disabled={busy || joined}>
-        {joined ? `✓ ${g.joined}` : g.join}
+      <button style={s.actionBtn} onClick={handleAction} disabled={busy}>
+        {g.join}
       </button>
     )
   }
