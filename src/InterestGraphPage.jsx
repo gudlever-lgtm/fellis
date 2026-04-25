@@ -190,7 +190,7 @@ export default function InterestGraphPage({ lang, t, currentUser }) {
           return (
             <div key={key} style={s.scoreRow}>
               <span style={s.icon}>{meta.icon}</span>
-              <span style={s.name}>{meta[lang] || meta.da}</span>
+              <span style={s.name}>{meta?.[lang] || meta?.da}</span>
               <WeightBar
                 weight={w}
                 onChange={(v) => handleWeightChange(score.interest_slug, v)}
@@ -228,7 +228,7 @@ export default function InterestGraphPage({ lang, t, currentUser }) {
               return (
                 <div key={slug} style={{ marginBottom: 12 }}>
                   <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>
-                    {meta.icon} {meta[lang] || meta.da}
+                    {meta.icon} {meta?.[lang] || meta?.da}
                   </div>
                   {rows.map(r => (
                     <div key={r.signal_type} style={s.statRow}>
