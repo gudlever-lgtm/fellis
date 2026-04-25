@@ -138,6 +138,7 @@ async function run() {
   await addCol('post_likes', 'reaction', "VARCHAR(20) DEFAULT 'like'")
   console.log('events (group detail):')
   await addCol('events', 'group_id', 'INT DEFAULT NULL')
+  await addCol('events', 'start_time', 'DATETIME DEFAULT NULL')
   console.log('conversations (group detail):')
   await addCol('conversations', 'pinned_post_id', 'INT DEFAULT NULL')
   await addCol('conversations', 'member_count', 'INT NOT NULL DEFAULT 0')
