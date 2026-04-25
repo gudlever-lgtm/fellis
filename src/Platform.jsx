@@ -9373,7 +9373,7 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
           </h3>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {profile.badges.map(b => (
-              <div key={b.id} title={b.description || b.name} style={{ display: 'flex', alignItems: 'center', gap: 8, background: b.tier === 'gold' ? '#FFF8E1' : b.tier === 'silver' ? '#F5F5F5' : '#F0FAF4', borderRadius: 12, padding: '6px 14px', fontSize: 13, border: `1px solid ${b.tier === 'gold' ? '#FFD54F' : b.tier === 'silver' ? '#E0E0E0' : '#B7DFC9'}` }}>
+              <div key={b.id} title={b.description || b.name} style={{ display: 'flex', alignItems: 'center', gap: 8, background: b.tier === 3 ? '#FFF8E1' : b.tier === 2 ? '#F5F5F5' : '#F0FAF4', borderRadius: 12, padding: '6px 14px', fontSize: 13, border: `1px solid ${b.tier === 3 ? '#FFD54F' : b.tier === 2 ? '#E0E0E0' : '#B7DFC9'}` }}>
                 <span style={{ fontSize: 20 }}>{b.icon}</span>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   <span style={{ fontWeight: 600, color: '#333', lineHeight: 1.3 }}>{b.name}</span>
@@ -9575,7 +9575,7 @@ function FriendProfileModal({ userId, lang, t, onClose, onMessage }) {
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                     {profile.badges.map(b => (
-                      <div key={b.id} title={b.description || b.name} style={{ display: 'flex', alignItems: 'center', gap: 6, background: b.tier === 'gold' ? '#FFF8E1' : b.tier === 'silver' ? '#F5F5F5' : '#F0FAF4', borderRadius: 10, padding: '5px 10px', fontSize: 12, border: `1px solid ${b.tier === 'gold' ? '#FFD54F' : b.tier === 'silver' ? '#E0E0E0' : '#B7DFC9'}` }}>
+                      <div key={b.id} title={b.description || b.name} style={{ display: 'flex', alignItems: 'center', gap: 6, background: b.tier === 3 ? '#FFF8E1' : b.tier === 2 ? '#F5F5F5' : '#F0FAF4', borderRadius: 10, padding: '5px 10px', fontSize: 12, border: `1px solid ${b.tier === 3 ? '#FFD54F' : b.tier === 2 ? '#E0E0E0' : '#B7DFC9'}` }}>
                         <span style={{ fontSize: 16 }}>{b.icon}</span>
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
                           <span style={{ fontWeight: 600, color: '#333', lineHeight: 1.3 }}>{b.name}</span>
@@ -19588,6 +19588,7 @@ function AdminEasterEggsPanel({ lang }) {
 // ── BadgesProfileSection — badges tab in user profile ────────────────────────
 function BadgesProfileSection({ lang, earnedBadges, onBadgeCheck, setEarnedBadges }) {
   const da = lang === 'da'
+  const t = getTranslations(lang)
   const [selectedEggId, setSelectedEggId] = useState(null)
   const adminEggConfig = loadAdminEggs()
 
