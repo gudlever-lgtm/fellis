@@ -1,4 +1,25 @@
 {
+  "nav": {
+    "home": "Hjem",
+    "profile": "Profil",
+    "logout": "Log ud",
+    "settings": "Indstillinger"
+  },
+  "action": {
+    "save": "Gem",
+    "cancel": "Annuller",
+    "post": "Opret opslag",
+    "delete": "Slet"
+  },
+  "error": {
+    "generic": "Noget gik galt — prøv igen",
+    "not_found": "Siden blev ikke fundet",
+    "unauthorized": "Du er ikke logget ind"
+  },
+  "lang": {
+    "select": "Vælg sprog",
+    "changed": "Sprog ændret"
+  },
   "actions": {
     "save": "Gem",
     "cancel": "Annuller",
