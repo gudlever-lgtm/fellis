@@ -5,8 +5,8 @@ import {
   apiPinGroupPost, apiReactToGroupPost, apiLeaveGroup, apiJoinGroup,
   apiGetGroupMembers, apiUpdateGroupMemberRole, apiRemoveGroupMember,
   apiGetGroupPendingMembers, apiApproveGroupMember, apiRejectGroupMember,
-  apiGetGroupEvents, apiRsvpGroupEvent,
-  apiGetGroupPolls, apiVoteGroupPoll, apiGetGroupInviteLink,
+  apiGetGroupEvents, apiCreateGroupEvent, apiRsvpGroupEvent,
+  apiGetGroupPolls, apiCreateGroupPoll, apiVoteGroupPoll, apiGetGroupInviteLink,
   apiMuteConversation,
 } from './api.js'
 import { getTranslations, nameToColor, getInitials } from './data.js'
@@ -72,12 +72,25 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
   const [inviteLink, setInviteLink] = useState(null)
   const [copyState, setCopyState] = useState(false)
   const [muteOpen, setMuteOpen] = useState(false)
+  const [showEventForm, setShowEventForm] = useState(false)
+  const [eventTitle, setEventTitle] = useState('')
+  const [eventDate, setEventDate] = useState('')
+  const [eventLocation, setEventLocation] = useState('')
+  const [eventSaving, setEventSaving] = useState(false)
+  const [showPollForm, setShowPollForm] = useState(false)
+  const [pollQuestion, setPollQuestion] = useState('')
+  const [pollOptions, setPollOptions] = useState(['', ''])
+  const [pollSaving, setPollSaving] = useState(false)
 
   useEffect(() => {
     let cancelled = false
     setLoadState('loading')
     setGroup(null)
     setPosts([])
+    setMembers([])
+    setPendingMembers([])
+    setEvents([])
+    setPolls([])
     apiGetGroup(slug).then(data => {
       if (cancelled) return
       if (!data) { setLoadState('not_found'); return }
@@ -301,6 +314,34 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
       e.id !== ev.id ? e : { ...e, my_rsvp: status, going_count: Number(e.going_count) + goingDelta }
     ))
     await apiRsvpGroupEvent(group.slug, ev.id, status)
+  }
+
+  const handleCreateEvent = async () => {
+    if (!eventTitle.trim() || eventSaving) return
+    setEventSaving(true)
+    const res = await apiCreateGroupEvent(group.slug, eventTitle.trim(), eventDate || null, eventLocation.trim() || null)
+    setEventSaving(false)
+    if (res?.id) {
+      setEvents(prev => [...prev, { ...res, going_count: 0, my_rsvp: null }])
+      setEventTitle('')
+      setEventDate('')
+      setEventLocation('')
+      setShowEventForm(false)
+    }
+  }
+
+  const handleCreatePoll = async () => {
+    const cleanOpts = pollOptions.map(o => o.trim()).filter(Boolean)
+    if (!pollQuestion.trim() || cleanOpts.length < 2 || pollSaving) return
+    setPollSaving(true)
+    const res = await apiCreateGroupPoll(group.slug, pollQuestion.trim(), cleanOpts, null)
+    setPollSaving(false)
+    if (res?.id) {
+      setPolls(prev => [res, ...prev])
+      setPollQuestion('')
+      setPollOptions(['', ''])
+      setShowPollForm(false)
+    }
   }
 
   // ── Status screens ────────────────────────────────────────────────────────
@@ -660,6 +701,46 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
 
         {tab === 'events' && (
           <div>
+            {isMod && (
+              <div style={{ marginBottom: 16 }}>
+                {showEventForm ? (
+                  <div style={{ background: '#fff', border: '1px solid #E8E4DF', borderRadius: 12, padding: 16 }}>
+                    <input
+                      style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #E8E4DF', fontSize: 14, marginBottom: 10, boxSizing: 'border-box' }}
+                      placeholder={g.eventTitlePlaceholder}
+                      value={eventTitle}
+                      onChange={e => setEventTitle(e.target.value)}
+                      maxLength={200}
+                    />
+                    <input
+                      type="datetime-local"
+                      style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #E8E4DF', fontSize: 14, marginBottom: 10, boxSizing: 'border-box' }}
+                      value={eventDate}
+                      onChange={e => setEventDate(e.target.value)}
+                    />
+                    <input
+                      style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #E8E4DF', fontSize: 14, marginBottom: 12, boxSizing: 'border-box' }}
+                      placeholder={g.eventLocationPlaceholder}
+                      value={eventLocation}
+                      onChange={e => setEventLocation(e.target.value)}
+                      maxLength={200}
+                    />
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: '#5B4FCF', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer', opacity: (!eventTitle.trim() || eventSaving) ? 0.6 : 1 }} onClick={handleCreateEvent} disabled={!eventTitle.trim() || eventSaving}>
+                        {eventSaving ? '...' : g.createEventSubmit}
+                      </button>
+                      <button style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', fontSize: 13, cursor: 'pointer', color: '#666' }} onClick={() => setShowEventForm(false)}>
+                        {g.cancel}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button style={{ padding: '8px 16px', borderRadius: 8, border: '1.5px dashed #C7C0F5', background: '#F5F3FF', color: '#5B4FCF', fontWeight: 600, fontSize: 13, cursor: 'pointer' }} onClick={() => setShowEventForm(true)}>
+                    {'+ '}{g.createEvent}
+                  </button>
+                )}
+              </div>
+            )}
             {eventsLoading ? (
               <div style={s.feedEmpty}>{g.loading}</div>
             ) : events.length === 0 ? (
@@ -701,6 +782,52 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
 
         {tab === 'polls' && (
           <div>
+            {isMod && (
+              <div style={{ marginBottom: 16 }}>
+                {showPollForm ? (
+                  <div style={{ background: '#fff', border: '1px solid #E8E4DF', borderRadius: 12, padding: 16 }}>
+                    <input
+                      style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #E8E4DF', fontSize: 14, marginBottom: 10, boxSizing: 'border-box' }}
+                      placeholder={g.pollQuestionPlaceholder}
+                      value={pollQuestion}
+                      onChange={e => setPollQuestion(e.target.value)}
+                      maxLength={500}
+                    />
+                    {pollOptions.map((opt, i) => (
+                      <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                        <input
+                          style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1.5px solid #E8E4DF', fontSize: 13, boxSizing: 'border-box' }}
+                          placeholder={`${g.pollOptionPlaceholder} ${i + 1}`}
+                          value={opt}
+                          onChange={e => setPollOptions(prev => prev.map((o, j) => j === i ? e.target.value : o))}
+                          maxLength={200}
+                        />
+                        {pollOptions.length > 2 && (
+                          <button style={{ padding: '0 10px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', cursor: 'pointer', color: '#999', fontSize: 16 }} onClick={() => setPollOptions(prev => prev.filter((_, j) => j !== i))}>×</button>
+                        )}
+                      </div>
+                    ))}
+                    {pollOptions.length < 6 && (
+                      <button style={{ fontSize: 12, color: '#5B4FCF', background: 'none', border: 'none', cursor: 'pointer', marginBottom: 12, padding: 0 }} onClick={() => setPollOptions(prev => [...prev, ''])}>
+                        {'+ '}{g.pollAddOption}
+                      </button>
+                    )}
+                    <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                      <button style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: '#5B4FCF', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer', opacity: (!pollQuestion.trim() || pollOptions.filter(o => o.trim()).length < 2 || pollSaving) ? 0.6 : 1 }} onClick={handleCreatePoll} disabled={!pollQuestion.trim() || pollOptions.filter(o => o.trim()).length < 2 || pollSaving}>
+                        {pollSaving ? '...' : g.createPollSubmit}
+                      </button>
+                      <button style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', fontSize: 13, cursor: 'pointer', color: '#666' }} onClick={() => setShowPollForm(false)}>
+                        {g.cancel}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button style={{ padding: '8px 16px', borderRadius: 8, border: '1.5px dashed #C7C0F5', background: '#F5F3FF', color: '#5B4FCF', fontWeight: 600, fontSize: 13, cursor: 'pointer' }} onClick={() => setShowPollForm(true)}>
+                    {'+ '}{g.createPoll}
+                  </button>
+                )}
+              </div>
+            )}
             {pollsLoading ? (
               <div style={s.feedEmpty}>{g.loading}</div>
             ) : polls.length === 0 ? (
