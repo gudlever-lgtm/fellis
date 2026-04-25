@@ -1082,11 +1082,11 @@ router.get('/groups/:id/members/pending', authenticate, async (req, res) => {
     const myRole = await getMemberRole(groupId, req.userId)
     if (myRole !== 'admin' && myRole !== 'moderator') return res.status(403).json({ error: 'forbidden' })
     const [rows] = await pool.query(
-      `SELECT u.id, u.name, u.avatar_url, cp.created_at AS requested_at
+      `SELECT u.id, u.name, u.avatar_url, cp.joined_at AS requested_at
        FROM conversation_participants cp
        JOIN users u ON u.id = cp.user_id
        WHERE cp.conversation_id = ? AND cp.status = 'pending'
-       ORDER BY cp.created_at ASC`,
+       ORDER BY cp.joined_at ASC`,
       [groupId]
     )
     res.json({ pending: rows })
