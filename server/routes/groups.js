@@ -1170,6 +1170,29 @@ router.get('/groups/:slug/events', authenticate, async (req, res) => {
   }
 })
 
+router.post('/groups/:slug/events', authenticate, writeLimit, async (req, res) => {
+  try {
+    const [[group]] = await pool.query(
+      'SELECT id FROM conversations WHERE slug = ? AND is_group = 1',
+      [req.params.slug]
+    )
+    if (!group) return res.status(404).json({ error: 'not_found' })
+    const myRole = await getMemberRole(group.id, req.userId)
+    if (myRole !== 'admin' && myRole !== 'moderator') return res.status(403).json({ error: 'forbidden' })
+    const { title, date, location } = req.body || {}
+    if (!title || !title.trim()) return res.status(400).json({ error: 'title_required' })
+    const [result] = await pool.query(
+      'INSERT INTO events (organizer_id, title, date, location, group_id, recipients) VALUES (?, ?, ?, ?, ?, ?)',
+      [req.userId, title.trim(), date || null, location?.trim() || null, group.id, 'all']
+    )
+    const [[ev]] = await pool.query('SELECT * FROM events WHERE id = ?', [result.insertId])
+    res.json({ ...ev, going_count: 0, my_rsvp: null })
+  } catch (err) {
+    console.error('POST /api/groups/:slug/events error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
 router.post('/groups/:slug/events/:eventId/rsvp', authenticate, async (req, res) => {
   const eventId = parseInt(req.params.eventId)
   if (isNaN(eventId)) return res.status(400).json({ error: 'invalid_id' })
@@ -1234,6 +1257,38 @@ router.get('/groups/:slug/polls', authenticate, async (req, res) => {
     res.json({ polls: enriched })
   } catch (err) {
     console.error('GET /api/groups/:slug/polls error:', err)
+    res.status(500).json({ error: 'server_error' })
+  }
+})
+
+router.post('/groups/:slug/polls', authenticate, writeLimit, async (req, res) => {
+  try {
+    const [[group]] = await pool.query(
+      'SELECT id FROM conversations WHERE slug = ? AND is_group = 1',
+      [req.params.slug]
+    )
+    if (!group) return res.status(404).json({ error: 'not_found' })
+    const myRole = await getMemberRole(group.id, req.userId)
+    if (myRole !== 'admin' && myRole !== 'moderator') return res.status(403).json({ error: 'forbidden' })
+    const { question, options, endsAt } = req.body || {}
+    if (!question?.trim()) return res.status(400).json({ error: 'question_required' })
+    if (!Array.isArray(options) || options.length < 2) return res.status(400).json({ error: 'min_2_options' })
+    const cleanOptions = options.map(o => ({ text_da: String(o).trim(), text_en: String(o).trim() })).filter(o => o.text_da)
+    if (cleanOptions.length < 2) return res.status(400).json({ error: 'min_2_options' })
+    const [result] = await pool.query(
+      'INSERT INTO group_polls (group_id, question, options, ends_at, created_by) VALUES (?, ?, ?, ?, ?)',
+      [group.id, question.trim(), JSON.stringify(cleanOptions), endsAt || null, req.userId]
+    )
+    res.json({
+      id: result.insertId,
+      group_id: group.id,
+      question: question.trim(),
+      options: cleanOptions.map((o, idx) => ({ id: idx, text_da: o.text_da, text_en: o.text_en, vote_count: 0 })),
+      ends_at: endsAt || null,
+      user_vote: null,
+    })
+  } catch (err) {
+    console.error('POST /api/groups/:slug/polls error:', err)
     res.status(500).json({ error: 'server_error' })
   }
 })
