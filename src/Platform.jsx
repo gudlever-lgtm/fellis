@@ -362,9 +362,11 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
         if (data.user.ads_free !== undefined) setAdsFree(Boolean(data.user.ads_free))
         if (Array.isArray(data.user.active_features)) setActiveFeatures(data.user.active_features)
         // Mode from server is authoritative — sync to localStorage
+        // Normalize legacy 'private' (English) to platform-standard 'privat'
         if (data.user.mode) {
-          setMode(data.user.mode)
-          localStorage.setItem('fellis_mode', data.user.mode)
+          const serverMode = data.user.mode === 'private' ? 'privat' : data.user.mode
+          setMode(serverMode)
+          localStorage.setItem('fellis_mode', serverMode)
         } else {
           // Fallback: sync localStorage → server
           apiUpdateMode(mode).catch(() => {})
@@ -714,7 +716,7 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
                   <strong>{currentUser.name}</strong>
                   <span style={{ fontSize: 12, color: '#888' }}>{currentUser.handle}</span>
                   <span style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>
-                    {mode === 'privat' ? t.modeCommonTag : mode === 'network' ? t.modeNetworkTag : t.modeBusinessTag}{adsFree ? ' · ✓ Ad-free' : ''}
+                    {mode === 'privat' ? t.modeCommonTag : mode === 'network' ? t.modeNetworkTag : mode === 'business' ? t.modeBusinessTag : t.modeCommonTag}{adsFree ? ' · ✓ Ad-free' : ''}
                   </span>
                 </div>
                 <div className="avatar-dropdown-divider" />

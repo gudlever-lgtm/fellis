@@ -488,15 +488,18 @@ router.get('/users/:userId/portfolio', authenticate, async (req, res) => {
 
 // ── User type endpoints ───────────────────────────────────────────────────────
 
-const VALID_MODES = ['private', 'network', 'business']
+const VALID_MODES = ['privat', 'network', 'business']
+// Normalize legacy 'private' (English spelling) to 'privat' (platform standard)
+const normalizeMode = (m) => (m === 'private' ? 'privat' : m)
 
 router.patch('/user/type', authenticate, writeLimit, async (req, res) => {
   const { mode } = req.body
   if (!mode) return res.status(400).json({ error: 'mode is required' })
-  if (!VALID_MODES.includes(mode)) return res.status(400).json({ error: 'mode must be private, network, or business' })
+  const normalized = normalizeMode(mode)
+  if (!VALID_MODES.includes(normalized)) return res.status(400).json({ error: 'mode must be privat, network, or business' })
   try {
-    await pool.query('UPDATE users SET mode = ? WHERE id = ?', [mode, req.userId])
-    res.json({ success: true, mode })
+    await pool.query('UPDATE users SET mode = ? WHERE id = ?', [normalized, req.userId])
+    res.json({ success: true, mode: normalized })
   } catch (err) {
     console.error('PATCH /api/user/type error:', err.message)
     res.status(500).json({ error: 'Failed to update user type' })
@@ -509,7 +512,7 @@ router.get('/user/:id/type', async (req, res) => {
   try {
     const [[user]] = await pool.query('SELECT mode FROM users WHERE id = ?', [userId])
     if (!user) return res.status(404).json({ error: 'User not found' })
-    res.json({ mode: user.mode || 'private' })
+    res.json({ mode: normalizeMode(user.mode) || 'privat' })
   } catch (err) {
     console.error('GET /api/user/:id/type error:', err.message)
     res.status(500).json({ error: 'Server error' })

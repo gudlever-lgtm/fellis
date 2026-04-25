@@ -705,7 +705,8 @@ router.get('/auth/session', authenticate, async (req, res) => {
     const active_features = featureRows.map(r => r.feature)
     const has_ad_free = legacy_ads_free || active_features.includes('ad_free')
     const ads_free = has_ad_free
-    const user = { ...users[0], mode: users[0].mode || 'privat', ads_free, has_ad_free, active_features, is_admin: users[0].id === 1, is_moderator: Boolean(users[0].is_moderator) || users[0].id === 1 }
+    const rawMode = users[0].mode === 'private' ? 'privat' : (users[0].mode || 'privat')
+    const user = { ...users[0], mode: rawMode, ads_free, has_ad_free, active_features, is_admin: users[0].id === 1, is_moderator: Boolean(users[0].is_moderator) || users[0].id === 1 }
     res.json({ user, lang: req.lang })
   } catch (err) {
     res.status(500).json({ error: 'Session check failed' })
