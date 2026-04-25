@@ -4857,6 +4857,9 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
 // ── Profile (clean — read-only view) ──
 function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onBadgeCheck, interestCategories = INTEREST_CATEGORIES, initialTab }) {
   const [profile, setProfile] = useState({ ...currentUser })
+  const [coverPhotoUrl, setCoverPhotoUrl] = useState(currentUser.cover_photo_url || currentUser.coverPhotoUrl || null)
+  const [coverUploading, setCoverUploading] = useState(false)
+  const coverInputRef = useRef(null)
   const [userPosts, setUserPosts] = useState([])
   const [familyFriends, setFamilyFriends] = useState([])
   const [profileTab, setProfileTab] = useState(initialTab || 'about')
@@ -4924,6 +4927,7 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
         if (data.avatar_url || data.avatarUrl) {
           onUserUpdate(prev => ({ ...prev, avatar_url: data.avatarUrl || data.avatar_url }))
         }
+        if (data.coverPhotoUrl !== undefined) setCoverPhotoUrl(data.coverPhotoUrl)
       }
     })
     apiFetchFeed(null, 100).then(data => {
@@ -4962,10 +4966,60 @@ function ProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate, onB
     ? (avatarUrl.startsWith('http') || avatarUrl.startsWith('blob:') ? avatarUrl : `${API_BASE}${avatarUrl}`)
     : null
 
+  const coverSrc = coverPhotoUrl
+    ? (coverPhotoUrl.startsWith('http') || coverPhotoUrl.startsWith('blob:') ? coverPhotoUrl : `${API_BASE}${coverPhotoUrl}`)
+    : null
+
+  const handleCoverUpload = useCallback(async (file) => {
+    if (!file || !file.type.startsWith('image/')) return
+    const preview = URL.createObjectURL(file)
+    setCoverPhotoUrl(preview)
+    setCoverUploading(true)
+    try {
+      const data = await apiUploadCoverPhoto(file)
+      if (data?.cover_photo_url) setCoverPhotoUrl(data.cover_photo_url)
+    } finally {
+      setCoverUploading(false)
+    }
+  }, [])
+
+  const handleCoverFileChange = useCallback((e) => {
+    const file = e.target.files?.[0]
+    if (file) handleCoverUpload(file)
+  }, [handleCoverUpload])
+
+  const handleCoverDelete = useCallback(async () => {
+    setCoverPhotoUrl(null)
+    await apiDeleteCoverPhoto()
+  }, [])
+
+  const handleCoverPaste = useCallback((e) => {
+    const item = Array.from(e.clipboardData?.items || []).find(i => i.type.startsWith('image/'))
+    if (item) {
+      e.preventDefault()
+      handleCoverUpload(item.getAsFile())
+    }
+  }, [handleCoverUpload])
+
   return (
     <div className="p-profile">
       <div className="p-card p-profile-card">
-        <div className="p-profile-banner" />
+        <div
+          className="p-profile-banner"
+          style={coverSrc ? { backgroundImage: `url(${coverSrc})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
+          onPaste={handleCoverPaste}
+          tabIndex={0}
+        >
+          <div className="p-profile-banner-overlay">
+            <button className="p-profile-banner-btn" onClick={() => coverInputRef.current?.click()} title={t.coverPhotoChange} disabled={coverUploading}>
+              {coverUploading ? '…' : '🖼'}
+            </button>
+            {coverSrc && (
+              <button className="p-profile-banner-btn" onClick={handleCoverDelete} title={t.coverPhotoRemove}>✕</button>
+            )}
+          </div>
+          <input ref={coverInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" style={{ display: 'none' }} onChange={handleCoverFileChange} />
+        </div>
         <div className="p-profile-info">
           <div className="p-profile-avatar-wrapper">
             {avatarSrc ? (
@@ -8928,6 +8982,10 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
     ? (profile.avatarUrl.startsWith('http') ? profile.avatarUrl : `${API_BASE}${profile.avatarUrl}`)
     : null
 
+  const friendCoverSrc = profile?.coverPhotoUrl
+    ? (profile.coverPhotoUrl.startsWith('http') ? profile.coverPhotoUrl : `${API_BASE}${profile.coverPhotoUrl}`)
+    : null
+
   return (
     <div className="p-profile">
       <button onClick={onBack} style={{ marginBottom: 16, background: 'none', border: 'none', color: '#2D6A4F', cursor: 'pointer', fontWeight: 600, fontSize: 14, padding: 0 }}>
@@ -8938,6 +8996,7 @@ function FriendProfilePage({ userId, lang, t, currentUser, onBack, onNavigate, o
       ) : (
         <div className="p-card p-profile-card">
           <div className="p-profile-banner" style={
+            friendCoverSrc ? { backgroundImage: `url(${friendCoverSrc})`, backgroundSize: 'cover', backgroundPosition: 'center' } :
             profile.mode === 'network' ? { background: 'linear-gradient(135deg, #0D9488 0%, #14B8A6 100%)' } :
             profile.mode === 'business' ? { background: 'linear-gradient(135deg, #D97706 0%, #F59E0B 100%)' } :
             undefined
