@@ -321,7 +321,7 @@ router.get('/groups/admin/reports', authenticate, async (req, res) => {
              c.id AS group_id, c.name AS group_name, c.slug AS group_slug,
              reporter.name AS reporter_name,
              author.name AS post_author
-      FROM moderation_reports mr
+      FROM reports mr
       JOIN posts p ON p.id = mr.target_id AND mr.target_type = 'post'
       JOIN conversations c ON c.id = p.group_id
       JOIN users reporter ON reporter.id = mr.reporter_id
