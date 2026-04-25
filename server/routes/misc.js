@@ -359,26 +359,27 @@ router.get('/conversations', authenticate, async (req, res) => {
 
 
 router.post('/conversations', authenticate, writeLimit, async (req, res) => {
-  const { participantIds, name, isGroup } = req.body
+  const { participantIds, name } = req.body
   if (!participantIds || !Array.isArray(participantIds) || !participantIds.length)
     return res.status(400).json({ error: 'participantIds required' })
   const validIds = participantIds.map(id => parseInt(id)).filter(id => !isNaN(id) && id > 0)
   if (!validIds.length) return res.status(400).json({ error: 'No valid participant IDs' })
   const allIds = [req.userId, ...validIds.filter(id => id !== req.userId)]
   try {
-    // For 1:1: return existing conversation if found
-    if (!isGroup && allIds.length === 2) {
+    // For 2-person conversations: return existing conversation if found
+    if (allIds.length === 2) {
       const otherId = allIds.find(id => id !== req.userId)
       const [existing] = await pool.query(
         `SELECT c.id FROM conversations c
          JOIN conversation_participants cp1 ON cp1.conversation_id = c.id AND cp1.user_id = ?
          JOIN conversation_participants cp2 ON cp2.conversation_id = c.id AND cp2.user_id = ?
-         WHERE c.is_group = 0 LIMIT 1`, [req.userId, otherId])
+         WHERE (SELECT COUNT(*) FROM conversation_participants WHERE conversation_id = c.id) = 2
+         LIMIT 1`, [req.userId, otherId])
       if (existing.length > 0) return res.json({ id: existing[0].id, exists: true })
     }
     const [r] = await pool.query(
-      'INSERT INTO conversations (name, is_group, created_by) VALUES (?, ?, ?)',
-      [name || null, isGroup ? 1 : 0, req.userId])
+      'INSERT INTO conversations (name, created_by) VALUES (?, ?)',
+      [name || null, req.userId])
     const convId = r.insertId
     for (const uid of allIds)
       await pool.query('INSERT IGNORE INTO conversation_participants (conversation_id, user_id) VALUES (?, ?)', [convId, uid])
@@ -410,7 +411,6 @@ router.get('/search', authenticate, async (req, res) => {
     try {
       ;[messages] = await pool.query(
         `SELECT m.id, m.conversation_id, u.name as from_name, m.text_da, m.text_en, m.time,
-                c.is_group,
                 COALESCE(c.name, (
                   SELECT u2.name FROM users u2
                   JOIN conversation_participants cp2 ON cp2.user_id = u2.id
@@ -452,7 +452,6 @@ router.get('/search', authenticate, async (req, res) => {
         id: m.id,
         conversationId: m.conversation_id,
         convName: m.conv_name || m.from_name,
-        isGroup: m.is_group === 1,
         from: m.from_name,
         text: { da: m.text_da, en: m.text_en },
         time: m.time,
