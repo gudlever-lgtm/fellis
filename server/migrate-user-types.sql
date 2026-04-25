@@ -1,6 +1,7 @@
 -- Migration: migrate-user-types.sql
--- 1. Alter users.mode to ENUM('private','network','business') DEFAULT 'private'
---    Map: privat/personal/private → private | business → network | NULL → private
+-- 1. Ensure users.mode column exists as VARCHAR(20) with platform-standard values
+--    Valid modes: 'privat' (personal), 'network', 'business'
+--    Normalise any legacy 'private' (English) or 'personal' → 'privat'
 -- 2. Create company_profiles table (per-user company profile for business-mode users)
 -- 3. Create company_members table (links company_user_id to member_user_id via users)
 -- 4. Create user_features table (feature flags / subscriptions per user)
@@ -10,17 +11,14 @@
 -- Ensure column exists (no-op if already present via ensureRuntimeColumns)
 ALTER TABLE users ADD COLUMN IF NOT EXISTS mode VARCHAR(20) DEFAULT 'privat';
 
--- Normalise NULL → 'private' before applying type constraint
-UPDATE users SET mode = 'private' WHERE mode IS NULL;
+-- Normalise NULL → 'privat'
+UPDATE users SET mode = 'privat' WHERE mode IS NULL OR mode = '';
 
--- Map Danish 'privat' and legacy 'personal' to new canonical 'private'
-UPDATE users SET mode = 'private' WHERE mode IN ('privat', 'personal');
+-- Normalise English 'private' and legacy 'personal' to platform-standard 'privat'
+UPDATE users SET mode = 'privat' WHERE mode IN ('private', 'personal');
 
--- Map existing 'business' (personal-business hybrid) to 'network'
-UPDATE users SET mode = 'network' WHERE mode = 'business';
-
--- Apply new enum type; any unmapped stray value coerces to DEFAULT 'private'
-ALTER TABLE users MODIFY COLUMN mode ENUM('private','network','business') NOT NULL DEFAULT 'private';
+-- Ensure column is VARCHAR(20) with correct default (idempotent)
+ALTER TABLE users MODIFY COLUMN mode VARCHAR(20) NOT NULL DEFAULT 'privat';
 
 -- ── 2. company_profiles ───────────────────────────────────────────────────────
 
