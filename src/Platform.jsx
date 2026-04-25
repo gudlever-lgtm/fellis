@@ -11787,9 +11787,9 @@ function EventsPage({ lang, t, currentUser, mode }) {
     setEvents(prev => prev.map(e => e.id === ev.id ? { ...e, ...payload, title: payload.title, description: payload.description, location: payload.location } : e))
   }
 
-  const getEventTitle = (e) => typeof e.title === 'string' ? e.title : (e.title[lang] || e.title.da)
-  const getEventDesc = (e) => typeof e.description === 'string' ? e.description : (e.description[lang] || e.description.da)
-  const getEventLocation = (e) => typeof e.location === 'string' ? e.location : (e.location[lang] || e.location.da)
+  const getEventTitle = (e) => typeof e.title === 'string' ? e.title : (e.title?.[lang] || e.title?.da || '')
+  const getEventDesc = (e) => typeof e.description === 'string' ? e.description : (e.description?.[lang] || e.description?.da || '')
+  const getEventLocation = (e) => typeof e.location === 'string' ? e.location : (e.location?.[lang] || e.location?.da || '')
 
   const now = new Date()
   const myEvents = events.filter(e => (e.organizer === currentUser.name || e.organizerId === currentUser.id) && new Date(e.date) >= now)
