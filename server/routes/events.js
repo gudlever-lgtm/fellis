@@ -1,5 +1,6 @@
 import express from 'express'
 import pool from '../db.js'
+import { translate } from '../translate.js'
 import { sendSms } from '../sms.js'
 import { validate, schemas } from '../validation.js'
 import { BADGES, BADGE_BY_ID, PLATFORM_LAUNCH_DATE, BADGE_AD_FREE_DAYS } from '../../src/badges/badgeDefinitions.js'
@@ -30,6 +31,8 @@ import { createReelFromLivestream, LIVESTREAM_DEFAULTS, transcodeVideo } from '.
 const router = express.Router()
 
 router.get('/events', authenticate, async (req, res) => {
+  const SUPPORTED_LANGS = ['da', 'en', 'de', 'fr', 'nl', 'sv', 'fi', 'pl', 'es', 'it', 'pt']
+  const targetLang = SUPPORTED_LANGS.includes(req.query.lang) ? req.query.lang : 'da'
   try {
     const [rows] = await pool.query(
       `SELECT e.*, u.name AS organizer_name,
@@ -46,10 +49,10 @@ router.get('/events', authenticate, async (req, res) => {
        ORDER BY e.date ASC`,
       [req.userId]
     )
-    const events = rows.map(e => ({
+    const events = await Promise.all(rows.map(async e => ({
       id: e.id,
-      title: e.title,
-      description: e.description,
+      title: targetLang !== 'da' ? await translate(e.title, 'da', targetLang) : e.title,
+      description: targetLang !== 'da' ? await translate(e.description, 'da', targetLang) : e.description,
       date: e.date,
       location: e.location,
       organizer: e.organizer_name,
