@@ -95,6 +95,49 @@ async function run() {
   await addCol('messages', 'conversation_id', 'INT DEFAULT NULL')
   await addIndex('messages', 'idx_msg_conv', '(conversation_id)')
 
+  // ── migrate-group-detail ──
+  console.log('conversation_participants (group detail):')
+  await addCol('conversation_participants', 'role', "ENUM('admin','moderator','member') DEFAULT 'member'")
+  await addCol('conversation_participants', 'status', "ENUM('active','pending') DEFAULT 'active'")
+  console.log('posts (group detail):')
+  await addCol('posts', 'group_id', 'INT DEFAULT NULL')
+  await addCol('posts', 'is_pinned', 'TINYINT(1) NOT NULL DEFAULT 0')
+  await addIndex('posts', 'idx_posts_group_id', '(group_id)')
+  console.log('post_likes (group detail):')
+  await addCol('post_likes', 'reaction', "VARCHAR(20) DEFAULT 'like'")
+  console.log('events (group detail):')
+  await addCol('events', 'group_id', 'INT DEFAULT NULL')
+  console.log('conversations (group detail):')
+  await addCol('conversations', 'pinned_post_id', 'INT DEFAULT NULL')
+  await addCol('conversations', 'member_count', 'INT NOT NULL DEFAULT 0')
+  await addCol('conversations', 'post_count', 'INT NOT NULL DEFAULT 0')
+  console.log('group_polls + group_poll_votes:')
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS group_polls (
+      id          INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      group_id    INT(11) NOT NULL,
+      question    VARCHAR(500) NOT NULL,
+      options     JSON NOT NULL,
+      ends_at     TIMESTAMP NULL DEFAULT NULL,
+      created_by  INT(11) NOT NULL,
+      created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (group_id)   REFERENCES conversations(id) ON DELETE CASCADE,
+      FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS group_poll_votes (
+      id         INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      poll_id    INT(11) NOT NULL,
+      user_id    INT(11) NOT NULL,
+      option_idx INT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_gpoll_user (poll_id, user_id),
+      FOREIGN KEY (poll_id)  REFERENCES group_polls(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id)  REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+
   console.log('\nAll migrations complete.')
   process.exit(0)
 }

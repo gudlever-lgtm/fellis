@@ -89,6 +89,7 @@ import DiscoveryCard from './components/DiscoveryCard.jsx'
 import OnboardingChecklist from './OnboardingChecklist.jsx'
 import GroupsPage from './Groups.jsx'
 import GroupDetail from './GroupDetail.jsx'
+import GroupSettings from './GroupSettings.jsx'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -484,7 +485,10 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
   const navigateGroups = useCallback((path) => {
     if (path === '/groups') { navigateTo('groups'); return }
     if (typeof path === 'string' && path.startsWith('/groups/')) {
-      const slug = path.slice('/groups/'.length).split('/')[0]
+      const rest = path.slice('/groups/'.length)
+      const slug = rest.split('/')[0]
+      const sub = rest.split('/')[1]
+      if (slug && sub === 'settings') { navigateTo('group-settings', { slug }); return }
       if (slug) { navigateTo('group-detail', { slug }); return }
     }
     navigateTo(path)
@@ -554,8 +558,8 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
           <div ref={moreMenuRef} style={{ position: 'relative' }}>
             <button
               className={`p-nav-tab${(mode === 'business'
-                ? ['friends', 'calendar', 'marketplace', 'explore', 'saved-posts', 'groups', 'group-detail']
-                : ['friends', 'calendar', 'marketplace', 'jobs', 'explore', 'saved-posts', 'groups', 'group-detail']
+                ? ['friends', 'calendar', 'marketplace', 'explore', 'saved-posts', 'groups', 'group-detail', 'group-settings']
+                : ['friends', 'calendar', 'marketplace', 'jobs', 'explore', 'saved-posts', 'groups', 'group-detail', 'group-settings']
               ).includes(page) ? ' active' : ''}`}
               onClick={() => setShowMoreMenu(v => !v)}
             >
@@ -793,6 +797,7 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
         {page === 'explore' && <ExplorePage lang={lang} onViewProfile={(userId) => { setViewUserId(userId); navigateTo('view-profile') }} />}
         {page === 'groups' && <GroupsPage lang={lang} currentUser={currentUser} onNavigate={navigateGroups} />}
         {page === 'group-detail' && navParam?.slug && <GroupDetail slug={navParam.slug} lang={lang} currentUser={currentUser} onNavigate={navigateGroups} />}
+        {page === 'group-settings' && navParam?.slug && <GroupSettings slug={navParam.slug} lang={lang} onNavigate={navigateGroups} />}
         {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onBadgeCheck={checkBadges} interestCategories={interestCategories} initialTab={navParam?.tab} />}
         {page === 'view-profile' && viewUserId && <FriendProfilePage userId={viewUserId} lang={lang} t={t} currentUser={currentUser} onBack={() => navigateTo('feed')} onNavigate={navigateTo} onBadgeCheck={checkBadges} onMessage={async (prof) => { const data = await apiCreateConversation([prof.id]).catch(() => null); if (data?.id) setOpenConvId(data.id); navigateTo('messages') }} />}
         {page === 'edit-profile' && <EditProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onBadgeCheck={checkBadges} initialTab={navParam?.tab} />}
