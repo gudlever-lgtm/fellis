@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { apiVotePoll } from '../api.js'
 import { PT } from '../data.js'
+import { getLocale } from '../utils/dateFormat.js'
 
 export default function PollWidget({ poll, lang, onVoted }) {
   const [voting, setVoting] = useState(false)
@@ -31,7 +32,7 @@ export default function PollWidget({ poll, lang, onVoted }) {
             : (PT[lang].vote)}
         {poll.ends_at && !ended && (
           <span style={{ marginLeft: 6 }}>
-            · {PT[lang].ends} {new Date(poll.ends_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US')}
+            · {PT[lang].ends} {new Date(poll.ends_at).toLocaleDateString(getLocale(lang))}
           </span>
         )}
       </div>

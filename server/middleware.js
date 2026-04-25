@@ -18,7 +18,7 @@ function formatPostTime(createdAt, lang) {
   const created = new Date(createdAt)
   const diffMs = now - created
   if (diffMs < 60_000) return lang === 'da' ? 'Lige nu' : 'Just now'
-  const locale = lang === 'da' ? 'da-DK' : 'en-US'
+  const locale = lang === 'da' ? 'da-DK' : 'en-GB'
   const timeStr = created.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
   const today = now.toDateString() === created.toDateString()
   if (today) return timeStr

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { apiGetCompanyReviews, apiCreateCompanyReview, apiDeleteCompanyReview } from '../api.js'
 import { nameToColor, getInitials, PT } from '../data.js'
+import { getLocale } from '../utils/dateFormat.js'
 
 function StarRating({ value, onChange, readonly = false }) {
   const [hover, setHover] = useState(0)
@@ -126,7 +127,7 @@ export default function CompanyReviews({ companyId, currentUserId, lang }) {
           </div>
           {review.title && <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{review.title}</div>}
           {review.body && <div style={{ fontSize: 14, color: '#444', lineHeight: 1.5 }}>{review.body}</div>}
-          <div style={{ fontSize: 12, color: '#aaa', marginTop: 6 }}>{new Date(review.created_at).toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US')}</div>
+          <div style={{ fontSize: 12, color: '#aaa', marginTop: 6 }}>{new Date(review.created_at).toLocaleDateString(getLocale(lang))}</div>
         </div>
       ))}
     </div>
