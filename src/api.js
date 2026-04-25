@@ -1236,6 +1236,15 @@ export async function apiUpdateGroupMemberRole(groupId, userId, role) {
 export const apiRemoveGroupMember = (groupId, userId) =>
   request(`/api/groups/${groupId}/members/${userId}`, { method: 'DELETE' })
 
+export const apiGetGroupPendingMembers = (groupId) =>
+  request(`/api/groups/${groupId}/members/pending`)
+
+export const apiApproveGroupMember = (groupId, userId) =>
+  request(`/api/groups/${groupId}/members/${userId}/approve`, { method: 'POST' })
+
+export const apiRejectGroupMember = (groupId, userId) =>
+  request(`/api/groups/${groupId}/members/${userId}/reject`, { method: 'DELETE' })
+
 export const apiGetGroupEvents = (slug) => request(`/api/groups/${slug}/events`)
 
 export async function apiRsvpGroupEvent(slug, eventId, status) {
