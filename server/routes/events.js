@@ -65,7 +65,7 @@ router.get('/events', authenticate, async (req, res) => {
       maybe: e.maybe_names ? e.maybe_names.split(',') : [],
       myRsvp: e.my_rsvp || null,
       createdAt: e.created_at,
-    }))
+    })))
     res.json({ events })
   } catch (err) {
     console.error('GET /api/events error:', err.message)
