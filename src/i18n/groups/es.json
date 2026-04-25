@@ -96,5 +96,14 @@
   "createdLabel": "Creado",
   "inviteLink": "Enlace de invitación",
   "copyLink": "Copiar enlace",
-  "linkCopied": "¡Copiado!"
+  "linkCopied": "¡Copiado!",
+  "muteGroup": "Silenciar notificaciones",
+  "unmuteGroup": "Activar notificaciones",
+  "muteTitle": "Silenciar notificaciones durante...",
+  "mute1h": "1 hora",
+  "mute8h": "8 horas",
+  "mute24h": "24 horas",
+  "mute1w": "1 semana",
+  "muteOff": "Desactivar",
+  "mutedLabel": "Silenciado"
 }

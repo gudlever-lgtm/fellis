@@ -96,5 +96,14 @@
   "createdLabel": "Opprettet",
   "inviteLink": "Invitasjonslenke",
   "copyLink": "Kopier lenke",
-  "linkCopied": "Kopiert!"
+  "linkCopied": "Kopiert!",
+  "muteGroup": "Slå av varsler",
+  "unmuteGroup": "Slå på varsler",
+  "muteTitle": "Slå av varsler i...",
+  "mute1h": "1 time",
+  "mute8h": "8 timer",
+  "mute24h": "24 timer",
+  "mute1w": "1 uke",
+  "muteOff": "Slå av",
+  "mutedLabel": "Dempet"
 }

@@ -96,5 +96,14 @@
   "createdLabel": "Utworzono",
   "inviteLink": "Link zaproszenia",
   "copyLink": "Kopiuj link",
-  "linkCopied": "Skopiowano!"
+  "linkCopied": "Skopiowano!",
+  "muteGroup": "Wycisz powiadomienia",
+  "unmuteGroup": "Włącz powiadomienia",
+  "muteTitle": "Wycisz powiadomienia na...",
+  "mute1h": "1 godzinę",
+  "mute8h": "8 godzin",
+  "mute24h": "24 godziny",
+  "mute1w": "1 tydzień",
+  "muteOff": "Wyłącz",
+  "mutedLabel": "Wyciszono"
 }
