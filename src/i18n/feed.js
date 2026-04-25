@@ -73,6 +73,9 @@ export default {
     // Image fallback
     imageMissing: 'Billedet er ikke tilgængeligt',
     imageMissingHint: 'Men her er lidt solskin i stedet ☀️',
+    // Empty feed
+    feedEmptyText: 'Dit feed er tomt — find nye mennesker og indhold på Udforsk',
+    feedEmptyExplore: 'Gå til Udforsk',
   },
   en: {
     newPost: "What's on your mind?",
@@ -148,6 +151,9 @@ export default {
     // Image fallback
     imageMissing: 'Image unavailable',
     imageMissingHint: "But here's a little sunshine instead ☀️",
+    // Empty feed
+    feedEmptyText: 'Your feed is empty — discover new people and content on Explore',
+    feedEmptyExplore: 'Go to Explore',
   },
   sv: {
     newPost: 'Vad tänker du på?',

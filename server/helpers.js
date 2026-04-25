@@ -251,24 +251,23 @@ export async function getConversationForUser(convId, userId, myName) {
   msgs.reverse()
   const [[{ total }]] = await pool.query('SELECT COUNT(*) as total FROM messages WHERE conversation_id = ?', [convId])
   const [[conv]] = await pool.query(
-    `SELECT c.name, c.is_group, c.is_family_group, c.created_by, cp.muted_until FROM conversations c
+    `SELECT c.name, c.created_by, cp.muted_until FROM conversations c
      JOIN conversation_participants cp ON cp.conversation_id = c.id AND cp.user_id = ?
      WHERE c.id = ?`, [userId, convId])
   const unread = msgs.filter(m => !m.is_read && m.from_name !== myName).length
   const otherParticipant = participants.find(p => p.id !== userId)
   const fallbackName = msgs.find(m => m.from_name !== myName)?.from_name || null
-  const displayName = conv.is_group
-    ? (conv.name || participants.filter(p => p.id !== userId).map(p => p.name.split(' ')[0]).join(', '))
-    : (otherParticipant?.name || fallbackName || 'Ukendt')
+  const otherParticipants = participants.filter(p => p.id !== userId)
+  const displayName = conv.name
+    || (otherParticipants.length === 1 ? otherParticipants[0]?.name : otherParticipants.map(p => p.name.split(' ')[0]).join(', '))
+    || fallbackName || 'Ukendt'
   const readReceipts = participants
     .filter(p => p.id !== userId && p.last_read_at)
     .map(p => ({ userId: p.id, name: p.name, lastReadAt: p.last_read_at }))
   return {
     id: convId,
     name: displayName,
-    isGroup: conv.is_group === 1,
-    isFamilyGroup: conv.is_family_group === 1,
-    groupName: conv.name,
+    convName: conv.name,
     createdBy: conv.created_by,
     participants: participants.map(p => ({
       id: p.id,

@@ -96,5 +96,14 @@
   "createdLabel": "Luotu",
   "inviteLink": "Kutsulinkki",
   "copyLink": "Kopioi linkki",
-  "linkCopied": "Kopioitu!"
+  "linkCopied": "Kopioitu!",
+  "muteGroup": "Mykistä ilmoitukset",
+  "unmuteGroup": "Poista mykistys",
+  "muteTitle": "Mykistä ilmoitukset...",
+  "mute1h": "1 tunti",
+  "mute8h": "8 tuntia",
+  "mute24h": "24 tuntia",
+  "mute1w": "1 viikko",
+  "muteOff": "Poista käytöstä",
+  "mutedLabel": "Mykistetty"
 }

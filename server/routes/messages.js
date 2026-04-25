@@ -122,17 +122,13 @@ router.post('/conversations/:id/messages', authenticate, writeLimit, async (req,
     const [[user]] = await pool.query('SELECT name FROM users WHERE id = ?', [req.userId])
     const msg = { id: ins.insertId, from: user.name, text: { da: text || '', en: text || '' }, media: media || null, time: formatMsgTime(now), createdAtRaw: now.toISOString() }
     // Push the new message to all other participants via SSE + create notification
-    const [[conv]] = await pool.query('SELECT name, is_group FROM conversations WHERE id = ?', [convId]).catch(() => [[null]])
     for (const { user_id } of participants) {
       if (user_id !== req.userId) {
         sseBroadcast(user_id, { type: 'message', convId, msg })
-        const msgDa = conv?.is_group && conv?.name
-          ? `${user.name} sendte en besked i ${conv.name}`
-          : `${user.name} sendte dig en besked`
-        const msgEn = conv?.is_group && conv?.name
-          ? `${user.name} sent a message in ${conv.name}`
-          : `${user.name} sent you a message`
-        createNotification(user_id, 'new_message', msgDa, msgEn, req.userId, user.name, convId)
+        createNotification(user_id, 'new_message',
+          `${user.name} sendte dig en besked`,
+          `${user.name} sent you a message`,
+          req.userId, user.name, convId)
       }
     }
     res.json(msg)
@@ -192,8 +188,6 @@ router.post('/conversations/:id/invite', authenticate, writeLimit, async (req, r
         values
       )
     }
-    // Promote to group if adding to a 1:1
-    await pool.query('UPDATE conversations SET is_group = 1 WHERE id = ? AND is_group = 0', [convId])
     res.json({ ok: true })
   } catch (err) {
     res.status(500).json({ error: 'Failed to invite participants' })
