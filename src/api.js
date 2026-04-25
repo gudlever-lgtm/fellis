@@ -1257,6 +1257,12 @@ export async function apiVoteGroupPoll(slug, pollId, optionIdx) {
 export const apiLeaveGroup = (groupId) =>
   request(`/api/groups/${groupId}/leave`, { method: 'POST' })
 
+export const apiUpdateGroupSettings = (groupId, data) =>
+  request(`/api/groups/${groupId}`, { method: 'PATCH', body: JSON.stringify(data) })
+
+export const apiDeleteOwnGroup = (groupId) =>
+  request(`/api/groups/${groupId}`, { method: 'DELETE' })
+
 export const apiGetGroupInviteLink = (slug) => request(`/api/groups/${slug}/invite`)
 
 export async function apiUploadGroupCover(groupId, file) {
