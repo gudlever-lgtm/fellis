@@ -669,8 +669,8 @@ export async function apiFeedCompanyPosts() {
 }
 
 // Events
-export async function apiFetchEvents() {
-  return await request('/api/events')
+export async function apiFetchEvents(lang) {
+  return await request(lang && lang !== 'da' ? `/api/events?lang=${lang}` : '/api/events')
 }
 
 export async function apiCreateEvent(data) {
