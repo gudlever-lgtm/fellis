@@ -1,5 +1,5 @@
 export function detectLanguage() {
-  const supported = ['da', 'en', 'de', 'fr', 'es', 'it', 'nl', 'sv', 'no', 'pl', 'pt']
+  const supported = ['da', 'en', 'de', 'fr', 'es', 'fi', 'it', 'nl', 'sv', 'no', 'pl', 'pt']
 
   const saved = localStorage.getItem('lang')
   if (saved && supported.includes(saved)) return saved

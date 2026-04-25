@@ -1,4 +1,25 @@
 {
+  "nav": {
+    "home": "Startseite",
+    "profile": "Profil",
+    "logout": "Abmelden",
+    "settings": "Einstellungen"
+  },
+  "action": {
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "post": "Beitrag erstellen",
+    "delete": "Löschen"
+  },
+  "error": {
+    "generic": "Etwas ist schiefgelaufen — bitte versuche es erneut",
+    "not_found": "Seite nicht gefunden",
+    "unauthorized": "Du bist nicht angemeldet"
+  },
+  "lang": {
+    "select": "Sprache auswählen",
+    "changed": "Sprache geändert"
+  },
   "actions": {
     "save": "Speichern",
     "cancel": "Abbrechen",
