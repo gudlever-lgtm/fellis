@@ -54,6 +54,17 @@ export default defineConfig({
         entryFileNames: 'app-[hash].js',
         chunkFileNames: '[name]-[hash].js',
         assetFileNames: '[name]-[hash][extname]',
+        manualChunks(id) {
+          if (id.includes('/node_modules/react-dom/') || id.includes('/node_modules/react/') || id.includes('/node_modules/scheduler/')) {
+            return 'vendor-react'
+          }
+          if (id.includes('/node_modules/react-simple-maps') || id.includes('/node_modules/topojson') || id.includes('/node_modules/d3-')) {
+            return 'vendor-maps'
+          }
+          if (id.includes('/node_modules/simple-icons')) {
+            return 'vendor-icons'
+          }
+        },
       },
     },
   },

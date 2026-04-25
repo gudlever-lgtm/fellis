@@ -1,8 +1,8 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, lazy, Suspense } from 'react'
 import Landing from './Landing.jsx'
-import Platform from './Platform.jsx'
-import PublicBlogPage from './BlogPage.jsx'
-import ForBusiness from './ForBusiness.jsx'
+const Platform = lazy(() => import('./Platform.jsx'))
+const PublicBlogPage = lazy(() => import('./BlogPage.jsx'))
+const ForBusiness = lazy(() => import('./ForBusiness.jsx'))
 import InstallPrompt from './components/InstallPrompt.jsx'
 import { apiCheckSession, apiLogout, apiGiveConsent, apiGetConsentStatus, apiGetInviteInfo, apiTrackVisit, apiGetCsrfToken, apiGetUserByHandle } from './api.js'
 import { UI_LANGS, detectLangFromIP, getTranslations } from './data.js'
@@ -558,14 +558,16 @@ function App() {
             }}
           />
         )}
-        <Platform
-          lang={lang}
-          onLogout={handleLogout}
-          initialPostId={initialPostId}
-          initialPage={initialPage}
-          initialProfileUserId={parseInt(sessionStorage.getItem('fellis_profile_userId') || '0') || null}
-          initialProfileSubpage={sessionStorage.getItem('fellis_profile_subpage')}
-        />
+        <Suspense fallback={<div style={{ minHeight: '100vh' }} />}>
+          <Platform
+            lang={lang}
+            onLogout={handleLogout}
+            initialPostId={initialPostId}
+            initialPage={initialPage}
+            initialProfileUserId={parseInt(sessionStorage.getItem('fellis_profile_userId') || '0') || null}
+            initialProfileSubpage={sessionStorage.getItem('fellis_profile_subpage')}
+          />
+        </Suspense>
         <InstallPrompt lang={lang} />
       </>
     )
@@ -770,8 +772,8 @@ function AppRoot() {
   if (path === '/privacy') return <PublicPrivacyPage />
   if (path === '/terms') return <PublicTermsPage />
   if (path === '/salgsbetingelser') return <PublicSalgsbetingelserPage />
-  if (path === '/blog' || window.location.pathname.startsWith('/blog/')) return <PublicBlogPage />
-  if (path === '/for-business') return <ForBusiness />
+  if (path === '/blog' || window.location.pathname.startsWith('/blog/')) return <Suspense fallback={null}><PublicBlogPage /></Suspense>
+  if (path === '/for-business') return <Suspense fallback={null}><ForBusiness /></Suspense>
   return <App />
 }
 

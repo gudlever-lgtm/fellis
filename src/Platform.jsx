@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment } from 'react'
+import { useState, useCallback, useRef, useEffect, useLayoutEffect, Fragment, lazy, Suspense } from 'react'
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 'react-simple-maps'
 import { UI_LANGS, EUROPEAN_LANGUAGES, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials, getTranslations, PT } from './data.js'
 import { detectLanguage } from './utils/detectLanguage.js'
@@ -33,8 +33,8 @@ import { siApplepay, siGooglepay, siVisa } from 'simple-icons'
 import PaymentSuccess from './pages/PaymentSuccess.jsx'
 import PaymentFailed from './pages/PaymentFailed.jsx'
 import FeaturesPage from './pages/FeaturesPage.jsx'
-import ReelsPage from './Reels.jsx'
-import InterestGraphPage from './InterestGraphPage.jsx'
+const ReelsPage = lazy(() => import('./Reels.jsx'))
+const InterestGraphPage = lazy(() => import('./InterestGraphPage.jsx'))
 import ExplorePage from './pages/ExplorePage.jsx'
 import AdBanner, { invalidateAdCache } from './AdBanner.jsx'
 import useKonamiCode from './hooks/useKonamiCode.js'
@@ -64,8 +64,8 @@ import PostCard from './PostCard.jsx'
 import FeedTabs from './FeedTabs.jsx'
 import PostComposer from './PostComposer.jsx'
 import { UpsellCard, UPSELL_KEY } from './AdBanner.jsx'
-import AdManager from './pages/AdManager.jsx'
-import BusinessHub from './pages/BusinessHub.jsx'
+const AdManager = lazy(() => import('./pages/AdManager.jsx'))
+const BusinessHub = lazy(() => import('./pages/BusinessHub.jsx'))
 import LocationAutocomplete from './components/LocationAutocomplete.jsx'
 import { BADGES, BADGE_BY_ID } from './badges/badgeDefinitions.js'
 import BadgeToastQueue from './components/BadgeToast.jsx'
@@ -88,9 +88,9 @@ import KeyboardShortcutsHelp from './components/KeyboardShortcutsHelp.jsx'
 import useKeyboardShortcuts from './hooks/useKeyboardShortcuts.js'
 import DiscoveryCard from './components/DiscoveryCard.jsx'
 import OnboardingChecklist from './OnboardingChecklist.jsx'
-import GroupsPage from './Groups.jsx'
-import GroupDetail from './GroupDetail.jsx'
-import GroupSettings from './GroupSettings.jsx'
+const GroupsPage = lazy(() => import('./Groups.jsx'))
+const GroupDetail = lazy(() => import('./GroupDetail.jsx'))
+const GroupSettings = lazy(() => import('./GroupSettings.jsx'))
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -794,11 +794,11 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
           </div>
           <FeedSidebar lang={lang} t={t} adsFree={adsFree} hasAdFree={adsFree || activeFeatures.includes('ad_free')} onNavigate={navigateTo} />
         </div>
-        {page === 'reels' && <ReelsPage t={t} lang={lang} currentUser={currentUser} initialReelId={navParam?.reelId} onViewProfile={(userId) => navigateTo('view-profile', { userId })} />}
+        {page === 'reels' && <Suspense fallback={null}><ReelsPage t={t} lang={lang} currentUser={currentUser} initialReelId={navParam?.reelId} onViewProfile={(userId) => navigateTo('view-profile', { userId })} /></Suspense>}
         {page === 'explore' && <ExplorePage lang={lang} onViewProfile={(userId) => { setViewUserId(userId); navigateTo('view-profile') }} />}
-        {page === 'groups' && <GroupsPage lang={lang} currentUser={currentUser} onNavigate={navigateGroups} />}
-        {page === 'group-detail' && navParam?.slug && <GroupDetail slug={navParam.slug} lang={lang} currentUser={currentUser} onNavigate={navigateGroups} />}
-        {page === 'group-settings' && navParam?.slug && <GroupSettings slug={navParam.slug} lang={lang} onNavigate={navigateGroups} />}
+        {page === 'groups' && <Suspense fallback={null}><GroupsPage lang={lang} currentUser={currentUser} onNavigate={navigateGroups} /></Suspense>}
+        {page === 'group-detail' && navParam?.slug && <Suspense fallback={null}><GroupDetail slug={navParam.slug} lang={lang} currentUser={currentUser} onNavigate={navigateGroups} /></Suspense>}
+        {page === 'group-settings' && navParam?.slug && <Suspense fallback={null}><GroupSettings slug={navParam.slug} lang={lang} onNavigate={navigateGroups} /></Suspense>}
         {page === 'profile' && <ProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onBadgeCheck={checkBadges} interestCategories={interestCategories} initialTab={navParam?.tab} />}
         {page === 'view-profile' && viewUserId && <FriendProfilePage userId={viewUserId} lang={lang} t={t} currentUser={currentUser} onBack={() => navigateTo('feed')} onNavigate={navigateTo} onBadgeCheck={checkBadges} onMessage={async (prof) => { const data = await apiCreateConversation([prof.id]).catch(() => null); if (data?.id) setOpenConvId(data.id); navigateTo('messages') }} />}
         {page === 'edit-profile' && <EditProfilePage lang={lang} t={t} currentUser={currentUser} mode={mode} onUserUpdate={setCurrentUser} onNavigate={navigateTo} onBadgeCheck={checkBadges} initialTab={navParam?.tab} />}
@@ -823,8 +823,8 @@ export default function Platform({ onLogout, initialPostId, initialPage, initial
           navigateTo('messages')
         }} onViewProfile={(uid) => { setViewUserId(uid); navigateTo('view-profile') }} onMakeOffer={(listing) => setMakeOfferListing(listing)} />}
         {page === 'jobs' && <JobsPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={(target, param) => { if (target === 'companies') { navigateTo('company', { companyId: param }); } else navigateTo(target) }} />}
-        {page === 'ads' && mode === 'business' && <AdManager lang={lang} t={t} currentUser={currentUser} />}
-        {page === 'business-hub' && mode === 'business' && <BusinessHub lang={lang} t={t} currentUser={currentUser} onViewProfile={(id) => { setViewUserId(id); navigateTo('view-profile') }} onNavigate={navigateTo} mode={mode} JobsComponent={JobsPage} CompanyComponent={CompanyListPage} />}
+        {page === 'ads' && mode === 'business' && <Suspense fallback={null}><AdManager lang={lang} t={t} currentUser={currentUser} /></Suspense>}
+        {page === 'business-hub' && mode === 'business' && <Suspense fallback={null}><BusinessHub lang={lang} t={t} currentUser={currentUser} onViewProfile={(id) => { setViewUserId(id); navigateTo('view-profile') }} onNavigate={navigateTo} mode={mode} JobsComponent={JobsPage} CompanyComponent={CompanyListPage} /></Suspense>}
         {page === 'company' && <CompanyListPage lang={lang} t={t} currentUser={currentUser} mode={mode} onNavigate={navigateTo} initialCompanyId={navParam?.companyId} />}
         {page === 'company-profile-form' && mode === 'business' && (
           <div style={{ maxWidth: 600, margin: '0 auto', padding: '16px 8px' }}>
@@ -6037,7 +6037,7 @@ function EditProfilePage({ lang, t, currentUser, mode, onUserUpdate, onNavigate,
           </div>
 
           <div style={{ marginTop: 24 }}>
-            <InterestGraphPage lang={lang} t={t} currentUser={currentUser} />
+            <Suspense fallback={null}><InterestGraphPage lang={lang} t={t} currentUser={currentUser} /></Suspense>
           </div>
         </>}
 
