@@ -87,6 +87,10 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
     setLoadState('loading')
     setGroup(null)
     setPosts([])
+    setMembers([])
+    setPendingMembers([])
+    setEvents([])
+    setPolls([])
     apiGetGroup(slug).then(data => {
       if (cancelled) return
       if (!data) { setLoadState('not_found'); return }
