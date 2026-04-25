@@ -4692,6 +4692,19 @@ function FeedPage({ lang, t, currentUser, mode, adsFree, hasAdFree = false, high
       }) /* close items.map */
       })()}
 
+      {/* Empty feed state — shown when feed has loaded but has no posts */}
+      {!loadingPage && !hasMore && posts.length === 0 && !feedCategoryFilter && (
+        <div style={{ textAlign: 'center', padding: '40px 20px', color: '#888' }}>
+          <div style={{ fontSize: 15, marginBottom: 16 }}>{t.feedEmptyText}</div>
+          <button
+            onClick={() => onNavigate('explore')}
+            style={{ background: '#2D6A4F', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, padding: '10px 24px', cursor: 'pointer', fontFamily: 'inherit' }}
+          >
+            {t.feedEmptyExplore}
+          </button>
+        </div>
+      )}
+
       {/* Dynamic group suggestion card — shown when suggestions exist */}
       {(() => {
         const visible = groupSuggestions.filter(g => !dismissedGroupIds.has(g.id) && !joinedGroupIds.has(g.id))
