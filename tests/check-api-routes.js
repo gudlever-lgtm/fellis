@@ -1081,4 +1081,73 @@ if (missingGroupApiFns.length > 0) {
   console.log(`${GREEN}✓ src/api.js exports all ${REQUIRED_GROUP_API_FNS.length} group membership and post functions.${RESET}\n`)
 }
 
+// ── 20. Translation system routes ────────────────────────────────────────────
+//
+// Three endpoints power the dynamic translation system:
+//
+//   POST /api/set-language          → 200 (valid lang) | 400 (invalid lang)
+//   GET  /api/content/:id?lang=en   → 200 (found)      | 404 (not found)   | 500 (DB/translate error)
+//
+// Static invariants:
+//   (a) POST /api/set-language is registered — never 404
+//   (b) GET /api/content/:id is registered   — never 404 at the routing level
+//   (c) translations.js returns 404 for missing content and 500 on errors
+//   (d) server/translate.js exists and references LIBRETRANSLATE_URL
+//   (e) 'fi' is included in VALID_LANGS (required by the set-language allowed list)
+
+const REQUIRED_TRANSLATION_SYSTEM_ROUTES = [
+  'POST /api/set-language',
+  'GET /api/content/:id',
+]
+
+const missingTranslationSystemRoutes = REQUIRED_TRANSLATION_SYSTEM_ROUTES.filter(r => {
+  const [method, p] = r.split(' ')
+  return !normServerRoutes.has(`${method} ${normaliseServerPath(p)}`)
+})
+
+if (missingTranslationSystemRoutes.length > 0) {
+  console.log(`${RED}✗ Missing required translation system server routes:${RESET}`)
+  for (const r of missingTranslationSystemRoutes) console.log(`  ${RED}${r}${RESET}`)
+  console.log()
+  process.exit(1)
+}
+
+const translationSystemErrors = []
+
+// (c) translations route must return 404 for missing content and 500 on errors
+if (!translationsSrc.includes('404')) {
+  translationSystemErrors.push('translations route is missing 404 responses')
+}
+if (!translationsSrc.includes('500')) {
+  translationSystemErrors.push('translations route is missing 500 error responses')
+}
+
+// (d) translate.js must exist and reference LIBRETRANSLATE_URL
+const translateModulePath = resolve(root, 'server/translate.js')
+if (!existsSync(translateModulePath)) {
+  translationSystemErrors.push('server/translate.js is missing — translation cache/LibreTranslate logic not implemented')
+} else {
+  const translateSrc = readFileSync(translateModulePath, 'utf8')
+  if (!translateSrc.includes('LIBRETRANSLATE_URL')) {
+    translationSystemErrors.push('server/translate.js does not reference LIBRETRANSLATE_URL')
+  }
+  if (!translateSrc.includes('translation_cache')) {
+    translationSystemErrors.push('server/translate.js does not query translation_cache — translations will never be cached')
+  }
+}
+
+// (e) 'fi' must be in VALID_LANGS
+if (!translationsSrc.includes("'fi'") && !translationsSrc.includes('"fi"')) {
+  translationSystemErrors.push("VALID_LANGS is missing 'fi' — POST /api/set-language rejects Finnish")
+}
+
+if (translationSystemErrors.length > 0) {
+  console.log(`${RED}✗ Translation system implementation issues:${RESET}`)
+  for (const e of translationSystemErrors) console.log(`  ${RED}${e}${RESET}`)
+  console.log()
+  process.exit(1)
+} else {
+  console.log(`${GREEN}✓ Translation system routes (set-language, content/:id) are registered; translate.js has cache + LibreTranslate wiring; VALID_LANGS includes 'fi'.${RESET}\n`)
+}
+
 process.exit(0)

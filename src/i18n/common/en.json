@@ -1,4 +1,25 @@
 {
+  "nav": {
+    "home": "Home",
+    "profile": "Profile",
+    "logout": "Log out",
+    "settings": "Settings"
+  },
+  "action": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "post": "Post",
+    "delete": "Delete"
+  },
+  "error": {
+    "generic": "Something went wrong — please try again",
+    "not_found": "Page not found",
+    "unauthorized": "You are not logged in"
+  },
+  "lang": {
+    "select": "Select language",
+    "changed": "Language changed"
+  },
   "actions": {
     "save": "Save",
     "cancel": "Cancel",
