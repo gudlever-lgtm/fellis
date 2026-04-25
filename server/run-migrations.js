@@ -138,6 +138,12 @@ async function run() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
 
+  // ── auto-approve all pending groups (groups are now self-approved on creation) ──
+  console.log('conversations (approve pending groups):')
+  await pool.query(
+    "UPDATE conversations SET group_status = 'active' WHERE is_group = 1 AND group_status = 'pending'"
+  )
+
   console.log('\nAll migrations complete.')
   process.exit(0)
 }
