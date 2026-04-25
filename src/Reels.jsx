@@ -322,12 +322,37 @@ function ReelCard({ reel, t, lang, currentUser, onDelete, onViewProfile }) {
       padding: '8px 16px',
     },
     commentItem: {
-      padding: '6px 0',
+      padding: '8px 0',
       borderBottom: '1px solid #2a2a2a',
-      color: '#eee',
-      fontSize: 13,
     },
-    commentAuthor: { fontWeight: 600, color: '#ccc', marginRight: 6 },
+    commentMeta: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 4,
+    },
+    commentAvatar: {
+      width: 26,
+      height: 26,
+      borderRadius: '50%',
+      objectFit: 'cover',
+      flexShrink: 0,
+    },
+    commentAvatarFallback: {
+      width: 26,
+      height: 26,
+      borderRadius: '50%',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: 10,
+      fontWeight: 700,
+      color: '#fff',
+      flexShrink: 0,
+    },
+    commentName: { fontWeight: 600, color: '#ccc', fontSize: 12 },
+    commentDate: { fontSize: 11, color: '#666', marginLeft: 'auto' },
+    commentText: { color: '#eee', fontSize: 13, paddingLeft: 34, lineHeight: 1.4 },
     commentForm: {
       display: 'flex',
       gap: 8,
@@ -596,8 +621,15 @@ function ReelCard({ reel, t, lang, currentUser, onDelete, onViewProfile }) {
               <div style={{ color: '#888', padding: '8px 0', fontSize: 13 }}>—</div>
             ) : comments.map(c => (
               <div key={c.id} style={s.commentItem}>
-                <span style={s.commentAuthor}>{c.author_name}</span>
-                {c.text}
+                <div style={s.commentMeta}>
+                  {c.author_avatar
+                    ? <img src={c.author_avatar} style={s.commentAvatar} alt="" />
+                    : <div style={{ ...s.commentAvatarFallback, background: nameToColor(c.author_name) }}>{getInitials(c.author_name)}</div>
+                  }
+                  <span style={s.commentName}>{c.author_name}</span>
+                  <span style={s.commentDate}>{fmtDate(c.created_at)}</span>
+                </div>
+                <div style={s.commentText}>{c.text}</div>
               </div>
             ))}
           </div>
