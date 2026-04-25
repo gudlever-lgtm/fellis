@@ -59,7 +59,7 @@ router.get('/profile/:id', authenticate, async (req, res) => {
     let users
     try {
       ;[users] = await pool.query(
-        `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url,
+        `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url, u.cover_photo_url,
           u.industry, u.seniority, u.job_title, u.company, u.professional_title,
           u.mode, u.follower_count, u.community_score,
           u.business_category, u.business_website, u.business_hours,
@@ -77,7 +77,7 @@ router.get('/profile/:id', authenticate, async (req, res) => {
     } catch {
       // Phase 1/2 migration columns not yet applied — fall back without them
       ;[users] = await pool.query(
-        `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url,
+        `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url, NULL AS cover_photo_url,
           u.industry, u.seniority, u.job_title, u.company, NULL AS professional_title,
           u.mode,
           0 AS follower_count, 0 AS community_score,
@@ -133,6 +133,7 @@ router.get('/profile/:id', authenticate, async (req, res) => {
       bio: { da: u.bio_da || '', en: u.bio_en || '' },
       location: u.location, joinDate: u.join_date,
       avatarUrl: u.avatar_url || null,
+      coverPhotoUrl: u.cover_photo_url || null,
       mode: u.mode || 'privat',
       industry: u.industry || null,
       seniority: u.seniority || null,
@@ -228,7 +229,7 @@ router.get('/profile', authenticate, async (req, res) => {
     let users
     try {
       ;[users] = await pool.query(
-        `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url,
+        `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url, u.cover_photo_url,
           u.email, u.google_id, u.linkedin_id,
           (u.password_hash IS NOT NULL AND u.password_hash != '') AS has_password,
           u.created_at, u.birthday, u.gender,
@@ -248,7 +249,7 @@ router.get('/profile', authenticate, async (req, res) => {
       try {
         // Fallback: without business_* columns
         ;[users] = await pool.query(
-          `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url,
+          `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url, NULL AS cover_photo_url,
             u.email, u.google_id, u.linkedin_id,
             (u.password_hash IS NOT NULL AND u.password_hash != '') AS has_password,
             u.created_at, u.birthday, u.gender,
@@ -267,7 +268,7 @@ router.get('/profile', authenticate, async (req, res) => {
       } catch {
         // Final fallback: without gender/mobilepay (migration not yet applied)
         ;[users] = await pool.query(
-          `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url,
+          `SELECT u.id, u.name, u.handle, u.initials, u.bio_da, u.bio_en, u.location, u.join_date, u.photo_count, u.avatar_url, NULL AS cover_photo_url,
             u.email, u.google_id, u.linkedin_id,
             (u.password_hash IS NOT NULL AND u.password_hash != '') AS has_password,
             u.created_at, u.birthday,
@@ -297,6 +298,7 @@ router.get('/profile', authenticate, async (req, res) => {
       bio: { da: u.bio_da || '', en: u.bio_en || '' },
       location: u.location, joinDate: u.join_date,
       avatarUrl: u.avatar_url || null,
+      coverPhotoUrl: u.cover_photo_url || null,
       mode: u.mode || 'privat',
       industry: u.industry || null,
       seniority: u.seniority || null,
