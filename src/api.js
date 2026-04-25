@@ -2424,6 +2424,10 @@ export const apiGetBusinessPartners = (id) => request(`/api/businesses/${id}/par
 export const apiSendBusinessInquiry = (id, subject, preferred_date, message) =>
   request(`/api/businesses/${id}/inquiry`, { method: 'POST', body: JSON.stringify({ subject, preferred_date, message }) })
 
+// Language preference
+export const apiSetLanguage = (lang) =>
+  request('/api/set-language', { method: 'POST', body: JSON.stringify({ lang }) })
+
 // User type selector
 export const apiUpdateUserType = (mode) =>
   request('/api/user/type', { method: 'PATCH', body: JSON.stringify({ mode }) })
