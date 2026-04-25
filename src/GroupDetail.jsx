@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import PostComposer from './PostComposer.jsx'
+import LocationAutocomplete from './components/LocationAutocomplete.jsx'
 import {
   apiGetGroup, apiGetGroupPosts, apiCreateGroupPost, apiDeleteGroupPost,
   apiPinGroupPost, apiReactToGroupPost, apiLeaveGroup, apiJoinGroup,
@@ -718,12 +719,13 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
                       value={eventDate}
                       onChange={e => setEventDate(e.target.value)}
                     />
-                    <input
-                      style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #E8E4DF', fontSize: 14, marginBottom: 12, boxSizing: 'border-box' }}
-                      placeholder={g.eventLocationPlaceholder}
+                    <LocationAutocomplete
                       value={eventLocation}
-                      onChange={e => setEventLocation(e.target.value)}
-                      maxLength={200}
+                      onChange={setEventLocation}
+                      onSelect={loc => loc && setEventLocation(loc.name)}
+                      lang={lang}
+                      placeholder={g.eventLocationPlaceholder}
+                      inputStyle={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #E8E4DF', fontSize: 14, marginBottom: 12, boxSizing: 'border-box' }}
                     />
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: '#5B4FCF', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer', opacity: (!eventTitle.trim() || eventSaving) ? 0.6 : 1 }} onClick={handleCreateEvent} disabled={!eventTitle.trim() || eventSaving}>
