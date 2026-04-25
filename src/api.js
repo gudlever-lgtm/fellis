@@ -1349,6 +1349,22 @@ export async function apiDeleteCalendarReminder(id) {
   return await request(`/api/calendar/reminders/${id}`, { method: 'DELETE' })
 }
 
+export async function apiFetchPersonalBirthdays() {
+  return await request('/api/calendar/birthdays')
+}
+
+export async function apiAddPersonalBirthday(name, birthday, relation) {
+  return await request('/api/calendar/birthdays', { method: 'POST', body: JSON.stringify({ name, birthday, relation }) })
+}
+
+export async function apiUpdatePersonalBirthday(id, name, birthday, relation) {
+  return await request(`/api/calendar/birthdays/${id}`, { method: 'PUT', body: JSON.stringify({ name, birthday, relation }) })
+}
+
+export async function apiDeletePersonalBirthday(id) {
+  return await request(`/api/calendar/birthdays/${id}`, { method: 'DELETE' })
+}
+
 export async function apiUpdateBirthday(birthday) {
   return await request('/api/profile/birthday', { method: 'PATCH', body: JSON.stringify({ birthday }) })
 }

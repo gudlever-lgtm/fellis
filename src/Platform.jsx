@@ -3,7 +3,7 @@ import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from 're
 import { UI_LANGS, EUROPEAN_LANGUAGES, INTEREST_CATEGORIES, REACTIONS, nameToColor, getInitials, getTranslations, PT } from './data.js'
 import { detectLanguage } from './utils/detectLanguage.js'
 import { formatPrice, formatPriceDKK } from './utils/currency.js'
-import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiRemoveConversationParticipant, apiMuteConversationParticipant, apiUploadAvatar, apiCheckSession, apiRequestAccountDelete, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiGetMarketplaceCategories, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiShareJob, apiUnshareJob, apiGetSharedJobs, apiGetJobSharedWith, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiSendEnableMfa, apiConfirmEnableMfa, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals, apiFetchCalendarReminders, apiCreateCalendarReminder, apiDeleteCalendarReminder, apiGetLinkedContent, apiFetchJobs, apiGetSuggestedUsers, apiAdminNotifyAll, apiLikeComment, apiAdminGetPlatformAds, apiAdminCreatePlatformAd, apiAdminUpdatePlatformAd, apiAdminDeletePlatformAd, apiAdminGetLockedUsers, apiAdminUnlockUser, apiFeedCompanyPosts, apiGetLivestreamSettings, apiSaveLivestreamSettings, apiGetLivestreamStats, apiGetLivestreamStatus,
+import { apiFetchFeed, apiCreatePost, apiGetPostLikers, apiToggleLike, apiAddComment, apiDeletePost, apiEditPost, apiFetchProfile, apiFetchProfilePhotos, apiFetchFriends, apiFetchConversations, apiMarkConversationRead, apiSendConversationMessage, apiFetchOlderConversationMessages, apiCreateConversation, apiInviteToConversation, apiMuteConversation, apiLeaveConversation, apiRenameConversation, apiRemoveConversationParticipant, apiMuteConversationParticipant, apiUploadAvatar, apiCheckSession, apiRequestAccountDelete, apiDeleteAccount, apiExportData, apiGetConsentStatus, apiWithdrawConsent, apiGetInviteLink, apiGetInvites, apiSendInvites, apiCancelInvite, apiLinkPreview, apiSearch, apiGetPost, apiSearchUsers, apiSendFriendRequest, apiFetchFriendRequests, apiAcceptFriendRequest, apiDeclineFriendRequest, apiCancelFriendRequest, apiUnfriend, apiToggleFamilyFriend, apiFetchListings, apiFetchMyListings, apiCreateListing, apiUpdateListing, apiMarkListingSold, apiDeleteListing, apiBoostListing, apiRelistListing, apiGetBoostedFeedListings, apiGetMarketplaceStats, apiGetMarketplaceCategories, apiRecordListingView, apiGetAdminSettings, apiSaveAdminSettings, apiGetAdminStats, apiGetAnalytics, apiFetchEvents, apiCreateEvent, apiRsvpEvent, apiUpdateEvent, apiDeleteEvent, apiUpdateMode, apiUpdatePlan, apiUpdateInterests, apiUpdateTags, apiUpdateProfileExtended, apiGetFeedWeights, apiSaveFeedWeights, apiGetInterestStats, apiGetReferralDashboard, apiGetLeaderboard, apiGetBadges, apiToggleProfilePublic, apiTrackShare, apiGetAdminViralStats, apiGetGroupSuggestions, apiJoinGroup, apiFetchReels, apiFetchCalendarEvents, apiUpdateBirthday, openSSE, apiBlockUser, apiUnblockUser, apiReportContent, apiFetchUserPosts, apiGetModerationQueue, apiDismissReport, apiModerateRemoveContent, apiWarnUser, apiSuspendUser, apiBanUser, apiUnbanUser, apiGetModerationUsers, apiGetKeywordFilters, apiAddKeywordFilter, apiUpdateKeywordFilter, apiDeleteKeywordFilter, apiGetModerationActions, apiGetModeratorCandidates, apiUpdateModeratorCandidate, apiGetModerators, apiGrantModerator, apiRevokeModerator, apiGetModeratorRequests, apiApproveModeratorRequest, apiDenyModeratorRequest, apiRevealAdminKey, apiGetMyModeratorRequest, apiRequestModeratorStatus, apiWithdrawModeratorRequest, apiGetPostInsights, apiPreflightPost, apiGetChangelog, apiGetConfig, apiGetMyJobs, apiGetNotifications, apiGetNotificationCount, apiTestNotification, apiGetVisitorStats, apiHeartbeat, apiMarkAllNotificationsRead, apiMarkNotificationRead, apiUpdateProfile, apiUploadFile, apiCreateAd, apiGetMyAds, apiUpdateAd, apiDeleteAd, apiGetSubscription, apiGetAdPrice, apiGetAdminAdSettings, apiSaveAdminAdSettings, apiGetAdminAdStats, apiGetMollieStatus, apiCreateMolliePayment, apiCancelMollieSubscription, apiGetSuggestedPosts, apiFetchMemories, apiApplyToJobFull, apiGetJobApplications, apiUpdateJobApplication, apiTrackJob, apiGetTrackedJobs, apiShareJob, apiUnshareJob, apiGetSharedJobs, apiGetJobSharedWith, apiGetCVProfile, apiGetPublicCVProfile, apiSetCVVisibility, apiAddWorkExperience, apiUpdateWorkExperience, apiDeleteWorkExperience, apiAddEducation, apiUpdateEducation, apiDeleteEducation, apiAddLanguage, apiUpdateLanguage, apiDeleteLanguage, apiGenerateCV, apiGetContactNote, apiSaveContactNote, apiGetAllContactNotes, apiGetScheduledPosts, apiReschedulePost, apiSubmitCompanyLead, apiGetCompanyLeads, apiUpdateCompanyLead, apiGetAdminStatDetail, apiSuggestCategory, apiSendEnableMfa, apiConfirmEnableMfa, apiEnableMfa, apiDisableMfa, apiSendSettingsMfa, apiUpdatePhone, apiGetAdminMfaUsers, apiAdminForceDisableMfa, apiIngestSignals, apiFetchCalendarReminders, apiCreateCalendarReminder, apiDeleteCalendarReminder, apiFetchPersonalBirthdays, apiAddPersonalBirthday, apiUpdatePersonalBirthday, apiDeletePersonalBirthday, apiGetLinkedContent, apiFetchJobs, apiGetSuggestedUsers, apiAdminNotifyAll, apiLikeComment, apiAdminGetPlatformAds, apiAdminCreatePlatformAd, apiAdminUpdatePlatformAd, apiAdminDeletePlatformAd, apiAdminGetLockedUsers, apiAdminUnlockUser, apiFeedCompanyPosts, apiGetLivestreamSettings, apiSaveLivestreamSettings, apiGetLivestreamStats, apiGetLivestreamStatus,
   apiGetStreamKey, apiRegenerateStreamKey, apiGetMarketplaceAlerts, apiCreateMarketplaceAlert, apiUpdateMarketplaceAlert, apiDeleteMarketplaceAlert,
   apiGetEurDkkRate, apiFetchFriendSuggestions,
   apiFetchNetworkFeed, apiFetchBusinessFeed } from './api.js'
@@ -17579,12 +17579,23 @@ function CalendarPage({ lang, t, currentUser }) {
   const [adfreeAssigning, setAdfreeAssigning] = useState(false)
   const [adfreeError, setAdfreeError] = useState('')
   const [adfreeSuccess, setAdfreeSuccess] = useState('')
+  const isPrivat = currentUser.mode === 'privat'
+  const [personalBirthdays, setPersonalBirthdays] = useState([])
+  const [showBirthdayForm, setShowBirthdayForm] = useState(false)
+  const [editingBirthday, setEditingBirthday] = useState(null)
+  const [bdName, setBdName] = useState('')
+  const [bdDate, setBdDate] = useState('')
+  const [bdRelation, setBdRelation] = useState('family')
+  const [bdSaving, setBdSaving] = useState(false)
 
   useEffect(() => {
     apiFetchCalendarEvents().then(data => { if (data) setCalData(data) })
     apiFetchCalendarReminders().then(data => { if (data?.reminders) setReminders(data.reminders) })
     apiGetAdfreeAssignments().then(data => { if (data?.assignments) setAdfreeAssignments(data.assignments) })
     apiGetAdfreeBank().then(data => { if (data?.bankDays != null) setBankDays(data.bankDays) })
+    if (currentUser.mode === 'privat') {
+      apiFetchPersonalBirthdays().then(data => { if (data?.birthdays) setPersonalBirthdays(data.birthdays) })
+    }
   }, [])
 
   const handleAddReminder = async (e) => {
@@ -17604,6 +17615,44 @@ function CalendarPage({ lang, t, currentUser }) {
   const handleDeleteReminder = async (id) => {
     await apiDeleteCalendarReminder(id)
     setReminders(prev => prev.filter(r => r.id !== id))
+  }
+
+  const openBirthdayForm = (bd = null) => {
+    setEditingBirthday(bd)
+    setBdName(bd ? bd.name : '')
+    setBdDate(bd ? bd.birthday : '')
+    setBdRelation(bd ? bd.relation : 'family')
+    setShowBirthdayForm(true)
+  }
+
+  const closeBirthdayForm = () => { setShowBirthdayForm(false); setEditingBirthday(null); setBdName(''); setBdDate(''); setBdRelation('family') }
+
+  const handleSaveBirthday = async (e) => {
+    e.preventDefault()
+    if (!bdName.trim() || !bdDate) return
+    setBdSaving(true)
+    if (editingBirthday) {
+      const res = await apiUpdatePersonalBirthday(editingBirthday.id, bdName.trim(), bdDate, bdRelation)
+      if (res?.ok) {
+        setPersonalBirthdays(prev => prev.map(b => b.id === editingBirthday.id ? { ...b, name: bdName.trim(), birthday: bdDate, relation: bdRelation } : b))
+        apiFetchCalendarEvents().then(data => { if (data) setCalData(data) })
+        closeBirthdayForm()
+      }
+    } else {
+      const res = await apiAddPersonalBirthday(bdName.trim(), bdDate, bdRelation)
+      if (res?.id) {
+        setPersonalBirthdays(prev => [...prev, res])
+        apiFetchCalendarEvents().then(data => { if (data) setCalData(data) })
+        closeBirthdayForm()
+      }
+    }
+    setBdSaving(false)
+  }
+
+  const handleDeleteBirthday = async (id) => {
+    await apiDeletePersonalBirthday(id)
+    setPersonalBirthdays(prev => prev.filter(b => b.id !== id))
+    apiFetchCalendarEvents().then(data => { if (data) setCalData(data) })
   }
 
   const isAdfreeDate = (dateKey) => adfreeAssignments.some(a => a.startDate <= dateKey && dateKey <= a.endDate)
@@ -18010,6 +18059,98 @@ function CalendarPage({ lang, t, currentUser }) {
               </div>
             )
           })()}
+        </div>
+      )}
+
+      {/* Personal birthday management — privat mode only */}
+      {isPrivat && (
+        <div style={{ marginTop: 28, background: 'var(--card-bg, #fff)', border: '1px solid var(--border, #eee)', borderRadius: 12, padding: '16px 20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text, #111)', display: 'flex', alignItems: 'center', gap: 8 }}>
+              🎂 {t.calendarPersonalBirthdaysTitle}
+            </div>
+            {!showBirthdayForm && (
+              <button
+                onClick={() => openBirthdayForm()}
+                style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: '1px solid #E07A5F', borderRadius: 8, padding: '5px 12px', cursor: 'pointer', fontSize: 13, color: '#E07A5F', fontWeight: 600 }}
+              >
+                + {t.calendarPersonalBirthdayAdd}
+              </button>
+            )}
+          </div>
+
+          {showBirthdayForm && (
+            <form onSubmit={handleSaveBirthday} style={{ marginBottom: 16, background: 'var(--bg, #f8f8f8)', borderRadius: 10, padding: '12px 14px', border: '1px solid #f5c4b6' }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                <input
+                  autoFocus
+                  required
+                  value={bdName}
+                  onChange={e => setBdName(e.target.value)}
+                  placeholder={t.calendarPersonalBirthdayName}
+                  style={{ flex: 2, minWidth: 120, padding: '8px 10px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }}
+                />
+                <input
+                  required
+                  type="date"
+                  value={bdDate}
+                  onChange={e => setBdDate(e.target.value)}
+                  style={{ flex: 1, minWidth: 120, padding: '8px 10px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }}
+                />
+                <select
+                  value={bdRelation}
+                  onChange={e => setBdRelation(e.target.value)}
+                  style={{ flex: 1, minWidth: 100, padding: '8px 10px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box', background: 'var(--card-bg,#fff)' }}
+                >
+                  <option value="self">{t.calendarPersonalBirthdayRelationSelf}</option>
+                  <option value="family">{t.calendarPersonalBirthdayRelationFamily}</option>
+                  <option value="friend">{t.calendarPersonalBirthdayRelationFriend}</option>
+                  <option value="other">{t.calendarPersonalBirthdayRelationOther}</option>
+                </select>
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <button type="submit" disabled={bdSaving} style={{ padding: '7px 18px', borderRadius: 7, border: 'none', background: '#E07A5F', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+                  {bdSaving ? '…' : t.calendarPersonalBirthdaySave}
+                </button>
+                <button type="button" onClick={closeBirthdayForm} style={{ padding: '7px 14px', borderRadius: 7, border: '1px solid #ddd', background: 'none', fontSize: 13, cursor: 'pointer' }}>
+                  {t.calendarPersonalBirthdayCancel}
+                </button>
+                <span style={{ fontSize: 12, color: 'var(--text-muted,#888)', marginLeft: 4 }}>🔔 {t.calendarPersonalBirthdayReminderNote}</span>
+              </div>
+            </form>
+          )}
+
+          {personalBirthdays.length === 0 && !showBirthdayForm ? (
+            <p style={{ color: 'var(--text-muted, #888)', fontSize: 14, margin: 0 }}>{t.calendarPersonalBirthdaysEmpty}</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {personalBirthdays.map(b => {
+                const color = nameToColor(b.name)
+                const bdObj = new Date(b.birthday + 'T12:00:00')
+                const age = !isNaN(bdObj) ? today.getFullYear() - bdObj.getFullYear() : null
+                const dateLabel = !isNaN(bdObj) ? bdObj.toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-US', { day: 'numeric', month: 'long' }) : b.birthday
+                const relLabel = { self: t.calendarPersonalBirthdayRelationSelf, family: t.calendarPersonalBirthdayRelationFamily, friend: t.calendarPersonalBirthdayRelationFriend, other: t.calendarPersonalBirthdayRelationOther }[b.relation] || b.relation
+                return (
+                  <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: 'var(--bg,#f9f9f9)', borderRadius: 8, border: '1px solid var(--border,#eee)' }}>
+                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                      {b.name.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text,#111)' }}>{b.name}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted,#888)' }}>{dateLabel}{age !== null && age > 0 ? ` · ${age} ${t.yearsOld}` : ''} · {relLabel}</div>
+                    </div>
+                    <button onClick={() => openBirthdayForm(b)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#888', padding: '2px 6px' }} title={t.calendarPersonalBirthdayEdit}>✎</button>
+                    <button onClick={() => handleDeleteBirthday(b.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#e74c3c', padding: '2px 6px' }} title={t.calendarPersonalBirthdayDelete}>✕</button>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+          {!showBirthdayForm && personalBirthdays.length > 0 && (
+            <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text-muted,#888)', display: 'flex', alignItems: 'center', gap: 4 }}>
+              🔔 {t.calendarPersonalBirthdayReminderNote}
+            </div>
+          )}
         </div>
       )}
     </div>

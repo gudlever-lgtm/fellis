@@ -2099,6 +2099,19 @@ router.get('/calendar/events', authenticate, async (req, res) => {
       date: u.birthday, // full YYYY-MM-DD stored, client uses MM-DD for yearly repeat
     }))
 
+    // Add manually tracked personal birthdays (privat mode feature)
+    const [personalRows] = await pool.query(
+      'SELECT id, name, birthday, relation FROM personal_birthdays WHERE user_id = ?',
+      [req.userId]
+    ).catch(() => [[]])
+    personalRows.forEach(pb => {
+      let dateStr = String(pb.birthday).slice(0, 10)
+      if (pb.birthday instanceof Date) {
+        dateStr = `${pb.birthday.getUTCFullYear()}-${String(pb.birthday.getUTCMonth() + 1).padStart(2, '0')}-${String(pb.birthday.getUTCDate()).padStart(2, '0')}`
+      }
+      birthdays.push({ personalId: pb.id, userId: null, name: pb.name, initials: pb.name.slice(0, 2).toUpperCase(), avatarUrl: null, date: dateStr, relation: pb.relation })
+    })
+
     // Get platform events
     const [eventRows] = await pool.query(
       `SELECT e.id, e.title, e.date, e.location, e.event_type,
@@ -2175,6 +2188,85 @@ router.delete('/calendar/reminders/:id', authenticate, async (req, res) => {
     res.json({ ok: true })
   } catch (err) {
     console.error('DELETE /api/calendar/reminders/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+
+router.get('/calendar/birthdays', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT id, name, birthday, relation FROM personal_birthdays WHERE user_id = ? ORDER BY DATE_FORMAT(birthday, "%m-%d")',
+      [req.userId]
+    )
+    const birthdays = rows.map(r => {
+      let dateStr = String(r.birthday).slice(0, 10)
+      if (r.birthday instanceof Date) {
+        dateStr = `${r.birthday.getUTCFullYear()}-${String(r.birthday.getUTCMonth() + 1).padStart(2, '0')}-${String(r.birthday.getUTCDate()).padStart(2, '0')}`
+      }
+      return { id: r.id, name: r.name, birthday: dateStr, relation: r.relation }
+    })
+    res.json({ birthdays })
+  } catch (err) {
+    console.error('GET /api/calendar/birthdays error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+
+router.post('/calendar/birthdays', authenticate, writeLimit, async (req, res) => {
+  const { name, birthday, relation } = req.body
+  if (!name || !name.trim()) return res.status(400).json({ error: 'name is required' })
+  if (!birthday || !/^\d{4}-\d{2}-\d{2}$/.test(birthday)) return res.status(400).json({ error: 'Invalid date format (YYYY-MM-DD)' })
+  const validRelations = ['self', 'family', 'friend', 'other']
+  const rel = validRelations.includes(relation) ? relation : 'family'
+  try {
+    const [result] = await pool.query(
+      'INSERT INTO personal_birthdays (user_id, name, birthday, relation) VALUES (?, ?, ?, ?)',
+      [req.userId, name.trim().slice(0, 255), birthday, rel]
+    )
+    res.json({ id: result.insertId, name: name.trim(), birthday, relation: rel })
+  } catch (err) {
+    console.error('POST /api/calendar/birthdays error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+
+router.put('/calendar/birthdays/:id', authenticate, writeLimit, async (req, res) => {
+  const id = parseInt(req.params.id)
+  if (!id) return res.status(400).json({ error: 'Invalid id' })
+  const { name, birthday, relation } = req.body
+  if (!name || !name.trim()) return res.status(400).json({ error: 'name is required' })
+  if (!birthday || !/^\d{4}-\d{2}-\d{2}$/.test(birthday)) return res.status(400).json({ error: 'Invalid date format (YYYY-MM-DD)' })
+  const validRelations = ['self', 'family', 'friend', 'other']
+  const rel = validRelations.includes(relation) ? relation : 'family'
+  try {
+    const [result] = await pool.query(
+      'UPDATE personal_birthdays SET name = ?, birthday = ?, relation = ? WHERE id = ? AND user_id = ?',
+      [name.trim().slice(0, 255), birthday, rel, id, req.userId]
+    )
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Not found' })
+    res.json({ ok: true, id, name: name.trim(), birthday, relation: rel })
+  } catch (err) {
+    console.error('PUT /api/calendar/birthdays/:id error:', err.message)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+
+router.delete('/calendar/birthdays/:id', authenticate, async (req, res) => {
+  const id = parseInt(req.params.id)
+  if (!id) return res.status(400).json({ error: 'Invalid id' })
+  try {
+    const [result] = await pool.query(
+      'DELETE FROM personal_birthdays WHERE id = ? AND user_id = ?',
+      [id, req.userId]
+    )
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Not found' })
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/calendar/birthdays/:id error:', err.message)
     res.status(500).json({ error: 'Server error' })
   }
 })

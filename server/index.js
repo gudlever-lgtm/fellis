@@ -1556,6 +1556,43 @@ setInterval(runDataRetentionCleanup, 6 * 60 * 60 * 1000)
 // Also run once on startup
 runDataRetentionCleanup()
 
+// ── Birthday reminder notifications — runs daily at 08:00 ────────────────────
+async function sendBirthdayReminders() {
+  try {
+    // Find personal birthdays whose MM-DD matches tomorrow
+    const [rows] = await pool.query(
+      `SELECT pb.user_id, pb.name, pb.relation
+       FROM personal_birthdays pb
+       WHERE DATE_FORMAT(pb.birthday, '%m-%d') = DATE_FORMAT(DATE_ADD(CURDATE(), INTERVAL 1 DAY), '%m-%d')`
+    )
+    for (const row of rows) {
+      const nameDa = row.name
+      await createNotification(
+        row.user_id,
+        'birthday_reminder',
+        `🎂 I morgen er det ${nameDa}s fødselsdag`,
+        `🎂 Tomorrow is ${nameDa}'s birthday`
+      )
+    }
+    if (rows.length > 0) console.log(`[BirthdayReminders] sent ${rows.length} reminder(s)`)
+  } catch (err) {
+    console.error('[BirthdayReminders] error:', err.message)
+  }
+}
+
+function scheduleBirthdayReminders() {
+  const now = new Date()
+  const next8am = new Date(now)
+  next8am.setHours(8, 0, 0, 0)
+  if (next8am <= now) next8am.setDate(next8am.getDate() + 1)
+  const msUntil = next8am - now
+  setTimeout(() => {
+    sendBirthdayReminders()
+    setInterval(sendBirthdayReminders, 24 * 60 * 60 * 1000)
+  }, msUntil)
+}
+scheduleBirthdayReminders()
+
 // ── Background bot activity — bots react to recent posts every few minutes ──
 const BOT_HANDLES = ['@anna.bot', '@erik.bot']
 const BOT_REACTIONS = ['❤️', '👍', '😄', '😮', '❤️', '👍', '❤️'] // weighted positive
