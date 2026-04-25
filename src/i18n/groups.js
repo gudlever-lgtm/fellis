@@ -90,6 +90,10 @@ export default {
       promote: 'Forfrem til moderator',
       demote: 'Nedgrader til medlem',
       removeMember: 'Fjern fra gruppe',
+      pendingRequests: 'Anmodninger om medlemskab',
+      noPendingRequests: 'Ingen afventende anmodninger',
+      approveMember: 'Godkend',
+      rejectMember: 'Afvis',
       // Events tab
       noEvents: 'Ingen kommende begivenheder',
       rsvpGoing: 'Deltager',
@@ -221,6 +225,10 @@ export default {
       promote: 'Promote to moderator',
       demote: 'Demote to member',
       removeMember: 'Remove from group',
+      pendingRequests: 'Membership requests',
+      noPendingRequests: 'No pending requests',
+      approveMember: 'Approve',
+      rejectMember: 'Reject',
       // Events tab
       noEvents: 'No upcoming events',
       rsvpGoing: 'Going',

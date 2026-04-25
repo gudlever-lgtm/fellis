@@ -217,6 +217,8 @@ router.post('/conversations/:id/mute', authenticate, writeLimit, async (req, res
 router.delete('/conversations/:id/leave', authenticate, writeLimit, async (req, res) => {
   const convId = parseInt(req.params.id)
   try {
+    const [[conv]] = await pool.query('SELECT is_group FROM conversations WHERE id = ?', [convId])
+    if (conv?.is_group) return res.status(400).json({ error: 'Use the group leave endpoint for groups' })
     await pool.query(
       'DELETE FROM conversation_participants WHERE conversation_id = ? AND user_id = ?', [convId, req.userId])
     res.json({ ok: true })

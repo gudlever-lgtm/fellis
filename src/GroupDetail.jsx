@@ -4,6 +4,7 @@ import {
   apiGetGroup, apiGetGroupPosts, apiCreateGroupPost, apiDeleteGroupPost,
   apiPinGroupPost, apiReactToGroupPost, apiLeaveGroup, apiJoinGroup,
   apiGetGroupMembers, apiUpdateGroupMemberRole, apiRemoveGroupMember,
+  apiGetGroupPendingMembers, apiApproveGroupMember, apiRejectGroupMember,
   apiGetGroupEvents, apiRsvpGroupEvent,
   apiGetGroupPolls, apiVoteGroupPoll, apiGetGroupInviteLink,
   apiMuteConversation,
@@ -62,6 +63,8 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
   const [composerPreview, setComposerPreview] = useState(null)
   const [members, setMembers] = useState([])
   const [membersLoading, setMembersLoading] = useState(false)
+  const [pendingMembers, setPendingMembers] = useState([])
+  const [pendingLoading, setPendingLoading] = useState(false)
   const [events, setEvents] = useState([])
   const [eventsLoading, setEventsLoading] = useState(false)
   const [polls, setPolls] = useState([])
@@ -188,6 +191,14 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
       setMembersLoading(false)
       if (data?.members) setMembers(data.members)
     })
+    const myRole = group.membership?.role
+    if (myRole === 'admin' || myRole === 'moderator') {
+      setPendingLoading(true)
+      apiGetGroupPendingMembers(group.id).then(data => {
+        setPendingLoading(false)
+        if (data?.pending) setPendingMembers(data.pending)
+      })
+    }
   }, [tab, loadState, group?.id])
 
   useEffect(() => {
@@ -216,6 +227,23 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
       setMembers(prev => prev.filter(m => m.id !== userId))
       setGroup(prev => ({ ...prev, member_count: Math.max(0, prev.member_count - 1) }))
     }
+  }
+
+  const handleApproveMember = async (userId) => {
+    const res = await apiApproveGroupMember(group.id, userId)
+    if (res?.ok) {
+      const approved = pendingMembers.find(m => m.id === userId)
+      setPendingMembers(prev => prev.filter(m => m.id !== userId))
+      if (approved) {
+        setMembers(prev => [...prev, { ...approved, role: 'member' }])
+        setGroup(prev => ({ ...prev, member_count: prev.member_count + 1 }))
+      }
+    }
+  }
+
+  const handleRejectMember = async (userId) => {
+    const res = await apiRejectGroupMember(group.id, userId)
+    if (res?.ok) setPendingMembers(prev => prev.filter(m => m.id !== userId))
   }
 
   useEffect(() => {
@@ -544,6 +572,32 @@ export default function GroupDetail({ slug, lang, currentUser, onNavigate }) {
         )}
         {tab === 'members' && (
           <div>
+            {isMod && (pendingLoading || pendingMembers.length > 0) && (
+              <div style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 10, padding: '12px 16px', marginBottom: 16 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#92400E', marginBottom: 8 }}>
+                  {g.pendingRequests}{pendingMembers.length > 0 ? ` (${pendingMembers.length})` : ''}
+                </div>
+                {pendingLoading ? (
+                  <div style={{ fontSize: 13, color: '#aaa' }}>{g.loading}</div>
+                ) : pendingMembers.map(pm => (
+                  <div key={pm.id} style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 8 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0, background: nameToColor(pm.name), color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, overflow: 'hidden' }}>
+                      {pm.avatar_url
+                        ? <img src={pm.avatar_url.startsWith('http') ? pm.avatar_url : `${API_BASE}${pm.avatar_url}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        : getInitials(pm.name)
+                      }
+                    </div>
+                    <div style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>{pm.name}</div>
+                    <button style={{ padding: '4px 12px', borderRadius: 6, border: 'none', background: '#5B4FCF', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }} onClick={() => handleApproveMember(pm.id)}>
+                      {g.approveMember}
+                    </button>
+                    <button style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid #DC2626', background: '#fff', color: '#DC2626', fontSize: 12, fontWeight: 600, cursor: 'pointer' }} onClick={() => handleRejectMember(pm.id)}>
+                      {g.rejectMember}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
             {membersLoading ? (
               <div style={s.feedEmpty}>{g.loading}</div>
             ) : members.length === 0 ? (
